@@ -1,0 +1,71 @@
+syntax = "proto3";
+package n3mapping;
+
+// 3D 位姿
+message Pose3D {
+    double tx = 1;
+    double ty = 2;
+    double tz = 3;
+    double qx = 4;
+    double qy = 5;
+    double qz = 6;
+    double qw = 7;  // 注意：qw 在最后是标准做法
+                    // Eigen 内部存储顺序是 (x,y,z,w)，但构造函数是 Quaterniond(w,x,y,z)
+}
+
+// 6x6 信息矩阵 (上三角存储)
+message InformationMatrix {
+    repeated double values = 1;  // 21 个元素
+}
+
+// 点云数据
+message PointCloudData {
+    repeated float points = 1;  // x,y,z,intensity 交错存储
+    uint32 num_points = 2;
+}
+
+// ScanContext 描述子
+message ScanContextDescriptor {
+    repeated double values = 1;
+    uint32 rows = 2;
+    uint32 cols = 3;
+}
+
+// 关键帧
+message KeyframeProto {
+    int64 id = 1;
+    double timestamp = 2;
+    Pose3D pose_odom = 3;
+    Pose3D pose_optimized = 4;
+    PointCloudData cloud = 5;
+    ScanContextDescriptor sc_descriptor = 6;
+}
+
+// 约束边
+message EdgeProto {
+    int64 from_id = 1;
+    int64 to_id = 2;
+    Pose3D measurement = 3;
+    InformationMatrix information = 4;
+    enum EdgeType {
+        ODOMETRY = 0;
+        LOOP = 1;
+    }
+    EdgeType type = 5;
+}
+
+// 地图元数据
+message MapMetadata {
+    string version = 1;
+    double creation_timestamp = 2;
+    uint32 num_keyframes = 3;
+    uint32 num_odometry_edges = 4;
+    uint32 num_loop_edges = 5;
+}
+
+// 完整地图
+message N3Map {
+    MapMetadata metadata = 1;
+    repeated KeyframeProto keyframes = 2;
+    repeated EdgeProto edges = 3;
+}

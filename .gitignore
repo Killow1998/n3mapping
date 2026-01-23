@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+install/
+log/
+
+# Generated code
+proto_gen/
+
+# Maps (large data)
+map/*
+map copy/
+
+# Editors/OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
