@@ -61,8 +61,7 @@ PointCloudMatcher::preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, dou
     auto raw_cloud = convertToSmallGicp(cloud);
 
     // 下采样 (使用 OpenMP 加速)
-    auto downsampled =
-      small_gicp::voxelgrid_sampling_omp<SmallGicpCloud>(*raw_cloud, downsampling_resolution, config_.num_threads);
+    auto downsampled = small_gicp::voxelgrid_sampling_omp<SmallGicpCloud>(*raw_cloud, downsampling_resolution, config_.num_threads);
 
     if (downsampled->empty()) {
         LOG(WARNING) << "[PointCloudMatcher] Downsampled point cloud is empty";
@@ -87,8 +86,7 @@ PointCloudMatcher::preprocessSourcePointCloud(const PointCloudT::Ptr& cloud, dou
     }
 
     auto raw_cloud = convertToSmallGicp(cloud);
-    auto downsampled =
-      small_gicp::voxelgrid_sampling_omp<SmallGicpCloud>(*raw_cloud, downsampling_resolution, config_.num_threads);
+    auto downsampled = small_gicp::voxelgrid_sampling_omp<SmallGicpCloud>(*raw_cloud, downsampling_resolution, config_.num_threads);
 
     return downsampled;
 }
@@ -137,7 +135,13 @@ PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe::Ptr& sourc
         }
 
         // 执行配准
-        auto reg_result = small_gicp::align(*target_processed, *source_processed, *target_tree, init_guess, setting_);
+        auto local_setting = setting_;
+        local_setting.type = small_gicp::RegistrationSetting::GICP;
+        auto reg_result = small_gicp::align(*target_processed, *source_processed, *target_tree, init_guess, local_setting);
+
+        VLOG(1) << "[PointCloudMatcher] align: target=" << target_processed->size() << ", source=" << source_processed->size()
+                << ", converged=" << reg_result.converged << ", iters=" << reg_result.iterations << ", inliers=" << reg_result.num_inliers
+                << ", error=" << reg_result.error;
 
         // 填充结果
         result.T_target_source = reg_result.T_target_source;
@@ -145,7 +149,15 @@ PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe::Ptr& sourc
         result.num_inliers = reg_result.num_inliers;
         result.inlier_ratio =
           source_processed->empty() ? 0.0 : (static_cast<double>(reg_result.num_inliers) / static_cast<double>(source_processed->size()));
-        result.information = reg_result.H;
+        // small_gicp Hessian is (rotation, translation) order [rx,ry,rz, tx,ty,tz]
+        // Convert to our internal (translation, rotation) convention
+        {
+            const auto& H = reg_result.H;
+            result.information.block<3, 3>(0, 0) = H.block<3, 3>(3, 3);
+            result.information.block<3, 3>(0, 3) = H.block<3, 3>(3, 0);
+            result.information.block<3, 3>(3, 0) = H.block<3, 3>(0, 3);
+            result.information.block<3, 3>(3, 3) = H.block<3, 3>(0, 0);
+        }
 
         // 计算配准得分 (平均误差)
         if (reg_result.num_inliers > 0) {
@@ -276,7 +288,14 @@ PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointC
         result.converged = coarse_converged;
         result.num_inliers = coarse_num_inliers;
         result.inlier_ratio = coarse_inlier_ratio;
-        result.information = coarse_H;
+        // small_gicp Hessian is (rotation, translation) order; convert to (translation, rotation)
+        {
+            const auto& H = coarse_H;
+            result.information.block<3, 3>(0, 0) = H.block<3, 3>(3, 3);
+            result.information.block<3, 3>(0, 3) = H.block<3, 3>(3, 0);
+            result.information.block<3, 3>(3, 0) = H.block<3, 3>(0, 3);
+            result.information.block<3, 3>(3, 3) = H.block<3, 3>(0, 0);
+        }
         result.fitness_score = coarse_fitness;
         if (coarse_converged && coarse_fitness < config_.gicp_fitness_threshold) {
             result.success = true;
@@ -288,13 +307,10 @@ PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointC
             const double delta_translation = delta.translation().norm();
             const double delta_rotation = Eigen::AngleAxisd(delta.rotation()).angle();
 
-            if (delta_translation <= config_.icp_refine_delta_translation_gate &&
-                delta_rotation <= config_.icp_refine_delta_rotation_gate) {
+            if (delta_translation <= config_.icp_refine_delta_translation_gate && delta_rotation <= config_.icp_refine_delta_rotation_gate) {
 
-                auto [target_refine, target_refine_tree] =
-                  preprocessTargetPointCloud(target_cloud, config_.icp_refine_downsampling_resolution);
-                auto [source_refine, source_refine_tree] =
-                  preprocessTargetPointCloud(source_cloud, config_.icp_refine_downsampling_resolution);
+                auto [target_refine, target_refine_tree] = preprocessTargetPointCloud(target_cloud, config_.icp_refine_downsampling_resolution);
+                auto [source_refine, source_refine_tree] = preprocessTargetPointCloud(source_cloud, config_.icp_refine_downsampling_resolution);
 
                 if (target_refine_tree && target_refine->size() >= 10 && source_refine->size() >= 10) {
                     auto refine_setting = setting_;
@@ -303,8 +319,7 @@ PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointC
                     refine_setting.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
                     refine_setting.downsampling_resolution = config_.icp_refine_downsampling_resolution;
 
-                    auto refine_result =
-                      small_gicp::align(*target_refine, *source_refine, *target_refine_tree, T, refine_setting);
+                    auto refine_result = small_gicp::align(*target_refine, *source_refine, *target_refine_tree, T, refine_setting);
 
                     double refine_fitness = std::numeric_limits<double>::max();
                     if (refine_result.num_inliers > 0) {
@@ -318,9 +333,15 @@ PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointC
                         result.num_inliers = refine_result.num_inliers;
                         result.inlier_ratio = source_refine->empty()
                                                 ? 0.0
-                                                : (static_cast<double>(refine_result.num_inliers) /
-                                                   static_cast<double>(source_refine->size()));
-                        result.information = refine_result.H;
+                                                : (static_cast<double>(refine_result.num_inliers) / static_cast<double>(source_refine->size()));
+                        // small_gicp Hessian is (rotation, translation) order; convert to (translation, rotation)
+                        {
+                            const auto& H = refine_result.H;
+                            result.information.block<3, 3>(0, 0) = H.block<3, 3>(3, 3);
+                            result.information.block<3, 3>(0, 3) = H.block<3, 3>(3, 0);
+                            result.information.block<3, 3>(3, 0) = H.block<3, 3>(0, 3);
+                            result.information.block<3, 3>(3, 3) = H.block<3, 3>(0, 0);
+                        }
                         result.fitness_score = refine_fitness;
                         result.success = true;
                     }

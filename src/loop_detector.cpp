@@ -333,6 +333,7 @@ LoopDetector::verifyLoopCandidate(const LoopCandidate& candidate,
     MatchResult match_result = matcher.align(match_keyframe, query_keyframe, init_guess);
 
     result.fitness_score = match_result.fitness_score;
+    result.inlier_ratio = match_result.inlier_ratio;
     result.T_match_query = match_result.T_target_source;
     result.information = match_result.information;
 

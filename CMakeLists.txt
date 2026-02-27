@@ -23,14 +23,13 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(cv_bridge REQUIRED)
-# small_gicp (通过 colcon 编译安装后 find_package 查找)
-find_package(small_gicp REQUIRED)
 
 # PCL
 find_package(PCL REQUIRED COMPONENTS common io filters)
@@ -46,6 +45,9 @@ find_package(GTSAM REQUIRED)
 
 # Protobuf
 find_package(Protobuf REQUIRED)
+
+# small_gicp
+find_package(small_gicp REQUIRED)
 
 # GLOG
 find_package(Glog REQUIRED)
@@ -121,10 +123,12 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/keyframe_manager.cpp
   src/point_cloud_matcher.cpp
   src/loop_detector.cpp
+  src/loop_closure_manager.cpp
   src/graph_optimizer.cpp
   src/map_serializer.cpp
-  src/relocalization_module.cpp
-  src/map_extension_module.cpp
+  src/mode_handlers.cpp
+  src/world_localizing.cpp
+  src/mapping_resuming.cpp
   include/Scancontext/Scancontext.cpp
 )
 
@@ -150,6 +154,7 @@ ament_target_dependencies(${PROJECT_NAME}_lib
   sensor_msgs
   nav_msgs
   geometry_msgs
+  visualization_msgs
   message_filters
   tf2
   tf2_ros
@@ -190,6 +195,7 @@ install(DIRECTORY config/
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_gmock REQUIRED)
   
   # KeyframeManager 单元测试
   ament_add_gtest(test_keyframe_manager test/test_keyframe_manager.cpp)
@@ -311,7 +317,7 @@ if(BUILD_TESTING)
     )
   endif()
 
-  # RelocalizationModule 单元测试
+  # WorldLocalizing 单元测试
   ament_add_gtest(test_relocalization_module test/test_relocalization_module.cpp)
   if(TARGET test_relocalization_module)
     target_link_libraries(test_relocalization_module
@@ -325,7 +331,7 @@ if(BUILD_TESTING)
     )
   endif()
 
-  # RelocalizationModule 属性测试 (Property-Based Test)
+  # WorldLocalizing 属性测试 (Property-Based Test)
   ament_add_gtest(test_relocalization_module_pbt test/test_relocalization_module_pbt.cpp)
   if(TARGET test_relocalization_module_pbt)
     target_link_libraries(test_relocalization_module_pbt
@@ -339,7 +345,7 @@ if(BUILD_TESTING)
     )
   endif()
 
-  # MapExtensionModule 单元测试
+  # MappingResuming 单元测试
   ament_add_gtest(test_map_extension_module test/test_map_extension_module.cpp)
   if(TARGET test_map_extension_module)
     target_link_libraries(test_map_extension_module
@@ -355,7 +361,7 @@ if(BUILD_TESTING)
     )
   endif()
 
-  # MapExtensionModule 属性测试 (Property-Based Test)
+  # MappingResuming 属性测试 (Property-Based Test)
   ament_add_gtest(test_map_extension_module_pbt test/test_map_extension_module_pbt.cpp)
   if(TARGET test_map_extension_module_pbt)
     target_link_libraries(test_map_extension_module_pbt
@@ -367,6 +373,17 @@ if(BUILD_TESTING)
       OpenMP::OpenMP_CXX
     )
     ament_target_dependencies(test_map_extension_module_pbt
+      rclcpp
+    )
+  endif()
+
+  # LoopClosureManager 单元测试 (Mock)
+  ament_add_gmock(test_loop_closure_manager test/test_loop_closure_manager.cpp)
+  if(TARGET test_loop_closure_manager)
+    target_link_libraries(test_loop_closure_manager
+      ${PROJECT_NAME}_lib
+    )
+    ament_target_dependencies(test_loop_closure_manager
       rclcpp
     )
   endif()

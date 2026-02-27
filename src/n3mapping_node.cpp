@@ -13,35 +13,92 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
 #include <pcl/common/transforms.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <unordered_map>
 
+#include <algorithm>
 #include <atomic>
 #include <csignal>
+#include <filesystem>
+#include <fstream>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <limits>
 #include <mutex>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <optional>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <string_view>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <thread>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 #include "n3mapping/config.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/keyframe_manager.h"
+#include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_detector.h"
-#include "n3mapping/map_extension_module.h"
 #include "n3mapping/map_serializer.h"
+#include "n3mapping/mapping_resuming.h"
+#include "n3mapping/mode_handlers.h"
 #include "n3mapping/point_cloud_matcher.h"
-#include "n3mapping/relocalization_module.h"
+#include "n3mapping/world_localizing.h"
 
 namespace n3mapping {
 
 // 全局节点指针用于信号处理
 static std::atomic<bool> g_shutdown_requested{ false };
+
+class OptimizationLogSink : public google::LogSink
+{
+  public:
+    explicit OptimizationLogSink(const std::string& file_path)
+      : file_path_(file_path)
+    {
+        openFile();
+    }
+
+    void send(google::LogSeverity severity, const char*, const char*, int, const struct ::tm*, const char* message, size_t message_len) override
+    {
+        std::string_view view(message, message_len);
+        if (view.find(tag_) == std::string_view::npos) {
+            return;
+        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!file_.is_open()) {
+            openFile();
+        }
+        if (!file_.is_open()) {
+            return;
+        }
+        file_.write(message, static_cast<std::streamsize>(message_len));
+        file_ << '\n';
+        file_.flush();
+        if (severity >= google::GLOG_ERROR) {
+            file_.flush();
+        }
+    }
+
+    ~OptimizationLogSink() override
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (file_.is_open()) {
+            file_.close();
+        }
+    }
+
+  private:
+    void openFile() { file_.open(file_path_, std::ios::out | std::ios::trunc); }
+
+    const std::string tag_ = "[OPTIMIZATION]";
+    std::string file_path_;
+    std::ofstream file_;
+    std::mutex mutex_;
+};
 
 /**
  * @brief 运行模式枚举
@@ -78,9 +135,15 @@ class N3MappingNode : public rclcpp::Node
         // 初始化 ROS 接口
         initializeROS();
 
+        initializeOptimizationLogging();
+
         // 根据模式加载地图
         if (run_mode_ == RunMode::LOCALIZATION || run_mode_ == RunMode::MAP_EXTENSION) {
             loadMap();
+            // 定位模式下加载并发布全局地图用于可视化
+            if (map_loaded_) {
+                loadAndPublishGlobalMap();
+            }
         }
 
         RCLCPP_INFO(this->get_logger(), "N3Mapping node initialized. Mode: %s", config_.mode.c_str());
@@ -105,6 +168,11 @@ class N3MappingNode : public rclcpp::Node
         // 保存地图
         if (run_mode_ == RunMode::MAPPING || run_mode_ == RunMode::MAP_EXTENSION) {
             saveMapOnShutdown();
+        }
+
+        if (optimization_log_sink_) {
+            google::RemoveLogSink(optimization_log_sink_.get());
+            optimization_log_sink_.reset();
         }
 
         // 输出统计信息
@@ -137,11 +205,47 @@ class N3MappingNode : public rclcpp::Node
         keyframe_manager_ = std::make_unique<KeyframeManager>(config_);
         point_cloud_matcher_ = std::make_unique<PointCloudMatcher>(config_);
         loop_detector_ = std::make_unique<LoopDetector>(config_);
+        loop_closure_manager_ = std::make_unique<LoopClosureManager>(config_);
         graph_optimizer_ = std::make_unique<GraphOptimizer>(config_);
         map_serializer_ = std::make_unique<MapSerializer>(config_);
-        relocalization_module_ = std::make_unique<RelocalizationModule>(config_, *keyframe_manager_, *loop_detector_, *point_cloud_matcher_);
-        map_extension_module_ = std::make_unique<MapExtensionModule>(
-          config_, *keyframe_manager_, *loop_detector_, *point_cloud_matcher_, *graph_optimizer_, *map_serializer_, *relocalization_module_);
+        world_localizing_ = std::make_unique<WorldLocalizing>(config_, *keyframe_manager_, *loop_detector_, *point_cloud_matcher_);
+        mapping_resuming_ = std::make_unique<MappingResuming>(
+          config_, *keyframe_manager_, *loop_detector_, *point_cloud_matcher_, *graph_optimizer_, *map_serializer_, *world_localizing_);
+
+        ModePublishCallbacks publish_callbacks{
+            [this](const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header) { publishOdometry(pose, header); },
+            [this](const std_msgs::msg::Header& header, const Eigen::Isometry3d* pose) { publishPath(header, pose); },
+            [this](PointCloud::Ptr cloud, const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header) {
+                publishPointClouds(cloud, pose, header);
+            },
+            [this](const std::string& context, double timestamp, const Eigen::Isometry3d* pose) {
+                logOptimizationResult(context, timestamp, pose);
+            }
+        };
+
+        mapping_mode_handler_ = std::make_unique<MappingModeHandler>(
+          config_,
+          *keyframe_manager_,
+          *loop_detector_,
+          *graph_optimizer_,
+          loop_queue_mutex_,
+          loop_detection_queue_,
+          publish_callbacks,
+          [this]() { ++keyframe_count_; },
+          this->get_logger());
+
+        localization_mode_handler_ = std::make_unique<LocalizationModeHandler>(*world_localizing_, publish_callbacks);
+
+        map_resuming_mode_handler_ = std::make_unique<MapResumingModeHandler>(
+          config_,
+          *keyframe_manager_,
+          *graph_optimizer_,
+          *world_localizing_,
+          *mapping_resuming_,
+          publish_callbacks,
+          [this]() { ++keyframe_count_; },
+          this->get_logger(),
+          this->get_clock());
     }
 
     /**
@@ -164,10 +268,62 @@ class N3MappingNode : public rclcpp::Node
         path_pub_ = this->create_publisher<nav_msgs::msg::Path>(config_.output_path_topic, 10);
         cloud_body_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(config_.output_cloud_body_topic, 10);
         cloud_world_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(config_.output_cloud_world_topic, 10);
+        loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/n3mapping/loop_closure_markers", 10);
+
+        // 全局地图发布者 (transient_local QoS，类似 ROS1 latched topic)
+        rclcpp::QoS global_map_qos(1);
+        global_map_qos.transient_local();
+        global_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/n3mapping/global_map", global_map_qos);
 
         loop_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
         loop_timer_ = this->create_wall_timer(
           std::chrono::milliseconds(100), std::bind(&N3MappingNode::loopDetectionTimerCallback, this), loop_callback_group_);
+    }
+
+    void initializeOptimizationLogging()
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(config_.map_save_path, ec);
+        optimization_log_path_ = config_.map_save_path + "/optimization.log";
+        optimization_log_sink_ = std::make_unique<OptimizationLogSink>(optimization_log_path_);
+        google::AddLogSink(optimization_log_sink_.get());
+    }
+
+    /**
+     * @brief 构建以 center_id 为中心的局部子图（点云变换到 center 坐标系）
+     */
+    PointCloud::Ptr buildLocalSubmapInCenterFrame(int64_t center_id, int range)
+    {
+        auto center_kf = keyframe_manager_->getKeyframe(center_id);
+        if (!center_kf || !center_kf->cloud || center_kf->cloud->empty()) {
+            return std::make_shared<PointCloud>();
+        }
+
+        Eigen::Matrix4f T_center_inv = center_kf->pose_optimized.matrix().cast<float>().inverse();
+        auto submap = std::make_shared<PointCloud>();
+
+        for (int64_t id = center_id - range; id <= center_id + range; ++id) {
+            auto kf = keyframe_manager_->getKeyframe(id);
+            if (!kf || !kf->cloud || kf->cloud->empty()) continue;
+
+            Eigen::Matrix4f T_kf = kf->pose_optimized.matrix().cast<float>();
+            Eigen::Matrix4f T_center_kf = T_center_inv * T_kf;
+
+            PointCloud transformed;
+            pcl::transformPointCloud(*kf->cloud, transformed, T_center_kf);
+            *submap += transformed;
+        }
+
+        // 下采样
+        if (config_.gicp_downsampling_resolution > 0.0) {
+            pcl::VoxelGrid<pcl::PointXYZI> voxel;
+            voxel.setLeafSize(config_.gicp_downsampling_resolution, config_.gicp_downsampling_resolution, config_.gicp_downsampling_resolution);
+            voxel.setInputCloud(submap);
+            auto filtered = std::make_shared<PointCloud>();
+            voxel.filter(*filtered);
+            submap = filtered;
+        }
+        return submap;
     }
 
     /**
@@ -181,11 +337,11 @@ class N3MappingNode : public rclcpp::Node
         }
 
         if (run_mode_ == RunMode::MAP_EXTENSION) {
-            if (!map_extension_module_->loadExistingMap(config_.map_path)) {
+            if (!mapping_resuming_->loadExistingMap(config_.map_path)) {
                 RCLCPP_ERROR(this->get_logger(), "Failed to load map for extension: %s", config_.map_path.c_str());
                 return;
             }
-            RCLCPP_INFO(this->get_logger(), "Loaded map for extension with %zu keyframes", map_extension_module_->getOriginalKeyframeCount());
+            RCLCPP_INFO(this->get_logger(), "Loaded map for extension with %zu keyframes", mapping_resuming_->getOriginalKeyframeCount());
         } else {
             // 定位模式
             if (!map_serializer_->loadMap(config_.map_path, *keyframe_manager_, *loop_detector_, *graph_optimizer_)) {
@@ -195,6 +351,41 @@ class N3MappingNode : public rclcpp::Node
             RCLCPP_INFO(this->get_logger(), "Loaded map with %zu keyframes", keyframe_manager_->size());
         }
         map_loaded_ = true;
+    }
+
+    /**
+     * @brief 加载并发布全局地图 PCD
+     *
+     * 在定位模式启动时调用，从 map_path 同目录加载 global_map.pcd，
+     * 通过 transient_local QoS 发布使 RViz 可以可视化参考地图。
+     */
+    void loadAndPublishGlobalMap()
+    {
+        // 从 map_path (pbstream) 推导 global_map.pcd 的路径
+        std::filesystem::path pbstream_path(config_.map_path);
+        std::filesystem::path global_map_path = pbstream_path.parent_path() / "global_map.pcd";
+
+        if (!std::filesystem::exists(global_map_path)) {
+            RCLCPP_WARN(this->get_logger(), "Global map PCD not found: %s", global_map_path.c_str());
+            return;
+        }
+
+        auto global_map = std::make_shared<PointCloud>();
+        if (pcl::io::loadPCDFile<pcl::PointXYZI>(global_map_path.string(), *global_map) == -1) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to load global map: %s", global_map_path.c_str());
+            return;
+        }
+
+        RCLCPP_INFO(this->get_logger(), "Loaded global map: %s (%zu points)", global_map_path.c_str(), global_map->size());
+
+        // 转换为 ROS 消息并发布
+        sensor_msgs::msg::PointCloud2 global_map_msg;
+        pcl::toROSMsg(*global_map, global_map_msg);
+        global_map_msg.header.frame_id = config_.world_frame;
+        global_map_msg.header.stamp = this->get_clock()->now();
+        global_map_pub_->publish(global_map_msg);
+
+        RCLCPP_INFO(this->get_logger(), "Published global map on /n3mapping/global_map");
     }
 
     /**
@@ -240,65 +431,7 @@ class N3MappingNode : public rclcpp::Node
      */
     void processMappingMode(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header)
     {
-        // 检查是否需要添加关键帧
-        if (!keyframe_manager_->shouldAddKeyframe(pose_odom)) {
-            // 发布当前位姿
-            publishOdometry(pose_odom, header);
-            publishPointClouds(cloud, pose_odom, header);
-            return;
-        }
-
-        // 添加关键帧
-        int64_t kf_id = keyframe_manager_->addKeyframe(timestamp, pose_odom, cloud);
-        loop_detector_->addDescriptor(kf_id, cloud);
-
-        // 添加图优化因子
-        if (kf_id == 0) {
-            graph_optimizer_->addPriorFactor(kf_id, pose_odom);
-        } else {
-            auto prev_kf = keyframe_manager_->getKeyframe(kf_id - 1);
-            if (prev_kf) {
-                EdgeInfo edge;
-                edge.from_id = kf_id - 1;
-                edge.to_id = kf_id;
-                edge.measurement = prev_kf->pose_odom.inverse() * pose_odom;
-                edge.information = Eigen::Matrix<double, 6, 6>::Identity();
-                edge.information.block<3, 3>(0, 0) *= 1.0 / (config_.odom_noise_position * config_.odom_noise_position);
-                edge.information.block<3, 3>(3, 3) *= 1.0 / (config_.odom_noise_rotation * config_.odom_noise_rotation);
-                edge.type = EdgeType::ODOMETRY;
-                graph_optimizer_->addOdometryEdge(edge);
-            }
-        }
-
-        // 增量优化
-        graph_optimizer_->incrementalOptimize();
-
-        // 更新优化后位姿
-        Eigen::Isometry3d optimized_pose = pose_odom;
-        if (graph_optimizer_->hasNode(kf_id)) {
-            try {
-                optimized_pose = graph_optimizer_->getOptimizedPose(kf_id);
-                std::map<int64_t, Eigen::Isometry3d> pose_update;
-                pose_update[kf_id] = optimized_pose;
-                keyframe_manager_->updateOptimizedPoses(pose_update);
-            } catch (const std::exception& e) {
-                RCLCPP_WARN(this->get_logger(), "Failed to get optimized pose: %s", e.what());
-            }
-        }
-
-        // 添加到回环检测队列
-        {
-            std::lock_guard<std::mutex> lock(loop_queue_mutex_);
-            loop_detection_queue_.push_back(kf_id);
-        }
-
-        // 发布
-        Eigen::Isometry3d publish_pose = optimized_pose;
-        publishOdometry(publish_pose, header);
-        publishPath();
-        publishPointClouds(cloud, publish_pose, header);
-
-        keyframe_count_++;
+        mapping_mode_handler_->process(timestamp, pose_odom, cloud, header);
     }
 
     /**
@@ -314,32 +447,8 @@ class N3MappingNode : public rclcpp::Node
                                  PointCloud::Ptr cloud,
                                  const std_msgs::msg::Header& header)
     {
-        if (!map_loaded_) {
-            LOG_EVERY_N(WARNING, 10) << "Map not loaded, cannot perform localization";
-        }
-
-        Eigen::Isometry3d pose_map;
-        bool success = false;
-
-        if (relocalization_module_->isRelocalized()) {
-            auto result = relocalization_module_->trackLocalization(cloud, pose_odom);
-            if (result.success) {
-                pose_map = result.pose_in_map;
-                success = true;
-            }
-        }
-        if (!relocalization_module_->isRelocalized() || !success) {
-            auto result = relocalization_module_->relocalize(cloud, pose_odom);
-            if (result.success) {
-                pose_map = result.pose_in_map;
-                success = true;
-            }
-        }
-
-        if (success) {
-            publishOdometry(pose_map, header);
-            publishPointClouds(cloud, pose_map, header);
-        }
+        (void)timestamp;
+        localization_mode_handler_->process(map_loaded_, pose_odom, cloud, header);
     }
 
     /**
@@ -350,68 +459,7 @@ class N3MappingNode : public rclcpp::Node
                                  PointCloud::Ptr cloud,
                                  const std_msgs::msg::Header& header)
     {
-        if (!map_loaded_) {
-            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "Map not loaded for extension");
-            return;
-        }
-
-        auto state = map_extension_module_->getState();
-
-        if (state == MapExtensionState::MAP_LOADED) {
-            // 需要先重定位
-            if (map_extension_module_->performInitialRelocalization(cloud, pose_odom)) {
-                RCLCPP_INFO(this->get_logger(), "Initial relocalization successful for map extension");
-            }
-            return;
-        }
-
-        if (state != MapExtensionState::RELOCALIZED && state != MapExtensionState::EXTENDING) {
-            return;
-        }
-
-        // 检查是否需要添加关键帧
-        if (!keyframe_manager_->shouldAddKeyframe(pose_odom)) {
-            auto T_map_odom = relocalization_module_->getMapToOdomTransform();
-            Eigen::Isometry3d pose_map = T_map_odom * pose_odom;
-            publishOdometry(pose_map, header);
-            publishPointClouds(cloud, pose_map, header);
-            return;
-        }
-
-        // 处理新关键帧
-        auto T_map_odom = relocalization_module_->getMapToOdomTransform();
-        Eigen::Isometry3d pose_map = T_map_odom * pose_odom;
-
-        int64_t kf_id = map_extension_module_->processNewKeyframe(timestamp, pose_odom, cloud);
-        if (kf_id >= 0) {
-            // 检测新旧关键帧之间的回环
-            int cross_loops = map_extension_module_->detectCrossLoops(kf_id);
-            if (cross_loops > 0) {
-                RCLCPP_INFO(this->get_logger(), "Detected %d cross-loops for keyframe %ld", cross_loops, kf_id);
-            }
-
-            // 增量优化
-            graph_optimizer_->incrementalOptimize();
-
-            // 更新优化后位姿
-            if (graph_optimizer_->hasNode(kf_id)) {
-                try {
-                    Eigen::Isometry3d optimized_pose = graph_optimizer_->getOptimizedPose(kf_id);
-                    std::map<int64_t, Eigen::Isometry3d> pose_update;
-                    pose_update[kf_id] = optimized_pose;
-                    keyframe_manager_->updateOptimizedPoses(pose_update);
-                    pose_map = optimized_pose;
-                } catch (const std::exception& e) {
-                    RCLCPP_WARN(this->get_logger(), "Failed to get optimized pose: %s", e.what());
-                }
-            }
-
-            keyframe_count_++;
-        }
-
-        publishOdometry(pose_map, header);
-        publishPath();
-        publishPointClouds(cloud, pose_map, header);
+        map_resuming_mode_handler_->process(map_loaded_, timestamp, pose_odom, cloud, header);
     }
 
     /**
@@ -419,7 +467,11 @@ class N3MappingNode : public rclcpp::Node
      */
     void loopDetectionTimerCallback()
     {
-        if (run_mode_ == RunMode::LOCALIZATION || map_loaded_ == false) {
+        // 定位模式不做回环优化；建图允许；续建需先加载地图
+        if (run_mode_ == RunMode::LOCALIZATION) {
+            return;
+        }
+        if (run_mode_ == RunMode::MAP_EXTENSION && map_loaded_ == false) {
             return;
         }
         std::vector<int64_t> keyframes_to_check;
@@ -439,39 +491,168 @@ class N3MappingNode : public rclcpp::Node
             auto candidates = loop_detector_->detectLoopCandidates(kf_id);
             if (candidates.empty()) continue;
 
-            // 构建关键帧映射用于验证
-            std::map<int64_t, Keyframe::Ptr> keyframes_map;
-            keyframes_map[kf_id] = kf;
+            std::vector<VerifiedLoop> verified_loops;
+            verified_loops.reserve(candidates.size());
+
             for (const auto& candidate : candidates) {
                 auto match_kf = keyframe_manager_->getKeyframe(candidate.match_id);
-                if (match_kf) {
-                    keyframes_map[candidate.match_id] = match_kf;
+                if (!match_kf || !kf->cloud || !match_kf->cloud || kf->cloud->empty() || match_kf->cloud->empty()) {
+                    continue;
                 }
-            }
 
-            // 验证回环候选
-            auto verified_loops = loop_detector_->verifyLoopCandidatesBatch(candidates, keyframes_map, *point_cloud_matcher_);
-            if (!verified_loops.empty()) {
-                {
-                    std::lock_guard<std::mutex> lock(data_mutex_);
-                    for (const auto& loop : verified_loops) {
-                        EdgeInfo edge;
-                        edge.from_id = loop.query_id;
-                        edge.to_id = loop.match_id;
-                        edge.measurement = loop.T_match_query;
-                        edge.information = loop.information;
-                        edge.type = EdgeType::LOOP;
+                auto submap = keyframe_manager_->buildLocalSubmap(candidate.match_id, config_.gicp_submap_size);
+                if (!submap || submap->empty()) {
+                    submap = std::make_shared<PointCloud>();
+                    Eigen::Matrix4f transform = match_kf->pose_optimized.matrix().cast<float>();
+                    pcl::transformPointCloud(*match_kf->cloud, *submap, transform);
+                }
+                if (!submap || submap->empty()) {
+                    continue;
+                }
 
-                        graph_optimizer_->addLoopEdge(edge);
-                        loop_count_++;
+                Eigen::Isometry3d init_guess = kf->pose_optimized;
+                init_guess.rotate(Eigen::AngleAxisd(candidate.yaw_diff_rad, Eigen::Vector3d::UnitZ()));
 
-                        RCLCPP_INFO(
-                          this->get_logger(), "Loop detected: %ld -> %ld (score: %.3f)", loop.query_id, loop.match_id, loop.fitness_score);
+                MatchResult match_result = point_cloud_matcher_->alignCloud(submap, kf->cloud, init_guess);
+
+                VerifiedLoop loop;
+                loop.query_id = candidate.query_id;
+                loop.match_id = candidate.match_id;
+                loop.fitness_score = match_result.fitness_score;
+                loop.inlier_ratio = match_result.inlier_ratio;
+                // 信息矩阵: 默认为零 (让 graph_optimizer 使用配置的固定噪声模型)
+                // ICP Hessian 通常过度自信，会导致优化器过度信任回环约束
+                if (config_.loop_use_icp_information) {
+                    loop.information = match_result.information;
+                }
+                loop.verified = match_result.success;
+                if (match_result.success) {
+                    Eigen::Isometry3d corrected_query_pose = match_result.T_target_source;
+                    loop.T_match_query = corrected_query_pose.inverse() * match_kf->pose_optimized;
+
+                    // 一致性门控: 检查 ICP 测量值与当前位姿估计的偏差
+                    const Eigen::Isometry3d current_T_query_match = kf->pose_optimized.inverse() * match_kf->pose_optimized;
+                    const Eigen::Isometry3d consistency_delta = loop.T_match_query.inverse() * current_T_query_match;
+                    const double pre_trans_err = consistency_delta.translation().norm();
+                    const double pre_rot_err = Eigen::AngleAxisd(consistency_delta.rotation()).angle();
+
+                    if (pre_trans_err > config_.loop_max_pre_translation_error || pre_rot_err > config_.loop_max_pre_rotation_error) {
+                        RCLCPP_WARN(this->get_logger(),
+                                    "Loop rejected (consistency gate): %ld -> %ld "
+                                    "(pre_t=%.2f > %.2f || pre_r=%.2f > %.2f)",
+                                    loop.query_id,
+                                    loop.match_id,
+                                    pre_trans_err,
+                                    config_.loop_max_pre_translation_error,
+                                    pre_rot_err,
+                                    config_.loop_max_pre_rotation_error);
+                        LOG(INFO) << "[OPTIMIZATION] loop_rejected query=" << loop.query_id << " match=" << loop.match_id
+                                  << " pre_t=" << pre_trans_err << " pre_r=" << pre_rot_err << " fitness=" << loop.fitness_score
+                                  << " inlier=" << loop.inlier_ratio;
+                        loop.verified = false;
                     }
-                    graph_optimizer_->optimize();
-                    // 获取并更新优化后的位姿
+                }
+                verified_loops.push_back(loop);
+            }
+            if (!verified_loops.empty()) {
+                auto valid_loops = loop_closure_manager_->filterValidLoops(verified_loops);
+                auto best_loops = loop_closure_manager_->selectBestPerQuery(valid_loops);
+                if (!best_loops.empty()) {
+                    struct LoopDiag
+                    {
+                        int64_t match_id;
+                        int64_t query_id;
+                        double fitness;
+                        double inlier_ratio;
+                        double pre_trans_error;
+                        double pre_rot_error;
+                        Eigen::Isometry3d measured_T_match_query;
+                    };
+                    std::vector<LoopDiag> loop_diags;
+                    loop_diags.reserve(best_loops.size());
+
+                    for (const auto& loop : best_loops) {
+                        auto match_kf = keyframe_manager_->getKeyframe(loop.match_id);
+                        auto query_kf = keyframe_manager_->getKeyframe(loop.query_id);
+                        if (!match_kf || !query_kf) {
+                            continue;
+                        }
+                        const Eigen::Isometry3d current_T_query_match = query_kf->pose_optimized.inverse() * match_kf->pose_optimized;
+                        const Eigen::Isometry3d delta = loop.T_match_query.inverse() * current_T_query_match;
+                        const double trans_error = delta.translation().norm();
+                        const double rot_error = Eigen::AngleAxisd(delta.rotation()).angle();
+
+                        // 详细诊断日志
+                        const auto& qt = query_kf->pose_optimized.translation();
+                        const auto& mt = match_kf->pose_optimized.translation();
+                        const auto& meas_t = loop.T_match_query.translation();
+                        const Eigen::Quaterniond meas_q(loop.T_match_query.rotation());
+                        LOG(INFO) << "[OPTIMIZATION] loop_edge query=" << loop.query_id << " match=" << loop.match_id
+                                  << " fitness=" << loop.fitness_score << " inlier=" << loop.inlier_ratio << " pre_err_t=" << trans_error
+                                  << " pre_err_r=" << rot_error;
+                        LOG(INFO) << "[OPTIMIZATION] loop_pose query_t=" << qt.x() << "," << qt.y() << "," << qt.z() << " match_t=" << mt.x()
+                                  << "," << mt.y() << "," << mt.z();
+                        LOG(INFO) << "[OPTIMIZATION] loop_meas t=" << meas_t.x() << "," << meas_t.y() << "," << meas_t.z()
+                                  << " q=" << meas_q.w() << "," << meas_q.x() << "," << meas_q.y() << "," << meas_q.z();
+                        LOG(INFO) << "[OPTIMIZATION] loop_info diag=" << loop.information(0, 0) << "," << loop.information(1, 1) << ","
+                                  << loop.information(2, 2) << "," << loop.information(3, 3) << "," << loop.information(4, 4) << ","
+                                  << loop.information(5, 5);
+
+                        RCLCPP_INFO(this->get_logger(),
+                                    "Loop detected: %ld -> %ld (fitness=%.3f, inlier_ratio=%.3f, pre_err_t=%.3f, pre_err_rot=%.3f)",
+                                    loop.match_id,
+                                    loop.query_id,
+                                    loop.fitness_score,
+                                    loop.inlier_ratio,
+                                    trans_error,
+                                    rot_error);
+
+                        loop_diags.push_back(LoopDiag{
+                          loop.match_id, loop.query_id, loop.fitness_score, loop.inlier_ratio, trans_error, rot_error, loop.T_match_query });
+                    }
+
+                    publishLoopMarkers(best_loops);
+
+                    std::lock_guard<std::mutex> lock(data_mutex_);
+                    auto edges = loop_closure_manager_->buildLoopEdges(best_loops, LoopEdgeDirection::QueryToMatch);
+                    loop_closure_manager_->applyEdges(edges, *graph_optimizer_);
+                    loop_count_ += edges.size();
+
                     auto poses = graph_optimizer_->getOptimizedPoses();
                     keyframe_manager_->updateOptimizedPoses(poses);
+                    logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
+
+                    for (const auto& diag : loop_diags) {
+                        auto match_kf = keyframe_manager_->getKeyframe(diag.match_id);
+                        auto query_kf = keyframe_manager_->getKeyframe(diag.query_id);
+                        if (!match_kf || !query_kf) {
+                            continue;
+                        }
+                        const Eigen::Isometry3d post_T_query_match = query_kf->pose_optimized.inverse() * match_kf->pose_optimized;
+                        const Eigen::Isometry3d post_delta = diag.measured_T_match_query.inverse() * post_T_query_match;
+                        const double post_trans_error = post_delta.translation().norm();
+                        const double post_rot_error = Eigen::AngleAxisd(post_delta.rotation()).angle();
+
+                        const auto& pqt = query_kf->pose_optimized.translation();
+                        const auto& pmt = match_kf->pose_optimized.translation();
+                        LOG(INFO) << "[OPTIMIZATION] loop_result query=" << diag.query_id << " match=" << diag.match_id
+                                  << " pre_t=" << diag.pre_trans_error << " pre_r=" << diag.pre_rot_error << " post_t=" << post_trans_error
+                                  << " post_r=" << post_rot_error;
+                        LOG(INFO) << "[OPTIMIZATION] loop_post_pose query_t=" << pqt.x() << "," << pqt.y() << "," << pqt.z()
+                                  << " match_t=" << pmt.x() << "," << pmt.y() << "," << pmt.z();
+
+                        RCLCPP_INFO(
+                          this->get_logger(),
+                          "Loop optimized: %ld -> %ld (fitness=%.3f, inlier_ratio=%.3f, pre_t=%.3f, pre_r=%.3f, post_t=%.3f, post_r=%.3f)",
+                          diag.match_id,
+                          diag.query_id,
+                          diag.fitness,
+                          diag.inlier_ratio,
+                          diag.pre_trans_error,
+                          diag.pre_rot_error,
+                          post_trans_error,
+                          post_rot_error);
+                    }
                 }
             }
         }
@@ -513,32 +694,216 @@ class N3MappingNode : public rclcpp::Node
     /**
      * @brief 发布路径
      */
-    void publishPath()
+    void publishPath(const std_msgs::msg::Header& header, const Eigen::Isometry3d* current_pose)
     {
         nav_msgs::msg::Path path_msg;
-        path_msg.header.stamp = this->now();
+        path_msg.header = header;
         path_msg.header.frame_id = config_.world_frame;
 
-        for (const auto& kf : keyframe_manager_->getAllKeyframes()) {
-            if (!kf) continue;
-            geometry_msgs::msg::PoseStamped pose;
-            pose.header = path_msg.header;
+        if (run_mode_ == RunMode::LOCALIZATION) {
+            // 定位模式: 只累积发布实时定位轨迹
+            if (current_pose) {
+                geometry_msgs::msg::PoseStamped pose;
+                pose.header = header;
+                pose.header.frame_id = config_.world_frame;
+                pose.pose.position.x = current_pose->translation().x();
+                pose.pose.position.y = current_pose->translation().y();
+                pose.pose.position.z = current_pose->translation().z();
+                Eigen::Quaterniond q(current_pose->rotation());
+                pose.pose.orientation.w = q.w();
+                pose.pose.orientation.x = q.x();
+                pose.pose.orientation.y = q.y();
+                pose.pose.orientation.z = q.z();
+                localization_path_.push_back(pose);
+            }
+            path_msg.poses = localization_path_;
+        } else {
+            // 建图/续建模式: 按 version 分段构建彩色轨迹 marker
+            // 同时保留 nav_msgs/Path 发布全部轨迹（用于数据记录/导航）
+            std::vector<geometry_msgs::msg::Point> loaded_points; // 旧地图 (蓝色)
+            std::vector<geometry_msgs::msg::Point> new_points;    // 新建帧 (绿色)
 
-            const auto& p = kf->pose_optimized;
-            pose.pose.position.x = p.translation().x();
-            pose.pose.position.y = p.translation().y();
-            pose.pose.position.z = p.translation().z();
+            for (const auto& kf : keyframe_manager_->getAllKeyframes()) {
+                if (!kf) continue;
+                geometry_msgs::msg::PoseStamped pose;
+                pose.header = path_msg.header;
 
-            Eigen::Quaterniond q(p.rotation());
-            pose.pose.orientation.w = q.w();
-            pose.pose.orientation.x = q.x();
-            pose.pose.orientation.y = q.y();
-            pose.pose.orientation.z = q.z();
+                const auto& p = kf->pose_optimized;
+                pose.pose.position.x = p.translation().x();
+                pose.pose.position.y = p.translation().y();
+                pose.pose.position.z = p.translation().z();
 
-            path_msg.poses.push_back(pose);
+                Eigen::Quaterniond q(p.rotation());
+                pose.pose.orientation.w = q.w();
+                pose.pose.orientation.x = q.x();
+                pose.pose.orientation.y = q.y();
+                pose.pose.orientation.z = q.z();
+
+                path_msg.poses.push_back(pose);
+
+                geometry_msgs::msg::Point pt;
+                pt.x = p.translation().x();
+                pt.y = p.translation().y();
+                pt.z = p.translation().z();
+                if (kf->is_from_loaded_map) {
+                    loaded_points.push_back(pt);
+                } else {
+                    new_points.push_back(pt);
+                }
+            }
+
+            if (current_pose) {
+                geometry_msgs::msg::PoseStamped pose;
+                pose.header = path_msg.header;
+                pose.pose.position.x = current_pose->translation().x();
+                pose.pose.position.y = current_pose->translation().y();
+                pose.pose.position.z = current_pose->translation().z();
+                Eigen::Quaterniond q(current_pose->rotation());
+                pose.pose.orientation.w = q.w();
+                pose.pose.orientation.x = q.x();
+                pose.pose.orientation.y = q.y();
+                pose.pose.orientation.z = q.z();
+                path_msg.poses.push_back(pose);
+
+                geometry_msgs::msg::Point pt;
+                pt.x = current_pose->translation().x();
+                pt.y = current_pose->translation().y();
+                pt.z = current_pose->translation().z();
+                new_points.push_back(pt);
+            }
+
+            // 发布彩色轨迹 marker 到 loop_closure_markers 话题
+            publishPathMarkers(loaded_points, new_points, header);
         }
 
         path_pub_->publish(path_msg);
+    }
+
+    /**
+     * @brief 发布分版本彩色轨迹 Marker
+     *
+     * 旧地图关键帧用蓝色 LINE_STRIP，新建关键帧用绿色 LINE_STRIP，
+     * 发布到 loop_closure_markers 话题与回环线条共存。
+     */
+    void publishPathMarkers(const std::vector<geometry_msgs::msg::Point>& loaded_points,
+                            const std::vector<geometry_msgs::msg::Point>& new_points,
+                            const std_msgs::msg::Header& header)
+    {
+        visualization_msgs::msg::MarkerArray markers;
+
+        // 旧地图轨迹 (蓝色)
+        if (loaded_points.size() >= 2) {
+            visualization_msgs::msg::Marker loaded_marker;
+            loaded_marker.header.frame_id = config_.world_frame;
+            loaded_marker.header.stamp = header.stamp;
+            loaded_marker.ns = "path_loaded";
+            loaded_marker.id = 0;
+            loaded_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+            loaded_marker.action = visualization_msgs::msg::Marker::ADD;
+            loaded_marker.scale.x = 0.15;
+            loaded_marker.color.r = 0.2f;
+            loaded_marker.color.g = 0.4f;
+            loaded_marker.color.b = 1.0f;
+            loaded_marker.color.a = 0.9f;
+            loaded_marker.points = loaded_points;
+            markers.markers.push_back(loaded_marker);
+        }
+
+        // 新建轨迹 (绿色)
+        if (new_points.size() >= 2) {
+            visualization_msgs::msg::Marker new_marker;
+            new_marker.header.frame_id = config_.world_frame;
+            new_marker.header.stamp = header.stamp;
+            new_marker.ns = "path_new";
+            new_marker.id = 0;
+            new_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+            new_marker.action = visualization_msgs::msg::Marker::ADD;
+            new_marker.scale.x = 0.15;
+            new_marker.color.r = 0.1f;
+            new_marker.color.g = 1.0f;
+            new_marker.color.b = 0.2f;
+            new_marker.color.a = 0.9f;
+            new_marker.points = new_points;
+            markers.markers.push_back(new_marker);
+        }
+
+        if (!markers.markers.empty()) {
+            loop_marker_pub_->publish(markers);
+        }
+    }
+
+    void logOptimizationResult(const std::string& context, double timestamp, const Eigen::Isometry3d* current_pose)
+    {
+        auto keyframes = keyframe_manager_->getAllKeyframes();
+        std::vector<Keyframe::Ptr> valid_keyframes;
+        valid_keyframes.reserve(keyframes.size());
+        for (const auto& kf : keyframes) {
+            if (kf) {
+                valid_keyframes.push_back(kf);
+            }
+        }
+        std::sort(valid_keyframes.begin(), valid_keyframes.end(), [](const Keyframe::Ptr& a, const Keyframe::Ptr& b) { return a->id < b->id; });
+
+        std::optional<int64_t> latest_id;
+        if (!valid_keyframes.empty()) {
+            latest_id = valid_keyframes.back()->id;
+        }
+
+        LOG(INFO) << "[OPTIMIZATION] context=" << context << " time=" << timestamp << " keyframes=" << valid_keyframes.size()
+                  << " latest_id=" << (latest_id ? std::to_string(*latest_id) : std::string("none"));
+
+        if (current_pose) {
+            Eigen::Quaterniond q(current_pose->rotation());
+            LOG(INFO) << "[OPTIMIZATION] current t=" << current_pose->translation().x() << "," << current_pose->translation().y() << ","
+                      << current_pose->translation().z() << " q=" << q.w() << "," << q.x() << "," << q.y() << "," << q.z();
+        }
+    }
+
+    void publishLoopMarkers(const std::vector<VerifiedLoop>& loops)
+    {
+        visualization_msgs::msg::MarkerArray markers;
+        visualization_msgs::msg::Marker clear_marker;
+        clear_marker.action = visualization_msgs::msg::Marker::DELETEALL;
+        markers.markers.push_back(clear_marker);
+
+        int marker_id = 0;
+        for (const auto& loop : loops) {
+            auto match_kf = keyframe_manager_->getKeyframe(loop.match_id);
+            auto query_kf = keyframe_manager_->getKeyframe(loop.query_id);
+            if (!match_kf || !query_kf) {
+                continue;
+            }
+
+            visualization_msgs::msg::Marker marker;
+            marker.header.frame_id = config_.world_frame;
+            marker.header.stamp = this->now();
+            marker.ns = "loop_closure";
+            marker.id = marker_id++;
+            marker.type = visualization_msgs::msg::Marker::LINE_LIST;
+            marker.action = visualization_msgs::msg::Marker::ADD;
+            marker.scale.x = 0.1;
+            marker.color.r = 1.0f;
+            marker.color.g = 0.2f;
+            marker.color.b = 0.2f;
+            marker.color.a = 0.9f;
+
+            geometry_msgs::msg::Point p_match;
+            p_match.x = match_kf->pose_optimized.translation().x();
+            p_match.y = match_kf->pose_optimized.translation().y();
+            p_match.z = match_kf->pose_optimized.translation().z();
+
+            geometry_msgs::msg::Point p_query;
+            p_query.x = query_kf->pose_optimized.translation().x();
+            p_query.y = query_kf->pose_optimized.translation().y();
+            p_query.z = query_kf->pose_optimized.translation().z();
+
+            marker.points.push_back(p_match);
+            marker.points.push_back(p_query);
+
+            markers.markers.push_back(marker);
+        }
+
+        loop_marker_pub_->publish(markers);
     }
 
     /**
@@ -575,7 +940,7 @@ class N3MappingNode : public rclcpp::Node
         std::string map_file = config_.map_save_path + "/n3map.pbstream";
 
         if (run_mode_ == RunMode::MAP_EXTENSION) {
-            if (map_extension_module_->saveExtendedMap(map_file)) {
+            if (mapping_resuming_->saveExtendedMap(map_file)) {
                 RCLCPP_INFO(this->get_logger(), "Extended map saved to: %s", map_file.c_str());
             } else {
                 RCLCPP_ERROR(this->get_logger(), "Failed to save extended map");
@@ -618,10 +983,14 @@ class N3MappingNode : public rclcpp::Node
     std::unique_ptr<KeyframeManager> keyframe_manager_;
     std::unique_ptr<PointCloudMatcher> point_cloud_matcher_;
     std::unique_ptr<LoopDetector> loop_detector_;
+    std::unique_ptr<LoopClosureManager> loop_closure_manager_;
     std::unique_ptr<GraphOptimizer> graph_optimizer_;
     std::unique_ptr<MapSerializer> map_serializer_;
-    std::unique_ptr<RelocalizationModule> relocalization_module_;
-    std::unique_ptr<MapExtensionModule> map_extension_module_;
+    std::unique_ptr<WorldLocalizing> world_localizing_;
+    std::unique_ptr<MappingResuming> mapping_resuming_;
+    std::unique_ptr<MappingModeHandler> mapping_mode_handler_;
+    std::unique_ptr<LocalizationModeHandler> localization_mode_handler_;
+    std::unique_ptr<MapResumingModeHandler> map_resuming_mode_handler_;
 
     // ROS 接口
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloud_sub_;
@@ -632,6 +1001,8 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_body_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_world_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr loop_marker_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub_;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
@@ -650,6 +1021,9 @@ class N3MappingNode : public rclcpp::Node
     // 状态
     bool map_loaded_ = false;
     bool shutdown_called_ = false;
+    std::unique_ptr<OptimizationLogSink> optimization_log_sink_;
+    std::string optimization_log_path_;
+    std::vector<geometry_msgs::msg::PoseStamped> localization_path_; // 定位模式累积轨迹
 
     // 统计
     size_t frame_count_ = 0;

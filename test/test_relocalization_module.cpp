@@ -1,7 +1,7 @@
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
-#include "n3mapping/relocalization_module.h"
+#include "n3mapping/world_localizing.h"
 #include <cmath>
 #include <gtest/gtest.h>
 #include <pcl/common/transforms.h>
@@ -11,7 +11,7 @@
 namespace n3mapping {
 namespace test {
 
-class RelocalizationModuleTest : public ::testing::Test
+class WorldLocalizingTest : public ::testing::Test
 {
   protected:
     void SetUp() override
@@ -97,17 +97,17 @@ class RelocalizationModuleTest : public ::testing::Test
     std::unique_ptr<PointCloudMatcher> matcher_;
 };
 
-TEST_F(RelocalizationModuleTest, BasicConstruction)
+TEST_F(WorldLocalizingTest, BasicConstruction)
 {
-    RelocalizationModule reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
     EXPECT_FALSE(reloc.isRelocalized());
     EXPECT_EQ(reloc.getLastMatchedKeyframeId(), -1);
     EXPECT_TRUE(reloc.getMapToOdomTransform().isApprox(Eigen::Isometry3d::Identity()));
 }
 
-TEST_F(RelocalizationModuleTest, RelocalizationEmptyMap)
+TEST_F(WorldLocalizingTest, RelocalizationEmptyMap)
 {
-    RelocalizationModule reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     auto cloud = generateCorridorCloud(pose);
 
@@ -117,10 +117,10 @@ TEST_F(RelocalizationModuleTest, RelocalizationEmptyMap)
     EXPECT_FALSE(reloc.isRelocalized());
 }
 
-TEST_F(RelocalizationModuleTest, GlobalRelocalizationSuccess)
+TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess)
 {
     buildTestMap(10, 2.0);
-    RelocalizationModule reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
 
     Eigen::Isometry3d query_pose = Eigen::Isometry3d::Identity();
     query_pose.translation().x() = 8.0;
@@ -137,10 +137,10 @@ TEST_F(RelocalizationModuleTest, GlobalRelocalizationSuccess)
     }
 }
 
-TEST_F(RelocalizationModuleTest, TrackLocalization)
+TEST_F(WorldLocalizingTest, TrackLocalization)
 {
     buildTestMap(10, 2.0);
-    RelocalizationModule reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
 
     Eigen::Isometry3d initial_pose = Eigen::Isometry3d::Identity();
     initial_pose.translation().x() = 4.0;
@@ -160,10 +160,10 @@ TEST_F(RelocalizationModuleTest, TrackLocalization)
     EXPECT_TRUE(track_result.success);
 }
 
-TEST_F(RelocalizationModuleTest, Reset)
+TEST_F(WorldLocalizingTest, Reset)
 {
     buildTestMap(5, 2.0);
-    RelocalizationModule reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
     Eigen::Isometry3d T_map_odom = Eigen::Isometry3d::Identity();
     T_map_odom.translation().x() = 1.0;
     reloc.setMapToOdomTransform(T_map_odom);
@@ -174,9 +174,9 @@ TEST_F(RelocalizationModuleTest, Reset)
     EXPECT_TRUE(reloc.getMapToOdomTransform().isApprox(Eigen::Isometry3d::Identity()));
 }
 
-TEST_F(RelocalizationModuleTest, SetMapToOdomTransform)
+TEST_F(WorldLocalizingTest, SetMapToOdomTransform)
 {
-    RelocalizationModule reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
     Eigen::Isometry3d T_map_odom = Eigen::Isometry3d::Identity();
     T_map_odom.translation() = Eigen::Vector3d(1.0, 2.0, 0.0);
     T_map_odom.rotate(Eigen::AngleAxisd(0.5, Eigen::Vector3d::UnitZ()));
@@ -185,10 +185,10 @@ TEST_F(RelocalizationModuleTest, SetMapToOdomTransform)
     EXPECT_TRUE(reloc.getMapToOdomTransform().isApprox(T_map_odom, 1e-6));
 }
 
-TEST_F(RelocalizationModuleTest, EmptyCloudInput)
+TEST_F(WorldLocalizingTest, EmptyCloudInput)
 {
     buildTestMap(5, 2.0);
-    RelocalizationModule reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
     auto empty_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
 
     RelocResult result = reloc.relocalize(empty_cloud, Eigen::Isometry3d::Identity());
@@ -198,9 +198,9 @@ TEST_F(RelocalizationModuleTest, EmptyCloudInput)
     EXPECT_FALSE(result2.success);
 }
 
-TEST_F(RelocalizationModuleTest, PoseTransformConsistency)
+TEST_F(WorldLocalizingTest, PoseTransformConsistency)
 {
-    RelocalizationModule reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
     Eigen::Isometry3d T_map_odom = Eigen::Isometry3d::Identity();
     T_map_odom.translation() = Eigen::Vector3d(5.0, 3.0, 0.0);
     T_map_odom.rotate(Eigen::AngleAxisd(M_PI / 4, Eigen::Vector3d::UnitZ()));

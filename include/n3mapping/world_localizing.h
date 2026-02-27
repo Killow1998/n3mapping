@@ -30,14 +30,13 @@ struct RelocResult
 };
 
 /**
- * @brief 重定位模块
+ * @brief 世界定位模块
  *
  * 提供全局重定位和跟踪定位功能：
  * - 全局重定位：使用 ScanContext 搜索候选帧，small_gicp 精确配准
  * - 跟踪定位：融合里程计和地图约束，维护 T_map_odom 变换
- *
  */
-class RelocalizationModule
+class WorldLocalizing
 {
   public:
     using PointCloudT = pcl::PointCloud<pcl::PointXYZI>;
@@ -49,7 +48,7 @@ class RelocalizationModule
      * @param loop_detector 回环检测器引用
      * @param matcher 点云配准器引用
      */
-    RelocalizationModule(const Config& config, KeyframeManager& keyframe_manager, LoopDetector& loop_detector, PointCloudMatcher& matcher);
+    WorldLocalizing(const Config& config, KeyframeManager& keyframe_manager, LoopDetector& loop_detector, PointCloudMatcher& matcher);
 
     /**
      * @brief 全局重定位
@@ -59,7 +58,6 @@ class RelocalizationModule
      *
      * @param cloud 当前点云
      * @return 重定位结果
-     *
      */
     RelocResult relocalize(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
 
@@ -72,7 +70,6 @@ class RelocalizationModule
      * @param cloud 当前点云
      * @param odom_pose 当前里程计位姿
      * @return 重定位结果
-     *
      */
     RelocResult trackLocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
 

@@ -45,7 +45,7 @@ n3mapping_node:
     icp_refine_delta_rotation_gate: 0.5 # 触发精修的旋转门限 (弧度)
 
     # ==================== 回环检测 (ScanContext) ====================
-    sc_dist_threshold: 0.3 # ScanContext 距离阈值 (越小越严格，减少误匹配)
+    sc_dist_threshold: 0.2 # ScanContext 距离阈值 (越小越严格，减少误匹配)
     sc_num_exclude_recent: 50 # 排除最近 N 帧 (避免近邻误匹配)
     sc_num_candidates: 5 # 候选帧数量 (Top-K，减少候选)
     sc_max_radius: 80.0 # ScanContext 最大半径
@@ -59,13 +59,18 @@ n3mapping_node:
     optimization_iterations: 10 # 优化迭代次数
     prior_noise_position: 0.001 # 先验位置噪声 (米)
     prior_noise_rotation: 0.001 # 先验旋转噪声 (弧度)
-    odom_noise_position: 0.01 # 里程计位置噪声
-    odom_noise_rotation: 0.01 # 里程计旋转噪声
-    loop_noise_position: 0.01 # 回环位置噪声
-    loop_noise_rotation: 0.01 # 回环旋转噪声
+    odom_noise_position: 0.03 # 里程计位置噪声
+    odom_noise_rotation: 0.03 # 里程计旋转噪声
+    loop_noise_position: 0.3 # 回环位置噪声 (sigma, 米; 应大于 odom，让里程计约束主导)
+    loop_noise_rotation: 0.1 # 回环旋转噪声 (sigma, 弧度)
+    loop_min_inlier_ratio: 0.7 # 回环验证的最小内点比例 (更严格，减少误匹配)
+    loop_fitness_threshold: 0.2 # 回环验证的最大 fitness
+    loop_max_pre_translation_error: 2.0 # 回环一致性门控: 测量与当前估计的最大平移偏差 (米)
+    loop_max_pre_rotation_error: 0.2    # 回环一致性门控: 测量与当前估计的最大旋转偏差 (弧度, ~11.5°)
+    loop_use_icp_information: false     # 不使用 ICP Hessian (过度自信), 使用固定 loop_noise
     use_robust_kernel: true # 回环边使用鲁棒核函数
     robust_kernel_type: "Huber" # Huber, Cauchy, DCS
-    robust_kernel_delta: 100.0 # 鲁棒核函数阈值
+    robust_kernel_delta: 1.0 # 鲁棒核函数阈值 (标准 Huber 推荐 1.345)
 
     # ==================== 点云输出 ====================
     output_cloud_voxel_size: 0.05 # 输出点云下采样分辨率 (0 表示不下采样)
@@ -87,8 +92,8 @@ n3mapping_node:
 
     # ==================== 重定位 ====================
     reloc_num_candidates: 5 # 重定位候选帧数量
-    reloc_sc_dist_threshold: 0.3 # 重定位 ScanContext 距离阈值
-    reloc_min_confidence: 0.2 # 最小置信度
+    reloc_sc_dist_threshold: 0.2 # 重定位 ScanContext 距离阈值
+    reloc_min_confidence: 0.6 # 最小置信度
     reloc_min_inlier_ratio: 0.05 # 最小内点比例（相对于下采样后的 source 点数）
     reloc_search_radius: 10.0 # 跟踪定位搜索半径 (米)
     reloc_max_track_failures: 10 # 最大连续跟踪失败次数

@@ -76,6 +76,11 @@ Config::loadFromROS(rclcpp::Node* node)
     declare_and_get("odom_noise_rotation", odom_noise_rotation);
     declare_and_get("loop_noise_position", loop_noise_position);
     declare_and_get("loop_noise_rotation", loop_noise_rotation);
+    declare_and_get("loop_min_inlier_ratio", loop_min_inlier_ratio);
+    declare_and_get("loop_fitness_threshold", loop_fitness_threshold);
+    declare_and_get("loop_max_pre_translation_error", loop_max_pre_translation_error);
+    declare_and_get("loop_max_pre_rotation_error", loop_max_pre_rotation_error);
+    declare_and_get("loop_use_icp_information", loop_use_icp_information);
 
     // 点云输出
     declare_and_get("output_cloud_voxel_size", output_cloud_voxel_size);
@@ -166,6 +171,9 @@ Config::print(const rclcpp::Logger& logger) const
     RCLCPP_INFO(logger, "  Prior noise (pos/rot): %.4f / %.4f", prior_noise_position, prior_noise_rotation);
     RCLCPP_INFO(logger, "  Odom noise (pos/rot): %.4f / %.4f", odom_noise_position, odom_noise_rotation);
     RCLCPP_INFO(logger, "  Loop noise (pos/rot): %.4f / %.4f", loop_noise_position, loop_noise_rotation);
+    RCLCPP_INFO(logger, "  Loop min inlier ratio: %.2f", loop_min_inlier_ratio);
+    RCLCPP_INFO(logger, "  Loop fitness threshold: %.3f", loop_fitness_threshold);
+    RCLCPP_INFO(logger, "  Loop min inlier ratio: %.2f", loop_min_inlier_ratio);
 
     // --- Relocalization ---
     RCLCPP_INFO(logger, "--- Relocalization ---");

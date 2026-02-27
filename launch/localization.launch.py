@@ -23,7 +23,7 @@ def generate_launch_description():
         description='Path to the configuration file'
     )
     
-    rviz_config_path = os.path.join(pkg_dir, 'launch', 'n3.rviz')
+    rviz_config_path = os.path.join(pkg_dir, 'launch', 'n3_loc.rviz')
     
     # N3Mapping 节点 (map_path 使用代码中的默认值，即源目录下的 map/n3map.pbstream)
     n3mapping_node = Node(

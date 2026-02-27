@@ -1,4 +1,4 @@
-#include "n3mapping/relocalization_module.h"
+#include "n3mapping/world_localizing.h"
 
 #include <Eigen/Geometry>
 #include <algorithm>
@@ -9,10 +9,10 @@
 
 namespace n3mapping {
 
-RelocalizationModule::RelocalizationModule(const Config& config,
-                                           KeyframeManager& keyframe_manager,
-                                           LoopDetector& loop_detector,
-                                           PointCloudMatcher& matcher)
+WorldLocalizing::WorldLocalizing(const Config& config,
+                                 KeyframeManager& keyframe_manager,
+                                 LoopDetector& loop_detector,
+                                 PointCloudMatcher& matcher)
   : config_(config)
   , keyframe_manager_(keyframe_manager)
   , loop_detector_(loop_detector)
@@ -26,7 +26,7 @@ RelocalizationModule::RelocalizationModule(const Config& config,
 }
 
 RelocResult
-RelocalizationModule::relocalize(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose)
+WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose)
 {
     RelocResult result;
     result.success = false;
@@ -70,7 +70,7 @@ RelocalizationModule::relocalize(const PointCloudT::Ptr& cloud, const Eigen::Iso
 }
 
 RelocResult
-RelocalizationModule::trackLocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose)
+WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose)
 {
     // 使用里程计增量预测当前位姿
     Eigen::Isometry3d predicted_pose = T_map_odom_ * odom_pose;
@@ -154,7 +154,14 @@ RelocalizationModule::trackLocalization(const PointCloudT::Ptr& cloud, const Eig
         // 融合里程计预测和 ICP 结果
         double w_icp = std::max(std::min(current_confidence, 0.92), 0.08);
 
-        Eigen::Vector3d t_fused = w_icp * refined_pose.translation() + (1.0 - w_icp) * predicted_pose.translation();
+        // Z 轴单独使用更保守的权重:
+        // 走廊等平面环境中 ICP 在 Z 方向约束很弱，里程计 (IMU) 更稳定
+        double w_icp_z = std::max(std::min(current_confidence * 0.3, 0.5), 0.05);
+
+        Eigen::Vector3d t_fused;
+        t_fused.x() = w_icp * refined_pose.translation().x() + (1.0 - w_icp) * predicted_pose.translation().x();
+        t_fused.y() = w_icp * refined_pose.translation().y() + (1.0 - w_icp) * predicted_pose.translation().y();
+        t_fused.z() = w_icp_z * refined_pose.translation().z() + (1.0 - w_icp_z) * predicted_pose.translation().z();
 
         Eigen::Quaterniond q_icp(refined_pose.rotation());
         Eigen::Quaterniond q_odom(predicted_pose.rotation());
@@ -203,21 +210,21 @@ RelocalizationModule::trackLocalization(const PointCloudT::Ptr& cloud, const Eig
 }
 
 bool
-RelocalizationModule::isRelocalized() const
+WorldLocalizing::isRelocalized() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return is_relocalized_;
 }
 
 Eigen::Isometry3d
-RelocalizationModule::getMapToOdomTransform() const
+WorldLocalizing::getMapToOdomTransform() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return T_map_odom_;
 }
 
 void
-RelocalizationModule::reset()
+WorldLocalizing::reset()
 {
     std::lock_guard<std::mutex> lock(mutex_);
     is_relocalized_ = false;
@@ -228,7 +235,7 @@ RelocalizationModule::reset()
 }
 
 void
-RelocalizationModule::setMapToOdomTransform(const Eigen::Isometry3d& T_map_odom)
+WorldLocalizing::setMapToOdomTransform(const Eigen::Isometry3d& T_map_odom)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     T_map_odom_ = T_map_odom;
@@ -236,14 +243,14 @@ RelocalizationModule::setMapToOdomTransform(const Eigen::Isometry3d& T_map_odom)
 }
 
 int64_t
-RelocalizationModule::getLastMatchedKeyframeId() const
+WorldLocalizing::getLastMatchedKeyframeId() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return last_matched_id_;
 }
 
 std::vector<LoopCandidate>
-RelocalizationModule::searchCandidates(const PointCloudT::Ptr& cloud)
+WorldLocalizing::searchCandidates(const PointCloudT::Ptr& cloud)
 {
     std::vector<LoopCandidate> candidates;
 
@@ -304,10 +311,12 @@ RelocalizationModule::searchCandidates(const PointCloudT::Ptr& cloud)
 }
 
 RelocResult
-RelocalizationModule::verifyCandidates(const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates)
+WorldLocalizing::verifyCandidates(const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates)
 {
     RelocResult best_result;
     double best_score = std::numeric_limits<double>::max();
+    double best_sc_distance = std::numeric_limits<double>::max();
+    const double fitness_epsilon = 1e-4;
 
     for (const auto& candidate : candidates) {
         auto match_kf = keyframe_manager_.getKeyframe(candidate.match_id);
@@ -337,23 +346,37 @@ RelocalizationModule::verifyCandidates(const PointCloudT::Ptr& cloud, const std:
         // 执行配准 (submap 在世界坐标系，cloud 在 body 坐标系)
         MatchResult match_result = matcher_.alignCloud(submap, cloud, init_guess);
 
+        VLOG(1) << "[Relocalization] candidate match_id=" << candidate.match_id << ", sc_dist=" << candidate.sc_distance
+                << ", yaw_diff=" << candidate.yaw_diff_rad << ", submap_pts=" << (submap ? submap->size() : 0)
+                << ", converged=" << match_result.converged << ", fitness=" << match_result.fitness_score
+                << ", inlier_ratio=" << match_result.inlier_ratio;
+
         // 计算置信度：使用指数衰减函数
         double scale = config_.gicp_fitness_threshold * 0.5;
         double current_confidence = std::exp(-match_result.fitness_score / scale);
         current_confidence = std::max(0.0, std::min(1.0, current_confidence));
 
         if (match_result.converged && match_result.fitness_score < config_.gicp_fitness_threshold &&
-            match_result.inlier_ratio >= config_.reloc_min_inlier_ratio && current_confidence >= config_.reloc_min_confidence &&
-            match_result.fitness_score < best_score) {
+            match_result.inlier_ratio >= config_.reloc_min_inlier_ratio && current_confidence >= config_.reloc_min_confidence) {
 
-            best_score = match_result.fitness_score;
+            const bool better_fitness = match_result.fitness_score + fitness_epsilon < best_score;
+            const bool fitness_tie = std::abs(match_result.fitness_score - best_score) <= fitness_epsilon;
+            const bool better_sc = candidate.sc_distance < best_sc_distance;
 
-            // T_target_source 就是 source (body) 在 target (world) 坐标系下的位姿
-            best_result.success = true;
-            best_result.matched_keyframe_id = candidate.match_id;
-            best_result.pose_in_map = match_result.T_target_source;
-            best_result.fitness_score = match_result.fitness_score;
-            best_result.confidence = current_confidence;
+            if (better_fitness || (fitness_tie && better_sc)) {
+                best_score = match_result.fitness_score;
+                best_sc_distance = candidate.sc_distance;
+
+                // T_target_source 就是 source (body) 在 target (world) 坐标系下的位姿
+                best_result.success = true;
+                best_result.matched_keyframe_id = candidate.match_id;
+                best_result.pose_in_map = match_result.T_target_source;
+                best_result.fitness_score = match_result.fitness_score;
+                best_result.confidence = current_confidence;
+
+                VLOG(1) << "[Relocalization] select match_id=" << candidate.match_id << ", best_score=" << best_score
+                        << ", confidence=" << current_confidence;
+            }
         }
     }
 
@@ -361,7 +384,7 @@ RelocalizationModule::verifyCandidates(const PointCloudT::Ptr& cloud, const std:
 }
 
 int64_t
-RelocalizationModule::findNearestKeyframe(const Eigen::Isometry3d& pose) const
+WorldLocalizing::findNearestKeyframe(const Eigen::Isometry3d& pose) const
 {
     int64_t nearest_id = -1;
     double min_distance = std::numeric_limits<double>::max();

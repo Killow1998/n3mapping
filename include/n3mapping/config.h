@@ -67,16 +67,21 @@ struct Config
     size_t kdtree_cache_size = 20; // 缓存最近使用的 N 个关键帧 KD-Tree
 
     // ==================== 图优化 (GTSAM) ====================
-    int optimization_iterations = 10;         // 优化迭代次数
-    double prior_noise_position = 0.01;       // 先验位置噪声 (米)
-    double prior_noise_rotation = 0.01;       // 先验旋转噪声 (弧度)
-    double odom_noise_position = 0.1;         // 里程计位置噪声
-    double odom_noise_rotation = 0.1;         // 里程计旋转噪声
-    double loop_noise_position = 0.1;         // 回环位置噪声
-    double loop_noise_rotation = 0.1;         // 回环旋转噪声
-    bool use_robust_kernel = true;            // 回环边使用鲁棒核函数
-    std::string robust_kernel_type = "Huber"; // Huber, Cauchy, DCS
-    double robust_kernel_delta = 1.0;         // 鲁棒核函数阈值
+    int optimization_iterations = 10;            // 优化迭代次数
+    double prior_noise_position = 0.01;          // 先验位置噪声 (米)
+    double prior_noise_rotation = 0.01;          // 先验旋转噪声 (弧度)
+    double odom_noise_position = 0.1;            // 里程计位置噪声
+    double odom_noise_rotation = 0.1;            // 里程计旋转噪声
+    double loop_noise_position = 0.1;            // 回环位置噪声
+    double loop_noise_rotation = 0.1;            // 回环旋转噪声
+    bool use_robust_kernel = true;               // 回环边使用鲁棒核函数
+    std::string robust_kernel_type = "Huber";    // Huber, Cauchy, DCS
+    double robust_kernel_delta = 1.0;            // 鲁棒核函数阈值
+    double loop_min_inlier_ratio = 0.5;          // 回环验证最小内点比例
+    double loop_fitness_threshold = 0.2;         // 回环验证的最大 fitness
+    double loop_max_pre_translation_error = 5.0; // 回环一致性门控: 最大平移偏差 (米)
+    double loop_max_pre_rotation_error = 1.0;    // 回环一致性门控: 最大旋转偏差 (弧度)
+    bool loop_use_icp_information = false;       // 是否使用 ICP Hessian 作为回环信息矩阵
 
     // ==================== 点云输出 ====================
     double output_cloud_voxel_size = 0.2; // 输出点云下采样分辨率 (0 表示不下采样)
