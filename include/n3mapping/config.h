@@ -2,7 +2,7 @@
 #define N3MAPPING_CONFIG_H
 
 #include <glog/logging.h>
-#include <rclcpp/rclcpp.hpp>
+#include <ros/ros.h>
 #include <string>
 
 namespace n3mapping {
@@ -10,7 +10,7 @@ namespace n3mapping {
 /**
  * @brief N3Mapping 配置参数结构
  *
- * 包含所有可配置参数，支持从 ROS2 参数服务器加载
+ * 包含所有可配置参数，支持从 ROS1 参数服务器加载
  */
 struct Config
 {
@@ -23,7 +23,7 @@ struct Config
 #endif
 
     // ==================== 话题配置 ====================
-    std::string cloud_topic = "/cloud_registered";
+    std::string cloud_topic = "/cloud_registered_body";
     std::string odom_topic = "/Odometry";
     std::string output_odom_topic = "/n3mapping/odometry";
     std::string output_path_topic = "/n3mapping/path";
@@ -81,6 +81,7 @@ struct Config
     double loop_fitness_threshold = 0.2;         // 回环验证的最大 fitness
     double loop_max_pre_translation_error = 5.0; // 回环一致性门控: 最大平移偏差 (米)
     double loop_max_pre_rotation_error = 1.0;    // 回环一致性门控: 最大旋转偏差 (弧度)
+    double loop_max_z_diff = 1.0;                // 回环测量 Z 轴最大偏差 (米)，防止地图分层
     bool loop_use_icp_information = false;       // 是否使用 ICP Hessian 作为回环信息矩阵
 
     // ==================== 点云输出 ====================
@@ -104,26 +105,25 @@ struct Config
     double sync_time_tolerance = 0.1; // 时间同步容差 (秒)
 
     // ==================== 重定位 ====================
-    int reloc_num_candidates = 5;             // 重定位候选帧数量
+    int reloc_num_candidates = 10;            // 重定位候选帧数量
     double reloc_sc_dist_threshold = 0.3;     // 重定位 ScanContext 距离阈值
-    double reloc_min_confidence = 0.5;        // 最小置信度
-    double reloc_min_inlier_ratio = 0.05;     // 最小内点比例（相对于 downsampled source 点数）
-    double reloc_search_radius = 10.0;        // 跟踪定位搜索半径 (米)
-    int reloc_max_track_failures = 10;        // 最大连续跟踪失败次数
-    double reloc_track_max_translation = 2.0; // 跟踪阶段允许的最大位移修正 (米)
-    double reloc_track_max_rotation = 0.7;    // 跟踪阶段允许的最大旋转修正 (弧度)
+    double reloc_min_confidence = 0.3;        // 最小置信度
+    double reloc_min_inlier_ratio = 0.03;     // 最小内点比例（相对于 downsampled source 点数）
+    double reloc_search_radius = 20.0;        // 跟踪定位搜索半径 (米)
+    int reloc_max_track_failures = 20;        // 最大连续跟踪失败次数
+    double reloc_track_max_translation = 3.0; // 跟踪阶段允许的最大位移修正 (米)
+    double reloc_track_max_rotation = 1.0;    // 跟踪阶段允许的最大旋转修正 (弧度)
 
     /**
-     * @brief 从 ROS2 节点加载配置参数
-     * @param node ROS2 节点指针
+    * @brief 从 ROS1 节点加载配置参数
+    * @param node ROS1 节点句柄
      */
-    void loadFromROS(rclcpp::Node* node);
+    void loadFromROS(ros::NodeHandle& node);
 
     /**
      * @brief 打印配置信息
-     * @param logger ROS2 logger
      */
-    void print(const rclcpp::Logger& logger) const;
+    void print() const;
 };
 
 } // namespace n3mapping

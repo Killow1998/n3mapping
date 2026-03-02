@@ -7,9 +7,8 @@
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <rclcpp/clock.hpp>
-#include <rclcpp/logger.hpp>
-#include <std_msgs/msg/header.hpp>
+#include <ros/ros.h>
+#include <std_msgs/Header.h>
 
 #include "n3mapping/config.h"
 #include "n3mapping/graph_optimizer.h"
@@ -24,9 +23,9 @@ using PointCloud = pcl::PointCloud<pcl::PointXYZI>;
 
 struct ModePublishCallbacks
 {
-    std::function<void(const Eigen::Isometry3d&, const std_msgs::msg::Header&)> publish_odometry;
-    std::function<void(const std_msgs::msg::Header&, const Eigen::Isometry3d*)> publish_path;
-    std::function<void(PointCloud::Ptr, const Eigen::Isometry3d&, const std_msgs::msg::Header&)> publish_point_clouds;
+    std::function<void(const Eigen::Isometry3d&, const std_msgs::Header&)> publish_odometry;
+    std::function<void(const std_msgs::Header&, const Eigen::Isometry3d*)> publish_path;
+    std::function<void(PointCloud::Ptr, const Eigen::Isometry3d&, const std_msgs::Header&)> publish_point_clouds;
     std::function<void(const std::string&, double, const Eigen::Isometry3d*)> log_optimization_result;
 };
 
@@ -40,10 +39,9 @@ class MappingModeHandler
                        std::mutex& loop_queue_mutex,
                        std::vector<int64_t>& loop_detection_queue,
                        ModePublishCallbacks publish,
-                       std::function<void()> on_keyframe_added,
-                       rclcpp::Logger logger);
+                       std::function<void()> on_keyframe_added);
 
-    void process(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header);
+    void process(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::Header& header);
 
   private:
     const Config& config_;
@@ -54,7 +52,6 @@ class MappingModeHandler
     std::vector<int64_t>& loop_detection_queue_;
     ModePublishCallbacks publish_;
     std::function<void()> on_keyframe_added_;
-    rclcpp::Logger logger_;
 };
 
 class LocalizationModeHandler
@@ -62,7 +59,7 @@ class LocalizationModeHandler
   public:
     LocalizationModeHandler(WorldLocalizing& world_localizing, ModePublishCallbacks publish);
 
-    void process(bool map_loaded, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header);
+    void process(bool map_loaded, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::Header& header);
 
   private:
     WorldLocalizing& world_localizing_;
@@ -78,15 +75,13 @@ class MapResumingModeHandler
                            WorldLocalizing& world_localizing,
                            MappingResuming& mapping_resuming,
                            ModePublishCallbacks publish,
-                           std::function<void()> on_keyframe_added,
-                           rclcpp::Logger logger,
-                           rclcpp::Clock::SharedPtr clock);
+                           std::function<void()> on_keyframe_added);
 
     void process(bool map_loaded,
                  double timestamp,
                  const Eigen::Isometry3d& pose_odom,
                  PointCloud::Ptr cloud,
-                 const std_msgs::msg::Header& header);
+                 const std_msgs::Header& header);
 
   private:
     const Config& config_;
@@ -96,8 +91,6 @@ class MapResumingModeHandler
     MappingResuming& mapping_resuming_;
     ModePublishCallbacks publish_;
     std::function<void()> on_keyframe_added_;
-    rclcpp::Logger logger_;
-    rclcpp::Clock::SharedPtr clock_;
 };
 
 } // namespace n3mapping

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
+#include <ros/ros.h>
 #include "n3mapping/graph_optimizer.h"
 
 namespace n3mapping {
@@ -338,8 +338,8 @@ TEST_F(GraphOptimizerTest, PoseConsistency) {
 
 int main(int argc, char** argv) {
     testing::InitGoogleTest(&argc, argv);
-    rclcpp::init(argc, argv);
+    ros::init(argc, argv, "n3mapping_test_graph_optimizer");
     int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
+    ros::shutdown();
     return result;
 }

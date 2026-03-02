@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
+#include <ros/ros.h>
 #include "n3mapping/keyframe_manager.h"
 
 namespace n3mapping {
@@ -329,9 +329,9 @@ TEST_F(KeyframeManagerTest, KeyframeValidity) {
 }  // namespace n3mapping
 
 int main(int argc, char** argv) {
-    rclcpp::init(argc, argv);
+    ros::init(argc, argv, "n3mapping_test_keyframe_manager");
     testing::InitGoogleTest(&argc, argv);
     int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
+    ros::shutdown();
     return result;
 }

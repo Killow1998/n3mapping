@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<package format="3">
+<?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="2">
   <name>n3mapping</name>
   <version>1.0.0</version>
   <description>
@@ -12,10 +12,10 @@
   <maintainer email="user@example.com">N3Mapping Developer</maintainer>
   <license>BSD-3-Clause</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>catkin</buildtool_depend>
 
-  <!-- ROS2 依赖 -->
-  <depend>rclcpp</depend>
+  <!-- ROS1 依赖 -->
+  <depend>roscpp</depend>
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
@@ -29,19 +29,17 @@
   <depend>pcl_ros</depend>
   <depend>cv_bridge</depend>
   <depend>small_gicp</depend>
+  <depend>eigen</depend>
 
   <!-- 外部依赖 -->
-  <depend>libpcl-all-dev</depend>
-  <depend>eigen</depend>
+  <depend>gtsam</depend>
+  <depend>libgtsam-dev</depend>
   <depend>libprotobuf-dev</depend>
   <depend>protobuf-compiler</depend>
+  <depend>libgoogle-glog-dev</depend>
+  <depend>libopencv-dev</depend>
 
   <!-- 测试依赖 -->
-  <test_depend>ament_lint_auto</test_depend>
-  <test_depend>ament_cmake_gtest</test_depend>
-  <test_depend>ament_cmake_gmock</test_depend>
-
-  <export>
-    <build_type>ament_cmake</build_type>
-  </export>
+  <test_depend>rostest</test_depend>
+  <test_depend>gtest</test_depend>
 </package>

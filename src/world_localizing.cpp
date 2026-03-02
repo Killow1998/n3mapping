@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <boost/make_shared.hpp>
 #include <pcl/common/transforms.h>
 
 namespace n3mapping {
@@ -48,9 +49,13 @@ WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eigen::Isometry
     std::vector<LoopCandidate> candidates = searchCandidates(cloud);
 
     if (candidates.empty()) {
-        LOG(WARNING) << "No relocalization candidates found using ScanContext.";
+        LOG(WARNING) << "No relocalization candidates found using ScanContext. "
+                     << "Map has " << keyframe_manager_.size() << " keyframes, "
+                     << "SC threshold=" << config_.reloc_sc_dist_threshold;
         return result;
     }
+
+    LOG(INFO) << "Relocalization: found " << candidates.size() << " SC candidates";
 
     // Step 2: 使用 small_gicp 验证候选帧
     result = verifyCandidates(cloud, candidates);
@@ -143,61 +148,74 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, const Eigen::I
         delta_rotation = Eigen::AngleAxisd(delta.rotation()).angle();
     }
 
-    const bool icp_delta_ok =
-      (delta_translation <= config_.reloc_track_max_translation) && (delta_rotation <= config_.reloc_track_max_rotation);
+    if (icp_basic_ok) {
+        // 配准成功（ICP 收敛且质量良好）
+        // ICP 给出的是 source(body) 在 target(world) 下的位姿
+        Eigen::Isometry3d T_map_odom_icp = match_result.T_target_source * odom_pose.inverse();
 
-    if (icp_basic_ok && icp_delta_ok) {
-        // 配准成功
-        // T_target_source 就是 source (body) 在 target (world) 坐标系下的位姿
-        Eigen::Isometry3d refined_pose = match_result.T_target_source;
+        // 核心思路：不融合绝对位姿（会导致轨迹跳跃），
+        // 而是渐进式修正 T_map_odom_，输出位姿始终 = T_map_odom_ * odom_pose
+        // 这样轨迹平滑性完全由前端里程计保证，ICP 只修正累积漂移
 
-        // 融合里程计预测和 ICP 结果
-        double w_icp = std::max(std::min(current_confidence, 0.92), 0.08);
+        // 根据 delta 和置信度决定 T_map_odom_ 的修正速率
+        double alpha;
+        if (delta_translation <= 0.5) {
+            // 偏差很小：已经对齐良好，小步修正
+            alpha = std::min(current_confidence * 0.3, 0.2);
+        } else if (delta_translation <= 2.0) {
+            // 中等偏差：适度修正
+            alpha = std::min(current_confidence * 0.15, 0.1);
+        } else {
+            // 大偏差（初始 relocalize 不准或漂移大）：保守修正避免跳变
+            alpha = std::min(current_confidence * 0.08, 0.05);
+        }
+        alpha = std::max(alpha, 0.01); // 最小修正率
 
-        // Z 轴单独使用更保守的权重:
-        // 走廊等平面环境中 ICP 在 Z 方向约束很弱，里程计 (IMU) 更稳定
-        double w_icp_z = std::max(std::min(current_confidence * 0.3, 0.5), 0.05);
+        // 对 T_map_odom_ 做插值修正
+        // 提取当前和目标 T_map_odom_ 的平移和旋转分量
+        Eigen::Vector3d t_current = T_map_odom_.translation();
+        Eigen::Vector3d t_target = T_map_odom_icp.translation();
+        Eigen::Vector3d t_new = t_current + alpha * (t_target - t_current);
 
-        Eigen::Vector3d t_fused;
-        t_fused.x() = w_icp * refined_pose.translation().x() + (1.0 - w_icp) * predicted_pose.translation().x();
-        t_fused.y() = w_icp * refined_pose.translation().y() + (1.0 - w_icp) * predicted_pose.translation().y();
-        t_fused.z() = w_icp_z * refined_pose.translation().z() + (1.0 - w_icp_z) * predicted_pose.translation().z();
+        // Z 方向更保守
+        double alpha_z = alpha * 0.3;
+        t_new.z() = t_current.z() + alpha_z * (t_target.z() - t_current.z());
 
-        Eigen::Quaterniond q_icp(refined_pose.rotation());
-        Eigen::Quaterniond q_odom(predicted_pose.rotation());
-        Eigen::Quaterniond q_fused = q_odom.slerp(w_icp, q_icp);
+        Eigen::Quaterniond q_current(T_map_odom_.rotation());
+        Eigen::Quaterniond q_target(T_map_odom_icp.rotation());
+        Eigen::Quaterniond q_new = q_current.slerp(alpha, q_target);
 
+        T_map_odom_.translation() = t_new;
+        T_map_odom_.linear() = q_new.toRotationMatrix();
+
+        // 输出位姿完全由 T_map_odom_ * odom_pose 决定，保证平滑
         result.success = true;
         result.matched_keyframe_id = nearest_kf_id;
-        result.pose_in_map = Eigen::Isometry3d::Identity();
-        result.pose_in_map.translation() = t_fused;
-        result.pose_in_map.linear() = q_fused.toRotationMatrix();
+        result.pose_in_map = T_map_odom_ * odom_pose;
         result.fitness_score = match_result.fitness_score;
         result.confidence = current_confidence;
 
-        // 更新 T_map_odom
-        T_map_odom_ = result.pose_in_map * odom_pose.inverse();
         last_matched_id_ = nearest_kf_id;
         last_odom_pose_ = odom_pose;
+        consecutive_track_failures_ = 0;
 
-        // 只有置信度很低时才增加失败计数
-        if (current_confidence < 0.3) {
-            consecutive_track_failures_++;
-        } else {
-            consecutive_track_failures_ = 0;
-        }
-
-        VLOG(1) << "Tracking: fitness=" << match_result.fitness_score << ", confidence=" << current_confidence << ", w_icp=" << w_icp;
+        VLOG(1) << "Tracking OK: fitness=" << match_result.fitness_score << " conf=" << current_confidence
+                << " alpha=" << alpha << " delta_t=" << delta_translation << " delta_R=" << delta_rotation;
 
     } else {
-        // 配准失败，使用里程计预测
+        // 配准失败，使用里程计预测 (不更新 T_map_odom_，保持上次可靠的变换)
         consecutive_track_failures_++;
-        LOG(WARNING) << "Tracking localization failed. converged=" << match_result.converged << " fitness=" << match_result.fitness_score
-                     << " (threshold: " << config_.gicp_fitness_threshold << ")"
-                     << " inlier_ratio=" << match_result.inlier_ratio << " (min: " << config_.reloc_min_inlier_ratio << ")"
-                     << " delta_t=" << delta_translation << " (max: " << config_.reloc_track_max_translation << ")"
-                     << " delta_R=" << delta_rotation << " (max: " << config_.reloc_track_max_rotation << ")"
-                     << " Consecutive failures: " << consecutive_track_failures_;
+        // 只在第1次、第5次、之后每10次输出 WARNING，避免刷屏
+        if (consecutive_track_failures_ == 1 || consecutive_track_failures_ == 5 ||
+            consecutive_track_failures_ % 10 == 0) {
+            LOG(WARNING) << "Tracking failed (x" << consecutive_track_failures_ << "): converged=" << match_result.converged
+                         << " fitness=" << match_result.fitness_score << " inlier=" << match_result.inlier_ratio
+                         << " delta_t=" << delta_translation << " delta_R=" << delta_rotation;
+        }
+        VLOG(1) << "Tracking localization failed #" << consecutive_track_failures_
+                << ": converged=" << match_result.converged << " fitness=" << match_result.fitness_score
+                << " inlier=" << match_result.inlier_ratio
+                << " delta_t=" << delta_translation << " delta_R=" << delta_rotation;
         // 使用里程计预测
         result.success = true;
         result.matched_keyframe_id = last_matched_id_;
@@ -333,15 +351,16 @@ WorldLocalizing::verifyCandidates(const PointCloudT::Ptr& cloud, const std::vect
                 continue;
             }
             // 将单帧变换到世界坐标系
-            submap = std::make_shared<PointCloudT>();
+            submap = boost::make_shared<PointCloudT>();
             Eigen::Matrix4f transform = match_kf->pose_optimized.matrix().cast<float>();
             pcl::transformPointCloud(*match_kf->cloud, *submap, transform);
         }
 
         // 构建初始猜测：使用 ScanContext 估计的 yaw 差异
-        // 初始猜测是 source (body) 在世界坐标系下的位姿
+        // init_guess 表示 source (body) 在 target (world) 坐标系下的位姿
+        // SC 的 yaw 差异是在世界坐标系下的旋转偏移，所以用 prerotate（左乘）
         Eigen::Isometry3d init_guess = match_kf->pose_optimized;
-        init_guess.rotate(Eigen::AngleAxisd(candidate.yaw_diff_rad, Eigen::Vector3d::UnitZ()));
+        init_guess.prerotate(Eigen::AngleAxisd(candidate.yaw_diff_rad, Eigen::Vector3d::UnitZ()));
 
         // 执行配准 (submap 在世界坐标系，cloud 在 body 坐标系)
         MatchResult match_result = matcher_.alignCloud(submap, cloud, init_guess);
@@ -377,6 +396,12 @@ WorldLocalizing::verifyCandidates(const PointCloudT::Ptr& cloud, const std::vect
                 VLOG(1) << "[Relocalization] select match_id=" << candidate.match_id << ", best_score=" << best_score
                         << ", confidence=" << current_confidence;
             }
+        } else {
+            VLOG(1) << "[Relocalization] rejected candidate match_id=" << candidate.match_id
+                      << " converged=" << match_result.converged
+                      << " fitness=" << match_result.fitness_score << " (thr=" << config_.gicp_fitness_threshold << ")"
+                      << " inlier=" << match_result.inlier_ratio << " (min=" << config_.reloc_min_inlier_ratio << ")"
+                      << " confidence=" << current_confidence << " (min=" << config_.reloc_min_confidence << ")";
         }
     }
 

@@ -1,101 +1,100 @@
 # N3Mapping 配置文件
 # 后端 SLAM 优化节点参数
-# Requirements: 所有可配置参数
+# ROS1 格式: 参数直接放在顶层，由 <rosparam> 加载到节点的 private namespace
 
-n3mapping_node:
-  ros__parameters:
-    # ==================== 运行模式 ====================
-    # mapping: 建图模式
-    # localization: 重定位模式
-    # map_extension: 地图续建模式
-    mode: "mapping"
-    map_path: "" # 地图文件路径 (用于 localization 和 map_extension)
+# ==================== 运行模式 ====================
+# mapping: 建图模式
+# localization: 重定位模式
+# map_extension: 地图续建模式
+mode: "mapping"
+map_path: "" # 地图文件路径 (用于 localization 和 map_extension)
 
-    # ==================== 话题配置 ====================
-    cloud_topic: "/cloud_registered_body"
-    odom_topic: "/Odometry"
-    output_odom_topic: "/n3mapping/odometry"
-    output_path_topic: "/n3mapping/path"
-    output_cloud_body_topic: "/n3mapping/cloud_body"
-    output_cloud_world_topic: "/n3mapping/cloud_world"
+# ==================== 话题配置 ====================
+cloud_topic: "/cloud_registered_body"
+odom_topic: "/Odometry"
+output_odom_topic: "/n3mapping/odometry"
+output_path_topic: "/n3mapping/path"
+output_cloud_body_topic: "/n3mapping/cloud_body"
+output_cloud_world_topic: "/n3mapping/cloud_world"
 
-    # ==================== 坐标系配置 ====================
-    world_frame: "map"
-    body_frame: "body"
+# ==================== 坐标系配置 ====================
+world_frame: "map"
+body_frame: "body"
 
-    # ==================== 关键帧选择 ====================
-    keyframe_distance_threshold: 2.0 # 米
-    keyframe_angle_threshold: 0.5 # 弧度 (~28.6度)
+# ==================== 关键帧选择 ====================
+keyframe_distance_threshold: 2.0 # 米
+keyframe_angle_threshold: 0.5 # 弧度 (~28.6度)
 
-    # ==================== 点云配准 (small_gicp) ====================
-    gicp_downsampling_resolution: 0.1 # 下采样分辨率 (米)
-    gicp_max_correspondence_distance: 2.0 # 最大对应点距离
-    gicp_max_iterations: 50 # 最大迭代次数
-    gicp_transformation_epsilon: 0.01 # 变换收敛阈值
-    gicp_rotation_epsilon_deg: 1.0 # 旋转收敛阈值 (度)
-    gicp_fitness_threshold: 0.3 # 配准得分阈值 (越小越严格)
-    gicp_num_neighbors: 20 # 法向量估计邻居数
-    gicp_submap_size: 4 # 局部子图帧数 (前后各 N 帧，共 2N+1 帧)
-    icp_refine_use_gicp: true # 粗对齐后是否使用 GICP 精修
-    icp_refine_max_iterations: 20 # 精修迭代次数
-    icp_refine_max_correspondence_distance: 1.0 # 精修最大对应距离
-    icp_refine_downsampling_resolution: 0.1 # 精修下采样分辨率
-    icp_refine_fitness_gate: 0.4 # 触发精修的 fitness 上限
-    icp_refine_delta_translation_gate: 3.0 # 触发精修的平移门限 (米)
-    icp_refine_delta_rotation_gate: 0.5 # 触发精修的旋转门限 (弧度)
+# ==================== 点云配准 (small_gicp) ====================
+gicp_downsampling_resolution: 0.1 # 下采样分辨率 (米)
+gicp_max_correspondence_distance: 2.0 # 最大对应点距离
+gicp_max_iterations: 50 # 最大迭代次数
+gicp_transformation_epsilon: 0.01 # 变换收敛阈值
+gicp_rotation_epsilon_deg: 1.0 # 旋转收敛阈值 (度)
+gicp_fitness_threshold: 0.3 # 配准得分阈值 (越小越严格)
+gicp_num_neighbors: 20 # 法向量估计邻居数
+gicp_submap_size: 4 # 局部子图帧数 (前后各 N 帧，共 2N+1 帧)
+icp_refine_use_gicp: true # 粗对齐后是否使用 GICP 精修
+icp_refine_max_iterations: 20 # 精修迭代次数
+icp_refine_max_correspondence_distance: 1.0 # 精修最大对应距离
+icp_refine_downsampling_resolution: 0.1 # 精修下采样分辨率
+icp_refine_fitness_gate: 0.4 # 触发精修的 fitness 上限
+icp_refine_delta_translation_gate: 3.0 # 触发精修的平移门限 (米)
+icp_refine_delta_rotation_gate: 0.5 # 触发精修的旋转门限 (弧度)
 
-    # ==================== 回环检测 (ScanContext) ====================
-    sc_dist_threshold: 0.2 # ScanContext 距离阈值 (越小越严格，减少误匹配)
-    sc_num_exclude_recent: 50 # 排除最近 N 帧 (避免近邻误匹配)
-    sc_num_candidates: 5 # 候选帧数量 (Top-K，减少候选)
-    sc_max_radius: 80.0 # ScanContext 最大半径
-    sc_num_rings: 20 # 环数
-    sc_num_sectors: 60 # 扇区数
+# ==================== 回环检测 (ScanContext) ====================
+sc_dist_threshold: 0.2 # ScanContext 距离阈值 (越小越严格，减少误匹配)
+sc_num_exclude_recent: 50 # 排除最近 N 帧 (避免近邻误匹配)
+sc_num_candidates: 5 # 候选帧数量 (Top-K，减少候选)
+sc_max_radius: 80.0 # ScanContext 最大半径
+sc_num_rings: 20 # 环数
+sc_num_sectors: 60 # 扇区数
 
-    # ==================== KD-Tree 缓存 ====================
-    kdtree_cache_size: 20 # 缓存最近使用的 N 个关键帧 KD-Tree
+# ==================== KD-Tree 缓存 ====================
+kdtree_cache_size: 20 # 缓存最近使用的 N 个关键帧 KD-Tree
 
-    # ==================== 图优化 (GTSAM iSAM2) ====================
-    optimization_iterations: 10 # 优化迭代次数
-    prior_noise_position: 0.001 # 先验位置噪声 (米)
-    prior_noise_rotation: 0.001 # 先验旋转噪声 (弧度)
-    odom_noise_position: 0.03 # 里程计位置噪声
-    odom_noise_rotation: 0.03 # 里程计旋转噪声
-    loop_noise_position: 0.3 # 回环位置噪声 (sigma, 米; 应大于 odom，让里程计约束主导)
-    loop_noise_rotation: 0.1 # 回环旋转噪声 (sigma, 弧度)
-    loop_min_inlier_ratio: 0.7 # 回环验证的最小内点比例 (更严格，减少误匹配)
-    loop_fitness_threshold: 0.2 # 回环验证的最大 fitness
-    loop_max_pre_translation_error: 2.0 # 回环一致性门控: 测量与当前估计的最大平移偏差 (米)
-    loop_max_pre_rotation_error: 0.2    # 回环一致性门控: 测量与当前估计的最大旋转偏差 (弧度, ~11.5°)
-    loop_use_icp_information: false     # 不使用 ICP Hessian (过度自信), 使用固定 loop_noise
-    use_robust_kernel: true # 回环边使用鲁棒核函数
-    robust_kernel_type: "Huber" # Huber, Cauchy, DCS
-    robust_kernel_delta: 1.0 # 鲁棒核函数阈值 (标准 Huber 推荐 1.345)
+# ==================== 图优化 (GTSAM iSAM2) ====================
+optimization_iterations: 10 # 优化迭代次数
+prior_noise_position: 0.001 # 先验位置噪声 (米)
+prior_noise_rotation: 0.001 # 先验旋转噪声 (弧度)
+odom_noise_position: 0.03 # 里程计位置噪声
+odom_noise_rotation: 0.03 # 里程计旋转噪声
+loop_noise_position: 0.3 # 回环位置噪声 (sigma, 米; 应大于 odom，让里程计约束主导)
+loop_noise_rotation: 0.1 # 回环旋转噪声 (sigma, 弧度)
+loop_min_inlier_ratio: 0.7 # 回环验证的最小内点比例 (更严格，减少误匹配)
+loop_fitness_threshold: 0.2 # 回环验证的最大 fitness
+loop_max_pre_translation_error: 2.0 # 回环一致性门控: 测量与当前估计的最大平移偏差 (米)
+loop_max_pre_rotation_error: 0.2    # 回环一致性门控: 测量与当前估计的最大旋转偏差 (弧度, ~11.5°)
+loop_max_z_diff: 1.0                # 回环测量 Z 轴最大偏差 (米)，防止地图分层
+loop_use_icp_information: false     # 不使用 ICP Hessian (过度自信), 使用固定 loop_noise
+use_robust_kernel: true # 回环边使用鲁棒核函数
+robust_kernel_type: "Huber" # Huber, Cauchy, DCS
+robust_kernel_delta: 1.0 # 鲁棒核函数阈值 (标准 Huber 推荐 1.345)
 
-    # ==================== 点云输出 ====================
-    output_cloud_voxel_size: 0.05 # 输出点云下采样分辨率 (0 表示不下采样)
+# ==================== 点云输出 ====================
+output_cloud_voxel_size: 0.05 # 输出点云下采样分辨率 (0 表示不下采样)
 
-    # ==================== 地图序列化 ====================
-    # map_save_path 默认为源目录下的 map 文件夹 (通过 CMake 宏 N3MAPPING_SOURCE_DIR 定义)
-    # 如果需要自定义路径，取消下面的注释并修改
-    # map_save_path: "/custom/path/to/map"
+# ==================== 地图序列化 ====================
+# map_save_path 默认为源目录下的 map 文件夹 (通过 CMake 宏 N3MAPPING_SOURCE_DIR 定义)
+# 如果需要自定义路径，取消下面的注释并修改
+# map_save_path: "/custom/path/to/map"
 
-    # ==================== 全局地图 ====================
-    global_map_voxel_size: 0.01 # 全局地图下采样分辨率
-    save_global_map_on_shutdown: true # 关闭时保存全局地图
+# ==================== 全局地图 ====================
+global_map_voxel_size: 0.01 # 全局地图下采样分辨率
+save_global_map_on_shutdown: true # 关闭时保存全局地图
 
-    # ==================== 并行计算 ====================
-    num_threads: 4 # OpenMP 线程数
+# ==================== 并行计算 ====================
+num_threads: 4 # OpenMP 线程数
 
-    # ==================== 时间同步 ====================
-    sync_time_tolerance: 0.1 # 时间同步容差 (秒)
+# ==================== 时间同步 ====================
+sync_time_tolerance: 0.1 # 时间同步容差 (秒)
 
-    # ==================== 重定位 ====================
-    reloc_num_candidates: 5 # 重定位候选帧数量
-    reloc_sc_dist_threshold: 0.2 # 重定位 ScanContext 距离阈值
-    reloc_min_confidence: 0.6 # 最小置信度
-    reloc_min_inlier_ratio: 0.05 # 最小内点比例（相对于下采样后的 source 点数）
-    reloc_search_radius: 10.0 # 跟踪定位搜索半径 (米)
-    reloc_max_track_failures: 10 # 最大连续跟踪失败次数
-    reloc_track_max_translation: 2.0 # 跟踪阶段允许的最大位移修正 (米)
-    reloc_track_max_rotation: 0.7 # 跟踪阶段允许的最大旋转修正 (弧度)
+# ==================== 重定位 ====================
+reloc_num_candidates: 10 # 重定位候选帧数量 (增大以提高初始重定位成功率)
+reloc_sc_dist_threshold: 0.3 # 重定位 ScanContext 距离阈值 (适当放宽)
+reloc_min_confidence: 0.3 # 最小置信度 (降低以允许初始重定位通过)
+reloc_min_inlier_ratio: 0.03 # 最小内点比例（相对于下采样后的 source 点数）
+reloc_search_radius: 20.0 # 跟踪定位搜索半径 (米, 增大以应对初始偏差)
+reloc_max_track_failures: 20 # 最大连续跟踪失败次数 (增大容忍度)
+reloc_track_max_translation: 3.0 # 跟踪阶段允许的最大位移修正 (米, 适当放宽)
+reloc_track_max_rotation: 1.0 # 跟踪阶段允许的最大旋转修正 (弧度, 适当放宽)

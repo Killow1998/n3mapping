@@ -1,6 +1,6 @@
 #include "n3mapping/keyframe_manager.h"
 #include <limits>
-#include <rclcpp/rclcpp.hpp>
+#include <boost/make_shared.hpp>
 #include <pcl/common/transforms.h>
 
 namespace n3mapping {
@@ -244,7 +244,7 @@ KeyframeManager::buildLocalSubmap(int64_t center_id, int submap_size) const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     
-    auto submap = std::make_shared<Keyframe::PointCloudT>();
+    auto submap = boost::make_shared<Keyframe::PointCloudT>();
     
     // 获取中心关键帧
     auto center_it = keyframes_.find(center_id);

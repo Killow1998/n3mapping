@@ -2,7 +2,6 @@
 
 #include <glog/logging.h>
 #include <omp.h>
-#include <rclcpp/rclcpp.hpp>
 
 #include <algorithm>
 #include <array>
@@ -166,15 +165,15 @@ PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe::Ptr& sourc
             result.fitness_score = std::numeric_limits<double>::max();
         }
 
-        // 验证配准质量
-        if (reg_result.converged && result.fitness_score < config_.gicp_fitness_threshold) {
+        // 验证配准质量：fitness 好 + inlier_ratio 足够即可
+        if (result.fitness_score < config_.gicp_fitness_threshold &&
+            result.inlier_ratio >= config_.reloc_min_inlier_ratio) {
+            result.converged = true;
             result.success = true;
-        } else {
-            LOG(WARNING) << "[PointCloudMatcher] Registration quality check failed: converged=" << reg_result.converged
-                         << ", iters=" << reg_result.iterations << ", inliers=" << reg_result.num_inliers
-                         << ", inlier_ratio=" << result.inlier_ratio << ", fitness=" << result.fitness_score
-                         << " (threshold=" << config_.gicp_fitness_threshold << ")";
         }
+        VLOG(1) << "[PointCloudMatcher] align: converged=" << result.converged
+                << " fitness=" << result.fitness_score << " inlier_ratio=" << result.inlier_ratio
+                << " success=" << result.success;
 
     } catch (const std::exception& e) {
         LOG(ERROR) << "[PointCloudMatcher] Exception in point cloud alignment: " << e.what();
@@ -236,7 +235,6 @@ PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointC
         double coarse_inlier_ratio = 0.0;
         Eigen::Matrix<double, 6, 6> coarse_H = Eigen::Matrix<double, 6, 6>::Identity();
         bool coarse_converged = false;
-        size_t coarse_iterations = 0;
         double coarse_fitness = std::numeric_limits<double>::max();
 
         for (double res : resolutions) {
@@ -266,7 +264,6 @@ PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointC
             T = reg_result.T_target_source;
 
             coarse_converged = reg_result.converged;
-            coarse_iterations = reg_result.iterations;
             coarse_num_inliers = reg_result.num_inliers;
             coarse_inlier_ratio =
               source_processed->empty() ? 0.0 : (static_cast<double>(reg_result.num_inliers) / static_cast<double>(source_processed->size()));
@@ -278,9 +275,10 @@ PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointC
                 coarse_fitness = std::numeric_limits<double>::max();
             }
 
-            if (!reg_result.converged) {
-                break;
-            }
+            VLOG(2) << "[PointCloudMatcher] PLANE_ICP res=" << res
+                    << " converged=" << reg_result.converged << " iters=" << reg_result.iterations
+                    << " fitness=" << coarse_fitness << " inlier_ratio=" << coarse_inlier_ratio;
+            // 不因粗分辨率层未收敛就 break — 精细层仍可用粗层位姿作为初值继续优化
         }
 
         // 先用粗配准结果填充
@@ -297,12 +295,15 @@ PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointC
             result.information.block<3, 3>(3, 3) = H.block<3, 3>(0, 0);
         }
         result.fitness_score = coarse_fitness;
-        if (coarse_converged && coarse_fitness < config_.gicp_fitness_threshold) {
+        // 即使形式上 converged=0，如果 fitness 和 inlier_ratio 都很好，也认为配准成功
+        if (coarse_fitness < config_.gicp_fitness_threshold &&
+            coarse_inlier_ratio >= config_.reloc_min_inlier_ratio) {
+            result.converged = true; // 视为实质收敛
             result.success = true;
         }
 
-        // Stage 2: 可选 GICP 精修（小步 gate）
-        if (config_.icp_refine_use_gicp && coarse_converged && coarse_fitness < config_.icp_refine_fitness_gate) {
+        // Stage 2: 可选 GICP 精修（fitness 在 gate 内即可触发，不再要求 converged）
+        if (config_.icp_refine_use_gicp && coarse_fitness < config_.icp_refine_fitness_gate) {
             const Eigen::Isometry3d delta = init_guess.inverse() * T;
             const double delta_translation = delta.translation().norm();
             const double delta_rotation = Eigen::AngleAxisd(delta.rotation()).angle();
@@ -349,11 +350,9 @@ PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointC
             }
         }
 
-        if (!result.success) {
-            LOG(WARNING) << "[PointCloudMatcher] Registration quality check failed: converged=" << result.converged
-                         << ", inliers=" << result.num_inliers << ", inlier_ratio=" << result.inlier_ratio
-                         << ", fitness=" << result.fitness_score << " (threshold=" << config_.gicp_fitness_threshold << ")";
-        }
+        VLOG(1) << "[PointCloudMatcher] alignCloud: converged=" << result.converged
+                << " fitness=" << result.fitness_score << " inlier_ratio=" << result.inlier_ratio
+                << " success=" << result.success;
 
     } catch (const std::exception& e) {
         LOG(ERROR) << "[PointCloudMatcher] Exception in point cloud alignment: " << e.what();

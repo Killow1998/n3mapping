@@ -13,7 +13,7 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <random>
-#include <rclcpp/rclcpp.hpp>
+#include <ros/ros.h>
 
 #include "n3mapping/point_cloud_matcher.h"
 
@@ -258,9 +258,9 @@ TEST_F(PointCloudMatcherPBT, RegistrationSymmetryProperty)
 int
 main(int argc, char** argv)
 {
-    rclcpp::init(argc, argv);
+    ros::init(argc, argv, "n3mapping_test_point_cloud_matcher_pbt");
     testing::InitGoogleTest(&argc, argv);
     int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
+    ros::shutdown();
     return result;
 }

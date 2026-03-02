@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
+#include <ros/ros.h>
 #include "n3mapping/map_serializer.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
@@ -334,8 +334,8 @@ TEST_F(MapSerializerTest, SaveGlobalMap) {
 
 int main(int argc, char** argv) {
     testing::InitGoogleTest(&argc, argv);
-    rclcpp::init(argc, argv);
+    ros::init(argc, argv, "n3mapping_test_map_serializer");
     int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
+    ros::shutdown();
     return result;
 }

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
+#include <ros/ros.h>
 #include <random>
 #include "n3mapping/loop_detector.h"
 
@@ -343,9 +343,9 @@ TEST_F(LoopDetectorTest, RebuildTree) {
 }  // namespace n3mapping
 
 int main(int argc, char** argv) {
-    rclcpp::init(argc, argv);
+    ros::init(argc, argv, "n3mapping_test_loop_detector");
     testing::InitGoogleTest(&argc, argv);
     int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
+    ros::shutdown();
     return result;
 }

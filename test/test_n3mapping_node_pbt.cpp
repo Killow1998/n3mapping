@@ -11,7 +11,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
+#include <ros/ros.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/common/transforms.h>
@@ -245,8 +245,8 @@ TEST_F(CoordinateTransformPBTTest, IdentityTransformPreservesCloud) {
 
 int main(int argc, char** argv) {
     testing::InitGoogleTest(&argc, argv);
-    rclcpp::init(argc, argv);
+    ros::init(argc, argv, "n3mapping_test_node_pbt");
     int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
+    ros::shutdown();
     return result;
 }

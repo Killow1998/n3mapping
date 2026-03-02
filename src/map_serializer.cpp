@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <boost/make_shared.hpp>
 #include <iostream>
 #include <omp.h>
 #include <pcl/common/transforms.h>
@@ -191,7 +192,7 @@ MapSerializer::saveGlobalMap(const std::string& filepath, const KeyframeManager&
             }
 
             // 使用优化后位姿变换点云
-            auto transformed_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+                auto transformed_cloud = boost::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
             Eigen::Matrix4f transform = kf->pose_optimized.matrix().cast<float>();
             pcl::transformPointCloud(*kf->cloud, *transformed_cloud, transform);
             transformed_clouds[i] = transformed_cloud;

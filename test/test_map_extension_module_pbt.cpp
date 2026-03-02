@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 #include <pcl/common/transforms.h>
 #include <random>
-#include <rclcpp/rclcpp.hpp>
+#include <ros/ros.h>
 
 namespace n3mapping {
 namespace test {
@@ -316,8 +316,8 @@ int
 main(int argc, char** argv)
 {
     testing::InitGoogleTest(&argc, argv);
-    rclcpp::init(argc, argv);
+    ros::init(argc, argv, "n3mapping_test_map_extension_module_pbt");
     int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
+    ros::shutdown();
     return result;
 }

@@ -13,6 +13,7 @@ map copy/
 # Editors/OS
 .vscode/
 .idea/
+.serena/
 *.swp
 *.swo
 .DS_Store

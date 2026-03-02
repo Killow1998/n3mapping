@@ -5,14 +5,13 @@
 namespace n3mapping {
 
 MappingModeHandler::MappingModeHandler(const Config& config,
-                                       KeyframeManager& keyframe_manager,
-                                       LoopDetector& loop_detector,
-                                       GraphOptimizer& graph_optimizer,
-                                       std::mutex& loop_queue_mutex,
-                                       std::vector<int64_t>& loop_detection_queue,
-                                       ModePublishCallbacks publish,
-                                       std::function<void()> on_keyframe_added,
-                                       rclcpp::Logger logger)
+                                                                             KeyframeManager& keyframe_manager,
+                                                                             LoopDetector& loop_detector,
+                                                                             GraphOptimizer& graph_optimizer,
+                                                                             std::mutex& loop_queue_mutex,
+                                                                             std::vector<int64_t>& loop_detection_queue,
+                                                                             ModePublishCallbacks publish,
+                                                                             std::function<void()> on_keyframe_added)
   : config_(config)
   , keyframe_manager_(keyframe_manager)
   , loop_detector_(loop_detector)
@@ -20,13 +19,12 @@ MappingModeHandler::MappingModeHandler(const Config& config,
   , loop_queue_mutex_(loop_queue_mutex)
   , loop_detection_queue_(loop_detection_queue)
   , publish_(std::move(publish))
-  , on_keyframe_added_(std::move(on_keyframe_added))
-  , logger_(std::move(logger))
+    , on_keyframe_added_(std::move(on_keyframe_added))
 {
 }
 
 void
-MappingModeHandler::process(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header)
+MappingModeHandler::process(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::Header& header)
 {
     if (!keyframe_manager_.shouldAddKeyframe(pose_odom)) {
         publish_.publish_odometry(pose_odom, header);
@@ -65,7 +63,7 @@ MappingModeHandler::process(double timestamp, const Eigen::Isometry3d& pose_odom
         try {
             optimized_pose = graph_optimizer_.getOptimizedPose(kf_id);
         } catch (const std::exception& e) {
-            RCLCPP_WARN(logger_, "Failed to get optimized pose: %s", e.what());
+            ROS_WARN("Failed to get optimized pose: %s", e.what());
         }
     }
 
@@ -96,7 +94,7 @@ void
 LocalizationModeHandler::process(bool map_loaded,
                                  const Eigen::Isometry3d& pose_odom,
                                  PointCloud::Ptr cloud,
-                                 const std_msgs::msg::Header& header)
+                                 const std_msgs::Header& header)
 {
     if (!map_loaded) {
         LOG_EVERY_N(WARNING, 10) << "Map not loaded, cannot perform localization";
@@ -128,23 +126,19 @@ LocalizationModeHandler::process(bool map_loaded,
 }
 
 MapResumingModeHandler::MapResumingModeHandler(const Config& config,
-                                               KeyframeManager& keyframe_manager,
-                                               GraphOptimizer& graph_optimizer,
-                                               WorldLocalizing& world_localizing,
-                                               MappingResuming& mapping_resuming,
-                                               ModePublishCallbacks publish,
-                                               std::function<void()> on_keyframe_added,
-                                               rclcpp::Logger logger,
-                                               rclcpp::Clock::SharedPtr clock)
+                                                                                             KeyframeManager& keyframe_manager,
+                                                                                             GraphOptimizer& graph_optimizer,
+                                                                                             WorldLocalizing& world_localizing,
+                                                                                             MappingResuming& mapping_resuming,
+                                                                                             ModePublishCallbacks publish,
+                                                                                             std::function<void()> on_keyframe_added)
   : config_(config)
   , keyframe_manager_(keyframe_manager)
   , graph_optimizer_(graph_optimizer)
   , world_localizing_(world_localizing)
   , mapping_resuming_(mapping_resuming)
   , publish_(std::move(publish))
-  , on_keyframe_added_(std::move(on_keyframe_added))
-  , logger_(std::move(logger))
-  , clock_(std::move(clock))
+    , on_keyframe_added_(std::move(on_keyframe_added))
 {
 }
 
@@ -153,10 +147,10 @@ MapResumingModeHandler::process(bool map_loaded,
                                 double timestamp,
                                 const Eigen::Isometry3d& pose_odom,
                                 PointCloud::Ptr cloud,
-                                const std_msgs::msg::Header& header)
+                                const std_msgs::Header& header)
 {
     if (!map_loaded) {
-        RCLCPP_WARN_THROTTLE(logger_, *clock_, 5000, "Map not loaded for extension");
+        ROS_WARN_THROTTLE(5.0, "Map not loaded for extension");
         return;
     }
 
@@ -164,7 +158,7 @@ MapResumingModeHandler::process(bool map_loaded,
 
     if (state == MappingResumingState::MAP_LOADED) {
         if (mapping_resuming_.performInitialRelocalization(cloud, pose_odom)) {
-            RCLCPP_INFO(logger_, "Initial relocalization successful for map extension");
+            ROS_INFO("Initial relocalization successful for map extension");
         }
         return;
     }
@@ -189,7 +183,7 @@ MapResumingModeHandler::process(bool map_loaded,
     if (kf_id >= 0) {
         int cross_loops = mapping_resuming_.detectCrossLoops(kf_id);
         if (cross_loops > 0) {
-            RCLCPP_INFO(logger_, "Detected %d cross-loops for keyframe %ld", cross_loops, kf_id);
+            ROS_INFO("Detected %d cross-loops for keyframe %ld", cross_loops, kf_id);
         }
 
         graph_optimizer_.incrementalOptimize();
@@ -202,7 +196,7 @@ MapResumingModeHandler::process(bool map_loaded,
                 Eigen::Isometry3d optimized_pose = graph_optimizer_.getOptimizedPose(kf_id);
                 pose_map = optimized_pose;
             } catch (const std::exception& e) {
-                RCLCPP_WARN(logger_, "Failed to get optimized pose: %s", e.what());
+                ROS_WARN("Failed to get optimized pose: %s", e.what());
             }
         }
 
