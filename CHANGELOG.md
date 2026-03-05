@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0] - 2026-03-04
+
+### Features
+
+- **RHPD range profiling**: Add `mean_range` and `range_variance` channels to RHPD Part B (ring-height grid), improving descriptor discrimination in corridor environments where point density and azimuth variance alone are insufficient to distinguish geometrically similar locations
+  - Part B channels: 2 → 4 (density, azimuth_variance, **mean_range**, **range_variance**)
+  - Part B dimension: 256 → 512, total RHPD dimension: 1432 → 1688
+  - `mean_range`: normalized average radial distance per cell, captures surface depth variations (doors, pillars, recesses)
+  - `range_variance`: normalized radial distance standard deviation per cell, captures depth discontinuities (door frames, wall edges)
+
+### Breaking Changes
+
+- RHPD descriptor dimension changed (1432 → 1688); existing `.pbstream` maps must be rebuilt
+
+### File Change Summary
+
+- Modified (2): `RHPDescriptor.h`, `RHPDescriptor.cpp`
+
 ## [0.2.0] - 2026-02-27
 
 ### Refactor

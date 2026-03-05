@@ -125,7 +125,9 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/mode_handlers.cpp
   src/world_localizing.cpp
   src/mapping_resuming.cpp
+  src/RHPDescriptor.cpp
   include/Scancontext/Scancontext.cpp
+  include/Scancontext/HybridScancontext.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_lib PUBLIC

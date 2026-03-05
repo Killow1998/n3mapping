@@ -1,57 +1,38 @@
+// LoopClosureManager: filter, select best, build edges, and apply to optimizer.
 #include "n3mapping/loop_closure_manager.h"
 
 #include <algorithm>
 
 namespace n3mapping {
 
-LoopClosureManager::LoopClosureManager(const Config& config)
-  : config_(config)
-{
-}
+LoopClosureManager::LoopClosureManager(const Config& config) : config_(config) {}
 
-std::vector<VerifiedLoop>
-LoopClosureManager::filterValidLoops(const std::vector<VerifiedLoop>& loops) const
-{
+std::vector<VerifiedLoop> LoopClosureManager::filterValidLoops(const std::vector<VerifiedLoop>& loops) const {
     std::vector<VerifiedLoop> valid;
-    valid.reserve(loops.size());
-
     for (const auto& loop : loops) {
-        if (!loop.verified) continue;
-        if (loop.query_id < 0 || loop.match_id < 0) continue;
+        if (!loop.verified || loop.query_id < 0 || loop.match_id < 0) continue;
         if (loop.inlier_ratio < config_.loop_min_inlier_ratio) continue;
         if (loop.fitness_score > config_.loop_fitness_threshold) continue;
         valid.push_back(loop);
     }
-
     return valid;
 }
 
-std::vector<VerifiedLoop>
-LoopClosureManager::selectBestPerQuery(const std::vector<VerifiedLoop>& loops) const
-{
+std::vector<VerifiedLoop> LoopClosureManager::selectBestPerQuery(const std::vector<VerifiedLoop>& loops) const {
     std::unordered_map<int64_t, VerifiedLoop> best;
     for (const auto& loop : loops) {
         auto it = best.find(loop.query_id);
-        if (it == best.end() || loop.fitness_score < it->second.fitness_score) {
+        if (it == best.end() || loop.fitness_score < it->second.fitness_score)
             best[loop.query_id] = loop;
-        }
     }
-
     std::vector<VerifiedLoop> result;
     result.reserve(best.size());
-    for (const auto& kv : best) {
-        result.push_back(kv.second);
-    }
-
+    for (const auto& kv : best) result.push_back(kv.second);
     return result;
 }
 
-std::vector<EdgeInfo>
-LoopClosureManager::buildLoopEdges(const std::vector<VerifiedLoop>& loops, LoopEdgeDirection direction) const
-{
+std::vector<EdgeInfo> LoopClosureManager::buildLoopEdges(const std::vector<VerifiedLoop>& loops, LoopEdgeDirection direction) const {
     std::vector<EdgeInfo> edges;
-    edges.reserve(loops.size());
-
     for (const auto& loop : loops) {
         EdgeInfo edge;
         if (direction == LoopEdgeDirection::QueryToMatch) {
@@ -67,21 +48,12 @@ LoopClosureManager::buildLoopEdges(const std::vector<VerifiedLoop>& loops, LoopE
         edge.type = EdgeType::LOOP;
         edges.push_back(edge);
     }
-
     return edges;
 }
 
-bool
-LoopClosureManager::applyEdges(const std::vector<EdgeInfo>& edges, LoopOptimizerInterface& optimizer) const
-{
-    if (edges.empty()) {
-        return false;
-    }
-
-    for (const auto& edge : edges) {
-        optimizer.addLoopEdge(edge);
-    }
-
+bool LoopClosureManager::applyEdges(const std::vector<EdgeInfo>& edges, LoopOptimizerInterface& optimizer) const {
+    if (edges.empty()) return false;
+    for (const auto& edge : edges) optimizer.addLoopEdge(edge);
     optimizer.incrementalOptimize();
     return true;
 }
