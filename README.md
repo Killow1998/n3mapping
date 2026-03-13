@@ -1,75 +1,90 @@
 # N3Mapping
 
-N3Mapping 是基于图优化的 ROS 1 (Noetic) 后端 SLAM，接收 FAST-LIO2 去畸变点云与里程计，执行 ScanContext 回环检测、小 GICP 配准、GTSAM 图优化，并将地图序列化为可恢复/续建的 pbstream。
+N3Mapping is a ROS 1 Noetic backend SLAM package. It takes undistorted point clouds and odometry from FAST-LIO2, runs ScanContext loop detection, aligns point clouds with small_gicp, optimizes the pose graph with GTSAM, and saves the result as a `pbstream` for relocalization or map extension.
 
-## 依赖
-- ROS 1 Noetic (catkin、roscpp、std_msgs、sensor_msgs、nav_msgs、geometry_msgs、visualization_msgs、message_filters、tf2、tf2_ros、tf2_geometry_msgs、pcl_conversions、pcl_ros、cv_bridge)
-- small_gicp（作为 CMake 库安装后被 find_package）
-- PCL、Eigen3、OpenCV
-- GTSAM、glog、OpenMP
-- Protobuf（libprotobuf-dev、protobuf-compiler）
-- 前端：FAST-LIO2（默认订阅 `/cloud_registered_body` 与 `/Odometry`）
+## Dependencies
+- ROS 1 Noetic
+- PCL, Eigen3, OpenCV
+- Protobuf
+- glog, OpenMP
+- small_gicp
+- GTSAM
+- FAST-LIO2 (default inputs: `/cloud_registered_body` and `/Odometry`)
 
-## 安装依赖示例（Ubuntu）
-- Protobuf / glog / 常规库：
-  ```bash
-  sudo apt-get install -y libprotobuf-dev protobuf-compiler libgoogle-glog-dev libpcl-dev libeigen3-dev libopencv-dev libboost-all-dev
-  ```
-- GTSAM（4.1.x 示例，建议源码安装启用 TBB）：  
-  ```bash
-  sudo apt-get install -y libtbb-dev
-  git clone https://github.com/borglab/gtsam.git -b 4.1.1
-  cd gtsam && mkdir build && cd build
-  cmake .. -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=ON -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
-  sudo make -j$(nproc) install
-  ```
-- small_gicp（作为系统 CMake 库安装）：  
-  ```bash
-  git clone https://github.com/koide3/small_gicp.git
-  cd small_gicp && mkdir build && cd build
-  cmake .. -DCMAKE_BUILD_TYPE=Release
-  sudo make -j$(nproc) install
-  ```
+## System packages
+```bash
+sudo apt-get install -y \
+  libprotobuf-dev protobuf-compiler \
+  libgoogle-glog-dev libpcl-dev libeigen3-dev \
+  libopencv-dev libboost-all-dev libtbb-dev
+```
 
-## 构建
-1) 将本包与依赖（如 FAST-LIO2）放在同一个 ROS 1 catkin workspace 的 `src/` 下。  
-2) 构建：
-  ```bash
-  catkin_make -DCMAKE_BUILD_TYPE=Release
-  source devel/setup.bash
-  ```
-   Proto 代码会在构建时自动生成到 `build/n3mapping/proto_gen/`。
+## Build
+Put `gtsam`, `small_gicp`, `n3mapping`, and the frontend package in the same workspace.
 
-## 配置
-- 默认配置位于 `config/n3mapping.yaml`，可按模式修改 `mode`（mapping/localization/map_extension）、`map_path`、话题名、ScanContext/GICP/GTSAM 参数等。
-- 地图默认保存在源目录的 `map/`（由 `N3MAPPING_SOURCE_DIR` 宏设置）；如需避免写入仓库，可在配置中将 `map_save_path`、`map_path` 指向工作盘的其他目录。
+From the workspace root:
 
-## 运行
-在终端 `source devel/setup.bash` 后：
-- 建图：
+```bash
+source /opt/ros/noetic/setup.bash
+rosdep install --from-paths src --ignore-src -r -y
+catkin init
+```
+
+If the workspace is already initialized, skip `catkin init`.
+
+Build `gtsam` with its CMake options:
+
+```bash
+catkin build gtsam --cmake-args \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DGTSAM_USE_SYSTEM_EIGEN=ON \
+  -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
+```
+
+Build `small_gicp` and `n3mapping` in `Release` mode:
+
+```bash
+catkin build small_gicp n3mapping --cmake-args -DCMAKE_BUILD_TYPE=Release
+source devel/setup.bash
+```
+
+## Configuration
+The default config file is `config/n3mapping.yaml`.
+
+Common parameters:
+
+- `mode`: `mapping`, `localization`, `map_extension`
+- `cloud_topic`, `odom_topic`
+- `map_path`, `map_save_path`
+- ScanContext, small_gicp, and GTSAM parameters
+
+Maps are written to `map/` by default. Change the save path if needed.
+
+## Run
+After `source devel/setup.bash`:
+
+- Mapping
   ```bash
   roslaunch n3mapping mapping.launch config_file:=/path/to/n3mapping.yaml
   ```
-- 重定位（需已有地图 pbstream）：
+- Relocalization
   ```bash
   roslaunch n3mapping localization.launch config_file:=/path/to/n3mapping.yaml
   ```
-- 地图续建：
+- Map extension
   ```bash
   roslaunch n3mapping map_extension.launch config_file:=/path/to/n3mapping.yaml
   ```
 
-## 话题
-- 订阅：`cloud_topic` (PointCloud2，默认 `/cloud_registered_body`)，`odom_topic` (nav_msgs/Odometry，默认 `/Odometry`)
-- 发布：`/n3mapping/odometry`、`/n3mapping/path`、`/n3mapping/cloud_body`、`/n3mapping/cloud_world`
+## Topics
+- Subscribed: `cloud_topic` (`sensor_msgs/PointCloud2`, default `/cloud_registered_body`), `odom_topic` (`nav_msgs/Odometry`, default `/Odometry`)
+- Published: `/n3mapping/odometry`, `/n3mapping/path`, `/n3mapping/cloud_body`, `/n3mapping/cloud_world`
 
-## 数据与地图
-- 运行结束时可保存 `global_map.pcd` 与 `n3map.pbstream` 到 `map/` 或自定义 `map_save_path`。
-- 大体积地图文件默认被 `.gitignore` 忽略，避免上传仓库。
+## Map files
+On shutdown, the node can save `global_map.pcd` and `n3map.pbstream`.
 
-## 测试
-启用测试后运行：
+## Tests
 ```bash
-catkin_make -DBUILD_TESTING=ON
-catkin_make run_tests
+catkin build n3mapping --cmake-args -DBUILD_TESTING=ON
+catkin test n3mapping
 ```

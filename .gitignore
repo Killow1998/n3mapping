@@ -8,6 +8,7 @@ proto_gen/
 
 # Maps (large data)
 map/*
+!map/.gitkeep
 map copy/
 
 # Editors/OS
