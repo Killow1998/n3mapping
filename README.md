@@ -26,8 +26,9 @@ From the workspace root:
 
 ```bash
 source /opt/ros/noetic/setup.bash
-rosdep install --from-paths src --ignore-src -r -y
 catkin init
+git clone https://github.com/borglab/gtsam.git -b 4.1.1
+git clone https://github.com/koide3/small_gicp.git
 ```
 
 If the workspace is already initialized, skip `catkin init`.
