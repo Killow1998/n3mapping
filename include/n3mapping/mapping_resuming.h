@@ -1,6 +1,6 @@
+// MappingResuming: map extension — load existing map, relocalize, add new keyframes, detect cross-loops.
 #pragma once
 
-#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -21,62 +21,35 @@
 
 namespace n3mapping {
 
-/**
- * @brief 续建状态
- */
-enum class MappingResumingState
-{
-    NOT_INITIALIZED, // 未初始化
-    MAP_LOADED,      // 地图已加载
-    RELOCALIZED,     // 已重定位
-    EXTENDING        // 正在续建
+enum class MappingResumingState {
+    NOT_INITIALIZED,
+    MAP_LOADED,
+    RELOCALIZED,
+    EXTENDING
 };
 
-/**
- * @brief 地图续建模块
- *
- * 提供地图续建功能：
- * - 加载已有地图
- * - 执行重定位建立初始约束
- * - 在新旧关键帧之间检测回环
- * - 保存扩展后的地图
- */
-class MappingResuming
-{
-  public:
+class MappingResuming {
+public:
     using PointCloudT = pcl::PointCloud<pcl::PointXYZI>;
 
-    MappingResuming(const Config& config,
-                    KeyframeManager& keyframe_manager,
-                    LoopDetector& loop_detector,
-                    PointCloudMatcher& matcher,
-                    GraphOptimizer& optimizer,
-                    MapSerializer& serializer,
+    MappingResuming(const Config& config, KeyframeManager& keyframe_manager,
+                    LoopDetector& loop_detector, PointCloudMatcher& matcher,
+                    GraphOptimizer& optimizer, MapSerializer& serializer,
                     WorldLocalizing& world_localizing);
 
     bool loadExistingMap(const std::string& map_path);
-
     bool performInitialRelocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
-
     int64_t processNewKeyframe(double timestamp, const Eigen::Isometry3d& odom_pose, const PointCloudT::Ptr& cloud);
-
     int detectCrossLoops(int64_t new_keyframe_id);
-
     bool saveExtendedMap(const std::string& map_path);
-
     MappingResumingState getState() const;
-
     size_t getOriginalKeyframeCount() const;
-
     size_t getNewKeyframeCount() const;
-
     size_t getCrossLoopCount() const;
-
     bool isFromOriginalMap(int64_t keyframe_id) const;
-
     void reset();
 
-  private:
+private:
     void addRelocalizationConstraint(int64_t new_keyframe_id, int64_t matched_keyframe_id, const Eigen::Isometry3d& T_match_new);
 
     Config config_;
@@ -92,10 +65,8 @@ class MappingResuming
     size_t original_keyframe_count_;
     int64_t original_max_keyframe_id_;
     size_t cross_loop_count_;
-
     Eigen::Isometry3d last_keyframe_pose_;
     int64_t last_keyframe_id_;
-
     mutable std::mutex mutex_;
 };
 

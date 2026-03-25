@@ -88,8 +88,9 @@ TEST_F(LoopDetectorTest, InitialState) {
     EXPECT_EQ(detector_->size(), 0u);
     
     auto dims = detector_->getDescriptorDimensions();
-    EXPECT_EQ(dims.first, 20);   // PC_NUM_RING
-    EXPECT_EQ(dims.second, 60);  // PC_NUM_SECTOR
+    // Hybrid ScanContext in noetic-aligned pipeline expands rows to 140.
+    EXPECT_EQ(dims.first, 140);
+    EXPECT_EQ(dims.second, 60);
 }
 
 // 测试 ScanContext 描述子生成 - Requirements 4.1

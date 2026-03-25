@@ -13,7 +13,9 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
 #include <pcl/common/transforms.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/memory.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -296,11 +298,11 @@ class N3MappingNode : public rclcpp::Node
     {
         auto center_kf = keyframe_manager_->getKeyframe(center_id);
         if (!center_kf || !center_kf->cloud || center_kf->cloud->empty()) {
-            return std::make_shared<PointCloud>();
+            return pcl::make_shared<PointCloud>();
         }
 
         Eigen::Matrix4f T_center_inv = center_kf->pose_optimized.matrix().cast<float>().inverse();
-        auto submap = std::make_shared<PointCloud>();
+        auto submap = pcl::make_shared<PointCloud>();
 
         for (int64_t id = center_id - range; id <= center_id + range; ++id) {
             auto kf = keyframe_manager_->getKeyframe(id);
@@ -319,7 +321,7 @@ class N3MappingNode : public rclcpp::Node
             pcl::VoxelGrid<pcl::PointXYZI> voxel;
             voxel.setLeafSize(config_.gicp_downsampling_resolution, config_.gicp_downsampling_resolution, config_.gicp_downsampling_resolution);
             voxel.setInputCloud(submap);
-            auto filtered = std::make_shared<PointCloud>();
+            auto filtered = pcl::make_shared<PointCloud>();
             voxel.filter(*filtered);
             submap = filtered;
         }
@@ -370,7 +372,7 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
 
-        auto global_map = std::make_shared<PointCloud>();
+        auto global_map = pcl::make_shared<PointCloud>();
         if (pcl::io::loadPCDFile<pcl::PointXYZI>(global_map_path.string(), *global_map) == -1) {
             RCLCPP_ERROR(this->get_logger(), "Failed to load global map: %s", global_map_path.c_str());
             return;
@@ -397,7 +399,7 @@ class N3MappingNode : public rclcpp::Node
         std::lock_guard<std::mutex> lock(data_mutex_);
 
         // 转换点云
-        auto cloud = std::make_shared<PointCloud>();
+        auto cloud = pcl::make_shared<PointCloud>();
         pcl::fromROSMsg(*cloud_msg, *cloud);
 
         // 转换位姿
@@ -467,13 +469,13 @@ class N3MappingNode : public rclcpp::Node
      */
     void loopDetectionTimerCallback()
     {
-        // 定位模式不做回环优化；建图允许；续建需先加载地图
         if (run_mode_ == RunMode::LOCALIZATION) {
             return;
         }
-        if (run_mode_ == RunMode::MAP_EXTENSION && map_loaded_ == false) {
+        if (run_mode_ == RunMode::MAP_EXTENSION && !map_loaded_) {
             return;
         }
+
         std::vector<int64_t> keyframes_to_check;
         {
             std::lock_guard<std::mutex> lock(loop_queue_mutex_);
@@ -483,178 +485,118 @@ class N3MappingNode : public rclcpp::Node
             keyframes_to_check.swap(loop_detection_queue_);
         }
 
-        for (int64_t kf_id : keyframes_to_check) {
-            auto kf = keyframe_manager_->getKeyframe(kf_id);
-            if (!kf) continue;
+        for (int64_t query_id : keyframes_to_check) {
+            if (query_id - last_loop_check_id_ < config_.loop_kf_gap) {
+                continue;
+            }
 
-            // 检测回环候选
-            auto candidates = loop_detector_->detectLoopCandidates(kf_id);
-            if (candidates.empty()) continue;
+            auto query_kf = keyframe_manager_->getKeyframe(query_id);
+            if (!query_kf) {
+                continue;
+            }
+
+            struct DistCandidate {
+                int64_t match_id;
+                double xy_dist;
+            };
+
+            std::vector<DistCandidate> candidates;
+            {
+                auto all_kfs = keyframe_manager_->getAllKeyframes();
+                const Eigen::Vector3d q_pos = query_kf->pose_optimized.translation();
+                int64_t last_candidate_id = -1000;
+
+                for (const auto& kf : all_kfs) {
+                    int64_t id_gap = std::abs(query_id - kf->id);
+                    if (id_gap < config_.loop_closest_id_th) continue;
+                    if (std::abs(kf->id - last_candidate_id) < config_.loop_min_id_interval) continue;
+
+                    const Eigen::Vector3d m_pos = kf->pose_optimized.translation();
+                    const double dx = q_pos.x() - m_pos.x();
+                    const double dy = q_pos.y() - m_pos.y();
+                    const double xy_dist = std::sqrt(dx * dx + dy * dy);
+
+                    if (xy_dist < config_.loop_max_range) {
+                        candidates.push_back({ kf->id, xy_dist });
+                        last_candidate_id = kf->id;
+                    }
+                }
+
+                std::sort(candidates.begin(), candidates.end(), [](const DistCandidate& a, const DistCandidate& b) {
+                    return a.xy_dist < b.xy_dist;
+                });
+                constexpr size_t kMaxCandidates = 5;
+                if (candidates.size() > kMaxCandidates) {
+                    candidates.resize(kMaxCandidates);
+                }
+            }
+
+            if (candidates.empty()) {
+                continue;
+            }
+            last_loop_check_id_ = query_id;
 
             std::vector<VerifiedLoop> verified_loops;
             verified_loops.reserve(candidates.size());
 
             for (const auto& candidate : candidates) {
                 auto match_kf = keyframe_manager_->getKeyframe(candidate.match_id);
-                if (!match_kf || !kf->cloud || !match_kf->cloud || kf->cloud->empty() || match_kf->cloud->empty()) {
+                if (!match_kf || !query_kf->cloud || !match_kf->cloud || query_kf->cloud->empty() || match_kf->cloud->empty()) {
                     continue;
                 }
 
-                auto submap = keyframe_manager_->buildLocalSubmap(candidate.match_id, config_.gicp_submap_size);
-                if (!submap || submap->empty()) {
-                    submap = std::make_shared<PointCloud>();
-                    Eigen::Matrix4f transform = match_kf->pose_optimized.matrix().cast<float>();
-                    pcl::transformPointCloud(*match_kf->cloud, *submap, transform);
-                }
-                if (!submap || submap->empty()) {
+                auto source = keyframe_manager_->buildSubmapInRootFrame(query_id, 0, candidate.match_id);
+                auto target = keyframe_manager_->buildSubmapInRootFrame(candidate.match_id, config_.gicp_submap_size, candidate.match_id);
+                if (!source || source->empty() || !target || target->empty()) {
                     continue;
                 }
 
-                Eigen::Isometry3d init_guess = kf->pose_optimized;
-                init_guess.rotate(Eigen::AngleAxisd(candidate.yaw_diff_rad, Eigen::Vector3d::UnitZ()));
-
-                MatchResult match_result = point_cloud_matcher_->alignCloud(submap, kf->cloud, init_guess);
+                MatchResult match_result = point_cloud_matcher_->alignCloud(target, source, Eigen::Isometry3d::Identity());
 
                 VerifiedLoop loop;
-                loop.query_id = candidate.query_id;
+                loop.query_id = query_id;
                 loop.match_id = candidate.match_id;
                 loop.fitness_score = match_result.fitness_score;
                 loop.inlier_ratio = match_result.inlier_ratio;
-                // 信息矩阵: 默认为零 (让 graph_optimizer 使用配置的固定噪声模型)
-                // ICP Hessian 通常过度自信，会导致优化器过度信任回环约束
-                if (config_.loop_use_icp_information) {
-                    loop.information = match_result.information;
-                }
-                loop.verified = match_result.success;
-                if (match_result.success) {
-                    Eigen::Isometry3d corrected_query_pose = match_result.T_target_source;
-                    loop.T_match_query = corrected_query_pose.inverse() * match_kf->pose_optimized;
+                loop.information =
+                  config_.loop_use_icp_information ? match_result.information : Eigen::Matrix<double, 6, 6>::Identity();
 
-                    // 一致性门控: 检查 ICP 测量值与当前位姿估计的偏差
-                    const Eigen::Isometry3d current_T_query_match = kf->pose_optimized.inverse() * match_kf->pose_optimized;
-                    const Eigen::Isometry3d consistency_delta = loop.T_match_query.inverse() * current_T_query_match;
-                    const double pre_trans_err = consistency_delta.translation().norm();
-                    const double pre_rot_err = Eigen::AngleAxisd(consistency_delta.rotation()).angle();
+                const bool fitness_ok = match_result.fitness_score < config_.loop_fitness_threshold;
+                const bool inlier_ok = match_result.inlier_ratio >= config_.loop_min_inlier_ratio;
+                const double icp_translation = match_result.T_target_source.translation().norm();
+                const double icp_rotation = Eigen::AngleAxisd(match_result.T_target_source.rotation()).angle();
+                const bool geom_ok = icp_translation <= config_.loop_max_icp_translation && icp_rotation <= config_.loop_max_icp_rotation;
 
-                    if (pre_trans_err > config_.loop_max_pre_translation_error || pre_rot_err > config_.loop_max_pre_rotation_error) {
-                        RCLCPP_WARN(this->get_logger(),
-                                    "Loop rejected (consistency gate): %ld -> %ld "
-                                    "(pre_t=%.2f > %.2f || pre_r=%.2f > %.2f)",
-                                    loop.query_id,
-                                    loop.match_id,
-                                    pre_trans_err,
-                                    config_.loop_max_pre_translation_error,
-                                    pre_rot_err,
-                                    config_.loop_max_pre_rotation_error);
-                        LOG(INFO) << "[OPTIMIZATION] loop_rejected query=" << loop.query_id << " match=" << loop.match_id
-                                  << " pre_t=" << pre_trans_err << " pre_r=" << pre_rot_err << " fitness=" << loop.fitness_score
-                                  << " inlier=" << loop.inlier_ratio;
-                        loop.verified = false;
-                    }
+                loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok;
+                if (loop.verified) {
+                    loop.T_match_query = match_result.T_target_source.inverse();
                 }
                 verified_loops.push_back(loop);
             }
-            if (!verified_loops.empty()) {
-                auto valid_loops = loop_closure_manager_->filterValidLoops(verified_loops);
-                auto best_loops = loop_closure_manager_->selectBestPerQuery(valid_loops);
-                if (!best_loops.empty()) {
-                    struct LoopDiag
-                    {
-                        int64_t match_id;
-                        int64_t query_id;
-                        double fitness;
-                        double inlier_ratio;
-                        double pre_trans_error;
-                        double pre_rot_error;
-                        Eigen::Isometry3d measured_T_match_query;
-                    };
-                    std::vector<LoopDiag> loop_diags;
-                    loop_diags.reserve(best_loops.size());
 
-                    for (const auto& loop : best_loops) {
-                        auto match_kf = keyframe_manager_->getKeyframe(loop.match_id);
-                        auto query_kf = keyframe_manager_->getKeyframe(loop.query_id);
-                        if (!match_kf || !query_kf) {
-                            continue;
-                        }
-                        const Eigen::Isometry3d current_T_query_match = query_kf->pose_optimized.inverse() * match_kf->pose_optimized;
-                        const Eigen::Isometry3d delta = loop.T_match_query.inverse() * current_T_query_match;
-                        const double trans_error = delta.translation().norm();
-                        const double rot_error = Eigen::AngleAxisd(delta.rotation()).angle();
-
-                        // 详细诊断日志
-                        const auto& qt = query_kf->pose_optimized.translation();
-                        const auto& mt = match_kf->pose_optimized.translation();
-                        const auto& meas_t = loop.T_match_query.translation();
-                        const Eigen::Quaterniond meas_q(loop.T_match_query.rotation());
-                        LOG(INFO) << "[OPTIMIZATION] loop_edge query=" << loop.query_id << " match=" << loop.match_id
-                                  << " fitness=" << loop.fitness_score << " inlier=" << loop.inlier_ratio << " pre_err_t=" << trans_error
-                                  << " pre_err_r=" << rot_error;
-                        LOG(INFO) << "[OPTIMIZATION] loop_pose query_t=" << qt.x() << "," << qt.y() << "," << qt.z() << " match_t=" << mt.x()
-                                  << "," << mt.y() << "," << mt.z();
-                        LOG(INFO) << "[OPTIMIZATION] loop_meas t=" << meas_t.x() << "," << meas_t.y() << "," << meas_t.z()
-                                  << " q=" << meas_q.w() << "," << meas_q.x() << "," << meas_q.y() << "," << meas_q.z();
-                        LOG(INFO) << "[OPTIMIZATION] loop_info diag=" << loop.information(0, 0) << "," << loop.information(1, 1) << ","
-                                  << loop.information(2, 2) << "," << loop.information(3, 3) << "," << loop.information(4, 4) << ","
-                                  << loop.information(5, 5);
-
-                        RCLCPP_INFO(this->get_logger(),
-                                    "Loop detected: %ld -> %ld (fitness=%.3f, inlier_ratio=%.3f, pre_err_t=%.3f, pre_err_rot=%.3f)",
-                                    loop.match_id,
-                                    loop.query_id,
-                                    loop.fitness_score,
-                                    loop.inlier_ratio,
-                                    trans_error,
-                                    rot_error);
-
-                        loop_diags.push_back(LoopDiag{
-                          loop.match_id, loop.query_id, loop.fitness_score, loop.inlier_ratio, trans_error, rot_error, loop.T_match_query });
-                    }
-
-                    publishLoopMarkers(best_loops);
-
-                    std::lock_guard<std::mutex> lock(data_mutex_);
-                    auto edges = loop_closure_manager_->buildLoopEdges(best_loops, LoopEdgeDirection::QueryToMatch);
-                    loop_closure_manager_->applyEdges(edges, *graph_optimizer_);
-                    loop_count_ += edges.size();
-
-                    auto poses = graph_optimizer_->getOptimizedPoses();
-                    keyframe_manager_->updateOptimizedPoses(poses);
-                    logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
-
-                    for (const auto& diag : loop_diags) {
-                        auto match_kf = keyframe_manager_->getKeyframe(diag.match_id);
-                        auto query_kf = keyframe_manager_->getKeyframe(diag.query_id);
-                        if (!match_kf || !query_kf) {
-                            continue;
-                        }
-                        const Eigen::Isometry3d post_T_query_match = query_kf->pose_optimized.inverse() * match_kf->pose_optimized;
-                        const Eigen::Isometry3d post_delta = diag.measured_T_match_query.inverse() * post_T_query_match;
-                        const double post_trans_error = post_delta.translation().norm();
-                        const double post_rot_error = Eigen::AngleAxisd(post_delta.rotation()).angle();
-
-                        const auto& pqt = query_kf->pose_optimized.translation();
-                        const auto& pmt = match_kf->pose_optimized.translation();
-                        LOG(INFO) << "[OPTIMIZATION] loop_result query=" << diag.query_id << " match=" << diag.match_id
-                                  << " pre_t=" << diag.pre_trans_error << " pre_r=" << diag.pre_rot_error << " post_t=" << post_trans_error
-                                  << " post_r=" << post_rot_error;
-                        LOG(INFO) << "[OPTIMIZATION] loop_post_pose query_t=" << pqt.x() << "," << pqt.y() << "," << pqt.z()
-                                  << " match_t=" << pmt.x() << "," << pmt.y() << "," << pmt.z();
-
-                        RCLCPP_INFO(
-                          this->get_logger(),
-                          "Loop optimized: %ld -> %ld (fitness=%.3f, inlier_ratio=%.3f, pre_t=%.3f, pre_r=%.3f, post_t=%.3f, post_r=%.3f)",
-                          diag.match_id,
-                          diag.query_id,
-                          diag.fitness,
-                          diag.inlier_ratio,
-                          diag.pre_trans_error,
-                          diag.pre_rot_error,
-                          post_trans_error,
-                          post_rot_error);
-                    }
-                }
+            if (verified_loops.empty()) {
+                continue;
             }
+
+            auto valid_loops = loop_closure_manager_->filterValidLoops(verified_loops);
+            auto best_loops = loop_closure_manager_->selectBestPerQuery(valid_loops);
+            if (best_loops.empty()) {
+                continue;
+            }
+
+            publishLoopMarkers(best_loops);
+
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            auto edges = loop_closure_manager_->buildLoopEdges(best_loops, LoopEdgeDirection::MatchToQuery);
+            if (edges.empty()) {
+                continue;
+            }
+            loop_closure_manager_->applyEdges(edges, *graph_optimizer_);
+            loop_count_ += edges.size();
+
+            auto poses = graph_optimizer_->getOptimizedPoses();
+            keyframe_manager_->updateOptimizedPoses(poses);
+            logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
         }
     }
 
@@ -919,7 +861,7 @@ class N3MappingNode : public rclcpp::Node
         cloud_body_pub_->publish(cloud_body_msg);
 
         // World frame 点云
-        auto cloud_world = std::make_shared<PointCloud>();
+        auto cloud_world = pcl::make_shared<PointCloud>();
         Eigen::Matrix4f transform = pose.matrix().cast<float>();
         pcl::transformPointCloud(*cloud, *cloud_world, transform);
 
@@ -1029,6 +971,7 @@ class N3MappingNode : public rclcpp::Node
     size_t frame_count_ = 0;
     size_t keyframe_count_ = 0;
     size_t loop_count_ = 0;
+    int64_t last_loop_check_id_ = -1000;
 };
 
 } // namespace n3mapping

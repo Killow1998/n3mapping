@@ -31,6 +31,12 @@ message ScanContextDescriptor {
     uint32 cols = 3;
 }
 
+// RHPD 描述子
+message RHPDDescriptor {
+    repeated double values = 1;
+    uint32 dim = 2;
+}
+
 // 关键帧
 message KeyframeProto {
     int64 id = 1;
@@ -39,6 +45,7 @@ message KeyframeProto {
     Pose3D pose_optimized = 4;
     PointCloudData cloud = 5;
     ScanContextDescriptor sc_descriptor = 6;
+    RHPDDescriptor rhpd_descriptor = 7;
 }
 
 // 约束边

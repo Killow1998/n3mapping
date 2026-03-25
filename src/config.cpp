@@ -2,198 +2,185 @@
 
 namespace n3mapping {
 
-void
-Config::loadFromROS(rclcpp::Node* node)
-{
-    // 声明并获取参数
-    auto declare_and_get = [&node](const std::string& name, auto& value) {
+void Config::loadFromROS(rclcpp::Node* node) {
+    auto get = [&node](const std::string& name, auto& value) {
         node->declare_parameter(name, value);
         node->get_parameter(name, value);
     };
-
-    // 声明并获取字符串参数，空字符串时保留默认值
-    auto declare_and_get_string = [&node](const std::string& name, std::string& value) {
-        std::string default_value = value; // 保存编译时默认值
+    auto gets = [&node](const std::string& name, std::string& value) {
+        std::string v;
         node->declare_parameter(name, value);
-        std::string param_value;
-        node->get_parameter(name, param_value);
-        if (!param_value.empty()) {
-            value = param_value; // 只有非空时才覆盖
-        }
-        // 空字符串时保留 default_value (即编译时的默认值)
+        node->get_parameter(name, v);
+        if (!v.empty()) value = v;
     };
 
-    // 运行模式
-    declare_and_get("mode", mode);
-    declare_and_get_string("map_path", map_path);
+    get("mode", mode);
+    gets("map_path", map_path);
 
-    // 话题配置
-    declare_and_get("cloud_topic", cloud_topic);
-    declare_and_get("odom_topic", odom_topic);
-    declare_and_get("output_odom_topic", output_odom_topic);
-    declare_and_get("output_path_topic", output_path_topic);
-    declare_and_get("output_cloud_body_topic", output_cloud_body_topic);
-    declare_and_get("output_cloud_world_topic", output_cloud_world_topic);
+    get("cloud_topic", cloud_topic);
+    get("odom_topic", odom_topic);
+    get("output_odom_topic", output_odom_topic);
+    get("output_path_topic", output_path_topic);
+    get("output_cloud_body_topic", output_cloud_body_topic);
+    get("output_cloud_world_topic", output_cloud_world_topic);
 
-    // 坐标系配置
-    declare_and_get("world_frame", world_frame);
-    declare_and_get("body_frame", body_frame);
+    get("world_frame", world_frame);
+    get("body_frame", body_frame);
 
-    // 关键帧选择
-    declare_and_get("keyframe_distance_threshold", keyframe_distance_threshold);
-    declare_and_get("keyframe_angle_threshold", keyframe_angle_threshold);
+    get("keyframe_distance_threshold", keyframe_distance_threshold);
+    get("keyframe_angle_threshold", keyframe_angle_threshold);
 
-    // 点云配准
-    declare_and_get("gicp_downsampling_resolution", gicp_downsampling_resolution);
-    declare_and_get("gicp_max_correspondence_distance", gicp_max_correspondence_distance);
-    declare_and_get("gicp_max_iterations", gicp_max_iterations);
-    declare_and_get("gicp_transformation_epsilon", gicp_transformation_epsilon);
-    declare_and_get("gicp_rotation_epsilon_deg", gicp_rotation_epsilon_deg);
-    declare_and_get("gicp_fitness_threshold", gicp_fitness_threshold);
-    declare_and_get("gicp_num_neighbors", gicp_num_neighbors);
-    declare_and_get("gicp_submap_size", gicp_submap_size);
-    declare_and_get("icp_refine_use_gicp", icp_refine_use_gicp);
-    declare_and_get("icp_refine_max_iterations", icp_refine_max_iterations);
-    declare_and_get("icp_refine_max_correspondence_distance", icp_refine_max_correspondence_distance);
-    declare_and_get("icp_refine_downsampling_resolution", icp_refine_downsampling_resolution);
-    declare_and_get("icp_refine_fitness_gate", icp_refine_fitness_gate);
-    declare_and_get("icp_refine_delta_translation_gate", icp_refine_delta_translation_gate);
-    declare_and_get("icp_refine_delta_rotation_gate", icp_refine_delta_rotation_gate);
+    get("gicp_downsampling_resolution", gicp_downsampling_resolution);
+    get("gicp_max_correspondence_distance", gicp_max_correspondence_distance);
+    get("gicp_max_iterations", gicp_max_iterations);
+    get("gicp_transformation_epsilon", gicp_transformation_epsilon);
+    get("gicp_rotation_epsilon_deg", gicp_rotation_epsilon_deg);
+    get("gicp_fitness_threshold", gicp_fitness_threshold);
+    get("gicp_num_neighbors", gicp_num_neighbors);
+    get("gicp_submap_size", gicp_submap_size);
+    get("icp_refine_use_gicp", icp_refine_use_gicp);
+    get("icp_refine_max_iterations", icp_refine_max_iterations);
+    get("icp_refine_max_correspondence_distance", icp_refine_max_correspondence_distance);
+    get("icp_refine_downsampling_resolution", icp_refine_downsampling_resolution);
+    get("icp_refine_fitness_gate", icp_refine_fitness_gate);
+    get("icp_refine_delta_translation_gate", icp_refine_delta_translation_gate);
+    get("icp_refine_delta_rotation_gate", icp_refine_delta_rotation_gate);
 
-    // 回环检测
-    declare_and_get("sc_dist_threshold", sc_dist_threshold);
-    declare_and_get("sc_num_exclude_recent", sc_num_exclude_recent);
-    declare_and_get("sc_num_candidates", sc_num_candidates);
-    declare_and_get("sc_max_radius", sc_max_radius);
-    declare_and_get("sc_num_rings", sc_num_rings);
-    declare_and_get("sc_num_sectors", sc_num_sectors);
+    get("sc_dist_threshold", sc_dist_threshold);
+    get("sc_num_exclude_recent", sc_num_exclude_recent);
+    get("sc_num_candidates", sc_num_candidates);
+    get("sc_max_radius", sc_max_radius);
+    get("sc_num_rings", sc_num_rings);
+    get("sc_num_sectors", sc_num_sectors);
 
-    // 图优化
-    declare_and_get("optimization_iterations", optimization_iterations);
-    declare_and_get("prior_noise_position", prior_noise_position);
-    declare_and_get("prior_noise_rotation", prior_noise_rotation);
-    declare_and_get("odom_noise_position", odom_noise_position);
-    declare_and_get("odom_noise_rotation", odom_noise_rotation);
-    declare_and_get("loop_noise_position", loop_noise_position);
-    declare_and_get("loop_noise_rotation", loop_noise_rotation);
-    declare_and_get("loop_min_inlier_ratio", loop_min_inlier_ratio);
-    declare_and_get("loop_fitness_threshold", loop_fitness_threshold);
-    declare_and_get("loop_max_pre_translation_error", loop_max_pre_translation_error);
-    declare_and_get("loop_max_pre_rotation_error", loop_max_pre_rotation_error);
-    declare_and_get("loop_use_icp_information", loop_use_icp_information);
+    get("kdtree_cache_size", kdtree_cache_size);
 
-    // 点云输出
-    declare_and_get("output_cloud_voxel_size", output_cloud_voxel_size);
+    get("optimization_iterations", optimization_iterations);
+    get("prior_noise_position", prior_noise_position);
+    get("prior_noise_rotation", prior_noise_rotation);
+    get("odom_noise_position", odom_noise_position);
+    get("odom_noise_rotation", odom_noise_rotation);
+    get("loop_noise_position", loop_noise_position);
+    get("loop_noise_rotation", loop_noise_rotation);
+    get("use_robust_kernel", use_robust_kernel);
+    get("robust_kernel_type", robust_kernel_type);
+    get("robust_kernel_delta", robust_kernel_delta);
+    get("loop_min_inlier_ratio", loop_min_inlier_ratio);
+    get("loop_fitness_threshold", loop_fitness_threshold);
+    get("loop_max_icp_translation", loop_max_icp_translation);
+    get("loop_max_icp_rotation", loop_max_icp_rotation);
+    get("loop_use_icp_information", loop_use_icp_information);
+    get("loop_kf_gap", loop_kf_gap);
+    get("loop_closest_id_th", loop_closest_id_th);
+    get("loop_min_id_interval", loop_min_id_interval);
+    get("loop_max_range", loop_max_range);
 
-    // 地图序列化
-    declare_and_get_string("map_save_path", map_save_path);
+    get("output_cloud_voxel_size", output_cloud_voxel_size);
+    gets("map_save_path", map_save_path);
+    get("global_map_voxel_size", global_map_voxel_size);
+    get("save_global_map_on_shutdown", save_global_map_on_shutdown);
+    get("num_threads", num_threads);
+    get("sync_time_tolerance", sync_time_tolerance);
 
-    // 全局地图
-    declare_and_get("global_map_voxel_size", global_map_voxel_size);
-    declare_and_get("save_global_map_on_shutdown", save_global_map_on_shutdown);
+    get("reloc_num_candidates", reloc_num_candidates);
+    get("reloc_sc_dist_threshold", reloc_sc_dist_threshold);
+    get("reloc_min_confidence", reloc_min_confidence);
+    get("reloc_min_inlier_ratio", reloc_min_inlier_ratio);
+    get("reloc_search_radius", reloc_search_radius);
+    get("reloc_max_track_failures", reloc_max_track_failures);
+    get("reloc_track_max_translation", reloc_track_max_translation);
+    get("reloc_track_max_rotation", reloc_track_max_rotation);
+    get("reloc_temporal_window_size", reloc_temporal_window_size);
+    get("reloc_lock_log_likelihood_threshold", reloc_lock_log_likelihood_threshold);
+    get("reloc_hypothesis_miss_penalty", reloc_hypothesis_miss_penalty);
+    get("reloc_hypothesis_not_converged_penalty", reloc_hypothesis_not_converged_penalty);
+    get("reloc_reloc_inlier_weight", reloc_reloc_inlier_weight);
+    get("reloc_reloc_desc_dist_weight", reloc_reloc_desc_dist_weight);
+    get("reloc_track_motion_weight", reloc_track_motion_weight);
+    get("reloc_track_retry_max_failures", reloc_track_retry_max_failures);
+    get("reloc_track_retry_corr_scale", reloc_track_retry_corr_scale);
+    get("reloc_track_retry_max_iterations", reloc_track_retry_max_iterations);
+    get("reloc_track_unstable_submap_size", reloc_track_unstable_submap_size);
 
-    // 并行计算
-    declare_and_get("num_threads", num_threads);
-
-    // 时间同步
-    declare_and_get("sync_time_tolerance", sync_time_tolerance);
-
-    // 重定位
-    declare_and_get("reloc_num_candidates", reloc_num_candidates);
-    declare_and_get("reloc_sc_dist_threshold", reloc_sc_dist_threshold);
-    declare_and_get("reloc_min_confidence", reloc_min_confidence);
-    declare_and_get("reloc_min_inlier_ratio", reloc_min_inlier_ratio);
-    declare_and_get("reloc_search_radius", reloc_search_radius);
-    declare_and_get("reloc_max_track_failures", reloc_max_track_failures);
-    declare_and_get("reloc_track_max_translation", reloc_track_max_translation);
-    declare_and_get("reloc_track_max_rotation", reloc_track_max_rotation);
+    get("rhpd_enabled", rhpd_enabled);
+    get("rhpd_max_range", rhpd_max_range);
+    get("rhpd_z_min", rhpd_z_min);
+    get("rhpd_z_max", rhpd_z_max);
+    get("rhpd_dist_threshold", rhpd_dist_threshold);
+    get("rhpd_num_candidates", rhpd_num_candidates);
 }
 
-void
-Config::print(const rclcpp::Logger& logger) const
-{
+void Config::print(const rclcpp::Logger& logger) const {
     RCLCPP_INFO(logger, "========== N3Mapping Configuration ==========");
-
-    // --- General ---
-    RCLCPP_INFO(logger, "Mode: %s", mode.c_str());
-    RCLCPP_INFO(logger, "Map path: %s", map_path.c_str());
-    RCLCPP_INFO(logger, "Map save path: %s", map_save_path.c_str());
-
-    // --- Frames ---
-    RCLCPP_INFO(logger, "--- Frames ---");
-    RCLCPP_INFO(logger, "  World frame: %s", world_frame.c_str());
-    RCLCPP_INFO(logger, "  Body frame: %s", body_frame.c_str());
-
-    // --- Topics ---
-    RCLCPP_INFO(logger, "--- Topics ---");
-    RCLCPP_INFO(logger, "  Cloud topic: %s", cloud_topic.c_str());
-    RCLCPP_INFO(logger, "  Odom topic: %s", odom_topic.c_str());
-    RCLCPP_INFO(logger, "  Output odom topic: %s", output_odom_topic.c_str());
-    RCLCPP_INFO(logger, "  Output path topic: %s", output_path_topic.c_str());
-    RCLCPP_INFO(logger, "  Output cloud body: %s", output_cloud_body_topic.c_str());
-    RCLCPP_INFO(logger, "  Output cloud world: %s", output_cloud_world_topic.c_str());
-
-    // --- Keyframe Selection ---
-    RCLCPP_INFO(logger, "--- Keyframe Selection ---");
-    RCLCPP_INFO(logger, "  Distance threshold: %.2f m", keyframe_distance_threshold);
-    RCLCPP_INFO(logger, "  Angle threshold: %.2f rad", keyframe_angle_threshold);
-
-    // --- Point Cloud Registration ---
-    RCLCPP_INFO(logger, "--- Point Cloud Registration (GICP) ---");
-    RCLCPP_INFO(logger, "  Downsampling resolution: %.2f m", gicp_downsampling_resolution);
-    RCLCPP_INFO(logger, "  Max correspondence dist: %.2f m", gicp_max_correspondence_distance);
-    RCLCPP_INFO(logger, "  Max iterations: %d", gicp_max_iterations);
-    RCLCPP_INFO(logger, "  Transformation epsilon: %.1e", gicp_transformation_epsilon);
-    RCLCPP_INFO(logger, "  Rotation epsilon: %.2f deg", gicp_rotation_epsilon_deg);
-    RCLCPP_INFO(logger, "  Fitness threshold: %.3f", gicp_fitness_threshold);
-    RCLCPP_INFO(logger, "  Num neighbors: %d", gicp_num_neighbors);
-    RCLCPP_INFO(logger, "  Submap size: %d (2N+1 frames)", gicp_submap_size);
-    RCLCPP_INFO(logger, "  Refine use GICP: %s", icp_refine_use_gicp ? "true" : "false");
-    RCLCPP_INFO(logger, "  Refine max iterations: %d", icp_refine_max_iterations);
-    RCLCPP_INFO(logger, "  Refine max correspondence dist: %.2f m", icp_refine_max_correspondence_distance);
-    RCLCPP_INFO(logger, "  Refine downsampling resolution: %.2f m", icp_refine_downsampling_resolution);
-    RCLCPP_INFO(logger, "  Refine fitness gate: %.3f", icp_refine_fitness_gate);
-    RCLCPP_INFO(logger, "  Refine delta translation gate: %.2f m", icp_refine_delta_translation_gate);
-    RCLCPP_INFO(logger, "  Refine delta rotation gate: %.2f rad", icp_refine_delta_rotation_gate);
-
-    // --- Loop Detection ---
-    RCLCPP_INFO(logger, "--- Loop Detection (ScanContext) ---");
-    RCLCPP_INFO(logger, "  SC dist threshold: %.3f", sc_dist_threshold);
-    RCLCPP_INFO(logger, "  Exclude recent frames: %d", sc_num_exclude_recent);
-    RCLCPP_INFO(logger, "  Num candidates: %d", sc_num_candidates);
-    RCLCPP_INFO(logger, "  Max radius: %.2f m", sc_max_radius);
-    RCLCPP_INFO(logger, "  Num rings: %d", sc_num_rings);
-    RCLCPP_INFO(logger, "  Num sectors: %d", sc_num_sectors);
-
-    // --- Graph Optimization ---
-    RCLCPP_INFO(logger, "--- Graph Optimization ---");
-    RCLCPP_INFO(logger, "  Optimization iterations: %d", optimization_iterations);
-    RCLCPP_INFO(logger, "  Prior noise (pos/rot): %.4f / %.4f", prior_noise_position, prior_noise_rotation);
-    RCLCPP_INFO(logger, "  Odom noise (pos/rot): %.4f / %.4f", odom_noise_position, odom_noise_rotation);
-    RCLCPP_INFO(logger, "  Loop noise (pos/rot): %.4f / %.4f", loop_noise_position, loop_noise_rotation);
-    RCLCPP_INFO(logger, "  Loop min inlier ratio: %.2f", loop_min_inlier_ratio);
-    RCLCPP_INFO(logger, "  Loop fitness threshold: %.3f", loop_fitness_threshold);
-    RCLCPP_INFO(logger, "  Loop min inlier ratio: %.2f", loop_min_inlier_ratio);
-
-    // --- Relocalization ---
-    RCLCPP_INFO(logger, "--- Relocalization ---");
-    RCLCPP_INFO(logger, "  Num candidates: %d", reloc_num_candidates);
-    RCLCPP_INFO(logger, "  SC dist threshold: %.3f", reloc_sc_dist_threshold);
-    RCLCPP_INFO(logger, "  Min confidence: %.2f", reloc_min_confidence);
-    RCLCPP_INFO(logger, "  Min inlier ratio: %.2f", reloc_min_inlier_ratio);
-    RCLCPP_INFO(logger, "  Search radius: %.2f m", reloc_search_radius);
-    RCLCPP_INFO(logger, "  Max track failures: %d", reloc_max_track_failures);
-    RCLCPP_INFO(logger, "  Track max translation: %.2f m", reloc_track_max_translation);
-    RCLCPP_INFO(logger, "  Track max rotation: %.2f rad", reloc_track_max_rotation);
-
-    // --- Map Output & System ---
-    RCLCPP_INFO(logger, "--- Map Output & System ---");
-    RCLCPP_INFO(logger, "  Output cloud voxel size: %.2f m", output_cloud_voxel_size);
-    RCLCPP_INFO(logger, "  Global map voxel size: %.2f m", global_map_voxel_size);
-    RCLCPP_INFO(logger, "  Save global map on shutdown: %s", save_global_map_on_shutdown ? "true" : "false");
-    RCLCPP_INFO(logger, "  Num threads: %d", num_threads);
-    RCLCPP_INFO(logger, "  Sync time tolerance: %.3f s", sync_time_tolerance);
-
+    RCLCPP_INFO(logger, "Mode: %s | Map path: %s", mode.c_str(), map_path.c_str());
+    RCLCPP_INFO(logger, "Frames: world=%s body=%s", world_frame.c_str(), body_frame.c_str());
+    RCLCPP_INFO(logger, "Keyframe: dist=%.2f m, angle=%.2f rad", keyframe_distance_threshold, keyframe_angle_threshold);
+    RCLCPP_INFO(logger,
+                "GICP: res=%.2f, corr=%.2f, iter=%d, fitness_thr=%.3f, submap=%d",
+                gicp_downsampling_resolution,
+                gicp_max_correspondence_distance,
+                gicp_max_iterations,
+                gicp_fitness_threshold,
+                gicp_submap_size);
+    RCLCPP_INFO(logger,
+                "SC: dist_thr=%.3f, exclude=%d, candidates=%d",
+                sc_dist_threshold,
+                sc_num_exclude_recent,
+                sc_num_candidates);
+    RCLCPP_INFO(logger,
+                "Odom noise: pos=%.4f rot=%.4f | Loop noise: pos=%.4f rot=%.4f",
+                odom_noise_position,
+                odom_noise_rotation,
+                loop_noise_position,
+                loop_noise_rotation);
+    RCLCPP_INFO(logger,
+                "Robust kernel: %s type=%s delta=%.2f",
+                use_robust_kernel ? "ON" : "OFF",
+                robust_kernel_type.c_str(),
+                robust_kernel_delta);
+    RCLCPP_INFO(logger,
+                "Loop: fitness_thr=%.3f, min_inlier=%.2f, max_icp_t=%.2f, max_icp_r=%.2f",
+                loop_fitness_threshold,
+                loop_min_inlier_ratio,
+                loop_max_icp_translation,
+                loop_max_icp_rotation);
+    RCLCPP_INFO(logger,
+                "Loop (dist-based): kf_gap=%d, closest_id_th=%d, min_id_interval=%d, max_range=%.1f",
+                loop_kf_gap,
+                loop_closest_id_th,
+                loop_min_id_interval,
+                loop_max_range);
+    RCLCPP_INFO(logger,
+                "Reloc: candidates=%d, sc_thr=%.3f, min_conf=%.2f",
+                reloc_num_candidates,
+                reloc_sc_dist_threshold,
+                reloc_min_confidence);
+    RCLCPP_INFO(logger,
+                "Reloc temporal: window=%d, lock_ll=%.2f, miss_pen=%.2f, nonconv_pen=%.2f",
+                reloc_temporal_window_size,
+                reloc_lock_log_likelihood_threshold,
+                reloc_hypothesis_miss_penalty,
+                reloc_hypothesis_not_converged_penalty);
+    RCLCPP_INFO(logger,
+                "Reloc score weights: inlier=%.2f, desc=%.2f, motion=%.2f",
+                reloc_reloc_inlier_weight,
+                reloc_reloc_desc_dist_weight,
+                reloc_track_motion_weight);
+    RCLCPP_INFO(logger,
+                "Reloc retry: max_fail=%d, corr_scale=%.2f, max_iter=%d, unstable_submap=%d",
+                reloc_track_retry_max_failures,
+                reloc_track_retry_corr_scale,
+                reloc_track_retry_max_iterations,
+                reloc_track_unstable_submap_size);
+    RCLCPP_INFO(logger,
+                "RHPD: enabled=%s, max_range=%.1f, z=[%.1f,%.1f], dist_thr=%.1f, candidates=%d",
+                rhpd_enabled ? "YES" : "NO",
+                rhpd_max_range,
+                rhpd_z_min,
+                rhpd_z_max,
+                rhpd_dist_threshold,
+                rhpd_num_candidates);
+    RCLCPP_INFO(logger, "Threads: %d | Save path: %s", num_threads, map_save_path.c_str());
     RCLCPP_INFO(logger, "==============================================");
 }
 

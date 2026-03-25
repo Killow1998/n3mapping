@@ -1,75 +1,120 @@
 # N3Mapping
 
-N3Mapping 是基于图优化的 ROS 2 后端 SLAM，接收 FAST-LIO2 去畸变点云与里程计，执行 ScanContext 回环检测、小 GICP 配准、GTSAM 图优化，并将地图序列化为可恢复/续建的 pbstream。
+N3Mapping is a ROS 2 backend SLAM package. It consumes undistorted point clouds and odometry from FAST-LIO2, performs loop detection and verification, optimizes a pose graph with GTSAM, and saves maps as `pbstream` files for relocalization and map extension.
 
-## 依赖
-- ROS 2 (ament_cmake、rclcpp、std_msgs、sensor_msgs、nav_msgs、geometry_msgs、message_filters、tf2、tf2_ros、tf2_geometry_msgs、pcl_conversions、pcl_ros、cv_bridge)
-- small_gicp（作为 colcon 包编译后被 find_package）
-- PCL、Eigen3、OpenCV
-- GTSAM、glog、OpenMP
-- Protobuf（libprotobuf-dev、protobuf-compiler）
-- 前端：FAST-LIO2（默认订阅 `/cloud_registered_body` 与 `/Odometry`）
+## Dependencies
 
-## 安装依赖示例（Ubuntu）
-- Protobuf / glog / 常规库：
-  ```bash
-  sudo apt-get install -y libprotobuf-dev protobuf-compiler libgoogle-glog-dev libpcl-dev libeigen3-dev libopencv-dev libboost-all-dev
-  ```
-- GTSAM（4.1.x 示例，建议源码安装启用 TBB）：  
-  ```bash
-  sudo apt-get install -y libtbb-dev
-  git clone https://github.com/borglab/gtsam.git -b 4.1.1
-  cd gtsam && mkdir build && cd build
-  cmake .. -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=ON -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
-  sudo make -j$(nproc) install
-  ```
-- small_gicp（作为 ROS 2 包）：  
-  ```bash
-  cd ~/ros_ws/src
-  git clone https://github.com/koide3/small_gicp.git
-  cd ~/ros_ws
-  colcon build --packages-select small_gicp 
-  source install/setup.bash
-  ```
+- ROS 2 Humble (`ament_cmake`, `rclcpp`, `sensor_msgs`, `nav_msgs`, `geometry_msgs`, `message_filters`, `tf2`, `tf2_ros`, `pcl_conversions`, `cv_bridge`)
+- PCL, Eigen3, OpenCV
+- Protobuf
+- glog, OpenMP
+- small_gicp
+- GTSAM
+- FAST-LIO2 frontend (default inputs: `/cloud_registered_body`, `/Odometry`)
 
-## 构建
-1) 将本包与依赖（如 small_gicp、FAST-LIO2）放在同一个 ROS 2 workspace 的 `src/` 下。  
-2) 构建：
-   ```bash
-   colcon build --packages-select n3mapping --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
-   source install/setup.bash
-   ```
-   Proto 代码会在构建时自动生成到 `build/n3mapping/proto_gen/`。
+## System Packages (Ubuntu)
 
-## 配置
-- 默认配置位于 `config/n3mapping.yaml`，可按模式修改 `mode`（mapping/localization/map_extension）、`map_path`、话题名、ScanContext/GICP/GTSAM 参数等。
-- 地图默认保存在源目录的 `map/`（由 `N3MAPPING_SOURCE_DIR` 宏设置）；如需避免写入仓库，可在配置中将 `map_save_path`、`map_path` 指向工作盘的其他目录。
+```bash
+sudo apt-get install -y \
+  libprotobuf-dev protobuf-compiler \
+  libgoogle-glog-dev libpcl-dev libeigen3-dev \
+  libopencv-dev libboost-all-dev libtbb-dev
+```
 
-## 运行
-在终端 `source install/setup.bash` 后：
-- 建图：
+## Build
+
+Put `gtsam`, `small_gicp`, `n3mapping`, and your frontend package in the same ROS 2 workspace.
+
+```bash
+source /opt/ros/humble/setup.bash
+cd ~/<your ros workspace>/src
+git clone https://github.com/borglab/gtsam.git -b 4.1.1
+git clone https://github.com/koide3/small_gicp.git
+```
+
+Build `gtsam` first with noetic-aligned CMake options:
+
+```bash
+cd ~/<your ros workspace>
+colcon build --packages-select gtsam --symlink-install \
+  --cmake-args \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DGTSAM_USE_SYSTEM_EIGEN=ON \
+    -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
+```
+
+Then build `small_gicp` and `n3mapping`:
+
+```bash
+cd ~/<your ros workspace>
+colcon build --packages-up-to n3mapping --symlink-install \
+  --cmake-args -DCMAKE_BUILD_TYPE=Release
+source install/setup.bash
+```
+
+## Configuration
+
+Default config file: `config/n3mapping.yaml`
+
+Key groups:
+
+- runtime mode: `mapping`, `localization`, `map_extension`
+- topics and frames
+- ScanContext / Hybrid ScanContext parameters
+- RHPD relocalization parameters
+- loop verification thresholds
+- map save/load paths
+
+## Run
+
+After `source install/setup.bash`:
+
+- Mapping
   ```bash
   ros2 launch n3mapping mapping.launch.py config_file:=/path/to/n3mapping.yaml
   ```
-- 重定位（需已有地图 pbstream）：
+
+- Relocalization
   ```bash
   ros2 launch n3mapping localization.launch.py config_file:=/path/to/n3mapping.yaml
   ```
-- 地图续建：
+
+- Map extension
   ```bash
   ros2 launch n3mapping map_extension.launch.py config_file:=/path/to/n3mapping.yaml
   ```
 
-## 话题
-- 订阅：`cloud_topic` (PointCloud2，默认 `/cloud_registered_body`)，`odom_topic` (nav_msgs/Odometry，默认 `/Odometry`)
-- 发布：`/n3mapping/odometry`、`/n3mapping/path`、`/n3mapping/cloud_body`、`/n3mapping/cloud_world`
+## Topics
 
-## 数据与地图
-- 运行结束时可保存 `global_map.pcd` 与 `n3map.pbstream` 到 `map/` 或自定义 `map_save_path`。
-- 大体积地图文件默认被 `.gitignore` 忽略，避免上传仓库。
+- Subscribed:
+  - `cloud_topic` (`sensor_msgs/PointCloud2`, default `/cloud_registered_body`)
+  - `odom_topic` (`nav_msgs/Odometry`, default `/Odometry`)
 
-## 测试
-启用测试后运行：
+- Published:
+  - `/n3mapping/odometry`
+  - `/n3mapping/path`
+  - `/n3mapping/cloud_body`
+  - `/n3mapping/cloud_world`
+  - `/n3mapping/loop_closure_markers`
+  - `/n3mapping/global_map`
+
+## Map Files and Version Policy
+
+Map files include:
+
+- `n3map.pbstream`
+- `global_map.pcd`
+
+`pbstream` metadata version is `2.0.0`.
+
+Load policy:
+
+- file version `< 2.0.0`: map load is allowed and RHPD descriptors are rebuilt.
+- file version `> 2.0.0`: map load is rejected.
+- file version `== 2.0.0` but RHPD missing/invalid: RHPD descriptors are rebuilt.
+
+## Tests
+
 ```bash
 colcon build --packages-select n3mapping --cmake-args -DBUILD_TESTING=ON
 colcon test --packages-select n3mapping

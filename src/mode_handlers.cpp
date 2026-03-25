@@ -37,6 +37,10 @@ MappingModeHandler::process(double timestamp, const Eigen::Isometry3d& pose_odom
 
     int64_t kf_id = keyframe_manager_.addKeyframe(timestamp, pose_odom, cloud);
     loop_detector_.addDescriptor(kf_id, cloud);
+    auto kf = keyframe_manager_.getKeyframe(kf_id);
+    if (kf) {
+        kf->rhpd_descriptor = loop_detector_.addRHPD(kf_id, cloud);
+    }
 
     if (kf_id == 0) {
         graph_optimizer_.addPriorFactor(kf_id, pose_odom);
@@ -100,6 +104,10 @@ LocalizationModeHandler::process(bool map_loaded,
 {
     if (!map_loaded) {
         LOG_EVERY_N(WARNING, 10) << "Map not loaded, cannot perform localization";
+        publish_.publish_odometry(pose_odom, header);
+        publish_.publish_path(header, &pose_odom);
+        publish_.publish_point_clouds(cloud, pose_odom, header);
+        return;
     }
 
     Eigen::Isometry3d pose_map;
@@ -124,6 +132,11 @@ LocalizationModeHandler::process(bool map_loaded,
         publish_.publish_odometry(pose_map, header);
         publish_.publish_path(header, &pose_map);
         publish_.publish_point_clouds(cloud, pose_map, header);
+    } else {
+        Eigen::Isometry3d fallback = world_localizing_.getMapToOdomTransform() * pose_odom;
+        publish_.publish_odometry(fallback, header);
+        publish_.publish_path(header, &fallback);
+        publish_.publish_point_clouds(cloud, fallback, header);
     }
 }
 

@@ -5,6 +5,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/graph_optimizer.h"
 #include <filesystem>
+#include <pcl/memory.h>
 #include <random>
 
 namespace n3mapping {
@@ -46,7 +47,7 @@ protected:
 
     // 生成随机点云
     pcl::PointCloud<pcl::PointXYZI>::Ptr generateRandomPointCloud(size_t num_points) {
-        auto cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         cloud->resize(num_points);
         
         std::mt19937 rng(std::random_device{}());

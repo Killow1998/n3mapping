@@ -35,6 +35,10 @@
   <depend>eigen</depend>
   <depend>libprotobuf-dev</depend>
   <depend>protobuf-compiler</depend>
+  <depend>gtsam</depend>
+  <depend>libgtsam-dev</depend>
+  <depend>libgoogle-glog-dev</depend>
+  <depend>libopencv-dev</depend>
 
   <!-- 测试依赖 -->
   <test_depend>ament_lint_auto</test_depend>

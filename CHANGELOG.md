@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.3.0] - 2026-03-25
+
+### Migration
+
+- **Noetic -> Humble behavior alignment**: Port noetic-validated behavior to ROS2 `main` without ROS1 fallback path.
+- **Hybrid ScanContext integration**: Add and wire Hybrid ScanContext pipeline into loop/relocalization flow.
+- **RHPD integration**: Add RHPD descriptor compute/store/load chain and integrate with keyframe + map serialization pipeline.
+- **Relocalization temporal logic alignment**: Migrate temporal-hypothesis/retry behavior and unstable-submap strategy from noetic flow.
+- **Loop pipeline alignment**: Use noetic-style distance-candidate selection + ICP verification in mapping loop handling.
+
+### Map Versioning
+
+- **Map metadata version**: `MAP_VERSION` upgraded to `2.0.0`.
+- **Load policy enforced**:
+  - `file_version < 2.0.0`: allow load and rebuild RHPD.
+  - `file_version > 2.0.0`: reject load.
+  - `file_version == 2.0.0` with missing/invalid RHPD: rebuild RHPD.
+- **Save policy enforced**: Always save map with version `2.0.0` and complete RHPD fields.
+
+### Stability Fixes
+
+- **Global map save crash fix**: Replace unstable voxel-grid path in `saveGlobalMap` with deterministic manual voxel aggregation to eliminate test/runtime segfault in map serializer path.
+- **ROS2 build compatibility fixes**: Resolve pointer/allocation and parameter type issues encountered during migration integration.
+
+### Configuration and Docs
+
+- **ROS2 config synchronization**: Sync noetic-validated parameter set and defaults into humble config path, including loop distance-candidate, relocalization temporal/retry, and RHPD parameters.
+- **README update**:
+  - Keep English ROS2 workflow.
+  - Add explicit `gtsam` build step with noetic-aligned CMake args:
+    - `-DGTSAM_USE_SYSTEM_EIGEN=ON`
+    - `-DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF`
+- **Workspace layout consistency**: Keep `map/` directory in git using `.gitkeep` + `.gitignore` exception to align branch directory layout.
+
+### Validation
+
+- Build/test validated under memory-safe parallel limits:
+  - `--parallel-workers 2`
+  - `CMAKE_BUILD_PARALLEL_LEVEL=2`
+  - `MAKEFLAGS=-j2`
+- Test result: **15/15 passing**.
+- Startup verification: `mapping`, `localization`, `map_extension` all initialize `n3mapping_node` successfully in short-run launch checks.
+
 ## [0.2.0] - 2026-02-27
 
 ### Refactor
