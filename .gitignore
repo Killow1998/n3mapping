@@ -17,3 +17,4 @@ map copy/
 *.swp
 *.swo
 .DS_Store
+.serena/

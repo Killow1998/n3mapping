@@ -495,41 +495,9 @@ class N3MappingNode : public rclcpp::Node
                 continue;
             }
 
-            struct DistCandidate {
-                int64_t match_id;
-                double xy_dist;
-            };
-
-            std::vector<DistCandidate> candidates;
-            {
-                auto all_kfs = keyframe_manager_->getAllKeyframes();
-                const Eigen::Vector3d q_pos = query_kf->pose_optimized.translation();
-                int64_t last_candidate_id = -1000;
-
-                for (const auto& kf : all_kfs) {
-                    int64_t id_gap = std::abs(query_id - kf->id);
-                    if (id_gap < config_.loop_closest_id_th) continue;
-                    if (std::abs(kf->id - last_candidate_id) < config_.loop_min_id_interval) continue;
-
-                    const Eigen::Vector3d m_pos = kf->pose_optimized.translation();
-                    const double dx = q_pos.x() - m_pos.x();
-                    const double dy = q_pos.y() - m_pos.y();
-                    const double xy_dist = std::sqrt(dx * dx + dy * dy);
-
-                    if (xy_dist < config_.loop_max_range) {
-                        candidates.push_back({ kf->id, xy_dist });
-                        last_candidate_id = kf->id;
-                    }
-                }
-
-                std::sort(candidates.begin(), candidates.end(), [](const DistCandidate& a, const DistCandidate& b) {
-                    return a.xy_dist < b.xy_dist;
-                });
-                constexpr size_t kMaxCandidates = 5;
-                if (candidates.size() > kMaxCandidates) {
-                    candidates.resize(kMaxCandidates);
-                }
-            }
+            // Primary candidate source must stay descriptor-based so loops are still
+            // discoverable even when optimized poses have accumulated large drift.
+            std::vector<LoopCandidate> candidates = loop_detector_->detectLoopCandidates(query_id);
 
             if (candidates.empty()) {
                 continue;

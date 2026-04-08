@@ -145,8 +145,14 @@ void Config::print(const rclcpp::Logger& logger) const {
                 loop_max_icp_translation,
                 loop_max_icp_rotation);
     RCLCPP_INFO(logger,
-                "Loop (dist-based): kf_gap=%d, closest_id_th=%d, min_id_interval=%d, max_range=%.1f",
-                loop_kf_gap,
+                "Loop candidate pipeline: descriptor retrieval (SC KD-tree + refined distance) -> ICP -> geom gate -> LoopClosureManager filter/select");
+    RCLCPP_WARN(logger,
+                "loop_closest_id_th/min_id_interval/max_range are retained for compatibility/logging only; they are not used in the active mapping loop-candidate retrieval/verification path.");
+    RCLCPP_INFO(logger,
+                "Loop timing: loop_kf_gap=%d (active)",
+                loop_kf_gap);
+    RCLCPP_INFO(logger,
+                "Legacy loop distance params (inactive, compatibility/logging only): closest_id_th=%d, min_id_interval=%d, max_range=%.1f",
                 loop_closest_id_th,
                 loop_min_id_interval,
                 loop_max_range);

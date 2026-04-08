@@ -162,7 +162,12 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
     int64_t nearest_kf_id = findNearestKeyframe(predicted_pose);
     if (nearest_kf_id < 0) {
         consecutive_track_failures_++;
-        result.success = false;
+        if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
+            is_relocalized_ = false;
+            result.success = false;
+        } else {
+            result.success = true;
+        }
         result.matched_keyframe_id = last_matched_id_;
         result.pose_in_map = predicted_pose;
         result.confidence = 0.5;
@@ -178,7 +183,12 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
     auto submap = keyframe_manager_.buildLocalSubmap(nearest_kf_id, submap_range);
     if (!submap || submap->empty()) {
         consecutive_track_failures_++;
-        result.success = false;
+        if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
+            is_relocalized_ = false;
+            result.success = false;
+        } else {
+            result.success = true;
+        }
         result.matched_keyframe_id = last_matched_id_;
         result.pose_in_map = predicted_pose;
         result.confidence = 0.5;
@@ -273,7 +283,15 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
                          << "," << predicted_pose.translation().y()
                          << "," << predicted_pose.translation().z() << ")";
         }
-        result.success = false;
+
+        if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
+            is_relocalized_ = false;
+            result.success = false;
+        } else {
+            // Keep odometry-based continuity for transient dropouts.
+            result.success = true;
+        }
+
         result.matched_keyframe_id = last_matched_id_;
         result.pose_in_map = predicted_pose;
         result.confidence = 0.2;
