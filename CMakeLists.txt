@@ -320,37 +320,37 @@ if(BUILD_TESTING)
   endif()
 
   # WorldLocalizing 单元测试
-  ament_add_gtest(test_relocalization_module test/test_relocalization_module.cpp)
-  if(TARGET test_relocalization_module)
-    target_link_libraries(test_relocalization_module
+  ament_add_gtest(test_world_localizing test/test_world_localizing.cpp)
+  if(TARGET test_world_localizing)
+    target_link_libraries(test_world_localizing
       ${PROJECT_NAME}_lib
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
       OpenMP::OpenMP_CXX
     )
-    ament_target_dependencies(test_relocalization_module
+    ament_target_dependencies(test_world_localizing
       rclcpp
     )
   endif()
 
   # WorldLocalizing 属性测试 (Property-Based Test)
-  ament_add_gtest(test_relocalization_module_pbt test/test_relocalization_module_pbt.cpp)
-  if(TARGET test_relocalization_module_pbt)
-    target_link_libraries(test_relocalization_module_pbt
+  ament_add_gtest(test_world_localizing_pbt test/test_world_localizing_pbt.cpp)
+  if(TARGET test_world_localizing_pbt)
+    target_link_libraries(test_world_localizing_pbt
       ${PROJECT_NAME}_lib
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
       OpenMP::OpenMP_CXX
     )
-    ament_target_dependencies(test_relocalization_module_pbt
+    ament_target_dependencies(test_world_localizing_pbt
       rclcpp
     )
   endif()
 
   # MappingResuming 单元测试
-  ament_add_gtest(test_map_extension_module test/test_map_extension_module.cpp)
-  if(TARGET test_map_extension_module)
-    target_link_libraries(test_map_extension_module
+  ament_add_gtest(test_mapping_resuming test/test_mapping_resuming.cpp)
+  if(TARGET test_mapping_resuming)
+    target_link_libraries(test_mapping_resuming
       ${PROJECT_NAME}_lib
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
@@ -358,15 +358,15 @@ if(BUILD_TESTING)
       gtsam
       OpenMP::OpenMP_CXX
     )
-    ament_target_dependencies(test_map_extension_module
+    ament_target_dependencies(test_mapping_resuming
       rclcpp
     )
   endif()
 
   # MappingResuming 属性测试 (Property-Based Test)
-  ament_add_gtest(test_map_extension_module_pbt test/test_map_extension_module_pbt.cpp)
-  if(TARGET test_map_extension_module_pbt)
-    target_link_libraries(test_map_extension_module_pbt
+  ament_add_gtest(test_mapping_resuming_pbt test/test_mapping_resuming_pbt.cpp)
+  if(TARGET test_mapping_resuming_pbt)
+    target_link_libraries(test_mapping_resuming_pbt
       ${PROJECT_NAME}_lib
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
@@ -374,7 +374,7 @@ if(BUILD_TESTING)
       gtsam
       OpenMP::OpenMP_CXX
     )
-    ament_target_dependencies(test_map_extension_module_pbt
+    ament_target_dependencies(test_mapping_resuming_pbt
       rclcpp
     )
   endif()
