@@ -118,8 +118,11 @@ void Config::print() const {
              robust_kernel_type.c_str(), robust_kernel_delta);
     ROS_INFO("Loop: fitness_thr=%.3f, min_inlier=%.2f, max_icp_t=%.2f, max_icp_r=%.2f",
              loop_fitness_threshold, loop_min_inlier_ratio, loop_max_icp_translation, loop_max_icp_rotation);
-    ROS_INFO("Loop (dist-based): kf_gap=%d, closest_id_th=%d, min_id_interval=%d, max_range=%.1f",
-             loop_kf_gap, loop_closest_id_th, loop_min_id_interval, loop_max_range);
+    ROS_INFO("Loop candidate pipeline: descriptor retrieval (SC KD-tree + refined distance) -> ICP -> geom gate -> LoopClosureManager filter/select");
+    ROS_WARN("loop_closest_id_th/min_id_interval/max_range are retained for compatibility/logging only; they are not used in the active mapping loop-candidate retrieval/verification path.");
+    ROS_INFO("Loop timing: loop_kf_gap=%d (active)", loop_kf_gap);
+    ROS_INFO("Legacy loop distance params (inactive, compatibility/logging only): closest_id_th=%d, min_id_interval=%d, max_range=%.1f",
+             loop_closest_id_th, loop_min_id_interval, loop_max_range);
     ROS_INFO("Reloc: candidates=%d, sc_thr=%.3f, min_conf=%.2f", reloc_num_candidates, reloc_sc_dist_threshold, reloc_min_confidence);
     ROS_INFO("Reloc temporal: window=%d, lock_ll=%.2f, miss_pen=%.2f, nonconv_pen=%.2f",
              reloc_temporal_window_size, reloc_lock_log_likelihood_threshold,

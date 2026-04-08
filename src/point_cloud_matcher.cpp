@@ -73,10 +73,10 @@ MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe
         result.information.block<3,3>(0,0)=H.block<3,3>(3,3); result.information.block<3,3>(0,3)=H.block<3,3>(3,0);
         result.information.block<3,3>(3,0)=H.block<3,3>(0,3); result.information.block<3,3>(3,3)=H.block<3,3>(0,0);
         result.fitness_score = (rr.num_inliers > 0) ? rr.error / static_cast<double>(rr.num_inliers) : std::numeric_limits<double>::max();
-        if (result.fitness_score < config_.gicp_fitness_threshold && result.inlier_ratio >= config_.reloc_min_inlier_ratio) {
-            result.converged = true;
-            result.success = true;
-        }
+        const bool quality_passed =
+            result.fitness_score < config_.gicp_fitness_threshold &&
+            result.inlier_ratio >= config_.reloc_min_inlier_ratio;
+        result.success = result.converged && quality_passed;
     } catch (const std::exception& e) {
         LOG(ERROR) << "[PointCloudMatcher] align exception: " << e.what();
     }
@@ -129,9 +129,10 @@ MatchResult PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, 
         result.information.block<3,3>(0,0)=coarse_H.block<3,3>(3,3); result.information.block<3,3>(0,3)=coarse_H.block<3,3>(3,0);
         result.information.block<3,3>(3,0)=coarse_H.block<3,3>(0,3); result.information.block<3,3>(3,3)=coarse_H.block<3,3>(0,0);
         result.fitness_score = coarse_fitness;
-        if (coarse_fitness < config_.gicp_fitness_threshold && coarse_inlier_ratio >= config_.reloc_min_inlier_ratio) {
-            result.converged = true; result.success = true;
-        }
+        const bool coarse_quality_passed =
+            coarse_fitness < config_.gicp_fitness_threshold &&
+            coarse_inlier_ratio >= config_.reloc_min_inlier_ratio;
+        result.success = result.converged && coarse_quality_passed;
 
         if (config_.icp_refine_use_gicp && coarse_fitness < config_.icp_refine_fitness_gate) {
             const Eigen::Isometry3d delta = init_guess.inverse() * T;

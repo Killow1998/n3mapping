@@ -280,48 +280,16 @@ private:
             auto query_kf = keyframe_manager_->getKeyframe(query_id);
             if (!query_kf) continue;
 
-            // --- Distance-based candidate search (replaces SC) ---
-            // Find keyframes that are spatially close (XY) but temporally far (ID gap)
-            struct DistCandidate {
-                int64_t match_id;
-                double xy_dist;
-            };
-            std::vector<DistCandidate> candidates;
-            {
-                auto all_kfs = keyframe_manager_->getAllKeyframes();
-                Eigen::Vector3d q_pos = query_kf->pose_optimized.translation();
-                int64_t last_candidate_id = -1000;
-
-                for (const auto& kf : all_kfs) {
-                    int64_t id_gap = std::abs(query_id - kf->id);
-                    if (id_gap < config_.loop_closest_id_th) continue;
-
-                    // Enforce min_id_interval between consecutive candidates
-                    if (std::abs(kf->id - last_candidate_id) < config_.loop_min_id_interval) continue;
-
-                    Eigen::Vector3d m_pos = kf->pose_optimized.translation();
-                    double dx = q_pos.x() - m_pos.x();
-                    double dy = q_pos.y() - m_pos.y();
-                    double xy_dist = std::sqrt(dx * dx + dy * dy);
-
-                    if (xy_dist < config_.loop_max_range) {
-                        candidates.push_back({kf->id, xy_dist});
-                        last_candidate_id = kf->id;
-                    }
-                }
-                // Sort by XY distance, keep top candidates
-                std::sort(candidates.begin(), candidates.end(),
-                          [](const DistCandidate& a, const DistCandidate& b) { return a.xy_dist < b.xy_dist; });
-                const size_t max_candidates = 5;
-                if (candidates.size() > max_candidates) candidates.resize(max_candidates);
-            }
+            // Primary candidate source must stay descriptor-based so loops are still
+            // discoverable even when optimized poses have accumulated large drift.
+            std::vector<LoopCandidate> candidates = loop_detector_->detectLoopCandidates(query_id);
 
             if (candidates.empty()) continue;
             last_loop_check_id_ = query_id;  // update throttle counter
 
-            LOG(INFO) << "[LOOP] Distance-based search: query=" << query_id
+            LOG(INFO) << "[LOOP] Descriptor search: query=" << query_id
                       << " found " << candidates.size() << " candidates"
-                      << " (closest xy=" << (candidates.empty() ? 0.0 : candidates[0].xy_dist) << ")";
+                      << " (best sc_dist=" << (candidates.empty() ? 0.0 : candidates[0].sc_distance) << ")";
 
             std::vector<VerifiedLoop> verified_loops;
             verified_loops.reserve(candidates.size());
@@ -363,7 +331,7 @@ private:
                     loop.T_match_query = match_result.T_target_source.inverse();
                     LOG(INFO) << "[LOOP] VERIFIED query=" << loop.query_id
                               << " match=" << loop.match_id
-                              << " xy_dist=" << candidate.xy_dist
+                                                            << " sc_dist=" << candidate.sc_distance
                               << " fitness=" << loop.fitness_score
                               << " inlier=" << loop.inlier_ratio
                               << " icp_t=" << icp_translation
@@ -371,7 +339,7 @@ private:
                 } else {
                     LOG(INFO) << "[LOOP] REJECTED query=" << query_id
                             << " match=" << candidate.match_id
-                            << " xy_dist=" << candidate.xy_dist
+                                                        << " sc_dist=" << candidate.sc_distance
                             << " fitness=" << match_result.fitness_score
                             << " inlier=" << match_result.inlier_ratio
                             << " icp_t=" << icp_translation
