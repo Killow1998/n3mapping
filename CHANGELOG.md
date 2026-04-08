@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.0] - 2026-04-08
+
+### Release
+
+- Align changelog versioning with `package.xml` (`1.0.0`) as the first stable package version.
+- Keep runtime interfaces unchanged (`mapping` / `localization` / `map_extension`) and preserve existing ROS2 launch/build workflow.
+
+### Documentation and Naming Consistency
+
+- Rename test files/targets to current module semantics (`WorldLocalizing`, `MappingResuming`) to remove legacy module naming residue in the test surface.
+- Clarify that `loop_closest_id_th`, `loop_min_id_interval`, and `loop_max_range` are compatibility/legacy parameters and are not used in the active mapping loop-candidate retrieval/verification path.
+
+### Migration Continuity
+
+- Preserve the migration continuity established in `0.3.0` without introducing new runtime features in this release.
+
 ## [0.3.0] - 2026-03-25
 
 ### Migration
