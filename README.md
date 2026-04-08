@@ -61,6 +61,21 @@ Common parameters:
 
 Maps are written to `map/` by default. Change the save path if needed.
 
+Also note:
+- runtime mode: `mapping`, `localization`, `map_extension`
+  - `map_extension` is the external mode name; internally this path is implemented by `MappingResuming`.
+- topics and frames
+- ScanContext / Hybrid ScanContext parameters
+- RHPD relocalization parameters
+- loop verification thresholds
+- map save/load paths
+
+Loop-candidate retrieval semantics (mapping mode):
+
+- Active path: descriptor retrieval (ScanContext KD-tree + refined descriptor distance) -> ICP verification -> geometric gate -> loop edge filtering.
+- `loop_closest_id_th`, `loop_min_id_interval`, and `loop_max_range` are retained as compatibility/legacy parameters.
+- These three legacy parameters are currently not used in the active mapping loop-candidate retrieval/verification path.
+
 ## Run
 After `source devel/setup.bash`:
 
