@@ -332,6 +332,15 @@ int64_t WorldLocalizing::getLastMatchedKeyframeId() const {
     return last_matched_id_;
 }
 
+int WorldLocalizing::getConsecutiveTrackFailures() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return consecutive_track_failures_;
+}
+
+int WorldLocalizing::getMaxTrackFailures() const {
+    return config_.reloc_max_track_failures;
+}
+
 std::vector<LoopCandidate> WorldLocalizing::searchCandidates(const PointCloudT::Ptr& cloud) {
     std::vector<LoopCandidate> candidates;
 

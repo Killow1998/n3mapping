@@ -8,6 +8,9 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <tf2_ros/transform_broadcaster.h>
 
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+
 #include <algorithm>
 #include <atomic>
 #include <csignal>
@@ -21,7 +24,9 @@
 #include <optional>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <std_msgs/String.h>
 #include <string_view>
+#include <sstream>
 #include <thread>
 #include <visualization_msgs/MarkerArray.h>
 #include <boost/make_shared.hpp>
@@ -41,6 +46,12 @@
 namespace n3mapping {
 
 static std::atomic<bool> g_shutdown_requested{false};
+
+std::string JsonFromPtree(const boost::property_tree::ptree& tree, bool pretty = false) {
+    std::ostringstream oss;
+    boost::property_tree::write_json(oss, tree, pretty);
+    return oss.str();
+}
 
 class OptimizationLogSink : public google::LogSink {
 public:
@@ -175,9 +186,196 @@ private:
         cloud_world_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(config_.output_cloud_world_topic, 10);
         loop_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/n3mapping/loop_closure_markers", 10);
         global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/n3mapping/global_map", 1, true);
+        status_pub_ = nh_.advertise<std_msgs::String>("/n3mapping/status", 10, true);
+        event_pub_ = nh_.advertise<std_msgs::String>("/n3mapping/events", 50);
 
         loop_timer_ = nh_.createTimer(ros::Duration(0.1), &N3MappingNode::loopDetectionTimerCallback, this);
         global_map_timer_ = nh_.createTimer(ros::Duration(10.0), &N3MappingNode::globalMapTimerCallback, this);
+    }
+
+    std::string runModeToString() const {
+        switch (run_mode_) {
+            case RunMode::MAPPING:
+                return "mapping";
+            case RunMode::LOCALIZATION:
+                return "localization";
+            case RunMode::MAP_EXTENSION:
+                return "map_extension";
+            default:
+                return "mapping";
+        }
+    }
+
+    static std::string mapResumingStateToString(MappingResumingState state) {
+        switch (state) {
+            case MappingResumingState::NOT_INITIALIZED:
+                return "not_initialized";
+            case MappingResumingState::MAP_LOADED:
+                return "map_loaded";
+            case MappingResumingState::RELOCALIZED:
+                return "relocalized";
+            case MappingResumingState::EXTENDING:
+                return "extending";
+            default:
+                return "unknown";
+        }
+    }
+
+    std::string buildNodeState(bool is_relocalized,
+                               int track_failures,
+                               int track_failures_max,
+                               const std::string& map_extension_state) const {
+        if (run_mode_ == RunMode::MAPPING) {
+            return "mapping_running";
+        }
+
+        if (!map_loaded_) {
+            return "waiting_map";
+        }
+
+        if (run_mode_ == RunMode::LOCALIZATION) {
+            if (!is_relocalized) {
+                if (track_failures_max >= 0 && track_failures > track_failures_max) {
+                    return "localization_lost";
+                }
+                return "relocalizing";
+            }
+            if (track_failures > 0) {
+                return "tracking_degraded";
+            }
+            return "tracking";
+        }
+
+        if (map_extension_state == "map_loaded") {
+            return "resume_wait_relocalization";
+        }
+        if (map_extension_state == "relocalized") {
+            return "resume_relocalized";
+        }
+        if (map_extension_state == "extending") {
+            return "resume_extending";
+        }
+        return "resume_initializing";
+    }
+
+    void publishEvent(const std::string& event_name,
+                      const std::string& detail,
+                      const std_msgs::Header& header,
+                      const std::string& node_state,
+                      const std::string& map_extension_state,
+                      bool is_relocalized,
+                      int track_failures,
+                      int track_failures_max,
+                      int64_t last_matched_keyframe_id) {
+        boost::property_tree::ptree root;
+        root.put("type", "slam_event");
+        root.put("source", "n3mapping");
+        root.put("seq", ++event_seq_);
+        root.put("stamp", header.stamp.isZero() ? ros::Time::now().toSec() : header.stamp.toSec());
+        root.put("event", event_name);
+        root.put("detail", detail);
+        root.put("mode", runModeToString());
+        root.put("node_state", node_state);
+        root.put("map_extension_state", map_extension_state);
+        root.put("map_loaded", map_loaded_);
+        root.put("is_relocalized", is_relocalized);
+        root.put("track_failures", track_failures);
+        root.put("track_failures_max", track_failures_max);
+        root.put("last_matched_keyframe_id", last_matched_keyframe_id);
+
+        std_msgs::String msg;
+        msg.data = JsonFromPtree(root, false);
+        event_pub_.publish(msg);
+    }
+
+    void publishStatusAndEvents(const std_msgs::Header& header) {
+        const bool is_relocalized = world_localizing_->isRelocalized();
+        const int track_failures = world_localizing_->getConsecutiveTrackFailures();
+        const int track_failures_max = world_localizing_->getMaxTrackFailures();
+        const int64_t last_matched_keyframe_id = world_localizing_->getLastMatchedKeyframeId();
+
+        std::string map_extension_state = "not_applicable";
+        if (run_mode_ == RunMode::MAP_EXTENSION) {
+            map_extension_state = mapResumingStateToString(mapping_resuming_->getState());
+        }
+        const std::string node_state =
+            buildNodeState(is_relocalized, track_failures, track_failures_max, map_extension_state);
+
+        if (status_initialized_) {
+            if (last_node_state_ != node_state) {
+                publishEvent(
+                    "state_changed",
+                    last_node_state_ + "->" + node_state,
+                    header,
+                    node_state,
+                    map_extension_state,
+                    is_relocalized,
+                    track_failures,
+                    track_failures_max,
+                    last_matched_keyframe_id);
+            }
+            if (!last_is_relocalized_ && is_relocalized) {
+                publishEvent(
+                    "relocalized",
+                    "relocalization locked",
+                    header,
+                    node_state,
+                    map_extension_state,
+                    is_relocalized,
+                    track_failures,
+                    track_failures_max,
+                    last_matched_keyframe_id);
+            }
+            if (last_is_relocalized_ && !is_relocalized && run_mode_ != RunMode::MAPPING) {
+                publishEvent(
+                    "localization_lost",
+                    "tracking lost and fallback to relocalization",
+                    header,
+                    node_state,
+                    map_extension_state,
+                    is_relocalized,
+                    track_failures,
+                    track_failures_max,
+                    last_matched_keyframe_id);
+            }
+            if (run_mode_ == RunMode::MAP_EXTENSION && last_map_extension_state_ != map_extension_state) {
+                publishEvent(
+                    "map_extension_state_changed",
+                    last_map_extension_state_ + "->" + map_extension_state,
+                    header,
+                    node_state,
+                    map_extension_state,
+                    is_relocalized,
+                    track_failures,
+                    track_failures_max,
+                    last_matched_keyframe_id);
+            }
+        }
+
+        boost::property_tree::ptree root;
+        root.put("type", "n3mapping_status");
+        root.put("source", "n3mapping");
+        root.put("stamp", header.stamp.isZero() ? ros::Time::now().toSec() : header.stamp.toSec());
+        root.put("mode", runModeToString());
+        root.put("node_state", node_state);
+        root.put("map_loaded", map_loaded_);
+        root.put("is_relocalized", is_relocalized);
+        root.put("track_failures", track_failures);
+        root.put("track_failures_max", track_failures_max);
+        root.put("last_matched_keyframe_id", last_matched_keyframe_id);
+        root.put("map_extension_state", map_extension_state);
+        root.put("keyframe_count", static_cast<uint64_t>(keyframe_manager_->size()));
+        root.put("frame_count", static_cast<uint64_t>(frame_count_));
+        root.put("loop_count", static_cast<uint64_t>(loop_count_));
+
+        std_msgs::String msg;
+        msg.data = JsonFromPtree(root, false);
+        status_pub_.publish(msg);
+
+        status_initialized_ = true;
+        last_node_state_ = node_state;
+        last_map_extension_state_ = map_extension_state;
+        last_is_relocalized_ = is_relocalized;
     }
 
     void initializeOptimizationLogging() {
@@ -259,6 +457,7 @@ private:
             map_resuming_mode_handler_->process(map_loaded_, timestamp, pose_odom, cloud, cloud_msg->header);
         }
 
+        publishStatusAndEvents(cloud_msg->header);
         frame_count_++;
     }
 
@@ -700,6 +899,8 @@ private:
     ros::Publisher cloud_world_pub_;
     ros::Publisher loop_marker_pub_;
     ros::Publisher global_map_pub_;
+    ros::Publisher status_pub_;
+    ros::Publisher event_pub_;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     ros::Timer loop_timer_;
@@ -720,6 +921,11 @@ private:
     size_t loop_count_ = 0;
     int64_t last_loop_check_id_ = -1000;  // throttle: last query ID that triggered loop check
     std::vector<VerifiedLoop> accepted_loops_;  // all accepted loops for visualization
+    bool status_initialized_ = false;
+    bool last_is_relocalized_ = false;
+    std::string last_node_state_ = "unknown";
+    std::string last_map_extension_state_ = "not_initialized";
+    uint64_t event_seq_ = 0;
 
     ros::NodeHandle nh_;
     ros::NodeHandle pnh_;

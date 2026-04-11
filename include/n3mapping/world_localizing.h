@@ -38,6 +38,8 @@ public:
     void reset();
     void setMapToOdomTransform(const Eigen::Isometry3d& T_map_odom);
     int64_t getLastMatchedKeyframeId() const;
+    int getConsecutiveTrackFailures() const;
+    int getMaxTrackFailures() const;
 
 private:
     struct RelocHypothesis {
