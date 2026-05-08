@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <rclcpp/rclcpp.hpp>
 #include <cmath>
+#include <limits>
 #include <random>
 #include "n3mapping/loop_detector.h"
 
@@ -127,6 +128,21 @@ protected:
         rotated->height = 1;
         rotated->is_dense = true;
         return rotated;
+    }
+
+    Keyframe::PointCloudT::Ptr translatedCloud(const Keyframe::PointCloudT::Ptr& cloud, double dx, double dy) {
+        auto translated = std::make_shared<Keyframe::PointCloudT>();
+        translated->reserve(cloud->size());
+        for (const auto& pt : cloud->points) {
+            pcl::PointXYZI out = pt;
+            out.x += static_cast<float>(dx);
+            out.y += static_cast<float>(dy);
+            translated->push_back(out);
+        }
+        translated->width = translated->size();
+        translated->height = 1;
+        translated->is_dense = true;
+        return translated;
     }
 
     Keyframe::PointCloudT::Ptr createDifferentStructureCloud() {
@@ -340,6 +356,44 @@ TEST_F(LoopDetectorTest, RHPDCoarsePrefilterFindsExactMatchAndSortsByFullDistanc
     }
 }
 
+TEST_F(LoopDetectorTest, RHPDCoarsePrefilterKeepsBruteForceTop1InLargeSyntheticDb) {
+    RHPDManager manager(RHPDescriptor::Params{});
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    std::mt19937 rng(7);
+    std::uniform_real_distribution<double> value_dist(0.0, 1.0);
+
+    std::vector<Eigen::VectorXd> db;
+    db.reserve(500);
+    for (int i = 0; i < 500; ++i) {
+        Eigen::VectorXd v(RHPD_DIM);
+        for (int j = 0; j < RHPD_DIM; ++j) {
+            v(j) = value_dist(rng);
+        }
+        db.push_back(v);
+        manager.add(i, v);
+    }
+
+    Eigen::VectorXd query = db[317];
+    for (int j = 0; j < RHPD_DIM; ++j) {
+        query(j) += (j % 17 == 0) ? 1e-5 : 0.0;
+    }
+
+    int brute_id = -1;
+    double brute_dist = std::numeric_limits<double>::max();
+    for (int i = 0; i < static_cast<int>(db.size()); ++i) {
+        const double d = descriptor.distance(query, db[i]);
+        if (d < brute_dist) {
+            brute_dist = d;
+            brute_id = i;
+        }
+    }
+
+    auto results = manager.search(query, 5, 20);
+    ASSERT_FALSE(results.empty());
+    EXPECT_EQ(brute_id, 317);
+    EXPECT_EQ(results.front().first, brute_id);
+}
+
 TEST_F(LoopDetectorTest, RHPDSemanticsDoorwayCorridorBeatsPlainCorridor) {
     RHPDescriptor descriptor(RHPDescriptor::Params{});
     auto a = descriptor.compute(createDoorwayCorridor(true));
@@ -534,6 +588,46 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesUsesRHPDPrimary) {
         }
     }
     EXPECT_TRUE(found);
+}
+
+TEST_F(LoopDetectorTest, RHPDPrimarySearchFiltersRecentFramesBeforePrefilter) {
+    Config cfg = config_;
+    cfg.rhpd_enabled = true;
+    cfg.sc_aux_veto_enabled = false;
+    cfg.sc_num_exclude_recent = 50;
+    cfg.rhpd_num_candidates = 5;
+    cfg.sc_num_candidates = 3;
+    cfg.rhpd_preselect_candidates = 8;
+    cfg.rhpd_dist_threshold = 100.0;
+    LoopDetector detector(cfg);
+
+    auto query_scene = createAsymmetricCloud();
+    auto old_loop_scene = rotateCloud(query_scene, 0.02);
+    for (int i = 0; i <= 180; ++i) {
+        Keyframe::PointCloudT::Ptr cloud;
+        if (i == 20) {
+            cloud = old_loop_scene;
+        } else if (i >= 150) {
+            cloud = query_scene;
+        } else {
+            cloud = translatedCloud(createDifferentStructureCloud(), i * 0.25, -i * 0.15);
+        }
+        detector.addDescriptor(i, cloud);
+        detector.addRHPD(i, cloud);
+    }
+
+    auto candidates = detector.detectLoopCandidates(180);
+    ASSERT_FALSE(candidates.empty());
+    bool found_old_loop = false;
+    for (const auto& candidate : candidates) {
+        EXPECT_LT(candidate.match_id, 180 - cfg.sc_num_exclude_recent);
+        if (candidate.match_id == 20) {
+            found_old_loop = true;
+            EXPECT_TRUE(candidate.fromRHPD());
+            EXPECT_EQ(candidate.candidate_source, LoopCandidate::Source::RhpdPrimary);
+        }
+    }
+    EXPECT_TRUE(found_old_loop);
 }
 
 TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisabled) {

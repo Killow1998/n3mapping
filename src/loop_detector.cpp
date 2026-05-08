@@ -108,8 +108,12 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
         Eigen::VectorXd query_rhpd;
         if (rhpd_manager_.get(query_id, &query_rhpd) && query_rhpd.size() == RHPD_DIM && !query_rhpd.isZero()) {
             const int preselect = std::max(config_.rhpd_num_candidates * 3, config_.sc_num_candidates * 4);
-            auto rhpd_hits = rhpd_manager_.search(
-                query_rhpd, std::max(1, preselect), config_.rhpd_preselect_candidates);
+            auto accept_old_enough = [&](int64_t id) {
+                auto mit = id_to_index_.find(id);
+                return mit != id_to_index_.end() && mit->second < search_end;
+            };
+            auto rhpd_hits = rhpd_manager_.searchFiltered(
+                query_rhpd, std::max(1, preselect), config_.rhpd_preselect_candidates, accept_old_enough);
             std::vector<LoopCandidate> ranked;
             ranked.reserve(rhpd_hits.size());
 
@@ -118,7 +122,6 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
                 auto mit = id_to_index_.find(match_id);
                 if (mit == id_to_index_.end()) continue;
                 const size_t match_index = mit->second;
-                if (match_index >= search_end) continue;
                 if (rhpd_dist > config_.rhpd_dist_threshold) continue;
 
                 LoopCandidate candidate;

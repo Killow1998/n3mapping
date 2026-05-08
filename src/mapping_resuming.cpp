@@ -84,7 +84,7 @@ int64_t MappingResuming::processNewKeyframe(double timestamp, const Eigen::Isome
         const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
         PointCloudT::Ptr rhpd_cloud = cloud;
         if (submap_radius > 0) {
-            rhpd_cloud = keyframe_manager_.buildSubmapInRootFrame(new_kf_id, submap_radius, new_kf_id);
+            rhpd_cloud = keyframe_manager_.buildCausalSubmapInRootFrame(new_kf_id, submap_radius, new_kf_id);
         }
         if (rhpd_cloud && !rhpd_cloud->empty() && config_.rhpd_submap_voxel_size > 1e-4) {
             pcl::VoxelGrid<pcl::PointXYZI> voxel;

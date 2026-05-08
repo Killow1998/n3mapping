@@ -577,6 +577,14 @@ std::vector<std::pair<int64_t, double>> RHPDManager::search(const VecD& query, i
 }
 
 std::vector<std::pair<int64_t, double>> RHPDManager::search(const VecD& query, int top_k, int preselect) const {
+    return searchFiltered(query, top_k, preselect, nullptr);
+}
+
+std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
+    const VecD& query,
+    int top_k,
+    int preselect,
+    const std::function<bool(int64_t)>& accept) const {
     std::vector<std::pair<int64_t, double>> results;
     std::lock_guard<std::mutex> lock(mutex_);
     if (ids_.empty() || query.size() != RHPD_DIM) return results;
@@ -591,6 +599,7 @@ std::vector<std::pair<int64_t, double>> RHPDManager::search(const VecD& query, i
     std::vector<std::pair<double, size_t>> coarse_ranked;
     coarse_ranked.reserve(ids_.size());
     for (size_t i = 0; i < ids_.size(); ++i) {
+        if (accept && !accept(ids_[i])) continue;
         if (descriptors_[i].size() != RHPD_DIM || coarse_keys_[i].size() != RHPD_COARSE_KEY_DIM) continue;
         coarse_ranked.emplace_back((query_key - coarse_keys_[i]).squaredNorm(), i);
     }

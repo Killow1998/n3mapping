@@ -430,6 +430,63 @@ TEST_F(MapSerializerTest, RhpdSchemaMismatchRebuildsSerializedDescriptor) {
     EXPECT_LT(loaded.maxCoeff(), 10.0);
 }
 
+TEST_F(MapSerializerTest, CausalRhpdRebuildMatchesOnlineDescriptors) {
+    Config cfg = config_;
+    cfg.rhpd_submap_kf_radius = 2;
+    cfg.rhpd_submap_voxel_size = 0.0;
+
+    KeyframeManager kf_manager(cfg);
+    LoopDetector loop_detector(cfg);
+    GraphOptimizer optimizer(cfg);
+    MapSerializer serializer(cfg);
+
+    std::vector<std::pair<int64_t, Eigen::VectorXd>> online_rhpd;
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    for (int i = 0; i < 6; ++i) {
+        auto cloud = generateRandomPointCloud(240);
+        pose.translation().x() = static_cast<double>(i);
+        int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
+        auto sc = loop_detector.addDescriptor(kf_id, cloud);
+        kf_manager.updateDescriptor(kf_id, sc);
+        if (i == 0) {
+            optimizer.addPriorFactor(kf_id, pose);
+        }
+
+        auto rhpd_cloud = kf_manager.buildCausalSubmapInRootFrame(kf_id, cfg.rhpd_submap_kf_radius, kf_id);
+        auto rhpd = loop_detector.addRHPD(kf_id, rhpd_cloud);
+        auto kf = kf_manager.getKeyframe(kf_id);
+        ASSERT_NE(kf, nullptr);
+        kf->rhpd_descriptor = rhpd;
+        online_rhpd.emplace_back(kf_id, rhpd);
+    }
+
+    std::string map_file = cfg.map_save_path + "/causal_rhpd_rebuild.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    n3mapping::N3Map map_proto;
+    {
+        std::ifstream ifs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.ParseFromIstream(&ifs));
+    }
+    map_proto.mutable_metadata()->set_rhpd_schema("force-rebuild");
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager kf_manager_loaded(cfg);
+    LoopDetector loop_detector_loaded(cfg);
+    GraphOptimizer optimizer_loaded(cfg);
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
+
+    for (const auto& [kf_id, expected] : online_rhpd) {
+        Eigen::VectorXd loaded;
+        ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(kf_id, &loaded));
+        ASSERT_EQ(loaded.size(), RHPD_DIM);
+        EXPECT_NEAR((loaded - expected).norm(), 0.0, 1e-9) << "kf_id=" << kf_id;
+    }
+}
+
 /**
  * @brief 测试全局地图保存
  */

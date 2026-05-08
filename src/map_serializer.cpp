@@ -59,10 +59,14 @@ std::string buildRhpdSchema(const Config& config) {
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(6)
        << "dim=" << RHPD_DIM
+       << ";submap_mode=causal"
        << ";submap_kf_radius=" << config.rhpd_submap_kf_radius
        << ";submap_voxel_size=" << config.rhpd_submap_voxel_size
+       << ";azimuth_bins=" << RHPDescriptor::Params{}.azimuth_bins
        << ";v2=" << config.rhpd_v2_enable
        << ";v3=" << config.rhpd_v3_enable
+       << ";v3_visibility_bins=" << RHPDescriptor::Params{}.v3_visibility_bins
+       << ";v3_free_space_margin_m=" << RHPDescriptor::Params{}.v3_free_space_margin_m
        << ";negative_space=" << config.rhpd_enable_negative_space
        << ";vertical_tokens=" << config.rhpd_enable_vertical_tokens
        << ";pca_confidence=" << config.rhpd_enable_pca_confidence
@@ -200,7 +204,7 @@ bool MapSerializer::loadMap(const std::string& filepath,
                     const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
                     pcl::PointCloud<pcl::PointXYZI>::Ptr rhpd_cloud = kf->cloud;
                     if (submap_radius > 0) {
-                        rhpd_cloud = keyframe_manager.buildSubmapInRootFrame(kf->id, submap_radius, kf->id);
+                        rhpd_cloud = keyframe_manager.buildCausalSubmapInRootFrame(kf->id, submap_radius, kf->id);
                         if (!rhpd_cloud || rhpd_cloud->empty()) rhpd_cloud = kf->cloud;
                     }
                     if (rhpd_cloud && !rhpd_cloud->empty() && config_.rhpd_submap_voxel_size > 1e-4) {

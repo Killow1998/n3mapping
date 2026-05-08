@@ -26,6 +26,7 @@
 #include <vector>
 #include <limits>
 #include <cmath>
+#include <functional>
 #include <mutex>
 
 namespace n3mapping {
@@ -136,6 +137,11 @@ public:
     // Search for the top-k nearest neighbors. Returns (kf_id, distance) pairs sorted by distance.
     std::vector<std::pair<int64_t, double>> search(const VecD& query, int top_k) const;
     std::vector<std::pair<int64_t, double>> search(const VecD& query, int top_k, int preselect) const;
+    std::vector<std::pair<int64_t, double>> searchFiltered(
+        const VecD& query,
+        int top_k,
+        int preselect,
+        const std::function<bool(int64_t)>& accept) const;
     bool get(int64_t kf_id, VecD* descriptor) const;
     VecD makeCoarseKey(const VecD& descriptor) const;
 

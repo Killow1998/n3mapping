@@ -171,4 +171,27 @@ Keyframe::PointCloudT::Ptr KeyframeManager::buildSubmapInRootFrame(int64_t cente
     return submap;
 }
 
+Keyframe::PointCloudT::Ptr KeyframeManager::buildCausalSubmapInRootFrame(int64_t center_id, int range, int64_t root_id) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto submap = pcl::make_shared<Keyframe::PointCloudT>();
+
+    auto root_it = keyframes_.find(root_id);
+    if (root_it == keyframes_.end()) return submap;
+
+    Eigen::Matrix4f T_root_inv = root_it->second->pose_optimized.matrix().cast<float>().inverse();
+
+    for (int64_t id = center_id - range; id <= center_id; ++id) {
+        auto it = keyframes_.find(id);
+        if (it == keyframes_.end()) continue;
+        auto kf = it->second;
+        if (!kf->cloud || kf->cloud->empty()) continue;
+        Eigen::Matrix4f T_kf = kf->pose_optimized.matrix().cast<float>();
+        Eigen::Matrix4f T_root_kf = T_root_inv * T_kf;
+        Keyframe::PointCloudT transformed;
+        pcl::transformPointCloud(*kf->cloud, transformed, T_root_kf);
+        *submap += transformed;
+    }
+    return submap;
+}
+
 } // namespace n3mapping
