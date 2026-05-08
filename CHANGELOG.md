@@ -1,5 +1,34 @@
 # Changelog
 
+## [Unreleased] - 2026-05-08
+
+### Retrieval Pipeline
+
+- Make RHPD the primary descriptor for mapping loop candidate retrieval and global relocalization candidate recall.
+- Keep ScanContext as auxiliary only: yaw hint, weak rerank, optional loose veto, and fallback when RHPD is disabled or unavailable.
+- Split loop candidate descriptor fields into explicit `rhpd_distance`, `sc_distance`, `yaw_diff_rad`, source flags, and fused score to avoid mixing RHPD distance into ScanContext semantics.
+
+### RHPD
+
+- Add lightweight negative-space, vertical-token, and PCA-anisotropy-confidence augmentation without training or learned regression.
+- Fix 180-degree yaw flip handling across XY, XZ, YZ planes and negative-space sectors.
+- Upgrade map metadata version to `2.1.0` so old maps rebuild RHPD under the new descriptor semantics.
+
+### Bug Fixes
+
+- Fix loop edge measurement direction: `MatchToQuery` uses `T_match_query`; `QueryToMatch` uses `T_match_query.inverse()`.
+- Fix mapping-loop ICP measurement composition by applying residual correction to the optimized pose estimate.
+- Fix yaw initialization in loop verification and relocalization to avoid rotating translation around the map origin.
+- Harden map deserialization against malformed point cloud, ScanContext, RHPD, and information-matrix fields.
+- Preserve serialized edge information matrices when rebuilding graph optimizer factors from loaded maps.
+
+### Tests
+
+- Add RHPD dimension, sparse-cloud, distance symmetry, 180-degree yaw, and structure-separation coverage.
+- Add descriptor configuration injection coverage for ScanContext dimensions/sector angle and RHPD range/height bounds.
+- Update loop closure direction tests and relocalization tests for the RHPD-primary path.
+- Add malformed RHPD serialization coverage.
+
 ## [1.0.0] - 2026-04-08
 
 ### Release
