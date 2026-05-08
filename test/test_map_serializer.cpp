@@ -7,6 +7,7 @@
 #include "n3map.pb.h"
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <pcl/memory.h>
 #include <random>
 
@@ -352,11 +353,13 @@ TEST_F(MapSerializerTest, MalformedRhpdDescriptorIsRejectedAndRebuilt) {
     EXPECT_LT(loaded_kf->rhpd_descriptor.maxCoeff(), 10.0) << "malformed serialized values were accepted";
 }
 
-TEST_F(MapSerializerTest, MatchingRhpdSchemaLoadsSerializedDescriptorWithoutRebuild) {
-    KeyframeManager kf_manager(config_);
-    LoopDetector loop_detector(config_);
-    GraphOptimizer optimizer(config_);
-    MapSerializer serializer(config_);
+TEST_F(MapSerializerTest, MatchingRhpdSchemaLoadsSaveTimeRecomputedDescriptorWithoutRebuild) {
+    Config cfg = config_;
+    cfg.rhpd_submap_voxel_size = 0.0;
+    KeyframeManager kf_manager(cfg);
+    LoopDetector loop_detector(cfg);
+    GraphOptimizer optimizer(cfg);
+    MapSerializer serializer(cfg);
 
     auto cloud = generateRandomPointCloud(500);
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
@@ -370,19 +373,24 @@ TEST_F(MapSerializerTest, MatchingRhpdSchemaLoadsSerializedDescriptorWithoutRebu
     ASSERT_NE(kf, nullptr);
     kf->rhpd_descriptor = custom;
     loop_detector.loadRHPDDescriptors({{kf_id, custom}});
+    auto expected_cloud = kf_manager.buildCausalSubmapInRootFrame(kf_id, cfg.rhpd_submap_kf_radius, kf_id);
+    Eigen::VectorXd expected_saved = loop_detector.computeRHPD(expected_cloud);
+    ASSERT_EQ(expected_saved.size(), RHPD_DIM);
+    ASSERT_FALSE(expected_saved.isZero());
 
-    std::string map_file = config_.map_save_path + "/rhpd_schema_match.pbstream";
+    std::string map_file = cfg.map_save_path + "/rhpd_schema_match.pbstream";
     ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
 
-    KeyframeManager kf_manager_loaded(config_);
-    LoopDetector loop_detector_loaded(config_);
-    GraphOptimizer optimizer_loaded(config_);
+    KeyframeManager kf_manager_loaded(cfg);
+    LoopDetector loop_detector_loaded(cfg);
+    GraphOptimizer optimizer_loaded(cfg);
     ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
 
     Eigen::VectorXd loaded;
     ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(kf_id, &loaded));
     EXPECT_EQ(loaded.size(), RHPD_DIM);
-    EXPECT_NEAR((loaded - custom).norm(), 0.0, 1e-9);
+    EXPECT_NEAR((loaded - expected_saved).norm(), 0.0, 1e-9);
+    EXPECT_GT((loaded - custom).norm(), 1.0);
 }
 
 TEST_F(MapSerializerTest, RhpdSchemaMismatchRebuildsSerializedDescriptor) {
@@ -485,6 +493,72 @@ TEST_F(MapSerializerTest, CausalRhpdRebuildMatchesOnlineDescriptors) {
         ASSERT_EQ(loaded.size(), RHPD_DIM);
         EXPECT_NEAR((loaded - expected).norm(), 0.0, 1e-9) << "kf_id=" << kf_id;
     }
+}
+
+TEST_F(MapSerializerTest, SaveMapRecomputesCausalRhpdUsingCurrentOptimizedPoses) {
+    Config cfg = config_;
+    cfg.rhpd_submap_kf_radius = 2;
+    cfg.rhpd_submap_voxel_size = 0.0;
+
+    KeyframeManager kf_manager(cfg);
+    LoopDetector loop_detector(cfg);
+    GraphOptimizer optimizer(cfg);
+    MapSerializer serializer(cfg);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    for (int i = 0; i < 5; ++i) {
+        auto cloud = generateRandomPointCloud(420);
+        pose = Eigen::Isometry3d::Identity();
+        pose.translation().x() = static_cast<double>(i) * 2.0;
+        int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
+        auto sc = loop_detector.addDescriptor(kf_id, cloud);
+        kf_manager.updateDescriptor(kf_id, sc);
+        if (i == 0) optimizer.addPriorFactor(kf_id, pose);
+
+        auto rhpd_cloud = kf_manager.buildCausalSubmapInRootFrame(kf_id, cfg.rhpd_submap_kf_radius, kf_id);
+        auto rhpd = loop_detector.addRHPD(kf_id, rhpd_cloud);
+        auto kf = kf_manager.getKeyframe(kf_id);
+        ASSERT_NE(kf, nullptr);
+        kf->rhpd_descriptor = rhpd;
+    }
+
+    Eigen::VectorXd old_online;
+    ASSERT_TRUE(loop_detector.getRHPDManager().get(4, &old_online));
+    ASSERT_EQ(old_online.size(), RHPD_DIM);
+
+    std::map<int64_t, Eigen::Isometry3d> optimized_poses;
+    for (const auto& kf : kf_manager.getAllKeyframes()) {
+        ASSERT_NE(kf, nullptr);
+        optimized_poses[kf->id] = kf->pose_optimized;
+    }
+    optimized_poses[2].translation().y() += 8.0;
+    optimized_poses[2].rotate(Eigen::AngleAxisd(0.6, Eigen::Vector3d::UnitZ()));
+    kf_manager.updateOptimizedPoses(optimized_poses);
+
+    auto expected_cloud = kf_manager.buildCausalSubmapInRootFrame(4, cfg.rhpd_submap_kf_radius, 4);
+    Eigen::VectorXd expected_saved = loop_detector.computeRHPD(expected_cloud);
+    ASSERT_EQ(expected_saved.size(), RHPD_DIM);
+    ASSERT_FALSE(expected_saved.isZero());
+    ASSERT_GT((expected_saved - old_online).norm(), 1e-3);
+
+    std::string map_file = cfg.map_save_path + "/save_recomputes_rhpd.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    Eigen::VectorXd manager_after_save;
+    ASSERT_TRUE(loop_detector.getRHPDManager().get(4, &manager_after_save));
+    EXPECT_NEAR((manager_after_save - old_online).norm(), 0.0, 1e-9)
+        << "saveMap should not mutate runtime RHPDManager state";
+
+    KeyframeManager kf_manager_loaded(cfg);
+    LoopDetector loop_detector_loaded(cfg);
+    GraphOptimizer optimizer_loaded(cfg);
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
+
+    Eigen::VectorXd loaded;
+    ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(4, &loaded));
+    ASSERT_EQ(loaded.size(), RHPD_DIM);
+    EXPECT_LT((loaded - expected_saved).norm(), (loaded - old_online).norm());
+    EXPECT_NEAR((loaded - expected_saved).norm(), 0.0, 1e-9);
 }
 
 /**

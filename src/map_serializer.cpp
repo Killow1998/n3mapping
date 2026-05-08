@@ -75,6 +75,18 @@ std::string buildRhpdSchema(const Config& config) {
        << ";z_max=" << config.rhpd_z_max;
     return ss.str();
 }
+
+pcl::PointCloud<pcl::PointXYZI>::Ptr maybeVoxelizeRhpdCloud(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud,
+    double voxel_size) {
+    if (!cloud || cloud->empty() || voxel_size <= 1e-4) return cloud;
+    pcl::VoxelGrid<pcl::PointXYZI> voxel;
+    voxel.setLeafSize(voxel_size, voxel_size, voxel_size);
+    voxel.setInputCloud(cloud);
+    auto filtered = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    voxel.filter(*filtered);
+    return filtered->empty() ? cloud : filtered;
+}
 }  // namespace
 
 MapSerializer::MapSerializer(const Config& config) : config_(config) {}
@@ -105,8 +117,20 @@ bool MapSerializer::saveMap(const std::string& filepath,
             keyframeToProto(kf, kp);
             if (kp->sc_descriptor().values_size() == 0 && desc_map.count(kf->id))
                 descriptorToProto(desc_map[kf->id], kp->mutable_sc_descriptor());
-            if (kp->rhpd_descriptor().values_size() == 0 && rhpd_map.count(kf->id))
+            Eigen::VectorXd save_rhpd;
+            const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
+            auto rhpd_cloud = keyframe_manager.buildCausalSubmapInRootFrame(kf->id, submap_radius, kf->id);
+            rhpd_cloud = maybeVoxelizeRhpdCloud(rhpd_cloud, config_.rhpd_submap_voxel_size);
+            if (rhpd_cloud && !rhpd_cloud->empty()) {
+                save_rhpd = loop_detector.computeRHPD(rhpd_cloud);
+            }
+            if (save_rhpd.size() == RHPD_DIM && !save_rhpd.isZero()) {
+                rhpdToProto(save_rhpd, kp->mutable_rhpd_descriptor());
+            } else if (kf->rhpd_descriptor.size() == RHPD_DIM && !kf->rhpd_descriptor.isZero()) {
+                rhpdToProto(kf->rhpd_descriptor, kp->mutable_rhpd_descriptor());
+            } else if (rhpd_map.count(kf->id) && rhpd_map[kf->id].size() == RHPD_DIM && !rhpd_map[kf->id].isZero()) {
                 rhpdToProto(rhpd_map[kf->id], kp->mutable_rhpd_descriptor());
+            }
         }
         auto edges = optimizer.getEdges();
         int n_odom = 0, n_loop = 0;
@@ -207,16 +231,7 @@ bool MapSerializer::loadMap(const std::string& filepath,
                         rhpd_cloud = keyframe_manager.buildCausalSubmapInRootFrame(kf->id, submap_radius, kf->id);
                         if (!rhpd_cloud || rhpd_cloud->empty()) rhpd_cloud = kf->cloud;
                     }
-                    if (rhpd_cloud && !rhpd_cloud->empty() && config_.rhpd_submap_voxel_size > 1e-4) {
-                        pcl::VoxelGrid<pcl::PointXYZI> voxel;
-                        voxel.setLeafSize(config_.rhpd_submap_voxel_size,
-                                          config_.rhpd_submap_voxel_size,
-                                          config_.rhpd_submap_voxel_size);
-                        voxel.setInputCloud(rhpd_cloud);
-                        auto filtered = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-                        voxel.filter(*filtered);
-                        if (!filtered->empty()) rhpd_cloud = filtered;
-                    }
+                    rhpd_cloud = maybeVoxelizeRhpdCloud(rhpd_cloud, config_.rhpd_submap_voxel_size);
                     kf->rhpd_descriptor = loop_detector.addRHPD(kf->id, rhpd_cloud);
                     ++rebuilt_count;
                 }
@@ -430,6 +445,7 @@ Eigen::Matrix<double, 6, 6> MapSerializer::protoToInformation(const n3mapping::I
 }
 
 void MapSerializer::rhpdToProto(const Eigen::VectorXd& rhpd, n3mapping::RHPDDescriptor* proto) {
+    proto->Clear();
     proto->set_dim(static_cast<uint32_t>(rhpd.size()));
     proto->mutable_values()->Reserve(rhpd.size());
     for (int i = 0; i < rhpd.size(); ++i) proto->add_values(rhpd(i));
