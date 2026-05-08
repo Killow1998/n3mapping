@@ -29,11 +29,6 @@
   <depend>pcl_ros</depend>
   <depend>cv_bridge</depend>
   <depend>small_gicp</depend>
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>sensor_msgs_py</exec_depend>
-  <exec_depend>python3-numpy</exec_depend>
-  <exec_depend>python3-matplotlib</exec_depend>
-
   <!-- 外部依赖 -->
   <depend>libpcl-all-dev</depend>
   <depend>eigen</depend>
