@@ -107,13 +107,35 @@ struct Config {
     double reloc_track_retry_corr_scale = 5.0;
     int reloc_track_retry_max_iterations = 50;
     int reloc_track_unstable_submap_size = 10;
+    bool reloc_static_agg_enable = true;
+    int reloc_static_agg_max_frames = 5;
+    int reloc_static_agg_min_frames = 3;
+    double reloc_static_agg_max_translation = 0.25;
+    double reloc_static_agg_max_rotation = 0.20;
+    double reloc_static_agg_voxel_size = 0.12;
+    double reloc_ambiguity_min_margin = 0.35;
+    double reloc_ambiguity_min_ratio = 1.05;
+    double reloc_ambiguity_min_basin_separation = 3.0;
 
     bool rhpd_enabled = true;
+    bool rhpd_v2_enable = true;
+    bool rhpd_v3_enable = false;
     double rhpd_max_range = 30.0;
     double rhpd_z_min = -2.0;
     double rhpd_z_max = 6.0;
     double rhpd_dist_threshold = 25.0;
     int rhpd_num_candidates = 10;
+    int rhpd_submap_kf_radius = 3;
+    double rhpd_submap_voxel_size = 0.15;
+    double rhpd_primary_weight = 1.0;
+    double sc_aux_weight = 0.15;
+    bool sc_aux_veto_enabled = false;
+    double sc_aux_veto_threshold = 0.6;
+    bool rhpd_use_sc_yaw = true;
+    int rhpd_yaw_hypotheses = 4;
+    bool rhpd_enable_negative_space = true;
+    bool rhpd_enable_vertical_tokens = true;
+    bool rhpd_enable_pca_confidence = true;
 
     void loadFromROS(rclcpp::Node* node);
     void print(const rclcpp::Logger& logger) const;

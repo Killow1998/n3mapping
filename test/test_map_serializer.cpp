@@ -4,7 +4,9 @@
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/graph_optimizer.h"
+#include "n3map.pb.h"
 #include <filesystem>
+#include <fstream>
 #include <pcl/memory.h>
 #include <random>
 
@@ -302,6 +304,52 @@ TEST_F(MapSerializerTest, FileNotFound) {
     
     std::string non_existent_file = config_.map_save_path + "/non_existent.pbstream";
     EXPECT_FALSE(serializer.loadMap(non_existent_file, kf_manager, loop_detector, optimizer));
+}
+
+TEST_F(MapSerializerTest, MalformedRhpdDescriptorIsRejectedAndRebuilt) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.1.0");
+    map_proto.mutable_metadata()->set_num_keyframes(1);
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(0);
+    kf->set_timestamp(0.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(64);
+    for (int i = 0; i < 64; ++i) {
+        const float x = static_cast<float>(i % 8) * 0.5f + 1.0f;
+        const float y = static_cast<float>(i / 8) * 0.25f;
+        const float z = static_cast<float>((i % 4) - 1) * 0.2f;
+        cloud->add_points(x);
+        cloud->add_points(y);
+        cloud->add_points(z);
+        cloud->add_points(1.0f);
+    }
+
+    auto* rhpd = kf->mutable_rhpd_descriptor();
+    rhpd->set_dim(RHPD_DIM);
+    for (int i = 0; i < RHPD_DIM - 3; ++i) {
+        rhpd->add_values(123.0);
+    }
+
+    std::string map_file = config_.map_save_path + "/malformed_rhpd.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager kf_manager_loaded(config_);
+    LoopDetector loop_detector_loaded(config_);
+    GraphOptimizer optimizer_loaded(config_);
+    MapSerializer serializer(config_);
+
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
+    auto loaded_kf = kf_manager_loaded.getKeyframe(0);
+    ASSERT_NE(loaded_kf, nullptr);
+    EXPECT_EQ(loaded_kf->rhpd_descriptor.size(), RHPD_DIM);
+    EXPECT_LT(loaded_kf->rhpd_descriptor.maxCoeff(), 10.0) << "malformed serialized values were accepted";
 }
 
 /**

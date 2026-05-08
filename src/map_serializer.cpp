@@ -8,17 +8,19 @@
 #include <memory>
 #include <sstream>
 #include <unordered_map>
+#include <algorithm>
 
 #include <glog/logging.h>
 #include <omp.h>
 #include <pcl/common/transforms.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/memory.h>
 
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.0.0";
+constexpr const char* MAP_VERSION = "2.1.0";
 
 struct SemVer {
     int major = 0;
@@ -156,6 +158,10 @@ bool MapSerializer::loadMap(const std::string& filepath,
             }
         }
 
+        // RHPD semantics are local-submap based in current code path.
+        // Rebuild to avoid reusing legacy single-frame descriptors from old maps.
+        force_rebuild_rhpd = true;
+
         if (!force_rebuild_rhpd && !rhpd_missing_or_invalid) {
             loop_detector.getRHPDManager().loadAll(rhpd_data);
             LOG(INFO) << "[MapSerializer] Loaded " << rhpd_data.size() << " RHPD descriptors from map.";
@@ -165,7 +171,23 @@ bool MapSerializer::loadMap(const std::string& filepath,
             int rebuilt_count = 0;
             for (const auto& kf : keyframes) {
                 if (kf && kf->cloud && !kf->cloud->empty()) {
-                    kf->rhpd_descriptor = loop_detector.addRHPD(kf->id, kf->cloud);
+                    const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
+                    pcl::PointCloud<pcl::PointXYZI>::Ptr rhpd_cloud = kf->cloud;
+                    if (submap_radius > 0) {
+                        rhpd_cloud = keyframe_manager.buildSubmapInRootFrame(kf->id, submap_radius, kf->id);
+                        if (!rhpd_cloud || rhpd_cloud->empty()) rhpd_cloud = kf->cloud;
+                    }
+                    if (rhpd_cloud && !rhpd_cloud->empty() && config_.rhpd_submap_voxel_size > 1e-4) {
+                        pcl::VoxelGrid<pcl::PointXYZI> voxel;
+                        voxel.setLeafSize(config_.rhpd_submap_voxel_size,
+                                          config_.rhpd_submap_voxel_size,
+                                          config_.rhpd_submap_voxel_size);
+                        voxel.setInputCloud(rhpd_cloud);
+                        auto filtered = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+                        voxel.filter(*filtered);
+                        if (!filtered->empty()) rhpd_cloud = filtered;
+                    }
+                    kf->rhpd_descriptor = loop_detector.addRHPD(kf->id, rhpd_cloud);
                     ++rebuilt_count;
                 }
             }
@@ -325,6 +347,12 @@ void MapSerializer::pointCloudToProto(const pcl::PointCloud<pcl::PointXYZI>::Ptr
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::protoToPointCloud(const n3mapping::PointCloudData& proto) {
     auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    const uint64_t required_values = static_cast<uint64_t>(proto.num_points()) * 4u;
+    if (proto.points_size() < static_cast<int>(required_values)) {
+        LOG(WARNING) << "[MapSerializer] Reject malformed point cloud: num_points="
+                     << proto.num_points() << " values=" << proto.points_size();
+        return cloud;
+    }
     cloud->resize(proto.num_points());
     for (uint32_t i = 0; i < proto.num_points(); ++i) {
         cloud->points[i].x = proto.points(i*4); cloud->points[i].y = proto.points(i*4+1);
@@ -341,6 +369,13 @@ void MapSerializer::descriptorToProto(const Eigen::MatrixXd& desc, n3mapping::Sc
 }
 
 Eigen::MatrixXd MapSerializer::protoToDescriptor(const n3mapping::ScanContextDescriptor& proto) {
+    const uint64_t required_values = static_cast<uint64_t>(proto.rows()) * static_cast<uint64_t>(proto.cols());
+    if (proto.rows() == 0 || proto.cols() == 0 || proto.values_size() < static_cast<int>(required_values)) {
+        LOG(WARNING) << "[MapSerializer] Reject malformed ScanContext descriptor: rows="
+                     << proto.rows() << " cols=" << proto.cols()
+                     << " values=" << proto.values_size();
+        return Eigen::MatrixXd();
+    }
     Eigen::MatrixXd desc(proto.rows(), proto.cols());
     int idx = 0;
     for (unsigned int i = 0; i < proto.rows(); ++i) for (unsigned int j = 0; j < proto.cols(); ++j) desc(i, j) = proto.values(idx++);
@@ -353,7 +388,12 @@ void MapSerializer::informationToProto(const Eigen::Matrix<double, 6, 6>& info, 
 }
 
 Eigen::Matrix<double, 6, 6> MapSerializer::protoToInformation(const n3mapping::InformationMatrix& proto) {
-    Eigen::Matrix<double, 6, 6> info;
+    Eigen::Matrix<double, 6, 6> info = Eigen::Matrix<double, 6, 6>::Identity();
+    if (proto.values_size() < 21) {
+        LOG(WARNING) << "[MapSerializer] Malformed information matrix: values="
+                     << proto.values_size() << ", using identity.";
+        return info;
+    }
     int idx = 0;
     for (int i = 0; i < 6; ++i) for (int j = i; j < 6; ++j) { info(i, j) = proto.values(idx); if (i != j) info(j, i) = proto.values(idx); ++idx; }
     return info;
@@ -366,8 +406,14 @@ void MapSerializer::rhpdToProto(const Eigen::VectorXd& rhpd, n3mapping::RHPDDesc
 }
 
 Eigen::VectorXd MapSerializer::protoToRhpd(const n3mapping::RHPDDescriptor& proto) {
-    Eigen::VectorXd rhpd(proto.dim());
-    for (uint32_t i = 0; i < proto.dim() && i < static_cast<uint32_t>(proto.values_size()); ++i)
+    if (proto.dim() != static_cast<uint32_t>(RHPD_DIM) || proto.values_size() != static_cast<int>(proto.dim())) {
+        LOG(WARNING) << "[MapSerializer] Reject malformed RHPD descriptor: dim="
+                     << proto.dim() << " expected=" << RHPD_DIM
+                     << " values=" << proto.values_size();
+        return Eigen::VectorXd();
+    }
+    Eigen::VectorXd rhpd = Eigen::VectorXd::Zero(proto.dim());
+    for (uint32_t i = 0; i < proto.dim(); ++i)
         rhpd(i) = proto.values(i);
     return rhpd;
 }

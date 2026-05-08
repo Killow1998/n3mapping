@@ -89,10 +89,32 @@ n3mapping_node:
     reloc_track_retry_corr_scale: 5.0
     reloc_track_retry_max_iterations: 50
     reloc_track_unstable_submap_size: 10
+    reloc_static_agg_enable: true
+    reloc_static_agg_max_frames: 5
+    reloc_static_agg_min_frames: 3
+    reloc_static_agg_max_translation: 0.25
+    reloc_static_agg_max_rotation: 0.20
+    reloc_static_agg_voxel_size: 0.12
+    reloc_ambiguity_min_margin: 0.35
+    reloc_ambiguity_min_ratio: 1.05
+    reloc_ambiguity_min_basin_separation: 3.0
 
     rhpd_enabled: true
+    rhpd_v2_enable: true
+    rhpd_v3_enable: false
     rhpd_max_range: 30.0
     rhpd_z_min: -2.0
     rhpd_z_max: 6.0
     rhpd_dist_threshold: 25.0
     rhpd_num_candidates: 10
+    rhpd_submap_kf_radius: 3
+    rhpd_submap_voxel_size: 0.15
+    rhpd_primary_weight: 1.0
+    sc_aux_weight: 0.15
+    sc_aux_veto_enabled: false
+    sc_aux_veto_threshold: 0.6
+    rhpd_use_sc_yaw: true
+    rhpd_yaw_hypotheses: 4
+    rhpd_enable_negative_space: true
+    rhpd_enable_vertical_tokens: true
+    rhpd_enable_pca_confidence: true

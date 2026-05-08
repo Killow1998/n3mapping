@@ -23,7 +23,23 @@ inline std::vector<float> eig2stdvec(const Eigen::MatrixXd& mat) {
 
 namespace n3mapping {
 
-LoopDetector::LoopDetector(const Config& config) : config_(config) {}
+LoopDetector::LoopDetector(const Config& config) : config_(config) {
+    sc_manager_.PC_NUM_RING = std::max(1, config_.sc_num_rings);
+    sc_manager_.PC_NUM_SECTOR = std::max(4, config_.sc_num_sectors);
+    sc_manager_.PC_MAX_RADIUS = std::max(config_.sc_max_radius, sc_manager_.PC_MIN_RADIUS + 1e-3);
+    sc_manager_.PC_UNIT_SECTORANGLE = 360.0 / static_cast<double>(sc_manager_.PC_NUM_SECTOR);
+
+    RHPDescriptor::Params rhpd_params;
+    rhpd_params.max_range = std::max(1.0, config_.rhpd_max_range);
+    rhpd_params.z_min = config_.rhpd_z_min;
+    rhpd_params.z_max = std::max(config_.rhpd_z_max, config_.rhpd_z_min + 1e-3);
+    rhpd_params.v2_enable = config_.rhpd_v2_enable;
+    rhpd_params.v3_enable = config_.rhpd_v3_enable;
+    rhpd_params.enable_negative_space = config_.rhpd_enable_negative_space;
+    rhpd_params.enable_vertical_tokens = config_.rhpd_enable_vertical_tokens;
+    rhpd_params.enable_pca_confidence = config_.rhpd_enable_pca_confidence;
+    rhpd_manager_ = RHPDManager(rhpd_params);
+}
 
 Eigen::MatrixXd LoopDetector::makeScanContext(const PointCloudT::Ptr& cloud) {
     if (!cloud || cloud->empty()) return Eigen::MatrixXd();
@@ -71,12 +87,82 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
     int num_exclude = config_.sc_num_exclude_recent;
     if (static_cast<int>(query_index) < num_exclude) return candidates;
 
-    // -------- 阶段 1: KD-tree 用 ringkey 快速初筛 --------
-    // 构建仅包含可搜索帧 (排除最近帧) 的 KD-tree
     size_t search_end = query_index - num_exclude;
     if (search_end == 0) return candidates;
 
-    // 提取 query 的 ringkey
+    const Eigen::MatrixXd& query_desc = descriptors_[query_index];
+    const bool sc_query_available = query_desc.size() > 0;
+
+    if (config_.rhpd_enabled && rhpd_manager_.size() > 0) {
+        Eigen::VectorXd query_rhpd;
+        if (rhpd_manager_.get(query_id, &query_rhpd) && query_rhpd.size() == RHPD_DIM && !query_rhpd.isZero()) {
+            const int preselect = std::max(config_.rhpd_num_candidates * 3, config_.sc_num_candidates * 4);
+            auto rhpd_hits = rhpd_manager_.search(query_rhpd, std::max(1, preselect));
+            std::vector<LoopCandidate> ranked;
+            ranked.reserve(rhpd_hits.size());
+
+            int rhpd_rank = 0;
+            for (const auto& [match_id, rhpd_dist] : rhpd_hits) {
+                auto mit = id_to_index_.find(match_id);
+                if (mit == id_to_index_.end()) continue;
+                const size_t match_index = mit->second;
+                if (match_index >= search_end) continue;
+                if (rhpd_dist > config_.rhpd_dist_threshold) continue;
+
+                LoopCandidate candidate;
+                candidate.query_id = query_id;
+                candidate.match_id = match_id;
+                candidate.rhpd_distance = rhpd_dist;
+                candidate.source_flags = LoopCandidate::SOURCE_RHPD;
+                candidate.candidate_source = LoopCandidate::Source::RhpdPrimary;
+                candidate.rhpd_rank = rhpd_rank++;
+
+                const bool sc_match_available = match_index < descriptors_.size() && descriptors_[match_index].size() > 0;
+                if (config_.rhpd_use_sc_yaw && sc_query_available && sc_match_available) {
+                    auto [sc_dist, yaw_shift] = computeDistance(query_desc, descriptors_[match_index]);
+                    candidate.sc_distance = sc_dist;
+                    candidate.yaw_diff_rad = static_cast<float>(yaw_shift) *
+                        static_cast<float>(sc_manager_.PC_UNIT_SECTORANGLE) * static_cast<float>(M_PI / 180.0);
+                    candidate.source_flags |= LoopCandidate::SOURCE_SC;
+                    candidate.sc_rank = -1;
+                    if (config_.sc_aux_veto_enabled && sc_dist > config_.sc_aux_veto_threshold) {
+                        continue;
+                    }
+                }
+
+                const double rhpd_norm = rhpd_dist / std::max(1e-6, config_.rhpd_dist_threshold);
+                const double sc_norm = std::isfinite(candidate.sc_distance)
+                    ? candidate.sc_distance / std::max(1e-6, config_.sc_aux_veto_threshold)
+                    : 1.0;
+                candidate.fused_score =
+                    config_.rhpd_primary_weight * rhpd_norm + config_.sc_aux_weight * sc_norm;
+                ranked.push_back(candidate);
+            }
+
+            std::sort(ranked.begin(), ranked.end(),
+                      [](const LoopCandidate& a, const LoopCandidate& b) {
+                          if (a.fused_score != b.fused_score) return a.fused_score < b.fused_score;
+                          return a.rhpd_distance < b.rhpd_distance;
+                      });
+
+            const int keep = std::min(config_.rhpd_num_candidates, static_cast<int>(ranked.size()));
+            for (int i = 0; i < keep; ++i) {
+                ranked[i].fused_rank = i;
+                candidates.push_back(ranked[i]);
+            }
+            if (!candidates.empty()) {
+                LOG(INFO) << "[Loop/RHPDPrimary] query=" << query_id
+                          << " kept=" << candidates.size()
+                          << " top_match=" << candidates.front().match_id
+                          << " rhpd=" << candidates.front().rhpd_distance
+                          << " sc=" << candidates.front().sc_distance
+                          << " yaw=" << candidates.front().yaw_diff_rad;
+                return candidates;
+            }
+        }
+    }
+
+    // RHPD disabled or unavailable: fallback to ScanContext for A/B testing and legacy maps.
     const auto& query_ringkey_vec = sc_manager_.polarcontext_invkeys_mat_[query_index];
 
     // 构建临时搜索集合（仅前 search_end 帧），避免匹配到最近帧
@@ -104,7 +190,6 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
     }
 
     // -------- 阶段 2: 对 KD-tree 初筛候选做完整多通道距离精排 --------
-    const Eigen::MatrixXd& query_desc = descriptors_[query_index];
     std::vector<std::tuple<double, int, size_t>> refined_candidates;
     refined_candidates.reserve(num_search);
 
@@ -140,8 +225,14 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
         candidate.query_id = query_id;
         candidate.match_id = index_to_id_[match_index];
         candidate.sc_distance = dist;
+        candidate.rhpd_distance = std::numeric_limits<double>::max();
         candidate.yaw_diff_rad = static_cast<float>(yaw_shift) *
             static_cast<float>(sc_manager_.PC_UNIT_SECTORANGLE) * static_cast<float>(M_PI / 180.0);
+        candidate.source_flags = LoopCandidate::SOURCE_SC;
+        candidate.candidate_source = LoopCandidate::Source::ScanContextFallback;
+        candidate.fused_score = dist;
+        candidate.fused_rank = i;
+        candidate.sc_rank = i;
         candidates.push_back(candidate);
     }
     return candidates;
@@ -157,7 +248,7 @@ VerifiedLoop LoopDetector::verifyLoopCandidate(const LoopCandidate& candidate,
     if (!query_keyframe || !match_keyframe) return result;
     Eigen::Isometry3d init_guess = match_keyframe->pose_optimized.inverse() * query_keyframe->pose_optimized;
     Eigen::AngleAxisd yaw_correction(candidate.yaw_diff_rad, Eigen::Vector3d::UnitZ());
-    init_guess.prerotate(yaw_correction);
+    init_guess.linear() = init_guess.linear() * yaw_correction.toRotationMatrix();
     MatchResult match_result = matcher.align(match_keyframe, query_keyframe, init_guess);
     result.fitness_score = match_result.fitness_score;
     result.inlier_ratio = match_result.inlier_ratio;

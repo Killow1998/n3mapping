@@ -57,11 +57,11 @@ LoopClosureManager::buildLoopEdges(const std::vector<VerifiedLoop>& loops, LoopE
         if (direction == LoopEdgeDirection::QueryToMatch) {
             edge.from_id = loop.query_id;
             edge.to_id = loop.match_id;
-            edge.measurement = loop.T_match_query;
+            edge.measurement = loop.T_match_query.inverse();
         } else {
             edge.from_id = loop.match_id;
             edge.to_id = loop.query_id;
-            edge.measurement = loop.T_match_query.inverse();
+            edge.measurement = loop.T_match_query;
         }
         edge.information = loop.information;
         edge.type = EdgeType::LOOP;

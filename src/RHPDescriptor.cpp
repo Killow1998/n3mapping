@@ -1,4 +1,4 @@
-// RHPDescriptor: Ring-Height + Planar descriptor with range profiling for corridor robustness.
+// RHPDescriptor: Ring-Height + Planar descriptor with visibility-aware planar cues.
 #include "n3mapping/RHPDescriptor.h"
 
 #include <algorithm>
@@ -11,6 +11,37 @@
 #include <memory>
 
 namespace n3mapping {
+namespace {
+void flipPlaneAxis(Eigen::VectorXd& v, int base, bool flip_axis0, bool flip_axis1) {
+    const int B = RHPD_PLANE_BINS;
+    Eigen::VectorXd plane = v.segment(base, RHPD_PLANE_DIM);
+    for (int row = 0; row < B; ++row) {
+        const int src_row = flip_axis0 ? (B - 1 - row) : row;
+        for (int col = 0; col < B; ++col) {
+            const int src_col = flip_axis1 ? (B - 1 - col) : col;
+            const int dst = base + (row * B + col) * RHPD_PLANE_CHANS;
+            const int src = (src_row * B + src_col) * RHPD_PLANE_CHANS;
+            for (int c = 0; c < RHPD_PLANE_CHANS; ++c) {
+                v(dst + c) = plane(src + c);
+            }
+        }
+    }
+}
+
+void shiftNegativeSpace180(Eigen::VectorXd& v) {
+    const int base = RHPD_PART_A_DIM + RHPD_PART_B_DIM;
+    Eigen::VectorXd neg = v.segment(base, RHPD_NEG_SPACE_DIM);
+    const int half = RHPD_NEG_SPACE_SECTORS / 2;
+    for (int i = 0; i < RHPD_NEG_SPACE_SECTORS; ++i) {
+        const int src_sector = (i + half) % RHPD_NEG_SPACE_SECTORS;
+        const int dst = base + i * RHPD_NEG_SPACE_CHANS;
+        const int src = src_sector * RHPD_NEG_SPACE_CHANS;
+        for (int c = 0; c < RHPD_NEG_SPACE_CHANS; ++c) {
+            v(dst + c) = neg(src + c);
+        }
+    }
+}
+} // namespace
 
 // ============================================================
 //  RHPDescriptor
@@ -72,6 +103,33 @@ Eigen::Matrix3d RHPDescriptor::computePCAAlignment(const CloudT::Ptr& cloud) con
     return R;
 }
 
+double RHPDescriptor::computePCAConfidence(const CloudT::Ptr& cloud) const {
+    if (!params_.enable_pca_confidence || !cloud || static_cast<int>(cloud->size()) < params_.min_points) {
+        return params_.enable_pca_confidence ? 0.0 : 1.0;
+    }
+
+    Eigen::Vector2d mean = Eigen::Vector2d::Zero();
+    for (const auto& pt : cloud->points) {
+        mean += Eigen::Vector2d(pt.x, pt.y);
+    }
+    mean /= static_cast<double>(cloud->size());
+
+    Eigen::Matrix2d cov = Eigen::Matrix2d::Zero();
+    for (const auto& pt : cloud->points) {
+        const Eigen::Vector2d d(pt.x - mean.x(), pt.y - mean.y());
+        cov += d * d.transpose();
+    }
+    cov /= static_cast<double>(cloud->size());
+
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(cov);
+    if (solver.info() != Eigen::Success) return 0.0;
+    const double l1 = std::max(0.0, solver.eigenvalues()(1));
+    const double l2 = std::max(0.0, solver.eigenvalues()(0));
+    const double denom = l1 + l2;
+    if (denom <= 1e-9) return 0.0;
+    return std::clamp((l1 - l2) / denom, 0.0, 1.0);
+}
+
 // ---- Single plane projection ----
 
 RHPDescriptor::VecD RHPDescriptor::projectToPlane(
@@ -81,14 +139,27 @@ RHPDescriptor::VecD RHPDescriptor::projectToPlane(
     int height_axis) const
 {
     const int B = RHPD_PLANE_BINS;
-    // Each bin stores: [density_sum, height_sum, count]
-    // We compute density = count / total_points (normalized)
-    //          height_mean = height_sum / count (normalized to [0,1])
+    // Per bin channels:
+    // [0] density_norm      = count / total_points
+    // [1] height_mean_norm  = mean normalized height
+    //
+    // Legacy(V1/V2):
+    // [2] hit_count_norm    = count / max_count_among_bins
+    // [3] height_extent_norm= (h_max - h_min) / height_range
+    //
+    // V3:
+    // [2] visibility_state  = 1.0(occupied), 0.5(observed-free), 0.0(unknown)
+    // [3] boundary_strength = transition strength between occupied/free/unknown cells
     const int B2 = B * B;
     std::vector<double> counts(B2, 0.0);
     std::vector<double> h_sum(B2, 0.0);
-    std::vector<double> h_min_global(B2,  std::numeric_limits<double>::max());
-    std::vector<double> h_max_global(B2, -std::numeric_limits<double>::max());
+    std::vector<double> h_min(B2,  std::numeric_limits<double>::max());
+    std::vector<double> h_max(B2, -std::numeric_limits<double>::max());
+    std::vector<double> sector_max_r;
+    if (params_.v3_enable) {
+        const int sector_n = std::max(8, params_.v3_visibility_bins);
+        sector_max_r.assign(sector_n, 0.0);
+    }
 
     auto getCoord = [](const pcl::PointXYZI& pt, int axis) -> double {
         if (axis == 0) return pt.x;
@@ -123,14 +194,100 @@ RHPDescriptor::VecD RHPDescriptor::projectToPlane(
         double h_norm = (vh - h_min_v) / h_range;
         h_norm = std::clamp(h_norm, 0.0, 1.0);
         h_sum[idx] += h_norm;
+        h_min[idx] = std::min(h_min[idx], h_norm);
+        h_max[idx] = std::max(h_max[idx], h_norm);
+        if (params_.v3_enable) {
+            const int sector_n = static_cast<int>(sector_max_r.size());
+            const double rr = std::hypot(v0, v1);
+            const double az = std::atan2(v1, v0);
+            int si = static_cast<int>((az + M_PI) / (2.0 * M_PI) * sector_n);
+            si = std::clamp(si, 0, sector_n - 1);
+            sector_max_r[si] = std::max(sector_max_r[si], rr);
+        }
         ++total;
     }
 
     VecD out(B2 * RHPD_PLANE_CHANS);
     double inv_total = total > 0 ? 1.0 / static_cast<double>(total) : 0.0;
+    const double max_count = *std::max_element(counts.begin(), counts.end());
+    const double inv_max_count = max_count > 0.0 ? 1.0 / max_count : 0.0;
     for (int i = 0; i < B2; ++i) {
-        out(i * RHPD_PLANE_CHANS + 0) = counts[i] * inv_total;  // normalized density
-        out(i * RHPD_PLANE_CHANS + 1) = counts[i] > 0 ? h_sum[i] / counts[i] : 0.0;  // mean height
+        const double density_norm = counts[i] * inv_total;
+        const double mean_height_norm = counts[i] > 0 ? h_sum[i] / counts[i] : 0.0;
+
+        out(i * RHPD_PLANE_CHANS + 0) = density_norm;
+        out(i * RHPD_PLANE_CHANS + 1) = mean_height_norm;
+
+        if (params_.v3_enable) {
+            const int row = i / B;
+            const int col = i % B;
+            const double c0 = r0_min + (static_cast<double>(row) + 0.5) / B * r0_range;
+            const double c1 = r1_min + (static_cast<double>(col) + 0.5) / B * r1_range;
+            const double rc = std::hypot(c0, c1);
+            const int sector_n = static_cast<int>(sector_max_r.size());
+            const double az = std::atan2(c1, c0);
+            int si = static_cast<int>((az + M_PI) / (2.0 * M_PI) * sector_n);
+            si = std::clamp(si, 0, sector_n - 1);
+            const double frontier_r = sector_max_r[si];
+            double visibility_state = 0.0;
+            if (counts[i] > 0.0) {
+                visibility_state = 1.0;  // occupied
+            } else if (frontier_r > 1e-6 && rc + params_.v3_free_space_margin_m < frontier_r) {
+                visibility_state = 0.5;  // observed free-space before measured frontier
+            } else {
+                visibility_state = 0.0;  // unknown / unobserved
+            }
+
+            auto class_of = [](double s) -> int {
+                if (s >= 0.75) return 2;   // occupied
+                if (s >= 0.25) return 1;   // free
+                return 0;                  // unknown
+            };
+            const int cls = class_of(visibility_state);
+            double transition = 0.0;
+            int n_neighbors = 0;
+            const int drow[4] = {-1, 1, 0, 0};
+            const int dcol[4] = {0, 0, -1, 1};
+            for (int n = 0; n < 4; ++n) {
+                const int rr = row + drow[n];
+                const int cc = col + dcol[n];
+                if (rr < 0 || rr >= B || cc < 0 || cc >= B) continue;
+                const int ni = rr * B + cc;
+                double n_state = 0.0;
+                if (counts[ni] > 0.0) {
+                    n_state = 1.0;
+                } else {
+                    const double nc0 = r0_min + (static_cast<double>(rr) + 0.5) / B * r0_range;
+                    const double nc1 = r1_min + (static_cast<double>(cc) + 0.5) / B * r1_range;
+                    const double nrc = std::hypot(nc0, nc1);
+                    const double naz = std::atan2(nc1, nc0);
+                    int nsi = static_cast<int>((naz + M_PI) / (2.0 * M_PI) * sector_n);
+                    nsi = std::clamp(nsi, 0, sector_n - 1);
+                    const double nfrontier_r = sector_max_r[nsi];
+                    if (nfrontier_r > 1e-6 && nrc + params_.v3_free_space_margin_m < nfrontier_r) {
+                        n_state = 0.5;
+                    } else {
+                        n_state = 0.0;
+                    }
+                }
+                const int ncls = class_of(n_state);
+                transition += 0.5 * std::abs(static_cast<double>(cls - ncls));  // normalized to [0,1]
+                ++n_neighbors;
+            }
+            const double boundary_strength = (n_neighbors > 0) ? (transition / n_neighbors) : 0.0;
+
+            out(i * RHPD_PLANE_CHANS + 2) = visibility_state;
+            out(i * RHPD_PLANE_CHANS + 3) = std::clamp(boundary_strength, 0.0, 1.0);
+        } else if (params_.v2_enable) {
+            const double hit_count_norm = counts[i] * inv_max_count;
+            const double height_extent_norm =
+                counts[i] > 0 ? std::max(0.0, h_max[i] - h_min[i]) : 0.0;
+            out(i * RHPD_PLANE_CHANS + 2) = hit_count_norm;
+            out(i * RHPD_PLANE_CHANS + 3) = height_extent_norm;
+        } else {
+            out(i * RHPD_PLANE_CHANS + 2) = 0.0;
+            out(i * RHPD_PLANE_CHANS + 3) = 0.0;
+        }
     }
     return out;
 }
@@ -240,6 +397,72 @@ RHPDescriptor::VecD RHPDescriptor::computePartB(const CloudT::Ptr& cloud) const 
     return out;
 }
 
+RHPDescriptor::VecD RHPDescriptor::computeAux(const CloudT::Ptr& cloud, double pca_confidence) const {
+    VecD out = VecD::Zero(RHPD_AUX_DIM);
+    if (!cloud || cloud->empty()) {
+        return out;
+    }
+
+    int offset = 0;
+    if (params_.enable_negative_space) {
+        const int S = RHPD_NEG_SPACE_SECTORS;
+        std::vector<double> nearest(S, params_.max_range);
+        std::vector<double> farthest(S, 0.0);
+        std::vector<int> counts(S, 0);
+        for (const auto& pt : cloud->points) {
+            const double r = std::hypot(pt.x, pt.y);
+            if (r <= 0.1 || r >= params_.max_range) continue;
+            const double az = std::atan2(pt.y, pt.x);
+            int si = static_cast<int>((az + M_PI) / (2.0 * M_PI) * S);
+            si = std::clamp(si, 0, S - 1);
+            nearest[si] = std::min(nearest[si], r);
+            farthest[si] = std::max(farthest[si], r);
+            ++counts[si];
+        }
+
+        for (int i = 0; i < S; ++i) {
+            const bool hit = counts[i] > 0;
+            const double nearest_norm = hit ? nearest[i] / params_.max_range : 1.0;
+            const double empty_run_norm = hit ? std::clamp(nearest[i] / params_.max_range, 0.0, 1.0) : 1.0;
+            const double far_void = (!hit || farthest[i] < 0.7 * params_.max_range) ? 1.0 : 0.0;
+            out(offset + i * RHPD_NEG_SPACE_CHANS + 0) = nearest_norm;
+            out(offset + i * RHPD_NEG_SPACE_CHANS + 1) = empty_run_norm;
+            out(offset + i * RHPD_NEG_SPACE_CHANS + 2) = far_void;
+        }
+    }
+    offset += RHPD_NEG_SPACE_DIM;
+
+    if (params_.enable_vertical_tokens) {
+        const int S = RHPD_NEG_SPACE_SECTORS;
+        const double dz = (params_.z_max - params_.z_min) / 4.0;
+        std::vector<int> sector_tokens(S, 0);
+        for (const auto& pt : cloud->points) {
+            const double r = std::hypot(pt.x, pt.y);
+            if (r <= 0.1 || r >= params_.max_range) continue;
+            if (pt.z < params_.z_min || pt.z >= params_.z_max) continue;
+            const double az = std::atan2(pt.y, pt.x);
+            int si = static_cast<int>((az + M_PI) / (2.0 * M_PI) * S);
+            si = std::clamp(si, 0, S - 1);
+            int zi = static_cast<int>((pt.z - params_.z_min) / dz);
+            zi = std::clamp(zi, 0, 3);
+            sector_tokens[si] |= (1 << zi);
+        }
+        double active = 0.0;
+        for (int token : sector_tokens) {
+            if (token == 0) continue;
+            out(offset + token) += 1.0;
+            active += 1.0;
+        }
+        if (active > 0.0) {
+            out.segment(offset, RHPD_VERTICAL_TOKEN_DIM) /= active;
+        }
+    }
+    offset += RHPD_VERTICAL_TOKEN_DIM;
+
+    out(offset) = params_.enable_pca_confidence ? std::clamp(pca_confidence, 0.0, 1.0) : 1.0;
+    return out;
+}
+
 // ---- Main compute ----
 
 RHPDescriptor::VecD RHPDescriptor::compute(const CloudT::Ptr& cloud) const {
@@ -265,12 +488,15 @@ RHPDescriptor::VecD RHPDescriptor::compute(const CloudT::Ptr& cloud) const {
         aligned->push_back(apt);
     }
 
+    const double pca_confidence = computePCAConfidence(cloud);
     VecD part_a = computePartA(aligned);
     VecD part_b = computePartB(cloud);   // Part B is rotation-invariant, use original cloud
+    VecD aux = computeAux(cloud, pca_confidence);
 
     VecD out(RHPD_DIM);
-    out.head(RHPD_PART_A_DIM) = part_a;
-    out.tail(RHPD_PART_B_DIM) = part_b;
+    out.segment(0, RHPD_PART_A_DIM) = part_a;
+    out.segment(RHPD_PART_A_DIM, RHPD_PART_B_DIM) = part_b;
+    out.segment(RHPD_PART_A_DIM + RHPD_PART_B_DIM, RHPD_AUX_DIM) = aux;
     return out;
 }
 
@@ -281,38 +507,30 @@ double RHPDescriptor::distance(const VecD& a, const VecD& b) const {
         return std::numeric_limits<double>::max();
     }
 
-    // Normal orientation
-    double d0 = (a - b).norm();
-
-    // 180°-flipped version of a:
-    // Flip = negate X in aligned cloud means XY rows are reversed, XZ rows are reversed,
-    // YZ Y-axis is reversed. For the flat vector, we rebuild a flipped Part A.
-    //
-    // Practical approximation: flip the XY and XZ sub-descriptors axis-0 order,
-    // and the YZ sub-descriptor axis-0 order.
-    // This is equivalent to reversing the order of rows in each 14x14 grid.
-    const int B = RHPD_PLANE_BINS;
-    const int B2C = RHPD_PLANE_BINS * RHPD_PLANE_BINS * RHPD_PLANE_CHANS;  // per-plane dim
-
     VecD a_flip = a;
-    // Flip each of the 3 planes: reverse row order (axis0 corresponds to X)
-    for (int p = 0; p < 3; ++p) {
-        int base = p * B2C;
-        for (int row = 0; row < B / 2; ++row) {
-            int row_flip = B - 1 - row;
-            for (int col = 0; col < B; ++col) {
-                int idx1 = base + (row      * B + col) * RHPD_PLANE_CHANS;
-                int idx2 = base + (row_flip * B + col) * RHPD_PLANE_CHANS;
-                for (int c = 0; c < RHPD_PLANE_CHANS; ++c) {
-                    std::swap(a_flip(idx1 + c), a_flip(idx2 + c));
-                }
-            }
-        }
+    flipPlaneAxis(a_flip, 0, true, true);                        // XY: X and Y flip
+    flipPlaneAxis(a_flip, RHPD_PLANE_DIM, true, false);          // XZ: X flips only
+    flipPlaneAxis(a_flip, RHPD_PLANE_DIM * 2, true, false);      // YZ: Y flips only
+    if (params_.enable_negative_space) {
+        shiftNegativeSpace180(a_flip);
     }
-    // Part B is rotation-invariant, no flip needed
-    double d180 = (a_flip - b).norm();
 
-    return std::min(d0, d180);
+    const double conf_a = params_.enable_pca_confidence ? a(RHPD_DIM - 1) : 1.0;
+    const double conf_b = params_.enable_pca_confidence ? b(RHPD_DIM - 1) : 1.0;
+    const double part_a_weight = params_.enable_pca_confidence
+        ? (0.35 + 0.65 * std::min(std::clamp(conf_a, 0.0, 1.0), std::clamp(conf_b, 0.0, 1.0)))
+        : 1.0;
+
+    auto weightedDistance = [&](const VecD& lhs, const VecD& rhs) {
+        const double da = (lhs.segment(0, RHPD_PART_A_DIM) - rhs.segment(0, RHPD_PART_A_DIM)).squaredNorm();
+        const double db = (lhs.segment(RHPD_PART_A_DIM, RHPD_PART_B_DIM) -
+                           rhs.segment(RHPD_PART_A_DIM, RHPD_PART_B_DIM)).squaredNorm();
+        const double daux = (lhs.segment(RHPD_PART_A_DIM + RHPD_PART_B_DIM, RHPD_AUX_DIM) -
+                             rhs.segment(RHPD_PART_A_DIM + RHPD_PART_B_DIM, RHPD_AUX_DIM)).squaredNorm();
+        return std::sqrt(part_a_weight * da + db + 0.5 * daux);
+    };
+
+    return std::min(weightedDistance(a, b), weightedDistance(a_flip, b));
 }
 
 // ============================================================
@@ -336,6 +554,7 @@ std::vector<std::pair<int64_t, double>> RHPDManager::search(const VecD& query, i
 
     results.reserve(ids_.size());
     for (size_t i = 0; i < ids_.size(); ++i) {
+        if (descriptors_[i].size() != RHPD_DIM) continue;
         double d = desc_.distance(query, descriptors_[i]);
         results.emplace_back(ids_[i], d);
     }
@@ -347,6 +566,17 @@ std::vector<std::pair<int64_t, double>> RHPDManager::search(const VecD& query, i
         results.resize(top_k);
     }
     return results;
+}
+
+bool RHPDManager::get(int64_t kf_id, VecD* descriptor) const {
+    if (!descriptor) return false;
+    for (size_t i = 0; i < ids_.size(); ++i) {
+        if (ids_[i] == kf_id) {
+            *descriptor = descriptors_[i];
+            return true;
+        }
+    }
+    return false;
 }
 
 void RHPDManager::clear() {
@@ -366,7 +596,7 @@ std::vector<std::pair<int64_t, RHPDManager::VecD>> RHPDManager::getAll() const {
 void RHPDManager::loadAll(const std::vector<std::pair<int64_t, VecD>>& data) {
     clear();
     for (const auto& [id, desc] : data) {
-        add(id, desc);
+        if (desc.size() == RHPD_DIM) add(id, desc);
     }
 }
 

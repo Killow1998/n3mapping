@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <csignal>
 #include <filesystem>
 #include <fstream>
@@ -35,6 +36,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <string_view>
+#include <std_msgs/msg/u_int32.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <thread>
 #include <visualization_msgs/msg/marker_array.hpp>
@@ -222,7 +224,10 @@ class N3MappingNode : public rclcpp::Node
             },
             [this](const std::string& context, double timestamp, const Eigen::Isometry3d* pose) {
                 logOptimizationResult(context, timestamp, pose);
-            }
+            },
+            [this](const std_msgs::msg::Header& header, const Eigen::Isometry3d& pose) {
+                publishRelocalizationLock(header, pose);
+            },
         };
 
         mapping_mode_handler_ = std::make_unique<MappingModeHandler>(
@@ -271,6 +276,7 @@ class N3MappingNode : public rclcpp::Node
         cloud_body_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(config_.output_cloud_body_topic, 10);
         cloud_world_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(config_.output_cloud_world_topic, 10);
         loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/n3mapping/loop_closure_markers", 10);
+        relocalization_lock_pub_ = this->create_publisher<std_msgs::msg::UInt32>("/n3mapping/relocalization_lock", 10);
 
         // 全局地图发布者 (transient_local QoS，类似 ROS1 latched topic)
         rclcpp::QoS global_map_qos(1);
@@ -537,7 +543,10 @@ class N3MappingNode : public rclcpp::Node
 
                 loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok;
                 if (loop.verified) {
-                    loop.T_match_query = match_result.T_target_source.inverse();
+                    const Eigen::Isometry3d T_est_match_query =
+                      match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
+                    const Eigen::Isometry3d T_residual = match_result.T_target_source;
+                    loop.T_match_query = T_residual * T_est_match_query;
                 }
                 verified_loops.push_back(loop);
             }
@@ -599,6 +608,29 @@ class N3MappingNode : public rclcpp::Node
         tf.transform.translation.z = pose.translation().z();
         tf.transform.rotation = odom_msg.pose.pose.orientation;
         tf_broadcaster_->sendTransform(tf);
+    }
+
+    void publishRelocalizationLock(const std_msgs::msg::Header& header, const Eigen::Isometry3d& pose)
+    {
+        if (!relocalization_lock_pub_) {
+            return;
+        }
+
+        std_msgs::msg::UInt32 msg;
+        msg.data = ++relocalization_lock_count_;
+        relocalization_lock_pub_->publish(msg);
+
+        Eigen::Quaterniond q(pose.rotation());
+        const double yaw = std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
+                                      1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
+        RCLCPP_INFO(this->get_logger(),
+                    "Relocalization lock event #%u @ %.3f pose=(%.3f, %.3f, %.3f) yaw=%.3f",
+                    msg.data,
+                    rclcpp::Time(header.stamp).seconds(),
+                    pose.translation().x(),
+                    pose.translation().y(),
+                    pose.translation().z(),
+                    yaw);
     }
 
     /**
@@ -913,6 +945,7 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_world_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr loop_marker_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub_;
+    rclcpp::Publisher<std_msgs::msg::UInt32>::SharedPtr relocalization_lock_pub_;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
@@ -940,6 +973,7 @@ class N3MappingNode : public rclcpp::Node
     size_t keyframe_count_ = 0;
     size_t loop_count_ = 0;
     int64_t last_loop_check_id_ = -1000;
+    uint32_t relocalization_lock_count_ = 0;
 };
 
 } // namespace n3mapping

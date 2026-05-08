@@ -6,6 +6,7 @@
 #include <mutex>
 #include <utility>
 #include <vector>
+#include <cstdint>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -21,11 +22,28 @@
 namespace n3mapping {
 
 struct LoopCandidate {
+    static constexpr uint8_t SOURCE_SC = 1u;
+    static constexpr uint8_t SOURCE_RHPD = 2u;
+    enum class Source : uint8_t {
+        Unknown = 0,
+        RhpdPrimary = 1,
+        ScanContextFallback = 2
+    };
+
     int64_t query_id = -1;
     int64_t match_id = -1;
+    double rhpd_distance = std::numeric_limits<double>::max();
     double sc_distance = std::numeric_limits<double>::max();
     float yaw_diff_rad = 0.0f;
+    uint8_t source_flags = 0u;
+    Source candidate_source = Source::Unknown;
+    double fused_score = std::numeric_limits<double>::max();
+    int fused_rank = -1;
+    int sc_rank = -1;
+    int rhpd_rank = -1;
     bool isValid() const { return query_id >= 0 && match_id >= 0; }
+    bool fromSC() const { return (source_flags & SOURCE_SC) != 0u; }
+    bool fromRHPD() const { return (source_flags & SOURCE_RHPD) != 0u; }
 };
 
 struct VerifiedLoop {
@@ -69,6 +87,7 @@ public:
     size_t size() const;
     void clear();
     std::pair<int, int> getDescriptorDimensions() const;
+    double getScanContextSectorAngleDeg() const { return sc_manager_.PC_UNIT_SECTORANGLE; }
     Eigen::MatrixXd getDescriptor(int64_t keyframe_id) const;
     int getNumExcludeRecent() const { return config_.sc_num_exclude_recent; }
     std::pair<double, int> computeDistance(const Eigen::MatrixXd& sc1, const Eigen::MatrixXd& sc2);
@@ -78,6 +97,7 @@ public:
     Eigen::VectorXd addRHPD(int64_t kf_id, const PointCloudT::Ptr& cloud);
     const RHPDManager& getRHPDManager() const { return rhpd_manager_; }
     RHPDManager& getRHPDManager() { return rhpd_manager_; }
+    const RHPDescriptor::Params& getRHPDParams() const { return rhpd_manager_.getDescriptorParams(); }
 
 private:
     Config config_;

@@ -28,6 +28,7 @@ struct ModePublishCallbacks
     std::function<void(const std_msgs::msg::Header&, const Eigen::Isometry3d*)> publish_path;
     std::function<void(PointCloud::Ptr, const Eigen::Isometry3d&, const std_msgs::msg::Header&)> publish_point_clouds;
     std::function<void(const std::string&, double, const Eigen::Isometry3d*)> log_optimization_result;
+    std::function<void(const std_msgs::msg::Header&, const Eigen::Isometry3d&)> publish_relocalization_lock;
 };
 
 class MappingModeHandler

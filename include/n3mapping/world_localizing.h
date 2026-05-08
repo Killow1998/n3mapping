@@ -1,6 +1,7 @@
-// WorldLocalizing: global relocalization via ScanContext + ICP, and tracking localization with T_map_odom.
+// WorldLocalizing: global relocalization via RHPD + ICP, and tracking localization with T_map_odom.
 #pragma once
 
+#include <deque>
 #include <mutex>
 #include <vector>
 
@@ -46,7 +47,13 @@ private:
         Eigen::Isometry3d T_map_odom = Eigen::Isometry3d::Identity();
         double cumulative_log_likelihood = 0.0;
         int num_updates = 0;
+        int converged_updates = 0;
         bool alive = true;
+    };
+
+    struct QueryFrame {
+        PointCloudT::Ptr cloud;
+        Eigen::Isometry3d odom_pose = Eigen::Isometry3d::Identity();
     };
 
     std::vector<LoopCandidate> searchCandidates(const PointCloudT::Ptr& cloud);
@@ -58,6 +65,7 @@ private:
     double computeRelocLogLikelihood(const LoopCandidate& candidate, const MatchResult& match_result) const;
     double computeTrackLogLikelihood(const MatchResult& match_result,
                                      const Eigen::Isometry3d& predicted_pose) const;
+    PointCloudT::Ptr buildRelocQueryCloud(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
     void clearRelocHypotheses();
     int64_t findNearestKeyframe(const Eigen::Isometry3d& pose) const;
 
@@ -72,7 +80,10 @@ private:
     Eigen::Isometry3d last_odom_pose_;
     int consecutive_track_failures_;
     std::vector<RelocHypothesis> pending_hypotheses_;
+    std::deque<QueryFrame> query_frame_buffer_;
     int hypothesis_window_count_;
+    int64_t last_window_winner_seed_id_;
+    int winner_streak_;
     mutable std::mutex mutex_;
 };
 

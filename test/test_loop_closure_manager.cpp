@@ -92,13 +92,13 @@ TEST(LoopClosureManagerTest, BuildLoopEdgesRespectsDirection)
     ASSERT_EQ(edges_qm.size(), 1u);
     EXPECT_EQ(edges_qm.front().from_id, 1);
     EXPECT_EQ(edges_qm.front().to_id, 2);
-    EXPECT_TRUE(edges_qm.front().measurement.isApprox(loop.T_match_query, 1e-9));
+    EXPECT_TRUE(edges_qm.front().measurement.isApprox(loop.T_match_query.inverse(), 1e-9));
 
     auto edges_mq = manager.buildLoopEdges({ loop }, LoopEdgeDirection::MatchToQuery);
     ASSERT_EQ(edges_mq.size(), 1u);
     EXPECT_EQ(edges_mq.front().from_id, 2);
     EXPECT_EQ(edges_mq.front().to_id, 1);
-    EXPECT_TRUE(edges_mq.front().measurement.isApprox(loop.T_match_query.inverse(), 1e-9));
+    EXPECT_TRUE(edges_mq.front().measurement.isApprox(loop.T_match_query, 1e-9));
 }
 
 TEST(LoopClosureManagerTest, ApplyEdgesCallsOptimizer)

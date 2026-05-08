@@ -101,13 +101,35 @@ void Config::loadFromROS(rclcpp::Node* node) {
     get("reloc_track_retry_corr_scale", reloc_track_retry_corr_scale);
     get("reloc_track_retry_max_iterations", reloc_track_retry_max_iterations);
     get("reloc_track_unstable_submap_size", reloc_track_unstable_submap_size);
+    get("reloc_static_agg_enable", reloc_static_agg_enable);
+    get("reloc_static_agg_max_frames", reloc_static_agg_max_frames);
+    get("reloc_static_agg_min_frames", reloc_static_agg_min_frames);
+    get("reloc_static_agg_max_translation", reloc_static_agg_max_translation);
+    get("reloc_static_agg_max_rotation", reloc_static_agg_max_rotation);
+    get("reloc_static_agg_voxel_size", reloc_static_agg_voxel_size);
+    get("reloc_ambiguity_min_margin", reloc_ambiguity_min_margin);
+    get("reloc_ambiguity_min_ratio", reloc_ambiguity_min_ratio);
+    get("reloc_ambiguity_min_basin_separation", reloc_ambiguity_min_basin_separation);
 
     get("rhpd_enabled", rhpd_enabled);
+    get("rhpd_v2_enable", rhpd_v2_enable);
+    get("rhpd_v3_enable", rhpd_v3_enable);
     get("rhpd_max_range", rhpd_max_range);
     get("rhpd_z_min", rhpd_z_min);
     get("rhpd_z_max", rhpd_z_max);
     get("rhpd_dist_threshold", rhpd_dist_threshold);
     get("rhpd_num_candidates", rhpd_num_candidates);
+    get("rhpd_submap_kf_radius", rhpd_submap_kf_radius);
+    get("rhpd_submap_voxel_size", rhpd_submap_voxel_size);
+    get("rhpd_primary_weight", rhpd_primary_weight);
+    get("sc_aux_weight", sc_aux_weight);
+    get("sc_aux_veto_enabled", sc_aux_veto_enabled);
+    get("sc_aux_veto_threshold", sc_aux_veto_threshold);
+    get("rhpd_use_sc_yaw", rhpd_use_sc_yaw);
+    get("rhpd_yaw_hypotheses", rhpd_yaw_hypotheses);
+    get("rhpd_enable_negative_space", rhpd_enable_negative_space);
+    get("rhpd_enable_vertical_tokens", rhpd_enable_vertical_tokens);
+    get("rhpd_enable_pca_confidence", rhpd_enable_pca_confidence);
 }
 
 void Config::print(const rclcpp::Logger& logger) const {
@@ -145,7 +167,7 @@ void Config::print(const rclcpp::Logger& logger) const {
                 loop_max_icp_translation,
                 loop_max_icp_rotation);
     RCLCPP_INFO(logger,
-                "Loop candidate pipeline: descriptor retrieval (SC KD-tree + refined distance) -> ICP -> geom gate -> LoopClosureManager filter/select");
+                "Loop candidate pipeline: RHPD primary retrieval -> optional SC yaw/weak rerank/veto -> ICP -> geom gate -> LoopClosureManager filter/select");
     RCLCPP_WARN(logger,
                 "loop_closest_id_th/min_id_interval/max_range are retained for compatibility/logging only; they are not used in the active mapping loop-candidate retrieval/verification path.");
     RCLCPP_INFO(logger,
@@ -179,13 +201,41 @@ void Config::print(const rclcpp::Logger& logger) const {
                 reloc_track_retry_max_iterations,
                 reloc_track_unstable_submap_size);
     RCLCPP_INFO(logger,
-                "RHPD: enabled=%s, max_range=%.1f, z=[%.1f,%.1f], dist_thr=%.1f, candidates=%d",
+                "Reloc static aggregation: enable=%s, frames=%d(min=%d), motion_gate=(%.3fm, %.3frad), voxel=%.3f",
+                reloc_static_agg_enable ? "YES" : "NO",
+                reloc_static_agg_max_frames,
+                reloc_static_agg_min_frames,
+                reloc_static_agg_max_translation,
+                reloc_static_agg_max_rotation,
+                reloc_static_agg_voxel_size);
+    RCLCPP_INFO(logger,
+                "Reloc ambiguity guard: margin>=%.3f, ratio>=%.3f, basin_sep>=%.2fm",
+                reloc_ambiguity_min_margin,
+                reloc_ambiguity_min_ratio,
+                reloc_ambiguity_min_basin_separation);
+    RCLCPP_INFO(logger,
+                "RHPD: enabled=%s, v2=%s, v3=%s, max_range=%.1f, z=[%.1f,%.1f], dist_thr=%.1f, candidates=%d, submap_radius=%d, submap_voxel=%.2f",
                 rhpd_enabled ? "YES" : "NO",
+                rhpd_v2_enable ? "YES" : "NO",
+                rhpd_v3_enable ? "YES" : "NO",
                 rhpd_max_range,
                 rhpd_z_min,
                 rhpd_z_max,
                 rhpd_dist_threshold,
-                rhpd_num_candidates);
+                rhpd_num_candidates,
+                rhpd_submap_kf_radius,
+                rhpd_submap_voxel_size);
+    RCLCPP_INFO(logger,
+                "RHPD primary retrieval: weight=%.2f, sc_aux_weight=%.2f, sc_aux_veto=%s(thr=%.3f), use_sc_yaw=%s, yaw_hyp=%d, aug(neg=%s, vert=%s, pca_conf=%s)",
+                rhpd_primary_weight,
+                sc_aux_weight,
+                sc_aux_veto_enabled ? "YES" : "NO",
+                sc_aux_veto_threshold,
+                rhpd_use_sc_yaw ? "YES" : "NO",
+                rhpd_yaw_hypotheses,
+                rhpd_enable_negative_space ? "YES" : "NO",
+                rhpd_enable_vertical_tokens ? "YES" : "NO",
+                rhpd_enable_pca_confidence ? "YES" : "NO");
     RCLCPP_INFO(logger, "Threads: %d | Save path: %s", num_threads, map_save_path.c_str());
     RCLCPP_INFO(logger, "==============================================");
 }

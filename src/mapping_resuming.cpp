@@ -2,6 +2,7 @@
 #include "n3mapping/mapping_resuming.h"
 
 #include <algorithm>
+#include <pcl/filters/voxel_grid.h>
 
 namespace n3mapping {
 
@@ -79,7 +80,24 @@ int64_t MappingResuming::processNewKeyframe(double timestamp, const Eigen::Isome
     int64_t new_kf_id = keyframe_manager_.addKeyframe(timestamp, pose_in_map, cloud);
     loop_detector_.addDescriptor(new_kf_id, cloud);
     auto new_kf = keyframe_manager_.getKeyframe(new_kf_id);
-    if (new_kf) new_kf->rhpd_descriptor = loop_detector_.addRHPD(new_kf_id, cloud);
+    if (new_kf) {
+        const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
+        PointCloudT::Ptr rhpd_cloud = cloud;
+        if (submap_radius > 0) {
+            rhpd_cloud = keyframe_manager_.buildSubmapInRootFrame(new_kf_id, submap_radius, new_kf_id);
+        }
+        if (rhpd_cloud && !rhpd_cloud->empty() && config_.rhpd_submap_voxel_size > 1e-4) {
+            pcl::VoxelGrid<pcl::PointXYZI> voxel;
+            voxel.setLeafSize(config_.rhpd_submap_voxel_size,
+                              config_.rhpd_submap_voxel_size,
+                              config_.rhpd_submap_voxel_size);
+            voxel.setInputCloud(rhpd_cloud);
+            auto filtered = pcl::make_shared<PointCloudT>();
+            voxel.filter(*filtered);
+            if (!filtered->empty()) rhpd_cloud = filtered;
+        }
+        new_kf->rhpd_descriptor = loop_detector_.addRHPD(new_kf_id, rhpd_cloud);
+    }
 
     if (last_keyframe_id_ >= 0) {
         auto last_kf = keyframe_manager_.getKeyframe(last_keyframe_id_);

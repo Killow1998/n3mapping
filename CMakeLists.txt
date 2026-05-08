@@ -193,6 +193,12 @@ install(DIRECTORY config/
   DESTINATION share/${PROJECT_NAME}/config
 )
 
+install(PROGRAMS
+  scripts/relocalization_snapshotter.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME relocalization_snapshotter
+)
+
 # ==================== 测试 ====================
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

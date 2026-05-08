@@ -253,10 +253,16 @@ void GraphOptimizer::loadGraph(
         
         gtsam::noiseModel::Base::shared_ptr noise_model;
         if (edge.type == EdgeType::LOOP) {
-            noise_model = createLoopNoiseModel();
+            noise_model = createRobustNoiseModel(edge.information, config_.use_robust_kernel);
+            if (!noise_model) {
+                noise_model = createLoopNoiseModel();
+            }
             has_loop_closure_ = true;
         } else {
-            noise_model = createOdomNoiseModel();
+            noise_model = createNoiseModel(edge.information);
+            if (!noise_model) {
+                noise_model = createOdomNoiseModel();
+            }
         }
         
         graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));

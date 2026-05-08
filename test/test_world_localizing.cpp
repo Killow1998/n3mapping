@@ -29,6 +29,16 @@ class WorldLocalizingTest : public ::testing::Test
         config_.reloc_sc_dist_threshold = 0.4;
         config_.reloc_search_radius = 15.0;
         config_.reloc_max_track_failures = 5;
+        config_.reloc_temporal_window_size = 3;
+        config_.reloc_lock_log_likelihood_threshold = -100.0;
+        config_.reloc_min_confidence = 0.05;
+        config_.reloc_min_inlier_ratio = 0.0;
+        config_.reloc_ambiguity_min_basin_separation = 100.0;
+        config_.reloc_static_agg_enable = false;
+        config_.rhpd_enabled = true;
+        config_.rhpd_dist_threshold = 100.0;
+        config_.rhpd_num_candidates = 5;
+        config_.rhpd_yaw_hypotheses = 4;
         config_.num_threads = 2;
 
         keyframe_manager_ = std::make_unique<KeyframeManager>(config_);
@@ -87,6 +97,10 @@ class WorldLocalizingTest : public ::testing::Test
             auto cloud = generateCorridorCloud(pose);
             int64_t kf_id = keyframe_manager_->addKeyframe(i * 0.1, pose, cloud);
             loop_detector_->addDescriptor(kf_id, cloud);
+            auto rhpd = loop_detector_->addRHPD(kf_id, cloud);
+            auto kf = keyframe_manager_->getKeyframe(kf_id);
+            ASSERT_NE(kf, nullptr);
+            kf->rhpd_descriptor = rhpd;
             pose.translation().x() += spacing;
         }
     }
@@ -126,15 +140,17 @@ TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess)
     query_pose.translation().x() = 8.0;
     auto cloud = generateCorridorCloud(query_pose);
 
-    RelocResult result = reloc.relocalize(cloud, query_pose);
-
-    if (result.success) {
-        EXPECT_TRUE(reloc.isRelocalized());
-        EXPECT_GE(result.matched_keyframe_id, 0);
-        EXPECT_GT(result.confidence, 0.0);
-        double position_error = (result.pose_in_map.translation() - query_pose.translation()).norm();
-        EXPECT_LT(position_error, 3.0);
+    RelocResult result;
+    for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+        result = reloc.relocalize(cloud, query_pose);
     }
+
+    ASSERT_TRUE(result.success);
+    EXPECT_TRUE(reloc.isRelocalized());
+    EXPECT_GE(result.matched_keyframe_id, 0);
+    EXPECT_GT(result.confidence, 0.0);
+    double position_error = (result.pose_in_map.translation() - query_pose.translation()).norm();
+    EXPECT_LT(position_error, 3.0);
 }
 
 TEST_F(WorldLocalizingTest, TrackLocalization)

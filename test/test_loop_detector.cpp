@@ -79,6 +79,69 @@ protected:
         return cloud;
     }
 
+    Keyframe::PointCloudT::Ptr createAsymmetricCloud() {
+        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        for (float x = -6.0f; x <= 8.0f; x += 0.25f) {
+            for (float z = -0.5f; z <= 2.5f; z += 0.35f) {
+                pcl::PointXYZI pt;
+                pt.x = x;
+                pt.y = -2.0f + 0.05f * std::sin(x);
+                pt.z = z;
+                pt.intensity = 10.0f;
+                cloud->push_back(pt);
+            }
+        }
+        for (float y = -1.8f; y <= 3.5f; y += 0.25f) {
+            for (float z = -0.5f; z <= 1.8f; z += 0.35f) {
+                pcl::PointXYZI pt;
+                pt.x = 3.0f;
+                pt.y = y;
+                pt.z = z;
+                pt.intensity = 20.0f;
+                cloud->push_back(pt);
+            }
+        }
+        cloud->width = cloud->size();
+        cloud->height = 1;
+        cloud->is_dense = true;
+        return cloud;
+    }
+
+    Keyframe::PointCloudT::Ptr rotateCloud(const Keyframe::PointCloudT::Ptr& cloud, double yaw_rad) {
+        auto rotated = std::make_shared<Keyframe::PointCloudT>();
+        const double c = std::cos(yaw_rad);
+        const double s = std::sin(yaw_rad);
+        rotated->reserve(cloud->size());
+        for (const auto& pt : cloud->points) {
+            pcl::PointXYZI out = pt;
+            out.x = static_cast<float>(pt.x * c - pt.y * s);
+            out.y = static_cast<float>(pt.x * s + pt.y * c);
+            rotated->push_back(out);
+        }
+        rotated->width = rotated->size();
+        rotated->height = 1;
+        rotated->is_dense = true;
+        return rotated;
+    }
+
+    Keyframe::PointCloudT::Ptr createDifferentStructureCloud() {
+        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        for (float angle = 0.0f; angle < 2.0f * static_cast<float>(M_PI); angle += 0.03f) {
+            for (float z = -0.5f; z <= 2.5f; z += 0.4f) {
+                pcl::PointXYZI pt;
+                pt.x = 7.0f * std::cos(angle);
+                pt.y = 7.0f * std::sin(angle);
+                pt.z = z;
+                pt.intensity = 30.0f;
+                cloud->push_back(pt);
+            }
+        }
+        cloud->width = cloud->size();
+        cloud->height = 1;
+        cloud->is_dense = true;
+        return cloud;
+    }
+
     Config config_;
     std::unique_ptr<LoopDetector> detector_;
 };
@@ -91,6 +154,67 @@ TEST_F(LoopDetectorTest, InitialState) {
     // Hybrid ScanContext in noetic-aligned pipeline expands rows to 140.
     EXPECT_EQ(dims.first, 140);
     EXPECT_EQ(dims.second, 60);
+}
+
+TEST_F(LoopDetectorTest, ConfigInjectionAffectsDescriptorManagers) {
+    Config cfg = config_;
+    cfg.sc_num_rings = 16;
+    cfg.sc_num_sectors = 72;
+    cfg.sc_max_radius = 45.0;
+    cfg.rhpd_max_range = 12.5;
+    cfg.rhpd_z_min = -1.5;
+    cfg.rhpd_z_max = 4.5;
+    LoopDetector detector(cfg);
+
+    auto dims = detector.getDescriptorDimensions();
+    EXPECT_EQ(dims.first, HybridSCManager::NUM_CHANNELS * cfg.sc_num_rings);
+    EXPECT_EQ(dims.second, cfg.sc_num_sectors);
+    EXPECT_NEAR(detector.getScanContextSectorAngleDeg(), 360.0 / cfg.sc_num_sectors, 1e-9);
+    EXPECT_DOUBLE_EQ(detector.getRHPDParams().max_range, cfg.rhpd_max_range);
+    EXPECT_DOUBLE_EQ(detector.getRHPDParams().z_min, cfg.rhpd_z_min);
+    EXPECT_DOUBLE_EQ(detector.getRHPDParams().z_max, cfg.rhpd_z_max);
+}
+
+TEST_F(LoopDetectorTest, RHPDComputeReturnsConfiguredDimension) {
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    auto rhpd = descriptor.compute(createAsymmetricCloud());
+    EXPECT_EQ(rhpd.size(), RHPD_DIM);
+    EXPECT_GT(rhpd.norm(), 0.0);
+}
+
+TEST_F(LoopDetectorTest, RHPDEmptyAndSparseCloudReturnZero) {
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    auto empty = std::make_shared<Keyframe::PointCloudT>();
+    EXPECT_TRUE(descriptor.compute(empty).isZero(1e-12));
+
+    auto sparse = std::make_shared<Keyframe::PointCloudT>();
+    sparse->resize(5);
+    sparse->width = sparse->size();
+    sparse->height = 1;
+    EXPECT_TRUE(descriptor.compute(sparse).isZero(1e-12));
+}
+
+TEST_F(LoopDetectorTest, RHPDDistanceIsSymmetric) {
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    auto a = descriptor.compute(createAsymmetricCloud());
+    auto b = descriptor.compute(createDifferentStructureCloud());
+    EXPECT_NEAR(descriptor.distance(a, b), descriptor.distance(b, a), 1e-9);
+}
+
+TEST_F(LoopDetectorTest, RHPDHandlesYaw180FlipForAsymmetricCloud) {
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    auto cloud = createAsymmetricCloud();
+    auto rotated = rotateCloud(cloud, M_PI);
+    auto different = createDifferentStructureCloud();
+
+    const auto a = descriptor.compute(cloud);
+    const auto b = descriptor.compute(rotated);
+    const auto c = descriptor.compute(different);
+    const double d_rotated = descriptor.distance(a, b);
+    const double d_different = descriptor.distance(a, c);
+
+    EXPECT_LT(d_rotated, d_different);
+    EXPECT_LT(d_rotated, d_different * 0.75);
 }
 
 // 测试 ScanContext 描述子生成 - Requirements 4.1

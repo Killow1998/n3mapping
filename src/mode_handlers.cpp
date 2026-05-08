@@ -1,6 +1,9 @@
 #include "n3mapping/mode_handlers.h"
 
+#include <algorithm>
+
 #include <glog/logging.h>
+#include <pcl/filters/voxel_grid.h>
 
 namespace n3mapping {
 
@@ -39,7 +42,22 @@ MappingModeHandler::process(double timestamp, const Eigen::Isometry3d& pose_odom
     loop_detector_.addDescriptor(kf_id, cloud);
     auto kf = keyframe_manager_.getKeyframe(kf_id);
     if (kf) {
-        kf->rhpd_descriptor = loop_detector_.addRHPD(kf_id, cloud);
+        const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
+        PointCloud::Ptr rhpd_cloud = cloud;
+        if (submap_radius > 0) {
+            rhpd_cloud = keyframe_manager_.buildSubmapInRootFrame(kf_id, submap_radius, kf_id);
+        }
+        if (rhpd_cloud && !rhpd_cloud->empty() && config_.rhpd_submap_voxel_size > 1e-4) {
+            pcl::VoxelGrid<pcl::PointXYZI> voxel;
+            voxel.setLeafSize(config_.rhpd_submap_voxel_size,
+                              config_.rhpd_submap_voxel_size,
+                              config_.rhpd_submap_voxel_size);
+            voxel.setInputCloud(rhpd_cloud);
+            auto filtered = pcl::make_shared<PointCloud>();
+            voxel.filter(*filtered);
+            if (!filtered->empty()) rhpd_cloud = filtered;
+        }
+        kf->rhpd_descriptor = loop_detector_.addRHPD(kf_id, rhpd_cloud);
     }
 
     if (kf_id == 0) {
@@ -112,6 +130,7 @@ LocalizationModeHandler::process(bool map_loaded,
 
     Eigen::Isometry3d pose_map;
     bool success = false;
+    bool relocalization_locked = false;
 
     if (world_localizing_.isRelocalized()) {
         auto result = world_localizing_.trackLocalization(cloud, pose_odom);
@@ -125,10 +144,14 @@ LocalizationModeHandler::process(bool map_loaded,
         if (result.success) {
             pose_map = result.pose_in_map;
             success = true;
+            relocalization_locked = true;
         }
     }
 
     if (success) {
+        if (relocalization_locked && publish_.publish_relocalization_lock) {
+            publish_.publish_relocalization_lock(header, pose_map);
+        }
         publish_.publish_odometry(pose_map, header);
         publish_.publish_path(header, &pose_map);
         publish_.publish_point_clouds(cloud, pose_map, header);
