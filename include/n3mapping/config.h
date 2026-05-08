@@ -98,6 +98,9 @@ struct Config {
     double reloc_track_max_rotation = 1.0;
     int reloc_temporal_window_size = 5;
     double reloc_lock_log_likelihood_threshold = 2.0;
+    int reloc_lock_min_winner_streak = 3;
+    int reloc_lock_min_converged_updates = 3;
+    double reloc_lock_min_margin = 0.35;
     double reloc_hypothesis_miss_penalty = 8.0;
     double reloc_hypothesis_not_converged_penalty = 8.0;
     double reloc_reloc_inlier_weight = 2.0;
@@ -125,6 +128,7 @@ struct Config {
     double rhpd_z_max = 6.0;
     double rhpd_dist_threshold = 25.0;
     int rhpd_num_candidates = 10;
+    int rhpd_preselect_candidates = 100;
     int rhpd_submap_kf_radius = 3;
     double rhpd_submap_voxel_size = 0.15;
     double rhpd_primary_weight = 1.0;

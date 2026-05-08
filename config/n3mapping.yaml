@@ -80,6 +80,9 @@ n3mapping_node:
     reloc_track_max_rotation: 1.0
     reloc_temporal_window_size: 5
     reloc_lock_log_likelihood_threshold: 2.0
+    reloc_lock_min_winner_streak: 3
+    reloc_lock_min_converged_updates: 3
+    reloc_lock_min_margin: 0.35
     reloc_hypothesis_miss_penalty: 8.0
     reloc_hypothesis_not_converged_penalty: 8.0
     reloc_reloc_inlier_weight: 2.0
@@ -107,6 +110,7 @@ n3mapping_node:
     rhpd_z_max: 6.0
     rhpd_dist_threshold: 25.0
     rhpd_num_candidates: 10
+    rhpd_preselect_candidates: 100
     rhpd_submap_kf_radius: 3
     rhpd_submap_voxel_size: 0.15
     rhpd_primary_weight: 1.0

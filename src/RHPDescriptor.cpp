@@ -41,6 +41,10 @@ void shiftNegativeSpace180(Eigen::VectorXd& v) {
         }
     }
 }
+
+void shiftVerticalTokens180(Eigen::VectorXd&) {
+    // Vertical token histogram is coarse radial, not azimuthal; no yaw shift needed.
+}
 } // namespace
 
 // ============================================================
@@ -422,39 +426,55 @@ RHPDescriptor::VecD RHPDescriptor::computeAux(const CloudT::Ptr& cloud, double p
 
         for (int i = 0; i < S; ++i) {
             const bool hit = counts[i] > 0;
-            const double nearest_norm = hit ? nearest[i] / params_.max_range : 1.0;
-            const double empty_run_norm = hit ? std::clamp(nearest[i] / params_.max_range, 0.0, 1.0) : 1.0;
-            const double far_void = (!hit || farthest[i] < 0.7 * params_.max_range) ? 1.0 : 0.0;
+            const bool left_hit = counts[(i + S - 1) % S] > 0;
+            const bool right_hit = counts[(i + 1) % S] > 0;
+            const bool neighbor_observed = left_hit || right_hit;
+            const double nearest_norm = hit ? std::clamp(nearest[i] / params_.max_range, 0.0, 1.0) : 1.0;
+            const double frontier_span_norm = hit
+                ? std::clamp((farthest[i] - nearest[i]) / params_.max_range, 0.0, 1.0)
+                : 0.0;
+            double open_unknown_state = 0.5;  // no hit and no neighboring support: unknown
+            if (hit) {
+                open_unknown_state = (farthest[i] >= 0.75 * params_.max_range) ? 1.0 : 0.0;
+            } else if (neighbor_observed) {
+                open_unknown_state = 0.75;  // likely open gap between observed sectors
+            }
             out(offset + i * RHPD_NEG_SPACE_CHANS + 0) = nearest_norm;
-            out(offset + i * RHPD_NEG_SPACE_CHANS + 1) = empty_run_norm;
-            out(offset + i * RHPD_NEG_SPACE_CHANS + 2) = far_void;
+            out(offset + i * RHPD_NEG_SPACE_CHANS + 1) = frontier_span_norm;
+            out(offset + i * RHPD_NEG_SPACE_CHANS + 2) = open_unknown_state;
         }
     }
     offset += RHPD_NEG_SPACE_DIM;
 
     if (params_.enable_vertical_tokens) {
-        const int S = RHPD_NEG_SPACE_SECTORS;
+        const int CR = RHPD_VERTICAL_TOKEN_RINGS;
         const double dz = (params_.z_max - params_.z_min) / 4.0;
-        std::vector<int> sector_tokens(S, 0);
+        std::vector<std::vector<int>> ring_sector_tokens(
+            CR, std::vector<int>(RHPD_NEG_SPACE_SECTORS, 0));
         for (const auto& pt : cloud->points) {
             const double r = std::hypot(pt.x, pt.y);
             if (r <= 0.1 || r >= params_.max_range) continue;
             if (pt.z < params_.z_min || pt.z >= params_.z_max) continue;
+            int ri = static_cast<int>(r / params_.max_range * CR);
+            ri = std::clamp(ri, 0, CR - 1);
             const double az = std::atan2(pt.y, pt.x);
-            int si = static_cast<int>((az + M_PI) / (2.0 * M_PI) * S);
-            si = std::clamp(si, 0, S - 1);
+            int si = static_cast<int>((az + M_PI) / (2.0 * M_PI) * RHPD_NEG_SPACE_SECTORS);
+            si = std::clamp(si, 0, RHPD_NEG_SPACE_SECTORS - 1);
             int zi = static_cast<int>((pt.z - params_.z_min) / dz);
             zi = std::clamp(zi, 0, 3);
-            sector_tokens[si] |= (1 << zi);
+            ring_sector_tokens[ri][si] |= (1 << zi);
         }
-        double active = 0.0;
-        for (int token : sector_tokens) {
-            if (token == 0) continue;
-            out(offset + token) += 1.0;
-            active += 1.0;
-        }
-        if (active > 0.0) {
-            out.segment(offset, RHPD_VERTICAL_TOKEN_DIM) /= active;
+        for (int r = 0; r < CR; ++r) {
+            double active = 0.0;
+            const int ring_base = offset + r * RHPD_VERTICAL_TOKEN_BINS;
+            for (int token : ring_sector_tokens[r]) {
+                if (token == 0) continue;
+                out(ring_base + token) += 1.0;
+                active += 1.0;
+            }
+            if (active > 0.0) {
+                out.segment(ring_base, RHPD_VERTICAL_TOKEN_BINS) /= active;
+            }
         }
     }
     offset += RHPD_VERTICAL_TOKEN_DIM;
@@ -514,6 +534,7 @@ double RHPDescriptor::distance(const VecD& a, const VecD& b) const {
     if (params_.enable_negative_space) {
         shiftNegativeSpace180(a_flip);
     }
+    shiftVerticalTokens180(a_flip);
 
     const double conf_a = params_.enable_pca_confidence ? a(RHPD_DIM - 1) : 1.0;
     const double conf_b = params_.enable_pca_confidence ? b(RHPD_DIM - 1) : 1.0;
@@ -538,8 +559,11 @@ double RHPDescriptor::distance(const VecD& a, const VecD& b) const {
 // ============================================================
 
 void RHPDManager::add(int64_t kf_id, const VecD& descriptor) {
+    if (descriptor.size() != RHPD_DIM) return;
+    std::lock_guard<std::mutex> lock(mutex_);
     ids_.push_back(kf_id);
     descriptors_.push_back(descriptor);
+    coarse_keys_.push_back(makeCoarseKey(descriptor));
 }
 
 RHPDManager::VecD RHPDManager::addCloud(int64_t kf_id, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) {
@@ -549,27 +573,55 @@ RHPDManager::VecD RHPDManager::addCloud(int64_t kf_id, const pcl::PointCloud<pcl
 }
 
 std::vector<std::pair<int64_t, double>> RHPDManager::search(const VecD& query, int top_k) const {
+    return search(query, top_k, 0);
+}
+
+std::vector<std::pair<int64_t, double>> RHPDManager::search(const VecD& query, int top_k, int preselect) const {
     std::vector<std::pair<int64_t, double>> results;
+    std::lock_guard<std::mutex> lock(mutex_);
     if (ids_.empty() || query.size() != RHPD_DIM) return results;
 
-    results.reserve(ids_.size());
+    const VecD query_key = makeCoarseKey(query);
+    const int safe_top_k = std::max(1, top_k);
+    int candidate_count = static_cast<int>(ids_.size());
+    if (preselect > 0) {
+        candidate_count = std::min(candidate_count, std::max(safe_top_k, preselect));
+    }
+
+    std::vector<std::pair<double, size_t>> coarse_ranked;
+    coarse_ranked.reserve(ids_.size());
     for (size_t i = 0; i < ids_.size(); ++i) {
-        if (descriptors_[i].size() != RHPD_DIM) continue;
-        double d = desc_.distance(query, descriptors_[i]);
+        if (descriptors_[i].size() != RHPD_DIM || coarse_keys_[i].size() != RHPD_COARSE_KEY_DIM) continue;
+        coarse_ranked.emplace_back((query_key - coarse_keys_[i]).squaredNorm(), i);
+    }
+
+    if (candidate_count < static_cast<int>(coarse_ranked.size())) {
+        std::nth_element(coarse_ranked.begin(),
+                         coarse_ranked.begin() + candidate_count,
+                         coarse_ranked.end(),
+                         [](const auto& a, const auto& b) { return a.first < b.first; });
+        coarse_ranked.resize(candidate_count);
+    }
+
+    results.reserve(coarse_ranked.size());
+    for (const auto& item : coarse_ranked) {
+        const size_t i = item.second;
+        const double d = desc_.distance(query, descriptors_[i]);
         results.emplace_back(ids_[i], d);
     }
 
     std::sort(results.begin(), results.end(),
               [](const auto& a, const auto& b) { return a.second < b.second; });
 
-    if (static_cast<int>(results.size()) > top_k) {
-        results.resize(top_k);
+    if (static_cast<int>(results.size()) > safe_top_k) {
+        results.resize(safe_top_k);
     }
     return results;
 }
 
 bool RHPDManager::get(int64_t kf_id, VecD* descriptor) const {
     if (!descriptor) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
     for (size_t i = 0; i < ids_.size(); ++i) {
         if (ids_[i] == kf_id) {
             *descriptor = descriptors_[i];
@@ -580,11 +632,14 @@ bool RHPDManager::get(int64_t kf_id, VecD* descriptor) const {
 }
 
 void RHPDManager::clear() {
+    std::lock_guard<std::mutex> lock(mutex_);
     ids_.clear();
     descriptors_.clear();
+    coarse_keys_.clear();
 }
 
 std::vector<std::pair<int64_t, RHPDManager::VecD>> RHPDManager::getAll() const {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::vector<std::pair<int64_t, VecD>> out;
     out.reserve(ids_.size());
     for (size_t i = 0; i < ids_.size(); ++i) {
@@ -594,10 +649,51 @@ std::vector<std::pair<int64_t, RHPDManager::VecD>> RHPDManager::getAll() const {
 }
 
 void RHPDManager::loadAll(const std::vector<std::pair<int64_t, VecD>>& data) {
-    clear();
+    std::lock_guard<std::mutex> lock(mutex_);
+    ids_.clear();
+    descriptors_.clear();
+    coarse_keys_.clear();
     for (const auto& [id, desc] : data) {
-        if (desc.size() == RHPD_DIM) add(id, desc);
+        if (desc.size() == RHPD_DIM) {
+            ids_.push_back(id);
+            descriptors_.push_back(desc);
+            coarse_keys_.push_back(makeCoarseKey(desc));
+        }
     }
+}
+
+size_t RHPDManager::size() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return ids_.size();
+}
+
+RHPDManager::VecD RHPDManager::makeCoarseKey(const VecD& descriptor) const {
+    VecD key = VecD::Zero(RHPD_COARSE_KEY_DIM);
+    if (descriptor.size() != RHPD_DIM) return key;
+
+    int out = 0;
+    const int part_b_base = RHPD_PART_A_DIM;
+    for (int r = 0; r < RHPD_RINGS; ++r) {
+        double density_sum = 0.0;
+        for (int z = 0; z < RHPD_ZLAYERS; ++z) {
+            const int idx = part_b_base + (r * RHPD_ZLAYERS + z) * RHPD_RH_CHANS;
+            density_sum += descriptor(idx);
+        }
+        key(out++) = density_sum;
+    }
+
+    const int neg_base = RHPD_PART_A_DIM + RHPD_PART_B_DIM;
+    for (int s = 0; s < RHPD_NEG_SPACE_SECTORS; ++s) {
+        const int idx = neg_base + s * RHPD_NEG_SPACE_CHANS;
+        key(out++) = 0.6 * descriptor(idx) + 0.25 * descriptor(idx + 1) + 0.15 * descriptor(idx + 2);
+    }
+
+    const int token_base = neg_base + RHPD_NEG_SPACE_DIM;
+    key.segment(out, RHPD_VERTICAL_TOKEN_DIM) = descriptor.segment(token_base, RHPD_VERTICAL_TOKEN_DIM);
+    out += RHPD_VERTICAL_TOKEN_DIM;
+
+    key(out) = descriptor(RHPD_DIM - 1);
+    return key;
 }
 
 } // namespace n3mapping

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <rclcpp/rclcpp.hpp>
+#include <cmath>
 #include <random>
 #include "n3mapping/loop_detector.h"
 
@@ -15,6 +16,10 @@ protected:
         config_.sc_num_candidates = 5;
         config_.num_threads = 2;
         config_.gicp_fitness_threshold = 0.5;
+        config_.rhpd_enabled = true;
+        config_.rhpd_dist_threshold = 100.0;
+        config_.rhpd_num_candidates = 5;
+        config_.rhpd_preselect_candidates = 12;
         
         detector_ = std::make_unique<LoopDetector>(config_);
     }
@@ -142,6 +147,105 @@ protected:
         return cloud;
     }
 
+    void addPoint(Keyframe::PointCloudT::Ptr cloud, float x, float y, float z, float intensity = 1.0f) {
+        pcl::PointXYZI pt;
+        pt.x = x;
+        pt.y = y;
+        pt.z = z;
+        pt.intensity = intensity;
+        cloud->push_back(pt);
+    }
+
+    void finalizeCloud(Keyframe::PointCloudT::Ptr cloud) {
+        cloud->width = cloud->size();
+        cloud->height = 1;
+        cloud->is_dense = true;
+    }
+
+    Keyframe::PointCloudT::Ptr createDoorwayCorridor(bool doorway) {
+        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        for (float x = -8.0f; x <= 8.0f; x += 0.25f) {
+            const bool in_door = doorway && x >= 1.0f && x <= 3.0f;
+            for (float z = -0.2f; z <= 2.8f; z += 0.25f) {
+                if (!in_door) addPoint(cloud, x, -2.0f, z, 10.0f);
+                addPoint(cloud, x, 2.0f, z, 10.0f);
+            }
+            for (float y = -2.0f; y <= 2.0f; y += 0.35f) {
+                addPoint(cloud, x, y, -0.2f, 5.0f);
+            }
+        }
+        if (doorway) {
+            for (float y = -4.2f; y <= -2.0f; y += 0.25f) {
+                for (float z = -0.2f; z <= 2.2f; z += 0.3f) {
+                    addPoint(cloud, 1.0f, y, z, 20.0f);
+                    addPoint(cloud, 3.0f, y, z, 20.0f);
+                }
+            }
+            for (float x = 1.0f; x <= 3.0f; x += 0.25f) {
+                for (float z = -0.2f; z <= 2.2f; z += 0.3f) {
+                    addPoint(cloud, x, -4.2f, z, 20.0f);
+                }
+            }
+        }
+        finalizeCloud(cloud);
+        return cloud;
+    }
+
+    Keyframe::PointCloudT::Ptr createTJunction(bool t_junction) {
+        auto cloud = createDoorwayCorridor(false);
+        if (t_junction) {
+            for (float y = -8.0f; y <= 8.0f; y += 0.25f) {
+                for (float z = -0.2f; z <= 2.6f; z += 0.3f) {
+                    addPoint(cloud, -1.8f, y, z, 30.0f);
+                    addPoint(cloud, 1.8f, y, z, 30.0f);
+                }
+            }
+            finalizeCloud(cloud);
+        }
+        return cloud;
+    }
+
+    Keyframe::PointCloudT::Ptr createVerticalTokenScene(bool near_low) {
+        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        const float radius = near_low ? 3.0f : 9.0f;
+        for (float a = -2.8f; a <= 2.8f; a += 0.18f) {
+            for (float w = -0.5f; w <= 0.5f; w += 0.18f) {
+                if (near_low) {
+                    addPoint(cloud, radius + w, a, 0.15f, 40.0f);
+                    addPoint(cloud, radius + w, a, 0.65f, 40.0f);
+                } else {
+                    for (float z = 0.2f; z <= 4.8f; z += 0.35f) {
+                        addPoint(cloud, radius + w, a, z, 50.0f);
+                    }
+                }
+            }
+        }
+        for (float angle = 0.0f; angle < 2.0f * static_cast<float>(M_PI); angle += 0.18f) {
+            addPoint(cloud, 12.0f * std::cos(angle), 12.0f * std::sin(angle), 0.0f, 5.0f);
+        }
+        finalizeCloud(cloud);
+        return cloud;
+    }
+
+    Keyframe::PointCloudT::Ptr createOpenOrBlockedScene(bool open) {
+        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        const float range = open ? 18.0f : 4.0f;
+        for (float angle = -2.6f; angle <= 2.6f; angle += 0.06f) {
+            for (float z = -0.2f; z <= 2.0f; z += 0.35f) {
+                addPoint(cloud, range * std::cos(angle), range * std::sin(angle), z, 60.0f);
+            }
+        }
+        if (!open) {
+            for (float angle = -0.5f; angle <= 0.5f; angle += 0.03f) {
+                for (float z = -0.2f; z <= 2.8f; z += 0.25f) {
+                    addPoint(cloud, 2.2f * std::cos(angle), 2.2f * std::sin(angle), z, 80.0f);
+                }
+            }
+        }
+        finalizeCloud(cloud);
+        return cloud;
+    }
+
     Config config_;
     std::unique_ptr<LoopDetector> detector_;
 };
@@ -215,6 +319,57 @@ TEST_F(LoopDetectorTest, RHPDHandlesYaw180FlipForAsymmetricCloud) {
 
     EXPECT_LT(d_rotated, d_different);
     EXPECT_LT(d_rotated, d_different * 0.75);
+}
+
+TEST_F(LoopDetectorTest, RHPDCoarsePrefilterFindsExactMatchAndSortsByFullDistance) {
+    RHPDManager manager(RHPDescriptor::Params{});
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    std::vector<Eigen::VectorXd> descriptors;
+    for (int i = 0; i < 12; ++i) {
+        auto cloud = (i == 7) ? createAsymmetricCloud() : createOffsetCloud(i * 2.0, -i * 1.5, 600);
+        auto rhpd = descriptor.compute(cloud);
+        descriptors.push_back(rhpd);
+        manager.add(i, rhpd);
+    }
+
+    auto results = manager.search(descriptors[7], 5, 4);
+    ASSERT_FALSE(results.empty());
+    EXPECT_EQ(results.front().first, 7);
+    for (size_t i = 1; i < results.size(); ++i) {
+        EXPECT_LE(results[i - 1].second, results[i].second);
+    }
+}
+
+TEST_F(LoopDetectorTest, RHPDSemanticsDoorwayCorridorBeatsPlainCorridor) {
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    auto a = descriptor.compute(createDoorwayCorridor(true));
+    auto b = descriptor.compute(createDoorwayCorridor(false));
+    auto q = descriptor.compute(rotateCloud(createDoorwayCorridor(true), M_PI));
+    EXPECT_LT(descriptor.distance(q, a), descriptor.distance(q, b));
+}
+
+TEST_F(LoopDetectorTest, RHPDSemanticsTJunctionBeatsStraightCorridor) {
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    auto a = descriptor.compute(createTJunction(true));
+    auto b = descriptor.compute(createTJunction(false));
+    auto q = descriptor.compute(createTJunction(true));
+    EXPECT_LT(descriptor.distance(q, a), descriptor.distance(q, b));
+}
+
+TEST_F(LoopDetectorTest, RHPDSemanticsVerticalCoarseRingTokensSeparateStructures) {
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    auto a = descriptor.compute(createVerticalTokenScene(true));
+    auto b = descriptor.compute(createVerticalTokenScene(false));
+    auto q = descriptor.compute(createVerticalTokenScene(true));
+    EXPECT_LT(descriptor.distance(q, a), descriptor.distance(q, b));
+}
+
+TEST_F(LoopDetectorTest, RHPDSemanticsNegativeSpaceSeparatesOpenFromUnknown) {
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    auto a = descriptor.compute(createOpenOrBlockedScene(true));
+    auto b = descriptor.compute(createOpenOrBlockedScene(false));
+    auto q = descriptor.compute(createOpenOrBlockedScene(true));
+    EXPECT_LT(descriptor.distance(q, a), descriptor.distance(q, b));
 }
 
 // 测试 ScanContext 描述子生成 - Requirements 4.1
@@ -341,6 +496,91 @@ TEST_F(LoopDetectorTest, DetectSimilarScenes) {
         EXPECT_LT(candidate.match_id, 15 - config_.sc_num_exclude_recent);
         EXPECT_GE(candidate.match_id, 0);
     }
+}
+
+TEST_F(LoopDetectorTest, DetectSimilarScenesUsesRHPDPrimary) {
+    Config cfg = config_;
+    cfg.rhpd_enabled = true;
+    cfg.sc_aux_veto_enabled = false;
+    cfg.rhpd_dist_threshold = 100.0;
+    cfg.sc_num_exclude_recent = 10;
+    LoopDetector detector(cfg);
+
+    for (int i = 0; i < 20; ++i) {
+        Keyframe::PointCloudT::Ptr cloud;
+        if (i == 0 || i == 15) {
+            cloud = createAsymmetricCloud();
+        } else {
+            cloud = createDoorwayCorridor(i % 2 == 0);
+            for (auto& pt : cloud->points) {
+                pt.x += static_cast<float>(i * 4.0);
+                pt.y += static_cast<float>(i * 1.5);
+            }
+        }
+        detector.addDescriptor(i, cloud);
+        detector.addRHPD(i, cloud);
+    }
+
+    auto candidates = detector.detectLoopCandidates(15);
+    ASSERT_FALSE(candidates.empty());
+    bool found = false;
+    for (const auto& candidate : candidates) {
+        EXPECT_TRUE(std::isfinite(candidate.fused_score));
+        if (candidate.match_id == 0) {
+            found = true;
+            EXPECT_TRUE(candidate.fromRHPD());
+            EXPECT_EQ(candidate.candidate_source, LoopCandidate::Source::RhpdPrimary);
+            EXPECT_TRUE(std::isfinite(candidate.rhpd_distance));
+        }
+    }
+    EXPECT_TRUE(found);
+}
+
+TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisabled) {
+    Config cfg = config_;
+    cfg.rhpd_enabled = false;
+    cfg.sc_dist_threshold = 1.0;
+    cfg.sc_num_exclude_recent = 10;
+    LoopDetector detector(cfg);
+
+    for (int i = 0; i < 20; ++i) {
+        auto cloud = (i == 0 || i == 15) ? createCircularCloud(1000, 20.0, 2.0)
+                                         : createOffsetCloud(i * 50.0, i * 50.0);
+        detector.addDescriptor(i, cloud);
+        detector.addRHPD(i, cloud);
+    }
+
+    auto candidates = detector.detectLoopCandidates(15);
+    ASSERT_FALSE(candidates.empty());
+    bool found = false;
+    for (const auto& candidate : candidates) {
+        if (candidate.match_id == 0) {
+            found = true;
+            EXPECT_TRUE(candidate.fromSC());
+            EXPECT_EQ(candidate.candidate_source, LoopCandidate::Source::ScanContextFallback);
+        }
+    }
+    EXPECT_TRUE(found);
+}
+
+TEST_F(LoopDetectorTest, RejectsIncompatibleScanContextDescriptorDimensions) {
+    auto cloud = createCircularCloud();
+    auto valid = detector_->makeScanContext(cloud);
+    detector_->addDescriptor(0, valid);
+    EXPECT_EQ(detector_->size(), 1u);
+
+    Eigen::MatrixXd wrong_rows = Eigen::MatrixXd::Zero(valid.rows() + 1, valid.cols());
+    detector_->addDescriptor(1, wrong_rows);
+    EXPECT_EQ(detector_->size(), 1u);
+
+    auto new_detector = std::make_unique<LoopDetector>(config_);
+    std::vector<std::pair<int64_t, Eigen::MatrixXd>> descriptors;
+    descriptors.emplace_back(10, valid);
+    descriptors.emplace_back(11, Eigen::MatrixXd::Zero(valid.rows(), valid.cols() + 1));
+    new_detector->loadDescriptors(descriptors);
+    EXPECT_EQ(new_detector->size(), 1u);
+    EXPECT_GT(new_detector->getDescriptor(10).size(), 0);
+    EXPECT_EQ(new_detector->getDescriptor(11).size(), 0);
 }
 
 // 测试描述子序列化和加载

@@ -5,6 +5,7 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <memory>
 #include <sstream>
 #include <unordered_map>
@@ -20,7 +21,7 @@
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.1.0";
+constexpr const char* MAP_VERSION = "2.2.0";
 
 struct SemVer {
     int major = 0;
@@ -53,6 +54,23 @@ int compareSemVer(const SemVer& a, const SemVer& b) {
     if (a.patch != b.patch) return (a.patch < b.patch) ? -1 : 1;
     return 0;
 }
+
+std::string buildRhpdSchema(const Config& config) {
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(6)
+       << "dim=" << RHPD_DIM
+       << ";submap_kf_radius=" << config.rhpd_submap_kf_radius
+       << ";submap_voxel_size=" << config.rhpd_submap_voxel_size
+       << ";v2=" << config.rhpd_v2_enable
+       << ";v3=" << config.rhpd_v3_enable
+       << ";negative_space=" << config.rhpd_enable_negative_space
+       << ";vertical_tokens=" << config.rhpd_enable_vertical_tokens
+       << ";pca_confidence=" << config.rhpd_enable_pca_confidence
+       << ";max_range=" << config.rhpd_max_range
+       << ";z_min=" << config.rhpd_z_min
+       << ";z_max=" << config.rhpd_z_max;
+    return ss.str();
+}
 }  // namespace
 
 MapSerializer::MapSerializer(const Config& config) : config_(config) {}
@@ -70,6 +88,7 @@ bool MapSerializer::saveMap(const std::string& filepath,
         meta->set_creation_timestamp(std::time(nullptr));
         auto keyframes = keyframe_manager.getAllKeyframes();
         meta->set_num_keyframes(keyframes.size());
+        meta->set_rhpd_schema(buildRhpdSchema(config_));
         auto desc_vec = loop_detector.getDescriptors();
         std::map<int64_t, Eigen::MatrixXd> desc_map;
         for (const auto& item : desc_vec) desc_map[item.first] = item.second;
@@ -133,6 +152,17 @@ bool MapSerializer::loadMap(const std::string& filepath,
             LOG(WARNING) << "[MapSerializer] Invalid map version format (file=" << file_version
                          << ", code=" << MAP_VERSION << "), force rebuilding RHPD.";
         }
+        const std::string expected_rhpd_schema = buildRhpdSchema(config_);
+        const std::string file_rhpd_schema = map_proto.metadata().rhpd_schema();
+        if (file_rhpd_schema.empty()) {
+            force_rebuild_rhpd = true;
+            LOG(INFO) << "[MapSerializer] Missing RHPD schema, RHPD will be rebuilt.";
+        } else if (file_rhpd_schema != expected_rhpd_schema) {
+            force_rebuild_rhpd = true;
+            LOG(INFO) << "[MapSerializer] RHPD schema mismatch, RHPD will be rebuilt."
+                      << " file=" << file_rhpd_schema
+                      << " expected=" << expected_rhpd_schema;
+        }
 
         keyframe_manager.clear(); loop_detector.clear(); optimizer.clear();
         std::vector<Keyframe::Ptr> keyframes;
@@ -158,16 +188,12 @@ bool MapSerializer::loadMap(const std::string& filepath,
             }
         }
 
-        // RHPD semantics are local-submap based in current code path.
-        // Rebuild to avoid reusing legacy single-frame descriptors from old maps.
-        force_rebuild_rhpd = true;
-
         if (!force_rebuild_rhpd && !rhpd_missing_or_invalid) {
-            loop_detector.getRHPDManager().loadAll(rhpd_data);
+            loop_detector.loadRHPDDescriptors(rhpd_data);
             LOG(INFO) << "[MapSerializer] Loaded " << rhpd_data.size() << " RHPD descriptors from map.";
         } else {
             LOG(INFO) << "[MapSerializer] Rebuilding RHPD descriptors for " << keyframes.size() << " keyframes.";
-            loop_detector.getRHPDManager().clear();
+            loop_detector.clearRHPD();
             int rebuilt_count = 0;
             for (const auto& kf : keyframes) {
                 if (kf && kf->cloud && !kf->cloud->empty()) {

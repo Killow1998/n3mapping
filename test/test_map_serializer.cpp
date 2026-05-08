@@ -308,7 +308,7 @@ TEST_F(MapSerializerTest, FileNotFound) {
 
 TEST_F(MapSerializerTest, MalformedRhpdDescriptorIsRejectedAndRebuilt) {
     n3mapping::N3Map map_proto;
-    map_proto.mutable_metadata()->set_version("2.1.0");
+    map_proto.mutable_metadata()->set_version("2.2.0");
     map_proto.mutable_metadata()->set_num_keyframes(1);
 
     auto* kf = map_proto.add_keyframes();
@@ -350,6 +350,84 @@ TEST_F(MapSerializerTest, MalformedRhpdDescriptorIsRejectedAndRebuilt) {
     ASSERT_NE(loaded_kf, nullptr);
     EXPECT_EQ(loaded_kf->rhpd_descriptor.size(), RHPD_DIM);
     EXPECT_LT(loaded_kf->rhpd_descriptor.maxCoeff(), 10.0) << "malformed serialized values were accepted";
+}
+
+TEST_F(MapSerializerTest, MatchingRhpdSchemaLoadsSerializedDescriptorWithoutRebuild) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    auto cloud = generateRandomPointCloud(500);
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    int64_t kf_id = kf_manager.addKeyframe(0.1, pose, cloud);
+    auto sc = loop_detector.addDescriptor(kf_id, cloud);
+    kf_manager.updateDescriptor(kf_id, sc);
+    optimizer.addPriorFactor(kf_id, pose);
+
+    Eigen::VectorXd custom = Eigen::VectorXd::LinSpaced(RHPD_DIM, 0.001, 0.999);
+    auto kf = kf_manager.getKeyframe(kf_id);
+    ASSERT_NE(kf, nullptr);
+    kf->rhpd_descriptor = custom;
+    loop_detector.loadRHPDDescriptors({{kf_id, custom}});
+
+    std::string map_file = config_.map_save_path + "/rhpd_schema_match.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    KeyframeManager kf_manager_loaded(config_);
+    LoopDetector loop_detector_loaded(config_);
+    GraphOptimizer optimizer_loaded(config_);
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
+
+    Eigen::VectorXd loaded;
+    ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(kf_id, &loaded));
+    EXPECT_EQ(loaded.size(), RHPD_DIM);
+    EXPECT_NEAR((loaded - custom).norm(), 0.0, 1e-9);
+}
+
+TEST_F(MapSerializerTest, RhpdSchemaMismatchRebuildsSerializedDescriptor) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    auto cloud = generateRandomPointCloud(500);
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    int64_t kf_id = kf_manager.addKeyframe(0.1, pose, cloud);
+    auto sc = loop_detector.addDescriptor(kf_id, cloud);
+    kf_manager.updateDescriptor(kf_id, sc);
+    optimizer.addPriorFactor(kf_id, pose);
+
+    Eigen::VectorXd custom = Eigen::VectorXd::Constant(RHPD_DIM, 123.0);
+    auto kf = kf_manager.getKeyframe(kf_id);
+    ASSERT_NE(kf, nullptr);
+    kf->rhpd_descriptor = custom;
+    loop_detector.loadRHPDDescriptors({{kf_id, custom}});
+
+    std::string map_file = config_.map_save_path + "/rhpd_schema_mismatch.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    n3mapping::N3Map map_proto;
+    {
+        std::ifstream ifs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.ParseFromIstream(&ifs));
+    }
+    map_proto.mutable_metadata()->set_rhpd_schema("mismatch");
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager kf_manager_loaded(config_);
+    LoopDetector loop_detector_loaded(config_);
+    GraphOptimizer optimizer_loaded(config_);
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
+
+    Eigen::VectorXd loaded;
+    ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(kf_id, &loaded));
+    EXPECT_EQ(loaded.size(), RHPD_DIM);
+    EXPECT_GT((loaded - custom).norm(), 1.0);
+    EXPECT_LT(loaded.maxCoeff(), 10.0);
 }
 
 /**

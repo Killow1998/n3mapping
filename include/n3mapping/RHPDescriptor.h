@@ -11,11 +11,11 @@
 //                    mean_range, range_variance).
 //
 // Augmentation:
-//   Negative-space signature: per-azimuth nearest range, long-empty-run, far-void.
-//   Vertical token histogram: 4-bit z-layer occupancy token histogram.
+//   Negative-space signature: per-azimuth nearest hit, frontier span, open/unknown state.
+//   Vertical token histogram: 4 coarse rings x 4-bit z-layer token histogram.
 //   PCA anisotropy confidence: one scalar used to down-weight unstable Part A.
 //
-// Total: 2989 dim, stored as a flat Eigen::VectorXd.
+// Total: 3037 dim, stored as a flat Eigen::VectorXd.
 // Matching: L2 distance with 180-degree flip handling.
 #pragma once
 
@@ -26,6 +26,7 @@
 #include <vector>
 #include <limits>
 #include <cmath>
+#include <mutex>
 
 namespace n3mapping {
 
@@ -41,13 +42,16 @@ constexpr int RHPD_RH_CHANS    = 4;        // density, azimuth_variance, mean_ra
 constexpr int RHPD_PART_B_DIM  = RHPD_RINGS * RHPD_ZLAYERS * RHPD_RH_CHANS;  // 512
 
 constexpr int RHPD_NEG_SPACE_SECTORS = 36;
-constexpr int RHPD_NEG_SPACE_CHANS   = 3;   // nearest hit, empty-run length, far-void flag
+constexpr int RHPD_NEG_SPACE_CHANS   = 3;   // nearest hit, frontier span, open/unknown state
 constexpr int RHPD_NEG_SPACE_DIM     = RHPD_NEG_SPACE_SECTORS * RHPD_NEG_SPACE_CHANS;
-constexpr int RHPD_VERTICAL_TOKEN_DIM = 16; // histogram of 4-bit z occupancy tokens
+constexpr int RHPD_VERTICAL_TOKEN_RINGS = 4;
+constexpr int RHPD_VERTICAL_TOKEN_BINS = 16;
+constexpr int RHPD_VERTICAL_TOKEN_DIM = RHPD_VERTICAL_TOKEN_RINGS * RHPD_VERTICAL_TOKEN_BINS;
 constexpr int RHPD_PCA_CONF_DIM       = 1;
 constexpr int RHPD_AUX_DIM = RHPD_NEG_SPACE_DIM + RHPD_VERTICAL_TOKEN_DIM + RHPD_PCA_CONF_DIM;
 
-constexpr int RHPD_DIM = RHPD_PART_A_DIM + RHPD_PART_B_DIM + RHPD_AUX_DIM;  // 2989
+constexpr int RHPD_DIM = RHPD_PART_A_DIM + RHPD_PART_B_DIM + RHPD_AUX_DIM;  // 3037
+constexpr int RHPD_COARSE_KEY_DIM = RHPD_RINGS + RHPD_NEG_SPACE_SECTORS + RHPD_VERTICAL_TOKEN_DIM + RHPD_PCA_CONF_DIM;
 
 // ----------- RHPDescriptor class -----------
 class RHPDescriptor {
@@ -131,14 +135,16 @@ public:
 
     // Search for the top-k nearest neighbors. Returns (kf_id, distance) pairs sorted by distance.
     std::vector<std::pair<int64_t, double>> search(const VecD& query, int top_k) const;
+    std::vector<std::pair<int64_t, double>> search(const VecD& query, int top_k, int preselect) const;
     bool get(int64_t kf_id, VecD* descriptor) const;
+    VecD makeCoarseKey(const VecD& descriptor) const;
 
     // Compute descriptor for a cloud (for use before searching).
     VecD compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) const {
         return desc_.compute(cloud);
     }
 
-    size_t size() const { return ids_.size(); }
+    size_t size() const;
     void clear();
 
     // Serialization helpers.
@@ -150,6 +156,8 @@ private:
     RHPDescriptor desc_;
     std::vector<int64_t> ids_;
     std::vector<VecD>    descriptors_;
+    std::vector<VecD>    coarse_keys_;
+    mutable std::mutex mutex_;
 };
 
 } // namespace n3mapping

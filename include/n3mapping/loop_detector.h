@@ -69,6 +69,7 @@ public:
     Eigen::MatrixXd makeScanContext(const PointCloudT::Ptr& cloud);
     Eigen::MatrixXd addDescriptor(int64_t keyframe_id, const PointCloudT::Ptr& cloud);
     void addDescriptor(int64_t keyframe_id, const Eigen::MatrixXd& descriptor);
+    bool isScanContextDescriptorCompatible(const Eigen::MatrixXd& descriptor) const;
     std::vector<LoopCandidate> detectLoopCandidates(int64_t query_id);
 
     VerifiedLoop verifyLoopCandidate(const LoopCandidate& candidate,
@@ -95,8 +96,9 @@ public:
     // RHPD interface
     Eigen::VectorXd computeRHPD(const PointCloudT::Ptr& cloud) const;
     Eigen::VectorXd addRHPD(int64_t kf_id, const PointCloudT::Ptr& cloud);
+    void loadRHPDDescriptors(const std::vector<std::pair<int64_t, Eigen::VectorXd>>& descriptors);
+    void clearRHPD();
     const RHPDManager& getRHPDManager() const { return rhpd_manager_; }
-    RHPDManager& getRHPDManager() { return rhpd_manager_; }
     const RHPDescriptor::Params& getRHPDParams() const { return rhpd_manager_.getDescriptorParams(); }
 
 private:

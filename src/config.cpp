@@ -92,6 +92,9 @@ void Config::loadFromROS(rclcpp::Node* node) {
     get("reloc_track_max_rotation", reloc_track_max_rotation);
     get("reloc_temporal_window_size", reloc_temporal_window_size);
     get("reloc_lock_log_likelihood_threshold", reloc_lock_log_likelihood_threshold);
+    get("reloc_lock_min_winner_streak", reloc_lock_min_winner_streak);
+    get("reloc_lock_min_converged_updates", reloc_lock_min_converged_updates);
+    get("reloc_lock_min_margin", reloc_lock_min_margin);
     get("reloc_hypothesis_miss_penalty", reloc_hypothesis_miss_penalty);
     get("reloc_hypothesis_not_converged_penalty", reloc_hypothesis_not_converged_penalty);
     get("reloc_reloc_inlier_weight", reloc_reloc_inlier_weight);
@@ -119,6 +122,7 @@ void Config::loadFromROS(rclcpp::Node* node) {
     get("rhpd_z_max", rhpd_z_max);
     get("rhpd_dist_threshold", rhpd_dist_threshold);
     get("rhpd_num_candidates", rhpd_num_candidates);
+    get("rhpd_preselect_candidates", rhpd_preselect_candidates);
     get("rhpd_submap_kf_radius", rhpd_submap_kf_radius);
     get("rhpd_submap_voxel_size", rhpd_submap_voxel_size);
     get("rhpd_primary_weight", rhpd_primary_weight);
@@ -184,9 +188,12 @@ void Config::print(const rclcpp::Logger& logger) const {
                 reloc_sc_dist_threshold,
                 reloc_min_confidence);
     RCLCPP_INFO(logger,
-                "Reloc temporal: window=%d, lock_ll=%.2f, miss_pen=%.2f, nonconv_pen=%.2f",
+                "Reloc temporal: window=%d, lock_ll=%.2f, min_streak=%d, min_conv=%d, min_margin=%.2f, miss_pen=%.2f, nonconv_pen=%.2f",
                 reloc_temporal_window_size,
                 reloc_lock_log_likelihood_threshold,
+                reloc_lock_min_winner_streak,
+                reloc_lock_min_converged_updates,
+                reloc_lock_min_margin,
                 reloc_hypothesis_miss_penalty,
                 reloc_hypothesis_not_converged_penalty);
     RCLCPP_INFO(logger,
@@ -214,7 +221,7 @@ void Config::print(const rclcpp::Logger& logger) const {
                 reloc_ambiguity_min_ratio,
                 reloc_ambiguity_min_basin_separation);
     RCLCPP_INFO(logger,
-                "RHPD: enabled=%s, v2=%s, v3=%s, max_range=%.1f, z=[%.1f,%.1f], dist_thr=%.1f, candidates=%d, submap_radius=%d, submap_voxel=%.2f",
+                "RHPD: enabled=%s, v2=%s, v3=%s, max_range=%.1f, z=[%.1f,%.1f], dist_thr=%.1f, candidates=%d, preselect=%d, submap_radius=%d, submap_voxel=%.2f",
                 rhpd_enabled ? "YES" : "NO",
                 rhpd_v2_enable ? "YES" : "NO",
                 rhpd_v3_enable ? "YES" : "NO",
@@ -223,6 +230,7 @@ void Config::print(const rclcpp::Logger& logger) const {
                 rhpd_z_max,
                 rhpd_dist_threshold,
                 rhpd_num_candidates,
+                rhpd_preselect_candidates,
                 rhpd_submap_kf_radius,
                 rhpd_submap_voxel_size);
     RCLCPP_INFO(logger,

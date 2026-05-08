@@ -4,8 +4,9 @@
   <name>n3mapping</name>
   <version>1.0.0</version>
   <description>
-    N3Mapping: A graph-based backend SLAM system that receives undistorted point clouds 
-    and poses from FAST-LIO2 frontend, performs loop closure detection using ScanContext,
+    N3Mapping: A graph-based backend SLAM system that receives undistorted point clouds
+    and poses from FAST-LIO2 frontend, performs RHPD-primary loop/relocalization
+    candidate retrieval with ScanContext as auxiliary yaw/rerank/fallback,
     point cloud registration using small_gicp, and graph optimization using GTSAM.
   </description>
 

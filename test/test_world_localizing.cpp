@@ -133,6 +133,7 @@ TEST_F(WorldLocalizingTest, RelocalizationEmptyMap)
 
 TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess)
 {
+    config_.reloc_lock_min_margin = 0.1;
     buildTestMap(10, 2.0);
     WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
 
@@ -151,6 +152,26 @@ TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess)
     EXPECT_GT(result.confidence, 0.0);
     double position_error = (result.pose_in_map.translation() - query_pose.translation()).norm();
     EXPECT_LT(position_error, 3.0);
+}
+
+TEST_F(WorldLocalizingTest, RelocalizationWindowOneCanLock)
+{
+    config_.reloc_temporal_window_size = 1;
+    config_.reloc_lock_min_winner_streak = 3;
+    config_.reloc_lock_min_converged_updates = 3;
+    config_.reloc_lock_min_margin = 0.1;
+    buildTestMap(10, 2.0);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+
+    Eigen::Isometry3d query_pose = Eigen::Isometry3d::Identity();
+    query_pose.translation().x() = 8.0;
+    auto cloud = generateCorridorCloud(query_pose);
+
+    RelocResult result = reloc.relocalize(cloud, query_pose);
+
+    ASSERT_TRUE(result.success);
+    EXPECT_TRUE(reloc.isRelocalized());
+    EXPECT_GE(result.matched_keyframe_id, 0);
 }
 
 TEST_F(WorldLocalizingTest, TrackLocalization)

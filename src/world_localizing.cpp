@@ -14,10 +14,6 @@
 
 namespace n3mapping {
 namespace {
-// Conservative defaults: prioritize suppressing false-lock/re-lock over early lock.
-constexpr double kRelocLockMinMargin = 0.35;
-constexpr int kRelocLockMinWinnerStreak = 3;
-constexpr int kRelocLockMinConvergedUpdates = 3;
 constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
@@ -265,9 +261,10 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                   << " winner_streak=" << winner_streak_;
     }
 
-    if (hypothesis_window_count_ < config_.reloc_temporal_window_size) {
+    const int effective_temporal_window = std::max(1, config_.reloc_temporal_window_size);
+    if (hypothesis_window_count_ < effective_temporal_window) {
         LOG(INFO) << "Relocalization pending: window " << hypothesis_window_count_
-                  << "/" << config_.reloc_temporal_window_size
+                  << "/" << effective_temporal_window
                   << ", active hypotheses=" << pending_hypotheses_.size();
         return result;
     }
@@ -277,14 +274,19 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
     const double top1_ll = top1 ? top1->cumulative_log_likelihood : -std::numeric_limits<double>::infinity();
     const double top2_ll = top2 ? top2->cumulative_log_likelihood : -std::numeric_limits<double>::infinity();
     const double margin = top2 ? (top1_ll - top2_ll) : std::numeric_limits<double>::infinity();
+    const int effective_min_winner_streak = std::min(
+        std::max(1, config_.reloc_lock_min_winner_streak), effective_temporal_window);
+    const int effective_min_converged_updates = std::min(
+        std::max(1, config_.reloc_lock_min_converged_updates), effective_temporal_window);
+    const double effective_min_margin = std::max(0.0, config_.reloc_lock_min_margin);
 
     const bool pass_loglik = top1 && (top1_ll >= config_.reloc_lock_log_likelihood_threshold);
-    const bool pass_margin = top1 && (margin >= kRelocLockMinMargin);
-    const bool pass_winner_streak = top1 && (winner_streak_ >= kRelocLockMinWinnerStreak);
-    const bool pass_converged_updates = top1 && (top1->converged_updates >= kRelocLockMinConvergedUpdates);
+    const bool pass_margin = top1 && (margin >= effective_min_margin);
+    const bool pass_winner_streak = top1 && (winner_streak_ >= effective_min_winner_streak);
+    const bool pass_converged_updates = top1 && (top1->converged_updates >= effective_min_converged_updates);
     const bool top2_viable = top2 &&
                              (top2_ll >= config_.reloc_lock_log_likelihood_threshold) &&
-                             (top2->converged_updates >= kRelocLockMinConvergedUpdates);
+                             (top2->converged_updates >= effective_min_converged_updates);
     const double ratio = (top2 && top2_ll > 1e-6) ? (top1_ll / top2_ll) : std::numeric_limits<double>::infinity();
     double basin_separation = 0.0;
     bool basin_separated = false;
@@ -355,9 +357,9 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                          << " winner_streak=" << winner_streak_
                          << " top1_converged_updates=" << (top1 ? top1->converged_updates : 0)
                          << " require(loglik>=" << config_.reloc_lock_log_likelihood_threshold
-                         << ", margin>=" << kRelocLockMinMargin
-                         << ", winner_streak>=" << kRelocLockMinWinnerStreak
-                         << ", converged_updates>=" << kRelocLockMinConvergedUpdates << ")"
+                         << ", margin>=" << effective_min_margin
+                         << ", winner_streak>=" << effective_min_winner_streak
+                         << ", converged_updates>=" << effective_min_converged_updates << ")"
                          << " pass(loglik=" << pass_loglik
                          << ", margin=" << pass_margin
                          << ", winner_streak=" << pass_winner_streak
@@ -581,7 +583,7 @@ std::vector<LoopCandidate> WorldLocalizing::searchCandidates(const PointCloudT::
             LOG(WARNING) << "[Reloc/RHPD] query descriptor is zero.";
         } else {
             const int preselect = std::max(config_.rhpd_num_candidates * 3, config_.reloc_num_candidates * 3);
-            auto top_k = rhpd_mgr.search(query_rhpd, std::max(1, preselect));
+            auto top_k = rhpd_mgr.search(query_rhpd, std::max(1, preselect), config_.rhpd_preselect_candidates);
             std::vector<LoopCandidate> ranked;
             ranked.reserve(top_k.size());
 

@@ -68,6 +68,7 @@ message MapMetadata {
     uint32 num_keyframes = 3;
     uint32 num_odometry_edges = 4;
     uint32 num_loop_edges = 5;
+    string rhpd_schema = 6;
 }
 
 // 完整地图
