@@ -1,11 +1,42 @@
-#include "n3mapping/lio/fast_lio_frontend.h"
+#include "n3mapping/lio/fast_lio_core.h"
 
 namespace n3mapping {
 namespace lio {
+namespace fast_lio {
 
-const char* fastLioCoreStatus() {
-    return "fast_lio_core placeholder: algorithm extraction pending";
+Core::Core(const LioFrontendConfig& config)
+    : config_(config),
+      imu_buffer_(config.imu_buffer_max_samples) {}
+
+void Core::addImu(const core::ImuSample& imu) {
+    imu_buffer_.add(imu);
 }
 
+std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
+    ++lidar_frames_seen_;
+    last_input_packet_ = buildInputPacket(frame, imu_buffer_, cloudOptions());
+    return std::nullopt;
+}
+
+void Core::reset() {
+    imu_buffer_.clear();
+    lidar_frames_seen_ = 0;
+    last_input_packet_ = InputPacket{};
+}
+
+CloudAdapterOptions Core::cloudOptions() const {
+    CloudAdapterOptions options;
+    options.point_filter_num = config_.point_filter_num;
+    options.scan_lines = config_.scan_lines;
+    options.blind = config_.blind;
+    options.max_abs_coordinate = config_.max_abs_coordinate;
+    return options;
+}
+
+const char* coreStatus() {
+    return "fast_lio_core input boundary ready: scan-to-map algorithm extraction pending";
+}
+
+}  // namespace fast_lio
 }  // namespace lio
 }  // namespace n3mapping

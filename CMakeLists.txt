@@ -425,6 +425,17 @@ if(BUILD_TESTING)
     endif()
   endif()
 
+  if(BUILD_FAST_LIO_CORE)
+    ament_add_gtest(test_fast_lio_core test/test_fast_lio_core.cpp)
+    if(TARGET test_fast_lio_core)
+      target_link_libraries(test_fast_lio_core
+        ${PROJECT_NAME}_fast_lio_core
+        ${PROJECT_NAME}_lio
+        ${PCL_LIBRARIES}
+      )
+    endif()
+  endif()
+
   ament_add_gtest(test_fast_lio_cloud_adapter test/test_fast_lio_cloud_adapter.cpp)
   if(TARGET test_fast_lio_cloud_adapter)
     target_link_libraries(test_fast_lio_cloud_adapter
