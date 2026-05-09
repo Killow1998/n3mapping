@@ -41,6 +41,7 @@ TEST(ConfigDefaultsTest, DisablesBuiltinFrontendDebugPublishingByDefault) {
     EXPECT_DOUBLE_EQ(config.frontend_alignment_max_correspondence_distance, 1.0);
     EXPECT_FALSE(config.frontend_prediction_only_output);
     EXPECT_EQ(config.dlio_time_encoding, "auto");
+    EXPECT_DOUBLE_EQ(config.dlio_gravity, 9.80665);
     EXPECT_DOUBLE_EQ(config.dlio_dense_map_leaf_size, 0.5);
     EXPECT_EQ(config.dlio_dense_input_skip, 1);
 }

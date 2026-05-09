@@ -29,6 +29,7 @@ core::ImuSample makeImu(int64_t stamp_nsec) {
     core::ImuSample sample;
     sample.stamp.nsec = stamp_nsec;
     sample.linear_accel.x() = 1.0;
+    sample.linear_accel.z() = 9.80665;
     return sample;
 }
 
@@ -55,10 +56,10 @@ TEST(DlioCoreTest, AcceptsImuAndLidarAtCoreBoundary) {
     EXPECT_TRUE(core.lastInputPacket().has_complete_imu_window);
     ASSERT_TRUE(core.lastImuPropagation().has_value());
     EXPECT_TRUE(core.lastImuPropagation()->valid);
-    EXPECT_NEAR(core.lastImuPropagation()->velocity.x(), 0.001, 1e-12);
+    EXPECT_NEAR(core.lastImuPropagation()->velocity.x(), 0.001, 1e-9);
     ASSERT_TRUE(core.predictedState().has_value());
     EXPECT_TRUE(core.predictedState()->initialized);
-    EXPECT_NEAR(core.predictedState()->velocity_world.x(), 0.001, 1e-12);
+    EXPECT_NEAR(core.predictedState()->velocity_world.x(), 0.001, 1e-9);
 }
 
 TEST(DlioCoreTest, CanReturnPredictionOnlyFrameWhenEnabled) {
@@ -186,7 +187,7 @@ TEST(DlioCoreTest, CarriesPredictionAcrossLidarFrames) {
 
     ASSERT_TRUE(core.predictedState().has_value());
     EXPECT_GT(core.predictedState()->velocity_world.x(), first_velocity);
-    EXPECT_NEAR(core.predictedState()->velocity_world.x(), 0.002, 1e-12);
+    EXPECT_NEAR(core.predictedState()->velocity_world.x(), 0.002, 1e-9);
 }
 
 TEST(DlioCoreTest, ReportsExtractionStatus) {

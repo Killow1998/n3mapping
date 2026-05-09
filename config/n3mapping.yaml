@@ -24,6 +24,7 @@ n3mapping_node:
     frontend_alignment_max_correspondence_distance: 1.0
     frontend_prediction_only_output: false
     dlio_time_encoding: "auto"  # auto | ouster | velodyne | livox
+    dlio_gravity: 9.80665
     dlio_dense_map_leaf_size: 0.5
     dlio_dense_input_skip: 1
     frontend_lidar_to_body_tx: 0.0

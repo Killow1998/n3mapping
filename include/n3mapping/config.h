@@ -34,6 +34,7 @@ struct Config {
     double frontend_alignment_max_correspondence_distance = 1.0;
     bool frontend_prediction_only_output = false;
     std::string dlio_time_encoding = "auto";
+    double dlio_gravity = 9.80665;
     double dlio_dense_map_leaf_size = 0.5;
     int dlio_dense_input_skip = 1;
     double frontend_lidar_to_body_tx = 0.0;

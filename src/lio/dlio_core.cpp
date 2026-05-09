@@ -14,6 +14,33 @@ MapAccumulator::Options makeDenseMapOptions(const LioFrontendConfig& config) {
     return options;
 }
 
+double secondsFromNsec(int64_t nsec) {
+    return static_cast<double>(nsec) * 1.0e-9;
+}
+
+std::vector<ImuMeasurement> makeDlioImuMeasurements(
+    const std::vector<core::ImuSample>& samples) {
+    std::vector<ImuMeasurement> measurements;
+    measurements.reserve(samples.size());
+    for (const auto& sample : samples) {
+        ImuMeasurement measurement;
+        measurement.stamp = secondsFromNsec(sample.stamp.nsec);
+        if (!measurements.empty() &&
+            measurement.stamp <= measurements.back().stamp) {
+            continue;
+        }
+        measurement.dt = measurements.empty()
+                             ? 0.0
+                             : measurement.stamp - measurements.back().stamp;
+        measurement.angular_velocity =
+            sample.angular_velocity.cast<float>();
+        measurement.linear_acceleration =
+            sample.linear_accel.cast<float>();
+        measurements.push_back(measurement);
+    }
+    return measurements;
+}
+
 }  // namespace
 
 Core::Core(const LioFrontendConfig& config)
@@ -28,19 +55,40 @@ void Core::addImu(const core::ImuSample& imu) {
 std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
     ++lidar_frames_seen_;
     last_input_packet_ = buildInputPacket(frame, imu_buffer_, cloudOptions());
-    if (!last_input_packet_.imu_samples.empty()) {
-        ImuPropagationState initial_state;
+    if (last_input_packet_.has_complete_imu_window &&
+        last_input_packet_.imu_samples.size() >= 2) {
+        ImuIntegrationRequest request;
+        request.start_time = secondsFromNsec(last_input_packet_.stamp_begin.nsec);
+        request.sorted_timestamps = {
+            secondsFromNsec(last_input_packet_.stamp_end.nsec)};
+        request.gravity = config_.dlio_gravity;
         if (predicted_state_) {
-            initial_state.stamp = predicted_state_->stamp;
-            initial_state.orientation =
-                Eigen::Quaterniond(predicted_state_->T_world_lidar.linear());
-            initial_state.position = predicted_state_->T_world_lidar.translation();
-            initial_state.velocity = predicted_state_->velocity_world;
-            initial_state.valid = predicted_state_->initialized;
+            request.q_init =
+                Eigen::Quaternionf(predicted_state_->T_world_lidar.linear().cast<float>());
+            request.p_init =
+                predicted_state_->T_world_lidar.translation().cast<float>();
+            request.v_init = predicted_state_->velocity_world.cast<float>();
         }
-        last_imu_propagation_ =
-            propagateImu(last_input_packet_.imu_samples, initial_state);
-        predicted_state_ = stateFromImuPropagation(*last_imu_propagation_);
+
+        const auto states = integrateImuStates(
+            makeDlioImuMeasurements(last_input_packet_.imu_samples),
+            request);
+        if (!states.empty()) {
+            const auto& state = states.back();
+            ImuPropagationState propagation;
+            propagation.stamp = last_input_packet_.stamp_end;
+            propagation.orientation =
+                Eigen::Quaterniond(state.T.block<3, 3>(0, 0).cast<double>());
+            propagation.position = state.T.block<3, 1>(0, 3).cast<double>();
+            propagation.velocity = state.velocity.cast<double>();
+            propagation.used_samples = last_input_packet_.imu_samples.size();
+            propagation.valid = true;
+            last_imu_propagation_ = propagation;
+            predicted_state_ = stateFromImuPropagation(propagation);
+        } else {
+            last_imu_propagation_.reset();
+            predicted_state_.reset();
+        }
     } else {
         last_imu_propagation_.reset();
         predicted_state_.reset();

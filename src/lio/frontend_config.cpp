@@ -47,6 +47,7 @@ LioFrontendConfig makeLioFrontendConfig(const Config& config) {
         std::max(0.0, config.frontend_alignment_max_correspondence_distance);
     frontend_config.prediction_only_output = config.frontend_prediction_only_output;
     frontend_config.dlio_time_encoding = config.dlio_time_encoding;
+    frontend_config.dlio_gravity = std::max(0.0, config.dlio_gravity);
     frontend_config.dlio_dense_map_leaf_size =
         std::max(0.0, config.dlio_dense_map_leaf_size);
     frontend_config.dlio_dense_input_skip =
