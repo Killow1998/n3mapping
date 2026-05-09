@@ -189,6 +189,7 @@ TEST(LioFrontendFactoryTest, FastLioFrontendConsumesRawInputAtAdapterBoundary) {
     EXPECT_EQ(frontend->lastInputImuSamples(), 0u);
     EXPECT_FALSE(frontend->lastInputHadCompleteImuWindow());
     EXPECT_FALSE(frontend->predictedState().has_value());
+    EXPECT_FALSE(frontend->lastAlignmentStats().valid);
 }
 
 TEST(LioFrontendFactoryTest, FastLioFrontendCanReturnPredictionOnlyFrame) {
@@ -211,6 +212,32 @@ TEST(LioFrontendFactoryTest, FastLioFrontendCanReturnPredictionOnlyFrame) {
     ASSERT_TRUE(frontend->predictedState().has_value());
     ASSERT_TRUE(frontend->localMapCloud());
     EXPECT_EQ(frontend->localMapCloud()->size(), 1u);
+    EXPECT_FALSE(frontend->lastAlignmentStats().valid);
+}
+
+TEST(LioFrontendFactoryTest, FastLioFrontendAppliesLocalMapCorrection) {
+    Config config;
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::FastLioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame()).has_value());
+
+    auto second = makeRawLidarFrame();
+    second.points->at(0).x += 0.25f;
+    second.stamp_begin.nsec = 1001000000LL;
+    second.stamp_end.nsec = 1002000000LL;
+    frontend->addImu(makeImuSample(1002000000LL));
+    const auto output = frontend->addLidar(second);
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_TRUE(frontend->lastAlignmentStats().valid);
+    EXPECT_NEAR(output->T_world_lidar.translation().x(), -0.25, 1e-6);
 }
 
 TEST(LioFrontendFactoryTest, FastLioDebugCallbacksAreOptIn) {
@@ -327,6 +354,7 @@ TEST(LioFrontendFactoryTest, DlioFrontendConsumesRawInputAtAdapterBoundary) {
     EXPECT_EQ(frontend->lastInputImuSamples(), 0u);
     EXPECT_FALSE(frontend->lastInputHadCompleteImuWindow());
     EXPECT_FALSE(frontend->predictedState().has_value());
+    EXPECT_FALSE(frontend->lastAlignmentStats().valid);
 }
 
 TEST(LioFrontendFactoryTest, DlioFrontendCanReturnPredictionOnlyFrame) {
@@ -349,6 +377,32 @@ TEST(LioFrontendFactoryTest, DlioFrontendCanReturnPredictionOnlyFrame) {
     ASSERT_TRUE(frontend->predictedState().has_value());
     ASSERT_TRUE(frontend->localMapCloud());
     EXPECT_EQ(frontend->localMapCloud()->size(), 1u);
+    EXPECT_FALSE(frontend->lastAlignmentStats().valid);
+}
+
+TEST(LioFrontendFactoryTest, DlioFrontendAppliesLocalMapCorrection) {
+    Config config;
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::DlioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame("livox_custom")).has_value());
+
+    auto second = makeRawLidarFrame("livox_custom");
+    second.points->at(0).x += 0.25f;
+    second.stamp_begin.nsec = 1001000000LL;
+    second.stamp_end.nsec = 1002000000LL;
+    frontend->addImu(makeImuSample(1002000000LL));
+    const auto output = frontend->addLidar(second);
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_TRUE(frontend->lastAlignmentStats().valid);
+    EXPECT_NEAR(output->T_world_lidar.translation().x(), -0.25, 1e-6);
 }
 
 TEST(LioFrontendFactoryTest, DlioDebugCallbacksAreOptIn) {

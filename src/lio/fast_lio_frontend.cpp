@@ -31,6 +31,12 @@ std::optional<core::LioFrame> FastLioFrontend::addLidar(const core::RawLidarFram
     }
     if (config_.prediction_only_output && predicted_state_ && packet.cloud &&
         !packet.cloud->empty() && frame.points && !frame.points->empty()) {
+        last_alignment_stats_ =
+            local_map_.estimateAlignmentCorrection(*predicted_state_, frame.points, 1.0);
+        if (last_alignment_stats_.valid) {
+            predicted_state_->T_world_lidar.translation() +=
+                last_alignment_stats_.centroid_correction_world;
+        }
         local_map_.addFrame(*predicted_state_, frame.points);
         auto output = frameFromState(*predicted_state_);
         output.undistorted_cloud = frame.points;
@@ -64,6 +70,7 @@ void FastLioFrontend::reset() {
     last_input_imu_samples_ = 0;
     predicted_state_.reset();
     local_map_.clear();
+    last_alignment_stats_ = LioLocalMap::AlignmentStats{};
 }
 
 void FastLioFrontend::setDebugCallbacks(const LioDebugCallbacks& callbacks) {

@@ -42,6 +42,9 @@ public:
     LioLocalMap::PointCloud::ConstPtr localMapCloud() const {
         return local_map_.cloud();
     }
+    const LioLocalMap::AlignmentStats& lastAlignmentStats() const {
+        return last_alignment_stats_;
+    }
 
 private:
     LioFrontendConfig config_;
@@ -52,6 +55,7 @@ private:
     size_t last_input_imu_samples_ = 0;
     std::optional<LioCoreState> predicted_state_;
     LioLocalMap local_map_;
+    LioLocalMap::AlignmentStats last_alignment_stats_;
     LioDebugCallbacks debug_callbacks_;
 };
 
