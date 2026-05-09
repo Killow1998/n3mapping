@@ -62,6 +62,7 @@ PipelineCoordinator::Output PipelineCoordinator::addRawLidar(const RawLidarFrame
 
     auto lio_frame = frontend_->addLidar(frame);
     if (!lio_frame) {
+        output.error = "LIO frontend did not produce a frame";
         if (frontend_->capability() == lio::FrontendCapability::PredictionOnly &&
             !config_.frontend_prediction_only_output) {
             output.error =

@@ -81,6 +81,24 @@ TEST(PipelineCoordinatorTest, ExternalMappingFrameAddsKeyframe) {
     EXPECT_EQ(pipeline.session().keyframes().size(), 1u);
 }
 
+TEST(PipelineCoordinatorTest, RawLidarWithoutLioFrameReportsError) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "external";
+    core::PipelineCoordinator pipeline(config);
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = 1;
+    raw.stamp_end.nsec = 2;
+    raw.points = makeCloud();
+    auto output = pipeline.addRawLidar(raw);
+
+    EXPECT_FALSE(output.has_lio_frame);
+    EXPECT_FALSE(output.success);
+    EXPECT_NE(output.error.find("did not produce a frame"), std::string::npos);
+}
+
 TEST(PipelineCoordinatorTest, BuiltinFrontendReportsFactoryErrorForNow) {
     Config config;
     config.frontend_mode = "fast_lio";
