@@ -69,6 +69,26 @@ TEST(N3MappingCoreTest, ProcessesExternalLioFrameAndSavesMap) {
     std::filesystem::remove_all(config.map_save_path);
 }
 
+TEST(N3MappingCoreTest, RelocalizeRejectsInvalidOrUnloadedInput) {
+    Config config;
+    core::N3MappingCore mapping_core(config);
+
+    core::LioFrame invalid;
+    invalid.pose_valid = false;
+    EXPECT_FALSE(mapping_core.relocalize(invalid).success);
+
+    core::LioFrame empty;
+    empty.pose_valid = true;
+    empty.T_world_lidar = Eigen::Isometry3d::Identity();
+    empty.undistorted_cloud = pcl::make_shared<core::LioFrame::PointCloud>();
+    EXPECT_FALSE(mapping_core.relocalize(empty).success);
+
+    core::LioFrame valid_without_map;
+    valid_without_map.pose_valid = true;
+    valid_without_map.T_world_lidar = Eigen::Isometry3d::Identity();
+    valid_without_map.undistorted_cloud = makeCloud();
+    EXPECT_FALSE(mapping_core.relocalize(valid_without_map).success);
+}
+
 }  // namespace test
 }  // namespace n3mapping
-
