@@ -1,30 +1,10 @@
 #include "n3mapping/lio/dlio_core.h"
 
-#include <algorithm>
-#include <cctype>
+#include "n3mapping/lio/dlio_settings.h"
 
 namespace n3mapping {
 namespace lio {
 namespace dlio {
-namespace {
-
-TimeEncoding parseTimeEncoding(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    if (value == "velodyne" || value == "velodyne_seconds" ||
-        value == "velodyne_offset_seconds") {
-        return TimeEncoding::VelodyneOffsetSeconds;
-    }
-    if (value == "livox" || value == "livox_ns" || value == "livox_offset_ns") {
-        return TimeEncoding::LivoxOffsetNs;
-    }
-    if (value == "ouster" || value == "ouster_ns" || value == "ouster_offset_ns") {
-        return TimeEncoding::OusterOffsetNs;
-    }
-    return TimeEncoding::Auto;
-}
-
-}  // namespace
 
 Core::Core(const LioFrontendConfig& config)
     : config_(config),
@@ -85,11 +65,7 @@ void Core::reset() {
 }
 
 CloudAdapterOptions Core::cloudOptions() const {
-    CloudAdapterOptions options;
-    options.time_encoding = parseTimeEncoding(config_.dlio_time_encoding);
-    options.blind = config_.blind;
-    options.max_abs_coordinate = config_.max_abs_coordinate;
-    return options;
+    return makeCloudAdapterOptions(makeSettings(config_));
 }
 
 const char* coreStatus() {

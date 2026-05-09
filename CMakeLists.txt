@@ -148,6 +148,7 @@ set(N3MAPPING_LIO_SOURCES
   src/lio/core_state.cpp
   src/lio/dlio_cloud_adapter.cpp
   src/lio/dlio_input_adapter.cpp
+  src/lio/dlio_settings.cpp
   src/lio/external_frontend.cpp
   src/lio/fast_lio_cloud_adapter.cpp
   src/lio/fast_lio_input_adapter.cpp
@@ -490,6 +491,13 @@ if(BUILD_TESTING)
     target_link_libraries(test_dlio_cloud_adapter
       ${PROJECT_NAME}_lio
       ${PCL_LIBRARIES}
+    )
+  endif()
+
+  ament_add_gtest(test_dlio_settings test/test_dlio_settings.cpp)
+  if(TARGET test_dlio_settings)
+    target_link_libraries(test_dlio_settings
+      ${PROJECT_NAME}_lio
     )
   endif()
 
