@@ -252,6 +252,60 @@ TEST(PipelineCoordinatorTest, LocalizationWithoutMapReportsNotLoaded) {
     EXPECT_NE(output.error.find("map is not loaded"), std::string::npos);
 }
 
+TEST(PipelineCoordinatorTest, FastLioBuiltinLocalizationWithoutMapReportsNotLoaded) {
+    Config config;
+    config.mode = "localization";
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_FAST_LIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    core::ImuSample imu0;
+    imu0.stamp.nsec = 1;
+    core::ImuSample imu1;
+    imu1.stamp.nsec = 1000001;
+    pipeline.addImu(imu0);
+    pipeline.addImu(imu1);
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = 1;
+    raw.stamp_end.nsec = 1000001;
+    raw.points = makeCloud();
+    auto output = pipeline.addRawLidar(raw);
+    EXPECT_TRUE(output.has_lio_frame);
+    EXPECT_FALSE(output.success);
+    EXPECT_NE(output.error.find("map is not loaded"), std::string::npos);
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
+TEST(PipelineCoordinatorTest, DlioBuiltinLocalizationWithoutMapReportsNotLoaded) {
+    Config config;
+    config.mode = "localization";
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_DLIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    core::ImuSample imu0;
+    imu0.stamp.nsec = 1;
+    core::ImuSample imu1;
+    imu1.stamp.nsec = 1000001;
+    pipeline.addImu(imu0);
+    pipeline.addImu(imu1);
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = 1;
+    raw.stamp_end.nsec = 1000001;
+    raw.points = makeCloud();
+    auto output = pipeline.addRawLidar(raw);
+    EXPECT_TRUE(output.has_lio_frame);
+    EXPECT_FALSE(output.success);
+    EXPECT_NE(output.error.find("map is not loaded"), std::string::npos);
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
 TEST(PipelineCoordinatorTest, MapExtensionWithoutMapReportsNotLoaded) {
     Config config;
     config.mode = "map_extension";
@@ -265,6 +319,60 @@ TEST(PipelineCoordinatorTest, MapExtensionWithoutMapReportsNotLoaded) {
     EXPECT_TRUE(output.has_lio_frame);
     EXPECT_FALSE(output.success);
     EXPECT_NE(output.error.find("map is not loaded"), std::string::npos);
+}
+
+TEST(PipelineCoordinatorTest, FastLioBuiltinMapExtensionWithoutMapReportsNotLoaded) {
+    Config config;
+    config.mode = "map_extension";
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_FAST_LIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    core::ImuSample imu0;
+    imu0.stamp.nsec = 1;
+    core::ImuSample imu1;
+    imu1.stamp.nsec = 1000001;
+    pipeline.addImu(imu0);
+    pipeline.addImu(imu1);
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = 1;
+    raw.stamp_end.nsec = 1000001;
+    raw.points = makeCloud();
+    auto output = pipeline.addRawLidar(raw);
+    EXPECT_TRUE(output.has_lio_frame);
+    EXPECT_FALSE(output.success);
+    EXPECT_NE(output.error.find("map is not loaded"), std::string::npos);
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
+TEST(PipelineCoordinatorTest, DlioBuiltinMapExtensionWithoutMapReportsNotLoaded) {
+    Config config;
+    config.mode = "map_extension";
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_DLIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    core::ImuSample imu0;
+    imu0.stamp.nsec = 1;
+    core::ImuSample imu1;
+    imu1.stamp.nsec = 1000001;
+    pipeline.addImu(imu0);
+    pipeline.addImu(imu1);
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = 1;
+    raw.stamp_end.nsec = 1000001;
+    raw.points = makeCloud();
+    auto output = pipeline.addRawLidar(raw);
+    EXPECT_TRUE(output.has_lio_frame);
+    EXPECT_FALSE(output.success);
+    EXPECT_NE(output.error.find("map is not loaded"), std::string::npos);
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
 }
 
 }  // namespace test
