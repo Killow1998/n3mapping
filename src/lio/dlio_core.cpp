@@ -149,6 +149,7 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
                 last_alignment_stats_.centroid_correction_world;
         }
         auto deskewed_cloud = frame.points;
+        auto dense_map_cloud = frame.points;
         if (last_imu_propagation_) {
             const auto deskewed = deskewToReference(
                 frame,
@@ -158,12 +159,18 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
             if (deskewed.valid && deskewed.cloud && !deskewed.cloud->empty()) {
                 deskewed_cloud = deskewed.cloud;
             }
+            const auto world_deskewed =
+                deskewToWorld(frame, last_scan_timing_, integrated_states);
+            if (world_deskewed.valid && world_deskewed.cloud &&
+                !world_deskewed.cloud->empty()) {
+                dense_map_cloud = world_deskewed.cloud;
+            }
         }
         local_map_.addFrame(*predicted_state_, deskewed_cloud);
         auto output = frameFromState(*predicted_state_);
         output.undistorted_cloud = deskewed_cloud;
         output.pose_valid = predicted_state_->initialized;
-        last_dense_map_add_result_ = dense_map_.addKeyframe(output.undistorted_cloud);
+        last_dense_map_add_result_ = dense_map_.addKeyframe(dense_map_cloud);
         return output;
     }
     last_dense_map_add_result_ = MapAccumulator::AddResult{};

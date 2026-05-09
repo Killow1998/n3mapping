@@ -119,6 +119,7 @@ TEST(DlioCoreTest, DeskewsOutputCloudIntoReferenceFrame) {
     lio::LioFrontendConfig config;
     config.prediction_only_output = true;
     config.dlio_gravity = 0.0;
+    config.dlio_dense_map_leaf_size = 0.0;
     lio::dlio::Core core(config);
 
     core.addImu(makeImu(0, Eigen::Vector3d(1.0, 0.0, 0.0)));
@@ -133,6 +134,10 @@ TEST(DlioCoreTest, DeskewsOutputCloudIntoReferenceFrame) {
     EXPECT_LT(output->undistorted_cloud->at(0).x, 1.0f);
     EXPECT_NEAR(output->undistorted_cloud->at(0).x, 0.9999995f, 1e-7f);
     EXPECT_NEAR(output->undistorted_cloud->at(1).x, 1.0f, 1e-7f);
+    ASSERT_TRUE(core.denseMapCloud());
+    ASSERT_EQ(core.denseMapCloud()->size(), 2u);
+    EXPECT_NEAR(core.denseMapCloud()->at(0).x, 1.0f, 1e-7f);
+    EXPECT_GT(core.denseMapCloud()->at(1).x, 1.0f);
 }
 
 TEST(DlioCoreTest, RespectsDenseMapInputSkip) {
