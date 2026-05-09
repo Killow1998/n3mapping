@@ -5,6 +5,7 @@
 #include <cstddef>
 
 #include "n3mapping/lio/fast_lio_cloud_adapter.h"
+#include "n3mapping/lio/fast_lio_input_adapter.h"
 #include "n3mapping/lio/frontend.h"
 #include "n3mapping/lio/frontend_config.h"
 #include "n3mapping/lio/imu_sample_buffer.h"
@@ -27,12 +28,18 @@ public:
     const fast_lio::CloudAdapterStats& lastCloudStats() const {
         return last_cloud_stats_;
     }
+    bool lastInputHadCompleteImuWindow() const {
+        return last_complete_imu_window_;
+    }
+    size_t lastInputImuSamples() const { return last_input_imu_samples_; }
 
 private:
     LioFrontendConfig config_;
     ImuSampleBuffer imu_buffer_;
     size_t lidar_frames_seen_ = 0;
     fast_lio::CloudAdapterStats last_cloud_stats_;
+    bool last_complete_imu_window_ = false;
+    size_t last_input_imu_samples_ = 0;
 };
 
 }  // namespace lio

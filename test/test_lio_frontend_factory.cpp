@@ -168,19 +168,24 @@ TEST(LioFrontendFactoryTest, FastLioFrontendConsumesRawInputAtAdapterBoundary) {
     ASSERT_NE(frontend, nullptr);
 
     frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
     const auto output = frontend->addLidar(makeRawLidarFrame());
 
     EXPECT_FALSE(output.has_value());
-    EXPECT_EQ(frontend->imuSamplesSeen(), 1u);
+    EXPECT_EQ(frontend->imuSamplesSeen(), 2u);
     EXPECT_EQ(frontend->lidarFramesSeen(), 1u);
     EXPECT_EQ(frontend->lastCloudStats().input_points, 1u);
     EXPECT_EQ(frontend->lastCloudStats().output_points, 0u);
     EXPECT_EQ(frontend->lastCloudStats().skipped_blind, 1u);
+    EXPECT_EQ(frontend->lastInputImuSamples(), 2u);
+    EXPECT_TRUE(frontend->lastInputHadCompleteImuWindow());
 
     frontend->reset();
     EXPECT_EQ(frontend->imuSamplesSeen(), 0u);
     EXPECT_EQ(frontend->lidarFramesSeen(), 0u);
     EXPECT_EQ(frontend->lastCloudStats().output_points, 0u);
+    EXPECT_EQ(frontend->lastInputImuSamples(), 0u);
+    EXPECT_FALSE(frontend->lastInputHadCompleteImuWindow());
 }
 #endif
 

@@ -18,8 +18,10 @@ std::optional<core::LioFrame> FastLioFrontend::addLidar(const core::RawLidarFram
     options.scan_lines = config_.scan_lines;
     options.blind = config_.blind;
     options.max_abs_coordinate = config_.max_abs_coordinate;
-    const auto adapted = fast_lio::cloudFromRawLidar(frame, options);
-    last_cloud_stats_ = adapted.stats;
+    const auto packet = fast_lio::buildInputPacket(frame, imu_buffer_, options);
+    last_cloud_stats_ = packet.cloud_stats;
+    last_complete_imu_window_ = packet.has_complete_imu_window;
+    last_input_imu_samples_ = packet.imu_samples.size();
     return std::nullopt;
 }
 
@@ -27,6 +29,8 @@ void FastLioFrontend::reset() {
     imu_buffer_.clear();
     lidar_frames_seen_ = 0;
     last_cloud_stats_ = fast_lio::CloudAdapterStats{};
+    last_complete_imu_window_ = false;
+    last_input_imu_samples_ = 0;
 }
 
 }  // namespace lio
