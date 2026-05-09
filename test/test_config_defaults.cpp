@@ -33,6 +33,12 @@ TEST(ConfigDefaultsTest, DisablesBuiltinFrontendDebugPublishingByDefault) {
     EXPECT_FALSE(config.frontend_debug_publish_deskewed_cloud);
     EXPECT_FALSE(config.frontend_debug_publish_local_map);
     EXPECT_FALSE(config.frontend_debug_publish_timing);
+    EXPECT_EQ(config.frontend_imu_buffer_max_samples, 2000);
+    EXPECT_EQ(config.frontend_point_filter_num, 1);
+    EXPECT_EQ(config.frontend_scan_lines, 128);
+    EXPECT_DOUBLE_EQ(config.frontend_blind, 0.0);
+    EXPECT_DOUBLE_EQ(config.frontend_max_abs_coordinate, 1.0e8);
+    EXPECT_EQ(config.dlio_time_encoding, "auto");
 }
 
 TEST(ConfigDefaultsTest, UsesIdentityFrontendExtrinsicsByDefault) {

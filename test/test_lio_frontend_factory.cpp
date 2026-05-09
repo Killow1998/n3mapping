@@ -84,6 +84,12 @@ TEST(LioFrontendFactoryTest, DerivesFrontendConfigFromCoreConfig) {
     config.frontend_debug_publish_deskewed_cloud = true;
     config.frontend_debug_publish_local_map = false;
     config.frontend_debug_publish_timing = true;
+    config.frontend_imu_buffer_max_samples = 17;
+    config.frontend_point_filter_num = 3;
+    config.frontend_scan_lines = 32;
+    config.frontend_blind = 0.25;
+    config.frontend_max_abs_coordinate = 99.0;
+    config.dlio_time_encoding = "velodyne";
     config.frontend_lidar_to_body_tx = 1.0;
     config.frontend_lidar_to_body_ty = 2.0;
     config.frontend_lidar_to_body_tz = 3.0;
@@ -99,6 +105,12 @@ TEST(LioFrontendFactoryTest, DerivesFrontendConfigFromCoreConfig) {
     EXPECT_TRUE(frontend_config.debug_publish_deskewed_cloud);
     EXPECT_FALSE(frontend_config.debug_publish_local_map);
     EXPECT_TRUE(frontend_config.debug_publish_timing);
+    EXPECT_EQ(frontend_config.imu_buffer_max_samples, 17u);
+    EXPECT_EQ(frontend_config.point_filter_num, 3u);
+    EXPECT_EQ(frontend_config.scan_lines, 32u);
+    EXPECT_NEAR(frontend_config.blind, 0.25, 1e-12);
+    EXPECT_NEAR(frontend_config.max_abs_coordinate, 99.0, 1e-12);
+    EXPECT_EQ(frontend_config.dlio_time_encoding, "velodyne");
     EXPECT_NEAR(frontend_config.T_body_lidar.translation().x(), 1.0, 1e-12);
     EXPECT_NEAR(frontend_config.T_body_lidar.translation().y(), 2.0, 1e-12);
     EXPECT_NEAR(frontend_config.T_body_lidar.translation().z(), 3.0, 1e-12);
@@ -141,6 +153,7 @@ TEST(LioFrontendFactoryTest, FastLioFrontendReceivesDerivedConfig) {
 TEST(LioFrontendFactoryTest, FastLioFrontendConsumesRawInputAtAdapterBoundary) {
     Config config;
     config.frontend_mode = "fast_lio";
+    config.frontend_blind = 10.0;
     auto result = lio::createLioFrontend(config);
     ASSERT_TRUE(result.ok()) << result.error;
     auto* frontend = dynamic_cast<lio::FastLioFrontend*>(result.frontend.get());
@@ -153,7 +166,8 @@ TEST(LioFrontendFactoryTest, FastLioFrontendConsumesRawInputAtAdapterBoundary) {
     EXPECT_EQ(frontend->imuSamplesSeen(), 1u);
     EXPECT_EQ(frontend->lidarFramesSeen(), 1u);
     EXPECT_EQ(frontend->lastCloudStats().input_points, 1u);
-    EXPECT_EQ(frontend->lastCloudStats().output_points, 1u);
+    EXPECT_EQ(frontend->lastCloudStats().output_points, 0u);
+    EXPECT_EQ(frontend->lastCloudStats().skipped_blind, 1u);
 
     frontend->reset();
     EXPECT_EQ(frontend->imuSamplesSeen(), 0u);
@@ -179,6 +193,7 @@ TEST(LioFrontendFactoryTest, DlioFrontendReceivesDerivedConfig) {
 TEST(LioFrontendFactoryTest, DlioFrontendConsumesRawInputAtAdapterBoundary) {
     Config config;
     config.frontend_mode = "dlio";
+    config.dlio_time_encoding = "velodyne";
     auto result = lio::createLioFrontend(config);
     ASSERT_TRUE(result.ok()) << result.error;
     auto* frontend = dynamic_cast<lio::DlioFrontend*>(result.frontend.get());
@@ -192,7 +207,7 @@ TEST(LioFrontendFactoryTest, DlioFrontendConsumesRawInputAtAdapterBoundary) {
     EXPECT_EQ(frontend->lidarFramesSeen(), 1u);
     EXPECT_EQ(frontend->lastCloudStats().input_points, 1u);
     EXPECT_EQ(frontend->lastCloudStats().output_points, 1u);
-    EXPECT_EQ(frontend->lastTimeEncoding(), lio::dlio::TimeEncoding::LivoxOffsetNs);
+    EXPECT_EQ(frontend->lastTimeEncoding(), lio::dlio::TimeEncoding::VelodyneOffsetSeconds);
 
     frontend->reset();
     EXPECT_EQ(frontend->imuSamplesSeen(), 0u);

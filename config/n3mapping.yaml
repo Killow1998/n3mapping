@@ -16,6 +16,12 @@ n3mapping_node:
     frontend_debug_publish_deskewed_cloud: false
     frontend_debug_publish_local_map: false
     frontend_debug_publish_timing: false
+    frontend_imu_buffer_max_samples: 2000
+    frontend_point_filter_num: 1
+    frontend_scan_lines: 128
+    frontend_blind: 0.0
+    frontend_max_abs_coordinate: 100000000.0
+    dlio_time_encoding: "auto"  # auto | ouster | velodyne | livox
     frontend_lidar_to_body_tx: 0.0
     frontend_lidar_to_body_ty: 0.0
     frontend_lidar_to_body_tz: 0.0

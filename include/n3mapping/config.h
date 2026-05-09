@@ -26,6 +26,12 @@ struct Config {
     bool frontend_debug_publish_deskewed_cloud = false;
     bool frontend_debug_publish_local_map = false;
     bool frontend_debug_publish_timing = false;
+    int frontend_imu_buffer_max_samples = 2000;
+    int frontend_point_filter_num = 1;
+    int frontend_scan_lines = 128;
+    double frontend_blind = 0.0;
+    double frontend_max_abs_coordinate = 1.0e8;
+    std::string dlio_time_encoding = "auto";
     double frontend_lidar_to_body_tx = 0.0;
     double frontend_lidar_to_body_ty = 0.0;
     double frontend_lidar_to_body_tz = 0.0;

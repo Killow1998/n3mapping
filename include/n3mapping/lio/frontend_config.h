@@ -18,6 +18,12 @@ struct LioFrontendConfig {
     bool debug_publish_deskewed_cloud = false;
     bool debug_publish_local_map = false;
     bool debug_publish_timing = false;
+    size_t imu_buffer_max_samples = 2000;
+    size_t point_filter_num = 1;
+    size_t scan_lines = 128;
+    double blind = 0.0;
+    double max_abs_coordinate = 1.0e8;
+    std::string dlio_time_encoding = "auto";
     Eigen::Isometry3d T_body_lidar = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d T_body_imu = Eigen::Isometry3d::Identity();
 };

@@ -1,5 +1,7 @@
 #include "n3mapping/lio/frontend_config.h"
 
+#include <algorithm>
+
 namespace n3mapping {
 namespace lio {
 
@@ -32,6 +34,16 @@ LioFrontendConfig makeLioFrontendConfig(const Config& config) {
         config.frontend_publish_debug && config.frontend_debug_publish_local_map;
     frontend_config.debug_publish_timing =
         config.frontend_publish_debug && config.frontend_debug_publish_timing;
+    frontend_config.imu_buffer_max_samples =
+        static_cast<size_t>(std::max(1, config.frontend_imu_buffer_max_samples));
+    frontend_config.point_filter_num =
+        static_cast<size_t>(std::max(1, config.frontend_point_filter_num));
+    frontend_config.scan_lines =
+        static_cast<size_t>(std::max(1, config.frontend_scan_lines));
+    frontend_config.blind = std::max(0.0, config.frontend_blind);
+    frontend_config.max_abs_coordinate =
+        std::max(1.0, config.frontend_max_abs_coordinate);
+    frontend_config.dlio_time_encoding = config.dlio_time_encoding;
     frontend_config.T_body_lidar = makeIsometryFromXyzRpy(
         config.frontend_lidar_to_body_tx,
         config.frontend_lidar_to_body_ty,

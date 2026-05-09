@@ -32,6 +32,12 @@ void loadConfigFromROS(rclcpp::Node* node, Config& config) {
     get("frontend_debug_publish_deskewed_cloud", config.frontend_debug_publish_deskewed_cloud);
     get("frontend_debug_publish_local_map", config.frontend_debug_publish_local_map);
     get("frontend_debug_publish_timing", config.frontend_debug_publish_timing);
+    get("frontend_imu_buffer_max_samples", config.frontend_imu_buffer_max_samples);
+    get("frontend_point_filter_num", config.frontend_point_filter_num);
+    get("frontend_scan_lines", config.frontend_scan_lines);
+    get("frontend_blind", config.frontend_blind);
+    get("frontend_max_abs_coordinate", config.frontend_max_abs_coordinate);
+    get("dlio_time_encoding", config.dlio_time_encoding);
     get("frontend_lidar_to_body_tx", config.frontend_lidar_to_body_tx);
     get("frontend_lidar_to_body_ty", config.frontend_lidar_to_body_ty);
     get("frontend_lidar_to_body_tz", config.frontend_lidar_to_body_tz);
@@ -179,6 +185,14 @@ void printConfigToROS(const Config& config, const rclcpp::Logger& logger) {
                 config.frontend_debug_publish_deskewed_cloud ? "YES" : "NO",
                 config.frontend_debug_publish_local_map ? "YES" : "NO",
                 config.frontend_debug_publish_timing ? "YES" : "NO");
+    RCLCPP_INFO(logger,
+                "Frontend preprocessing: imu_buffer=%d point_filter=%d scan_lines=%d blind=%.3f max_abs_coord=%.1f dlio_time_encoding=%s",
+                config.frontend_imu_buffer_max_samples,
+                config.frontend_point_filter_num,
+                config.frontend_scan_lines,
+                config.frontend_blind,
+                config.frontend_max_abs_coordinate,
+                config.dlio_time_encoding.c_str());
     RCLCPP_INFO(logger,
                 "Frontend extrinsics: T_body_lidar xyz=(%.3f %.3f %.3f) rpy=(%.3f %.3f %.3f) | T_body_imu xyz=(%.3f %.3f %.3f) rpy=(%.3f %.3f %.3f)",
                 config.frontend_lidar_to_body_tx,
