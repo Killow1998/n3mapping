@@ -49,6 +49,40 @@ std::vector<ImuMeasurement> makeDlioImuMeasurements(
     return measurements;
 }
 
+const IntegratedPose& referencePose(
+    const std::vector<IntegratedPose, Eigen::aligned_allocator<IntegratedPose>>& states,
+    double stamp) {
+    auto it = std::lower_bound(
+        states.begin(), states.end(), stamp,
+        [](const IntegratedPose& state, double value) {
+            return state.stamp < value;
+        });
+    if (it == states.begin()) {
+        return states.front();
+    }
+    if (it == states.end()) {
+        return states.back();
+    }
+    const auto prev = std::prev(it);
+    return std::abs(prev->stamp - stamp) <= std::abs(it->stamp - stamp)
+               ? *prev
+               : *it;
+}
+
+ImuPropagationState propagationFromIntegratedPose(
+    const IntegratedPose& state,
+    size_t used_samples) {
+    ImuPropagationState propagation;
+    propagation.stamp = nsecFromSeconds(state.stamp);
+    propagation.orientation =
+        Eigen::Quaterniond(state.T.block<3, 3>(0, 0).cast<double>());
+    propagation.position = state.T.block<3, 1>(0, 3).cast<double>();
+    propagation.velocity = state.velocity.cast<double>();
+    propagation.used_samples = used_samples;
+    propagation.valid = true;
+    return propagation;
+}
+
 }  // namespace
 
 Core::Core(const LioFrontendConfig& config)
@@ -64,12 +98,18 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
     ++lidar_frames_seen_;
     last_input_packet_ = buildInputPacket(frame, imu_buffer_, cloudOptions());
     last_scan_timing_ = computeScanTiming(frame);
+    std::vector<double> integration_timestamps;
+    std::vector<IntegratedPose, Eigen::aligned_allocator<IntegratedPose>>
+        integrated_states;
     if (last_input_packet_.has_complete_imu_window &&
         last_input_packet_.imu_samples.size() >= 2 &&
         last_scan_timing_.valid) {
         ImuIntegrationRequest request;
         request.start_time = last_scan_timing_.stamp_begin;
-        request.sorted_timestamps = {last_scan_timing_.stamp_median};
+        integration_timestamps = last_scan_timing_.has_point_timing
+                                     ? last_scan_timing_.unique_point_timestamps
+                                     : std::vector<double>{last_scan_timing_.stamp_median};
+        request.sorted_timestamps = integration_timestamps;
         request.gravity = config_.dlio_gravity;
         if (predicted_state_) {
             request.q_init =
@@ -79,19 +119,14 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
             request.v_init = predicted_state_->velocity_world.cast<float>();
         }
 
-        const auto states = integrateImuStates(
+        integrated_states = integrateImuStates(
             makeDlioImuMeasurements(last_input_packet_.imu_samples),
             request);
-        if (!states.empty()) {
-            const auto& state = states.back();
-            ImuPropagationState propagation;
-            propagation.stamp = nsecFromSeconds(state.stamp);
-            propagation.orientation =
-                Eigen::Quaterniond(state.T.block<3, 3>(0, 0).cast<double>());
-            propagation.position = state.T.block<3, 1>(0, 3).cast<double>();
-            propagation.velocity = state.velocity.cast<double>();
-            propagation.used_samples = last_input_packet_.imu_samples.size();
-            propagation.valid = true;
+        if (!integrated_states.empty()) {
+            const auto& state =
+                referencePose(integrated_states, last_scan_timing_.stamp_median);
+            const auto propagation = propagationFromIntegratedPose(
+                state, last_input_packet_.imu_samples.size());
             last_imu_propagation_ = propagation;
             predicted_state_ = stateFromImuPropagation(propagation);
         } else {
@@ -113,9 +148,20 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
             predicted_state_->T_world_lidar.translation() +=
                 last_alignment_stats_.centroid_correction_world;
         }
-        local_map_.addFrame(*predicted_state_, frame.points);
+        auto deskewed_cloud = frame.points;
+        if (last_imu_propagation_) {
+            const auto deskewed = deskewToReference(
+                frame,
+                last_scan_timing_,
+                integrated_states,
+                predicted_state_->T_world_lidar.matrix().cast<float>());
+            if (deskewed.valid && deskewed.cloud && !deskewed.cloud->empty()) {
+                deskewed_cloud = deskewed.cloud;
+            }
+        }
+        local_map_.addFrame(*predicted_state_, deskewed_cloud);
         auto output = frameFromState(*predicted_state_);
-        output.undistorted_cloud = frame.points;
+        output.undistorted_cloud = deskewed_cloud;
         output.pose_valid = predicted_state_->initialized;
         last_dense_map_add_result_ = dense_map_.addKeyframe(output.undistorted_cloud);
         return output;

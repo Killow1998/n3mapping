@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "n3mapping/core/types.h"
+#include "n3mapping/lio/dlio_deskew.h"
 #include "n3mapping/lio/dlio_imu_integration.h"
 #include "n3mapping/lio/dlio_input_adapter.h"
 #include "n3mapping/lio/dlio_map_accumulator.h"

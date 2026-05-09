@@ -25,11 +25,39 @@ core::RawLidarFrame makeFrame() {
     return frame;
 }
 
+core::RawLidarFrame makeTimedTwoPointFrame() {
+    core::RawLidarFrame frame;
+    frame.source_format = "pointcloud2";
+    frame.stamp_begin.nsec = 0;
+    frame.stamp_end.nsec = 1000000;
+    frame.points = pcl::make_shared<core::RawLidarFrame::PointCloud>();
+    for (int i = 0; i < 2; ++i) {
+        pcl::PointXYZI point;
+        point.x = 1.0f;
+        point.y = static_cast<float>(i);
+        point.z = 0.0f;
+        point.intensity = static_cast<float>(i + 1);
+        frame.points->push_back(point);
+    }
+    frame.point_time_offsets_ns = {0u, 1000000u};
+    frame.points->width = 2;
+    frame.points->height = 1;
+    frame.points->is_dense = true;
+    return frame;
+}
+
 core::ImuSample makeImu(int64_t stamp_nsec) {
     core::ImuSample sample;
     sample.stamp.nsec = stamp_nsec;
     sample.linear_accel.x() = 1.0;
     sample.linear_accel.z() = 9.80665;
+    return sample;
+}
+
+core::ImuSample makeImu(int64_t stamp_nsec, const Eigen::Vector3d& accel) {
+    core::ImuSample sample;
+    sample.stamp.nsec = stamp_nsec;
+    sample.linear_accel = accel;
     return sample;
 }
 
@@ -85,6 +113,26 @@ TEST(DlioCoreTest, CanReturnPredictionOnlyFrameWhenEnabled) {
     EXPECT_EQ(core.denseMapCloud()->size(), 1u);
     EXPECT_TRUE(core.lastDenseMapAddResult().accepted);
     EXPECT_FALSE(core.lastAlignmentStats().valid);
+}
+
+TEST(DlioCoreTest, DeskewsOutputCloudIntoReferenceFrame) {
+    lio::LioFrontendConfig config;
+    config.prediction_only_output = true;
+    config.dlio_gravity = 0.0;
+    lio::dlio::Core core(config);
+
+    core.addImu(makeImu(0, Eigen::Vector3d(1.0, 0.0, 0.0)));
+    core.addImu(makeImu(1000000, Eigen::Vector3d(1.0, 0.0, 0.0)));
+    const auto output = core.addLidar(makeTimedTwoPointFrame());
+
+    ASSERT_TRUE(output.has_value());
+    ASSERT_TRUE(output->undistorted_cloud);
+    ASSERT_EQ(output->undistorted_cloud->size(), 2u);
+    EXPECT_TRUE(core.lastScanTiming().has_point_timing);
+    EXPECT_NEAR(output->T_world_lidar.translation().x(), 0.0000005, 1e-10);
+    EXPECT_LT(output->undistorted_cloud->at(0).x, 1.0f);
+    EXPECT_NEAR(output->undistorted_cloud->at(0).x, 0.9999995f, 1e-7f);
+    EXPECT_NEAR(output->undistorted_cloud->at(1).x, 1.0f, 1e-7f);
 }
 
 TEST(DlioCoreTest, RespectsDenseMapInputSkip) {
