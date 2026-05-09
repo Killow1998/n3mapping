@@ -62,6 +62,12 @@ PipelineCoordinator::Output PipelineCoordinator::addRawLidar(const RawLidarFrame
 
     auto lio_frame = frontend_->addLidar(frame);
     if (!lio_frame) {
+        if (frontend_->capability() == lio::FrontendCapability::PredictionOnly &&
+            !config_.frontend_prediction_only_output) {
+            output.error =
+                "builtin prediction-only frontend did not produce a LIO frame; "
+                "set frontend_prediction_only_output=true until full odometry extraction is implemented";
+        }
         return output;
     }
     return processLioFrame(*lio_frame);

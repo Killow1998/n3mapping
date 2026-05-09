@@ -95,6 +95,7 @@ TEST(PipelineCoordinatorTest, BuiltinFrontendReportsFactoryErrorForNow) {
     auto output = pipeline.addRawLidar(raw);
     EXPECT_FALSE(output.has_lio_frame);
     EXPECT_FALSE(output.success);
+    EXPECT_NE(output.error.find("frontend_prediction_only_output=true"), std::string::npos);
 #else
     EXPECT_FALSE(pipeline.ready());
     EXPECT_NE(pipeline.error().find("fast_lio_core"), std::string::npos);
@@ -246,6 +247,7 @@ TEST(PipelineCoordinatorTest, DlioBuiltinFrontendReportsFactoryErrorForNow) {
     auto output = pipeline.addRawLidar(raw);
     EXPECT_FALSE(output.has_lio_frame);
     EXPECT_FALSE(output.success);
+    EXPECT_NE(output.error.find("frontend_prediction_only_output=true"), std::string::npos);
 #else
     EXPECT_FALSE(pipeline.ready());
     EXPECT_NE(pipeline.error().find("dlio_core"), std::string::npos);
