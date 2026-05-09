@@ -2,6 +2,8 @@
 
 #include "n3mapping/lio/dlio_settings.h"
 
+#include <cmath>
+
 namespace n3mapping {
 namespace lio {
 namespace dlio {
@@ -16,6 +18,12 @@ MapAccumulator::Options makeDenseMapOptions(const LioFrontendConfig& config) {
 
 double secondsFromNsec(int64_t nsec) {
     return static_cast<double>(nsec) * 1.0e-9;
+}
+
+core::TimeStamp nsecFromSeconds(double stamp_sec) {
+    core::TimeStamp stamp;
+    stamp.nsec = static_cast<int64_t>(std::llround(stamp_sec * 1.0e9));
+    return stamp;
 }
 
 std::vector<ImuMeasurement> makeDlioImuMeasurements(
@@ -55,12 +63,13 @@ void Core::addImu(const core::ImuSample& imu) {
 std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
     ++lidar_frames_seen_;
     last_input_packet_ = buildInputPacket(frame, imu_buffer_, cloudOptions());
+    last_scan_timing_ = computeScanTiming(frame);
     if (last_input_packet_.has_complete_imu_window &&
-        last_input_packet_.imu_samples.size() >= 2) {
+        last_input_packet_.imu_samples.size() >= 2 &&
+        last_scan_timing_.valid) {
         ImuIntegrationRequest request;
-        request.start_time = secondsFromNsec(last_input_packet_.stamp_begin.nsec);
-        request.sorted_timestamps = {
-            secondsFromNsec(last_input_packet_.stamp_end.nsec)};
+        request.start_time = last_scan_timing_.stamp_begin;
+        request.sorted_timestamps = {last_scan_timing_.stamp_median};
         request.gravity = config_.dlio_gravity;
         if (predicted_state_) {
             request.q_init =
@@ -76,7 +85,7 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
         if (!states.empty()) {
             const auto& state = states.back();
             ImuPropagationState propagation;
-            propagation.stamp = last_input_packet_.stamp_end;
+            propagation.stamp = nsecFromSeconds(state.stamp);
             propagation.orientation =
                 Eigen::Quaterniond(state.T.block<3, 3>(0, 0).cast<double>());
             propagation.position = state.T.block<3, 1>(0, 3).cast<double>();
@@ -119,6 +128,7 @@ void Core::reset() {
     imu_buffer_.clear();
     lidar_frames_seen_ = 0;
     last_input_packet_ = InputPacket{};
+    last_scan_timing_ = ScanTiming{};
     last_imu_propagation_.reset();
     predicted_state_.reset();
     local_map_.clear();

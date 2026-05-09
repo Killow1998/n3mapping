@@ -30,6 +30,9 @@ public:
     const dlio::CloudAdapterStats& lastCloudStats() const {
         return core_.lastInputPacket().cloud_stats;
     }
+    const dlio::ScanTiming& lastScanTiming() const {
+        return core_.lastScanTiming();
+    }
     dlio::TimeEncoding lastTimeEncoding() const {
         return core_.lastInputPacket().time_encoding;
     }

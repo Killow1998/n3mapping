@@ -52,6 +52,9 @@ TEST(DlioCoreTest, AcceptsImuAndLidarAtCoreBoundary) {
     EXPECT_EQ(core.lastInputPacket().cloud_stats.output_points, 1u);
     EXPECT_EQ(core.lastInputPacket().time_encoding,
               lio::dlio::TimeEncoding::VelodyneOffsetSeconds);
+    EXPECT_TRUE(core.lastScanTiming().valid);
+    EXPECT_TRUE(core.lastScanTiming().has_point_timing);
+    EXPECT_NEAR(core.lastScanTiming().stamp_median, 3.001, 1e-12);
     EXPECT_EQ(core.lastInputPacket().imu_samples.size(), 2u);
     EXPECT_TRUE(core.lastInputPacket().has_complete_imu_window);
     ASSERT_TRUE(core.lastImuPropagation().has_value());
@@ -115,6 +118,7 @@ TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
     EXPECT_EQ(core.imuSamplesSeen(), 0u);
     EXPECT_EQ(core.lidarFramesSeen(), 0u);
     EXPECT_FALSE(core.lastInputPacket().cloud);
+    EXPECT_FALSE(core.lastScanTiming().valid);
     EXPECT_TRUE(core.lastInputPacket().imu_samples.empty());
     EXPECT_FALSE(core.lastImuPropagation().has_value());
     EXPECT_FALSE(core.predictedState().has_value());

@@ -9,6 +9,7 @@
 #include "n3mapping/lio/dlio_imu_integration.h"
 #include "n3mapping/lio/dlio_input_adapter.h"
 #include "n3mapping/lio/dlio_map_accumulator.h"
+#include "n3mapping/lio/dlio_scan_timing.h"
 #include "n3mapping/lio/core_state.h"
 #include "n3mapping/lio/frontend.h"
 #include "n3mapping/lio/frontend_config.h"
@@ -33,6 +34,7 @@ public:
     size_t imuSamplesSeen() const { return imu_buffer_.size(); }
     size_t lidarFramesSeen() const { return lidar_frames_seen_; }
     const InputPacket& lastInputPacket() const { return last_input_packet_; }
+    const ScanTiming& lastScanTiming() const { return last_scan_timing_; }
     const std::optional<ImuPropagationState>& lastImuPropagation() const {
         return last_imu_propagation_;
     }
@@ -59,6 +61,7 @@ private:
     ImuSampleBuffer imu_buffer_;
     size_t lidar_frames_seen_ = 0;
     InputPacket last_input_packet_;
+    ScanTiming last_scan_timing_;
     std::optional<ImuPropagationState> last_imu_propagation_;
     std::optional<LioCoreState> predicted_state_;
     LioLocalMap local_map_;
