@@ -49,8 +49,10 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
         auto output = frameFromState(*predicted_state_);
         output.undistorted_cloud = frame.points;
         output.pose_valid = predicted_state_->initialized;
+        last_dense_map_add_result_ = dense_map_.addKeyframe(output.undistorted_cloud);
         return output;
     }
+    last_dense_map_add_result_ = MapAccumulator::AddResult{};
     return std::nullopt;
 }
 
@@ -61,6 +63,8 @@ void Core::reset() {
     last_imu_propagation_.reset();
     predicted_state_.reset();
     local_map_.clear();
+    dense_map_.clear();
+    last_dense_map_add_result_ = MapAccumulator::AddResult{};
     last_alignment_stats_ = LioLocalMap::AlignmentStats{};
 }
 

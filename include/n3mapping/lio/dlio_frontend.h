@@ -43,6 +43,12 @@ public:
     LioLocalMap::PointCloud::ConstPtr localMapCloud() const {
         return core_.localMapCloud();
     }
+    dlio::MapAccumulator::PointCloud::ConstPtr denseMapCloud() const {
+        return core_.denseMapCloud();
+    }
+    const dlio::MapAccumulator::AddResult& lastDenseMapAddResult() const {
+        return core_.lastDenseMapAddResult();
+    }
     const LioLocalMap::AlignmentStats& lastAlignmentStats() const {
         return core_.lastAlignmentStats();
     }

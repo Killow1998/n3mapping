@@ -77,6 +77,9 @@ TEST(DlioCoreTest, CanReturnPredictionOnlyFrameWhenEnabled) {
     EXPECT_NEAR(output->T_world_lidar.translation().x(), 0.0000005, 1e-12);
     ASSERT_TRUE(core.localMapCloud());
     EXPECT_EQ(core.localMapCloud()->size(), 1u);
+    ASSERT_TRUE(core.denseMapCloud());
+    EXPECT_EQ(core.denseMapCloud()->size(), 1u);
+    EXPECT_TRUE(core.lastDenseMapAddResult().accepted);
     EXPECT_FALSE(core.lastAlignmentStats().valid);
 }
 
@@ -94,6 +97,9 @@ TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
     EXPECT_FALSE(core.predictedState().has_value());
     ASSERT_TRUE(core.localMapCloud());
     EXPECT_TRUE(core.localMapCloud()->empty());
+    ASSERT_TRUE(core.denseMapCloud());
+    EXPECT_TRUE(core.denseMapCloud()->empty());
+    EXPECT_FALSE(core.lastDenseMapAddResult().accepted);
     EXPECT_FALSE(core.lastAlignmentStats().valid);
 }
 

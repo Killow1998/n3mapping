@@ -7,6 +7,7 @@
 
 #include "n3mapping/core/types.h"
 #include "n3mapping/lio/dlio_input_adapter.h"
+#include "n3mapping/lio/dlio_map_accumulator.h"
 #include "n3mapping/lio/core_state.h"
 #include "n3mapping/lio/frontend.h"
 #include "n3mapping/lio/frontend_config.h"
@@ -40,6 +41,12 @@ public:
     LioLocalMap::PointCloud::ConstPtr localMapCloud() const {
         return local_map_.cloud();
     }
+    MapAccumulator::PointCloud::ConstPtr denseMapCloud() const {
+        return dense_map_.map();
+    }
+    const MapAccumulator::AddResult& lastDenseMapAddResult() const {
+        return last_dense_map_add_result_;
+    }
     const LioLocalMap::AlignmentStats& lastAlignmentStats() const {
         return last_alignment_stats_;
     }
@@ -54,6 +61,8 @@ private:
     std::optional<ImuPropagationState> last_imu_propagation_;
     std::optional<LioCoreState> predicted_state_;
     LioLocalMap local_map_;
+    MapAccumulator dense_map_;
+    MapAccumulator::AddResult last_dense_map_add_result_;
     LioLocalMap::AlignmentStats last_alignment_stats_;
 };
 

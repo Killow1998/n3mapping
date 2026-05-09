@@ -436,6 +436,9 @@ TEST(LioFrontendFactoryTest, DlioFrontendCanReturnPredictionOnlyFrame) {
     ASSERT_TRUE(frontend->predictedState().has_value());
     ASSERT_TRUE(frontend->localMapCloud());
     EXPECT_EQ(frontend->localMapCloud()->size(), 1u);
+    ASSERT_TRUE(frontend->denseMapCloud());
+    EXPECT_EQ(frontend->denseMapCloud()->size(), 1u);
+    EXPECT_TRUE(frontend->lastDenseMapAddResult().accepted);
     EXPECT_FALSE(frontend->lastAlignmentStats().valid);
 }
 
@@ -501,6 +504,11 @@ TEST(LioFrontendFactoryTest, DlioFrontendMatchesCoreBoundaryState) {
     ASSERT_TRUE(frontend.localMapCloud());
     ASSERT_TRUE(core.localMapCloud());
     EXPECT_EQ(frontend.localMapCloud()->size(), core.localMapCloud()->size());
+    ASSERT_TRUE(frontend.denseMapCloud());
+    ASSERT_TRUE(core.denseMapCloud());
+    EXPECT_EQ(frontend.denseMapCloud()->size(), core.denseMapCloud()->size());
+    EXPECT_EQ(frontend.lastDenseMapAddResult().accepted,
+              core.lastDenseMapAddResult().accepted);
     EXPECT_EQ(frontend.lastAlignmentStats().valid,
               core.lastAlignmentStats().valid);
 }
