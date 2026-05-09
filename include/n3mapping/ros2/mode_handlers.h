@@ -12,6 +12,9 @@
 #include <std_msgs/msg/header.hpp>
 
 #include "n3mapping/config.h"
+#include "n3mapping/core/localization_mode_processor.h"
+#include "n3mapping/core/map_extension_mode_processor.h"
+#include "n3mapping/core/mapping_mode_processor.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
@@ -47,10 +50,7 @@ class MappingModeHandler
     void process(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header);
 
   private:
-    const Config& config_;
-    KeyframeManager& keyframe_manager_;
-    LoopDetector& loop_detector_;
-    GraphOptimizer& graph_optimizer_;
+    core::MappingModeProcessor processor_;
     std::mutex& loop_queue_mutex_;
     std::vector<int64_t>& loop_detection_queue_;
     ModePublishCallbacks publish_;
@@ -66,7 +66,7 @@ class LocalizationModeHandler
     void process(bool map_loaded, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header);
 
   private:
-    WorldLocalizing& world_localizing_;
+    core::LocalizationModeProcessor processor_;
     ModePublishCallbacks publish_;
 };
 
@@ -90,11 +90,7 @@ class MapResumingModeHandler
                  const std_msgs::msg::Header& header);
 
   private:
-    const Config& config_;
-    KeyframeManager& keyframe_manager_;
-    GraphOptimizer& graph_optimizer_;
-    WorldLocalizing& world_localizing_;
-    MappingResuming& mapping_resuming_;
+    core::MapExtensionModeProcessor processor_;
     ModePublishCallbacks publish_;
     std::function<void()> on_keyframe_added_;
     rclcpp::Logger logger_;

@@ -5,6 +5,29 @@ n3mapping_node:
 
     cloud_topic: "/cloud_registered_body"
     odom_topic: "/Odometry"
+    frontend_mode: "external"   # external | fast_lio | dlio
+    raw_lidar_topic: "/points_raw"
+    raw_lidar_msg_type: "pointcloud2"  # pointcloud2 | livox_custom
+    imu_topic: "/imu"
+    lidar_type: "generic"
+    frontend_time_offset: 0.0
+    frontend_publish_debug: false
+    frontend_debug_publish_odom: false
+    frontend_debug_publish_deskewed_cloud: false
+    frontend_debug_publish_local_map: false
+    frontend_debug_publish_timing: false
+    frontend_lidar_to_body_tx: 0.0
+    frontend_lidar_to_body_ty: 0.0
+    frontend_lidar_to_body_tz: 0.0
+    frontend_lidar_to_body_roll: 0.0
+    frontend_lidar_to_body_pitch: 0.0
+    frontend_lidar_to_body_yaw: 0.0
+    frontend_imu_to_body_tx: 0.0
+    frontend_imu_to_body_ty: 0.0
+    frontend_imu_to_body_tz: 0.0
+    frontend_imu_to_body_roll: 0.0
+    frontend_imu_to_body_pitch: 0.0
+    frontend_imu_to_body_yaw: 0.0
     output_odom_topic: "/n3mapping/odometry"
     output_path_topic: "/n3mapping/path"
     output_cloud_body_topic: "/n3mapping/cloud_body"

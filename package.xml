@@ -5,7 +5,8 @@
   <version>1.0.0</version>
   <description>
     N3Mapping: A graph-based backend SLAM system that receives undistorted point clouds
-    and poses from FAST-LIO2 frontend, performs RHPD-primary loop/relocalization
+    and poses from an external LIO frontend, or raw PointCloud2/Livox CustomMsg
+    plus IMU through builtin frontend adapters, performs RHPD-primary loop/relocalization
     candidate retrieval with ScanContext as auxiliary yaw/rerank/fallback,
     point cloud registration using small_gicp, and graph optimization using GTSAM.
   </description>

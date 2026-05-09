@@ -12,6 +12,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
+#include <glog/logging.h>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
@@ -34,6 +35,8 @@
 #include <nav_msgs/msg/path.hpp>
 #include <optional>
 #include <rclcpp/rclcpp.hpp>
+#include <stdexcept>
+#include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <string_view>
 #include <std_msgs/msg/u_int32.hpp>
@@ -41,15 +44,24 @@
 #include <thread>
 #include <visualization_msgs/msg/marker_array.hpp>
 
+#ifdef N3MAPPING_HAS_LIVOX_ROS_DRIVER2
+#include <livox_ros_driver2/msg/custom_msg.hpp>
+#endif
+
 #include "n3mapping/config.h"
+#include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping/ros2/config_ros.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/keyframe_manager.h"
+#include "n3mapping/lio/external_frontend.h"
+#include "n3mapping/lio/frontend_factory.h"
 #include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/map_serializer.h"
 #include "n3mapping/mapping_resuming.h"
-#include "n3mapping/mode_handlers.h"
+#include "n3mapping/ros2/mode_handlers.h"
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/ros2/conversions.h"
 #include "n3mapping/world_localizing.h"
 
 namespace n3mapping {
@@ -127,8 +139,8 @@ class N3MappingNode : public rclcpp::Node
       : Node("n3mapping_node")
     {
         // 加载配置
-        config_.loadFromROS(this);
-        config_.print(this->get_logger());
+        loadConfigFromROS(this, config_);
+        printConfigToROS(config_, this->get_logger());
 
         // 解析运行模式
         parseRunMode();
@@ -206,15 +218,21 @@ class N3MappingNode : public rclcpp::Node
      */
     void initializeComponents()
     {
-        keyframe_manager_ = std::make_unique<KeyframeManager>(config_);
-        point_cloud_matcher_ = std::make_unique<PointCloudMatcher>(config_);
-        loop_detector_ = std::make_unique<LoopDetector>(config_);
-        loop_closure_manager_ = std::make_unique<LoopClosureManager>(config_);
-        graph_optimizer_ = std::make_unique<GraphOptimizer>(config_);
-        map_serializer_ = std::make_unique<MapSerializer>(config_);
-        world_localizing_ = std::make_unique<WorldLocalizing>(config_, *keyframe_manager_, *loop_detector_, *point_cloud_matcher_);
-        mapping_resuming_ = std::make_unique<MappingResuming>(
-          config_, *keyframe_manager_, *loop_detector_, *point_cloud_matcher_, *graph_optimizer_, *map_serializer_, *world_localizing_);
+        session_ = std::make_unique<core::N3MappingSession>(config_);
+        keyframe_manager_ = &session_->keyframes();
+        loop_detector_ = &session_->loopDetector();
+        graph_optimizer_ = &session_->graphOptimizer();
+        world_localizing_ = &session_->worldLocalizing();
+        mapping_resuming_ = &session_->mappingResuming();
+
+        auto frontend_result = lio::createLioFrontend(config_);
+        if (!frontend_result.ok()) {
+            RCLCPP_FATAL(this->get_logger(), "%s", frontend_result.error.c_str());
+            throw std::runtime_error(frontend_result.error);
+        }
+        lio_frontend_ = std::move(frontend_result.frontend);
+        external_lio_frontend_ = dynamic_cast<lio::ExternalLioFrontend*>(lio_frontend_.get());
+        RCLCPP_INFO(this->get_logger(), "Using LIO frontend: %s", lio::frontendModeName(frontend_result.mode));
 
         ModePublishCallbacks publish_callbacks{
             [this](const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header) { publishOdometry(pose, header); },
@@ -264,11 +282,40 @@ class N3MappingNode : public rclcpp::Node
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
         // 订阅者
-        cloud_sub_.subscribe(this, config_.cloud_topic);
-        odom_sub_.subscribe(this, config_.odom_topic);
+        if (external_lio_frontend_) {
+            cloud_sub_.subscribe(this, config_.cloud_topic);
+            odom_sub_.subscribe(this, config_.odom_topic);
 
-        sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), cloud_sub_, odom_sub_);
-        sync_->registerCallback(std::bind(&N3MappingNode::syncCallback, this, std::placeholders::_1, std::placeholders::_2));
+            sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), cloud_sub_, odom_sub_);
+            sync_->registerCallback(std::bind(&N3MappingNode::syncCallback, this, std::placeholders::_1, std::placeholders::_2));
+        } else {
+            if (config_.raw_lidar_msg_type == "pointcloud2") {
+                raw_lidar_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+                  config_.raw_lidar_topic, 10, std::bind(&N3MappingNode::rawLidarCallback, this, std::placeholders::_1));
+            } else if (config_.raw_lidar_msg_type == "livox_custom") {
+#ifdef N3MAPPING_HAS_LIVOX_ROS_DRIVER2
+                livox_custom_sub_ = this->create_subscription<livox_ros_driver2::msg::CustomMsg>(
+                  config_.raw_lidar_topic, 10, std::bind(&N3MappingNode::livoxCustomCallback, this, std::placeholders::_1));
+#else
+                const std::string error =
+                  "raw_lidar_msg_type=livox_custom requires livox_ros_driver2 at build time";
+                RCLCPP_FATAL(this->get_logger(), "%s", error.c_str());
+                throw std::runtime_error(error);
+#endif
+            } else {
+                const std::string error = "Unsupported raw_lidar_msg_type='" + config_.raw_lidar_msg_type +
+                                          "'; expected pointcloud2 or livox_custom";
+                RCLCPP_FATAL(this->get_logger(), "%s", error.c_str());
+                throw std::runtime_error(error);
+            }
+            imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
+              config_.imu_topic, 200, std::bind(&N3MappingNode::imuCallback, this, std::placeholders::_1));
+            RCLCPP_INFO(this->get_logger(),
+                        "Builtin frontend subscriptions: raw_lidar=%s type=%s imu=%s",
+                        config_.raw_lidar_topic.c_str(),
+                        config_.raw_lidar_msg_type.c_str(),
+                        config_.imu_topic.c_str());
+        }
 
         // 发布者
         odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(config_.output_odom_topic, 10);
@@ -345,14 +392,14 @@ class N3MappingNode : public rclcpp::Node
         }
 
         if (run_mode_ == RunMode::MAP_EXTENSION) {
-            if (!mapping_resuming_->loadExistingMap(config_.map_path)) {
+            if (!session_->loadMapForExtension(config_.map_path)) {
                 RCLCPP_ERROR(this->get_logger(), "Failed to load map for extension: %s", config_.map_path.c_str());
                 return;
             }
             RCLCPP_INFO(this->get_logger(), "Loaded map for extension with %zu keyframes", mapping_resuming_->getOriginalKeyframeCount());
         } else {
             // 定位模式
-            if (!map_serializer_->loadMap(config_.map_path, *keyframe_manager_, *loop_detector_, *graph_optimizer_)) {
+            if (!session_->loadMapForLocalization(config_.map_path)) {
                 RCLCPP_ERROR(this->get_logger(), "Failed to load map: %s", config_.map_path.c_str());
                 return;
             }
@@ -404,30 +451,82 @@ class N3MappingNode : public rclcpp::Node
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
 
-        // 转换点云
-        auto cloud = pcl::make_shared<PointCloud>();
-        pcl::fromROSMsg(*cloud_msg, *cloud);
+        const auto external_frame = ros2::externalLioFrameFromRos(*cloud_msg, *odom_msg);
+        if (!external_lio_frontend_) {
+            RCLCPP_WARN_THROTTLE(
+              this->get_logger(), *this->get_clock(), 2000, "External cloud+odom input requires frontend_mode=external");
+            return;
+        }
+        auto lio_frame = external_lio_frontend_->addSynchronizedFrame(
+          external_frame.stamp, external_frame.T_world_lidar, external_frame.cloud, external_frame.covariance);
+        if (!lio_frame) {
+            RCLCPP_WARN_THROTTLE(
+              this->get_logger(), *this->get_clock(), 2000, "Skipping invalid external LIO frame");
+            return;
+        }
 
-        // 转换位姿
-        Eigen::Isometry3d pose_odom = Eigen::Isometry3d::Identity();
-        pose_odom.translation() << odom_msg->pose.pose.position.x, odom_msg->pose.pose.position.y, odom_msg->pose.pose.position.z;
-        Eigen::Quaterniond q(odom_msg->pose.pose.orientation.w,
-                             odom_msg->pose.pose.orientation.x,
-                             odom_msg->pose.pose.orientation.y,
-                             odom_msg->pose.pose.orientation.z);
-        pose_odom.linear() = q.toRotationMatrix();
-
-        double timestamp = rclcpp::Time(cloud_msg->header.stamp).seconds();
+        double timestamp = static_cast<double>(lio_frame->stamp.nsec) * 1e-9;
 
         switch (run_mode_) {
             case RunMode::MAPPING:
-                processMappingMode(timestamp, pose_odom, cloud, cloud_msg->header);
+                processMappingMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, cloud_msg->header);
                 break;
             case RunMode::LOCALIZATION:
-                processLocalizationMode(timestamp, pose_odom, cloud, cloud_msg->header);
+                processLocalizationMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, cloud_msg->header);
                 break;
             case RunMode::MAP_EXTENSION:
-                processMapExtensionMode(timestamp, pose_odom, cloud, cloud_msg->header);
+                processMapExtensionMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, cloud_msg->header);
+                break;
+        }
+
+        frame_count_++;
+    }
+
+    void imuCallback(const sensor_msgs::msg::Imu::ConstSharedPtr& imu_msg)
+    {
+        if (!lio_frontend_) {
+            return;
+        }
+        lio_frontend_->addImu(ros2::imuSampleFromRos(*imu_msg));
+    }
+
+    void rawLidarCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg)
+    {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        handleRawLidarFrame(ros2::rawLidarFrameFromRos(*cloud_msg), cloud_msg->header);
+    }
+
+#ifdef N3MAPPING_HAS_LIVOX_ROS_DRIVER2
+    void livoxCustomCallback(const livox_ros_driver2::msg::CustomMsg::ConstSharedPtr& msg)
+    {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        handleRawLidarFrame(ros2::rawLidarFrameFromLivoxCustom(*msg), msg->header);
+    }
+#endif
+
+    void handleRawLidarFrame(const core::RawLidarFrame& raw_frame, const std_msgs::msg::Header& header)
+    {
+        if (!lio_frontend_) {
+            return;
+        }
+
+        auto lio_frame = lio_frontend_->addLidar(raw_frame);
+        if (!lio_frame) {
+            RCLCPP_WARN_THROTTLE(
+              this->get_logger(), *this->get_clock(), 2000, "Builtin LIO frontend did not produce a frame");
+            return;
+        }
+
+        double timestamp = static_cast<double>(lio_frame->stamp.nsec) * 1e-9;
+        switch (run_mode_) {
+            case RunMode::MAPPING:
+                processMappingMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, header);
+                break;
+            case RunMode::LOCALIZATION:
+                processLocalizationMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, header);
+                break;
+            case RunMode::MAP_EXTENSION:
+                processMapExtensionMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, header);
                 break;
         }
 
@@ -496,84 +595,23 @@ class N3MappingNode : public rclcpp::Node
                 continue;
             }
 
-            auto query_kf = keyframe_manager_->getKeyframe(query_id);
-            if (!query_kf) {
+            auto loop_result = session_->processLoopClosureForKeyframe(query_id);
+            if (!loop_result.query_exists) {
+                continue;
+            }
+            if (loop_result.candidates_found) {
+                last_loop_check_id_ = query_id;
+            }
+            if (loop_result.selected_loops.empty()) {
                 continue;
             }
 
-            // Primary candidate source must stay descriptor-based so loops are still
-            // discoverable even when optimized poses have accumulated large drift.
-            std::vector<LoopCandidate> candidates = loop_detector_->detectLoopCandidates(query_id);
-
-            if (candidates.empty()) {
-                continue;
+            publishLoopMarkers(loop_result.selected_loops);
+            if (loop_result.edges_added > 0) {
+                std::lock_guard<std::mutex> lock(data_mutex_);
+                loop_count_ += loop_result.edges_added;
+                logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
             }
-            last_loop_check_id_ = query_id;
-
-            std::vector<VerifiedLoop> verified_loops;
-            verified_loops.reserve(candidates.size());
-
-            for (const auto& candidate : candidates) {
-                auto match_kf = keyframe_manager_->getKeyframe(candidate.match_id);
-                if (!match_kf || !query_kf->cloud || !match_kf->cloud || query_kf->cloud->empty() || match_kf->cloud->empty()) {
-                    continue;
-                }
-
-                auto source = keyframe_manager_->buildSubmapInRootFrame(query_id, 0, candidate.match_id);
-                auto target = keyframe_manager_->buildSubmapInRootFrame(candidate.match_id, config_.gicp_submap_size, candidate.match_id);
-                if (!source || source->empty() || !target || target->empty()) {
-                    continue;
-                }
-
-                MatchResult match_result = point_cloud_matcher_->alignCloud(target, source, Eigen::Isometry3d::Identity());
-
-                VerifiedLoop loop;
-                loop.query_id = query_id;
-                loop.match_id = candidate.match_id;
-                loop.fitness_score = match_result.fitness_score;
-                loop.inlier_ratio = match_result.inlier_ratio;
-                loop.information =
-                  config_.loop_use_icp_information ? match_result.information : Eigen::Matrix<double, 6, 6>::Identity();
-
-                const bool fitness_ok = match_result.fitness_score < config_.loop_fitness_threshold;
-                const bool inlier_ok = match_result.inlier_ratio >= config_.loop_min_inlier_ratio;
-                const double icp_translation = match_result.T_target_source.translation().norm();
-                const double icp_rotation = Eigen::AngleAxisd(match_result.T_target_source.rotation()).angle();
-                const bool geom_ok = icp_translation <= config_.loop_max_icp_translation && icp_rotation <= config_.loop_max_icp_rotation;
-
-                loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok;
-                if (loop.verified) {
-                    const Eigen::Isometry3d T_est_match_query =
-                      match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
-                    const Eigen::Isometry3d T_residual = match_result.T_target_source;
-                    loop.T_match_query = T_residual * T_est_match_query;
-                }
-                verified_loops.push_back(loop);
-            }
-
-            if (verified_loops.empty()) {
-                continue;
-            }
-
-            auto valid_loops = loop_closure_manager_->filterValidLoops(verified_loops);
-            auto best_loops = loop_closure_manager_->selectBestPerQuery(valid_loops);
-            if (best_loops.empty()) {
-                continue;
-            }
-
-            publishLoopMarkers(best_loops);
-
-            std::lock_guard<std::mutex> lock(data_mutex_);
-            auto edges = loop_closure_manager_->buildLoopEdges(best_loops, LoopEdgeDirection::MatchToQuery);
-            if (edges.empty()) {
-                continue;
-            }
-            loop_closure_manager_->applyEdges(edges, *graph_optimizer_);
-            loop_count_ += edges.size();
-
-            auto poses = graph_optimizer_->getOptimizedPoses();
-            keyframe_manager_->updateOptimizedPoses(poses);
-            logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
         }
     }
 
@@ -882,13 +920,13 @@ class N3MappingNode : public rclcpp::Node
         std::string map_file = config_.map_save_path + "/n3map.pbstream";
 
         if (run_mode_ == RunMode::MAP_EXTENSION) {
-            if (mapping_resuming_->saveExtendedMap(map_file)) {
+            if (session_->saveExtendedMap(map_file)) {
                 RCLCPP_INFO(this->get_logger(), "Extended map saved to: %s", map_file.c_str());
             } else {
                 RCLCPP_ERROR(this->get_logger(), "Failed to save extended map");
             }
         } else {
-            if (map_serializer_->saveMap(map_file, *keyframe_manager_, *loop_detector_, *graph_optimizer_)) {
+            if (session_->saveCurrentMap(map_file)) {
                 RCLCPP_INFO(this->get_logger(), "Map saved to: %s", map_file.c_str());
             } else {
                 RCLCPP_ERROR(this->get_logger(), "Failed to save map");
@@ -898,7 +936,7 @@ class N3MappingNode : public rclcpp::Node
         // 保存全局点云
         if (config_.save_global_map_on_shutdown) {
             std::string global_map_file = config_.map_save_path + "/global_map.pcd";
-            if (map_serializer_->saveGlobalMap(global_map_file, *keyframe_manager_)) {
+            if (session_->saveGlobalMap(global_map_file)) {
                 RCLCPP_INFO(this->get_logger(), "Global map saved to: %s", global_map_file.c_str());
             }
         }
@@ -922,14 +960,14 @@ class N3MappingNode : public rclcpp::Node
     RunMode run_mode_ = RunMode::MAPPING;
 
     // 核心组件
-    std::unique_ptr<KeyframeManager> keyframe_manager_;
-    std::unique_ptr<PointCloudMatcher> point_cloud_matcher_;
-    std::unique_ptr<LoopDetector> loop_detector_;
-    std::unique_ptr<LoopClosureManager> loop_closure_manager_;
-    std::unique_ptr<GraphOptimizer> graph_optimizer_;
-    std::unique_ptr<MapSerializer> map_serializer_;
-    std::unique_ptr<WorldLocalizing> world_localizing_;
-    std::unique_ptr<MappingResuming> mapping_resuming_;
+    std::unique_ptr<core::N3MappingSession> session_;
+    KeyframeManager* keyframe_manager_ = nullptr;
+    LoopDetector* loop_detector_ = nullptr;
+    GraphOptimizer* graph_optimizer_ = nullptr;
+    WorldLocalizing* world_localizing_ = nullptr;
+    MappingResuming* mapping_resuming_ = nullptr;
+    std::unique_ptr<lio::LioFrontend> lio_frontend_;
+    lio::ExternalLioFrontend* external_lio_frontend_ = nullptr;
     std::unique_ptr<MappingModeHandler> mapping_mode_handler_;
     std::unique_ptr<LocalizationModeHandler> localization_mode_handler_;
     std::unique_ptr<MapResumingModeHandler> map_resuming_mode_handler_;
@@ -938,6 +976,11 @@ class N3MappingNode : public rclcpp::Node
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloud_sub_;
     message_filters::Subscriber<nav_msgs::msg::Odometry> odom_sub_;
     std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr raw_lidar_sub_;
+#ifdef N3MAPPING_HAS_LIVOX_ROS_DRIVER2
+    rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr livox_custom_sub_;
+#endif
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
 
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;

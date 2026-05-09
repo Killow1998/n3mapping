@@ -1,8 +1,6 @@
 #ifndef N3MAPPING_CONFIG_H
 #define N3MAPPING_CONFIG_H
 
-#include <glog/logging.h>
-#include <rclcpp/rclcpp.hpp>
 #include <string>
 
 namespace n3mapping {
@@ -17,6 +15,29 @@ struct Config {
 
     std::string cloud_topic = "/cloud_registered_body";
     std::string odom_topic = "/Odometry";
+    std::string frontend_mode = "external";
+    std::string raw_lidar_topic = "/points_raw";
+    std::string raw_lidar_msg_type = "pointcloud2";
+    std::string imu_topic = "/imu";
+    std::string lidar_type = "generic";
+    double frontend_time_offset = 0.0;
+    bool frontend_publish_debug = false;
+    bool frontend_debug_publish_odom = false;
+    bool frontend_debug_publish_deskewed_cloud = false;
+    bool frontend_debug_publish_local_map = false;
+    bool frontend_debug_publish_timing = false;
+    double frontend_lidar_to_body_tx = 0.0;
+    double frontend_lidar_to_body_ty = 0.0;
+    double frontend_lidar_to_body_tz = 0.0;
+    double frontend_lidar_to_body_roll = 0.0;
+    double frontend_lidar_to_body_pitch = 0.0;
+    double frontend_lidar_to_body_yaw = 0.0;
+    double frontend_imu_to_body_tx = 0.0;
+    double frontend_imu_to_body_ty = 0.0;
+    double frontend_imu_to_body_tz = 0.0;
+    double frontend_imu_to_body_roll = 0.0;
+    double frontend_imu_to_body_pitch = 0.0;
+    double frontend_imu_to_body_yaw = 0.0;
     std::string output_odom_topic = "/n3mapping/odometry";
     std::string output_path_topic = "/n3mapping/path";
     std::string output_cloud_body_topic = "/n3mapping/cloud_body";
@@ -140,9 +161,6 @@ struct Config {
     bool rhpd_enable_negative_space = true;
     bool rhpd_enable_vertical_tokens = true;
     bool rhpd_enable_pca_confidence = true;
-
-    void loadFromROS(rclcpp::Node* node);
-    void print(const rclcpp::Logger& logger) const;
 };
 
 } // namespace n3mapping

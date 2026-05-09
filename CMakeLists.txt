@@ -4,6 +4,16 @@ project(n3mapping)
 # 定义包源目录宏，用于地图保存路径
 add_compile_definitions(N3MAPPING_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 option(BUILD_TESTING "Build the testing tree." OFF)
+option(BUILD_ROS2_WRAPPER "Build the ROS 2 wrapper target and node." ON)
+option(BUILD_ROS1_WRAPPER "Build the ROS 1 wrapper package skeleton." OFF)
+option(BUILD_FAST_LIO_CORE "Build the in-process FAST-LIO2 frontend core." OFF)
+option(BUILD_DLIO_CORE "Build the in-process DLIO frontend core." OFF)
+set(N3MAPPING_LIVOX_CUSTOM_MSG "AUTO" CACHE STRING "Livox CustomMsg support: AUTO, ON, or OFF.")
+set_property(CACHE N3MAPPING_LIVOX_CUSTOM_MSG PROPERTY STRINGS AUTO ON OFF)
+
+if(BUILD_ROS1_WRAPPER)
+  message(FATAL_ERROR "BUILD_ROS1_WRAPPER is a source-layout placeholder in this ament package; build the ros1/ skeleton with catkin after the wrapper is implemented.")
+endif()
 
 # C++17 标准
 set(CMAKE_CXX_STANDARD 17)
@@ -18,18 +28,31 @@ add_compile_options(-O3 -Wall -Wextra)
 
 # 查找 ROS2 依赖包
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(visualization_msgs REQUIRED)
-find_package(message_filters REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
-find_package(pcl_conversions REQUIRED)
-find_package(cv_bridge REQUIRED)
+if(BUILD_ROS2_WRAPPER)
+  find_package(rclcpp REQUIRED)
+  find_package(std_msgs REQUIRED)
+  find_package(sensor_msgs REQUIRED)
+  find_package(nav_msgs REQUIRED)
+  find_package(geometry_msgs REQUIRED)
+  find_package(visualization_msgs REQUIRED)
+  find_package(message_filters REQUIRED)
+  find_package(tf2 REQUIRED)
+  find_package(tf2_ros REQUIRED)
+  find_package(tf2_geometry_msgs REQUIRED)
+  find_package(pcl_conversions REQUIRED)
+  find_package(cv_bridge REQUIRED)
+  string(TOUPPER "${N3MAPPING_LIVOX_CUSTOM_MSG}" N3MAPPING_LIVOX_CUSTOM_MSG_MODE)
+  if(NOT N3MAPPING_LIVOX_CUSTOM_MSG_MODE MATCHES "^(AUTO|ON|OFF)$")
+    message(FATAL_ERROR "N3MAPPING_LIVOX_CUSTOM_MSG must be AUTO, ON, or OFF")
+  endif()
+  if(NOT N3MAPPING_LIVOX_CUSTOM_MSG_MODE STREQUAL "OFF")
+    if(N3MAPPING_LIVOX_CUSTOM_MSG_MODE STREQUAL "ON")
+      find_package(livox_ros_driver2 REQUIRED)
+    else()
+      find_package(livox_ros_driver2 QUIET)
+    endif()
+  endif()
+endif()
 
 # PCL
 find_package(PCL REQUIRED COMPONENTS common io filters)
@@ -116,17 +139,57 @@ link_directories(
 
 add_definitions(${PCL_DEFINITIONS})
 
-# 库文件
-add_library(${PROJECT_NAME}_lib SHARED
+# ROS-free LIO frontend interface/adapters. This stays separate from the
+# mapping core so FAST-LIO2/DLIO extraction can evolve behind one boundary.
+set(N3MAPPING_LIO_SOURCES
+  src/lio/external_frontend.cpp
+  src/lio/frontend_config.cpp
+  src/lio/frontend_factory.cpp
+)
+
+if(BUILD_FAST_LIO_CORE)
+  list(APPEND N3MAPPING_LIO_SOURCES src/lio/fast_lio_frontend.cpp)
+endif()
+if(BUILD_DLIO_CORE)
+  list(APPEND N3MAPPING_LIO_SOURCES src/lio/dlio_frontend.cpp)
+endif()
+
+add_library(${PROJECT_NAME}_lio SHARED
+  ${N3MAPPING_LIO_SOURCES}
+)
+
+target_include_directories(${PROJECT_NAME}_lio PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(${PROJECT_NAME}_lio
+  ${PCL_LIBRARIES}
+)
+
+if(BUILD_FAST_LIO_CORE)
+  target_compile_definitions(${PROJECT_NAME}_lio PUBLIC N3MAPPING_BUILD_FAST_LIO_CORE)
+endif()
+if(BUILD_DLIO_CORE)
+  target_compile_definitions(${PROJECT_NAME}_lio PUBLIC N3MAPPING_BUILD_DLIO_CORE)
+endif()
+
+# ROS-free core library. This is the first boundary for future ROS1/ROS2 wrappers
+# and in-process LIO frontend adapters.
+set(N3MAPPING_CORE_SOURCES
   ${PROTO_SRCS}
-  src/config.cpp
+  src/core/localization_mode_processor.cpp
+  src/core/map_extension_mode_processor.cpp
+  src/core/n3mapping_core.cpp
+  src/core/n3mapping_session.cpp
+  src/core/mapping_mode_processor.cpp
+  src/core/pipeline_coordinator.cpp
   src/keyframe_manager.cpp
   src/point_cloud_matcher.cpp
   src/loop_detector.cpp
   src/loop_closure_manager.cpp
   src/graph_optimizer.cpp
   src/map_serializer.cpp
-  src/mode_handlers.cpp
   src/world_localizing.cpp
   src/mapping_resuming.cpp
   src/RHPDescriptor.cpp
@@ -134,13 +197,18 @@ add_library(${PROJECT_NAME}_lib SHARED
   include/Scancontext/HybridScancontext.cpp
 )
 
-target_include_directories(${PROJECT_NAME}_lib PUBLIC
+add_library(${PROJECT_NAME}_core SHARED
+  ${N3MAPPING_CORE_SOURCES}
+)
+
+target_include_directories(${PROJECT_NAME}_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
   $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(${PROJECT_NAME}_lib
+target_link_libraries(${PROJECT_NAME}_core
+  ${PROJECT_NAME}_lio
   ${PCL_LIBRARIES}
   ${OpenCV_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
@@ -150,60 +218,269 @@ target_link_libraries(${PROJECT_NAME}_lib
   glog::glog
 )
 
-ament_target_dependencies(${PROJECT_NAME}_lib
-  rclcpp
-  std_msgs
-  sensor_msgs
-  nav_msgs
-  geometry_msgs
-  visualization_msgs
-  message_filters
-  tf2
-  tf2_ros
-  tf2_geometry_msgs
-  pcl_conversions
-  cv_bridge
-)
+if(BUILD_FAST_LIO_CORE)
+  add_library(${PROJECT_NAME}_fast_lio_core SHARED
+    src/lio/fast_lio_core.cpp
+  )
+  target_include_directories(${PROJECT_NAME}_fast_lio_core PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+  target_link_libraries(${PROJECT_NAME}_fast_lio_core
+    ${PROJECT_NAME}_lio
+  )
+endif()
 
-# 主节点
-add_executable(n3mapping_node
-  src/n3mapping_node.cpp
-)
+if(BUILD_DLIO_CORE)
+  add_library(${PROJECT_NAME}_dlio_core SHARED
+    src/lio/dlio_core.cpp
+  )
+  target_include_directories(${PROJECT_NAME}_dlio_core PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+  target_link_libraries(${PROJECT_NAME}_dlio_core
+    ${PROJECT_NAME}_lio
+  )
+endif()
 
-target_link_libraries(n3mapping_node
-  ${PROJECT_NAME}_lib
-)
+if(BUILD_ROS2_WRAPPER)
+  set(N3MAPPING_ROS2_SOURCES
+    src/ros2/config_ros.cpp
+    src/ros2/conversions.cpp
+    src/ros2/mode_handlers.cpp
+  )
+
+  add_library(${PROJECT_NAME}_ros2 SHARED
+    ${N3MAPPING_ROS2_SOURCES}
+  )
+
+  add_library(${PROJECT_NAME}_lib ALIAS ${PROJECT_NAME}_ros2)
+
+  target_include_directories(${PROJECT_NAME}_ros2 PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  target_link_libraries(${PROJECT_NAME}_ros2
+    ${PROJECT_NAME}_core
+  )
+
+  ament_target_dependencies(${PROJECT_NAME}_ros2
+    rclcpp
+    std_msgs
+    sensor_msgs
+    nav_msgs
+    geometry_msgs
+    visualization_msgs
+    message_filters
+    tf2
+    tf2_ros
+    tf2_geometry_msgs
+    pcl_conversions
+    cv_bridge
+  )
+  if(livox_ros_driver2_FOUND)
+    target_compile_definitions(${PROJECT_NAME}_ros2 PUBLIC N3MAPPING_HAS_LIVOX_ROS_DRIVER2)
+    ament_target_dependencies(${PROJECT_NAME}_ros2
+      livox_ros_driver2
+    )
+    message(STATUS "Livox CustomMsg input enabled for n3mapping_ros2")
+  elseif(N3MAPPING_LIVOX_CUSTOM_MSG_MODE STREQUAL "OFF")
+    message(STATUS "Livox CustomMsg input disabled by N3MAPPING_LIVOX_CUSTOM_MSG=OFF")
+  else()
+    message(STATUS "livox_ros_driver2 not found; Livox CustomMsg input is disabled. Use -DN3MAPPING_LIVOX_CUSTOM_MSG=ON to require it.")
+  endif()
+
+  # 主节点
+  add_executable(n3mapping_node
+    src/ros2/n3mapping_node.cpp
+  )
+
+  target_link_libraries(n3mapping_node
+    ${PROJECT_NAME}_ros2
+  )
+endif()
 
 # 安装
-install(TARGETS ${PROJECT_NAME}_lib n3mapping_node
+set(N3MAPPING_EXPORT_TARGETS ${PROJECT_NAME}_lio ${PROJECT_NAME}_core)
+if(BUILD_FAST_LIO_CORE)
+  list(APPEND N3MAPPING_EXPORT_TARGETS ${PROJECT_NAME}_fast_lio_core)
+endif()
+if(BUILD_DLIO_CORE)
+  list(APPEND N3MAPPING_EXPORT_TARGETS ${PROJECT_NAME}_dlio_core)
+endif()
+
+install(TARGETS ${N3MAPPING_EXPORT_TARGETS}
+  EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
+if(BUILD_ROS2_WRAPPER)
+  install(TARGETS ${PROJECT_NAME}_ros2
+    EXPORT export_${PROJECT_NAME}
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+  install(TARGETS n3mapping_node
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+endif()
+
 install(DIRECTORY include/
   DESTINATION include
 )
 
-install(DIRECTORY launch/
-  DESTINATION share/${PROJECT_NAME}/launch
+install(DIRECTORY ${PROTO_GEN_DIR}/
+  DESTINATION include
+  FILES_MATCHING PATTERN "*.h"
 )
 
-install(DIRECTORY config/
-  DESTINATION share/${PROJECT_NAME}/config
-)
+if(BUILD_ROS2_WRAPPER)
+  install(DIRECTORY launch/
+    DESTINATION share/${PROJECT_NAME}/launch
+  )
+
+  install(DIRECTORY config/
+    DESTINATION share/${PROJECT_NAME}/config
+  )
+endif()
 
 # ==================== 测试 ====================
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_cmake_gmock REQUIRED)
+
+  add_test(NAME test_core_no_ros_dependencies
+    COMMAND ${CMAKE_COMMAND}
+      -DN3MAPPING_CHECK_LIBRARY=$<TARGET_FILE:${PROJECT_NAME}_core>
+      -DN3MAPPING_CHECK_TARGET_NAME=${PROJECT_NAME}_core
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_core_no_ros_deps.cmake
+  )
+  add_test(NAME test_lio_no_ros_dependencies
+    COMMAND ${CMAKE_COMMAND}
+      -DN3MAPPING_CHECK_LIBRARY=$<TARGET_FILE:${PROJECT_NAME}_lio>
+      -DN3MAPPING_CHECK_TARGET_NAME=${PROJECT_NAME}_lio
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_core_no_ros_deps.cmake
+  )
+  add_test(NAME test_core_no_ros_includes
+    COMMAND ${CMAKE_COMMAND}
+      -DN3MAPPING_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_core_no_ros_includes.cmake
+  )
+  add_test(NAME test_wrapper_no_algorithm_duplication
+    COMMAND ${CMAKE_COMMAND}
+      -DN3MAPPING_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_wrapper_no_algorithm_duplication.cmake
+  )
+  ament_add_gtest(test_config_defaults test/test_config_defaults.cpp)
+  if(TARGET test_config_defaults)
+    target_link_libraries(test_config_defaults
+      ${PROJECT_NAME}_lio
+    )
+  endif()
+
+  # ROS-free core facade smoke test
+  ament_add_gtest(test_external_lio_frontend test/test_external_lio_frontend.cpp)
+  if(TARGET test_external_lio_frontend)
+    target_link_libraries(test_external_lio_frontend
+      ${PROJECT_NAME}_lio
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  ament_add_gtest(test_lio_frontend_factory test/test_lio_frontend_factory.cpp)
+  if(TARGET test_lio_frontend_factory)
+    target_link_libraries(test_lio_frontend_factory
+      ${PROJECT_NAME}_lio
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  ament_add_gtest(test_localization_mode_processor test/test_localization_mode_processor.cpp)
+  if(TARGET test_localization_mode_processor)
+    target_link_libraries(test_localization_mode_processor
+      ${PROJECT_NAME}_core
+      ${PCL_LIBRARIES}
+      ${OpenCV_LIBRARIES}
+      OpenMP::OpenMP_CXX
+    )
+  endif()
+
+  ament_add_gtest(test_n3mapping_core test/test_n3mapping_core.cpp)
+  if(TARGET test_n3mapping_core)
+    target_link_libraries(test_n3mapping_core
+      ${PROJECT_NAME}_core
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  ament_add_gtest(test_n3mapping_session test/test_n3mapping_session.cpp)
+  if(TARGET test_n3mapping_session)
+    target_link_libraries(test_n3mapping_session
+      ${PROJECT_NAME}_core
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  ament_add_gtest(test_mapping_mode_processor test/test_mapping_mode_processor.cpp)
+  if(TARGET test_mapping_mode_processor)
+    target_link_libraries(test_mapping_mode_processor
+      ${PROJECT_NAME}_core
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  ament_add_gtest(test_map_extension_mode_processor test/test_map_extension_mode_processor.cpp)
+  if(TARGET test_map_extension_mode_processor)
+    target_link_libraries(test_map_extension_mode_processor
+      ${PROJECT_NAME}_core
+      ${PCL_LIBRARIES}
+      ${OpenCV_LIBRARIES}
+      ${PROTOBUF_LIBRARIES}
+      gtsam
+      OpenMP::OpenMP_CXX
+    )
+  endif()
+
+  ament_add_gtest(test_pipeline_coordinator test/test_pipeline_coordinator.cpp)
+  if(TARGET test_pipeline_coordinator)
+    target_link_libraries(test_pipeline_coordinator
+      ${PROJECT_NAME}_core
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  if(BUILD_ROS2_WRAPPER)
+  ament_add_gtest(test_ros2_conversions test/test_ros2_conversions.cpp)
+  if(TARGET test_ros2_conversions)
+    target_link_libraries(test_ros2_conversions
+      ${PROJECT_NAME}_ros2
+      ${PCL_LIBRARIES}
+    )
+    ament_target_dependencies(test_ros2_conversions
+      sensor_msgs
+      nav_msgs
+      pcl_conversions
+    )
+    if(livox_ros_driver2_FOUND)
+      ament_target_dependencies(test_ros2_conversions
+        livox_ros_driver2
+      )
+    endif()
+  endif()
   
   # KeyframeManager 单元测试
   ament_add_gtest(test_keyframe_manager test/test_keyframe_manager.cpp)
   if(TARGET test_keyframe_manager)
     target_link_libraries(test_keyframe_manager
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
     )
     ament_target_dependencies(test_keyframe_manager
@@ -215,7 +492,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_point_cloud_matcher test/test_point_cloud_matcher.cpp)
   if(TARGET test_point_cloud_matcher)
     target_link_libraries(test_point_cloud_matcher
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       OpenMP::OpenMP_CXX
     )
@@ -228,7 +505,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_point_cloud_matcher_pbt test/test_point_cloud_matcher_pbt.cpp)
   if(TARGET test_point_cloud_matcher_pbt)
     target_link_libraries(test_point_cloud_matcher_pbt
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       OpenMP::OpenMP_CXX
     )
@@ -241,7 +518,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_loop_detector test/test_loop_detector.cpp)
   if(TARGET test_loop_detector)
     target_link_libraries(test_loop_detector
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
       OpenMP::OpenMP_CXX
@@ -255,7 +532,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_loop_detector_pbt test/test_loop_detector_pbt.cpp)
   if(TARGET test_loop_detector_pbt)
     target_link_libraries(test_loop_detector_pbt
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
       OpenMP::OpenMP_CXX
@@ -269,7 +546,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_graph_optimizer test/test_graph_optimizer.cpp)
   if(TARGET test_graph_optimizer)
     target_link_libraries(test_graph_optimizer
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       gtsam
     )
@@ -282,7 +559,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_graph_optimizer_pbt test/test_graph_optimizer_pbt.cpp)
   if(TARGET test_graph_optimizer_pbt)
     target_link_libraries(test_graph_optimizer_pbt
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       gtsam
     )
@@ -295,7 +572,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_map_serializer test/test_map_serializer.cpp)
   if(TARGET test_map_serializer)
     target_link_libraries(test_map_serializer
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       ${PROTOBUF_LIBRARIES}
       gtsam
@@ -309,7 +586,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_map_serializer_pbt test/test_map_serializer_pbt.cpp)
   if(TARGET test_map_serializer_pbt)
     target_link_libraries(test_map_serializer_pbt
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       ${PROTOBUF_LIBRARIES}
       gtsam
@@ -323,7 +600,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_world_localizing test/test_world_localizing.cpp)
   if(TARGET test_world_localizing)
     target_link_libraries(test_world_localizing
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
       OpenMP::OpenMP_CXX
@@ -337,7 +614,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_world_localizing_pbt test/test_world_localizing_pbt.cpp)
   if(TARGET test_world_localizing_pbt)
     target_link_libraries(test_world_localizing_pbt
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
       OpenMP::OpenMP_CXX
@@ -351,7 +628,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_mapping_resuming test/test_mapping_resuming.cpp)
   if(TARGET test_mapping_resuming)
     target_link_libraries(test_mapping_resuming
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
       ${PROTOBUF_LIBRARIES}
@@ -367,7 +644,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_mapping_resuming_pbt test/test_mapping_resuming_pbt.cpp)
   if(TARGET test_mapping_resuming_pbt)
     target_link_libraries(test_mapping_resuming_pbt
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
       ${OpenCV_LIBRARIES}
       ${PROTOBUF_LIBRARIES}
@@ -383,7 +660,7 @@ if(BUILD_TESTING)
   ament_add_gmock(test_loop_closure_manager test/test_loop_closure_manager.cpp)
   if(TARGET test_loop_closure_manager)
     target_link_libraries(test_loop_closure_manager
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
     )
     ament_target_dependencies(test_loop_closure_manager
       rclcpp
@@ -394,13 +671,39 @@ if(BUILD_TESTING)
   ament_add_gtest(test_n3mapping_node_pbt test/test_n3mapping_node_pbt.cpp)
   if(TARGET test_n3mapping_node_pbt)
     target_link_libraries(test_n3mapping_node_pbt
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}_ros2
       ${PCL_LIBRARIES}
     )
     ament_target_dependencies(test_n3mapping_node_pbt
       rclcpp
     )
   endif()
+  endif()
+endif()
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_include_directories(include)
+if(BUILD_ROS2_WRAPPER)
+  ament_export_libraries(${PROJECT_NAME}_lio ${PROJECT_NAME}_core ${PROJECT_NAME}_ros2)
+  ament_export_dependencies(
+    rclcpp
+    std_msgs
+    sensor_msgs
+    nav_msgs
+    geometry_msgs
+    visualization_msgs
+    message_filters
+    tf2
+    tf2_ros
+    tf2_geometry_msgs
+    pcl_conversions
+    cv_bridge
+  )
+  if(livox_ros_driver2_FOUND)
+    ament_export_dependencies(livox_ros_driver2)
+  endif()
+else()
+  ament_export_libraries(${PROJECT_NAME}_lio ${PROJECT_NAME}_core)
 endif()
 
 ament_package()
