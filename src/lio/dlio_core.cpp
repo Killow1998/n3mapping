@@ -38,8 +38,17 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
     ++lidar_frames_seen_;
     last_input_packet_ = buildInputPacket(frame, imu_buffer_, cloudOptions());
     if (!last_input_packet_.imu_samples.empty()) {
+        ImuPropagationState initial_state;
+        if (predicted_state_) {
+            initial_state.stamp = predicted_state_->stamp;
+            initial_state.orientation =
+                Eigen::Quaterniond(predicted_state_->T_world_lidar.linear());
+            initial_state.position = predicted_state_->T_world_lidar.translation();
+            initial_state.velocity = predicted_state_->velocity_world;
+            initial_state.valid = predicted_state_->initialized;
+        }
         last_imu_propagation_ =
-            propagateImu(last_input_packet_.imu_samples, ImuPropagationState{});
+            propagateImu(last_input_packet_.imu_samples, initial_state);
         predicted_state_ = stateFromImuPropagation(*last_imu_propagation_);
     } else {
         last_imu_propagation_.reset();

@@ -76,6 +76,25 @@ TEST(FastLioCoreTest, ResetClearsBufferedBoundaryState) {
     EXPECT_FALSE(core.predictedState().has_value());
 }
 
+TEST(FastLioCoreTest, CarriesPredictionAcrossLidarFrames) {
+    lio::fast_lio::Core core;
+    core.addImu(makeImu(4000000000LL));
+    core.addImu(makeImu(4001000000LL));
+    core.addLidar(makeFrame());
+    ASSERT_TRUE(core.predictedState().has_value());
+    const double first_velocity = core.predictedState()->velocity_world.x();
+
+    core::RawLidarFrame second = makeFrame();
+    second.stamp_begin.nsec = 4001000000LL;
+    second.stamp_end.nsec = 4002000000LL;
+    core.addImu(makeImu(4002000000LL));
+    core.addLidar(second);
+
+    ASSERT_TRUE(core.predictedState().has_value());
+    EXPECT_GT(core.predictedState()->velocity_world.x(), first_velocity);
+    EXPECT_NEAR(core.predictedState()->velocity_world.x(), 0.002, 1e-12);
+}
+
 TEST(FastLioCoreTest, ReportsExtractionStatus) {
     EXPECT_NE(std::string(lio::fast_lio::coreStatus()).find("input boundary"),
               std::string::npos);
