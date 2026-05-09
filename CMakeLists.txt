@@ -150,6 +150,7 @@ set(N3MAPPING_LIO_SOURCES
   src/lio/dlio_imu_integration.cpp
   src/lio/dlio_input_adapter.cpp
   src/lio/dlio_map_accumulator.cpp
+  src/lio/dlio_scan_timing.cpp
   src/lio/dlio_settings.cpp
   src/lio/external_frontend.cpp
   src/lio/fast_lio_cloud_adapter.cpp
@@ -440,6 +441,14 @@ if(BUILD_TESTING)
   if(TARGET test_dlio_imu_integration)
     target_link_libraries(test_dlio_imu_integration
       ${PROJECT_NAME}_lio
+    )
+  endif()
+
+  ament_add_gtest(test_dlio_scan_timing test/test_dlio_scan_timing.cpp)
+  if(TARGET test_dlio_scan_timing)
+    target_link_libraries(test_dlio_scan_timing
+      ${PROJECT_NAME}_lio
+      ${PCL_LIBRARIES}
     )
   endif()
 
