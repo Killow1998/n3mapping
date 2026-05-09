@@ -62,6 +62,34 @@ TEST(PipelineCoordinatorTest, BuiltinFrontendReportsFactoryErrorForNow) {
 #endif
 }
 
+TEST(PipelineCoordinatorTest, FastLioBuiltinPredictionOnlyCanFeedMapping) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    config.keyframe_distance_threshold = 0.1;
+    config.rhpd_submap_voxel_size = 0.0;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_FAST_LIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    core::ImuSample imu0;
+    imu0.stamp.nsec = 1;
+    core::ImuSample imu1;
+    imu1.stamp.nsec = 1000001;
+    pipeline.addImu(imu0);
+    pipeline.addImu(imu1);
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = 1;
+    raw.stamp_end.nsec = 1000001;
+    raw.points = makeCloud();
+    auto output = pipeline.addRawLidar(raw);
+    EXPECT_TRUE(output.has_lio_frame);
+    EXPECT_TRUE(output.success) << output.error;
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
 TEST(PipelineCoordinatorTest, DlioBuiltinFrontendReportsFactoryErrorForNow) {
     Config config;
     config.frontend_mode = "dlio";
@@ -78,6 +106,34 @@ TEST(PipelineCoordinatorTest, DlioBuiltinFrontendReportsFactoryErrorForNow) {
 #else
     EXPECT_FALSE(pipeline.ready());
     EXPECT_NE(pipeline.error().find("dlio_core"), std::string::npos);
+#endif
+}
+
+TEST(PipelineCoordinatorTest, DlioBuiltinPredictionOnlyCanFeedMapping) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    config.keyframe_distance_threshold = 0.1;
+    config.rhpd_submap_voxel_size = 0.0;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_DLIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    core::ImuSample imu0;
+    imu0.stamp.nsec = 1;
+    core::ImuSample imu1;
+    imu1.stamp.nsec = 1000001;
+    pipeline.addImu(imu0);
+    pipeline.addImu(imu1);
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = 1;
+    raw.stamp_end.nsec = 1000001;
+    raw.points = makeCloud();
+    auto output = pipeline.addRawLidar(raw);
+    EXPECT_TRUE(output.has_lio_frame);
+    EXPECT_TRUE(output.success) << output.error;
+#else
+    EXPECT_FALSE(pipeline.ready());
 #endif
 }
 

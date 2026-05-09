@@ -188,6 +188,27 @@ TEST(LioFrontendFactoryTest, FastLioFrontendConsumesRawInputAtAdapterBoundary) {
     EXPECT_EQ(frontend->lastCloudStats().output_points, 0u);
     EXPECT_EQ(frontend->lastInputImuSamples(), 0u);
     EXPECT_FALSE(frontend->lastInputHadCompleteImuWindow());
+    EXPECT_FALSE(frontend->predictedState().has_value());
+}
+
+TEST(LioFrontendFactoryTest, FastLioFrontendCanReturnPredictionOnlyFrame) {
+    Config config;
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::FastLioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    const auto output = frontend->addLidar(makeRawLidarFrame());
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_TRUE(output->pose_valid);
+    ASSERT_TRUE(output->undistorted_cloud);
+    EXPECT_EQ(output->undistorted_cloud->size(), 1u);
+    ASSERT_TRUE(frontend->predictedState().has_value());
 }
 #endif
 
@@ -233,6 +254,27 @@ TEST(LioFrontendFactoryTest, DlioFrontendConsumesRawInputAtAdapterBoundary) {
     EXPECT_EQ(frontend->lastCloudStats().output_points, 0u);
     EXPECT_EQ(frontend->lastInputImuSamples(), 0u);
     EXPECT_FALSE(frontend->lastInputHadCompleteImuWindow());
+    EXPECT_FALSE(frontend->predictedState().has_value());
+}
+
+TEST(LioFrontendFactoryTest, DlioFrontendCanReturnPredictionOnlyFrame) {
+    Config config;
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::DlioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    const auto output = frontend->addLidar(makeRawLidarFrame("livox_custom"));
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_TRUE(output->pose_valid);
+    ASSERT_TRUE(output->undistorted_cloud);
+    EXPECT_EQ(output->undistorted_cloud->size(), 1u);
+    ASSERT_TRUE(frontend->predictedState().has_value());
 }
 #endif
 

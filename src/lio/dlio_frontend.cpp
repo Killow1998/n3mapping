@@ -44,6 +44,19 @@ std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& 
     last_time_encoding_ = packet.time_encoding;
     last_complete_imu_window_ = packet.has_complete_imu_window;
     last_input_imu_samples_ = packet.imu_samples.size();
+    if (!packet.imu_samples.empty()) {
+        const auto propagation = propagateImu(packet.imu_samples, ImuPropagationState{});
+        predicted_state_ = stateFromImuPropagation(propagation);
+    } else {
+        predicted_state_.reset();
+    }
+    if (config_.prediction_only_output && predicted_state_ && packet.cloud &&
+        !packet.cloud->empty() && frame.points && !frame.points->empty()) {
+        auto output = frameFromState(*predicted_state_);
+        output.undistorted_cloud = frame.points;
+        output.pose_valid = predicted_state_->initialized;
+        return output;
+    }
     return std::nullopt;
 }
 
@@ -54,6 +67,7 @@ void DlioFrontend::reset() {
     last_time_encoding_ = dlio::TimeEncoding::OusterOffsetNs;
     last_complete_imu_window_ = false;
     last_input_imu_samples_ = 0;
+    predicted_state_.reset();
 }
 
 }  // namespace lio

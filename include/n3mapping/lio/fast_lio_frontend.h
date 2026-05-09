@@ -6,8 +6,10 @@
 
 #include "n3mapping/lio/fast_lio_cloud_adapter.h"
 #include "n3mapping/lio/fast_lio_input_adapter.h"
+#include "n3mapping/lio/core_state.h"
 #include "n3mapping/lio/frontend.h"
 #include "n3mapping/lio/frontend_config.h"
+#include "n3mapping/lio/imu_propagator.h"
 #include "n3mapping/lio/imu_sample_buffer.h"
 
 namespace n3mapping {
@@ -32,6 +34,9 @@ public:
         return last_complete_imu_window_;
     }
     size_t lastInputImuSamples() const { return last_input_imu_samples_; }
+    const std::optional<LioCoreState>& predictedState() const {
+        return predicted_state_;
+    }
 
 private:
     LioFrontendConfig config_;
@@ -40,6 +45,7 @@ private:
     fast_lio::CloudAdapterStats last_cloud_stats_;
     bool last_complete_imu_window_ = false;
     size_t last_input_imu_samples_ = 0;
+    std::optional<LioCoreState> predicted_state_;
 };
 
 }  // namespace lio

@@ -22,6 +22,19 @@ std::optional<core::LioFrame> FastLioFrontend::addLidar(const core::RawLidarFram
     last_cloud_stats_ = packet.cloud_stats;
     last_complete_imu_window_ = packet.has_complete_imu_window;
     last_input_imu_samples_ = packet.imu_samples.size();
+    if (!packet.imu_samples.empty()) {
+        const auto propagation = propagateImu(packet.imu_samples, ImuPropagationState{});
+        predicted_state_ = stateFromImuPropagation(propagation);
+    } else {
+        predicted_state_.reset();
+    }
+    if (config_.prediction_only_output && predicted_state_ && packet.cloud &&
+        !packet.cloud->empty() && frame.points && !frame.points->empty()) {
+        auto output = frameFromState(*predicted_state_);
+        output.undistorted_cloud = frame.points;
+        output.pose_valid = predicted_state_->initialized;
+        return output;
+    }
     return std::nullopt;
 }
 
@@ -31,6 +44,7 @@ void FastLioFrontend::reset() {
     last_cloud_stats_ = fast_lio::CloudAdapterStats{};
     last_complete_imu_window_ = false;
     last_input_imu_samples_ = 0;
+    predicted_state_.reset();
 }
 
 }  // namespace lio

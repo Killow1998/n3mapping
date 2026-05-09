@@ -4,9 +4,11 @@
 
 #include <cstddef>
 
+#include "n3mapping/lio/core_state.h"
 #include "n3mapping/lio/dlio_cloud_adapter.h"
 #include "n3mapping/lio/frontend.h"
 #include "n3mapping/lio/frontend_config.h"
+#include "n3mapping/lio/imu_propagator.h"
 #include "n3mapping/lio/imu_sample_buffer.h"
 #include "n3mapping/lio/dlio_input_adapter.h"
 
@@ -33,6 +35,9 @@ public:
         return last_complete_imu_window_;
     }
     size_t lastInputImuSamples() const { return last_input_imu_samples_; }
+    const std::optional<LioCoreState>& predictedState() const {
+        return predicted_state_;
+    }
 
 private:
     LioFrontendConfig config_;
@@ -42,6 +47,7 @@ private:
     dlio::TimeEncoding last_time_encoding_ = dlio::TimeEncoding::OusterOffsetNs;
     bool last_complete_imu_window_ = false;
     size_t last_input_imu_samples_ = 0;
+    std::optional<LioCoreState> predicted_state_;
 };
 
 }  // namespace lio
