@@ -37,6 +37,12 @@ void Core::addImu(const core::ImuSample& imu) {
 std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
     ++lidar_frames_seen_;
     last_input_packet_ = buildInputPacket(frame, imu_buffer_, cloudOptions());
+    if (!last_input_packet_.imu_samples.empty()) {
+        last_imu_propagation_ =
+            propagateImu(last_input_packet_.imu_samples, ImuPropagationState{});
+    } else {
+        last_imu_propagation_.reset();
+    }
     return std::nullopt;
 }
 
@@ -44,6 +50,7 @@ void Core::reset() {
     imu_buffer_.clear();
     lidar_frames_seen_ = 0;
     last_input_packet_ = InputPacket{};
+    last_imu_propagation_.reset();
 }
 
 CloudAdapterOptions Core::cloudOptions() const {

@@ -8,6 +8,7 @@
 #include "n3mapping/core/types.h"
 #include "n3mapping/lio/fast_lio_input_adapter.h"
 #include "n3mapping/lio/frontend_config.h"
+#include "n3mapping/lio/imu_propagator.h"
 #include "n3mapping/lio/imu_sample_buffer.h"
 
 namespace n3mapping {
@@ -26,6 +27,9 @@ public:
     size_t imuSamplesSeen() const { return imu_buffer_.size(); }
     size_t lidarFramesSeen() const { return lidar_frames_seen_; }
     const InputPacket& lastInputPacket() const { return last_input_packet_; }
+    const std::optional<ImuPropagationState>& lastImuPropagation() const {
+        return last_imu_propagation_;
+    }
 
 private:
     CloudAdapterOptions cloudOptions() const;
@@ -34,6 +38,7 @@ private:
     ImuSampleBuffer imu_buffer_;
     size_t lidar_frames_seen_ = 0;
     InputPacket last_input_packet_;
+    std::optional<ImuPropagationState> last_imu_propagation_;
 };
 
 const char* coreStatus();

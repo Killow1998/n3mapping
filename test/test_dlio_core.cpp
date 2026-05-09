@@ -28,6 +28,7 @@ core::RawLidarFrame makeFrame() {
 core::ImuSample makeImu(int64_t stamp_nsec) {
     core::ImuSample sample;
     sample.stamp.nsec = stamp_nsec;
+    sample.linear_accel.x() = 1.0;
     return sample;
 }
 
@@ -52,6 +53,9 @@ TEST(DlioCoreTest, AcceptsImuAndLidarAtCoreBoundary) {
               lio::dlio::TimeEncoding::VelodyneOffsetSeconds);
     EXPECT_EQ(core.lastInputPacket().imu_samples.size(), 2u);
     EXPECT_TRUE(core.lastInputPacket().has_complete_imu_window);
+    ASSERT_TRUE(core.lastImuPropagation().has_value());
+    EXPECT_TRUE(core.lastImuPropagation()->valid);
+    EXPECT_NEAR(core.lastImuPropagation()->velocity.x(), 0.001, 1e-12);
 }
 
 TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
@@ -64,6 +68,7 @@ TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
     EXPECT_EQ(core.lidarFramesSeen(), 0u);
     EXPECT_FALSE(core.lastInputPacket().cloud);
     EXPECT_TRUE(core.lastInputPacket().imu_samples.empty());
+    EXPECT_FALSE(core.lastImuPropagation().has_value());
 }
 
 TEST(DlioCoreTest, ReportsExtractionStatus) {
