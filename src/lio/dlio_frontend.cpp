@@ -35,6 +35,7 @@ void DlioFrontend::addImu(const core::ImuSample& imu) {
 
 std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& frame) {
     ++lidar_frames_seen_;
+    LioTimingStats timing;
     dlio::CloudAdapterOptions options;
     options.time_encoding = parseDlioTimeEncoding(config_.dlio_time_encoding);
     options.blind = config_.blind;
@@ -55,7 +56,20 @@ std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& 
         auto output = frameFromState(*predicted_state_);
         output.undistorted_cloud = frame.points;
         output.pose_valid = predicted_state_->initialized;
+        if (config_.debug_publish_odom && debug_callbacks_.odom) {
+            debug_callbacks_.odom(output);
+        }
+        if (config_.debug_publish_deskewed_cloud &&
+            debug_callbacks_.deskewed_cloud) {
+            debug_callbacks_.deskewed_cloud(output.undistorted_cloud);
+        }
+        if (config_.debug_publish_timing && debug_callbacks_.timing) {
+            debug_callbacks_.timing(timing);
+        }
         return output;
+    }
+    if (config_.debug_publish_timing && debug_callbacks_.timing) {
+        debug_callbacks_.timing(timing);
     }
     return std::nullopt;
 }
@@ -68,6 +82,10 @@ void DlioFrontend::reset() {
     last_complete_imu_window_ = false;
     last_input_imu_samples_ = 0;
     predicted_state_.reset();
+}
+
+void DlioFrontend::setDebugCallbacks(const LioDebugCallbacks& callbacks) {
+    debug_callbacks_ = callbacks;
 }
 
 }  // namespace lio

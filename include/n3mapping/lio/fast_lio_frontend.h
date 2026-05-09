@@ -22,6 +22,7 @@ public:
     void addImu(const core::ImuSample& imu) override;
     std::optional<core::LioFrame> addLidar(const core::RawLidarFrame& frame) override;
     void reset() override;
+    void setDebugCallbacks(const LioDebugCallbacks& callbacks) override;
 
     bool implemented() const { return false; }
     const LioFrontendConfig& config() const { return config_; }
@@ -46,6 +47,7 @@ private:
     bool last_complete_imu_window_ = false;
     size_t last_input_imu_samples_ = 0;
     std::optional<LioCoreState> predicted_state_;
+    LioDebugCallbacks debug_callbacks_;
 };
 
 }  // namespace lio

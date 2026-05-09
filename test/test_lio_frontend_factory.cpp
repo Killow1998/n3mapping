@@ -210,6 +210,64 @@ TEST(LioFrontendFactoryTest, FastLioFrontendCanReturnPredictionOnlyFrame) {
     EXPECT_EQ(output->undistorted_cloud->size(), 1u);
     ASSERT_TRUE(frontend->predictedState().has_value());
 }
+
+TEST(LioFrontendFactoryTest, FastLioDebugCallbacksAreOptIn) {
+    Config config;
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::FastLioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    int odom_count = 0;
+    int cloud_count = 0;
+    int timing_count = 0;
+    lio::LioDebugCallbacks callbacks;
+    callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
+    callbacks.deskewed_cloud =
+        [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
+    frontend->setDebugCallbacks(callbacks);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame()).has_value());
+    EXPECT_EQ(odom_count, 0);
+    EXPECT_EQ(cloud_count, 0);
+    EXPECT_EQ(timing_count, 0);
+}
+
+TEST(LioFrontendFactoryTest, FastLioDebugCallbacksFireWhenEnabled) {
+    Config config;
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    config.frontend_publish_debug = true;
+    config.frontend_debug_publish_odom = true;
+    config.frontend_debug_publish_deskewed_cloud = true;
+    config.frontend_debug_publish_timing = true;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::FastLioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    int odom_count = 0;
+    int cloud_count = 0;
+    int timing_count = 0;
+    lio::LioDebugCallbacks callbacks;
+    callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
+    callbacks.deskewed_cloud =
+        [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
+    frontend->setDebugCallbacks(callbacks);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame()).has_value());
+    EXPECT_EQ(odom_count, 1);
+    EXPECT_EQ(cloud_count, 1);
+    EXPECT_EQ(timing_count, 1);
+}
 #endif
 
 #ifdef N3MAPPING_BUILD_DLIO_CORE
@@ -275,6 +333,64 @@ TEST(LioFrontendFactoryTest, DlioFrontendCanReturnPredictionOnlyFrame) {
     ASSERT_TRUE(output->undistorted_cloud);
     EXPECT_EQ(output->undistorted_cloud->size(), 1u);
     ASSERT_TRUE(frontend->predictedState().has_value());
+}
+
+TEST(LioFrontendFactoryTest, DlioDebugCallbacksAreOptIn) {
+    Config config;
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::DlioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    int odom_count = 0;
+    int cloud_count = 0;
+    int timing_count = 0;
+    lio::LioDebugCallbacks callbacks;
+    callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
+    callbacks.deskewed_cloud =
+        [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
+    frontend->setDebugCallbacks(callbacks);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame("livox_custom")).has_value());
+    EXPECT_EQ(odom_count, 0);
+    EXPECT_EQ(cloud_count, 0);
+    EXPECT_EQ(timing_count, 0);
+}
+
+TEST(LioFrontendFactoryTest, DlioDebugCallbacksFireWhenEnabled) {
+    Config config;
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    config.frontend_publish_debug = true;
+    config.frontend_debug_publish_odom = true;
+    config.frontend_debug_publish_deskewed_cloud = true;
+    config.frontend_debug_publish_timing = true;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::DlioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    int odom_count = 0;
+    int cloud_count = 0;
+    int timing_count = 0;
+    lio::LioDebugCallbacks callbacks;
+    callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
+    callbacks.deskewed_cloud =
+        [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
+    frontend->setDebugCallbacks(callbacks);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame("livox_custom")).has_value());
+    EXPECT_EQ(odom_count, 1);
+    EXPECT_EQ(cloud_count, 1);
+    EXPECT_EQ(timing_count, 1);
 }
 #endif
 
