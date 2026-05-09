@@ -41,6 +41,8 @@ void loadConfigFromROS(rclcpp::Node* node, Config& config) {
         config.frontend_alignment_max_correspondence_distance);
     get("frontend_prediction_only_output", config.frontend_prediction_only_output);
     get("dlio_time_encoding", config.dlio_time_encoding);
+    get("dlio_dense_map_leaf_size", config.dlio_dense_map_leaf_size);
+    get("dlio_dense_input_skip", config.dlio_dense_input_skip);
     get("frontend_lidar_to_body_tx", config.frontend_lidar_to_body_tx);
     get("frontend_lidar_to_body_ty", config.frontend_lidar_to_body_ty);
     get("frontend_lidar_to_body_tz", config.frontend_lidar_to_body_tz);
@@ -189,7 +191,7 @@ void printConfigToROS(const Config& config, const rclcpp::Logger& logger) {
                 config.frontend_debug_publish_local_map ? "YES" : "NO",
                 config.frontend_debug_publish_timing ? "YES" : "NO");
     RCLCPP_INFO(logger,
-                "Frontend preprocessing: imu_buffer=%d point_filter=%d scan_lines=%d blind=%.3f max_abs_coord=%.1f align_corr=%.3f prediction_only=%s dlio_time_encoding=%s",
+                "Frontend preprocessing: imu_buffer=%d point_filter=%d scan_lines=%d blind=%.3f max_abs_coord=%.1f align_corr=%.3f prediction_only=%s dlio_time_encoding=%s dlio_dense_leaf=%.3f dlio_dense_skip=%d",
                 config.frontend_imu_buffer_max_samples,
                 config.frontend_point_filter_num,
                 config.frontend_scan_lines,
@@ -197,7 +199,9 @@ void printConfigToROS(const Config& config, const rclcpp::Logger& logger) {
                 config.frontend_max_abs_coordinate,
                 config.frontend_alignment_max_correspondence_distance,
                 config.frontend_prediction_only_output ? "YES" : "NO",
-                config.dlio_time_encoding.c_str());
+                config.dlio_time_encoding.c_str(),
+                config.dlio_dense_map_leaf_size,
+                config.dlio_dense_input_skip);
     RCLCPP_INFO(logger,
                 "Frontend extrinsics: T_body_lidar xyz=(%.3f %.3f %.3f) rpy=(%.3f %.3f %.3f) | T_body_imu xyz=(%.3f %.3f %.3f) rpy=(%.3f %.3f %.3f)",
                 config.frontend_lidar_to_body_tx,

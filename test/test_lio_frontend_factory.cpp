@@ -118,6 +118,8 @@ TEST(LioFrontendFactoryTest, DerivesFrontendConfigFromCoreConfig) {
     config.frontend_alignment_max_correspondence_distance = 0.75;
     config.frontend_prediction_only_output = true;
     config.dlio_time_encoding = "velodyne";
+    config.dlio_dense_map_leaf_size = 0.25;
+    config.dlio_dense_input_skip = 4;
     config.frontend_lidar_to_body_tx = 1.0;
     config.frontend_lidar_to_body_ty = 2.0;
     config.frontend_lidar_to_body_tz = 3.0;
@@ -141,6 +143,8 @@ TEST(LioFrontendFactoryTest, DerivesFrontendConfigFromCoreConfig) {
     EXPECT_NEAR(frontend_config.alignment_max_correspondence_distance, 0.75, 1e-12);
     EXPECT_TRUE(frontend_config.prediction_only_output);
     EXPECT_EQ(frontend_config.dlio_time_encoding, "velodyne");
+    EXPECT_NEAR(frontend_config.dlio_dense_map_leaf_size, 0.25, 1e-12);
+    EXPECT_EQ(frontend_config.dlio_dense_input_skip, 4u);
     EXPECT_NEAR(frontend_config.T_body_lidar.translation().x(), 1.0, 1e-12);
     EXPECT_NEAR(frontend_config.T_body_lidar.translation().y(), 2.0, 1e-12);
     EXPECT_NEAR(frontend_config.T_body_lidar.translation().z(), 3.0, 1e-12);

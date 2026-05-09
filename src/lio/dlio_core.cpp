@@ -5,10 +5,21 @@
 namespace n3mapping {
 namespace lio {
 namespace dlio {
+namespace {
+
+MapAccumulator::Options makeDenseMapOptions(const LioFrontendConfig& config) {
+    MapAccumulator::Options options;
+    options.leaf_size = config.dlio_dense_map_leaf_size;
+    options.dense_input_skip = config.dlio_dense_input_skip;
+    return options;
+}
+
+}  // namespace
 
 Core::Core(const LioFrontendConfig& config)
     : config_(config),
-      imu_buffer_(config.imu_buffer_max_samples) {}
+      imu_buffer_(config.imu_buffer_max_samples),
+      dense_map_(makeDenseMapOptions(config)) {}
 
 void Core::addImu(const core::ImuSample& imu) {
     imu_buffer_.add(imu);

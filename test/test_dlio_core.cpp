@@ -83,6 +83,28 @@ TEST(DlioCoreTest, CanReturnPredictionOnlyFrameWhenEnabled) {
     EXPECT_FALSE(core.lastAlignmentStats().valid);
 }
 
+TEST(DlioCoreTest, RespectsDenseMapInputSkip) {
+    lio::LioFrontendConfig config;
+    config.prediction_only_output = true;
+    config.dlio_dense_input_skip = 2;
+    lio::dlio::Core core(config);
+
+    core.addImu(makeImu(3000000000LL));
+    core.addImu(makeImu(3001000000LL));
+    ASSERT_TRUE(core.addLidar(makeFrame()).has_value());
+    EXPECT_FALSE(core.lastDenseMapAddResult().accepted);
+    ASSERT_TRUE(core.denseMapCloud());
+    EXPECT_TRUE(core.denseMapCloud()->empty());
+
+    core::RawLidarFrame second = makeFrame();
+    second.stamp_begin.nsec = 3001000000LL;
+    second.stamp_end.nsec = 3002000000LL;
+    core.addImu(makeImu(3002000000LL));
+    ASSERT_TRUE(core.addLidar(second).has_value());
+    EXPECT_TRUE(core.lastDenseMapAddResult().accepted);
+    EXPECT_EQ(core.denseMapCloud()->size(), 1u);
+}
+
 TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
     lio::dlio::Core core;
     core.addImu(makeImu(1));

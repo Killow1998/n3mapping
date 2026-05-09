@@ -47,6 +47,10 @@ LioFrontendConfig makeLioFrontendConfig(const Config& config) {
         std::max(0.0, config.frontend_alignment_max_correspondence_distance);
     frontend_config.prediction_only_output = config.frontend_prediction_only_output;
     frontend_config.dlio_time_encoding = config.dlio_time_encoding;
+    frontend_config.dlio_dense_map_leaf_size =
+        std::max(0.0, config.dlio_dense_map_leaf_size);
+    frontend_config.dlio_dense_input_skip =
+        static_cast<size_t>(std::max(1, config.dlio_dense_input_skip));
     frontend_config.T_body_lidar = makeIsometryFromXyzRpy(
         config.frontend_lidar_to_body_tx,
         config.frontend_lidar_to_body_ty,
