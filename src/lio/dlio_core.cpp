@@ -56,6 +56,7 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
     }
     if (config_.prediction_only_output && predicted_state_ && frame.points &&
         !frame.points->empty()) {
+        local_map_.addFrame(*predicted_state_, frame.points);
         auto output = frameFromState(*predicted_state_);
         output.undistorted_cloud = frame.points;
         output.pose_valid = predicted_state_->initialized;
@@ -70,6 +71,7 @@ void Core::reset() {
     last_input_packet_ = InputPacket{};
     last_imu_propagation_.reset();
     predicted_state_.reset();
+    local_map_.clear();
 }
 
 CloudAdapterOptions Core::cloudOptions() const {

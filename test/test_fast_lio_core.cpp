@@ -76,6 +76,8 @@ TEST(FastLioCoreTest, CanReturnPredictionOnlyFrameWhenEnabled) {
     ASSERT_TRUE(output->undistorted_cloud);
     EXPECT_EQ(output->undistorted_cloud->size(), 1u);
     EXPECT_NEAR(output->T_world_lidar.translation().x(), 0.0000005, 1e-12);
+    ASSERT_TRUE(core.localMapCloud());
+    EXPECT_EQ(core.localMapCloud()->size(), 1u);
 }
 
 TEST(FastLioCoreTest, ResetClearsBufferedBoundaryState) {
@@ -90,6 +92,8 @@ TEST(FastLioCoreTest, ResetClearsBufferedBoundaryState) {
     EXPECT_TRUE(core.lastInputPacket().imu_samples.empty());
     EXPECT_FALSE(core.lastImuPropagation().has_value());
     EXPECT_FALSE(core.predictedState().has_value());
+    ASSERT_TRUE(core.localMapCloud());
+    EXPECT_TRUE(core.localMapCloud()->empty());
 }
 
 TEST(FastLioCoreTest, CarriesPredictionAcrossLidarFrames) {

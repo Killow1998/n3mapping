@@ -209,6 +209,8 @@ TEST(LioFrontendFactoryTest, FastLioFrontendCanReturnPredictionOnlyFrame) {
     ASSERT_TRUE(output->undistorted_cloud);
     EXPECT_EQ(output->undistorted_cloud->size(), 1u);
     ASSERT_TRUE(frontend->predictedState().has_value());
+    ASSERT_TRUE(frontend->localMapCloud());
+    EXPECT_EQ(frontend->localMapCloud()->size(), 1u);
 }
 
 TEST(LioFrontendFactoryTest, FastLioDebugCallbacksAreOptIn) {
@@ -222,11 +224,14 @@ TEST(LioFrontendFactoryTest, FastLioDebugCallbacksAreOptIn) {
 
     int odom_count = 0;
     int cloud_count = 0;
+    int local_map_count = 0;
     int timing_count = 0;
     lio::LioDebugCallbacks callbacks;
     callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
     callbacks.deskewed_cloud =
         [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.local_map =
+        [&](const core::LioFrame::PointCloud::ConstPtr&) { ++local_map_count; };
     callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
     frontend->setDebugCallbacks(callbacks);
 
@@ -235,6 +240,7 @@ TEST(LioFrontendFactoryTest, FastLioDebugCallbacksAreOptIn) {
     ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame()).has_value());
     EXPECT_EQ(odom_count, 0);
     EXPECT_EQ(cloud_count, 0);
+    EXPECT_EQ(local_map_count, 0);
     EXPECT_EQ(timing_count, 0);
 }
 
@@ -245,6 +251,7 @@ TEST(LioFrontendFactoryTest, FastLioDebugCallbacksFireWhenEnabled) {
     config.frontend_publish_debug = true;
     config.frontend_debug_publish_odom = true;
     config.frontend_debug_publish_deskewed_cloud = true;
+    config.frontend_debug_publish_local_map = true;
     config.frontend_debug_publish_timing = true;
     auto result = lio::createLioFrontend(config);
     ASSERT_TRUE(result.ok()) << result.error;
@@ -253,11 +260,17 @@ TEST(LioFrontendFactoryTest, FastLioDebugCallbacksFireWhenEnabled) {
 
     int odom_count = 0;
     int cloud_count = 0;
+    int local_map_count = 0;
     int timing_count = 0;
     lio::LioDebugCallbacks callbacks;
     callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
     callbacks.deskewed_cloud =
         [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.local_map =
+        [&](const core::LioFrame::PointCloud::ConstPtr& cloud) {
+            ++local_map_count;
+            EXPECT_FALSE(cloud->empty());
+        };
     callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
     frontend->setDebugCallbacks(callbacks);
 
@@ -266,6 +279,7 @@ TEST(LioFrontendFactoryTest, FastLioDebugCallbacksFireWhenEnabled) {
     ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame()).has_value());
     EXPECT_EQ(odom_count, 1);
     EXPECT_EQ(cloud_count, 1);
+    EXPECT_EQ(local_map_count, 1);
     EXPECT_EQ(timing_count, 1);
 }
 #endif
@@ -333,6 +347,8 @@ TEST(LioFrontendFactoryTest, DlioFrontendCanReturnPredictionOnlyFrame) {
     ASSERT_TRUE(output->undistorted_cloud);
     EXPECT_EQ(output->undistorted_cloud->size(), 1u);
     ASSERT_TRUE(frontend->predictedState().has_value());
+    ASSERT_TRUE(frontend->localMapCloud());
+    EXPECT_EQ(frontend->localMapCloud()->size(), 1u);
 }
 
 TEST(LioFrontendFactoryTest, DlioDebugCallbacksAreOptIn) {
@@ -346,11 +362,14 @@ TEST(LioFrontendFactoryTest, DlioDebugCallbacksAreOptIn) {
 
     int odom_count = 0;
     int cloud_count = 0;
+    int local_map_count = 0;
     int timing_count = 0;
     lio::LioDebugCallbacks callbacks;
     callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
     callbacks.deskewed_cloud =
         [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.local_map =
+        [&](const core::LioFrame::PointCloud::ConstPtr&) { ++local_map_count; };
     callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
     frontend->setDebugCallbacks(callbacks);
 
@@ -359,6 +378,7 @@ TEST(LioFrontendFactoryTest, DlioDebugCallbacksAreOptIn) {
     ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame("livox_custom")).has_value());
     EXPECT_EQ(odom_count, 0);
     EXPECT_EQ(cloud_count, 0);
+    EXPECT_EQ(local_map_count, 0);
     EXPECT_EQ(timing_count, 0);
 }
 
@@ -369,6 +389,7 @@ TEST(LioFrontendFactoryTest, DlioDebugCallbacksFireWhenEnabled) {
     config.frontend_publish_debug = true;
     config.frontend_debug_publish_odom = true;
     config.frontend_debug_publish_deskewed_cloud = true;
+    config.frontend_debug_publish_local_map = true;
     config.frontend_debug_publish_timing = true;
     auto result = lio::createLioFrontend(config);
     ASSERT_TRUE(result.ok()) << result.error;
@@ -377,11 +398,17 @@ TEST(LioFrontendFactoryTest, DlioDebugCallbacksFireWhenEnabled) {
 
     int odom_count = 0;
     int cloud_count = 0;
+    int local_map_count = 0;
     int timing_count = 0;
     lio::LioDebugCallbacks callbacks;
     callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
     callbacks.deskewed_cloud =
         [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.local_map =
+        [&](const core::LioFrame::PointCloud::ConstPtr& cloud) {
+            ++local_map_count;
+            EXPECT_FALSE(cloud->empty());
+        };
     callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
     frontend->setDebugCallbacks(callbacks);
 
@@ -390,6 +417,7 @@ TEST(LioFrontendFactoryTest, DlioDebugCallbacksFireWhenEnabled) {
     ASSERT_TRUE(frontend->addLidar(makeRawLidarFrame("livox_custom")).has_value());
     EXPECT_EQ(odom_count, 1);
     EXPECT_EQ(cloud_count, 1);
+    EXPECT_EQ(local_map_count, 1);
     EXPECT_EQ(timing_count, 1);
 }
 #endif

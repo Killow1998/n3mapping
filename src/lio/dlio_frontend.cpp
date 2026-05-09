@@ -53,6 +53,7 @@ std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& 
     }
     if (config_.prediction_only_output && predicted_state_ && packet.cloud &&
         !packet.cloud->empty() && frame.points && !frame.points->empty()) {
+        local_map_.addFrame(*predicted_state_, frame.points);
         auto output = frameFromState(*predicted_state_);
         output.undistorted_cloud = frame.points;
         output.pose_valid = predicted_state_->initialized;
@@ -65,6 +66,9 @@ std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& 
         }
         if (config_.debug_publish_timing && debug_callbacks_.timing) {
             debug_callbacks_.timing(timing);
+        }
+        if (config_.debug_publish_local_map && debug_callbacks_.local_map) {
+            debug_callbacks_.local_map(local_map_.cloud());
         }
         return output;
     }
@@ -82,6 +86,7 @@ void DlioFrontend::reset() {
     last_complete_imu_window_ = false;
     last_input_imu_samples_ = 0;
     predicted_state_.reset();
+    local_map_.clear();
 }
 
 void DlioFrontend::setDebugCallbacks(const LioDebugCallbacks& callbacks) {

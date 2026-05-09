@@ -11,6 +11,7 @@
 #include "n3mapping/lio/frontend_config.h"
 #include "n3mapping/lio/imu_propagator.h"
 #include "n3mapping/lio/imu_sample_buffer.h"
+#include "n3mapping/lio/local_map.h"
 
 namespace n3mapping {
 namespace lio {
@@ -38,6 +39,9 @@ public:
     const std::optional<LioCoreState>& predictedState() const {
         return predicted_state_;
     }
+    LioLocalMap::PointCloud::ConstPtr localMapCloud() const {
+        return local_map_.cloud();
+    }
 
 private:
     LioFrontendConfig config_;
@@ -47,6 +51,7 @@ private:
     bool last_complete_imu_window_ = false;
     size_t last_input_imu_samples_ = 0;
     std::optional<LioCoreState> predicted_state_;
+    LioLocalMap local_map_;
     LioDebugCallbacks debug_callbacks_;
 };
 
