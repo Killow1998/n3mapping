@@ -186,6 +186,7 @@ TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
 TEST(DlioCoreTest, AppliesLocalMapCentroidCorrection) {
     lio::LioFrontendConfig config;
     config.prediction_only_output = true;
+    config.dlio_dense_map_leaf_size = 0.0;
     lio::dlio::Core core(config);
 
     core.addImu(makeImu(3000000000LL));
@@ -204,6 +205,9 @@ TEST(DlioCoreTest, AppliesLocalMapCentroidCorrection) {
     EXPECT_NEAR(core.lastAlignmentStats().centroid_correction_world.x(),
                 -0.2500015, 1e-6);
     EXPECT_NEAR(corrected->T_world_lidar.translation().x(), -0.249999, 1e-6);
+    ASSERT_TRUE(core.denseMapCloud());
+    ASSERT_EQ(core.denseMapCloud()->size(), 2u);
+    EXPECT_NEAR(core.denseMapCloud()->at(1).x, 3.000001f, 1e-5f);
 }
 
 TEST(DlioCoreTest, RespectsAlignmentCorrespondenceGate) {

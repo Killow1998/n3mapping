@@ -4,6 +4,8 @@
 
 #include <cmath>
 
+#include <pcl/common/transforms.h>
+
 namespace n3mapping {
 namespace lio {
 namespace dlio {
@@ -47,6 +49,24 @@ std::vector<ImuMeasurement> makeDlioImuMeasurements(
         measurements.push_back(measurement);
     }
     return measurements;
+}
+
+core::LioFrame::PointCloud::Ptr transformToWorld(
+    const core::LioFrame::PointCloud::ConstPtr& cloud,
+    const Eigen::Isometry3d& T_world_lidar) {
+    auto world = pcl::make_shared<core::LioFrame::PointCloud>();
+    if (!cloud) {
+        return world;
+    }
+    pcl::transformPointCloud(*cloud, *world, T_world_lidar.matrix().cast<float>());
+    return world;
+}
+
+Eigen::Matrix4f matrixFromPropagation(const ImuPropagationState& propagation) {
+    Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
+    T.block<3, 3>(0, 0) = propagation.orientation.toRotationMatrix().cast<float>();
+    T.block<3, 1>(0, 3) = propagation.position.cast<float>();
+    return T;
 }
 
 const IntegratedPose& referencePose(
@@ -149,28 +169,23 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
                 last_alignment_stats_.centroid_correction_world;
         }
         auto deskewed_cloud = frame.points;
-        auto dense_map_cloud = frame.points;
         if (last_imu_propagation_) {
             const auto deskewed = deskewToReference(
                 frame,
                 last_scan_timing_,
                 integrated_states,
-                predicted_state_->T_world_lidar.matrix().cast<float>());
+                matrixFromPropagation(*last_imu_propagation_));
             if (deskewed.valid && deskewed.cloud && !deskewed.cloud->empty()) {
                 deskewed_cloud = deskewed.cloud;
-            }
-            const auto world_deskewed =
-                deskewToWorld(frame, last_scan_timing_, integrated_states);
-            if (world_deskewed.valid && world_deskewed.cloud &&
-                !world_deskewed.cloud->empty()) {
-                dense_map_cloud = world_deskewed.cloud;
             }
         }
         local_map_.addFrame(*predicted_state_, deskewed_cloud);
         auto output = frameFromState(*predicted_state_);
         output.undistorted_cloud = deskewed_cloud;
         output.pose_valid = predicted_state_->initialized;
-        last_dense_map_add_result_ = dense_map_.addKeyframe(dense_map_cloud);
+        last_dense_map_add_result_ =
+            dense_map_.addKeyframe(transformToWorld(deskewed_cloud,
+                                                    predicted_state_->T_world_lidar));
         return output;
     }
     last_dense_map_add_result_ = MapAccumulator::AddResult{};
