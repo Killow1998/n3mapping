@@ -8,12 +8,12 @@ DlioFrontend::DlioFrontend(const LioFrontendConfig& config)
       core_(config) {}
 
 void DlioFrontend::addImu(const core::ImuSample& imu) {
-    core_.addImu(imu);
+    core_.addImu(applyTimeOffset(imu, config_.time_offset));
 }
 
 std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& frame) {
     LioTimingStats timing;
-    auto output = core_.addLidar(frame);
+    auto output = core_.addLidar(applyTimeOffset(frame, config_.time_offset));
     if (output) {
         if (config_.debug_publish_odom && debug_callbacks_.odom) {
             debug_callbacks_.odom(*output);

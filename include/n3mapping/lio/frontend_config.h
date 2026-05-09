@@ -6,6 +6,7 @@
 #include <Eigen/Geometry>
 
 #include "n3mapping/config.h"
+#include "n3mapping/core/types.h"
 
 namespace n3mapping {
 namespace lio {
@@ -39,6 +40,12 @@ Eigen::Isometry3d makeIsometryFromXyzRpy(double tx,
                                          double roll,
                                          double pitch,
                                          double yaw);
+core::TimeStamp applyTimeOffset(const core::TimeStamp& stamp,
+                                double time_offset_sec);
+core::ImuSample applyTimeOffset(const core::ImuSample& sample,
+                                double time_offset_sec);
+core::RawLidarFrame applyTimeOffset(const core::RawLidarFrame& frame,
+                                    double time_offset_sec);
 LioFrontendConfig makeLioFrontendConfig(const Config& config);
 
 }  // namespace lio

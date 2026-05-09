@@ -241,6 +241,25 @@ TEST(LioFrontendFactoryTest, FastLioFrontendCanReturnPredictionOnlyFrame) {
     EXPECT_FALSE(frontend->lastAlignmentStats().valid);
 }
 
+TEST(LioFrontendFactoryTest, FastLioFrontendAppliesTimeOffsetAtBoundary) {
+    Config config;
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    config.frontend_time_offset = 0.25;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::FastLioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    const auto output = frontend->addLidar(makeRawLidarFrame());
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_EQ(output->stamp.nsec, 1251000000LL);
+    EXPECT_TRUE(frontend->lastInputHadCompleteImuWindow());
+}
+
 TEST(LioFrontendFactoryTest, FastLioFrontendAppliesLocalMapCorrection) {
     Config config;
     config.frontend_mode = "fast_lio";
@@ -446,6 +465,28 @@ TEST(LioFrontendFactoryTest, DlioFrontendCanReturnPredictionOnlyFrame) {
     EXPECT_EQ(frontend->denseMapCloud()->size(), 1u);
     EXPECT_TRUE(frontend->lastDenseMapAddResult().accepted);
     EXPECT_FALSE(frontend->lastAlignmentStats().valid);
+}
+
+TEST(LioFrontendFactoryTest, DlioFrontendAppliesTimeOffsetAtBoundary) {
+    Config config;
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    config.dlio_time_encoding = "velodyne";
+    config.frontend_time_offset = 0.25;
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::DlioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
+    const auto output = frontend->addLidar(makeRawLidarFrame("livox_custom"));
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_EQ(output->stamp.nsec, 1251000000LL);
+    EXPECT_NEAR(frontend->lastScanTiming().stamp_begin, 1.25, 1e-12);
+    EXPECT_NEAR(frontend->lastScanTiming().stamp_end, 1.251, 1e-12);
+    EXPECT_TRUE(frontend->lastInputHadCompleteImuWindow());
 }
 
 TEST(LioFrontendFactoryTest, DlioFrontendAppliesLocalMapCorrection) {

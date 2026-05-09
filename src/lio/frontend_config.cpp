@@ -1,9 +1,40 @@
 #include "n3mapping/lio/frontend_config.h"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace n3mapping {
 namespace lio {
+namespace {
+
+int64_t offsetNsec(double time_offset_sec) {
+    if (!std::isfinite(time_offset_sec)) {
+        return 0;
+    }
+    const double offset = std::round(time_offset_sec * 1.0e9);
+    if (offset > static_cast<double>(std::numeric_limits<int64_t>::max())) {
+        return std::numeric_limits<int64_t>::max();
+    }
+    if (offset < static_cast<double>(std::numeric_limits<int64_t>::min())) {
+        return std::numeric_limits<int64_t>::min();
+    }
+    return static_cast<int64_t>(offset);
+}
+
+int64_t addClamped(int64_t value, int64_t delta) {
+    if (delta > 0 &&
+        value > std::numeric_limits<int64_t>::max() - delta) {
+        return std::numeric_limits<int64_t>::max();
+    }
+    if (delta < 0 &&
+        value < std::numeric_limits<int64_t>::min() - delta) {
+        return std::numeric_limits<int64_t>::min();
+    }
+    return value + delta;
+}
+
+}  // namespace
 
 Eigen::Isometry3d makeIsometryFromXyzRpy(double tx,
                                          double ty,
@@ -19,6 +50,28 @@ Eigen::Isometry3d makeIsometryFromXyzRpy(double tx,
          Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()))
             .toRotationMatrix();
     return transform;
+}
+
+core::TimeStamp applyTimeOffset(const core::TimeStamp& stamp,
+                                double time_offset_sec) {
+    core::TimeStamp shifted = stamp;
+    shifted.nsec = addClamped(stamp.nsec, offsetNsec(time_offset_sec));
+    return shifted;
+}
+
+core::ImuSample applyTimeOffset(const core::ImuSample& sample,
+                                double time_offset_sec) {
+    core::ImuSample shifted = sample;
+    shifted.stamp = applyTimeOffset(sample.stamp, time_offset_sec);
+    return shifted;
+}
+
+core::RawLidarFrame applyTimeOffset(const core::RawLidarFrame& frame,
+                                    double time_offset_sec) {
+    core::RawLidarFrame shifted = frame;
+    shifted.stamp_begin = applyTimeOffset(frame.stamp_begin, time_offset_sec);
+    shifted.stamp_end = applyTimeOffset(frame.stamp_end, time_offset_sec);
+    return shifted;
 }
 
 LioFrontendConfig makeLioFrontendConfig(const Config& config) {
