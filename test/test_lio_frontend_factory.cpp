@@ -3,10 +3,12 @@
 #include <gtest/gtest.h>
 
 #ifdef N3MAPPING_BUILD_DLIO_CORE
+#include "n3mapping/lio/dlio_core.h"
 #include "n3mapping/lio/dlio_frontend.h"
 #endif
 #include "n3mapping/lio/external_frontend.h"
 #ifdef N3MAPPING_BUILD_FAST_LIO_CORE
+#include "n3mapping/lio/fast_lio_core.h"
 #include "n3mapping/lio/fast_lio_frontend.h"
 #endif
 #include "n3mapping/lio/frontend_config.h"
@@ -258,6 +260,45 @@ TEST(LioFrontendFactoryTest, FastLioFrontendAppliesLocalMapCorrection) {
     EXPECT_NEAR(output->T_world_lidar.translation().x(), -0.25, 1e-6);
 }
 
+TEST(LioFrontendFactoryTest, FastLioFrontendMatchesCoreBoundaryState) {
+    Config config;
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    const auto frontend_config = lio::makeLioFrontendConfig(config);
+    lio::FastLioFrontend frontend(frontend_config);
+    lio::fast_lio::Core core(frontend_config);
+
+    const auto imu0 = makeImuSample(1000000000LL);
+    const auto imu1 = makeImuSample(1001000000LL);
+    const auto frame = makeRawLidarFrame();
+    frontend.addImu(imu0);
+    frontend.addImu(imu1);
+    core.addImu(imu0);
+    core.addImu(imu1);
+
+    const auto frontend_output = frontend.addLidar(frame);
+    const auto core_output = core.addLidar(frame);
+
+    ASSERT_EQ(frontend_output.has_value(), core_output.has_value());
+    ASSERT_TRUE(frontend_output.has_value());
+    EXPECT_EQ(frontend.imuSamplesSeen(), core.imuSamplesSeen());
+    EXPECT_EQ(frontend.lidarFramesSeen(), core.lidarFramesSeen());
+    EXPECT_EQ(frontend.lastCloudStats().input_points,
+              core.lastInputPacket().cloud_stats.input_points);
+    EXPECT_EQ(frontend.lastInputImuSamples(),
+              core.lastInputPacket().imu_samples.size());
+    EXPECT_EQ(frontend.lastInputHadCompleteImuWindow(),
+              core.lastInputPacket().has_complete_imu_window);
+    EXPECT_NEAR(frontend_output->T_world_lidar.translation().x(),
+                core_output->T_world_lidar.translation().x(),
+                1e-12);
+    ASSERT_TRUE(frontend.localMapCloud());
+    ASSERT_TRUE(core.localMapCloud());
+    EXPECT_EQ(frontend.localMapCloud()->size(), core.localMapCloud()->size());
+    EXPECT_EQ(frontend.lastAlignmentStats().valid,
+              core.lastAlignmentStats().valid);
+}
+
 TEST(LioFrontendFactoryTest, FastLioDebugCallbacksAreOptIn) {
     Config config;
     config.frontend_mode = "fast_lio";
@@ -421,6 +462,47 @@ TEST(LioFrontendFactoryTest, DlioFrontendAppliesLocalMapCorrection) {
     ASSERT_TRUE(output.has_value());
     EXPECT_TRUE(frontend->lastAlignmentStats().valid);
     EXPECT_NEAR(output->T_world_lidar.translation().x(), -0.25, 1e-6);
+}
+
+TEST(LioFrontendFactoryTest, DlioFrontendMatchesCoreBoundaryState) {
+    Config config;
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    config.dlio_time_encoding = "velodyne";
+    const auto frontend_config = lio::makeLioFrontendConfig(config);
+    lio::DlioFrontend frontend(frontend_config);
+    lio::dlio::Core core(frontend_config);
+
+    const auto imu0 = makeImuSample(1000000000LL);
+    const auto imu1 = makeImuSample(1001000000LL);
+    const auto frame = makeRawLidarFrame("livox_custom");
+    frontend.addImu(imu0);
+    frontend.addImu(imu1);
+    core.addImu(imu0);
+    core.addImu(imu1);
+
+    const auto frontend_output = frontend.addLidar(frame);
+    const auto core_output = core.addLidar(frame);
+
+    ASSERT_EQ(frontend_output.has_value(), core_output.has_value());
+    ASSERT_TRUE(frontend_output.has_value());
+    EXPECT_EQ(frontend.imuSamplesSeen(), core.imuSamplesSeen());
+    EXPECT_EQ(frontend.lidarFramesSeen(), core.lidarFramesSeen());
+    EXPECT_EQ(frontend.lastCloudStats().input_points,
+              core.lastInputPacket().cloud_stats.input_points);
+    EXPECT_EQ(frontend.lastTimeEncoding(), core.lastInputPacket().time_encoding);
+    EXPECT_EQ(frontend.lastInputImuSamples(),
+              core.lastInputPacket().imu_samples.size());
+    EXPECT_EQ(frontend.lastInputHadCompleteImuWindow(),
+              core.lastInputPacket().has_complete_imu_window);
+    EXPECT_NEAR(frontend_output->T_world_lidar.translation().x(),
+                core_output->T_world_lidar.translation().x(),
+                1e-12);
+    ASSERT_TRUE(frontend.localMapCloud());
+    ASSERT_TRUE(core.localMapCloud());
+    EXPECT_EQ(frontend.localMapCloud()->size(), core.localMapCloud()->size());
+    EXPECT_EQ(frontend.lastAlignmentStats().valid,
+              core.lastAlignmentStats().valid);
 }
 
 TEST(LioFrontendFactoryTest, DlioDebugCallbacksAreOptIn) {
