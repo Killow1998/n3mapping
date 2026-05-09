@@ -6,8 +6,8 @@ namespace lio {
 DlioFrontend::DlioFrontend(const LioFrontendConfig& config)
     : config_(config) {}
 
-void DlioFrontend::addImu(const core::ImuSample&) {
-    ++imu_samples_seen_;
+void DlioFrontend::addImu(const core::ImuSample& imu) {
+    imu_buffer_.add(imu);
 }
 
 std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& frame) {
@@ -19,7 +19,7 @@ std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& 
 }
 
 void DlioFrontend::reset() {
-    imu_samples_seen_ = 0;
+    imu_buffer_.clear();
     lidar_frames_seen_ = 0;
     last_cloud_stats_ = dlio::CloudAdapterStats{};
     last_time_encoding_ = dlio::TimeEncoding::OusterOffsetNs;

@@ -2,9 +2,12 @@
 // implemented here yet; this class only reserves the in-process interface.
 #pragma once
 
+#include <cstddef>
+
 #include "n3mapping/lio/dlio_cloud_adapter.h"
 #include "n3mapping/lio/frontend.h"
 #include "n3mapping/lio/frontend_config.h"
+#include "n3mapping/lio/imu_sample_buffer.h"
 
 namespace n3mapping {
 namespace lio {
@@ -19,7 +22,7 @@ public:
 
     bool implemented() const { return false; }
     const LioFrontendConfig& config() const { return config_; }
-    size_t imuSamplesSeen() const { return imu_samples_seen_; }
+    size_t imuSamplesSeen() const { return imu_buffer_.size(); }
     size_t lidarFramesSeen() const { return lidar_frames_seen_; }
     const dlio::CloudAdapterStats& lastCloudStats() const {
         return last_cloud_stats_;
@@ -28,7 +31,7 @@ public:
 
 private:
     LioFrontendConfig config_;
-    size_t imu_samples_seen_ = 0;
+    ImuSampleBuffer imu_buffer_;
     size_t lidar_frames_seen_ = 0;
     dlio::CloudAdapterStats last_cloud_stats_;
     dlio::TimeEncoding last_time_encoding_ = dlio::TimeEncoding::OusterOffsetNs;

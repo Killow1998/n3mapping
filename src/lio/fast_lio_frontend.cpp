@@ -6,8 +6,8 @@ namespace lio {
 FastLioFrontend::FastLioFrontend(const LioFrontendConfig& config)
     : config_(config) {}
 
-void FastLioFrontend::addImu(const core::ImuSample&) {
-    ++imu_samples_seen_;
+void FastLioFrontend::addImu(const core::ImuSample& imu) {
+    imu_buffer_.add(imu);
 }
 
 std::optional<core::LioFrame> FastLioFrontend::addLidar(const core::RawLidarFrame& frame) {
@@ -18,7 +18,7 @@ std::optional<core::LioFrame> FastLioFrontend::addLidar(const core::RawLidarFram
 }
 
 void FastLioFrontend::reset() {
-    imu_samples_seen_ = 0;
+    imu_buffer_.clear();
     lidar_frames_seen_ = 0;
     last_cloud_stats_ = fast_lio::CloudAdapterStats{};
 }

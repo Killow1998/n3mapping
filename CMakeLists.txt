@@ -147,6 +147,7 @@ set(N3MAPPING_LIO_SOURCES
   src/lio/fast_lio_cloud_adapter.cpp
   src/lio/frontend_config.cpp
   src/lio/frontend_factory.cpp
+  src/lio/imu_sample_buffer.cpp
 )
 
 if(BUILD_FAST_LIO_CORE)
@@ -418,6 +419,13 @@ if(BUILD_TESTING)
     target_link_libraries(test_dlio_cloud_adapter
       ${PROJECT_NAME}_lio
       ${PCL_LIBRARIES}
+    )
+  endif()
+
+  ament_add_gtest(test_imu_sample_buffer test/test_imu_sample_buffer.cpp)
+  if(TARGET test_imu_sample_buffer)
+    target_link_libraries(test_imu_sample_buffer
+      ${PROJECT_NAME}_lio
     )
   endif()
 
