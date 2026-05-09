@@ -264,6 +264,8 @@ TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
 
         // 验证总数增加
         EXPECT_EQ(kf_manager3.size(), original_count + 3) << "Iteration " << iter << ": Keyframe count mismatch";
+        EXPECT_GE(optimizer3.getNumEdges(), original_edges)
+            << "Iteration " << iter << ": Original graph edges were not preserved";
 
         // 清理
         std::filesystem::remove(map_file);

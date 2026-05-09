@@ -348,8 +348,6 @@ TEST_F(PointCloudMatcherTest, InformationMatrixOutput) {
 
 // 测试配准设置修改
 TEST_F(PointCloudMatcherTest, ModifySettings) {
-    auto original_settings = matcher_->getSettings();
-    
     small_gicp::RegistrationSetting new_settings;
     new_settings.max_iterations = 50;
     new_settings.max_correspondence_distance = 3.0;

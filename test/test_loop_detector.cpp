@@ -536,10 +536,8 @@ TEST_F(LoopDetectorTest, DetectSimilarScenes) {
     
     // 由于使用相同的点云，应该能检测到回环
     // 注意：由于 ScanContext 的特性，相同点云应该有很小的距离
-    bool found_match = false;
     for (const auto& candidate : candidates) {
         if (candidate.match_id == 0) {
-            found_match = true;
             EXPECT_LT(candidate.sc_distance, config_.sc_dist_threshold);
         }
     }
