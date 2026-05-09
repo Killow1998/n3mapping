@@ -47,7 +47,8 @@ public:
                             const Eigen::Isometry3d& T_world_lidar,
                             const LioFrame::PointCloud::Ptr& cloud,
                             const Eigen::Matrix<double, 6, 6>& covariance =
-                                Eigen::Matrix<double, 6, 6>::Identity());
+                                Eigen::Matrix<double, 6, 6>::Identity(),
+                            bool covariance_valid = false);
     Output processLioFrame(const LioFrame& frame);
 
     bool loadMap(const std::string& path);

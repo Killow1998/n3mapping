@@ -221,6 +221,17 @@ Eigen::Matrix<double, 6, 6> poseCovarianceFromOdom(
     return covariance;
 }
 
+bool poseCovarianceValid(const nav_msgs::msg::Odometry& odom_msg) {
+    bool has_nonzero_value = false;
+    for (double value : odom_msg.pose.covariance) {
+        if (!std::isfinite(value)) {
+            return false;
+        }
+        has_nonzero_value = has_nonzero_value || std::abs(value) > 1e-12;
+    }
+    return has_nonzero_value;
+}
+
 ExternalLioRosFrame externalLioFrameFromRos(
     const sensor_msgs::msg::PointCloud2& cloud_msg,
     const nav_msgs::msg::Odometry& odom_msg) {
@@ -228,6 +239,7 @@ ExternalLioRosFrame externalLioFrameFromRos(
     frame.stamp = toCoreStamp(cloud_msg.header.stamp);
     frame.T_world_lidar = poseFromOdom(odom_msg);
     frame.covariance = poseCovarianceFromOdom(odom_msg);
+    frame.covariance_valid = poseCovarianceValid(odom_msg);
     frame.cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
     pcl::fromROSMsg(cloud_msg, *frame.cloud);
     return frame;

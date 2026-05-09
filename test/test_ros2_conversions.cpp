@@ -45,14 +45,17 @@ TEST(Ros2ConversionsTest, ConvertsExternalLioMessages) {
     ASSERT_TRUE(frame.cloud);
     ASSERT_EQ(frame.cloud->size(), 1u);
     EXPECT_NEAR(frame.covariance(0, 0), 0.5, 1e-12);
+    EXPECT_TRUE(frame.covariance_valid);
 }
 
 TEST(Ros2ConversionsTest, EmptyOrInvalidCovarianceFallsBackToIdentity) {
     nav_msgs::msg::Odometry odom_msg;
     EXPECT_TRUE(ros2::poseCovarianceFromOdom(odom_msg).isIdentity(1e-12));
+    EXPECT_FALSE(ros2::poseCovarianceValid(odom_msg));
 
     odom_msg.pose.covariance[0] = std::numeric_limits<double>::quiet_NaN();
     EXPECT_TRUE(ros2::poseCovarianceFromOdom(odom_msg).isIdentity(1e-12));
+    EXPECT_FALSE(ros2::poseCovarianceValid(odom_msg));
 }
 
 TEST(Ros2ConversionsTest, ConvertsRawLidarAndImuMessages) {

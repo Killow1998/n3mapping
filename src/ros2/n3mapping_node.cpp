@@ -461,7 +461,11 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
         auto lio_frame = external_lio_frontend_->addSynchronizedFrame(
-          external_frame.stamp, external_frame.T_world_lidar, external_frame.cloud, external_frame.covariance);
+          external_frame.stamp,
+          external_frame.T_world_lidar,
+          external_frame.cloud,
+          external_frame.covariance,
+          external_frame.covariance_valid);
         if (!lio_frame) {
             RCLCPP_WARN_THROTTLE(
               this->get_logger(), *this->get_clock(), 2000, "Skipping invalid external LIO frame");

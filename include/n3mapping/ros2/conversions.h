@@ -24,12 +24,14 @@ struct ExternalLioRosFrame {
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
     Eigen::Matrix<double, 6, 6> covariance =
         Eigen::Matrix<double, 6, 6>::Identity();
+    bool covariance_valid = false;
 };
 
 core::TimeStamp toCoreStamp(const builtin_interfaces::msg::Time& stamp);
 Eigen::Isometry3d poseFromOdom(const nav_msgs::msg::Odometry& odom_msg);
 Eigen::Matrix<double, 6, 6> poseCovarianceFromOdom(
     const nav_msgs::msg::Odometry& odom_msg);
+bool poseCovarianceValid(const nav_msgs::msg::Odometry& odom_msg);
 ExternalLioRosFrame externalLioFrameFromRos(
     const sensor_msgs::msg::PointCloud2& cloud_msg,
     const nav_msgs::msg::Odometry& odom_msg);

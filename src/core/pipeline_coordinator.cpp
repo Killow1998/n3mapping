@@ -78,7 +78,8 @@ PipelineCoordinator::Output PipelineCoordinator::addExternalFrame(
     const TimeStamp& stamp,
     const Eigen::Isometry3d& T_world_lidar,
     const LioFrame::PointCloud::Ptr& cloud,
-    const Eigen::Matrix<double, 6, 6>& covariance) {
+    const Eigen::Matrix<double, 6, 6>& covariance,
+    bool covariance_valid) {
     Output output;
     if (!ready()) {
         output.error = error_.empty() ? "LIO frontend is not ready" : error_;
@@ -90,7 +91,8 @@ PipelineCoordinator::Output PipelineCoordinator::addExternalFrame(
     }
 
     auto lio_frame =
-        external_frontend_->addSynchronizedFrame(stamp, T_world_lidar, cloud, covariance);
+        external_frontend_->addSynchronizedFrame(
+            stamp, T_world_lidar, cloud, covariance, covariance_valid);
     if (!lio_frame) {
         output.error = "external LIO frame was rejected";
         return output;
@@ -114,7 +116,7 @@ PipelineCoordinator::Output PipelineCoordinator::processLioFrame(const LioFrame&
                 timestamp,
                 frame.T_world_lidar,
                 frame.undistorted_cloud,
-                &frame.covariance);
+                frame.covariance_valid ? &frame.covariance : nullptr);
             output.success = true;
             output.accepted_keyframe = result.accepted_keyframe;
             output.keyframe_id = result.keyframe_id;

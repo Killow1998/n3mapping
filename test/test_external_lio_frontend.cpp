@@ -34,13 +34,15 @@ TEST(ExternalLioFrontendTest, ConvertsSynchronizedExternalFrame) {
     Eigen::Matrix<double, 6, 6> covariance =
         Eigen::Matrix<double, 6, 6>::Identity() * 0.25;
 
-    auto output = frontend.addSynchronizedFrame(stamp, pose, makeCloud(), covariance);
+    auto output = frontend.addSynchronizedFrame(
+        stamp, pose, makeCloud(), covariance, true);
     ASSERT_TRUE(output.has_value());
     EXPECT_TRUE(output->pose_valid);
     EXPECT_EQ(output->stamp.nsec, stamp.nsec);
     EXPECT_NEAR(output->T_world_lidar.translation().x(), 1.0, 1e-9);
     EXPECT_EQ(output->undistorted_cloud->size(), 1u);
     EXPECT_NEAR(output->covariance(0, 0), 0.25, 1e-12);
+    EXPECT_TRUE(output->covariance_valid);
 }
 
 TEST(ExternalLioFrontendTest, RejectsInvalidExternalFrame) {
@@ -65,7 +67,9 @@ TEST(ExternalLioFrontendTest, RawLidarUsesLatestExternalPose) {
 
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     pose.translation().x() = 5.0;
-    ASSERT_TRUE(frontend.addSynchronizedFrame(core::TimeStamp{5}, pose, makeCloud()).has_value());
+    auto external = frontend.addSynchronizedFrame(core::TimeStamp{5}, pose, makeCloud());
+    ASSERT_TRUE(external.has_value());
+    EXPECT_FALSE(external->covariance_valid);
 
     auto output = frontend.addLidar(raw);
     ASSERT_TRUE(output.has_value());

@@ -45,6 +45,7 @@ struct LioFrame {
     PointCloud::Ptr undistorted_cloud;
     Eigen::Matrix<double, 6, 6> covariance =
         Eigen::Matrix<double, 6, 6>::Identity();
+    bool covariance_valid = false;
     bool pose_valid = false;
 };
 

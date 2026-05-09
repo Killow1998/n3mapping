@@ -25,7 +25,8 @@ public:
         const Eigen::Isometry3d& T_world_lidar,
         const PointCloud::Ptr& undistorted_cloud,
         const Eigen::Matrix<double, 6, 6>& covariance =
-            Eigen::Matrix<double, 6, 6>::Identity());
+            Eigen::Matrix<double, 6, 6>::Identity(),
+        bool covariance_valid = false);
 
 private:
     std::optional<core::LioFrame> latest_frame_;

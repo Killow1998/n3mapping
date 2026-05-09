@@ -25,7 +25,7 @@ public:
             toSeconds(frame.stamp),
             frame.T_world_lidar,
             frame.undistorted_cloud,
-            &frame.covariance);
+            frame.covariance_valid ? &frame.covariance : nullptr);
         output.accepted_keyframe = result.accepted_keyframe;
         output.keyframe_id = result.keyframe_id;
         output.T_world_lidar = result.publish_pose;
