@@ -18,9 +18,21 @@ public:
 
     explicit LioLocalMap(size_t max_keyframes = 20);
 
+    struct AlignmentStats {
+        size_t source_points = 0;
+        size_t matched_points = 0;
+        double mean_squared_error = 0.0;
+        Eigen::Vector3d centroid_correction_world = Eigen::Vector3d::Zero();
+        bool valid = false;
+    };
+
     void clear();
     bool addFrame(const LioCoreState& state,
                   const PointCloud::ConstPtr& lidar_cloud);
+    AlignmentStats estimateAlignmentCorrection(
+        const LioCoreState& predicted_state,
+        const PointCloud::ConstPtr& lidar_cloud,
+        double max_correspondence_distance) const;
 
     size_t size() const { return keyframes_.size(); }
     size_t maxKeyframes() const { return max_keyframes_; }

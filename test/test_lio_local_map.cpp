@@ -69,5 +69,31 @@ TEST(LioLocalMapTest, ClearResetsAggregate) {
     EXPECT_TRUE(map.cloud()->empty());
 }
 
+TEST(LioLocalMapTest, EstimatesCentroidCorrectionFromNearestNeighbors) {
+    lio::LioLocalMap map;
+    ASSERT_TRUE(map.addFrame(makeState(0.0), makeCloud(0.0f)));
+
+    auto source = makeCloud(0.0f);
+    auto predicted = makeState(0.25);
+    const auto stats = map.estimateAlignmentCorrection(predicted, source, 1.0);
+
+    EXPECT_TRUE(stats.valid);
+    EXPECT_EQ(stats.source_points, 1u);
+    EXPECT_EQ(stats.matched_points, 1u);
+    EXPECT_NEAR(stats.centroid_correction_world.x(), -0.25, 1e-6);
+    EXPECT_NEAR(stats.mean_squared_error, 0.0625, 1e-6);
+}
+
+TEST(LioLocalMapTest, RejectsAlignmentWhenNoCorrespondences) {
+    lio::LioLocalMap map;
+    ASSERT_TRUE(map.addFrame(makeState(0.0), makeCloud(0.0f)));
+
+    auto source = makeCloud(10.0f);
+    const auto stats = map.estimateAlignmentCorrection(makeState(0.0), source, 0.5);
+
+    EXPECT_FALSE(stats.valid);
+    EXPECT_EQ(stats.matched_points, 0u);
+}
+
 }  // namespace test
 }  // namespace n3mapping
