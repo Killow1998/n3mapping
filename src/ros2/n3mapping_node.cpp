@@ -232,7 +232,10 @@ class N3MappingNode : public rclcpp::Node
         }
         lio_frontend_ = std::move(frontend_result.frontend);
         external_lio_frontend_ = dynamic_cast<lio::ExternalLioFrontend*>(lio_frontend_.get());
-        RCLCPP_INFO(this->get_logger(), "Using LIO frontend: %s", lio::frontendModeName(frontend_result.mode));
+        RCLCPP_INFO(this->get_logger(),
+                    "Using LIO frontend: %s capability=%s",
+                    lio::frontendModeName(frontend_result.mode),
+                    lio::frontendCapabilityName(lio_frontend_->capability()));
 
         ModePublishCallbacks publish_callbacks{
             [this](const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header) { publishOdometry(pose, header); },
@@ -512,8 +515,21 @@ class N3MappingNode : public rclcpp::Node
 
         auto lio_frame = lio_frontend_->addLidar(raw_frame);
         if (!lio_frame) {
-            RCLCPP_WARN_THROTTLE(
-              this->get_logger(), *this->get_clock(), 2000, "Builtin LIO frontend did not produce a frame");
+            if (lio_frontend_->capability() == lio::FrontendCapability::PredictionOnly &&
+                !config_.frontend_prediction_only_output) {
+                RCLCPP_WARN_THROTTLE(
+                    this->get_logger(),
+                    *this->get_clock(),
+                    2000,
+                    "Builtin LIO frontend capability=%s produced no frame; set frontend_prediction_only_output=true until full odometry extraction is implemented",
+                    lio::frontendCapabilityName(lio_frontend_->capability()));
+            } else {
+                RCLCPP_WARN_THROTTLE(this->get_logger(),
+                                     *this->get_clock(),
+                                     2000,
+                                     "Builtin LIO frontend capability=%s did not produce a frame",
+                                     lio::frontendCapabilityName(lio_frontend_->capability()));
+            }
             return;
         }
 
