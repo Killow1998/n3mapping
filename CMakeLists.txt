@@ -152,6 +152,7 @@ set(N3MAPPING_LIO_SOURCES
   src/lio/frontend_factory.cpp
   src/lio/imu_propagator.cpp
   src/lio/imu_sample_buffer.cpp
+  src/lio/local_map.cpp
 )
 
 if(BUILD_FAST_LIO_CORE)
@@ -403,6 +404,14 @@ if(BUILD_TESTING)
   if(TARGET test_lio_core_state)
     target_link_libraries(test_lio_core_state
       ${PROJECT_NAME}_lio
+    )
+  endif()
+
+  ament_add_gtest(test_lio_local_map test/test_lio_local_map.cpp)
+  if(TARGET test_lio_local_map)
+    target_link_libraries(test_lio_local_map
+      ${PROJECT_NAME}_lio
+      ${PCL_LIBRARIES}
     )
   endif()
 
