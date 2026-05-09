@@ -81,6 +81,40 @@ TEST(PipelineCoordinatorTest, ExternalMappingFrameAddsKeyframe) {
     EXPECT_EQ(pipeline.session().keyframes().size(), 1u);
 }
 
+TEST(PipelineCoordinatorTest, MappingUsesLioCovarianceForOdometryInformation) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "external";
+    config.keyframe_distance_threshold = 0.5;
+    config.rhpd_submap_voxel_size = 0.0;
+
+    core::PipelineCoordinator pipeline(config);
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+
+    Eigen::Isometry3d pose0 = Eigen::Isometry3d::Identity();
+    ASSERT_TRUE(pipeline.addExternalFrame(
+                            core::TimeStamp{100000000}, pose0, makeCloud())
+                    .accepted_keyframe);
+
+    Eigen::Isometry3d pose1 = Eigen::Isometry3d::Identity();
+    pose1.translation().x() = 1.0;
+    Eigen::Matrix<double, 6, 6> covariance =
+        Eigen::Matrix<double, 6, 6>::Identity();
+    covariance(0, 0) = 0.25;
+    covariance(3, 3) = 4.0;
+
+    const auto output = pipeline.addExternalFrame(
+        core::TimeStamp{200000000}, pose1, makeCloud(), covariance);
+
+    ASSERT_TRUE(output.success) << output.error;
+    ASSERT_TRUE(output.accepted_keyframe);
+    const auto edges = pipeline.session().graphOptimizer().getEdges();
+    ASSERT_EQ(edges.size(), 1u);
+    EXPECT_EQ(edges.front().type, EdgeType::ODOMETRY);
+    EXPECT_DOUBLE_EQ(edges.front().information(0, 0), 4.0);
+    EXPECT_DOUBLE_EQ(edges.front().information(3, 3), 0.25);
+}
+
 TEST(PipelineCoordinatorTest, RawLidarWithoutLioFrameReportsError) {
     Config config;
     config.mode = "mapping";

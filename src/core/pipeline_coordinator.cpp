@@ -111,7 +111,10 @@ PipelineCoordinator::Output PipelineCoordinator::processLioFrame(const LioFrame&
     switch (mode_) {
         case RunMode::Mapping: {
             auto result = session_.mappingModeProcessor().process(
-                timestamp, frame.T_world_lidar, frame.undistorted_cloud);
+                timestamp,
+                frame.T_world_lidar,
+                frame.undistorted_cloud,
+                &frame.covariance);
             output.success = true;
             output.accepted_keyframe = result.accepted_keyframe;
             output.keyframe_id = result.keyframe_id;
