@@ -103,6 +103,20 @@ ImuPropagationState propagationFromIntegratedPose(
     return propagation;
 }
 
+bool seedRequestOrientationFromFirstImu(
+    ImuIntegrationRequest& request,
+    const std::vector<core::ImuSample>& samples) {
+    if (samples.empty() || !samples.front().has_orientation) {
+        return false;
+    }
+    Eigen::Quaterniond q = samples.front().orientation;
+    if (!q.coeffs().allFinite() || q.norm() <= 1e-12) {
+        return false;
+    }
+    request.q_init = q.normalized().cast<float>();
+    return true;
+}
+
 }  // namespace
 
 Core::Core(const LioFrontendConfig& config)
@@ -137,6 +151,9 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
             request.p_init =
                 predicted_state_->T_world_lidar.translation().cast<float>();
             request.v_init = predicted_state_->velocity_world.cast<float>();
+        } else {
+            seedRequestOrientationFromFirstImu(
+                request, last_input_packet_.imu_samples);
         }
 
         integrated_states = integrateImuStates(

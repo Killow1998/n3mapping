@@ -6,6 +6,8 @@ namespace n3mapping {
 namespace test {
 namespace {
 
+constexpr double kHalfPi = 1.57079632679489661923;
+
 core::RawLidarFrame makeFrame() {
     core::RawLidarFrame frame;
     frame.stamp_begin.nsec = 4000000000LL;
@@ -29,6 +31,15 @@ core::ImuSample makeImu(int64_t stamp_nsec) {
     core::ImuSample sample;
     sample.stamp.nsec = stamp_nsec;
     sample.linear_accel.x() = 1.0;
+    return sample;
+}
+
+core::ImuSample makeOrientedImu(int64_t stamp_nsec) {
+    core::ImuSample sample;
+    sample.stamp.nsec = stamp_nsec;
+    sample.orientation =
+        Eigen::Quaterniond(Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitZ()));
+    sample.has_orientation = true;
     return sample;
 }
 
@@ -79,6 +90,22 @@ TEST(FastLioCoreTest, CanReturnPredictionOnlyFrameWhenEnabled) {
     ASSERT_TRUE(core.localMapCloud());
     EXPECT_EQ(core.localMapCloud()->size(), 1u);
     EXPECT_FALSE(core.lastAlignmentStats().valid);
+}
+
+TEST(FastLioCoreTest, UsesImuOrientationAsInitialAttitude) {
+    lio::LioFrontendConfig config;
+    config.prediction_only_output = true;
+    lio::fast_lio::Core core(config);
+
+    core.addImu(makeOrientedImu(4000000000LL));
+    core.addImu(makeOrientedImu(4001000000LL));
+    const auto output = core.addLidar(makeFrame());
+
+    ASSERT_TRUE(output.has_value());
+    const Eigen::Vector3d x_axis =
+        output->T_world_lidar.linear() * Eigen::Vector3d::UnitX();
+    EXPECT_NEAR(x_axis.x(), 0.0, 1e-12);
+    EXPECT_NEAR(x_axis.y(), 1.0, 1e-12);
 }
 
 TEST(FastLioCoreTest, ResetClearsBufferedBoundaryState) {

@@ -5,6 +5,23 @@
 namespace n3mapping {
 namespace lio {
 namespace fast_lio {
+namespace {
+
+bool seedOrientationFromFirstImu(ImuPropagationState& state,
+                                 const std::vector<core::ImuSample>& samples) {
+    if (samples.empty() || !samples.front().has_orientation) {
+        return false;
+    }
+    Eigen::Quaterniond q = samples.front().orientation;
+    if (!q.coeffs().allFinite() || q.norm() <= 1e-12) {
+        return false;
+    }
+    state.orientation = q.normalized();
+    state.valid = true;
+    return true;
+}
+
+}  // namespace
 
 Core::Core(const LioFrontendConfig& config)
     : config_(config),
@@ -26,6 +43,9 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
             initial_state.position = predicted_state_->T_world_lidar.translation();
             initial_state.velocity = predicted_state_->velocity_world;
             initial_state.valid = predicted_state_->initialized;
+        } else {
+            seedOrientationFromFirstImu(initial_state,
+                                        last_input_packet_.imu_samples);
         }
         last_imu_propagation_ =
             propagateImu(last_input_packet_.imu_samples, initial_state);
