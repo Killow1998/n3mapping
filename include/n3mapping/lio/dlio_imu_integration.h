@@ -25,6 +25,16 @@ struct ImuIntegrationRequest {
     double gravity = 9.80665;
 };
 
+struct IntegratedPose {
+    double stamp = 0.0;
+    Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
+    Eigen::Vector3f velocity = Eigen::Vector3f::Zero();
+};
+
+std::vector<IntegratedPose, Eigen::aligned_allocator<IntegratedPose>>
+integrateImuStates(const std::vector<ImuMeasurement>& imu_samples,
+                   const ImuIntegrationRequest& request);
+
 std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
 integrateImu(const std::vector<ImuMeasurement>& imu_samples,
              const ImuIntegrationRequest& request);

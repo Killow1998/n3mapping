@@ -60,10 +60,15 @@ TEST(DlioImuIntegrationTest, IntegratesConstantWorldAcceleration) {
                     Eigen::Vector3f(1.0f, 0.0f, 0.0f));
 
     const auto poses = lio::dlio::integrateImu(samples, request);
+    const auto states = lio::dlio::integrateImuStates(samples, request);
 
     ASSERT_EQ(poses.size(), 2u);
+    ASSERT_EQ(states.size(), 2u);
     EXPECT_NEAR(poses[0](0, 3), 0.125f, 1e-5f);
     EXPECT_NEAR(poses[1](0, 3), 0.5f, 1e-5f);
+    EXPECT_NEAR(states[0].velocity.x(), 0.5f, 1e-5f);
+    EXPECT_NEAR(states[1].velocity.x(), 1.0f, 1e-5f);
+    EXPECT_NEAR(states[1].stamp, 1.0, 1e-12);
     EXPECT_NEAR(poses[1](1, 3), 0.0f, 1e-6f);
 }
 

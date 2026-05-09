@@ -78,23 +78,23 @@ bool findIntegrationWindow(const std::vector<ImuMeasurement>& samples,
 
 }  // namespace
 
-std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
-integrateImu(const std::vector<ImuMeasurement>& imu_samples,
-             const ImuIntegrationRequest& request) {
-    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
-        poses;
+std::vector<IntegratedPose, Eigen::aligned_allocator<IntegratedPose>>
+integrateImuStates(const std::vector<ImuMeasurement>& imu_samples,
+                   const ImuIntegrationRequest& request) {
+    std::vector<IntegratedPose, Eigen::aligned_allocator<IntegratedPose>>
+        states;
 
     size_t begin_index = 0;
     size_t end_index = 0;
     if (!findIntegrationWindow(imu_samples, request, begin_index, end_index)) {
-        return poses;
+        return states;
     }
 
     const auto& f1 = imu_samples[begin_index];
     const auto& f2 = imu_samples[begin_index + 1];
     const double dt = sampleDt(imu_samples, begin_index + 1);
     if (dt <= 0.0) {
-        return poses;
+        return states;
     }
 
     const double idt = request.start_time - f1.stamp;
@@ -162,11 +162,18 @@ integrateImu(const std::vector<ImuMeasurement>& imu_samples,
                 0.5f * a0 * static_cast<float>(interp_dt * interp_dt) +
                 (1.0f / 6.0f) * step_jerk *
                     static_cast<float>(interp_dt * interp_dt * interp_dt);
+            const Eigen::Vector3f v_i =
+                v + a0 * static_cast<float>(interp_dt) +
+                0.5f * step_jerk * static_cast<float>(interp_dt * interp_dt);
 
             Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
             T.block<3, 3>(0, 0) = q_i.toRotationMatrix();
             T.block<3, 1>(0, 3) = p_i;
-            poses.push_back(T);
+            IntegratedPose state;
+            state.stamp = *stamp_it;
+            state.T = T;
+            state.velocity = v_i;
+            states.push_back(state);
             ++stamp_it;
         }
 
@@ -177,6 +184,19 @@ integrateImu(const std::vector<ImuMeasurement>& imu_samples,
              0.5f * jerk_dt * static_cast<float>(step_dt);
     }
 
+    return states;
+}
+
+std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
+integrateImu(const std::vector<ImuMeasurement>& imu_samples,
+             const ImuIntegrationRequest& request) {
+    const auto states = integrateImuStates(imu_samples, request);
+    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
+        poses;
+    poses.reserve(states.size());
+    for (const auto& state : states) {
+        poses.push_back(state.T);
+    }
     return poses;
 }
 
