@@ -780,8 +780,16 @@ endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
+set(N3MAPPING_EXPORT_LIBRARIES ${PROJECT_NAME}_lio ${PROJECT_NAME}_core)
+if(BUILD_FAST_LIO_CORE)
+  list(APPEND N3MAPPING_EXPORT_LIBRARIES ${PROJECT_NAME}_fast_lio_core)
+endif()
+if(BUILD_DLIO_CORE)
+  list(APPEND N3MAPPING_EXPORT_LIBRARIES ${PROJECT_NAME}_dlio_core)
+endif()
 if(BUILD_ROS2_WRAPPER)
-  ament_export_libraries(${PROJECT_NAME}_lio ${PROJECT_NAME}_core ${PROJECT_NAME}_ros2)
+  list(APPEND N3MAPPING_EXPORT_LIBRARIES ${PROJECT_NAME}_ros2)
+  ament_export_libraries(${N3MAPPING_EXPORT_LIBRARIES})
   ament_export_dependencies(
     rclcpp
     std_msgs
@@ -800,7 +808,7 @@ if(BUILD_ROS2_WRAPPER)
     ament_export_dependencies(livox_ros_driver2)
   endif()
 else()
-  ament_export_libraries(${PROJECT_NAME}_lio ${PROJECT_NAME}_core)
+  ament_export_libraries(${N3MAPPING_EXPORT_LIBRARIES})
 endif()
 
 ament_package()
