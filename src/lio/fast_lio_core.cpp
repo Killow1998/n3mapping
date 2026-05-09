@@ -32,6 +32,13 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
         last_imu_propagation_.reset();
         predicted_state_.reset();
     }
+    if (config_.prediction_only_output && predicted_state_ && frame.points &&
+        !frame.points->empty()) {
+        auto output = frameFromState(*predicted_state_);
+        output.undistorted_cloud = frame.points;
+        output.pose_valid = predicted_state_->initialized;
+        return output;
+    }
     return std::nullopt;
 }
 

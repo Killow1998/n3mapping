@@ -23,6 +23,7 @@ struct LioFrontendConfig {
     size_t scan_lines = 128;
     double blind = 0.0;
     double max_abs_coordinate = 1.0e8;
+    bool prediction_only_output = false;
     std::string dlio_time_encoding = "auto";
     Eigen::Isometry3d T_body_lidar = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d T_body_imu = Eigen::Isometry3d::Identity();

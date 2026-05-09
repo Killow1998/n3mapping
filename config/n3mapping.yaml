@@ -21,6 +21,7 @@ n3mapping_node:
     frontend_scan_lines: 128
     frontend_blind: 0.0
     frontend_max_abs_coordinate: 100000000.0
+    frontend_prediction_only_output: false
     dlio_time_encoding: "auto"  # auto | ouster | velodyne | livox
     frontend_lidar_to_body_tx: 0.0
     frontend_lidar_to_body_ty: 0.0

@@ -31,6 +31,7 @@ struct Config {
     int frontend_scan_lines = 128;
     double frontend_blind = 0.0;
     double frontend_max_abs_coordinate = 1.0e8;
+    bool frontend_prediction_only_output = false;
     std::string dlio_time_encoding = "auto";
     double frontend_lidar_to_body_tx = 0.0;
     double frontend_lidar_to_body_ty = 0.0;

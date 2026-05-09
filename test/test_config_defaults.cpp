@@ -38,6 +38,7 @@ TEST(ConfigDefaultsTest, DisablesBuiltinFrontendDebugPublishingByDefault) {
     EXPECT_EQ(config.frontend_scan_lines, 128);
     EXPECT_DOUBLE_EQ(config.frontend_blind, 0.0);
     EXPECT_DOUBLE_EQ(config.frontend_max_abs_coordinate, 1.0e8);
+    EXPECT_FALSE(config.frontend_prediction_only_output);
     EXPECT_EQ(config.dlio_time_encoding, "auto");
 }
 

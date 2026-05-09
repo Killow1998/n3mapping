@@ -43,6 +43,7 @@ LioFrontendConfig makeLioFrontendConfig(const Config& config) {
     frontend_config.blind = std::max(0.0, config.frontend_blind);
     frontend_config.max_abs_coordinate =
         std::max(1.0, config.frontend_max_abs_coordinate);
+    frontend_config.prediction_only_output = config.frontend_prediction_only_output;
     frontend_config.dlio_time_encoding = config.dlio_time_encoding;
     frontend_config.T_body_lidar = makeIsometryFromXyzRpy(
         config.frontend_lidar_to_body_tx,

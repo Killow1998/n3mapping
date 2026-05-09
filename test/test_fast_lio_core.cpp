@@ -62,6 +62,22 @@ TEST(FastLioCoreTest, AcceptsImuAndLidarAtCoreBoundary) {
     EXPECT_NEAR(core.predictedState()->velocity_world.x(), 0.001, 1e-12);
 }
 
+TEST(FastLioCoreTest, CanReturnPredictionOnlyFrameWhenEnabled) {
+    lio::LioFrontendConfig config;
+    config.prediction_only_output = true;
+    lio::fast_lio::Core core(config);
+
+    core.addImu(makeImu(4000000000LL));
+    core.addImu(makeImu(4001000000LL));
+    const auto output = core.addLidar(makeFrame());
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_TRUE(output->pose_valid);
+    ASSERT_TRUE(output->undistorted_cloud);
+    EXPECT_EQ(output->undistorted_cloud->size(), 1u);
+    EXPECT_NEAR(output->T_world_lidar.translation().x(), 0.0000005, 1e-12);
+}
+
 TEST(FastLioCoreTest, ResetClearsBufferedBoundaryState) {
     lio::fast_lio::Core core;
     core.addImu(makeImu(1));
