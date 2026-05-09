@@ -14,6 +14,27 @@
 
 namespace n3mapping {
 namespace test {
+namespace {
+
+#if defined(N3MAPPING_BUILD_FAST_LIO_CORE) || defined(N3MAPPING_BUILD_DLIO_CORE)
+core::RawLidarFrame makeRawLidarFrame(const std::string& source_format = "pointcloud2") {
+    core::RawLidarFrame frame;
+    frame.source_format = source_format;
+    frame.points = pcl::make_shared<core::RawLidarFrame::PointCloud>();
+    pcl::PointXYZI point;
+    point.x = 1.0f;
+    point.y = 2.0f;
+    point.z = 3.0f;
+    point.intensity = 4.0f;
+    frame.points->push_back(point);
+    frame.point_time_offsets_ns.push_back(1000000u);
+    frame.points->width = static_cast<uint32_t>(frame.points->size());
+    frame.points->height = 1;
+    return frame;
+}
+#endif
+
+}  // namespace
 
 TEST(LioFrontendFactoryTest, CreatesExternalFrontendByDefault) {
     Config config;
@@ -116,6 +137,29 @@ TEST(LioFrontendFactoryTest, FastLioFrontendReceivesDerivedConfig) {
     EXPECT_EQ(frontend->config().lidar_type, "avia");
     EXPECT_NEAR(frontend->config().T_body_lidar.translation().x(), 0.4, 1e-12);
 }
+
+TEST(LioFrontendFactoryTest, FastLioFrontendConsumesRawInputAtAdapterBoundary) {
+    Config config;
+    config.frontend_mode = "fast_lio";
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::FastLioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    frontend->addImu(core::ImuSample{});
+    const auto output = frontend->addLidar(makeRawLidarFrame());
+
+    EXPECT_FALSE(output.has_value());
+    EXPECT_EQ(frontend->imuSamplesSeen(), 1u);
+    EXPECT_EQ(frontend->lidarFramesSeen(), 1u);
+    EXPECT_EQ(frontend->lastCloudStats().input_points, 1u);
+    EXPECT_EQ(frontend->lastCloudStats().output_points, 1u);
+
+    frontend->reset();
+    EXPECT_EQ(frontend->imuSamplesSeen(), 0u);
+    EXPECT_EQ(frontend->lidarFramesSeen(), 0u);
+    EXPECT_EQ(frontend->lastCloudStats().output_points, 0u);
+}
 #endif
 
 #ifdef N3MAPPING_BUILD_DLIO_CORE
@@ -130,6 +174,30 @@ TEST(LioFrontendFactoryTest, DlioFrontendReceivesDerivedConfig) {
     ASSERT_NE(frontend, nullptr);
     EXPECT_EQ(frontend->config().lidar_type, "ouster");
     EXPECT_NEAR(frontend->config().T_body_imu.translation().y(), 0.2, 1e-12);
+}
+
+TEST(LioFrontendFactoryTest, DlioFrontendConsumesRawInputAtAdapterBoundary) {
+    Config config;
+    config.frontend_mode = "dlio";
+    auto result = lio::createLioFrontend(config);
+    ASSERT_TRUE(result.ok()) << result.error;
+    auto* frontend = dynamic_cast<lio::DlioFrontend*>(result.frontend.get());
+    ASSERT_NE(frontend, nullptr);
+
+    frontend->addImu(core::ImuSample{});
+    const auto output = frontend->addLidar(makeRawLidarFrame("livox_custom"));
+
+    EXPECT_FALSE(output.has_value());
+    EXPECT_EQ(frontend->imuSamplesSeen(), 1u);
+    EXPECT_EQ(frontend->lidarFramesSeen(), 1u);
+    EXPECT_EQ(frontend->lastCloudStats().input_points, 1u);
+    EXPECT_EQ(frontend->lastCloudStats().output_points, 1u);
+    EXPECT_EQ(frontend->lastTimeEncoding(), lio::dlio::TimeEncoding::LivoxOffsetNs);
+
+    frontend->reset();
+    EXPECT_EQ(frontend->imuSamplesSeen(), 0u);
+    EXPECT_EQ(frontend->lidarFramesSeen(), 0u);
+    EXPECT_EQ(frontend->lastCloudStats().output_points, 0u);
 }
 #endif
 

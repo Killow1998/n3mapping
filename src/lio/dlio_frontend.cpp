@@ -6,13 +6,24 @@ namespace lio {
 DlioFrontend::DlioFrontend(const LioFrontendConfig& config)
     : config_(config) {}
 
-void DlioFrontend::addImu(const core::ImuSample&) {}
+void DlioFrontend::addImu(const core::ImuSample&) {
+    ++imu_samples_seen_;
+}
 
-std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame&) {
+std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& frame) {
+    ++lidar_frames_seen_;
+    const auto adapted = dlio::cloudFromRawLidar(frame);
+    last_cloud_stats_ = adapted.stats;
+    last_time_encoding_ = adapted.resolved_time_encoding;
     return std::nullopt;
 }
 
-void DlioFrontend::reset() {}
+void DlioFrontend::reset() {
+    imu_samples_seen_ = 0;
+    lidar_frames_seen_ = 0;
+    last_cloud_stats_ = dlio::CloudAdapterStats{};
+    last_time_encoding_ = dlio::TimeEncoding::OusterOffsetNs;
+}
 
 }  // namespace lio
 }  // namespace n3mapping
