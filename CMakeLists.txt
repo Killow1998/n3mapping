@@ -149,6 +149,7 @@ set(N3MAPPING_LIO_SOURCES
   src/lio/fast_lio_input_adapter.cpp
   src/lio/frontend_config.cpp
   src/lio/frontend_factory.cpp
+  src/lio/imu_propagator.cpp
   src/lio/imu_sample_buffer.cpp
 )
 
@@ -471,6 +472,13 @@ if(BUILD_TESTING)
   ament_add_gtest(test_imu_sample_buffer test/test_imu_sample_buffer.cpp)
   if(TARGET test_imu_sample_buffer)
     target_link_libraries(test_imu_sample_buffer
+      ${PROJECT_NAME}_lio
+    )
+  endif()
+
+  ament_add_gtest(test_imu_propagator test/test_imu_propagator.cpp)
+  if(TARGET test_imu_propagator)
+    target_link_libraries(test_imu_propagator
       ${PROJECT_NAME}_lio
     )
   endif()
