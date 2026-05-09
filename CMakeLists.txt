@@ -147,6 +147,7 @@ add_definitions(${PCL_DEFINITIONS})
 set(N3MAPPING_LIO_SOURCES
   src/lio/core_state.cpp
   src/lio/dlio_cloud_adapter.cpp
+  src/lio/dlio_imu_integration.cpp
   src/lio/dlio_input_adapter.cpp
   src/lio/dlio_map_accumulator.cpp
   src/lio/dlio_settings.cpp
@@ -432,6 +433,13 @@ if(BUILD_TESTING)
     target_link_libraries(test_dlio_map_accumulator
       ${PROJECT_NAME}_lio
       ${PCL_LIBRARIES}
+    )
+  endif()
+
+  ament_add_gtest(test_dlio_imu_integration test/test_dlio_imu_integration.cpp)
+  if(TARGET test_dlio_imu_integration)
+    target_link_libraries(test_dlio_imu_integration
+      ${PROJECT_NAME}_lio
     )
   endif()
 
