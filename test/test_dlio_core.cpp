@@ -77,6 +77,7 @@ TEST(DlioCoreTest, CanReturnPredictionOnlyFrameWhenEnabled) {
     EXPECT_NEAR(output->T_world_lidar.translation().x(), 0.0000005, 1e-12);
     ASSERT_TRUE(core.localMapCloud());
     EXPECT_EQ(core.localMapCloud()->size(), 1u);
+    EXPECT_FALSE(core.lastAlignmentStats().valid);
 }
 
 TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
@@ -93,6 +94,30 @@ TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
     EXPECT_FALSE(core.predictedState().has_value());
     ASSERT_TRUE(core.localMapCloud());
     EXPECT_TRUE(core.localMapCloud()->empty());
+    EXPECT_FALSE(core.lastAlignmentStats().valid);
+}
+
+TEST(DlioCoreTest, AppliesLocalMapCentroidCorrection) {
+    lio::LioFrontendConfig config;
+    config.prediction_only_output = true;
+    lio::dlio::Core core(config);
+
+    core.addImu(makeImu(3000000000LL));
+    core.addImu(makeImu(3001000000LL));
+    ASSERT_TRUE(core.addLidar(makeFrame()).has_value());
+
+    core::RawLidarFrame second = makeFrame();
+    second.points->at(0).x += 0.25f;
+    second.stamp_begin.nsec = 3001000000LL;
+    second.stamp_end.nsec = 3002000000LL;
+    core.addImu(makeImu(3002000000LL));
+    const auto corrected = core.addLidar(second);
+
+    ASSERT_TRUE(corrected.has_value());
+    EXPECT_TRUE(core.lastAlignmentStats().valid);
+    EXPECT_NEAR(core.lastAlignmentStats().centroid_correction_world.x(),
+                -0.2500015, 1e-6);
+    EXPECT_NEAR(corrected->T_world_lidar.translation().x(), -0.249999, 1e-6);
 }
 
 TEST(DlioCoreTest, CarriesPredictionAcrossLidarFrames) {

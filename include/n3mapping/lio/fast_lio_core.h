@@ -38,6 +38,9 @@ public:
     LioLocalMap::PointCloud::ConstPtr localMapCloud() const {
         return local_map_.cloud();
     }
+    const LioLocalMap::AlignmentStats& lastAlignmentStats() const {
+        return last_alignment_stats_;
+    }
 
 private:
     CloudAdapterOptions cloudOptions() const;
@@ -49,6 +52,7 @@ private:
     std::optional<ImuPropagationState> last_imu_propagation_;
     std::optional<LioCoreState> predicted_state_;
     LioLocalMap local_map_;
+    LioLocalMap::AlignmentStats last_alignment_stats_;
 };
 
 const char* coreStatus();

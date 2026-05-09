@@ -56,6 +56,12 @@ std::optional<core::LioFrame> Core::addLidar(const core::RawLidarFrame& frame) {
     }
     if (config_.prediction_only_output && predicted_state_ && frame.points &&
         !frame.points->empty()) {
+        last_alignment_stats_ =
+            local_map_.estimateAlignmentCorrection(*predicted_state_, frame.points, 1.0);
+        if (last_alignment_stats_.valid) {
+            predicted_state_->T_world_lidar.translation() +=
+                last_alignment_stats_.centroid_correction_world;
+        }
         local_map_.addFrame(*predicted_state_, frame.points);
         auto output = frameFromState(*predicted_state_);
         output.undistorted_cloud = frame.points;
@@ -72,6 +78,7 @@ void Core::reset() {
     last_imu_propagation_.reset();
     predicted_state_.reset();
     local_map_.clear();
+    last_alignment_stats_ = LioLocalMap::AlignmentStats{};
 }
 
 CloudAdapterOptions Core::cloudOptions() const {
