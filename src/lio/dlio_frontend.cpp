@@ -39,9 +39,11 @@ std::optional<core::LioFrame> DlioFrontend::addLidar(const core::RawLidarFrame& 
     options.time_encoding = parseDlioTimeEncoding(config_.dlio_time_encoding);
     options.blind = config_.blind;
     options.max_abs_coordinate = config_.max_abs_coordinate;
-    const auto adapted = dlio::cloudFromRawLidar(frame, options);
-    last_cloud_stats_ = adapted.stats;
-    last_time_encoding_ = adapted.resolved_time_encoding;
+    const auto packet = dlio::buildInputPacket(frame, imu_buffer_, options);
+    last_cloud_stats_ = packet.cloud_stats;
+    last_time_encoding_ = packet.time_encoding;
+    last_complete_imu_window_ = packet.has_complete_imu_window;
+    last_input_imu_samples_ = packet.imu_samples.size();
     return std::nullopt;
 }
 
@@ -50,6 +52,8 @@ void DlioFrontend::reset() {
     lidar_frames_seen_ = 0;
     last_cloud_stats_ = dlio::CloudAdapterStats{};
     last_time_encoding_ = dlio::TimeEncoding::OusterOffsetNs;
+    last_complete_imu_window_ = false;
+    last_input_imu_samples_ = 0;
 }
 
 }  // namespace lio

@@ -8,6 +8,7 @@
 #include "n3mapping/lio/frontend.h"
 #include "n3mapping/lio/frontend_config.h"
 #include "n3mapping/lio/imu_sample_buffer.h"
+#include "n3mapping/lio/dlio_input_adapter.h"
 
 namespace n3mapping {
 namespace lio {
@@ -28,6 +29,10 @@ public:
         return last_cloud_stats_;
     }
     dlio::TimeEncoding lastTimeEncoding() const { return last_time_encoding_; }
+    bool lastInputHadCompleteImuWindow() const {
+        return last_complete_imu_window_;
+    }
+    size_t lastInputImuSamples() const { return last_input_imu_samples_; }
 
 private:
     LioFrontendConfig config_;
@@ -35,6 +40,8 @@ private:
     size_t lidar_frames_seen_ = 0;
     dlio::CloudAdapterStats last_cloud_stats_;
     dlio::TimeEncoding last_time_encoding_ = dlio::TimeEncoding::OusterOffsetNs;
+    bool last_complete_imu_window_ = false;
+    size_t last_input_imu_samples_ = 0;
 };
 
 }  // namespace lio

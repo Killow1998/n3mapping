@@ -20,6 +20,8 @@ namespace {
 core::RawLidarFrame makeRawLidarFrame(const std::string& source_format = "pointcloud2") {
     core::RawLidarFrame frame;
     frame.source_format = source_format;
+    frame.stamp_begin.nsec = 1000000000LL;
+    frame.stamp_end.nsec = 1001000000LL;
     frame.points = pcl::make_shared<core::RawLidarFrame::PointCloud>();
     pcl::PointXYZI point;
     point.x = 1.0f;
@@ -31,6 +33,12 @@ core::RawLidarFrame makeRawLidarFrame(const std::string& source_format = "pointc
     frame.points->width = static_cast<uint32_t>(frame.points->size());
     frame.points->height = 1;
     return frame;
+}
+
+core::ImuSample makeImuSample(int64_t stamp_nsec) {
+    core::ImuSample sample;
+    sample.stamp.nsec = stamp_nsec;
+    return sample;
 }
 #endif
 
@@ -159,7 +167,7 @@ TEST(LioFrontendFactoryTest, FastLioFrontendConsumesRawInputAtAdapterBoundary) {
     auto* frontend = dynamic_cast<lio::FastLioFrontend*>(result.frontend.get());
     ASSERT_NE(frontend, nullptr);
 
-    frontend->addImu(core::ImuSample{});
+    frontend->addImu(makeImuSample(1000000000LL));
     const auto output = frontend->addLidar(makeRawLidarFrame());
 
     EXPECT_FALSE(output.has_value());
@@ -199,20 +207,25 @@ TEST(LioFrontendFactoryTest, DlioFrontendConsumesRawInputAtAdapterBoundary) {
     auto* frontend = dynamic_cast<lio::DlioFrontend*>(result.frontend.get());
     ASSERT_NE(frontend, nullptr);
 
-    frontend->addImu(core::ImuSample{});
+    frontend->addImu(makeImuSample(1000000000LL));
+    frontend->addImu(makeImuSample(1001000000LL));
     const auto output = frontend->addLidar(makeRawLidarFrame("livox_custom"));
 
     EXPECT_FALSE(output.has_value());
-    EXPECT_EQ(frontend->imuSamplesSeen(), 1u);
+    EXPECT_EQ(frontend->imuSamplesSeen(), 2u);
     EXPECT_EQ(frontend->lidarFramesSeen(), 1u);
     EXPECT_EQ(frontend->lastCloudStats().input_points, 1u);
     EXPECT_EQ(frontend->lastCloudStats().output_points, 1u);
     EXPECT_EQ(frontend->lastTimeEncoding(), lio::dlio::TimeEncoding::VelodyneOffsetSeconds);
+    EXPECT_EQ(frontend->lastInputImuSamples(), 2u);
+    EXPECT_TRUE(frontend->lastInputHadCompleteImuWindow());
 
     frontend->reset();
     EXPECT_EQ(frontend->imuSamplesSeen(), 0u);
     EXPECT_EQ(frontend->lidarFramesSeen(), 0u);
     EXPECT_EQ(frontend->lastCloudStats().output_points, 0u);
+    EXPECT_EQ(frontend->lastInputImuSamples(), 0u);
+    EXPECT_FALSE(frontend->lastInputHadCompleteImuWindow());
 }
 #endif
 
