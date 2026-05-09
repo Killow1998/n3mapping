@@ -9,6 +9,28 @@
 
 namespace n3mapping {
 namespace core {
+namespace {
+
+Eigen::Matrix<double, 6, 6> makeOdometryInformation(
+    const Config& config,
+    const Eigen::Matrix<double, 6, 6>* covariance) {
+    if (covariance) {
+        Eigen::Matrix<double, 6, 6> information = covariance->inverse();
+        if (information.allFinite()) {
+            return information;
+        }
+    }
+
+    Eigen::Matrix<double, 6, 6> information =
+        Eigen::Matrix<double, 6, 6>::Identity();
+    information.block<3, 3>(0, 0) *=
+        1.0 / (config.odom_noise_position * config.odom_noise_position);
+    information.block<3, 3>(3, 3) *=
+        1.0 / (config.odom_noise_rotation * config.odom_noise_rotation);
+    return information;
+}
+
+}  // namespace
 
 MappingModeProcessor::MappingModeProcessor(const Config& config,
                                            KeyframeManager& keyframe_manager,
@@ -22,7 +44,8 @@ MappingModeProcessor::MappingModeProcessor(const Config& config,
 MappingModeProcessor::Result MappingModeProcessor::process(
     double timestamp,
     const Eigen::Isometry3d& pose_odom,
-    const PointCloud::Ptr& cloud) {
+    const PointCloud::Ptr& cloud,
+    const Eigen::Matrix<double, 6, 6>* covariance) {
     Result result;
     result.publish_pose = pose_odom;
 
@@ -64,11 +87,7 @@ MappingModeProcessor::Result MappingModeProcessor::process(
             edge.from_id = kf_id - 1;
             edge.to_id = kf_id;
             edge.measurement = prev_kf->pose_odom.inverse() * pose_odom;
-            edge.information = Eigen::Matrix<double, 6, 6>::Identity();
-            edge.information.block<3, 3>(0, 0) *=
-                1.0 / (config_.odom_noise_position * config_.odom_noise_position);
-            edge.information.block<3, 3>(3, 3) *=
-                1.0 / (config_.odom_noise_rotation * config_.odom_noise_rotation);
+            edge.information = makeOdometryInformation(config_, covariance);
             edge.type = EdgeType::ODOMETRY;
             graph_optimizer_.addOdometryEdge(edge);
         }

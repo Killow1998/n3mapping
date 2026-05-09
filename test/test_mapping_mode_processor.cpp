@@ -56,5 +56,35 @@ TEST(MappingModeProcessorTest, AddsKeyframesAndDescriptors) {
     EXPECT_EQ(keyframes.size(), 2u);
 }
 
+TEST(MappingModeProcessorTest, UsesLioCovarianceForOdometryInformation) {
+    Config config;
+    config.keyframe_distance_threshold = 0.5;
+    config.rhpd_submap_voxel_size = 0.0;
+
+    KeyframeManager keyframes(config);
+    LoopDetector loop_detector(config);
+    GraphOptimizer optimizer(config);
+    core::MappingModeProcessor processor(config, keyframes, loop_detector, optimizer);
+
+    Eigen::Isometry3d pose0 = Eigen::Isometry3d::Identity();
+    ASSERT_TRUE(processor.process(1.0, pose0, makeCloud()).accepted_keyframe);
+
+    Eigen::Matrix<double, 6, 6> covariance =
+        Eigen::Matrix<double, 6, 6>::Identity();
+    covariance(0, 0) = 0.25;
+    covariance(3, 3) = 4.0;
+
+    Eigen::Isometry3d pose1 = Eigen::Isometry3d::Identity();
+    pose1.translation().x() = 1.0;
+    ASSERT_TRUE(processor.process(2.0, pose1, makeCloud(), &covariance)
+                    .accepted_keyframe);
+
+    const auto edges = optimizer.getEdges();
+    ASSERT_EQ(edges.size(), 1u);
+    EXPECT_EQ(edges.front().type, EdgeType::ODOMETRY);
+    EXPECT_DOUBLE_EQ(edges.front().information(0, 0), 4.0);
+    EXPECT_DOUBLE_EQ(edges.front().information(3, 3), 0.25);
+}
+
 }  // namespace test
 }  // namespace n3mapping

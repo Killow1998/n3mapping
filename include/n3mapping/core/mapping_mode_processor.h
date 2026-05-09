@@ -33,7 +33,8 @@ public:
 
     Result process(double timestamp,
                    const Eigen::Isometry3d& pose_odom,
-                   const PointCloud::Ptr& cloud);
+                   const PointCloud::Ptr& cloud,
+                   const Eigen::Matrix<double, 6, 6>* covariance = nullptr);
 
 private:
     const Config& config_;
