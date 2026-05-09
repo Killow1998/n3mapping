@@ -69,6 +69,25 @@ TEST(DlioDeskewTest, FallsBackToMedianPoseWithoutPointTiming) {
     EXPECT_NEAR(result.cloud->at(1).x, 4.0f, 1e-6f);
 }
 
+TEST(DlioDeskewTest, CanDeskewIntoReferenceFrame) {
+    auto frame = makeFrame();
+    frame.point_time_offsets_ns = {1000000u, 9000000u};
+    const auto timing = lio::dlio::computeScanTiming(frame);
+    const std::vector<lio::dlio::IntegratedPose,
+                      Eigen::aligned_allocator<lio::dlio::IntegratedPose>>
+        poses = {makePose(1.001, 10.0f), makePose(1.009, 20.0f)};
+    Eigen::Matrix4f T_world_reference = Eigen::Matrix4f::Identity();
+    T_world_reference(0, 3) = 20.0f;
+
+    const auto result = lio::dlio::deskewToReference(
+        frame, timing, poses, T_world_reference);
+
+    ASSERT_TRUE(result.valid);
+    ASSERT_EQ(result.cloud->size(), 2u);
+    EXPECT_NEAR(result.cloud->at(0).x, -9.0f, 1e-6f);
+    EXPECT_NEAR(result.cloud->at(1).x, 1.0f, 1e-6f);
+}
+
 TEST(DlioDeskewTest, RejectsMissingInputs) {
     core::RawLidarFrame frame;
     frame.points = pcl::make_shared<core::RawLidarFrame::PointCloud>();

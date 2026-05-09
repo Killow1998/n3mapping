@@ -45,16 +45,26 @@ DeskewResult deskewToWorld(
     const core::RawLidarFrame& frame,
     const ScanTiming& timing,
     const std::vector<IntegratedPose, Eigen::aligned_allocator<IntegratedPose>>& poses) {
+    return deskewToReference(frame, timing, poses, Eigen::Matrix4f::Identity());
+}
+
+DeskewResult deskewToReference(
+    const core::RawLidarFrame& frame,
+    const ScanTiming& timing,
+    const std::vector<IntegratedPose, Eigen::aligned_allocator<IntegratedPose>>& poses,
+    const Eigen::Matrix4f& T_world_reference) {
     DeskewResult result;
     result.cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
     if (!frame.points || frame.points->empty() || poses.empty() || !timing.valid) {
         return result;
     }
 
+    const Eigen::Matrix4f T_reference_world = T_world_reference.inverse();
     result.cloud->reserve(frame.points->size());
     if (!timing.has_point_timing || frame.point_time_offsets_ns.empty()) {
         const auto pose_index = nearestPoseIndex(poses, timing.stamp_median);
-        pcl::transformPointCloud(*frame.points, *result.cloud, poses[pose_index].T);
+        pcl::transformPointCloud(*frame.points, *result.cloud,
+                                 T_reference_world * poses[pose_index].T);
         result.transformed_points = result.cloud->size();
         result.valid = true;
         return result;
@@ -66,7 +76,8 @@ DeskewResult deskewToWorld(
                                     frame.points->at(i).y,
                                     frame.points->at(i).z,
                                     1.0f);
-        const Eigen::Vector4f transformed = poses[pose_index].T * point;
+        const Eigen::Vector4f transformed =
+            T_reference_world * poses[pose_index].T * point;
         pcl::PointXYZI out = frame.points->at(i);
         out.x = transformed.x();
         out.y = transformed.y();

@@ -23,6 +23,12 @@ DeskewResult deskewToWorld(
     const ScanTiming& timing,
     const std::vector<IntegratedPose, Eigen::aligned_allocator<IntegratedPose>>& poses);
 
+DeskewResult deskewToReference(
+    const core::RawLidarFrame& frame,
+    const ScanTiming& timing,
+    const std::vector<IntegratedPose, Eigen::aligned_allocator<IntegratedPose>>& poses,
+    const Eigen::Matrix4f& T_world_reference);
+
 }  // namespace dlio
 }  // namespace lio
 }  // namespace n3mapping
