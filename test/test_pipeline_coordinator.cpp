@@ -22,6 +22,40 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr makeCloud() {
     return cloud;
 }
 
+#if defined(N3MAPPING_BUILD_FAST_LIO_CORE) || defined(N3MAPPING_BUILD_DLIO_CORE)
+core::RawLidarFrame makeSinglePointRawFrame(int64_t stamp_begin_nsec,
+                                            int64_t stamp_end_nsec,
+                                            float x_offset = 0.0f,
+                                            const std::string& source_format = "pointcloud2") {
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = stamp_begin_nsec;
+    raw.stamp_end.nsec = stamp_end_nsec;
+    raw.source_format = source_format;
+    raw.points = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    pcl::PointXYZI point;
+    point.x = 1.0f + x_offset;
+    point.y = 0.0f;
+    point.z = 0.0f;
+    point.intensity = 1.0f;
+    raw.points->push_back(point);
+    raw.points->width = raw.points->size();
+    raw.points->height = 1;
+    raw.points->is_dense = true;
+    return raw;
+}
+
+void addZeroMotionImuWindow(core::PipelineCoordinator& pipeline,
+                            int64_t stamp0_nsec,
+                            int64_t stamp1_nsec) {
+    core::ImuSample imu0;
+    imu0.stamp.nsec = stamp0_nsec;
+    core::ImuSample imu1;
+    imu1.stamp.nsec = stamp1_nsec;
+    pipeline.addImu(imu0);
+    pipeline.addImu(imu1);
+}
+#endif
+
 }  // namespace
 
 TEST(PipelineCoordinatorTest, ExternalMappingFrameAddsKeyframe) {
@@ -85,6 +119,33 @@ TEST(PipelineCoordinatorTest, FastLioBuiltinPredictionOnlyCanFeedMapping) {
     auto output = pipeline.addRawLidar(raw);
     EXPECT_TRUE(output.has_lio_frame);
     EXPECT_TRUE(output.success) << output.error;
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
+TEST(PipelineCoordinatorTest, FastLioBuiltinCorrectionReachesMappingOutput) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    config.keyframe_distance_threshold = 1.0;
+    config.rhpd_submap_voxel_size = 0.0;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_FAST_LIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    addZeroMotionImuWindow(pipeline, 1, 1000001);
+    auto first = pipeline.addRawLidar(makeSinglePointRawFrame(1, 1000001));
+    ASSERT_TRUE(first.has_lio_frame);
+    ASSERT_TRUE(first.success) << first.error;
+
+    addZeroMotionImuWindow(pipeline, 1000001, 2000001);
+    auto second = pipeline.addRawLidar(makeSinglePointRawFrame(1000001, 2000001, 0.25f));
+
+    ASSERT_TRUE(second.has_lio_frame);
+    EXPECT_TRUE(second.success) << second.error;
+    EXPECT_FALSE(second.accepted_keyframe);
+    EXPECT_NEAR(second.T_world_lidar.translation().x(), -0.25, 1e-6);
 #else
     EXPECT_FALSE(pipeline.ready());
 #endif
@@ -175,6 +236,35 @@ TEST(PipelineCoordinatorTest, DlioBuiltinPredictionOnlyCanFeedMapping) {
     auto output = pipeline.addRawLidar(raw);
     EXPECT_TRUE(output.has_lio_frame);
     EXPECT_TRUE(output.success) << output.error;
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
+TEST(PipelineCoordinatorTest, DlioBuiltinCorrectionReachesMappingOutput) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    config.keyframe_distance_threshold = 1.0;
+    config.rhpd_submap_voxel_size = 0.0;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_DLIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    addZeroMotionImuWindow(pipeline, 1, 1000001);
+    auto first =
+        pipeline.addRawLidar(makeSinglePointRawFrame(1, 1000001, 0.0f, "livox_custom"));
+    ASSERT_TRUE(first.has_lio_frame);
+    ASSERT_TRUE(first.success) << first.error;
+
+    addZeroMotionImuWindow(pipeline, 1000001, 2000001);
+    auto second =
+        pipeline.addRawLidar(makeSinglePointRawFrame(1000001, 2000001, 0.25f, "livox_custom"));
+
+    ASSERT_TRUE(second.has_lio_frame);
+    EXPECT_TRUE(second.success) << second.error;
+    EXPECT_FALSE(second.accepted_keyframe);
+    EXPECT_NEAR(second.T_world_lidar.translation().x(), -0.25, 1e-6);
 #else
     EXPECT_FALSE(pipeline.ready());
 #endif
