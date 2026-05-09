@@ -382,7 +382,13 @@ TEST(LioFrontendFactoryTest, FastLioDebugCallbacksFireWhenEnabled) {
             ++local_map_count;
             EXPECT_FALSE(cloud->empty());
         };
-    callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
+    callbacks.timing = [&](const lio::LioTimingStats& timing) {
+        ++timing_count;
+        EXPECT_TRUE(std::isfinite(timing.odometry_ms));
+        EXPECT_TRUE(std::isfinite(timing.total_ms));
+        EXPECT_GT(timing.odometry_ms, 0.0);
+        EXPECT_GE(timing.total_ms, timing.odometry_ms);
+    };
     frontend->setDebugCallbacks(callbacks);
 
     frontend->addImu(makeImuSample(1000000000LL));
@@ -618,7 +624,13 @@ TEST(LioFrontendFactoryTest, DlioDebugCallbacksFireWhenEnabled) {
             ++local_map_count;
             EXPECT_FALSE(cloud->empty());
         };
-    callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
+    callbacks.timing = [&](const lio::LioTimingStats& timing) {
+        ++timing_count;
+        EXPECT_TRUE(std::isfinite(timing.odometry_ms));
+        EXPECT_TRUE(std::isfinite(timing.total_ms));
+        EXPECT_GT(timing.odometry_ms, 0.0);
+        EXPECT_GE(timing.total_ms, timing.odometry_ms);
+    };
     frontend->setDebugCallbacks(callbacks);
 
     frontend->addImu(makeImuSample(1000000000LL));
