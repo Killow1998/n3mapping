@@ -120,6 +120,28 @@ TEST(DlioCoreTest, AppliesLocalMapCentroidCorrection) {
     EXPECT_NEAR(corrected->T_world_lidar.translation().x(), -0.249999, 1e-6);
 }
 
+TEST(DlioCoreTest, RespectsAlignmentCorrespondenceGate) {
+    lio::LioFrontendConfig config;
+    config.prediction_only_output = true;
+    config.alignment_max_correspondence_distance = 0.05;
+    lio::dlio::Core core(config);
+
+    core.addImu(makeImu(3000000000LL));
+    core.addImu(makeImu(3001000000LL));
+    ASSERT_TRUE(core.addLidar(makeFrame()).has_value());
+
+    core::RawLidarFrame second = makeFrame();
+    second.points->at(0).x += 0.25f;
+    second.stamp_begin.nsec = 3001000000LL;
+    second.stamp_end.nsec = 3002000000LL;
+    core.addImu(makeImu(3002000000LL));
+    const auto uncorrected = core.addLidar(second);
+
+    ASSERT_TRUE(uncorrected.has_value());
+    EXPECT_FALSE(core.lastAlignmentStats().valid);
+    EXPECT_NEAR(uncorrected->T_world_lidar.translation().x(), 0.000002, 1e-12);
+}
+
 TEST(DlioCoreTest, CarriesPredictionAcrossLidarFrames) {
     lio::dlio::Core core;
     core.addImu(makeImu(3000000000LL));

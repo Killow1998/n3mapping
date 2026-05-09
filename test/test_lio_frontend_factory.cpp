@@ -97,6 +97,7 @@ TEST(LioFrontendFactoryTest, DerivesFrontendConfigFromCoreConfig) {
     config.frontend_scan_lines = 32;
     config.frontend_blind = 0.25;
     config.frontend_max_abs_coordinate = 99.0;
+    config.frontend_alignment_max_correspondence_distance = 0.75;
     config.frontend_prediction_only_output = true;
     config.dlio_time_encoding = "velodyne";
     config.frontend_lidar_to_body_tx = 1.0;
@@ -119,6 +120,7 @@ TEST(LioFrontendFactoryTest, DerivesFrontendConfigFromCoreConfig) {
     EXPECT_EQ(frontend_config.scan_lines, 32u);
     EXPECT_NEAR(frontend_config.blind, 0.25, 1e-12);
     EXPECT_NEAR(frontend_config.max_abs_coordinate, 99.0, 1e-12);
+    EXPECT_NEAR(frontend_config.alignment_max_correspondence_distance, 0.75, 1e-12);
     EXPECT_TRUE(frontend_config.prediction_only_output);
     EXPECT_EQ(frontend_config.dlio_time_encoding, "velodyne");
     EXPECT_NEAR(frontend_config.T_body_lidar.translation().x(), 1.0, 1e-12);

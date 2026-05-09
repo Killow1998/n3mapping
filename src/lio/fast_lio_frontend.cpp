@@ -32,7 +32,10 @@ std::optional<core::LioFrame> FastLioFrontend::addLidar(const core::RawLidarFram
     if (config_.prediction_only_output && predicted_state_ && packet.cloud &&
         !packet.cloud->empty() && frame.points && !frame.points->empty()) {
         last_alignment_stats_ =
-            local_map_.estimateAlignmentCorrection(*predicted_state_, frame.points, 1.0);
+            local_map_.estimateAlignmentCorrection(
+                *predicted_state_,
+                frame.points,
+                config_.alignment_max_correspondence_distance);
         if (last_alignment_stats_.valid) {
             predicted_state_->T_world_lidar.translation() +=
                 last_alignment_stats_.centroid_correction_world;
