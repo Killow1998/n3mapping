@@ -36,6 +36,13 @@ const N3MappingSession& PipelineCoordinator::session() const {
     return session_;
 }
 
+void PipelineCoordinator::setLioDebugCallbacks(
+    const lio::LioDebugCallbacks& callbacks) {
+    if (frontend_) {
+        frontend_->setDebugCallbacks(callbacks);
+    }
+}
+
 void PipelineCoordinator::addImu(const ImuSample& imu) {
     if (frontend_) {
         frontend_->addImu(imu);

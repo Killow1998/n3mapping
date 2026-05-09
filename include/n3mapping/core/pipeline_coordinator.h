@@ -39,6 +39,7 @@ public:
     N3MappingSession& session();
     const N3MappingSession& session() const;
 
+    void setLioDebugCallbacks(const lio::LioDebugCallbacks& callbacks);
     void addImu(const ImuSample& imu);
     Output addRawLidar(const RawLidarFrame& frame);
     Output addExternalFrame(const TimeStamp& stamp,

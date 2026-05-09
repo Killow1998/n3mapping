@@ -90,6 +90,49 @@ TEST(PipelineCoordinatorTest, FastLioBuiltinPredictionOnlyCanFeedMapping) {
 #endif
 }
 
+TEST(PipelineCoordinatorTest, ForwardsFastLioDebugCallbacks) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    config.frontend_publish_debug = true;
+    config.frontend_debug_publish_odom = true;
+    config.frontend_debug_publish_deskewed_cloud = true;
+    config.frontend_debug_publish_timing = true;
+    config.rhpd_submap_voxel_size = 0.0;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_FAST_LIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    int odom_count = 0;
+    int cloud_count = 0;
+    int timing_count = 0;
+    lio::LioDebugCallbacks callbacks;
+    callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
+    callbacks.deskewed_cloud =
+        [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
+    pipeline.setLioDebugCallbacks(callbacks);
+
+    core::ImuSample imu0;
+    imu0.stamp.nsec = 1;
+    core::ImuSample imu1;
+    imu1.stamp.nsec = 1000001;
+    pipeline.addImu(imu0);
+    pipeline.addImu(imu1);
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = 1;
+    raw.stamp_end.nsec = 1000001;
+    raw.points = makeCloud();
+    auto output = pipeline.addRawLidar(raw);
+    EXPECT_TRUE(output.has_lio_frame);
+    EXPECT_EQ(odom_count, 1);
+    EXPECT_EQ(cloud_count, 1);
+    EXPECT_EQ(timing_count, 1);
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
 TEST(PipelineCoordinatorTest, DlioBuiltinFrontendReportsFactoryErrorForNow) {
     Config config;
     config.frontend_mode = "dlio";
@@ -132,6 +175,49 @@ TEST(PipelineCoordinatorTest, DlioBuiltinPredictionOnlyCanFeedMapping) {
     auto output = pipeline.addRawLidar(raw);
     EXPECT_TRUE(output.has_lio_frame);
     EXPECT_TRUE(output.success) << output.error;
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
+TEST(PipelineCoordinatorTest, ForwardsDlioDebugCallbacks) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    config.frontend_publish_debug = true;
+    config.frontend_debug_publish_odom = true;
+    config.frontend_debug_publish_deskewed_cloud = true;
+    config.frontend_debug_publish_timing = true;
+    config.rhpd_submap_voxel_size = 0.0;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_DLIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    int odom_count = 0;
+    int cloud_count = 0;
+    int timing_count = 0;
+    lio::LioDebugCallbacks callbacks;
+    callbacks.odom = [&](const core::LioFrame&) { ++odom_count; };
+    callbacks.deskewed_cloud =
+        [&](const core::LioFrame::PointCloud::ConstPtr&) { ++cloud_count; };
+    callbacks.timing = [&](const lio::LioTimingStats&) { ++timing_count; };
+    pipeline.setLioDebugCallbacks(callbacks);
+
+    core::ImuSample imu0;
+    imu0.stamp.nsec = 1;
+    core::ImuSample imu1;
+    imu1.stamp.nsec = 1000001;
+    pipeline.addImu(imu0);
+    pipeline.addImu(imu1);
+    core::RawLidarFrame raw;
+    raw.stamp_begin.nsec = 1;
+    raw.stamp_end.nsec = 1000001;
+    raw.points = makeCloud();
+    auto output = pipeline.addRawLidar(raw);
+    EXPECT_TRUE(output.has_lio_frame);
+    EXPECT_EQ(odom_count, 1);
+    EXPECT_EQ(cloud_count, 1);
+    EXPECT_EQ(timing_count, 1);
 #else
     EXPECT_FALSE(pipeline.ready());
 #endif
