@@ -1,3 +1,5 @@
+#include <filesystem>
+
 #include <gtest/gtest.h>
 
 #include "n3mapping/core/pipeline_coordinator.h"
@@ -151,6 +153,39 @@ TEST(PipelineCoordinatorTest, FastLioBuiltinCorrectionReachesMappingOutput) {
 #endif
 }
 
+TEST(PipelineCoordinatorTest, FastLioBuiltinMappingCanSaveLoadMap) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "fast_lio";
+    config.frontend_prediction_only_output = true;
+    config.keyframe_distance_threshold = 0.1;
+    config.rhpd_submap_voxel_size = 0.0;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_FAST_LIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    addZeroMotionImuWindow(pipeline, 1, 1000001);
+    auto output = pipeline.addRawLidar(makeSinglePointRawFrame(1, 1000001));
+    ASSERT_TRUE(output.success) << output.error;
+    ASSERT_TRUE(output.accepted_keyframe);
+
+    const std::string dir = "/tmp/n3mapping_pipeline_fast_lio_test";
+    const std::string map_path = dir + "/builtin_fast_lio.pbstream";
+    std::filesystem::remove_all(dir);
+    ASSERT_TRUE(pipeline.saveMap(map_path));
+    ASSERT_TRUE(std::filesystem::exists(map_path));
+
+    Config load_config = config;
+    load_config.mode = "localization";
+    load_config.frontend_mode = "external";
+    core::PipelineCoordinator loaded(load_config);
+    ASSERT_TRUE(loaded.ready()) << loaded.error();
+    EXPECT_TRUE(loaded.loadMap(map_path));
+    std::filesystem::remove_all(dir);
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
 TEST(PipelineCoordinatorTest, ForwardsFastLioDebugCallbacks) {
     Config config;
     config.mode = "mapping";
@@ -265,6 +300,40 @@ TEST(PipelineCoordinatorTest, DlioBuiltinCorrectionReachesMappingOutput) {
     EXPECT_TRUE(second.success) << second.error;
     EXPECT_FALSE(second.accepted_keyframe);
     EXPECT_NEAR(second.T_world_lidar.translation().x(), -0.25, 1e-6);
+#else
+    EXPECT_FALSE(pipeline.ready());
+#endif
+}
+
+TEST(PipelineCoordinatorTest, DlioBuiltinMappingCanSaveLoadMap) {
+    Config config;
+    config.mode = "mapping";
+    config.frontend_mode = "dlio";
+    config.frontend_prediction_only_output = true;
+    config.keyframe_distance_threshold = 0.1;
+    config.rhpd_submap_voxel_size = 0.0;
+    core::PipelineCoordinator pipeline(config);
+#ifdef N3MAPPING_BUILD_DLIO_CORE
+    ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    addZeroMotionImuWindow(pipeline, 1, 1000001);
+    auto output =
+        pipeline.addRawLidar(makeSinglePointRawFrame(1, 1000001, 0.0f, "livox_custom"));
+    ASSERT_TRUE(output.success) << output.error;
+    ASSERT_TRUE(output.accepted_keyframe);
+
+    const std::string dir = "/tmp/n3mapping_pipeline_dlio_test";
+    const std::string map_path = dir + "/builtin_dlio.pbstream";
+    std::filesystem::remove_all(dir);
+    ASSERT_TRUE(pipeline.saveMap(map_path));
+    ASSERT_TRUE(std::filesystem::exists(map_path));
+
+    Config load_config = config;
+    load_config.mode = "localization";
+    load_config.frontend_mode = "external";
+    core::PipelineCoordinator loaded(load_config);
+    ASSERT_TRUE(loaded.ready()) << loaded.error();
+    EXPECT_TRUE(loaded.loadMap(map_path));
+    std::filesystem::remove_all(dir);
 #else
     EXPECT_FALSE(pipeline.ready());
 #endif
