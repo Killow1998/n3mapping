@@ -61,6 +61,17 @@ TEST(LioFrontendFactoryTest, ParsesAliases) {
     EXPECT_EQ(lio::parseFrontendMode("bad"), lio::FrontendMode::Unknown);
 }
 
+TEST(LioFrontendFactoryTest, NamesFrontendCapabilities) {
+    EXPECT_STREQ(lio::frontendCapabilityName(lio::FrontendCapability::Unavailable),
+                 "unavailable");
+    EXPECT_STREQ(lio::frontendCapabilityName(lio::FrontendCapability::ExternalFrameAdapter),
+                 "external_frame_adapter");
+    EXPECT_STREQ(lio::frontendCapabilityName(lio::FrontendCapability::PredictionOnly),
+                 "prediction_only");
+    EXPECT_STREQ(lio::frontendCapabilityName(lio::FrontendCapability::FullOdometry),
+                 "full_odometry");
+}
+
 TEST(LioFrontendFactoryTest, BuiltinFrontendsAreExplicitlyUnsupportedForNow) {
     Config config;
     config.frontend_mode = "fast_lio";
