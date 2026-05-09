@@ -4,14 +4,9 @@
 
 #include <cstddef>
 
-#include "n3mapping/lio/fast_lio_cloud_adapter.h"
-#include "n3mapping/lio/fast_lio_input_adapter.h"
-#include "n3mapping/lio/core_state.h"
+#include "n3mapping/lio/fast_lio_core.h"
 #include "n3mapping/lio/frontend.h"
 #include "n3mapping/lio/frontend_config.h"
-#include "n3mapping/lio/imu_propagator.h"
-#include "n3mapping/lio/imu_sample_buffer.h"
-#include "n3mapping/lio/local_map.h"
 
 namespace n3mapping {
 namespace lio {
@@ -30,35 +25,28 @@ public:
     }
     bool implemented() const { return false; }
     const LioFrontendConfig& config() const { return config_; }
-    size_t imuSamplesSeen() const { return imu_buffer_.size(); }
-    size_t lidarFramesSeen() const { return lidar_frames_seen_; }
+    size_t imuSamplesSeen() const { return core_.imuSamplesSeen(); }
+    size_t lidarFramesSeen() const { return core_.lidarFramesSeen(); }
     const fast_lio::CloudAdapterStats& lastCloudStats() const {
-        return last_cloud_stats_;
+        return core_.lastInputPacket().cloud_stats;
     }
     bool lastInputHadCompleteImuWindow() const {
-        return last_complete_imu_window_;
+        return core_.lastInputPacket().has_complete_imu_window;
     }
-    size_t lastInputImuSamples() const { return last_input_imu_samples_; }
+    size_t lastInputImuSamples() const { return core_.lastInputPacket().imu_samples.size(); }
     const std::optional<LioCoreState>& predictedState() const {
-        return predicted_state_;
+        return core_.predictedState();
     }
     LioLocalMap::PointCloud::ConstPtr localMapCloud() const {
-        return local_map_.cloud();
+        return core_.localMapCloud();
     }
     const LioLocalMap::AlignmentStats& lastAlignmentStats() const {
-        return last_alignment_stats_;
+        return core_.lastAlignmentStats();
     }
 
 private:
     LioFrontendConfig config_;
-    ImuSampleBuffer imu_buffer_;
-    size_t lidar_frames_seen_ = 0;
-    fast_lio::CloudAdapterStats last_cloud_stats_;
-    bool last_complete_imu_window_ = false;
-    size_t last_input_imu_samples_ = 0;
-    std::optional<LioCoreState> predicted_state_;
-    LioLocalMap local_map_;
-    LioLocalMap::AlignmentStats last_alignment_stats_;
+    fast_lio::Core core_;
     LioDebugCallbacks debug_callbacks_;
 };
 

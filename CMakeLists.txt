@@ -161,7 +161,10 @@ set(N3MAPPING_LIO_SOURCES
 )
 
 if(BUILD_FAST_LIO_CORE)
-  list(APPEND N3MAPPING_LIO_SOURCES src/lio/fast_lio_frontend.cpp)
+  list(APPEND N3MAPPING_LIO_SOURCES
+    src/lio/fast_lio_core.cpp
+    src/lio/fast_lio_frontend.cpp
+  )
 endif()
 if(BUILD_DLIO_CORE)
   list(APPEND N3MAPPING_LIO_SOURCES src/lio/dlio_frontend.cpp)
@@ -233,7 +236,7 @@ target_link_libraries(${PROJECT_NAME}_core
 
 if(BUILD_FAST_LIO_CORE)
   add_library(${PROJECT_NAME}_fast_lio_core SHARED
-    src/lio/fast_lio_core.cpp
+    src/lio/fast_lio_core_library.cpp
   )
   target_include_directories(${PROJECT_NAME}_fast_lio_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
