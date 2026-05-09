@@ -25,6 +25,9 @@ public:
     void reset() override;
     void setDebugCallbacks(const LioDebugCallbacks& callbacks) override;
 
+    FrontendCapability capability() const override {
+        return FrontendCapability::PredictionOnly;
+    }
     bool implemented() const { return false; }
     const LioFrontendConfig& config() const { return config_; }
     size_t imuSamplesSeen() const { return imu_buffer_.size(); }

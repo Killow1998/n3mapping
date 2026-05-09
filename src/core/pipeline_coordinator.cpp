@@ -28,6 +28,10 @@ PipelineCoordinator::RunMode PipelineCoordinator::mode() const {
     return mode_;
 }
 
+lio::FrontendCapability PipelineCoordinator::frontendCapability() const {
+    return frontend_ ? frontend_->capability() : lio::FrontendCapability::Unavailable;
+}
+
 N3MappingSession& PipelineCoordinator::session() {
     return session_;
 }

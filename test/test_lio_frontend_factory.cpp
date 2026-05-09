@@ -50,6 +50,7 @@ TEST(LioFrontendFactoryTest, CreatesExternalFrontendByDefault) {
     ASSERT_TRUE(result.ok()) << result.error;
     EXPECT_EQ(result.mode, lio::FrontendMode::External);
     EXPECT_NE(dynamic_cast<lio::ExternalLioFrontend*>(result.frontend.get()), nullptr);
+    EXPECT_EQ(result.frontend->capability(), lio::FrontendCapability::ExternalFrameAdapter);
 }
 
 TEST(LioFrontendFactoryTest, ParsesAliases) {
@@ -66,6 +67,8 @@ TEST(LioFrontendFactoryTest, BuiltinFrontendsAreExplicitlyUnsupportedForNow) {
     auto fast_lio = lio::createLioFrontend(config);
 #ifdef N3MAPPING_BUILD_FAST_LIO_CORE
     EXPECT_TRUE(fast_lio.ok()) << fast_lio.error;
+    ASSERT_TRUE(fast_lio.frontend);
+    EXPECT_EQ(fast_lio.frontend->capability(), lio::FrontendCapability::PredictionOnly);
 #else
     EXPECT_FALSE(fast_lio.ok());
     EXPECT_NE(fast_lio.error.find("fast_lio_core"), std::string::npos);
@@ -76,6 +79,8 @@ TEST(LioFrontendFactoryTest, BuiltinFrontendsAreExplicitlyUnsupportedForNow) {
     auto dlio = lio::createLioFrontend(config);
 #ifdef N3MAPPING_BUILD_DLIO_CORE
     EXPECT_TRUE(dlio.ok()) << dlio.error;
+    ASSERT_TRUE(dlio.frontend);
+    EXPECT_EQ(dlio.frontend->capability(), lio::FrontendCapability::PredictionOnly);
 #else
     EXPECT_FALSE(dlio.ok());
     EXPECT_NE(dlio.error.find("dlio_core"), std::string::npos);

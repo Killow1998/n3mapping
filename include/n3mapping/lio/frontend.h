@@ -22,10 +22,32 @@ struct LioDebugCallbacks {
     std::function<void(const LioTimingStats&)> timing;
 };
 
+enum class FrontendCapability {
+    Unavailable,
+    ExternalFrameAdapter,
+    PredictionOnly,
+    FullOdometry,
+};
+
+inline const char* frontendCapabilityName(FrontendCapability capability) {
+    switch (capability) {
+        case FrontendCapability::ExternalFrameAdapter:
+            return "external_frame_adapter";
+        case FrontendCapability::PredictionOnly:
+            return "prediction_only";
+        case FrontendCapability::FullOdometry:
+            return "full_odometry";
+        case FrontendCapability::Unavailable:
+        default:
+            return "unavailable";
+    }
+}
+
 class LioFrontend {
 public:
     virtual ~LioFrontend() = default;
 
+    virtual FrontendCapability capability() const = 0;
     virtual void addImu(const core::ImuSample& imu) = 0;
     virtual std::optional<core::LioFrame> addLidar(const core::RawLidarFrame& frame) = 0;
     virtual void reset() = 0;

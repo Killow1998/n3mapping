@@ -13,6 +13,9 @@ class ExternalLioFrontend : public LioFrontend {
 public:
     using PointCloud = core::LioFrame::PointCloud;
 
+    FrontendCapability capability() const override {
+        return FrontendCapability::ExternalFrameAdapter;
+    }
     void addImu(const core::ImuSample& imu) override;
     std::optional<core::LioFrame> addLidar(const core::RawLidarFrame& frame) override;
     void reset() override;

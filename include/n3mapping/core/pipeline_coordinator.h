@@ -36,6 +36,7 @@ public:
     bool ready() const;
     const std::string& error() const;
     RunMode mode() const;
+    lio::FrontendCapability frontendCapability() const;
     N3MappingSession& session();
     const N3MappingSession& session() const;
 

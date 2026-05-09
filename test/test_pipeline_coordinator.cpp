@@ -69,6 +69,8 @@ TEST(PipelineCoordinatorTest, ExternalMappingFrameAddsKeyframe) {
 
     core::PipelineCoordinator pipeline(config);
     ASSERT_TRUE(pipeline.ready()) << pipeline.error();
+    EXPECT_EQ(pipeline.frontendCapability(),
+              lio::FrontendCapability::ExternalFrameAdapter);
 
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     auto output = pipeline.addExternalFrame(core::TimeStamp{100000000}, pose, makeCloud());
@@ -85,6 +87,7 @@ TEST(PipelineCoordinatorTest, BuiltinFrontendReportsFactoryErrorForNow) {
     core::PipelineCoordinator pipeline(config);
 #ifdef N3MAPPING_BUILD_FAST_LIO_CORE
     EXPECT_TRUE(pipeline.ready()) << pipeline.error();
+    EXPECT_EQ(pipeline.frontendCapability(), lio::FrontendCapability::PredictionOnly);
     core::RawLidarFrame raw;
     raw.stamp_begin.nsec = 1;
     raw.stamp_end.nsec = 2;
@@ -235,6 +238,7 @@ TEST(PipelineCoordinatorTest, DlioBuiltinFrontendReportsFactoryErrorForNow) {
     core::PipelineCoordinator pipeline(config);
 #ifdef N3MAPPING_BUILD_DLIO_CORE
     EXPECT_TRUE(pipeline.ready()) << pipeline.error();
+    EXPECT_EQ(pipeline.frontendCapability(), lio::FrontendCapability::PredictionOnly);
     core::RawLidarFrame raw;
     raw.stamp_begin.nsec = 1;
     raw.stamp_end.nsec = 2;
