@@ -444,6 +444,12 @@ if(BUILD_TESTING)
         ${PCL_LIBRARIES}
       )
     endif()
+    add_test(NAME test_dlio_core_library_name
+      COMMAND ${CMAKE_COMMAND}
+        -DN3MAPPING_CHECK_LIBRARY=$<TARGET_FILE:${PROJECT_NAME}_dlio_core>
+        -DN3MAPPING_EXPECTED_FILENAME=libdlio_core.so
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_lio_core_library_name.cmake
+    )
   endif()
 
   if(BUILD_FAST_LIO_CORE)
@@ -455,6 +461,12 @@ if(BUILD_TESTING)
         ${PCL_LIBRARIES}
       )
     endif()
+    add_test(NAME test_fast_lio_core_library_name
+      COMMAND ${CMAKE_COMMAND}
+        -DN3MAPPING_CHECK_LIBRARY=$<TARGET_FILE:${PROJECT_NAME}_fast_lio_core>
+        -DN3MAPPING_EXPECTED_FILENAME=libfast_lio_core.so
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_lio_core_library_name.cmake
+    )
   endif()
 
   ament_add_gtest(test_fast_lio_cloud_adapter test/test_fast_lio_cloud_adapter.cpp)
