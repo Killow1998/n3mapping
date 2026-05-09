@@ -163,6 +163,9 @@ TEST(FastLioCoreTest, CarriesPredictionAcrossLidarFrames) {
 }
 
 TEST(FastLioCoreTest, ReportsExtractionStatus) {
+    lio::fast_lio::Core core;
+    EXPECT_EQ(core.capability(), lio::FrontendCapability::PredictionOnly);
+    EXPECT_FALSE(core.implemented());
     EXPECT_NE(std::string(lio::fast_lio::coreStatus()).find("input boundary"),
               std::string::npos);
 }

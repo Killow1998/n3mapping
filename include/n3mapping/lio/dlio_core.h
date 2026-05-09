@@ -8,6 +8,7 @@
 #include "n3mapping/core/types.h"
 #include "n3mapping/lio/dlio_input_adapter.h"
 #include "n3mapping/lio/core_state.h"
+#include "n3mapping/lio/frontend.h"
 #include "n3mapping/lio/frontend_config.h"
 #include "n3mapping/lio/imu_propagator.h"
 #include "n3mapping/lio/imu_sample_buffer.h"
@@ -25,6 +26,7 @@ public:
     std::optional<core::LioFrame> addLidar(const core::RawLidarFrame& frame);
     void reset();
 
+    FrontendCapability capability() const { return FrontendCapability::PredictionOnly; }
     bool implemented() const { return false; }
     size_t imuSamplesSeen() const { return imu_buffer_.size(); }
     size_t lidarFramesSeen() const { return lidar_frames_seen_; }

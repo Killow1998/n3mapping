@@ -162,6 +162,9 @@ TEST(DlioCoreTest, CarriesPredictionAcrossLidarFrames) {
 }
 
 TEST(DlioCoreTest, ReportsExtractionStatus) {
+    lio::dlio::Core core;
+    EXPECT_EQ(core.capability(), lio::FrontendCapability::PredictionOnly);
+    EXPECT_FALSE(core.implemented());
     EXPECT_NE(std::string(lio::dlio::coreStatus()).find("input boundary"),
               std::string::npos);
 }
