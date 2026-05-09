@@ -1,5 +1,7 @@
 #include "n3mapping/lio/fast_lio_core.h"
 
+#include "n3mapping/lio/fast_lio_settings.h"
+
 namespace n3mapping {
 namespace lio {
 namespace fast_lio {
@@ -63,12 +65,7 @@ void Core::reset() {
 }
 
 CloudAdapterOptions Core::cloudOptions() const {
-    CloudAdapterOptions options;
-    options.point_filter_num = config_.point_filter_num;
-    options.scan_lines = config_.scan_lines;
-    options.blind = config_.blind;
-    options.max_abs_coordinate = config_.max_abs_coordinate;
-    return options;
+    return makeCloudAdapterOptions(makeSettings(config_));
 }
 
 const char* coreStatus() {

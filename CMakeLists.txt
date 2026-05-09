@@ -152,6 +152,7 @@ set(N3MAPPING_LIO_SOURCES
   src/lio/external_frontend.cpp
   src/lio/fast_lio_cloud_adapter.cpp
   src/lio/fast_lio_input_adapter.cpp
+  src/lio/fast_lio_settings.cpp
   src/lio/frontend_config.cpp
   src/lio/frontend_factory.cpp
   src/lio/imu_propagator.cpp
@@ -475,6 +476,13 @@ if(BUILD_TESTING)
     target_link_libraries(test_fast_lio_cloud_adapter
       ${PROJECT_NAME}_lio
       ${PCL_LIBRARIES}
+    )
+  endif()
+
+  ament_add_gtest(test_fast_lio_settings test/test_fast_lio_settings.cpp)
+  if(TARGET test_fast_lio_settings)
+    target_link_libraries(test_fast_lio_settings
+      ${PROJECT_NAME}_lio
     )
   endif()
 
