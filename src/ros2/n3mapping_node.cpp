@@ -476,7 +476,11 @@ class N3MappingNode : public rclcpp::Node
 
         switch (run_mode_) {
             case RunMode::MAPPING:
-                processMappingMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, cloud_msg->header);
+                processMappingMode(timestamp,
+                                   lio_frame->T_world_lidar,
+                                   lio_frame->undistorted_cloud,
+                                   cloud_msg->header,
+                                   lio_frame->covariance_valid ? &lio_frame->covariance : nullptr);
                 break;
             case RunMode::LOCALIZATION:
                 processLocalizationMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, cloud_msg->header);
@@ -540,7 +544,11 @@ class N3MappingNode : public rclcpp::Node
         double timestamp = static_cast<double>(lio_frame->stamp.nsec) * 1e-9;
         switch (run_mode_) {
             case RunMode::MAPPING:
-                processMappingMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, header);
+                processMappingMode(timestamp,
+                                   lio_frame->T_world_lidar,
+                                   lio_frame->undistorted_cloud,
+                                   header,
+                                   lio_frame->covariance_valid ? &lio_frame->covariance : nullptr);
                 break;
             case RunMode::LOCALIZATION:
                 processLocalizationMode(timestamp, lio_frame->T_world_lidar, lio_frame->undistorted_cloud, header);
@@ -556,9 +564,13 @@ class N3MappingNode : public rclcpp::Node
     /**
      * @brief 建图模式处理
      */
-    void processMappingMode(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header)
+    void processMappingMode(double timestamp,
+                            const Eigen::Isometry3d& pose_odom,
+                            PointCloud::Ptr cloud,
+                            const std_msgs::msg::Header& header,
+                            const Eigen::Matrix<double, 6, 6>* covariance = nullptr)
     {
-        mapping_mode_handler_->process(timestamp, pose_odom, cloud, header);
+        mapping_mode_handler_->process(timestamp, pose_odom, cloud, header, covariance);
     }
 
     /**

@@ -24,9 +24,13 @@ MappingModeHandler::MappingModeHandler(const Config& config,
 }
 
 void
-MappingModeHandler::process(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header)
+MappingModeHandler::process(double timestamp,
+                            const Eigen::Isometry3d& pose_odom,
+                            PointCloud::Ptr cloud,
+                            const std_msgs::msg::Header& header,
+                            const Eigen::Matrix<double, 6, 6>* covariance)
 {
-    auto result = processor_.process(timestamp, pose_odom, cloud);
+    auto result = processor_.process(timestamp, pose_odom, cloud, covariance);
     if (!result.accepted_keyframe) {
         publish_.publish_odometry(pose_odom, header);
         publish_.publish_path(header, &pose_odom);

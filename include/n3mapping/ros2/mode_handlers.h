@@ -4,6 +4,7 @@
 #include <mutex>
 #include <vector>
 
+#include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -47,7 +48,11 @@ class MappingModeHandler
                        std::function<void()> on_keyframe_added,
                        rclcpp::Logger logger);
 
-    void process(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header);
+    void process(double timestamp,
+                 const Eigen::Isometry3d& pose_odom,
+                 PointCloud::Ptr cloud,
+                 const std_msgs::msg::Header& header,
+                 const Eigen::Matrix<double, 6, 6>* covariance = nullptr);
 
   private:
     core::MappingModeProcessor processor_;
