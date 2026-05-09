@@ -56,6 +56,9 @@ TEST(DlioCoreTest, AcceptsImuAndLidarAtCoreBoundary) {
     ASSERT_TRUE(core.lastImuPropagation().has_value());
     EXPECT_TRUE(core.lastImuPropagation()->valid);
     EXPECT_NEAR(core.lastImuPropagation()->velocity.x(), 0.001, 1e-12);
+    ASSERT_TRUE(core.predictedState().has_value());
+    EXPECT_TRUE(core.predictedState()->initialized);
+    EXPECT_NEAR(core.predictedState()->velocity_world.x(), 0.001, 1e-12);
 }
 
 TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
@@ -69,6 +72,7 @@ TEST(DlioCoreTest, ResetClearsBufferedBoundaryState) {
     EXPECT_FALSE(core.lastInputPacket().cloud);
     EXPECT_TRUE(core.lastInputPacket().imu_samples.empty());
     EXPECT_FALSE(core.lastImuPropagation().has_value());
+    EXPECT_FALSE(core.predictedState().has_value());
 }
 
 TEST(DlioCoreTest, ReportsExtractionStatus) {

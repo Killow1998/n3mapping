@@ -142,6 +142,7 @@ add_definitions(${PCL_DEFINITIONS})
 # ROS-free LIO frontend interface/adapters. This stays separate from the
 # mapping core so FAST-LIO2/DLIO extraction can evolve behind one boundary.
 set(N3MAPPING_LIO_SOURCES
+  src/lio/core_state.cpp
   src/lio/dlio_cloud_adapter.cpp
   src/lio/dlio_input_adapter.cpp
   src/lio/external_frontend.cpp
@@ -394,6 +395,13 @@ if(BUILD_TESTING)
   ament_add_gtest(test_config_defaults test/test_config_defaults.cpp)
   if(TARGET test_config_defaults)
     target_link_libraries(test_config_defaults
+      ${PROJECT_NAME}_lio
+    )
+  endif()
+
+  ament_add_gtest(test_lio_core_state test/test_lio_core_state.cpp)
+  if(TARGET test_lio_core_state)
+    target_link_libraries(test_lio_core_state
       ${PROJECT_NAME}_lio
     )
   endif()

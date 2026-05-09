@@ -7,6 +7,7 @@
 
 #include "n3mapping/core/types.h"
 #include "n3mapping/lio/fast_lio_input_adapter.h"
+#include "n3mapping/lio/core_state.h"
 #include "n3mapping/lio/frontend_config.h"
 #include "n3mapping/lio/imu_propagator.h"
 #include "n3mapping/lio/imu_sample_buffer.h"
@@ -30,6 +31,9 @@ public:
     const std::optional<ImuPropagationState>& lastImuPropagation() const {
         return last_imu_propagation_;
     }
+    const std::optional<LioCoreState>& predictedState() const {
+        return predicted_state_;
+    }
 
 private:
     CloudAdapterOptions cloudOptions() const;
@@ -39,6 +43,7 @@ private:
     size_t lidar_frames_seen_ = 0;
     InputPacket last_input_packet_;
     std::optional<ImuPropagationState> last_imu_propagation_;
+    std::optional<LioCoreState> predicted_state_;
 };
 
 const char* coreStatus();
