@@ -232,6 +232,9 @@ if(BUILD_FAST_LIO_CORE)
   target_link_libraries(${PROJECT_NAME}_fast_lio_core
     ${PROJECT_NAME}_lio
   )
+  set_target_properties(${PROJECT_NAME}_fast_lio_core PROPERTIES
+    OUTPUT_NAME fast_lio_core
+  )
 endif()
 
 if(BUILD_DLIO_CORE)
@@ -244,6 +247,9 @@ if(BUILD_DLIO_CORE)
   )
   target_link_libraries(${PROJECT_NAME}_dlio_core
     ${PROJECT_NAME}_lio
+  )
+  set_target_properties(${PROJECT_NAME}_dlio_core PROPERTIES
+    OUTPUT_NAME dlio_core
   )
 endif()
 
