@@ -245,7 +245,7 @@ if(BUILD_FAST_LIO_CORE)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
   )
-  target_link_libraries(${PROJECT_NAME}_fast_lio_core
+  target_link_libraries(${PROJECT_NAME}_fast_lio_core PUBLIC
     ${PROJECT_NAME}_lio
   )
   set_target_properties(${PROJECT_NAME}_fast_lio_core PROPERTIES
@@ -261,7 +261,7 @@ if(BUILD_DLIO_CORE)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
   )
-  target_link_libraries(${PROJECT_NAME}_dlio_core
+  target_link_libraries(${PROJECT_NAME}_dlio_core PUBLIC
     ${PROJECT_NAME}_lio
   )
   set_target_properties(${PROJECT_NAME}_dlio_core PROPERTIES
@@ -458,6 +458,12 @@ if(BUILD_TESTING)
         -DN3MAPPING_EXPECTED_FILENAME=libdlio_core.so
         -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_lio_core_library_name.cmake
     )
+    add_test(NAME test_dlio_core_no_ros_dependencies
+      COMMAND ${CMAKE_COMMAND}
+        -DN3MAPPING_CHECK_LIBRARY=$<TARGET_FILE:${PROJECT_NAME}_dlio_core>
+        -DN3MAPPING_CHECK_TARGET_NAME=${PROJECT_NAME}_dlio_core
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_core_no_ros_deps.cmake
+    )
   endif()
 
   if(BUILD_FAST_LIO_CORE)
@@ -474,6 +480,12 @@ if(BUILD_TESTING)
         -DN3MAPPING_CHECK_LIBRARY=$<TARGET_FILE:${PROJECT_NAME}_fast_lio_core>
         -DN3MAPPING_EXPECTED_FILENAME=libfast_lio_core.so
         -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_lio_core_library_name.cmake
+    )
+    add_test(NAME test_fast_lio_core_no_ros_dependencies
+      COMMAND ${CMAKE_COMMAND}
+        -DN3MAPPING_CHECK_LIBRARY=$<TARGET_FILE:${PROJECT_NAME}_fast_lio_core>
+        -DN3MAPPING_CHECK_TARGET_NAME=${PROJECT_NAME}_fast_lio_core
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_core_no_ros_deps.cmake
     )
   endif()
 
