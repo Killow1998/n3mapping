@@ -4,6 +4,7 @@
 
 #include <glog/logging.h>
 #include <pcl/filters/voxel_grid.h>
+#include <rclcpp/rclcpp.hpp>
 
 namespace n3mapping {
 

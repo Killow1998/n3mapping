@@ -28,6 +28,7 @@
 #include <filesystem>
 #include <fstream>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <glog/logging.h>
 #include <limits>
 #include <mutex>
 #include <nav_msgs/msg/odometry.hpp>
@@ -50,6 +51,7 @@
 #include "n3mapping/mapping_resuming.h"
 #include "n3mapping/mode_handlers.h"
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/ros2/config_ros2.h"
 #include "n3mapping/world_localizing.h"
 
 namespace n3mapping {
@@ -127,8 +129,8 @@ class N3MappingNode : public rclcpp::Node
       : Node("n3mapping_node")
     {
         // 加载配置
-        config_.loadFromROS(this);
-        config_.print(this->get_logger());
+        loadConfigFromRos2(this, &config_);
+        RCLCPP_INFO(this->get_logger(), "%s", config_.toString().c_str());
 
         // 解析运行模式
         parseRunMode();

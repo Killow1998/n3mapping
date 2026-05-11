@@ -1,8 +1,6 @@
 #ifndef N3MAPPING_CONFIG_H
 #define N3MAPPING_CONFIG_H
 
-#include <glog/logging.h>
-#include <rclcpp/rclcpp.hpp>
 #include <string>
 
 namespace n3mapping {
@@ -141,8 +139,7 @@ struct Config {
     bool rhpd_enable_vertical_tokens = true;
     bool rhpd_enable_pca_confidence = true;
 
-    void loadFromROS(rclcpp::Node* node);
-    void print(const rclcpp::Logger& logger) const;
+    std::string toString() const;
 };
 
 } // namespace n3mapping

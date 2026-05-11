@@ -120,6 +120,7 @@ add_definitions(${PCL_DEFINITIONS})
 add_library(${PROJECT_NAME}_lib SHARED
   ${PROTO_SRCS}
   src/config.cpp
+  src/ros2/config_ros2.cpp
   src/keyframe_manager.cpp
   src/point_cloud_matcher.cpp
   src/loop_detector.cpp
@@ -399,6 +400,13 @@ if(BUILD_TESTING)
     )
     ament_target_dependencies(test_n3mapping_node_pbt
       rclcpp
+    )
+  endif()
+
+  ament_add_gtest(test_config test/test_config.cpp)
+  if(TARGET test_config)
+    target_link_libraries(test_config
+      ${PROJECT_NAME}_lib
     )
   endif()
 

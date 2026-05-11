@@ -14,6 +14,11 @@ set(CHECK_DIRS
   "${ROOT_DIR}/src/core"
 )
 
+set(CHECK_FILES
+  "${ROOT_DIR}/include/n3mapping/config.h"
+  "${ROOT_DIR}/src/config.cpp"
+)
+
 set(OFFENDING_FILES "")
 
 foreach(CHECK_DIR IN LISTS CHECK_DIRS)
@@ -39,6 +44,21 @@ foreach(CHECK_DIR IN LISTS CHECK_DIRS)
           "${CANDIDATE_FILE}: forbidden token '${FORBIDDEN_PATTERN}'")
       endif()
     endforeach()
+  endforeach()
+endforeach()
+
+foreach(CHECK_FILE IN LISTS CHECK_FILES)
+  if(NOT EXISTS "${CHECK_FILE}")
+    continue()
+  endif()
+
+  file(READ "${CHECK_FILE}" FILE_CONTENTS)
+  foreach(FORBIDDEN_PATTERN IN LISTS FORBIDDEN_PATTERNS)
+    string(FIND "${FILE_CONTENTS}" "${FORBIDDEN_PATTERN}" PATTERN_INDEX)
+    if(NOT PATTERN_INDEX EQUAL -1)
+      list(APPEND OFFENDING_FILES
+        "${CHECK_FILE}: forbidden token '${FORBIDDEN_PATTERN}'")
+    endif()
   endforeach()
 endforeach()
 

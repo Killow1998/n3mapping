@@ -1,0 +1,141 @@
+#include "n3mapping/ros2/config_ros2.h"
+
+namespace n3mapping {
+
+void loadConfigFromRos2(rclcpp::Node* node, Config* config) {
+    auto get = [node](const std::string& name, auto& value) {
+        node->declare_parameter(name, value);
+        node->get_parameter(name, value);
+    };
+    auto gets = [node](const std::string& name, std::string& value) {
+        std::string loaded = value;
+        node->declare_parameter(name, value);
+        node->get_parameter(name, loaded);
+        if (!loaded.empty()) {
+            value = loaded;
+        }
+    };
+
+    get("mode", config->mode);
+    gets("map_path", config->map_path);
+
+    get("cloud_topic", config->cloud_topic);
+    get("odom_topic", config->odom_topic);
+    get("output_odom_topic", config->output_odom_topic);
+    get("output_path_topic", config->output_path_topic);
+    get("output_cloud_body_topic", config->output_cloud_body_topic);
+    get("output_cloud_world_topic", config->output_cloud_world_topic);
+
+    get("world_frame", config->world_frame);
+    get("body_frame", config->body_frame);
+
+    get("keyframe_distance_threshold", config->keyframe_distance_threshold);
+    get("keyframe_angle_threshold", config->keyframe_angle_threshold);
+
+    get("gicp_downsampling_resolution", config->gicp_downsampling_resolution);
+    get("gicp_max_correspondence_distance", config->gicp_max_correspondence_distance);
+    get("gicp_max_iterations", config->gicp_max_iterations);
+    get("gicp_transformation_epsilon", config->gicp_transformation_epsilon);
+    get("gicp_rotation_epsilon_deg", config->gicp_rotation_epsilon_deg);
+    get("gicp_fitness_threshold", config->gicp_fitness_threshold);
+    get("gicp_num_neighbors", config->gicp_num_neighbors);
+    get("gicp_submap_size", config->gicp_submap_size);
+    get("icp_refine_use_gicp", config->icp_refine_use_gicp);
+    get("icp_refine_max_iterations", config->icp_refine_max_iterations);
+    get("icp_refine_max_correspondence_distance", config->icp_refine_max_correspondence_distance);
+    get("icp_refine_downsampling_resolution", config->icp_refine_downsampling_resolution);
+    get("icp_refine_fitness_gate", config->icp_refine_fitness_gate);
+    get("icp_refine_delta_translation_gate", config->icp_refine_delta_translation_gate);
+    get("icp_refine_delta_rotation_gate", config->icp_refine_delta_rotation_gate);
+
+    get("sc_dist_threshold", config->sc_dist_threshold);
+    get("sc_num_exclude_recent", config->sc_num_exclude_recent);
+    get("sc_num_candidates", config->sc_num_candidates);
+    get("sc_max_radius", config->sc_max_radius);
+    get("sc_num_rings", config->sc_num_rings);
+    get("sc_num_sectors", config->sc_num_sectors);
+
+    get("kdtree_cache_size", config->kdtree_cache_size);
+
+    get("optimization_iterations", config->optimization_iterations);
+    get("prior_noise_position", config->prior_noise_position);
+    get("prior_noise_rotation", config->prior_noise_rotation);
+    get("odom_noise_position", config->odom_noise_position);
+    get("odom_noise_rotation", config->odom_noise_rotation);
+    get("loop_noise_position", config->loop_noise_position);
+    get("loop_noise_rotation", config->loop_noise_rotation);
+    get("use_robust_kernel", config->use_robust_kernel);
+    get("robust_kernel_type", config->robust_kernel_type);
+    get("robust_kernel_delta", config->robust_kernel_delta);
+    get("loop_min_inlier_ratio", config->loop_min_inlier_ratio);
+    get("loop_fitness_threshold", config->loop_fitness_threshold);
+    get("loop_max_icp_translation", config->loop_max_icp_translation);
+    get("loop_max_icp_rotation", config->loop_max_icp_rotation);
+    get("loop_use_icp_information", config->loop_use_icp_information);
+    get("loop_kf_gap", config->loop_kf_gap);
+    get("loop_closest_id_th", config->loop_closest_id_th);
+    get("loop_min_id_interval", config->loop_min_id_interval);
+    get("loop_max_range", config->loop_max_range);
+
+    get("output_cloud_voxel_size", config->output_cloud_voxel_size);
+    gets("map_save_path", config->map_save_path);
+    get("global_map_voxel_size", config->global_map_voxel_size);
+    get("save_global_map_on_shutdown", config->save_global_map_on_shutdown);
+    get("num_threads", config->num_threads);
+    get("sync_time_tolerance", config->sync_time_tolerance);
+
+    get("reloc_num_candidates", config->reloc_num_candidates);
+    get("reloc_sc_dist_threshold", config->reloc_sc_dist_threshold);
+    get("reloc_min_confidence", config->reloc_min_confidence);
+    get("reloc_min_inlier_ratio", config->reloc_min_inlier_ratio);
+    get("reloc_search_radius", config->reloc_search_radius);
+    get("reloc_max_track_failures", config->reloc_max_track_failures);
+    get("reloc_track_max_translation", config->reloc_track_max_translation);
+    get("reloc_track_max_rotation", config->reloc_track_max_rotation);
+    get("reloc_temporal_window_size", config->reloc_temporal_window_size);
+    get("reloc_lock_log_likelihood_threshold", config->reloc_lock_log_likelihood_threshold);
+    get("reloc_lock_min_winner_streak", config->reloc_lock_min_winner_streak);
+    get("reloc_lock_min_converged_updates", config->reloc_lock_min_converged_updates);
+    get("reloc_lock_min_margin", config->reloc_lock_min_margin);
+    get("reloc_hypothesis_miss_penalty", config->reloc_hypothesis_miss_penalty);
+    get("reloc_hypothesis_not_converged_penalty", config->reloc_hypothesis_not_converged_penalty);
+    get("reloc_reloc_inlier_weight", config->reloc_reloc_inlier_weight);
+    get("reloc_reloc_desc_dist_weight", config->reloc_reloc_desc_dist_weight);
+    get("reloc_track_motion_weight", config->reloc_track_motion_weight);
+    get("reloc_track_retry_max_failures", config->reloc_track_retry_max_failures);
+    get("reloc_track_retry_corr_scale", config->reloc_track_retry_corr_scale);
+    get("reloc_track_retry_max_iterations", config->reloc_track_retry_max_iterations);
+    get("reloc_track_unstable_submap_size", config->reloc_track_unstable_submap_size);
+    get("reloc_static_agg_enable", config->reloc_static_agg_enable);
+    get("reloc_static_agg_max_frames", config->reloc_static_agg_max_frames);
+    get("reloc_static_agg_min_frames", config->reloc_static_agg_min_frames);
+    get("reloc_static_agg_max_translation", config->reloc_static_agg_max_translation);
+    get("reloc_static_agg_max_rotation", config->reloc_static_agg_max_rotation);
+    get("reloc_static_agg_voxel_size", config->reloc_static_agg_voxel_size);
+    get("reloc_ambiguity_min_margin", config->reloc_ambiguity_min_margin);
+    get("reloc_ambiguity_min_ratio", config->reloc_ambiguity_min_ratio);
+    get("reloc_ambiguity_min_basin_separation", config->reloc_ambiguity_min_basin_separation);
+
+    get("rhpd_enabled", config->rhpd_enabled);
+    get("rhpd_v2_enable", config->rhpd_v2_enable);
+    get("rhpd_v3_enable", config->rhpd_v3_enable);
+    get("rhpd_max_range", config->rhpd_max_range);
+    get("rhpd_z_min", config->rhpd_z_min);
+    get("rhpd_z_max", config->rhpd_z_max);
+    get("rhpd_dist_threshold", config->rhpd_dist_threshold);
+    get("rhpd_num_candidates", config->rhpd_num_candidates);
+    get("rhpd_preselect_candidates", config->rhpd_preselect_candidates);
+    get("rhpd_submap_kf_radius", config->rhpd_submap_kf_radius);
+    get("rhpd_submap_voxel_size", config->rhpd_submap_voxel_size);
+    get("rhpd_primary_weight", config->rhpd_primary_weight);
+    get("sc_aux_weight", config->sc_aux_weight);
+    get("sc_aux_veto_enabled", config->sc_aux_veto_enabled);
+    get("sc_aux_veto_threshold", config->sc_aux_veto_threshold);
+    get("rhpd_use_sc_yaw", config->rhpd_use_sc_yaw);
+    get("rhpd_yaw_hypotheses", config->rhpd_yaw_hypotheses);
+    get("rhpd_enable_negative_space", config->rhpd_enable_negative_space);
+    get("rhpd_enable_vertical_tokens", config->rhpd_enable_vertical_tokens);
+    get("rhpd_enable_pca_confidence", config->rhpd_enable_pca_confidence);
+}
+
+}  // namespace n3mapping
