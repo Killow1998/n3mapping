@@ -401,6 +401,20 @@ if(BUILD_TESTING)
       rclcpp
     )
   endif()
+
+  ament_add_gtest(test_core_types test/test_core_types.cpp)
+  if(TARGET test_core_types)
+    target_link_libraries(test_core_types
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  add_test(
+    NAME test_core_no_ros_includes
+    COMMAND ${CMAKE_COMMAND}
+      -DROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_core_no_ros_includes.cmake
+  )
 endif()
 
 ament_package()
