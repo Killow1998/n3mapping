@@ -105,6 +105,25 @@ TEST(N3MappingCoreTest, MappingFrameBelowKeyframeThresholdStillProducesPoseOutpu
     EXPECT_NEAR(output.T_world_lidar.translation().x(), 0.1, 1e-9);
 }
 
+TEST(N3MappingCoreTest, PendingLoopClosureProcessingIsCoreOwned)
+{
+    N3MappingCore core(makeCoreTestConfig());
+
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = 1.0;
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose)).accepted_keyframe);
+
+    const auto result = core.processPendingLoopClosures();
+    EXPECT_TRUE(result.optimized);
+    EXPECT_EQ(result.edge_count, 1U);
+    ASSERT_EQ(result.accepted_loops.size(), 1U);
+    EXPECT_EQ(result.accepted_loops.front().query_id, 1);
+    EXPECT_EQ(result.accepted_loops.front().match_id, 0);
+    EXPECT_TRUE(result.accepted_loops.front().isValid());
+}
+
 TEST(N3MappingCoreTest, SaveLoadSmoke)
 {
     Config config = makeCoreTestConfig();

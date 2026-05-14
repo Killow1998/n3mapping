@@ -55,6 +55,11 @@ core::BackendOutput N3MappingCore::processMappingFrame(const core::LioFrame& fra
     output.keyframe_id = keyframe_id;
     output.T_world_lidar = optimized_pose;
     output.cloud_world = makeWorldCloud(frame.undistorted_cloud, optimized_pose);
+
+    {
+        std::lock_guard<std::mutex> lock(loop_queue_mutex_);
+        loop_detection_queue_.push_back(keyframe_id);
+    }
     return output;
 }
 
@@ -146,6 +151,101 @@ core::BackendOutput N3MappingCore::processMapExtensionFrame(const core::LioFrame
     output.accepted_keyframe = keyframe_id >= 0;
     output.keyframe_id = keyframe_id;
     return output;
+}
+
+CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
+{
+    CoreLoopClosureResult result;
+    std::vector<int64_t> keyframes_to_check;
+    {
+        std::lock_guard<std::mutex> lock(loop_queue_mutex_);
+        keyframes_to_check.swap(loop_detection_queue_);
+    }
+
+    for (int64_t query_id : keyframes_to_check) {
+        if (query_id - last_loop_check_id_ < config_.loop_kf_gap) {
+            continue;
+        }
+
+        auto query_kf = session_->keyframeManager().getKeyframe(query_id);
+        if (!query_kf) {
+            continue;
+        }
+
+        std::vector<LoopCandidate> candidates = session_->loopDetector().detectLoopCandidates(query_id);
+        if (candidates.empty()) {
+            continue;
+        }
+        last_loop_check_id_ = query_id;
+
+        std::vector<VerifiedLoop> verified_loops;
+        verified_loops.reserve(candidates.size());
+
+        for (const auto& candidate : candidates) {
+            auto match_kf = session_->keyframeManager().getKeyframe(candidate.match_id);
+            if (!match_kf || !query_kf->cloud || !match_kf->cloud || query_kf->cloud->empty() || match_kf->cloud->empty()) {
+                continue;
+            }
+
+            auto source = session_->keyframeManager().buildSubmapInRootFrame(query_id, 0, candidate.match_id);
+            auto target = session_->keyframeManager().buildSubmapInRootFrame(candidate.match_id, config_.gicp_submap_size, candidate.match_id);
+            if (!source || source->empty() || !target || target->empty()) {
+                continue;
+            }
+
+            MatchResult match_result =
+                session_->pointCloudMatcher().alignCloud(target, source, Eigen::Isometry3d::Identity());
+
+            VerifiedLoop loop;
+            loop.query_id = query_id;
+            loop.match_id = candidate.match_id;
+            loop.fitness_score = match_result.fitness_score;
+            loop.inlier_ratio = match_result.inlier_ratio;
+            loop.information =
+                config_.loop_use_icp_information ? match_result.information : Eigen::Matrix<double, 6, 6>::Identity();
+
+            const bool fitness_ok = match_result.fitness_score < config_.loop_fitness_threshold;
+            const bool inlier_ok = match_result.inlier_ratio >= config_.loop_min_inlier_ratio;
+            const double icp_translation = match_result.T_target_source.translation().norm();
+            const double icp_rotation = Eigen::AngleAxisd(match_result.T_target_source.rotation()).angle();
+            const bool geom_ok =
+                icp_translation <= config_.loop_max_icp_translation && icp_rotation <= config_.loop_max_icp_rotation;
+
+            loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok;
+            if (loop.verified) {
+                const Eigen::Isometry3d T_est_match_query =
+                    match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
+                const Eigen::Isometry3d T_residual = match_result.T_target_source;
+                loop.T_match_query = T_residual * T_est_match_query;
+            }
+            verified_loops.push_back(loop);
+        }
+
+        if (verified_loops.empty()) {
+            continue;
+        }
+
+        auto valid_loops = session_->loopClosureManager().filterValidLoops(verified_loops);
+        auto best_loops = session_->loopClosureManager().selectBestPerQuery(valid_loops);
+        if (best_loops.empty()) {
+            continue;
+        }
+
+        auto edges = session_->loopClosureManager().buildLoopEdges(best_loops, LoopEdgeDirection::MatchToQuery);
+        if (edges.empty()) {
+            continue;
+        }
+
+        session_->loopClosureManager().applyEdges(edges, session_->graphOptimizer());
+        loop_count_ += edges.size();
+        refreshOptimizedPoses();
+
+        result.optimized = true;
+        result.edge_count += edges.size();
+        result.accepted_loops.insert(result.accepted_loops.end(), best_loops.begin(), best_loops.end());
+    }
+
+    return result;
 }
 
 bool N3MappingCore::loadMap(const std::string& map_path)

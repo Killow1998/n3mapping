@@ -3,6 +3,7 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -10,8 +11,15 @@
 #include "n3mapping/core/n3mapping_session.h"
 #include "n3mapping/core/types.h"
 #include "n3mapping/keyframe.h"
+#include "n3mapping/loop_detector.h"
 
 namespace n3mapping {
+
+struct CoreLoopClosureResult {
+    bool optimized = false;
+    std::size_t edge_count = 0;
+    std::vector<VerifiedLoop> accepted_loops;
+};
 
 class N3MappingCore {
   public:
@@ -21,6 +29,7 @@ class N3MappingCore {
     core::BackendOutput processMappingFrame(const core::LioFrame& frame);
     core::BackendOutput processLocalizationFrame(const core::LioFrame& frame);
     core::BackendOutput processMapExtensionFrame(const core::LioFrame& frame);
+    CoreLoopClosureResult processPendingLoopClosures();
 
     bool loadMap(const std::string& map_path);
     bool saveMap(const std::string& map_path);
@@ -44,6 +53,10 @@ class N3MappingCore {
 
     Config config_;
     std::unique_ptr<core::N3MappingSession> session_;
+    mutable std::mutex loop_queue_mutex_;
+    std::vector<int64_t> loop_detection_queue_;
+    int64_t last_loop_check_id_ = -1000;
+    std::size_t loop_count_ = 0;
     bool map_loaded_ = false;
 };
 
