@@ -271,6 +271,11 @@ bool N3MappingCore::mapLoaded() const
     return map_loaded_;
 }
 
+Keyframe::Ptr N3MappingCore::getKeyframe(int64_t id) const
+{
+    return session_->keyframeManager().getKeyframe(id);
+}
+
 std::vector<Keyframe::Ptr> N3MappingCore::getAllKeyframes() const
 {
     return session_->keyframeManager().getAllKeyframes();

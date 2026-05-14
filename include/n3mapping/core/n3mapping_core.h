@@ -36,6 +36,7 @@ class N3MappingCore {
     bool saveGlobalMap(const std::string& pcd_path);
     bool mapLoaded() const;
 
+    Keyframe::Ptr getKeyframe(int64_t id) const;
     std::vector<Keyframe::Ptr> getAllKeyframes() const;
     std::map<int64_t, Eigen::Isometry3d> getOptimizedPoses() const;
 

@@ -43,6 +43,7 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include "n3mapping/config.h"
+#include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_closure_manager.h"
@@ -209,6 +210,7 @@ class N3MappingNode : public rclcpp::Node
     void initializeComponents()
     {
         keyframe_manager_ = std::make_unique<KeyframeManager>(config_);
+        n3mapping_core_ = std::make_unique<N3MappingCore>(config_);
         point_cloud_matcher_ = std::make_unique<PointCloudMatcher>(config_);
         loop_detector_ = std::make_unique<LoopDetector>(config_);
         loop_closure_manager_ = std::make_unique<LoopClosureManager>(config_);
@@ -441,7 +443,22 @@ class N3MappingNode : public rclcpp::Node
      */
     void processMappingMode(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header)
     {
-        mapping_mode_handler_->process(timestamp, pose_odom, cloud, header);
+        core::LioFrame frame;
+        frame.stamp.nsec = static_cast<int64_t>(timestamp * 1e9);
+        frame.T_world_lidar = pose_odom;
+        frame.undistorted_cloud = cloud;
+        frame.pose_valid = true;
+
+        const auto output = n3mapping_core_->processMappingFrame(frame);
+        const Eigen::Isometry3d publish_pose = output.T_world_lidar;
+        publishOdometry(publish_pose, header);
+        publishPath(header, &publish_pose);
+        publishPointClouds(cloud, publish_pose, header);
+
+        if (output.accepted_keyframe) {
+            ++keyframe_count_;
+            logOptimizationResult("mapping_incremental", timestamp, &publish_pose);
+        }
     }
 
     /**
@@ -481,6 +498,18 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
         if (run_mode_ == RunMode::MAP_EXTENSION && !map_loaded_) {
+            return;
+        }
+
+        if (run_mode_ == RunMode::MAPPING) {
+            const auto result = n3mapping_core_->processPendingLoopClosures();
+            if (!result.accepted_loops.empty()) {
+                publishLoopMarkers(result.accepted_loops);
+            }
+            if (result.optimized) {
+                loop_count_ += result.edge_count;
+                logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
+            }
             return;
         }
 
@@ -667,7 +696,7 @@ class N3MappingNode : public rclcpp::Node
             std::vector<geometry_msgs::msg::Point> loaded_points; // 旧地图 (蓝色)
             std::vector<geometry_msgs::msg::Point> new_points;    // 新建帧 (绿色)
 
-            for (const auto& kf : keyframe_manager_->getAllKeyframes()) {
+            for (const auto& kf : getKeyframesForPublishing()) {
                 if (!kf) continue;
                 geometry_msgs::msg::PoseStamped pose;
                 pose.header = path_msg.header;
@@ -778,7 +807,7 @@ class N3MappingNode : public rclcpp::Node
 
     void logOptimizationResult(const std::string& context, double timestamp, const Eigen::Isometry3d* current_pose)
     {
-        auto keyframes = keyframe_manager_->getAllKeyframes();
+        auto keyframes = getKeyframesForPublishing();
         std::vector<Keyframe::Ptr> valid_keyframes;
         valid_keyframes.reserve(keyframes.size());
         for (const auto& kf : keyframes) {
@@ -812,8 +841,8 @@ class N3MappingNode : public rclcpp::Node
 
         int marker_id = 0;
         for (const auto& loop : loops) {
-            auto match_kf = keyframe_manager_->getKeyframe(loop.match_id);
-            auto query_kf = keyframe_manager_->getKeyframe(loop.query_id);
+            auto match_kf = getKeyframeForPublishing(loop.match_id);
+            auto query_kf = getKeyframeForPublishing(loop.query_id);
             if (!match_kf || !query_kf) {
                 continue;
             }
@@ -848,6 +877,22 @@ class N3MappingNode : public rclcpp::Node
         }
 
         loop_marker_pub_->publish(markers);
+    }
+
+    std::vector<Keyframe::Ptr> getKeyframesForPublishing() const
+    {
+        if (run_mode_ == RunMode::MAPPING && n3mapping_core_) {
+            return n3mapping_core_->getAllKeyframes();
+        }
+        return keyframe_manager_->getAllKeyframes();
+    }
+
+    Keyframe::Ptr getKeyframeForPublishing(int64_t id) const
+    {
+        if (run_mode_ == RunMode::MAPPING && n3mapping_core_) {
+            return n3mapping_core_->getKeyframe(id);
+        }
+        return keyframe_manager_->getKeyframe(id);
     }
 
     /**
@@ -890,7 +935,10 @@ class N3MappingNode : public rclcpp::Node
                 RCLCPP_ERROR(this->get_logger(), "Failed to save extended map");
             }
         } else {
-            if (map_serializer_->saveMap(map_file, *keyframe_manager_, *loop_detector_, *graph_optimizer_)) {
+            const bool saved = (run_mode_ == RunMode::MAPPING && n3mapping_core_)
+                                 ? n3mapping_core_->saveMap(map_file)
+                                 : map_serializer_->saveMap(map_file, *keyframe_manager_, *loop_detector_, *graph_optimizer_);
+            if (saved) {
                 RCLCPP_INFO(this->get_logger(), "Map saved to: %s", map_file.c_str());
             } else {
                 RCLCPP_ERROR(this->get_logger(), "Failed to save map");
@@ -900,7 +948,10 @@ class N3MappingNode : public rclcpp::Node
         // 保存全局点云
         if (config_.save_global_map_on_shutdown) {
             std::string global_map_file = config_.map_save_path + "/global_map.pcd";
-            if (map_serializer_->saveGlobalMap(global_map_file, *keyframe_manager_)) {
+            const bool saved = (run_mode_ == RunMode::MAPPING && n3mapping_core_)
+                                 ? n3mapping_core_->saveGlobalMap(global_map_file)
+                                 : map_serializer_->saveGlobalMap(global_map_file, *keyframe_manager_);
+            if (saved) {
                 RCLCPP_INFO(this->get_logger(), "Global map saved to: %s", global_map_file.c_str());
             }
         }
@@ -924,6 +975,7 @@ class N3MappingNode : public rclcpp::Node
     RunMode run_mode_ = RunMode::MAPPING;
 
     // 核心组件
+    std::unique_ptr<N3MappingCore> n3mapping_core_;
     std::unique_ptr<KeyframeManager> keyframe_manager_;
     std::unique_ptr<PointCloudMatcher> point_cloud_matcher_;
     std::unique_ptr<LoopDetector> loop_detector_;
