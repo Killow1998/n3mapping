@@ -13,13 +13,11 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
 #include <pcl/common/transforms.h>
-#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/memory.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
-#include <unordered_map>
 
 #include <algorithm>
 #include <atomic>
@@ -44,16 +42,7 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/core/n3mapping_core.h"
-#include "n3mapping/graph_optimizer.h"
-#include "n3mapping/keyframe_manager.h"
-#include "n3mapping/loop_closure_manager.h"
-#include "n3mapping/loop_detector.h"
-#include "n3mapping/map_serializer.h"
-#include "n3mapping/mapping_resuming.h"
-#include "n3mapping/mode_handlers.h"
-#include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/ros2/config_ros2.h"
-#include "n3mapping/world_localizing.h"
 
 namespace n3mapping {
 
@@ -209,54 +198,7 @@ class N3MappingNode : public rclcpp::Node
      */
     void initializeComponents()
     {
-        keyframe_manager_ = std::make_unique<KeyframeManager>(config_);
         n3mapping_core_ = std::make_unique<N3MappingCore>(config_);
-        point_cloud_matcher_ = std::make_unique<PointCloudMatcher>(config_);
-        loop_detector_ = std::make_unique<LoopDetector>(config_);
-        loop_closure_manager_ = std::make_unique<LoopClosureManager>(config_);
-        graph_optimizer_ = std::make_unique<GraphOptimizer>(config_);
-        map_serializer_ = std::make_unique<MapSerializer>(config_);
-        world_localizing_ = std::make_unique<WorldLocalizing>(config_, *keyframe_manager_, *loop_detector_, *point_cloud_matcher_);
-        mapping_resuming_ = std::make_unique<MappingResuming>(
-          config_, *keyframe_manager_, *loop_detector_, *point_cloud_matcher_, *graph_optimizer_, *map_serializer_, *world_localizing_);
-
-        ModePublishCallbacks publish_callbacks{
-            [this](const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header) { publishOdometry(pose, header); },
-            [this](const std_msgs::msg::Header& header, const Eigen::Isometry3d* pose) { publishPath(header, pose); },
-            [this](PointCloud::Ptr cloud, const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header) {
-                publishPointClouds(cloud, pose, header);
-            },
-            [this](const std::string& context, double timestamp, const Eigen::Isometry3d* pose) {
-                logOptimizationResult(context, timestamp, pose);
-            },
-            [this](const std_msgs::msg::Header& header, const Eigen::Isometry3d& pose) {
-                publishRelocalizationLock(header, pose);
-            },
-        };
-
-        mapping_mode_handler_ = std::make_unique<MappingModeHandler>(
-          config_,
-          *keyframe_manager_,
-          *loop_detector_,
-          *graph_optimizer_,
-          loop_queue_mutex_,
-          loop_detection_queue_,
-          publish_callbacks,
-          [this]() { ++keyframe_count_; },
-          this->get_logger());
-
-        localization_mode_handler_ = std::make_unique<LocalizationModeHandler>(*world_localizing_, publish_callbacks);
-
-        map_resuming_mode_handler_ = std::make_unique<MapResumingModeHandler>(
-          config_,
-          *keyframe_manager_,
-          *graph_optimizer_,
-          *world_localizing_,
-          *mapping_resuming_,
-          publish_callbacks,
-          [this]() { ++keyframe_count_; },
-          this->get_logger(),
-          this->get_clock());
     }
 
     /**
@@ -299,43 +241,6 @@ class N3MappingNode : public rclcpp::Node
         optimization_log_path_ = config_.map_save_path + "/optimization.log";
         optimization_log_sink_ = std::make_unique<OptimizationLogSink>(optimization_log_path_);
         google::AddLogSink(optimization_log_sink_.get());
-    }
-
-    /**
-     * @brief 构建以 center_id 为中心的局部子图（点云变换到 center 坐标系）
-     */
-    PointCloud::Ptr buildLocalSubmapInCenterFrame(int64_t center_id, int range)
-    {
-        auto center_kf = keyframe_manager_->getKeyframe(center_id);
-        if (!center_kf || !center_kf->cloud || center_kf->cloud->empty()) {
-            return pcl::make_shared<PointCloud>();
-        }
-
-        Eigen::Matrix4f T_center_inv = center_kf->pose_optimized.matrix().cast<float>().inverse();
-        auto submap = pcl::make_shared<PointCloud>();
-
-        for (int64_t id = center_id - range; id <= center_id + range; ++id) {
-            auto kf = keyframe_manager_->getKeyframe(id);
-            if (!kf || !kf->cloud || kf->cloud->empty()) continue;
-
-            Eigen::Matrix4f T_kf = kf->pose_optimized.matrix().cast<float>();
-            Eigen::Matrix4f T_center_kf = T_center_inv * T_kf;
-
-            PointCloud transformed;
-            pcl::transformPointCloud(*kf->cloud, transformed, T_center_kf);
-            *submap += transformed;
-        }
-
-        // 下采样
-        if (config_.gicp_downsampling_resolution > 0.0) {
-            pcl::VoxelGrid<pcl::PointXYZI> voxel;
-            voxel.setLeafSize(config_.gicp_downsampling_resolution, config_.gicp_downsampling_resolution, config_.gicp_downsampling_resolution);
-            voxel.setInputCloud(submap);
-            auto filtered = pcl::make_shared<PointCloud>();
-            voxel.filter(*filtered);
-            submap = filtered;
-        }
-        return submap;
     }
 
     /**
@@ -518,120 +423,16 @@ class N3MappingNode : public rclcpp::Node
      */
     void loopDetectionTimerCallback()
     {
-        if (run_mode_ == RunMode::LOCALIZATION) {
-            return;
-        }
-        if (run_mode_ == RunMode::MAP_EXTENSION && !map_loaded_) {
+        if (run_mode_ != RunMode::MAPPING) {
             return;
         }
 
-        if (run_mode_ == RunMode::MAP_EXTENSION) {
-            return;
+        const auto result = n3mapping_core_->processPendingLoopClosures();
+        if (!result.accepted_loops.empty()) {
+            publishLoopMarkers(result.accepted_loops);
         }
-
-        if (run_mode_ == RunMode::MAPPING) {
-            const auto result = n3mapping_core_->processPendingLoopClosures();
-            if (!result.accepted_loops.empty()) {
-                publishLoopMarkers(result.accepted_loops);
-            }
-            if (result.optimized) {
-                loop_count_ += result.edge_count;
-                logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
-            }
-            return;
-        }
-
-        std::vector<int64_t> keyframes_to_check;
-        {
-            std::lock_guard<std::mutex> lock(loop_queue_mutex_);
-            if (loop_detection_queue_.empty()) {
-                return;
-            }
-            keyframes_to_check.swap(loop_detection_queue_);
-        }
-
-        for (int64_t query_id : keyframes_to_check) {
-            if (query_id - last_loop_check_id_ < config_.loop_kf_gap) {
-                continue;
-            }
-
-            auto query_kf = keyframe_manager_->getKeyframe(query_id);
-            if (!query_kf) {
-                continue;
-            }
-
-            // Primary candidate source must stay descriptor-based so loops are still
-            // discoverable even when optimized poses have accumulated large drift.
-            std::vector<LoopCandidate> candidates = loop_detector_->detectLoopCandidates(query_id);
-
-            if (candidates.empty()) {
-                continue;
-            }
-            last_loop_check_id_ = query_id;
-
-            std::vector<VerifiedLoop> verified_loops;
-            verified_loops.reserve(candidates.size());
-
-            for (const auto& candidate : candidates) {
-                auto match_kf = keyframe_manager_->getKeyframe(candidate.match_id);
-                if (!match_kf || !query_kf->cloud || !match_kf->cloud || query_kf->cloud->empty() || match_kf->cloud->empty()) {
-                    continue;
-                }
-
-                auto source = keyframe_manager_->buildSubmapInRootFrame(query_id, 0, candidate.match_id);
-                auto target = keyframe_manager_->buildSubmapInRootFrame(candidate.match_id, config_.gicp_submap_size, candidate.match_id);
-                if (!source || source->empty() || !target || target->empty()) {
-                    continue;
-                }
-
-                MatchResult match_result = point_cloud_matcher_->alignCloud(target, source, Eigen::Isometry3d::Identity());
-
-                VerifiedLoop loop;
-                loop.query_id = query_id;
-                loop.match_id = candidate.match_id;
-                loop.fitness_score = match_result.fitness_score;
-                loop.inlier_ratio = match_result.inlier_ratio;
-                loop.information =
-                  config_.loop_use_icp_information ? match_result.information : Eigen::Matrix<double, 6, 6>::Identity();
-
-                const bool fitness_ok = match_result.fitness_score < config_.loop_fitness_threshold;
-                const bool inlier_ok = match_result.inlier_ratio >= config_.loop_min_inlier_ratio;
-                const double icp_translation = match_result.T_target_source.translation().norm();
-                const double icp_rotation = Eigen::AngleAxisd(match_result.T_target_source.rotation()).angle();
-                const bool geom_ok = icp_translation <= config_.loop_max_icp_translation && icp_rotation <= config_.loop_max_icp_rotation;
-
-                loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok;
-                if (loop.verified) {
-                    const Eigen::Isometry3d T_est_match_query =
-                      match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
-                    const Eigen::Isometry3d T_residual = match_result.T_target_source;
-                    loop.T_match_query = T_residual * T_est_match_query;
-                }
-                verified_loops.push_back(loop);
-            }
-
-            if (verified_loops.empty()) {
-                continue;
-            }
-
-            auto valid_loops = loop_closure_manager_->filterValidLoops(verified_loops);
-            auto best_loops = loop_closure_manager_->selectBestPerQuery(valid_loops);
-            if (best_loops.empty()) {
-                continue;
-            }
-
-            publishLoopMarkers(best_loops);
-
-            std::lock_guard<std::mutex> lock(data_mutex_);
-            auto edges = loop_closure_manager_->buildLoopEdges(best_loops, LoopEdgeDirection::MatchToQuery);
-            if (edges.empty()) {
-                continue;
-            }
-            loop_closure_manager_->applyEdges(edges, *graph_optimizer_);
-            loop_count_ += edges.size();
-
-            auto poses = graph_optimizer_->getOptimizedPoses();
-            keyframe_manager_->updateOptimizedPoses(poses);
+        if (result.optimized) {
+            loop_count_ += result.edge_count;
             logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
         }
     }
@@ -909,18 +710,18 @@ class N3MappingNode : public rclcpp::Node
 
     std::vector<Keyframe::Ptr> getKeyframesForPublishing() const
     {
-        if ((run_mode_ == RunMode::MAPPING || run_mode_ == RunMode::MAP_EXTENSION) && n3mapping_core_) {
+        if (n3mapping_core_) {
             return n3mapping_core_->getAllKeyframes();
         }
-        return keyframe_manager_->getAllKeyframes();
+        return {};
     }
 
     Keyframe::Ptr getKeyframeForPublishing(int64_t id) const
     {
-        if ((run_mode_ == RunMode::MAPPING || run_mode_ == RunMode::MAP_EXTENSION) && n3mapping_core_) {
+        if (n3mapping_core_) {
             return n3mapping_core_->getKeyframe(id);
         }
-        return keyframe_manager_->getKeyframe(id);
+        return nullptr;
     }
 
     /**
@@ -958,7 +759,7 @@ class N3MappingNode : public rclcpp::Node
 
         const bool saved = n3mapping_core_
                              ? n3mapping_core_->saveMap(map_file)
-                             : map_serializer_->saveMap(map_file, *keyframe_manager_, *loop_detector_, *graph_optimizer_);
+                             : false;
         if (saved) {
             RCLCPP_INFO(this->get_logger(), "Map saved to: %s", map_file.c_str());
         } else {
@@ -970,7 +771,7 @@ class N3MappingNode : public rclcpp::Node
             std::string global_map_file = config_.map_save_path + "/global_map.pcd";
             const bool saved = ((run_mode_ == RunMode::MAPPING || run_mode_ == RunMode::MAP_EXTENSION) && n3mapping_core_)
                                  ? n3mapping_core_->saveGlobalMap(global_map_file)
-                                 : map_serializer_->saveGlobalMap(global_map_file, *keyframe_manager_);
+                                 : false;
             if (saved) {
                 RCLCPP_INFO(this->get_logger(), "Global map saved to: %s", global_map_file.c_str());
             }
@@ -996,17 +797,6 @@ class N3MappingNode : public rclcpp::Node
 
     // 核心组件
     std::unique_ptr<N3MappingCore> n3mapping_core_;
-    std::unique_ptr<KeyframeManager> keyframe_manager_;
-    std::unique_ptr<PointCloudMatcher> point_cloud_matcher_;
-    std::unique_ptr<LoopDetector> loop_detector_;
-    std::unique_ptr<LoopClosureManager> loop_closure_manager_;
-    std::unique_ptr<GraphOptimizer> graph_optimizer_;
-    std::unique_ptr<MapSerializer> map_serializer_;
-    std::unique_ptr<WorldLocalizing> world_localizing_;
-    std::unique_ptr<MappingResuming> mapping_resuming_;
-    std::unique_ptr<MappingModeHandler> mapping_mode_handler_;
-    std::unique_ptr<LocalizationModeHandler> localization_mode_handler_;
-    std::unique_ptr<MapResumingModeHandler> map_resuming_mode_handler_;
 
     // ROS 接口
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloud_sub_;
@@ -1032,8 +822,6 @@ class N3MappingNode : public rclcpp::Node
 
     // 线程和同步
     std::mutex data_mutex_;
-    std::mutex loop_queue_mutex_;
-    std::vector<int64_t> loop_detection_queue_;
 
     // 状态
     bool map_loaded_ = false;
@@ -1046,7 +834,6 @@ class N3MappingNode : public rclcpp::Node
     size_t frame_count_ = 0;
     size_t keyframe_count_ = 0;
     size_t loop_count_ = 0;
-    int64_t last_loop_check_id_ = -1000;
     uint32_t relocalization_lock_count_ = 0;
 };
 
