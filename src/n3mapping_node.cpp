@@ -356,11 +356,11 @@ class N3MappingNode : public rclcpp::Node
             RCLCPP_INFO(this->get_logger(), "Loaded map for extension with %zu keyframes", mapping_resuming_->getOriginalKeyframeCount());
         } else {
             // 定位模式
-            if (!map_serializer_->loadMap(config_.map_path, *keyframe_manager_, *loop_detector_, *graph_optimizer_)) {
+            if (!n3mapping_core_->loadMap(config_.map_path)) {
                 RCLCPP_ERROR(this->get_logger(), "Failed to load map: %s", config_.map_path.c_str());
                 return;
             }
-            RCLCPP_INFO(this->get_logger(), "Loaded map with %zu keyframes", keyframe_manager_->size());
+            RCLCPP_INFO(this->get_logger(), "Loaded map with %zu keyframes", n3mapping_core_->getAllKeyframes().size());
         }
         map_loaded_ = true;
     }
@@ -474,8 +474,19 @@ class N3MappingNode : public rclcpp::Node
                                  PointCloud::Ptr cloud,
                                  const std_msgs::msg::Header& header)
     {
-        (void)timestamp;
-        localization_mode_handler_->process(map_loaded_, pose_odom, cloud, header);
+        core::LioFrame frame;
+        frame.stamp.nsec = static_cast<int64_t>(timestamp * 1e9);
+        frame.T_world_lidar = pose_odom;
+        frame.undistorted_cloud = cloud;
+        frame.pose_valid = true;
+
+        const auto output = n3mapping_core_->processLocalizationFrame(frame);
+        if (output.relocalization_locked) {
+            publishRelocalizationLock(header, output.T_world_lidar);
+        }
+        publishOdometry(output.T_world_lidar, header);
+        publishPath(header, &output.T_world_lidar);
+        publishPointClouds(cloud, output.T_world_lidar, header);
     }
 
     /**
