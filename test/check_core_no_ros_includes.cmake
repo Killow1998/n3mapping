@@ -12,6 +12,7 @@ set(FORBIDDEN_PATTERNS
 set(CHECK_DIRS
   "${ROOT_DIR}/include/n3mapping/core"
   "${ROOT_DIR}/src/core"
+  "${ROOT_DIR}/include/Scancontext"
 )
 
 set(CHECK_FILES

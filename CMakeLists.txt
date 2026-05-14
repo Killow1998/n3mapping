@@ -116,21 +116,17 @@ link_directories(
 
 add_definitions(${PCL_DEFINITIONS})
 
-# 库文件
-add_library(${PROJECT_NAME}_lib SHARED
+set(N3MAPPING_CORE_SOURCES
   ${PROTO_SRCS}
   src/config.cpp
   src/core/n3mapping_core.cpp
   src/core/n3mapping_session.cpp
-  src/ros2/config_ros2.cpp
-  src/ros2/conversions.cpp
   src/keyframe_manager.cpp
   src/point_cloud_matcher.cpp
   src/loop_detector.cpp
   src/loop_closure_manager.cpp
   src/graph_optimizer.cpp
   src/map_serializer.cpp
-  src/mode_handlers.cpp
   src/world_localizing.cpp
   src/mapping_resuming.cpp
   src/RHPDescriptor.cpp
@@ -138,13 +134,25 @@ add_library(${PROJECT_NAME}_lib SHARED
   include/Scancontext/HybridScancontext.cpp
 )
 
-target_include_directories(${PROJECT_NAME}_lib PUBLIC
+set(N3MAPPING_ROS2_WRAPPER_SOURCES
+  src/ros2/config_ros2.cpp
+  src/ros2/conversions.cpp
+)
+
+# ROS-free backend library.
+add_library(n3mapping_core SHARED
+  ${N3MAPPING_CORE_SOURCES}
+)
+
+add_library(${PROJECT_NAME}_lib ALIAS n3mapping_core)
+
+target_include_directories(n3mapping_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
   $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(${PROJECT_NAME}_lib
+target_link_libraries(n3mapping_core
   ${PCL_LIBRARIES}
   ${OpenCV_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
@@ -154,7 +162,23 @@ target_link_libraries(${PROJECT_NAME}_lib
   glog::glog
 )
 
-ament_target_dependencies(${PROJECT_NAME}_lib
+# Thin ROS2 wrapper library.
+add_library(n3mapping_ros2_wrapper SHARED
+  ${N3MAPPING_ROS2_WRAPPER_SOURCES}
+)
+
+target_include_directories(n3mapping_ros2_wrapper PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
+  $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(n3mapping_ros2_wrapper
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+
+ament_target_dependencies(n3mapping_ros2_wrapper
   rclcpp
   std_msgs
   sensor_msgs
@@ -175,11 +199,25 @@ add_executable(n3mapping_node
 )
 
 target_link_libraries(n3mapping_node
-  ${PROJECT_NAME}_lib
+  n3mapping_ros2_wrapper
+)
+
+ament_target_dependencies(n3mapping_node
+  rclcpp
+  std_msgs
+  sensor_msgs
+  nav_msgs
+  geometry_msgs
+  visualization_msgs
+  message_filters
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  pcl_conversions
 )
 
 # 安装
-install(TARGETS ${PROJECT_NAME}_lib n3mapping_node
+install(TARGETS n3mapping_core n3mapping_ros2_wrapper n3mapping_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -416,7 +454,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_ros2_conversions test/test_ros2_conversions.cpp)
   if(TARGET test_ros2_conversions)
     target_link_libraries(test_ros2_conversions
-      ${PROJECT_NAME}_lib
+      n3mapping_ros2_wrapper
       ${PCL_LIBRARIES}
     )
     ament_target_dependencies(test_ros2_conversions
