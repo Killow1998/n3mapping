@@ -458,6 +458,13 @@ if(BUILD_TESTING)
       -DROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_ros2_wrapper_no_direct_backend_calls.cmake
   )
+
+  add_test(
+    NAME test_ros1_wrapper_skeleton
+    COMMAND ${CMAKE_COMMAND}
+      -DROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_ros1_wrapper_skeleton.cmake
+  )
 endif()
 
 ament_package()
