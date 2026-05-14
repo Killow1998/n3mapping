@@ -123,6 +123,7 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/core/n3mapping_core.cpp
   src/core/n3mapping_session.cpp
   src/ros2/config_ros2.cpp
+  src/ros2/conversions.cpp
   src/keyframe_manager.cpp
   src/point_cloud_matcher.cpp
   src/loop_detector.cpp
@@ -409,6 +410,20 @@ if(BUILD_TESTING)
   if(TARGET test_config)
     target_link_libraries(test_config
       ${PROJECT_NAME}_lib
+    )
+  endif()
+
+  ament_add_gtest(test_ros2_conversions test/test_ros2_conversions.cpp)
+  if(TARGET test_ros2_conversions)
+    target_link_libraries(test_ros2_conversions
+      ${PROJECT_NAME}_lib
+      ${PCL_LIBRARIES}
+    )
+    ament_target_dependencies(test_ros2_conversions
+      sensor_msgs
+      nav_msgs
+      geometry_msgs
+      pcl_conversions
     )
   endif()
 

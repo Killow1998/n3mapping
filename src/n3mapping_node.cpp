@@ -43,6 +43,7 @@
 #include "n3mapping/config.h"
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/ros2/config_ros2.h"
+#include "n3mapping/ros2/conversions.h"
 
 namespace n3mapping {
 
@@ -304,19 +305,9 @@ class N3MappingNode : public rclcpp::Node
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
 
-        // 转换点云
-        auto cloud = pcl::make_shared<PointCloud>();
-        pcl::fromROSMsg(*cloud_msg, *cloud);
-
-        // 转换位姿
-        Eigen::Isometry3d pose_odom = Eigen::Isometry3d::Identity();
-        pose_odom.translation() << odom_msg->pose.pose.position.x, odom_msg->pose.pose.position.y, odom_msg->pose.pose.position.z;
-        Eigen::Quaterniond q(odom_msg->pose.pose.orientation.w,
-                             odom_msg->pose.pose.orientation.x,
-                             odom_msg->pose.pose.orientation.y,
-                             odom_msg->pose.pose.orientation.z);
-        pose_odom.linear() = q.toRotationMatrix();
-
+        auto frame = toCoreLioFrame(*cloud_msg, *odom_msg);
+        auto cloud = frame.undistorted_cloud;
+        const Eigen::Isometry3d pose_odom = frame.T_world_lidar;
         double timestamp = rclcpp::Time(cloud_msg->header.stamp).seconds();
 
         switch (run_mode_) {
