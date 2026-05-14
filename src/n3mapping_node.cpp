@@ -348,20 +348,11 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
 
-        if (run_mode_ == RunMode::MAP_EXTENSION) {
-            if (!mapping_resuming_->loadExistingMap(config_.map_path)) {
-                RCLCPP_ERROR(this->get_logger(), "Failed to load map for extension: %s", config_.map_path.c_str());
-                return;
-            }
-            RCLCPP_INFO(this->get_logger(), "Loaded map for extension with %zu keyframes", mapping_resuming_->getOriginalKeyframeCount());
-        } else {
-            // 定位模式
-            if (!n3mapping_core_->loadMap(config_.map_path)) {
-                RCLCPP_ERROR(this->get_logger(), "Failed to load map: %s", config_.map_path.c_str());
-                return;
-            }
-            RCLCPP_INFO(this->get_logger(), "Loaded map with %zu keyframes", n3mapping_core_->getAllKeyframes().size());
+        if (!n3mapping_core_->loadMap(config_.map_path)) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to load map: %s", config_.map_path.c_str());
+            return;
         }
+        RCLCPP_INFO(this->get_logger(), "Loaded map with %zu keyframes", n3mapping_core_->getAllKeyframes().size());
         map_loaded_ = true;
     }
 
@@ -497,7 +488,29 @@ class N3MappingNode : public rclcpp::Node
                                  PointCloud::Ptr cloud,
                                  const std_msgs::msg::Header& header)
     {
-        map_resuming_mode_handler_->process(map_loaded_, timestamp, pose_odom, cloud, header);
+        core::LioFrame frame;
+        frame.stamp.nsec = static_cast<int64_t>(timestamp * 1e9);
+        frame.T_world_lidar = pose_odom;
+        frame.undistorted_cloud = cloud;
+        frame.pose_valid = true;
+
+        const auto output = n3mapping_core_->processMapExtensionFrame(frame);
+        if (output.relocalization_locked && !output.accepted_keyframe) {
+            RCLCPP_INFO(this->get_logger(), "Initial relocalization successful for map extension");
+            return;
+        }
+        if (!output.success && !output.accepted_keyframe) {
+            return;
+        }
+
+        publishOdometry(output.T_world_lidar, header);
+        publishPath(header, &output.T_world_lidar);
+        publishPointClouds(cloud, output.T_world_lidar, header);
+
+        if (output.accepted_keyframe) {
+            ++keyframe_count_;
+            logOptimizationResult("map_extension_incremental", timestamp, &output.T_world_lidar);
+        }
     }
 
     /**
@@ -509,6 +522,10 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
         if (run_mode_ == RunMode::MAP_EXTENSION && !map_loaded_) {
+            return;
+        }
+
+        if (run_mode_ == RunMode::MAP_EXTENSION) {
             return;
         }
 
@@ -892,7 +909,7 @@ class N3MappingNode : public rclcpp::Node
 
     std::vector<Keyframe::Ptr> getKeyframesForPublishing() const
     {
-        if (run_mode_ == RunMode::MAPPING && n3mapping_core_) {
+        if ((run_mode_ == RunMode::MAPPING || run_mode_ == RunMode::MAP_EXTENSION) && n3mapping_core_) {
             return n3mapping_core_->getAllKeyframes();
         }
         return keyframe_manager_->getAllKeyframes();
@@ -900,7 +917,7 @@ class N3MappingNode : public rclcpp::Node
 
     Keyframe::Ptr getKeyframeForPublishing(int64_t id) const
     {
-        if (run_mode_ == RunMode::MAPPING && n3mapping_core_) {
+        if ((run_mode_ == RunMode::MAPPING || run_mode_ == RunMode::MAP_EXTENSION) && n3mapping_core_) {
             return n3mapping_core_->getKeyframe(id);
         }
         return keyframe_manager_->getKeyframe(id);
@@ -939,27 +956,19 @@ class N3MappingNode : public rclcpp::Node
 
         std::string map_file = config_.map_save_path + "/n3map.pbstream";
 
-        if (run_mode_ == RunMode::MAP_EXTENSION) {
-            if (mapping_resuming_->saveExtendedMap(map_file)) {
-                RCLCPP_INFO(this->get_logger(), "Extended map saved to: %s", map_file.c_str());
-            } else {
-                RCLCPP_ERROR(this->get_logger(), "Failed to save extended map");
-            }
+        const bool saved = n3mapping_core_
+                             ? n3mapping_core_->saveMap(map_file)
+                             : map_serializer_->saveMap(map_file, *keyframe_manager_, *loop_detector_, *graph_optimizer_);
+        if (saved) {
+            RCLCPP_INFO(this->get_logger(), "Map saved to: %s", map_file.c_str());
         } else {
-            const bool saved = (run_mode_ == RunMode::MAPPING && n3mapping_core_)
-                                 ? n3mapping_core_->saveMap(map_file)
-                                 : map_serializer_->saveMap(map_file, *keyframe_manager_, *loop_detector_, *graph_optimizer_);
-            if (saved) {
-                RCLCPP_INFO(this->get_logger(), "Map saved to: %s", map_file.c_str());
-            } else {
-                RCLCPP_ERROR(this->get_logger(), "Failed to save map");
-            }
+            RCLCPP_ERROR(this->get_logger(), "Failed to save map");
         }
 
         // 保存全局点云
         if (config_.save_global_map_on_shutdown) {
             std::string global_map_file = config_.map_save_path + "/global_map.pcd";
-            const bool saved = (run_mode_ == RunMode::MAPPING && n3mapping_core_)
+            const bool saved = ((run_mode_ == RunMode::MAPPING || run_mode_ == RunMode::MAP_EXTENSION) && n3mapping_core_)
                                  ? n3mapping_core_->saveGlobalMap(global_map_file)
                                  : map_serializer_->saveGlobalMap(global_map_file, *keyframe_manager_);
             if (saved) {
