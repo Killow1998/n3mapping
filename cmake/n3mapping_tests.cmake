@@ -1,0 +1,5 @@
+function(n3mapping_find_test_dependencies)
+  find_package(ament_lint_auto REQUIRED)
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_gmock REQUIRED)
+endfunction()

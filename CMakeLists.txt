@@ -116,6 +116,11 @@ link_directories(
 
 add_definitions(${PCL_DEFINITIONS})
 
+include(cmake/n3mapping_core.cmake)
+include(cmake/n3mapping_ros2.cmake)
+include(cmake/n3mapping_tests.cmake)
+include(cmake/n3mapping_checks.cmake)
+
 set(N3MAPPING_CORE_SOURCES
   ${PROTO_SRCS}
   src/config.cpp
@@ -146,75 +151,21 @@ add_library(n3mapping_core SHARED
 
 add_library(${PROJECT_NAME}_lib ALIAS n3mapping_core)
 
-target_include_directories(n3mapping_core PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
-  $<INSTALL_INTERFACE:include>
-)
-
-target_link_libraries(n3mapping_core
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${PROTOBUF_LIBRARIES}
-  gtsam
-  OpenMP::OpenMP_CXX
-  small_gicp::small_gicp
-  glog::glog
-)
+n3mapping_configure_core_target(n3mapping_core)
 
 # Thin ROS2 wrapper library.
 add_library(n3mapping_ros2_wrapper SHARED
   ${N3MAPPING_ROS2_WRAPPER_SOURCES}
 )
 
-target_include_directories(n3mapping_ros2_wrapper PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
-  $<INSTALL_INTERFACE:include>
-)
-
-target_link_libraries(n3mapping_ros2_wrapper
-  n3mapping_core
-  ${PCL_LIBRARIES}
-)
-
-ament_target_dependencies(n3mapping_ros2_wrapper
-  rclcpp
-  std_msgs
-  sensor_msgs
-  nav_msgs
-  geometry_msgs
-  visualization_msgs
-  message_filters
-  tf2
-  tf2_ros
-  tf2_geometry_msgs
-  pcl_conversions
-  cv_bridge
-)
+n3mapping_configure_ros2_wrapper_target(n3mapping_ros2_wrapper)
 
 # 主节点
 add_executable(n3mapping_node
   src/n3mapping_node.cpp
 )
 
-target_link_libraries(n3mapping_node
-  n3mapping_ros2_wrapper
-)
-
-ament_target_dependencies(n3mapping_node
-  rclcpp
-  std_msgs
-  sensor_msgs
-  nav_msgs
-  geometry_msgs
-  visualization_msgs
-  message_filters
-  tf2
-  tf2_ros
-  tf2_geometry_msgs
-  pcl_conversions
-)
+n3mapping_configure_ros2_node_target(n3mapping_node)
 
 # 安装
 install(TARGETS n3mapping_core n3mapping_ros2_wrapper n3mapping_node
@@ -237,9 +188,7 @@ install(DIRECTORY config/
 
 # ==================== 测试 ====================
 if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  find_package(ament_cmake_gtest REQUIRED)
-  find_package(ament_cmake_gmock REQUIRED)
+  n3mapping_find_test_dependencies()
   
   # KeyframeManager 单元测试
   ament_add_gtest(test_keyframe_manager test/test_keyframe_manager.cpp)
@@ -483,26 +432,7 @@ if(BUILD_TESTING)
     )
   endif()
 
-  add_test(
-    NAME test_core_no_ros_includes
-    COMMAND ${CMAKE_COMMAND}
-      -DROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}
-      -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_core_no_ros_includes.cmake
-  )
-
-  add_test(
-    NAME test_ros2_wrapper_no_direct_backend_calls
-    COMMAND ${CMAKE_COMMAND}
-      -DROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}
-      -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_ros2_wrapper_no_direct_backend_calls.cmake
-  )
-
-  add_test(
-    NAME test_ros1_wrapper_skeleton
-    COMMAND ${CMAKE_COMMAND}
-      -DROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}
-      -P ${CMAKE_CURRENT_SOURCE_DIR}/test/check_ros1_wrapper_skeleton.cmake
-  )
+  n3mapping_add_static_checks()
 endif()
 
 ament_package()
