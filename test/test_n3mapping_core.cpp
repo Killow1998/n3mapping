@@ -1,0 +1,135 @@
+#include <filesystem>
+
+#include <gtest/gtest.h>
+#include <pcl/memory.h>
+
+#include "n3mapping/core/n3mapping_core.h"
+
+namespace n3mapping {
+namespace test {
+
+namespace {
+
+core::LioFrame makeFrame(int64_t stamp_nsec,
+                         const Eigen::Isometry3d& pose,
+                         std::size_t num_points = 120)
+{
+    auto cloud = pcl::make_shared<core::LioFrame::PointCloud>();
+    cloud->reserve(num_points);
+    for (std::size_t i = 0; i < num_points; ++i) {
+        pcl::PointXYZI point;
+        point.x = static_cast<float>(i % 12) * 0.1f;
+        point.y = static_cast<float>(i / 12) * 0.1f;
+        point.z = static_cast<float>((i % 5) * 0.05f);
+        point.intensity = 1.0f;
+        cloud->push_back(point);
+    }
+    cloud->width = static_cast<std::uint32_t>(cloud->size());
+    cloud->height = 1;
+    cloud->is_dense = true;
+
+    core::LioFrame frame;
+    frame.stamp.nsec = stamp_nsec;
+    frame.T_world_lidar = pose;
+    frame.undistorted_cloud = cloud;
+    frame.pose_valid = true;
+    return frame;
+}
+
+Config makeCoreTestConfig()
+{
+    Config config;
+    config.keyframe_distance_threshold = 0.5;
+    config.keyframe_angle_threshold = 0.2;
+    config.rhpd_submap_kf_radius = 1;
+    config.rhpd_submap_voxel_size = 0.0;
+    config.sc_num_exclude_recent = 0;
+    config.loop_kf_gap = 1;
+    return config;
+}
+
+}  // namespace
+
+TEST(N3MappingCoreTest, ConstructAndRejectInvalidMappingFrame)
+{
+    N3MappingCore core(makeCoreTestConfig());
+
+    core::LioFrame frame;
+    frame.pose_valid = false;
+
+    const auto output = core.processMappingFrame(frame);
+    EXPECT_FALSE(output.success);
+    EXPECT_FALSE(output.accepted_keyframe);
+    EXPECT_EQ(output.keyframe_id, -1);
+    EXPECT_TRUE(core.getAllKeyframes().empty());
+}
+
+TEST(N3MappingCoreTest, ProcessMappingFrameAcceptsFirstKeyframe)
+{
+    N3MappingCore core(makeCoreTestConfig());
+
+    const auto output = core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity()));
+
+    EXPECT_TRUE(output.success);
+    EXPECT_TRUE(output.accepted_keyframe);
+    EXPECT_EQ(output.keyframe_id, 0);
+    ASSERT_NE(output.cloud_body, nullptr);
+    ASSERT_NE(output.cloud_world, nullptr);
+    EXPECT_EQ(output.cloud_body->size(), 120U);
+    EXPECT_EQ(output.cloud_world->size(), 120U);
+
+    const auto keyframes = core.getAllKeyframes();
+    ASSERT_EQ(keyframes.size(), 1U);
+    ASSERT_NE(keyframes.front(), nullptr);
+    EXPECT_EQ(keyframes.front()->id, 0);
+    EXPECT_EQ(keyframes.front()->rhpd_descriptor.size(), RHPD_DIM);
+
+    const auto optimized = core.getOptimizedPoses();
+    EXPECT_EQ(optimized.size(), 1U);
+    EXPECT_NE(optimized.find(0), optimized.end());
+}
+
+TEST(N3MappingCoreTest, MappingFrameBelowKeyframeThresholdStillProducesPoseOutput)
+{
+    N3MappingCore core(makeCoreTestConfig());
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = 0.1;
+    const auto output = core.processMappingFrame(makeFrame(1100000000, pose));
+
+    EXPECT_TRUE(output.success);
+    EXPECT_FALSE(output.accepted_keyframe);
+    EXPECT_EQ(output.keyframe_id, -1);
+    EXPECT_EQ(core.getAllKeyframes().size(), 1U);
+    EXPECT_NEAR(output.T_world_lidar.translation().x(), 0.1, 1e-9);
+}
+
+TEST(N3MappingCoreTest, SaveLoadSmoke)
+{
+    Config config = makeCoreTestConfig();
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "n3mapping_core_save_load_smoke";
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path map_path = dir / "core_smoke.pbstream";
+
+    {
+        N3MappingCore core(config);
+        ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+
+        Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+        pose.translation().x() = 1.0;
+        ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose)).accepted_keyframe);
+        ASSERT_TRUE(core.saveMap(map_path.string()));
+    }
+
+    N3MappingCore loaded(config);
+    ASSERT_TRUE(loaded.loadMap(map_path.string()));
+    EXPECT_TRUE(loaded.mapLoaded());
+    EXPECT_EQ(loaded.getAllKeyframes().size(), 2U);
+
+    std::filesystem::remove(map_path);
+}
+
+}  // namespace test
+}  // namespace n3mapping
