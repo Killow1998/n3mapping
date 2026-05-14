@@ -162,7 +162,7 @@ n3mapping_configure_ros2_wrapper_target(n3mapping_ros2_wrapper)
 
 # 主节点
 add_executable(n3mapping_node
-  src/n3mapping_node.cpp
+  src/ros2/n3mapping_node.cpp
 )
 
 n3mapping_configure_ros2_node_target(n3mapping_node)
