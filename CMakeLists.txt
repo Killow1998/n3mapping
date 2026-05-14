@@ -29,7 +29,6 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
-find_package(cv_bridge REQUIRED)
 
 # PCL
 find_package(PCL REQUIRED COMPONENTS common io filters)
@@ -169,9 +168,26 @@ n3mapping_configure_ros2_node_target(n3mapping_node)
 
 # 安装
 install(TARGETS n3mapping_core n3mapping_ros2_wrapper n3mapping_node
+  EXPORT export_n3mapping
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+ament_export_targets(export_n3mapping HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  rclcpp
+  std_msgs
+  sensor_msgs
+  nav_msgs
+  geometry_msgs
+  visualization_msgs
+  message_filters
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  pcl_conversions
+  small_gicp
 )
 
 install(DIRECTORY include/

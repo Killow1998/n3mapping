@@ -2,8 +2,8 @@
  * @file n3mapping_node.cpp
  * @brief N3Mapping 主节点实现
  *
- * 后端 SLAM 优化节点，接收 FAST-LIO2 前端数据，
- * 通过图优化构建全局一致性地图。
+ * ROS2 wrapper for the ROS-free n3mapping core backend.
+ * Receives external LIO cloud/odometry frames and publishes ROS outputs.
  *
  * Requirements: 1.1, 1.2, 1.3, 5.4, 5.5, 6.1, 6.2, 6.3, 7.1, 7.8, 9.6, 10.2, 10.3,
  * 10.4, 11.1

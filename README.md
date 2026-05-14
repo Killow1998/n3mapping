@@ -1,16 +1,16 @@
 # N3Mapping
 
-N3Mapping is a ROS 2 backend SLAM package. It consumes undistorted point clouds and odometry from FAST-LIO2, performs loop detection and verification, optimizes a pose graph with GTSAM, and saves maps as `pbstream` files for relocalization and map extension.
+N3Mapping is a ROS-wrapped backend SLAM package with a ROS-free C++ core. It consumes external LIO frames as undistorted point clouds plus odometry, performs RHPD-primary loop/relocalization retrieval with ScanContext as an auxiliary descriptor, optimizes a pose graph with GTSAM, and saves maps as `pbstream` files for relocalization and map extension.
 
 ## Dependencies
 
-- ROS 2 Humble (`ament_cmake`, `rclcpp`, `sensor_msgs`, `nav_msgs`, `geometry_msgs`, `message_filters`, `tf2`, `tf2_ros`, `pcl_conversions`, `cv_bridge`)
+- ROS 2 Humble (`ament_cmake`, `rclcpp`, `sensor_msgs`, `nav_msgs`, `geometry_msgs`, `message_filters`, `tf2`, `tf2_ros`, `pcl_conversions`)
 - PCL, Eigen3, OpenCV
 - Protobuf
 - glog, OpenMP
 - small_gicp
 - GTSAM
-- FAST-LIO2 frontend (default inputs: `/cloud_registered_body`, `/Odometry`)
+- External LIO frontend publishing undistorted cloud and odometry (default inputs: `/cloud_registered_body`, `/Odometry`)
 
 ## System Packages (Ubuntu)
 
@@ -23,7 +23,7 @@ sudo apt-get install -y \
 
 ## Build
 
-Put `gtsam`, `small_gicp`, `n3mapping`, and your frontend package in the same ROS 2 workspace.
+Put `gtsam`, `small_gicp`, `n3mapping`, and your external LIO frontend package in the same ROS 2 workspace.
 
 ```bash
 source /opt/ros/humble/setup.bash
@@ -68,7 +68,7 @@ Key groups:
 
 Loop-candidate retrieval semantics (mapping mode):
 
-- Active path: descriptor retrieval (ScanContext KD-tree + refined descriptor distance) -> ICP verification -> geometric gate -> loop edge filtering.
+- Active path: RHPD-primary descriptor retrieval -> optional ScanContext yaw/weak rerank/fallback -> ICP verification -> geometric gate -> loop edge filtering.
 - `loop_closest_id_th`, `loop_min_id_interval`, and `loop_max_range` are retained as compatibility/legacy parameters.
 - These three legacy parameters are currently not used in the active mapping loop-candidate retrieval/verification path.
 
