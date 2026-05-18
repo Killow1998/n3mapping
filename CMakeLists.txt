@@ -175,8 +175,29 @@ target_link_libraries(n3mapping_synthetic_relocalization_eval
   ${PCL_LIBRARIES}
 )
 
+add_executable(n3mapping_synthetic_relocalization_publisher
+  tools/n3mapping_synthetic_relocalization_publisher.cpp
+)
+
+target_link_libraries(n3mapping_synthetic_relocalization_publisher
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+
+ament_target_dependencies(n3mapping_synthetic_relocalization_publisher
+  rclcpp
+  sensor_msgs
+  nav_msgs
+  pcl_conversions
+)
+
 # 安装
-install(TARGETS n3mapping_core n3mapping_ros2_wrapper n3mapping_node n3mapping_synthetic_relocalization_eval
+install(TARGETS
+  n3mapping_core
+  n3mapping_ros2_wrapper
+  n3mapping_node
+  n3mapping_synthetic_relocalization_eval
+  n3mapping_synthetic_relocalization_publisher
   EXPORT export_n3mapping
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
