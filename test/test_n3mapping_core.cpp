@@ -105,6 +105,32 @@ TEST(N3MappingCoreTest, MappingFrameBelowKeyframeThresholdStillProducesPoseOutpu
     EXPECT_NEAR(output.T_world_lidar.translation().x(), 0.1, 1e-9);
 }
 
+TEST(N3MappingCoreTest, BuildGlobalMapAccumulatesAcceptedKeyframes)
+{
+    Config config = makeCoreTestConfig();
+    config.global_map_voxel_size = 0.0;
+    N3MappingCore core(config);
+
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity(), 10)).accepted_keyframe);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = 1.0;
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose, 10)).accepted_keyframe);
+
+    auto global_map = core.buildGlobalMap();
+    ASSERT_NE(global_map, nullptr);
+    EXPECT_EQ(global_map->size(), 20U);
+
+    bool has_translated_points = false;
+    for (const auto& point : global_map->points) {
+        if (point.x > 1.5f) {
+            has_translated_points = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(has_translated_points);
+}
+
 TEST(N3MappingCoreTest, PendingLoopClosureProcessingIsCoreOwned)
 {
     N3MappingCore core(makeCoreTestConfig());

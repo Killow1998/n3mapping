@@ -35,6 +35,8 @@ public:
     bool saveGlobalMap(const std::string& filepath,
                        const KeyframeManager& keyframe_manager,
                        double voxel_size = 0.1);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr buildGlobalMap(const KeyframeManager& keyframe_manager,
+                                                        double voxel_size = 0.1) const;
 
 private:
     Config config_;

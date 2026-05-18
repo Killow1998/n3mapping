@@ -252,86 +252,93 @@ bool MapSerializer::saveGlobalMap(const std::string& filepath, const KeyframeMan
     try {
         std::filesystem::path fp(filepath);
         if (fp.has_parent_path()) std::filesystem::create_directories(fp.parent_path());
-        auto keyframes = keyframe_manager.getAllKeyframes();
-        if (keyframes.empty()) return false;
-
-        auto global = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-        for (const auto& kf : keyframes) {
-            if (!kf || !kf->cloud || kf->cloud->empty()) continue;
-            pcl::PointCloud<pcl::PointXYZI> transformed;
-            pcl::transformPointCloud(*kf->cloud, transformed, kf->pose_optimized.matrix().cast<float>());
-            global->points.insert(global->points.end(), transformed.points.begin(), transformed.points.end());
-        }
-
-        global->width = static_cast<uint32_t>(global->points.size());
-        global->height = 1;
-        global->is_dense = false;
-
-        if (voxel_size > 0.0) {
-            struct VoxelKey {
-                int x;
-                int y;
-                int z;
-                bool operator==(const VoxelKey& other) const {
-                    return x == other.x && y == other.y && z == other.z;
-                }
-            };
-            struct VoxelKeyHash {
-                size_t operator()(const VoxelKey& key) const {
-                    size_t h = std::hash<int>()(key.x);
-                    h ^= std::hash<int>()(key.y) + 0x9e3779b9 + (h << 6) + (h >> 2);
-                    h ^= std::hash<int>()(key.z) + 0x9e3779b9 + (h << 6) + (h >> 2);
-                    return h;
-                }
-            };
-            struct VoxelAccum {
-                double sx = 0.0;
-                double sy = 0.0;
-                double sz = 0.0;
-                double si = 0.0;
-                uint32_t count = 0;
-            };
-
-            std::unordered_map<VoxelKey, VoxelAccum, VoxelKeyHash> voxel_map;
-            voxel_map.reserve(global->points.size());
-
-            const double inv_leaf = 1.0 / voxel_size;
-            for (const auto& pt : global->points) {
-                VoxelKey key{
-                    static_cast<int>(std::floor(static_cast<double>(pt.x) * inv_leaf)),
-                    static_cast<int>(std::floor(static_cast<double>(pt.y) * inv_leaf)),
-                    static_cast<int>(std::floor(static_cast<double>(pt.z) * inv_leaf))
-                };
-                auto& acc = voxel_map[key];
-                acc.sx += pt.x;
-                acc.sy += pt.y;
-                acc.sz += pt.z;
-                acc.si += pt.intensity;
-                ++acc.count;
-            }
-
-            auto ds = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-            ds->points.reserve(voxel_map.size());
-            for (const auto& entry : voxel_map) {
-                const auto& acc = entry.second;
-                if (acc.count == 0) continue;
-                const float inv_count = 1.0f / static_cast<float>(acc.count);
-                pcl::PointXYZI p;
-                p.x = static_cast<float>(acc.sx * inv_count);
-                p.y = static_cast<float>(acc.sy * inv_count);
-                p.z = static_cast<float>(acc.sz * inv_count);
-                p.intensity = static_cast<float>(acc.si * inv_count);
-                ds->points.push_back(p);
-            }
-
-            ds->width = static_cast<uint32_t>(ds->points.size());
-            ds->height = 1;
-            ds->is_dense = false;
-            global = ds;
-        }
-
+        auto global = buildGlobalMap(keyframe_manager, voxel_size);
+        if (!global || global->empty()) return false;
         return pcl::io::savePCDFileBinary(filepath, *global) != -1;
     } catch (...) { return false; }
+}
+
+pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::buildGlobalMap(const KeyframeManager& keyframe_manager,
+                                                                   double voxel_size) const {
+    auto keyframes = keyframe_manager.getAllKeyframes();
+    if (keyframes.empty()) return pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+
+    auto global = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    for (const auto& kf : keyframes) {
+        if (!kf || !kf->cloud || kf->cloud->empty()) continue;
+        pcl::PointCloud<pcl::PointXYZI> transformed;
+        pcl::transformPointCloud(*kf->cloud, transformed, kf->pose_optimized.matrix().cast<float>());
+        global->points.insert(global->points.end(), transformed.points.begin(), transformed.points.end());
+    }
+
+    global->width = static_cast<uint32_t>(global->points.size());
+    global->height = 1;
+    global->is_dense = false;
+
+    if (voxel_size > 0.0) {
+        struct VoxelKey {
+            int x;
+            int y;
+            int z;
+            bool operator==(const VoxelKey& other) const {
+                return x == other.x && y == other.y && z == other.z;
+            }
+        };
+        struct VoxelKeyHash {
+            size_t operator()(const VoxelKey& key) const {
+                size_t h = std::hash<int>()(key.x);
+                h ^= std::hash<int>()(key.y) + 0x9e3779b9 + (h << 6) + (h >> 2);
+                h ^= std::hash<int>()(key.z) + 0x9e3779b9 + (h << 6) + (h >> 2);
+                return h;
+            }
+        };
+        struct VoxelAccum {
+            double sx = 0.0;
+            double sy = 0.0;
+            double sz = 0.0;
+            double si = 0.0;
+            uint32_t count = 0;
+        };
+
+        std::unordered_map<VoxelKey, VoxelAccum, VoxelKeyHash> voxel_map;
+        voxel_map.reserve(global->points.size());
+
+        const double inv_leaf = 1.0 / voxel_size;
+        for (const auto& pt : global->points) {
+            VoxelKey key{
+                static_cast<int>(std::floor(static_cast<double>(pt.x) * inv_leaf)),
+                static_cast<int>(std::floor(static_cast<double>(pt.y) * inv_leaf)),
+                static_cast<int>(std::floor(static_cast<double>(pt.z) * inv_leaf))
+            };
+            auto& acc = voxel_map[key];
+            acc.sx += pt.x;
+            acc.sy += pt.y;
+            acc.sz += pt.z;
+            acc.si += pt.intensity;
+            ++acc.count;
+        }
+
+        auto ds = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        ds->points.reserve(voxel_map.size());
+        for (const auto& entry : voxel_map) {
+            const auto& acc = entry.second;
+            if (acc.count == 0) continue;
+            const float inv_count = 1.0f / static_cast<float>(acc.count);
+            pcl::PointXYZI p;
+            p.x = static_cast<float>(acc.sx * inv_count);
+            p.y = static_cast<float>(acc.sy * inv_count);
+            p.z = static_cast<float>(acc.sz * inv_count);
+            p.intensity = static_cast<float>(acc.si * inv_count);
+            ds->points.push_back(p);
+        }
+
+        ds->width = static_cast<uint32_t>(ds->points.size());
+        ds->height = 1;
+        ds->is_dense = false;
+        global = ds;
+    }
+
+    return global;
 }
 
 void MapSerializer::keyframeToProto(const Keyframe::Ptr& kf, n3mapping::KeyframeProto* proto) {

@@ -34,6 +34,7 @@ class N3MappingCore {
     bool loadMap(const std::string& map_path);
     bool saveMap(const std::string& map_path);
     bool saveGlobalMap(const std::string& pcd_path);
+    core::LioFrame::PointCloud::Ptr buildGlobalMap() const;
     bool mapLoaded() const;
 
     Keyframe::Ptr getKeyframe(int64_t id) const;

@@ -266,6 +266,12 @@ bool N3MappingCore::saveGlobalMap(const std::string& pcd_path)
         pcd_path, session_->keyframeManager(), config_.global_map_voxel_size);
 }
 
+core::LioFrame::PointCloud::Ptr N3MappingCore::buildGlobalMap() const
+{
+    return session_->mapSerializer().buildGlobalMap(
+        session_->keyframeManager(), config_.global_map_voxel_size);
+}
+
 bool N3MappingCore::mapLoaded() const
 {
     return map_loaded_;

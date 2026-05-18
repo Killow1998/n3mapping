@@ -345,6 +345,7 @@ class N3MappingNode : public rclcpp::Node
         if (output.accepted_keyframe) {
             ++keyframe_count_;
             logOptimizationResult("mapping_incremental", timestamp, &publish_pose);
+            publishGlobalMap();
         }
     }
 
@@ -406,6 +407,7 @@ class N3MappingNode : public rclcpp::Node
         if (output.accepted_keyframe) {
             ++keyframe_count_;
             logOptimizationResult("map_extension_incremental", timestamp, &output.T_world_lidar);
+            publishGlobalMap();
         }
     }
 
@@ -737,6 +739,23 @@ class N3MappingNode : public rclcpp::Node
         cloud_world_msg.header = header;
         cloud_world_msg.header.frame_id = config_.world_frame;
         cloud_world_pub_->publish(cloud_world_msg);
+    }
+
+    void publishGlobalMap()
+    {
+        if (!n3mapping_core_) {
+            return;
+        }
+        auto global_map = n3mapping_core_->buildGlobalMap();
+        if (!global_map || global_map->empty()) {
+            return;
+        }
+
+        sensor_msgs::msg::PointCloud2 global_map_msg;
+        pcl::toROSMsg(*global_map, global_map_msg);
+        global_map_msg.header.frame_id = config_.world_frame;
+        global_map_msg.header.stamp = this->get_clock()->now();
+        global_map_pub_->publish(global_map_msg);
     }
 
     /**
