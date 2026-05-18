@@ -33,6 +33,8 @@ struct Options {
     double fake_odom_tx = 20.0;
     double fake_odom_ty = -10.0;
     double fake_odom_tz = 1.0;
+    double range_max = 30.0;
+    std::string query_source = "same_keyframe";
     bool strict = false;
 };
 
@@ -63,6 +65,8 @@ void printUsage(const char* argv0)
         << "  --fake_odom_tx M          Fake map->odom x. Default: 20\n"
         << "  --fake_odom_ty M          Fake map->odom y. Default: -10\n"
         << "  --fake_odom_tz M          Fake map->odom z. Default: 1\n"
+        << "  --query_source MODE       same_keyframe or global_map. Default: same_keyframe\n"
+        << "  --range_max M             Max range for global_map query synthesis. Default: 30\n"
         << "  --strict                  Return nonzero if default smoke criteria fail\n";
 }
 
@@ -101,6 +105,14 @@ bool parseArgs(int argc, char** argv, Options* options)
             if (const char* v = needValue(arg)) options->fake_odom_ty = std::stod(v); else return false;
         } else if (arg == "--fake_odom_tz") {
             if (const char* v = needValue(arg)) options->fake_odom_tz = std::stod(v); else return false;
+        } else if (arg == "--query_source") {
+            if (const char* v = needValue(arg)) options->query_source = v; else return false;
+            if (options->query_source != "same_keyframe" && options->query_source != "global_map") {
+                std::cerr << "--query_source must be same_keyframe or global_map\n";
+                return false;
+            }
+        } else if (arg == "--range_max") {
+            if (const char* v = needValue(arg)) options->range_max = std::max(0.5, std::stod(v)); else return false;
         } else if (arg == "--strict") {
             options->strict = true;
         } else {
@@ -181,6 +193,48 @@ Cloud::Ptr perturbCloud(const Cloud::Ptr& input, const Options& options, std::ui
     output->height = 1;
     output->is_dense = input->is_dense;
     return output;
+}
+
+Cloud::Ptr synthesizeBodyCloudFromGlobalMap(const Cloud::Ptr& global_map,
+                                            const Eigen::Isometry3d& T_map_lidar,
+                                            const Options& options,
+                                            std::uint32_t seed)
+{
+    auto body = pcl::make_shared<Cloud>();
+    if (!global_map) {
+        return body;
+    }
+
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<double> keep_dist(0.0, 1.0);
+    std::normal_distribution<double> noise(0.0, options.noise_sigma);
+    const Eigen::Isometry3d T_lidar_map = T_map_lidar.inverse();
+    body->reserve(global_map->size());
+
+    for (const auto& point_map : global_map->points) {
+        const Eigen::Vector3d p_body = T_lidar_map * Eigen::Vector3d(point_map.x, point_map.y, point_map.z);
+        const double range = p_body.norm();
+        if (range < 0.5 || range > options.range_max) {
+            continue;
+        }
+        if (p_body.z() < -2.0 || p_body.z() > 6.0) {
+            continue;
+        }
+        if (keep_dist(rng) < options.dropout) {
+            continue;
+        }
+        pcl::PointXYZI out;
+        out.x = static_cast<float>(p_body.x() + noise(rng));
+        out.y = static_cast<float>(p_body.y() + noise(rng));
+        out.z = static_cast<float>(p_body.z() + noise(rng));
+        out.intensity = point_map.intensity;
+        body->push_back(out);
+    }
+
+    body->width = static_cast<std::uint32_t>(body->size());
+    body->height = 1;
+    body->is_dense = true;
+    return body;
 }
 
 core::LioFrame makeFrame(std::int64_t stamp_nsec,
@@ -282,6 +336,7 @@ void writeSummaryJson(const std::filesystem::path& path,
     file << "  \"p95_yaw_error_deg\": " << percentile(yaw_errors, 0.95) << ",\n";
     file << "  \"dropout_ratio\": " << options.dropout << ",\n";
     file << "  \"noise_sigma\": " << options.noise_sigma << ",\n";
+    file << "  \"query_source\": \"" << options.query_source << "\",\n";
     file << "  \"failed_query_ids\": [";
     for (std::size_t i = 0; i < failed_ids.size(); ++i) {
         if (i > 0) file << ", ";
@@ -326,6 +381,14 @@ int main(int argc, char** argv)
         static_cast<double>(keyframes.size()) / static_cast<double>(std::max(1, options.max_queries)))));
     const int stride = options.stride > 0 ? options.stride : auto_stride;
     const Eigen::Isometry3d T_map_odom_fake = makeFakeMapOdom(options);
+    Cloud::Ptr global_map;
+    if (options.query_source == "global_map") {
+        global_map = catalog.buildGlobalMap();
+        if (!global_map || global_map->empty()) {
+            std::cerr << "Failed to build global map for query synthesis\n";
+            return 1;
+        }
+    }
 
     std::vector<QueryResult> results;
     results.reserve(std::min<std::size_t>(keyframes.size(), static_cast<std::size_t>(options.max_queries)));
@@ -335,7 +398,9 @@ int main(int argc, char** argv)
         QueryResult qr;
         qr.keyframe_id = kf->id;
 
-        auto query_cloud = perturbCloud(kf->cloud, options, static_cast<std::uint32_t>(1000 + kf->id));
+        auto query_cloud = options.query_source == "global_map"
+            ? synthesizeBodyCloudFromGlobalMap(global_map, kf->pose_optimized, options, static_cast<std::uint32_t>(1000 + kf->id))
+            : perturbCloud(kf->cloud, options, static_cast<std::uint32_t>(1000 + kf->id));
         qr.num_query_points = query_cloud->size();
         if (query_cloud->empty()) {
             results.push_back(qr);

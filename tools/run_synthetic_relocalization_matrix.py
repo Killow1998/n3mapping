@@ -29,6 +29,8 @@ def main():
     parser.add_argument("--dropouts", default="0.0,0.3,0.5,0.7")
     parser.add_argument("--noise_sigmas", default="0.0,0.02,0.05")
     parser.add_argument("--fake_yaws", default="0,45,90,180")
+    parser.add_argument("--query_source", default="same_keyframe", choices=["same_keyframe", "global_map"])
+    parser.add_argument("--range_max", type=float, default=30.0)
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args()
 
@@ -51,6 +53,8 @@ def main():
                     "--dropout", str(dropout),
                     "--noise_sigma", str(noise_sigma),
                     "--fake_odom_yaw_deg", str(yaw),
+                    "--query_source", args.query_source,
+                    "--range_max", str(args.range_max),
                 ]
                 if args.stride > 0:
                     cmd.extend(["--stride", str(args.stride)])
@@ -67,6 +71,7 @@ def main():
                     "dropout": dropout,
                     "noise_sigma": noise_sigma,
                     "fake_yaw_deg": yaw,
+                    "query_source": args.query_source,
                     "returncode": completed.returncode,
                     "output_dir": str(run_dir),
                 }
@@ -92,6 +97,7 @@ def main():
         "noise_sigma",
         "fake_yaw_deg",
         "returncode",
+        "query_source",
         "tested",
         "lock_success",
         "self_matches",
