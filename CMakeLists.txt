@@ -441,6 +441,17 @@ if(BUILD_TESTING)
     )
   endif()
 
+  ament_add_gtest(test_synthetic_relocalization test/test_synthetic_relocalization.cpp)
+  if(TARGET test_synthetic_relocalization)
+    target_link_libraries(test_synthetic_relocalization
+      ${PROJECT_NAME}_lib
+      ${PCL_LIBRARIES}
+      ${PROTOBUF_LIBRARIES}
+      gtsam
+      OpenMP::OpenMP_CXX
+    )
+  endif()
+
   ament_add_gtest(test_core_types test/test_core_types.cpp)
   if(TARGET test_core_types)
     target_link_libraries(test_core_types
