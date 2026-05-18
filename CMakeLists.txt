@@ -166,8 +166,17 @@ add_executable(n3mapping_node
 
 n3mapping_configure_ros2_node_target(n3mapping_node)
 
+add_executable(n3mapping_synthetic_relocalization_eval
+  tools/n3mapping_synthetic_relocalization_eval.cpp
+)
+
+target_link_libraries(n3mapping_synthetic_relocalization_eval
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+
 # 安装
-install(TARGETS n3mapping_core n3mapping_ros2_wrapper n3mapping_node
+install(TARGETS n3mapping_core n3mapping_ros2_wrapper n3mapping_node n3mapping_synthetic_relocalization_eval
   EXPORT export_n3mapping
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
