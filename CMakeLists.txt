@@ -204,6 +204,11 @@ install(TARGETS
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  tools/run_synthetic_relocalization_matrix.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_export_targets(export_n3mapping HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp
