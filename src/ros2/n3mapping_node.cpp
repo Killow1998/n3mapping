@@ -169,7 +169,9 @@ class N3MappingNode : public rclcpp::Node
         path_pub_ = this->create_publisher<nav_msgs::msg::Path>(config_.output_path_topic, 10);
         cloud_body_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(config_.output_cloud_body_topic, 10);
         cloud_world_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(config_.output_cloud_world_topic, 10);
-        loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/n3mapping/loop_closure_markers", 10);
+        rclcpp::QoS marker_qos(10);
+        marker_qos.transient_local();
+        loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/n3mapping/loop_closure_markers", marker_qos);
         relocalization_lock_pub_ = this->create_publisher<std_msgs::msg::UInt32>("/n3mapping/relocalization_lock", 10);
 
         // 全局地图发布者 (transient_local QoS，类似 ROS1 latched topic)
@@ -669,12 +671,12 @@ class N3MappingNode : public rclcpp::Node
             geometry_msgs::msg::Point p_match;
             p_match.x = match_kf->pose_optimized.translation().x();
             p_match.y = match_kf->pose_optimized.translation().y();
-            p_match.z = match_kf->pose_optimized.translation().z();
+            p_match.z = match_kf->pose_optimized.translation().z() + 0.5;
 
             geometry_msgs::msg::Point p_query;
             p_query.x = query_kf->pose_optimized.translation().x();
             p_query.y = query_kf->pose_optimized.translation().y();
-            p_query.z = query_kf->pose_optimized.translation().z();
+            p_query.z = query_kf->pose_optimized.translation().z() + 0.5;
 
             marker.points.push_back(p_match);
             marker.points.push_back(p_query);

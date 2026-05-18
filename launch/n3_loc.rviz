@@ -155,6 +155,20 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /n3mapping/path
       Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Loop Closures
+      Namespaces:
+        loop_closure: true
+        path_loaded: true
+        path_new: true
+      Topic:
+        Depth: 10
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /n3mapping/loop_closure_markers
+      Value: true
     - Class: rviz_default_plugins/TF
       Enabled: true
       Frame Timeout: 15
