@@ -26,7 +26,6 @@
 #include <filesystem>
 #include <fstream>
 #include <geometry_msgs/msg/pose_stamped.hpp>
-#include <glog/logging.h>
 #include <limits>
 #include <mutex>
 #include <nav_msgs/msg/odometry.hpp>
@@ -49,53 +48,6 @@ namespace n3mapping {
 
 // 全局节点指针用于信号处理
 static std::atomic<bool> g_shutdown_requested{ false };
-
-class OptimizationLogSink : public google::LogSink
-{
-  public:
-    explicit OptimizationLogSink(const std::string& file_path)
-      : file_path_(file_path)
-    {
-        openFile();
-    }
-
-    void send(google::LogSeverity severity, const char*, const char*, int, const struct ::tm*, const char* message, size_t message_len) override
-    {
-        std::string_view view(message, message_len);
-        if (view.find(tag_) == std::string_view::npos) {
-            return;
-        }
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (!file_.is_open()) {
-            openFile();
-        }
-        if (!file_.is_open()) {
-            return;
-        }
-        file_.write(message, static_cast<std::streamsize>(message_len));
-        file_ << '\n';
-        file_.flush();
-        if (severity >= google::GLOG_ERROR) {
-            file_.flush();
-        }
-    }
-
-    ~OptimizationLogSink() override
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (file_.is_open()) {
-            file_.close();
-        }
-    }
-
-  private:
-    void openFile() { file_.open(file_path_, std::ios::out | std::ios::trunc); }
-
-    const std::string tag_ = "[OPTIMIZATION]";
-    std::string file_path_;
-    std::ofstream file_;
-    std::mutex mutex_;
-};
 
 /**
  * @brief 运行模式枚举
@@ -167,11 +119,6 @@ class N3MappingNode : public rclcpp::Node
             saveMapOnShutdown();
         }
 
-        if (optimization_log_sink_) {
-            google::RemoveLogSink(optimization_log_sink_.get());
-            optimization_log_sink_.reset();
-        }
-
         // 输出统计信息
         printStatistics();
     }
@@ -240,8 +187,10 @@ class N3MappingNode : public rclcpp::Node
         std::error_code ec;
         std::filesystem::create_directories(config_.map_save_path, ec);
         optimization_log_path_ = config_.map_save_path + "/optimization.log";
-        optimization_log_sink_ = std::make_unique<OptimizationLogSink>(optimization_log_path_);
-        google::AddLogSink(optimization_log_sink_.get());
+        std::ofstream file(optimization_log_path_, std::ios::out | std::ios::trunc);
+        if (!file.is_open()) {
+            RCLCPP_WARN(this->get_logger(), "Failed to open optimization log: %s", optimization_log_path_.c_str());
+        }
     }
 
     /**
@@ -427,21 +376,19 @@ class N3MappingNode : public rclcpp::Node
         if (result.optimized) {
             loop_count_ += result.edge_count;
             logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
-            RCLCPP_INFO(this->get_logger(),
-                        "Loop optimization applied: edges=%zu, accepted=%zu, "
-                        "loop_residual_t %.4f->%.4f m, loop_residual_r %.4f->%.4f rad, "
-                        "pose_update mean/max t=%.4f/%.4f m r=%.4f/%.4f rad over %zu poses",
-                        result.edge_count,
-                        result.accepted_loops.size(),
-                        result.loop_residual_translation_before,
-                        result.loop_residual_translation_after,
-                        result.loop_residual_rotation_before,
-                        result.loop_residual_rotation_after,
-                        result.mean_pose_update_translation,
-                        result.max_pose_update_translation,
-                        result.mean_pose_update_rotation,
-                        result.max_pose_update_rotation,
-                        result.pose_update_count);
+            std::ostringstream oss;
+            oss << "[OPTIMIZATION] loop impact edges=" << result.edge_count
+                << " accepted=" << result.accepted_loops.size()
+                << " loop_residual_t=" << result.loop_residual_translation_before
+                << "->" << result.loop_residual_translation_after
+                << " loop_residual_r=" << result.loop_residual_rotation_before
+                << "->" << result.loop_residual_rotation_after
+                << " pose_update_mean_max_t=" << result.mean_pose_update_translation
+                << "/" << result.max_pose_update_translation
+                << " pose_update_mean_max_r=" << result.mean_pose_update_rotation
+                << "/" << result.max_pose_update_rotation
+                << " pose_update_count=" << result.pose_update_count;
+            appendOptimizationLogLine(oss.str());
 
             std_msgs::msg::Header header;
             header.stamp = this->now();
@@ -665,14 +612,30 @@ class N3MappingNode : public rclcpp::Node
             latest_id = valid_keyframes.back()->id;
         }
 
-        LOG(INFO) << "[OPTIMIZATION] context=" << context << " time=" << timestamp << " keyframes=" << valid_keyframes.size()
-                  << " latest_id=" << (latest_id ? std::to_string(*latest_id) : std::string("none"));
+        std::ostringstream summary;
+        summary << "[OPTIMIZATION] context=" << context << " time=" << timestamp
+                << " keyframes=" << valid_keyframes.size()
+                << " latest_id=" << (latest_id ? std::to_string(*latest_id) : std::string("none"));
+        appendOptimizationLogLine(summary.str());
 
         if (current_pose) {
             Eigen::Quaterniond q(current_pose->rotation());
-            LOG(INFO) << "[OPTIMIZATION] current t=" << current_pose->translation().x() << "," << current_pose->translation().y() << ","
-                      << current_pose->translation().z() << " q=" << q.w() << "," << q.x() << "," << q.y() << "," << q.z();
+            std::ostringstream pose_line;
+            pose_line << "[OPTIMIZATION] current t=" << current_pose->translation().x() << ","
+                      << current_pose->translation().y() << "," << current_pose->translation().z()
+                      << " q=" << q.w() << "," << q.x() << "," << q.y() << "," << q.z();
+            appendOptimizationLogLine(pose_line.str());
         }
+    }
+
+    void appendOptimizationLogLine(const std::string& line)
+    {
+        std::lock_guard<std::mutex> lock(optimization_log_mutex_);
+        std::ofstream file(optimization_log_path_, std::ios::out | std::ios::app);
+        if (!file.is_open()) {
+            return;
+        }
+        file << line << '\n';
     }
 
     void publishLoopMarkers(const std::vector<VerifiedLoop>& loops)
@@ -857,8 +820,8 @@ class N3MappingNode : public rclcpp::Node
     // 状态
     bool map_loaded_ = false;
     bool shutdown_called_ = false;
-    std::unique_ptr<OptimizationLogSink> optimization_log_sink_;
     std::string optimization_log_path_;
+    std::mutex optimization_log_mutex_;
     std::vector<geometry_msgs::msg::PoseStamped> localization_path_; // 定位模式累积轨迹
 
     // 统计
