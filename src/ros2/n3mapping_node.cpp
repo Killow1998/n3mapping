@@ -37,6 +37,7 @@
 #include <std_msgs/msg/u_int32.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <thread>
+#include <utility>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include "n3mapping/config.h"
@@ -642,15 +643,23 @@ class N3MappingNode : public rclcpp::Node
 
     void publishLoopMarkers(const std::vector<VerifiedLoop>& loops)
     {
+        for (const auto& loop : loops) {
+            const auto key = std::make_pair(loop.match_id, loop.query_id);
+            const auto it = std::find(loop_marker_history_.begin(), loop_marker_history_.end(), key);
+            if (it == loop_marker_history_.end()) {
+                loop_marker_history_.push_back(key);
+            }
+        }
+
         visualization_msgs::msg::MarkerArray markers;
         visualization_msgs::msg::Marker clear_marker;
         clear_marker.action = visualization_msgs::msg::Marker::DELETEALL;
         markers.markers.push_back(clear_marker);
 
         int marker_id = 0;
-        for (const auto& loop : loops) {
-            auto match_kf = getKeyframeForPublishing(loop.match_id);
-            auto query_kf = getKeyframeForPublishing(loop.query_id);
+        for (const auto& [match_id, query_id] : loop_marker_history_) {
+            auto match_kf = getKeyframeForPublishing(match_id);
+            auto query_kf = getKeyframeForPublishing(query_id);
             if (!match_kf || !query_kf) {
                 continue;
             }
@@ -825,6 +834,7 @@ class N3MappingNode : public rclcpp::Node
     std::string optimization_log_path_;
     std::mutex optimization_log_mutex_;
     std::vector<geometry_msgs::msg::PoseStamped> localization_path_; // 定位模式累积轨迹
+    std::vector<std::pair<int64_t, int64_t>> loop_marker_history_;
 
     // 统计
     size_t frame_count_ = 0;
