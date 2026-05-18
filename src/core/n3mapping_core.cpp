@@ -1,12 +1,89 @@
 #include "n3mapping/core/n3mapping_core.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/memory.h>
 
 namespace n3mapping {
+
+namespace {
+
+double rotationAngle(const Eigen::Isometry3d& transform)
+{
+    return std::abs(Eigen::AngleAxisd(transform.rotation()).angle());
+}
+
+std::pair<double, double> meanLoopResidual(
+    const std::vector<EdgeInfo>& edges,
+    const std::map<int64_t, Eigen::Isometry3d>& poses)
+{
+    if (edges.empty()) {
+        return {0.0, 0.0};
+    }
+
+    double translation_sum = 0.0;
+    double rotation_sum = 0.0;
+    std::size_t count = 0;
+    for (const auto& edge : edges) {
+        auto from_it = poses.find(edge.from_id);
+        auto to_it = poses.find(edge.to_id);
+        if (from_it == poses.end() || to_it == poses.end()) {
+            continue;
+        }
+        const Eigen::Isometry3d predicted = from_it->second.inverse() * to_it->second;
+        const Eigen::Isometry3d residual = edge.measurement.inverse() * predicted;
+        translation_sum += residual.translation().norm();
+        rotation_sum += rotationAngle(residual);
+        ++count;
+    }
+
+    if (count == 0) {
+        return {0.0, 0.0};
+    }
+    return {translation_sum / static_cast<double>(count), rotation_sum / static_cast<double>(count)};
+}
+
+void accumulatePoseUpdateStats(const std::map<int64_t, Eigen::Isometry3d>& before,
+                               const std::map<int64_t, Eigen::Isometry3d>& after,
+                               CoreLoopClosureResult* result)
+{
+    double translation_sum = 0.0;
+    double rotation_sum = 0.0;
+    std::size_t count = 0;
+
+    for (const auto& [id, before_pose] : before) {
+        auto after_it = after.find(id);
+        if (after_it == after.end()) {
+            continue;
+        }
+        const Eigen::Isometry3d delta = before_pose.inverse() * after_it->second;
+        const double translation = delta.translation().norm();
+        const double rotation = rotationAngle(delta);
+        translation_sum += translation;
+        rotation_sum += rotation;
+        result->max_pose_update_translation = std::max(result->max_pose_update_translation, translation);
+        result->max_pose_update_rotation = std::max(result->max_pose_update_rotation, rotation);
+        ++count;
+    }
+
+    if (count == 0) {
+        return;
+    }
+    const std::size_t previous_count = result->pose_update_count;
+    const std::size_t total_count = previous_count + count;
+    result->mean_pose_update_translation =
+        (result->mean_pose_update_translation * static_cast<double>(previous_count) + translation_sum) /
+        static_cast<double>(total_count);
+    result->mean_pose_update_rotation =
+        (result->mean_pose_update_rotation * static_cast<double>(previous_count) + rotation_sum) /
+        static_cast<double>(total_count);
+    result->pose_update_count = total_count;
+}
+
+}  // namespace
 
 N3MappingCore::N3MappingCore(const Config& config)
   : config_(config)
@@ -236,12 +313,21 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             continue;
         }
 
+        const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
+        const auto residual_before = meanLoopResidual(edges, poses_before);
         session_->loopClosureManager().applyEdges(edges, session_->graphOptimizer());
         loop_count_ += edges.size();
         refreshOptimizedPoses();
+        const auto poses_after = session_->graphOptimizer().getOptimizedPoses();
+        const auto residual_after = meanLoopResidual(edges, poses_after);
 
         result.optimized = true;
         result.edge_count += edges.size();
+        result.loop_residual_translation_before = residual_before.first;
+        result.loop_residual_rotation_before = residual_before.second;
+        result.loop_residual_translation_after = residual_after.first;
+        result.loop_residual_rotation_after = residual_after.second;
+        accumulatePoseUpdateStats(poses_before, poses_after, &result);
         result.accepted_loops.insert(result.accepted_loops.end(), best_loops.begin(), best_loops.end());
     }
 

@@ -427,6 +427,27 @@ class N3MappingNode : public rclcpp::Node
         if (result.optimized) {
             loop_count_ += result.edge_count;
             logOptimizationResult("loop_closure", this->now().seconds(), nullptr);
+            RCLCPP_INFO(this->get_logger(),
+                        "Loop optimization applied: edges=%zu, accepted=%zu, "
+                        "loop_residual_t %.4f->%.4f m, loop_residual_r %.4f->%.4f rad, "
+                        "pose_update mean/max t=%.4f/%.4f m r=%.4f/%.4f rad over %zu poses",
+                        result.edge_count,
+                        result.accepted_loops.size(),
+                        result.loop_residual_translation_before,
+                        result.loop_residual_translation_after,
+                        result.loop_residual_rotation_before,
+                        result.loop_residual_rotation_after,
+                        result.mean_pose_update_translation,
+                        result.max_pose_update_translation,
+                        result.mean_pose_update_rotation,
+                        result.max_pose_update_rotation,
+                        result.pose_update_count);
+
+            std_msgs::msg::Header header;
+            header.stamp = this->now();
+            header.frame_id = config_.world_frame;
+            publishPath(header, nullptr);
+            publishGlobalMap();
         }
     }
 

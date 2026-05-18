@@ -18,6 +18,15 @@ namespace n3mapping {
 struct CoreLoopClosureResult {
     bool optimized = false;
     std::size_t edge_count = 0;
+    std::size_t pose_update_count = 0;
+    double loop_residual_translation_before = 0.0;
+    double loop_residual_translation_after = 0.0;
+    double loop_residual_rotation_before = 0.0;
+    double loop_residual_rotation_after = 0.0;
+    double mean_pose_update_translation = 0.0;
+    double max_pose_update_translation = 0.0;
+    double mean_pose_update_rotation = 0.0;
+    double max_pose_update_rotation = 0.0;
     std::vector<VerifiedLoop> accepted_loops;
 };
 

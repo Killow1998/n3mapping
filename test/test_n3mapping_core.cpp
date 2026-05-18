@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <cmath>
 
 #include <gtest/gtest.h>
 #include <pcl/memory.h>
@@ -144,6 +145,15 @@ TEST(N3MappingCoreTest, PendingLoopClosureProcessingIsCoreOwned)
     const auto result = core.processPendingLoopClosures();
     EXPECT_TRUE(result.optimized);
     EXPECT_EQ(result.edge_count, 1U);
+    EXPECT_EQ(result.pose_update_count, 2U);
+    EXPECT_TRUE(std::isfinite(result.loop_residual_translation_before));
+    EXPECT_TRUE(std::isfinite(result.loop_residual_translation_after));
+    EXPECT_TRUE(std::isfinite(result.loop_residual_rotation_before));
+    EXPECT_TRUE(std::isfinite(result.loop_residual_rotation_after));
+    EXPECT_TRUE(std::isfinite(result.mean_pose_update_translation));
+    EXPECT_TRUE(std::isfinite(result.max_pose_update_translation));
+    EXPECT_TRUE(std::isfinite(result.mean_pose_update_rotation));
+    EXPECT_TRUE(std::isfinite(result.max_pose_update_rotation));
     ASSERT_EQ(result.accepted_loops.size(), 1U);
     EXPECT_EQ(result.accepted_loops.front().query_id, 1);
     EXPECT_EQ(result.accepted_loops.front().match_id, 0);
