@@ -14,6 +14,8 @@
 #include <vector>
 
 #include <pcl/memory.h>
+#include <pcl/common/transforms.h>
+#include <pcl/filters/voxel_grid.h>
 #include <glog/logging.h>
 
 #include "n3mapping/core/n3mapping_core.h"
@@ -35,6 +37,8 @@ struct Options {
     double fake_odom_ty = -10.0;
     double fake_odom_tz = 1.0;
     double range_max = 30.0;
+    int query_submap_radius = 2;
+    double query_voxel_size = 0.12;
     double pose_translation_threshold_m = 1.0;
     double pose_yaw_threshold_deg = 10.0;
     double pose_roll_pitch_threshold_deg = 5.0;
@@ -70,8 +74,10 @@ void printUsage(const char* argv0)
         << "  --fake_odom_tx M          Fake map->odom x. Default: 20\n"
         << "  --fake_odom_ty M          Fake map->odom y. Default: -10\n"
         << "  --fake_odom_tz M          Fake map->odom z. Default: 1\n"
-        << "  --query_source MODE       same_keyframe or global_map. Default: same_keyframe\n"
-        << "  --range_max M             Max range for global_map query synthesis. Default: 30\n"
+        << "  --query_source MODE       same_keyframe, local_submap, or global_map. Default: same_keyframe\n"
+        << "  --range_max M             Max range for map-query synthesis. Default: 30\n"
+        << "  --query_submap_radius N   Keyframe radius for local_submap queries. Default: 2\n"
+        << "  --query_voxel_size M      Voxel size for map-query synthesis, <=0 disables. Default: 0.12\n"
         << "  --pose_translation_threshold M  Pose-success translation threshold. Default: 1\n"
         << "  --pose_yaw_threshold_deg DEG    Pose-success yaw threshold. Default: 10\n"
         << "  --pose_roll_pitch_threshold_deg DEG  Pose-success roll/pitch threshold. Default: 5\n"
@@ -115,12 +121,18 @@ bool parseArgs(int argc, char** argv, Options* options)
             if (const char* v = needValue(arg)) options->fake_odom_tz = std::stod(v); else return false;
         } else if (arg == "--query_source") {
             if (const char* v = needValue(arg)) options->query_source = v; else return false;
-            if (options->query_source != "same_keyframe" && options->query_source != "global_map") {
-                std::cerr << "--query_source must be same_keyframe or global_map\n";
+            if (options->query_source != "same_keyframe" &&
+                options->query_source != "local_submap" &&
+                options->query_source != "global_map") {
+                std::cerr << "--query_source must be same_keyframe, local_submap, or global_map\n";
                 return false;
             }
         } else if (arg == "--range_max") {
             if (const char* v = needValue(arg)) options->range_max = std::max(0.5, std::stod(v)); else return false;
+        } else if (arg == "--query_submap_radius") {
+            if (const char* v = needValue(arg)) options->query_submap_radius = std::max(0, std::stoi(v)); else return false;
+        } else if (arg == "--query_voxel_size") {
+            if (const char* v = needValue(arg)) options->query_voxel_size = std::stod(v); else return false;
         } else if (arg == "--pose_translation_threshold") {
             if (const char* v = needValue(arg)) options->pose_translation_threshold_m = std::max(0.0, std::stod(v)); else return false;
         } else if (arg == "--pose_yaw_threshold_deg") {
@@ -209,13 +221,56 @@ Cloud::Ptr perturbCloud(const Cloud::Ptr& input, const Options& options, std::ui
     return output;
 }
 
-Cloud::Ptr synthesizeBodyCloudFromGlobalMap(const Cloud::Ptr& global_map,
-                                            const Eigen::Isometry3d& T_map_lidar,
-                                            const Options& options,
-                                            std::uint32_t seed)
+Cloud::Ptr downsampleCloud(const Cloud::Ptr& input, double voxel_size)
+{
+    if (!input || input->empty() || voxel_size <= 0.0) {
+        return input ? input : pcl::make_shared<Cloud>();
+    }
+    auto output = pcl::make_shared<Cloud>();
+    pcl::VoxelGrid<pcl::PointXYZI> voxel;
+    voxel.setLeafSize(static_cast<float>(voxel_size),
+                      static_cast<float>(voxel_size),
+                      static_cast<float>(voxel_size));
+    voxel.setInputCloud(input);
+    voxel.filter(*output);
+    output->is_dense = true;
+    return output;
+}
+
+Cloud::Ptr buildLocalSubmapInMapFrame(const std::vector<Keyframe::Ptr>& keyframes,
+                                      std::size_t center_index,
+                                      int radius)
+{
+    auto map_cloud = pcl::make_shared<Cloud>();
+    if (keyframes.empty() || center_index >= keyframes.size()) {
+        return map_cloud;
+    }
+
+    const std::size_t begin = center_index > static_cast<std::size_t>(radius)
+        ? center_index - static_cast<std::size_t>(radius)
+        : 0;
+    const std::size_t end = std::min(keyframes.size(), center_index + static_cast<std::size_t>(radius) + 1);
+
+    for (std::size_t i = begin; i < end; ++i) {
+        const auto& kf = keyframes[i];
+        if (!kf || !kf->cloud || kf->cloud->empty()) continue;
+        Cloud transformed;
+        pcl::transformPointCloud(*kf->cloud, transformed, kf->pose_optimized.matrix().cast<float>());
+        *map_cloud += transformed;
+    }
+    map_cloud->width = static_cast<std::uint32_t>(map_cloud->size());
+    map_cloud->height = 1;
+    map_cloud->is_dense = true;
+    return map_cloud;
+}
+
+Cloud::Ptr synthesizeBodyCloudFromMapCloud(const Cloud::Ptr& map_cloud,
+                                           const Eigen::Isometry3d& T_map_lidar,
+                                           const Options& options,
+                                           std::uint32_t seed)
 {
     auto body = pcl::make_shared<Cloud>();
-    if (!global_map) {
+    if (!map_cloud) {
         return body;
     }
 
@@ -223,9 +278,9 @@ Cloud::Ptr synthesizeBodyCloudFromGlobalMap(const Cloud::Ptr& global_map,
     std::uniform_real_distribution<double> keep_dist(0.0, 1.0);
     std::normal_distribution<double> noise(0.0, options.noise_sigma);
     const Eigen::Isometry3d T_lidar_map = T_map_lidar.inverse();
-    body->reserve(global_map->size());
+    body->reserve(map_cloud->size());
 
-    for (const auto& point_map : global_map->points) {
+    for (const auto& point_map : map_cloud->points) {
         const Eigen::Vector3d p_body = T_lidar_map * Eigen::Vector3d(point_map.x, point_map.y, point_map.z);
         const double range = p_body.norm();
         if (range < 0.5 || range > options.range_max) {
@@ -248,7 +303,7 @@ Cloud::Ptr synthesizeBodyCloudFromGlobalMap(const Cloud::Ptr& global_map,
     body->width = static_cast<std::uint32_t>(body->size());
     body->height = 1;
     body->is_dense = true;
-    return body;
+    return downsampleCloud(body, options.query_voxel_size);
 }
 
 core::LioFrame makeFrame(std::int64_t stamp_nsec,
@@ -440,6 +495,8 @@ void writeConfigUsedJson(const std::filesystem::path& path,
     file << "  \"dropout_ratio\": " << options.dropout << ",\n";
     file << "  \"noise_sigma\": " << options.noise_sigma << ",\n";
     file << "  \"range_max\": " << options.range_max << ",\n";
+    file << "  \"query_submap_radius\": " << options.query_submap_radius << ",\n";
+    file << "  \"query_voxel_size\": " << options.query_voxel_size << ",\n";
     file << "  \"fake_odom_yaw_deg\": " << options.fake_odom_yaw_deg << ",\n";
     file << "  \"fake_odom_translation\": [" << options.fake_odom_tx << ", "
          << options.fake_odom_ty << ", " << options.fake_odom_tz << "],\n";
@@ -496,7 +553,7 @@ int main(int argc, char** argv)
     const Eigen::Isometry3d T_map_odom_fake = makeFakeMapOdom(options);
     Cloud::Ptr global_map;
     if (options.query_source == "global_map") {
-        global_map = catalog.buildGlobalMap();
+        global_map = downsampleCloud(catalog.buildGlobalMap(), options.query_voxel_size);
         if (!global_map || global_map->empty()) {
             std::cerr << "Failed to build global map for query synthesis\n";
             return 1;
@@ -511,9 +568,17 @@ int main(int argc, char** argv)
         QueryResult qr;
         qr.keyframe_id = kf->id;
 
-        auto query_cloud = options.query_source == "global_map"
-            ? synthesizeBodyCloudFromGlobalMap(global_map, kf->pose_optimized, options, static_cast<std::uint32_t>(1000 + kf->id))
-            : perturbCloud(kf->cloud, options, static_cast<std::uint32_t>(1000 + kf->id));
+        Cloud::Ptr query_cloud;
+        if (options.query_source == "global_map") {
+            query_cloud = synthesizeBodyCloudFromMapCloud(
+                global_map, kf->pose_optimized, options, static_cast<std::uint32_t>(1000 + kf->id));
+        } else if (options.query_source == "local_submap") {
+            auto local_map = buildLocalSubmapInMapFrame(keyframes, idx, options.query_submap_radius);
+            query_cloud = synthesizeBodyCloudFromMapCloud(
+                local_map, kf->pose_optimized, options, static_cast<std::uint32_t>(1000 + kf->id));
+        } else {
+            query_cloud = perturbCloud(kf->cloud, options, static_cast<std::uint32_t>(1000 + kf->id));
+        }
         qr.num_query_points = query_cloud->size();
         if (query_cloud->empty()) {
             results.push_back(qr);

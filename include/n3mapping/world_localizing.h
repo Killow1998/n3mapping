@@ -62,6 +62,10 @@ private:
                                  const LoopCandidate& candidate,
                                  MatchResult& best_match,
                                  int64_t& matched_kf_id);
+    void rebuildFrameRHPDIndexIfNeeded();
+    void appendFrameRHPDCandidates(const Eigen::VectorXd& query_rhpd,
+                                   const Eigen::MatrixXd& query_sc,
+                                   std::vector<LoopCandidate>& candidates);
     double computeRelocLogLikelihood(const LoopCandidate& candidate, const MatchResult& match_result) const;
     double computeTrackLogLikelihood(const MatchResult& match_result,
                                      const Eigen::Isometry3d& predicted_pose) const;
@@ -73,6 +77,8 @@ private:
     KeyframeManager& keyframe_manager_;
     LoopDetector& loop_detector_;
     PointCloudMatcher& matcher_;
+    RHPDManager frame_rhpd_manager_;
+    size_t frame_rhpd_indexed_keyframes_;
 
     bool is_relocalized_;
     Eigen::Isometry3d T_map_odom_;

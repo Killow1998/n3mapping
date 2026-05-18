@@ -31,8 +31,10 @@ def main():
     parser.add_argument("--dropouts", default="0.0,0.3,0.5,0.7")
     parser.add_argument("--noise_sigmas", default="0.0,0.02,0.05")
     parser.add_argument("--fake_yaws", default="0,45,90,180")
-    parser.add_argument("--query_source", default="same_keyframe", choices=["same_keyframe", "global_map"])
+    parser.add_argument("--query_source", default="same_keyframe", choices=["same_keyframe", "local_submap", "global_map"])
     parser.add_argument("--range_max", type=float, default=30.0)
+    parser.add_argument("--query_submap_radius", type=int, default=2)
+    parser.add_argument("--query_voxel_size", type=float, default=0.12)
     parser.add_argument("--pose_translation_threshold", type=float, default=1.0)
     parser.add_argument("--pose_yaw_threshold_deg", type=float, default=10.0)
     parser.add_argument("--pose_roll_pitch_threshold_deg", type=float, default=5.0)
@@ -60,6 +62,8 @@ def main():
                     "--fake_odom_yaw_deg", str(yaw),
                     "--query_source", args.query_source,
                     "--range_max", str(args.range_max),
+                    "--query_submap_radius", str(args.query_submap_radius),
+                    "--query_voxel_size", str(args.query_voxel_size),
                     "--pose_translation_threshold", str(args.pose_translation_threshold),
                     "--pose_yaw_threshold_deg", str(args.pose_yaw_threshold_deg),
                     "--pose_roll_pitch_threshold_deg", str(args.pose_roll_pitch_threshold_deg),

@@ -28,6 +28,8 @@ WorldLocalizing::WorldLocalizing(const Config& config,
     , keyframe_manager_(keyframe_manager)
     , loop_detector_(loop_detector)
     , matcher_(matcher)
+    , frame_rhpd_manager_(loop_detector.getRHPDManager().getDescriptorParams())
+    , frame_rhpd_indexed_keyframes_(0)
     , is_relocalized_(false)
     , T_map_odom_(Eigen::Isometry3d::Identity())
     , last_matched_id_(-1)
@@ -109,6 +111,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
             int64_t matched_kf_id = -1;
             LoopCandidate candidate;
             MatchResult match;
+            double selection_score = std::numeric_limits<double>::max();
         };
         std::vector<BasinBest> basin_best_results;
         basin_best_results.reserve(basins.size());
@@ -135,10 +138,13 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                                    confidence >= config_.reloc_min_confidence;
                 if (!valid) continue;
 
-                if (match_result.fitness_score < best.match.fitness_score) {
+                const double descriptor_score = std::isfinite(candidate.fused_score) ? candidate.fused_score : 1.0;
+                const double selection_score = match_result.fitness_score + descriptor_score;
+                if (selection_score < best.selection_score) {
                     best.candidate = candidate;
                     best.match = match_result;
                     best.matched_kf_id = matched_kf_id;
+                    best.selection_score = selection_score;
                 }
             }
 
@@ -149,7 +155,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
 
         std::sort(basin_best_results.begin(), basin_best_results.end(),
                   [](const BasinBest& a, const BasinBest& b) {
-                      return a.match.fitness_score < b.match.fitness_score;
+                      return a.selection_score < b.selection_score;
                   });
 
         if (basin_best_results.size() >= 2) {
@@ -572,13 +578,14 @@ std::vector<LoopCandidate> WorldLocalizing::searchCandidates(const PointCloudT::
     if (!cloud || cloud->empty()) return candidates;
 
     const auto& rhpd_mgr = loop_detector_.getRHPDManager();
+    Eigen::VectorXd query_rhpd;
     Eigen::MatrixXd query_sc;
     if (config_.rhpd_use_sc_yaw || !config_.rhpd_enabled || rhpd_mgr.size() == 0) {
         query_sc = loop_detector_.makeScanContext(cloud);
     }
 
     if (config_.rhpd_enabled && rhpd_mgr.size() > 0) {
-        Eigen::VectorXd query_rhpd = loop_detector_.computeRHPD(cloud);
+        query_rhpd = loop_detector_.computeRHPD(cloud);
         if (query_rhpd.size() != RHPD_DIM || query_rhpd.isZero()) {
             LOG(WARNING) << "[Reloc/RHPD] query descriptor is zero.";
         } else {
@@ -630,6 +637,18 @@ std::vector<LoopCandidate> WorldLocalizing::searchCandidates(const PointCloudT::
             for (int i = 0; i < keep; ++i) {
                 ranked[i].fused_rank = i;
                 candidates.push_back(ranked[i]);
+            }
+
+            appendFrameRHPDCandidates(query_rhpd, query_sc, candidates);
+            std::sort(candidates.begin(), candidates.end(), [](const LoopCandidate& a, const LoopCandidate& b) {
+                if (a.fused_score != b.fused_score) return a.fused_score < b.fused_score;
+                return a.rhpd_distance < b.rhpd_distance;
+            });
+            if (static_cast<int>(candidates.size()) > config_.reloc_num_candidates) {
+                candidates.resize(std::max(1, config_.reloc_num_candidates));
+            }
+            for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
+                candidates[i].fused_rank = i;
             }
         }
 
@@ -684,6 +703,80 @@ std::vector<LoopCandidate> WorldLocalizing::searchCandidates(const PointCloudT::
     return candidates;
 }
 
+void WorldLocalizing::rebuildFrameRHPDIndexIfNeeded() {
+    const size_t current_size = keyframe_manager_.size();
+    if (frame_rhpd_indexed_keyframes_ == current_size) {
+        return;
+    }
+
+    frame_rhpd_manager_.clear();
+    size_t indexed = 0;
+    for (const auto& kf : keyframe_manager_.getAllKeyframes()) {
+        if (!kf || !kf->cloud || kf->cloud->empty()) continue;
+        Eigen::VectorXd desc = loop_detector_.computeRHPD(kf->cloud);
+        if (desc.size() != RHPD_DIM || desc.isZero()) continue;
+        frame_rhpd_manager_.add(kf->id, desc);
+        ++indexed;
+    }
+    frame_rhpd_indexed_keyframes_ = current_size;
+    LOG(INFO) << "[Reloc/RHPDFrame] rebuilt frame-level index: indexed=" << indexed
+              << " keyframes=" << current_size;
+}
+
+void WorldLocalizing::appendFrameRHPDCandidates(const Eigen::VectorXd& query_rhpd,
+                                                const Eigen::MatrixXd& query_sc,
+                                                std::vector<LoopCandidate>& candidates) {
+    if (query_rhpd.size() != RHPD_DIM || query_rhpd.isZero()) return;
+
+    rebuildFrameRHPDIndexIfNeeded();
+    if (frame_rhpd_manager_.size() == 0) return;
+
+    const int top_k = std::max(config_.reloc_num_candidates * 2, config_.rhpd_num_candidates * 2);
+    const int preselect = std::max(config_.rhpd_preselect_candidates, top_k * 5);
+    auto frame_top = frame_rhpd_manager_.search(query_rhpd, std::max(1, top_k), preselect);
+    for (int i = 0; i < static_cast<int>(frame_top.size()); ++i) {
+        const auto& item = frame_top[i];
+        if (item.second > config_.rhpd_dist_threshold) continue;
+
+        LoopCandidate c;
+        c.query_id = -1;
+        c.match_id = item.first;
+        c.rhpd_distance = item.second;
+        c.source_flags = LoopCandidate::SOURCE_RHPD;
+        c.candidate_source = LoopCandidate::Source::RhpdFrame;
+        c.rhpd_rank = i;
+
+        Eigen::MatrixXd match_sc = loop_detector_.getDescriptor(item.first);
+        if (config_.rhpd_use_sc_yaw && query_sc.size() > 0 && match_sc.size() > 0) {
+            auto [sc_dist, yaw_shift] = loop_detector_.computeDistance(query_sc, match_sc);
+            c.sc_distance = sc_dist;
+            c.yaw_diff_rad = static_cast<float>(yaw_shift) *
+                static_cast<float>(loop_detector_.getScanContextSectorAngleDeg()) *
+                static_cast<float>(M_PI / 180.0);
+            c.source_flags |= LoopCandidate::SOURCE_SC;
+            if (config_.sc_aux_veto_enabled && sc_dist > config_.sc_aux_veto_threshold) {
+                continue;
+            }
+        }
+
+        const double rhpd_norm = c.rhpd_distance / std::max(1e-6, config_.rhpd_dist_threshold);
+        const double sc_norm = std::isfinite(c.sc_distance)
+            ? c.sc_distance / std::max(1e-6, config_.sc_aux_veto_threshold)
+            : 1.0;
+        c.fused_score = config_.rhpd_primary_weight * rhpd_norm + config_.sc_aux_weight * sc_norm;
+
+        auto existing = std::find_if(candidates.begin(), candidates.end(), [&](const LoopCandidate& old) {
+            return old.match_id == c.match_id;
+        });
+        if (existing == candidates.end()) {
+            candidates.push_back(c);
+        } else if (c.fused_score < existing->fused_score ||
+                   (c.fused_score == existing->fused_score && c.rhpd_distance < existing->rhpd_distance)) {
+            *existing = c;
+        }
+    }
+}
+
 RelocResult WorldLocalizing::verifyCandidates(const PointCloudT::Ptr& cloud,
                                               const std::vector<LoopCandidate>& candidates) {
     RelocResult best_result;
@@ -706,7 +799,8 @@ RelocResult WorldLocalizing::verifyCandidates(const PointCloudT::Ptr& cloud,
         std::vector<double> yaws_to_try;
         if (config_.rhpd_use_sc_yaw && candidate.fromSC() && std::isfinite(candidate.sc_distance)) {
             const double base_yaw = static_cast<double>(candidate.yaw_diff_rad);
-            yaws_to_try = {base_yaw, base_yaw + M_PI};
+            const double sector = loop_detector_.getScanContextSectorAngleDeg() * M_PI / 180.0;
+            yaws_to_try = {base_yaw, base_yaw - sector, base_yaw + sector};
         } else {
             const int n = std::max(1, config_.rhpd_yaw_hypotheses);
             for (int i = 0; i < n; ++i) {
@@ -781,7 +875,8 @@ bool WorldLocalizing::evaluateSingleCandidate(const PointCloudT::Ptr& cloud,
     std::vector<double> yaws_to_try;
     if (config_.rhpd_use_sc_yaw && candidate.fromSC() && std::isfinite(candidate.sc_distance)) {
         const double base_yaw = static_cast<double>(candidate.yaw_diff_rad);
-        yaws_to_try = {base_yaw, base_yaw + M_PI};
+        const double sector = loop_detector_.getScanContextSectorAngleDeg() * M_PI / 180.0;
+        yaws_to_try = {base_yaw, base_yaw - sector, base_yaw + sector};
     } else {
         const int n = std::max(1, config_.rhpd_yaw_hypotheses);
         for (int i = 0; i < n; ++i) {

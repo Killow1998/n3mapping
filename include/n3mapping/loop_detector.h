@@ -27,7 +27,8 @@ struct LoopCandidate {
     enum class Source : uint8_t {
         Unknown = 0,
         RhpdPrimary = 1,
-        ScanContextFallback = 2
+        ScanContextFallback = 2,
+        RhpdFrame = 3
     };
 
     int64_t query_id = -1;
