@@ -54,6 +54,7 @@ struct BackendOutput {
     bool accepted_keyframe = false;
     bool relocalization_locked = false;
     int64_t keyframe_id = -1;
+    int64_t matched_keyframe_id = -1;
     Eigen::Isometry3d T_world_lidar = Eigen::Isometry3d::Identity();
     LioFrame::PointCloud::Ptr cloud_body;
     LioFrame::PointCloud::Ptr cloud_world;

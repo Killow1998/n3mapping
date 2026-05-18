@@ -36,6 +36,7 @@ TEST(CoreTypesTest, DefaultValuesAreRosFreeAndStable) {
     EXPECT_FALSE(output.accepted_keyframe);
     EXPECT_FALSE(output.relocalization_locked);
     EXPECT_EQ(output.keyframe_id, -1);
+    EXPECT_EQ(output.matched_keyframe_id, -1);
     EXPECT_TRUE(output.T_world_lidar.isApprox(Eigen::Isometry3d::Identity()));
     EXPECT_EQ(output.cloud_body, nullptr);
     EXPECT_EQ(output.cloud_world, nullptr);
@@ -88,6 +89,7 @@ TEST(CoreTypesTest, BackendOutputCarriesCoreResults) {
     output.accepted_keyframe = true;
     output.relocalization_locked = true;
     output.keyframe_id = 42;
+    output.matched_keyframe_id = 24;
     output.cloud_body = body_cloud;
     output.cloud_world = world_cloud;
     output.T_world_lidar.translation() = Eigen::Vector3d(5.0, 6.0, 7.0);
@@ -96,6 +98,7 @@ TEST(CoreTypesTest, BackendOutputCarriesCoreResults) {
     EXPECT_TRUE(output.accepted_keyframe);
     EXPECT_TRUE(output.relocalization_locked);
     EXPECT_EQ(output.keyframe_id, 42);
+    EXPECT_EQ(output.matched_keyframe_id, 24);
     ASSERT_NE(output.cloud_body, nullptr);
     ASSERT_NE(output.cloud_world, nullptr);
     EXPECT_EQ(output.cloud_body->size(), 1U);

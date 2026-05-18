@@ -153,6 +153,7 @@ core::BackendOutput N3MappingCore::processLocalizationFrame(const core::LioFrame
     Eigen::Isometry3d pose_map = frame.T_world_lidar;
     bool success = false;
     bool relocalization_locked = false;
+    int64_t matched_keyframe_id = -1;
     auto& localizer = session_->worldLocalizing();
 
     if (localizer.isRelocalized()) {
@@ -160,6 +161,7 @@ core::BackendOutput N3MappingCore::processLocalizationFrame(const core::LioFrame
         if (result.success) {
             pose_map = result.pose_in_map;
             success = true;
+            matched_keyframe_id = result.matched_keyframe_id;
         }
     }
 
@@ -169,6 +171,7 @@ core::BackendOutput N3MappingCore::processLocalizationFrame(const core::LioFrame
             pose_map = result.pose_in_map;
             success = true;
             relocalization_locked = true;
+            matched_keyframe_id = result.matched_keyframe_id;
         }
     }
 
@@ -178,6 +181,7 @@ core::BackendOutput N3MappingCore::processLocalizationFrame(const core::LioFrame
 
     auto output = makeOutput(success, pose_map, frame.undistorted_cloud);
     output.relocalization_locked = relocalization_locked;
+    output.matched_keyframe_id = matched_keyframe_id;
     return output;
 }
 

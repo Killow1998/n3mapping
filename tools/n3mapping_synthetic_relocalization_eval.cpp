@@ -38,6 +38,7 @@ struct Options {
 
 struct QueryResult {
     int64_t keyframe_id = -1;
+    int64_t matched_keyframe_id = -1;
     bool success = false;
     bool relocalization_locked = false;
     double translation_error_m = std::numeric_limits<double>::quiet_NaN();
@@ -223,7 +224,8 @@ void writePerQueryCsv(const std::filesystem::path& path,
 {
     std::ofstream file(path);
     file << "query_keyframe_id,success,relocalization_locked,translation_error_m,yaw_error_deg,"
-            "input_odom_translation_error_m,input_odom_yaw_error_deg,num_query_points,dropout_ratio,noise_sigma,elapsed_ms\n";
+            "input_odom_translation_error_m,input_odom_yaw_error_deg,matched_keyframe_id,self_match,"
+            "num_query_points,dropout_ratio,noise_sigma,elapsed_ms\n";
     file << std::setprecision(10);
     for (const auto& r : results) {
         file << r.keyframe_id << ','
@@ -233,6 +235,8 @@ void writePerQueryCsv(const std::filesystem::path& path,
              << r.yaw_error_deg << ','
              << r.input_odom_translation_error_m << ','
              << r.input_odom_yaw_error_deg << ','
+             << r.matched_keyframe_id << ','
+             << (r.matched_keyframe_id == r.keyframe_id) << ','
              << r.num_query_points << ','
              << options.dropout << ','
              << options.noise_sigma << ','
@@ -251,10 +255,14 @@ void writeSummaryJson(const std::filesystem::path& path,
     std::vector<double> translation_errors;
     std::vector<double> yaw_errors;
     std::vector<int64_t> failed_ids;
+    int self_matches = 0;
     for (const auto& r : results) {
         if (r.relocalization_locked) {
             translation_errors.push_back(r.translation_error_m);
             yaw_errors.push_back(r.yaw_error_deg);
+            if (r.matched_keyframe_id == r.keyframe_id) {
+                ++self_matches;
+            }
         } else {
             failed_ids.push_back(r.keyframe_id);
         }
@@ -266,6 +274,7 @@ void writeSummaryJson(const std::filesystem::path& path,
     file << "  \"map_path\": \"" << options.map_path << "\",\n";
     file << "  \"tested\": " << tested << ",\n";
     file << "  \"lock_success\": " << locks << ",\n";
+    file << "  \"self_matches\": " << self_matches << ",\n";
     file << "  \"success_rate\": " << (tested > 0 ? static_cast<double>(locks) / tested : 0.0) << ",\n";
     file << "  \"median_translation_error_m\": " << percentile(translation_errors, 0.5) << ",\n";
     file << "  \"p95_translation_error_m\": " << percentile(translation_errors, 0.95) << ",\n";
@@ -352,6 +361,7 @@ int main(int argc, char** argv)
         qr.elapsed_ms = std::chrono::duration<double, std::milli>(end - start).count();
         qr.success = output.success;
         qr.relocalization_locked = output.relocalization_locked;
+        qr.matched_keyframe_id = output.matched_keyframe_id;
         if (output.relocalization_locked) {
             qr.translation_error_m = (output.T_world_lidar.translation() - T_map_lidar_gt.translation()).norm();
             qr.yaw_error_deg = yawErrorDeg(output.T_world_lidar, T_map_lidar_gt);

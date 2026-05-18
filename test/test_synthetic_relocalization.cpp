@@ -219,6 +219,7 @@ TEST(SyntheticRelocalizationTest, CoreRelocalizesBodyCloudWithFakeOdomFrame)
 
     ASSERT_TRUE(output.success);
     EXPECT_TRUE(output.relocalization_locked);
+    EXPECT_GE(output.matched_keyframe_id, 0);
     const double map_error = (output.T_world_lidar.translation() - T_map_lidar_gt.translation()).norm();
     const double odom_passthrough_error =
         (T_odom_lidar_input.translation() - T_map_lidar_gt.translation()).norm();
