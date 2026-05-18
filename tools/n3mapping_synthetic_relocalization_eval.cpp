@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <pcl/memory.h>
+#include <glog/logging.h>
 
 #include "n3mapping/core/n3mapping_core.h"
 
@@ -34,6 +35,9 @@ struct Options {
     double fake_odom_ty = -10.0;
     double fake_odom_tz = 1.0;
     double range_max = 30.0;
+    double pose_translation_threshold_m = 1.0;
+    double pose_yaw_threshold_deg = 10.0;
+    double pose_roll_pitch_threshold_deg = 5.0;
     std::string query_source = "same_keyframe";
     bool strict = false;
 };
@@ -45,6 +49,7 @@ struct QueryResult {
     bool relocalization_locked = false;
     double translation_error_m = std::numeric_limits<double>::quiet_NaN();
     double yaw_error_deg = std::numeric_limits<double>::quiet_NaN();
+    double roll_pitch_error_deg = std::numeric_limits<double>::quiet_NaN();
     double input_odom_translation_error_m = std::numeric_limits<double>::quiet_NaN();
     double input_odom_yaw_error_deg = std::numeric_limits<double>::quiet_NaN();
     std::size_t num_query_points = 0;
@@ -67,6 +72,9 @@ void printUsage(const char* argv0)
         << "  --fake_odom_tz M          Fake map->odom z. Default: 1\n"
         << "  --query_source MODE       same_keyframe or global_map. Default: same_keyframe\n"
         << "  --range_max M             Max range for global_map query synthesis. Default: 30\n"
+        << "  --pose_translation_threshold M  Pose-success translation threshold. Default: 1\n"
+        << "  --pose_yaw_threshold_deg DEG    Pose-success yaw threshold. Default: 10\n"
+        << "  --pose_roll_pitch_threshold_deg DEG  Pose-success roll/pitch threshold. Default: 5\n"
         << "  --strict                  Return nonzero if default smoke criteria fail\n";
 }
 
@@ -113,6 +121,12 @@ bool parseArgs(int argc, char** argv, Options* options)
             }
         } else if (arg == "--range_max") {
             if (const char* v = needValue(arg)) options->range_max = std::max(0.5, std::stod(v)); else return false;
+        } else if (arg == "--pose_translation_threshold") {
+            if (const char* v = needValue(arg)) options->pose_translation_threshold_m = std::max(0.0, std::stod(v)); else return false;
+        } else if (arg == "--pose_yaw_threshold_deg") {
+            if (const char* v = needValue(arg)) options->pose_yaw_threshold_deg = std::max(0.0, std::stod(v)); else return false;
+        } else if (arg == "--pose_roll_pitch_threshold_deg") {
+            if (const char* v = needValue(arg)) options->pose_roll_pitch_threshold_deg = std::max(0.0, std::stod(v)); else return false;
         } else if (arg == "--strict") {
             options->strict = true;
         } else {
@@ -249,10 +263,35 @@ core::LioFrame makeFrame(std::int64_t stamp_nsec,
     return frame;
 }
 
-double yawErrorDeg(const Eigen::Isometry3d& estimated, const Eigen::Isometry3d& expected)
+double planarYawErrorDeg(const Eigen::Isometry3d& estimated, const Eigen::Isometry3d& expected)
 {
-    const Eigen::Matrix3d R = expected.rotation().transpose() * estimated.rotation();
-    return std::abs(Eigen::AngleAxisd(R).angle()) * 180.0 / M_PI;
+    const Eigen::Vector3d estimated_x = estimated.rotation().col(0);
+    const Eigen::Vector3d expected_x = expected.rotation().col(0);
+    const double yaw_est = std::atan2(estimated_x.y(), estimated_x.x());
+    const double yaw_exp = std::atan2(expected_x.y(), expected_x.x());
+    double diff = yaw_est - yaw_exp;
+    while (diff > M_PI) diff -= 2.0 * M_PI;
+    while (diff < -M_PI) diff += 2.0 * M_PI;
+    return std::abs(diff) * 180.0 / M_PI;
+}
+
+double rollPitchErrorDeg(const Eigen::Isometry3d& estimated, const Eigen::Isometry3d& expected)
+{
+    const Eigen::Vector3d estimated_z = estimated.rotation().col(2).normalized();
+    const Eigen::Vector3d expected_z = expected.rotation().col(2).normalized();
+    const double dot = std::clamp(estimated_z.dot(expected_z), -1.0, 1.0);
+    return std::acos(dot) * 180.0 / M_PI;
+}
+
+bool poseAccurate(const QueryResult& r, const Options& options)
+{
+    return r.relocalization_locked &&
+           std::isfinite(r.translation_error_m) &&
+           std::isfinite(r.yaw_error_deg) &&
+           std::isfinite(r.roll_pitch_error_deg) &&
+           r.translation_error_m <= options.pose_translation_threshold_m &&
+           r.yaw_error_deg <= options.pose_yaw_threshold_deg &&
+           r.roll_pitch_error_deg <= options.pose_roll_pitch_threshold_deg;
 }
 
 double percentile(std::vector<double> values, double q)
@@ -278,7 +317,8 @@ void writePerQueryCsv(const std::filesystem::path& path,
 {
     std::ofstream file(path);
     file << "query_keyframe_id,success,relocalization_locked,translation_error_m,yaw_error_deg,"
-            "input_odom_translation_error_m,input_odom_yaw_error_deg,matched_keyframe_id,self_match,"
+            "roll_pitch_error_deg,pose_accurate,input_odom_translation_error_m,input_odom_yaw_error_deg,"
+            "matched_keyframe_id,self_match,"
             "num_query_points,dropout_ratio,noise_sigma,elapsed_ms\n";
     file << std::setprecision(10);
     for (const auto& r : results) {
@@ -287,6 +327,8 @@ void writePerQueryCsv(const std::filesystem::path& path,
              << r.relocalization_locked << ','
              << r.translation_error_m << ','
              << r.yaw_error_deg << ','
+             << r.roll_pitch_error_deg << ','
+             << poseAccurate(r, options) << ','
              << r.input_odom_translation_error_m << ','
              << r.input_odom_yaw_error_deg << ','
              << r.matched_keyframe_id << ','
@@ -296,6 +338,22 @@ void writePerQueryCsv(const std::filesystem::path& path,
              << options.noise_sigma << ','
              << r.elapsed_ms << '\n';
     }
+}
+
+std::string jsonEscape(const std::string& input)
+{
+    std::ostringstream out;
+    for (const char c : input) {
+        switch (c) {
+        case '\\': out << "\\\\"; break;
+        case '"': out << "\\\""; break;
+        case '\n': out << "\\n"; break;
+        case '\r': out << "\\r"; break;
+        case '\t': out << "\\t"; break;
+        default: out << c; break;
+        }
+    }
+    return out.str();
 }
 
 void writeSummaryJson(const std::filesystem::path& path,
@@ -308,41 +366,91 @@ void writeSummaryJson(const std::filesystem::path& path,
     }));
     std::vector<double> translation_errors;
     std::vector<double> yaw_errors;
+    std::vector<double> roll_pitch_errors;
     std::vector<int64_t> failed_ids;
+    std::vector<int64_t> inaccurate_ids;
     int self_matches = 0;
+    int pose_success = 0;
     for (const auto& r : results) {
         if (r.relocalization_locked) {
             translation_errors.push_back(r.translation_error_m);
             yaw_errors.push_back(r.yaw_error_deg);
+            roll_pitch_errors.push_back(r.roll_pitch_error_deg);
             if (r.matched_keyframe_id == r.keyframe_id) {
                 ++self_matches;
             }
         } else {
             failed_ids.push_back(r.keyframe_id);
         }
+        if (poseAccurate(r, options)) {
+            ++pose_success;
+        } else {
+            inaccurate_ids.push_back(r.keyframe_id);
+        }
     }
 
     std::ofstream file(path);
     file << std::setprecision(10);
     file << "{\n";
-    file << "  \"map_path\": \"" << options.map_path << "\",\n";
+    file << "  \"map_path\": \"" << jsonEscape(options.map_path) << "\",\n";
     file << "  \"tested\": " << tested << ",\n";
     file << "  \"lock_success\": " << locks << ",\n";
+    file << "  \"pose_success\": " << pose_success << ",\n";
     file << "  \"self_matches\": " << self_matches << ",\n";
-    file << "  \"success_rate\": " << (tested > 0 ? static_cast<double>(locks) / tested : 0.0) << ",\n";
+    file << "  \"lock_success_rate\": " << (tested > 0 ? static_cast<double>(locks) / tested : 0.0) << ",\n";
+    file << "  \"pose_success_rate\": " << (tested > 0 ? static_cast<double>(pose_success) / tested : 0.0) << ",\n";
     file << "  \"median_translation_error_m\": " << percentile(translation_errors, 0.5) << ",\n";
     file << "  \"p95_translation_error_m\": " << percentile(translation_errors, 0.95) << ",\n";
     file << "  \"median_yaw_error_deg\": " << percentile(yaw_errors, 0.5) << ",\n";
     file << "  \"p95_yaw_error_deg\": " << percentile(yaw_errors, 0.95) << ",\n";
+    file << "  \"median_roll_pitch_error_deg\": " << percentile(roll_pitch_errors, 0.5) << ",\n";
+    file << "  \"p95_roll_pitch_error_deg\": " << percentile(roll_pitch_errors, 0.95) << ",\n";
     file << "  \"dropout_ratio\": " << options.dropout << ",\n";
     file << "  \"noise_sigma\": " << options.noise_sigma << ",\n";
-    file << "  \"query_source\": \"" << options.query_source << "\",\n";
+    file << "  \"query_source\": \"" << jsonEscape(options.query_source) << "\",\n";
+    file << "  \"pose_translation_threshold_m\": " << options.pose_translation_threshold_m << ",\n";
+    file << "  \"pose_yaw_threshold_deg\": " << options.pose_yaw_threshold_deg << ",\n";
+    file << "  \"pose_roll_pitch_threshold_deg\": " << options.pose_roll_pitch_threshold_deg << ",\n";
     file << "  \"failed_query_ids\": [";
     for (std::size_t i = 0; i < failed_ids.size(); ++i) {
         if (i > 0) file << ", ";
         file << failed_ids[i];
     }
+    file << "],\n";
+    file << "  \"inaccurate_query_ids\": [";
+    for (std::size_t i = 0; i < inaccurate_ids.size(); ++i) {
+        if (i > 0) file << ", ";
+        file << inaccurate_ids[i];
+    }
     file << "]\n";
+    file << "}\n";
+}
+
+void writeConfigUsedJson(const std::filesystem::path& path,
+                         const Options& options,
+                         const Config& config)
+{
+    std::ofstream file(path);
+    file << std::setprecision(10);
+    file << "{\n";
+    file << "  \"map_path\": \"" << jsonEscape(options.map_path) << "\",\n";
+    file << "  \"query_source\": \"" << jsonEscape(options.query_source) << "\",\n";
+    file << "  \"max_queries\": " << options.max_queries << ",\n";
+    file << "  \"stride\": " << options.stride << ",\n";
+    file << "  \"dropout_ratio\": " << options.dropout << ",\n";
+    file << "  \"noise_sigma\": " << options.noise_sigma << ",\n";
+    file << "  \"range_max\": " << options.range_max << ",\n";
+    file << "  \"fake_odom_yaw_deg\": " << options.fake_odom_yaw_deg << ",\n";
+    file << "  \"fake_odom_translation\": [" << options.fake_odom_tx << ", "
+         << options.fake_odom_ty << ", " << options.fake_odom_tz << "],\n";
+    file << "  \"pose_translation_threshold_m\": " << options.pose_translation_threshold_m << ",\n";
+    file << "  \"pose_yaw_threshold_deg\": " << options.pose_yaw_threshold_deg << ",\n";
+    file << "  \"pose_roll_pitch_threshold_deg\": " << options.pose_roll_pitch_threshold_deg << ",\n";
+    file << "  \"rhpd_enabled\": " << (config.rhpd_enabled ? "true" : "false") << ",\n";
+    file << "  \"rhpd_num_candidates\": " << config.rhpd_num_candidates << ",\n";
+    file << "  \"rhpd_preselect_candidates\": " << config.rhpd_preselect_candidates << ",\n";
+    file << "  \"reloc_num_candidates\": " << config.reloc_num_candidates << ",\n";
+    file << "  \"reloc_temporal_window_size\": " << config.reloc_temporal_window_size << "\n";
     file << "}\n";
 }
 
@@ -352,6 +460,11 @@ void writeSummaryJson(const std::filesystem::path& path,
 int main(int argc, char** argv)
 {
     using namespace n3mapping;
+
+    google::InitGoogleLogging(argv[0]);
+    FLAGS_logtostderr = false;
+    FLAGS_alsologtostderr = false;
+    FLAGS_minloglevel = 2;
 
     Options options;
     if (!parseArgs(argc, argv, &options)) {
@@ -417,7 +530,7 @@ int main(int argc, char** argv)
         const Eigen::Isometry3d T_odom_lidar_input = T_map_odom_fake.inverse() * T_map_lidar_gt;
         qr.input_odom_translation_error_m =
             (T_odom_lidar_input.translation() - T_map_lidar_gt.translation()).norm();
-        qr.input_odom_yaw_error_deg = yawErrorDeg(T_odom_lidar_input, T_map_lidar_gt);
+        qr.input_odom_yaw_error_deg = planarYawErrorDeg(T_odom_lidar_input, T_map_lidar_gt);
 
         const auto start = std::chrono::steady_clock::now();
         const auto output = localizer.processLocalizationFrame(
@@ -429,7 +542,8 @@ int main(int argc, char** argv)
         qr.matched_keyframe_id = output.matched_keyframe_id;
         if (output.relocalization_locked) {
             qr.translation_error_m = (output.T_world_lidar.translation() - T_map_lidar_gt.translation()).norm();
-            qr.yaw_error_deg = yawErrorDeg(output.T_world_lidar, T_map_lidar_gt);
+            qr.yaw_error_deg = planarYawErrorDeg(output.T_world_lidar, T_map_lidar_gt);
+            qr.roll_pitch_error_deg = rollPitchErrorDeg(output.T_world_lidar, T_map_lidar_gt);
         }
         results.push_back(qr);
     }
@@ -437,6 +551,7 @@ int main(int argc, char** argv)
     std::filesystem::create_directories(options.output_dir);
     writePerQueryCsv(std::filesystem::path(options.output_dir) / "per_query.csv", results, options);
     writeSummaryJson(std::filesystem::path(options.output_dir) / "summary.json", results, options);
+    writeConfigUsedJson(std::filesystem::path(options.output_dir) / "config_used.json", options, config);
 
     std::ofstream failed(std::filesystem::path(options.output_dir) / "failed_queries.txt");
     for (const auto& r : results) {
@@ -448,19 +563,31 @@ int main(int argc, char** argv)
     const int locks = static_cast<int>(std::count_if(results.begin(), results.end(), [](const QueryResult& r) {
         return r.relocalization_locked;
     }));
-    const double success_rate = results.empty() ? 0.0 : static_cast<double>(locks) / static_cast<double>(results.size());
+    const int pose_success = static_cast<int>(std::count_if(results.begin(), results.end(), [&](const QueryResult& r) {
+        return poseAccurate(r, options);
+    }));
+    const double lock_success_rate = results.empty() ? 0.0 : static_cast<double>(locks) / static_cast<double>(results.size());
+    const double pose_success_rate = results.empty() ? 0.0 : static_cast<double>(pose_success) / static_cast<double>(results.size());
     std::cout << "tested=" << results.size()
               << " lock_success=" << locks
-              << " success_rate=" << success_rate
+              << " pose_success=" << pose_success
+              << " lock_success_rate=" << lock_success_rate
+              << " pose_success_rate=" << pose_success_rate
               << " output=" << options.output_dir << "\n";
 
-    if (options.strict && (success_rate < 0.95 || percentile([&] {
+    if (options.strict && (pose_success_rate < 0.95 || percentile([&] {
             std::vector<double> values;
             for (const auto& r : results) {
                 if (r.relocalization_locked) values.push_back(r.translation_error_m);
             }
             return values;
-        }(), 0.5) > 0.5)) {
+        }(), 0.5) > options.pose_translation_threshold_m || percentile([&] {
+            std::vector<double> values;
+            for (const auto& r : results) {
+                if (r.relocalization_locked) values.push_back(r.yaw_error_deg);
+            }
+            return values;
+        }(), 0.5) > options.pose_yaw_threshold_deg)) {
         return 2;
     }
     return 0;
