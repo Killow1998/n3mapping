@@ -19,6 +19,7 @@
 - Promote the Noetic wrapper from skeleton to a runnable thin adapter that subscribes to external LIO cloud/odometry, calls `N3MappingCore`, and publishes odometry, path, body/world clouds, loop markers, global map, relocalization lock, TF, and `/n3mapping/save_map`.
 - Preserve Noetic launch entry points for `mapping`, `localization`, and `map_extension`; runtime topic overrides should be supplied through an external `config_file` instead of changing shared launch/config resources.
 - Use one Noetic RViz config for all Noetic launch files and one Humble RViz config for all Humble launch files.
+- Add Noetic synthetic relocalization eval and RViz visualization tools so saved maps can be tested under Noetic as well as Humble.
 - Add wrapper-local shared-resource symlinks so `roslaunch n3mapping ...` still resolves the shared launch/config files after the package split.
 - Add `scripts/select_distro_wrapper.sh` as a local wrapper-profile switch with `auto`, `status`, `noetic`, `humble`, and `clear` modes, avoiding committed mutually exclusive ignore files.
 - Move run-mode parsing and frame dispatch into the shared core API (`CoreRunMode`, `processFrame`) so Noetic/Humble wrappers do not duplicate backend mode selection.

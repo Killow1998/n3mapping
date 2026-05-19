@@ -300,7 +300,9 @@ The Noetic suite includes the shared core loop/relocalization tests (`test_loop_
 
 ## Synthetic Relocalization Visualization
 
-Use this Humble RViz tool to inspect whether a synthetic query starts misaligned and then relocalizes onto the saved map:
+Use these tools to inspect whether a synthetic query starts misaligned and then relocalizes onto the saved map.
+
+### ROS 2 Humble
 
 ```bash
 source ~/ros_ws/install/setup.bash
@@ -312,6 +314,32 @@ ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
   dropout:=0.3 \
   noise_sigma:=0.02 \
   fake_odom_yaw_deg:=90
+```
+
+### ROS 1 Noetic
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+roslaunch n3mapping synthetic_relocalization_visualization.launch \
+  map:=/path/to/n3map.pbstream \
+  max_tests:=20 \
+  interval_sec:=20 \
+  random_seed:=-1 \
+  dropout:=0.3 \
+  noise_sigma:=0.02 \
+  fake_odom_yaw_deg:=90
+```
+
+For a non-RViz batch evaluation, both wrappers build `n3mapping_synthetic_relocalization_eval`:
+
+```bash
+rosrun n3mapping n3mapping_synthetic_relocalization_eval \
+  --map /path/to/n3map.pbstream \
+  --max_queries 100 \
+  --query_source local_submap \
+  --dropout 0.3 \
+  --noise_sigma 0.02 \
+  --strict
 ```
 
 RViz topics:

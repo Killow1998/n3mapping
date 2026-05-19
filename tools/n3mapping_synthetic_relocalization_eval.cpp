@@ -13,12 +13,12 @@
 #include <string>
 #include <vector>
 
-#include <pcl/memory.h>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <glog/logging.h>
 
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
 namespace {

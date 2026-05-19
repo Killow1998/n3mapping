@@ -150,6 +150,29 @@ set_target_properties(n3mapping_node PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
 )
 
+add_executable(n3mapping_synthetic_relocalization_eval
+  ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_eval.cpp
+)
+target_link_libraries(n3mapping_synthetic_relocalization_eval
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+set_target_properties(n3mapping_synthetic_relocalization_eval PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
+)
+
+add_executable(n3mapping_synthetic_relocalization_visualizer
+  src/synthetic_relocalization_visualizer.cpp
+)
+target_link_libraries(n3mapping_synthetic_relocalization_visualizer
+  n3mapping_core
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+set_target_properties(n3mapping_synthetic_relocalization_visualizer PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
+)
+
 catkin_package(
   INCLUDE_DIRS include ../include
   LIBRARIES n3mapping_core n3mapping_noetic_wrapper
@@ -171,6 +194,8 @@ install(TARGETS
   n3mapping_core
   n3mapping_noetic_wrapper
   n3mapping_node
+  n3mapping_synthetic_relocalization_eval
+  n3mapping_synthetic_relocalization_visualizer
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
