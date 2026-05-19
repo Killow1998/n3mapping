@@ -7,7 +7,7 @@
 #include <Eigen/Eigenvalues>
 #include <glog/logging.h>
 #include <pcl/common/transforms.h>
-#include <pcl/memory.h>
+#include "n3mapping/pcl_compat.h"
 #include <memory>
 
 namespace n3mapping {

@@ -1,4 +1,6 @@
-#include "n3mapping_ros1/conversions.h"
+#include "n3mapping_noetic/conversions.h"
+
+#include "n3mapping/pcl_compat.h"
 
 #include <pcl_conversions/pcl_conversions.h>
 

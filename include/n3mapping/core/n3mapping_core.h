@@ -15,6 +15,18 @@
 
 namespace n3mapping {
 
+enum class CoreRunMode {
+    MAPPING,
+    LOCALIZATION,
+    MAP_EXTENSION,
+};
+
+CoreRunMode parseCoreRunMode(const std::string& mode);
+const char* coreRunModeName(CoreRunMode mode);
+bool coreRunModeLoadsMap(CoreRunMode mode);
+bool coreRunModeSavesMap(CoreRunMode mode);
+bool coreRunModeProcessesLoopClosures(CoreRunMode mode);
+
 struct CoreLoopClosureResult {
     bool optimized = false;
     std::size_t edge_count = 0;
@@ -38,11 +50,13 @@ class N3MappingCore {
     core::BackendOutput processMappingFrame(const core::LioFrame& frame);
     core::BackendOutput processLocalizationFrame(const core::LioFrame& frame);
     core::BackendOutput processMapExtensionFrame(const core::LioFrame& frame);
+    core::BackendOutput processFrame(CoreRunMode mode, const core::LioFrame& frame);
     CoreLoopClosureResult processPendingLoopClosures();
 
     bool loadMap(const std::string& map_path);
     bool saveMap(const std::string& map_path);
     bool saveGlobalMap(const std::string& pcd_path);
+    bool saveMapSnapshot(std::string* error = nullptr);
     core::LioFrame::PointCloud::Ptr buildGlobalMap() const;
     bool mapLoaded() const;
 

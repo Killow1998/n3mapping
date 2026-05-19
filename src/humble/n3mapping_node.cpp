@@ -2,7 +2,7 @@
  * @file n3mapping_node.cpp
  * @brief N3Mapping 主节点实现
  *
- * ROS2 wrapper for the ROS-free n3mapping core backend.
+ * Humble wrapper for the ROS-free n3mapping core backend.
  * Receives external LIO cloud/odometry frames and publishes ROS outputs.
  *
  * Requirements: 1.1, 1.2, 1.3, 5.4, 5.5, 6.1, 6.2, 6.3, 7.1, 7.8, 9.6, 10.2, 10.3,
@@ -14,7 +14,7 @@
 #include <message_filters/synchronizer.h>
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/memory.h>
+#include "n3mapping/pcl_compat.h"
 #include <pcl_conversions/pcl_conversions.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -42,23 +42,13 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/core/n3mapping_core.h"
-#include "n3mapping/ros2/config_ros2.h"
-#include "n3mapping/ros2/conversions.h"
+#include "n3mapping/humble/config_humble.h"
+#include "n3mapping/humble/conversions.h"
 
 namespace n3mapping {
 
 // 全局节点指针用于信号处理
 static std::atomic<bool> g_shutdown_requested{ false };
-
-/**
- * @brief 运行模式枚举
- */
-enum class RunMode
-{
-    MAPPING,      // 建图模式
-    LOCALIZATION, // 重定位模式
-    MAP_EXTENSION // 地图续建模式
-};
 
 /**
  * @brief N3Mapping 主节点
@@ -73,11 +63,13 @@ class N3MappingNode : public rclcpp::Node
       : Node("n3mapping_node")
     {
         // 加载配置
-        loadConfigFromRos2(this, &config_);
+        loadConfigFromHumble(this, &config_);
         RCLCPP_INFO(this->get_logger(), "%s", config_.toString().c_str());
 
-        // 解析运行模式
-        parseRunMode();
+        run_mode_ = parseCoreRunMode(config_.mode);
+        if (config_.mode != coreRunModeName(run_mode_)) {
+            RCLCPP_WARN(this->get_logger(), "Unknown mode '%s', defaulting to mapping", config_.mode.c_str());
+        }
 
         // 初始化组件
         initializeComponents();
@@ -88,7 +80,7 @@ class N3MappingNode : public rclcpp::Node
         initializeOptimizationLogging();
 
         // 根据模式加载地图
-        if (run_mode_ == RunMode::LOCALIZATION || run_mode_ == RunMode::MAP_EXTENSION) {
+        if (coreRunModeLoadsMap(run_mode_)) {
             loadMap();
             // 定位模式下加载并发布全局地图用于可视化
             if (map_loaded_) {
@@ -116,7 +108,7 @@ class N3MappingNode : public rclcpp::Node
         }
 
         // 保存地图
-        if (run_mode_ == RunMode::MAPPING || run_mode_ == RunMode::MAP_EXTENSION) {
+        if (coreRunModeSavesMap(run_mode_)) {
             saveMapOnShutdown();
         }
 
@@ -125,23 +117,6 @@ class N3MappingNode : public rclcpp::Node
     }
 
   private:
-    /**
-     * @brief 解析运行模式
-     */
-    void parseRunMode()
-    {
-        if (config_.mode == "mapping") {
-            run_mode_ = RunMode::MAPPING;
-        } else if (config_.mode == "localization") {
-            run_mode_ = RunMode::LOCALIZATION;
-        } else if (config_.mode == "map_extension") {
-            run_mode_ = RunMode::MAP_EXTENSION;
-        } else {
-            RCLCPP_WARN(this->get_logger(), "Unknown mode '%s', defaulting to mapping", config_.mode.c_str());
-            run_mode_ = RunMode::MAPPING;
-        }
-    }
-
     /**
      * @brief 初始化组件
      */
@@ -175,7 +150,7 @@ class N3MappingNode : public rclcpp::Node
         loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/n3mapping/loop_closure_markers", marker_qos);
         relocalization_lock_pub_ = this->create_publisher<std_msgs::msg::UInt32>("/n3mapping/relocalization_lock", 10);
 
-        // 全局地图发布者 (transient_local QoS，类似 ROS1 latched topic)
+        // 全局地图发布者 (transient_local QoS，等价于 latched topic 语义)
         rclcpp::QoS global_map_qos(1);
         global_map_qos.transient_local();
         global_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/n3mapping/global_map", global_map_qos);
@@ -258,109 +233,35 @@ class N3MappingNode : public rclcpp::Node
         std::lock_guard<std::mutex> lock(data_mutex_);
 
         auto frame = toCoreLioFrame(*cloud_msg, *odom_msg);
-        auto cloud = frame.undistorted_cloud;
-        const Eigen::Isometry3d pose_odom = frame.T_world_lidar;
-        double timestamp = rclcpp::Time(cloud_msg->header.stamp).seconds();
+        const double timestamp = rclcpp::Time(cloud_msg->header.stamp).seconds();
+        const auto output = n3mapping_core_->processFrame(run_mode_, frame);
+        const auto& header = cloud_msg->header;
 
-        switch (run_mode_) {
-            case RunMode::MAPPING:
-                processMappingMode(timestamp, pose_odom, cloud, cloud_msg->header);
-                break;
-            case RunMode::LOCALIZATION:
-                processLocalizationMode(timestamp, pose_odom, cloud, cloud_msg->header);
-                break;
-            case RunMode::MAP_EXTENSION:
-                processMapExtensionMode(timestamp, pose_odom, cloud, cloud_msg->header);
-                break;
-        }
-
-        frame_count_++;
-    }
-
-    /**
-     * @brief 建图模式处理
-     */
-    void processMappingMode(double timestamp, const Eigen::Isometry3d& pose_odom, PointCloud::Ptr cloud, const std_msgs::msg::Header& header)
-    {
-        core::LioFrame frame;
-        frame.stamp.nsec = static_cast<int64_t>(timestamp * 1e9);
-        frame.T_world_lidar = pose_odom;
-        frame.undistorted_cloud = cloud;
-        frame.pose_valid = true;
-
-        const auto output = n3mapping_core_->processMappingFrame(frame);
-        const Eigen::Isometry3d publish_pose = output.T_world_lidar;
-        publishOdometry(publish_pose, header);
-        publishPath(header, &publish_pose);
-        publishPointClouds(cloud, publish_pose, header);
-
-        if (output.accepted_keyframe) {
-            ++keyframe_count_;
-            logOptimizationResult("mapping_incremental", timestamp, &publish_pose);
-            publishGlobalMap();
-        }
-    }
-
-    /**
-     * @brief 定位模式处理
-     *
-     * 定位策略：
-     * 1. 首次启动时进行全局重定位 (ScanContext + ICP)
-     * 2. 重定位成功后，使用里程计增量预测 + ICP 配准融合
-     * 3. 跟踪失败时重新进行全局重定位
-     */
-    void processLocalizationMode(double timestamp,
-                                 const Eigen::Isometry3d& pose_odom,
-                                 PointCloud::Ptr cloud,
-                                 const std_msgs::msg::Header& header)
-    {
-        core::LioFrame frame;
-        frame.stamp.nsec = static_cast<int64_t>(timestamp * 1e9);
-        frame.T_world_lidar = pose_odom;
-        frame.undistorted_cloud = cloud;
-        frame.pose_valid = true;
-
-        const auto output = n3mapping_core_->processLocalizationFrame(frame);
         if (output.relocalization_locked) {
             publishRelocalizationLock(header, output.T_world_lidar);
         }
-        publishOdometry(output.T_world_lidar, header);
-        publishPath(header, &output.T_world_lidar);
-        publishPointClouds(cloud, output.T_world_lidar, header);
-    }
-
-    /**
-     * @brief 地图续建模式处理
-     */
-    void processMapExtensionMode(double timestamp,
-                                 const Eigen::Isometry3d& pose_odom,
-                                 PointCloud::Ptr cloud,
-                                 const std_msgs::msg::Header& header)
-    {
-        core::LioFrame frame;
-        frame.stamp.nsec = static_cast<int64_t>(timestamp * 1e9);
-        frame.T_world_lidar = pose_odom;
-        frame.undistorted_cloud = cloud;
-        frame.pose_valid = true;
-
-        const auto output = n3mapping_core_->processMapExtensionFrame(frame);
-        if (output.relocalization_locked && !output.accepted_keyframe) {
+        if (run_mode_ == CoreRunMode::MAP_EXTENSION && output.relocalization_locked && !output.accepted_keyframe) {
             RCLCPP_INFO(this->get_logger(), "Initial relocalization successful for map extension");
+            ++frame_count_;
             return;
         }
-        if (!output.success && !output.accepted_keyframe) {
+        if (run_mode_ == CoreRunMode::MAP_EXTENSION && !output.success && !output.accepted_keyframe) {
+            ++frame_count_;
             return;
         }
 
         publishOdometry(output.T_world_lidar, header);
         publishPath(header, &output.T_world_lidar);
-        publishPointClouds(cloud, output.T_world_lidar, header);
+        publishPointClouds(output, header);
 
-        if (output.accepted_keyframe) {
+        if (output.accepted_keyframe && (run_mode_ == CoreRunMode::MAPPING || run_mode_ == CoreRunMode::MAP_EXTENSION)) {
             ++keyframe_count_;
-            logOptimizationResult("map_extension_incremental", timestamp, &output.T_world_lidar);
+            const char* context = run_mode_ == CoreRunMode::MAP_EXTENSION ? "map_extension_incremental" : "mapping_incremental";
+            logOptimizationResult(context, timestamp, &output.T_world_lidar);
             publishGlobalMap();
         }
+
+        frame_count_++;
     }
 
     /**
@@ -368,7 +269,7 @@ class N3MappingNode : public rclcpp::Node
      */
     void loopDetectionTimerCallback()
     {
-        if (run_mode_ != RunMode::MAPPING) {
+        if (!coreRunModeProcessesLoopClosures(run_mode_)) {
             return;
         }
 
@@ -466,7 +367,7 @@ class N3MappingNode : public rclcpp::Node
         path_msg.header = header;
         path_msg.header.frame_id = config_.world_frame;
 
-        if (run_mode_ == RunMode::LOCALIZATION) {
+        if (run_mode_ == CoreRunMode::LOCALIZATION) {
             // 定位模式: 只累积发布实时定位轨迹
             if (current_pose) {
                 geometry_msgs::msg::PoseStamped pose;
@@ -715,25 +616,23 @@ class N3MappingNode : public rclcpp::Node
     /**
      * @brief 发布点云
      */
-    void publishPointClouds(PointCloud::Ptr cloud, const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header)
+    void publishPointClouds(const core::BackendOutput& output, const std_msgs::msg::Header& header)
     {
-        // Body frame 点云
-        sensor_msgs::msg::PointCloud2 cloud_body_msg;
-        pcl::toROSMsg(*cloud, cloud_body_msg);
-        cloud_body_msg.header = header;
-        cloud_body_msg.header.frame_id = config_.body_frame;
-        cloud_body_pub_->publish(cloud_body_msg);
+        if (output.cloud_body && !output.cloud_body->empty()) {
+            sensor_msgs::msg::PointCloud2 cloud_body_msg;
+            pcl::toROSMsg(*output.cloud_body, cloud_body_msg);
+            cloud_body_msg.header = header;
+            cloud_body_msg.header.frame_id = config_.body_frame;
+            cloud_body_pub_->publish(cloud_body_msg);
+        }
 
-        // World frame 点云
-        auto cloud_world = pcl::make_shared<PointCloud>();
-        Eigen::Matrix4f transform = pose.matrix().cast<float>();
-        pcl::transformPointCloud(*cloud, *cloud_world, transform);
-
-        sensor_msgs::msg::PointCloud2 cloud_world_msg;
-        pcl::toROSMsg(*cloud_world, cloud_world_msg);
-        cloud_world_msg.header = header;
-        cloud_world_msg.header.frame_id = config_.world_frame;
-        cloud_world_pub_->publish(cloud_world_msg);
+        if (output.cloud_world && !output.cloud_world->empty()) {
+            sensor_msgs::msg::PointCloud2 cloud_world_msg;
+            pcl::toROSMsg(*output.cloud_world, cloud_world_msg);
+            cloud_world_msg.header = header;
+            cloud_world_msg.header.frame_id = config_.world_frame;
+            cloud_world_pub_->publish(cloud_world_msg);
+        }
     }
 
     void publishGlobalMap()
@@ -760,26 +659,12 @@ class N3MappingNode : public rclcpp::Node
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
 
-        std::string map_file = config_.map_save_path + "/n3map.pbstream";
-
-        const bool saved = n3mapping_core_
-                             ? n3mapping_core_->saveMap(map_file)
-                             : false;
+        std::string error;
+        const bool saved = n3mapping_core_ ? n3mapping_core_->saveMapSnapshot(&error) : false;
         if (saved) {
-            RCLCPP_INFO(this->get_logger(), "Map saved to: %s", map_file.c_str());
+            RCLCPP_INFO(this->get_logger(), "Map snapshot saved under: %s", config_.map_save_path.c_str());
         } else {
-            RCLCPP_ERROR(this->get_logger(), "Failed to save map");
-        }
-
-        // 保存全局点云
-        if (config_.save_global_map_on_shutdown) {
-            std::string global_map_file = config_.map_save_path + "/global_map.pcd";
-            const bool saved = ((run_mode_ == RunMode::MAPPING || run_mode_ == RunMode::MAP_EXTENSION) && n3mapping_core_)
-                                 ? n3mapping_core_->saveGlobalMap(global_map_file)
-                                 : false;
-            if (saved) {
-                RCLCPP_INFO(this->get_logger(), "Global map saved to: %s", global_map_file.c_str());
-            }
+            RCLCPP_ERROR(this->get_logger(), "Failed to save map snapshot: %s", error.c_str());
         }
     }
 
@@ -798,7 +683,7 @@ class N3MappingNode : public rclcpp::Node
   private:
     // 配置
     Config config_;
-    RunMode run_mode_ = RunMode::MAPPING;
+    CoreRunMode run_mode_ = CoreRunMode::MAPPING;
 
     // 核心组件
     std::unique_ptr<N3MappingCore> n3mapping_core_;

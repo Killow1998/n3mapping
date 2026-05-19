@@ -1,8 +1,8 @@
-#include "n3mapping/ros2/config_ros2.h"
+#include "n3mapping/humble/config_humble.h"
 
 namespace n3mapping {
 
-void loadConfigFromRos2(rclcpp::Node* node, Config* config) {
+void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     auto get = [node](const std::string& name, auto& value) {
         node->declare_parameter(name, value);
         node->get_parameter(name, value);
@@ -80,6 +80,8 @@ void loadConfigFromRos2(rclcpp::Node* node, Config* config) {
     get("output_cloud_voxel_size", config->output_cloud_voxel_size);
     gets("map_save_path", config->map_save_path);
     get("global_map_voxel_size", config->global_map_voxel_size);
+    get("save_global_map_voxel_size", config->save_global_map_voxel_size);
+    get("global_map_publish_hz", config->global_map_publish_hz);
     get("save_global_map_on_shutdown", config->save_global_map_on_shutdown);
     get("num_threads", config->num_threads);
     get("sync_time_tolerance", config->sync_time_tolerance);

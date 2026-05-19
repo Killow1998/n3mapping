@@ -3,7 +3,7 @@
 
 #include <cmath>
 #include <memory>
-#include <pcl/memory.h>
+#include "n3mapping/pcl_compat.h"
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 

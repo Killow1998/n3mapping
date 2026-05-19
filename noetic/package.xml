@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>n3mapping</name>
+  <version>1.0.0</version>
+  <description>
+    N3Mapping Noetic wrapper for the shared ROS-free graph backend SLAM core.
+  </description>
+
+  <maintainer email="user@example.com">N3Mapping Developer</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>message_filters</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>pcl_conversions</depend>
+  <depend>pcl_ros</depend>
+  <depend>small_gicp</depend>
+
+  <depend>libpcl-all-dev</depend>
+  <depend>eigen</depend>
+  <depend>libprotobuf-dev</depend>
+  <depend>protobuf-compiler</depend>
+  <depend>gtsam</depend>
+  <depend>libgtsam-dev</depend>
+  <depend>libgoogle-glog-dev</depend>
+  <depend>libopencv-dev</depend>
+</package>

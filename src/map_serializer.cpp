@@ -16,7 +16,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/memory.h>
+#include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
 

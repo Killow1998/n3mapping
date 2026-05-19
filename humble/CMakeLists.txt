@@ -1,0 +1,317 @@
+cmake_minimum_required(VERSION 3.10)
+project(n3mapping)
+
+set(N3MAPPING_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
+get_filename_component(N3MAPPING_ROOT "${N3MAPPING_ROOT}" ABSOLUTE)
+
+add_compile_definitions(N3MAPPING_SOURCE_DIR="${N3MAPPING_ROOT}")
+option(BUILD_TESTING "Build the testing tree." OFF)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+add_compile_options(-O3 -Wall -Wextra)
+
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(message_filters REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(pcl_conversions REQUIRED)
+
+find_package(PCL REQUIRED COMPONENTS common io filters)
+find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(GTSAM REQUIRED)
+find_package(Protobuf REQUIRED)
+find_package(small_gicp REQUIRED)
+find_package(Glog QUIET)
+if(NOT Glog_FOUND AND NOT TARGET glog::glog)
+  find_library(GLOG_LIBRARY glog REQUIRED)
+  add_library(glog::glog UNKNOWN IMPORTED)
+  set_target_properties(glog::glog PROPERTIES
+    IMPORTED_LOCATION "${GLOG_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "/usr/include"
+  )
+endif()
+if(NOT DEFINED GLOG_INCLUDE_DIRS)
+  if(DEFINED GOOGLE_GLOG_INCLUDE_DIR)
+    set(GLOG_INCLUDE_DIRS ${GOOGLE_GLOG_INCLUDE_DIR})
+  elseif(TARGET glog::glog)
+    get_target_property(GLOG_INCLUDE_DIRS glog::glog INTERFACE_INCLUDE_DIRECTORIES)
+  else()
+    set(GLOG_INCLUDE_DIRS "/usr/include")
+  endif()
+endif()
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+
+set(PROTO_DIR ${N3MAPPING_ROOT}/proto)
+set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto_gen)
+file(MAKE_DIRECTORY ${PROTO_GEN_DIR})
+file(GLOB PROTO_FILES "${PROTO_DIR}/*.proto")
+set(PROTO_SRCS)
+set(PROTO_HDRS)
+foreach(PROTO_FILE ${PROTO_FILES})
+  get_filename_component(PROTO_NAME ${PROTO_FILE} NAME_WE)
+  list(APPEND PROTO_SRCS "${PROTO_GEN_DIR}/${PROTO_NAME}.pb.cc")
+  list(APPEND PROTO_HDRS "${PROTO_GEN_DIR}/${PROTO_NAME}.pb.h")
+  add_custom_command(
+    OUTPUT "${PROTO_GEN_DIR}/${PROTO_NAME}.pb.cc" "${PROTO_GEN_DIR}/${PROTO_NAME}.pb.h"
+    COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
+    ARGS --cpp_out=${PROTO_GEN_DIR} -I${PROTO_DIR} ${PROTO_FILE}
+    DEPENDS ${PROTO_FILE}
+    COMMENT "Generating protobuf code for ${PROTO_NAME}"
+  )
+endforeach()
+
+include_directories(
+  ${N3MAPPING_ROOT}/include
+  ${N3MAPPING_ROOT}/include/Scancontext
+  ${PCL_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
+  ${OpenCV_INCLUDE_DIRS}
+  ${GTSAM_INCLUDE_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
+  ${PROTO_GEN_DIR}
+  ${GLOG_INCLUDE_DIRS}
+)
+
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+include(${N3MAPPING_ROOT}/cmake/n3mapping_core.cmake)
+include(${N3MAPPING_ROOT}/cmake/n3mapping_humble.cmake)
+include(${N3MAPPING_ROOT}/cmake/n3mapping_tests.cmake)
+include(${N3MAPPING_ROOT}/cmake/n3mapping_checks.cmake)
+
+set(N3MAPPING_CORE_SOURCES
+  ${PROTO_SRCS}
+  ${N3MAPPING_ROOT}/src/config.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
+  ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
+  ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
+  ${N3MAPPING_ROOT}/src/loop_detector.cpp
+  ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
+  ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
+  ${N3MAPPING_ROOT}/src/map_serializer.cpp
+  ${N3MAPPING_ROOT}/src/world_localizing.cpp
+  ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
+  ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
+  ${N3MAPPING_ROOT}/include/Scancontext/Scancontext.cpp
+  ${N3MAPPING_ROOT}/include/Scancontext/HybridScancontext.cpp
+)
+
+set(N3MAPPING_HUMBLE_WRAPPER_SOURCES
+  ${N3MAPPING_ROOT}/src/humble/config_humble.cpp
+  ${N3MAPPING_ROOT}/src/humble/conversions.cpp
+)
+
+add_library(n3mapping_core SHARED
+  ${N3MAPPING_CORE_SOURCES}
+)
+add_library(${PROJECT_NAME}_lib ALIAS n3mapping_core)
+n3mapping_configure_core_target(n3mapping_core)
+
+add_library(n3mapping_humble_wrapper SHARED
+  ${N3MAPPING_HUMBLE_WRAPPER_SOURCES}
+)
+n3mapping_configure_humble_wrapper_target(n3mapping_humble_wrapper)
+
+add_executable(n3mapping_node
+  ${N3MAPPING_ROOT}/src/humble/n3mapping_node.cpp
+)
+n3mapping_configure_humble_node_target(n3mapping_node)
+
+add_executable(n3mapping_synthetic_relocalization_eval
+  ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_eval.cpp
+)
+target_link_libraries(n3mapping_synthetic_relocalization_eval
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+
+add_executable(n3mapping_synthetic_relocalization_publisher
+  ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_publisher.cpp
+)
+target_link_libraries(n3mapping_synthetic_relocalization_publisher
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+ament_target_dependencies(n3mapping_synthetic_relocalization_publisher
+  rclcpp
+  sensor_msgs
+  nav_msgs
+  pcl_conversions
+)
+
+add_executable(n3mapping_synthetic_relocalization_visualizer
+  ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_visualizer.cpp
+)
+target_link_libraries(n3mapping_synthetic_relocalization_visualizer
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+ament_target_dependencies(n3mapping_synthetic_relocalization_visualizer
+  rclcpp
+  sensor_msgs
+  visualization_msgs
+  pcl_conversions
+)
+
+install(TARGETS
+  n3mapping_core
+  n3mapping_humble_wrapper
+  n3mapping_node
+  n3mapping_synthetic_relocalization_eval
+  n3mapping_synthetic_relocalization_publisher
+  n3mapping_synthetic_relocalization_visualizer
+  EXPORT export_n3mapping
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  ${N3MAPPING_ROOT}/tools/run_synthetic_relocalization_matrix.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+ament_export_targets(export_n3mapping HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  rclcpp
+  std_msgs
+  sensor_msgs
+  nav_msgs
+  geometry_msgs
+  visualization_msgs
+  message_filters
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  pcl_conversions
+  small_gicp
+)
+
+install(DIRECTORY ${N3MAPPING_ROOT}/include/
+  DESTINATION include
+)
+
+install(DIRECTORY ${N3MAPPING_ROOT}/launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+)
+
+install(DIRECTORY ${N3MAPPING_ROOT}/config/
+  DESTINATION share/${PROJECT_NAME}/config
+)
+
+if(BUILD_TESTING)
+  n3mapping_find_test_dependencies()
+
+  ament_add_gtest(test_keyframe_manager ${N3MAPPING_ROOT}/test/test_keyframe_manager.cpp)
+  if(TARGET test_keyframe_manager)
+    target_link_libraries(test_keyframe_manager ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
+    ament_target_dependencies(test_keyframe_manager rclcpp)
+  endif()
+
+  ament_add_gtest(test_point_cloud_matcher ${N3MAPPING_ROOT}/test/test_point_cloud_matcher.cpp)
+  if(TARGET test_point_cloud_matcher)
+    target_link_libraries(test_point_cloud_matcher ${PROJECT_NAME}_lib ${PCL_LIBRARIES} OpenMP::OpenMP_CXX)
+    ament_target_dependencies(test_point_cloud_matcher rclcpp)
+  endif()
+
+  ament_add_gtest(test_point_cloud_matcher_pbt ${N3MAPPING_ROOT}/test/test_point_cloud_matcher_pbt.cpp)
+  if(TARGET test_point_cloud_matcher_pbt)
+    target_link_libraries(test_point_cloud_matcher_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} OpenMP::OpenMP_CXX)
+    ament_target_dependencies(test_point_cloud_matcher_pbt rclcpp)
+  endif()
+
+  ament_add_gtest(test_loop_detector ${N3MAPPING_ROOT}/test/test_loop_detector.cpp)
+  if(TARGET test_loop_detector)
+    target_link_libraries(test_loop_detector ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+    ament_target_dependencies(test_loop_detector rclcpp)
+  endif()
+
+  ament_add_gtest(test_loop_detector_pbt ${N3MAPPING_ROOT}/test/test_loop_detector_pbt.cpp)
+  if(TARGET test_loop_detector_pbt)
+    target_link_libraries(test_loop_detector_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+    ament_target_dependencies(test_loop_detector_pbt rclcpp)
+  endif()
+
+  ament_add_gtest(test_graph_optimizer ${N3MAPPING_ROOT}/test/test_graph_optimizer.cpp)
+  if(TARGET test_graph_optimizer)
+    target_link_libraries(test_graph_optimizer ${PROJECT_NAME}_lib ${PCL_LIBRARIES} gtsam)
+    ament_target_dependencies(test_graph_optimizer rclcpp)
+  endif()
+
+  ament_add_gtest(test_graph_optimizer_pbt ${N3MAPPING_ROOT}/test/test_graph_optimizer_pbt.cpp)
+  if(TARGET test_graph_optimizer_pbt)
+    target_link_libraries(test_graph_optimizer_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} gtsam)
+    ament_target_dependencies(test_graph_optimizer_pbt rclcpp)
+  endif()
+
+  ament_add_gtest(test_map_serializer ${N3MAPPING_ROOT}/test/test_map_serializer.cpp)
+  if(TARGET test_map_serializer)
+    target_link_libraries(test_map_serializer ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
+    ament_target_dependencies(test_map_serializer rclcpp)
+  endif()
+
+  ament_add_gtest(test_map_serializer_pbt ${N3MAPPING_ROOT}/test/test_map_serializer_pbt.cpp)
+  if(TARGET test_map_serializer_pbt)
+    target_link_libraries(test_map_serializer_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
+    ament_target_dependencies(test_map_serializer_pbt rclcpp)
+  endif()
+
+  ament_add_gtest(test_world_localizing ${N3MAPPING_ROOT}/test/test_world_localizing.cpp)
+  if(TARGET test_world_localizing)
+    target_link_libraries(test_world_localizing ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+    ament_target_dependencies(test_world_localizing rclcpp)
+  endif()
+
+  ament_add_gtest(test_world_localizing_pbt ${N3MAPPING_ROOT}/test/test_world_localizing_pbt.cpp)
+  if(TARGET test_world_localizing_pbt)
+    target_link_libraries(test_world_localizing_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+    ament_target_dependencies(test_world_localizing_pbt rclcpp)
+  endif()
+
+  ament_add_gtest(test_mapping_resuming ${N3MAPPING_ROOT}/test/test_mapping_resuming.cpp)
+  if(TARGET test_mapping_resuming)
+    target_link_libraries(test_mapping_resuming ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam OpenMP::OpenMP_CXX)
+    ament_target_dependencies(test_mapping_resuming rclcpp)
+  endif()
+
+  ament_add_gtest(test_mapping_resuming_pbt ${N3MAPPING_ROOT}/test/test_mapping_resuming_pbt.cpp)
+  if(TARGET test_mapping_resuming_pbt)
+    target_link_libraries(test_mapping_resuming_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam OpenMP::OpenMP_CXX)
+    ament_target_dependencies(test_mapping_resuming_pbt rclcpp)
+  endif()
+
+  ament_add_gmock(test_loop_closure_manager ${N3MAPPING_ROOT}/test/test_loop_closure_manager.cpp)
+  if(TARGET test_loop_closure_manager)
+    target_link_libraries(test_loop_closure_manager ${PROJECT_NAME}_lib)
+    ament_target_dependencies(test_loop_closure_manager rclcpp)
+  endif()
+
+  ament_add_gtest(test_n3mapping_node_pbt ${N3MAPPING_ROOT}/test/test_n3mapping_node_pbt.cpp)
+  if(TARGET test_n3mapping_node_pbt)
+    target_link_libraries(test_n3mapping_node_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
+    ament_target_dependencies(test_n3mapping_node_pbt rclcpp)
+  endif()
+
+  n3mapping_add_static_checks()
+endif()
+
+ament_package()

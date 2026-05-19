@@ -1,14 +1,25 @@
-#include "n3mapping_ros1/config_ros1.h"
+#include "n3mapping_noetic/config_noetic.h"
 
 namespace n3mapping {
 
-void loadConfigFromRos1(ros::NodeHandle& node_handle, Config* config) {
+void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     auto get = [&node_handle](const std::string& name, auto& value) {
+        node_handle.param("n3mapping_node/ros__parameters/" + name, value, value);
+        node_handle.param("ros__parameters/" + name, value, value);
         node_handle.param(name, value, value);
+    };
+    auto gets = [&node_handle](const std::string& name, std::string& value) {
+        std::string loaded = value;
+        node_handle.param("n3mapping_node/ros__parameters/" + name, loaded, loaded);
+        node_handle.param("ros__parameters/" + name, loaded, loaded);
+        node_handle.param(name, loaded, loaded);
+        if (!loaded.empty()) {
+            value = loaded;
+        }
     };
 
     get("mode", config->mode);
-    get("map_path", config->map_path);
+    gets("map_path", config->map_path);
     get("cloud_topic", config->cloud_topic);
     get("odom_topic", config->odom_topic);
     get("output_odom_topic", config->output_odom_topic);
@@ -61,8 +72,10 @@ void loadConfigFromRos1(ros::NodeHandle& node_handle, Config* config) {
     get("loop_min_id_interval", config->loop_min_id_interval);
     get("loop_max_range", config->loop_max_range);
     get("output_cloud_voxel_size", config->output_cloud_voxel_size);
-    get("map_save_path", config->map_save_path);
+    gets("map_save_path", config->map_save_path);
     get("global_map_voxel_size", config->global_map_voxel_size);
+    get("save_global_map_voxel_size", config->save_global_map_voxel_size);
+    get("global_map_publish_hz", config->global_map_publish_hz);
     get("save_global_map_on_shutdown", config->save_global_map_on_shutdown);
     get("num_threads", config->num_threads);
     get("sync_time_tolerance", config->sync_time_tolerance);

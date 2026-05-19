@@ -6,6 +6,6 @@
 
 namespace n3mapping {
 
-void loadConfigFromRos2(rclcpp::Node* node, Config* config);
+void loadConfigFromHumble(rclcpp::Node* node, Config* config);
 
 }  // namespace n3mapping

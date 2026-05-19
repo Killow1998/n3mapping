@@ -1,0 +1,11 @@
+<launch>
+  <arg name="config_file" default="$(find n3mapping)/config/n3mapping.yaml" />
+  <arg name="rviz" default="true" />
+
+  <node pkg="n3mapping" type="n3mapping_node" name="n3mapping_node" output="screen">
+    <rosparam file="$(arg config_file)" command="load" />
+    <param name="mode" value="localization" />
+  </node>
+
+  <node pkg="rviz" type="rviz" name="n3_rviz" output="screen" if="$(arg rviz)" args="-d $(find n3mapping)/launch/n3_loc.rviz" />
+</launch>

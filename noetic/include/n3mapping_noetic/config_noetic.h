@@ -6,6 +6,6 @@
 
 namespace n3mapping {
 
-void loadConfigFromRos1(ros::NodeHandle& node_handle, Config* config);
+void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config);
 
 }  // namespace n3mapping

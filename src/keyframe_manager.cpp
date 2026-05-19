@@ -4,7 +4,7 @@
 #include <limits>
 #include <memory>
 #include <pcl/common/transforms.h>
-#include <pcl/memory.h>
+#include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
 

@@ -83,6 +83,10 @@ std::string Config::toString() const {
         << ", vert=" << (rhpd_enable_vertical_tokens ? "YES" : "NO")
         << ", pca_conf=" << (rhpd_enable_pca_confidence ? "YES" : "NO")
         << ")\n";
+    oss << "Global map publish: hz=" << global_map_publish_hz
+        << " voxel=" << global_map_voxel_size
+        << " | save voxel=" << save_global_map_voxel_size
+        << " save_on_shutdown=" << (save_global_map_on_shutdown ? "true" : "false") << "\n";
     oss << "Threads: " << num_threads << " | Save path: " << map_save_path << "\n";
     oss << "==============================================";
     return oss.str();

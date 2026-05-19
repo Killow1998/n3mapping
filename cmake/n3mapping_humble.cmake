@@ -1,4 +1,4 @@
-set(N3MAPPING_ROS2_DEPENDENCIES
+set(N3MAPPING_HUMBLE_DEPENDENCIES
   rclcpp
   std_msgs
   sensor_msgs
@@ -12,9 +12,13 @@ set(N3MAPPING_ROS2_DEPENDENCIES
   pcl_conversions
 )
 
-function(n3mapping_configure_ros2_wrapper_target target_name)
+function(n3mapping_configure_humble_wrapper_target target_name)
+  if(NOT DEFINED N3MAPPING_ROOT)
+    set(N3MAPPING_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+  endif()
+
   target_include_directories(${target_name} PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${N3MAPPING_ROOT}/include>
     $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
     $<INSTALL_INTERFACE:include>
   )
@@ -25,16 +29,16 @@ function(n3mapping_configure_ros2_wrapper_target target_name)
   )
 
   ament_target_dependencies(${target_name}
-    ${N3MAPPING_ROS2_DEPENDENCIES}
+    ${N3MAPPING_HUMBLE_DEPENDENCIES}
   )
 endfunction()
 
-function(n3mapping_configure_ros2_node_target target_name)
+function(n3mapping_configure_humble_node_target target_name)
   target_link_libraries(${target_name}
-    n3mapping_ros2_wrapper
+    n3mapping_humble_wrapper
   )
 
   ament_target_dependencies(${target_name}
-    ${N3MAPPING_ROS2_DEPENDENCIES}
+    ${N3MAPPING_HUMBLE_DEPENDENCIES}
   )
 endfunction()

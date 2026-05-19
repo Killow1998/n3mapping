@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-#include "n3mapping/ros2/conversions.h"
+#include "n3mapping/humble/conversions.h"
 
 namespace n3mapping {
 namespace test {
 
-TEST(Ros2ConversionsTest, TimestampUsesNanoseconds)
+TEST(HumbleConversionsTest, TimestampUsesNanoseconds)
 {
     builtin_interfaces::msg::Time stamp;
     stamp.sec = 12;
@@ -17,7 +17,7 @@ TEST(Ros2ConversionsTest, TimestampUsesNanoseconds)
     EXPECT_EQ(core_stamp.nsec, 12000000345LL);
 }
 
-TEST(Ros2ConversionsTest, OdometryPoseConvertsToIsometry)
+TEST(HumbleConversionsTest, OdometryPoseConvertsToIsometry)
 {
     nav_msgs::msg::Odometry odom;
     odom.pose.pose.position.x = 1.0;
@@ -37,7 +37,7 @@ TEST(Ros2ConversionsTest, OdometryPoseConvertsToIsometry)
     EXPECT_TRUE(pose.linear().isApprox(q.toRotationMatrix()));
 }
 
-TEST(Ros2ConversionsTest, PointCloudAndOdometryBuildCoreLioFrame)
+TEST(HumbleConversionsTest, PointCloudAndOdometryBuildCoreLioFrame)
 {
     pcl::PointCloud<pcl::PointXYZI> pcl_cloud;
     pcl_cloud.push_back(pcl::PointXYZI{1.0f, 2.0f, 3.0f, 4.0f});

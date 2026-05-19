@@ -1,4 +1,5 @@
-#include "n3mapping/ros2/conversions.h"
+#include "n3mapping/humble/conversions.h"
+#include "n3mapping/pcl_compat.h"
 
 #include <pcl_conversions/pcl_conversions.h>
 

@@ -11,12 +11,12 @@ set(FORBIDDEN_PATTERNS
 )
 
 set(CHECK_FILES
-  "${ROOT_DIR}/src/n3mapping_node.cpp"
+  "${ROOT_DIR}/src/humble/n3mapping_node.cpp"
 )
 
 foreach(CHECK_DIR
-    "${ROOT_DIR}/include/n3mapping/ros2"
-    "${ROOT_DIR}/src/ros2")
+    "${ROOT_DIR}/include/n3mapping/humble"
+    "${ROOT_DIR}/src/humble")
   if(EXISTS "${CHECK_DIR}")
     file(GLOB_RECURSE WRAPPER_FILES
       "${CHECK_DIR}/*.h"
@@ -50,5 +50,5 @@ endforeach()
 if(OFFENDING_FILES)
   list(JOIN OFFENDING_FILES "\n" OFFENDING_OUTPUT)
   message(FATAL_ERROR
-    "ROS2 wrapper directly references backend internals:\n${OFFENDING_OUTPUT}")
+    "Humble wrapper directly references backend internals:\n${OFFENDING_OUTPUT}")
 endif()

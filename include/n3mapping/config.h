@@ -72,7 +72,7 @@ struct Config {
     int loop_min_id_interval = 20;
     double loop_max_range = 30.0;
 
-    double output_cloud_voxel_size = 0.2;
+    double output_cloud_voxel_size = 0.1;
 
 #ifdef N3MAPPING_SOURCE_DIR
     std::string map_save_path = std::string(N3MAPPING_SOURCE_DIR) + "/map";
@@ -81,6 +81,8 @@ struct Config {
 #endif
 
     double global_map_voxel_size = 0.1;
+    double save_global_map_voxel_size = 0.0;
+    double global_map_publish_hz = 1.0;
     bool save_global_map_on_shutdown = true;
 
     int num_threads = 4;

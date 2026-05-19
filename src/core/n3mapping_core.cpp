@@ -5,7 +5,7 @@
 
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/memory.h>
+#include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
 
@@ -92,6 +92,58 @@ N3MappingCore::N3MappingCore(const Config& config)
 }
 
 N3MappingCore::~N3MappingCore() = default;
+
+CoreRunMode parseCoreRunMode(const std::string& mode)
+{
+    if (mode == "localization") {
+        return CoreRunMode::LOCALIZATION;
+    }
+    if (mode == "map_extension") {
+        return CoreRunMode::MAP_EXTENSION;
+    }
+    return CoreRunMode::MAPPING;
+}
+
+const char* coreRunModeName(CoreRunMode mode)
+{
+    switch (mode) {
+        case CoreRunMode::LOCALIZATION:
+            return "localization";
+        case CoreRunMode::MAP_EXTENSION:
+            return "map_extension";
+        case CoreRunMode::MAPPING:
+        default:
+            return "mapping";
+    }
+}
+
+bool coreRunModeLoadsMap(CoreRunMode mode)
+{
+    return mode == CoreRunMode::LOCALIZATION || mode == CoreRunMode::MAP_EXTENSION;
+}
+
+bool coreRunModeSavesMap(CoreRunMode mode)
+{
+    return mode == CoreRunMode::MAPPING || mode == CoreRunMode::MAP_EXTENSION;
+}
+
+bool coreRunModeProcessesLoopClosures(CoreRunMode mode)
+{
+    return mode == CoreRunMode::MAPPING;
+}
+
+core::BackendOutput N3MappingCore::processFrame(CoreRunMode mode, const core::LioFrame& frame)
+{
+    switch (mode) {
+        case CoreRunMode::LOCALIZATION:
+            return processLocalizationFrame(frame);
+        case CoreRunMode::MAP_EXTENSION:
+            return processMapExtensionFrame(frame);
+        case CoreRunMode::MAPPING:
+        default:
+            return processMappingFrame(frame);
+    }
+}
 
 core::BackendOutput N3MappingCore::processMappingFrame(const core::LioFrame& frame)
 {
@@ -353,7 +405,31 @@ bool N3MappingCore::saveMap(const std::string& map_path)
 bool N3MappingCore::saveGlobalMap(const std::string& pcd_path)
 {
     return session_->mapSerializer().saveGlobalMap(
-        pcd_path, session_->keyframeManager(), config_.global_map_voxel_size);
+        pcd_path, session_->keyframeManager(), config_.save_global_map_voxel_size);
+}
+
+bool N3MappingCore::saveMapSnapshot(std::string* error)
+{
+    if (session_->keyframeManager().size() < 1) {
+        if (error) *error = "no_keyframes";
+        return false;
+    }
+
+    const std::string map_file = config_.map_save_path + "/n3map.pbstream";
+    if (!saveMap(map_file)) {
+        if (error) *error = "save_pbstream_failed";
+        return false;
+    }
+
+    if (config_.save_global_map_on_shutdown) {
+        const std::string global_map_file = config_.map_save_path + "/global_map.pcd";
+        if (!saveGlobalMap(global_map_file)) {
+            if (error) *error = "save_global_map_failed";
+            return false;
+        }
+    }
+
+    return true;
 }
 
 core::LioFrame::PointCloud::Ptr N3MappingCore::buildGlobalMap() const

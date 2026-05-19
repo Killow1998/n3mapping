@@ -4,26 +4,35 @@
 
 ### Architecture
 
-- Split the backend into a ROS-free `n3mapping_core` library and a thin ROS2 wrapper target.
-- Move ROS2 node implementation into `src/ros2/` and keep backend ownership inside `N3MappingCore`.
+- Split the backend into a ROS-free `n3mapping_core` library and a thin Humble wrapper target.
+- Move Humble node implementation into `src/humble/` and keep backend ownership inside `N3MappingCore`.
 - Add ROS-independent core frame/output types for external-LIO integration without depending on ROS message headers.
-- Add ROS2 conversion/config helper layers so parameter loading and message conversion stay outside core code.
-- Add a ROS1 Noetic wrapper skeleton under `ros1/` for future Noetic integration without affecting ROS2 colcon builds.
-- Add CMake modules for core, ROS2 wrapper, tests, and boundary checks.
+- Add Humble conversion/config helper layers so parameter loading and message conversion stay outside core code.
+- Make `noetic/` and `humble/` sibling wrapper packages that both keep the ROS package name `n3mapping` while sharing the root core, config, and launch resources.
+- Add a Noetic wrapper under `noetic/` for Noetic integration without changing the shared ROS-free core.
+- Add CMake modules for core, Humble wrapper, tests, and boundary checks.
 
 ### ROS Wrapper and Runtime
 
+- Build the `noetic/` package under ROS 1 Noetic with catkin while preserving the same ROS-free core used by Humble.
+- Promote the Noetic wrapper from skeleton to a runnable thin adapter that subscribes to external LIO cloud/odometry, calls `N3MappingCore`, and publishes odometry, path, body/world clouds, loop markers, global map, relocalization lock, TF, and `/n3mapping/save_map`.
+- Preserve Noetic launch entry points for `mapping`, `localization`, and `map_extension`; runtime topic overrides should be supplied through an external `config_file` instead of changing shared launch/config resources.
+- Add wrapper-local shared-resource symlinks so `roslaunch n3mapping ...` still resolves the shared launch/config files after the package split.
+- Add `scripts/select_distro_wrapper.sh` as a local wrapper-profile switch with `auto`, `status`, `noetic`, `humble`, and `clear` modes, avoiding committed mutually exclusive ignore files.
+- Move run-mode parsing and frame dispatch into the shared core API (`CoreRunMode`, `processFrame`) so Noetic/Humble wrappers do not duplicate backend mode selection.
+- Move map snapshot save semantics into `N3MappingCore::saveMapSnapshot()` so ROS wrappers do not duplicate backend save logic.
+- Add shared runtime config fields for `global_map_publish_hz` and `save_global_map_voxel_size` so published-map and saved-map resolution can differ across wrappers without changing the shared config file defaults.
 - Preserve the original `n3mapping_node` executable while routing mapping, localization, map extension, pending loop processing, map save/load, and global map save through `N3MappingCore`.
 - Publish the global map during mapping mode so RViz can inspect the current map without switching modes.
 - Keep loop closure marker history instead of replacing old loop markers with the newest loop only.
 - Add loop optimization impact diagnostics and write optimization logs to local log files instead of relying on terminal output.
-- Update package metadata and README to describe the RHPD-primary backend, ROS-free core, ROS2 wrapper workflow, dependencies, launch files, tests, and synthetic relocalization tools.
+- Update package metadata and README to describe the RHPD-primary backend, ROS-free core, Humble wrapper workflow, dependencies, launch files, tests, and synthetic relocalization tools.
 
 ### Synthetic Relocalization Validation
 
 - Add a synthetic relocalization core smoke test and descriptor-driven relocalization evaluation tool.
 - Add a matrix runner for dropout, noise, yaw, and query-source sweeps.
-- Add a ROS2 publisher and RViz visualization launch for before/after/ground-truth relocalization clouds.
+- Add a Humble publisher and RViz visualization launch for before/after/ground-truth relocalization clouds.
 - Add random periodic visualization mode with configurable test count, interval, random seed, dropout, noise, and fake odometry yaw.
 - Report matched keyframe ID, translation/yaw accuracy, and pass/fail markers in synthetic relocalization outputs.
 - Support `same_keyframe`, `local_submap`, and diagnostic `global_map` synthetic query sources.
@@ -37,7 +46,7 @@
 
 ### Tests and Checks
 
-- Add core type, config, ROS2 conversion, `N3MappingCore`, synthetic relocalization, no-ROS-core, ROS2 wrapper-boundary, and ROS1 skeleton checks.
+- Add core type, config, Humble conversion, `N3MappingCore`, synthetic relocalization, no-ROS-core, Humble wrapper-boundary, and Noetic wrapper checks.
 - Keep existing RHPD, loop detector, map serializer, loop closure, and relocalization regression tests in the refactored target layout.
 - Validate the current test suite at 272 tests passing after the wrapper split and synthetic relocalization additions.
 
@@ -73,7 +82,7 @@
 ### Release
 
 - Align changelog versioning with `package.xml` (`1.0.0`) as the first stable package version.
-- Keep runtime interfaces unchanged (`mapping` / `localization` / `map_extension`) and preserve existing ROS2 launch/build workflow.
+- Keep runtime interfaces unchanged (`mapping` / `localization` / `map_extension`) and preserve existing Humble launch/build workflow.
 
 ### Documentation and Naming Consistency
 
@@ -88,7 +97,7 @@
 
 ### Migration
 
-- **Noetic -> Humble behavior alignment**: Port noetic-validated behavior to ROS2 `main` without ROS1 fallback path.
+- **Noetic -> Humble behavior alignment**: Port noetic-validated behavior to Humble without Noetic fallback path.
 - **Hybrid ScanContext integration**: Add and wire Hybrid ScanContext pipeline into loop/relocalization flow.
 - **RHPD integration**: Add RHPD descriptor compute/store/load chain and integrate with keyframe + map serialization pipeline.
 - **Relocalization temporal logic alignment**: Migrate temporal-hypothesis/retry behavior and unstable-submap strategy from noetic flow.
@@ -106,13 +115,13 @@
 ### Stability Fixes
 
 - **Global map save crash fix**: Replace unstable voxel-grid path in `saveGlobalMap` with deterministic manual voxel aggregation to eliminate test/runtime segfault in map serializer path.
-- **ROS2 build compatibility fixes**: Resolve pointer/allocation and parameter type issues encountered during migration integration.
+- **Humble build compatibility fixes**: Resolve pointer/allocation and parameter type issues encountered during migration integration.
 
 ### Configuration and Docs
 
-- **ROS2 config synchronization**: Sync noetic-validated parameter set and defaults into humble config path, including loop distance-candidate, relocalization temporal/retry, and RHPD parameters.
+- **Humble config synchronization**: Sync noetic-validated parameter set and defaults into Humble config path, including loop distance-candidate, relocalization temporal/retry, and RHPD parameters.
 - **README update**:
-  - Keep English ROS2 workflow.
+  - Keep English Humble workflow.
   - Add explicit `gtsam` build step with noetic-aligned CMake args:
     - `-DGTSAM_USE_SYSTEM_EIGEN=ON`
     - `-DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF`
