@@ -71,7 +71,7 @@ If your environment does not provide `gtsam` or `small_gicp` as ROS/CMake packag
 ```bash
 source /opt/ros/humble/setup.bash
 cd ~/ros_ws/to_migrate_ws
-colcon build --packages-select n3mapping --cmake-args -DCMAKE_BUILD_TYPE=Release
+colcon build --symlink-install --packages-select n3mapping --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 ```
 
@@ -80,7 +80,7 @@ For tests:
 ```bash
 source /opt/ros/humble/setup.bash
 cd ~/ros_ws/to_migrate_ws
-colcon build --packages-select n3mapping --cmake-args -DBUILD_TESTING=ON
+colcon build --symlink-install --packages-select n3mapping --cmake-args -DBUILD_TESTING=ON
 source install/setup.bash
 ```
 
@@ -113,24 +113,21 @@ Mapping:
 
 ```bash
 source ~/ros_ws/to_migrate_ws/install/setup.bash
-ros2 launch n3mapping mapping.launch.py \
-  config_file:=/home/user/ros_ws/to_migrate_ws/src/n3mapping/config/n3mapping.yaml
+ros2 launch n3mapping mapping.launch.py
 ```
 
 Localization:
 
 ```bash
 source ~/ros_ws/to_migrate_ws/install/setup.bash
-ros2 launch n3mapping localization.launch.py \
-  config_file:=/home/user/ros_ws/to_migrate_ws/src/n3mapping/config/n3mapping.yaml
+ros2 launch n3mapping localization.launch.py
 ```
 
 Map extension:
 
 ```bash
 source ~/ros_ws/to_migrate_ws/install/setup.bash
-ros2 launch n3mapping map_extension.launch.py \
-  config_file:=/home/user/ros_ws/to_migrate_ws/src/n3mapping/config/n3mapping.yaml
+ros2 launch n3mapping map_extension.launch.py
 ```
 
 The launch files start RViz with the package RViz configs. The wrapper publishes:
@@ -159,7 +156,7 @@ Run all tests:
 ```bash
 source /opt/ros/humble/setup.bash
 cd ~/ros_ws/to_migrate_ws
-colcon build --packages-select n3mapping --cmake-args -DBUILD_TESTING=ON
+colcon build --symlink-install --packages-select n3mapping --cmake-args -DBUILD_TESTING=ON
 ROS_LOG_DIR=/tmp/ros_log colcon test --packages-select n3mapping
 colcon test-result --test-result-base build/n3mapping --verbose
 ```
@@ -171,7 +168,7 @@ Use this to inspect whether a synthetic query starts misaligned and then relocal
 ```bash
 source ~/ros_ws/to_migrate_ws/install/setup.bash
 ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
-  map:=/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/n3map.pbstream \
+  map:=$HOME/ros_ws/to_migrate_ws/src/n3mapping/map/n3map.pbstream \
   max_tests:=20 \
   interval_sec:=20 \
   random_seed:=-1 \
