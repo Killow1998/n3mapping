@@ -150,12 +150,6 @@ Mapping mode saves:
 - `n3map.pbstream`
 - `global_map.pcd`
 
-Current pbstream metadata version:
-
-```text
-2.2.0
-```
-
 RHPD descriptors are schema-checked on load. If an old map has missing, invalid, or incompatible RHPD descriptors, N3Mapping rebuilds them from saved keyframes when possible.
 
 ## Tests
@@ -170,67 +164,9 @@ ROS_LOG_DIR=/tmp/ros_log colcon test --packages-select n3mapping
 colcon test-result --test-result-base build/n3mapping --verbose
 ```
 
-Focused test examples:
+## Synthetic Relocalization Visualization
 
-```bash
-ctest --test-dir build/n3mapping -R "core|no_ros|config" --output-on-failure
-ctest --test-dir build/n3mapping -R "loop_detector|world_localizing|map_serializer" --output-on-failure
-ctest --test-dir build/n3mapping -R "synthetic_relocalization" --output-on-failure
-```
-
-## Synthetic Relocalization Evaluation
-
-N3Mapping includes tools for testing relocalization against an already built map without feeding the answer directly through the localization output.
-
-### Batch Evaluation
-
-Run a batch test against a saved map:
-
-```bash
-source ~/ros_ws/to_migrate_ws/install/setup.bash
-ros2 run n3mapping n3mapping_synthetic_relocalization_eval \
-  --map /home/user/ros_ws/to_migrate_ws/src/n3mapping/map/n3map.pbstream \
-  --output /tmp/n3_eval \
-  --max_queries 100 \
-  --dropout 0.3 \
-  --noise_sigma 0.02 \
-  --fake_odom_yaw_deg 90 \
-  --query_source same_keyframe
-```
-
-Outputs:
-
-- `summary.json`
-- `per_query.csv`
-- `failed_queries.txt`
-- `config_used.json`
-
-Useful query sources:
-
-- `same_keyframe`: perturbs the saved keyframe cloud. This is the main fast regression.
-- `local_submap`: synthesizes a body-frame query from nearby saved keyframes.
-- `global_map`: crops from the full global map. This is diagnostic only; it can include points a real lidar scan would not see.
-
-Run a parameter matrix:
-
-```bash
-ros2 run n3mapping run_synthetic_relocalization_matrix.py \
-  --map /home/user/ros_ws/to_migrate_ws/src/n3mapping/map/n3map.pbstream \
-  --output /tmp/n3_matrix \
-  --max_queries 20 \
-  --dropouts 0.0,0.3,0.5 \
-  --noise_sigmas 0.0,0.02 \
-  --fake_yaws 0,90,180 \
-  --query_source same_keyframe
-```
-
-Current verified result on the local map: the `same_keyframe` matrix reached at least `0.95` `pose_success_rate` across the tested dropout/noise/yaw combinations.
-
-### RViz Before/After Visualization
-
-Use this to visually inspect whether a synthetic query starts misaligned and then relocalizes onto the map.
-
-Randomly test up to 20 places, one every 20 seconds:
+Use this to inspect whether a synthetic query starts misaligned and then relocalizes onto the saved map:
 
 ```bash
 source ~/ros_ws/to_migrate_ws/install/setup.bash
@@ -244,28 +180,6 @@ ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
   fake_odom_yaw_deg:=90
 ```
 
-Fast smoke run:
-
-```bash
-ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
-  map:=/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/n3map.pbstream \
-  max_tests:=5 \
-  interval_sec:=3 \
-  random_seed:=42
-```
-
-Fixed place test:
-
-```bash
-ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
-  map:=/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/n3map.pbstream \
-  query_id:=320 \
-  max_tests:=1 \
-  dropout:=0.3 \
-  noise_sigma:=0.02 \
-  fake_odom_yaw_deg:=90
-```
-
 RViz topics:
 
 - gray: `/n3mapping/synthetic/global_map`
@@ -273,8 +187,6 @@ RViz topics:
 - green: `/n3mapping/synthetic/query_after`
 - blue: `/n3mapping/synthetic/query_gt`
 - markers/text: `/n3mapping/synthetic/relocalization_markers`
-
-The marker text shows `PASS` or `FAIL`, query id, matched keyframe id, random seed, before error, and after error. The current pass criterion in the visualizer is translation error `<= 1.0 m` and yaw error `<= 10 deg`.
 
 ## Debugging Loop Closure and Optimization
 
