@@ -176,17 +176,6 @@ Expected current result on the verified Humble workspace:
 272 tests, 0 errors, 0 failures, 0 skipped
 ```
 
-Current Humble validation status for this branch:
-
-- `colcon build` has been verified.
-- `colcon test` has been verified.
-- FastLIO plus ROS2 bag playback has been used to drive mapping.
-- Map saving has been verified.
-- Synthetic relocalization visualization has been verified.
-- Mapping-mode global map publishing, loop closure markers, and `optimization.log` generation have been checked.
-- Real bag-driven localization replay against a saved map is still pending.
-- The ROS1 Noetic wrapper is present as a skeleton and has not been runtime-validated in a Noetic workspace.
-
 Focused test examples:
 
 ```bash
