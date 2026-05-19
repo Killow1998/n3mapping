@@ -1,6 +1,6 @@
 Panels:
   - Class: rviz/Displays
-    Help Height: 78
+    Help Height: 0
     Name: Displays
     Property Tree Widget:
       Expanded:
@@ -11,11 +11,13 @@ Panels:
         - /Query After Relocalization1
         - /Relocalization Markers1
       Splitter Ratio: 0.5
-    Tree Height: 549
+    Tree Height: 686
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
+    Expanded: ~
     Name: Tool Properties
+    Splitter Ratio: 0.5
   - Class: rviz/Views
     Expanded:
       - /Current View1
@@ -38,14 +40,19 @@ Visualization Manager:
       Color: 160; 160; 164
       Enabled: true
       Line Style:
-        Line Width: 0.03
+        Line Width: 0.029999999329447746
         Value: Lines
       Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
       Plane: XY
       Plane Cell Count: 100
       Reference Frame: <Fixed Frame>
       Value: true
-    - Alpha: 0.35
+    - Alpha: 0.3499999940395355
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
         Max Value: 10
@@ -66,14 +73,14 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 2
-      Size (m): 0.03
+      Size (m): 0.029999999329447746
       Style: Points
       Topic: /n3mapping/synthetic/global_map
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
-    - Alpha: 0.85
+    - Alpha: 0.8500000238418579
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
         Max Value: 10
@@ -94,14 +101,14 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 4
-      Size (m): 0.08
+      Size (m): 0.07999999821186066
       Style: Points
       Topic: /n3mapping/synthetic/query_before
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
-    - Alpha: 0.9
+    - Alpha: 0.8999999761581421
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
         Max Value: 10
@@ -122,14 +129,14 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 4
-      Size (m): 0.08
+      Size (m): 0.07999999821186066
       Style: Points
       Topic: /n3mapping/synthetic/query_after
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
-    - Alpha: 0.65
+    - Alpha: 0.6499999761581421
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
         Max Value: 10
@@ -150,7 +157,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.06
+      Size (m): 0.05999999865889549
       Style: Points
       Topic: /n3mapping/synthetic/query_gt
       Unreliable: false
@@ -162,7 +169,12 @@ Visualization Manager:
       Marker Topic: /n3mapping/synthetic/relocalization_markers
       Name: Relocalization Markers
       Namespaces:
-        {}
+        synthetic_pose_after: true
+        synthetic_pose_before: true
+        synthetic_pose_gt: true
+        synthetic_relocalization_error_lines: true
+        synthetic_relocalization_status: true
+        synthetic_relocalization_text: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -179,32 +191,29 @@ Visualization Manager:
     - Class: rviz/Select
     - Class: rviz/FocusCamera
     - Class: rviz/Measure
-  Transformation:
-    Current:
-      Class: rviz/TF
   Value: true
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 60
+      Distance: 55.80262756347656
       Enable Stereo Rendering:
-        Stereo Eye Separation: 0.06
+        Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: 7.973935604095459
+        Y: 9.390632629394531
+        Z: -6.319637298583984
       Focal Shape Fixed Size: true
-      Focal Shape Size: 0.05
+      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
-      Near Clip Distance: 0.01
-      Pitch: 0.8
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.7900000810623169
       Target Frame: <Fixed Frame>
-      Yaw: 0.8
+      Yaw: 1.57999587059021
     Saved: ~
 Window Geometry:
   Displays:
@@ -212,6 +221,7 @@ Window Geometry:
   Height: 900
   Hide Left Dock: false
   Hide Right Dock: true
+  QMainWindow State: 000000ff00000000fd000000020000000000000156000002ebfc0200000004fb000000100044006900730070006c006100790073010000003d000002eb000000c900fffffffb0000000a00560069006500770073020000027d00000207000003bc00000131fb0000001200530065006c0065006300740069006f006e0000000195000000a40000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000001e6000000870000005c00ffffff000000030000042200000039fc0100000001fb0000000800540069006d0065010000000000000422000003bc00ffffff000002c6000002eb00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -219,7 +229,7 @@ Window Geometry:
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: true
-  Width: 1400
-  X: 80
-  Y: 60
+    collapsed: false
+  Width: 1058
+  X: 72
+  Y: 27
