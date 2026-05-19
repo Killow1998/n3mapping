@@ -33,6 +33,7 @@
 - Add the repository BSD-3-Clause `LICENSE` file.
 - Split wrapper launch resources so Humble installs only ROS 2 `.launch.py`/RViz files and Noetic installs only ROS 1 `.launch`/RViz files, while both continue to use the shared config directory.
 - Confirm the split launch resources under Noetic: catkin build, local ctest, headless `mapping`/`localization`/`map_extension` launch smoke checks, `/n3mapping/save_map`, `optimization.log`, and package-share launch-resource checks all pass without additional code changes.
+- Document the wrapper-local launch naming rule in the README so Humble users launch `*.launch.py` files and Noetic users launch `*.launch` files after selecting the matching wrapper.
 - Add `scripts/select_distro_wrapper.sh` as a local wrapper-profile switch with `auto`, `status`, `noetic`, `humble`, and `clear` modes, avoiding committed mutually exclusive ignore files.
 - Move run-mode parsing and frame dispatch into the shared core API (`CoreRunMode`, `processFrame`) so Noetic/Humble wrappers do not duplicate backend mode selection.
 - Move map snapshot save semantics into `N3MappingCore::saveMapSnapshot()` so ROS wrappers do not duplicate backend save logic.

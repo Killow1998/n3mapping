@@ -62,6 +62,8 @@ src/n3mapping/scripts/select_distro_wrapper.sh status
 src/n3mapping/scripts/select_distro_wrapper.sh clear
 ```
 
+Launch resources are wrapper-local. Humble uses `*.launch.py`; Noetic uses `*.launch`. After selecting a wrapper, use the launch commands for that ROS distribution only.
+
 ### 2.3 Configuration
 
 Default config:
