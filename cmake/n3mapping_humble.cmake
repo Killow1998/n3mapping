@@ -5,6 +5,7 @@ set(N3MAPPING_HUMBLE_DEPENDENCIES
   nav_msgs
   geometry_msgs
   visualization_msgs
+  std_srvs
   message_filters
   tf2
   tf2_ros

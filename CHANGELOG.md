@@ -25,6 +25,7 @@
 - Add `rviz:=false` support to Humble mapping, localization, map extension, and synthetic relocalization launch files while keeping RViz enabled by default.
 - Disable Humble RViz save prompts in the shared Humble RViz configs to avoid local interactive-test churn.
 - Document the shared Humble/Noetic `rviz:=false` headless workflow and keep synthetic visualization launches explicit about `map:=...`.
+- Add Humble wrapper parity fixes for `/n3mapping/save_map`, global map timer/fallback publishing, TF timestamp guarding, loop timer core mutex protection, and map-extension relocalization-lock frame publication.
 - Add wrapper-local shared-resource symlinks so `roslaunch n3mapping ...` still resolves the shared launch/config files after the package split.
 - Add `scripts/select_distro_wrapper.sh` as a local wrapper-profile switch with `auto`, `status`, `noetic`, `humble`, and `clear` modes, avoiding committed mutually exclusive ignore files.
 - Move run-mode parsing and frame dispatch into the shared core API (`CoreRunMode`, `processFrame`) so Noetic/Humble wrappers do not duplicate backend mode selection.
@@ -68,7 +69,7 @@
 
 - Add lightweight negative-space, vertical-token, and PCA-anisotropy-confidence augmentation without training or learned regression.
 - Fix 180-degree yaw flip handling across XY, XZ, YZ planes and negative-space sectors.
-- Upgrade map metadata version to `2.1.0` so old maps rebuild RHPD under the new descriptor semantics.
+- Upgrade map metadata version to `2.2.0` so old maps rebuild RHPD under the new descriptor semantics.
 
 ### Bug Fixes
 

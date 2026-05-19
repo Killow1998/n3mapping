@@ -113,6 +113,7 @@ Build GTSAM first:
 ```bash
 source /opt/ros/humble/setup.bash
 cd ~/ros_ws
+src/n3mapping/scripts/select_distro_wrapper.sh humble
 colcon build --packages-select gtsam --symlink-install \
   --cmake-args \
     -DCMAKE_BUILD_TYPE=Release \
@@ -124,6 +125,7 @@ Then build `small_gicp` and `n3mapping`:
 
 ```bash
 cd ~/ros_ws
+src/n3mapping/scripts/select_distro_wrapper.sh humble
 colcon build --packages-up-to n3mapping --symlink-install \
   --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
@@ -169,9 +171,9 @@ Important parameters:
 - `mode`: `mapping`, `localization`, or `map_extension`
 - `cloud_topic`: default `/cloud_registered_body`
 - `odom_topic`: default `/Odometry`
-- `map_path`: pbstream file to load in localization/map extension
-- `map_save_path`: directory for saved maps in mapping mode
-- `global_map_publish_hz`: global map publish frequency for wrappers
+- `map_path`: pbstream file to load in localization/map extension. Empty string means the Config default: `N3MAPPING_SOURCE_DIR/map/n3map.pbstream`.
+- `map_save_path`: directory for saved maps in mapping mode. Empty string means the Config default: `N3MAPPING_SOURCE_DIR/map`.
+- `global_map_publish_hz`: global map publish frequency for Humble and Noetic wrappers
 - `global_map_voxel_size`: voxel size for published global map
 - `save_global_map_voxel_size`: voxel size for saved `global_map.pcd`; `0.0` keeps full resolution
 - `rhpd_enabled`: default `true`
@@ -265,7 +267,9 @@ Noetic `mapping`, `localization`, and `map_extension` launch files share `launch
 - `/n3mapping/loop_closure_markers`
 - `/n3mapping/global_map`
 - `/n3mapping/relocalization_lock`
-- `/n3mapping/save_map` (`std_srvs/Trigger`, ROS 1)
+- `/n3mapping/save_map` (`std_srvs/Trigger` in ROS 1, `std_srvs/srv/Trigger` in ROS 2)
+
+Both Humble and Noetic periodically publish `/n3mapping/global_map` according to `global_map_publish_hz`. Wrappers may skip periodic map rebuild/publish work when there are no subscribers, while still publishing after map load or keyframe/loop updates when appropriate.
 
 ## Map Files
 
@@ -285,6 +289,7 @@ Run the Humble test suite:
 ```bash
 source /opt/ros/humble/setup.bash
 cd ~/ros_ws
+src/n3mapping/scripts/select_distro_wrapper.sh humble
 colcon build --packages-up-to n3mapping --symlink-install --cmake-args -DBUILD_TESTING=ON
 ROS_LOG_DIR=/tmp/ros_log colcon test --packages-select n3mapping
 colcon test-result --test-result-base build/n3mapping --verbose

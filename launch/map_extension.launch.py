@@ -31,7 +31,7 @@ def generate_launch_description():
     
     rviz_config_path = os.path.join(pkg_dir, 'launch', 'n3.rviz')
     
-    # N3Mapping 节点 (map_path 和 map_save_path 使用代码中的默认值，即源目录下的 map 文件夹)
+    # N3Mapping node. Empty config map paths fall back to Config defaults.
     n3mapping_node = Node(
         package='n3mapping',
         executable='n3mapping_node',

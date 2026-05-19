@@ -35,6 +35,7 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <string_view>
 #include <std_msgs/msg/u_int32.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <thread>
 #include <utility>
@@ -149,6 +150,8 @@ class N3MappingNode : public rclcpp::Node
         marker_qos.transient_local();
         loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/n3mapping/loop_closure_markers", marker_qos);
         relocalization_lock_pub_ = this->create_publisher<std_msgs::msg::UInt32>("/n3mapping/relocalization_lock", 10);
+        save_map_srv_ =
+          this->create_service<std_srvs::srv::Trigger>("/n3mapping/save_map", std::bind(&N3MappingNode::handleSaveMap, this, std::placeholders::_1, std::placeholders::_2));
 
         // 全局地图发布者 (transient_local QoS，等价于 latched topic 语义)
         rclcpp::QoS global_map_qos(1);
@@ -158,6 +161,10 @@ class N3MappingNode : public rclcpp::Node
         loop_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
         loop_timer_ = this->create_wall_timer(
           std::chrono::milliseconds(100), std::bind(&N3MappingNode::loopDetectionTimerCallback, this), loop_callback_group_);
+        const double global_map_hz = std::max(0.1, config_.global_map_publish_hz);
+        global_map_timer_ = this->create_wall_timer(
+          std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(1.0 / global_map_hz)),
+          std::bind(&N3MappingNode::globalMapTimerCallback, this));
     }
 
     void initializeOptimizationLogging()
@@ -190,19 +197,16 @@ class N3MappingNode : public rclcpp::Node
     }
 
     /**
-     * @brief 加载并发布全局地图 PCD
-     *
-     * 在定位模式启动时调用，从 map_path 同目录加载 global_map.pcd，
-     * 通过 transient_local QoS 发布使 RViz 可以可视化参考地图。
+     * @brief Load global_map.pcd when available, otherwise publish a map built from loaded keyframes.
      */
     void loadAndPublishGlobalMap()
     {
-        // 从 map_path (pbstream) 推导 global_map.pcd 的路径
         std::filesystem::path pbstream_path(config_.map_path);
         std::filesystem::path global_map_path = pbstream_path.parent_path() / "global_map.pcd";
 
         if (!std::filesystem::exists(global_map_path)) {
-            RCLCPP_WARN(this->get_logger(), "Global map PCD not found: %s", global_map_path.c_str());
+            RCLCPP_WARN(this->get_logger(), "Global map PCD not found: %s, building from loaded keyframes", global_map_path.c_str());
+            publishGlobalMap();
             return;
         }
 
@@ -237,15 +241,10 @@ class N3MappingNode : public rclcpp::Node
         const auto output = n3mapping_core_->processFrame(run_mode_, frame);
         const auto& header = cloud_msg->header;
 
-        if (output.relocalization_locked) {
-            publishRelocalizationLock(header, output.T_world_lidar);
-        }
         if (run_mode_ == CoreRunMode::MAP_EXTENSION && output.relocalization_locked && !output.accepted_keyframe) {
             RCLCPP_INFO(this->get_logger(), "Initial relocalization successful for map extension");
-            ++frame_count_;
-            return;
         }
-        if (run_mode_ == CoreRunMode::MAP_EXTENSION && !output.success && !output.accepted_keyframe) {
+        if (run_mode_ == CoreRunMode::MAP_EXTENSION && !output.success && !output.accepted_keyframe && !output.relocalization_locked) {
             ++frame_count_;
             return;
         }
@@ -253,6 +252,10 @@ class N3MappingNode : public rclcpp::Node
         publishOdometry(output.T_world_lidar, header);
         publishPath(header, &output.T_world_lidar);
         publishPointClouds(output, header);
+
+        if (output.relocalization_locked) {
+            publishRelocalizationLock(header, output.T_world_lidar);
+        }
 
         if (output.accepted_keyframe && (run_mode_ == CoreRunMode::MAPPING || run_mode_ == CoreRunMode::MAP_EXTENSION)) {
             ++keyframe_count_;
@@ -273,6 +276,7 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
 
+        std::lock_guard<std::mutex> lock(data_mutex_);
         const auto result = n3mapping_core_->processPendingLoopClosures();
         if (!result.accepted_loops.empty()) {
             publishLoopMarkers(result.accepted_loops);
@@ -302,6 +306,15 @@ class N3MappingNode : public rclcpp::Node
         }
     }
 
+    void globalMapTimerCallback()
+    {
+        if (!global_map_pub_ || global_map_pub_->get_subscription_count() == 0) {
+            return;
+        }
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        publishGlobalMap();
+    }
+
     /**
      * @brief 发布里程计
      */
@@ -324,15 +337,33 @@ class N3MappingNode : public rclcpp::Node
 
         odom_pub_->publish(odom_msg);
 
-        // 发布 TF
+        rclcpp::Time tf_stamp(odom_msg.header.stamp);
+        if (tf_stamp.nanoseconds() == 0) {
+            tf_stamp = this->now();
+        }
+        if (last_tf_stamp_ && tf_stamp <= *last_tf_stamp_) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(),
+                                 *this->get_clock(),
+                                 2000,
+                                 "Skip non-increasing TF stamp map->%s: current=%.6f last=%.6f",
+                                 config_.body_frame.c_str(),
+                                 tf_stamp.seconds(),
+                                 last_tf_stamp_->seconds());
+            return;
+        }
+
         geometry_msgs::msg::TransformStamped tf;
         tf.header = odom_msg.header;
+        const int64_t tf_stamp_ns = tf_stamp.nanoseconds();
+        tf.header.stamp.sec = static_cast<int32_t>(tf_stamp_ns / 1000000000LL);
+        tf.header.stamp.nanosec = static_cast<uint32_t>(tf_stamp_ns % 1000000000LL);
         tf.child_frame_id = config_.body_frame;
         tf.transform.translation.x = pose.translation().x();
         tf.transform.translation.y = pose.translation().y();
         tf.transform.translation.z = pose.translation().z();
         tf.transform.rotation = odom_msg.pose.pose.orientation;
         tf_broadcaster_->sendTransform(tf);
+        last_tf_stamp_ = tf_stamp;
     }
 
     void publishRelocalizationLock(const std_msgs::msg::Header& header, const Eigen::Isometry3d& pose)
@@ -668,6 +699,20 @@ class N3MappingNode : public rclcpp::Node
         }
     }
 
+    void handleSaveMap(const std::shared_ptr<std_srvs::srv::Trigger::Request>,
+                       std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+    {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        std::string error;
+        response->success = n3mapping_core_ && n3mapping_core_->saveMapSnapshot(&error);
+        response->message = response->success ? ("saved:" + config_.map_save_path) : (error.empty() ? "save_failed" : error);
+        if (response->success) {
+            RCLCPP_INFO(this->get_logger(), "save_map service finished: %s", response->message.c_str());
+        } else {
+            RCLCPP_ERROR(this->get_logger(), "save_map service failed: %s", response->message.c_str());
+        }
+    }
+
     /**
      * @brief 打印统计信息
      */
@@ -700,15 +745,13 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr loop_marker_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt32>::SharedPtr relocalization_lock_pub_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr save_map_srv_;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
     rclcpp::TimerBase::SharedPtr loop_timer_;
     rclcpp::CallbackGroup::SharedPtr loop_callback_group_;
-    rclcpp::TimerBase::SharedPtr reloc_verify_timer_;
-    rclcpp::CallbackGroup::SharedPtr reloc_verify_callback_group_;
-
-    double last_reloc_verify_time_ = 0.0; // 上次周期性全局验证的时间戳（秒）
+    rclcpp::TimerBase::SharedPtr global_map_timer_;
 
     // 线程和同步
     std::mutex data_mutex_;
@@ -720,6 +763,7 @@ class N3MappingNode : public rclcpp::Node
     std::mutex optimization_log_mutex_;
     std::vector<geometry_msgs::msg::PoseStamped> localization_path_; // 定位模式累积轨迹
     std::vector<std::pair<int64_t, int64_t>> loop_marker_history_;
+    std::optional<rclcpp::Time> last_tf_stamp_;
 
     // 统计
     size_t frame_count_ = 0;
