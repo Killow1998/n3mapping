@@ -1,6 +1,45 @@
 # Changelog
 
-## [Unreleased] - 2026-05-08
+## [Unreleased] - 2026-05-19
+
+### Architecture
+
+- Split the backend into a ROS-free `n3mapping_core` library and a thin ROS2 wrapper target.
+- Move ROS2 node implementation into `src/ros2/` and keep backend ownership inside `N3MappingCore`.
+- Add ROS-independent core frame/output types for external-LIO integration without depending on ROS message headers.
+- Add ROS2 conversion/config helper layers so parameter loading and message conversion stay outside core code.
+- Add a ROS1 Noetic wrapper skeleton under `ros1/` for future Noetic integration without affecting ROS2 colcon builds.
+- Add CMake modules for core, ROS2 wrapper, tests, and boundary checks.
+
+### ROS Wrapper and Runtime
+
+- Preserve the original `n3mapping_node` executable while routing mapping, localization, map extension, pending loop processing, map save/load, and global map save through `N3MappingCore`.
+- Publish the global map during mapping mode so RViz can inspect the current map without switching modes.
+- Keep loop closure marker history instead of replacing old loop markers with the newest loop only.
+- Add loop optimization impact diagnostics and write optimization logs to local log files instead of relying on terminal output.
+- Update package metadata and README to describe the RHPD-primary backend, ROS-free core, ROS2 wrapper workflow, dependencies, launch files, tests, and synthetic relocalization tools.
+
+### Synthetic Relocalization Validation
+
+- Add a synthetic relocalization core smoke test and descriptor-driven relocalization evaluation tool.
+- Add a matrix runner for dropout, noise, yaw, and query-source sweeps.
+- Add a ROS2 publisher and RViz visualization launch for before/after/ground-truth relocalization clouds.
+- Add random periodic visualization mode with configurable test count, interval, random seed, dropout, noise, and fake odometry yaw.
+- Report matched keyframe ID, translation/yaw accuracy, and pass/fail markers in synthetic relocalization outputs.
+- Support `same_keyframe`, `local_submap`, and diagnostic `global_map` synthetic query sources.
+
+### Relocalization
+
+- Add a relocalization-only frame-level RHPD index to improve recall for queries that match individual historical frames better than submap descriptors.
+- Add `RhpdFrame` candidate source tracking while preserving RHPD-primary and ScanContext-auxiliary semantics.
+- Improve ScanContext yaw verification by testing adjacent sector yaw hypotheses instead of a forced 180-degree alternative.
+- Select relocalization basins using ICP fitness plus fused descriptor score.
+
+### Tests and Checks
+
+- Add core type, config, ROS2 conversion, `N3MappingCore`, synthetic relocalization, no-ROS-core, ROS2 wrapper-boundary, and ROS1 skeleton checks.
+- Keep existing RHPD, loop detector, map serializer, loop closure, and relocalization regression tests in the refactored target layout.
+- Validate the current test suite at 272 tests passing after the wrapper split and synthetic relocalization additions.
 
 ### Retrieval Pipeline
 
