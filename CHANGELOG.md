@@ -58,6 +58,7 @@
 - Add core type, config, Humble conversion, `N3MappingCore`, synthetic relocalization, no-ROS-core, Humble wrapper-boundary, and Noetic wrapper checks.
 - Keep existing RHPD, loop detector, map serializer, loop closure, and relocalization regression tests in the refactored target layout.
 - Validate the current test suite at 272 tests passing after the wrapper split and synthetic relocalization additions.
+- Revalidate Noetic after Humble wrapper parity updates: `catkin build n3mapping --no-status -j2 --catkin-make-args run_tests`, local `ctest --output-on-failure`, headless `mapping`/`localization`/`map_extension` launch initialization, and `/n3mapping/save_map` service discovery all pass.
 
 ### Retrieval Pipeline
 
