@@ -176,6 +176,17 @@ Expected current result on the verified Humble workspace:
 272 tests, 0 errors, 0 failures, 0 skipped
 ```
 
+Current Humble validation status for this branch:
+
+- `colcon build` has been verified.
+- `colcon test` has been verified.
+- FastLIO plus ROS2 bag playback has been used to drive mapping.
+- Map saving has been verified.
+- Synthetic relocalization visualization has been verified.
+- Mapping-mode global map publishing, loop closure markers, and `optimization.log` generation have been checked.
+- Real bag-driven localization replay against a saved map is still pending.
+- The ROS1 Noetic wrapper is present as a skeleton and has not been runtime-validated in a Noetic workspace.
+
 Focused test examples:
 
 ```bash
@@ -298,8 +309,10 @@ optimization.log
 
 This log records accepted loop count and pose update statistics so you can inspect whether loop closure actually changed the trajectory.
 
-## Notes
+## Architecture Guardrails
+
+These are design constraints for future development, not extra runtime steps:
 
 - RHPD remains the main descriptor path for loop and relocalization candidate retrieval.
-- ScanContext should not be interpreted as the primary loop source unless RHPD is disabled or unavailable.
-- The ROS 2 wrapper is intentionally thin; backend mapping/relocalization logic lives in `n3mapping_core`.
+- ScanContext should stay auxiliary only: yaw hint, weak rerank/veto, or fallback when RHPD is disabled or unavailable.
+- ROS wrappers should stay thin. Backend mapping, loop closure, relocalization, graph optimization, and map serialization logic should live in `n3mapping_core`.
