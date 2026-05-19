@@ -1,8 +1,34 @@
 Panels:
   - Class: rviz/Displays
+    Help Height: 78
     Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Status1
+        - /Global Map1
+        - /Query Before Fake Odom1
+        - /Query After Relocalization1
+        - /Relocalization Markers1
+      Splitter Ratio: 0.5
+    Tree Height: 549
+  - Class: rviz/Selection
+    Name: Selection
+  - Class: rviz/Tool Properties
+    Name: Tool Properties
   - Class: rviz/Views
+    Expanded:
+      - /Current View1
     Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz/Time
+    Name: Time
+    SyncMode: 0
+    SyncSource: Global Map
+Preferences:
+  PromptSaveOnExit: true
+Toolbars:
+  toolButtonStyle: 2
 Visualization Manager:
   Class: ""
   Displays:
@@ -32,14 +58,20 @@ Visualization Manager:
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
       Name: Global Map
       Position Transformer: XYZ
+      Queue Size: 10
       Selectable: true
       Size (Pixels): 2
       Size (m): 0.03
       Style: Points
       Topic: /n3mapping/synthetic/global_map
+      Unreliable: false
       Use Fixed Frame: true
+      Use rainbow: true
       Value: true
     - Alpha: 0.85
       Autocompute Intensity Bounds: true
@@ -54,14 +86,20 @@ Visualization Manager:
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
       Name: Query Before Fake Odom
       Position Transformer: XYZ
+      Queue Size: 10
       Selectable: true
       Size (Pixels): 4
       Size (m): 0.08
       Style: Points
       Topic: /n3mapping/synthetic/query_before
+      Unreliable: false
       Use Fixed Frame: true
+      Use rainbow: true
       Value: true
     - Alpha: 0.9
       Autocompute Intensity Bounds: true
@@ -76,14 +114,20 @@ Visualization Manager:
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
       Name: Query After Relocalization
       Position Transformer: XYZ
+      Queue Size: 10
       Selectable: true
       Size (Pixels): 4
       Size (m): 0.08
       Style: Points
       Topic: /n3mapping/synthetic/query_after
+      Unreliable: false
       Use Fixed Frame: true
+      Use rainbow: true
       Value: true
     - Alpha: 0.65
       Autocompute Intensity Bounds: true
@@ -98,46 +142,84 @@ Visualization Manager:
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
       Name: Query Ground Truth
       Position Transformer: XYZ
+      Queue Size: 10
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.06
       Style: Points
       Topic: /n3mapping/synthetic/query_gt
+      Unreliable: false
       Use Fixed Frame: true
+      Use rainbow: true
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
+      Marker Topic: /n3mapping/synthetic/relocalization_markers
       Name: Relocalization Markers
-      Topic: /n3mapping/synthetic/relocalization_markers
+      Namespaces:
+        {}
+      Queue Size: 100
       Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
+    Default Light: true
     Fixed Frame: map
     Frame Rate: 30
   Name: root
   Tools:
     - Class: rviz/Interact
+      Hide Inactive Objects: true
     - Class: rviz/MoveCamera
     - Class: rviz/Select
+    - Class: rviz/FocusCamera
     - Class: rviz/Measure
+  Transformation:
+    Current:
+      Class: rviz/TF
   Value: true
   Views:
     Current:
       Class: rviz/Orbit
       Distance: 60
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.06
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Field of View: 0.7853981852531433
       Focal Point:
         X: 0
         Y: 0
         Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
       Name: Current View
+      Near Clip Distance: 0.01
       Pitch: 0.8
       Target Frame: <Fixed Frame>
       Yaw: 0.8
+    Saved: ~
 Window Geometry:
+  Displays:
+    collapsed: false
   Height: 900
+  Hide Left Dock: false
+  Hide Right Dock: true
+  Selection:
+    collapsed: false
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: false
+  Views:
+    collapsed: true
   Width: 1400
   X: 80
   Y: 60
