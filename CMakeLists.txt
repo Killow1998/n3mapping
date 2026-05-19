@@ -191,6 +191,22 @@ ament_target_dependencies(n3mapping_synthetic_relocalization_publisher
   pcl_conversions
 )
 
+add_executable(n3mapping_synthetic_relocalization_visualizer
+  tools/n3mapping_synthetic_relocalization_visualizer.cpp
+)
+
+target_link_libraries(n3mapping_synthetic_relocalization_visualizer
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+
+ament_target_dependencies(n3mapping_synthetic_relocalization_visualizer
+  rclcpp
+  sensor_msgs
+  visualization_msgs
+  pcl_conversions
+)
+
 # 安装
 install(TARGETS
   n3mapping_core
@@ -198,6 +214,7 @@ install(TARGETS
   n3mapping_node
   n3mapping_synthetic_relocalization_eval
   n3mapping_synthetic_relocalization_publisher
+  n3mapping_synthetic_relocalization_visualizer
   EXPORT export_n3mapping
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
