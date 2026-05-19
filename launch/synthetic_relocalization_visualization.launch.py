@@ -3,7 +3,7 @@ Synthetic relocalization before/after visualization.
 
 Run with:
   ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
-    map:=/path/to/n3map.pbstream query_id:=320
+    map:=/path/to/n3map.pbstream max_tests:=20 interval_sec:=20
 """
 
 import os
@@ -27,12 +27,14 @@ def generate_launch_description():
     query_id_arg = DeclareLaunchArgument(
         'query_id',
         default_value='-1',
-        description='Keyframe id to visualize, -1 selects the middle keyframe'
+        description='Fixed keyframe id, -1 randomly samples keyframes'
     )
     dropout_arg = DeclareLaunchArgument('dropout', default_value='0.3')
     noise_arg = DeclareLaunchArgument('noise_sigma', default_value='0.02')
     fake_yaw_arg = DeclareLaunchArgument('fake_odom_yaw_deg', default_value='90')
-    repeat_arg = DeclareLaunchArgument('repeat', default_value='0')
+    max_tests_arg = DeclareLaunchArgument('max_tests', default_value='0')
+    interval_arg = DeclareLaunchArgument('interval_sec', default_value='20')
+    random_seed_arg = DeclareLaunchArgument('random_seed', default_value='-1')
 
     visualizer_node = Node(
         package='n3mapping',
@@ -45,7 +47,9 @@ def generate_launch_description():
             '--dropout', LaunchConfiguration('dropout'),
             '--noise_sigma', LaunchConfiguration('noise_sigma'),
             '--fake_odom_yaw_deg', LaunchConfiguration('fake_odom_yaw_deg'),
-            '--repeat', LaunchConfiguration('repeat'),
+            '--max_tests', LaunchConfiguration('max_tests'),
+            '--interval_sec', LaunchConfiguration('interval_sec'),
+            '--random_seed', LaunchConfiguration('random_seed'),
         ],
     )
 
@@ -63,7 +67,9 @@ def generate_launch_description():
         dropout_arg,
         noise_arg,
         fake_yaw_arg,
-        repeat_arg,
+        max_tests_arg,
+        interval_arg,
+        random_seed_arg,
         visualizer_node,
         rviz_node,
     ])
