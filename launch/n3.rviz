@@ -32,6 +32,7 @@ Panels:
     SyncSource: ""
 Visualization Manager:
   Class: ""
+  PromptSaveOnExit: false
   Displays:
     - Alpha: 0.5
       Cell Size: 1

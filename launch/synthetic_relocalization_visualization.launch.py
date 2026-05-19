@@ -11,6 +11,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -35,6 +36,11 @@ def generate_launch_description():
     max_tests_arg = DeclareLaunchArgument('max_tests', default_value='0')
     interval_arg = DeclareLaunchArgument('interval_sec', default_value='20')
     random_seed_arg = DeclareLaunchArgument('random_seed', default_value='-1')
+    rviz_arg = DeclareLaunchArgument(
+        'rviz',
+        default_value='true',
+        description='Whether to start RViz'
+    )
 
     visualizer_node = Node(
         package='n3mapping',
@@ -59,6 +65,7 @@ def generate_launch_description():
         name='rviz2',
         output='screen',
         arguments=['-d', rviz_config_path],
+        condition=IfCondition(LaunchConfiguration('rviz')),
     )
 
     return LaunchDescription([
@@ -70,6 +77,7 @@ def generate_launch_description():
         max_tests_arg,
         interval_arg,
         random_seed_arg,
+        rviz_arg,
         visualizer_node,
         rviz_node,
     ])

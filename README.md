@@ -196,27 +196,35 @@ n3mapping_node:
 
 ## Run
 
+All runtime launch files start RViz by default. Add `rviz:=false` for headless tests on both Humble and Noetic.
+
 ### ROS 2 Humble
 
 Mapping:
 
 ```bash
 source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping mapping.launch.py config_file:=/path/to/n3mapping.yaml
+ros2 launch n3mapping mapping.launch.py \
+  config_file:=/path/to/n3mapping.yaml \
+  rviz:=true
 ```
 
 Localization:
 
 ```bash
 source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping localization.launch.py config_file:=/path/to/n3mapping.yaml
+ros2 launch n3mapping localization.launch.py \
+  config_file:=/path/to/n3mapping.yaml \
+  rviz:=true
 ```
 
 Map extension:
 
 ```bash
 source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping map_extension.launch.py config_file:=/path/to/n3mapping.yaml
+ros2 launch n3mapping map_extension.launch.py \
+  config_file:=/path/to/n3mapping.yaml \
+  rviz:=true
 ```
 
 ### ROS 1 Noetic
@@ -234,14 +242,16 @@ Localization:
 
 ```bash
 roslaunch n3mapping localization.launch \
-  config_file:=/path/to/n3mapping.yaml
+  config_file:=/path/to/n3mapping.yaml \
+  rviz:=true
 ```
 
 Map extension:
 
 ```bash
 roslaunch n3mapping map_extension.launch \
-  config_file:=/path/to/n3mapping.yaml
+  config_file:=/path/to/n3mapping.yaml \
+  rviz:=true
 ```
 
 The launch files start RViz with the package RViz configs. The wrapper publishes:
@@ -313,7 +323,8 @@ ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
   random_seed:=-1 \
   dropout:=0.3 \
   noise_sigma:=0.02 \
-  fake_odom_yaw_deg:=90
+  fake_odom_yaw_deg:=90 \
+  rviz:=true
 ```
 
 ### ROS 1 Noetic
@@ -327,10 +338,11 @@ roslaunch n3mapping synthetic_relocalization_visualization.launch \
   random_seed:=-1 \
   dropout:=0.3 \
   noise_sigma:=0.02 \
-  fake_odom_yaw_deg:=90
+  fake_odom_yaw_deg:=90 \
+  rviz:=true
 ```
 
-Noetic requires `map:=...` for this synthetic launch. The launch file intentionally has no package-relative default map path, because the wrapper package lives under `noetic/` while saved maps usually live in a workspace- or run-specific `map/` directory.
+Both Humble and Noetic require `map:=...` for this synthetic launch. The launch files intentionally have no package-relative default map path, because saved maps usually live in a workspace- or run-specific `map/` directory.
 
 For a non-RViz batch evaluation, both wrappers build `n3mapping_synthetic_relocalization_eval`:
 

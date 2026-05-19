@@ -3,6 +3,7 @@ Panels:
     Name: Displays
 Visualization Manager:
   Class: ""
+  PromptSaveOnExit: false
   Displays:
     - Class: rviz_default_plugins/Grid
       Enabled: true

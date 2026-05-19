@@ -6,6 +6,7 @@ Requirements: 10.4, 12.1, 12.2
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -21,6 +22,11 @@ def generate_launch_description():
         'config_file',
         default_value=os.path.join(pkg_dir, 'config', 'n3mapping.yaml'),
         description='Path to the configuration file'
+    )
+    rviz_arg = DeclareLaunchArgument(
+        'rviz',
+        default_value='true',
+        description='Whether to start RViz'
     )
     
     rviz_config_path = os.path.join(pkg_dir, 'launch', 'n3.rviz')
@@ -44,11 +50,13 @@ def generate_launch_description():
         executable='rviz2',
         name='rviz2',
         output='screen',
-        arguments=['-d', rviz_config_path] 
+        arguments=['-d', rviz_config_path],
+        condition=IfCondition(LaunchConfiguration('rviz')),
     )
     
     return LaunchDescription([
         config_file_arg,
+        rviz_arg,
         n3mapping_node,
         rviz_node,
     ])
