@@ -1,5 +1,5 @@
 <launch>
-  <arg name="map" default="$(find n3mapping)/map/n3map.pbstream" />
+  <arg name="map" default="" />
   <arg name="query_id" default="-1" />
   <arg name="dropout" default="0.3" />
   <arg name="noise_sigma" default="0.02" />
@@ -8,10 +8,11 @@
   <arg name="interval_sec" default="20" />
   <arg name="random_seed" default="-1" />
   <arg name="rviz" default="true" />
+  <arg name="map_cli_arg" default="$(eval '--map ' + arg('map') if arg('map') else '')" />
 
   <node pkg="n3mapping" type="n3mapping_synthetic_relocalization_visualizer"
         name="n3mapping_synthetic_relocalization_visualizer" output="screen"
-        args="--map $(arg map)
+        args="$(arg map_cli_arg)
               --query_id $(arg query_id)
               --dropout $(arg dropout)
               --noise_sigma $(arg noise_sigma)

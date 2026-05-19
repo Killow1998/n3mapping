@@ -330,6 +330,8 @@ roslaunch n3mapping synthetic_relocalization_visualization.launch \
   fake_odom_yaw_deg:=90
 ```
 
+Noetic requires `map:=...` for this synthetic launch. The launch file intentionally has no package-relative default map path, because the wrapper package lives under `noetic/` while saved maps usually live in a workspace- or run-specific `map/` directory.
+
 For a non-RViz batch evaluation, both wrappers build `n3mapping_synthetic_relocalization_eval`:
 
 ```bash

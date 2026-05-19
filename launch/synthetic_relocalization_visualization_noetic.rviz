@@ -28,7 +28,7 @@ Panels:
     SyncMode: 0
     SyncSource: Global Map
 Preferences:
-  PromptSaveOnExit: true
+  PromptSaveOnExit: false
 Toolbars:
   toolButtonStyle: 2
 Visualization Manager:
