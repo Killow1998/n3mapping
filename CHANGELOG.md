@@ -26,6 +26,11 @@
 - Disable Humble RViz save prompts in the shared Humble RViz configs to avoid local interactive-test churn.
 - Document the shared Humble/Noetic `rviz:=false` headless workflow and keep synthetic visualization launches explicit about `map:=...`.
 - Add Humble wrapper parity fixes for `/n3mapping/save_map`, global map timer/fallback publishing, TF timestamp guarding, loop timer core mutex protection, and map-extension relocalization-lock frame publication.
+- Align Humble invalid-frame return logic with Noetic so mapping/map-extension failed non-keyframe frames are dropped while localization fallback poses still publish.
+- Share Humble/Noetic `optimization.log` semantics for optimization diagnostics and reduce terminal optimization spam.
+- Document the ROS 2 `std_srvs` dependency in the README.
+- Update wrapper package maintainer metadata to `killow <killow1998@gmail.com>`.
+- Add the repository BSD-3-Clause `LICENSE` file.
 - Add wrapper-local shared-resource symlinks so `roslaunch n3mapping ...` still resolves the shared launch/config files after the package split.
 - Add `scripts/select_distro_wrapper.sh` as a local wrapper-profile switch with `auto`, `status`, `noetic`, `humble`, and `clear` modes, avoiding committed mutually exclusive ignore files.
 - Move run-mode parsing and frame dispatch into the shared core API (`CoreRunMode`, `processFrame`) so Noetic/Humble wrappers do not duplicate backend mode selection.

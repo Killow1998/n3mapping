@@ -6,7 +6,7 @@
     N3Mapping Noetic wrapper for the shared ROS-free graph backend SLAM core.
   </description>
 
-  <maintainer email="user@example.com">N3Mapping Developer</maintainer>
+  <maintainer email="killow1998@gmail.com">killow</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>catkin</buildtool_depend>

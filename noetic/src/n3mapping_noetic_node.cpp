@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <cerrno>
 #include <cmath>
+#include <fstream>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -19,6 +21,8 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <std_msgs/UInt32.h>
 #include <std_srvs/Trigger.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -40,6 +44,7 @@ class N3MappingNoeticNode {
 
         run_mode_ = parseCoreRunMode(config_.mode);
         core_ = std::make_unique<N3MappingCore>(config_);
+        initializeOptimizationLogging();
 
         initializeRosInterfaces();
 
@@ -107,6 +112,7 @@ class N3MappingNoeticNode {
             ROS_INFO_THROTTLE(2.0, "Initial relocalization successful for map extension");
         }
         if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
+            ++frame_count_;
             return;
         }
 
@@ -119,6 +125,10 @@ class N3MappingNoeticNode {
         }
         if (output.accepted_keyframe) {
             ++keyframe_count_;
+            if (run_mode_ == CoreRunMode::MAPPING || run_mode_ == CoreRunMode::MAP_EXTENSION) {
+                const char* context = run_mode_ == CoreRunMode::MAP_EXTENSION ? "map_extension_incremental" : "mapping_incremental";
+                logOptimizationResult(context, cloud_msg->header.stamp.toSec(), &output.T_world_lidar);
+            }
             publishGlobalMap();
         }
         ++frame_count_;
@@ -137,15 +147,26 @@ class N3MappingNoeticNode {
         }
         if (result.optimized) {
             loop_count_ += result.edge_count;
+            logOptimizationResult("loop_closure", ros::Time::now().toSec(), nullptr);
+            std::ostringstream oss;
+            oss << "[OPTIMIZATION] loop impact edges=" << result.edge_count
+                << " accepted=" << result.accepted_loops.size()
+                << " loop_residual_t=" << result.loop_residual_translation_before
+                << "->" << result.loop_residual_translation_after
+                << " loop_residual_r=" << result.loop_residual_rotation_before
+                << "->" << result.loop_residual_rotation_after
+                << " pose_update_mean_max_t=" << result.mean_pose_update_translation
+                << "/" << result.max_pose_update_translation
+                << " pose_update_mean_max_r=" << result.mean_pose_update_rotation
+                << "/" << result.max_pose_update_rotation
+                << " pose_update_count=" << result.pose_update_count;
+            appendOptimizationLogLine(oss.str());
+
             std_msgs::Header header;
             header.stamp = ros::Time::now();
             header.frame_id = config_.world_frame;
             publishPath(header, nullptr);
             publishGlobalMap();
-            ROS_INFO("Loop optimization: edges=%zu accepted=%zu pose_updates=%zu",
-                     result.edge_count,
-                     result.accepted_loops.size(),
-                     result.pose_update_count);
         }
     }
 
@@ -262,6 +283,92 @@ class N3MappingNoeticNode {
             msg.header.frame_id = config_.world_frame;
             cloud_world_pub_.publish(msg);
         }
+    }
+
+    void initializeOptimizationLogging()
+    {
+        if (!ensureDirectoryExists(config_.map_save_path)) {
+            ROS_WARN("Failed to create optimization log directory: %s", config_.map_save_path.c_str());
+        }
+        optimization_log_path_ = config_.map_save_path + "/optimization.log";
+        std::ofstream file(optimization_log_path_, std::ios::out | std::ios::trunc);
+        if (!file.is_open()) {
+            ROS_WARN("Failed to open optimization log: %s", optimization_log_path_.c_str());
+        }
+    }
+
+    static bool ensureDirectoryExists(const std::string& path)
+    {
+        if (path.empty()) {
+            return false;
+        }
+
+        std::string current;
+        std::size_t start = 0;
+        if (path[0] == '/') {
+            current = "/";
+            start = 1;
+        }
+
+        while (start <= path.size()) {
+            const std::size_t end = path.find('/', start);
+            const std::string part = path.substr(start, end == std::string::npos ? std::string::npos : end - start);
+            if (!part.empty()) {
+                if (!current.empty() && current.back() != '/') {
+                    current += "/";
+                }
+                current += part;
+                if (::mkdir(current.c_str(), 0755) != 0 && errno != EEXIST) {
+                    return false;
+                }
+            }
+            if (end == std::string::npos) {
+                break;
+            }
+            start = end + 1;
+        }
+        return true;
+    }
+
+    void logOptimizationResult(const std::string& context, double timestamp, const Eigen::Isometry3d* current_pose)
+    {
+        auto keyframes = core_ ? core_->getAllKeyframes() : std::vector<Keyframe::Ptr>{};
+        std::vector<Keyframe::Ptr> valid_keyframes;
+        valid_keyframes.reserve(keyframes.size());
+        for (const auto& kf : keyframes) {
+            if (kf) {
+                valid_keyframes.push_back(kf);
+            }
+        }
+        std::sort(valid_keyframes.begin(), valid_keyframes.end(), [](const Keyframe::Ptr& a, const Keyframe::Ptr& b) {
+            return a->id < b->id;
+        });
+
+        const std::string latest_id = valid_keyframes.empty() ? "none" : std::to_string(valid_keyframes.back()->id);
+        std::ostringstream summary;
+        summary << "[OPTIMIZATION] context=" << context << " time=" << timestamp
+                << " keyframes=" << valid_keyframes.size()
+                << " latest_id=" << latest_id;
+        appendOptimizationLogLine(summary.str());
+
+        if (current_pose) {
+            const Eigen::Quaterniond q(current_pose->rotation());
+            std::ostringstream pose_line;
+            pose_line << "[OPTIMIZATION] current t=" << current_pose->translation().x() << ","
+                      << current_pose->translation().y() << "," << current_pose->translation().z()
+                      << " q=" << q.w() << "," << q.x() << "," << q.y() << "," << q.z();
+            appendOptimizationLogLine(pose_line.str());
+        }
+    }
+
+    void appendOptimizationLogLine(const std::string& line)
+    {
+        std::lock_guard<std::mutex> lock(optimization_log_mutex_);
+        std::ofstream file(optimization_log_path_, std::ios::out | std::ios::app);
+        if (!file.is_open()) {
+            return;
+        }
+        file << line << '\n';
     }
 
     void publishGlobalMap()
@@ -425,6 +532,8 @@ class N3MappingNoeticNode {
     ros::Timer loop_timer_;
     ros::Timer global_map_timer_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
+    std::string optimization_log_path_;
+    std::mutex optimization_log_mutex_;
 
     std::vector<geometry_msgs::PoseStamped> localization_path_;
     ros::Time last_tf_stamp_;

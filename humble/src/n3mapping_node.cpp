@@ -244,7 +244,7 @@ class N3MappingNode : public rclcpp::Node
         if (run_mode_ == CoreRunMode::MAP_EXTENSION && output.relocalization_locked && !output.accepted_keyframe) {
             RCLCPP_INFO(this->get_logger(), "Initial relocalization successful for map extension");
         }
-        if (run_mode_ == CoreRunMode::MAP_EXTENSION && !output.success && !output.accepted_keyframe && !output.relocalization_locked) {
+        if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
             ++frame_count_;
             return;
         }

@@ -35,7 +35,7 @@ ROS 2 dependencies:
 - ROS 2 Humble
 - `ament_cmake`
 - `rclcpp`
-- `std_msgs`
+- `std_msgs`, `std_srvs`
 - `sensor_msgs`
 - `nav_msgs`
 - `geometry_msgs`
@@ -377,13 +377,15 @@ Mapping mode publishes loop closure markers on:
 /n3mapping/loop_closure_markers
 ```
 
-Optimization diagnostics are appended under the configured map save directory:
+Humble and Noetic both write optimization diagnostics under the configured `map_save_path`:
 
 ```text
 optimization.log
 ```
 
-This log records accepted loop count and pose update statistics so you can inspect whether loop closure actually changed the trajectory.
+The file is truncated when the node starts and appended after each accepted keyframe or loop optimization. It records keyframe counts, latest keyframe ids, current poses, accepted loop counts, loop residuals, and pose update statistics so you can inspect whether loop closure actually changed the trajectory.
+
+Terminal output intentionally avoids per-keyframe or per-loop optimization details. It keeps warning/error messages, map load and node init events, save-map results, shutdown map-save results, and short relocalization-lock events.
 
 ## Architecture Guardrails
 
