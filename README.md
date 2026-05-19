@@ -133,25 +133,46 @@ If the whole repository is checked out into a mixed ROS 1 / ROS 2 source tree, e
 
 ### ROS 1 Noetic
 
-In a catkin workspace containing `gtsam`, `small_gicp`, and an external LIO frontend:
+Build GTSAM first:
 
 ```bash
 source /opt/ros/noetic/setup.bash
 cd ~/catkin_ws
+src/n3mapping/scripts/select_distro_wrapper.sh noetic
+catkin build gtsam --no-status -j2 --cmake-args \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DGTSAM_USE_SYSTEM_EIGEN=ON \
+  -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
+```
+
+Then build `small_gicp` and `n3mapping`:
+
+```bash
+cd ~/catkin_ws
 src/n3mapping/scripts/select_distro_wrapper.sh
-catkin build n3mapping --no-status -j2
+catkin build small_gicp n3mapping --no-status -j2 --cmake-args -DCMAKE_BUILD_TYPE=Release
 source devel/setup.bash
 ```
 
 The Noetic build discovers `noetic/package.xml`, produces the package name `n3mapping`, and builds an executable named `n3mapping_node`. It compiles `n3mapping_core` from the shared root sources plus the thin wrapper sources under `noetic/`.
 
-For tests:
+For Humble tests:
 
 ```bash
 source /opt/ros/humble/setup.bash
 cd ~/ros_ws
 colcon build --packages-up-to n3mapping --symlink-install --cmake-args -DBUILD_TESTING=ON
 source install/setup.bash
+```
+
+For Noetic static checks:
+
+```bash
+source /opt/ros/noetic/setup.bash
+cd ~/catkin_ws
+src/n3mapping/scripts/select_distro_wrapper.sh noetic
+catkin build n3mapping --no-status -j2
+ctest --test-dir build/n3mapping --output-on-failure
 ```
 
 ## Configuration
