@@ -209,7 +209,18 @@ install(DIRECTORY include/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
-install(DIRECTORY ${N3MAPPING_ROOT}/config ${N3MAPPING_ROOT}/launch
+install(CODE "
+  file(REMOVE
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/launch/mapping.launch.py\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/launch/localization.launch.py\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/launch/map_extension.launch.py\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/launch/synthetic_relocalization_visualization.launch.py\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/launch/n3.rviz\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/launch/synthetic_relocalization_visualization.rviz\"
+  )
+")
+
+install(DIRECTORY ${N3MAPPING_ROOT}/config ${CMAKE_CURRENT_SOURCE_DIR}/launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 

@@ -17,7 +17,7 @@
 
 - Build the `noetic/` package under ROS 1 Noetic with catkin while preserving the same ROS-free core used by Humble.
 - Promote the Noetic wrapper from skeleton to a runnable thin adapter that subscribes to external LIO cloud/odometry, calls `N3MappingCore`, and publishes odometry, path, body/world clouds, loop markers, global map, relocalization lock, TF, and `/n3mapping/save_map`.
-- Preserve Noetic launch entry points for `mapping`, `localization`, and `map_extension`; runtime topic overrides should be supplied through an external `config_file` instead of changing shared launch/config resources.
+- Preserve Noetic launch entry points for `mapping`, `localization`, and `map_extension`; runtime topic overrides should be supplied through an external `config_file` instead of changing shared config resources.
 - Use one Noetic RViz config for all Noetic launch files and one Humble RViz config for all Humble launch files.
 - Add Noetic synthetic relocalization eval and RViz visualization tools so saved maps can be tested under Noetic as well as Humble.
 - Require an explicit `map:=...` for the Noetic synthetic visualization launch instead of defaulting to a package-relative map path that does not exist after the wrapper split.
@@ -31,7 +31,7 @@
 - Document the ROS 2 `std_srvs` dependency in the README.
 - Update wrapper package maintainer metadata to `killow <killow1998@gmail.com>`.
 - Add the repository BSD-3-Clause `LICENSE` file.
-- Add wrapper-local shared-resource symlinks so `roslaunch n3mapping ...` still resolves the shared launch/config files after the package split.
+- Split wrapper launch resources so Humble installs only ROS 2 `.launch.py`/RViz files and Noetic installs only ROS 1 `.launch`/RViz files, while both continue to use the shared config directory.
 - Add `scripts/select_distro_wrapper.sh` as a local wrapper-profile switch with `auto`, `status`, `noetic`, `humble`, and `clear` modes, avoiding committed mutually exclusive ignore files.
 - Move run-mode parsing and frame dispatch into the shared core API (`CoreRunMode`, `processFrame`) so Noetic/Humble wrappers do not duplicate backend mode selection.
 - Move map snapshot save semantics into `N3MappingCore::saveMapSnapshot()` so ROS wrappers do not duplicate backend save logic.

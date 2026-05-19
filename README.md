@@ -22,7 +22,8 @@ include/ and src/    ROS-free backend core
 humble/              ROS 2 Humble wrapper package
 noetic/              ROS 1 Noetic wrapper package
 config/              shared runtime config
-launch/              shared launch and RViz resources
+humble/launch/       ROS 2 launch and RViz resources
+noetic/launch/       ROS 1 launch and RViz resources
 tools/               synthetic relocalization tools
 ```
 

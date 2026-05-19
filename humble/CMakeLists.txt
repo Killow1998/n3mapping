@@ -216,7 +216,18 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-install(DIRECTORY ${N3MAPPING_ROOT}/launch/
+install(CODE "
+  file(REMOVE
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/mapping.launch\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/localization.launch\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/map_extension.launch\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/synthetic_relocalization_visualization.launch\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/n3_noetic.rviz\"
+    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/synthetic_relocalization_visualization_noetic.rviz\"
+  )
+")
+
+install(DIRECTORY launch/
   DESTINATION share/${PROJECT_NAME}/launch
 )
 
