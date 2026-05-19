@@ -8,7 +8,7 @@
 - Move Humble node implementation into `humble/src/` and keep backend ownership inside `N3MappingCore`.
 - Add ROS-independent core frame/output types for external-LIO integration without depending on ROS message headers.
 - Add Humble conversion/config helper layers so parameter loading and message conversion stay outside core code.
-- Make `noetic/` and `humble/` sibling wrapper packages that both keep the ROS package name `n3mapping` while sharing the root core, config, and launch resources.
+- Make `noetic/` and `humble/` sibling wrapper packages that both keep the ROS package name `n3mapping`, share the root core and config, and keep wrapper-local launch resources.
 - Add a Noetic wrapper under `noetic/` for Noetic integration without changing the shared ROS-free core.
 - Move Humble wrapper sources into `humble/src` and `humble/include` so the root source/include trees contain only ROS-free core code.
 - Add CMake modules for core, Humble wrapper, tests, and boundary checks.
@@ -32,6 +32,7 @@
 - Update wrapper package maintainer metadata to `killow <killow1998@gmail.com>`.
 - Add the repository BSD-3-Clause `LICENSE` file.
 - Split wrapper launch resources so Humble installs only ROS 2 `.launch.py`/RViz files and Noetic installs only ROS 1 `.launch`/RViz files, while both continue to use the shared config directory.
+- Confirm the split launch resources under Noetic: catkin build, local ctest, headless `mapping`/`localization`/`map_extension` launch smoke checks, `/n3mapping/save_map`, `optimization.log`, and package-share launch-resource checks all pass without additional code changes.
 - Add `scripts/select_distro_wrapper.sh` as a local wrapper-profile switch with `auto`, `status`, `noetic`, `humble`, and `clear` modes, avoiding committed mutually exclusive ignore files.
 - Move run-mode parsing and frame dispatch into the shared core API (`CoreRunMode`, `processFrame`) so Noetic/Humble wrappers do not duplicate backend mode selection.
 - Move map snapshot save semantics into `N3MappingCore::saveMapSnapshot()` so ROS wrappers do not duplicate backend save logic.
