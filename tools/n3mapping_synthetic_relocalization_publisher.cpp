@@ -170,9 +170,16 @@ int main(int argc, char** argv)
 {
     using namespace n3mapping;
 
-    rclcpp::init(argc, argv);
+    const std::vector<std::string> app_args =
+        rclcpp::init_and_remove_ros_arguments(argc, const_cast<const char* const*>(argv));
+    std::vector<char*> app_argv;
+    app_argv.reserve(app_args.size());
+    for (const auto& arg : app_args) {
+        app_argv.push_back(const_cast<char*>(arg.c_str()));
+    }
+
     Options options;
-    if (!parseArgs(argc, argv, &options)) {
+    if (!parseArgs(static_cast<int>(app_argv.size()), app_argv.data(), &options)) {
         rclcpp::shutdown();
         return 1;
     }
