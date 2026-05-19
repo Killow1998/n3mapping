@@ -170,12 +170,6 @@ ROS_LOG_DIR=/tmp/ros_log colcon test --packages-select n3mapping
 colcon test-result --test-result-base build/n3mapping --verbose
 ```
 
-Expected current result on the verified Humble workspace:
-
-```text
-272 tests, 0 errors, 0 failures, 0 skipped
-```
-
 Focused test examples:
 
 ```bash
