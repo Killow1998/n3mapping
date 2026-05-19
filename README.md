@@ -201,6 +201,18 @@ Important parameters:
 
 RHPD is the primary retrieval descriptor. ScanContext is auxiliary only: yaw estimation, weak rerank/veto, or fallback when RHPD is disabled/unavailable.
 
+For topic or map-path overrides, keep the shared launch/config files unchanged and pass a separate config file through the launch `config_file` argument. This is the same workflow for Humble and Noetic; only the launch command syntax differs.
+
+Example external config fragment:
+
+```yaml
+n3mapping_node:
+  ros__parameters:
+    cloud_topic: "/scout/slam/cloud_registered_body"
+    odom_topic: "/scout/slam/odometry"
+    map_path: "/path/to/n3map.pbstream"
+```
+
 ## Run
 
 ### ROS 2 Humble
@@ -209,21 +221,21 @@ Mapping:
 
 ```bash
 source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping mapping.launch.py
+ros2 launch n3mapping mapping.launch.py config_file:=/path/to/n3mapping.yaml
 ```
 
 Localization:
 
 ```bash
 source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping localization.launch.py
+ros2 launch n3mapping localization.launch.py config_file:=/path/to/n3mapping.yaml
 ```
 
 Map extension:
 
 ```bash
 source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping map_extension.launch.py
+ros2 launch n3mapping map_extension.launch.py config_file:=/path/to/n3mapping.yaml
 ```
 
 ### ROS 1 Noetic
@@ -232,29 +244,23 @@ Mapping:
 
 ```bash
 source ~/catkin_ws/devel/setup.bash
-roslaunch n3mapping mapping.launch rviz:=true
-```
-
-For topic overrides, keep the shared launch/config files unchanged and pass a separate config file:
-
-```bash
 roslaunch n3mapping mapping.launch \
-  config_file:=/path/to/noetic_scout_n3mapping.yaml \
-  rviz:=false
+  config_file:=/path/to/n3mapping.yaml \
+  rviz:=true
 ```
 
 Localization:
 
 ```bash
 roslaunch n3mapping localization.launch \
-  config_file:=/path/to/noetic_localization_n3mapping.yaml
+  config_file:=/path/to/n3mapping.yaml
 ```
 
 Map extension:
 
 ```bash
 roslaunch n3mapping map_extension.launch \
-  config_file:=/path/to/noetic_map_extension_n3mapping.yaml
+  config_file:=/path/to/n3mapping.yaml
 ```
 
 The launch files start RViz with the package RViz configs. The wrapper publishes:
