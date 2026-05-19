@@ -133,6 +133,8 @@ Mapping and map extension save:
 
 Terminal output is intentionally lightweight. It keeps warnings, errors, map loading, save-map results, shutdown map-save results, and relocalization-lock events.
 
+### 2.6 Build, Run, And Test Commands
+
 <details>
 <summary><strong>ROS 2 Humble</strong></summary>
 
