@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
 #include <cmath>
 #include <limits>
 #include <random>
 #include "n3mapping/loop_detector.h"
+#include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
 namespace test {
@@ -33,7 +33,7 @@ protected:
     Keyframe::PointCloudT::Ptr createCircularCloud(size_t num_points = 1000,
                                                     double radius = 20.0,
                                                     double height_variation = 2.0) {
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         cloud->points.reserve(num_points);
         
         std::mt19937 rng(42);  // 固定种子以保证可重复性
@@ -86,7 +86,7 @@ protected:
     }
 
     Keyframe::PointCloudT::Ptr createAsymmetricCloud() {
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         for (float x = -6.0f; x <= 8.0f; x += 0.25f) {
             for (float z = -0.5f; z <= 2.5f; z += 0.35f) {
                 pcl::PointXYZI pt;
@@ -114,7 +114,7 @@ protected:
     }
 
     Keyframe::PointCloudT::Ptr rotateCloud(const Keyframe::PointCloudT::Ptr& cloud, double yaw_rad) {
-        auto rotated = std::make_shared<Keyframe::PointCloudT>();
+        auto rotated = pcl::make_shared<Keyframe::PointCloudT>();
         const double c = std::cos(yaw_rad);
         const double s = std::sin(yaw_rad);
         rotated->reserve(cloud->size());
@@ -131,7 +131,7 @@ protected:
     }
 
     Keyframe::PointCloudT::Ptr translatedCloud(const Keyframe::PointCloudT::Ptr& cloud, double dx, double dy) {
-        auto translated = std::make_shared<Keyframe::PointCloudT>();
+        auto translated = pcl::make_shared<Keyframe::PointCloudT>();
         translated->reserve(cloud->size());
         for (const auto& pt : cloud->points) {
             pcl::PointXYZI out = pt;
@@ -146,7 +146,7 @@ protected:
     }
 
     Keyframe::PointCloudT::Ptr createDifferentStructureCloud() {
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         for (float angle = 0.0f; angle < 2.0f * static_cast<float>(M_PI); angle += 0.03f) {
             for (float z = -0.5f; z <= 2.5f; z += 0.4f) {
                 pcl::PointXYZI pt;
@@ -179,7 +179,7 @@ protected:
     }
 
     Keyframe::PointCloudT::Ptr createDoorwayCorridor(bool doorway) {
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         for (float x = -8.0f; x <= 8.0f; x += 0.25f) {
             const bool in_door = doorway && x >= 1.0f && x <= 3.0f;
             for (float z = -0.2f; z <= 2.8f; z += 0.25f) {
@@ -222,7 +222,7 @@ protected:
     }
 
     Keyframe::PointCloudT::Ptr createVerticalTokenScene(bool near_low) {
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         const float radius = near_low ? 3.0f : 9.0f;
         for (float a = -2.8f; a <= 2.8f; a += 0.18f) {
             for (float w = -0.5f; w <= 0.5f; w += 0.18f) {
@@ -244,7 +244,7 @@ protected:
     }
 
     Keyframe::PointCloudT::Ptr createOpenOrBlockedScene(bool open) {
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         const float range = open ? 18.0f : 4.0f;
         for (float angle = -2.6f; angle <= 2.6f; angle += 0.06f) {
             for (float z = -0.2f; z <= 2.0f; z += 0.35f) {
@@ -304,10 +304,10 @@ TEST_F(LoopDetectorTest, RHPDComputeReturnsConfiguredDimension) {
 
 TEST_F(LoopDetectorTest, RHPDEmptyAndSparseCloudReturnZero) {
     RHPDescriptor descriptor(RHPDescriptor::Params{});
-    auto empty = std::make_shared<Keyframe::PointCloudT>();
+    auto empty = pcl::make_shared<Keyframe::PointCloudT>();
     EXPECT_TRUE(descriptor.compute(empty).isZero(1e-12));
 
-    auto sparse = std::make_shared<Keyframe::PointCloudT>();
+    auto sparse = pcl::make_shared<Keyframe::PointCloudT>();
     sparse->resize(5);
     sparse->width = sparse->size();
     sparse->height = 1;
@@ -443,7 +443,7 @@ TEST_F(LoopDetectorTest, MakeScanContext) {
 
 // 测试空点云处理
 TEST_F(LoopDetectorTest, EmptyCloudHandling) {
-    auto empty_cloud = std::make_shared<Keyframe::PointCloudT>();
+    auto empty_cloud = pcl::make_shared<Keyframe::PointCloudT>();
     
     auto descriptor = detector_->makeScanContext(empty_cloud);
     EXPECT_EQ(descriptor.size(), 0);
@@ -800,11 +800,3 @@ TEST_F(LoopDetectorTest, RebuildTree) {
 
 }  // namespace test
 }  // namespace n3mapping
-
-int main(int argc, char** argv) {
-    rclcpp::init(argc, argv);
-    testing::InitGoogleTest(&argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

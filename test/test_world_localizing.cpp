@@ -1,12 +1,12 @@
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
+#include "n3mapping/pcl_compat.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/world_localizing.h"
 #include <cmath>
 #include <gtest/gtest.h>
 #include <pcl/common/transforms.h>
 #include <random>
-#include <rclcpp/rclcpp.hpp>
 
 namespace n3mapping {
 namespace test {
@@ -49,7 +49,7 @@ class WorldLocalizingTest : public ::testing::Test
     pcl::PointCloud<pcl::PointXYZI>::Ptr generateCorridorCloud(const Eigen::Isometry3d& pose, double corridor_width = 3.0)
     {
 
-        auto cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         std::mt19937 rng(42);
         std::uniform_real_distribution<float> noise(-0.05f, 0.05f);
 
@@ -80,7 +80,7 @@ class WorldLocalizingTest : public ::testing::Test
             }
         }
 
-        auto transformed = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        auto transformed = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         Eigen::Matrix4f transform = pose.matrix().cast<float>();
         pcl::transformPointCloud(*cloud, *transformed, transform);
 
@@ -226,7 +226,7 @@ TEST_F(WorldLocalizingTest, EmptyCloudInput)
 {
     buildTestMap(5, 2.0);
     WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
-    auto empty_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    auto empty_cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
 
     RelocResult result = reloc.relocalize(empty_cloud, Eigen::Isometry3d::Identity());
     EXPECT_FALSE(result.success);
@@ -252,13 +252,3 @@ TEST_F(WorldLocalizingTest, PoseTransformConsistency)
 
 } // namespace test
 } // namespace n3mapping
-
-int
-main(int argc, char** argv)
-{
-    testing::InitGoogleTest(&argc, argv);
-    rclcpp::init(argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

@@ -156,25 +156,6 @@ source devel/setup.bash
 
 The Noetic build discovers `noetic/package.xml`, produces the package name `n3mapping`, and builds an executable named `n3mapping_node`. It compiles `n3mapping_core` from the shared root sources plus the thin wrapper sources under `noetic/`.
 
-For Humble tests:
-
-```bash
-source /opt/ros/humble/setup.bash
-cd ~/ros_ws
-colcon build --packages-up-to n3mapping --symlink-install --cmake-args -DBUILD_TESTING=ON
-source install/setup.bash
-```
-
-For Noetic static checks:
-
-```bash
-source /opt/ros/noetic/setup.bash
-cd ~/catkin_ws
-src/n3mapping/scripts/select_distro_wrapper.sh noetic
-catkin build n3mapping --no-status -j2
-ctest --test-dir build/n3mapping --output-on-failure
-```
-
 ## Configuration
 
 Default config:
@@ -287,7 +268,9 @@ RHPD descriptors are schema-checked on load. If an old map has missing, invalid,
 
 ## Tests
 
-Run all tests:
+### ROS 2 Humble
+
+Run the Humble test suite:
 
 ```bash
 source /opt/ros/humble/setup.bash
@@ -297,9 +280,27 @@ ROS_LOG_DIR=/tmp/ros_log colcon test --packages-select n3mapping
 colcon test-result --test-result-base build/n3mapping --verbose
 ```
 
+The Humble suite includes core mapping/relocalization/loop tests, Humble conversion tests, and wrapper boundary checks.
+
+### ROS 1 Noetic
+
+Run the Noetic test suite:
+
+```bash
+source /opt/ros/noetic/setup.bash
+cd ~/catkin_ws
+src/n3mapping/scripts/select_distro_wrapper.sh noetic
+catkin build n3mapping --no-status -j2 --catkin-make-args run_tests
+source devel/setup.bash
+cd build/n3mapping
+ctest --output-on-failure
+```
+
+The Noetic suite includes the shared core loop/relocalization tests (`test_loop_detector`, `test_world_localizing`, `test_synthetic_relocalization`) plus wrapper/core boundary checks. Noetic does not run Humble message-conversion tests.
+
 ## Synthetic Relocalization Visualization
 
-Use this to inspect whether a synthetic query starts misaligned and then relocalizes onto the saved map:
+Use this Humble RViz tool to inspect whether a synthetic query starts misaligned and then relocalizes onto the saved map:
 
 ```bash
 source ~/ros_ws/install/setup.bash

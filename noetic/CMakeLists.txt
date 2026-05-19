@@ -191,4 +191,28 @@ install(DIRECTORY ${N3MAPPING_ROOT}/config ${N3MAPPING_ROOT}/launch
 if(CATKIN_ENABLE_TESTING)
   include(${N3MAPPING_ROOT}/cmake/n3mapping_checks.cmake)
   n3mapping_add_static_checks()
+
+  catkin_add_gtest(test_loop_detector
+    ${N3MAPPING_ROOT}/test/test_loop_detector.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_loop_detector)
+    target_link_libraries(test_loop_detector n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+  endif()
+
+  catkin_add_gtest(test_world_localizing
+    ${N3MAPPING_ROOT}/test/test_world_localizing.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_world_localizing)
+    target_link_libraries(test_world_localizing n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+  endif()
+
+  catkin_add_gtest(test_synthetic_relocalization
+    ${N3MAPPING_ROOT}/test/test_synthetic_relocalization.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_synthetic_relocalization)
+    target_link_libraries(test_synthetic_relocalization n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+  endif()
 endif()
