@@ -10,6 +10,7 @@ The `ros_wrapper` branch is the intended common development line for both ROS 2 
 - `noetic/`: ROS 1 Noetic catkin package. Package name stays `n3mapping`.
 - `humble/`: ROS 2 Humble ament package. Package name stays `n3mapping`.
 - `config/` and `launch/`: shared runtime resources. Wrapper package directories expose these through symlinks and install rules; the files themselves are not forked.
+- Wrapper-specific source stays inside each wrapper package directory (`noetic/src`, `noetic/include`, `humble/src`, `humble/include`). The root `src/` and `include/n3mapping/` trees are reserved for ROS-free core code.
 
 The core API boundary is an external-LIO frame: point cloud in body/lidar frame and odometry pose. N3Mapping does not currently embed FAST-LIO, DLIO, or SuperLIO in this branch.
 
@@ -236,6 +237,8 @@ roslaunch n3mapping map_extension.launch \
 ```
 
 The launch files start RViz with the package RViz configs. The wrapper publishes:
+
+Noetic `mapping`, `localization`, and `map_extension` launch files share `launch/n3_noetic.rviz`. Humble `mapping`, `localization`, and `map_extension` launch files share `launch/n3.rviz`.
 
 - `/n3mapping/odometry`
 - `/n3mapping/path`

@@ -5,11 +5,12 @@
 ### Architecture
 
 - Split the backend into a ROS-free `n3mapping_core` library and a thin Humble wrapper target.
-- Move Humble node implementation into `src/humble/` and keep backend ownership inside `N3MappingCore`.
+- Move Humble node implementation into `humble/src/` and keep backend ownership inside `N3MappingCore`.
 - Add ROS-independent core frame/output types for external-LIO integration without depending on ROS message headers.
 - Add Humble conversion/config helper layers so parameter loading and message conversion stay outside core code.
 - Make `noetic/` and `humble/` sibling wrapper packages that both keep the ROS package name `n3mapping` while sharing the root core, config, and launch resources.
 - Add a Noetic wrapper under `noetic/` for Noetic integration without changing the shared ROS-free core.
+- Move Humble wrapper sources into `humble/src` and `humble/include` so the root source/include trees contain only ROS-free core code.
 - Add CMake modules for core, Humble wrapper, tests, and boundary checks.
 
 ### ROS Wrapper and Runtime
@@ -17,6 +18,7 @@
 - Build the `noetic/` package under ROS 1 Noetic with catkin while preserving the same ROS-free core used by Humble.
 - Promote the Noetic wrapper from skeleton to a runnable thin adapter that subscribes to external LIO cloud/odometry, calls `N3MappingCore`, and publishes odometry, path, body/world clouds, loop markers, global map, relocalization lock, TF, and `/n3mapping/save_map`.
 - Preserve Noetic launch entry points for `mapping`, `localization`, and `map_extension`; runtime topic overrides should be supplied through an external `config_file` instead of changing shared launch/config resources.
+- Use one Noetic RViz config for all Noetic launch files and one Humble RViz config for all Humble launch files.
 - Add wrapper-local shared-resource symlinks so `roslaunch n3mapping ...` still resolves the shared launch/config files after the package split.
 - Add `scripts/select_distro_wrapper.sh` as a local wrapper-profile switch with `auto`, `status`, `noetic`, `humble`, and `clear` modes, avoiding committed mutually exclusive ignore files.
 - Move run-mode parsing and frame dispatch into the shared core API (`CoreRunMode`, `processFrame`) so Noetic/Humble wrappers do not duplicate backend mode selection.

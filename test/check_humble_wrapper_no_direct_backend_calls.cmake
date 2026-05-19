@@ -11,12 +11,12 @@ set(FORBIDDEN_PATTERNS
 )
 
 set(CHECK_FILES
-  "${ROOT_DIR}/src/humble/n3mapping_node.cpp"
+  "${ROOT_DIR}/humble/src/n3mapping_node.cpp"
 )
 
 foreach(CHECK_DIR
-    "${ROOT_DIR}/include/n3mapping/humble"
-    "${ROOT_DIR}/src/humble")
+    "${ROOT_DIR}/humble/include/n3mapping/humble"
+    "${ROOT_DIR}/humble/src")
   if(EXISTS "${CHECK_DIR}")
     file(GLOB_RECURSE WRAPPER_FILES
       "${CHECK_DIR}/*.h"

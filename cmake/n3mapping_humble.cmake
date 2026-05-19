@@ -19,6 +19,7 @@ function(n3mapping_configure_humble_wrapper_target target_name)
 
   target_include_directories(${target_name} PUBLIC
     $<BUILD_INTERFACE:${N3MAPPING_ROOT}/include>
+    $<BUILD_INTERFACE:${N3MAPPING_ROOT}/humble/include>
     $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
     $<INSTALL_INTERFACE:include>
   )

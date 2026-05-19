@@ -116,8 +116,8 @@ set(N3MAPPING_CORE_SOURCES
 )
 
 set(N3MAPPING_HUMBLE_WRAPPER_SOURCES
-  ${N3MAPPING_ROOT}/src/humble/config_humble.cpp
-  ${N3MAPPING_ROOT}/src/humble/conversions.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/config_humble.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/conversions.cpp
 )
 
 add_library(n3mapping_core SHARED
@@ -132,7 +132,7 @@ add_library(n3mapping_humble_wrapper SHARED
 n3mapping_configure_humble_wrapper_target(n3mapping_humble_wrapper)
 
 add_executable(n3mapping_node
-  ${N3MAPPING_ROOT}/src/humble/n3mapping_node.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node.cpp
 )
 n3mapping_configure_humble_node_target(n3mapping_node)
 
@@ -207,6 +207,10 @@ ament_export_dependencies(
 )
 
 install(DIRECTORY ${N3MAPPING_ROOT}/include/
+  DESTINATION include
+)
+
+install(DIRECTORY include/
   DESTINATION include
 )
 
