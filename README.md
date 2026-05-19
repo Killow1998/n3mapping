@@ -1,36 +1,158 @@
 # N3Mapping
 
-N3Mapping is a graph-backend SLAM and relocalization package with a ROS-free C++ core and thin ROS wrappers. It consumes external LIO output as an undistorted body-frame point cloud plus odometry, performs RHPD-primary loop/relocalization retrieval with ScanContext as auxiliary yaw/rerank/fallback, verifies candidates with small_gicp, optimizes a GTSAM pose graph, and saves maps as `pbstream` files.
+## 1. What Is N3Mapping?
 
-The `ros_wrapper` branch is the intended common development line for both ROS 2 Humble and ROS 1 Noetic. Backend changes should land in `n3mapping_core`; ROS wrappers should stay thin adapters for parameters, messages, topics, services, TF, and launch files.
+N3Mapping is a graph-backend SLAM, loop-closure, map-extension, and relocalization package for external LIO frontends.
 
-## Architecture
+It consumes deskewed body-frame point clouds and odometry, then produces optimized trajectories, loop-closure constraints, relocalization results, and saved maps.
 
-- `n3mapping_core`: ROS-free C++ backend library.
-- `noetic/`: ROS 1 Noetic catkin package. Package name stays `n3mapping`.
-- `humble/`: ROS 2 Humble ament package. Package name stays `n3mapping`.
-- `config/` and `launch/`: shared runtime resources. Wrapper package directories expose these through symlinks and install rules; the files themselves are not forked.
-- Wrapper-specific source stays inside each wrapper package directory (`noetic/src`, `noetic/include`, `humble/src`, `humble/include`). The root `src/` and `include/n3mapping/` trees are reserved for ROS-free core code.
+### Key Features
 
-The core API boundary is an external-LIO frame: point cloud in body/lidar frame and odometry pose. N3Mapping does not currently embed FAST-LIO, DLIO, or SuperLIO in this branch.
+- ROS-free C++ backend core.
+- ROS 2 Humble and ROS 1 Noetic wrappers.
+- Mapping, localization, and map extension modes.
+- RHPD-primary place recognition with ScanContext auxiliary yaw/rerank/fallback.
+- GTSAM pose graph optimization.
+- Map save/load with `n3map.pbstream` and `global_map.pcd`.
 
-Run-mode semantics are shared by the core API: wrappers parse `mode` through `CoreRunMode` and call `N3MappingCore::processFrame()`. Keep backend behavior, map snapshot policy, keyframe decisions, and publish/save map generation in the core; wrapper-specific code should only adapt ROS parameters, messages, topics, services, TF, and launch-time defaults.
+### Repository Layout
 
-The repository root is intentionally not a ROS package. `noetic/` and `humble/` are sibling wrapper packages over the same core sources. Use `scripts/select_distro_wrapper.sh` to generate local profile markers before building in a mixed workspace:
-
-```bash
-scripts/select_distro_wrapper.sh        # auto: choose from ROS_VERSION
-scripts/select_distro_wrapper.sh noetic # hide humble/ from catkin
-scripts/select_distro_wrapper.sh humble # hide noetic/ from colcon/ament
-scripts/select_distro_wrapper.sh status # inspect local profile markers
-scripts/select_distro_wrapper.sh clear  # remove generated markers
+```text
+include/ and src/    ROS-free backend core
+humble/              ROS 2 Humble wrapper package
+noetic/              ROS 1 Noetic wrapper package
+config/              shared runtime config
+launch/              shared launch and RViz resources
+tools/               synthetic relocalization tools
 ```
 
-These generated markers are ignored by git. Do not commit a permanent `noetic/COLCON_IGNORE`: Noetic's `catkin_pkg` also honors `COLCON_IGNORE` and would ignore the Noetic wrapper.
+## 2. How To Use N3Mapping
 
-## Dependencies
+### 2.1 Clone
 
-ROS 2 dependencies:
+```bash
+mkdir -p ~/ros_ws/src
+cd ~/ros_ws/src
+git clone https://github.com/Killow1998/n3mapping.git
+```
+
+Place the external LIO frontend package in the same workspace when mapping from live or bagged LIO output.
+
+### 2.2 Select ROS Wrapper
+
+For ROS 2 Humble:
+
+```bash
+cd ~/ros_ws
+src/n3mapping/scripts/select_distro_wrapper.sh humble
+```
+
+For ROS 1 Noetic:
+
+```bash
+cd ~/ros_ws
+src/n3mapping/scripts/select_distro_wrapper.sh noetic
+```
+
+Optional:
+
+```bash
+src/n3mapping/scripts/select_distro_wrapper.sh status
+src/n3mapping/scripts/select_distro_wrapper.sh clear
+```
+
+### 2.3 Configuration
+
+Default config:
+
+```text
+config/n3mapping.yaml
+```
+
+Common fields users may need to modify:
+
+```yaml
+n3mapping_node:
+  ros__parameters:
+    mode: "mapping"              # mapping | localization | map_extension
+
+    # Input topics from external LIO frontend
+    cloud_topic: "/cloud_registered_body"
+    odom_topic: "/Odometry"
+
+    # Required for localization / map_extension
+    map_path: "/path/to/n3map.pbstream"
+
+    # Save directory for mapping / map_extension
+    map_save_path: "/path/to/save_dir"
+```
+
+Use a custom config file only when needed.
+
+Humble:
+
+```bash
+ros2 launch n3mapping mapping.launch.py config_file:=/path/to/n3mapping.yaml
+```
+
+Noetic:
+
+```bash
+roslaunch n3mapping mapping.launch config_file:=/path/to/n3mapping.yaml
+```
+
+When `map_path` is left empty in `config/n3mapping.yaml`, N3Mapping uses `N3MAPPING_SOURCE_DIR/map/n3map.pbstream`. When `map_save_path` is left empty, it uses `N3MAPPING_SOURCE_DIR/map`.
+
+### 2.4 Runtime Outputs And Services
+
+| Name | Kind | Type | Meaning |
+| --- | --- | --- | --- |
+| `/n3mapping/odometry` | topic | `nav_msgs/Odometry` | Optimized or relocalized output pose |
+| `/n3mapping/path` | topic | `nav_msgs/Path` | Output trajectory |
+| `/n3mapping/cloud_body` | topic | `sensor_msgs/PointCloud2` | Current cloud in body frame |
+| `/n3mapping/cloud_world` | topic | `sensor_msgs/PointCloud2` | Current cloud transformed to world/map frame |
+| `/n3mapping/global_map` | topic | `sensor_msgs/PointCloud2` | Published global map |
+| `/n3mapping/loop_closure_markers` | topic | `visualization_msgs/MarkerArray` | Loop closure and trajectory markers |
+| `/n3mapping/relocalization_lock` | topic | `std_msgs/UInt32` | Relocalization lock event counter |
+| `/n3mapping/save_map` | service | `std_srvs/Trigger` / `std_srvs/srv/Trigger` | Save map files |
+
+### 2.5 Map Files And Logs
+
+Mapping and map extension save:
+
+```text
+<map_save_path>/n3map.pbstream
+<map_save_path>/global_map.pcd
+<map_save_path>/optimization.log
+```
+
+`optimization.log` is truncated when the node starts and appended after accepted keyframes or loop optimizations.
+
+Terminal output is intentionally lightweight. It keeps warnings, errors, map loading, save-map results, shutdown map-save results, and relocalization-lock events.
+
+<details>
+<summary><strong>ROS 2 Humble</strong></summary>
+
+### Dependencies
+
+<details>
+<summary>Show Dependencies</summary>
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+  libprotobuf-dev protobuf-compiler \
+  libgoogle-glog-dev libpcl-dev libeigen3-dev \
+  libopencv-dev libboost-all-dev libtbb-dev
+```
+
+```bash
+source /opt/ros/humble/setup.bash
+cd ~/ros_ws
+rosdep install --from-paths src --ignore-src -r -y
+```
+
+ROS dependencies:
 
 - ROS 2 Humble
 - `ament_cmake`
@@ -44,7 +166,128 @@ ROS 2 dependencies:
 - `tf2`, `tf2_ros`, `tf2_geometry_msgs`
 - `pcl_conversions`, `pcl_ros`
 
-ROS 1 dependencies:
+Native dependencies:
+
+- PCL
+- Eigen3
+- OpenCV
+- Protobuf
+- glog
+- OpenMP
+- GTSAM
+- small_gicp
+
+If GTSAM and small_gicp are not already available in the workspace:
+
+```bash
+cd ~/ros_ws/src
+git clone https://github.com/borglab/gtsam.git -b 4.1.1
+git clone https://github.com/koide3/small_gicp.git
+```
+
+</details>
+
+### Build
+
+```bash
+source /opt/ros/humble/setup.bash
+cd ~/ros_ws
+src/n3mapping/scripts/select_distro_wrapper.sh humble
+
+colcon build --packages-up-to n3mapping --symlink-install \
+  --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+source install/setup.bash
+```
+
+### Run
+
+Mapping:
+
+```bash
+ros2 launch n3mapping mapping.launch.py
+```
+
+Localization:
+
+```bash
+ros2 launch n3mapping localization.launch.py
+```
+
+Map extension:
+
+```bash
+ros2 launch n3mapping map_extension.launch.py
+```
+
+Headless:
+
+```bash
+ros2 launch n3mapping mapping.launch.py rviz:=false
+```
+
+### Save Map
+
+```bash
+ros2 service call /n3mapping/save_map std_srvs/srv/Trigger {}
+```
+
+### Test
+
+```bash
+colcon build --packages-up-to n3mapping --symlink-install \
+  --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+ROS_LOG_DIR=/tmp/ros_log colcon test --packages-select n3mapping
+colcon test-result --test-result-base build/n3mapping --verbose
+```
+
+### Synthetic Relocalization Tools
+
+RViz visualization:
+
+```bash
+ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
+  map:=/path/to/n3map.pbstream
+```
+
+Headless batch evaluation:
+
+```bash
+ros2 run n3mapping n3mapping_synthetic_relocalization_eval \
+  --map /path/to/n3map.pbstream \
+  --max_queries 100 \
+  --query_source local_submap \
+  --strict
+```
+
+</details>
+
+---
+
+<details>
+<summary><strong>ROS 1 Noetic</strong></summary>
+
+### Dependencies
+
+<details>
+<summary>Show Dependencies</summary>
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+  libprotobuf-dev protobuf-compiler \
+  libgoogle-glog-dev libpcl-dev libeigen3-dev \
+  libopencv-dev libboost-all-dev libtbb-dev
+```
+
+```bash
+source /opt/ros/noetic/setup.bash
+cd ~/ros_ws
+rosdep install --from-paths src --ignore-src -r -y
+```
+
+ROS dependencies:
 
 - ROS 1 Noetic
 - `catkin`
@@ -58,7 +301,7 @@ ROS 1 dependencies:
 - `tf2_ros`
 - `pcl_conversions`, `pcl_ros`
 
-Native/library dependencies:
+Native dependencies:
 
 - PCL
 - Eigen3
@@ -69,328 +312,111 @@ Native/library dependencies:
 - GTSAM
 - small_gicp
 
-Default external LIO topics:
-
-- point cloud: `/cloud_registered_body` (`sensor_msgs/PointCloud2`)
-- odometry: `/Odometry` (`nav_msgs/Odometry`)
-
-The input cloud is expected to be deskewed in lidar/body frame, not pre-transformed into the saved map frame.
-
-## Install System Packages
+If GTSAM and small_gicp are not already available in the workspace:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y \
-  libprotobuf-dev protobuf-compiler \
-  libgoogle-glog-dev libpcl-dev libeigen3-dev \
-  libopencv-dev libboost-all-dev libtbb-dev
-```
-
-Prepare the ROS 2 workspace and install ROS dependencies:
-
-```bash
-source /opt/ros/humble/setup.bash
-mkdir -p ~/ros_ws/src
 cd ~/ros_ws/src
 git clone https://github.com/borglab/gtsam.git -b 4.1.1
 git clone https://github.com/koide3/small_gicp.git
-git clone https://github.com/Killow1998/n3mapping.git
-
-cd ~/ros_ws
-rosdep install --from-paths src --ignore-src -r -y
 ```
 
-Place an external LIO frontend package in the same workspace when mapping from live or bagged LIO output. N3Mapping subscribes to the frontend cloud and odometry topics; the frontend is not built into this branch.
+</details>
 
-## Build
-
-`noetic/` and `humble/` are separate wrapper packages with the same package name, `n3mapping`. Build from the matching ROS workspace; the core sources are shared from the repository root.
-
-### ROS 2 Humble
-
-Build GTSAM first:
-
-```bash
-source /opt/ros/humble/setup.bash
-cd ~/ros_ws
-src/n3mapping/scripts/select_distro_wrapper.sh humble
-colcon build --packages-select gtsam --symlink-install \
-  --cmake-args \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DGTSAM_USE_SYSTEM_EIGEN=ON \
-    -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
-```
-
-Then build `small_gicp` and `n3mapping`:
-
-```bash
-cd ~/ros_ws
-src/n3mapping/scripts/select_distro_wrapper.sh humble
-colcon build --packages-up-to n3mapping --symlink-install \
-  --cmake-args -DCMAKE_BUILD_TYPE=Release
-source install/setup.bash
-```
-
-If the whole repository is checked out into a mixed ROS 1 / ROS 2 source tree, ensure the Humble workspace discovers `humble/` as the `n3mapping` package and does not also discover `noetic/` with the same package name.
-
-### ROS 1 Noetic
-
-Build GTSAM first:
+### Build
 
 ```bash
 source /opt/ros/noetic/setup.bash
-cd ~/catkin_ws
+cd ~/ros_ws
 src/n3mapping/scripts/select_distro_wrapper.sh noetic
-catkin build gtsam --no-status -j2 --cmake-args \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DGTSAM_USE_SYSTEM_EIGEN=ON \
-  -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF
-```
 
-Then build `small_gicp` and `n3mapping`:
+catkin build n3mapping --no-status -j2 \
+  --cmake-args -DCMAKE_BUILD_TYPE=Release
 
-```bash
-cd ~/catkin_ws
-src/n3mapping/scripts/select_distro_wrapper.sh
-catkin build small_gicp n3mapping --no-status -j2 --cmake-args -DCMAKE_BUILD_TYPE=Release
 source devel/setup.bash
 ```
 
-The Noetic build discovers `noetic/package.xml`, produces the package name `n3mapping`, and builds an executable named `n3mapping_node`. It compiles `n3mapping_core` from the shared root sources plus the thin wrapper sources under `noetic/`.
-
-## Configuration
-
-Default config:
-
-```text
-config/n3mapping.yaml
-```
-
-Important parameters:
-
-- `mode`: `mapping`, `localization`, or `map_extension`
-- `cloud_topic`: default `/cloud_registered_body`
-- `odom_topic`: default `/Odometry`
-- `map_path`: pbstream file to load in localization/map extension. Empty string means the Config default: `N3MAPPING_SOURCE_DIR/map/n3map.pbstream`.
-- `map_save_path`: directory for saved maps in mapping mode. Empty string means the Config default: `N3MAPPING_SOURCE_DIR/map`.
-- `global_map_publish_hz`: global map publish frequency for Humble and Noetic wrappers
-- `global_map_voxel_size`: voxel size for published global map
-- `save_global_map_voxel_size`: voxel size for saved `global_map.pcd`; `0.0` keeps full resolution
-- `rhpd_enabled`: default `true`
-- `rhpd_num_candidates`, `rhpd_preselect_candidates`: RHPD retrieval count and coarse preselect count
-- `rhpd_use_sc_yaw`: use ScanContext yaw as an auxiliary yaw estimate
-- `sc_aux_weight`, `sc_aux_veto_*`: ScanContext auxiliary rerank/veto settings
-- `reloc_temporal_window_size`, `reloc_lock_*`: relocalization lock stability gate
-
-RHPD is the primary retrieval descriptor. ScanContext is auxiliary only: yaw estimation, weak rerank/veto, or fallback when RHPD is disabled/unavailable.
-
-For topic or map-path overrides, keep the shared launch/config files unchanged and pass a separate config file through the launch `config_file` argument. This is the same workflow for Humble and Noetic; only the launch command syntax differs.
-
-Example external config fragment:
-
-```yaml
-n3mapping_node:
-  ros__parameters:
-    cloud_topic: "/scout/slam/cloud_registered_body"
-    odom_topic: "/scout/slam/odometry"
-    map_path: "/path/to/n3map.pbstream"
-```
-
-## Run
-
-All runtime launch files start RViz by default. Add `rviz:=false` for headless tests on both Humble and Noetic.
-
-### ROS 2 Humble
+### Run
 
 Mapping:
 
 ```bash
-source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping mapping.launch.py \
-  config_file:=/path/to/n3mapping.yaml \
-  rviz:=true
+roslaunch n3mapping mapping.launch
 ```
 
 Localization:
 
 ```bash
-source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping localization.launch.py \
-  config_file:=/path/to/n3mapping.yaml \
-  rviz:=true
+roslaunch n3mapping localization.launch
 ```
 
 Map extension:
 
 ```bash
-source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping map_extension.launch.py \
-  config_file:=/path/to/n3mapping.yaml \
-  rviz:=true
+roslaunch n3mapping map_extension.launch
 ```
 
-### ROS 1 Noetic
-
-Mapping:
+Headless:
 
 ```bash
-source ~/catkin_ws/devel/setup.bash
-roslaunch n3mapping mapping.launch \
-  config_file:=/path/to/n3mapping.yaml \
-  rviz:=true
+roslaunch n3mapping mapping.launch rviz:=false
 ```
 
-Localization:
+### Save Map
 
 ```bash
-roslaunch n3mapping localization.launch \
-  config_file:=/path/to/n3mapping.yaml \
-  rviz:=true
+rosservice call /n3mapping/save_map "{}"
 ```
 
-Map extension:
+### Test
 
 ```bash
-roslaunch n3mapping map_extension.launch \
-  config_file:=/path/to/n3mapping.yaml \
-  rviz:=true
-```
-
-The launch files start RViz with the package RViz configs. The wrapper publishes:
-
-Noetic `mapping`, `localization`, and `map_extension` launch files share `launch/n3_noetic.rviz`. Humble `mapping`, `localization`, and `map_extension` launch files share `launch/n3.rviz`.
-
-- `/n3mapping/odometry`
-- `/n3mapping/path`
-- `/n3mapping/cloud_body`
-- `/n3mapping/cloud_world`
-- `/n3mapping/loop_closure_markers`
-- `/n3mapping/global_map`
-- `/n3mapping/relocalization_lock`
-- `/n3mapping/save_map` (`std_srvs/Trigger` in ROS 1, `std_srvs/srv/Trigger` in ROS 2)
-
-Both Humble and Noetic periodically publish `/n3mapping/global_map` according to `global_map_publish_hz`. Wrappers may skip periodic map rebuild/publish work when there are no subscribers, while still publishing after map load or keyframe/loop updates when appropriate.
-
-## Map Files
-
-Mapping mode saves:
-
-- `n3map.pbstream`
-- `global_map.pcd`
-
-RHPD descriptors are schema-checked on load. If an old map has missing, invalid, or incompatible RHPD descriptors, N3Mapping rebuilds them from saved keyframes when possible.
-
-## Tests
-
-### ROS 2 Humble
-
-Run the Humble test suite:
-
-```bash
-source /opt/ros/humble/setup.bash
-cd ~/ros_ws
-src/n3mapping/scripts/select_distro_wrapper.sh humble
-colcon build --packages-up-to n3mapping --symlink-install --cmake-args -DBUILD_TESTING=ON
-ROS_LOG_DIR=/tmp/ros_log colcon test --packages-select n3mapping
-colcon test-result --test-result-base build/n3mapping --verbose
-```
-
-The Humble suite includes core mapping/relocalization/loop tests, Humble conversion tests, and wrapper boundary checks.
-
-### ROS 1 Noetic
-
-Run the Noetic test suite:
-
-```bash
-source /opt/ros/noetic/setup.bash
-cd ~/catkin_ws
-src/n3mapping/scripts/select_distro_wrapper.sh noetic
 catkin build n3mapping --no-status -j2 --catkin-make-args run_tests
 source devel/setup.bash
 cd build/n3mapping
 ctest --output-on-failure
 ```
 
-The Noetic suite includes the shared core loop/relocalization tests (`test_loop_detector`, `test_world_localizing`, `test_synthetic_relocalization`) plus wrapper/core boundary checks. Noetic does not run Humble message-conversion tests.
+### Synthetic Relocalization Tools
 
-## Synthetic Relocalization Visualization
-
-Use these tools to inspect whether a synthetic query starts misaligned and then relocalizes onto the saved map.
-
-### ROS 2 Humble
+RViz visualization:
 
 ```bash
-source ~/ros_ws/install/setup.bash
-ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
-  map:=$HOME/ros_ws/src/n3mapping/map/n3map.pbstream \
-  max_tests:=20 \
-  interval_sec:=20 \
-  random_seed:=-1 \
-  dropout:=0.3 \
-  noise_sigma:=0.02 \
-  fake_odom_yaw_deg:=90 \
-  rviz:=true
-```
-
-### ROS 1 Noetic
-
-```bash
-source ~/catkin_ws/devel/setup.bash
 roslaunch n3mapping synthetic_relocalization_visualization.launch \
-  map:=/path/to/n3map.pbstream \
-  max_tests:=20 \
-  interval_sec:=20 \
-  random_seed:=-1 \
-  dropout:=0.3 \
-  noise_sigma:=0.02 \
-  fake_odom_yaw_deg:=90 \
-  rviz:=true
+  map:=/path/to/n3map.pbstream
 ```
 
-Both Humble and Noetic require `map:=...` for this synthetic launch. The launch files intentionally have no package-relative default map path, because saved maps usually live in a workspace- or run-specific `map/` directory.
-
-For a non-RViz batch evaluation, both wrappers build `n3mapping_synthetic_relocalization_eval`:
+Headless batch evaluation:
 
 ```bash
 rosrun n3mapping n3mapping_synthetic_relocalization_eval \
   --map /path/to/n3map.pbstream \
   --max_queries 100 \
   --query_source local_submap \
-  --dropout 0.3 \
-  --noise_sigma 0.02 \
   --strict
 ```
 
-RViz topics:
+</details>
 
-- gray: `/n3mapping/synthetic/global_map`
-- red: `/n3mapping/synthetic/query_before`
-- green: `/n3mapping/synthetic/query_after`
-- blue: `/n3mapping/synthetic/query_gt`
-- markers/text: `/n3mapping/synthetic/relocalization_markers`
+---
 
-## Debugging Loop Closure and Optimization
+## 3. Additional Information
 
-Mapping mode publishes loop closure markers on:
+### Developer Notes
 
-```text
-/n3mapping/loop_closure_markers
-```
+<details>
+<summary>Show Developer Notes</summary>
 
-Humble and Noetic both write optimization diagnostics under the configured `map_save_path`:
+- Keep backend mapping, loop closure, relocalization, graph optimization, and map serialization logic in the ROS-free core.
+- Keep ROS wrappers as thin adapters for parameters, messages, topics, services, TF, and launch defaults.
+- Keep Humble and Noetic runtime behavior consistent.
+- Do not commit local wrapper-selection marker files.
+- Do not commit generated maps, logs, build artifacts, or local test configs.
 
-```text
-optimization.log
-```
+</details>
 
-The file is truncated when the node starts and appended after each accepted keyframe or loop optimization. It records keyframe counts, latest keyframe ids, current poses, accepted loop counts, loop residuals, and pose update statistics so you can inspect whether loop closure actually changed the trajectory.
+### TODO
 
-Terminal output intentionally avoids per-keyframe or per-loop optimization details. It keeps warning/error messages, map load and node init events, save-map results, shutdown map-save results, and short relocalization-lock events.
-
-## Architecture Guardrails
-
-These are design constraints for future development, not extra runtime steps:
-
-- RHPD remains the main descriptor path for loop and relocalization candidate retrieval.
-- ScanContext should stay auxiliary only: yaw hint, weak rerank/veto, or fallback when RHPD is disabled or unavailable.
-- ROS wrappers should stay thin. Backend mapping, loop closure, relocalization, graph optimization, and map serialization logic should live in `n3mapping_core`.
+- Long-duration real-world mapping, localization, and map-extension regression.
+- More compatibility tests for old `pbstream` files.
+- Real-bag evaluation scripts for common workflows.
+- Optional frontend integration examples.
