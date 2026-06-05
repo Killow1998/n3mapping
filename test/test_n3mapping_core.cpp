@@ -104,6 +104,37 @@ TEST(N3MappingCoreTest, MappingFrameBelowKeyframeThresholdStillProducesPoseOutpu
     EXPECT_EQ(output.keyframe_id, -1);
     EXPECT_EQ(core.getAllKeyframes().size(), 1U);
     EXPECT_NEAR(output.T_world_lidar.translation().x(), 0.1, 1e-9);
+    const auto dense = core.getDenseOptimizedTrajectory();
+    ASSERT_EQ(dense.size(), 2U);
+    EXPECT_NEAR(dense.back().pose_world_lidar.translation().x(), 0.1, 1e-9);
+}
+
+TEST(N3MappingCoreTest, LocalizationDoesNotAppendDenseOptimizedTrajectory)
+{
+    Config config = makeCoreTestConfig();
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "n3mapping_core_localization_dense";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path map_path = dir / "map.pbstream";
+
+    {
+        N3MappingCore core(config);
+        ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+        ASSERT_TRUE(core.saveMap(map_path.string()));
+    }
+
+    N3MappingCore localization_core(config);
+    ASSERT_TRUE(localization_core.loadMap(map_path.string()));
+    const auto loaded_dense = localization_core.getDenseOptimizedTrajectory();
+    ASSERT_FALSE(loaded_dense.empty());
+
+    const auto output = localization_core.processLocalizationFrame(
+        makeFrame(2000000000, Eigen::Isometry3d::Identity()));
+    (void)output;
+    EXPECT_EQ(localization_core.getDenseOptimizedTrajectory().size(), loaded_dense.size());
+
+    std::filesystem::remove_all(dir);
 }
 
 TEST(N3MappingCoreTest, BuildGlobalMapAccumulatesAcceptedKeyframes)

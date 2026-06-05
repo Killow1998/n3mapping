@@ -94,6 +94,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 include(${N3MAPPING_ROOT}/cmake/n3mapping_core.cmake)
+include(${N3MAPPING_ROOT}/cmake/n3mapping_nav_resource_reader.cmake)
 include(${N3MAPPING_ROOT}/cmake/n3mapping_humble.cmake)
 include(${N3MAPPING_ROOT}/cmake/n3mapping_tests.cmake)
 include(${N3MAPPING_ROOT}/cmake/n3mapping_checks.cmake)
@@ -127,6 +128,8 @@ add_library(n3mapping_core SHARED
 add_library(${PROJECT_NAME}_lib ALIAS n3mapping_core)
 n3mapping_configure_core_target(n3mapping_core)
 
+n3mapping_add_nav_resource_reader(n3map_nav_resource_reader)
+
 add_library(n3mapping_humble_wrapper SHARED
   ${N3MAPPING_HUMBLE_WRAPPER_SOURCES}
 )
@@ -141,6 +144,14 @@ add_executable(n3mapping_synthetic_relocalization_eval
   ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_eval.cpp
 )
 target_link_libraries(n3mapping_synthetic_relocalization_eval
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+
+add_executable(n3mapping_filter_nav_pbstream
+  ${N3MAPPING_ROOT}/tools/n3mapping_filter_nav_pbstream.cpp
+)
+target_link_libraries(n3mapping_filter_nav_pbstream
   n3mapping_core
   ${PCL_LIBRARIES}
 )
@@ -175,9 +186,11 @@ ament_target_dependencies(n3mapping_synthetic_relocalization_visualizer
 
 install(TARGETS
   n3mapping_core
+  n3map_nav_resource_reader
   n3mapping_humble_wrapper
   n3mapping_node
   n3mapping_synthetic_relocalization_eval
+  n3mapping_filter_nav_pbstream
   n3mapping_synthetic_relocalization_publisher
   n3mapping_synthetic_relocalization_visualizer
   EXPORT export_n3mapping
@@ -244,6 +257,18 @@ if(BUILD_TESTING)
     ament_target_dependencies(test_keyframe_manager rclcpp)
   endif()
 
+  ament_add_gtest(test_config ${N3MAPPING_ROOT}/test/test_config.cpp)
+  if(TARGET test_config)
+    target_link_libraries(test_config ${PROJECT_NAME}_lib)
+    ament_target_dependencies(test_config rclcpp)
+  endif()
+
+  ament_add_gtest(test_n3mapping_core ${N3MAPPING_ROOT}/test/test_n3mapping_core.cpp)
+  if(TARGET test_n3mapping_core)
+    target_link_libraries(test_n3mapping_core ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
+    ament_target_dependencies(test_n3mapping_core rclcpp)
+  endif()
+
   ament_add_gtest(test_point_cloud_matcher ${N3MAPPING_ROOT}/test/test_point_cloud_matcher.cpp)
   if(TARGET test_point_cloud_matcher)
     target_link_libraries(test_point_cloud_matcher ${PROJECT_NAME}_lib ${PCL_LIBRARIES} OpenMP::OpenMP_CXX)
@@ -282,8 +307,14 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_map_serializer ${N3MAPPING_ROOT}/test/test_map_serializer.cpp)
   if(TARGET test_map_serializer)
-    target_link_libraries(test_map_serializer ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
+    target_link_libraries(test_map_serializer ${PROJECT_NAME}_lib n3map_nav_resource_reader ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
     ament_target_dependencies(test_map_serializer rclcpp)
+  endif()
+
+  ament_add_gtest(test_n3mapping_filter_nav_pbstream ${N3MAPPING_ROOT}/test/test_n3mapping_filter_nav_pbstream.cpp)
+  if(TARGET test_n3mapping_filter_nav_pbstream)
+    target_link_libraries(test_n3mapping_filter_nav_pbstream ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
+    ament_target_dependencies(test_n3mapping_filter_nav_pbstream rclcpp)
   endif()
 
   ament_add_gtest(test_map_serializer_pbt ${N3MAPPING_ROOT}/test/test_map_serializer_pbt.cpp)

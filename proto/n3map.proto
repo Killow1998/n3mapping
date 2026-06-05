@@ -61,6 +61,12 @@ message EdgeProto {
     EdgeType type = 5;
 }
 
+message DenseTrajectoryPose {
+    uint64 seq = 1;
+    double timestamp = 2;
+    Pose3D pose_world_lidar = 3;
+}
+
 // 地图元数据
 message MapMetadata {
     string version = 1;
@@ -69,6 +75,8 @@ message MapMetadata {
     uint32 num_odometry_edges = 4;
     uint32 num_loop_edges = 5;
     string rhpd_schema = 6;
+    string map_frame = 7;
+    string body_frame = 8;
 }
 
 // 完整地图
@@ -76,4 +84,5 @@ message N3Map {
     MapMetadata metadata = 1;
     repeated KeyframeProto keyframes = 2;
     repeated EdgeProto edges = 3;
+    repeated DenseTrajectoryPose dense_optimized_trajectory = 4;
 }

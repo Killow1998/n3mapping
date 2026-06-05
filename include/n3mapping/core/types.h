@@ -60,5 +60,11 @@ struct BackendOutput {
     LioFrame::PointCloud::Ptr cloud_world;
 };
 
+struct DenseTrajectoryPose {
+    uint64_t seq = 0;
+    double timestamp = 0.0;
+    Eigen::Isometry3d pose_world_lidar = Eigen::Isometry3d::Identity();
+};
+
 }  // namespace core
 }  // namespace n3mapping

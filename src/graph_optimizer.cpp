@@ -12,6 +12,10 @@ GraphOptimizer::GraphOptimizer(const Config& config)
     , has_loop_closure_(false)
     , needs_optimization_(false)
 {
+    std::string config_error;
+    if (!config_.validate(&config_error)) {
+        throw std::invalid_argument("Invalid N3Mapping graph optimizer config: " + config_error);
+    }
     // 初始化 iSAM2 优化器
     gtsam::ISAM2Params params;
     params.relinearizeThreshold = 0.1;

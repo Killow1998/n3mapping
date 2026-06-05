@@ -94,6 +94,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 include(${N3MAPPING_ROOT}/cmake/n3mapping_core.cmake)
+include(${N3MAPPING_ROOT}/cmake/n3mapping_nav_resource_reader.cmake)
 
 set(N3MAPPING_CORE_SOURCES
   ${PROTO_SRCS}
@@ -120,6 +121,8 @@ add_library(${PROJECT_NAME}_lib ALIAS n3mapping_core)
 n3mapping_configure_core_target(n3mapping_core)
 target_include_directories(n3mapping_core PUBLIC ${catkin_INCLUDE_DIRS})
 
+n3mapping_add_nav_resource_reader(n3map_nav_resource_reader)
+
 add_library(n3mapping_noetic_wrapper SHARED
   src/config_noetic.cpp
   src/conversions.cpp
@@ -136,6 +139,9 @@ target_link_libraries(n3mapping_noetic_wrapper
   ${PCL_LIBRARIES}
 )
 set_target_properties(n3mapping_core n3mapping_noetic_wrapper PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib
+)
+set_target_properties(n3map_nav_resource_reader PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib
 )
 
@@ -161,6 +167,17 @@ set_target_properties(n3mapping_synthetic_relocalization_eval PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
 )
 
+add_executable(n3mapping_filter_nav_pbstream
+  ${N3MAPPING_ROOT}/tools/n3mapping_filter_nav_pbstream.cpp
+)
+target_link_libraries(n3mapping_filter_nav_pbstream
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+set_target_properties(n3mapping_filter_nav_pbstream PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
+)
+
 add_executable(n3mapping_synthetic_relocalization_visualizer
   src/synthetic_relocalization_visualizer.cpp
 )
@@ -175,7 +192,7 @@ set_target_properties(n3mapping_synthetic_relocalization_visualizer PROPERTIES
 
 catkin_package(
   INCLUDE_DIRS include ../include
-  LIBRARIES n3mapping_core n3mapping_noetic_wrapper
+  LIBRARIES n3mapping_core n3map_nav_resource_reader n3mapping_noetic_wrapper
   CATKIN_DEPENDS
     roscpp
     std_msgs
@@ -192,9 +209,11 @@ catkin_package(
 
 install(TARGETS
   n3mapping_core
+  n3map_nav_resource_reader
   n3mapping_noetic_wrapper
   n3mapping_node
   n3mapping_synthetic_relocalization_eval
+  n3mapping_filter_nav_pbstream
   n3mapping_synthetic_relocalization_visualizer
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
