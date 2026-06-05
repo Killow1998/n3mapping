@@ -561,6 +561,11 @@ double RHPDescriptor::distance(const VecD& a, const VecD& b) const {
 void RHPDManager::add(int64_t kf_id, const VecD& descriptor) {
     if (descriptor.size() != RHPD_DIM) return;
     std::lock_guard<std::mutex> lock(mutex_);
+    if (std::find(ids_.begin(), ids_.end(), kf_id) != ids_.end()) {
+        LOG(WARNING) << "[RHPDManager] Duplicate RHPD descriptor id " << kf_id
+                     << ", keeping existing descriptor.";
+        return;
+    }
     ids_.push_back(kf_id);
     descriptors_.push_back(descriptor);
     coarse_keys_.push_back(makeCoarseKey(descriptor));
@@ -663,6 +668,10 @@ void RHPDManager::loadAll(const std::vector<std::pair<int64_t, VecD>>& data) {
     descriptors_.clear();
     coarse_keys_.clear();
     for (const auto& [id, desc] : data) {
+        if (std::find(ids_.begin(), ids_.end(), id) != ids_.end()) {
+            LOG(WARNING) << "[RHPDManager] Skip duplicate RHPD descriptor id " << id;
+            continue;
+        }
         if (desc.size() == RHPD_DIM) {
             ids_.push_back(id);
             descriptors_.push_back(desc);

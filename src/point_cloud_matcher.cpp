@@ -6,12 +6,17 @@
 #include <algorithm>
 #include <array>
 #include <limits>
+#include <stdexcept>
 #include <small_gicp/util/downsampling_omp.hpp>
 #include <small_gicp/util/normal_estimation_omp.hpp>
 
 namespace n3mapping {
 
 PointCloudMatcher::PointCloudMatcher(const Config& config) : config_(config) {
+    std::string config_error;
+    if (!config_.validate(&config_error)) {
+        throw std::invalid_argument("Invalid N3Mapping point cloud matcher config: " + config_error);
+    }
     setting_.type = small_gicp::RegistrationSetting::PLANE_ICP;
     setting_.downsampling_resolution = config_.gicp_downsampling_resolution;
     setting_.max_correspondence_distance = config_.gicp_max_correspondence_distance;

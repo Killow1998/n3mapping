@@ -10,6 +10,7 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/config.h"
+#include "n3mapping/core/types.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/graph_optimizer.h"
@@ -26,11 +27,21 @@ public:
                  const KeyframeManager& keyframe_manager,
                  const LoopDetector& loop_detector,
                  const GraphOptimizer& optimizer);
+    bool saveMap(const std::string& filepath,
+                 const KeyframeManager& keyframe_manager,
+                 const LoopDetector& loop_detector,
+                 const GraphOptimizer& optimizer,
+                 const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory);
 
     bool loadMap(const std::string& filepath,
                  KeyframeManager& keyframe_manager,
                  LoopDetector& loop_detector,
                  GraphOptimizer& optimizer);
+    bool loadMap(const std::string& filepath,
+                 KeyframeManager& keyframe_manager,
+                 LoopDetector& loop_detector,
+                 GraphOptimizer& optimizer,
+                 std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory);
 
     bool saveGlobalMap(const std::string& filepath,
                        const KeyframeManager& keyframe_manager,
@@ -45,6 +56,9 @@ private:
     Keyframe::Ptr protoToKeyframe(const n3mapping::KeyframeProto& proto);
     void edgeToProto(const EdgeInfo& edge, n3mapping::EdgeProto* proto);
     EdgeInfo protoToEdge(const n3mapping::EdgeProto& proto);
+    void denseTrajectoryToProto(const core::DenseTrajectoryPose& pose,
+                                n3mapping::DenseTrajectoryPose* proto);
+    core::DenseTrajectoryPose protoToDenseTrajectoryPose(const n3mapping::DenseTrajectoryPose& proto);
     void poseToProto(const Eigen::Isometry3d& pose, n3mapping::Pose3D* proto);
     Eigen::Isometry3d protoToPose(const n3mapping::Pose3D& proto);
     void pointCloudToProto(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, n3mapping::PointCloudData* proto);

@@ -58,6 +58,11 @@ Eigen::MatrixXd LoopDetector::addDescriptor(int64_t keyframe_id, const PointClou
     pcl::PointCloud<SCPointType> cloud_copy = *cloud;
     Eigen::MatrixXd descriptor = sc_manager_.makeScancontext(cloud_copy);
     if (descriptor.size() == 0) return Eigen::MatrixXd();
+    if (id_to_index_.count(keyframe_id) > 0) {
+        LOG(WARNING) << "[LoopDetector] Duplicate ScanContext descriptor id " << keyframe_id
+                     << ", keeping existing descriptor.";
+        return descriptors_[id_to_index_[keyframe_id]];
+    }
     size_t index = descriptors_.size();
     id_to_index_[keyframe_id] = index;
     index_to_id_.push_back(keyframe_id);
@@ -73,6 +78,11 @@ void LoopDetector::addDescriptor(int64_t keyframe_id, const Eigen::MatrixXd& des
         LOG(WARNING) << "[LoopDetector] Skip incompatible ScanContext descriptor for keyframe "
                      << keyframe_id << ": got " << descriptor.rows() << "x" << descriptor.cols()
                      << ", expected " << sc_manager_.totalRows() << "x" << sc_manager_.PC_NUM_SECTOR;
+        return;
+    }
+    if (id_to_index_.count(keyframe_id) > 0) {
+        LOG(WARNING) << "[LoopDetector] Duplicate ScanContext descriptor id " << keyframe_id
+                     << ", keeping existing descriptor.";
         return;
     }
     size_t index = descriptors_.size();
@@ -332,6 +342,10 @@ void LoopDetector::loadDescriptors(const std::vector<std::pair<int64_t, Eigen::M
     sc_manager_.polarcontext_vkeys_.clear(); sc_manager_.polarcontext_invkeys_mat_.clear();
     sc_manager_.polarcontext_tree_.reset();
     for (const auto& [id, desc] : descriptors) {
+        if (id_to_index_.count(id) > 0) {
+            LOG(WARNING) << "[LoopDetector] Skip duplicate ScanContext descriptor id " << id;
+            continue;
+        }
         if (!isScanContextDescriptorCompatible(desc)) {
             LOG(WARNING) << "[LoopDetector] Skip incompatible ScanContext descriptor for keyframe "
                          << id << ": got " << desc.rows() << "x" << desc.cols()

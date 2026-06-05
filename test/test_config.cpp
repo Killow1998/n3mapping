@@ -34,5 +34,26 @@ TEST(ConfigTest, ToStringContainsKeyFields) {
     EXPECT_NE(summary.find("Reloc temporal: window="), std::string::npos);
 }
 
+TEST(ConfigTest, RejectsZeroNoiseAndNegativeVoxelParameters) {
+    Config config;
+    std::string error;
+
+    EXPECT_TRUE(config.validate(&error));
+
+    config.odom_noise_position = 0.0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("odom_noise_position"), std::string::npos);
+
+    config = Config{};
+    config.gicp_downsampling_resolution = 0.0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("gicp_downsampling_resolution"), std::string::npos);
+
+    config = Config{};
+    config.save_global_map_voxel_size = -0.1;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("save_global_map_voxel_size"), std::string::npos);
+}
+
 }  // namespace test
 }  // namespace n3mapping

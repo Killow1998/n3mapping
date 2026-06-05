@@ -4,6 +4,7 @@
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/graph_optimizer.h"
+#include "n3mapping/n3map_nav_resource_reader.h"
 #include "n3map.pb.h"
 #include <filesystem>
 #include <fstream>
@@ -305,6 +306,171 @@ TEST_F(MapSerializerTest, FileNotFound) {
     
     std::string non_existent_file = config_.map_save_path + "/non_existent.pbstream";
     EXPECT_FALSE(serializer.loadMap(non_existent_file, kf_manager, loop_detector, optimizer));
+}
+
+TEST_F(MapSerializerTest, RoundTripDenseOptimizedTrajectory) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    Eigen::Isometry3d pose0 = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d pose1 = Eigen::Isometry3d::Identity();
+    pose1.translation().x() = 1.5;
+
+    const int64_t kf0 = kf_manager.addKeyframe(1.0, pose0, generateRandomPointCloud(120));
+    const int64_t kf1 = kf_manager.addKeyframe(2.0, pose1, generateRandomPointCloud(120));
+    kf_manager.updateDescriptor(kf0, loop_detector.addDescriptor(kf0, kf_manager.getKeyframe(kf0)->cloud));
+    kf_manager.updateDescriptor(kf1, loop_detector.addDescriptor(kf1, kf_manager.getKeyframe(kf1)->cloud));
+    optimizer.addPriorFactor(kf0, pose0);
+    EdgeInfo edge;
+    edge.from_id = kf0;
+    edge.to_id = kf1;
+    edge.measurement = pose0.inverse() * pose1;
+    edge.information = Eigen::Matrix<double, 6, 6>::Identity();
+    edge.type = EdgeType::ODOMETRY;
+    optimizer.addOdometryEdge(edge);
+
+    std::vector<core::DenseTrajectoryPose> dense;
+    for (int i = 0; i < 4; ++i) {
+        core::DenseTrajectoryPose sample;
+        sample.seq = static_cast<uint64_t>(i);
+        sample.timestamp = 10.0 + static_cast<double>(i) * 0.1;
+        sample.pose_world_lidar = Eigen::Isometry3d::Identity();
+        sample.pose_world_lidar.translation().x() = static_cast<double>(i) * 0.25;
+        dense.push_back(sample);
+    }
+
+    const std::string map_file = config_.map_save_path + "/dense_roundtrip.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer, dense));
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    std::vector<core::DenseTrajectoryPose> loaded_dense;
+    ASSERT_TRUE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer, &loaded_dense));
+
+    ASSERT_EQ(loaded_dense.size(), dense.size());
+    for (std::size_t i = 0; i < dense.size(); ++i) {
+        EXPECT_EQ(loaded_dense[i].seq, dense[i].seq);
+        EXPECT_DOUBLE_EQ(loaded_dense[i].timestamp, dense[i].timestamp);
+        EXPECT_TRUE(loaded_dense[i].pose_world_lidar.isApprox(dense[i].pose_world_lidar, 1e-9));
+    }
+}
+
+TEST_F(MapSerializerTest, OldPbstreamFallsBackDenseTrajectoryFromKeyframePoses) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.2.0");
+    map_proto.mutable_metadata()->set_num_keyframes(2);
+
+    for (int i = 0; i < 2; ++i) {
+        auto* kf = map_proto.add_keyframes();
+        kf->set_id(i);
+        kf->set_timestamp(100.0 + i);
+        kf->mutable_pose_odom()->set_qw(1.0);
+        kf->mutable_pose_optimized()->set_tx(static_cast<double>(i));
+        kf->mutable_pose_optimized()->set_qw(1.0);
+        auto* cloud = kf->mutable_cloud();
+        cloud->set_num_points(64);
+        for (int p = 0; p < 64; ++p) {
+            cloud->add_points(static_cast<float>(p % 8) * 0.1f + 1.0f);
+            cloud->add_points(static_cast<float>(p / 8) * 0.1f);
+            cloud->add_points(0.0f);
+            cloud->add_points(1.0f);
+        }
+    }
+
+    const std::string map_file = config_.map_save_path + "/old_no_dense.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    std::vector<core::DenseTrajectoryPose> dense;
+    ASSERT_TRUE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer, &dense));
+
+    ASSERT_EQ(dense.size(), 2U);
+    EXPECT_EQ(dense[0].seq, 0U);
+    EXPECT_EQ(dense[1].seq, 1U);
+    EXPECT_DOUBLE_EQ(dense[0].timestamp, 100.0);
+    EXPECT_DOUBLE_EQ(dense[1].timestamp, 101.0);
+    EXPECT_NEAR(dense[1].pose_world_lidar.translation().x(), 1.0, 1e-9);
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderRequiresNativeDenseByDefault) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.2.0");
+    map_proto.mutable_metadata()->set_map_frame("map");
+    map_proto.mutable_metadata()->set_body_frame("body");
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(7);
+    kf->set_timestamp(3.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_tx(2.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(1);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(9.0f);
+
+    const std::string map_file = config_.map_save_path + "/reader_no_dense.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    std::string error;
+    ASSERT_FALSE(readN3NavResource(map_file, &resource, &error));
+    EXPECT_EQ(error, "pbstream_missing_dense_trajectory");
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderExplicitFallbackDoesNotNeedGlobalMapPcd) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.2.0");
+    map_proto.mutable_metadata()->set_map_frame("map");
+    map_proto.mutable_metadata()->set_body_frame("body");
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(7);
+    kf->set_timestamp(3.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_tx(2.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(1);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(9.0f);
+
+    const std::string map_file = config_.map_save_path + "/reader_no_dense_fallback.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    std::string error;
+    N3NavReaderOptions options;
+    options.allow_keyframe_fallback = true;
+    ASSERT_TRUE(readN3NavResource(map_file, options, &resource, &error)) << error;
+    ASSERT_EQ(resource.keyframes.size(), 1U);
+    ASSERT_EQ(resource.dense_optimized_trajectory.size(), 1U);
+    EXPECT_FALSE(resource.has_native_dense_trajectory);
+    EXPECT_TRUE(resource.dense_trajectory_from_keyframe_fallback);
+    EXPECT_EQ(resource.keyframes.front().id, 7);
+    EXPECT_EQ(resource.map_frame, "map");
+    EXPECT_EQ(resource.body_frame, "body");
+    EXPECT_NE(resource.optimized_poses.find(7), resource.optimized_poses.end());
+    EXPECT_NEAR(resource.dense_optimized_trajectory.front().pose_world_lidar.translation().x(), 2.0, 1e-9);
 }
 
 TEST_F(MapSerializerTest, MalformedRhpdDescriptorIsRejectedAndRebuilt) {

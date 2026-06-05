@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <unordered_map>
@@ -21,7 +22,9 @@
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.2.0";
+constexpr const char* MAP_VERSION = "2.3.0";
+constexpr uint32_t MAX_POINTS_PER_KEYFRAME = 5000000u;
+constexpr uint64_t MAX_DESCRIPTOR_VALUES = 1000000u;
 
 struct SemVer {
     int major = 0;
@@ -87,6 +90,28 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr maybeVoxelizeRhpdCloud(
     voxel.filter(*filtered);
     return filtered->empty() ? cloud : filtered;
 }
+
+bool isFinitePoseProto(const n3mapping::Pose3D& proto) {
+    const double values[] = {
+        proto.tx(), proto.ty(), proto.tz(),
+        proto.qx(), proto.qy(), proto.qz(), proto.qw()
+    };
+    for (double value : values) {
+        if (!std::isfinite(value)) return false;
+    }
+    const double q_norm2 = proto.qx() * proto.qx() + proto.qy() * proto.qy() +
+                           proto.qz() * proto.qz() + proto.qw() * proto.qw();
+    return std::isfinite(q_norm2) && q_norm2 > 1e-12;
+}
+
+bool isFinitePose(const Eigen::Isometry3d& pose) {
+    return pose.matrix().array().isFinite().all();
+}
+
+bool isFinitePoint(const pcl::PointXYZI& pt) {
+    return std::isfinite(pt.x) && std::isfinite(pt.y) &&
+           std::isfinite(pt.z) && std::isfinite(pt.intensity);
+}
 }  // namespace
 
 MapSerializer::MapSerializer(const Config& config) : config_(config) {}
@@ -95,6 +120,15 @@ bool MapSerializer::saveMap(const std::string& filepath,
                             const KeyframeManager& keyframe_manager,
                             const LoopDetector& loop_detector,
                             const GraphOptimizer& optimizer) {
+    static const std::vector<core::DenseTrajectoryPose> kEmptyDenseTrajectory;
+    return saveMap(filepath, keyframe_manager, loop_detector, optimizer, kEmptyDenseTrajectory);
+}
+
+bool MapSerializer::saveMap(const std::string& filepath,
+                            const KeyframeManager& keyframe_manager,
+                            const LoopDetector& loop_detector,
+                            const GraphOptimizer& optimizer,
+                            const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory) {
     try {
         std::filesystem::path fp(filepath);
         if (fp.has_parent_path()) std::filesystem::create_directories(fp.parent_path());
@@ -102,6 +136,8 @@ bool MapSerializer::saveMap(const std::string& filepath,
         auto* meta = map_proto.mutable_metadata();
         meta->set_version(MAP_VERSION);
         meta->set_creation_timestamp(std::time(nullptr));
+        meta->set_map_frame(config_.world_frame);
+        meta->set_body_frame(config_.body_frame);
         auto keyframes = keyframe_manager.getAllKeyframes();
         meta->set_num_keyframes(keyframes.size());
         meta->set_rhpd_schema(buildRhpdSchema(config_));
@@ -138,6 +174,13 @@ bool MapSerializer::saveMap(const std::string& filepath,
             edgeToProto(e, map_proto.add_edges());
             (e.type == EdgeType::ODOMETRY) ? ++n_odom : ++n_loop;
         }
+        for (const auto& pose : dense_optimized_trajectory) {
+            if (!std::isfinite(pose.timestamp) || !isFinitePose(pose.pose_world_lidar)) {
+                LOG(WARNING) << "[MapSerializer] Skip non-finite dense trajectory pose seq=" << pose.seq;
+                continue;
+            }
+            denseTrajectoryToProto(pose, map_proto.add_dense_optimized_trajectory());
+        }
         meta->set_num_odometry_edges(n_odom);
         meta->set_num_loop_edges(n_loop);
         std::ofstream ofs(filepath, std::ios::binary);
@@ -150,6 +193,14 @@ bool MapSerializer::loadMap(const std::string& filepath,
                             KeyframeManager& keyframe_manager,
                             LoopDetector& loop_detector,
                             GraphOptimizer& optimizer) {
+    return loadMap(filepath, keyframe_manager, loop_detector, optimizer, nullptr);
+}
+
+bool MapSerializer::loadMap(const std::string& filepath,
+                            KeyframeManager& keyframe_manager,
+                            LoopDetector& loop_detector,
+                            GraphOptimizer& optimizer,
+                            std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory) {
     try {
         if (!std::filesystem::exists(filepath)) return false;
         std::ifstream ifs(filepath, std::ios::binary);
@@ -194,8 +245,13 @@ bool MapSerializer::loadMap(const std::string& filepath,
 
         keyframe_manager.clear(); loop_detector.clear(); optimizer.clear();
         std::vector<Keyframe::Ptr> keyframes;
+        keyframes.reserve(map_proto.keyframes_size());
         for (int i = 0; i < map_proto.keyframes_size(); ++i) {
             auto kf = protoToKeyframe(map_proto.keyframes(i));
+            if (!kf) {
+                LOG(WARNING) << "[MapSerializer] Skip malformed keyframe index=" << i;
+                continue;
+            }
             kf->is_from_loaded_map = true;
             keyframes.push_back(kf);
         }
@@ -242,8 +298,44 @@ bool MapSerializer::loadMap(const std::string& filepath,
         std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
         for (const auto& kf : keyframes) nodes.emplace_back(kf->id, kf->pose_optimized);
         std::vector<EdgeInfo> edges;
-        for (int i = 0; i < map_proto.edges_size(); ++i) edges.push_back(protoToEdge(map_proto.edges(i)));
+        edges.reserve(map_proto.edges_size());
+        for (int i = 0; i < map_proto.edges_size(); ++i) {
+            EdgeInfo edge = protoToEdge(map_proto.edges(i));
+            if (!isFinitePose(edge.measurement) || !edge.information.array().isFinite().all()) {
+                LOG(WARNING) << "[MapSerializer] Skip malformed edge index=" << i;
+                continue;
+            }
+            edges.push_back(edge);
+        }
         optimizer.loadGraph(nodes, edges);
+        if (dense_optimized_trajectory) {
+            dense_optimized_trajectory->clear();
+            dense_optimized_trajectory->reserve(
+                map_proto.dense_optimized_trajectory_size() > 0
+                    ? map_proto.dense_optimized_trajectory_size()
+                    : keyframes.size());
+            if (map_proto.dense_optimized_trajectory_size() > 0) {
+                for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
+                    const auto& proto_pose = map_proto.dense_optimized_trajectory(i);
+                    if (!isFinitePoseProto(proto_pose.pose_world_lidar()) ||
+                        !std::isfinite(proto_pose.timestamp())) {
+                        LOG(WARNING) << "[MapSerializer] Skip malformed dense trajectory pose index=" << i;
+                        continue;
+                    }
+                    dense_optimized_trajectory->push_back(protoToDenseTrajectoryPose(proto_pose));
+                }
+            } else {
+                uint64_t seq = 0;
+                for (const auto& kf : keyframes) {
+                    if (!kf || !isFinitePose(kf->pose_optimized)) continue;
+                    core::DenseTrajectoryPose pose;
+                    pose.seq = seq++;
+                    pose.timestamp = kf->timestamp;
+                    pose.pose_world_lidar = kf->pose_optimized;
+                    dense_optimized_trajectory->push_back(pose);
+                }
+            }
+        }
         return true;
     } catch (...) { return false; }
 }
@@ -351,6 +443,10 @@ void MapSerializer::keyframeToProto(const Keyframe::Ptr& kf, n3mapping::Keyframe
 }
 
 Keyframe::Ptr MapSerializer::protoToKeyframe(const n3mapping::KeyframeProto& proto) {
+    if (!isFinitePoseProto(proto.pose_odom()) || !isFinitePoseProto(proto.pose_optimized())) {
+        LOG(WARNING) << "[MapSerializer] Reject keyframe with non-finite pose: id=" << proto.id();
+        return nullptr;
+    }
     auto kf = std::make_shared<Keyframe>();
     kf->id = proto.id(); kf->timestamp = proto.timestamp();
     kf->pose_odom = protoToPose(proto.pose_odom());
@@ -378,6 +474,21 @@ EdgeInfo MapSerializer::protoToEdge(const n3mapping::EdgeProto& proto) {
     return edge;
 }
 
+void MapSerializer::denseTrajectoryToProto(const core::DenseTrajectoryPose& pose,
+                                           n3mapping::DenseTrajectoryPose* proto) {
+    proto->set_seq(pose.seq);
+    proto->set_timestamp(pose.timestamp);
+    poseToProto(pose.pose_world_lidar, proto->mutable_pose_world_lidar());
+}
+
+core::DenseTrajectoryPose MapSerializer::protoToDenseTrajectoryPose(const n3mapping::DenseTrajectoryPose& proto) {
+    core::DenseTrajectoryPose pose;
+    pose.seq = proto.seq();
+    pose.timestamp = proto.timestamp();
+    pose.pose_world_lidar = protoToPose(proto.pose_world_lidar());
+    return pose;
+}
+
 void MapSerializer::poseToProto(const Eigen::Isometry3d& pose, n3mapping::Pose3D* proto) {
     proto->set_tx(pose.translation().x()); proto->set_ty(pose.translation().y()); proto->set_tz(pose.translation().z());
     Eigen::Quaterniond q(pose.rotation());
@@ -386,21 +497,37 @@ void MapSerializer::poseToProto(const Eigen::Isometry3d& pose, n3mapping::Pose3D
 
 Eigen::Isometry3d MapSerializer::protoToPose(const n3mapping::Pose3D& proto) {
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    if (!isFinitePoseProto(proto)) {
+        LOG(WARNING) << "[MapSerializer] Invalid pose proto, using identity.";
+        return pose;
+    }
     pose.translation() = Eigen::Vector3d(proto.tx(), proto.ty(), proto.tz());
-    pose.linear() = Eigen::Quaterniond(proto.qw(), proto.qx(), proto.qy(), proto.qz()).toRotationMatrix();
+    Eigen::Quaterniond q(proto.qw(), proto.qx(), proto.qy(), proto.qz());
+    q.normalize();
+    pose.linear() = q.toRotationMatrix();
     return pose;
 }
 
 void MapSerializer::pointCloudToProto(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, n3mapping::PointCloudData* proto) {
-    proto->set_num_points(cloud->size());
-    proto->mutable_points()->Reserve(cloud->size() * 4);
-    for (const auto& pt : cloud->points) { proto->add_points(pt.x); proto->add_points(pt.y); proto->add_points(pt.z); proto->add_points(pt.intensity); }
+    uint32_t count = 0;
+    for (const auto& pt : cloud->points) {
+        if (!isFinitePoint(pt)) continue;
+        ++count;
+    }
+    proto->set_num_points(count);
+    proto->mutable_points()->Reserve(static_cast<int>(count * 4u));
+    for (const auto& pt : cloud->points) {
+        if (!isFinitePoint(pt)) continue;
+        proto->add_points(pt.x); proto->add_points(pt.y); proto->add_points(pt.z); proto->add_points(pt.intensity);
+    }
 }
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::protoToPointCloud(const n3mapping::PointCloudData& proto) {
     auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
     const uint64_t required_values = static_cast<uint64_t>(proto.num_points()) * 4u;
-    if (proto.points_size() < static_cast<int>(required_values)) {
+    if (proto.num_points() > MAX_POINTS_PER_KEYFRAME ||
+        required_values > static_cast<uint64_t>(std::numeric_limits<int>::max()) ||
+        proto.points_size() != static_cast<int>(required_values)) {
         LOG(WARNING) << "[MapSerializer] Reject malformed point cloud: num_points="
                      << proto.num_points() << " values=" << proto.points_size();
         return cloud;
@@ -409,6 +536,11 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::protoToPointCloud(const n3ma
     for (uint32_t i = 0; i < proto.num_points(); ++i) {
         cloud->points[i].x = proto.points(i*4); cloud->points[i].y = proto.points(i*4+1);
         cloud->points[i].z = proto.points(i*4+2); cloud->points[i].intensity = proto.points(i*4+3);
+        if (!isFinitePoint(cloud->points[i])) {
+            LOG(WARNING) << "[MapSerializer] Reject point cloud with non-finite point at index=" << i;
+            cloud->clear();
+            return cloud;
+        }
     }
     cloud->width = cloud->size(); cloud->height = 1; cloud->is_dense = false;
     return cloud;
@@ -422,7 +554,10 @@ void MapSerializer::descriptorToProto(const Eigen::MatrixXd& desc, n3mapping::Sc
 
 Eigen::MatrixXd MapSerializer::protoToDescriptor(const n3mapping::ScanContextDescriptor& proto) {
     const uint64_t required_values = static_cast<uint64_t>(proto.rows()) * static_cast<uint64_t>(proto.cols());
-    if (proto.rows() == 0 || proto.cols() == 0 || proto.values_size() < static_cast<int>(required_values)) {
+    if (proto.rows() == 0 || proto.cols() == 0 ||
+        required_values > MAX_DESCRIPTOR_VALUES ||
+        required_values > static_cast<uint64_t>(std::numeric_limits<int>::max()) ||
+        proto.values_size() != static_cast<int>(required_values)) {
         LOG(WARNING) << "[MapSerializer] Reject malformed ScanContext descriptor: rows="
                      << proto.rows() << " cols=" << proto.cols()
                      << " values=" << proto.values_size();
@@ -430,7 +565,16 @@ Eigen::MatrixXd MapSerializer::protoToDescriptor(const n3mapping::ScanContextDes
     }
     Eigen::MatrixXd desc(proto.rows(), proto.cols());
     int idx = 0;
-    for (unsigned int i = 0; i < proto.rows(); ++i) for (unsigned int j = 0; j < proto.cols(); ++j) desc(i, j) = proto.values(idx++);
+    for (unsigned int i = 0; i < proto.rows(); ++i) {
+        for (unsigned int j = 0; j < proto.cols(); ++j) {
+            const double value = proto.values(idx++);
+            if (!std::isfinite(value)) {
+                LOG(WARNING) << "[MapSerializer] Reject ScanContext descriptor with non-finite value.";
+                return Eigen::MatrixXd();
+            }
+            desc(i, j) = value;
+        }
+    }
     return desc;
 }
 
@@ -441,13 +585,24 @@ void MapSerializer::informationToProto(const Eigen::Matrix<double, 6, 6>& info, 
 
 Eigen::Matrix<double, 6, 6> MapSerializer::protoToInformation(const n3mapping::InformationMatrix& proto) {
     Eigen::Matrix<double, 6, 6> info = Eigen::Matrix<double, 6, 6>::Identity();
-    if (proto.values_size() < 21) {
+    if (proto.values_size() != 21) {
         LOG(WARNING) << "[MapSerializer] Malformed information matrix: values="
                      << proto.values_size() << ", using identity.";
         return info;
     }
     int idx = 0;
-    for (int i = 0; i < 6; ++i) for (int j = i; j < 6; ++j) { info(i, j) = proto.values(idx); if (i != j) info(j, i) = proto.values(idx); ++idx; }
+    for (int i = 0; i < 6; ++i) {
+        for (int j = i; j < 6; ++j) {
+            const double value = proto.values(idx);
+            if (!std::isfinite(value)) {
+                LOG(WARNING) << "[MapSerializer] Malformed information matrix: non-finite value.";
+                return Eigen::Matrix<double, 6, 6>::Identity();
+            }
+            info(i, j) = value;
+            if (i != j) info(j, i) = value;
+            ++idx;
+        }
+    }
     return info;
 }
 
@@ -466,8 +621,13 @@ Eigen::VectorXd MapSerializer::protoToRhpd(const n3mapping::RHPDDescriptor& prot
         return Eigen::VectorXd();
     }
     Eigen::VectorXd rhpd = Eigen::VectorXd::Zero(proto.dim());
-    for (uint32_t i = 0; i < proto.dim(); ++i)
+    for (uint32_t i = 0; i < proto.dim(); ++i) {
+        if (!std::isfinite(proto.values(i))) {
+            LOG(WARNING) << "[MapSerializer] Reject malformed RHPD descriptor with non-finite value.";
+            return Eigen::VectorXd();
+        }
         rhpd(i) = proto.values(i);
+    }
     return rhpd;
 }
 

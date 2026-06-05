@@ -142,6 +142,7 @@ struct Config {
     bool rhpd_enable_pca_confidence = true;
 
     std::string toString() const;
+    bool validate(std::string* error = nullptr) const;
 };
 
 } // namespace n3mapping

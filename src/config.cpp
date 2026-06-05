@@ -1,5 +1,6 @@
 #include "n3mapping/config.h"
 
+#include <cmath>
 #include <sstream>
 
 namespace n3mapping {
@@ -90,6 +91,38 @@ std::string Config::toString() const {
     oss << "Threads: " << num_threads << " | Save path: " << map_save_path << "\n";
     oss << "==============================================";
     return oss.str();
+}
+
+bool Config::validate(std::string* error) const {
+    auto fail = [&](const std::string& message) {
+        if (error) *error = message;
+        return false;
+    };
+    auto positive = [&](double value, const char* name) {
+        return std::isfinite(value) && value > 0.0 ? true : fail(std::string(name) + " must be > 0");
+    };
+    auto non_negative = [&](double value, const char* name) {
+        return std::isfinite(value) && value >= 0.0 ? true : fail(std::string(name) + " must be >= 0");
+    };
+
+    if (!positive(prior_noise_position, "prior_noise_position")) return false;
+    if (!positive(prior_noise_rotation, "prior_noise_rotation")) return false;
+    if (!positive(odom_noise_position, "odom_noise_position")) return false;
+    if (!positive(odom_noise_rotation, "odom_noise_rotation")) return false;
+    if (!positive(loop_noise_position, "loop_noise_position")) return false;
+    if (!positive(loop_noise_rotation, "loop_noise_rotation")) return false;
+    if (!positive(gicp_downsampling_resolution, "gicp_downsampling_resolution")) return false;
+    if (!positive(icp_refine_downsampling_resolution, "icp_refine_downsampling_resolution")) return false;
+    if (!positive(output_cloud_voxel_size, "output_cloud_voxel_size")) return false;
+    if (!non_negative(global_map_voxel_size, "global_map_voxel_size")) return false;
+    if (!non_negative(save_global_map_voxel_size, "save_global_map_voxel_size")) return false;
+    if (!positive(reloc_static_agg_voxel_size, "reloc_static_agg_voxel_size")) return false;
+    if (!non_negative(rhpd_submap_voxel_size, "rhpd_submap_voxel_size")) return false;
+    if (!positive(rhpd_max_range, "rhpd_max_range")) return false;
+    if (!std::isfinite(rhpd_z_min) || !std::isfinite(rhpd_z_max) || rhpd_z_max <= rhpd_z_min) {
+        return fail("rhpd_z_max must be greater than rhpd_z_min");
+    }
+    return true;
 }
 
 } // namespace n3mapping
