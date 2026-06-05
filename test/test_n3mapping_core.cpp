@@ -1,11 +1,13 @@
 #include <filesystem>
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 
 #include <gtest/gtest.h>
 #include <pcl/memory.h>
 
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3map.pb.h"
 
 namespace n3mapping {
 namespace test {
@@ -138,6 +140,34 @@ TEST(N3MappingCoreTest, LocalizationDoesNotAppendDenseOptimizedTrajectory)
     std::filesystem::remove_all(dir);
 }
 
+TEST(N3MappingCoreTest, LoadMapDoesNotMarkLocalizationAsRelocalized)
+{
+    Config config = makeCoreTestConfig();
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "n3mapping_core_load_not_relocalized";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path map_path = dir / "map.pbstream";
+
+    {
+        N3MappingCore core(config);
+        ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+        ASSERT_TRUE(core.saveMap(map_path.string()));
+    }
+
+    N3MappingCore localization_core(config);
+    ASSERT_TRUE(localization_core.loadMap(map_path.string()));
+
+    Eigen::Isometry3d far_pose = Eigen::Isometry3d::Identity();
+    far_pose.translation().x() = 1000000.0;
+    const auto output = localization_core.processLocalizationFrame(makeFrame(2000000000, far_pose));
+    EXPECT_FALSE(output.success);
+    EXPECT_FALSE(output.relocalization_locked);
+    EXPECT_EQ(output.matched_keyframe_id, -1);
+
+    std::filesystem::remove_all(dir);
+}
+
 TEST(N3MappingCoreTest, BuildGlobalMapAccumulatesAcceptedKeyframes)
 {
     Config config = makeCoreTestConfig();
@@ -231,6 +261,140 @@ TEST(N3MappingCoreTest, DenseTrajectorySavedAfterLoopClosureMatchesFinalKeyframe
         });
     ASSERT_NE(dense_at_keyframe, dense.end());
     EXPECT_TRUE(dense_at_keyframe->pose_world_lidar.isApprox(final_kf->pose_optimized, 1e-6));
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(N3MappingCoreTest, DenseTrajectoryInterpolatesBetweenBracketKeyframeCorrections)
+{
+    N3MappingCore core(makeCoreTestConfig());
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+
+    Eigen::Isometry3d dense_pose = Eigen::Isometry3d::Identity();
+    dense_pose.translation().x() = 0.1;
+    ASSERT_FALSE(core.processMappingFrame(makeFrame(1500000000, dense_pose)).accepted_keyframe);
+
+    Eigen::Isometry3d second_pose = Eigen::Isometry3d::Identity();
+    second_pose.translation().x() = 1.0;
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, second_pose)).accepted_keyframe);
+
+    auto kf0 = core.getKeyframe(0);
+    auto kf1 = core.getKeyframe(1);
+    ASSERT_NE(kf0, nullptr);
+    ASSERT_NE(kf1, nullptr);
+    kf0->pose_optimized = kf0->pose_odom;
+    kf1->pose_optimized = kf1->pose_odom;
+    kf1->pose_optimized.translation().y() = 2.0;
+
+    const auto dense = core.getDenseOptimizedTrajectory();
+    ASSERT_EQ(dense.size(), 3U);
+    const auto middle = std::find_if(
+        dense.begin(), dense.end(), [](const core::DenseTrajectoryPose& pose) {
+            return std::abs(pose.timestamp - 1.5) < 1e-9;
+        });
+    ASSERT_NE(middle, dense.end());
+    EXPECT_NEAR(middle->pose_world_lidar.translation().x(), 0.1, 1e-9);
+    EXPECT_NEAR(middle->pose_world_lidar.translation().y(), 1.0, 1e-6);
+}
+
+TEST(N3MappingCoreTest, MapExtensionDenseSampleDoesNotDoubleApplyLoadedMapCorrection)
+{
+    Config config = makeCoreTestConfig();
+    config.reloc_temporal_window_size = 1;
+    config.reloc_lock_min_winner_streak = 1;
+    config.reloc_lock_min_converged_updates = 1;
+    config.reloc_lock_log_likelihood_threshold = -1000.0;
+    config.reloc_min_confidence = 0.0;
+    config.reloc_min_inlier_ratio = 0.0;
+    config.reloc_static_agg_enable = false;
+
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "n3mapping_core_extension_dense_no_double_correction";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path map_path = dir / "extension_anchor.pbstream";
+
+    {
+        N3MappingCore core(config);
+        ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+        auto kf0 = core.getKeyframe(0);
+        ASSERT_NE(kf0, nullptr);
+        kf0->pose_optimized = kf0->pose_odom;
+        kf0->pose_optimized.translation().y() = 10.0;
+        ASSERT_TRUE(core.saveMap(map_path.string()));
+    }
+
+    N3MappingCore extension_core(config);
+    ASSERT_TRUE(extension_core.loadMap(map_path.string()));
+    const auto output = extension_core.processMapExtensionFrame(
+        makeFrame(2000000000, Eigen::Isometry3d::Identity()));
+    ASSERT_TRUE(output.success);
+    ASSERT_TRUE(output.relocalization_locked);
+
+    const auto dense = extension_core.getDenseOptimizedTrajectory();
+    ASSERT_GE(dense.size(), 2U);
+    const auto appended = std::find_if(
+        dense.begin(), dense.end(), [](const core::DenseTrajectoryPose& pose) {
+            return std::abs(pose.timestamp - 2.0) < 1e-9;
+        });
+    ASSERT_NE(appended, dense.end());
+    EXPECT_NEAR(appended->pose_world_lidar.translation().y(), 10.0, 1e-4);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseMarksMixedSource)
+{
+    Config config = makeCoreTestConfig();
+    config.reloc_temporal_window_size = 1;
+    config.reloc_lock_min_winner_streak = 1;
+    config.reloc_lock_min_converged_updates = 1;
+    config.reloc_lock_log_likelihood_threshold = -1000.0;
+    config.reloc_min_confidence = 0.0;
+    config.reloc_min_inlier_ratio = 0.0;
+    config.reloc_static_agg_enable = false;
+
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "n3mapping_core_extension_dense_mixed_source";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path old_map_path = dir / "old_no_dense.pbstream";
+    const std::filesystem::path extended_map_path = dir / "extended.pbstream";
+
+    n3mapping::N3Map old_map;
+    old_map.mutable_metadata()->set_version("2.2.0");
+    auto* kf = old_map.add_keyframes();
+    kf->set_id(0);
+    kf->set_timestamp(1.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(120);
+    for (int i = 0; i < 120; ++i) {
+        cloud->add_points(static_cast<float>(i % 12) * 0.1f);
+        cloud->add_points(static_cast<float>(i / 12) * 0.1f);
+        cloud->add_points(0.0f);
+        cloud->add_points(1.0f);
+    }
+    {
+        std::ofstream ofs(old_map_path, std::ios::binary);
+        ASSERT_TRUE(old_map.SerializeToOstream(&ofs));
+    }
+
+    N3MappingCore extension_core(config);
+    ASSERT_TRUE(extension_core.loadMap(old_map_path.string()));
+    const auto output = extension_core.processMapExtensionFrame(
+        makeFrame(2000000000, Eigen::Isometry3d::Identity()));
+    ASSERT_TRUE(output.success);
+    ASSERT_TRUE(extension_core.saveMap(extended_map_path.string()));
+
+    n3mapping::N3Map extended_map;
+    {
+        std::ifstream ifs(extended_map_path, std::ios::binary);
+        ASSERT_TRUE(extended_map.ParseFromIstream(&ifs));
+    }
+    EXPECT_EQ(extended_map.metadata().dense_trajectory_source(), "mixed_keyframe_fallback_and_high_rate");
+    EXPECT_TRUE(extended_map.metadata().dense_trajectory_degraded());
 
     std::filesystem::remove_all(dir);
 }

@@ -53,6 +53,16 @@ TEST(ConfigTest, RejectsZeroNoiseAndNegativeVoxelParameters) {
     config.save_global_map_voxel_size = -0.1;
     EXPECT_FALSE(config.validate(&error));
     EXPECT_NE(error.find("save_global_map_voxel_size"), std::string::npos);
+
+    config = Config{};
+    config.num_threads = 0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("num_threads"), std::string::npos);
+
+    config = Config{};
+    config.rhpd_num_candidates = 0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("rhpd_num_candidates"), std::string::npos);
 }
 
 }  // namespace test

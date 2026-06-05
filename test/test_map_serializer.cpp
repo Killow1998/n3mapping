@@ -8,6 +8,7 @@
 #include "n3map.pb.h"
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <pcl/memory.h>
 #include <random>
@@ -308,6 +309,156 @@ TEST_F(MapSerializerTest, FileNotFound) {
     EXPECT_FALSE(serializer.loadMap(non_existent_file, kf_manager, loop_detector, optimizer));
 }
 
+TEST_F(MapSerializerTest, MalformedCloudRejectsKeyframe) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(1);
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(42);
+    kf->set_timestamp(1.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(2);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(1.0f);
+
+    const std::string map_file = config_.map_save_path + "/malformed_cloud.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 0U);
+    EXPECT_EQ(loaded_optimizer.getNumNodes(), 0);
+}
+
+TEST_F(MapSerializerTest, MissingEdgeEndpointIsSkippedOnLoad) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(1);
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(0);
+    kf->set_timestamp(1.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(1);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(1.0f);
+
+    auto* edge = map_proto.add_edges();
+    edge->set_from_id(0);
+    edge->set_to_id(99);
+    edge->mutable_measurement()->set_qw(1.0);
+    for (int r = 0; r < 6; ++r) {
+        for (int c = 0; c < 6; ++c) {
+            edge->mutable_information()->add_values(r == c ? 1.0 : 0.0);
+        }
+    }
+    edge->set_type(n3mapping::EdgeProto::ODOMETRY);
+
+    const std::string map_file = config_.map_save_path + "/missing_edge_endpoint.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    ASSERT_TRUE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 1U);
+    EXPECT_EQ(loaded_optimizer.getNumNodes(), 1U);
+    EXPECT_EQ(loaded_optimizer.getNumEdges(), 0U);
+}
+
+TEST_F(MapSerializerTest, AtomicSaveFailureDoesNotClobberExistingMap) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = kf_manager.addKeyframe(0.0, pose, generateRandomPointCloud(64));
+    kf_manager.updateDescriptor(kf_id, loop_detector.addDescriptor(kf_id, kf_manager.getKeyframe(kf_id)->cloud));
+    optimizer.addPriorFactor(kf_id, pose);
+
+    const std::string map_file = config_.map_save_path + "/atomic.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    const auto original_size = std::filesystem::file_size(map_file);
+    ASSERT_GT(original_size, 0U);
+
+    const std::filesystem::path tmp_path = map_file + ".tmp";
+    std::filesystem::create_directories(tmp_path);
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    EXPECT_TRUE(std::filesystem::exists(map_file));
+    EXPECT_EQ(std::filesystem::file_size(map_file), original_size);
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    EXPECT_TRUE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 1U);
+    std::filesystem::remove_all(tmp_path);
+}
+
+TEST_F(MapSerializerTest, SaveMapRejectsEmptyKeyframeCloud) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    auto empty_cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = kf_manager.addKeyframe(1.0, pose, empty_cloud);
+    optimizer.addPriorFactor(kf_id, pose);
+
+    const std::string map_file = config_.map_save_path + "/empty_cloud_rejected.pbstream";
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    EXPECT_FALSE(std::filesystem::exists(map_file));
+}
+
+TEST_F(MapSerializerTest, SaveMapRejectsAllNonFiniteKeyframeCloud) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    for (int i = 0; i < 4; ++i) {
+        pcl::PointXYZI point;
+        point.x = std::numeric_limits<float>::quiet_NaN();
+        point.y = std::numeric_limits<float>::infinity();
+        point.z = 0.0f;
+        point.intensity = 1.0f;
+        cloud->push_back(point);
+    }
+    cloud->width = static_cast<uint32_t>(cloud->size());
+    cloud->height = 1;
+    cloud->is_dense = false;
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = kf_manager.addKeyframe(1.0, pose, cloud);
+    optimizer.addPriorFactor(kf_id, pose);
+
+    const std::string map_file = config_.map_save_path + "/nonfinite_cloud_rejected.pbstream";
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    EXPECT_FALSE(std::filesystem::exists(map_file));
+}
+
 TEST_F(MapSerializerTest, RoundTripDenseOptimizedTrajectory) {
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
@@ -391,7 +542,8 @@ TEST_F(MapSerializerTest, OldPbstreamFallsBackDenseTrajectoryFromKeyframePoses) 
     GraphOptimizer loaded_optimizer(config_);
     MapSerializer serializer(config_);
     std::vector<core::DenseTrajectoryPose> dense;
-    ASSERT_TRUE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer, &dense));
+    core::DenseTrajectoryMetadata dense_metadata;
+    ASSERT_TRUE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer, &dense, &dense_metadata));
 
     ASSERT_EQ(dense.size(), 2U);
     EXPECT_EQ(dense[0].seq, 0U);
@@ -399,6 +551,18 @@ TEST_F(MapSerializerTest, OldPbstreamFallsBackDenseTrajectoryFromKeyframePoses) 
     EXPECT_DOUBLE_EQ(dense[0].timestamp, 100.0);
     EXPECT_DOUBLE_EQ(dense[1].timestamp, 101.0);
     EXPECT_NEAR(dense[1].pose_world_lidar.translation().x(), 1.0, 1e-9);
+    EXPECT_EQ(dense_metadata.source, "keyframe_fallback");
+    EXPECT_TRUE(dense_metadata.degraded);
+
+    const std::string resaved_file = config_.map_save_path + "/old_no_dense_resaved.pbstream";
+    ASSERT_TRUE(serializer.saveMap(resaved_file, loaded_kfs, loaded_loops, loaded_optimizer, dense, dense_metadata));
+    n3mapping::N3Map resaved;
+    {
+        std::ifstream ifs(resaved_file, std::ios::binary);
+        ASSERT_TRUE(resaved.ParseFromIstream(&ifs));
+    }
+    EXPECT_EQ(resaved.metadata().dense_trajectory_source(), "keyframe_fallback");
+    EXPECT_TRUE(resaved.metadata().dense_trajectory_degraded());
 }
 
 TEST_F(MapSerializerTest, NavResourceReaderRequiresNativeDenseByDefault) {
@@ -432,11 +596,83 @@ TEST_F(MapSerializerTest, NavResourceReaderRequiresNativeDenseByDefault) {
     EXPECT_EQ(error, "pbstream_missing_dense_trajectory");
 }
 
+TEST_F(MapSerializerTest, NavResourceReaderRejectsMissingKeyframes) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_dense_trajectory_source("native");
+    map_proto.mutable_metadata()->set_dense_trajectory_degraded(false);
+    auto* dense = map_proto.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(1.0);
+    dense->mutable_pose_world_lidar()->set_qw(1.0);
+
+    const std::string map_file = config_.map_save_path + "/reader_zero_keyframes.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    std::string error;
+    ASSERT_FALSE(readN3NavResource(map_file, &resource, &error));
+    EXPECT_EQ(error, "pbstream_missing_keyframes");
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderDoesNotTreatDegradedDenseAsNative) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_map_frame("map");
+    map_proto.mutable_metadata()->set_body_frame("body");
+    map_proto.mutable_metadata()->set_dense_trajectory_source("keyframe_fallback");
+    map_proto.mutable_metadata()->set_dense_trajectory_degraded(true);
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(7);
+    kf->set_timestamp(3.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_tx(2.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(1);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(9.0f);
+
+    auto* dense = map_proto.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(3.0);
+    dense->mutable_pose_world_lidar()->set_tx(2.0);
+    dense->mutable_pose_world_lidar()->set_qw(1.0);
+
+    const std::string map_file = config_.map_save_path + "/reader_degraded_dense.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    std::string error;
+    ASSERT_TRUE(readN3NavResource(map_file, &resource, &error)) << error;
+    EXPECT_EQ(resource.dense_trajectory_source, "keyframe_fallback");
+    EXPECT_TRUE(resource.dense_trajectory_degraded);
+    EXPECT_FALSE(resource.has_native_dense_trajectory);
+    EXPECT_TRUE(resource.dense_trajectory_from_keyframe_fallback);
+    ASSERT_EQ(resource.dense_optimized_trajectory.size(), 1U);
+    EXPECT_NEAR(resource.dense_optimized_trajectory.front().pose_world_lidar.translation().x(), 2.0, 1e-9);
+}
+
 TEST_F(MapSerializerTest, NavResourceReaderExplicitFallbackDoesNotNeedGlobalMapPcd) {
     n3mapping::N3Map map_proto;
     map_proto.mutable_metadata()->set_version("2.2.0");
     map_proto.mutable_metadata()->set_map_frame("map");
     map_proto.mutable_metadata()->set_body_frame("body");
+    map_proto.mutable_metadata()->set_nav_cloud_filter_applied(true);
+    map_proto.mutable_metadata()->set_nav_cloud_filter_policy("rear_sector_width_deg=45");
+    map_proto.mutable_metadata()->set_descriptors_recomputed_from_filtered_cloud(true);
+    map_proto.mutable_metadata()->set_nav_filter_raw_points(10);
+    map_proto.mutable_metadata()->set_nav_filter_kept_points(8);
+    map_proto.mutable_metadata()->set_nav_filter_removed_points(2);
 
     auto* kf = map_proto.add_keyframes();
     kf->set_id(7);
@@ -466,9 +702,17 @@ TEST_F(MapSerializerTest, NavResourceReaderExplicitFallbackDoesNotNeedGlobalMapP
     ASSERT_EQ(resource.dense_optimized_trajectory.size(), 1U);
     EXPECT_FALSE(resource.has_native_dense_trajectory);
     EXPECT_TRUE(resource.dense_trajectory_from_keyframe_fallback);
+    EXPECT_EQ(resource.dense_trajectory_source, "keyframe_fallback");
+    EXPECT_TRUE(resource.dense_trajectory_degraded);
     EXPECT_EQ(resource.keyframes.front().id, 7);
     EXPECT_EQ(resource.map_frame, "map");
     EXPECT_EQ(resource.body_frame, "body");
+    EXPECT_TRUE(resource.nav_cloud_filter_applied);
+    EXPECT_EQ(resource.nav_cloud_filter_policy, "rear_sector_width_deg=45");
+    EXPECT_TRUE(resource.descriptors_recomputed_from_filtered_cloud);
+    EXPECT_EQ(resource.nav_filter_raw_points, 10U);
+    EXPECT_EQ(resource.nav_filter_kept_points, 8U);
+    EXPECT_EQ(resource.nav_filter_removed_points, 2U);
     EXPECT_NE(resource.optimized_poses.find(7), resource.optimized_poses.end());
     EXPECT_NEAR(resource.dense_optimized_trajectory.front().pose_world_lidar.translation().x(), 2.0, 1e-9);
 }

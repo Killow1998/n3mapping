@@ -77,6 +77,14 @@ message MapMetadata {
     string rhpd_schema = 6;
     string map_frame = 7;
     string body_frame = 8;
+    bool nav_cloud_filter_applied = 9;
+    string nav_cloud_filter_policy = 10;
+    bool descriptors_recomputed_from_filtered_cloud = 11;
+    uint64 nav_filter_raw_points = 12;
+    uint64 nav_filter_kept_points = 13;
+    uint64 nav_filter_removed_points = 14;
+    string dense_trajectory_source = 15;
+    bool dense_trajectory_degraded = 16;
 }
 
 // 完整地图

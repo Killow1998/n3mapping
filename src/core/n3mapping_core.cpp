@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
@@ -84,10 +85,19 @@ void accumulatePoseUpdateStats(const std::map<int64_t, Eigen::Isometry3d>& befor
     result->pose_update_count = total_count;
 }
 
+Config validateOrThrow(const Config& config)
+{
+    std::string error;
+    if (!config.validate(&error)) {
+        throw std::invalid_argument("Invalid N3MappingCore config: " + error);
+    }
+    return config;
+}
+
 }  // namespace
 
 N3MappingCore::N3MappingCore(const Config& config)
-  : config_(config)
+  : config_(validateOrThrow(config))
   , session_(std::make_unique<core::N3MappingSession>(config_))
 {
 }
@@ -263,7 +273,7 @@ core::BackendOutput N3MappingCore::processMapExtensionFrame(const core::LioFrame
             const int64_t matched_id = localizer.getLastMatchedKeyframeId();
             auto matched_kf = session_->keyframeManager().getKeyframe(matched_id);
             if (matched_kf) {
-                appendDenseTrajectorySample(timestamp, output.T_world_lidar, matched_id, matched_kf->pose_optimized);
+                appendDenseTrajectorySample(timestamp, output.T_world_lidar, matched_id, matched_kf->pose_optimized, false);
             }
         }
         return output;
@@ -276,7 +286,7 @@ core::BackendOutput N3MappingCore::processMapExtensionFrame(const core::LioFrame
     Eigen::Isometry3d pose_map = localizer.getMapToOdomTransform() * frame.T_world_lidar;
     if (!session_->keyframeManager().shouldAddKeyframe(pose_map)) {
         const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
-        appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_map);
+        appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_map, false);
         return makeOutput(true, pose_map, frame.undistorted_cloud);
     }
 
@@ -300,7 +310,7 @@ core::BackendOutput N3MappingCore::processMapExtensionFrame(const core::LioFrame
     output.keyframe_id = keyframe_id;
     if (keyframe_id >= 0) {
         if (auto kf = session_->keyframeManager().getKeyframe(keyframe_id)) {
-            appendDenseTrajectorySample(timestamp, kf->pose_odom, keyframe_id, kf->pose_odom);
+            appendDenseTrajectorySample(timestamp, kf->pose_odom, keyframe_id, kf->pose_odom, false);
         }
     }
     return output;
@@ -414,19 +424,22 @@ bool N3MappingCore::loadMap(const std::string& map_path)
 {
     dense_trajectory_samples_.clear();
     std::vector<core::DenseTrajectoryPose> loaded_dense_optimized;
+    core::DenseTrajectoryMetadata loaded_dense_metadata;
     const bool loaded_for_dense = session_->mapSerializer().loadMap(
         map_path,
         session_->keyframeManager(),
         session_->loopDetector(),
         session_->graphOptimizer(),
-        &loaded_dense_optimized);
+        &loaded_dense_optimized,
+        &loaded_dense_metadata);
     if (!loaded_for_dense) {
         map_loaded_ = false;
         return false;
     }
-    session_->worldLocalizing().setMapToOdomTransform(Eigen::Isometry3d::Identity());
     map_loaded_ = session_->mappingResuming().loadExistingMap(map_path);
     if (map_loaded_) {
+        session_->worldLocalizing().reset();
+        dense_trajectory_metadata_ = loaded_dense_metadata;
         initializeDenseSamplesFromOptimized(loaded_dense_optimized);
     }
     return map_loaded_;
@@ -435,12 +448,18 @@ bool N3MappingCore::loadMap(const std::string& map_path)
 bool N3MappingCore::saveMap(const std::string& map_path)
 {
     const auto dense_optimized_trajectory = buildDenseOptimizedTrajectory();
+    core::DenseTrajectoryMetadata metadata = dense_trajectory_metadata_;
+    if (!dense_optimized_trajectory.empty() && (metadata.source.empty() || metadata.source == "none")) {
+        metadata.source = "native";
+        metadata.degraded = false;
+    }
     return session_->mapSerializer().saveMap(
         map_path,
         session_->keyframeManager(),
         session_->loopDetector(),
         session_->graphOptimizer(),
-        dense_optimized_trajectory);
+        dense_optimized_trajectory,
+        metadata);
 }
 
 bool N3MappingCore::saveGlobalMap(const std::string& pcd_path)
@@ -530,7 +549,8 @@ N3MappingCore::PointCloud::Ptr N3MappingCore::makeWorldCloud(const PointCloud::P
 void N3MappingCore::appendDenseTrajectorySample(double timestamp,
                                                 const Eigen::Isometry3d& raw_pose,
                                                 int64_t anchor_keyframe_id,
-                                                const Eigen::Isometry3d& anchor_raw_pose)
+                                                const Eigen::Isometry3d& anchor_raw_pose,
+                                                bool use_bracketing_correction)
 {
     core::AnchoredDenseTrajectorySample sample;
     sample.seq = static_cast<uint64_t>(dense_trajectory_samples_.size());
@@ -539,21 +559,30 @@ void N3MappingCore::appendDenseTrajectorySample(double timestamp,
     sample.anchor_keyframe_id = anchor_keyframe_id;
     sample.anchor_pose_world_lidar_raw = anchor_raw_pose;
     sample.has_anchor = anchor_keyframe_id >= 0;
+    sample.use_bracketing_correction = use_bracketing_correction;
+    if (dense_trajectory_metadata_.source == "keyframe_fallback") {
+        dense_trajectory_metadata_.source = "mixed_keyframe_fallback_and_high_rate";
+        dense_trajectory_metadata_.degraded = true;
+    } else if (dense_trajectory_metadata_.source.empty() || dense_trajectory_metadata_.source == "none") {
+        dense_trajectory_metadata_.source = "native";
+        dense_trajectory_metadata_.degraded = false;
+    }
     dense_trajectory_samples_.push_back(sample);
 }
 
 void N3MappingCore::appendDenseTrajectorySampleWithLatestAnchor(double timestamp,
-                                                                const Eigen::Isometry3d& raw_pose)
+                                                                const Eigen::Isometry3d& raw_pose,
+                                                                bool use_bracketing_correction)
 {
     auto latest = session_->keyframeManager().getLatestKeyframe();
     if (!latest) {
-        appendDenseTrajectorySample(timestamp, raw_pose, -1, Eigen::Isometry3d::Identity());
+        appendDenseTrajectorySample(timestamp, raw_pose, -1, Eigen::Isometry3d::Identity(), use_bracketing_correction);
         return;
     }
 
     const Eigen::Isometry3d anchor_raw_pose =
         latest->is_from_loaded_map ? latest->pose_optimized : latest->pose_odom;
-    appendDenseTrajectorySample(timestamp, raw_pose, latest->id, anchor_raw_pose);
+    appendDenseTrajectorySample(timestamp, raw_pose, latest->id, anchor_raw_pose, use_bracketing_correction);
 }
 
 void N3MappingCore::initializeDenseSamplesFromOptimized(
@@ -587,6 +616,7 @@ void N3MappingCore::initializeDenseSamplesFromOptimized(
             sample.anchor_keyframe_id = anchor->id;
             sample.anchor_pose_world_lidar_raw = anchor->pose_optimized;
             sample.has_anchor = true;
+            sample.use_bracketing_correction = false;
         }
         dense_trajectory_samples_.push_back(sample);
     }
@@ -601,7 +631,9 @@ std::vector<core::DenseTrajectoryPose> N3MappingCore::buildDenseOptimizedTraject
         pose.seq = sample.seq;
         pose.timestamp = sample.timestamp;
         pose.pose_world_lidar = sample.pose_world_lidar_raw;
-        if (sample.has_anchor) {
+        if (sample.use_bracketing_correction) {
+            pose.pose_world_lidar = interpolateDenseCorrection(sample.timestamp) * sample.pose_world_lidar_raw;
+        } else if (sample.has_anchor) {
             auto anchor = session_->keyframeManager().getKeyframe(sample.anchor_keyframe_id);
             if (anchor) {
                 pose.pose_world_lidar =
@@ -611,6 +643,53 @@ std::vector<core::DenseTrajectoryPose> N3MappingCore::buildDenseOptimizedTraject
         dense_optimized.push_back(pose);
     }
     return dense_optimized;
+}
+
+Eigen::Isometry3d N3MappingCore::interpolateDenseCorrection(double timestamp) const
+{
+    const auto keyframes = session_->keyframeManager().getAllKeyframes();
+    Keyframe::Ptr before;
+    Keyframe::Ptr after;
+
+    for (const auto& kf : keyframes) {
+        if (!kf) {
+            continue;
+        }
+        if (kf->timestamp <= timestamp && (!before || kf->timestamp > before->timestamp)) {
+            before = kf;
+        }
+        if (kf->timestamp >= timestamp && (!after || kf->timestamp < after->timestamp)) {
+            after = kf;
+        }
+    }
+
+    if (!before && !after) {
+        return Eigen::Isometry3d::Identity();
+    }
+    if (!before) {
+        before = after;
+    }
+    if (!after) {
+        after = before;
+    }
+
+    const Eigen::Isometry3d correction_before = before->pose_optimized * before->pose_odom.inverse();
+    const Eigen::Isometry3d correction_after = after->pose_optimized * after->pose_odom.inverse();
+    double alpha = 0.0;
+    const double dt = after->timestamp - before->timestamp;
+    if (std::isfinite(dt) && dt > 1e-9) {
+        alpha = std::clamp((timestamp - before->timestamp) / dt, 0.0, 1.0);
+    }
+
+    Eigen::Isometry3d correction = Eigen::Isometry3d::Identity();
+    correction.translation() =
+        (1.0 - alpha) * correction_before.translation() + alpha * correction_after.translation();
+    Eigen::Quaterniond qb(correction_before.rotation());
+    Eigen::Quaterniond qa(correction_after.rotation());
+    qb.normalize();
+    qa.normalize();
+    correction.linear() = qb.slerp(alpha, qa).toRotationMatrix();
+    return correction;
 }
 
 void N3MappingCore::addRhpdDescriptorForKeyframe(int64_t keyframe_id, const PointCloud::Ptr& fallback_cloud)

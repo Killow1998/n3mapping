@@ -98,6 +98,15 @@ bool readN3NavResource(const std::string& pbstream_path,
     if (!map_proto.metadata().body_frame().empty()) {
         resource.body_frame = map_proto.metadata().body_frame();
     }
+    resource.dense_trajectory_source = map_proto.metadata().dense_trajectory_source();
+    resource.dense_trajectory_degraded = map_proto.metadata().dense_trajectory_degraded();
+    resource.nav_cloud_filter_applied = map_proto.metadata().nav_cloud_filter_applied();
+    resource.nav_cloud_filter_policy = map_proto.metadata().nav_cloud_filter_policy();
+    resource.descriptors_recomputed_from_filtered_cloud =
+        map_proto.metadata().descriptors_recomputed_from_filtered_cloud();
+    resource.nav_filter_raw_points = map_proto.metadata().nav_filter_raw_points();
+    resource.nav_filter_kept_points = map_proto.metadata().nav_filter_kept_points();
+    resource.nav_filter_removed_points = map_proto.metadata().nav_filter_removed_points();
 
     resource.keyframes.reserve(map_proto.keyframes_size());
     for (int i = 0; i < map_proto.keyframes_size(); ++i) {
@@ -117,9 +126,15 @@ bool readN3NavResource(const std::string& pbstream_path,
         resource.optimized_poses[keyframe.id] = keyframe.pose_optimized;
         resource.keyframes.push_back(std::move(keyframe));
     }
+    if (resource.keyframes.empty()) {
+        return setError(error, "pbstream_missing_keyframes");
+    }
 
     if (map_proto.dense_optimized_trajectory_size() > 0) {
-        resource.has_native_dense_trajectory = true;
+        if (resource.dense_trajectory_source.empty()) {
+            resource.dense_trajectory_source = "native";
+            resource.dense_trajectory_degraded = false;
+        }
         resource.dense_optimized_trajectory.reserve(map_proto.dense_optimized_trajectory_size());
         for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
             const auto& proto_pose = map_proto.dense_optimized_trajectory(i);
@@ -132,10 +147,19 @@ bool readN3NavResource(const std::string& pbstream_path,
             pose.pose_world_lidar = readPose(proto_pose.pose_world_lidar());
             resource.dense_optimized_trajectory.push_back(pose);
         }
+        resource.has_native_dense_trajectory =
+            !resource.dense_optimized_trajectory.empty() &&
+            resource.dense_trajectory_source == "native" &&
+            !resource.dense_trajectory_degraded;
+        resource.dense_trajectory_from_keyframe_fallback =
+            resource.dense_trajectory_source == "keyframe_fallback" ||
+            resource.dense_trajectory_source == "mixed_keyframe_fallback_and_high_rate";
     } else {
         if (!options.allow_keyframe_fallback) {
             return setError(error, "pbstream_missing_dense_trajectory");
         }
+        resource.dense_trajectory_source = "keyframe_fallback";
+        resource.dense_trajectory_degraded = true;
         resource.dense_trajectory_from_keyframe_fallback = true;
         resource.dense_optimized_trajectory.reserve(resource.keyframes.size());
         uint64_t seq = 0;
