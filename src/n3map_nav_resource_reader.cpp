@@ -75,6 +75,13 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr readCloud(const PointCloudData& proto, std:
 bool readN3NavResource(const std::string& pbstream_path,
                        N3NavResource* out,
                        std::string* error) {
+    return readN3NavResource(pbstream_path, N3NavReaderOptions{}, out, error);
+}
+
+bool readN3NavResource(const std::string& pbstream_path,
+                       const N3NavReaderOptions& options,
+                       N3NavResource* out,
+                       std::string* error) {
     if (!out) return setError(error, "null output resource");
 
     std::ifstream ifs(pbstream_path, std::ios::binary);
@@ -112,6 +119,7 @@ bool readN3NavResource(const std::string& pbstream_path,
     }
 
     if (map_proto.dense_optimized_trajectory_size() > 0) {
+        resource.has_native_dense_trajectory = true;
         resource.dense_optimized_trajectory.reserve(map_proto.dense_optimized_trajectory_size());
         for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
             const auto& proto_pose = map_proto.dense_optimized_trajectory(i);
@@ -125,6 +133,10 @@ bool readN3NavResource(const std::string& pbstream_path,
             resource.dense_optimized_trajectory.push_back(pose);
         }
     } else {
+        if (!options.allow_keyframe_fallback) {
+            return setError(error, "pbstream_missing_dense_trajectory");
+        }
+        resource.dense_trajectory_from_keyframe_fallback = true;
         resource.dense_optimized_trajectory.reserve(resource.keyframes.size());
         uint64_t seq = 0;
         for (const auto& keyframe : resource.keyframes) {

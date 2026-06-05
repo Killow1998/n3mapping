@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
@@ -155,7 +156,7 @@ core::BackendOutput N3MappingCore::processMappingFrame(const core::LioFrame& fra
     const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
     auto& keyframes = session_->keyframeManager();
     if (!keyframes.shouldAddKeyframe(frame.T_world_lidar)) {
-        appendDenseOptimizedPose(timestamp, output.T_world_lidar);
+        appendDenseTrajectorySampleWithLatestAnchor(timestamp, frame.T_world_lidar);
         return output;
     }
 
@@ -185,7 +186,9 @@ core::BackendOutput N3MappingCore::processMappingFrame(const core::LioFrame& fra
     output.keyframe_id = keyframe_id;
     output.T_world_lidar = optimized_pose;
     output.cloud_world = makeWorldCloud(frame.undistorted_cloud, optimized_pose);
-    appendDenseOptimizedPose(timestamp, optimized_pose);
+    if (auto kf = keyframes.getKeyframe(keyframe_id)) {
+        appendDenseTrajectorySample(timestamp, frame.T_world_lidar, keyframe_id, kf->pose_odom);
+    }
 
     {
         std::lock_guard<std::mutex> lock(loop_queue_mutex_);
@@ -257,7 +260,11 @@ core::BackendOutput N3MappingCore::processMapExtensionFrame(const core::LioFrame
         output.relocalization_locked = locked;
         if (locked) {
             const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
-            appendDenseOptimizedPose(timestamp, output.T_world_lidar);
+            const int64_t matched_id = localizer.getLastMatchedKeyframeId();
+            auto matched_kf = session_->keyframeManager().getKeyframe(matched_id);
+            if (matched_kf) {
+                appendDenseTrajectorySample(timestamp, output.T_world_lidar, matched_id, matched_kf->pose_optimized);
+            }
         }
         return output;
     }
@@ -269,7 +276,7 @@ core::BackendOutput N3MappingCore::processMapExtensionFrame(const core::LioFrame
     Eigen::Isometry3d pose_map = localizer.getMapToOdomTransform() * frame.T_world_lidar;
     if (!session_->keyframeManager().shouldAddKeyframe(pose_map)) {
         const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
-        appendDenseOptimizedPose(timestamp, pose_map);
+        appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_map);
         return makeOutput(true, pose_map, frame.undistorted_cloud);
     }
 
@@ -292,7 +299,9 @@ core::BackendOutput N3MappingCore::processMapExtensionFrame(const core::LioFrame
     output.accepted_keyframe = keyframe_id >= 0;
     output.keyframe_id = keyframe_id;
     if (keyframe_id >= 0) {
-        appendDenseOptimizedPose(timestamp, pose_map);
+        if (auto kf = session_->keyframeManager().getKeyframe(keyframe_id)) {
+            appendDenseTrajectorySample(timestamp, kf->pose_odom, keyframe_id, kf->pose_odom);
+        }
     }
     return output;
 }
@@ -403,30 +412,35 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
 
 bool N3MappingCore::loadMap(const std::string& map_path)
 {
-    dense_optimized_trajectory_.clear();
+    dense_trajectory_samples_.clear();
+    std::vector<core::DenseTrajectoryPose> loaded_dense_optimized;
     const bool loaded_for_dense = session_->mapSerializer().loadMap(
         map_path,
         session_->keyframeManager(),
         session_->loopDetector(),
         session_->graphOptimizer(),
-        &dense_optimized_trajectory_);
+        &loaded_dense_optimized);
     if (!loaded_for_dense) {
         map_loaded_ = false;
         return false;
     }
     session_->worldLocalizing().setMapToOdomTransform(Eigen::Isometry3d::Identity());
     map_loaded_ = session_->mappingResuming().loadExistingMap(map_path);
+    if (map_loaded_) {
+        initializeDenseSamplesFromOptimized(loaded_dense_optimized);
+    }
     return map_loaded_;
 }
 
 bool N3MappingCore::saveMap(const std::string& map_path)
 {
+    const auto dense_optimized_trajectory = buildDenseOptimizedTrajectory();
     return session_->mapSerializer().saveMap(
         map_path,
         session_->keyframeManager(),
         session_->loopDetector(),
         session_->graphOptimizer(),
-        dense_optimized_trajectory_);
+        dense_optimized_trajectory);
 }
 
 bool N3MappingCore::saveGlobalMap(const std::string& pcd_path)
@@ -487,7 +501,7 @@ std::map<int64_t, Eigen::Isometry3d> N3MappingCore::getOptimizedPoses() const
 
 std::vector<core::DenseTrajectoryPose> N3MappingCore::getDenseOptimizedTrajectory() const
 {
-    return dense_optimized_trajectory_;
+    return buildDenseOptimizedTrajectory();
 }
 
 core::BackendOutput N3MappingCore::makeOutput(bool success,
@@ -513,13 +527,90 @@ N3MappingCore::PointCloud::Ptr N3MappingCore::makeWorldCloud(const PointCloud::P
     return transformed;
 }
 
-void N3MappingCore::appendDenseOptimizedPose(double timestamp, const Eigen::Isometry3d& pose)
+void N3MappingCore::appendDenseTrajectorySample(double timestamp,
+                                                const Eigen::Isometry3d& raw_pose,
+                                                int64_t anchor_keyframe_id,
+                                                const Eigen::Isometry3d& anchor_raw_pose)
 {
-    core::DenseTrajectoryPose dense_pose;
-    dense_pose.seq = static_cast<uint64_t>(dense_optimized_trajectory_.size());
-    dense_pose.timestamp = timestamp;
-    dense_pose.pose_world_lidar = pose;
-    dense_optimized_trajectory_.push_back(dense_pose);
+    core::AnchoredDenseTrajectorySample sample;
+    sample.seq = static_cast<uint64_t>(dense_trajectory_samples_.size());
+    sample.timestamp = timestamp;
+    sample.pose_world_lidar_raw = raw_pose;
+    sample.anchor_keyframe_id = anchor_keyframe_id;
+    sample.anchor_pose_world_lidar_raw = anchor_raw_pose;
+    sample.has_anchor = anchor_keyframe_id >= 0;
+    dense_trajectory_samples_.push_back(sample);
+}
+
+void N3MappingCore::appendDenseTrajectorySampleWithLatestAnchor(double timestamp,
+                                                                const Eigen::Isometry3d& raw_pose)
+{
+    auto latest = session_->keyframeManager().getLatestKeyframe();
+    if (!latest) {
+        appendDenseTrajectorySample(timestamp, raw_pose, -1, Eigen::Isometry3d::Identity());
+        return;
+    }
+
+    const Eigen::Isometry3d anchor_raw_pose =
+        latest->is_from_loaded_map ? latest->pose_optimized : latest->pose_odom;
+    appendDenseTrajectorySample(timestamp, raw_pose, latest->id, anchor_raw_pose);
+}
+
+void N3MappingCore::initializeDenseSamplesFromOptimized(
+    const std::vector<core::DenseTrajectoryPose>& dense_optimized)
+{
+    dense_trajectory_samples_.clear();
+    dense_trajectory_samples_.reserve(dense_optimized.size());
+
+    const auto keyframes = session_->keyframeManager().getAllKeyframes();
+    for (const auto& dense_pose : dense_optimized) {
+        Keyframe::Ptr anchor;
+        double best_time = -std::numeric_limits<double>::infinity();
+        for (const auto& kf : keyframes) {
+            if (!kf) {
+                continue;
+            }
+            if (kf->timestamp <= dense_pose.timestamp && kf->timestamp >= best_time) {
+                anchor = kf;
+                best_time = kf->timestamp;
+            }
+        }
+        if (!anchor && !keyframes.empty()) {
+            anchor = keyframes.front();
+        }
+
+        core::AnchoredDenseTrajectorySample sample;
+        sample.seq = dense_pose.seq;
+        sample.timestamp = dense_pose.timestamp;
+        sample.pose_world_lidar_raw = dense_pose.pose_world_lidar;
+        if (anchor) {
+            sample.anchor_keyframe_id = anchor->id;
+            sample.anchor_pose_world_lidar_raw = anchor->pose_optimized;
+            sample.has_anchor = true;
+        }
+        dense_trajectory_samples_.push_back(sample);
+    }
+}
+
+std::vector<core::DenseTrajectoryPose> N3MappingCore::buildDenseOptimizedTrajectory() const
+{
+    std::vector<core::DenseTrajectoryPose> dense_optimized;
+    dense_optimized.reserve(dense_trajectory_samples_.size());
+    for (const auto& sample : dense_trajectory_samples_) {
+        core::DenseTrajectoryPose pose;
+        pose.seq = sample.seq;
+        pose.timestamp = sample.timestamp;
+        pose.pose_world_lidar = sample.pose_world_lidar_raw;
+        if (sample.has_anchor) {
+            auto anchor = session_->keyframeManager().getKeyframe(sample.anchor_keyframe_id);
+            if (anchor) {
+                pose.pose_world_lidar =
+                    anchor->pose_optimized * sample.anchor_pose_world_lidar_raw.inverse() * sample.pose_world_lidar_raw;
+            }
+        }
+        dense_optimized.push_back(pose);
+    }
+    return dense_optimized;
 }
 
 void N3MappingCore::addRhpdDescriptorForKeyframe(int64_t keyframe_id, const PointCloud::Ptr& fallback_cloud)

@@ -26,12 +26,23 @@ struct N3NavResource {
     std::string version;
     std::string map_frame = "map";
     std::string body_frame = "body";
+    bool has_native_dense_trajectory = false;
+    bool dense_trajectory_from_keyframe_fallback = false;
     std::vector<N3NavKeyframe> keyframes;
     std::map<int64_t, Eigen::Isometry3d> optimized_poses;
     std::vector<core::DenseTrajectoryPose> dense_optimized_trajectory;
 };
 
+struct N3NavReaderOptions {
+    bool allow_keyframe_fallback = false;
+};
+
 bool readN3NavResource(const std::string& pbstream_path,
+                       N3NavResource* out,
+                       std::string* error = nullptr);
+
+bool readN3NavResource(const std::string& pbstream_path,
+                       const N3NavReaderOptions& options,
                        N3NavResource* out,
                        std::string* error = nullptr);
 

@@ -22,7 +22,7 @@
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.2.0";
+constexpr const char* MAP_VERSION = "2.3.0";
 constexpr uint32_t MAX_POINTS_PER_KEYFRAME = 5000000u;
 constexpr uint64_t MAX_DESCRIPTOR_VALUES = 1000000u;
 

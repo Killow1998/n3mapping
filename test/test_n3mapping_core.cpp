@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <algorithm>
 #include <cmath>
 
 #include <gtest/gtest.h>
@@ -189,6 +190,49 @@ TEST(N3MappingCoreTest, PendingLoopClosureProcessingIsCoreOwned)
     EXPECT_EQ(result.accepted_loops.front().query_id, 1);
     EXPECT_EQ(result.accepted_loops.front().match_id, 0);
     EXPECT_TRUE(result.accepted_loops.front().isValid());
+}
+
+TEST(N3MappingCoreTest, DenseTrajectorySavedAfterLoopClosureMatchesFinalKeyframePose)
+{
+    Config config = makeCoreTestConfig();
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "n3mapping_core_dense_loop_optimized";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path map_path = dir / "dense_loop.pbstream";
+
+    N3MappingCore core(config);
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+
+    Eigen::Isometry3d intermediate_pose = Eigen::Isometry3d::Identity();
+    intermediate_pose.translation().x() = 0.1;
+    ASSERT_FALSE(core.processMappingFrame(makeFrame(1500000000, intermediate_pose)).accepted_keyframe);
+
+    Eigen::Isometry3d second_pose = Eigen::Isometry3d::Identity();
+    second_pose.translation().x() = 1.0;
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, second_pose)).accepted_keyframe);
+    ASSERT_EQ(core.getDenseOptimizedTrajectory().size(), 3U);
+
+    const auto result = core.processPendingLoopClosures();
+    ASSERT_TRUE(result.optimized);
+
+    const auto final_kf = core.getKeyframe(1);
+    ASSERT_NE(final_kf, nullptr);
+    ASSERT_TRUE(core.saveMap(map_path.string()));
+
+    N3MappingCore loaded(config);
+    ASSERT_TRUE(loaded.loadMap(map_path.string()));
+    const auto dense = loaded.getDenseOptimizedTrajectory();
+    ASSERT_EQ(dense.size(), 3U);
+
+    const auto dense_at_keyframe = std::find_if(
+        dense.begin(), dense.end(), [](const core::DenseTrajectoryPose& pose) {
+            return std::abs(pose.timestamp - 2.0) < 1e-9;
+        });
+    ASSERT_NE(dense_at_keyframe, dense.end());
+    EXPECT_TRUE(dense_at_keyframe->pose_world_lidar.isApprox(final_kf->pose_optimized, 1e-6));
+
+    std::filesystem::remove_all(dir);
 }
 
 TEST(N3MappingCoreTest, SaveLoadSmoke)

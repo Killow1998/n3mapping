@@ -66,5 +66,14 @@ struct DenseTrajectoryPose {
     Eigen::Isometry3d pose_world_lidar = Eigen::Isometry3d::Identity();
 };
 
+struct AnchoredDenseTrajectorySample {
+    uint64_t seq = 0;
+    double timestamp = 0.0;
+    Eigen::Isometry3d pose_world_lidar_raw = Eigen::Isometry3d::Identity();
+    int64_t anchor_keyframe_id = -1;
+    Eigen::Isometry3d anchor_pose_world_lidar_raw = Eigen::Isometry3d::Identity();
+    bool has_anchor = false;
+};
+
 }  // namespace core
 }  // namespace n3mapping

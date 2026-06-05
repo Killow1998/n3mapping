@@ -401,7 +401,7 @@ TEST_F(MapSerializerTest, OldPbstreamFallsBackDenseTrajectoryFromKeyframePoses) 
     EXPECT_NEAR(dense[1].pose_world_lidar.translation().x(), 1.0, 1e-9);
 }
 
-TEST_F(MapSerializerTest, NavResourceReaderFallsBackWithoutGlobalMapPcd) {
+TEST_F(MapSerializerTest, NavResourceReaderRequiresNativeDenseByDefault) {
     n3mapping::N3Map map_proto;
     map_proto.mutable_metadata()->set_version("2.2.0");
     map_proto.mutable_metadata()->set_map_frame("map");
@@ -428,9 +428,44 @@ TEST_F(MapSerializerTest, NavResourceReaderFallsBackWithoutGlobalMapPcd) {
 
     N3NavResource resource;
     std::string error;
-    ASSERT_TRUE(readN3NavResource(map_file, &resource, &error)) << error;
+    ASSERT_FALSE(readN3NavResource(map_file, &resource, &error));
+    EXPECT_EQ(error, "pbstream_missing_dense_trajectory");
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderExplicitFallbackDoesNotNeedGlobalMapPcd) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.2.0");
+    map_proto.mutable_metadata()->set_map_frame("map");
+    map_proto.mutable_metadata()->set_body_frame("body");
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(7);
+    kf->set_timestamp(3.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_tx(2.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(1);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(9.0f);
+
+    const std::string map_file = config_.map_save_path + "/reader_no_dense_fallback.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    std::string error;
+    N3NavReaderOptions options;
+    options.allow_keyframe_fallback = true;
+    ASSERT_TRUE(readN3NavResource(map_file, options, &resource, &error)) << error;
     ASSERT_EQ(resource.keyframes.size(), 1U);
     ASSERT_EQ(resource.dense_optimized_trajectory.size(), 1U);
+    EXPECT_FALSE(resource.has_native_dense_trajectory);
+    EXPECT_TRUE(resource.dense_trajectory_from_keyframe_fallback);
     EXPECT_EQ(resource.keyframes.front().id, 7);
     EXPECT_EQ(resource.map_frame, "map");
     EXPECT_EQ(resource.body_frame, "body");

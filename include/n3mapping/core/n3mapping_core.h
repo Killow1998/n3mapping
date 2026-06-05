@@ -73,7 +73,13 @@ class N3MappingCore {
                                    const PointCloud::Ptr& cloud) const;
     PointCloud::Ptr makeWorldCloud(const PointCloud::Ptr& cloud,
                                    const Eigen::Isometry3d& pose) const;
-    void appendDenseOptimizedPose(double timestamp, const Eigen::Isometry3d& pose);
+    void appendDenseTrajectorySample(double timestamp,
+                                     const Eigen::Isometry3d& raw_pose,
+                                     int64_t anchor_keyframe_id,
+                                     const Eigen::Isometry3d& anchor_raw_pose);
+    void appendDenseTrajectorySampleWithLatestAnchor(double timestamp, const Eigen::Isometry3d& raw_pose);
+    void initializeDenseSamplesFromOptimized(const std::vector<core::DenseTrajectoryPose>& dense_optimized);
+    std::vector<core::DenseTrajectoryPose> buildDenseOptimizedTrajectory() const;
     void addRhpdDescriptorForKeyframe(int64_t keyframe_id, const PointCloud::Ptr& fallback_cloud);
     bool addOdometryConstraint(int64_t keyframe_id, const Eigen::Isometry3d& pose);
     void refreshOptimizedPoses();
@@ -82,7 +88,7 @@ class N3MappingCore {
     std::unique_ptr<core::N3MappingSession> session_;
     mutable std::mutex loop_queue_mutex_;
     std::vector<int64_t> loop_detection_queue_;
-    std::vector<core::DenseTrajectoryPose> dense_optimized_trajectory_;
+    std::vector<core::AnchoredDenseTrajectorySample> dense_trajectory_samples_;
     int64_t last_loop_check_id_ = -1000;
     std::size_t loop_count_ = 0;
     bool map_loaded_ = false;
