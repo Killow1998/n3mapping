@@ -392,6 +392,10 @@ bool MapSerializer::loadMap(const std::string& filepath,
             loaded_dense_metadata.source = map_proto.metadata().dense_trajectory_source().empty()
                 ? "native"
                 : map_proto.metadata().dense_trajectory_source();
+            if (loaded_dense_metadata.source == "none") {
+                LOG(ERROR) << "[MapSerializer] Reject map: dense trajectory present with source=none.";
+                return false;
+            }
             loaded_dense_metadata.degraded = map_proto.metadata().dense_trajectory_degraded();
             for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
                 const auto& proto_pose = map_proto.dense_optimized_trajectory(i);

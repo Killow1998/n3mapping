@@ -422,7 +422,6 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
 
 bool N3MappingCore::loadMap(const std::string& map_path)
 {
-    dense_trajectory_samples_.clear();
     std::vector<core::DenseTrajectoryPose> loaded_dense_optimized;
     core::DenseTrajectoryMetadata loaded_dense_metadata;
     const bool loaded_for_dense = session_->mapSerializer().loadMap(
@@ -433,16 +432,16 @@ bool N3MappingCore::loadMap(const std::string& map_path)
         &loaded_dense_optimized,
         &loaded_dense_metadata);
     if (!loaded_for_dense) {
-        map_loaded_ = false;
         return false;
     }
-    map_loaded_ = session_->mappingResuming().loadExistingMap(map_path);
-    if (map_loaded_) {
-        session_->worldLocalizing().reset();
-        dense_trajectory_metadata_ = loaded_dense_metadata;
-        initializeDenseSamplesFromOptimized(loaded_dense_optimized);
+    if (!session_->mappingResuming().initializeFromLoadedMap()) {
+        return false;
     }
-    return map_loaded_;
+    session_->worldLocalizing().reset();
+    dense_trajectory_metadata_ = loaded_dense_metadata;
+    initializeDenseSamplesFromOptimized(loaded_dense_optimized);
+    map_loaded_ = true;
+    return true;
 }
 
 bool N3MappingCore::saveMap(const std::string& map_path)

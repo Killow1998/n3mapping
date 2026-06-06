@@ -153,6 +153,9 @@ bool readN3NavResource(const std::string& pbstream_path,
             resource.dense_trajectory_source = "native";
             resource.dense_trajectory_degraded = false;
         }
+        if (resource.dense_trajectory_source == "none") {
+            return setError(error, "invalid dense trajectory source");
+        }
         resource.dense_optimized_trajectory.reserve(map_proto.dense_optimized_trajectory_size());
         for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
             const auto& proto_pose = map_proto.dense_optimized_trajectory(i);

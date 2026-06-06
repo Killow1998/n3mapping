@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <limits>
 
 #include <gtest/gtest.h>
 #include <pcl/memory.h>
@@ -395,6 +396,74 @@ TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseMarksMixedSource)
     }
     EXPECT_EQ(extended_map.metadata().dense_trajectory_source(), "mixed_keyframe_fallback_and_high_rate");
     EXPECT_TRUE(extended_map.metadata().dense_trajectory_degraded());
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(N3MappingCoreTest, LoadFailureDoesNotClearExistingState)
+{
+    Config config = makeCoreTestConfig();
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "n3mapping_core_load_failure_keeps_state";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path valid_map_path = dir / "valid.pbstream";
+    const std::filesystem::path invalid_map_path = dir / "invalid.pbstream";
+
+    {
+        N3MappingCore core(config);
+        ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+        Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+        pose.translation().x() = 0.1;
+        ASSERT_FALSE(core.processMappingFrame(makeFrame(1100000000, pose)).accepted_keyframe);
+        ASSERT_TRUE(core.saveMap(valid_map_path.string()));
+    }
+
+    N3MappingCore loaded(config);
+    ASSERT_TRUE(loaded.loadMap(valid_map_path.string()));
+    ASSERT_TRUE(loaded.mapLoaded());
+    const auto keyframes_before = loaded.getAllKeyframes();
+    const auto dense_before = loaded.getDenseOptimizedTrajectory();
+    ASSERT_EQ(keyframes_before.size(), 1U);
+    ASSERT_EQ(dense_before.size(), 2U);
+
+    n3mapping::N3Map invalid_map;
+    invalid_map.mutable_metadata()->set_version("2.3.0");
+    invalid_map.mutable_metadata()->set_dense_trajectory_source("native");
+    invalid_map.mutable_metadata()->set_dense_trajectory_degraded(false);
+
+    auto* kf = invalid_map.add_keyframes();
+    kf->set_id(7);
+    kf->set_timestamp(3.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(1);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(1.0f);
+
+    auto* dense = invalid_map.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(3.0);
+    dense->mutable_pose_world_lidar()->set_qw(std::numeric_limits<double>::quiet_NaN());
+    {
+        std::ofstream ofs(invalid_map_path, std::ios::binary);
+        ASSERT_TRUE(invalid_map.SerializeToOstream(&ofs));
+    }
+
+    EXPECT_FALSE(loaded.loadMap(invalid_map_path.string()));
+    EXPECT_TRUE(loaded.mapLoaded());
+    EXPECT_EQ(loaded.getAllKeyframes().size(), keyframes_before.size());
+    EXPECT_NE(loaded.getKeyframe(keyframes_before.front()->id), nullptr);
+    const auto dense_after = loaded.getDenseOptimizedTrajectory();
+    ASSERT_EQ(dense_after.size(), dense_before.size());
+    for (std::size_t i = 0; i < dense_before.size(); ++i) {
+        EXPECT_EQ(dense_after[i].seq, dense_before[i].seq);
+        EXPECT_DOUBLE_EQ(dense_after[i].timestamp, dense_before[i].timestamp);
+        EXPECT_TRUE(dense_after[i].pose_world_lidar.isApprox(dense_before[i].pose_world_lidar, 1e-9));
+    }
 
     std::filesystem::remove_all(dir);
 }
