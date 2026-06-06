@@ -271,29 +271,30 @@ TEST_F(MapSerializerTest, EdgeSerialization) {
     EXPECT_TRUE(has_loop_loaded);
 }
 
-/**
- * @brief 测试空地图的处理
- */
-TEST_F(MapSerializerTest, EmptyMap) {
+TEST_F(MapSerializerTest, EmptyMapIsRejected) {
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
-    
-    // 保存空地图
+
     std::string map_file = config_.map_save_path + "/empty_map.pbstream";
-    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
-    
-    // 加载空地图
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    EXPECT_FALSE(std::filesystem::exists(map_file));
+
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
     KeyframeManager kf_manager_loaded(config_);
     LoopDetector loop_detector_loaded(config_);
     GraphOptimizer optimizer_loaded(config_);
-    ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
-    
-    // 验证为空
-    EXPECT_EQ(0, kf_manager_loaded.size());
-    EXPECT_EQ(0, loop_detector_loaded.size());
-    EXPECT_EQ(0, optimizer_loaded.getNumNodes());
+    EXPECT_FALSE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
+    EXPECT_EQ(kf_manager_loaded.size(), 0U);
+    EXPECT_EQ(loop_detector_loaded.size(), 0U);
+    EXPECT_EQ(optimizer_loaded.getNumNodes(), 0U);
 }
 
 /**
@@ -403,6 +404,39 @@ TEST_F(MapSerializerTest, NonFiniteKeyframeTimestampRejectsMapOnLoad) {
     cloud->add_points(1.0f);
 
     const std::string map_file = config_.map_save_path + "/nonfinite_timestamp_load.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 0U);
+}
+
+TEST_F(MapSerializerTest, DuplicateKeyframeIdsRejectMapOnLoad) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(2);
+
+    for (int i = 0; i < 2; ++i) {
+        auto* kf = map_proto.add_keyframes();
+        kf->set_id(0);
+        kf->set_timestamp(1.0 + static_cast<double>(i));
+        kf->mutable_pose_odom()->set_qw(1.0);
+        kf->mutable_pose_optimized()->set_qw(1.0);
+        auto* cloud = kf->mutable_cloud();
+        cloud->set_num_points(1);
+        cloud->add_points(1.0f + static_cast<float>(i));
+        cloud->add_points(0.0f);
+        cloud->add_points(0.0f);
+        cloud->add_points(1.0f);
+    }
+
+    const std::string map_file = config_.map_save_path + "/duplicate_keyframe_ids_load.pbstream";
     {
         std::ofstream ofs(map_file, std::ios::binary);
         ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));

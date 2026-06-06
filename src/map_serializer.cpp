@@ -184,6 +184,10 @@ bool MapSerializer::saveMap(const std::string& filepath,
         meta->set_map_frame(config_.world_frame);
         meta->set_body_frame(config_.body_frame);
         auto keyframes = keyframe_manager.getAllKeyframes();
+        if (keyframes.empty()) {
+            LOG(ERROR) << "[MapSerializer] Refuse to save map with no keyframes.";
+            return false;
+        }
         std::unordered_set<int64_t> saved_keyframe_ids;
         saved_keyframe_ids.reserve(keyframes.size());
         for (const auto& kf : keyframes) {
@@ -351,17 +355,23 @@ bool MapSerializer::loadMap(const std::string& filepath,
         keyframe_manager.clear(); loop_detector.clear(); optimizer.clear();
         std::vector<Keyframe::Ptr> keyframes;
         keyframes.reserve(map_proto.keyframes_size());
+        std::unordered_set<int64_t> loaded_keyframe_ids;
+        loaded_keyframe_ids.reserve(map_proto.keyframes_size());
         for (int i = 0; i < map_proto.keyframes_size(); ++i) {
             auto kf = protoToKeyframe(map_proto.keyframes(i));
             if (!kf) {
                 LOG(WARNING) << "[MapSerializer] Skip malformed keyframe index=" << i;
                 continue;
             }
+            if (!loaded_keyframe_ids.insert(kf->id).second) {
+                LOG(ERROR) << "[MapSerializer] Reject map: duplicate keyframe id=" << kf->id;
+                return false;
+            }
             kf->is_from_loaded_map = true;
             keyframes.push_back(kf);
         }
-        if (map_proto.keyframes_size() > 0 && keyframes.empty()) {
-            LOG(ERROR) << "[MapSerializer] Reject map: no valid keyframes loaded.";
+        if (keyframes.empty()) {
+            LOG(ERROR) << "[MapSerializer] Reject map: missing valid keyframes.";
             return false;
         }
         keyframe_manager.loadKeyframes(keyframes);
