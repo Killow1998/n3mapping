@@ -385,6 +385,37 @@ TEST_F(MapSerializerTest, MissingEdgeEndpointIsSkippedOnLoad) {
     EXPECT_EQ(loaded_optimizer.getNumEdges(), 0U);
 }
 
+TEST_F(MapSerializerTest, NonFiniteKeyframeTimestampRejectsMapOnLoad) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(1);
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(0);
+    kf->set_timestamp(std::numeric_limits<double>::infinity());
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(1);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(1.0f);
+
+    const std::string map_file = config_.map_save_path + "/nonfinite_timestamp_load.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 0U);
+}
+
 TEST_F(MapSerializerTest, AtomicSaveFailureDoesNotClobberExistingMap) {
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
@@ -456,6 +487,137 @@ TEST_F(MapSerializerTest, SaveMapRejectsAllNonFiniteKeyframeCloud) {
 
     const std::string map_file = config_.map_save_path + "/nonfinite_cloud_rejected.pbstream";
     EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    EXPECT_FALSE(std::filesystem::exists(map_file));
+}
+
+TEST_F(MapSerializerTest, SaveMapRejectsMixedNonFiniteKeyframeCloud) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    pcl::PointXYZI finite;
+    finite.x = 1.0f;
+    finite.y = 0.0f;
+    finite.z = 0.0f;
+    finite.intensity = 1.0f;
+    cloud->push_back(finite);
+    pcl::PointXYZI nonfinite = finite;
+    nonfinite.x = std::numeric_limits<float>::quiet_NaN();
+    cloud->push_back(nonfinite);
+    cloud->width = static_cast<uint32_t>(cloud->size());
+    cloud->height = 1;
+    cloud->is_dense = false;
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = kf_manager.addKeyframe(1.0, pose, cloud);
+    optimizer.addPriorFactor(kf_id, pose);
+
+    const std::string map_file = config_.map_save_path + "/mixed_nonfinite_cloud_rejected.pbstream";
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    EXPECT_FALSE(std::filesystem::exists(map_file));
+}
+
+TEST_F(MapSerializerTest, SaveMapRejectsNonFiniteKeyframePose) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = kf_manager.addKeyframe(1.0, pose, generateRandomPointCloud(16));
+    auto kf = kf_manager.getKeyframe(kf_id);
+    ASSERT_NE(kf, nullptr);
+    kf->pose_optimized.translation().x() = std::numeric_limits<double>::quiet_NaN();
+    optimizer.addPriorFactor(kf_id, pose);
+
+    const std::string map_file = config_.map_save_path + "/nonfinite_keyframe_pose_rejected.pbstream";
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    EXPECT_FALSE(std::filesystem::exists(map_file));
+}
+
+TEST_F(MapSerializerTest, SaveMapRejectsNonFiniteKeyframeTimestamp) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = kf_manager.addKeyframe(
+        std::numeric_limits<double>::infinity(), pose, generateRandomPointCloud(16));
+    optimizer.addPriorFactor(kf_id, pose);
+
+    const std::string map_file = config_.map_save_path + "/nonfinite_keyframe_timestamp_rejected.pbstream";
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    EXPECT_FALSE(std::filesystem::exists(map_file));
+}
+
+TEST_F(MapSerializerTest, SaveMapRejectsEdgeWithMissingEndpoint) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = kf_manager.addKeyframe(1.0, pose, generateRandomPointCloud(16));
+    optimizer.addPriorFactor(kf_id, pose);
+
+    EdgeInfo edge;
+    edge.from_id = kf_id;
+    edge.to_id = 99;
+    edge.measurement = Eigen::Isometry3d::Identity();
+    edge.measurement.translation().x() = 1.0;
+    edge.information = Eigen::Matrix<double, 6, 6>::Identity();
+    edge.type = EdgeType::ODOMETRY;
+    optimizer.addOdometryEdge(edge);
+
+    const std::string map_file = config_.map_save_path + "/missing_save_edge_endpoint_rejected.pbstream";
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+    EXPECT_FALSE(std::filesystem::exists(map_file));
+}
+
+TEST_F(MapSerializerTest, SaveMapRejectsNonFiniteDenseTrajectoryPose) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = kf_manager.addKeyframe(1.0, pose, generateRandomPointCloud(16));
+    optimizer.addPriorFactor(kf_id, pose);
+
+    std::vector<core::DenseTrajectoryPose> dense(1);
+    dense[0].seq = 0;
+    dense[0].timestamp = 1.0;
+    dense[0].pose_world_lidar = Eigen::Isometry3d::Identity();
+    dense[0].pose_world_lidar.translation().z() = std::numeric_limits<double>::quiet_NaN();
+
+    const std::string map_file = config_.map_save_path + "/nonfinite_dense_rejected.pbstream";
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer, dense));
+    EXPECT_FALSE(std::filesystem::exists(map_file));
+}
+
+TEST_F(MapSerializerTest, SaveMapRejectsNonEmptyDenseTrajectoryWithNoneSource) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = kf_manager.addKeyframe(1.0, pose, generateRandomPointCloud(16));
+    optimizer.addPriorFactor(kf_id, pose);
+
+    std::vector<core::DenseTrajectoryPose> dense(1);
+    dense[0].seq = 0;
+    dense[0].timestamp = 1.0;
+    dense[0].pose_world_lidar = Eigen::Isometry3d::Identity();
+    core::DenseTrajectoryMetadata metadata;
+    metadata.source = "none";
+    metadata.degraded = true;
+
+    const std::string map_file = config_.map_save_path + "/dense_none_source_rejected.pbstream";
+    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer, dense, metadata));
     EXPECT_FALSE(std::filesystem::exists(map_file));
 }
 
@@ -660,6 +822,137 @@ TEST_F(MapSerializerTest, NavResourceReaderDoesNotTreatDegradedDenseAsNative) {
     EXPECT_TRUE(resource.dense_trajectory_from_keyframe_fallback);
     ASSERT_EQ(resource.dense_optimized_trajectory.size(), 1U);
     EXPECT_NEAR(resource.dense_optimized_trajectory.front().pose_world_lidar.translation().x(), 2.0, 1e-9);
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderRejectsMissingKeyframeCloud) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_dense_trajectory_source("native");
+    map_proto.mutable_metadata()->set_dense_trajectory_degraded(false);
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(7);
+    kf->set_timestamp(3.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+
+    auto* dense = map_proto.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(3.0);
+    dense->mutable_pose_world_lidar()->set_qw(1.0);
+
+    const std::string map_file = config_.map_save_path + "/reader_missing_cloud.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    std::string error;
+    ASSERT_FALSE(readN3NavResource(map_file, &resource, &error));
+    EXPECT_EQ(error, "missing keyframe cloud");
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderRejectsEmptyKeyframeCloud) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_dense_trajectory_source("native");
+    map_proto.mutable_metadata()->set_dense_trajectory_degraded(false);
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(7);
+    kf->set_timestamp(3.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    kf->mutable_cloud()->set_num_points(0);
+
+    auto* dense = map_proto.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(3.0);
+    dense->mutable_pose_world_lidar()->set_qw(1.0);
+
+    const std::string map_file = config_.map_save_path + "/reader_empty_cloud.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    std::string error;
+    ASSERT_FALSE(readN3NavResource(map_file, &resource, &error));
+    EXPECT_EQ(error, "empty keyframe cloud");
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderRejectsDuplicateKeyframeIds) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_dense_trajectory_source("native");
+    map_proto.mutable_metadata()->set_dense_trajectory_degraded(false);
+
+    for (int i = 0; i < 2; ++i) {
+        auto* kf = map_proto.add_keyframes();
+        kf->set_id(7);
+        kf->set_timestamp(3.0 + static_cast<double>(i));
+        kf->mutable_pose_odom()->set_qw(1.0);
+        kf->mutable_pose_optimized()->set_qw(1.0);
+        auto* cloud = kf->mutable_cloud();
+        cloud->set_num_points(1);
+        cloud->add_points(1.0f + static_cast<float>(i));
+        cloud->add_points(0.0f);
+        cloud->add_points(0.0f);
+        cloud->add_points(1.0f);
+    }
+
+    auto* dense = map_proto.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(3.0);
+    dense->mutable_pose_world_lidar()->set_qw(1.0);
+
+    const std::string map_file = config_.map_save_path + "/reader_duplicate_keyframe_id.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    std::string error;
+    ASSERT_FALSE(readN3NavResource(map_file, &resource, &error));
+    EXPECT_EQ(error, "duplicate keyframe id");
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderRejectsNonFiniteKeyframeTimestamp) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_dense_trajectory_source("native");
+    map_proto.mutable_metadata()->set_dense_trajectory_degraded(false);
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(7);
+    kf->set_timestamp(std::numeric_limits<double>::quiet_NaN());
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(1);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(1.0f);
+
+    auto* dense = map_proto.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(3.0);
+    dense->mutable_pose_world_lidar()->set_qw(1.0);
+
+    const std::string map_file = config_.map_save_path + "/reader_nonfinite_keyframe_timestamp.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    std::string error;
+    ASSERT_FALSE(readN3NavResource(map_file, &resource, &error));
+    EXPECT_EQ(error, "non-finite keyframe timestamp");
 }
 
 TEST_F(MapSerializerTest, NavResourceReaderExplicitFallbackDoesNotNeedGlobalMapPcd) {

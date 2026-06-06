@@ -136,6 +136,8 @@ TEST(N3MappingFilterNavPbstreamTest, RemovesOnlyRearSectorAndRecomputesDescripto
 
     Config config;
     config.map_save_path = (std::filesystem::temp_directory_path() / "n3mapping_nav_filter_test").string();
+    config.world_frame = "world";
+    config.body_frame = "base_link";
     config.rhpd_submap_voxel_size = 0.0;
     std::filesystem::remove_all(config.map_save_path);
     std::filesystem::create_directories(config.map_save_path);
@@ -202,6 +204,8 @@ TEST(N3MappingFilterNavPbstreamTest, RemovesOnlyRearSectorAndRecomputesDescripto
     ASSERT_TRUE(parseMap(input, &before));
     ASSERT_TRUE(parseMap(output, &after));
     EXPECT_TRUE(hasDescriptorDifference(before, after));
+    EXPECT_EQ(after.metadata().map_frame(), "world");
+    EXPECT_EQ(after.metadata().body_frame(), "base_link");
     EXPECT_TRUE(after.metadata().nav_cloud_filter_applied());
     EXPECT_TRUE(after.metadata().descriptors_recomputed_from_filtered_cloud());
     EXPECT_EQ(after.metadata().nav_filter_raw_points(), 240U);
@@ -284,6 +288,45 @@ TEST(N3MappingFilterNavPbstreamTest, AppliesRangeAndSelfBoxFilters) {
     EXPECT_EQ(filtered.metadata().nav_filter_kept_points(), 1U);
     EXPECT_EQ(filtered.metadata().nav_filter_removed_points(), 2U);
     EXPECT_TRUE(std::filesystem::exists(debug_dir / "removed_by_nav_filter_voxel.pcd"));
+
+    std::filesystem::remove_all(config.map_save_path);
+}
+
+TEST(N3MappingFilterNavPbstreamTest, RejectsInputOutputSamePath) {
+    const auto tool = findFilterTool();
+    ASSERT_FALSE(tool.empty()) << "n3mapping_filter_nav_pbstream executable not found";
+
+    Config config;
+    config.map_save_path = (std::filesystem::temp_directory_path() / "n3mapping_nav_filter_same_path_test").string();
+    config.rhpd_submap_voxel_size = 0.0;
+    std::filesystem::remove_all(config.map_save_path);
+    std::filesystem::create_directories(config.map_save_path);
+
+    KeyframeManager keyframes(config);
+    LoopDetector loop_detector(config);
+    GraphOptimizer optimizer(config);
+    MapSerializer serializer(config);
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t kf_id = keyframes.addKeyframe(1.0, pose, makeSectorCloud());
+    auto cloud = keyframes.getKeyframe(kf_id)->cloud;
+    keyframes.updateDescriptor(kf_id, loop_detector.addDescriptor(kf_id, cloud));
+    keyframes.getKeyframe(kf_id)->rhpd_descriptor = loop_detector.addRHPD(kf_id, cloud);
+    optimizer.addPriorFactor(kf_id, pose);
+
+    const std::filesystem::path input = std::filesystem::path(config.map_save_path) / "input.pbstream";
+    ASSERT_TRUE(serializer.saveMap(input.string(), keyframes, loop_detector, optimizer));
+
+    const std::string command = tool.string() +
+        " --input " + input.string() +
+        " --output " + input.string();
+    EXPECT_NE(std::system(command.c_str()), 0);
+
+    N3Map after;
+    ASSERT_TRUE(parseMap(input, &after));
+    EXPECT_FALSE(after.metadata().nav_cloud_filter_applied());
+    ASSERT_EQ(after.keyframes_size(), 1);
+    EXPECT_EQ(after.keyframes(0).cloud().num_points(), 240U);
 
     std::filesystem::remove_all(config.map_save_path);
 }

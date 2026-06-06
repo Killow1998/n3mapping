@@ -90,6 +90,19 @@ bool parseBool(const std::string& value, bool* out) {
     return false;
 }
 
+bool parseDouble(const std::string& value, double* out) {
+    if (!out) return false;
+    try {
+        std::size_t consumed = 0;
+        const double parsed = std::stod(value, &consumed);
+        if (consumed != value.size() || !std::isfinite(parsed)) return false;
+        *out = parsed;
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 bool parseArgs(int argc, char** argv, Options* options) {
     if (!options || argc < 2) return false;
     int positional = 0;
@@ -97,8 +110,7 @@ bool parseArgs(int argc, char** argv, Options* options) {
         const std::string arg = argv[argi];
         auto needValue = [&](double* out) {
             if (argi + 1 >= argc || !out) return false;
-            *out = std::stod(argv[++argi]);
-            return true;
+            return parseDouble(argv[++argi], out);
         };
         auto needString = [&](std::string* out) {
             if (argi + 1 >= argc || !out) return false;
@@ -169,6 +181,14 @@ bool parseArgs(int argc, char** argv, Options* options) {
             ? std::filesystem::current_path()
             : output.parent_path()).string();
     }
+    try {
+        if (std::filesystem::absolute(options->input_pbstream) ==
+            std::filesystem::absolute(options->output_pbstream)) {
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
 
     return std::isfinite(options->rear_sector_center_deg) &&
            std::isfinite(options->rear_sector_width_deg) &&
@@ -179,9 +199,16 @@ bool parseArgs(int argc, char** argv, Options* options) {
            std::isfinite(options->max_range) &&
            options->min_range >= 0.0 &&
            options->max_range >= options->min_range &&
+           std::isfinite(options->self_box_x_min) &&
+           std::isfinite(options->self_box_x_max) &&
+           std::isfinite(options->self_box_y_min) &&
+           std::isfinite(options->self_box_y_max) &&
+           std::isfinite(options->self_box_z_min) &&
+           std::isfinite(options->self_box_z_max) &&
            options->self_box_x_min <= options->self_box_x_max &&
            options->self_box_y_min <= options->self_box_y_max &&
            options->self_box_z_min <= options->self_box_z_max &&
+           std::isfinite(options->removed_voxel_size) &&
            options->removed_voxel_size >= 0.0;
 }
 
@@ -274,15 +301,30 @@ bool atomicWriteProto(const std::filesystem::path& path, const n3mapping::N3Map&
     {
         std::ofstream ofs(tmp, std::ios::binary);
         if (!ofs.is_open()) return false;
-        if (!map_proto.SerializeToOstream(&ofs)) return false;
+        if (!map_proto.SerializeToOstream(&ofs)) {
+            ofs.close();
+            std::filesystem::remove(tmp);
+            return false;
+        }
         ofs.flush();
-        if (!ofs.good()) return false;
+        if (!ofs.good()) {
+            ofs.close();
+            std::filesystem::remove(tmp);
+            return false;
+        }
     }
     std::filesystem::rename(tmp, path);
     return true;
 }
 
+bool readMapProto(const std::filesystem::path& path, n3mapping::N3Map* map_proto) {
+    if (!map_proto) return false;
+    std::ifstream ifs(path, std::ios::binary);
+    return ifs.is_open() && map_proto->ParseFromIstream(&ifs);
+}
+
 bool updateOutputMetadata(const std::filesystem::path& output,
+                          const n3mapping::MapMetadata& input_metadata,
                           const Options& options,
                           const FilterStats& stats) {
     std::ifstream ifs(output, std::ios::binary);
@@ -291,6 +333,12 @@ bool updateOutputMetadata(const std::filesystem::path& output,
     if (!map_proto.ParseFromIstream(&ifs)) return false;
 
     auto* meta = map_proto.mutable_metadata();
+    if (!input_metadata.map_frame().empty()) {
+        meta->set_map_frame(input_metadata.map_frame());
+    }
+    if (!input_metadata.body_frame().empty()) {
+        meta->set_body_frame(input_metadata.body_frame());
+    }
     meta->set_nav_cloud_filter_applied(true);
     meta->set_nav_cloud_filter_policy(buildPolicyString(options));
     meta->set_descriptors_recomputed_from_filtered_cloud(true);
@@ -399,6 +447,12 @@ int main(int argc, char** argv) {
     n3mapping::MapSerializer serializer(config);
     std::vector<n3mapping::core::DenseTrajectoryPose> dense_trajectory;
     n3mapping::core::DenseTrajectoryMetadata dense_trajectory_metadata;
+    n3mapping::N3Map input_map_proto;
+
+    if (!readMapProto(options.input_pbstream, &input_map_proto)) {
+        std::cerr << "Failed to parse input pbstream: " << options.input_pbstream << "\n";
+        return 1;
+    }
 
     if (!serializer.loadMap(options.input_pbstream,
                             keyframe_manager,
@@ -483,7 +537,7 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to save output pbstream: " << options.output_pbstream << "\n";
         return 1;
     }
-    if (!updateOutputMetadata(options.output_pbstream, options, stats)) {
+    if (!updateOutputMetadata(options.output_pbstream, input_map_proto.metadata(), options, stats)) {
         std::cerr << "Failed to update output metadata: " << options.output_pbstream << "\n";
         return 1;
     }

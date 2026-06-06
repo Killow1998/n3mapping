@@ -3,6 +3,7 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <unordered_set>
 
 #include "n3map.pb.h"
 
@@ -109,10 +110,21 @@ bool readN3NavResource(const std::string& pbstream_path,
     resource.nav_filter_removed_points = map_proto.metadata().nav_filter_removed_points();
 
     resource.keyframes.reserve(map_proto.keyframes_size());
+    std::unordered_set<int64_t> keyframe_ids;
+    keyframe_ids.reserve(map_proto.keyframes_size());
     for (int i = 0; i < map_proto.keyframes_size(); ++i) {
         const auto& proto_kf = map_proto.keyframes(i);
+        if (!std::isfinite(proto_kf.timestamp())) {
+            return setError(error, "non-finite keyframe timestamp");
+        }
         if (!isFinitePoseProto(proto_kf.pose_odom()) || !isFinitePoseProto(proto_kf.pose_optimized())) {
             return setError(error, "non-finite keyframe pose");
+        }
+        if (!proto_kf.has_cloud()) {
+            return setError(error, "missing keyframe cloud");
+        }
+        if (!keyframe_ids.insert(proto_kf.id()).second) {
+            return setError(error, "duplicate keyframe id");
         }
 
         N3NavKeyframe keyframe;
@@ -122,6 +134,9 @@ bool readN3NavResource(const std::string& pbstream_path,
         keyframe.pose_optimized = readPose(proto_kf.pose_optimized());
         keyframe.cloud = readCloud(proto_kf.cloud(), error);
         if (!keyframe.cloud) return false;
+        if (keyframe.cloud->empty()) {
+            return setError(error, "empty keyframe cloud");
+        }
 
         resource.optimized_poses[keyframe.id] = keyframe.pose_optimized;
         resource.keyframes.push_back(std::move(keyframe));

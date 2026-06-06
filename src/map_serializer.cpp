@@ -184,15 +184,36 @@ bool MapSerializer::saveMap(const std::string& filepath,
         meta->set_map_frame(config_.world_frame);
         meta->set_body_frame(config_.body_frame);
         auto keyframes = keyframe_manager.getAllKeyframes();
+        std::unordered_set<int64_t> saved_keyframe_ids;
+        saved_keyframe_ids.reserve(keyframes.size());
         for (const auto& kf : keyframes) {
             if (!kf || !kf->cloud || kf->cloud->empty()) {
                 LOG(ERROR) << "[MapSerializer] Refuse to save keyframe with missing or empty cloud.";
                 return false;
             }
+            if (!std::isfinite(kf->timestamp) ||
+                !isFinitePose(kf->pose_odom) ||
+                !isFinitePose(kf->pose_optimized)) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save keyframe id=" << kf->id
+                           << " with non-finite timestamp or pose.";
+                return false;
+            }
+            if (kf->cloud->size() > MAX_POINTS_PER_KEYFRAME) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save keyframe id=" << kf->id
+                           << " with too many points=" << kf->cloud->size();
+                return false;
+            }
             const uint64_t finite_points = countFinitePoints(kf->cloud);
-            if (finite_points == 0 || finite_points > MAX_POINTS_PER_KEYFRAME) {
+            if (finite_points == 0 || finite_points != kf->cloud->size()) {
                 LOG(ERROR) << "[MapSerializer] Refuse to save keyframe id=" << kf->id
                            << " with invalid finite point count=" << finite_points;
+                return false;
+            }
+            saved_keyframe_ids.insert(kf->id);
+        }
+        for (const auto& pose : dense_optimized_trajectory) {
+            if (!std::isfinite(pose.timestamp) || !isFinitePose(pose.pose_world_lidar)) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save non-finite dense trajectory pose seq=" << pose.seq;
                 return false;
             }
         }
@@ -202,9 +223,12 @@ bool MapSerializer::saveMap(const std::string& filepath,
             ? (dense_optimized_trajectory.empty() ? "none" : "native")
             : dense_trajectory_metadata.source;
         bool dense_degraded = dense_trajectory_metadata.degraded;
-        if (dense_optimized_trajectory.empty() || dense_source == "none") {
+        if (dense_optimized_trajectory.empty()) {
             dense_source = "none";
             dense_degraded = true;
+        } else if (dense_source == "none") {
+            LOG(ERROR) << "[MapSerializer] Refuse to save non-empty dense trajectory with source=none.";
+            return false;
         }
         meta->set_dense_trajectory_source(dense_source);
         meta->set_dense_trajectory_degraded(dense_degraded);
@@ -238,14 +262,21 @@ bool MapSerializer::saveMap(const std::string& filepath,
         auto edges = optimizer.getEdges();
         int n_odom = 0, n_loop = 0;
         for (const auto& e : edges) {
+            if (!isFinitePose(e.measurement) || !e.information.array().isFinite().all()) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save malformed edge from="
+                           << e.from_id << " to=" << e.to_id;
+                return false;
+            }
+            if (saved_keyframe_ids.find(e.from_id) == saved_keyframe_ids.end() ||
+                saved_keyframe_ids.find(e.to_id) == saved_keyframe_ids.end()) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save edge with missing endpoint from="
+                           << e.from_id << " to=" << e.to_id;
+                return false;
+            }
             edgeToProto(e, map_proto.add_edges());
             (e.type == EdgeType::ODOMETRY) ? ++n_odom : ++n_loop;
         }
         for (const auto& pose : dense_optimized_trajectory) {
-            if (!std::isfinite(pose.timestamp) || !isFinitePose(pose.pose_world_lidar)) {
-                LOG(WARNING) << "[MapSerializer] Skip non-finite dense trajectory pose seq=" << pose.seq;
-                continue;
-            }
             denseTrajectoryToProto(pose, map_proto.add_dense_optimized_trajectory());
         }
         meta->set_num_odometry_edges(n_odom);
@@ -546,6 +577,10 @@ void MapSerializer::keyframeToProto(const Keyframe::Ptr& kf, n3mapping::Keyframe
 }
 
 Keyframe::Ptr MapSerializer::protoToKeyframe(const n3mapping::KeyframeProto& proto) {
+    if (!std::isfinite(proto.timestamp())) {
+        LOG(WARNING) << "[MapSerializer] Reject keyframe with non-finite timestamp: id=" << proto.id();
+        return nullptr;
+    }
     if (!isFinitePoseProto(proto.pose_odom()) || !isFinitePoseProto(proto.pose_optimized())) {
         LOG(WARNING) << "[MapSerializer] Reject keyframe with non-finite pose: id=" << proto.id();
         return nullptr;
