@@ -10,7 +10,6 @@
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/memory.h>
 
 #include "n3map.pb.h"
 #include "n3mapping/config.h"
@@ -18,6 +17,7 @@
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/map_serializer.h"
+#include "n3mapping/pcl_compat.h"
 
 namespace {
 
