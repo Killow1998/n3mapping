@@ -703,6 +703,12 @@ class N3MappingNode : public rclcpp::Node
                        std::shared_ptr<std_srvs::srv::Trigger::Response> response)
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
+        if (!coreRunModeSavesMap(run_mode_)) {
+            response->success = false;
+            response->message = std::string("save_disabled_in_mode:") + coreRunModeName(run_mode_);
+            RCLCPP_WARN(this->get_logger(), "save_map service rejected: %s", response->message.c_str());
+            return;
+        }
         std::string error;
         response->success = n3mapping_core_ && n3mapping_core_->saveMapSnapshot(&error);
         response->message = response->success ? ("saved:" + config_.map_save_path) : (error.empty() ? "save_failed" : error);

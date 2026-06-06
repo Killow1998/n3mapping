@@ -32,6 +32,12 @@ public:
                  const LoopDetector& loop_detector,
                  const GraphOptimizer& optimizer,
                  const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory);
+    bool saveMap(const std::string& filepath,
+                 const KeyframeManager& keyframe_manager,
+                 const LoopDetector& loop_detector,
+                 const GraphOptimizer& optimizer,
+                 const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
+                 const core::DenseTrajectoryMetadata& dense_trajectory_metadata);
 
     bool loadMap(const std::string& filepath,
                  KeyframeManager& keyframe_manager,
@@ -42,6 +48,12 @@ public:
                  LoopDetector& loop_detector,
                  GraphOptimizer& optimizer,
                  std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory);
+    bool loadMap(const std::string& filepath,
+                 KeyframeManager& keyframe_manager,
+                 LoopDetector& loop_detector,
+                 GraphOptimizer& optimizer,
+                 std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
+                 core::DenseTrajectoryMetadata* dense_trajectory_metadata);
 
     bool saveGlobalMap(const std::string& filepath,
                        const KeyframeManager& keyframe_manager,

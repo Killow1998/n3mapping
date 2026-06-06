@@ -182,6 +182,12 @@ class N3MappingNoeticNode {
     bool handleSaveMap(std_srvs::Trigger::Request&, std_srvs::Trigger::Response& res)
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
+        if (!coreRunModeSavesMap(run_mode_)) {
+            res.success = false;
+            res.message = std::string("save_disabled_in_mode:") + coreRunModeName(run_mode_);
+            ROS_WARN("save_map service rejected: %s", res.message.c_str());
+            return true;
+        }
         std::string error;
         res.success = core_ && core_->saveMapSnapshot(&error);
         res.message = res.success ? ("saved:" + config_.map_save_path) : (error.empty() ? "save_failed" : error);

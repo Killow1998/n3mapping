@@ -38,6 +38,7 @@ public:
                     WorldLocalizing& world_localizing);
 
     bool loadExistingMap(const std::string& map_path);
+    bool initializeFromLoadedMap();
     bool performInitialRelocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
     int64_t processNewKeyframe(double timestamp, const Eigen::Isometry3d& odom_pose, const PointCloudT::Ptr& cloud);
     int detectCrossLoops(int64_t new_keyframe_id);
@@ -50,6 +51,7 @@ public:
     void reset();
 
 private:
+    bool initializeFromLoadedMapNoLock();
     void addRelocalizationConstraint(int64_t new_keyframe_id, int64_t matched_keyframe_id, const Eigen::Isometry3d& T_match_new);
 
     Config config_;

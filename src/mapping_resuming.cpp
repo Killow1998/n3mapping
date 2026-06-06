@@ -32,8 +32,23 @@ bool MappingResuming::loadExistingMap(const std::string& map_path) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (!serializer_.loadMap(map_path, keyframe_manager_, loop_detector_, optimizer_)) return false;
+    return initializeFromLoadedMapNoLock();
+}
 
+bool MappingResuming::initializeFromLoadedMap() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return initializeFromLoadedMapNoLock();
+}
+
+bool MappingResuming::initializeFromLoadedMapNoLock() {
     original_keyframe_count_ = keyframe_manager_.size();
+    if (original_keyframe_count_ == 0) {
+        state_ = MappingResumingState::NOT_INITIALIZED;
+        original_max_keyframe_id_ = -1;
+        last_keyframe_pose_ = Eigen::Isometry3d::Identity();
+        last_keyframe_id_ = -1;
+        return false;
+    }
 
     auto all_keyframes = keyframe_manager_.getAllKeyframes();
     original_max_keyframe_id_ = -1;

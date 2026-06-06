@@ -26,8 +26,16 @@ struct N3NavResource {
     std::string version;
     std::string map_frame = "map";
     std::string body_frame = "body";
+    std::string dense_trajectory_source;
+    bool dense_trajectory_degraded = false;
     bool has_native_dense_trajectory = false;
     bool dense_trajectory_from_keyframe_fallback = false;
+    bool nav_cloud_filter_applied = false;
+    std::string nav_cloud_filter_policy;
+    bool descriptors_recomputed_from_filtered_cloud = false;
+    uint64_t nav_filter_raw_points = 0;
+    uint64_t nav_filter_kept_points = 0;
+    uint64_t nav_filter_removed_points = 0;
     std::vector<N3NavKeyframe> keyframes;
     std::map<int64_t, Eigen::Isometry3d> optimized_poses;
     std::vector<core::DenseTrajectoryPose> dense_optimized_trajectory;
