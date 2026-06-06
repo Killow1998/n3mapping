@@ -64,7 +64,7 @@ jobs:
       ROS_DISTRO: ${{ matrix.ros_distro }}
       PACKAGE_DIR: ${{ matrix.package_dir }}
       GTSAM_VERSION: 4.1.1
-      SMALL_GICP_REF: master
+      SMALL_GICP_REF: 78f2e7a221720625eb95271ad9da21a04fb77f86
       DEPS_ROOT: ${{ github.workspace }}/.ci/deps/${{ matrix.ros_distro }}
       ROS_WS: ${{ github.workspace }}/.ci/ws/${{ matrix.ros_distro }}
 
@@ -153,7 +153,10 @@ jobs:
           export SMALL_GICP_BUILD="${DEPS_ROOT}/small_gicp/build"
           if ! find "${SMALL_GICP_PREFIX}" -name 'small_gicp-config.cmake' -print -quit 2>/dev/null | grep -q .; then
             rm -rf "${SMALL_GICP_SRC}" "${SMALL_GICP_BUILD}" "${SMALL_GICP_PREFIX}"
-            git clone --depth 1 --branch "${SMALL_GICP_REF}" https://github.com/koide3/small_gicp.git "${SMALL_GICP_SRC}"
+            git init "${SMALL_GICP_SRC}"
+            git -C "${SMALL_GICP_SRC}" remote add origin https://github.com/koide3/small_gicp.git
+            git -C "${SMALL_GICP_SRC}" fetch --depth 1 origin "${SMALL_GICP_REF}"
+            git -C "${SMALL_GICP_SRC}" checkout --detach FETCH_HEAD
             cmake -S "${SMALL_GICP_SRC}" -B "${SMALL_GICP_BUILD}" -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_INSTALL_PREFIX="${SMALL_GICP_PREFIX}" \
