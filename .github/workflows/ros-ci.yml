@@ -1,0 +1,202 @@
+name: ROS CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ros-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: ${{ matrix.ros_distro }} build/test
+    runs-on: ubuntu-22.04
+    container:
+      image: ros:${{ matrix.ros_distro }}-ros-base-${{ matrix.ubuntu_codename }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ros_distro: humble
+            ubuntu_codename: jammy
+            package_dir: humble
+            ros_packages: >-
+              ros-humble-ament-cmake
+              ros-humble-ament-cmake-gtest
+              ros-humble-ament-cmake-gmock
+              ros-humble-ament-lint-auto
+              ros-humble-rclcpp
+              ros-humble-std-msgs
+              ros-humble-std-srvs
+              ros-humble-sensor-msgs
+              ros-humble-nav-msgs
+              ros-humble-geometry-msgs
+              ros-humble-visualization-msgs
+              ros-humble-message-filters
+              ros-humble-tf2
+              ros-humble-tf2-ros
+              ros-humble-tf2-geometry-msgs
+              ros-humble-pcl-conversions
+              ros-humble-pcl-ros
+          - ros_distro: noetic
+            ubuntu_codename: focal
+            package_dir: noetic
+            ros_packages: >-
+              ros-noetic-catkin
+              ros-noetic-roscpp
+              ros-noetic-std-msgs
+              ros-noetic-std-srvs
+              ros-noetic-sensor-msgs
+              ros-noetic-nav-msgs
+              ros-noetic-geometry-msgs
+              ros-noetic-visualization-msgs
+              ros-noetic-message-filters
+              ros-noetic-tf2
+              ros-noetic-tf2-ros
+              ros-noetic-tf2-geometry-msgs
+              ros-noetic-pcl-conversions
+              ros-noetic-pcl-ros
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      ROS_DISTRO: ${{ matrix.ros_distro }}
+      PACKAGE_DIR: ${{ matrix.package_dir }}
+      GTSAM_VERSION: 4.1.1
+      SMALL_GICP_REF: master
+      DEPS_ROOT: ${{ github.workspace }}/.ci/deps/${{ matrix.ros_distro }}
+      ROS_WS: ${{ github.workspace }}/.ci/ws/${{ matrix.ros_distro }}
+
+    steps:
+      - name: Install baseline tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            curl \
+            git \
+            tar \
+            unzip \
+            wget \
+            zstd
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore source dependency cache
+        uses: actions/cache@v4
+        with:
+          path: .ci/deps/${{ matrix.ros_distro }}
+          key: ${{ runner.os }}-${{ matrix.ros_distro }}-gtsam-${{ env.GTSAM_VERSION }}-small-gicp-${{ env.SMALL_GICP_REF }}-v1
+
+      - name: Install ROS and system dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            libboost-all-dev \
+            libeigen3-dev \
+            libgoogle-glog-dev \
+            libgtest-dev \
+            libmetis-dev \
+            libomp-dev \
+            libopencv-dev \
+            libpcl-dev \
+            libprotobuf-dev \
+            libtbb-dev \
+            ninja-build \
+            pkg-config \
+            protobuf-compiler \
+            python3-colcon-common-extensions \
+            python3-rosdep \
+            python3-vcstool \
+            ${{ matrix.ros_packages }}
+          rosdep init || true
+          rosdep update --rosdistro "${ROS_DISTRO}"
+
+      - name: Build and install GTSAM 4.1.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GTSAM_PREFIX="${DEPS_ROOT}/gtsam-${GTSAM_VERSION}/install"
+          export GTSAM_SRC="${DEPS_ROOT}/gtsam-${GTSAM_VERSION}/src"
+          export GTSAM_BUILD="${DEPS_ROOT}/gtsam-${GTSAM_VERSION}/build"
+          if ! find "${GTSAM_PREFIX}" -name GTSAMConfig.cmake -print -quit 2>/dev/null | grep -q .; then
+            rm -rf "${GTSAM_SRC}" "${GTSAM_BUILD}" "${GTSAM_PREFIX}"
+            git clone --depth 1 --branch "${GTSAM_VERSION}" https://github.com/borglab/gtsam.git "${GTSAM_SRC}"
+            cmake -S "${GTSAM_SRC}" -B "${GTSAM_BUILD}" -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX="${GTSAM_PREFIX}" \
+              -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
+              -DGTSAM_BUILD_TESTS=OFF \
+              -DGTSAM_BUILD_UNSTABLE=OFF \
+              -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF \
+              -DGTSAM_USE_SYSTEM_EIGEN=ON \
+              -DGTSAM_WITH_TBB=OFF
+            cmake --build "${GTSAM_BUILD}" --target install --parallel 2
+          else
+            echo "Using cached GTSAM from ${GTSAM_PREFIX}"
+          fi
+
+      - name: Build and install small_gicp
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SMALL_GICP_PREFIX="${DEPS_ROOT}/small_gicp/install"
+          export SMALL_GICP_SRC="${DEPS_ROOT}/small_gicp/src"
+          export SMALL_GICP_BUILD="${DEPS_ROOT}/small_gicp/build"
+          if ! find "${SMALL_GICP_PREFIX}" -name 'small_gicp-config.cmake' -print -quit 2>/dev/null | grep -q .; then
+            rm -rf "${SMALL_GICP_SRC}" "${SMALL_GICP_BUILD}" "${SMALL_GICP_PREFIX}"
+            git clone --depth 1 --branch "${SMALL_GICP_REF}" https://github.com/koide3/small_gicp.git "${SMALL_GICP_SRC}"
+            cmake -S "${SMALL_GICP_SRC}" -B "${SMALL_GICP_BUILD}" -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX="${SMALL_GICP_PREFIX}" \
+              -DBUILD_TESTS=OFF \
+              -DBUILD_EXAMPLES=OFF \
+              -DBUILD_BENCHMARKS=OFF \
+              -DBUILD_PYTHON_BINDINGS=OFF \
+              -DBUILD_WITH_PCL=OFF \
+              -DBUILD_WITH_TBB=OFF \
+              -DBUILD_WITH_MARCH_NATIVE=OFF
+            cmake --build "${SMALL_GICP_BUILD}" --target install --parallel 2
+          else
+            echo "Using cached small_gicp from ${SMALL_GICP_PREFIX}"
+          fi
+
+      - name: Build n3mapping
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "/opt/ros/${ROS_DISTRO}/setup.bash"
+          export GTSAM_PREFIX="${DEPS_ROOT}/gtsam-${GTSAM_VERSION}/install"
+          export SMALL_GICP_PREFIX="${DEPS_ROOT}/small_gicp/install"
+          export CMAKE_PREFIX_PATH="${SMALL_GICP_PREFIX}:${GTSAM_PREFIX}:${CMAKE_PREFIX_PATH:-}"
+          export LD_LIBRARY_PATH="${SMALL_GICP_PREFIX}/lib:${GTSAM_PREFIX}/lib:${GTSAM_PREFIX}/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+          mkdir -p "${ROS_WS}"
+          cd "${ROS_WS}"
+          colcon build \
+            --base-paths "${GITHUB_WORKSPACE}/${PACKAGE_DIR}" \
+            --packages-select n3mapping \
+            --cmake-args \
+              -DBUILD_TESTING=ON \
+              -DCATKIN_ENABLE_TESTING=ON \
+              -DCMAKE_BUILD_TYPE=Release
+
+      - name: Test n3mapping
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "/opt/ros/${ROS_DISTRO}/setup.bash"
+          export GTSAM_PREFIX="${DEPS_ROOT}/gtsam-${GTSAM_VERSION}/install"
+          export SMALL_GICP_PREFIX="${DEPS_ROOT}/small_gicp/install"
+          export CMAKE_PREFIX_PATH="${SMALL_GICP_PREFIX}:${GTSAM_PREFIX}:${CMAKE_PREFIX_PATH:-}"
+          export LD_LIBRARY_PATH="${SMALL_GICP_PREFIX}/lib:${GTSAM_PREFIX}/lib:${GTSAM_PREFIX}/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+          cd "${ROS_WS}"
+          colcon test --packages-select n3mapping --event-handlers console_direct+
+          colcon test-result --verbose
