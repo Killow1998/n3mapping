@@ -176,11 +176,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +u
           source "/opt/ros/${ROS_DISTRO}/setup.bash"
+          set -u
           export GTSAM_PREFIX="${DEPS_ROOT}/gtsam-${GTSAM_VERSION}/install"
           export SMALL_GICP_PREFIX="${DEPS_ROOT}/small_gicp/install"
           export CMAKE_PREFIX_PATH="${SMALL_GICP_PREFIX}:${GTSAM_PREFIX}:${CMAKE_PREFIX_PATH:-}"
           export LD_LIBRARY_PATH="${SMALL_GICP_PREFIX}/lib:${GTSAM_PREFIX}/lib:${GTSAM_PREFIX}/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+          cmake --version
+          gcc --version
+          echo "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}"
+          find "${GTSAM_PREFIX}" \( -name '*GTSAM*cmake' -o -name '*gtsam*cmake' \) -print
+          find "${SMALL_GICP_PREFIX}" -name '*small_gicp*cmake' -print
           mkdir -p "${ROS_WS}"
           cd "${ROS_WS}"
           colcon build \
@@ -195,7 +202,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +u
           source "/opt/ros/${ROS_DISTRO}/setup.bash"
+          set -u
           export GTSAM_PREFIX="${DEPS_ROOT}/gtsam-${GTSAM_VERSION}/install"
           export SMALL_GICP_PREFIX="${DEPS_ROOT}/small_gicp/install"
           export CMAKE_PREFIX_PATH="${SMALL_GICP_PREFIX}:${GTSAM_PREFIX}:${CMAKE_PREFIX_PATH:-}"
