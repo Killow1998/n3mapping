@@ -362,7 +362,6 @@ bool MapSerializer::loadMap(const std::string& filepath,
                       << " expected=" << expected_rhpd_schema;
         }
 
-        keyframe_manager.clear(); loop_detector.clear(); optimizer.clear();
         std::vector<Keyframe::Ptr> keyframes;
         keyframes.reserve(map_proto.keyframes_size());
         std::unordered_set<int64_t> loaded_keyframe_ids;
@@ -418,11 +417,14 @@ bool MapSerializer::loadMap(const std::string& filepath,
             }
         }
 
-        keyframe_manager.loadKeyframes(keyframes);
+        KeyframeManager temp_keyframe_manager(config_);
+        LoopDetector temp_loop_detector(config_);
+        GraphOptimizer temp_optimizer(config_);
+        temp_keyframe_manager.loadKeyframes(keyframes);
         std::vector<std::pair<int64_t, Eigen::MatrixXd>> descriptors;
         for (const auto& kf : keyframes)
             if (kf->sc_descriptor.size() > 0) descriptors.emplace_back(kf->id, kf->sc_descriptor);
-        loop_detector.loadDescriptors(descriptors);
+        temp_loop_detector.loadDescriptors(descriptors);
         // Restore/rebuild RHPD descriptors.
         std::vector<std::pair<int64_t, Eigen::VectorXd>> rhpd_data;
         bool rhpd_missing_or_invalid = false;
@@ -436,22 +438,22 @@ bool MapSerializer::loadMap(const std::string& filepath,
         }
 
         if (!force_rebuild_rhpd && !rhpd_missing_or_invalid) {
-            loop_detector.loadRHPDDescriptors(rhpd_data);
+            temp_loop_detector.loadRHPDDescriptors(rhpd_data);
             LOG(INFO) << "[MapSerializer] Loaded " << rhpd_data.size() << " RHPD descriptors from map.";
         } else {
             LOG(INFO) << "[MapSerializer] Rebuilding RHPD descriptors for " << keyframes.size() << " keyframes.";
-            loop_detector.clearRHPD();
+            temp_loop_detector.clearRHPD();
             int rebuilt_count = 0;
             for (const auto& kf : keyframes) {
                 if (kf && kf->cloud && !kf->cloud->empty()) {
                     const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
                     pcl::PointCloud<pcl::PointXYZI>::Ptr rhpd_cloud = kf->cloud;
                     if (submap_radius > 0) {
-                        rhpd_cloud = keyframe_manager.buildCausalSubmapInRootFrame(kf->id, submap_radius, kf->id);
+                        rhpd_cloud = temp_keyframe_manager.buildCausalSubmapInRootFrame(kf->id, submap_radius, kf->id);
                         if (!rhpd_cloud || rhpd_cloud->empty()) rhpd_cloud = kf->cloud;
                     }
                     rhpd_cloud = maybeVoxelizeRhpdCloud(rhpd_cloud, config_.rhpd_submap_voxel_size);
-                    kf->rhpd_descriptor = loop_detector.addRHPD(kf->id, rhpd_cloud);
+                    kf->rhpd_descriptor = temp_loop_detector.addRHPD(kf->id, rhpd_cloud);
                     ++rebuilt_count;
                 }
             }
@@ -481,6 +483,14 @@ bool MapSerializer::loadMap(const std::string& filepath,
             }
             edges.push_back(edge);
         }
+        temp_optimizer.loadGraph(nodes, edges);
+
+        keyframe_manager.clear();
+        loop_detector.clear();
+        optimizer.clear();
+        keyframe_manager.loadKeyframes(keyframes);
+        loop_detector.loadDescriptors(descriptors);
+        loop_detector.loadRHPDDescriptors(temp_loop_detector.getRHPDManager().getAll());
         optimizer.loadGraph(nodes, edges);
         if (dense_trajectory_metadata) {
             *dense_trajectory_metadata = loaded_dense_metadata;

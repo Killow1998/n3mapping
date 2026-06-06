@@ -840,6 +840,57 @@ TEST_F(MapSerializerTest, LoadMapWithoutDenseOutputRejectsMalformedDenseTrajecto
     EXPECT_EQ(loaded_kfs.size(), 0U);
 }
 
+TEST_F(MapSerializerTest, LoadFailureDoesNotClearExistingMap) {
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t existing_id = loaded_kfs.addKeyframe(10.0, pose, generateRandomPointCloud(64));
+    auto descriptor = loaded_loops.addDescriptor(existing_id, loaded_kfs.getKeyframe(existing_id)->cloud);
+    loaded_kfs.updateDescriptor(existing_id, descriptor);
+    loaded_optimizer.addPriorFactor(existing_id, pose);
+    ASSERT_EQ(loaded_kfs.size(), 1U);
+    ASSERT_EQ(loaded_loops.size(), 1U);
+    ASSERT_GT(loaded_optimizer.getNumNodes(), 0U);
+
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(1);
+    map_proto.mutable_metadata()->set_dense_trajectory_source("native");
+    map_proto.mutable_metadata()->set_dense_trajectory_degraded(false);
+
+    auto* kf = map_proto.add_keyframes();
+    kf->set_id(7);
+    kf->set_timestamp(1.0);
+    kf->mutable_pose_odom()->set_qw(1.0);
+    kf->mutable_pose_optimized()->set_qw(1.0);
+    auto* cloud = kf->mutable_cloud();
+    cloud->set_num_points(1);
+    cloud->add_points(1.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(0.0f);
+    cloud->add_points(1.0f);
+
+    auto* dense = map_proto.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(1.0);
+    dense->mutable_pose_world_lidar()->set_qw(std::numeric_limits<double>::quiet_NaN());
+
+    const std::string map_file = config_.map_save_path + "/failed_load_keeps_existing_map.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 1U);
+    ASSERT_NE(loaded_kfs.getKeyframe(existing_id), nullptr);
+    EXPECT_EQ(loaded_loops.size(), 1U);
+    EXPECT_GT(loaded_optimizer.getNumNodes(), 0U);
+}
+
 TEST_F(MapSerializerTest, OldPbstreamFallsBackDenseTrajectoryFromKeyframePoses) {
     n3mapping::N3Map map_proto;
     map_proto.mutable_metadata()->set_version("2.2.0");
