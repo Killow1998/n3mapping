@@ -114,6 +114,9 @@ bool readN3NavResource(const std::string& pbstream_path,
     keyframe_ids.reserve(map_proto.keyframes_size());
     for (int i = 0; i < map_proto.keyframes_size(); ++i) {
         const auto& proto_kf = map_proto.keyframes(i);
+        if (proto_kf.id() < 0) {
+            return setError(error, "invalid keyframe id");
+        }
         if (!std::isfinite(proto_kf.timestamp())) {
             return setError(error, "non-finite keyframe timestamp");
         }

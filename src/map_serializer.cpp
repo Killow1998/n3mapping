@@ -195,6 +195,10 @@ bool MapSerializer::saveMap(const std::string& filepath,
                 LOG(ERROR) << "[MapSerializer] Refuse to save keyframe with missing or empty cloud.";
                 return false;
             }
+            if (kf->id < 0) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save keyframe with negative id=" << kf->id;
+                return false;
+            }
             if (!std::isfinite(kf->timestamp) ||
                 !isFinitePose(kf->pose_odom) ||
                 !isFinitePose(kf->pose_optimized)) {
@@ -587,6 +591,10 @@ void MapSerializer::keyframeToProto(const Keyframe::Ptr& kf, n3mapping::Keyframe
 }
 
 Keyframe::Ptr MapSerializer::protoToKeyframe(const n3mapping::KeyframeProto& proto) {
+    if (proto.id() < 0) {
+        LOG(WARNING) << "[MapSerializer] Reject keyframe with negative id: id=" << proto.id();
+        return nullptr;
+    }
     if (!std::isfinite(proto.timestamp())) {
         LOG(WARNING) << "[MapSerializer] Reject keyframe with non-finite timestamp: id=" << proto.id();
         return nullptr;
