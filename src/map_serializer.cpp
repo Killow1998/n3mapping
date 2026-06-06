@@ -320,6 +320,12 @@ bool MapSerializer::loadMap(const std::string& filepath,
         if (!ifs.is_open()) return false;
         n3mapping::N3Map map_proto;
         if (!map_proto.ParseFromIstream(&ifs)) return false;
+        if (dense_optimized_trajectory) {
+            dense_optimized_trajectory->clear();
+        }
+        if (dense_trajectory_metadata) {
+            *dense_trajectory_metadata = core::DenseTrajectoryMetadata{};
+        }
 
         bool force_rebuild_rhpd = false;
         const std::string file_version = map_proto.metadata().version();
@@ -378,6 +384,43 @@ bool MapSerializer::loadMap(const std::string& filepath,
             LOG(ERROR) << "[MapSerializer] Reject map: missing valid keyframes.";
             return false;
         }
+
+        std::vector<core::DenseTrajectoryPose> loaded_dense_trajectory;
+        core::DenseTrajectoryMetadata loaded_dense_metadata;
+        if (dense_optimized_trajectory) {
+            loaded_dense_trajectory.reserve(
+                map_proto.dense_optimized_trajectory_size() > 0
+                    ? map_proto.dense_optimized_trajectory_size()
+                    : keyframes.size());
+            if (map_proto.dense_optimized_trajectory_size() > 0) {
+                loaded_dense_metadata.source = map_proto.metadata().dense_trajectory_source().empty()
+                    ? "native"
+                    : map_proto.metadata().dense_trajectory_source();
+                loaded_dense_metadata.degraded = map_proto.metadata().dense_trajectory_degraded();
+                for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
+                    const auto& proto_pose = map_proto.dense_optimized_trajectory(i);
+                    if (!std::isfinite(proto_pose.timestamp()) ||
+                        !isFinitePoseProto(proto_pose.pose_world_lidar())) {
+                        LOG(ERROR) << "[MapSerializer] Reject map: malformed dense trajectory pose index=" << i;
+                        return false;
+                    }
+                    loaded_dense_trajectory.push_back(protoToDenseTrajectoryPose(proto_pose));
+                }
+            } else {
+                loaded_dense_metadata.source = "keyframe_fallback";
+                loaded_dense_metadata.degraded = true;
+                uint64_t seq = 0;
+                for (const auto& kf : keyframes) {
+                    if (!kf || !isFinitePose(kf->pose_optimized)) continue;
+                    core::DenseTrajectoryPose pose;
+                    pose.seq = seq++;
+                    pose.timestamp = kf->timestamp;
+                    pose.pose_world_lidar = kf->pose_optimized;
+                    loaded_dense_trajectory.push_back(pose);
+                }
+            }
+        }
+
         keyframe_manager.loadKeyframes(keyframes);
         std::vector<std::pair<int64_t, Eigen::MatrixXd>> descriptors;
         for (const auto& kf : keyframes)
@@ -443,46 +486,10 @@ bool MapSerializer::loadMap(const std::string& filepath,
         }
         optimizer.loadGraph(nodes, edges);
         if (dense_trajectory_metadata) {
-            dense_trajectory_metadata->source = "none";
-            dense_trajectory_metadata->degraded = true;
+            *dense_trajectory_metadata = loaded_dense_metadata;
         }
         if (dense_optimized_trajectory) {
-            dense_optimized_trajectory->clear();
-            dense_optimized_trajectory->reserve(
-                map_proto.dense_optimized_trajectory_size() > 0
-                    ? map_proto.dense_optimized_trajectory_size()
-                    : keyframes.size());
-            if (map_proto.dense_optimized_trajectory_size() > 0) {
-                if (dense_trajectory_metadata) {
-                    dense_trajectory_metadata->source = map_proto.metadata().dense_trajectory_source().empty()
-                        ? "native"
-                        : map_proto.metadata().dense_trajectory_source();
-                    dense_trajectory_metadata->degraded = map_proto.metadata().dense_trajectory_degraded();
-                }
-                for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
-                    const auto& proto_pose = map_proto.dense_optimized_trajectory(i);
-                    if (!isFinitePoseProto(proto_pose.pose_world_lidar()) ||
-                        !std::isfinite(proto_pose.timestamp())) {
-                        LOG(WARNING) << "[MapSerializer] Skip malformed dense trajectory pose index=" << i;
-                        continue;
-                    }
-                    dense_optimized_trajectory->push_back(protoToDenseTrajectoryPose(proto_pose));
-                }
-            } else {
-                if (dense_trajectory_metadata) {
-                    dense_trajectory_metadata->source = "keyframe_fallback";
-                    dense_trajectory_metadata->degraded = true;
-                }
-                uint64_t seq = 0;
-                for (const auto& kf : keyframes) {
-                    if (!kf || !isFinitePose(kf->pose_optimized)) continue;
-                    core::DenseTrajectoryPose pose;
-                    pose.seq = seq++;
-                    pose.timestamp = kf->timestamp;
-                    pose.pose_world_lidar = kf->pose_optimized;
-                    dense_optimized_trajectory->push_back(pose);
-                }
-            }
+            *dense_optimized_trajectory = loaded_dense_trajectory;
         }
         return true;
     } catch (...) { return false; }
