@@ -387,37 +387,34 @@ bool MapSerializer::loadMap(const std::string& filepath,
 
         std::vector<core::DenseTrajectoryPose> loaded_dense_trajectory;
         core::DenseTrajectoryMetadata loaded_dense_metadata;
-        if (dense_optimized_trajectory) {
+        if (map_proto.dense_optimized_trajectory_size() > 0) {
             loaded_dense_trajectory.reserve(
-                map_proto.dense_optimized_trajectory_size() > 0
-                    ? map_proto.dense_optimized_trajectory_size()
-                    : keyframes.size());
-            if (map_proto.dense_optimized_trajectory_size() > 0) {
-                loaded_dense_metadata.source = map_proto.metadata().dense_trajectory_source().empty()
-                    ? "native"
-                    : map_proto.metadata().dense_trajectory_source();
-                loaded_dense_metadata.degraded = map_proto.metadata().dense_trajectory_degraded();
-                for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
-                    const auto& proto_pose = map_proto.dense_optimized_trajectory(i);
-                    if (!std::isfinite(proto_pose.timestamp()) ||
-                        !isFinitePoseProto(proto_pose.pose_world_lidar())) {
-                        LOG(ERROR) << "[MapSerializer] Reject map: malformed dense trajectory pose index=" << i;
-                        return false;
-                    }
-                    loaded_dense_trajectory.push_back(protoToDenseTrajectoryPose(proto_pose));
+                static_cast<std::size_t>(map_proto.dense_optimized_trajectory_size()));
+            loaded_dense_metadata.source = map_proto.metadata().dense_trajectory_source().empty()
+                ? "native"
+                : map_proto.metadata().dense_trajectory_source();
+            loaded_dense_metadata.degraded = map_proto.metadata().dense_trajectory_degraded();
+            for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
+                const auto& proto_pose = map_proto.dense_optimized_trajectory(i);
+                if (!std::isfinite(proto_pose.timestamp()) ||
+                    !isFinitePoseProto(proto_pose.pose_world_lidar())) {
+                    LOG(ERROR) << "[MapSerializer] Reject map: malformed dense trajectory pose index=" << i;
+                    return false;
                 }
-            } else {
-                loaded_dense_metadata.source = "keyframe_fallback";
-                loaded_dense_metadata.degraded = true;
-                uint64_t seq = 0;
-                for (const auto& kf : keyframes) {
-                    if (!kf || !isFinitePose(kf->pose_optimized)) continue;
-                    core::DenseTrajectoryPose pose;
-                    pose.seq = seq++;
-                    pose.timestamp = kf->timestamp;
-                    pose.pose_world_lidar = kf->pose_optimized;
-                    loaded_dense_trajectory.push_back(pose);
-                }
+                loaded_dense_trajectory.push_back(protoToDenseTrajectoryPose(proto_pose));
+            }
+        } else if (dense_optimized_trajectory) {
+            loaded_dense_trajectory.reserve(keyframes.size());
+            loaded_dense_metadata.source = "keyframe_fallback";
+            loaded_dense_metadata.degraded = true;
+            uint64_t seq = 0;
+            for (const auto& kf : keyframes) {
+                if (!kf || !isFinitePose(kf->pose_optimized)) continue;
+                core::DenseTrajectoryPose pose;
+                pose.seq = seq++;
+                pose.timestamp = kf->timestamp;
+                pose.pose_world_lidar = kf->pose_optimized;
+                loaded_dense_trajectory.push_back(pose);
             }
         }
 
