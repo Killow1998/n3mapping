@@ -10,7 +10,7 @@
 #include <fstream>
 #include <limits>
 #include <map>
-#include <pcl/memory.h>
+#include "n3mapping/pcl_compat.h"
 #include <random>
 
 namespace n3mapping {

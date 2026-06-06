@@ -5,7 +5,7 @@
 #include <limits>
 
 #include <gtest/gtest.h>
-#include <pcl/memory.h>
+#include "n3mapping/pcl_compat.h"
 
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3map.pb.h"
