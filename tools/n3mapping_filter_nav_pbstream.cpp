@@ -13,6 +13,7 @@
 
 #include "n3map.pb.h"
 #include "n3mapping/config.h"
+#include "n3mapping/cloud_utils.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
@@ -288,12 +289,10 @@ std::string buildPolicyString(const Options& options) {
 
 void voxelizeCloud(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, double voxel_size) {
     if (!cloud || cloud->empty() || voxel_size <= 0.0) return;
-    pcl::VoxelGrid<pcl::PointXYZI> voxel;
-    voxel.setLeafSize(voxel_size, voxel_size, voxel_size);
-    voxel.setInputCloud(cloud);
-    auto filtered = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-    voxel.filter(*filtered);
-    *cloud = *filtered;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr filtered;
+    if (n3mapping::safeVoxelGridFilter<pcl::PointXYZI>(cloud, voxel_size, &filtered) && filtered) {
+        *cloud = *filtered;
+    }
 }
 
 bool atomicWriteProto(const std::filesystem::path& path, const n3mapping::N3Map& map_proto) {

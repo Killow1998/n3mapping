@@ -198,12 +198,12 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
                 candidates.push_back(ranked[i]);
             }
             if (!candidates.empty()) {
-                LOG(INFO) << "[Loop/RHPDPrimary] query=" << query_id
-                          << " kept=" << candidates.size()
-                          << " top_match=" << candidates.front().match_id
-                          << " rhpd=" << candidates.front().rhpd_distance
-                          << " sc=" << candidates.front().sc_distance
-                          << " yaw=" << candidates.front().yaw_diff_rad;
+                VLOG(1) << "[Loop/RHPDPrimary] query=" << query_id
+                        << " kept=" << candidates.size()
+                        << " top_match=" << candidates.front().match_id
+                        << " rhpd=" << candidates.front().rhpd_distance
+                        << " sc=" << candidates.front().sc_distance
+                        << " yaw=" << candidates.front().yaw_diff_rad;
                 return candidates;
             }
         }
@@ -228,12 +228,11 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
     search_tree.index->findNeighbors(result_set, query_ringkey_vec.data(),
                                      nanoflann::SearchParams(10));
 
-    // Diagnostic: log KD-tree top-1
     if (num_search > 0) {
-        LOG(INFO) << "[SC] query=" << query_id
-                  << " search_end=" << search_end
-                  << " kd_top1_idx=" << index_to_id_[knn_indices[0]]
-                  << " kd_top1_L2=" << knn_dists[0];
+        VLOG(1) << "[SC] query=" << query_id
+                << " search_end=" << search_end
+                << " kd_top1_idx=" << index_to_id_[knn_indices[0]]
+                << " kd_top1_L2=" << knn_dists[0];
     }
 
     // -------- 阶段 2: 对 KD-tree 初筛候选做完整多通道距离精排 --------
@@ -251,12 +250,11 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
     std::sort(refined_candidates.begin(), refined_candidates.end(),
               [](const auto& a, const auto& b) { return std::get<0>(a) < std::get<0>(b); });
 
-    // Diagnostic: log refined top-1
     if (!refined_candidates.empty()) {
-        LOG(INFO) << "[SC] query=" << query_id
-                  << " refined_top1_match=" << index_to_id_[std::get<2>(refined_candidates[0])]
-                  << " refined_top1_dist=" << std::get<0>(refined_candidates[0])
-                  << " threshold=" << config_.sc_dist_threshold;
+        VLOG(1) << "[SC] query=" << query_id
+                << " refined_top1_match=" << index_to_id_[std::get<2>(refined_candidates[0])]
+                << " refined_top1_dist=" << std::get<0>(refined_candidates[0])
+                << " threshold=" << config_.sc_dist_threshold;
     }
 
     // 输出最终候选

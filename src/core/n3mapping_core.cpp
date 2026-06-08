@@ -5,8 +5,8 @@
 #include <limits>
 #include <stdexcept>
 
+#include "n3mapping/cloud_utils.h"
 #include <pcl/common/transforms.h>
-#include <pcl/filters/voxel_grid.h>
 #include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
@@ -705,14 +705,9 @@ void N3MappingCore::addRhpdDescriptorForKeyframe(int64_t keyframe_id, const Poin
     }
 
     if (rhpd_cloud && !rhpd_cloud->empty() && config_.rhpd_submap_voxel_size > 1e-4) {
-        pcl::VoxelGrid<pcl::PointXYZI> voxel;
-        voxel.setLeafSize(config_.rhpd_submap_voxel_size,
-                          config_.rhpd_submap_voxel_size,
-                          config_.rhpd_submap_voxel_size);
-        voxel.setInputCloud(rhpd_cloud);
-        auto filtered = pcl::make_shared<PointCloud>();
-        voxel.filter(*filtered);
-        if (!filtered->empty()) {
+        PointCloud::Ptr filtered;
+        if (safeVoxelGridFilter<pcl::PointXYZI>(rhpd_cloud, config_.rhpd_submap_voxel_size, &filtered) &&
+            filtered && !filtered->empty()) {
             rhpd_cloud = filtered;
         }
     }

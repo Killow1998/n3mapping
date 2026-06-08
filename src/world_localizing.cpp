@@ -8,7 +8,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
-#include <pcl/filters/voxel_grid.h>
+#include "n3mapping/cloud_utils.h"
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
 
@@ -948,14 +948,11 @@ WorldLocalizing::PointCloudT::Ptr WorldLocalizing::buildRelocQueryCloud(
     }
 
     if (config_.reloc_static_agg_voxel_size > 1e-4 && !merged->empty()) {
-        pcl::VoxelGrid<pcl::PointXYZI> voxel;
-        voxel.setLeafSize(config_.reloc_static_agg_voxel_size,
-                          config_.reloc_static_agg_voxel_size,
-                          config_.reloc_static_agg_voxel_size);
-        voxel.setInputCloud(merged);
-        PointCloudT downsampled;
-        voxel.filter(downsampled);
-        *merged = downsampled;
+        PointCloudT::Ptr downsampled;
+        if (safeVoxelGridFilter<pcl::PointXYZI>(merged, config_.reloc_static_agg_voxel_size, &downsampled) &&
+            downsampled) {
+            *merged = *downsampled;
+        }
     }
 
     LOG(INFO) << "[Reloc/Aggregation] static_frames=" << selected.size()

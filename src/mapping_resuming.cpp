@@ -2,7 +2,8 @@
 #include "n3mapping/mapping_resuming.h"
 
 #include <algorithm>
-#include <pcl/filters/voxel_grid.h>
+
+#include "n3mapping/cloud_utils.h"
 
 namespace n3mapping {
 
@@ -102,14 +103,11 @@ int64_t MappingResuming::processNewKeyframe(double timestamp, const Eigen::Isome
             rhpd_cloud = keyframe_manager_.buildCausalSubmapInRootFrame(new_kf_id, submap_radius, new_kf_id);
         }
         if (rhpd_cloud && !rhpd_cloud->empty() && config_.rhpd_submap_voxel_size > 1e-4) {
-            pcl::VoxelGrid<pcl::PointXYZI> voxel;
-            voxel.setLeafSize(config_.rhpd_submap_voxel_size,
-                              config_.rhpd_submap_voxel_size,
-                              config_.rhpd_submap_voxel_size);
-            voxel.setInputCloud(rhpd_cloud);
-            auto filtered = pcl::make_shared<PointCloudT>();
-            voxel.filter(*filtered);
-            if (!filtered->empty()) rhpd_cloud = filtered;
+            PointCloudT::Ptr filtered;
+            if (safeVoxelGridFilter<pcl::PointXYZI>(rhpd_cloud, config_.rhpd_submap_voxel_size, &filtered) &&
+                filtered && !filtered->empty()) {
+                rhpd_cloud = filtered;
+            }
         }
         new_kf->rhpd_descriptor = loop_detector_.addRHPD(new_kf_id, rhpd_cloud);
     }

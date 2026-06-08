@@ -13,10 +13,10 @@
 #include <unordered_set>
 #include <algorithm>
 
+#include "n3mapping/cloud_utils.h"
 #include <glog/logging.h>
 #include <omp.h>
 #include <pcl/common/transforms.h>
-#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include "n3mapping/pcl_compat.h"
 
@@ -82,11 +82,10 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr maybeVoxelizeRhpdCloud(
     const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud,
     double voxel_size) {
     if (!cloud || cloud->empty() || voxel_size <= 1e-4) return cloud;
-    pcl::VoxelGrid<pcl::PointXYZI> voxel;
-    voxel.setLeafSize(voxel_size, voxel_size, voxel_size);
-    voxel.setInputCloud(cloud);
-    auto filtered = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-    voxel.filter(*filtered);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr filtered;
+    if (!safeVoxelGridFilter<pcl::PointXYZI>(cloud, voxel_size, &filtered)) {
+        return cloud;
+    }
     return filtered->empty() ? cloud : filtered;
 }
 
