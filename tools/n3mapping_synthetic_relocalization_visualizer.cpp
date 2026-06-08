@@ -589,7 +589,9 @@ int main(int argc, char** argv)
         if (!query_cloud || query_cloud->empty()) {
             RCLCPP_WARN(node->get_logger(), "Synthetic query cloud is empty after dropout for query_id=%ld", query_kf->id);
             ++test_index;
-            rate.sleep();
+            if (rclcpp::ok()) {
+                rate.sleep();
+            }
             continue;
         }
 
@@ -604,6 +606,9 @@ int main(int argc, char** argv)
             return 1;
         }
         const auto output = localizer.processLocalizationFrame(makeFrame(query_cloud, T_odom_lidar));
+        if (!rclcpp::ok()) {
+            break;
+        }
         const Eigen::Isometry3d T_map_lidar_after = output.T_world_lidar;
 
         auto before_cloud = transformCloud(query_cloud, T_map_lidar_before);
@@ -673,11 +678,18 @@ int main(int argc, char** argv)
                                            0.1f));
         marker_pub->publish(markers);
 
+        if (!rclcpp::ok()) {
+            break;
+        }
         rclcpp::spin_some(node);
-        rate.sleep();
+        if (rclcpp::ok()) {
+            rate.sleep();
+        }
         ++test_index;
     }
 
-    rclcpp::shutdown();
+    if (rclcpp::ok()) {
+        rclcpp::shutdown();
+    }
     return 0;
 }
