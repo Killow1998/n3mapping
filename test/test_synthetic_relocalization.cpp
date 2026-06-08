@@ -9,6 +9,7 @@
 
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/pcl_compat.h"
+#include "n3mapping/synthetic_relocalization_query.h"
 
 namespace n3mapping {
 namespace test {
@@ -229,6 +230,60 @@ TEST(SyntheticRelocalizationTest, CoreRelocalizesBodyCloudWithFakeOdomFrame)
 
     std::filesystem::remove(map_path);
     std::filesystem::remove_all(dir);
+}
+
+TEST(SyntheticRelocalizationTest, RaycastQuerySynthesisSupportsNewPoseAndFov)
+{
+    auto world = pcl::make_shared<Cloud>();
+    auto add = [&](double x, double y, double z, float intensity) {
+        pcl::PointXYZI p;
+        p.x = static_cast<float>(x);
+        p.y = static_cast<float>(y);
+        p.z = static_cast<float>(z);
+        p.intensity = intensity;
+        world->push_back(p);
+    };
+    add(5.0, 0.0, 0.0, 1.0f);
+    add(6.0, 0.0, 0.0, 2.0f);
+    add(-5.0, 0.0, 0.0, 3.0f);
+    add(4.0, 1.0, 1.0, 4.0f);
+    world->width = static_cast<std::uint32_t>(world->size());
+    world->height = 1;
+    world->is_dense = true;
+
+    synthetic::PoseJitterOptions jitter;
+    jitter.z_m = 0.5;
+    jitter.roll_pitch_deg = 2.0;
+    std::mt19937 rng(42);
+    const auto query_pose = synthetic::applyUniformPoseJitter(makePose(0.0, 0.0, 0.0), jitter, &rng);
+    EXPECT_NEAR(query_pose.translation().x(), 0.0, 1e-9);
+    EXPECT_NEAR(query_pose.translation().y(), 0.0, 1e-9);
+    EXPECT_NE(query_pose.translation().z(), 0.0);
+
+    synthetic::QuerySynthesisOptions options;
+    options.dropout = 0.0;
+    options.noise_sigma = 0.0;
+    options.range_min = 0.1;
+    options.range_max = 10.0;
+    options.fov_azimuth_deg = 120.0;
+    options.fov_vertical_deg = 90.0;
+    options.raycast_azimuth_resolution_deg = 10.0;
+    options.raycast_vertical_resolution_deg = 10.0;
+
+    const auto query = synthetic::synthesizeBodyCloudFromMapCloud(world, query_pose, options, 7U);
+    ASSERT_FALSE(query->empty());
+    bool saw_front = false;
+    bool saw_back = false;
+    bool saw_occluded_wall = false;
+    for (const auto& p : query->points) {
+        if (p.x > 0.0f) saw_front = true;
+        if (p.x < 0.0f) saw_back = true;
+        if (std::abs(p.intensity - 2.0f) < 1e-3f) saw_occluded_wall = true;
+    }
+    EXPECT_TRUE(saw_front);
+    EXPECT_FALSE(saw_back);
+    EXPECT_FALSE(saw_occluded_wall);
+    EXPECT_LT(query->size(), world->size());
 }
 
 }  // namespace test

@@ -4,6 +4,19 @@
   <arg name="dropout" default="0.3" />
   <arg name="noise_sigma" default="0.02" />
   <arg name="fake_odom_yaw_deg" default="90" />
+  <arg name="fake_odom_roll_deg" default="0" />
+  <arg name="fake_odom_pitch_deg" default="0" />
+  <arg name="fake_odom_tz" default="1" />
+  <arg name="query_source" default="local_submap" />
+  <arg name="query_pose_xy_jitter_m" default="0.5" />
+  <arg name="query_pose_z_jitter_m" default="0.5" />
+  <arg name="query_pose_yaw_jitter_deg" default="8" />
+  <arg name="query_pose_roll_pitch_jitter_deg" default="3" />
+  <arg name="fov_azimuth_deg" default="0" />
+  <arg name="fov_vertical_deg" default="0" />
+  <arg name="range_max" default="30" />
+  <arg name="occlusion_dilation_bins" default="1" />
+  <arg name="occlusion_depth_tolerance" default="0.3" />
   <arg name="max_tests" default="0" />
   <arg name="interval_sec" default="20" />
   <arg name="random_seed" default="-1" />
@@ -17,6 +30,19 @@
               --dropout $(arg dropout)
               --noise_sigma $(arg noise_sigma)
               --fake_odom_yaw_deg $(arg fake_odom_yaw_deg)
+              --fake_odom_roll_deg $(arg fake_odom_roll_deg)
+              --fake_odom_pitch_deg $(arg fake_odom_pitch_deg)
+              --fake_odom_tz $(arg fake_odom_tz)
+              --query_source $(arg query_source)
+              --query_pose_xy_jitter_m $(arg query_pose_xy_jitter_m)
+              --query_pose_z_jitter_m $(arg query_pose_z_jitter_m)
+              --query_pose_yaw_jitter_deg $(arg query_pose_yaw_jitter_deg)
+              --query_pose_roll_pitch_jitter_deg $(arg query_pose_roll_pitch_jitter_deg)
+              --fov_azimuth_deg $(arg fov_azimuth_deg)
+              --fov_vertical_deg $(arg fov_vertical_deg)
+              --range_max $(arg range_max)
+              --occlusion_dilation_bins $(arg occlusion_dilation_bins)
+              --occlusion_depth_tolerance $(arg occlusion_depth_tolerance)
               --max_tests $(arg max_tests)
               --interval_sec $(arg interval_sec)
               --random_seed $(arg random_seed)" />

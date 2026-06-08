@@ -19,6 +19,7 @@
 
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/pcl_compat.h"
+#include "n3mapping/synthetic_relocalization_query.h"
 
 namespace n3mapping {
 namespace {
@@ -33,10 +34,23 @@ struct Options {
     double dropout = 0.0;
     double noise_sigma = 0.0;
     double fake_odom_yaw_deg = 90.0;
+    double fake_odom_roll_deg = 0.0;
+    double fake_odom_pitch_deg = 0.0;
     double fake_odom_tx = 20.0;
     double fake_odom_ty = -10.0;
     double fake_odom_tz = 1.0;
+    double query_pose_xy_jitter_m = 0.0;
+    double query_pose_z_jitter_m = 0.0;
+    double query_pose_yaw_jitter_deg = 0.0;
+    double query_pose_roll_pitch_jitter_deg = 0.0;
+    double range_min = 0.5;
     double range_max = 30.0;
+    double fov_azimuth_deg = 0.0;
+    double fov_vertical_deg = 0.0;
+    double raycast_azimuth_resolution_deg = 1.0;
+    double raycast_vertical_resolution_deg = 1.0;
+    int occlusion_dilation_bins = 1;
+    double occlusion_depth_tolerance_m = 0.3;
     int query_submap_radius = 2;
     double query_voxel_size = 0.12;
     double pose_translation_threshold_m = 1.0;
@@ -71,11 +85,24 @@ void printUsage(const char* argv0)
         << "  --dropout R               Random point dropout ratio [0,1). Default: 0\n"
         << "  --noise_sigma M           XYZ Gaussian noise in meters. Default: 0\n"
         << "  --fake_odom_yaw_deg DEG   Fake map->odom yaw. Default: 90\n"
+        << "  --fake_odom_roll_deg DEG  Fake map->odom roll. Default: 0\n"
+        << "  --fake_odom_pitch_deg DEG Fake map->odom pitch. Default: 0\n"
         << "  --fake_odom_tx M          Fake map->odom x. Default: 20\n"
         << "  --fake_odom_ty M          Fake map->odom y. Default: -10\n"
         << "  --fake_odom_tz M          Fake map->odom z. Default: 1\n"
+        << "  --query_pose_xy_jitter_m M      Random query pose XY jitter around selected keyframe. Default: 0\n"
+        << "  --query_pose_z_jitter_m M       Random query pose Z jitter around selected keyframe. Default: 0\n"
+        << "  --query_pose_yaw_jitter_deg DEG Random query pose yaw jitter. Default: 0\n"
+        << "  --query_pose_roll_pitch_jitter_deg DEG Random query pose roll/pitch jitter. Default: 0\n"
         << "  --query_source MODE       same_keyframe, local_submap, or global_map. Default: same_keyframe\n"
+        << "  --range_min M             Min range for map-query synthesis. Default: 0.5\n"
         << "  --range_max M             Max range for map-query synthesis. Default: 30\n"
+        << "  --fov_azimuth_deg DEG     Horizontal FOV override; <=0 infers from keyframe cloud. Default: 0\n"
+        << "  --fov_vertical_deg DEG    Vertical FOV override; <=0 infers from keyframe cloud. Default: 0\n"
+        << "  --raycast_azimuth_resolution_deg DEG   Raycast azimuth bin size, <=0 disables. Default: 1\n"
+        << "  --raycast_vertical_resolution_deg DEG  Raycast vertical bin size, <=0 disables. Default: 1\n"
+        << "  --occlusion_dilation_bins N            Neighbor bins used to suppress background through sparse foregrounds. Default: 1\n"
+        << "  --occlusion_depth_tolerance M          Depth tolerance for neighbor occlusion. Default: 0.3\n"
         << "  --query_submap_radius N   Keyframe radius for local_submap queries. Default: 2\n"
         << "  --query_voxel_size M      Voxel size for map-query synthesis, <=0 disables. Default: 0.12\n"
         << "  --pose_translation_threshold M  Pose-success translation threshold. Default: 1\n"
@@ -113,12 +140,24 @@ bool parseArgs(int argc, char** argv, Options* options)
             if (const char* v = needValue(arg)) options->noise_sigma = std::max(0.0, std::stod(v)); else return false;
         } else if (arg == "--fake_odom_yaw_deg") {
             if (const char* v = needValue(arg)) options->fake_odom_yaw_deg = std::stod(v); else return false;
+        } else if (arg == "--fake_odom_roll_deg") {
+            if (const char* v = needValue(arg)) options->fake_odom_roll_deg = std::stod(v); else return false;
+        } else if (arg == "--fake_odom_pitch_deg") {
+            if (const char* v = needValue(arg)) options->fake_odom_pitch_deg = std::stod(v); else return false;
         } else if (arg == "--fake_odom_tx") {
             if (const char* v = needValue(arg)) options->fake_odom_tx = std::stod(v); else return false;
         } else if (arg == "--fake_odom_ty") {
             if (const char* v = needValue(arg)) options->fake_odom_ty = std::stod(v); else return false;
         } else if (arg == "--fake_odom_tz") {
             if (const char* v = needValue(arg)) options->fake_odom_tz = std::stod(v); else return false;
+        } else if (arg == "--query_pose_xy_jitter_m") {
+            if (const char* v = needValue(arg)) options->query_pose_xy_jitter_m = std::max(0.0, std::stod(v)); else return false;
+        } else if (arg == "--query_pose_z_jitter_m") {
+            if (const char* v = needValue(arg)) options->query_pose_z_jitter_m = std::max(0.0, std::stod(v)); else return false;
+        } else if (arg == "--query_pose_yaw_jitter_deg") {
+            if (const char* v = needValue(arg)) options->query_pose_yaw_jitter_deg = std::max(0.0, std::stod(v)); else return false;
+        } else if (arg == "--query_pose_roll_pitch_jitter_deg") {
+            if (const char* v = needValue(arg)) options->query_pose_roll_pitch_jitter_deg = std::max(0.0, std::stod(v)); else return false;
         } else if (arg == "--query_source") {
             if (const char* v = needValue(arg)) options->query_source = v; else return false;
             if (options->query_source != "same_keyframe" &&
@@ -127,8 +166,22 @@ bool parseArgs(int argc, char** argv, Options* options)
                 std::cerr << "--query_source must be same_keyframe, local_submap, or global_map\n";
                 return false;
             }
+        } else if (arg == "--range_min") {
+            if (const char* v = needValue(arg)) options->range_min = std::max(0.0, std::stod(v)); else return false;
         } else if (arg == "--range_max") {
             if (const char* v = needValue(arg)) options->range_max = std::max(0.5, std::stod(v)); else return false;
+        } else if (arg == "--fov_azimuth_deg") {
+            if (const char* v = needValue(arg)) options->fov_azimuth_deg = std::clamp(std::stod(v), 0.0, 360.0); else return false;
+        } else if (arg == "--fov_vertical_deg") {
+            if (const char* v = needValue(arg)) options->fov_vertical_deg = std::clamp(std::stod(v), 0.0, 180.0); else return false;
+        } else if (arg == "--raycast_azimuth_resolution_deg") {
+            if (const char* v = needValue(arg)) options->raycast_azimuth_resolution_deg = std::stod(v); else return false;
+        } else if (arg == "--raycast_vertical_resolution_deg") {
+            if (const char* v = needValue(arg)) options->raycast_vertical_resolution_deg = std::stod(v); else return false;
+        } else if (arg == "--occlusion_dilation_bins") {
+            if (const char* v = needValue(arg)) options->occlusion_dilation_bins = std::max(0, std::stoi(v)); else return false;
+        } else if (arg == "--occlusion_depth_tolerance") {
+            if (const char* v = needValue(arg)) options->occlusion_depth_tolerance_m = std::max(0.0, std::stod(v)); else return false;
         } else if (arg == "--query_submap_radius") {
             if (const char* v = needValue(arg)) options->query_submap_radius = std::max(0, std::stoi(v)); else return false;
         } else if (arg == "--query_voxel_size") {
@@ -187,9 +240,37 @@ Eigen::Isometry3d makeFakeMapOdom(const Options& options)
 {
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     pose.translation() = Eigen::Vector3d(options.fake_odom_tx, options.fake_odom_ty, options.fake_odom_tz);
-    pose.linear() = Eigen::AngleAxisd(options.fake_odom_yaw_deg * M_PI / 180.0,
-                                      Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    pose.linear() =
+        (Eigen::AngleAxisd(options.fake_odom_yaw_deg * M_PI / 180.0, Eigen::Vector3d::UnitZ()) *
+         Eigen::AngleAxisd(options.fake_odom_pitch_deg * M_PI / 180.0, Eigen::Vector3d::UnitY()) *
+         Eigen::AngleAxisd(options.fake_odom_roll_deg * M_PI / 180.0, Eigen::Vector3d::UnitX())).toRotationMatrix();
     return pose;
+}
+
+synthetic::QuerySynthesisOptions makeQuerySynthesisOptions(const Options& options)
+{
+    synthetic::QuerySynthesisOptions out;
+    out.dropout = options.dropout;
+    out.noise_sigma = options.noise_sigma;
+    out.range_min = options.range_min;
+    out.range_max = options.range_max;
+    out.fov_azimuth_deg = options.fov_azimuth_deg;
+    out.fov_vertical_deg = options.fov_vertical_deg;
+    out.raycast_azimuth_resolution_deg = options.raycast_azimuth_resolution_deg;
+    out.raycast_vertical_resolution_deg = options.raycast_vertical_resolution_deg;
+    out.occlusion_dilation_bins = options.occlusion_dilation_bins;
+    out.occlusion_depth_tolerance_m = options.occlusion_depth_tolerance_m;
+    return out;
+}
+
+synthetic::PoseJitterOptions makePoseJitterOptions(const Options& options)
+{
+    synthetic::PoseJitterOptions out;
+    out.xy_m = options.query_pose_xy_jitter_m;
+    out.z_m = options.query_pose_z_jitter_m;
+    out.yaw_deg = options.query_pose_yaw_jitter_deg;
+    out.roll_pitch_deg = options.query_pose_roll_pitch_jitter_deg;
+    return out;
 }
 
 Cloud::Ptr perturbCloud(const Cloud::Ptr& input, const Options& options, std::uint32_t seed)
@@ -267,43 +348,13 @@ Cloud::Ptr buildLocalSubmapInMapFrame(const std::vector<Keyframe::Ptr>& keyframe
 Cloud::Ptr synthesizeBodyCloudFromMapCloud(const Cloud::Ptr& map_cloud,
                                            const Eigen::Isometry3d& T_map_lidar,
                                            const Options& options,
-                                           std::uint32_t seed)
+                                           std::uint32_t seed,
+                                           const Cloud::Ptr& reference_cloud)
 {
-    auto body = pcl::make_shared<Cloud>();
-    if (!map_cloud) {
-        return body;
-    }
-
-    std::mt19937 rng(seed);
-    std::uniform_real_distribution<double> keep_dist(0.0, 1.0);
-    std::normal_distribution<double> noise(0.0, options.noise_sigma);
-    const Eigen::Isometry3d T_lidar_map = T_map_lidar.inverse();
-    body->reserve(map_cloud->size());
-
-    for (const auto& point_map : map_cloud->points) {
-        const Eigen::Vector3d p_body = T_lidar_map * Eigen::Vector3d(point_map.x, point_map.y, point_map.z);
-        const double range = p_body.norm();
-        if (range < 0.5 || range > options.range_max) {
-            continue;
-        }
-        if (p_body.z() < -2.0 || p_body.z() > 6.0) {
-            continue;
-        }
-        if (keep_dist(rng) < options.dropout) {
-            continue;
-        }
-        pcl::PointXYZI out;
-        out.x = static_cast<float>(p_body.x() + noise(rng));
-        out.y = static_cast<float>(p_body.y() + noise(rng));
-        out.z = static_cast<float>(p_body.z() + noise(rng));
-        out.intensity = point_map.intensity;
-        body->push_back(out);
-    }
-
-    body->width = static_cast<std::uint32_t>(body->size());
-    body->height = 1;
-    body->is_dense = true;
-    return downsampleCloud(body, options.query_voxel_size);
+    return downsampleCloud(
+        synthetic::synthesizeBodyCloudFromMapCloud(
+            map_cloud, T_map_lidar, makeQuerySynthesisOptions(options), seed, reference_cloud),
+        options.query_voxel_size);
 }
 
 core::LioFrame makeFrame(std::int64_t stamp_nsec,
@@ -495,11 +546,24 @@ void writeConfigUsedJson(const std::filesystem::path& path,
     file << "  \"dropout_ratio\": " << options.dropout << ",\n";
     file << "  \"noise_sigma\": " << options.noise_sigma << ",\n";
     file << "  \"range_max\": " << options.range_max << ",\n";
+    file << "  \"range_min\": " << options.range_min << ",\n";
+    file << "  \"fov_azimuth_deg\": " << options.fov_azimuth_deg << ",\n";
+    file << "  \"fov_vertical_deg\": " << options.fov_vertical_deg << ",\n";
+    file << "  \"raycast_azimuth_resolution_deg\": " << options.raycast_azimuth_resolution_deg << ",\n";
+    file << "  \"raycast_vertical_resolution_deg\": " << options.raycast_vertical_resolution_deg << ",\n";
+    file << "  \"occlusion_dilation_bins\": " << options.occlusion_dilation_bins << ",\n";
+    file << "  \"occlusion_depth_tolerance_m\": " << options.occlusion_depth_tolerance_m << ",\n";
     file << "  \"query_submap_radius\": " << options.query_submap_radius << ",\n";
     file << "  \"query_voxel_size\": " << options.query_voxel_size << ",\n";
     file << "  \"fake_odom_yaw_deg\": " << options.fake_odom_yaw_deg << ",\n";
+    file << "  \"fake_odom_roll_deg\": " << options.fake_odom_roll_deg << ",\n";
+    file << "  \"fake_odom_pitch_deg\": " << options.fake_odom_pitch_deg << ",\n";
     file << "  \"fake_odom_translation\": [" << options.fake_odom_tx << ", "
          << options.fake_odom_ty << ", " << options.fake_odom_tz << "],\n";
+    file << "  \"query_pose_xy_jitter_m\": " << options.query_pose_xy_jitter_m << ",\n";
+    file << "  \"query_pose_z_jitter_m\": " << options.query_pose_z_jitter_m << ",\n";
+    file << "  \"query_pose_yaw_jitter_deg\": " << options.query_pose_yaw_jitter_deg << ",\n";
+    file << "  \"query_pose_roll_pitch_jitter_deg\": " << options.query_pose_roll_pitch_jitter_deg << ",\n";
     file << "  \"pose_translation_threshold_m\": " << options.pose_translation_threshold_m << ",\n";
     file << "  \"pose_yaw_threshold_deg\": " << options.pose_yaw_threshold_deg << ",\n";
     file << "  \"pose_roll_pitch_threshold_deg\": " << options.pose_roll_pitch_threshold_deg << ",\n";
@@ -567,15 +631,21 @@ int main(int argc, char** argv)
         const auto& kf = keyframes[idx];
         QueryResult qr;
         qr.keyframe_id = kf->id;
+        Eigen::Isometry3d T_map_lidar_gt = kf->pose_optimized;
+        if (options.query_source != "same_keyframe") {
+            std::mt19937 pose_rng(static_cast<std::uint32_t>(5000 + kf->id));
+            T_map_lidar_gt = synthetic::applyUniformPoseJitter(
+                kf->pose_optimized, makePoseJitterOptions(options), &pose_rng);
+        }
 
         Cloud::Ptr query_cloud;
         if (options.query_source == "global_map") {
             query_cloud = synthesizeBodyCloudFromMapCloud(
-                global_map, kf->pose_optimized, options, static_cast<std::uint32_t>(1000 + kf->id));
+                global_map, T_map_lidar_gt, options, static_cast<std::uint32_t>(1000 + kf->id), kf->cloud);
         } else if (options.query_source == "local_submap") {
             auto local_map = buildLocalSubmapInMapFrame(keyframes, idx, options.query_submap_radius);
             query_cloud = synthesizeBodyCloudFromMapCloud(
-                local_map, kf->pose_optimized, options, static_cast<std::uint32_t>(1000 + kf->id));
+                local_map, T_map_lidar_gt, options, static_cast<std::uint32_t>(1000 + kf->id), kf->cloud);
         } else {
             query_cloud = perturbCloud(kf->cloud, options, static_cast<std::uint32_t>(1000 + kf->id));
         }
@@ -591,7 +661,6 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        const Eigen::Isometry3d T_map_lidar_gt = kf->pose_optimized;
         const Eigen::Isometry3d T_odom_lidar_input = T_map_odom_fake.inverse() * T_map_lidar_gt;
         qr.input_odom_translation_error_m =
             (T_odom_lidar_input.translation() - T_map_lidar_gt.translation()).norm();
