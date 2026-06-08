@@ -5,6 +5,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/n3map_nav_resource_reader.h"
+#include "n3mapping/n3map_proto_utils.h"
 #include "n3map.pb.h"
 #include <filesystem>
 #include <fstream>
@@ -1519,6 +1520,61 @@ TEST_F(MapSerializerTest, NavResourceReaderRejectsNegativeKeyframeId) {
     std::string error;
     ASSERT_FALSE(readN3NavResource(map_file, &resource, &error));
     EXPECT_EQ(error, "invalid keyframe id");
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderSkipsUnusedDescriptors) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_dense_trajectory_source("native");
+    map_proto.mutable_metadata()->set_dense_trajectory_degraded(false);
+
+    auto* kf = addValidKeyframeProto(&map_proto, 7, 3.0);
+    kf->mutable_pose_optimized()->set_tx(2.0);
+    auto* sc = kf->mutable_sc_descriptor();
+    sc->set_rows(2);
+    sc->set_cols(2);
+    sc->add_values(1.0);
+    sc->add_values(2.0);
+    sc->add_values(3.0);
+    sc->add_values(4.0);
+    auto* rhpd = kf->mutable_rhpd_descriptor();
+    rhpd->set_dim(RHPD_DIM);
+    for (int i = 0; i < RHPD_DIM; ++i) {
+        rhpd->add_values(static_cast<double>(i) * 0.001);
+    }
+
+    auto* dense = map_proto.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(3.0);
+    dense->mutable_pose_world_lidar()->set_tx(2.0);
+    dense->mutable_pose_world_lidar()->set_qw(1.0);
+
+    std::vector<ParsedKeyframeProto> parsed_keyframes;
+    std::unordered_set<int64_t> keyframe_ids;
+    std::string error;
+    PbstreamKeyframeParseOptions parse_options;
+    parse_options.policy = PbstreamLoadPolicy::STRICT;
+    parse_options.expected_rhpd_dim = RHPD_DIM;
+    parse_options.parse_descriptors = false;
+    ASSERT_TRUE(parseKeyframesFromProto(map_proto, parse_options, &parsed_keyframes, &keyframe_ids, &error))
+        << error;
+    ASSERT_EQ(parsed_keyframes.size(), 1U);
+    EXPECT_EQ(parsed_keyframes.front().sc_descriptor.size(), 0);
+    EXPECT_EQ(parsed_keyframes.front().rhpd_descriptor.size(), 0);
+
+    const std::string map_file = config_.map_save_path + "/reader_skips_descriptors.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    ASSERT_TRUE(readN3NavResource(map_file, &resource, &error)) << error;
+    ASSERT_EQ(resource.keyframes.size(), 1U);
+    EXPECT_EQ(resource.keyframes.front().id, 7);
+    ASSERT_EQ(resource.keyframes.front().cloud->size(), 1U);
+    EXPECT_NEAR(resource.keyframes.front().pose_optimized.translation().x(), 2.0, 1e-9);
+    EXPECT_TRUE(resource.has_native_dense_trajectory);
 }
 
 TEST_F(MapSerializerTest, NavResourceReaderExplicitFallbackDoesNotNeedGlobalMapPcd) {

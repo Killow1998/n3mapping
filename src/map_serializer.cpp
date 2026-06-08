@@ -383,7 +383,11 @@ bool MapSerializer::loadMap(const std::string& filepath,
         std::string parse_error;
         std::vector<ParsedKeyframeProto> parsed_keyframes;
         std::unordered_set<int64_t> loaded_keyframe_ids;
-        if (!parseKeyframesFromProto(map_proto, options.policy, RHPD_DIM,
+        PbstreamKeyframeParseOptions keyframe_parse_options;
+        keyframe_parse_options.policy = options.policy;
+        keyframe_parse_options.expected_rhpd_dim = RHPD_DIM;
+        keyframe_parse_options.parse_descriptors = true;
+        if (!parseKeyframesFromProto(map_proto, keyframe_parse_options,
                                      &parsed_keyframes, &loaded_keyframe_ids, &parse_error)) {
             LOG(ERROR) << "[MapSerializer] Reject map: " << parse_error;
             return false;

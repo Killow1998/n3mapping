@@ -184,8 +184,7 @@ bool informationFromProto(const InformationMatrix& proto,
 }
 
 bool parseKeyframesFromProto(const N3Map& map_proto,
-                             PbstreamLoadPolicy policy,
-                             int expected_rhpd_dim,
+                             const PbstreamKeyframeParseOptions& options,
                              std::vector<ParsedKeyframeProto>* keyframes,
                              std::unordered_set<int64_t>* keyframe_ids,
                              std::string* error) {
@@ -199,7 +198,7 @@ bool parseKeyframesFromProto(const N3Map& map_proto,
         const auto& proto = map_proto.keyframes(i);
         std::string local_error;
         if (!validateKeyframeProto(proto, &local_error)) {
-            if (policy == PbstreamLoadPolicy::STRICT) return setError(error, local_error);
+            if (options.policy == PbstreamLoadPolicy::STRICT) return setError(error, local_error);
             continue;
         }
 
@@ -213,22 +212,24 @@ bool parseKeyframesFromProto(const N3Map& map_proto,
         parsed.pose_odom = poseFromProto(proto.pose_odom());
         parsed.pose_optimized = poseFromProto(proto.pose_optimized());
         if (!pointCloudFromProto(proto.cloud(), &parsed.cloud, &local_error)) {
-            if (policy == PbstreamLoadPolicy::STRICT) return setError(error, local_error);
+            if (options.policy == PbstreamLoadPolicy::STRICT) return setError(error, local_error);
             keyframe_ids->erase(parsed.id);
             continue;
         }
         if (!parsed.cloud || parsed.cloud->empty()) {
-            if (policy == PbstreamLoadPolicy::STRICT) return setError(error, "empty keyframe cloud");
+            if (options.policy == PbstreamLoadPolicy::STRICT) return setError(error, "empty keyframe cloud");
             keyframe_ids->erase(parsed.id);
             continue;
         }
-        if (proto.has_sc_descriptor()) {
+        if (options.parse_descriptors && proto.has_sc_descriptor()) {
             if (!scanContextFromProto(proto.sc_descriptor(), &parsed.sc_descriptor, &local_error)) {
                 parsed.sc_descriptor = Eigen::MatrixXd();
             }
         }
-        if (proto.has_rhpd_descriptor() && proto.rhpd_descriptor().values_size() > 0) {
-            if (!rhpdFromProto(proto.rhpd_descriptor(), expected_rhpd_dim,
+        if (options.parse_descriptors &&
+            proto.has_rhpd_descriptor() &&
+            proto.rhpd_descriptor().values_size() > 0) {
+            if (!rhpdFromProto(proto.rhpd_descriptor(), options.expected_rhpd_dim,
                                &parsed.rhpd_descriptor, &local_error)) {
                 parsed.rhpd_descriptor = Eigen::VectorXd();
             }

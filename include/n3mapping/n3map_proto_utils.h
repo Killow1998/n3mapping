@@ -26,6 +26,12 @@ struct PbstreamLoadOptions {
     bool allow_keyframe_fallback_dense = false;
 };
 
+struct PbstreamKeyframeParseOptions {
+    PbstreamLoadPolicy policy = PbstreamLoadPolicy::STRICT;
+    int expected_rhpd_dim = 0;
+    bool parse_descriptors = true;
+};
+
 struct PbstreamMetadata {
     std::string version;
     std::string map_frame = "map";
@@ -89,8 +95,7 @@ bool informationFromProto(const InformationMatrix& proto,
                           std::string* error);
 
 bool parseKeyframesFromProto(const N3Map& map_proto,
-                             PbstreamLoadPolicy policy,
-                             int expected_rhpd_dim,
+                             const PbstreamKeyframeParseOptions& options,
                              std::vector<ParsedKeyframeProto>* keyframes,
                              std::unordered_set<int64_t>* keyframe_ids,
                              std::string* error);

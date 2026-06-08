@@ -36,7 +36,10 @@ bool readN3NavResource(const std::string& pbstream_path,
 
     std::vector<ParsedKeyframeProto> parsed_keyframes;
     std::unordered_set<int64_t> keyframe_ids;
-    if (!parseKeyframesFromProto(map_proto, PbstreamLoadPolicy::STRICT, 0,
+    PbstreamKeyframeParseOptions keyframe_parse_options;
+    keyframe_parse_options.policy = PbstreamLoadPolicy::STRICT;
+    keyframe_parse_options.parse_descriptors = false;
+    if (!parseKeyframesFromProto(map_proto, keyframe_parse_options,
                                  &parsed_keyframes, &keyframe_ids, error)) {
         return false;
     }
