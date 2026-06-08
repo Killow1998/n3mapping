@@ -3,6 +3,7 @@
 
 #include <limits>
 #include <memory>
+#include <utility>
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
 
@@ -76,6 +77,17 @@ void KeyframeManager::loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes)
         if (kf->id >= next_id_) next_id_ = kf->id + 1;
         if (!last_keyframe_ || kf->id > last_keyframe_->id) last_keyframe_ = kf;
     }
+}
+
+void KeyframeManager::swapWith(KeyframeManager& other) {
+    if (this == &other) return;
+    std::lock(mutex_, other.mutex_);
+    std::lock_guard<std::mutex> lock_this(mutex_, std::adopt_lock);
+    std::lock_guard<std::mutex> lock_other(other.mutex_, std::adopt_lock);
+    std::swap(config_, other.config_);
+    std::swap(keyframes_, other.keyframes_);
+    std::swap(next_id_, other.next_id_);
+    std::swap(last_keyframe_, other.last_keyframe_);
 }
 
 int64_t KeyframeManager::getNextKeyframeId() const {

@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <utility>
 #include <gtsam/linear/NoiseModel.h>
 #include <gtsam/nonlinear/DoglegOptimizer.h>
 
@@ -288,6 +289,23 @@ void GraphOptimizer::loadGraph(
     if (!current_estimate_.empty()) {
         isam2_->update(graph_, current_estimate_);
     }
+}
+
+void GraphOptimizer::swapWith(GraphOptimizer& other) {
+    if (this == &other) return;
+    using std::swap;
+    swap(config_, other.config_);
+    swap(isam2_, other.isam2_);
+    swap(graph_, other.graph_);
+    swap(new_factors_, other.new_factors_);
+    swap(initial_values_, other.initial_values_);
+    swap(new_values_, other.new_values_);
+    swap(current_estimate_, other.current_estimate_);
+    swap(last_good_estimate_, other.last_good_estimate_);
+    swap(edges_, other.edges_);
+    swap(node_ids_, other.node_ids_);
+    swap(has_loop_closure_, other.has_loop_closure_);
+    swap(needs_optimization_, other.needs_optimization_);
 }
 
 std::vector<EdgeInfo> GraphOptimizer::getEdges() const {

@@ -202,6 +202,7 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @param edges 边列表
      */
     void loadGraph(const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes, const std::vector<EdgeInfo>& edges);
+    void swapWith(GraphOptimizer& other);
 
     /**
      * @brief 获取所有边

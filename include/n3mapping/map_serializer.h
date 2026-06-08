@@ -14,6 +14,7 @@
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/graph_optimizer.h"
+#include "n3mapping/n3map_proto_utils.h"
 #include "n3map.pb.h"
 
 namespace n3mapping {
@@ -47,13 +48,31 @@ public:
                  KeyframeManager& keyframe_manager,
                  LoopDetector& loop_detector,
                  GraphOptimizer& optimizer,
+                 const PbstreamLoadOptions& options);
+    bool loadMap(const std::string& filepath,
+                 KeyframeManager& keyframe_manager,
+                 LoopDetector& loop_detector,
+                 GraphOptimizer& optimizer,
                  std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory);
     bool loadMap(const std::string& filepath,
                  KeyframeManager& keyframe_manager,
                  LoopDetector& loop_detector,
                  GraphOptimizer& optimizer,
                  std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
+                 const PbstreamLoadOptions& options);
+    bool loadMap(const std::string& filepath,
+                 KeyframeManager& keyframe_manager,
+                 LoopDetector& loop_detector,
+                 GraphOptimizer& optimizer,
+                 std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
                  core::DenseTrajectoryMetadata* dense_trajectory_metadata);
+    bool loadMap(const std::string& filepath,
+                 KeyframeManager& keyframe_manager,
+                 LoopDetector& loop_detector,
+                 GraphOptimizer& optimizer,
+                 std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
+                 core::DenseTrajectoryMetadata* dense_trajectory_metadata,
+                 const PbstreamLoadOptions& options);
 
     bool saveGlobalMap(const std::string& filepath,
                        const KeyframeManager& keyframe_manager,
@@ -65,22 +84,14 @@ private:
     Config config_;
 
     void keyframeToProto(const Keyframe::Ptr& kf, n3mapping::KeyframeProto* proto);
-    Keyframe::Ptr protoToKeyframe(const n3mapping::KeyframeProto& proto);
     void edgeToProto(const EdgeInfo& edge, n3mapping::EdgeProto* proto);
-    EdgeInfo protoToEdge(const n3mapping::EdgeProto& proto);
     void denseTrajectoryToProto(const core::DenseTrajectoryPose& pose,
                                 n3mapping::DenseTrajectoryPose* proto);
-    core::DenseTrajectoryPose protoToDenseTrajectoryPose(const n3mapping::DenseTrajectoryPose& proto);
     void poseToProto(const Eigen::Isometry3d& pose, n3mapping::Pose3D* proto);
-    Eigen::Isometry3d protoToPose(const n3mapping::Pose3D& proto);
     void pointCloudToProto(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, n3mapping::PointCloudData* proto);
-    pcl::PointCloud<pcl::PointXYZI>::Ptr protoToPointCloud(const n3mapping::PointCloudData& proto);
     void descriptorToProto(const Eigen::MatrixXd& descriptor, n3mapping::ScanContextDescriptor* proto);
-    Eigen::MatrixXd protoToDescriptor(const n3mapping::ScanContextDescriptor& proto);
     void rhpdToProto(const Eigen::VectorXd& rhpd, n3mapping::RHPDDescriptor* proto);
-    Eigen::VectorXd protoToRhpd(const n3mapping::RHPDDescriptor& proto);
     void informationToProto(const Eigen::Matrix<double, 6, 6>& info, n3mapping::InformationMatrix* proto);
-    Eigen::Matrix<double, 6, 6> protoToInformation(const n3mapping::InformationMatrix& proto);
 };
 
 } // namespace n3mapping

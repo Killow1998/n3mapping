@@ -5,6 +5,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/n3map_nav_resource_reader.h"
+#include "n3mapping/n3map_proto_utils.h"
 #include "n3map.pb.h"
 #include <filesystem>
 #include <fstream>
@@ -88,6 +89,31 @@ protected:
         return pose;
     }
 
+    n3mapping::KeyframeProto* addValidKeyframeProto(n3mapping::N3Map* map_proto,
+                                                    int64_t id,
+                                                    double timestamp = 1.0) {
+        auto* kf = map_proto->add_keyframes();
+        kf->set_id(id);
+        kf->set_timestamp(timestamp);
+        kf->mutable_pose_odom()->set_qw(1.0);
+        kf->mutable_pose_optimized()->set_qw(1.0);
+        auto* cloud = kf->mutable_cloud();
+        cloud->set_num_points(1);
+        cloud->add_points(1.0f + static_cast<float>(id));
+        cloud->add_points(0.0f);
+        cloud->add_points(0.0f);
+        cloud->add_points(1.0f);
+        return kf;
+    }
+
+    void addUpperTriangularInformation(n3mapping::InformationMatrix* info) {
+        for (int r = 0; r < 6; ++r) {
+            for (int c = r; c < 6; ++c) {
+                info->add_values(r == c ? 1.0 : 0.0);
+            }
+        }
+    }
+
     Config config_;
 };
 
@@ -151,6 +177,62 @@ TEST_F(MapSerializerTest, BasicSaveAndLoad) {
     
     // 验证边数量
     EXPECT_EQ(optimizer.getNumEdges(), optimizer_loaded.getNumEdges());
+}
+
+TEST_F(MapSerializerTest, KeyframeManagerSwapWithExchangesState) {
+    KeyframeManager first(config_);
+    KeyframeManager second(config_);
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t first_id = first.addKeyframe(1.0, pose, generateRandomPointCloud(8));
+    Eigen::Isometry3d second_pose = Eigen::Isometry3d::Identity();
+    second_pose.translation().x() = 5.0;
+    const int64_t second_id = second.addKeyframe(2.0, second_pose, generateRandomPointCloud(8));
+
+    first.swapWith(second);
+
+    EXPECT_EQ(first.size(), 1U);
+    EXPECT_EQ(second.size(), 1U);
+    EXPECT_NE(first.getKeyframe(second_id), nullptr);
+    EXPECT_NE(second.getKeyframe(first_id), nullptr);
+    EXPECT_NEAR(first.getKeyframe(second_id)->pose_optimized.translation().x(), 5.0, 1e-9);
+}
+
+TEST_F(MapSerializerTest, LoopDetectorSwapWithExchangesDescriptorsAndRhpd) {
+    LoopDetector first(config_);
+    LoopDetector second(config_);
+    auto first_cloud = generateRandomPointCloud(64);
+    auto second_cloud = generateRandomPointCloud(64);
+    first.addDescriptor(1, first_cloud);
+    first.addRHPD(1, first_cloud);
+    second.addDescriptor(2, second_cloud);
+    second.addRHPD(2, second_cloud);
+
+    first.swapWith(second);
+
+    EXPECT_EQ(first.size(), 1U);
+    EXPECT_EQ(second.size(), 1U);
+    EXPECT_EQ(first.getDescriptor(2).size(), first.getDescriptorDimensions().first * first.getDescriptorDimensions().second);
+    EXPECT_EQ(second.getDescriptor(1).size(), second.getDescriptorDimensions().first * second.getDescriptorDimensions().second);
+    Eigen::VectorXd rhpd;
+    EXPECT_TRUE(first.getRHPDManager().get(2, &rhpd));
+    EXPECT_TRUE(second.getRHPDManager().get(1, &rhpd));
+}
+
+TEST_F(MapSerializerTest, GraphOptimizerSwapWithExchangesGraphState) {
+    GraphOptimizer first(config_);
+    GraphOptimizer second(config_);
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    first.addPriorFactor(1, pose);
+    pose.translation().x() = 3.0;
+    second.addPriorFactor(2, pose);
+
+    first.swapWith(second);
+
+    EXPECT_TRUE(first.hasNode(2));
+    EXPECT_FALSE(first.hasNode(1));
+    EXPECT_TRUE(second.hasNode(1));
+    EXPECT_FALSE(second.hasNode(2));
+    EXPECT_NEAR(first.getOptimizedPose(2).translation().x(), 3.0, 1e-9);
 }
 
 /**
@@ -342,32 +424,78 @@ TEST_F(MapSerializerTest, MalformedCloudRejectsKeyframe) {
     EXPECT_EQ(loaded_optimizer.getNumNodes(), 0);
 }
 
-TEST_F(MapSerializerTest, MissingEdgeEndpointIsSkippedOnLoad) {
+TEST_F(MapSerializerTest, StrictLoadRejectsMalformedKeyframeEvenWithValidRemaining) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(2);
+    addValidKeyframeProto(&map_proto, 0);
+
+    auto* malformed = map_proto.add_keyframes();
+    malformed->set_id(1);
+    malformed->set_timestamp(2.0);
+    malformed->mutable_pose_odom()->set_qw(1.0);
+    malformed->mutable_pose_optimized()->set_qw(1.0);
+    malformed->mutable_cloud()->set_num_points(2);
+    malformed->mutable_cloud()->add_points(1.0f);
+
+    const std::string map_file = config_.map_save_path + "/strict_malformed_with_valid.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 0U);
+}
+
+TEST_F(MapSerializerTest, SalvageLoadSkipsMalformedKeyframeAndLoadsValidRemaining) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(2);
+    addValidKeyframeProto(&map_proto, 0);
+
+    auto* malformed = map_proto.add_keyframes();
+    malformed->set_id(1);
+    malformed->set_timestamp(2.0);
+    malformed->mutable_pose_odom()->set_qw(1.0);
+    malformed->mutable_pose_optimized()->set_qw(1.0);
+    malformed->mutable_cloud()->set_num_points(2);
+    malformed->mutable_cloud()->add_points(1.0f);
+
+    const std::string map_file = config_.map_save_path + "/salvage_malformed_with_valid.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    PbstreamLoadOptions options;
+    options.policy = PbstreamLoadPolicy::SALVAGE;
+    ASSERT_TRUE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer, options));
+    EXPECT_EQ(loaded_kfs.size(), 1U);
+    EXPECT_NE(loaded_kfs.getKeyframe(0), nullptr);
+    EXPECT_EQ(loaded_optimizer.getNumNodes(), 1U);
+}
+
+TEST_F(MapSerializerTest, StrictLoadRejectsMissingEdgeEndpoint) {
     n3mapping::N3Map map_proto;
     map_proto.mutable_metadata()->set_version("2.3.0");
     map_proto.mutable_metadata()->set_num_keyframes(1);
 
-    auto* kf = map_proto.add_keyframes();
-    kf->set_id(0);
-    kf->set_timestamp(1.0);
-    kf->mutable_pose_odom()->set_qw(1.0);
-    kf->mutable_pose_optimized()->set_qw(1.0);
-    auto* cloud = kf->mutable_cloud();
-    cloud->set_num_points(1);
-    cloud->add_points(1.0f);
-    cloud->add_points(0.0f);
-    cloud->add_points(0.0f);
-    cloud->add_points(1.0f);
+    addValidKeyframeProto(&map_proto, 0);
 
     auto* edge = map_proto.add_edges();
     edge->set_from_id(0);
     edge->set_to_id(99);
     edge->mutable_measurement()->set_qw(1.0);
-    for (int r = 0; r < 6; ++r) {
-        for (int c = 0; c < 6; ++c) {
-            edge->mutable_information()->add_values(r == c ? 1.0 : 0.0);
-        }
-    }
+    addUpperTriangularInformation(edge->mutable_information());
     edge->set_type(n3mapping::EdgeProto::ODOMETRY);
 
     const std::string map_file = config_.map_save_path + "/missing_edge_endpoint.pbstream";
@@ -380,7 +508,37 @@ TEST_F(MapSerializerTest, MissingEdgeEndpointIsSkippedOnLoad) {
     LoopDetector loaded_loops(config_);
     GraphOptimizer loaded_optimizer(config_);
     MapSerializer serializer(config_);
-    ASSERT_TRUE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 0U);
+    EXPECT_EQ(loaded_optimizer.getNumNodes(), 0U);
+}
+
+TEST_F(MapSerializerTest, SalvageLoadSkipsMissingEdgeEndpoint) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(1);
+    addValidKeyframeProto(&map_proto, 0);
+
+    auto* edge = map_proto.add_edges();
+    edge->set_from_id(0);
+    edge->set_to_id(99);
+    edge->mutable_measurement()->set_qw(1.0);
+    addUpperTriangularInformation(edge->mutable_information());
+    edge->set_type(n3mapping::EdgeProto::ODOMETRY);
+
+    const std::string map_file = config_.map_save_path + "/salvage_missing_edge_endpoint.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    PbstreamLoadOptions options;
+    options.policy = PbstreamLoadPolicy::SALVAGE;
+    ASSERT_TRUE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer, options));
     EXPECT_EQ(loaded_kfs.size(), 1U);
     EXPECT_EQ(loaded_optimizer.getNumNodes(), 1U);
     EXPECT_EQ(loaded_optimizer.getNumEdges(), 0U);
@@ -447,6 +605,29 @@ TEST_F(MapSerializerTest, DuplicateKeyframeIdsRejectMapOnLoad) {
     GraphOptimizer loaded_optimizer(config_);
     MapSerializer serializer(config_);
     EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 0U);
+}
+
+TEST_F(MapSerializerTest, DuplicateKeyframeIdsRejectMapInSalvageMode) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(2);
+    addValidKeyframeProto(&map_proto, 0, 1.0);
+    addValidKeyframeProto(&map_proto, 0, 2.0);
+
+    const std::string map_file = config_.map_save_path + "/duplicate_keyframe_ids_salvage.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    PbstreamLoadOptions options;
+    options.policy = PbstreamLoadPolicy::SALVAGE;
+    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer, options));
     EXPECT_EQ(loaded_kfs.size(), 0U);
 }
 
@@ -828,16 +1009,21 @@ TEST_F(MapSerializerTest, LoadMapRejectsMalformedDenseTrajectoryPose) {
     GraphOptimizer loaded_optimizer(config_);
     MapSerializer serializer(config_);
     std::vector<core::DenseTrajectoryPose> loaded_dense;
-    loaded_dense.push_back(core::DenseTrajectoryPose{});
+    core::DenseTrajectoryPose sentinel_dense;
+    sentinel_dense.seq = 99;
+    sentinel_dense.timestamp = 42.0;
+    loaded_dense.push_back(sentinel_dense);
     core::DenseTrajectoryMetadata loaded_metadata;
-    loaded_metadata.source = "native";
+    loaded_metadata.source = "existing";
     loaded_metadata.degraded = false;
     EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer,
                                     &loaded_dense, &loaded_metadata));
     EXPECT_EQ(loaded_kfs.size(), 0U);
-    EXPECT_TRUE(loaded_dense.empty());
-    EXPECT_EQ(loaded_metadata.source, "none");
-    EXPECT_TRUE(loaded_metadata.degraded);
+    ASSERT_EQ(loaded_dense.size(), 1U);
+    EXPECT_EQ(loaded_dense.front().seq, sentinel_dense.seq);
+    EXPECT_DOUBLE_EQ(loaded_dense.front().timestamp, sentinel_dense.timestamp);
+    EXPECT_EQ(loaded_metadata.source, "existing");
+    EXPECT_FALSE(loaded_metadata.degraded);
 }
 
 TEST_F(MapSerializerTest, LoadMapWithoutDenseOutputRejectsMalformedDenseTrajectoryPose) {
@@ -922,9 +1108,62 @@ TEST_F(MapSerializerTest, LoadFailureDoesNotClearExistingMap) {
         ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
     }
 
-    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    std::vector<core::DenseTrajectoryPose> dense_output;
+    core::DenseTrajectoryPose sentinel_dense;
+    sentinel_dense.seq = 123;
+    sentinel_dense.timestamp = 456.0;
+    dense_output.push_back(sentinel_dense);
+    core::DenseTrajectoryMetadata dense_metadata;
+    dense_metadata.source = "existing";
+    dense_metadata.degraded = false;
+
+    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer,
+                                    &dense_output, &dense_metadata));
     EXPECT_EQ(loaded_kfs.size(), 1U);
     ASSERT_NE(loaded_kfs.getKeyframe(existing_id), nullptr);
+    EXPECT_EQ(loaded_loops.size(), 1U);
+    EXPECT_GT(loaded_optimizer.getNumNodes(), 0U);
+    ASSERT_EQ(dense_output.size(), 1U);
+    EXPECT_EQ(dense_output.front().seq, sentinel_dense.seq);
+    EXPECT_EQ(dense_metadata.source, "existing");
+    EXPECT_FALSE(dense_metadata.degraded);
+}
+
+TEST_F(MapSerializerTest, StrictKeyframeLoadFailureDoesNotClearExistingMap) {
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+
+    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    const int64_t existing_id = loaded_kfs.addKeyframe(10.0, pose, generateRandomPointCloud(64));
+    auto descriptor = loaded_loops.addDescriptor(existing_id, loaded_kfs.getKeyframe(existing_id)->cloud);
+    loaded_kfs.updateDescriptor(existing_id, descriptor);
+    loaded_optimizer.addPriorFactor(existing_id, pose);
+    ASSERT_EQ(loaded_kfs.size(), 1U);
+    ASSERT_EQ(loaded_loops.size(), 1U);
+    ASSERT_GT(loaded_optimizer.getNumNodes(), 0U);
+
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_num_keyframes(2);
+    addValidKeyframeProto(&map_proto, 0);
+    auto* malformed = map_proto.add_keyframes();
+    malformed->set_id(1);
+    malformed->set_timestamp(std::numeric_limits<double>::quiet_NaN());
+    malformed->mutable_pose_odom()->set_qw(1.0);
+    malformed->mutable_pose_optimized()->set_qw(1.0);
+    malformed->mutable_cloud()->set_num_points(0);
+
+    const std::string map_file = config_.map_save_path + "/strict_keyframe_failure_keeps_existing.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 1U);
+    EXPECT_NE(loaded_kfs.getKeyframe(existing_id), nullptr);
     EXPECT_EQ(loaded_loops.size(), 1U);
     EXPECT_GT(loaded_optimizer.getNumNodes(), 0U);
 }
@@ -1281,6 +1520,61 @@ TEST_F(MapSerializerTest, NavResourceReaderRejectsNegativeKeyframeId) {
     std::string error;
     ASSERT_FALSE(readN3NavResource(map_file, &resource, &error));
     EXPECT_EQ(error, "invalid keyframe id");
+}
+
+TEST_F(MapSerializerTest, NavResourceReaderSkipsUnusedDescriptors) {
+    n3mapping::N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.3.0");
+    map_proto.mutable_metadata()->set_dense_trajectory_source("native");
+    map_proto.mutable_metadata()->set_dense_trajectory_degraded(false);
+
+    auto* kf = addValidKeyframeProto(&map_proto, 7, 3.0);
+    kf->mutable_pose_optimized()->set_tx(2.0);
+    auto* sc = kf->mutable_sc_descriptor();
+    sc->set_rows(2);
+    sc->set_cols(2);
+    sc->add_values(1.0);
+    sc->add_values(2.0);
+    sc->add_values(3.0);
+    sc->add_values(4.0);
+    auto* rhpd = kf->mutable_rhpd_descriptor();
+    rhpd->set_dim(RHPD_DIM);
+    for (int i = 0; i < RHPD_DIM; ++i) {
+        rhpd->add_values(static_cast<double>(i) * 0.001);
+    }
+
+    auto* dense = map_proto.add_dense_optimized_trajectory();
+    dense->set_seq(0);
+    dense->set_timestamp(3.0);
+    dense->mutable_pose_world_lidar()->set_tx(2.0);
+    dense->mutable_pose_world_lidar()->set_qw(1.0);
+
+    std::vector<ParsedKeyframeProto> parsed_keyframes;
+    std::unordered_set<int64_t> keyframe_ids;
+    std::string error;
+    PbstreamKeyframeParseOptions parse_options;
+    parse_options.policy = PbstreamLoadPolicy::STRICT;
+    parse_options.expected_rhpd_dim = RHPD_DIM;
+    parse_options.parse_descriptors = false;
+    ASSERT_TRUE(parseKeyframesFromProto(map_proto, parse_options, &parsed_keyframes, &keyframe_ids, &error))
+        << error;
+    ASSERT_EQ(parsed_keyframes.size(), 1U);
+    EXPECT_EQ(parsed_keyframes.front().sc_descriptor.size(), 0);
+    EXPECT_EQ(parsed_keyframes.front().rhpd_descriptor.size(), 0);
+
+    const std::string map_file = config_.map_save_path + "/reader_skips_descriptors.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    N3NavResource resource;
+    ASSERT_TRUE(readN3NavResource(map_file, &resource, &error)) << error;
+    ASSERT_EQ(resource.keyframes.size(), 1U);
+    EXPECT_EQ(resource.keyframes.front().id, 7);
+    ASSERT_EQ(resource.keyframes.front().cloud->size(), 1U);
+    EXPECT_NEAR(resource.keyframes.front().pose_optimized.translation().x(), 2.0, 1e-9);
+    EXPECT_TRUE(resource.has_native_dense_trajectory);
 }
 
 TEST_F(MapSerializerTest, NavResourceReaderExplicitFallbackDoesNotNeedGlobalMapPcd) {

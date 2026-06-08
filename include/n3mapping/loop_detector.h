@@ -86,6 +86,7 @@ public:
     void rebuildTree();
     std::vector<std::pair<int64_t, Eigen::MatrixXd>> getDescriptors() const;
     void loadDescriptors(const std::vector<std::pair<int64_t, Eigen::MatrixXd>>& descriptors);
+    void swapWith(LoopDetector& other);
     size_t size() const;
     void clear();
     std::pair<int, int> getDescriptorDimensions() const;
@@ -110,6 +111,8 @@ private:
     std::vector<int64_t> index_to_id_;
     std::vector<Eigen::MatrixXd> descriptors_;
     mutable std::mutex mutex_;
+
+    void rebuildTreeUnlocked();
 };
 
 } // namespace n3mapping
