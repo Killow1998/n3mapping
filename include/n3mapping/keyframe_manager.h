@@ -25,6 +25,7 @@ public:
     bool empty() const;
     void updateOptimizedPoses(const std::map<int64_t, Eigen::Isometry3d>& poses);
     void loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes);
+    void swapWith(KeyframeManager& other);
     int64_t getNextKeyframeId() const;
     void clear();
     Keyframe::Ptr findNearestByTimestamp(double timestamp) const;

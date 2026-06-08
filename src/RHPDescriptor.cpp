@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <utility>
 #include <Eigen/Eigenvalues>
 #include <glog/logging.h>
 #include <pcl/common/transforms.h>
@@ -650,6 +651,17 @@ void RHPDManager::clear() {
     ids_.clear();
     descriptors_.clear();
     coarse_keys_.clear();
+}
+
+void RHPDManager::swapWith(RHPDManager& other) {
+    if (this == &other) return;
+    std::lock(mutex_, other.mutex_);
+    std::lock_guard<std::mutex> lock_this(mutex_, std::adopt_lock);
+    std::lock_guard<std::mutex> lock_other(other.mutex_, std::adopt_lock);
+    std::swap(desc_, other.desc_);
+    std::swap(ids_, other.ids_);
+    std::swap(descriptors_, other.descriptors_);
+    std::swap(coarse_keys_, other.coarse_keys_);
 }
 
 std::vector<std::pair<int64_t, RHPDManager::VecD>> RHPDManager::getAll() const {

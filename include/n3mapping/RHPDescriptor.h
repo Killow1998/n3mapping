@@ -152,6 +152,7 @@ public:
 
     size_t size() const;
     void clear();
+    void swapWith(RHPDManager& other);
 
     // Serialization helpers.
     std::vector<std::pair<int64_t, VecD>> getAll() const;

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 #include <glog/logging.h>
 
@@ -18,6 +19,27 @@ inline std::vector<float> eig2stdvec(const Eigen::MatrixXd& mat) {
     for (int i = 0; i < static_cast<int>(mat.size()); ++i)
         vec[i] = static_cast<float>(mat(i));
     return vec;
+}
+
+void swapScanContextConfig(HybridSCManager& lhs, HybridSCManager& rhs) {
+    using std::swap;
+    swap(lhs.PC_NUM_RING, rhs.PC_NUM_RING);
+    swap(lhs.PC_NUM_SECTOR, rhs.PC_NUM_SECTOR);
+    swap(lhs.PC_MAX_RADIUS, rhs.PC_MAX_RADIUS);
+    swap(lhs.PC_MIN_RADIUS, rhs.PC_MIN_RADIUS);
+    swap(lhs.LIDAR_HEIGHT, rhs.LIDAR_HEIGHT);
+    swap(lhs.USE_LOG_POLAR, rhs.USE_LOG_POLAR);
+    swap(lhs.OCCUPY_Z_MIN, rhs.OCCUPY_Z_MIN);
+    swap(lhs.OCCUPY_Z_MAX, rhs.OCCUPY_Z_MAX);
+    swap(lhs.SEARCH_RATIO, rhs.SEARCH_RATIO);
+    swap(lhs.W_HEIGHT, rhs.W_HEIGHT);
+    swap(lhs.W_HEIGHT_VAR, rhs.W_HEIGHT_VAR);
+    swap(lhs.W_DENSITY, rhs.W_DENSITY);
+    swap(lhs.W_OCCUPY_L0, rhs.W_OCCUPY_L0);
+    swap(lhs.W_OCCUPY_L1, rhs.W_OCCUPY_L1);
+    swap(lhs.W_OCCUPY_L2, rhs.W_OCCUPY_L2);
+    swap(lhs.W_OCCUPY_L3, rhs.W_OCCUPY_L3);
+    swap(lhs.PC_UNIT_SECTORANGLE, rhs.PC_UNIT_SECTORANGLE);
 }
 } // anonymous namespace
 
@@ -302,10 +324,15 @@ std::vector<VerifiedLoop> LoopDetector::verifyLoopCandidatesBatch(
 
 void LoopDetector::rebuildTree() {
     std::lock_guard<std::mutex> lock(mutex_);
+    rebuildTreeUnlocked();
+}
+
+void LoopDetector::rebuildTreeUnlocked() {
     sc_manager_.polarcontexts_.clear();
     sc_manager_.polarcontext_invkeys_.clear();
     sc_manager_.polarcontext_vkeys_.clear();
     sc_manager_.polarcontext_invkeys_mat_.clear();
+    sc_manager_.polarcontext_invkeys_to_search_.clear();
     sc_manager_.polarcontext_tree_.reset();
     for (size_t i = 0; i < descriptors_.size(); ++i) {
         Eigen::MatrixXd desc = descriptors_[i];
@@ -340,6 +367,7 @@ void LoopDetector::loadDescriptors(const std::vector<std::pair<int64_t, Eigen::M
     id_to_index_.clear(); index_to_id_.clear(); descriptors_.clear();
     sc_manager_.polarcontexts_.clear(); sc_manager_.polarcontext_invkeys_.clear();
     sc_manager_.polarcontext_vkeys_.clear(); sc_manager_.polarcontext_invkeys_mat_.clear();
+    sc_manager_.polarcontext_invkeys_to_search_.clear();
     sc_manager_.polarcontext_tree_.reset();
     for (const auto& [id, desc] : descriptors) {
         if (id_to_index_.count(id) > 0) {
@@ -369,6 +397,22 @@ void LoopDetector::loadDescriptors(const std::vector<std::pair<int64_t, Eigen::M
     }
 }
 
+void LoopDetector::swapWith(LoopDetector& other) {
+    if (this == &other) return;
+    std::lock(mutex_, other.mutex_);
+    std::lock_guard<std::mutex> lock_this(mutex_, std::adopt_lock);
+    std::lock_guard<std::mutex> lock_other(other.mutex_, std::adopt_lock);
+    using std::swap;
+    swap(config_, other.config_);
+    swapScanContextConfig(sc_manager_, other.sc_manager_);
+    rhpd_manager_.swapWith(other.rhpd_manager_);
+    swap(id_to_index_, other.id_to_index_);
+    swap(index_to_id_, other.index_to_id_);
+    swap(descriptors_, other.descriptors_);
+    rebuildTreeUnlocked();
+    other.rebuildTreeUnlocked();
+}
+
 size_t LoopDetector::size() const { std::lock_guard<std::mutex> lock(mutex_); return descriptors_.size(); }
 
 void LoopDetector::clear() {
@@ -376,6 +420,7 @@ void LoopDetector::clear() {
     id_to_index_.clear(); index_to_id_.clear(); descriptors_.clear();
     sc_manager_.polarcontexts_.clear(); sc_manager_.polarcontext_invkeys_.clear();
     sc_manager_.polarcontext_vkeys_.clear(); sc_manager_.polarcontext_invkeys_mat_.clear();
+    sc_manager_.polarcontext_invkeys_to_search_.clear();
     sc_manager_.polarcontext_tree_.reset();
     rhpd_manager_.clear();
 }

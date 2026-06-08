@@ -5,6 +5,7 @@ function(n3mapping_add_nav_resource_reader target_name)
 
   add_library(${target_name} SHARED
     ${PROTO_SRCS}
+    ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
     ${N3MAPPING_ROOT}/src/n3map_nav_resource_reader.cpp
   )
 
