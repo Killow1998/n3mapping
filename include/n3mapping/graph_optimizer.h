@@ -201,7 +201,7 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @param nodes 节点列表 (ID, 位姿)
      * @param edges 边列表
      */
-    void loadGraph(const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes, const std::vector<EdgeInfo>& edges);
+    bool loadGraph(const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes, const std::vector<EdgeInfo>& edges);
     void swapWith(GraphOptimizer& other);
 
     /**
@@ -234,14 +234,17 @@ class GraphOptimizer : public LoopOptimizerInterface
     Config config_;                           ///< 配置参数
     std::unique_ptr<gtsam::ISAM2> isam2_;     ///< iSAM2 优化器
     gtsam::NonlinearFactorGraph graph_;       ///< 因子图
-    gtsam::NonlinearFactorGraph new_factors_; ///< 新增因子 (用于增量优化)
+    gtsam::NonlinearFactorGraph new_factors_; ///< 待提交因子 (用于增量优化)
     gtsam::Values initial_values_;            ///< 初始值
-    gtsam::Values new_values_;                ///< 新增值 (用于增量优化)
+    gtsam::Values new_values_;                ///< 待提交值 (用于增量优化)
     gtsam::Values current_estimate_;          ///< 当前估计值
     gtsam::Values last_good_estimate_;        ///< 上一次成功的估计值 (用于回滚)
     std::vector<EdgeInfo> edges_;             ///< 所有边
+    std::vector<EdgeInfo> pending_edges_;     ///< 待提交边
     std::set<int64_t> node_ids_;              ///< 已添加的节点 ID
+    std::set<int64_t> pending_node_ids_;      ///< 待提交节点 ID
     bool has_loop_closure_;                   ///< 是否有回环约束
+    bool pending_has_loop_closure_;           ///< 待提交更新是否含回环约束
     bool needs_optimization_;                 ///< 是否需要优化
 
     /**
@@ -257,6 +260,48 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @return Eigen 位姿
      */
     static Eigen::Isometry3d gtsamToEigen(const gtsam::Pose3& pose);
+
+    /**
+     * @brief 创建新的 iSAM2 实例
+     */
+    std::unique_ptr<gtsam::ISAM2> createISAM2() const;
+
+    /**
+     * @brief 清空所有待提交状态
+     */
+    void clearPending();
+
+    /**
+     * @brief 节点是否存在于已提交或待提交状态
+     */
+    bool hasAnyNode(int64_t id) const;
+
+    /**
+     * @brief 从已提交或待提交状态读取节点位姿
+     */
+    bool getAnyPose(gtsam::Key key, gtsam::Pose3* pose) const;
+
+    /**
+     * @brief 将已验证的待提交更新写入 committed graph 状态
+     */
+    void commitPending(const gtsam::Values& optimized_estimate, std::unique_ptr<gtsam::ISAM2> optimized_isam2);
+
+    /**
+     * @brief 用当前 committed graph 重建 iSAM2
+     */
+    void rebuildISAM2FromCommitted();
+
+    /**
+     * @brief 在临时 optimizer 上优化候选图
+     */
+    bool optimizeCandidate(const gtsam::NonlinearFactorGraph& candidate_graph,
+                           const gtsam::Values& candidate_values,
+                           gtsam::Values* optimized_estimate) const;
+
+    /**
+     * @brief 将所有待提交更新追加到候选图和值中
+     */
+    void appendPendingTo(gtsam::NonlinearFactorGraph* candidate_graph, gtsam::Values* candidate_values) const;
 
     /**
      * @brief 创建噪声模型

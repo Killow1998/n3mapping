@@ -469,7 +469,10 @@ bool MapSerializer::loadMap(const std::string& filepath,
         for (const auto& parsed : parsed_edges) {
             edges.push_back(edgeFromParsedProto(parsed));
         }
-        temp_optimizer.loadGraph(nodes, edges);
+        if (!temp_optimizer.loadGraph(nodes, edges)) {
+            LOG(ERROR) << "[MapSerializer] Reject map: graph optimizer failed to load graph.";
+            return false;
+        }
 
         keyframe_manager.swapWith(temp_keyframe_manager);
         loop_detector.swapWith(temp_loop_detector);

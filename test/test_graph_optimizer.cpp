@@ -212,6 +212,42 @@ TEST_F(GraphOptimizerTest, IncrementalOptimize) {
     EXPECT_EQ(poses.size(), 6u);
 }
 
+TEST_F(GraphOptimizerTest, FailedIncrementalOptimizeRollsBackPendingEdgeAndAllowsFutureCommit) {
+    auto pose0 = createPose(0, 0, 0);
+    optimizer_->addPriorFactor(0, pose0);
+    optimizer_->incrementalOptimize();
+
+    ASSERT_EQ(optimizer_->getNumNodes(), 1u);
+    ASSERT_EQ(optimizer_->getNumEdges(), 0u);
+    const auto pose_before = optimizer_->getOptimizedPose(0);
+
+    EdgeInfo bad_loop;
+    bad_loop.from_id = 0;
+    bad_loop.to_id = 999;
+    bad_loop.measurement = Eigen::Isometry3d::Identity();
+    bad_loop.information = createInformationMatrix(10.0, 10.0);
+    bad_loop.type = EdgeType::LOOP;
+    optimizer_->addLoopEdge(bad_loop);
+    optimizer_->incrementalOptimize();
+
+    EXPECT_EQ(optimizer_->getNumEdges(), 0u);
+    EXPECT_FALSE(optimizer_->hasNode(999));
+    EXPECT_TRUE(posesNear(pose_before, optimizer_->getOptimizedPose(0), 1e-9, 1e-9));
+
+    EdgeInfo good_odom;
+    good_odom.from_id = 0;
+    good_odom.to_id = 1;
+    good_odom.measurement = createPose(1, 0, 0);
+    good_odom.information = createInformationMatrix(10.0, 10.0);
+    good_odom.type = EdgeType::ODOMETRY;
+    optimizer_->addOdometryEdge(good_odom);
+    optimizer_->incrementalOptimize();
+
+    EXPECT_EQ(optimizer_->getNumEdges(), 1u);
+    EXPECT_TRUE(optimizer_->hasNode(1));
+    EXPECT_TRUE(posesNear(createPose(1, 0, 0), optimizer_->getOptimizedPose(1), 1e-3, 1e-3));
+}
+
 // ==================== 测试获取优化后位姿 ====================
 
 TEST_F(GraphOptimizerTest, GetOptimizedPoses) {
@@ -261,7 +297,7 @@ TEST_F(GraphOptimizerTest, LoadGraph) {
         edges.push_back(edge);
     }
     
-    optimizer_->loadGraph(nodes, edges);
+    ASSERT_TRUE(optimizer_->loadGraph(nodes, edges));
     
     EXPECT_EQ(optimizer_->getNumNodes(), 4u);
     EXPECT_EQ(optimizer_->getNumEdges(), 3u);
@@ -271,6 +307,36 @@ TEST_F(GraphOptimizerTest, LoadGraph) {
     
     auto loaded_edges = optimizer_->getEdges();
     EXPECT_EQ(loaded_edges.size(), 3u);
+}
+
+TEST_F(GraphOptimizerTest, LoadGraphFailureDoesNotPolluteExistingState) {
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes = {
+        {0, createPose(0, 0, 0)},
+        {1, createPose(1, 0, 0)},
+    };
+    std::vector<EdgeInfo> edges = {
+        {0, 1, createPose(1, 0, 0), createInformationMatrix(10.0, 10.0), EdgeType::ODOMETRY},
+    };
+    ASSERT_TRUE(optimizer_->loadGraph(nodes, edges));
+    ASSERT_EQ(optimizer_->getNumNodes(), 2u);
+    ASSERT_EQ(optimizer_->getNumEdges(), 1u);
+    const auto pose0 = optimizer_->getOptimizedPose(0);
+
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> bad_nodes = {
+        {10, createPose(10, 0, 0)},
+    };
+    std::vector<EdgeInfo> bad_edges = {
+        {10, 999, createPose(1, 0, 0), createInformationMatrix(10.0, 10.0), EdgeType::LOOP},
+    };
+
+    EXPECT_FALSE(optimizer_->loadGraph(bad_nodes, bad_edges));
+    EXPECT_EQ(optimizer_->getNumNodes(), 2u);
+    EXPECT_EQ(optimizer_->getNumEdges(), 1u);
+    EXPECT_TRUE(optimizer_->hasNode(0));
+    EXPECT_TRUE(optimizer_->hasNode(1));
+    EXPECT_FALSE(optimizer_->hasNode(10));
+    EXPECT_FALSE(optimizer_->hasNode(999));
+    EXPECT_TRUE(posesNear(pose0, optimizer_->getOptimizedPose(0), 1e-9, 1e-9));
 }
 
 // ==================== 测试清空图 ====================

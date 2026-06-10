@@ -917,7 +917,7 @@ TEST_F(MapSerializerTest, SaveMapRejectsNonFiniteKeyframeTimestamp) {
     EXPECT_FALSE(std::filesystem::exists(map_file));
 }
 
-TEST_F(MapSerializerTest, SaveMapRejectsNonPositiveDefiniteInformationMatrix) {
+TEST_F(MapSerializerTest, SaveMapDoesNotPersistRolledBackNonPositiveDefiniteEdge) {
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
     GraphOptimizer optimizer(config_);
@@ -938,10 +938,17 @@ TEST_F(MapSerializerTest, SaveMapRejectsNonPositiveDefiniteInformationMatrix) {
     edge.information(5, 5) = 0.0;
     edge.type = EdgeType::ODOMETRY;
     optimizer.addOdometryEdge(edge);
+    optimizer.incrementalOptimize();
+    EXPECT_EQ(optimizer.getNumEdges(), 0U);
 
     const std::string map_file = config_.map_save_path + "/non_spd_save_rejected.pbstream";
-    EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
-    EXPECT_FALSE(std::filesystem::exists(map_file));
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    N3Map map_proto;
+    std::ifstream ifs(map_file, std::ios::binary);
+    ASSERT_TRUE(ifs.is_open());
+    ASSERT_TRUE(map_proto.ParseFromIstream(&ifs));
+    EXPECT_EQ(map_proto.edges_size(), 0);
 }
 
 TEST_F(MapSerializerTest, SaveMapRejectsEdgeWithMissingEndpoint) {
@@ -962,10 +969,56 @@ TEST_F(MapSerializerTest, SaveMapRejectsEdgeWithMissingEndpoint) {
     edge.information = Eigen::Matrix<double, 6, 6>::Identity();
     edge.type = EdgeType::ODOMETRY;
     optimizer.addOdometryEdge(edge);
+    optimizer.incrementalOptimize();
 
     const std::string map_file = config_.map_save_path + "/missing_save_edge_endpoint_rejected.pbstream";
     EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
     EXPECT_FALSE(std::filesystem::exists(map_file));
+}
+
+TEST_F(MapSerializerTest, SaveMapDoesNotPersistRolledBackFailedGraphEdge) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    Eigen::Isometry3d pose0 = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d pose1 = Eigen::Isometry3d::Identity();
+    pose1.translation().x() = 1.0;
+
+    const int64_t kf0 = kf_manager.addKeyframe(1.0, pose0, generateRandomPointCloud(64));
+    const int64_t kf1 = kf_manager.addKeyframe(2.0, pose1, generateRandomPointCloud(64));
+    optimizer.addPriorFactor(kf0, pose0);
+    optimizer.addOdometryEdge({kf0, kf1, pose0.inverse() * pose1,
+                               Eigen::Matrix<double, 6, 6>::Identity(), EdgeType::ODOMETRY});
+    optimizer.incrementalOptimize();
+    ASSERT_EQ(optimizer.getNumEdges(), 1U);
+
+    EdgeInfo bad_loop;
+    bad_loop.from_id = kf1;
+    bad_loop.to_id = 999;
+    bad_loop.measurement = Eigen::Isometry3d::Identity();
+    bad_loop.information = Eigen::Matrix<double, 6, 6>::Identity();
+    bad_loop.type = EdgeType::LOOP;
+    optimizer.addLoopEdge(bad_loop);
+    optimizer.incrementalOptimize();
+
+    ASSERT_EQ(optimizer.getNumEdges(), 1U);
+    ASSERT_FALSE(optimizer.hasNode(999));
+
+    const std::string map_file = config_.map_save_path + "/rolled_back_edge_not_saved.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    N3Map map_proto;
+    std::ifstream ifs(map_file, std::ios::binary);
+    ASSERT_TRUE(ifs.is_open());
+    ASSERT_TRUE(map_proto.ParseFromIstream(&ifs));
+    ASSERT_EQ(map_proto.edges_size(), 1);
+    EXPECT_EQ(map_proto.edges(0).to_id(), kf1);
+    for (const auto& edge_proto : map_proto.edges()) {
+        EXPECT_NE(edge_proto.to_id(), 999);
+        EXPECT_NE(edge_proto.from_id(), 999);
+    }
 }
 
 TEST_F(MapSerializerTest, SaveMapRejectsNonFiniteDenseTrajectoryPose) {
