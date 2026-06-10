@@ -37,6 +37,7 @@ struct Options {
     fs::path kitti_root;
     std::string sequence;
     std::string mode;
+    std::string calib_mode = "auto";
     fs::path output_dir;
     fs::path map_path;
     int64_t max_frames = -1;
@@ -58,6 +59,37 @@ struct KittiFrame {
     int64_t frame_id = -1;
     fs::path lidar_bin;
     Eigen::Isometry3d T_world_lidar = Eigen::Isometry3d::Identity();
+};
+
+struct Range3 {
+    double min_x = std::numeric_limits<double>::infinity();
+    double min_y = std::numeric_limits<double>::infinity();
+    double min_z = std::numeric_limits<double>::infinity();
+    double max_x = -std::numeric_limits<double>::infinity();
+    double max_y = -std::numeric_limits<double>::infinity();
+    double max_z = -std::numeric_limits<double>::infinity();
+    size_t count = 0;
+};
+
+struct CalibrationDiagnostics {
+    bool calib_loaded = false;
+    std::string warning;
+    std::string requested_mode = "auto";
+    std::string used_mode = "identity";
+    Eigen::Isometry3d T_cam_velo = Eigen::Isometry3d::Identity();
+    int64_t first_frame_id = -1;
+    Eigen::Isometry3d first_pose_cam_to_velo = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d first_pose_velo_to_cam = Eigen::Isometry3d::Identity();
+    double first_pose_delta_translation_m = std::numeric_limits<double>::quiet_NaN();
+    double first_pose_delta_yaw_deg = std::numeric_limits<double>::quiet_NaN();
+    Range3 first_cloud_lidar_range;
+    Range3 first_cloud_world_cam_to_velo_range;
+    Range3 first_cloud_world_velo_to_cam_range;
+};
+
+struct AlignedFrames {
+    std::vector<KittiFrame> frames;
+    CalibrationDiagnostics calibration;
 };
 
 struct MappingStats {
@@ -108,6 +140,8 @@ void printUsage(std::ostream& os)
        << "Options:\n"
        << "  --max_frames <N>                 Maximum selected common frames.\n"
        << "  --stride <N>                     Use every Nth common frame. Default: 1.\n"
+       << "  --calib_mode auto|cam_to_velo|velo_to_cam\n"
+       << "                                   KITTI360 calibration direction. Default: auto.\n"
        << "  --map <n3map.pbstream>           Existing map for relocalization mode.\n"
        << "  --build_map_frames <N>           Build a temporary map from first N selected frames when --map is absent.\n"
        << "  --dropout <R>                    Query point dropout ratio for relocalization [0,0.95]. Default: 0.\n"
@@ -159,6 +193,8 @@ Options parseArgs(int argc, char** argv)
             options.sequence = requireValue(arg);
         } else if (arg == "--mode") {
             options.mode = requireValue(arg);
+        } else if (arg == "--calib_mode") {
+            options.calib_mode = requireValue(arg);
         } else if (arg == "--output") {
             options.output_dir = requireValue(arg);
         } else if (arg == "--max_frames") {
@@ -192,6 +228,11 @@ Options parseArgs(int argc, char** argv)
     if (options.output_dir.empty()) throw std::runtime_error("--output is required");
     if (options.mode != "mapping_loop" && options.mode != "relocalization") {
         throw std::runtime_error("--mode must be mapping_loop or relocalization");
+    }
+    if (options.calib_mode != "auto" &&
+        options.calib_mode != "cam_to_velo" &&
+        options.calib_mode != "velo_to_cam") {
+        throw std::runtime_error("--calib_mode must be auto, cam_to_velo, or velo_to_cam");
     }
     if (options.max_frames < -1) throw std::runtime_error("--max_frames must be non-negative");
     return options;
@@ -296,36 +337,61 @@ std::vector<double> extractDoubles(const std::string& text)
     return values;
 }
 
-Eigen::Isometry3d readCamToVelo(const fs::path& calibration_dir)
+double yawRad(const Eigen::Isometry3d& pose);
+double angleDiffRad(double a, double b);
+
+CalibrationDiagnostics readCalibration(const fs::path& calibration_dir, const Options& options)
 {
+    CalibrationDiagnostics diagnostics;
+    diagnostics.requested_mode = options.calib_mode;
+    diagnostics.used_mode = options.calib_mode == "velo_to_cam" ? "velo_to_cam" : "cam_to_velo";
+
     const fs::path path = calibration_dir / "calib_cam_to_velo.txt";
     if (!fs::is_regular_file(path)) {
-        std::cerr << "Warning: missing calib_cam_to_velo.txt, using identity camera->lidar transform.\n";
-        return Eigen::Isometry3d::Identity();
+        diagnostics.warning = "missing calib_cam_to_velo.txt; using identity transform";
+        diagnostics.used_mode = "identity";
+        std::cerr << "Warning: " << diagnostics.warning << ".\n";
+        return diagnostics;
     }
     std::ifstream input(path);
     std::ostringstream buffer;
     buffer << input.rdbuf();
     const auto values = extractDoubles(buffer.str());
     if (values.size() < 12) {
-        std::cerr << "Warning: failed to parse calib_cam_to_velo.txt, using identity camera->lidar transform.\n";
-        return Eigen::Isometry3d::Identity();
+        diagnostics.warning = "failed to parse calib_cam_to_velo.txt; using identity transform";
+        diagnostics.used_mode = "identity";
+        std::cerr << "Warning: " << diagnostics.warning << ".\n";
+        return diagnostics;
     }
     std::array<double, 12> first_twelve{};
     std::copy_n(values.begin(), 12, first_twelve.begin());
-    return poseFromTwelve(first_twelve);
+    diagnostics.calib_loaded = true;
+    diagnostics.T_cam_velo = poseFromTwelve(first_twelve);
+    return diagnostics;
 }
 
-std::vector<KittiFrame> loadAlignedFrames(const Options& options)
+Eigen::Isometry3d applyCalibrationMode(const Eigen::Isometry3d& T_world_cam,
+                                       const CalibrationDiagnostics& calibration)
+{
+    if (!calibration.calib_loaded) {
+        return T_world_cam;
+    }
+    if (calibration.used_mode == "velo_to_cam") {
+        return T_world_cam * calibration.T_cam_velo.inverse();
+    }
+    return T_world_cam * calibration.T_cam_velo;
+}
+
+AlignedFrames loadAlignedFrames(const Options& options)
 {
     const fs::path lidar_dir = options.kitti_root / "data_3d_raw" / options.sequence / "velodyne_points" / "data";
     const fs::path poses_path = options.kitti_root / "data_poses" / options.sequence / "poses.txt";
     const fs::path calibration_dir = options.kitti_root / "calibration";
     const auto lidar_bins = listLidarBins(lidar_dir);
     const auto poses = readPoses(poses_path);
-    const Eigen::Isometry3d T_cam_lidar = readCamToVelo(calibration_dir);
+    AlignedFrames aligned;
+    aligned.calibration = readCalibration(calibration_dir, options);
 
-    std::vector<KittiFrame> frames;
     int stride_count = 0;
     for (const auto& [frame_id, bin_path] : lidar_bins) {
         auto pose_it = poses.find(frame_id);
@@ -334,16 +400,29 @@ std::vector<KittiFrame> loadAlignedFrames(const Options& options)
         KittiFrame frame;
         frame.frame_id = frame_id;
         frame.lidar_bin = bin_path;
-        frame.T_world_lidar = pose_it->second.T_world_cam * T_cam_lidar;
-        frames.push_back(frame);
-        if (options.max_frames >= 0 && static_cast<int64_t>(frames.size()) >= options.max_frames) {
+        frame.T_world_lidar = applyCalibrationMode(pose_it->second.T_world_cam, aligned.calibration);
+        aligned.frames.push_back(frame);
+        if (options.max_frames >= 0 && static_cast<int64_t>(aligned.frames.size()) >= options.max_frames) {
             break;
         }
     }
-    if (frames.empty()) {
+    if (aligned.frames.empty()) {
         throw std::runtime_error("no common KITTI360 lidar/pose frame ids selected");
     }
-    return frames;
+    const auto pose_it = poses.find(aligned.frames.front().frame_id);
+    if (pose_it != poses.end()) {
+        aligned.calibration.first_frame_id = aligned.frames.front().frame_id;
+        aligned.calibration.first_pose_cam_to_velo = pose_it->second.T_world_cam * aligned.calibration.T_cam_velo;
+        aligned.calibration.first_pose_velo_to_cam = pose_it->second.T_world_cam * aligned.calibration.T_cam_velo.inverse();
+        aligned.calibration.first_pose_delta_translation_m =
+            (aligned.calibration.first_pose_cam_to_velo.translation() -
+             aligned.calibration.first_pose_velo_to_cam.translation()).norm();
+        aligned.calibration.first_pose_delta_yaw_deg =
+            std::abs(angleDiffRad(yawRad(aligned.calibration.first_pose_cam_to_velo),
+                                  yawRad(aligned.calibration.first_pose_velo_to_cam))) *
+            180.0 / M_PI;
+    }
+    return aligned;
 }
 
 Cloud::Ptr readKittiBinCloud(const fs::path& path)
@@ -381,6 +460,38 @@ Cloud::Ptr readKittiBinCloud(const fs::path& path)
     cloud->height = 1;
     cloud->is_dense = false;
     return cloud;
+}
+
+void updateRange(Range3* range, double x, double y, double z)
+{
+    if (!range || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return;
+    range->min_x = std::min(range->min_x, x);
+    range->min_y = std::min(range->min_y, y);
+    range->min_z = std::min(range->min_z, z);
+    range->max_x = std::max(range->max_x, x);
+    range->max_y = std::max(range->max_y, y);
+    range->max_z = std::max(range->max_z, z);
+    ++range->count;
+}
+
+void populateCalibrationCloudSummary(CalibrationDiagnostics* calibration, const KittiFrame& first_frame)
+{
+    if (!calibration) return;
+    const auto cloud = readKittiBinCloud(first_frame.lidar_bin);
+    for (const auto& point : cloud->points) {
+        updateRange(&calibration->first_cloud_lidar_range, point.x, point.y, point.z);
+        const Eigen::Vector3d p_lidar(point.x, point.y, point.z);
+        const Eigen::Vector3d p_direct = calibration->first_pose_cam_to_velo * p_lidar;
+        const Eigen::Vector3d p_inverse = calibration->first_pose_velo_to_cam * p_lidar;
+        updateRange(&calibration->first_cloud_world_cam_to_velo_range,
+                    p_direct.x(),
+                    p_direct.y(),
+                    p_direct.z());
+        updateRange(&calibration->first_cloud_world_velo_to_cam_range,
+                    p_inverse.x(),
+                    p_inverse.y(),
+                    p_inverse.z());
+    }
 }
 
 Cloud::Ptr perturbCloud(const Cloud::Ptr& input_cloud, double dropout, double noise_sigma, uint32_t seed)
@@ -461,13 +572,64 @@ void writeTrajectoryLine(std::ofstream& out, int64_t frame_id, const Eigen::Isom
         << q.x() << ' ' << q.y() << ' ' << q.z() << ' ' << q.w() << '\n';
 }
 
-void writeJsonDoubleOrNull(std::ofstream& out, double value)
+void writeJsonDoubleOrNull(std::ostream& out, double value)
 {
     if (std::isfinite(value)) {
         out << value;
     } else {
         out << "null";
     }
+}
+
+void writePoseSummaryJson(std::ostream& out, const Eigen::Isometry3d& pose)
+{
+    out << "{\"x\":" << pose.translation().x()
+        << ",\"y\":" << pose.translation().y()
+        << ",\"z\":" << pose.translation().z()
+        << ",\"yaw_deg\":" << yawRad(pose) * 180.0 / M_PI << "}";
+}
+
+void writeRangeJson(std::ostream& out, const Range3& range)
+{
+    out << "{\"count\":" << range.count
+        << ",\"x_min\":";
+    writeJsonDoubleOrNull(out, range.count == 0 ? std::numeric_limits<double>::quiet_NaN() : range.min_x);
+    out << ",\"x_max\":";
+    writeJsonDoubleOrNull(out, range.count == 0 ? std::numeric_limits<double>::quiet_NaN() : range.max_x);
+    out << ",\"y_min\":";
+    writeJsonDoubleOrNull(out, range.count == 0 ? std::numeric_limits<double>::quiet_NaN() : range.min_y);
+    out << ",\"y_max\":";
+    writeJsonDoubleOrNull(out, range.count == 0 ? std::numeric_limits<double>::quiet_NaN() : range.max_y);
+    out << ",\"z_min\":";
+    writeJsonDoubleOrNull(out, range.count == 0 ? std::numeric_limits<double>::quiet_NaN() : range.min_z);
+    out << ",\"z_max\":";
+    writeJsonDoubleOrNull(out, range.count == 0 ? std::numeric_limits<double>::quiet_NaN() : range.max_z);
+    out << "}";
+}
+
+void writeCalibrationJson(std::ostream& out, const CalibrationDiagnostics& calibration)
+{
+    out << "  \"calibration\": {\n"
+        << "    \"calib_loaded\": " << (calibration.calib_loaded ? "true" : "false") << ",\n"
+        << "    \"warning\": \"" << jsonEscape(calibration.warning) << "\",\n"
+        << "    \"calib_mode_requested\": \"" << jsonEscape(calibration.requested_mode) << "\",\n"
+        << "    \"calib_mode_used\": \"" << jsonEscape(calibration.used_mode) << "\",\n"
+        << "    \"first_frame_id\": " << calibration.first_frame_id << ",\n"
+        << "    \"first_pose_cam_to_velo\": ";
+    writePoseSummaryJson(out, calibration.first_pose_cam_to_velo);
+    out << ",\n    \"first_pose_velo_to_cam\": ";
+    writePoseSummaryJson(out, calibration.first_pose_velo_to_cam);
+    out << ",\n    \"first_pose_delta_translation_m\": ";
+    writeJsonDoubleOrNull(out, calibration.first_pose_delta_translation_m);
+    out << ",\n    \"first_pose_delta_yaw_deg\": ";
+    writeJsonDoubleOrNull(out, calibration.first_pose_delta_yaw_deg);
+    out << ",\n    \"first_cloud_lidar_range\": ";
+    writeRangeJson(out, calibration.first_cloud_lidar_range);
+    out << ",\n    \"first_cloud_world_cam_to_velo_range\": ";
+    writeRangeJson(out, calibration.first_cloud_world_cam_to_velo_range);
+    out << ",\n    \"first_cloud_world_velo_to_cam_range\": ";
+    writeRangeJson(out, calibration.first_cloud_world_velo_to_cam_range);
+    out << "\n  }";
 }
 
 Config makeEvalConfig(const Options& options)
@@ -502,7 +664,7 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << (loop.verified ? "true" : "false") << '\n';
 }
 
-int runMappingLoop(const Options& options, const std::vector<KittiFrame>& frames)
+int runMappingLoop(const Options& options, const AlignedFrames& aligned)
 {
     fs::create_directories(options.output_dir);
     touchFile(options.output_dir / "loop_debug.jsonl");
@@ -517,6 +679,7 @@ int runMappingLoop(const Options& options, const std::vector<KittiFrame>& frames
     Config config = makeEvalConfig(options);
     N3MappingCore core(config);
     MappingStats stats;
+    const auto& frames = aligned.frames;
     for (const auto& frame : frames) {
         auto cloud = readKittiBinCloud(frame.lidar_bin);
         auto output = core.processMappingFrame(makeFrame(frame, frame.T_world_lidar, cloud));
@@ -548,7 +711,9 @@ int runMappingLoop(const Options& options, const std::vector<KittiFrame>& frames
             << "  \"accepted_keyframes\": " << stats.accepted_keyframes << ",\n"
             << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
             << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
-            << "  \"stride\": " << options.stride << "\n"
+            << "  \"stride\": " << options.stride << ",\n";
+    writeCalibrationJson(metrics, aligned.calibration);
+    metrics << "\n"
             << "}\n";
     std::cout << "mapping_loop frames=" << stats.frames_processed
               << " keyframes=" << stats.accepted_keyframes
@@ -597,10 +762,11 @@ bool poseSuccess(const RelocResult& result, const Options& options)
         result.yaw_error_deg <= options.pose_yaw_threshold_deg;
 }
 
-int runRelocalization(const Options& options, const std::vector<KittiFrame>& frames)
+int runRelocalization(const Options& options, const AlignedFrames& aligned)
 {
     fs::create_directories(options.output_dir);
     touchFile(options.output_dir / "relocalization_debug.jsonl");
+    const auto& frames = aligned.frames;
 
     fs::path map_path = options.map_path;
     int query_start = 0;
@@ -683,7 +849,9 @@ int runRelocalization(const Options& options, const std::vector<KittiFrame>& fra
     metrics << ",\n"
             << "  \"dropout\": " << options.dropout << ",\n"
             << "  \"noise_sigma\": " << options.noise_sigma << ",\n"
-            << "  \"fake_yaw_deg\": " << options.fake_yaw_deg << "\n"
+            << "  \"fake_yaw_deg\": " << options.fake_yaw_deg << ",\n";
+    writeCalibrationJson(metrics, aligned.calibration);
+    metrics << "\n"
             << "}\n";
 
     std::ofstream per_query(options.output_dir / "relocalization_queries.csv");
@@ -712,11 +880,12 @@ int main(int argc, char** argv)
     google::InitGoogleLogging(argv[0]);
     try {
         const auto options = n3mapping::parseArgs(argc, argv);
-        const auto frames = n3mapping::loadAlignedFrames(options);
+        auto aligned = n3mapping::loadAlignedFrames(options);
+        n3mapping::populateCalibrationCloudSummary(&aligned.calibration, aligned.frames.front());
         if (options.mode == "mapping_loop") {
-            return n3mapping::runMappingLoop(options, frames);
+            return n3mapping::runMappingLoop(options, aligned);
         }
-        return n3mapping::runRelocalization(options, frames);
+        return n3mapping::runRelocalization(options, aligned);
     } catch (const std::exception& e) {
         std::cerr << "n3mapping_kitti360_eval: " << e.what() << "\n";
         std::cerr << "Run with --help for usage.\n";

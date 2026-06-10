@@ -61,6 +61,7 @@ ros2 run n3mapping n3mapping_kitti360_eval \
   --kitti_root /home/user/DUALoc/KITTI360 \
   --sequence 2013_05_28_drive_0003_sync \
   --mode mapping_loop \
+  --calib_mode auto \
   --max_frames 200 \
   --stride 1 \
   --output /tmp/n3mapping_kitti360_mapping_loop
@@ -101,6 +102,57 @@ Outputs:
 metrics.json
 relocalization_queries.csv
 relocalization_debug.jsonl
+```
+
+### Calibration Direction Sanity
+
+`n3mapping_kitti360_eval` reads `calibration/calib_cam_to_velo.txt` and supports:
+
+```text
+--calib_mode auto|cam_to_velo|velo_to_cam
+```
+
+`auto` is the default and keeps the existing runtime convention:
+`T_world_lidar = T_world_cam * T_cam_velo`. It also writes both candidate
+directions into `metrics.json` for sanity checking:
+
+```text
+calibration.calib_loaded
+calibration.warning
+calibration.calib_mode_requested
+calibration.calib_mode_used
+calibration.first_pose_cam_to_velo
+calibration.first_pose_velo_to_cam
+calibration.first_pose_delta_translation_m
+calibration.first_pose_delta_yaw_deg
+calibration.first_cloud_lidar_range
+calibration.first_cloud_world_cam_to_velo_range
+calibration.first_cloud_world_velo_to_cam_range
+```
+
+Use this before treating KITTI360 pose error as ground truth evidence. If the
+calibration file is missing or malformed, the tool records
+`calib_loaded=false`, writes a warning in `metrics.json`, and uses identity only
+as an explicit degraded fallback for the smoke run.
+
+To compare directions explicitly:
+
+```bash
+ros2 run n3mapping n3mapping_kitti360_eval \
+  --kitti_root /home/user/DUALoc/KITTI360 \
+  --sequence 2013_05_28_drive_0003_sync \
+  --mode mapping_loop \
+  --calib_mode cam_to_velo \
+  --max_frames 20 \
+  --output /tmp/kitti360_cam_to_velo
+
+ros2 run n3mapping n3mapping_kitti360_eval \
+  --kitti_root /home/user/DUALoc/KITTI360 \
+  --sequence 2013_05_28_drive_0003_sync \
+  --mode mapping_loop \
+  --calib_mode velo_to_cam \
+  --max_frames 20 \
+  --output /tmp/kitti360_velo_to_cam
 ```
 
 Start smoke runs with `2013_05_28_drive_0003_sync`. Do not treat the initial

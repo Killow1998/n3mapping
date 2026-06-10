@@ -288,6 +288,7 @@ ros2 run n3mapping n3mapping_kitti360_eval \
   --kitti_root /home/user/DUALoc/KITTI360 \
   --sequence 2013_05_28_drive_0003_sync \
   --mode mapping_loop \
+  --calib_mode auto \
   --max_frames 200 \
   --stride 1 \
   --output /tmp/n3mapping_kitti360_mapping_loop
