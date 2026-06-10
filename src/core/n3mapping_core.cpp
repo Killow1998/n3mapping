@@ -106,13 +106,16 @@ N3MappingCore::~N3MappingCore() = default;
 
 CoreRunMode parseCoreRunMode(const std::string& mode)
 {
+    if (mode == "mapping") {
+        return CoreRunMode::MAPPING;
+    }
     if (mode == "localization") {
         return CoreRunMode::LOCALIZATION;
     }
     if (mode == "map_extension") {
         return CoreRunMode::MAP_EXTENSION;
     }
-    return CoreRunMode::MAPPING;
+    throw std::invalid_argument("Invalid n3mapping mode: " + mode);
 }
 
 const char* coreRunModeName(CoreRunMode mode)

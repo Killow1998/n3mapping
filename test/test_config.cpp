@@ -72,5 +72,14 @@ TEST(ConfigTest, RejectsZeroNoiseAndNegativeVoxelParameters) {
     EXPECT_NE(error.find("rhpd_num_candidates"), std::string::npos);
 }
 
+TEST(ConfigTest, RejectsUnknownMode) {
+    Config config;
+    std::string error;
+
+    config.mode = "localizaton";
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("mode"), std::string::npos);
+}
+
 }  // namespace test
 }  // namespace n3mapping

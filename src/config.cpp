@@ -111,6 +111,9 @@ bool Config::validate(std::string* error) const {
         return value >= minimum ? true : fail(std::string(name) + " must be >= " + std::to_string(minimum));
     };
 
+    if (mode != "mapping" && mode != "localization" && mode != "map_extension") {
+        return fail("mode must be one of: mapping, localization, map_extension");
+    }
     if (!positive(keyframe_distance_threshold, "keyframe_distance_threshold")) return false;
     if (!positive(keyframe_angle_threshold, "keyframe_angle_threshold")) return false;
     if (!positive(prior_noise_position, "prior_noise_position")) return false;

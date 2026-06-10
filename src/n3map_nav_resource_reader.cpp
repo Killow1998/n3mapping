@@ -1,6 +1,5 @@
 #include "n3mapping/n3map_nav_resource_reader.h"
 
-#include <fstream>
 #include <unordered_set>
 
 #include "n3mapping/n3map_proto_utils.h"
@@ -28,11 +27,8 @@ bool readN3NavResource(const std::string& pbstream_path,
                        std::string* error) {
     if (!out) return setError(error, "null output resource");
 
-    std::ifstream ifs(pbstream_path, std::ios::binary);
-    if (!ifs.is_open()) return setError(error, "failed to open pbstream");
-
     N3Map map_proto;
-    if (!map_proto.ParseFromIstream(&ifs)) return setError(error, "failed to parse pbstream");
+    if (!readN3MapProtoFromFile(pbstream_path, &map_proto, error)) return false;
 
     std::vector<ParsedKeyframeProto> parsed_keyframes;
     std::unordered_set<int64_t> keyframe_ids;

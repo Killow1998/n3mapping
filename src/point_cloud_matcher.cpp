@@ -145,7 +145,23 @@ std::vector<MatchResult> PointCloudMatcher::alignBatch(
     return results;
 }
 
-MatchResult PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, const PointCloudT::Ptr& source_cloud, const Eigen::Isometry3d& init_guess) {
+MatchResult PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud,
+                                          const PointCloudT::Ptr& source_cloud,
+                                          const Eigen::Isometry3d& init_guess) {
+    return alignCloudWithSetting(target_cloud, source_cloud, init_guess, setting_);
+}
+
+MatchResult PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud,
+                                          const PointCloudT::Ptr& source_cloud,
+                                          const Eigen::Isometry3d& init_guess,
+                                          const small_gicp::RegistrationSetting& setting) {
+    return alignCloudWithSetting(target_cloud, source_cloud, init_guess, setting);
+}
+
+MatchResult PointCloudMatcher::alignCloudWithSetting(const PointCloudT::Ptr& target_cloud,
+                                                     const PointCloudT::Ptr& source_cloud,
+                                                     const Eigen::Isometry3d& init_guess,
+                                                     const small_gicp::RegistrationSetting& setting) {
     MatchResult result;
     if (!target_cloud || target_cloud->empty() || !source_cloud || source_cloud->empty()) return result;
     try {
@@ -161,7 +177,7 @@ MatchResult PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, 
             auto [tp, tt] = preprocessTargetPointCloud(target_cloud, res);
             auto sp = preprocessSourcePointCloud(source_cloud, res);
             if (!tt || tp->size() < 10 || sp->size() < 10) return result;
-            auto ls = setting_;
+            auto ls = setting;
             if (res > base_res * 1.01) ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
             auto rr = small_gicp::align(*tp, *sp, *tt, T, ls);
             T = rr.T_target_source;
@@ -191,7 +207,7 @@ MatchResult PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, 
                 auto [tr, trt] = preprocessTargetPointCloud(target_cloud, config_.icp_refine_downsampling_resolution);
                 auto [sr, srt] = preprocessTargetPointCloud(source_cloud, config_.icp_refine_downsampling_resolution);
                 if (trt && tr->size() >= 10 && sr->size() >= 10) {
-                    auto rs = setting_;
+                    auto rs = setting;
                     rs.type = small_gicp::RegistrationSetting::GICP;
                     rs.max_iterations = config_.icp_refine_max_iterations;
                     rs.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;

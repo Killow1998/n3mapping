@@ -258,9 +258,12 @@ bool MapSerializer::saveMap(const std::string& filepath,
         auto edges = optimizer.getEdges();
         int n_odom = 0, n_loop = 0;
         for (const auto& e : edges) {
-            if (!isFinitePose(e.measurement) || !e.information.array().isFinite().all()) {
+            std::string information_error;
+            if (!isFinitePose(e.measurement) ||
+                !isValidInformationMatrix(e.information, &information_error)) {
                 LOG(ERROR) << "[MapSerializer] Refuse to save malformed edge from="
-                           << e.from_id << " to=" << e.to_id;
+                           << e.from_id << " to=" << e.to_id
+                           << " error=" << information_error;
                 return false;
             }
             if (saved_keyframe_ids.find(e.from_id) == saved_keyframe_ids.end() ||
@@ -337,11 +340,12 @@ bool MapSerializer::loadMap(const std::string& filepath,
                             core::DenseTrajectoryMetadata* dense_trajectory_metadata,
                             const PbstreamLoadOptions& options) {
     try {
-        if (!std::filesystem::exists(filepath)) return false;
-        std::ifstream ifs(filepath, std::ios::binary);
-        if (!ifs.is_open()) return false;
         n3mapping::N3Map map_proto;
-        if (!map_proto.ParseFromIstream(&ifs)) return false;
+        std::string read_error;
+        if (!readN3MapProtoFromFile(filepath, &map_proto, &read_error)) {
+            LOG(ERROR) << "[MapSerializer] Reject map: " << read_error;
+            return false;
+        }
 
         bool force_rebuild_rhpd = false;
         const std::string file_version = map_proto.metadata().version();

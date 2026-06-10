@@ -379,23 +379,25 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
 }
 
 RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose) {
-    Eigen::Isometry3d predicted_pose = T_map_odom_ * odom_pose;
-
     RelocResult result;
     result.success = false;
+
+    if (!cloud || cloud->empty()) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        result.pose_in_map = T_map_odom_ * odom_pose;
+        LOG(WARNING) << "Empty point cloud for tracking.";
+        return result;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    Eigen::Isometry3d predicted_pose = T_map_odom_ * odom_pose;
     result.pose_in_map = predicted_pose;
 
     if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
         is_relocalized_ = false;
         return result;
     }
-
-    if (!cloud || cloud->empty()) {
-        LOG(WARNING) << "Empty point cloud for tracking.";
-        return result;
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
 
     int64_t nearest_kf_id = findNearestKeyframe(predicted_pose);
     if (nearest_kf_id < 0) {
@@ -441,14 +443,11 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
                             match_result.fitness_score >= config_.gicp_fitness_threshold ||
                             match_result.inlier_ratio < config_.reloc_min_inlier_ratio;
     if (icp_failed && consecutive_track_failures_ < config_.reloc_track_retry_max_failures) {
-        // Save and widen correspondence distance
         auto saved = matcher_.getSettings();
         auto wide = saved;
         wide.max_correspondence_distance = saved.max_correspondence_distance * config_.reloc_track_retry_corr_scale;
         wide.max_iterations = config_.reloc_track_retry_max_iterations;
-        matcher_.setSettings(wide);
-        auto retry = matcher_.alignCloud(submap, cloud, predicted_pose);
-        matcher_.setSettings(saved);
+        auto retry = matcher_.alignCloud(submap, cloud, predicted_pose, wide);
         if (retry.converged && retry.fitness_score < match_result.fitness_score)
             match_result = retry;
     }

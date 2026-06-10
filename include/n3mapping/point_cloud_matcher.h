@@ -48,6 +48,9 @@ public:
 
     MatchResult alignCloud(const PointCloudT::Ptr& target_cloud, const PointCloudT::Ptr& source_cloud,
                            const Eigen::Isometry3d& init_guess = Eigen::Isometry3d::Identity());
+    MatchResult alignCloud(const PointCloudT::Ptr& target_cloud, const PointCloudT::Ptr& source_cloud,
+                           const Eigen::Isometry3d& init_guess,
+                           const small_gicp::RegistrationSetting& setting);
 
     std::pair<SmallGicpCloud::Ptr, std::shared_ptr<SmallGicpKdTree>> preprocessPointCloud(const PointCloudT::Ptr& cloud);
     const small_gicp::RegistrationSetting& getSettings() const { return setting_; }
@@ -58,6 +61,10 @@ private:
     std::pair<SmallGicpCloud::Ptr, std::shared_ptr<SmallGicpKdTree>>
     preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution);
     SmallGicpCloud::Ptr preprocessSourcePointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution);
+    MatchResult alignCloudWithSetting(const PointCloudT::Ptr& target_cloud,
+                                      const PointCloudT::Ptr& source_cloud,
+                                      const Eigen::Isometry3d& init_guess,
+                                      const small_gicp::RegistrationSetting& setting);
 
     Config config_;
     small_gicp::RegistrationSetting setting_;
