@@ -105,6 +105,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
   ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
+  ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
@@ -256,6 +257,12 @@ if(BUILD_TESTING)
   if(TARGET test_keyframe_manager)
     target_link_libraries(test_keyframe_manager ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
     ament_target_dependencies(test_keyframe_manager rclcpp)
+  endif()
+
+  ament_add_gtest(test_global_map_cache ${N3MAPPING_ROOT}/test/test_global_map_cache.cpp)
+  if(TARGET test_global_map_cache)
+    target_link_libraries(test_global_map_cache ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
+    ament_target_dependencies(test_global_map_cache rclcpp)
   endif()
 
   ament_add_gtest(test_config ${N3MAPPING_ROOT}/test/test_config.cpp)

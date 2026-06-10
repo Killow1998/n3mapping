@@ -5,12 +5,34 @@
 #include <omp.h>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <small_gicp/util/downsampling_omp.hpp>
 #include <small_gicp/util/normal_estimation_omp.hpp>
 
 namespace n3mapping {
+namespace {
+
+bool isSmallGicpVoxelCoordSafe(const pcl::PointXYZI& pt, double leaf_size) {
+    if (!std::isfinite(static_cast<double>(pt.x)) ||
+        !std::isfinite(static_cast<double>(pt.y)) ||
+        !std::isfinite(static_cast<double>(pt.z)) ||
+        !std::isfinite(leaf_size) || leaf_size <= 0.0) {
+        return false;
+    }
+
+    constexpr double kMinCoord = -1048576.0;
+    constexpr double kMaxCoord = 1048575.0;
+    const double inv_leaf = 1.0 / leaf_size;
+    const auto coord_safe = [inv_leaf](float value) {
+        const double coord = std::floor(static_cast<double>(value) * inv_leaf);
+        return coord >= kMinCoord && coord <= kMaxCoord;
+    };
+    return coord_safe(pt.x) && coord_safe(pt.y) && coord_safe(pt.z);
+}
+
+}  // namespace
 
 PointCloudMatcher::PointCloudMatcher(const Config& config) : config_(config) {
     std::string config_error;
@@ -27,13 +49,34 @@ PointCloudMatcher::PointCloudMatcher(const Config& config) : config_(config) {
     setting_.verbose = false;
 }
 
-PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::convertToSmallGicp(const PointCloudT::Ptr& pcl_cloud) {
+PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::convertToSmallGicp(const PointCloudT::Ptr& pcl_cloud,
+                                                                              double downsampling_resolution) {
     auto cloud = std::make_shared<SmallGicpCloud>();
     if (!pcl_cloud || pcl_cloud->empty()) return cloud;
+
     cloud->resize(pcl_cloud->size());
+    size_t out_index = 0;
+    size_t dropped_points = 0;
     for (size_t i = 0; i < pcl_cloud->size(); ++i) {
         const auto& pt = pcl_cloud->points[i];
-        cloud->point(i) = Eigen::Vector4d(pt.x, pt.y, pt.z, 1.0);
+        if (!isSmallGicpVoxelCoordSafe(pt, downsampling_resolution)) {
+            ++dropped_points;
+            continue;
+        }
+        cloud->point(out_index++) = Eigen::Vector4d(pt.x, pt.y, pt.z, 1.0);
+    }
+    cloud->resize(out_index);
+
+    if (out_index == 0) {
+        LOG_EVERY_N(WARNING, 100) << "[PointCloudMatcher] Dropped all " << pcl_cloud->size()
+                                  << " points before small_gicp preprocessing due to non-finite or out-of-range voxel coordinates.";
+        return cloud;
+    }
+
+    if (dropped_points > 0) {
+        LOG_EVERY_N(WARNING, 100) << "[PointCloudMatcher] Dropped " << dropped_points
+                                  << "/" << pcl_cloud->size()
+                                  << " points before small_gicp preprocessing due to non-finite or out-of-range voxel coordinates.";
     }
     return cloud;
 }
@@ -41,7 +84,8 @@ PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::convertToSmallGicp(con
 std::pair<PointCloudMatcher::SmallGicpCloud::Ptr, std::shared_ptr<PointCloudMatcher::SmallGicpKdTree>>
 PointCloudMatcher::preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution) {
     if (!cloud || cloud->empty()) return { std::make_shared<SmallGicpCloud>(), nullptr };
-    auto raw = convertToSmallGicp(cloud);
+    auto raw = convertToSmallGicp(cloud, downsampling_resolution);
+    if (raw->empty()) return { raw, nullptr };
     auto ds = small_gicp::voxelgrid_sampling_omp<SmallGicpCloud>(*raw, downsampling_resolution, config_.num_threads);
     if (ds->empty()) return { ds, nullptr };
     auto kdtree = std::make_shared<SmallGicpKdTree>(ds);
@@ -51,7 +95,8 @@ PointCloudMatcher::preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, dou
 
 PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::preprocessSourcePointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution) {
     if (!cloud || cloud->empty()) return std::make_shared<SmallGicpCloud>();
-    auto raw = convertToSmallGicp(cloud);
+    auto raw = convertToSmallGicp(cloud, downsampling_resolution);
+    if (raw->empty()) return raw;
     return small_gicp::voxelgrid_sampling_omp<SmallGicpCloud>(*raw, downsampling_resolution, config_.num_threads);
 }
 

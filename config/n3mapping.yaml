@@ -65,6 +65,7 @@ n3mapping_node:
 
     map_save_path: ""
     global_map_voxel_size: 0.1
+    global_map_publish_hz: 1.0
     save_global_map_on_shutdown: true
 
     num_threads: 4

@@ -37,6 +37,7 @@ protected:
         config_.odom_noise_rotation = 0.1;
         config_.loop_noise_position = 0.1;
         config_.loop_noise_rotation = 0.1;
+        config_.global_map_publish_hz = 1.0;
         
         // 创建测试目录
         std::filesystem::create_directories(config_.map_save_path);

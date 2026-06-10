@@ -95,15 +95,64 @@ bool safeVoxelGridFilter(const typename pcl::PointCloud<PointT>::Ptr& input,
     if (!output || !input || input->empty() || leaf_size <= 0.0 || !std::isfinite(leaf_size)) {
         return false;
     }
-    if (!voxelGridIndexingSafe<PointT>(input, leaf_size)) {
+
+    double min_x = std::numeric_limits<double>::infinity();
+    double min_y = std::numeric_limits<double>::infinity();
+    double min_z = std::numeric_limits<double>::infinity();
+    double max_x = -std::numeric_limits<double>::infinity();
+    double max_y = -std::numeric_limits<double>::infinity();
+    double max_z = -std::numeric_limits<double>::infinity();
+    size_t finite_count = 0;
+    for (const auto& pt : input->points) {
+        if (!isFinitePoint(pt)) {
+            continue;
+        }
+        ++finite_count;
+        min_x = std::min(min_x, static_cast<double>(pt.x));
+        min_y = std::min(min_y, static_cast<double>(pt.y));
+        min_z = std::min(min_z, static_cast<double>(pt.z));
+        max_x = std::max(max_x, static_cast<double>(pt.x));
+        max_y = std::max(max_y, static_cast<double>(pt.y));
+        max_z = std::max(max_z, static_cast<double>(pt.z));
+    }
+    if (finite_count == 0) {
         return false;
+    }
+
+    const auto bins = [leaf_size](double min_v, double max_v) -> long double {
+        return std::floor((max_v - min_v) / leaf_size) + 1.0L;
+    };
+    const long double bx = bins(min_x, max_x);
+    const long double by = bins(min_y, max_y);
+    const long double bz = bins(min_z, max_z);
+    const long double int_max = static_cast<long double>(std::numeric_limits<int>::max());
+    if (!(bx > 0.0L && by > 0.0L && bz > 0.0L &&
+          bx <= int_max && by <= int_max && bz <= int_max &&
+          bx * by * bz <= int_max)) {
+        return false;
+    }
+
+    typename pcl::PointCloud<PointT>::Ptr filter_input = input;
+    if (finite_count != input->size()) {
+        auto finite_input = pcl::make_shared<pcl::PointCloud<PointT>>();
+        finite_input->header = input->header;
+        finite_input->reserve(finite_count);
+        for (const auto& pt : input->points) {
+            if (isFinitePoint(pt)) {
+                finite_input->push_back(pt);
+            }
+        }
+        finite_input->width = static_cast<std::uint32_t>(finite_input->size());
+        finite_input->height = 1;
+        finite_input->is_dense = true;
+        filter_input = finite_input;
     }
 
     pcl::VoxelGrid<PointT> voxel;
     voxel.setLeafSize(static_cast<float>(leaf_size),
                       static_cast<float>(leaf_size),
                       static_cast<float>(leaf_size));
-    voxel.setInputCloud(input);
+    voxel.setInputCloud(filter_input);
     auto filtered = pcl::make_shared<pcl::PointCloud<PointT>>();
     voxel.filter(*filtered);
     *output = filtered;

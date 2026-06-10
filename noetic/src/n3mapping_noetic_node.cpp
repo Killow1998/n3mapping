@@ -1,9 +1,11 @@
 #include <algorithm>
 #include <cerrno>
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -28,6 +30,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/global_map_cache.h"
 #include "n3mapping_noetic/config_noetic.h"
 #include "n3mapping_noetic/conversions.h"
 
@@ -40,6 +43,7 @@ class N3MappingNoeticNode {
       , private_nh_("~")
     {
         loadConfigFromNoetic(private_nh_, &config_);
+        global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
         ROS_INFO("%s", config_.toString().c_str());
 
         run_mode_ = parseCoreRunMode(config_.mode);
@@ -98,6 +102,9 @@ class N3MappingNoeticNode {
             return;
         }
         ROS_INFO("Loaded map with %zu keyframes", core_->getAllKeyframes().size());
+        global_map_cache_.clear();
+        global_map_msg_cache_.reset();
+        global_map_last_published_revision_.reset();
     }
 
     void syncCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg,
@@ -129,7 +136,6 @@ class N3MappingNoeticNode {
                 const char* context = run_mode_ == CoreRunMode::MAP_EXTENSION ? "map_extension_incremental" : "mapping_incremental";
                 logOptimizationResult(context, cloud_msg->header.stamp.toSec(), &output.T_world_lidar);
             }
-            publishGlobalMap();
         }
         ++frame_count_;
     }
@@ -166,7 +172,9 @@ class N3MappingNoeticNode {
             header.stamp = ros::Time::now();
             header.frame_id = config_.world_frame;
             publishPath(header, nullptr);
-            publishGlobalMap();
+            global_map_cache_.markFullRebuildRequired();
+            global_map_msg_cache_.reset();
+            global_map_last_published_revision_.reset();
         }
     }
 
@@ -377,17 +385,36 @@ class N3MappingNoeticNode {
         file << line << '\n';
     }
 
+    bool refreshGlobalMapMessage()
+    {
+        const auto cloud = global_map_cache_.update(core_ ? core_->getAllKeyframes() : std::vector<Keyframe::Ptr>{});
+        if (!cloud || cloud->empty()) {
+            return false;
+        }
+
+        const auto revision = global_map_cache_.revision();
+        if (!global_map_msg_cache_ || global_map_msg_revision_ != revision) {
+            sensor_msgs::PointCloud2 msg;
+            pcl::toROSMsg(*cloud, msg);
+            msg.header.frame_id = config_.world_frame;
+            msg.header.stamp = ros::Time::now();
+            global_map_msg_cache_ = msg;
+            global_map_msg_revision_ = revision;
+        }
+        return global_map_msg_cache_.has_value();
+    }
+
     void publishGlobalMap()
     {
-        auto global_map = core_ ? core_->buildGlobalMap() : nullptr;
-        if (!global_map || global_map->empty()) {
+        if (!refreshGlobalMapMessage()) {
             return;
         }
-        sensor_msgs::PointCloud2 msg;
-        pcl::toROSMsg(*global_map, msg);
-        msg.header.frame_id = config_.world_frame;
-        msg.header.stamp = ros::Time::now();
-        global_map_pub_.publish(msg);
+        if (global_map_last_published_revision_ &&
+            *global_map_last_published_revision_ == global_map_msg_revision_) {
+            return;
+        }
+        global_map_pub_.publish(*global_map_msg_cache_);
+        global_map_last_published_revision_ = global_map_msg_revision_;
     }
 
     void publishRelocalizationLock(const std_msgs::Header&, const Eigen::Isometry3d& pose)
@@ -538,6 +565,10 @@ class N3MappingNoeticNode {
     ros::Timer loop_timer_;
     ros::Timer global_map_timer_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
+    GlobalMapCache global_map_cache_;
+    std::optional<sensor_msgs::PointCloud2> global_map_msg_cache_;
+    std::uint64_t global_map_msg_revision_ = 0;
+    std::optional<std::uint64_t> global_map_last_published_revision_;
     std::string optimization_log_path_;
     std::mutex optimization_log_mutex_;
 

@@ -14,9 +14,9 @@
 #include <vector>
 
 #include <pcl/common/transforms.h>
-#include <pcl/filters/voxel_grid.h>
 #include <glog/logging.h>
 
+#include "n3mapping/cloud_utils.h"
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/pcl_compat.h"
 #include "n3mapping/synthetic_relocalization_query.h"
@@ -307,14 +307,10 @@ Cloud::Ptr downsampleCloud(const Cloud::Ptr& input, double voxel_size)
     if (!input || input->empty() || voxel_size <= 0.0) {
         return input ? input : pcl::make_shared<Cloud>();
     }
-    auto output = pcl::make_shared<Cloud>();
-    pcl::VoxelGrid<pcl::PointXYZI> voxel;
-    voxel.setLeafSize(static_cast<float>(voxel_size),
-                      static_cast<float>(voxel_size),
-                      static_cast<float>(voxel_size));
-    voxel.setInputCloud(input);
-    voxel.filter(*output);
-    output->is_dense = true;
+    Cloud::Ptr output;
+    if (!safeVoxelGridFilter<pcl::PointXYZI>(input, voxel_size, &output) || !output) {
+        return input;
+    }
     return output;
 }
 

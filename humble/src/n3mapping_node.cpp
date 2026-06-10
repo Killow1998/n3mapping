@@ -23,6 +23,7 @@
 #include <atomic>
 #include <cmath>
 #include <csignal>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -43,6 +44,7 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/global_map_cache.h"
 #include "n3mapping/humble/config_humble.h"
 #include "n3mapping/humble/conversions.h"
 
@@ -124,6 +126,7 @@ class N3MappingNode : public rclcpp::Node
     void initializeComponents()
     {
         n3mapping_core_ = std::make_unique<N3MappingCore>(config_);
+        global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
     }
 
     /**
@@ -194,6 +197,9 @@ class N3MappingNode : public rclcpp::Node
         }
         RCLCPP_INFO(this->get_logger(), "Loaded map with %zu keyframes", n3mapping_core_->getAllKeyframes().size());
         map_loaded_ = true;
+        global_map_cache_.clear();
+        global_map_msg_cache_.reset();
+        global_map_last_published_revision_.reset();
     }
 
     /**
@@ -223,7 +229,10 @@ class N3MappingNode : public rclcpp::Node
         pcl::toROSMsg(*global_map, global_map_msg);
         global_map_msg.header.frame_id = config_.world_frame;
         global_map_msg.header.stamp = this->get_clock()->now();
-        global_map_pub_->publish(global_map_msg);
+        global_map_msg_cache_ = global_map_msg;
+        global_map_msg_revision_ = global_map_cache_.revision();
+        global_map_pub_->publish(*global_map_msg_cache_);
+        global_map_last_published_revision_ = global_map_msg_revision_;
 
         RCLCPP_INFO(this->get_logger(), "Published global map on /n3mapping/global_map");
     }
@@ -261,7 +270,6 @@ class N3MappingNode : public rclcpp::Node
             ++keyframe_count_;
             const char* context = run_mode_ == CoreRunMode::MAP_EXTENSION ? "map_extension_incremental" : "mapping_incremental";
             logOptimizationResult(context, timestamp, &output.T_world_lidar);
-            publishGlobalMap();
         }
 
         frame_count_++;
@@ -302,7 +310,9 @@ class N3MappingNode : public rclcpp::Node
             header.stamp = this->now();
             header.frame_id = config_.world_frame;
             publishPath(header, nullptr);
-            publishGlobalMap();
+            global_map_cache_.markFullRebuildRequired();
+            global_map_msg_cache_.reset();
+            global_map_last_published_revision_.reset();
         }
     }
 
@@ -644,6 +654,26 @@ class N3MappingNode : public rclcpp::Node
         return nullptr;
     }
 
+    bool refreshGlobalMapMessage()
+    {
+        const auto cloud = global_map_cache_.update(getKeyframesForPublishing());
+        if (!cloud || cloud->empty()) {
+            return false;
+        }
+
+        const auto revision = global_map_cache_.revision();
+        if (!global_map_msg_cache_ || global_map_msg_revision_ != revision) {
+            sensor_msgs::msg::PointCloud2 msg;
+            pcl::toROSMsg(*cloud, msg);
+            msg.header.frame_id = config_.world_frame;
+            msg.header.stamp = this->get_clock()->now();
+            global_map_msg_cache_ = msg;
+            global_map_msg_revision_ = revision;
+        }
+
+        return global_map_msg_cache_.has_value();
+    }
+
     /**
      * @brief 发布点云
      */
@@ -671,16 +701,16 @@ class N3MappingNode : public rclcpp::Node
         if (!n3mapping_core_) {
             return;
         }
-        auto global_map = n3mapping_core_->buildGlobalMap();
-        if (!global_map || global_map->empty()) {
+        if (!refreshGlobalMapMessage()) {
+            return;
+        }
+        if (global_map_last_published_revision_ &&
+            *global_map_last_published_revision_ == global_map_msg_revision_) {
             return;
         }
 
-        sensor_msgs::msg::PointCloud2 global_map_msg;
-        pcl::toROSMsg(*global_map, global_map_msg);
-        global_map_msg.header.frame_id = config_.world_frame;
-        global_map_msg.header.stamp = this->get_clock()->now();
-        global_map_pub_->publish(global_map_msg);
+        global_map_pub_->publish(*global_map_msg_cache_);
+        global_map_last_published_revision_ = global_map_msg_revision_;
     }
 
     /**
@@ -758,6 +788,10 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr loop_timer_;
     rclcpp::CallbackGroup::SharedPtr loop_callback_group_;
     rclcpp::TimerBase::SharedPtr global_map_timer_;
+    GlobalMapCache global_map_cache_;
+    std::optional<sensor_msgs::msg::PointCloud2> global_map_msg_cache_;
+    std::uint64_t global_map_msg_revision_ = 0;
+    std::optional<std::uint64_t> global_map_last_published_revision_;
 
     // 线程和同步
     std::mutex data_mutex_;

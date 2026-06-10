@@ -189,6 +189,35 @@ TEST_F(PointCloudMatcherTest, PreprocessNullCloud) {
     EXPECT_EQ(kdtree, nullptr);
 }
 
+TEST_F(PointCloudMatcherTest, PreprocessFiltersInvalidSmallGicpVoxelCoordinates) {
+    auto cloud = createPlaneCloud(500);
+    pcl::PointXYZI nan_point;
+    nan_point.x = std::numeric_limits<float>::quiet_NaN();
+    nan_point.y = 0.0f;
+    nan_point.z = 0.0f;
+    nan_point.intensity = 1.0f;
+    cloud->push_back(nan_point);
+
+    pcl::PointXYZI huge_point;
+    huge_point.x = 1.0e9f;
+    huge_point.y = 0.0f;
+    huge_point.z = 0.0f;
+    huge_point.intensity = 1.0f;
+    cloud->push_back(huge_point);
+    cloud->width = static_cast<std::uint32_t>(cloud->size());
+    cloud->height = 1;
+    cloud->is_dense = false;
+
+    testing::internal::CaptureStderr();
+    auto [processed, kdtree] = matcher_->preprocessPointCloud(cloud);
+    const std::string stderr_output = testing::internal::GetCapturedStderr();
+
+    ASSERT_NE(processed, nullptr);
+    ASSERT_NE(kdtree, nullptr);
+    EXPECT_GT(processed->size(), 0u);
+    EXPECT_EQ(stderr_output.find("voxel coord is out of range"), std::string::npos);
+}
+
 // 测试相同点云配准 (应该返回单位变换)
 // Requirements: 3.1, 3.2
 TEST_F(PointCloudMatcherTest, AlignIdenticalClouds) {

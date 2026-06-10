@@ -54,7 +54,7 @@ public:
     void setSettings(const small_gicp::RegistrationSetting& setting) { setting_ = setting; }
 
 private:
-    SmallGicpCloud::Ptr convertToSmallGicp(const PointCloudT::Ptr& pcl_cloud);
+    SmallGicpCloud::Ptr convertToSmallGicp(const PointCloudT::Ptr& pcl_cloud, double downsampling_resolution);
     std::pair<SmallGicpCloud::Ptr, std::shared_ptr<SmallGicpKdTree>>
     preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution);
     SmallGicpCloud::Ptr preprocessSourcePointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution);
