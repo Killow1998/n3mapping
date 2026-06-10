@@ -25,11 +25,6 @@ set(CHECK_FILES
   "${ROOT_DIR}/src/config.cpp"
 )
 
-set(EXCLUDED_FILES
-  "${ROOT_DIR}/include/n3mapping/mode_handlers.h"
-  "${ROOT_DIR}/src/mode_handlers.cpp"
-)
-
 set(OFFENDING_FILES "")
 
 foreach(CHECK_DIR IN LISTS CHECK_DIRS)
@@ -48,10 +43,6 @@ foreach(CHECK_DIR IN LISTS CHECK_DIRS)
   list(REMOVE_DUPLICATES CANDIDATE_FILES)
 
   foreach(CANDIDATE_FILE IN LISTS CANDIDATE_FILES)
-    if(CANDIDATE_FILE IN_LIST EXCLUDED_FILES)
-      continue()
-    endif()
-
     file(READ "${CANDIDATE_FILE}" FILE_CONTENTS)
     foreach(FORBIDDEN_PATTERN IN LISTS FORBIDDEN_PATTERNS)
       string(FIND "${FILE_CONTENTS}" "${FORBIDDEN_PATTERN}" PATTERN_INDEX)
