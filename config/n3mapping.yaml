@@ -70,6 +70,7 @@ n3mapping_node:
     save_global_map_on_shutdown: true
 
     num_threads: 4
+    sync_queue_size: 100
     sync_time_tolerance: 0.1
 
     reloc_num_candidates: 10

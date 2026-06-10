@@ -84,6 +84,7 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("global_map_publish_hz", config->global_map_publish_hz);
     get("save_global_map_on_shutdown", config->save_global_map_on_shutdown);
     get("num_threads", config->num_threads);
+    get("sync_queue_size", config->sync_queue_size);
     get("sync_time_tolerance", config->sync_time_tolerance);
 
     get("reloc_num_candidates", config->reloc_num_candidates);

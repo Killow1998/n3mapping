@@ -137,11 +137,18 @@ class N3MappingNode : public rclcpp::Node
         // TF 广播器
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
-        // 订阅者
-        cloud_sub_.subscribe(this, config_.cloud_topic);
-        odom_sub_.subscribe(this, config_.odom_topic);
+        const int sync_queue_size = std::max(1, config_.sync_queue_size);
+        rmw_qos_profile_t sync_qos = rmw_qos_profile_default;
+        sync_qos.depth = static_cast<std::size_t>(sync_queue_size);
 
-        sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), cloud_sub_, odom_sub_);
+        // 订阅者
+        cloud_sub_.subscribe(this, config_.cloud_topic, sync_qos);
+        odom_sub_.subscribe(this, config_.odom_topic, sync_qos);
+
+        SyncPolicy sync_policy(static_cast<uint32_t>(sync_queue_size));
+        sync_policy.setMaxIntervalDuration(rclcpp::Duration::from_seconds(config_.sync_time_tolerance));
+        sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(
+          static_cast<const SyncPolicy&>(sync_policy), cloud_sub_, odom_sub_);
         sync_->registerCallback(std::bind(&N3MappingNode::syncCallback, this, std::placeholders::_1, std::placeholders::_2));
 
         // 发布者

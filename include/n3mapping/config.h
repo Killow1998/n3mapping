@@ -86,6 +86,7 @@ struct Config {
     bool save_global_map_on_shutdown = true;
 
     int num_threads = 4;
+    int sync_queue_size = 100;
     double sync_time_tolerance = 0.1;
 
     int reloc_num_candidates = 10;

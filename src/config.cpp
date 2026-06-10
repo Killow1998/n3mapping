@@ -88,7 +88,10 @@ std::string Config::toString() const {
         << " voxel=" << global_map_voxel_size
         << " | save voxel=" << save_global_map_voxel_size
         << " save_on_shutdown=" << (save_global_map_on_shutdown ? "true" : "false") << "\n";
-    oss << "Threads: " << num_threads << " | Save path: " << map_save_path << "\n";
+    oss << "Threads: " << num_threads
+        << " | Sync: queue=" << sync_queue_size
+        << " tolerance=" << sync_time_tolerance
+        << " | Save path: " << map_save_path << "\n";
     oss << "==============================================";
     return oss.str();
 }
@@ -152,6 +155,7 @@ bool Config::validate(std::string* error) const {
     if (!non_negative(save_global_map_voxel_size, "save_global_map_voxel_size")) return false;
     if (!positive(global_map_publish_hz, "global_map_publish_hz")) return false;
     if (!at_least(num_threads, 1, "num_threads")) return false;
+    if (!at_least(sync_queue_size, 1, "sync_queue_size")) return false;
     if (!positive(sync_time_tolerance, "sync_time_tolerance")) return false;
     if (!at_least(reloc_num_candidates, 1, "reloc_num_candidates")) return false;
     if (!positive(reloc_sc_dist_threshold, "reloc_sc_dist_threshold")) return false;

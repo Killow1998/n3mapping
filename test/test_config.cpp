@@ -17,6 +17,7 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_EQ(config.rhpd_preselect_candidates, 100);
     EXPECT_EQ(config.reloc_lock_min_winner_streak, 3);
     EXPECT_DOUBLE_EQ(config.save_global_map_voxel_size, 0.1);
+    EXPECT_EQ(config.sync_queue_size, 100);
 }
 
 TEST(ConfigTest, ToStringContainsKeyFields) {
@@ -59,6 +60,11 @@ TEST(ConfigTest, RejectsZeroNoiseAndNegativeVoxelParameters) {
     config.num_threads = 0;
     EXPECT_FALSE(config.validate(&error));
     EXPECT_NE(error.find("num_threads"), std::string::npos);
+
+    config = Config{};
+    config.sync_queue_size = 0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("sync_queue_size"), std::string::npos);
 
     config = Config{};
     config.rhpd_num_candidates = 0;

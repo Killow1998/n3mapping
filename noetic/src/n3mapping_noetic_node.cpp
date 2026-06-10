@@ -72,9 +72,13 @@ class N3MappingNoeticNode {
 
     void initializeRosInterfaces()
     {
-        cloud_sub_.subscribe(nh_, config_.cloud_topic, 10);
-        odom_sub_.subscribe(nh_, config_.odom_topic, 10);
-        sync_ = std::make_unique<Synchronizer>(SyncPolicy(10), cloud_sub_, odom_sub_);
+        const int sync_queue_size = std::max(1, config_.sync_queue_size);
+        cloud_sub_.subscribe(nh_, config_.cloud_topic, static_cast<uint32_t>(sync_queue_size));
+        odom_sub_.subscribe(nh_, config_.odom_topic, static_cast<uint32_t>(sync_queue_size));
+        SyncPolicy sync_policy(static_cast<uint32_t>(sync_queue_size));
+        sync_policy.setMaxIntervalDuration(ros::Duration(config_.sync_time_tolerance));
+        sync_ = std::make_unique<Synchronizer>(
+            static_cast<const SyncPolicy&>(sync_policy), cloud_sub_, odom_sub_);
         sync_->registerCallback(boost::bind(&N3MappingNoeticNode::syncCallback, this, _1, _2));
 
         odom_pub_ = nh_.advertise<nav_msgs::Odometry>(config_.output_odom_topic, 10);
