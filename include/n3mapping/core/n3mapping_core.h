@@ -64,6 +64,10 @@ class N3MappingCore {
     std::vector<Keyframe::Ptr> getAllKeyframes() const;
     std::map<int64_t, Eigen::Isometry3d> getOptimizedPoses() const;
     std::vector<core::DenseTrajectoryPose> getDenseOptimizedTrajectory() const;
+    void setExternalDenseTrajectoryRecordingEnabled(bool enabled);
+    void recordDenseTrajectoryPose(CoreRunMode mode,
+                                   double timestamp,
+                                   const Eigen::Isometry3d& pose_world_lidar);
 
   private:
     using PointCloud = core::LioFrame::PointCloud;
@@ -94,6 +98,7 @@ class N3MappingCore {
     std::vector<int64_t> loop_detection_queue_;
     std::vector<core::AnchoredDenseTrajectorySample> dense_trajectory_samples_;
     core::DenseTrajectoryMetadata dense_trajectory_metadata_;
+    bool external_dense_trajectory_recording_enabled_ = false;
     int64_t last_loop_check_id_ = -1000;
     std::size_t loop_count_ = 0;
     bool map_loaded_ = false;

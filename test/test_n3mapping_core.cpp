@@ -113,6 +113,31 @@ TEST(N3MappingCoreTest, MappingFrameBelowKeyframeThresholdStillProducesPoseOutpu
     EXPECT_NEAR(dense.back().pose_world_lidar.translation().x(), 0.1, 1e-9);
 }
 
+TEST(N3MappingCoreTest, ExternalDenseTrajectoryRecordingUsesOdomSamples)
+{
+    N3MappingCore core(makeCoreTestConfig());
+    core.setExternalDenseTrajectoryRecordingEnabled(true);
+
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+    EXPECT_TRUE(core.getDenseOptimizedTrajectory().empty());
+
+    core.recordDenseTrajectoryPose(CoreRunMode::MAPPING, 1.0, Eigen::Isometry3d::Identity());
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = 0.1;
+    const auto output = core.processMappingFrame(makeFrame(1100000000, pose));
+    EXPECT_TRUE(output.success);
+    EXPECT_FALSE(output.accepted_keyframe);
+
+    core.recordDenseTrajectoryPose(CoreRunMode::MAPPING, 1.1, pose);
+
+    const auto dense = core.getDenseOptimizedTrajectory();
+    ASSERT_EQ(dense.size(), 2U);
+    EXPECT_NEAR(dense.front().timestamp, 1.0, 1e-9);
+    EXPECT_NEAR(dense.back().timestamp, 1.1, 1e-9);
+    EXPECT_NEAR(dense.back().pose_world_lidar.translation().x(), 0.1, 1e-9);
+}
+
 TEST(N3MappingCoreTest, LocalizationDoesNotAppendDenseOptimizedTrajectory)
 {
     Config config = makeCoreTestConfig();

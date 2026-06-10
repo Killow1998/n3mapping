@@ -126,6 +126,7 @@ class N3MappingNode : public rclcpp::Node
     void initializeComponents()
     {
         n3mapping_core_ = std::make_unique<N3MappingCore>(config_);
+        n3mapping_core_->setExternalDenseTrajectoryRecordingEnabled(true);
         global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
     }
 
@@ -144,6 +145,10 @@ class N3MappingNode : public rclcpp::Node
         // 订阅者
         cloud_sub_.subscribe(this, config_.cloud_topic, sync_qos);
         odom_sub_.subscribe(this, config_.odom_topic, sync_qos);
+        dense_odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+          config_.odom_topic,
+          rclcpp::QoS(static_cast<std::size_t>(sync_queue_size)),
+          std::bind(&N3MappingNode::denseOdomCallback, this, std::placeholders::_1));
 
         SyncPolicy sync_policy(static_cast<uint32_t>(sync_queue_size));
         sync_policy.setMaxIntervalDuration(rclcpp::Duration::from_seconds(config_.sync_time_tolerance));
@@ -280,6 +285,18 @@ class N3MappingNode : public rclcpp::Node
         }
 
         frame_count_++;
+    }
+
+    void denseOdomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr odom_msg)
+    {
+        if (!n3mapping_core_ || !coreRunModeSavesMap(run_mode_)) {
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        const double timestamp = rclcpp::Time(odom_msg->header.stamp).seconds();
+        n3mapping_core_->recordDenseTrajectoryPose(
+          run_mode_, timestamp, odometryPoseToIsometry(*odom_msg));
     }
 
     /**
@@ -835,6 +852,7 @@ class N3MappingNode : public rclcpp::Node
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloud_sub_;
     message_filters::Subscriber<nav_msgs::msg::Odometry> odom_sub_;
     std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr dense_odom_sub_;
 
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;

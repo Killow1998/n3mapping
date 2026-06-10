@@ -49,6 +49,7 @@ class N3MappingNoeticNode {
 
         run_mode_ = parseCoreRunMode(config_.mode);
         core_ = std::make_unique<N3MappingCore>(config_);
+        core_->setExternalDenseTrajectoryRecordingEnabled(true);
         initializeOptimizationLogging();
 
         initializeRosInterfaces();
@@ -80,6 +81,8 @@ class N3MappingNoeticNode {
         sync_ = std::make_unique<Synchronizer>(
             static_cast<const SyncPolicy&>(sync_policy), cloud_sub_, odom_sub_);
         sync_->registerCallback(boost::bind(&N3MappingNoeticNode::syncCallback, this, _1, _2));
+        dense_odom_sub_ = nh_.subscribe(
+            config_.odom_topic, static_cast<uint32_t>(sync_queue_size), &N3MappingNoeticNode::denseOdomCallback, this);
 
         odom_pub_ = nh_.advertise<nav_msgs::Odometry>(config_.output_odom_topic, 10);
         path_pub_ = nh_.advertise<nav_msgs::Path>(config_.output_path_topic, 10);
@@ -143,6 +146,17 @@ class N3MappingNoeticNode {
             }
         }
         ++frame_count_;
+    }
+
+    void denseOdomCallback(const nav_msgs::OdometryConstPtr& odom_msg)
+    {
+        if (!core_ || !coreRunModeSavesMap(run_mode_)) {
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        core_->recordDenseTrajectoryPose(
+            run_mode_, odom_msg->header.stamp.toSec(), odometryPoseToIsometry(*odom_msg));
     }
 
     void loopTimerCallback(const ros::TimerEvent&)
@@ -610,6 +624,7 @@ class N3MappingNoeticNode {
     message_filters::Subscriber<sensor_msgs::PointCloud2> cloud_sub_;
     message_filters::Subscriber<nav_msgs::Odometry> odom_sub_;
     std::unique_ptr<Synchronizer> sync_;
+    ros::Subscriber dense_odom_sub_;
 
     ros::Publisher odom_pub_;
     ros::Publisher path_pub_;
