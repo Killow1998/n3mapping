@@ -113,6 +113,8 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("reloc_ambiguity_min_margin", config->reloc_ambiguity_min_margin);
     get("reloc_ambiguity_min_ratio", config->reloc_ambiguity_min_ratio);
     get("reloc_ambiguity_min_basin_separation", config->reloc_ambiguity_min_basin_separation);
+    get("reloc_debug_enable", config->reloc_debug_enable);
+    gets("reloc_debug_path", config->reloc_debug_path);
     get("rhpd_enabled", config->rhpd_enabled);
     get("rhpd_v2_enable", config->rhpd_v2_enable);
     get("rhpd_v3_enable", config->rhpd_v3_enable);

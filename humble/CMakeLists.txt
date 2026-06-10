@@ -114,6 +114,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
   ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
   ${N3MAPPING_ROOT}/include/Scancontext/Scancontext.cpp
@@ -342,6 +343,12 @@ if(BUILD_TESTING)
   if(TARGET test_world_localizing)
     target_link_libraries(test_world_localizing ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
     ament_target_dependencies(test_world_localizing rclcpp)
+  endif()
+
+  ament_add_gtest(test_relocalization_debug_logger ${N3MAPPING_ROOT}/test/test_relocalization_debug_logger.cpp)
+  if(TARGET test_relocalization_debug_logger)
+    target_link_libraries(test_relocalization_debug_logger ${PROJECT_NAME}_lib)
+    ament_target_dependencies(test_relocalization_debug_logger rclcpp)
   endif()
 
   ament_add_gtest(test_world_localizing_pbt ${N3MAPPING_ROOT}/test/test_world_localizing_pbt.cpp)

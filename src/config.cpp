@@ -66,6 +66,8 @@ std::string Config::toString() const {
     oss << "Reloc ambiguity guard: margin>=" << reloc_ambiguity_min_margin
         << ", ratio>=" << reloc_ambiguity_min_ratio
         << ", basin_sep>=" << reloc_ambiguity_min_basin_separation << "m\n";
+    oss << "Reloc debug JSONL: " << (reloc_debug_enable ? "ON" : "OFF")
+        << " path=" << (reloc_debug_path.empty() ? "<map_save_path>/relocalization_debug.jsonl" : reloc_debug_path) << "\n";
     oss << "RHPD: enabled=" << (rhpd_enabled ? "YES" : "NO")
         << ", v2=" << (rhpd_v2_enable ? "YES" : "NO")
         << ", v3=" << (rhpd_v3_enable ? "YES" : "NO")

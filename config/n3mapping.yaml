@@ -106,6 +106,8 @@ n3mapping_node:
     reloc_ambiguity_min_margin: 0.35
     reloc_ambiguity_min_ratio: 1.05
     reloc_ambiguity_min_basin_separation: 3.0
+    reloc_debug_enable: false
+    reloc_debug_path: ""
 
     rhpd_enabled: true
     rhpd_v2_enable: true

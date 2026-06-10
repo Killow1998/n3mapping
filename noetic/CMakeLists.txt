@@ -111,6 +111,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
   ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
   ${N3MAPPING_ROOT}/include/Scancontext/Scancontext.cpp
@@ -280,6 +281,14 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_world_localizing)
     target_link_libraries(test_world_localizing n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+  endif()
+
+  catkin_add_gtest(test_relocalization_debug_logger
+    ${N3MAPPING_ROOT}/test/test_relocalization_debug_logger.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_relocalization_debug_logger)
+    target_link_libraries(test_relocalization_debug_logger n3mapping_core)
   endif()
 
   catkin_add_gtest(test_synthetic_relocalization

@@ -122,6 +122,8 @@ struct Config {
     double reloc_ambiguity_min_margin = 0.35;
     double reloc_ambiguity_min_ratio = 1.05;
     double reloc_ambiguity_min_basin_separation = 3.0;
+    bool reloc_debug_enable = false;
+    std::string reloc_debug_path = "";
 
     bool rhpd_enabled = true;
     bool rhpd_v2_enable = true;

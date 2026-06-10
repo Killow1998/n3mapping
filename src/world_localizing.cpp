@@ -5,6 +5,7 @@
 #include <Eigen/Geometry>
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -18,6 +19,12 @@ constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
 constexpr double kRelocBasinAmbiguousFitnessGap = 0.03;
+
+double processingTimeSeconds()
+{
+    using Clock = std::chrono::system_clock;
+    return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
+}
 } // namespace
 
 WorldLocalizing::WorldLocalizing(const Config& config,
@@ -37,14 +44,52 @@ WorldLocalizing::WorldLocalizing(const Config& config,
     , consecutive_track_failures_(0)
     , hypothesis_window_count_(0)
     , last_window_winner_seed_id_(-1)
-    , winner_streak_(0) {}
+    , winner_streak_(0)
+    , relocalize_debug_query_index_(0)
+    , track_debug_query_index_(0) {}
+
+void WorldLocalizing::appendRelocalizationDebug(const RelocalizationDebugEvent& event) const
+{
+    if (!config_.reloc_debug_enable) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(debug_mutex_);
+    RelocalizationDebugLogger::appendRelocalization(RelocalizationDebugLogger::resolvePath(config_), event);
+}
+
+void WorldLocalizing::appendTrackingDebug(const RelocTrackingDebugEvent& event) const
+{
+    if (!config_.reloc_debug_enable) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(debug_mutex_);
+    RelocalizationDebugLogger::appendTracking(RelocalizationDebugLogger::resolvePath(config_), event);
+}
 
 RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose) {
     RelocResult result;
     result.success = false;
+    const bool reloc_debug_enabled = config_.reloc_debug_enable;
+    RelocalizationDebugEvent debug_event;
+    if (reloc_debug_enabled) {
+        std::lock_guard<std::mutex> debug_lock(debug_mutex_);
+        debug_event.query_index = ++relocalize_debug_query_index_;
+        debug_event.processing_time = processingTimeSeconds();
+    }
+    auto finish_debug = [&](const std::string& lock_result, const std::string& reject_reason) {
+        if (!reloc_debug_enabled) {
+            return;
+        }
+        debug_event.processing_time = processingTimeSeconds();
+        debug_event.lock_result = lock_result;
+        debug_event.lock_accepted = (lock_result == "accepted");
+        debug_event.reject_reason = reject_reason;
+        appendRelocalizationDebug(debug_event);
+    };
 
     if (!cloud || cloud->empty()) {
         LOG(WARNING) << "Empty point cloud for relocalization.";
+        finish_debug("rejected", "empty_cloud");
         return result;
     }
 
@@ -52,21 +97,28 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
 
     if (keyframe_manager_.size() == 0) {
         LOG(WARNING) << "No keyframes available for relocalization.";
+        finish_debug("rejected", "missing_keyframes");
         return result;
     }
 
     PointCloudT::Ptr query_cloud = buildRelocQueryCloud(cloud, odom_pose);
     if (!query_cloud || query_cloud->empty()) {
         LOG(WARNING) << "Relocalization query cloud is empty after aggregation.";
+        finish_debug("rejected", "empty_query_cloud");
         return result;
     }
 
     if (pending_hypotheses_.empty()) {
         auto candidates = searchCandidates(query_cloud);
+        if (reloc_debug_enabled) {
+            debug_event.candidate_count = candidates.size();
+            debug_event.top_candidates = candidates;
+        }
         if (candidates.empty()) {
             LOG(WARNING) << "No relocalization candidates found. Map has " << keyframe_manager_.size()
                          << " keyframes, RHPD candidates=" << config_.rhpd_num_candidates
                          << " dist_thr=" << config_.rhpd_dist_threshold;
+            finish_debug("rejected", "no_candidates");
             return result;
         }
 
@@ -103,6 +155,19 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                 bg.center_pos = pos;
                 bg.members.push_back(candidate);
                 basins.push_back(std::move(bg));
+            }
+        }
+        if (reloc_debug_enabled) {
+            debug_event.basins.clear();
+            debug_event.basins.reserve(basins.size());
+            for (const auto& basin : basins) {
+                RelocDebugBasinSummary summary;
+                summary.center_match_id = basin.center_match_id;
+                summary.member_match_ids.reserve(basin.members.size());
+                for (const auto& member : basin.members) {
+                    summary.member_match_ids.push_back(member.match_id);
+                }
+                debug_event.basins.push_back(std::move(summary));
             }
         }
 
@@ -157,6 +222,21 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                   [](const BasinBest& a, const BasinBest& b) {
                       return a.selection_score < b.selection_score;
                   });
+        if (reloc_debug_enabled) {
+            debug_event.basin_best_results.clear();
+            debug_event.basin_best_results.reserve(basin_best_results.size());
+            for (const auto& best : basin_best_results) {
+                RelocDebugBasinBestSummary summary;
+                summary.basin_center_id = best.basin_center_id;
+                summary.matched_kf_id = best.matched_kf_id;
+                summary.candidate = best.candidate;
+                summary.fitness_score = best.match.fitness_score;
+                summary.inlier_ratio = best.match.inlier_ratio;
+                summary.selection_score = best.selection_score;
+                summary.log_likelihood = computeRelocLogLikelihood(best.candidate, best.match);
+                debug_event.basin_best_results.push_back(std::move(summary));
+            }
+        }
 
         if (basin_best_results.size() >= 2) {
             const auto& b1 = basin_best_results[0];
@@ -178,6 +258,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                              << " top2_fit=" << b2.match.fitness_score
                              << " basin_sep=" << basin_sep
                              << " fitness_gap=" << fitness_gap;
+                debug_event.basin_separation = basin_sep;
+                finish_debug("rejected", "ambiguous_basin_init");
                 return result;
             }
         }
@@ -201,6 +283,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
 
         if (pending_hypotheses_.empty()) {
             LOG(WARNING) << "Relocalization init failed: no valid ICP hypothesis.";
+            finish_debug("rejected", "no_valid_icp_hypothesis");
             return result;
         }
     } else {
@@ -232,6 +315,21 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
         }
     }
 
+    if (reloc_debug_enabled) {
+        debug_event.hypotheses.clear();
+        debug_event.hypotheses.reserve(pending_hypotheses_.size());
+        for (const auto& hyp : pending_hypotheses_) {
+            RelocDebugHypothesisSummary summary;
+            summary.seed_match_id = hyp.seed_match_id;
+            summary.last_match_id = hyp.last_match_id;
+            summary.cumulative_log_likelihood = hyp.cumulative_log_likelihood;
+            summary.num_updates = hyp.num_updates;
+            summary.converged_updates = hyp.converged_updates;
+            summary.alive = hyp.alive;
+            debug_event.hypotheses.push_back(std::move(summary));
+        }
+    }
+
     std::vector<const RelocHypothesis*> ranked_hypotheses;
     ranked_hypotheses.reserve(pending_hypotheses_.size());
     for (const auto& hyp : pending_hypotheses_) {
@@ -247,12 +345,20 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
         const double top1_ll = top1->cumulative_log_likelihood;
         const double top2_ll = top2 ? top2->cumulative_log_likelihood : -std::numeric_limits<double>::infinity();
         const double margin = top2 ? (top1_ll - top2_ll) : std::numeric_limits<double>::infinity();
+        if (reloc_debug_enabled) {
+            debug_event.temporal_hypothesis_score = top1_ll;
+            debug_event.log_likelihood = top1_ll;
+            debug_event.margin = margin;
+        }
 
         if (top1->seed_match_id == last_window_winner_seed_id_) {
             winner_streak_ += 1;
         } else {
             last_window_winner_seed_id_ = top1->seed_match_id;
             winner_streak_ = 1;
+        }
+        if (reloc_debug_enabled) {
+            debug_event.winner_streak = winner_streak_;
         }
 
         VLOG(1) << "[Reloc/Stability] window=" << hypothesis_window_count_
@@ -272,6 +378,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
         VLOG(1) << "Relocalization pending: window " << hypothesis_window_count_
                 << "/" << effective_temporal_window
                 << ", active hypotheses=" << pending_hypotheses_.size();
+        finish_debug("pending", "temporal_window_pending");
         return result;
     }
 
@@ -308,6 +415,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                            basin_separated &&
                            (margin < config_.reloc_ambiguity_min_margin) &&
                            (ratio < config_.reloc_ambiguity_min_ratio);
+    if (reloc_debug_enabled) {
+        debug_event.temporal_hypothesis_score = top1_ll;
+        debug_event.log_likelihood = top1_ll;
+        debug_event.winner_streak = winner_streak_;
+        debug_event.margin = margin;
+        debug_event.ratio = ratio;
+        debug_event.basin_separation = basin_separation;
+    }
 
     if (!ambiguous && pass_loglik && pass_margin && pass_winner_streak && pass_converged_updates) {
         const RelocHypothesis& best = *top1;
@@ -335,8 +450,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                   << ", converged_updates_value=" << best.converged_updates
                   << ", ratio_value=" << ratio
                   << ", basin_separation=" << basin_separation;
+        finish_debug("accepted", "");
     } else {
+        std::string reject_reason;
         if (ambiguous) {
+            reject_reason = "ambiguous";
             LOG(WARNING) << "AMBIGUOUS_REJECT relocalization lock: top1_seed=" << (top1 ? top1->seed_match_id : -1)
                          << " top1_kf=" << (top1 ? top1->last_match_id : -1)
                          << " top1_ll=" << top1_ll
@@ -351,6 +469,19 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                          << ", ratio>=" << config_.reloc_ambiguity_min_ratio
                          << ", basin_sep>=" << config_.reloc_ambiguity_min_basin_separation << ")";
         } else {
+            if (!top1) {
+                reject_reason = "no_active_hypothesis";
+            } else if (!pass_loglik) {
+                reject_reason = "log_likelihood";
+            } else if (!pass_margin) {
+                reject_reason = "margin";
+            } else if (!pass_winner_streak) {
+                reject_reason = "winner_streak";
+            } else if (!pass_converged_updates) {
+                reject_reason = "converged_updates";
+            } else {
+                reject_reason = "stability_guard";
+            }
             LOG(WARNING) << "Relocalization rejected after temporal window by stability guard."
                          << " top1_seed=" << (top1 ? top1->seed_match_id : -1)
                          << " top1_kf=" << (top1 ? top1->last_match_id : -1)
@@ -371,6 +502,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                          << ", winner_streak=" << pass_winner_streak
                          << ", converged_updates=" << pass_converged_updates << ")";
         }
+        finish_debug("rejected", reject_reason);
     }
 
     clearRelocHypotheses();
@@ -381,11 +513,30 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
 RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose) {
     RelocResult result;
     result.success = false;
+    const bool reloc_debug_enabled = config_.reloc_debug_enable;
+    RelocTrackingDebugEvent debug_event;
+    if (reloc_debug_enabled) {
+        std::lock_guard<std::mutex> debug_lock(debug_mutex_);
+        debug_event.query_index = ++track_debug_query_index_;
+        debug_event.processing_time = processingTimeSeconds();
+    }
+    auto finish_tracking_debug = [&](const std::string& reject_reason) {
+        if (!reloc_debug_enabled) {
+            return;
+        }
+        debug_event.processing_time = processingTimeSeconds();
+        debug_event.result_success = result.success;
+        debug_event.consecutive_track_failures = consecutive_track_failures_;
+        debug_event.reject_reason = reject_reason;
+        appendTrackingDebug(debug_event);
+    };
 
     if (!cloud || cloud->empty()) {
         std::lock_guard<std::mutex> lock(mutex_);
         result.pose_in_map = T_map_odom_ * odom_pose;
+        debug_event.predicted_pose = result.pose_in_map;
         LOG(WARNING) << "Empty point cloud for tracking.";
+        finish_tracking_debug("empty_cloud");
         return result;
     }
 
@@ -393,13 +544,16 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
 
     Eigen::Isometry3d predicted_pose = T_map_odom_ * odom_pose;
     result.pose_in_map = predicted_pose;
+    debug_event.predicted_pose = predicted_pose;
 
     if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
         is_relocalized_ = false;
+        finish_tracking_debug("max_track_failures");
         return result;
     }
 
     int64_t nearest_kf_id = findNearestKeyframe(predicted_pose);
+    debug_event.nearest_kf_id = nearest_kf_id;
     if (nearest_kf_id < 0) {
         consecutive_track_failures_++;
         if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
@@ -412,6 +566,7 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         result.pose_in_map = predicted_pose;
         result.confidence = 0.5;
         last_odom_pose_ = odom_pose;
+        finish_tracking_debug("nearest_keyframe_missing");
         return result;
     }
 
@@ -421,6 +576,7 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         submap_range = std::max(submap_range, config_.reloc_track_unstable_submap_size);
 
     auto submap = keyframe_manager_.buildLocalSubmap(nearest_kf_id, submap_range);
+    debug_event.submap_size = submap ? submap->size() : 0;
     if (!submap || submap->empty()) {
         consecutive_track_failures_++;
         if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
@@ -433,10 +589,12 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         result.pose_in_map = predicted_pose;
         result.confidence = 0.5;
         last_odom_pose_ = odom_pose;
+        finish_tracking_debug("empty_submap");
         return result;
     }
 
     MatchResult match_result = matcher_.alignCloud(submap, cloud, predicted_pose);
+    bool retry_used = false;
 
     // If ICP failed with standard params and we have recent failures, retry with wider search
     const bool icp_failed = !match_result.converged ||
@@ -448,9 +606,14 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         wide.max_correspondence_distance = saved.max_correspondence_distance * config_.reloc_track_retry_corr_scale;
         wide.max_iterations = config_.reloc_track_retry_max_iterations;
         auto retry = matcher_.alignCloud(submap, cloud, predicted_pose, wide);
+        retry_used = true;
         if (retry.converged && retry.fitness_score < match_result.fitness_score)
             match_result = retry;
     }
+    debug_event.icp_converged = match_result.converged;
+    debug_event.fitness_score = match_result.fitness_score;
+    debug_event.inlier_ratio = match_result.inlier_ratio;
+    debug_event.retry_used = retry_used;
 
     double scale = config_.gicp_fitness_threshold * 0.5;
     double current_confidence = std::exp(-match_result.fitness_score / scale);
@@ -506,6 +669,7 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         VLOG(1) << "Tracking OK: fitness=" << match_result.fitness_score
                 << " conf=" << current_confidence << " alpha=" << alpha
                 << " delta_t=" << delta_translation;
+        finish_tracking_debug("");
     } else {
         consecutive_track_failures_++;
         if (consecutive_track_failures_ <= 3 || consecutive_track_failures_ % 5 == 0) {
@@ -533,6 +697,7 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         result.pose_in_map = predicted_pose;
         result.confidence = 0.2;
         last_odom_pose_ = odom_pose;
+        finish_tracking_debug("icp_gate_failed");
     }
 
     return result;
