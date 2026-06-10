@@ -16,6 +16,7 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_DOUBLE_EQ(config.sc_aux_weight, 0.15);
     EXPECT_EQ(config.rhpd_preselect_candidates, 100);
     EXPECT_EQ(config.reloc_lock_min_winner_streak, 3);
+    EXPECT_DOUBLE_EQ(config.save_global_map_voxel_size, 0.1);
 }
 
 TEST(ConfigTest, ToStringContainsKeyFields) {

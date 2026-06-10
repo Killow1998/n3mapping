@@ -81,7 +81,7 @@ struct Config {
 #endif
 
     double global_map_voxel_size = 0.1;
-    double save_global_map_voxel_size = 0.0;
+    double save_global_map_voxel_size = 0.1;
     double global_map_publish_hz = 1.0;
     bool save_global_map_on_shutdown = true;
 

@@ -18,6 +18,7 @@
 #include <message_filters/synchronizer.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -197,13 +198,61 @@ class N3MappingNoeticNode {
             return true;
         }
         std::string error;
-        res.success = core_ && core_->saveMapSnapshot(&error);
+        std::string warning;
+        res.success = saveMapArtifactsLocked(&error, &warning);
         res.message = res.success ? ("saved:" + config_.map_save_path) : (error.empty() ? "save_failed" : error);
+        if (res.success && !warning.empty()) {
+            res.message += " warning:" + warning;
+        }
         if (res.success) {
             ROS_INFO("save_map service finished: %s", res.message.c_str());
         } else {
             ROS_ERROR("save_map service failed: %s", res.message.c_str());
         }
+        return true;
+    }
+
+    bool saveMapArtifactsLocked(std::string* error, std::string* warning)
+    {
+        if (warning) {
+            warning->clear();
+        }
+        if (!core_) {
+            if (error) *error = "core_unavailable";
+            return false;
+        }
+        if (core_->getAllKeyframes().empty()) {
+            if (error) *error = "no_keyframes";
+            return false;
+        }
+        if (!ensureDirectoryExists(config_.map_save_path)) {
+            if (error) *error = "create_map_directory_failed";
+            return false;
+        }
+
+        const std::string map_file = config_.map_save_path + "/n3map.pbstream";
+        if (!core_->saveMap(map_file)) {
+            if (error) *error = "save_pbstream_failed";
+            return false;
+        }
+        ROS_INFO("Map pbstream saved: %s", map_file.c_str());
+
+        if (!config_.save_global_map_on_shutdown) {
+            return true;
+        }
+
+        const auto cloud = global_map_cache_.update(core_->getAllKeyframes());
+        if (!cloud || cloud->empty()) {
+            if (warning) *warning = "save_global_map_empty";
+            return true;
+        }
+
+        const std::string global_map_file = config_.map_save_path + "/global_map.pcd";
+        if (pcl::io::savePCDFileBinary(global_map_file, *cloud) == -1) {
+            if (warning) *warning = "save_global_map_failed";
+            return true;
+        }
+        ROS_INFO("Debug global map saved: %s (%zu points)", global_map_file.c_str(), cloud->size());
         return true;
     }
 
@@ -531,8 +580,12 @@ class N3MappingNoeticNode {
         if (coreRunModeSavesMap(run_mode_)) {
             std::lock_guard<std::mutex> lock(data_mutex_);
             std::string error;
-            if (core_ && core_->saveMapSnapshot(&error)) {
+            std::string warning;
+            if (saveMapArtifactsLocked(&error, &warning)) {
                 ROS_INFO("Map snapshot saved under: %s", config_.map_save_path.c_str());
+                if (!warning.empty()) {
+                    ROS_WARN("Map snapshot debug artifact warning: %s", warning.c_str());
+                }
             } else {
                 ROS_ERROR("Failed to save map snapshot: %s", error.c_str());
             }

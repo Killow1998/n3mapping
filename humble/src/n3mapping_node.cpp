@@ -721,9 +721,13 @@ class N3MappingNode : public rclcpp::Node
         std::lock_guard<std::mutex> lock(data_mutex_);
 
         std::string error;
-        const bool saved = n3mapping_core_ ? n3mapping_core_->saveMapSnapshot(&error) : false;
+        std::string warning;
+        const bool saved = saveMapArtifactsLocked(&error, &warning);
         if (saved) {
             RCLCPP_INFO(this->get_logger(), "Map snapshot saved under: %s", config_.map_save_path.c_str());
+            if (!warning.empty()) {
+                RCLCPP_WARN(this->get_logger(), "Map snapshot debug artifact warning: %s", warning.c_str());
+            }
         } else {
             RCLCPP_ERROR(this->get_logger(), "Failed to save map snapshot: %s", error.c_str());
         }
@@ -740,13 +744,64 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
         std::string error;
-        response->success = n3mapping_core_ && n3mapping_core_->saveMapSnapshot(&error);
+        std::string warning;
+        response->success = saveMapArtifactsLocked(&error, &warning);
         response->message = response->success ? ("saved:" + config_.map_save_path) : (error.empty() ? "save_failed" : error);
+        if (response->success && !warning.empty()) {
+            response->message += " warning:" + warning;
+        }
         if (response->success) {
             RCLCPP_INFO(this->get_logger(), "save_map service finished: %s", response->message.c_str());
         } else {
             RCLCPP_ERROR(this->get_logger(), "save_map service failed: %s", response->message.c_str());
         }
+    }
+
+    bool saveMapArtifactsLocked(std::string* error, std::string* warning)
+    {
+        if (warning) {
+            warning->clear();
+        }
+        if (!n3mapping_core_) {
+            if (error) *error = "core_unavailable";
+            return false;
+        }
+        if (n3mapping_core_->getAllKeyframes().empty()) {
+            if (error) *error = "no_keyframes";
+            return false;
+        }
+
+        std::error_code ec;
+        std::filesystem::create_directories(config_.map_save_path, ec);
+        if (ec) {
+            if (error) *error = "create_map_directory_failed";
+            return false;
+        }
+
+        const std::string map_file = config_.map_save_path + "/n3map.pbstream";
+        if (!n3mapping_core_->saveMap(map_file)) {
+            if (error) *error = "save_pbstream_failed";
+            return false;
+        }
+        RCLCPP_INFO(this->get_logger(), "Map pbstream saved: %s", map_file.c_str());
+
+        if (!config_.save_global_map_on_shutdown) {
+            return true;
+        }
+
+        const auto cloud = global_map_cache_.update(getKeyframesForPublishing());
+        if (!cloud || cloud->empty()) {
+            if (warning) *warning = "save_global_map_empty";
+            return true;
+        }
+
+        const std::string global_map_file = config_.map_save_path + "/global_map.pcd";
+        if (pcl::io::savePCDFileBinary(global_map_file, *cloud) == -1) {
+            if (warning) *warning = "save_global_map_failed";
+            return true;
+        }
+        RCLCPP_INFO(this->get_logger(), "Debug global map saved: %s (%zu points)", global_map_file.c_str(), cloud->size());
+        return true;
     }
 
     /**
