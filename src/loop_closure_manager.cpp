@@ -82,8 +82,7 @@ LoopClosureManager::applyEdges(const std::vector<EdgeInfo>& edges, LoopOptimizer
         optimizer.addLoopEdge(edge);
     }
 
-    optimizer.incrementalOptimize();
-    return true;
+    return optimizer.incrementalOptimize();
 }
 
 } // namespace n3mapping

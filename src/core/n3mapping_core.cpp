@@ -520,15 +520,21 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             continue;
         }
 
+        const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
+        const auto residual_before = meanLoopResidual(edges, poses_before);
+        const bool optimization_committed =
+            session_->loopClosureManager().applyEdges(edges, session_->graphOptimizer());
+        if (!optimization_committed) {
+            flush_debug_events({}, "optimization_failed");
+            continue;
+        }
+
         std::set<std::pair<int64_t, int64_t>> accepted_debug_pairs;
         for (const auto& loop : best_loops) {
             accepted_debug_pairs.insert({loop.query_id, loop.match_id});
         }
         flush_debug_events(accepted_debug_pairs, "not_selected");
 
-        const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
-        const auto residual_before = meanLoopResidual(edges, poses_before);
-        session_->loopClosureManager().applyEdges(edges, session_->graphOptimizer());
         loop_count_ += edges.size();
         refreshOptimizedPoses();
         const auto poses_after = session_->graphOptimizer().getOptimizedPoses();

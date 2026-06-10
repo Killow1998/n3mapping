@@ -1001,7 +1001,7 @@ TEST_F(MapSerializerTest, SaveMapDoesNotPersistRolledBackFailedGraphEdge) {
     bad_loop.information = Eigen::Matrix<double, 6, 6>::Identity();
     bad_loop.type = EdgeType::LOOP;
     optimizer.addLoopEdge(bad_loop);
-    optimizer.incrementalOptimize();
+    EXPECT_FALSE(optimizer.incrementalOptimize());
 
     ASSERT_EQ(optimizer.getNumEdges(), 1U);
     ASSERT_FALSE(optimizer.hasNode(999));

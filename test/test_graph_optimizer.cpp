@@ -228,7 +228,7 @@ TEST_F(GraphOptimizerTest, FailedIncrementalOptimizeRollsBackPendingEdgeAndAllow
     bad_loop.information = createInformationMatrix(10.0, 10.0);
     bad_loop.type = EdgeType::LOOP;
     optimizer_->addLoopEdge(bad_loop);
-    optimizer_->incrementalOptimize();
+    EXPECT_FALSE(optimizer_->incrementalOptimize());
 
     EXPECT_EQ(optimizer_->getNumEdges(), 0u);
     EXPECT_FALSE(optimizer_->hasNode(999));
@@ -241,7 +241,7 @@ TEST_F(GraphOptimizerTest, FailedIncrementalOptimizeRollsBackPendingEdgeAndAllow
     good_odom.information = createInformationMatrix(10.0, 10.0);
     good_odom.type = EdgeType::ODOMETRY;
     optimizer_->addOdometryEdge(good_odom);
-    optimizer_->incrementalOptimize();
+    EXPECT_TRUE(optimizer_->incrementalOptimize());
 
     EXPECT_EQ(optimizer_->getNumEdges(), 1u);
     EXPECT_TRUE(optimizer_->hasNode(1));

@@ -9,7 +9,7 @@ class MockLoopOptimizer : public LoopOptimizerInterface
 {
   public:
     MOCK_METHOD(void, addLoopEdge, (const EdgeInfo& edge), (override));
-    MOCK_METHOD(void, incrementalOptimize, (), (override));
+    MOCK_METHOD(bool, incrementalOptimize, (), (override));
 };
 
 TEST(LoopClosureManagerTest, FilterValidLoopsAppliesThresholds)
@@ -118,10 +118,28 @@ TEST(LoopClosureManagerTest, ApplyEdgesCallsOptimizer)
 
     MockLoopOptimizer mock;
     EXPECT_CALL(mock, addLoopEdge(testing::_)).Times(2);
-    EXPECT_CALL(mock, incrementalOptimize()).Times(1);
+    EXPECT_CALL(mock, incrementalOptimize()).Times(1).WillOnce(testing::Return(true));
 
     bool optimized = manager.applyEdges({ e1, e2 }, mock);
     EXPECT_TRUE(optimized);
+}
+
+TEST(LoopClosureManagerTest, ApplyEdgesReturnsFalseWhenOptimizerRejects)
+{
+    Config config;
+    LoopClosureManager manager(config);
+
+    EdgeInfo edge;
+    edge.from_id = 1;
+    edge.to_id = 2;
+    edge.type = EdgeType::LOOP;
+
+    MockLoopOptimizer mock;
+    EXPECT_CALL(mock, addLoopEdge(testing::_)).Times(1);
+    EXPECT_CALL(mock, incrementalOptimize()).Times(1).WillOnce(testing::Return(false));
+
+    const bool optimized = manager.applyEdges({edge}, mock);
+    EXPECT_FALSE(optimized);
 }
 
 TEST(LoopClosureManagerTest, ApplyEdgesEmptyDoesNothing)

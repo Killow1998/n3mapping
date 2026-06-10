@@ -70,7 +70,7 @@ class LoopOptimizerInterface
   public:
     virtual ~LoopOptimizerInterface() = default;
     virtual void addLoopEdge(const EdgeInfo& edge) = 0;
-    virtual void incrementalOptimize() = 0;
+    virtual bool incrementalOptimize() = 0;
 };
 
 /**
@@ -142,7 +142,7 @@ class GraphOptimizer : public LoopOptimizerInterface
      * 使用 iSAM2 进行增量优化，适用于实时场景
      * Requirements: 5.2
      */
-    void incrementalOptimize();
+    bool incrementalOptimize();
 
     // ==================== 获取结果 ====================
 

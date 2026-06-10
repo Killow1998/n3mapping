@@ -120,9 +120,9 @@ void GraphOptimizer::optimize() {
     }
 }
 
-void GraphOptimizer::incrementalOptimize() {
-    if (new_factors_.empty() && new_values_.empty()) {
-        return;
+bool GraphOptimizer::incrementalOptimize() {
+    if (new_factors_.empty() && new_values_.empty() && pending_edges_.empty() && pending_node_ids_.empty()) {
+        return true;
     }
     
     try {
@@ -152,14 +152,16 @@ void GraphOptimizer::incrementalOptimize() {
         if (optimized_estimate.empty()) {
             std::cerr << "Optimization unhealthy, rolling back to last state" << std::endl;
             rollbackToLastState();
-            return;
+            return false;
         }
-        
+
         commitPending(optimized_estimate, std::move(trial_isam2));
-        
+        return true;
+
     } catch (const std::exception& e) {
         std::cerr << "GTSAM optimization exception: " << e.what() << std::endl;
         rollbackToLastState();
+        return false;
     }
 }
 

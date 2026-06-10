@@ -45,7 +45,7 @@ class LoopClosureManager
 
     /**
      * @brief 将回环边应用到图优化器，并触发增量优化
-     * @return true 若触发优化
+     * @return true 若优化成功提交；false 表示无边或优化失败并已回滚
      */
     bool applyEdges(const std::vector<EdgeInfo>& edges, LoopOptimizerInterface& optimizer) const;
 
