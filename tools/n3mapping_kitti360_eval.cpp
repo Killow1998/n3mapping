@@ -1,0 +1,725 @@
+#include <algorithm>
+#include <array>
+#include <cerrno>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <numeric>
+#include <random>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <glog/logging.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
+#include "n3mapping/core/n3mapping_core.h"
+
+namespace fs = std::filesystem;
+
+namespace n3mapping {
+namespace {
+
+using Cloud = core::LioFrame::PointCloud;
+
+struct Options {
+    fs::path kitti_root;
+    std::string sequence;
+    std::string mode;
+    fs::path output_dir;
+    fs::path map_path;
+    int64_t max_frames = -1;
+    int stride = 1;
+    int build_map_frames = 0;
+    double dropout = 0.0;
+    double noise_sigma = 0.0;
+    double fake_yaw_deg = 0.0;
+    double pose_translation_threshold_m = 1.0;
+    double pose_yaw_threshold_deg = 10.0;
+};
+
+struct PoseRecord {
+    int64_t frame_id = -1;
+    Eigen::Isometry3d T_world_cam = Eigen::Isometry3d::Identity();
+};
+
+struct KittiFrame {
+    int64_t frame_id = -1;
+    fs::path lidar_bin;
+    Eigen::Isometry3d T_world_lidar = Eigen::Isometry3d::Identity();
+};
+
+struct MappingStats {
+    size_t frames_processed = 0;
+    size_t successful_frames = 0;
+    size_t accepted_keyframes = 0;
+    size_t accepted_loops = 0;
+};
+
+struct RelocResult {
+    int64_t frame_id = -1;
+    bool success = false;
+    bool lock = false;
+    int64_t matched_keyframe_id = -1;
+    double translation_error_m = std::numeric_limits<double>::quiet_NaN();
+    double yaw_error_deg = std::numeric_limits<double>::quiet_NaN();
+};
+
+std::string jsonEscape(const std::string& input)
+{
+    std::ostringstream out;
+    for (const unsigned char ch : input) {
+        switch (ch) {
+            case '"': out << "\\\""; break;
+            case '\\': out << "\\\\"; break;
+            case '\b': out << "\\b"; break;
+            case '\f': out << "\\f"; break;
+            case '\n': out << "\\n"; break;
+            case '\r': out << "\\r"; break;
+            case '\t': out << "\\t"; break;
+            default:
+                if (ch < 0x20) {
+                    out << "\\u" << std::hex << std::setw(4) << std::setfill('0')
+                        << static_cast<int>(ch) << std::dec << std::setfill(' ');
+                } else {
+                    out << static_cast<char>(ch);
+                }
+                break;
+        }
+    }
+    return out.str();
+}
+
+void printUsage(std::ostream& os)
+{
+    os << "Usage: n3mapping_kitti360_eval --kitti_root <path> --sequence <name> "
+       << "--mode mapping_loop|relocalization --output <dir> [options]\n\n"
+       << "Options:\n"
+       << "  --max_frames <N>                 Maximum selected common frames.\n"
+       << "  --stride <N>                     Use every Nth common frame. Default: 1.\n"
+       << "  --map <n3map.pbstream>           Existing map for relocalization mode.\n"
+       << "  --build_map_frames <N>           Build a temporary map from first N selected frames when --map is absent.\n"
+       << "  --dropout <R>                    Query point dropout ratio for relocalization [0,0.95]. Default: 0.\n"
+       << "  --noise <M>                      Query XYZ Gaussian noise sigma in meters. Default: 0.\n"
+       << "  --fake_yaw <DEG>                 Fake map->odom yaw for relocalization. Default: 0.\n"
+       << "  --fake_yaw_deg <DEG>             Alias for --fake_yaw.\n"
+       << "  --pose_translation_threshold <M> Pose success translation threshold. Default: 1.\n"
+       << "  --pose_yaw_threshold_deg <DEG>   Pose success yaw threshold. Default: 10.\n"
+       << "  --help                           Show this help.\n";
+}
+
+int64_t parseInt64(const std::string& value, const std::string& name)
+{
+    char* end = nullptr;
+    errno = 0;
+    const long long parsed = std::strtoll(value.c_str(), &end, 10);
+    if (errno != 0 || end == value.c_str() || *end != '\0') {
+        throw std::runtime_error("invalid " + name + ": " + value);
+    }
+    return static_cast<int64_t>(parsed);
+}
+
+double parseDouble(const std::string& value, const std::string& name)
+{
+    char* end = nullptr;
+    errno = 0;
+    const double parsed = std::strtod(value.c_str(), &end);
+    if (errno != 0 || end == value.c_str() || *end != '\0' || !std::isfinite(parsed)) {
+        throw std::runtime_error("invalid " + name + ": " + value);
+    }
+    return parsed;
+}
+
+Options parseArgs(int argc, char** argv)
+{
+    Options options;
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+        auto requireValue = [&](const std::string& name) -> std::string {
+            if (i + 1 >= argc) {
+                throw std::runtime_error("missing value for " + name);
+            }
+            return argv[++i];
+        };
+
+        if (arg == "--kitti_root") {
+            options.kitti_root = requireValue(arg);
+        } else if (arg == "--sequence") {
+            options.sequence = requireValue(arg);
+        } else if (arg == "--mode") {
+            options.mode = requireValue(arg);
+        } else if (arg == "--output") {
+            options.output_dir = requireValue(arg);
+        } else if (arg == "--max_frames") {
+            options.max_frames = parseInt64(requireValue(arg), arg);
+        } else if (arg == "--stride") {
+            options.stride = std::max<int>(1, static_cast<int>(parseInt64(requireValue(arg), arg)));
+        } else if (arg == "--map") {
+            options.map_path = requireValue(arg);
+        } else if (arg == "--build_map_frames") {
+            options.build_map_frames = std::max<int>(0, static_cast<int>(parseInt64(requireValue(arg), arg)));
+        } else if (arg == "--dropout") {
+            options.dropout = std::clamp(parseDouble(requireValue(arg), arg), 0.0, 0.95);
+        } else if (arg == "--noise") {
+            options.noise_sigma = std::max(0.0, parseDouble(requireValue(arg), arg));
+        } else if (arg == "--fake_yaw" || arg == "--fake_yaw_deg") {
+            options.fake_yaw_deg = parseDouble(requireValue(arg), arg);
+        } else if (arg == "--pose_translation_threshold") {
+            options.pose_translation_threshold_m = std::max(0.0, parseDouble(requireValue(arg), arg));
+        } else if (arg == "--pose_yaw_threshold_deg") {
+            options.pose_yaw_threshold_deg = std::max(0.0, parseDouble(requireValue(arg), arg));
+        } else if (arg == "--help" || arg == "-h") {
+            printUsage(std::cout);
+            std::exit(0);
+        } else {
+            throw std::runtime_error("unknown argument: " + arg);
+        }
+    }
+
+    if (options.kitti_root.empty()) throw std::runtime_error("--kitti_root is required");
+    if (options.sequence.empty()) throw std::runtime_error("--sequence is required");
+    if (options.output_dir.empty()) throw std::runtime_error("--output is required");
+    if (options.mode != "mapping_loop" && options.mode != "relocalization") {
+        throw std::runtime_error("--mode must be mapping_loop or relocalization");
+    }
+    if (options.max_frames < -1) throw std::runtime_error("--max_frames must be non-negative");
+    return options;
+}
+
+bool parseFrameIdFromBin(const fs::path& path, int64_t* frame_id)
+{
+    if (!frame_id || path.extension() != ".bin") return false;
+    const std::string stem = path.stem().string();
+    if (stem.empty()) return false;
+    for (const char ch : stem) {
+        if (ch < '0' || ch > '9') return false;
+    }
+    *frame_id = parseInt64(stem, "frame id");
+    return *frame_id >= 0;
+}
+
+std::map<int64_t, fs::path> listLidarBins(const fs::path& lidar_dir)
+{
+    if (!fs::is_directory(lidar_dir)) {
+        throw std::runtime_error("lidar directory does not exist: " + lidar_dir.string());
+    }
+
+    std::map<int64_t, fs::path> bins;
+    for (const auto& entry : fs::directory_iterator(lidar_dir)) {
+        if (!entry.is_regular_file()) continue;
+        int64_t frame_id = -1;
+        if (!parseFrameIdFromBin(entry.path(), &frame_id)) continue;
+        if (!bins.emplace(frame_id, entry.path()).second) {
+            throw std::runtime_error("duplicate lidar frame id: " + std::to_string(frame_id));
+        }
+    }
+    return bins;
+}
+
+Eigen::Isometry3d poseFromTwelve(const std::array<double, 12>& values)
+{
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.matrix()(0, 0) = values[0];
+    pose.matrix()(0, 1) = values[1];
+    pose.matrix()(0, 2) = values[2];
+    pose.matrix()(0, 3) = values[3];
+    pose.matrix()(1, 0) = values[4];
+    pose.matrix()(1, 1) = values[5];
+    pose.matrix()(1, 2) = values[6];
+    pose.matrix()(1, 3) = values[7];
+    pose.matrix()(2, 0) = values[8];
+    pose.matrix()(2, 1) = values[9];
+    pose.matrix()(2, 2) = values[10];
+    pose.matrix()(2, 3) = values[11];
+    return pose;
+}
+
+std::map<int64_t, PoseRecord> readPoses(const fs::path& poses_path)
+{
+    std::ifstream input(poses_path);
+    if (!input.is_open()) {
+        throw std::runtime_error("poses file does not exist: " + poses_path.string());
+    }
+
+    std::map<int64_t, PoseRecord> poses;
+    std::string line;
+    int64_t line_number = 0;
+    while (std::getline(input, line)) {
+        ++line_number;
+        if (line.empty() || line[0] == '#') continue;
+        std::istringstream iss(line);
+        int64_t frame_id = -1;
+        if (!(iss >> frame_id) || frame_id < 0) {
+            throw std::runtime_error("invalid pose frame id at line " + std::to_string(line_number));
+        }
+        std::array<double, 12> values{};
+        for (double& value : values) {
+            if (!(iss >> value) || !std::isfinite(value)) {
+                throw std::runtime_error("failed to parse finite 3x4 pose at line " + std::to_string(line_number));
+            }
+        }
+        PoseRecord record;
+        record.frame_id = frame_id;
+        record.T_world_cam = poseFromTwelve(values);
+        if (!poses.emplace(frame_id, record).second) {
+            throw std::runtime_error("duplicate pose frame id: " + std::to_string(frame_id));
+        }
+    }
+    return poses;
+}
+
+std::vector<double> extractDoubles(const std::string& text)
+{
+    std::vector<double> values;
+    std::string token;
+    std::istringstream stream(text);
+    while (stream >> token) {
+        if (!token.empty() && token.back() == ':') continue;
+        char* end = nullptr;
+        errno = 0;
+        const double value = std::strtod(token.c_str(), &end);
+        if (errno == 0 && end != token.c_str() && *end == '\0' && std::isfinite(value)) {
+            values.push_back(value);
+        }
+    }
+    return values;
+}
+
+Eigen::Isometry3d readCamToVelo(const fs::path& calibration_dir)
+{
+    const fs::path path = calibration_dir / "calib_cam_to_velo.txt";
+    if (!fs::is_regular_file(path)) {
+        std::cerr << "Warning: missing calib_cam_to_velo.txt, using identity camera->lidar transform.\n";
+        return Eigen::Isometry3d::Identity();
+    }
+    std::ifstream input(path);
+    std::ostringstream buffer;
+    buffer << input.rdbuf();
+    const auto values = extractDoubles(buffer.str());
+    if (values.size() < 12) {
+        std::cerr << "Warning: failed to parse calib_cam_to_velo.txt, using identity camera->lidar transform.\n";
+        return Eigen::Isometry3d::Identity();
+    }
+    std::array<double, 12> first_twelve{};
+    std::copy_n(values.begin(), 12, first_twelve.begin());
+    return poseFromTwelve(first_twelve);
+}
+
+std::vector<KittiFrame> loadAlignedFrames(const Options& options)
+{
+    const fs::path lidar_dir = options.kitti_root / "data_3d_raw" / options.sequence / "velodyne_points" / "data";
+    const fs::path poses_path = options.kitti_root / "data_poses" / options.sequence / "poses.txt";
+    const fs::path calibration_dir = options.kitti_root / "calibration";
+    const auto lidar_bins = listLidarBins(lidar_dir);
+    const auto poses = readPoses(poses_path);
+    const Eigen::Isometry3d T_cam_lidar = readCamToVelo(calibration_dir);
+
+    std::vector<KittiFrame> frames;
+    int stride_count = 0;
+    for (const auto& [frame_id, bin_path] : lidar_bins) {
+        auto pose_it = poses.find(frame_id);
+        if (pose_it == poses.end()) continue;
+        if ((stride_count++ % options.stride) != 0) continue;
+        KittiFrame frame;
+        frame.frame_id = frame_id;
+        frame.lidar_bin = bin_path;
+        frame.T_world_lidar = pose_it->second.T_world_cam * T_cam_lidar;
+        frames.push_back(frame);
+        if (options.max_frames >= 0 && static_cast<int64_t>(frames.size()) >= options.max_frames) {
+            break;
+        }
+    }
+    if (frames.empty()) {
+        throw std::runtime_error("no common KITTI360 lidar/pose frame ids selected");
+    }
+    return frames;
+}
+
+Cloud::Ptr readKittiBinCloud(const fs::path& path)
+{
+    const auto byte_size = fs::file_size(path);
+    constexpr uintmax_t kPointBytes = sizeof(float) * 4;
+    if (byte_size % kPointBytes != 0) {
+        throw std::runtime_error("KITTI360 lidar bin size is not a multiple of 16 bytes: " + path.string());
+    }
+    std::ifstream input(path, std::ios::binary);
+    if (!input.is_open()) {
+        throw std::runtime_error("failed to open lidar bin: " + path.string());
+    }
+    auto cloud = pcl::make_shared<Cloud>();
+    const size_t point_count = static_cast<size_t>(byte_size / kPointBytes);
+    cloud->reserve(point_count);
+    for (size_t i = 0; i < point_count; ++i) {
+        float raw[4]{};
+        input.read(reinterpret_cast<char*>(raw), sizeof(raw));
+        if (!input) {
+            throw std::runtime_error("failed to read lidar bin: " + path.string());
+        }
+        if (!std::isfinite(raw[0]) || !std::isfinite(raw[1]) ||
+            !std::isfinite(raw[2]) || !std::isfinite(raw[3])) {
+            continue;
+        }
+        pcl::PointXYZI point;
+        point.x = raw[0];
+        point.y = raw[1];
+        point.z = raw[2];
+        point.intensity = raw[3];
+        cloud->push_back(point);
+    }
+    cloud->width = static_cast<uint32_t>(cloud->size());
+    cloud->height = 1;
+    cloud->is_dense = false;
+    return cloud;
+}
+
+Cloud::Ptr perturbCloud(const Cloud::Ptr& input_cloud, double dropout, double noise_sigma, uint32_t seed)
+{
+    auto cloud = pcl::make_shared<Cloud>();
+    if (!input_cloud) return cloud;
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<double> keep_dist(0.0, 1.0);
+    std::normal_distribution<double> noise(0.0, noise_sigma);
+    cloud->reserve(input_cloud->size());
+    for (const auto& point : input_cloud->points) {
+        if (keep_dist(rng) < dropout) continue;
+        pcl::PointXYZI out = point;
+        if (noise_sigma > 0.0) {
+            out.x += static_cast<float>(noise(rng));
+            out.y += static_cast<float>(noise(rng));
+            out.z += static_cast<float>(noise(rng));
+        }
+        cloud->push_back(out);
+    }
+    cloud->width = static_cast<uint32_t>(cloud->size());
+    cloud->height = 1;
+    cloud->is_dense = false;
+    return cloud;
+}
+
+core::LioFrame makeFrame(const KittiFrame& frame, const Eigen::Isometry3d& pose, const Cloud::Ptr& cloud)
+{
+    core::LioFrame lio;
+    lio.stamp.nsec = frame.frame_id * 100000000LL;
+    lio.T_world_lidar = pose;
+    lio.undistorted_cloud = cloud;
+    lio.pose_valid = true;
+    lio.covariance_valid = false;
+    return lio;
+}
+
+double yawRad(const Eigen::Isometry3d& pose)
+{
+    return std::atan2(pose.rotation()(1, 0), pose.rotation()(0, 0));
+}
+
+double angleDiffRad(double a, double b)
+{
+    double d = a - b;
+    while (d > M_PI) d -= 2.0 * M_PI;
+    while (d < -M_PI) d += 2.0 * M_PI;
+    return d;
+}
+
+double yawErrorDeg(const Eigen::Isometry3d& estimate, const Eigen::Isometry3d& gt)
+{
+    return std::abs(angleDiffRad(yawRad(estimate), yawRad(gt))) * 180.0 / M_PI;
+}
+
+double percentile(std::vector<double> values, double q)
+{
+    values.erase(std::remove_if(values.begin(), values.end(), [](double v) {
+        return !std::isfinite(v);
+    }), values.end());
+    if (values.empty()) return std::numeric_limits<double>::quiet_NaN();
+    std::sort(values.begin(), values.end());
+    const double idx = std::clamp(q, 0.0, 1.0) * static_cast<double>(values.size() - 1);
+    const size_t lo = static_cast<size_t>(std::floor(idx));
+    const size_t hi = static_cast<size_t>(std::ceil(idx));
+    if (lo == hi) return values[lo];
+    const double t = idx - static_cast<double>(lo);
+    return values[lo] * (1.0 - t) + values[hi] * t;
+}
+
+void writeTrajectoryLine(std::ofstream& out, int64_t frame_id, const Eigen::Isometry3d& pose)
+{
+    const Eigen::Quaterniond q(pose.rotation());
+    out << frame_id << ' ' << std::fixed << std::setprecision(9)
+        << pose.translation().x() << ' '
+        << pose.translation().y() << ' '
+        << pose.translation().z() << ' '
+        << q.x() << ' ' << q.y() << ' ' << q.z() << ' ' << q.w() << '\n';
+}
+
+void writeJsonDoubleOrNull(std::ofstream& out, double value)
+{
+    if (std::isfinite(value)) {
+        out << value;
+    } else {
+        out << "null";
+    }
+}
+
+Config makeEvalConfig(const Options& options)
+{
+    Config config;
+    config.mode = options.mode == "mapping_loop" ? "mapping" : "localization";
+    config.map_save_path = options.output_dir.string();
+    config.map_path = options.map_path.string();
+    config.loop_debug_enable = options.mode == "mapping_loop";
+    config.loop_debug_path = (options.output_dir / "loop_debug.jsonl").string();
+    config.reloc_debug_enable = options.mode == "relocalization";
+    config.reloc_debug_path = (options.output_dir / "relocalization_debug.jsonl").string();
+    return config;
+}
+
+void touchFile(const fs::path& path)
+{
+    std::ofstream out(path, std::ios::app);
+}
+
+void writeAcceptedLoopsHeader(std::ofstream& out)
+{
+    out << "query_id,match_id,fitness_score,inlier_ratio,verified\n";
+}
+
+void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
+{
+    out << loop.query_id << ','
+        << loop.match_id << ','
+        << loop.fitness_score << ','
+        << loop.inlier_ratio << ','
+        << (loop.verified ? "true" : "false") << '\n';
+}
+
+int runMappingLoop(const Options& options, const std::vector<KittiFrame>& frames)
+{
+    fs::create_directories(options.output_dir);
+    touchFile(options.output_dir / "loop_debug.jsonl");
+    std::ofstream trajectory_est(options.output_dir / "trajectory_est.txt");
+    std::ofstream trajectory_gt(options.output_dir / "trajectory_gt.txt");
+    std::ofstream accepted_loops(options.output_dir / "accepted_loops.csv");
+    if (!trajectory_est.is_open() || !trajectory_gt.is_open() || !accepted_loops.is_open()) {
+        throw std::runtime_error("failed to open mapping_loop output files");
+    }
+    writeAcceptedLoopsHeader(accepted_loops);
+
+    Config config = makeEvalConfig(options);
+    N3MappingCore core(config);
+    MappingStats stats;
+    for (const auto& frame : frames) {
+        auto cloud = readKittiBinCloud(frame.lidar_bin);
+        auto output = core.processMappingFrame(makeFrame(frame, frame.T_world_lidar, cloud));
+        ++stats.frames_processed;
+        if (output.success) ++stats.successful_frames;
+        if (output.accepted_keyframe) ++stats.accepted_keyframes;
+        writeTrajectoryLine(trajectory_gt, frame.frame_id, frame.T_world_lidar);
+        writeTrajectoryLine(trajectory_est, frame.frame_id, output.T_world_lidar);
+
+        const auto loop_result = core.processPendingLoopClosures();
+        stats.accepted_loops += loop_result.accepted_loops.size();
+        for (const auto& loop : loop_result.accepted_loops) {
+            writeAcceptedLoop(accepted_loops, loop);
+        }
+    }
+    const auto final_loop_result = core.processPendingLoopClosures();
+    stats.accepted_loops += final_loop_result.accepted_loops.size();
+    for (const auto& loop : final_loop_result.accepted_loops) {
+        writeAcceptedLoop(accepted_loops, loop);
+    }
+
+    const auto dense = core.getDenseOptimizedTrajectory();
+    std::ofstream metrics(options.output_dir / "metrics.json");
+    metrics << "{\n"
+            << "  \"mode\": \"mapping_loop\",\n"
+            << "  \"sequence\": \"" << jsonEscape(options.sequence) << "\",\n"
+            << "  \"frames_processed\": " << stats.frames_processed << ",\n"
+            << "  \"successful_frames\": " << stats.successful_frames << ",\n"
+            << "  \"accepted_keyframes\": " << stats.accepted_keyframes << ",\n"
+            << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
+            << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
+            << "  \"stride\": " << options.stride << "\n"
+            << "}\n";
+    std::cout << "mapping_loop frames=" << stats.frames_processed
+              << " keyframes=" << stats.accepted_keyframes
+              << " loops=" << stats.accepted_loops
+              << " output=" << options.output_dir << "\n";
+    return 0;
+}
+
+Eigen::Isometry3d fakeMapToOdom(double fake_yaw_deg)
+{
+    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
+    T.linear() = Eigen::AngleAxisd(fake_yaw_deg * M_PI / 180.0, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    return T;
+}
+
+bool buildTemporaryMap(const Options& options,
+                       const std::vector<KittiFrame>& frames,
+                       int build_count,
+                       fs::path* map_path)
+{
+    if (!map_path) return false;
+    Config config = makeEvalConfig(options);
+    config.mode = "mapping";
+    config.loop_debug_enable = false;
+    config.reloc_debug_enable = false;
+    config.map_save_path = (options.output_dir / "temporary_map").string();
+    N3MappingCore mapper(config);
+
+    for (int i = 0; i < build_count; ++i) {
+        const auto& frame = frames[static_cast<size_t>(i)];
+        auto cloud = readKittiBinCloud(frame.lidar_bin);
+        mapper.processMappingFrame(makeFrame(frame, frame.T_world_lidar, cloud));
+        mapper.processPendingLoopClosures();
+    }
+    fs::create_directories(options.output_dir / "temporary_map");
+    *map_path = options.output_dir / "temporary_map" / "n3map.pbstream";
+    return mapper.saveMap(map_path->string());
+}
+
+bool poseSuccess(const RelocResult& result, const Options& options)
+{
+    return result.success &&
+        std::isfinite(result.translation_error_m) &&
+        std::isfinite(result.yaw_error_deg) &&
+        result.translation_error_m <= options.pose_translation_threshold_m &&
+        result.yaw_error_deg <= options.pose_yaw_threshold_deg;
+}
+
+int runRelocalization(const Options& options, const std::vector<KittiFrame>& frames)
+{
+    fs::create_directories(options.output_dir);
+    touchFile(options.output_dir / "relocalization_debug.jsonl");
+
+    fs::path map_path = options.map_path;
+    int query_start = 0;
+    if (map_path.empty()) {
+        int build_count = options.build_map_frames;
+        if (build_count <= 0) {
+            build_count = std::max<int>(1, static_cast<int>(frames.size() / 2));
+        }
+        build_count = std::min<int>(build_count, static_cast<int>(frames.size()));
+        if (build_count >= static_cast<int>(frames.size())) {
+            throw std::runtime_error("relocalization needs at least one query frame after the temporary map frames");
+        }
+        if (!buildTemporaryMap(options, frames, build_count, &map_path)) {
+            throw std::runtime_error("failed to build temporary KITTI360 relocalization map");
+        }
+        query_start = build_count;
+    }
+
+    Config config = makeEvalConfig(options);
+    config.map_path = map_path.string();
+    config.mode = "localization";
+    N3MappingCore localizer(config);
+    if (!localizer.loadMap(map_path.string())) {
+        throw std::runtime_error("failed to load relocalization map: " + map_path.string());
+    }
+
+    const Eigen::Isometry3d T_map_odom = fakeMapToOdom(options.fake_yaw_deg);
+    std::vector<RelocResult> results;
+    results.reserve(frames.size() - static_cast<size_t>(query_start));
+    for (size_t i = static_cast<size_t>(query_start); i < frames.size(); ++i) {
+        const auto& frame = frames[i];
+        auto cloud = perturbCloud(readKittiBinCloud(frame.lidar_bin),
+                                  options.dropout,
+                                  options.noise_sigma,
+                                  static_cast<uint32_t>(frame.frame_id));
+        const Eigen::Isometry3d T_odom_lidar = T_map_odom.inverse() * frame.T_world_lidar;
+        const auto output = localizer.processLocalizationFrame(makeFrame(frame, T_odom_lidar, cloud));
+        RelocResult result;
+        result.frame_id = frame.frame_id;
+        result.success = output.success;
+        result.lock = output.relocalization_locked;
+        result.matched_keyframe_id = output.matched_keyframe_id;
+        if (output.success) {
+            result.translation_error_m =
+                (output.T_world_lidar.translation() - frame.T_world_lidar.translation()).norm();
+            result.yaw_error_deg = yawErrorDeg(output.T_world_lidar, frame.T_world_lidar);
+        }
+        results.push_back(result);
+    }
+
+    std::vector<double> translation_errors;
+    std::vector<double> yaw_errors;
+    size_t locks = 0;
+    size_t pose_successes = 0;
+    for (const auto& result : results) {
+        if (result.lock) ++locks;
+        if (poseSuccess(result, options)) ++pose_successes;
+        if (result.success) {
+            translation_errors.push_back(result.translation_error_m);
+            yaw_errors.push_back(result.yaw_error_deg);
+        }
+    }
+
+    std::ofstream metrics(options.output_dir / "metrics.json");
+    metrics << "{\n"
+            << "  \"mode\": \"relocalization\",\n"
+            << "  \"sequence\": \"" << jsonEscape(options.sequence) << "\",\n"
+            << "  \"map_path\": \"" << jsonEscape(map_path.string()) << "\",\n"
+            << "  \"query_count\": " << results.size() << ",\n"
+            << "  \"lock_success_rate\": " << (results.empty() ? 0.0 : static_cast<double>(locks) / results.size()) << ",\n"
+            << "  \"pose_success_rate\": " << (results.empty() ? 0.0 : static_cast<double>(pose_successes) / results.size()) << ",\n"
+            << "  \"median_translation_error_m\": ";
+    writeJsonDoubleOrNull(metrics, percentile(translation_errors, 0.5));
+    metrics << ",\n  \"p95_translation_error_m\": ";
+    writeJsonDoubleOrNull(metrics, percentile(translation_errors, 0.95));
+    metrics << ",\n  \"median_yaw_error_deg\": ";
+    writeJsonDoubleOrNull(metrics, percentile(yaw_errors, 0.5));
+    metrics << ",\n  \"p95_yaw_error_deg\": ";
+    writeJsonDoubleOrNull(metrics, percentile(yaw_errors, 0.95));
+    metrics << ",\n"
+            << "  \"dropout\": " << options.dropout << ",\n"
+            << "  \"noise_sigma\": " << options.noise_sigma << ",\n"
+            << "  \"fake_yaw_deg\": " << options.fake_yaw_deg << "\n"
+            << "}\n";
+
+    std::ofstream per_query(options.output_dir / "relocalization_queries.csv");
+    per_query << "frame_id,success,lock,matched_keyframe_id,translation_error_m,yaw_error_deg\n";
+    for (const auto& result : results) {
+        per_query << result.frame_id << ','
+                  << (result.success ? "true" : "false") << ','
+                  << (result.lock ? "true" : "false") << ','
+                  << result.matched_keyframe_id << ','
+                  << result.translation_error_m << ','
+                  << result.yaw_error_deg << '\n';
+    }
+
+    std::cout << "relocalization queries=" << results.size()
+              << " locks=" << locks
+              << " pose_successes=" << pose_successes
+              << " output=" << options.output_dir << "\n";
+    return 0;
+}
+
+}  // namespace
+}  // namespace n3mapping
+
+int main(int argc, char** argv)
+{
+    google::InitGoogleLogging(argv[0]);
+    try {
+        const auto options = n3mapping::parseArgs(argc, argv);
+        const auto frames = n3mapping::loadAlignedFrames(options);
+        if (options.mode == "mapping_loop") {
+            return n3mapping::runMappingLoop(options, frames);
+        }
+        return n3mapping::runRelocalization(options, frames);
+    } catch (const std::exception& e) {
+        std::cerr << "n3mapping_kitti360_eval: " << e.what() << "\n";
+        std::cerr << "Run with --help for usage.\n";
+        return 1;
+    }
+}

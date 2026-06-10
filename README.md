@@ -281,6 +281,18 @@ This is an offline evaluation input reader only; it does not run mapping or
 relocalization and does not replace real robot bags. See
 [docs/kitti360_reader.md](docs/kitti360_reader.md).
 
+KITTI360 offline mapping-loop smoke:
+
+```bash
+ros2 run n3mapping n3mapping_kitti360_eval \
+  --kitti_root /home/user/DUALoc/KITTI360 \
+  --sequence 2013_05_28_drive_0003_sync \
+  --mode mapping_loop \
+  --max_frames 200 \
+  --stride 1 \
+  --output /tmp/n3mapping_kitti360_mapping_loop
+```
+
 </details>
 
 ---
@@ -429,6 +441,18 @@ rosrun n3mapping n3mapping_kitti360_reader \
 This is an offline evaluation input reader only; it does not run mapping or
 relocalization and does not replace real robot bags. See
 [docs/kitti360_reader.md](docs/kitti360_reader.md).
+
+KITTI360 offline mapping-loop smoke:
+
+```bash
+rosrun n3mapping n3mapping_kitti360_eval \
+  --kitti_root /home/user/DUALoc/KITTI360 \
+  --sequence 2013_05_28_drive_0003_sync \
+  --mode mapping_loop \
+  --max_frames 200 \
+  --stride 1 \
+  --output /tmp/n3mapping_kitti360_mapping_loop
+```
 
 </details>
 

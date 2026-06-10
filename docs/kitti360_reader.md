@@ -47,3 +47,61 @@ calibration directory was readable.
 
 Use `--dump_first_n N` to dump the first N selected frames for manual point
 cloud inspection.
+
+## Offline Eval Framework
+
+`n3mapping_kitti360_eval` is the next offline stage. It feeds KITTI360 frames
+into `N3MappingCore` and writes evaluation artifacts, but it still does not tune
+mapping, loop-closure, or relocalization parameters.
+
+Mapping/loop smoke:
+
+```bash
+ros2 run n3mapping n3mapping_kitti360_eval \
+  --kitti_root /home/user/DUALoc/KITTI360 \
+  --sequence 2013_05_28_drive_0003_sync \
+  --mode mapping_loop \
+  --max_frames 200 \
+  --stride 1 \
+  --output /tmp/n3mapping_kitti360_mapping_loop
+```
+
+Outputs:
+
+```text
+metrics.json
+trajectory_est.txt
+trajectory_gt.txt
+accepted_loops.csv
+loop_debug.jsonl
+```
+
+Relocalization smoke:
+
+```bash
+ros2 run n3mapping n3mapping_kitti360_eval \
+  --kitti_root /home/user/DUALoc/KITTI360 \
+  --sequence 2013_05_28_drive_0003_sync \
+  --mode relocalization \
+  --build_map_frames 100 \
+  --max_frames 150 \
+  --dropout 0.1 \
+  --noise 0.01 \
+  --fake_yaw 15 \
+  --output /tmp/n3mapping_kitti360_relocalization
+```
+
+If `--map /path/to/n3map.pbstream` is supplied, relocalization mode uses that
+existing map. Otherwise it builds a temporary map from the first
+`--build_map_frames` selected frames and queries the remaining frames.
+
+Outputs:
+
+```text
+metrics.json
+relocalization_queries.csv
+relocalization_debug.jsonl
+```
+
+Start smoke runs with `2013_05_28_drive_0003_sync`. Do not treat the initial
+metrics as algorithm conclusions until the debug JSONL files have been reviewed.
