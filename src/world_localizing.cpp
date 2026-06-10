@@ -182,9 +182,9 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
             }
         }
 
-        LOG(INFO) << "Relocalization basin init: coarse_candidates=" << candidates.size()
-                  << " basins=" << basins.size()
-                  << " verified_basins=" << basin_best_results.size();
+        VLOG(1) << "Relocalization basin init: coarse_candidates=" << candidates.size()
+                << " basins=" << basins.size()
+                << " verified_basins=" << basin_best_results.size();
 
         for (const auto& bb : basin_best_results) {
             RelocHypothesis hyp;
@@ -255,23 +255,23 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
             winner_streak_ = 1;
         }
 
-        LOG(INFO) << "[Reloc/Stability] window=" << hypothesis_window_count_
-                  << "/" << config_.reloc_temporal_window_size
-                  << " top1(seed=" << top1->seed_match_id << ",last_kf=" << top1->last_match_id
-                  << ",ll=" << top1_ll << ",conv_updates=" << top1->converged_updates
-                  << ",updates=" << top1->num_updates << ")"
-                  << " top2(seed=" << (top2 ? top2->seed_match_id : -1)
-                  << ",last_kf=" << (top2 ? top2->last_match_id : -1)
-                  << ",ll=" << (top2 ? top2_ll : -1e9) << ")"
-                  << " margin=" << margin
-                  << " winner_streak=" << winner_streak_;
+        VLOG(1) << "[Reloc/Stability] window=" << hypothesis_window_count_
+                << "/" << config_.reloc_temporal_window_size
+                << " top1(seed=" << top1->seed_match_id << ",last_kf=" << top1->last_match_id
+                << ",ll=" << top1_ll << ",conv_updates=" << top1->converged_updates
+                << ",updates=" << top1->num_updates << ")"
+                << " top2(seed=" << (top2 ? top2->seed_match_id : -1)
+                << ",last_kf=" << (top2 ? top2->last_match_id : -1)
+                << ",ll=" << (top2 ? top2_ll : -1e9) << ")"
+                << " margin=" << margin
+                << " winner_streak=" << winner_streak_;
     }
 
     const int effective_temporal_window = std::max(1, config_.reloc_temporal_window_size);
     if (hypothesis_window_count_ < effective_temporal_window) {
-        LOG(INFO) << "Relocalization pending: window " << hypothesis_window_count_
-                  << "/" << effective_temporal_window
-                  << ", active hypotheses=" << pending_hypotheses_.size();
+        VLOG(1) << "Relocalization pending: window " << hypothesis_window_count_
+                << "/" << effective_temporal_window
+                << ", active hypotheses=" << pending_hypotheses_.size();
         return result;
     }
 
@@ -652,15 +652,15 @@ std::vector<LoopCandidate> WorldLocalizing::searchCandidates(const PointCloudT::
             }
         }
 
-        LOG(INFO) << "[Reloc/RHPDPrimary] kept=" << candidates.size()
-                  << " dist_thr=" << config_.rhpd_dist_threshold;
+        VLOG(1) << "[Reloc/RHPDPrimary] kept=" << candidates.size()
+                << " dist_thr=" << config_.rhpd_dist_threshold;
         for (size_t i = 0; i < std::min<size_t>(candidates.size(), 5); ++i) {
             const auto& c = candidates[i];
-            LOG(INFO) << "  [rhpd " << i << "] kf=" << c.match_id
-                      << " rhpd=" << c.rhpd_distance
-                      << " sc=" << c.sc_distance
-                      << " yaw=" << c.yaw_diff_rad
-                      << " score=" << c.fused_score;
+            VLOG(1) << "  [rhpd " << i << "] kf=" << c.match_id
+                    << " rhpd=" << c.rhpd_distance
+                    << " sc=" << c.sc_distance
+                    << " yaw=" << c.yaw_diff_rad
+                    << " score=" << c.fused_score;
         }
         if (!candidates.empty()) return candidates;
     }
@@ -696,9 +696,9 @@ std::vector<LoopCandidate> WorldLocalizing::searchCandidates(const PointCloudT::
         sc_ranked[i].fused_rank = i;
         candidates.push_back(sc_ranked[i]);
     }
-    LOG(INFO) << "[Reloc/SCFallback] kept=" << candidates.size()
-              << " rhpd_enabled=" << config_.rhpd_enabled
-              << " rhpd_db=" << rhpd_mgr.size();
+    VLOG(1) << "[Reloc/SCFallback] kept=" << candidates.size()
+            << " rhpd_enabled=" << config_.rhpd_enabled
+            << " rhpd_db=" << rhpd_mgr.size();
 
     return candidates;
 }
@@ -719,8 +719,8 @@ void WorldLocalizing::rebuildFrameRHPDIndexIfNeeded() {
         ++indexed;
     }
     frame_rhpd_indexed_keyframes_ = current_size;
-    LOG(INFO) << "[Reloc/RHPDFrame] rebuilt frame-level index: indexed=" << indexed
-              << " keyframes=" << current_size;
+    VLOG(1) << "[Reloc/RHPDFrame] rebuilt frame-level index: indexed=" << indexed
+            << " keyframes=" << current_size;
 }
 
 void WorldLocalizing::appendFrameRHPDCandidates(const Eigen::VectorXd& query_rhpd,
@@ -821,7 +821,7 @@ RelocResult WorldLocalizing::verifyCandidates(const PointCloudT::Ptr& cloud,
         }
         const MatchResult& match_result = best_match;
 
-        LOG(INFO) << "[Reloc] candidate match_id=" << candidate.match_id
+        VLOG(1) << "[Reloc] candidate match_id=" << candidate.match_id
                 << " rhpd=" << candidate.rhpd_distance
                 << " sc=" << candidate.sc_distance
                 << " converged=" << match_result.converged
@@ -955,11 +955,11 @@ WorldLocalizing::PointCloudT::Ptr WorldLocalizing::buildRelocQueryCloud(
         }
     }
 
-    LOG(INFO) << "[Reloc/Aggregation] static_frames=" << selected.size()
-              << " raw_points=" << raw_points
-              << " aggregated_points=" << merged->size()
-              << " motion_gate(t<=" << config_.reloc_static_agg_max_translation
-              << ", r<=" << config_.reloc_static_agg_max_rotation << ")";
+    VLOG(1) << "[Reloc/Aggregation] static_frames=" << selected.size()
+            << " raw_points=" << raw_points
+            << " aggregated_points=" << merged->size()
+            << " motion_gate(t<=" << config_.reloc_static_agg_max_translation
+            << ", r<=" << config_.reloc_static_agg_max_rotation << ")";
     return merged->empty() ? current_cloud : merged;
 }
 

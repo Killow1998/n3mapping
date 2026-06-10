@@ -110,42 +110,52 @@ class N3MappingNoeticNode {
             return;
         }
         ROS_INFO("Loaded map with %zu keyframes", core_->getAllKeyframes().size());
-        global_map_cache_.clear();
-        global_map_msg_cache_.reset();
-        global_map_last_published_revision_.reset();
+        resetGlobalMapCache();
     }
 
     void syncCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg,
                       const nav_msgs::OdometryConstPtr& odom_msg)
     {
-        std::lock_guard<std::mutex> lock(data_mutex_);
-        const auto frame = toCoreLioFrame(*cloud_msg, *odom_msg);
+        core::BackendOutput output_for_clouds;
+        std_msgs::Header cloud_header;
+        bool publish_clouds = false;
 
-        const auto output = core_->processFrame(run_mode_, frame);
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            const auto frame = toCoreLioFrame(*cloud_msg, *odom_msg);
 
-        if (run_mode_ == CoreRunMode::MAP_EXTENSION && output.relocalization_locked && !output.accepted_keyframe) {
-            ROS_INFO_THROTTLE(2.0, "Initial relocalization successful for map extension");
-        }
-        if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
-            ++frame_count_;
-            return;
-        }
+            const auto output = core_->processFrame(run_mode_, frame);
 
-        publishOdometry(output.T_world_lidar, cloud_msg->header);
-        publishPath(cloud_msg->header, &output.T_world_lidar);
-        publishPointClouds(output, cloud_msg->header);
-
-        if (output.relocalization_locked) {
-            publishRelocalizationLock(cloud_msg->header, output.T_world_lidar);
-        }
-        if (output.accepted_keyframe) {
-            ++keyframe_count_;
-            if (run_mode_ == CoreRunMode::MAPPING || run_mode_ == CoreRunMode::MAP_EXTENSION) {
-                const char* context = run_mode_ == CoreRunMode::MAP_EXTENSION ? "map_extension_incremental" : "mapping_incremental";
-                logOptimizationResult(context, cloud_msg->header.stamp.toSec(), &output.T_world_lidar);
+            if (run_mode_ == CoreRunMode::MAP_EXTENSION && output.relocalization_locked && !output.accepted_keyframe) {
+                ROS_INFO_THROTTLE(2.0, "Initial relocalization successful for map extension");
             }
+            if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
+                ++frame_count_;
+                return;
+            }
+
+            publishOdometry(output.T_world_lidar, cloud_msg->header);
+            publishPath(cloud_msg->header, &output.T_world_lidar);
+
+            if (output.relocalization_locked) {
+                publishRelocalizationLock(cloud_msg->header, output.T_world_lidar);
+            }
+            if (output.accepted_keyframe) {
+                ++keyframe_count_;
+                if (run_mode_ == CoreRunMode::MAPPING || run_mode_ == CoreRunMode::MAP_EXTENSION) {
+                    const char* context = run_mode_ == CoreRunMode::MAP_EXTENSION ? "map_extension_incremental" : "mapping_incremental";
+                    logOptimizationResult(context, cloud_msg->header.stamp.toSec(), &output.T_world_lidar);
+                }
+            }
+            ++frame_count_;
+            output_for_clouds = output;
+            cloud_header = cloud_msg->header;
+            publish_clouds = true;
         }
-        ++frame_count_;
+
+        if (publish_clouds) {
+            publishPointClouds(output_for_clouds, cloud_header);
+        }
     }
 
     void denseOdomCallback(const nav_msgs::OdometryConstPtr& odom_msg)
@@ -165,35 +175,39 @@ class N3MappingNoeticNode {
             return;
         }
 
-        std::lock_guard<std::mutex> lock(data_mutex_);
-        const auto result = core_->processPendingLoopClosures();
-        if (!result.accepted_loops.empty()) {
-            publishLoopMarkers(result.accepted_loops);
-        }
-        if (result.optimized) {
-            loop_count_ += result.edge_count;
-            logOptimizationResult("loop_closure", ros::Time::now().toSec(), nullptr);
-            std::ostringstream oss;
-            oss << "[OPTIMIZATION] loop impact edges=" << result.edge_count
-                << " accepted=" << result.accepted_loops.size()
-                << " loop_residual_t=" << result.loop_residual_translation_before
-                << "->" << result.loop_residual_translation_after
-                << " loop_residual_r=" << result.loop_residual_rotation_before
-                << "->" << result.loop_residual_rotation_after
-                << " pose_update_mean_max_t=" << result.mean_pose_update_translation
-                << "/" << result.max_pose_update_translation
-                << " pose_update_mean_max_r=" << result.mean_pose_update_rotation
-                << "/" << result.max_pose_update_rotation
-                << " pose_update_count=" << result.pose_update_count;
-            appendOptimizationLogLine(oss.str());
+        bool needs_global_map_rebuild = false;
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            const auto result = core_->processPendingLoopClosures();
+            if (!result.accepted_loops.empty()) {
+                publishLoopMarkers(result.accepted_loops);
+            }
+            if (result.optimized) {
+                loop_count_ += result.edge_count;
+                logOptimizationResult("loop_closure", ros::Time::now().toSec(), nullptr);
+                std::ostringstream oss;
+                oss << "[OPTIMIZATION] loop impact edges=" << result.edge_count
+                    << " accepted=" << result.accepted_loops.size()
+                    << " loop_residual_t=" << result.loop_residual_translation_before
+                    << "->" << result.loop_residual_translation_after
+                    << " loop_residual_r=" << result.loop_residual_rotation_before
+                    << "->" << result.loop_residual_rotation_after
+                    << " pose_update_mean_max_t=" << result.mean_pose_update_translation
+                    << "/" << result.max_pose_update_translation
+                    << " pose_update_mean_max_r=" << result.mean_pose_update_rotation
+                    << "/" << result.max_pose_update_rotation
+                    << " pose_update_count=" << result.pose_update_count;
+                appendOptimizationLogLine(oss.str());
 
-            std_msgs::Header header;
-            header.stamp = ros::Time::now();
-            header.frame_id = config_.world_frame;
-            publishPath(header, nullptr);
-            global_map_cache_.markFullRebuildRequired();
-            global_map_msg_cache_.reset();
-            global_map_last_published_revision_.reset();
+                std_msgs::Header header;
+                header.stamp = ros::Time::now();
+                header.frame_id = config_.world_frame;
+                publishPath(header, nullptr);
+                needs_global_map_rebuild = true;
+            }
+        }
+        if (needs_global_map_rebuild) {
+            markGlobalMapFullRebuildRequired();
         }
     }
 
@@ -202,22 +216,32 @@ class N3MappingNoeticNode {
         if (global_map_pub_.getNumSubscribers() == 0) {
             return;
         }
-        std::lock_guard<std::mutex> lock(data_mutex_);
-        publishGlobalMap();
+        std::vector<Keyframe::Ptr> keyframes;
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            keyframes = snapshotKeyframesForGlobalMapLocked();
+        }
+        publishGlobalMap(keyframes);
     }
 
     bool handleSaveMap(std_srvs::Trigger::Request&, std_srvs::Trigger::Response& res)
     {
-        std::lock_guard<std::mutex> lock(data_mutex_);
-        if (!coreRunModeSavesMap(run_mode_)) {
-            res.success = false;
-            res.message = std::string("save_disabled_in_mode:") + coreRunModeName(run_mode_);
-            ROS_WARN("save_map service rejected: %s", res.message.c_str());
-            return true;
-        }
         std::string error;
         std::string warning;
-        res.success = saveMapArtifactsLocked(&error, &warning);
+        std::vector<Keyframe::Ptr> global_map_keyframes;
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            if (!coreRunModeSavesMap(run_mode_)) {
+                res.success = false;
+                res.message = std::string("save_disabled_in_mode:") + coreRunModeName(run_mode_);
+                ROS_WARN("save_map service rejected: %s", res.message.c_str());
+                return true;
+            }
+            res.success = saveMapPbstreamAndSnapshotLocked(&error, &global_map_keyframes);
+        }
+        if (res.success && config_.save_global_map_on_shutdown) {
+            saveDebugGlobalMap(global_map_keyframes, &warning);
+        }
         res.message = res.success ? ("saved:" + config_.map_save_path) : (error.empty() ? "save_failed" : error);
         if (res.success && !warning.empty()) {
             res.message += " warning:" + warning;
@@ -230,11 +254,9 @@ class N3MappingNoeticNode {
         return true;
     }
 
-    bool saveMapArtifactsLocked(std::string* error, std::string* warning)
+    bool saveMapPbstreamAndSnapshotLocked(std::string* error,
+                                          std::vector<Keyframe::Ptr>* global_map_keyframes)
     {
-        if (warning) {
-            warning->clear();
-        }
         if (!core_) {
             if (error) *error = "core_unavailable";
             return false;
@@ -255,23 +277,34 @@ class N3MappingNoeticNode {
         }
         ROS_INFO("Map pbstream saved: %s", map_file.c_str());
 
-        if (!config_.save_global_map_on_shutdown) {
-            return true;
+        if (config_.save_global_map_on_shutdown && global_map_keyframes) {
+            *global_map_keyframes = snapshotKeyframesForGlobalMapLocked();
         }
+        return true;
+    }
 
-        const auto cloud = global_map_cache_.update(core_->getAllKeyframes());
+    void saveDebugGlobalMap(const std::vector<Keyframe::Ptr>& keyframes, std::string* warning)
+    {
+        if (warning) {
+            warning->clear();
+        }
+        if (keyframes.empty()) {
+            if (warning) *warning = "save_global_map_empty";
+            return;
+        }
+        std::lock_guard<std::mutex> global_map_lock(global_map_mutex_);
+        const auto cloud = global_map_cache_.update(keyframes);
         if (!cloud || cloud->empty()) {
             if (warning) *warning = "save_global_map_empty";
-            return true;
+            return;
         }
 
         const std::string global_map_file = config_.map_save_path + "/global_map.pcd";
         if (pcl::io::savePCDFileBinary(global_map_file, *cloud) == -1) {
             if (warning) *warning = "save_global_map_failed";
-            return true;
+            return;
         }
         ROS_INFO("Debug global map saved: %s (%zu points)", global_map_file.c_str(), cloud->size());
-        return true;
     }
 
     void publishOdometry(const Eigen::Isometry3d& pose, const std_msgs::Header& header)
@@ -452,9 +485,52 @@ class N3MappingNoeticNode {
         file << line << '\n';
     }
 
-    bool refreshGlobalMapMessage()
+    std::vector<Keyframe::Ptr> snapshotKeyframesForGlobalMapLocked() const
     {
-        const auto cloud = global_map_cache_.update(core_ ? core_->getAllKeyframes() : std::vector<Keyframe::Ptr>{});
+        std::vector<Keyframe::Ptr> snapshots;
+        const auto keyframes = core_ ? core_->getAllKeyframes() : std::vector<Keyframe::Ptr>{};
+        snapshots.reserve(keyframes.size());
+        for (const auto& keyframe : keyframes) {
+            if (!keyframe) {
+                continue;
+            }
+            auto snapshot = std::make_shared<Keyframe>();
+            snapshot->id = keyframe->id;
+            snapshot->timestamp = keyframe->timestamp;
+            snapshot->pose_odom = keyframe->pose_odom;
+            snapshot->pose_optimized = keyframe->pose_optimized;
+            snapshot->cloud = keyframe->cloud;
+            snapshot->is_from_loaded_map = keyframe->is_from_loaded_map;
+            snapshots.push_back(snapshot);
+        }
+        return snapshots;
+    }
+
+    void resetGlobalMapCache()
+    {
+        std::lock_guard<std::mutex> lock(global_map_mutex_);
+        global_map_cache_.clear();
+        global_map_msg_cache_.reset();
+        global_map_last_published_revision_.reset();
+    }
+
+    void markGlobalMapFullRebuildRequired()
+    {
+        std::lock_guard<std::mutex> lock(global_map_mutex_);
+        global_map_cache_.markFullRebuildRequired();
+        global_map_msg_cache_.reset();
+        global_map_last_published_revision_.reset();
+    }
+
+    bool refreshGlobalMapMessage(const std::vector<Keyframe::Ptr>& keyframes,
+                                 sensor_msgs::PointCloud2* out_msg)
+    {
+        if (!out_msg) {
+            return false;
+        }
+
+        std::lock_guard<std::mutex> lock(global_map_mutex_);
+        const auto cloud = global_map_cache_.update(keyframes);
         if (!cloud || cloud->empty()) {
             return false;
         }
@@ -468,20 +544,35 @@ class N3MappingNoeticNode {
             global_map_msg_cache_ = msg;
             global_map_msg_revision_ = revision;
         }
-        return global_map_msg_cache_.has_value();
+        if (!global_map_msg_cache_) {
+            return false;
+        }
+        if (global_map_last_published_revision_ &&
+            *global_map_last_published_revision_ == global_map_msg_revision_) {
+            return false;
+        }
+        *out_msg = *global_map_msg_cache_;
+        global_map_last_published_revision_ = global_map_msg_revision_;
+        return true;
     }
 
     void publishGlobalMap()
     {
-        if (!refreshGlobalMapMessage()) {
+        std::vector<Keyframe::Ptr> keyframes;
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            keyframes = snapshotKeyframesForGlobalMapLocked();
+        }
+        publishGlobalMap(keyframes);
+    }
+
+    void publishGlobalMap(const std::vector<Keyframe::Ptr>& keyframes)
+    {
+        sensor_msgs::PointCloud2 msg;
+        if (!refreshGlobalMapMessage(keyframes, &msg)) {
             return;
         }
-        if (global_map_last_published_revision_ &&
-            *global_map_last_published_revision_ == global_map_msg_revision_) {
-            return;
-        }
-        global_map_pub_.publish(*global_map_msg_cache_);
-        global_map_last_published_revision_ = global_map_msg_revision_;
+        global_map_pub_.publish(msg);
     }
 
     void publishRelocalizationLock(const std_msgs::Header&, const Eigen::Isometry3d& pose)
@@ -596,10 +687,18 @@ class N3MappingNoeticNode {
         if (shutdown_called_) return;
         shutdown_called_ = true;
         if (coreRunModeSavesMap(run_mode_)) {
-            std::lock_guard<std::mutex> lock(data_mutex_);
             std::string error;
             std::string warning;
-            if (saveMapArtifactsLocked(&error, &warning)) {
+            std::vector<Keyframe::Ptr> global_map_keyframes;
+            bool saved = false;
+            {
+                std::lock_guard<std::mutex> lock(data_mutex_);
+                saved = saveMapPbstreamAndSnapshotLocked(&error, &global_map_keyframes);
+            }
+            if (saved && config_.save_global_map_on_shutdown) {
+                saveDebugGlobalMap(global_map_keyframes, &warning);
+            }
+            if (saved) {
                 ROS_INFO("Map snapshot saved under: %s", config_.map_save_path.c_str());
                 if (!warning.empty()) {
                     ROS_WARN("Map snapshot debug artifact warning: %s", warning.c_str());
@@ -620,6 +719,7 @@ class N3MappingNoeticNode {
     CoreRunMode run_mode_ = CoreRunMode::MAPPING;
     std::unique_ptr<N3MappingCore> core_;
     std::mutex data_mutex_;
+    std::mutex global_map_mutex_;
 
     message_filters::Subscriber<sensor_msgs::PointCloud2> cloud_sub_;
     message_filters::Subscriber<nav_msgs::Odometry> odom_sub_;
