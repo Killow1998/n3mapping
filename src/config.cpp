@@ -31,6 +31,8 @@ std::string Config::toString() const {
         << ", min_inlier=" << loop_min_inlier_ratio
         << ", max_icp_t=" << loop_max_icp_translation
         << ", max_icp_r=" << loop_max_icp_rotation << "\n";
+    oss << "Loop debug JSONL: " << (loop_debug_enable ? "ON" : "OFF")
+        << " path=" << (loop_debug_path.empty() ? "<map_save_path>/loop_debug.jsonl" : loop_debug_path) << "\n";
     oss << "Loop candidate pipeline: RHPD primary retrieval -> optional SC yaw/weak rerank/veto -> ICP -> geom gate -> LoopClosureManager filter/select\n";
     oss << "loop_closest_id_th/min_id_interval/max_range are retained for compatibility/logging only; they are not used in the active mapping loop-candidate retrieval/verification path.\n";
     oss << "Loop timing: loop_kf_gap=" << loop_kf_gap << " (active)\n";

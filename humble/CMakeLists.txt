@@ -108,6 +108,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
+  ${N3MAPPING_ROOT}/src/loop_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
@@ -293,6 +294,12 @@ if(BUILD_TESTING)
   if(TARGET test_loop_detector)
     target_link_libraries(test_loop_detector ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
     ament_target_dependencies(test_loop_detector rclcpp)
+  endif()
+
+  ament_add_gtest(test_loop_debug_logger ${N3MAPPING_ROOT}/test/test_loop_debug_logger.cpp)
+  if(TARGET test_loop_debug_logger)
+    target_link_libraries(test_loop_debug_logger ${PROJECT_NAME}_lib)
+    ament_target_dependencies(test_loop_debug_logger rclcpp)
   endif()
 
   ament_add_gtest(test_loop_detector_pbt ${N3MAPPING_ROOT}/test/test_loop_detector_pbt.cpp)

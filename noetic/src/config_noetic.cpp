@@ -67,6 +67,8 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("loop_max_icp_translation", config->loop_max_icp_translation);
     get("loop_max_icp_rotation", config->loop_max_icp_rotation);
     get("loop_use_icp_information", config->loop_use_icp_information);
+    get("loop_debug_enable", config->loop_debug_enable);
+    gets("loop_debug_path", config->loop_debug_path);
     get("loop_kf_gap", config->loop_kf_gap);
     get("loop_closest_id_th", config->loop_closest_id_th);
     get("loop_min_id_interval", config->loop_min_id_interval);

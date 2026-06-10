@@ -1,8 +1,10 @@
 #include "n3mapping/core/n3mapping_core.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <limits>
+#include <set>
 #include <stdexcept>
 
 #include "n3mapping/cloud_utils.h"
@@ -94,6 +96,38 @@ Config validateOrThrow(const Config& config)
     return config;
 }
 
+double processingTimeSeconds()
+{
+    using Clock = std::chrono::system_clock;
+    return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
+}
+
+std::string loopRejectReason(bool icp_converged,
+                             bool fitness_ok,
+                             bool inlier_ok,
+                             bool geom_ok)
+{
+    if (!icp_converged) {
+        return "icp_not_converged";
+    }
+    if (!fitness_ok) {
+        return "fitness_threshold";
+    }
+    if (!inlier_ok) {
+        return "inlier_threshold";
+    }
+    if (!geom_ok) {
+        return "geometry_gate";
+    }
+    return "";
+}
+
+Eigen::Isometry3d candidateResidual(const Eigen::Isometry3d& expected_match_query,
+                                    const Eigen::Isometry3d& measured_match_query)
+{
+    return expected_match_query.inverse() * measured_match_query;
+}
+
 }  // namespace
 
 N3MappingCore::N3MappingCore(const Config& config)
@@ -103,6 +137,24 @@ N3MappingCore::N3MappingCore(const Config& config)
 }
 
 N3MappingCore::~N3MappingCore() = default;
+
+void N3MappingCore::appendLoopDebugCandidate(const LoopDebugCandidateEvent& event) const
+{
+    if (!config_.loop_debug_enable) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(loop_debug_mutex_);
+    LoopDebugLogger::appendCandidate(LoopDebugLogger::resolvePath(config_), event);
+}
+
+void N3MappingCore::appendLoopDebugOptimization(const LoopDebugOptimizationEvent& event) const
+{
+    if (!config_.loop_debug_enable) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(loop_debug_mutex_);
+    LoopDebugLogger::appendOptimizationSummary(LoopDebugLogger::resolvePath(config_), event);
+}
 
 CoreRunMode parseCoreRunMode(const std::string& mode)
 {
@@ -352,16 +404,55 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
 
         std::vector<VerifiedLoop> verified_loops;
         verified_loops.reserve(candidates.size());
+        std::vector<LoopDebugCandidateEvent> debug_events;
+        const bool loop_debug_enabled = config_.loop_debug_enable;
+        if (loop_debug_enabled) {
+            debug_events.reserve(candidates.size());
+        }
+
+        auto flush_debug_events = [&](const std::set<std::pair<int64_t, int64_t>>& accepted_pairs,
+                                      const std::string& not_selected_reason) {
+            if (!loop_debug_enabled) {
+                return;
+            }
+            for (auto& event : debug_events) {
+                const std::pair<int64_t, int64_t> key(event.candidate.query_id, event.candidate.match_id);
+                if (accepted_pairs.find(key) != accepted_pairs.end()) {
+                    event.gate_result = "accepted";
+                    event.reject_reason.clear();
+                } else if (event.gate_result == "accepted") {
+                    event.gate_result = "rejected";
+                    event.reject_reason = not_selected_reason.empty() ? "not_selected" : not_selected_reason;
+                }
+                appendLoopDebugCandidate(event);
+            }
+        };
+
+        auto make_rejected_event = [&](const LoopCandidate& candidate,
+                                       const std::string& reject_reason) {
+            if (!loop_debug_enabled) {
+                return;
+            }
+            LoopDebugCandidateEvent event;
+            event.processing_time = processingTimeSeconds();
+            event.query_timestamp = query_kf->timestamp;
+            event.candidate = candidate;
+            event.gate_result = "rejected";
+            event.reject_reason = reject_reason;
+            debug_events.push_back(event);
+        };
 
         for (const auto& candidate : candidates) {
             auto match_kf = session_->keyframeManager().getKeyframe(candidate.match_id);
             if (!match_kf || !query_kf->cloud || !match_kf->cloud || query_kf->cloud->empty() || match_kf->cloud->empty()) {
+                make_rejected_event(candidate, "missing_keyframe_or_cloud");
                 continue;
             }
 
             auto source = session_->keyframeManager().buildSubmapInRootFrame(query_id, 0, candidate.match_id);
             auto target = session_->keyframeManager().buildSubmapInRootFrame(candidate.match_id, config_.gicp_submap_size, candidate.match_id);
             if (!source || source->empty() || !target || target->empty()) {
+                make_rejected_event(candidate, "empty_submap");
                 continue;
             }
 
@@ -384,6 +475,24 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 icp_translation <= config_.loop_max_icp_translation && icp_rotation <= config_.loop_max_icp_rotation;
 
             loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok;
+            if (loop_debug_enabled) {
+                const Eigen::Isometry3d T_est_match_query =
+                    match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
+                LoopDebugCandidateEvent event;
+                event.processing_time = processingTimeSeconds();
+                event.query_timestamp = query_kf->timestamp;
+                event.candidate = candidate;
+                event.icp_converged = match_result.converged;
+                event.fitness_score = match_result.fitness_score;
+                event.inlier_ratio = match_result.inlier_ratio;
+                event.icp_translation_norm = icp_translation;
+                event.icp_rotation_norm = icp_rotation;
+                event.residual = candidateResidual(T_est_match_query, match_result.T_target_source);
+                event.loop_information = loop.information;
+                event.gate_result = loop.verified ? "accepted" : "rejected";
+                event.reject_reason = loop.verified ? "" : loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok);
+                debug_events.push_back(event);
+            }
             if (loop.verified) {
                 const Eigen::Isometry3d T_est_match_query =
                     match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
@@ -394,19 +503,28 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         }
 
         if (verified_loops.empty()) {
+            flush_debug_events({}, "not_selected");
             continue;
         }
 
         auto valid_loops = session_->loopClosureManager().filterValidLoops(verified_loops);
         auto best_loops = session_->loopClosureManager().selectBestPerQuery(valid_loops);
         if (best_loops.empty()) {
+            flush_debug_events({}, "not_selected");
             continue;
         }
 
         auto edges = session_->loopClosureManager().buildLoopEdges(best_loops, LoopEdgeDirection::MatchToQuery);
         if (edges.empty()) {
+            flush_debug_events({}, "edge_build_empty");
             continue;
         }
+
+        std::set<std::pair<int64_t, int64_t>> accepted_debug_pairs;
+        for (const auto& loop : best_loops) {
+            accepted_debug_pairs.insert({loop.query_id, loop.match_id});
+        }
+        flush_debug_events(accepted_debug_pairs, "not_selected");
 
         const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
         const auto residual_before = meanLoopResidual(edges, poses_before);
@@ -424,6 +542,21 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         result.loop_residual_rotation_after = residual_after.second;
         accumulatePoseUpdateStats(poses_before, poses_after, &result);
         result.accepted_loops.insert(result.accepted_loops.end(), best_loops.begin(), best_loops.end());
+
+        if (loop_debug_enabled) {
+            LoopDebugOptimizationEvent event;
+            event.processing_time = processingTimeSeconds();
+            event.accepted_edge_count = edges.size();
+            event.loop_residual_translation_before = residual_before.first;
+            event.loop_residual_rotation_before = residual_before.second;
+            event.loop_residual_translation_after = residual_after.first;
+            event.loop_residual_rotation_after = residual_after.second;
+            event.mean_pose_update_translation = result.mean_pose_update_translation;
+            event.max_pose_update_translation = result.max_pose_update_translation;
+            event.mean_pose_update_rotation = result.mean_pose_update_rotation;
+            event.max_pose_update_rotation = result.max_pose_update_rotation;
+            appendLoopDebugOptimization(event);
+        }
     }
 
     return result;

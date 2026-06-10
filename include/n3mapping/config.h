@@ -66,6 +66,8 @@ struct Config {
     double loop_max_icp_translation = 5.0;
     double loop_max_icp_rotation = 0.5;
     bool loop_use_icp_information = false;
+    bool loop_debug_enable = false;
+    std::string loop_debug_path = "";
 
     int loop_kf_gap = 5;
     int loop_closest_id_th = 50;
