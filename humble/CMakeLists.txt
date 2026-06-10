@@ -160,6 +160,10 @@ target_link_libraries(n3mapping_filter_nav_pbstream
   ${PCL_LIBRARIES}
 )
 
+add_executable(n3mapping_kitti360_reader
+  ${N3MAPPING_ROOT}/tools/n3mapping_kitti360_reader.cpp
+)
+
 add_executable(n3mapping_synthetic_relocalization_publisher
   ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_publisher.cpp
 )
@@ -195,6 +199,7 @@ install(TARGETS
   n3mapping_node
   n3mapping_synthetic_relocalization_eval
   n3mapping_filter_nav_pbstream
+  n3mapping_kitti360_reader
   n3mapping_synthetic_relocalization_publisher
   n3mapping_synthetic_relocalization_visualizer
   EXPORT export_n3mapping
@@ -332,6 +337,8 @@ if(BUILD_TESTING)
     target_link_libraries(test_n3mapping_filter_nav_pbstream ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
     ament_target_dependencies(test_n3mapping_filter_nav_pbstream rclcpp)
   endif()
+
+  ament_add_gtest(test_kitti360_reader ${N3MAPPING_ROOT}/test/test_kitti360_reader.cpp)
 
   ament_add_gtest(test_map_serializer_pbt ${N3MAPPING_ROOT}/test/test_map_serializer_pbt.cpp)
   if(TARGET test_map_serializer_pbt)

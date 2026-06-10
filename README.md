@@ -24,7 +24,7 @@ noetic/              ROS 1 Noetic wrapper package
 config/              shared runtime config
 humble/launch/       ROS 2 launch and RViz resources
 noetic/launch/       ROS 1 launch and RViz resources
-tools/               synthetic relocalization tools
+tools/               synthetic relocalization and offline dataset inspection tools
 ```
 
 ## 2. How To Use N3Mapping
@@ -266,6 +266,21 @@ ros2 run n3mapping n3mapping_synthetic_relocalization_eval \
   --strict
 ```
 
+KITTI360 lidar/pose alignment smoke:
+
+```bash
+ros2 run n3mapping n3mapping_kitti360_reader \
+  --kitti_root /home/user/DUALoc/KITTI360 \
+  --sequence 2013_05_28_drive_0003_sync \
+  --output /tmp/n3mapping_kitti360_reader_test \
+  --max_frames 50 \
+  --dump_sample_pcd
+```
+
+This is an offline evaluation input reader only; it does not run mapping or
+relocalization and does not replace real robot bags. See
+[docs/kitti360_reader.md](docs/kitti360_reader.md).
+
 </details>
 
 ---
@@ -399,6 +414,21 @@ rosrun n3mapping n3mapping_synthetic_relocalization_eval \
   --query_source local_submap \
   --strict
 ```
+
+KITTI360 lidar/pose alignment smoke:
+
+```bash
+rosrun n3mapping n3mapping_kitti360_reader \
+  --kitti_root /home/user/DUALoc/KITTI360 \
+  --sequence 2013_05_28_drive_0003_sync \
+  --output /tmp/n3mapping_kitti360_reader_test \
+  --max_frames 50 \
+  --dump_sample_pcd
+```
+
+This is an offline evaluation input reader only; it does not run mapping or
+relocalization and does not replace real robot bags. See
+[docs/kitti360_reader.md](docs/kitti360_reader.md).
 
 </details>
 
