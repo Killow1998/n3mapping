@@ -246,6 +246,7 @@ install(TARGETS
 
 install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_loop_debug_analyze.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -70,6 +70,14 @@ std::filesystem::path findLoopDebugAnalyzer()
     return {};
 }
 
+std::filesystem::path findEvalMatrixTool()
+{
+    const std::filesystem::path source_tool =
+        std::filesystem::path(N3MAPPING_SOURCE_DIR) / "tools" / "n3mapping_eval_matrix.py";
+    if (std::filesystem::exists(source_tool)) return source_tool;
+    return {};
+}
+
 void writeFakeBin(const std::filesystem::path& path, int frame_index)
 {
     std::filesystem::create_directories(path.parent_path());
@@ -244,6 +252,73 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
     const std::string query_summary = readTextFile(output / "loop_query_summary.csv");
     EXPECT_NE(query_summary.find("selection_failure"), std::string::npos);
     EXPECT_NE(query_summary.find("4,2,1,1,2,False"), std::string::npos);
+}
+
+TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
+{
+    const auto matrix_tool = findEvalMatrixTool();
+    ASSERT_FALSE(matrix_tool.empty()) << "n3mapping_eval_matrix.py not found";
+    const auto run = makeTempDir("n3mapping_eval_matrix_run");
+    const auto analysis = run / "loop_gt_analysis";
+    const auto output = makeTempDir("n3mapping_eval_matrix_output");
+    std::filesystem::create_directories(analysis);
+
+    {
+        std::ofstream metrics(run / "metrics.json");
+        ASSERT_TRUE(metrics.is_open());
+        metrics << "{\n"
+                << "  \"mode\": \"mapping_loop\",\n"
+                << "  \"sequence\": \"synthetic_sequence\",\n"
+                << "  \"frames_processed\": 3,\n"
+                << "  \"accepted_keyframes\": 2,\n"
+                << "  \"accepted_loop_count\": 2,\n"
+                << "  \"dense_trajectory_count\": 3\n"
+                << "}\n";
+    }
+    {
+        std::ofstream est(run / "trajectory_est.txt");
+        std::ofstream gt(run / "trajectory_gt.txt");
+        ASSERT_TRUE(est.is_open());
+        ASSERT_TRUE(gt.is_open());
+        gt << "1 0 0 0 0 0 0 1\n";
+        gt << "2 1 0 0 0 0 0 1\n";
+        gt << "3 2 0 0 0 0 0 1\n";
+        est << "1 0 0 0 0 0 0 1\n";
+        est << "2 1.2 0 0.1 0 0 0 1\n";
+        est << "3 2.4 0 0.2 0 0 0 1\n";
+    }
+    {
+        std::ofstream diagnosis(analysis / "loop_diagnosis.json");
+        ASSERT_TRUE(diagnosis.is_open());
+        diagnosis << "{\n"
+                  << "  \"candidate_count\": 4,\n"
+                  << "  \"gt_loop_pair_count\": 2,\n"
+                  << "  \"accepted_candidate_count\": 2,\n"
+                  << "  \"accepted_true_loop\": 2,\n"
+                  << "  \"accepted_false_loop\": 0,\n"
+                  << "  \"icp_reject_true_loop\": 1,\n"
+                  << "  \"true_loop_not_selected\": 0,\n"
+                  << "  \"retrieval_miss_estimate\": 1,\n"
+                  << "  \"z_drift_suspect_count\": 1,\n"
+                  << "  \"optimization_summary_count\": 2,\n"
+                  << "  \"optimization_high_residual_z_after_count\": 1,\n"
+                  << "  \"optimization_max_residual_z_after\": 0.8\n"
+                  << "}\n";
+    }
+
+    const std::string command =
+        "python3 " + shellQuote(matrix_tool) +
+        " --run baseline=" + shellQuote(run) +
+        " --output " + shellQuote(output);
+    ASSERT_EQ(std::system(command.c_str()), 0);
+
+    const std::string csv = readTextFile(output / "matrix_summary.csv");
+    EXPECT_NE(csv.find("baseline"), std::string::npos);
+    EXPECT_NE(csv.find("synthetic_sequence"), std::string::npos);
+    EXPECT_NE(csv.find("true,false"), std::string::npos);
+    const std::string json = readTextFile(output / "matrix_summary.json");
+    EXPECT_NE(json.find("\"loop_precision\": 1.0"), std::string::npos);
+    EXPECT_NE(json.find("\"trajectory_pair_count\": 3"), std::string::npos);
 }
 
 TEST(N3MappingKitti360EvalTest, CalibrationModeChangesGroundTruthPoseAndMetrics)

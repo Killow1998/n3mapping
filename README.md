@@ -304,6 +304,17 @@ ros2 run n3mapping n3mapping_loop_debug_analyze.py \
   --output /tmp/n3mapping_kitti360_mapping_loop/loop_gt_analysis
 ```
 
+Summarize one or more eval runs into a metric matrix:
+
+```bash
+ros2 run n3mapping n3mapping_eval_matrix.py \
+  --run kitti360_drive0003=/tmp/n3mapping_kitti360_mapping_loop \
+  --output /tmp/n3mapping_eval_matrix
+```
+
+Benchmark target and indoor dataset shortlist:
+[docs/eval_benchmark_plan.md](docs/eval_benchmark_plan.md).
+
 </details>
 
 ---
@@ -463,6 +474,14 @@ rosrun n3mapping n3mapping_kitti360_eval \
   --max_frames 200 \
   --stride 1 \
   --output /tmp/n3mapping_kitti360_mapping_loop
+```
+
+Summarize eval runs:
+
+```bash
+rosrun n3mapping n3mapping_eval_matrix.py \
+  --run kitti360_drive0003=/tmp/n3mapping_kitti360_mapping_loop \
+  --output /tmp/n3mapping_eval_matrix
 ```
 
 </details>
