@@ -589,6 +589,8 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.icp_translation_norm = icp_translation;
                 event.icp_rotation_norm = icp_rotation;
                 event.residual = T_candidate_residual;
+                event.has_loop_measurement = true;
+                event.loop_measurement_match_query = match_result.T_target_source * T_est_match_query;
                 event.loop_information = loop.information;
                 event.gate_result = loop.verified ? "accepted" : "rejected";
                 event.reject_reason =

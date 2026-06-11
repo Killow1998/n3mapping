@@ -143,6 +143,27 @@ void appendResidual(std::ostream& os, bool* first, const Eigen::Isometry3d& resi
     appendNumber(os, first, "residual_yaw", rpy.z());
 }
 
+void appendTransformAxes(std::ostream& os,
+                         bool* first,
+                         const char* prefix,
+                         const Eigen::Isometry3d& transform)
+{
+    const Eigen::Vector3d translation = transform.translation();
+    const Eigen::Vector3d rpy = rollPitchYaw(transform);
+    const std::string x_key = std::string(prefix) + "_x";
+    const std::string y_key = std::string(prefix) + "_y";
+    const std::string z_key = std::string(prefix) + "_z";
+    const std::string roll_key = std::string(prefix) + "_roll";
+    const std::string pitch_key = std::string(prefix) + "_pitch";
+    const std::string yaw_key = std::string(prefix) + "_yaw";
+    appendNumber(os, first, x_key.c_str(), translation.x());
+    appendNumber(os, first, y_key.c_str(), translation.y());
+    appendNumber(os, first, z_key.c_str(), translation.z());
+    appendNumber(os, first, roll_key.c_str(), rpy.x());
+    appendNumber(os, first, pitch_key.c_str(), rpy.y());
+    appendNumber(os, first, yaw_key.c_str(), rpy.z());
+}
+
 void appendInformationDiag(std::ostream& os, bool* first, const Eigen::Matrix<double, 6, 6>& information)
 {
     appendComma(os, first);
@@ -214,6 +235,9 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendNumber(os, &first, "icp_translation_norm", event.icp_translation_norm);
     appendNumber(os, &first, "icp_rotation_norm", event.icp_rotation_norm);
     appendResidual(os, &first, event.residual);
+    if (event.has_loop_measurement) {
+        appendTransformAxes(os, &first, "measurement", event.loop_measurement_match_query);
+    }
     appendString(os, &first, "gate_result", event.gate_result);
     appendString(os, &first, "reject_reason", event.reject_reason);
     appendInformationDiag(os, &first, event.loop_information);

@@ -26,6 +26,8 @@ struct LoopDebugCandidateEvent {
     double icp_translation_norm = std::numeric_limits<double>::quiet_NaN();
     double icp_rotation_norm = std::numeric_limits<double>::quiet_NaN();
     Eigen::Isometry3d residual = Eigen::Isometry3d::Identity();
+    bool has_loop_measurement = false;
+    Eigen::Isometry3d loop_measurement_match_query = Eigen::Isometry3d::Identity();
     std::string gate_result = "rejected";
     std::string reject_reason;
     Eigen::Matrix<double, 6, 6> loop_information = Eigen::Matrix<double, 6, 6>::Identity();

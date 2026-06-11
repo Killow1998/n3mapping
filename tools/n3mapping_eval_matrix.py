@@ -35,11 +35,16 @@ SUMMARY_FIELDS = [
     "loop_gt_pair_count",
     "loop_accepted_candidate_count",
     "loop_accepted_true_loop",
+    "loop_accepted_true_loop_good",
+    "loop_accepted_true_loop_bad_z",
+    "loop_accepted_true_loop_bad_roll_pitch",
     "loop_accepted_false_loop",
     "loop_precision",
     "loop_gt_pair_coverage",
     "loop_icp_reject_true_loop",
+    "loop_verification_reject_true_loop",
     "loop_true_loop_not_selected",
+    "loop_retrieval_false_positive",
     "loop_retrieval_miss_estimate",
     "loop_z_drift_suspect_count",
     "optimization_summary_count",
@@ -240,6 +245,18 @@ def find_existing_loop_diagnosis(run_dir):
     return existing[0]
 
 
+def loop_diagnosis_has_current_schema(diagnosis):
+    required = {
+        "optimization_summary_count",
+        "accepted_true_loop_good",
+        "accepted_true_loop_bad_z",
+        "accepted_true_loop_bad_roll_pitch",
+        "verification_reject_true_loop",
+        "failure_class_counts",
+    }
+    return required.issubset(set(diagnosis.keys()))
+
+
 def ensure_loop_diagnosis(args, run_name, run_dir, matrix_output):
     existing = find_existing_loop_diagnosis(run_dir)
     if existing:
@@ -247,7 +264,7 @@ def ensure_loop_diagnosis(args, run_name, run_dir, matrix_output):
             diagnosis = load_json(existing)
         except Exception:
             diagnosis = {}
-        if "optimization_summary_count" in diagnosis or args.skip_loop_analyzer:
+        if loop_diagnosis_has_current_schema(diagnosis) or args.skip_loop_analyzer:
             return existing
     if args.skip_loop_analyzer:
         return None
@@ -317,9 +334,14 @@ def summarize_run(args, run_name, run_dir, matrix_output):
             "gt_loop_pair_count": "loop_gt_pair_count",
             "accepted_candidate_count": "loop_accepted_candidate_count",
             "accepted_true_loop": "loop_accepted_true_loop",
+            "accepted_true_loop_good": "loop_accepted_true_loop_good",
+            "accepted_true_loop_bad_z": "loop_accepted_true_loop_bad_z",
+            "accepted_true_loop_bad_roll_pitch": "loop_accepted_true_loop_bad_roll_pitch",
             "accepted_false_loop": "loop_accepted_false_loop",
             "icp_reject_true_loop": "loop_icp_reject_true_loop",
+            "verification_reject_true_loop": "loop_verification_reject_true_loop",
             "true_loop_not_selected": "loop_true_loop_not_selected",
+            "retrieval_false_positive": "loop_retrieval_false_positive",
             "retrieval_miss_estimate": "loop_retrieval_miss_estimate",
             "z_drift_suspect_count": "loop_z_drift_suspect_count",
             "optimization_summary_count": "optimization_summary_count",

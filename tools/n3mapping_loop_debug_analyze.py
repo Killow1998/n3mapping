@@ -32,6 +32,59 @@ def yaw_from_quat(qx, qy, qz, qw):
     return math.atan2(siny_cosp, cosy_cosp)
 
 
+def normalize_quat(qx, qy, qz, qw):
+    norm = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
+    if norm <= 0.0 or not math.isfinite(norm):
+        raise RuntimeError("invalid quaternion norm")
+    return qx / norm, qy / norm, qz / norm, qw / norm
+
+
+def quat_to_rot(qx, qy, qz, qw):
+    qx, qy, qz, qw = normalize_quat(qx, qy, qz, qw)
+    xx = qx * qx
+    yy = qy * qy
+    zz = qz * qz
+    xy = qx * qy
+    xz = qx * qz
+    yz = qy * qz
+    wx = qw * qx
+    wy = qw * qy
+    wz = qw * qz
+    return [
+        [1.0 - 2.0 * (yy + zz), 2.0 * (xy - wz), 2.0 * (xz + wy)],
+        [2.0 * (xy + wz), 1.0 - 2.0 * (xx + zz), 2.0 * (yz - wx)],
+        [2.0 * (xz - wy), 2.0 * (yz + wx), 1.0 - 2.0 * (xx + yy)],
+    ]
+
+
+def mat_transpose(m):
+    return [[m[j][i] for j in range(3)] for i in range(3)]
+
+
+def mat_mul(a, b):
+    return [
+        [sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)]
+        for i in range(3)
+    ]
+
+
+def mat_vec_mul(a, v):
+    return [sum(a[i][k] * v[k] for k in range(3)) for i in range(3)]
+
+
+def rpy_from_rot(r):
+    # Matches the conventional xyz fixed-axis approximation used for diagnostics.
+    pitch = math.asin(max(-1.0, min(1.0, -r[2][0])))
+    cp = math.cos(pitch)
+    if abs(cp) > 1e-9:
+        roll = math.atan2(r[2][1], r[2][2])
+        yaw = math.atan2(r[1][0], r[0][0])
+    else:
+        roll = math.atan2(-r[1][2], r[1][1])
+        yaw = 0.0
+    return roll, pitch, yaw
+
+
 def angle_diff(a, b):
     diff = a - b
     while diff > math.pi:
@@ -74,7 +127,12 @@ def load_keyframes_gt(path):
                 "x": x,
                 "y": y,
                 "z": z,
+                "qx": qx,
+                "qy": qy,
+                "qz": qz,
+                "qw": qw,
                 "yaw": yaw_from_quat(qx, qy, qz, qw),
+                "rot": quat_to_rot(qx, qy, qz, qw),
             }
     if not poses:
         raise RuntimeError(f"{path} contains no keyframe ground-truth poses")
@@ -145,6 +203,58 @@ def gt_pair_metrics(poses, query_id, match_id):
     return translation, yaw_deg, True
 
 
+def gt_relative_axes(poses, query_id, match_id):
+    query = poses.get(query_id)
+    match = poses.get(match_id)
+    if query is None or match is None:
+        return None
+    r_match_t = mat_transpose(match["rot"])
+    dt_world = [
+        query["x"] - match["x"],
+        query["y"] - match["y"],
+        query["z"] - match["z"],
+    ]
+    translation = mat_vec_mul(r_match_t, dt_world)
+    rel_rot = mat_mul(r_match_t, query["rot"])
+    roll, pitch, yaw = rpy_from_rot(rel_rot)
+    return {
+        "x": translation[0],
+        "y": translation[1],
+        "z": translation[2],
+        "roll": roll,
+        "pitch": pitch,
+        "yaw": yaw,
+    }
+
+
+def measurement_axes(event):
+    keys = ("x", "y", "z", "roll", "pitch", "yaw")
+    values = {key: event_float(event, f"measurement_{key}") for key in keys}
+    if not all(math.isfinite(values[key]) for key in keys):
+        return None
+    return values
+
+
+def axis_errors(measured, gt_axes):
+    if measured is None or gt_axes is None:
+        return {
+            "x": float("nan"),
+            "y": float("nan"),
+            "z": float("nan"),
+            "roll": float("nan"),
+            "pitch": float("nan"),
+            "yaw": float("nan"),
+        }
+    return {
+        "x": measured["x"] - gt_axes["x"],
+        "y": measured["y"] - gt_axes["y"],
+        "z": measured["z"] - gt_axes["z"],
+        "roll": angle_diff(measured["roll"], gt_axes["roll"]),
+        "pitch": angle_diff(measured["pitch"], gt_axes["pitch"]),
+        "yaw": angle_diff(measured["yaw"], gt_axes["yaw"]),
+    }
+
+
 def is_gt_loop(translation, yaw_deg, translation_threshold, yaw_threshold_deg):
     return (
         math.isfinite(translation)
@@ -182,6 +292,51 @@ def best_by_fitness(rows):
     if finite_rows:
         return min(finite_rows, key=lambda r: r["fitness_score"])
     return rows[0] if rows else None
+
+
+def exceeds_abs(value, threshold):
+    return math.isfinite(value) and abs(value) >= threshold
+
+
+def build_optimization_after_map(optimization_summaries):
+    residuals = {}
+    for event in optimization_summaries:
+        accepted_edges = event.get("accepted_edges") or []
+        for edge in accepted_edges:
+            from_id = edge.get("from_id", "")
+            to_id = edge.get("to_id", "")
+            if not isinstance(from_id, int) or not isinstance(to_id, int):
+                continue
+            # n3mapping writes loop edges in match->query direction.
+            query_id = to_id
+            match_id = from_id
+            residuals[(query_id, match_id)] = {
+                "z": event_float(event, "loop_residual_z_after"),
+                "roll": event_float(event, "loop_residual_roll_after"),
+                "pitch": event_float(event, "loop_residual_pitch_after"),
+                "yaw": event_float(event, "loop_residual_yaw_after"),
+            }
+    return residuals
+
+
+def classify_candidate(accepted,
+                       gt_loop,
+                       candidate_selectable,
+                       z_bad,
+                       roll_pitch_bad):
+    if accepted and gt_loop:
+        if z_bad:
+            return "accepted_true_loop_bad_z"
+        if roll_pitch_bad:
+            return "accepted_true_loop_bad_roll_pitch"
+        return "accepted_true_loop_good"
+    if accepted and not gt_loop:
+        return "accepted_false_loop"
+    if gt_loop and candidate_selectable:
+        return "true_loop_not_selected"
+    if gt_loop:
+        return "verification_reject_true_loop"
+    return "retrieval_false_positive"
 
 
 def build_query_summary(rows):
@@ -238,6 +393,7 @@ def analyze(args):
     poses = load_keyframes_gt(args.keyframes_gt)
     candidates = load_loop_candidates(args.loop_debug)
     optimization_summaries = load_optimization_summaries(args.loop_debug)
+    optimization_after_by_pair = build_optimization_after_map(optimization_summaries)
     accepted_pairs = load_accepted_pairs(args.accepted_loops)
     candidate_pairs = {(int(c["query_id"]), int(c["match_id"])) for c in candidates}
     gt_loop_pairs = enumerate_gt_loop_pairs(
@@ -259,10 +415,15 @@ def analyze(args):
         "true_loop_not_selected": 0,
         "accepted_false_loop": 0,
         "accepted_true_loop": 0,
+        "accepted_true_loop_good": 0,
+        "accepted_true_loop_bad_z": 0,
+        "accepted_true_loop_bad_roll_pitch": 0,
+        "verification_reject_true_loop": 0,
         "z_drift_suspect_count": 0,
         "optimization_summary_count": 0,
         "optimization_high_residual_z_after_count": 0,
         "optimization_max_residual_z_after": 0.0,
+        "failure_class_counts": {},
     }
     rpy_threshold_rad = args.rpy_drift_threshold_deg * math.pi / 180.0
     accepted_pairs_available = bool(args.accepted_loops)
@@ -287,13 +448,60 @@ def analyze(args):
         residual_roll = event_float(event, "residual_roll")
         residual_pitch = event_float(event, "residual_pitch")
         residual_yaw = event_float(event, "residual_yaw")
+        gt_axes = gt_relative_axes(poses, query_id, match_id)
+        measured_axes = measurement_axes(event)
+        errors = axis_errors(measured_axes, gt_axes)
+        after_residual = optimization_after_by_pair.get(
+            (query_id, match_id),
+            {
+                "z": float("nan"),
+                "roll": float("nan"),
+                "pitch": float("nan"),
+                "yaw": float("nan"),
+            },
+        )
+        residual_z_after = after_residual["z"]
+        residual_roll_after = after_residual["roll"]
+        residual_pitch_after = after_residual["pitch"]
+        residual_yaw_after = after_residual["yaw"]
         z_drift_suspect = bool(
             accepted
             and (
                 (math.isfinite(residual_z) and abs(residual_z) >= args.z_drift_threshold)
+                or (math.isfinite(residual_z_after) and abs(residual_z_after) >= args.z_drift_threshold)
                 or (math.isfinite(residual_roll) and abs(residual_roll) >= rpy_threshold_rad)
                 or (math.isfinite(residual_pitch) and abs(residual_pitch) >= rpy_threshold_rad)
+                or (math.isfinite(residual_roll_after) and abs(residual_roll_after) >= rpy_threshold_rad)
+                or (math.isfinite(residual_pitch_after) and abs(residual_pitch_after) >= rpy_threshold_rad)
             )
+        )
+        z_bad = bool(
+            accepted
+            and gt_loop
+            and (
+                exceeds_abs(errors["z"], args.z_drift_threshold)
+                or exceeds_abs(residual_z_after, args.z_drift_threshold)
+                or exceeds_abs(residual_z, args.z_drift_threshold)
+            )
+        )
+        roll_pitch_bad = bool(
+            accepted
+            and gt_loop
+            and (
+                exceeds_abs(errors["roll"], rpy_threshold_rad)
+                or exceeds_abs(errors["pitch"], rpy_threshold_rad)
+                or exceeds_abs(residual_roll_after, rpy_threshold_rad)
+                or exceeds_abs(residual_pitch_after, rpy_threshold_rad)
+                or exceeds_abs(residual_roll, rpy_threshold_rad)
+                or exceeds_abs(residual_pitch, rpy_threshold_rad)
+            )
+        )
+        failure_class = classify_candidate(
+            accepted,
+            gt_loop,
+            candidate_selectable,
+            z_bad,
+            roll_pitch_bad,
         )
 
         if accepted and gt_loop:
@@ -318,12 +526,20 @@ def analyze(args):
             stats["true_loop_not_selected"] += 1
         if gt_loop and not accepted and not candidate_selectable:
             stats["icp_reject_true_loop"] += 1
+            stats["verification_reject_true_loop"] += 1
         if accepted and not gt_loop:
             stats["accepted_false_loop"] += 1
         if accepted and gt_loop:
             stats["accepted_true_loop"] += 1
+        if failure_class == "accepted_true_loop_good":
+            stats["accepted_true_loop_good"] += 1
+        elif failure_class == "accepted_true_loop_bad_z":
+            stats["accepted_true_loop_bad_z"] += 1
+        elif failure_class == "accepted_true_loop_bad_roll_pitch":
+            stats["accepted_true_loop_bad_roll_pitch"] += 1
         if z_drift_suspect:
             stats["z_drift_suspect_count"] += 1
+        stats["failure_class_counts"][failure_class] = stats["failure_class_counts"].get(failure_class, 0) + 1
 
         rows.append(
             {
@@ -331,7 +547,15 @@ def analyze(args):
                 "match_id": match_id,
                 "gt_query_match_translation_m": translation,
                 "gt_query_match_yaw_deg": yaw_deg,
+                "gt_distance_m": translation,
+                "gt_yaw_diff_deg": yaw_deg,
                 "gt_is_loop": gt_loop,
+                "gt_relative_x": gt_axes["x"] if gt_axes is not None else float("nan"),
+                "gt_relative_y": gt_axes["y"] if gt_axes is not None else float("nan"),
+                "gt_relative_z": gt_axes["z"] if gt_axes is not None else float("nan"),
+                "gt_relative_roll": gt_axes["roll"] if gt_axes is not None else float("nan"),
+                "gt_relative_pitch": gt_axes["pitch"] if gt_axes is not None else float("nan"),
+                "gt_relative_yaw": gt_axes["yaw"] if gt_axes is not None else float("nan"),
                 "candidate_accepted": accepted,
                 "candidate_selectable": candidate_selectable,
                 "candidate_source": event.get("candidate_source", ""),
@@ -343,8 +567,25 @@ def analyze(args):
                 "residual_roll": residual_roll,
                 "residual_pitch": residual_pitch,
                 "residual_yaw": residual_yaw,
+                "residual_z_after": residual_z_after,
+                "residual_roll_after": residual_roll_after,
+                "residual_pitch_after": residual_pitch_after,
+                "residual_yaw_after": residual_yaw_after,
+                "measurement_x": measured_axes["x"] if measured_axes is not None else float("nan"),
+                "measurement_y": measured_axes["y"] if measured_axes is not None else float("nan"),
+                "measurement_z": measured_axes["z"] if measured_axes is not None else float("nan"),
+                "measurement_roll": measured_axes["roll"] if measured_axes is not None else float("nan"),
+                "measurement_pitch": measured_axes["pitch"] if measured_axes is not None else float("nan"),
+                "measurement_yaw": measured_axes["yaw"] if measured_axes is not None else float("nan"),
+                "icp_error_to_gt_x": errors["x"],
+                "icp_error_to_gt_y": errors["y"],
+                "icp_error_to_gt_z": errors["z"],
+                "icp_error_to_gt_roll": errors["roll"],
+                "icp_error_to_gt_pitch": errors["pitch"],
+                "icp_error_to_gt_yaw": errors["yaw"],
                 "z_drift_suspect": z_drift_suspect,
                 "category": category,
+                "failure_class": failure_class,
             }
         )
 
@@ -444,7 +685,15 @@ def analyze(args):
             "match_id",
             "gt_query_match_translation_m",
             "gt_query_match_yaw_deg",
+            "gt_distance_m",
+            "gt_yaw_diff_deg",
             "gt_is_loop",
+            "gt_relative_x",
+            "gt_relative_y",
+            "gt_relative_z",
+            "gt_relative_roll",
+            "gt_relative_pitch",
+            "gt_relative_yaw",
             "candidate_accepted",
             "candidate_selectable",
             "candidate_source",
@@ -456,8 +705,25 @@ def analyze(args):
             "residual_roll",
             "residual_pitch",
             "residual_yaw",
+            "residual_z_after",
+            "residual_roll_after",
+            "residual_pitch_after",
+            "residual_yaw_after",
+            "measurement_x",
+            "measurement_y",
+            "measurement_z",
+            "measurement_roll",
+            "measurement_pitch",
+            "measurement_yaw",
+            "icp_error_to_gt_x",
+            "icp_error_to_gt_y",
+            "icp_error_to_gt_z",
+            "icp_error_to_gt_roll",
+            "icp_error_to_gt_pitch",
+            "icp_error_to_gt_yaw",
             "z_drift_suspect",
             "category",
+            "failure_class",
         ]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -466,12 +732,36 @@ def analyze(args):
             for key in (
                 "gt_query_match_translation_m",
                 "gt_query_match_yaw_deg",
+                "gt_distance_m",
+                "gt_yaw_diff_deg",
+                "gt_relative_x",
+                "gt_relative_y",
+                "gt_relative_z",
+                "gt_relative_roll",
+                "gt_relative_pitch",
+                "gt_relative_yaw",
                 "fitness_score",
                 "inlier_ratio",
                 "residual_z",
                 "residual_roll",
                 "residual_pitch",
                 "residual_yaw",
+                "residual_z_after",
+                "residual_roll_after",
+                "residual_pitch_after",
+                "residual_yaw_after",
+                "measurement_x",
+                "measurement_y",
+                "measurement_z",
+                "measurement_roll",
+                "measurement_pitch",
+                "measurement_yaw",
+                "icp_error_to_gt_x",
+                "icp_error_to_gt_y",
+                "icp_error_to_gt_z",
+                "icp_error_to_gt_roll",
+                "icp_error_to_gt_pitch",
+                "icp_error_to_gt_yaw",
             ):
                 formatted[key] = format_float(row[key])
             writer.writerow(formatted)
