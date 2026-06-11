@@ -88,9 +88,20 @@ struct CalibrationDiagnostics {
     Range3 first_cloud_world_velo_to_cam_range;
 };
 
+struct AlignmentStats {
+    size_t input_lidar_count = 0;
+    size_t input_gt_count = 0;
+    size_t matched_count = 0;
+    size_t selected_count = 0;
+    size_t dropped_lidar_count = 0;
+    size_t dropped_gt_count = 0;
+    std::vector<double> time_diffs_s;
+};
+
 struct AlignedFrames {
     std::vector<KittiFrame> frames;
     CalibrationDiagnostics calibration;
+    AlignmentStats alignment;
 };
 
 struct MappingStats {
@@ -101,12 +112,18 @@ struct MappingStats {
 };
 
 struct RelocResult {
+    size_t query_index = 0;
     int64_t frame_id = -1;
     bool success = false;
     bool lock = false;
+    bool pose_success = false;
+    bool lock_correct = false;
+    bool false_lock = false;
+    int lock_latency_frames = -1;
     int64_t matched_keyframe_id = -1;
     double translation_error_m = std::numeric_limits<double>::quiet_NaN();
     double yaw_error_deg = std::numeric_limits<double>::quiet_NaN();
+    std::string failure_class = "no_candidate";
 };
 
 class EvalProgressLog {
@@ -438,6 +455,21 @@ AlignedFrames loadAlignedFrames(const Options& options)
     const auto poses = readPoses(poses_path);
     AlignedFrames aligned;
     aligned.calibration = readCalibration(calibration_dir, options);
+    aligned.alignment.input_lidar_count = lidar_bins.size();
+    aligned.alignment.input_gt_count = poses.size();
+
+    std::set<int64_t> matched_pose_ids;
+    for (const auto& [frame_id, bin_path] : lidar_bins) {
+        (void)bin_path;
+        if (poses.find(frame_id) == poses.end()) continue;
+        ++aligned.alignment.matched_count;
+        aligned.alignment.time_diffs_s.push_back(0.0);
+        matched_pose_ids.insert(frame_id);
+    }
+    aligned.alignment.dropped_lidar_count =
+        aligned.alignment.input_lidar_count - aligned.alignment.matched_count;
+    aligned.alignment.dropped_gt_count =
+        aligned.alignment.input_gt_count - matched_pose_ids.size();
 
     int stride_count = 0;
     for (const auto& [frame_id, bin_path] : lidar_bins) {
@@ -453,6 +485,7 @@ AlignedFrames loadAlignedFrames(const Options& options)
             break;
         }
     }
+    aligned.alignment.selected_count = aligned.frames.size();
     if (aligned.frames.empty()) {
         throw std::runtime_error("no common KITTI360 lidar/pose frame ids selected");
     }
@@ -679,6 +712,28 @@ void writeCalibrationJson(std::ostream& out, const CalibrationDiagnostics& calib
     out << "\n  }";
 }
 
+void writeAlignmentMetricsJson(std::ostream& out, const AlignmentStats& alignment)
+{
+    out << "  \"odom_source\": \"gt\",\n"
+        << "  \"alignment_input_lidar_count\": " << alignment.input_lidar_count << ",\n"
+        << "  \"alignment_input_gt_count\": " << alignment.input_gt_count << ",\n"
+        << "  \"alignment_matched_count\": " << alignment.matched_count << ",\n"
+        << "  \"alignment_selected_count\": " << alignment.selected_count << ",\n"
+        << "  \"alignment_dropped_lidar_count\": " << alignment.dropped_lidar_count << ",\n"
+        << "  \"alignment_dropped_gt_count\": " << alignment.dropped_gt_count << ",\n"
+        << "  \"alignment_time_diff_median_s\": ";
+    writeJsonDoubleOrNull(out, percentile(alignment.time_diffs_s, 0.5));
+    out << ",\n  \"alignment_time_diff_p95_s\": ";
+    writeJsonDoubleOrNull(out, percentile(alignment.time_diffs_s, 0.95));
+    out << ",\n  \"alignment_time_diff_max_s\": ";
+    writeJsonDoubleOrNull(out,
+                          alignment.time_diffs_s.empty()
+                              ? std::numeric_limits<double>::quiet_NaN()
+                              : *std::max_element(alignment.time_diffs_s.begin(),
+                                                  alignment.time_diffs_s.end()));
+    out << ",\n";
+}
+
 Config makeEvalConfig(const Options& options)
 {
     Config config;
@@ -853,6 +908,7 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
             << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
             << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
             << "  \"stride\": " << options.stride << ",\n";
+    writeAlignmentMetricsJson(metrics, aligned.alignment);
     writeCalibrationJson(metrics, aligned.calibration);
     metrics << "\n"
             << "}\n";
@@ -901,6 +957,15 @@ bool poseSuccess(const RelocResult& result, const Options& options)
         std::isfinite(result.yaw_error_deg) &&
         result.translation_error_m <= options.pose_translation_threshold_m &&
         result.yaw_error_deg <= options.pose_yaw_threshold_deg;
+}
+
+std::string classifyRelocalizationResult(const RelocResult& result)
+{
+    if (result.lock_correct) return "correct_lock";
+    if (result.false_lock) return "false_lock";
+    if (!result.success) return "no_candidate";
+    if (result.pose_success) return "temporal_guard_reject";
+    return result.matched_keyframe_id >= 0 ? "icp_bad" : "wrong_basin";
 }
 
 int runRelocalization(const Options& options, const AlignedFrames& aligned)
@@ -960,14 +1025,39 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
 
     std::vector<double> translation_errors;
     std::vector<double> yaw_errors;
+    std::vector<double> translation_errors_at_lock;
+    std::vector<double> yaw_errors_at_lock;
+    std::vector<double> lock_latency_frames;
     size_t locks = 0;
     size_t pose_successes = 0;
+    size_t correct_locks = 0;
+    size_t false_locks = 0;
+    int first_lock_frame = -1;
+    for (size_t i = 0; i < results.size(); ++i) {
+        auto& result = results[i];
+        result.query_index = i;
+        result.pose_success = poseSuccess(result, options);
+        result.lock_correct = result.lock && result.pose_success;
+        result.false_lock = result.lock && !result.pose_success;
+        if (result.lock) {
+            result.lock_latency_frames = static_cast<int>(i);
+            if (first_lock_frame < 0) first_lock_frame = static_cast<int>(i);
+        }
+        result.failure_class = classifyRelocalizationResult(result);
+    }
     for (const auto& result : results) {
         if (result.lock) ++locks;
-        if (poseSuccess(result, options)) ++pose_successes;
+        if (result.pose_success) ++pose_successes;
+        if (result.lock_correct) ++correct_locks;
+        if (result.false_lock) ++false_locks;
         if (result.success) {
             translation_errors.push_back(result.translation_error_m);
             yaw_errors.push_back(result.yaw_error_deg);
+        }
+        if (result.lock) {
+            translation_errors_at_lock.push_back(result.translation_error_m);
+            yaw_errors_at_lock.push_back(result.yaw_error_deg);
+            lock_latency_frames.push_back(static_cast<double>(result.lock_latency_frames));
         }
     }
 
@@ -979,6 +1069,10 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
             << "  \"query_count\": " << results.size() << ",\n"
             << "  \"lock_success_rate\": " << (results.empty() ? 0.0 : static_cast<double>(locks) / results.size()) << ",\n"
             << "  \"pose_success_rate\": " << (results.empty() ? 0.0 : static_cast<double>(pose_successes) / results.size()) << ",\n"
+            << "  \"correct_lock_count\": " << correct_locks << ",\n"
+            << "  \"false_lock_count\": " << false_locks << ",\n"
+            << "  \"lock_precision\": " << (locks == 0 ? 0.0 : static_cast<double>(correct_locks) / locks) << ",\n"
+            << "  \"false_lock_rate\": " << (locks == 0 ? 0.0 : static_cast<double>(false_locks) / locks) << ",\n"
             << "  \"median_translation_error_m\": ";
     writeJsonDoubleOrNull(metrics, percentile(translation_errors, 0.5));
     metrics << ",\n  \"p95_translation_error_m\": ";
@@ -987,23 +1081,43 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
     writeJsonDoubleOrNull(metrics, percentile(yaw_errors, 0.5));
     metrics << ",\n  \"p95_yaw_error_deg\": ";
     writeJsonDoubleOrNull(metrics, percentile(yaw_errors, 0.95));
+    metrics << ",\n  \"pose_error_at_lock_p50_m\": ";
+    writeJsonDoubleOrNull(metrics, percentile(translation_errors_at_lock, 0.5));
+    metrics << ",\n  \"pose_error_at_lock_p95_m\": ";
+    writeJsonDoubleOrNull(metrics, percentile(translation_errors_at_lock, 0.95));
+    metrics << ",\n  \"yaw_error_at_lock_p50_deg\": ";
+    writeJsonDoubleOrNull(metrics, percentile(yaw_errors_at_lock, 0.5));
+    metrics << ",\n  \"yaw_error_at_lock_p95_deg\": ";
+    writeJsonDoubleOrNull(metrics, percentile(yaw_errors_at_lock, 0.95));
+    metrics << ",\n  \"first_lock_frame\": " << first_lock_frame;
+    metrics << ",\n  \"lock_latency_p50_frames\": ";
+    writeJsonDoubleOrNull(metrics, percentile(lock_latency_frames, 0.5));
+    metrics << ",\n  \"lock_latency_p95_frames\": ";
+    writeJsonDoubleOrNull(metrics, percentile(lock_latency_frames, 0.95));
     metrics << ",\n"
             << "  \"dropout\": " << options.dropout << ",\n"
             << "  \"noise_sigma\": " << options.noise_sigma << ",\n"
             << "  \"fake_yaw_deg\": " << options.fake_yaw_deg << ",\n";
+    writeAlignmentMetricsJson(metrics, aligned.alignment);
     writeCalibrationJson(metrics, aligned.calibration);
     metrics << "\n"
             << "}\n";
 
     std::ofstream per_query(options.output_dir / "relocalization_queries.csv");
-    per_query << "frame_id,success,lock,matched_keyframe_id,translation_error_m,yaw_error_deg\n";
+    per_query << "frame_id,success,lock,matched_keyframe_id,translation_error_m,yaw_error_deg,"
+                 "pose_success,lock_correct,false_lock,lock_latency_frames,failure_class\n";
     for (const auto& result : results) {
         per_query << result.frame_id << ','
                   << (result.success ? "true" : "false") << ','
                   << (result.lock ? "true" : "false") << ','
                   << result.matched_keyframe_id << ','
                   << result.translation_error_m << ','
-                  << result.yaw_error_deg << '\n';
+                  << result.yaw_error_deg << ','
+                  << (result.pose_success ? "true" : "false") << ','
+                  << (result.lock_correct ? "true" : "false") << ','
+                  << (result.false_lock ? "true" : "false") << ','
+                  << result.lock_latency_frames << ','
+                  << result.failure_class << '\n';
     }
 
     std::cout << "relocalization queries=" << results.size()

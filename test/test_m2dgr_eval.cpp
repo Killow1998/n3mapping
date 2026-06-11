@@ -144,6 +144,12 @@ TEST(N3MappingM2DGREvalTest, MappingLoopWritesMatrixCompatibleArtifacts)
     EXPECT_NE(metrics.find("\"dataset\": \"M2DGR\""), std::string::npos);
     EXPECT_NE(metrics.find("\"mode\": \"mapping_loop\""), std::string::npos);
     EXPECT_NE(metrics.find("\"frames_processed\": 5"), std::string::npos);
+    EXPECT_NE(metrics.find("\"odom_source\": \"gt\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_input_lidar_count\": 6"), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_input_gt_count\": 6"), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_matched_count\": 6"), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_selected_count\": 5"), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_time_diff_max_s\": 0"), std::string::npos);
 }
 
 TEST(N3MappingM2DGREvalTest, RelocalizationWritesMetricsAndDebug)
@@ -176,6 +182,13 @@ TEST(N3MappingM2DGREvalTest, RelocalizationWritesMetricsAndDebug)
     EXPECT_NE(metrics.find("\"mode\": \"relocalization\""), std::string::npos);
     EXPECT_NE(metrics.find("\"query_count\": 3"), std::string::npos);
     EXPECT_NE(metrics.find("\"pose_success_rate\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"lock_precision\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"false_lock_rate\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"pose_error_at_lock_p95_m\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"odom_source\": \"gt\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_matched_count\": 6"), std::string::npos);
+    const std::string queries = readTextFile(output / "relocalization_queries.csv");
+    EXPECT_NE(queries.find("pose_success,lock_correct,false_lock,lock_latency_frames,failure_class"), std::string::npos);
 }
 
 }  // namespace

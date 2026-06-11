@@ -160,6 +160,12 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_NE(metrics.find("\"mode\": \"mapping_loop\""), std::string::npos);
     EXPECT_NE(metrics.find("\"frames_processed\": 5"), std::string::npos);
     EXPECT_NE(metrics.find("\"accepted_keyframes\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"odom_source\": \"gt\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_input_lidar_count\": 6"), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_input_gt_count\": 6"), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_matched_count\": 6"), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_selected_count\": 5"), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_time_diff_max_s\": 0"), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_loaded\": true"), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_mode_requested\": \"auto\""), std::string::npos);
     const std::string loops = readTextFile(output / "accepted_loops.csv");
@@ -290,10 +296,20 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
         metrics << "{\n"
                 << "  \"mode\": \"mapping_loop\",\n"
                 << "  \"sequence\": \"synthetic_sequence\",\n"
+                << "  \"odom_source\": \"gt\",\n"
                 << "  \"frames_processed\": 3,\n"
                 << "  \"accepted_keyframes\": 2,\n"
                 << "  \"accepted_loop_count\": 2,\n"
-                << "  \"dense_trajectory_count\": 3\n"
+                << "  \"dense_trajectory_count\": 3,\n"
+                << "  \"alignment_input_lidar_count\": 3,\n"
+                << "  \"alignment_input_gt_count\": 3,\n"
+                << "  \"alignment_matched_count\": 3,\n"
+                << "  \"alignment_selected_count\": 3,\n"
+                << "  \"alignment_dropped_lidar_count\": 0,\n"
+                << "  \"alignment_dropped_gt_count\": 0,\n"
+                << "  \"alignment_time_diff_median_s\": 0,\n"
+                << "  \"alignment_time_diff_p95_s\": 0,\n"
+                << "  \"alignment_time_diff_max_s\": 0\n"
                 << "}\n";
     }
     {
@@ -362,6 +378,8 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
     EXPECT_NE(json.find("\"loop_verification_reject_true_loop\": 1"), std::string::npos);
     EXPECT_NE(json.find("\"loop_accepted_planar_xy_yaw\": 1"), std::string::npos);
     EXPECT_NE(json.find("\"trajectory_pair_count\": 3"), std::string::npos);
+    EXPECT_NE(json.find("\"odom_source\": \"gt\""), std::string::npos);
+    EXPECT_NE(json.find("\"alignment_matched_count\": 3"), std::string::npos);
 }
 
 TEST(N3MappingKitti360EvalTest, CalibrationModeChangesGroundTruthPoseAndMetrics)
@@ -454,9 +472,16 @@ TEST(N3MappingKitti360EvalTest, RelocalizationWritesMetricsAndDebug)
     EXPECT_NE(metrics.find("\"query_count\": 3"), std::string::npos);
     EXPECT_NE(metrics.find("\"lock_success_rate\""), std::string::npos);
     EXPECT_NE(metrics.find("\"pose_success_rate\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"lock_precision\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"false_lock_rate\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"pose_error_at_lock_p95_m\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"odom_source\": \"gt\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"alignment_matched_count\": 6"), std::string::npos);
     EXPECT_NE(metrics.find("\"median_translation_error_m\""), std::string::npos);
     EXPECT_NE(metrics.find("\"p95_yaw_error_deg\""), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_loaded\": true"), std::string::npos);
+    const std::string queries = readTextFile(output / "relocalization_queries.csv");
+    EXPECT_NE(queries.find("pose_success,lock_correct,false_lock,lock_latency_frames,failure_class"), std::string::npos);
 }
 
 }  // namespace test

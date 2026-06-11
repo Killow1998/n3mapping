@@ -13,6 +13,7 @@
 #include <map>
 #include <numeric>
 #include <random>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -72,6 +73,16 @@ struct M2DGRFrame {
     Eigen::Isometry3d T_world_lidar = Eigen::Isometry3d::Identity();
 };
 
+struct AlignmentStats {
+    size_t input_lidar_count = 0;
+    size_t input_gt_count = 0;
+    size_t matched_count = 0;
+    size_t selected_count = 0;
+    size_t dropped_lidar_count = 0;
+    size_t dropped_gt_count = 0;
+    std::vector<double> time_diffs_s;
+};
+
 struct MappingStats {
     size_t frames_processed = 0;
     size_t successful_frames = 0;
@@ -84,9 +95,14 @@ struct RelocResult {
     double timestamp = 0.0;
     bool success = false;
     bool lock = false;
+    bool pose_success = false;
+    bool lock_correct = false;
+    bool false_lock = false;
+    int lock_latency_frames = -1;
     int64_t matched_keyframe_id = -1;
     double translation_error_m = std::numeric_limits<double>::quiet_NaN();
     double yaw_error_deg = std::numeric_limits<double>::quiet_NaN();
+    std::string failure_class = "no_candidate";
 };
 
 class EvalProgressLog {
@@ -463,9 +479,20 @@ std::vector<PoseRecord> readTumGroundTruth(const fs::path& path)
 
 std::vector<M2DGRFrame> alignFrames(const std::vector<LidarRecord>& lidar,
                                     const std::vector<PoseRecord>& poses,
-                                    const Options& options)
+                                    const Options& options,
+                                    AlignmentStats* alignment)
 {
     std::vector<M2DGRFrame> aligned;
+    std::set<size_t> matched_pose_indices;
+    if (alignment) {
+        alignment->input_lidar_count = lidar.size();
+        alignment->input_gt_count = poses.size();
+        alignment->matched_count = 0;
+        alignment->selected_count = 0;
+        alignment->dropped_lidar_count = 0;
+        alignment->dropped_gt_count = 0;
+        alignment->time_diffs_s.clear();
+    }
     size_t pose_index = 0;
     int64_t accepted_count = 0;
     for (const auto& record : lidar) {
@@ -476,7 +503,14 @@ std::vector<M2DGRFrame> alignFrames(const std::vector<LidarRecord>& lidar,
         }
         const double diff = std::abs(poses[pose_index].stamp - record.stamp);
         if (diff > options.max_time_diff) continue;
-        if (accepted_count % options.stride == 0) {
+        if (alignment) {
+            ++alignment->matched_count;
+            alignment->time_diffs_s.push_back(diff);
+            matched_pose_indices.insert(pose_index);
+        }
+        if (accepted_count % options.stride == 0 &&
+            (options.max_frames < 0 ||
+             static_cast<int64_t>(aligned.size()) < options.max_frames)) {
             M2DGRFrame frame;
             frame.frame_index = aligned.size();
             frame.lidar_stamp = record.stamp;
@@ -485,12 +519,13 @@ std::vector<M2DGRFrame> alignFrames(const std::vector<LidarRecord>& lidar,
             frame.cloud_path = record.path;
             frame.T_world_lidar = poses[pose_index].T_world_lidar;
             aligned.push_back(frame);
-            if (options.max_frames >= 0 &&
-                static_cast<int64_t>(aligned.size()) >= options.max_frames) {
-                break;
-            }
         }
         ++accepted_count;
+    }
+    if (alignment) {
+        alignment->selected_count = aligned.size();
+        alignment->dropped_lidar_count = alignment->input_lidar_count - alignment->matched_count;
+        alignment->dropped_gt_count = alignment->input_gt_count - matched_pose_indices.size();
     }
     if (aligned.empty()) {
         throw std::runtime_error("no lidar/GT frames aligned; try increasing --max_time_diff");
@@ -624,6 +659,28 @@ void writeJsonDoubleOrNull(std::ostream& out, double value)
     }
 }
 
+void writeAlignmentMetricsJson(std::ostream& out, const AlignmentStats& alignment)
+{
+    out << "  \"odom_source\": \"gt\",\n"
+        << "  \"alignment_input_lidar_count\": " << alignment.input_lidar_count << ",\n"
+        << "  \"alignment_input_gt_count\": " << alignment.input_gt_count << ",\n"
+        << "  \"alignment_matched_count\": " << alignment.matched_count << ",\n"
+        << "  \"alignment_selected_count\": " << alignment.selected_count << ",\n"
+        << "  \"alignment_dropped_lidar_count\": " << alignment.dropped_lidar_count << ",\n"
+        << "  \"alignment_dropped_gt_count\": " << alignment.dropped_gt_count << ",\n"
+        << "  \"alignment_time_diff_median_s\": ";
+    writeJsonDoubleOrNull(out, percentile(alignment.time_diffs_s, 0.5));
+    out << ",\n  \"alignment_time_diff_p95_s\": ";
+    writeJsonDoubleOrNull(out, percentile(alignment.time_diffs_s, 0.95));
+    out << ",\n  \"alignment_time_diff_max_s\": ";
+    writeJsonDoubleOrNull(out,
+                          alignment.time_diffs_s.empty()
+                              ? std::numeric_limits<double>::quiet_NaN()
+                              : *std::max_element(alignment.time_diffs_s.begin(),
+                                                  alignment.time_diffs_s.end()));
+    out << ",\n";
+}
+
 void writeTrajectoryLine(std::ofstream& out, double timestamp, const Eigen::Isometry3d& pose)
 {
     const Eigen::Quaterniond q(pose.rotation());
@@ -755,11 +812,24 @@ bool buildTemporaryMap(const Options& options,
 bool poseSuccess(const RelocResult& result, const Options& options)
 {
     return result.success &&
+        std::isfinite(result.translation_error_m) &&
+        std::isfinite(result.yaw_error_deg) &&
         result.translation_error_m <= options.pose_translation_threshold_m &&
         result.yaw_error_deg <= options.pose_yaw_threshold_deg;
 }
 
-int runMappingLoop(const Options& options, const std::vector<M2DGRFrame>& frames)
+std::string classifyRelocalizationResult(const RelocResult& result)
+{
+    if (result.lock_correct) return "correct_lock";
+    if (result.false_lock) return "false_lock";
+    if (!result.success) return "no_candidate";
+    if (result.pose_success) return "temporal_guard_reject";
+    return result.matched_keyframe_id >= 0 ? "icp_bad" : "wrong_basin";
+}
+
+int runMappingLoop(const Options& options,
+                   const std::vector<M2DGRFrame>& frames,
+                   const AlignmentStats& alignment)
 {
     fs::create_directories(options.output_dir);
     touchFile(options.output_dir / "loop_debug.jsonl");
@@ -840,7 +910,10 @@ int runMappingLoop(const Options& options, const std::vector<M2DGRFrame>& frames
             << "  \"stride\": " << options.stride << ",\n"
             << "  \"max_time_diff\": " << options.max_time_diff << ",\n"
             << "  \"lidar_dir\": \"" << jsonEscape(resolveLidarDir(options).string()) << "\",\n"
-            << "  \"gt_path\": \"" << jsonEscape(resolveGtPath(options).string()) << "\"\n"
+            << "  \"gt_path\": \"" << jsonEscape(resolveGtPath(options).string()) << "\",\n";
+    writeAlignmentMetricsJson(metrics, alignment);
+    metrics
+            << "  \"alignment_contract_version\": 1\n"
             << "}\n";
     std::cout << "m2dgr mapping_loop frames=" << stats.frames_processed
               << " keyframes=" << stats.accepted_keyframes
@@ -849,7 +922,9 @@ int runMappingLoop(const Options& options, const std::vector<M2DGRFrame>& frames
     return 0;
 }
 
-int runRelocalization(const Options& options, const std::vector<M2DGRFrame>& frames)
+int runRelocalization(const Options& options,
+                      const std::vector<M2DGRFrame>& frames,
+                      const AlignmentStats& alignment)
 {
     fs::create_directories(options.output_dir);
     touchFile(options.output_dir / "relocalization_debug.jsonl");
@@ -901,14 +976,38 @@ int runRelocalization(const Options& options, const std::vector<M2DGRFrame>& fra
 
     std::vector<double> translation_errors;
     std::vector<double> yaw_errors;
+    std::vector<double> translation_errors_at_lock;
+    std::vector<double> yaw_errors_at_lock;
+    std::vector<double> lock_latency_frames;
     size_t locks = 0;
     size_t pose_successes = 0;
+    size_t correct_locks = 0;
+    size_t false_locks = 0;
+    int first_lock_frame = -1;
+    for (size_t i = 0; i < results.size(); ++i) {
+        auto& result = results[i];
+        result.pose_success = poseSuccess(result, options);
+        result.lock_correct = result.lock && result.pose_success;
+        result.false_lock = result.lock && !result.pose_success;
+        if (result.lock) {
+            result.lock_latency_frames = static_cast<int>(i);
+            if (first_lock_frame < 0) first_lock_frame = static_cast<int>(i);
+        }
+        result.failure_class = classifyRelocalizationResult(result);
+    }
     for (const auto& result : results) {
         if (result.lock) ++locks;
-        if (poseSuccess(result, options)) ++pose_successes;
+        if (result.pose_success) ++pose_successes;
+        if (result.lock_correct) ++correct_locks;
+        if (result.false_lock) ++false_locks;
         if (result.success) {
             translation_errors.push_back(result.translation_error_m);
             yaw_errors.push_back(result.yaw_error_deg);
+        }
+        if (result.lock) {
+            translation_errors_at_lock.push_back(result.translation_error_m);
+            yaw_errors_at_lock.push_back(result.yaw_error_deg);
+            lock_latency_frames.push_back(static_cast<double>(result.lock_latency_frames));
         }
     }
 
@@ -921,6 +1020,10 @@ int runRelocalization(const Options& options, const std::vector<M2DGRFrame>& fra
             << "  \"query_count\": " << results.size() << ",\n"
             << "  \"lock_success_rate\": " << (results.empty() ? 0.0 : static_cast<double>(locks) / results.size()) << ",\n"
             << "  \"pose_success_rate\": " << (results.empty() ? 0.0 : static_cast<double>(pose_successes) / results.size()) << ",\n"
+            << "  \"correct_lock_count\": " << correct_locks << ",\n"
+            << "  \"false_lock_count\": " << false_locks << ",\n"
+            << "  \"lock_precision\": " << (locks == 0 ? 0.0 : static_cast<double>(correct_locks) / locks) << ",\n"
+            << "  \"false_lock_rate\": " << (locks == 0 ? 0.0 : static_cast<double>(false_locks) / locks) << ",\n"
             << "  \"median_translation_error_m\": ";
     writeJsonDoubleOrNull(metrics, percentile(translation_errors, 0.5));
     metrics << ",\n  \"p95_translation_error_m\": ";
@@ -929,15 +1032,32 @@ int runRelocalization(const Options& options, const std::vector<M2DGRFrame>& fra
     writeJsonDoubleOrNull(metrics, percentile(yaw_errors, 0.5));
     metrics << ",\n  \"p95_yaw_error_deg\": ";
     writeJsonDoubleOrNull(metrics, percentile(yaw_errors, 0.95));
+    metrics << ",\n  \"pose_error_at_lock_p50_m\": ";
+    writeJsonDoubleOrNull(metrics, percentile(translation_errors_at_lock, 0.5));
+    metrics << ",\n  \"pose_error_at_lock_p95_m\": ";
+    writeJsonDoubleOrNull(metrics, percentile(translation_errors_at_lock, 0.95));
+    metrics << ",\n  \"yaw_error_at_lock_p50_deg\": ";
+    writeJsonDoubleOrNull(metrics, percentile(yaw_errors_at_lock, 0.5));
+    metrics << ",\n  \"yaw_error_at_lock_p95_deg\": ";
+    writeJsonDoubleOrNull(metrics, percentile(yaw_errors_at_lock, 0.95));
+    metrics << ",\n  \"first_lock_frame\": " << first_lock_frame;
+    metrics << ",\n  \"lock_latency_p50_frames\": ";
+    writeJsonDoubleOrNull(metrics, percentile(lock_latency_frames, 0.5));
+    metrics << ",\n  \"lock_latency_p95_frames\": ";
+    writeJsonDoubleOrNull(metrics, percentile(lock_latency_frames, 0.95));
     metrics << ",\n"
             << "  \"dropout\": " << options.dropout << ",\n"
             << "  \"noise_sigma\": " << options.noise_sigma << ",\n"
             << "  \"fake_yaw_deg\": " << options.fake_yaw_deg << ",\n"
-            << "  \"max_time_diff\": " << options.max_time_diff << "\n"
+            << "  \"max_time_diff\": " << options.max_time_diff << ",\n";
+    writeAlignmentMetricsJson(metrics, alignment);
+    metrics
+            << "  \"alignment_contract_version\": 1\n"
             << "}\n";
 
     std::ofstream per_query(options.output_dir / "relocalization_queries.csv");
-    per_query << "frame_index,timestamp,success,lock,matched_keyframe_id,translation_error_m,yaw_error_deg\n";
+    per_query << "frame_index,timestamp,success,lock,matched_keyframe_id,translation_error_m,yaw_error_deg,"
+                 "pose_success,lock_correct,false_lock,lock_latency_frames,failure_class\n";
     for (const auto& result : results) {
         per_query << result.frame_index << ','
                   << std::fixed << std::setprecision(9) << result.timestamp << ','
@@ -945,7 +1065,12 @@ int runRelocalization(const Options& options, const std::vector<M2DGRFrame>& fra
                   << (result.lock ? "true" : "false") << ','
                   << result.matched_keyframe_id << ','
                   << result.translation_error_m << ','
-                  << result.yaw_error_deg << '\n';
+                  << result.yaw_error_deg << ','
+                  << (result.pose_success ? "true" : "false") << ','
+                  << (result.lock_correct ? "true" : "false") << ','
+                  << (result.false_lock ? "true" : "false") << ','
+                  << result.lock_latency_frames << ','
+                  << result.failure_class << '\n';
     }
 
     std::cout << "m2dgr relocalization queries=" << results.size()
@@ -961,11 +1086,12 @@ int run(const Options& options)
     const auto gt_path = resolveGtPath(options);
     const auto lidar = listLidarRecords(lidar_dir);
     const auto poses = readTumGroundTruth(gt_path);
-    const auto frames = alignFrames(lidar, poses, options);
+    AlignmentStats alignment;
+    const auto frames = alignFrames(lidar, poses, options, &alignment);
     if (options.mode == "mapping_loop") {
-        return runMappingLoop(options, frames);
+        return runMappingLoop(options, frames, alignment);
     }
-    return runRelocalization(options, frames);
+    return runRelocalization(options, frames, alignment);
 }
 
 }  // namespace

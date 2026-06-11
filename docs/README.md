@@ -199,7 +199,7 @@ python3 src/n3mapping/tools/n3mapping_eval_matrix.py \
 
 现在 analyzer 已经能标注部分字段，但后续还应把 recall denominator 固化到 matrix gate 中。
 
-### P1：重定位还缺 false-lock 优先的评估闭环
+### P1：重定位 false-lock 评估闭环
 
 重定位目标不是单纯提高 `lock_success_rate`，而是：
 
@@ -213,8 +213,24 @@ python3 src/n3mapping/tools/n3mapping_eval_matrix.py \
 - correct_lock / false_lock。
 - pose_error_at_lock p50/p95。
 - yaw_error_at_lock p50/p95。
-- lock_latency_frames。
+- lock_latency_frames / first_lock_frame。
 - candidate retrieval miss / wrong basin / temporal guard too loose / too strict。
+
+当前 KITTI360 / M2DGR relocalization eval 已经输出：
+
+- `correct_lock_count`
+- `false_lock_count`
+- `lock_precision`
+- `false_lock_rate`
+- `pose_error_at_lock_p50_m`
+- `pose_error_at_lock_p95_m`
+- `yaw_error_at_lock_p50_deg`
+- `yaw_error_at_lock_p95_deg`
+- `first_lock_frame`
+- `lock_latency_p50_frames`
+- `lock_latency_p95_frames`
+
+`relocalization_queries.csv` 也会写出 `pose_success`、`lock_correct`、`false_lock`、`lock_latency_frames` 和 `failure_class`。后续算法修改必须优先保证 false lock 不增加。
 
 不要为了提高 lock 数放宽 guard；false lock 对机器人更危险。
 
@@ -250,6 +266,19 @@ full SLAM with real LIO drift
 - `odom_source=gt_noisy`
 - `odom_source=dataset_odom`
 - `odom_source=lio_frontend`
+
+当前 KITTI360 / M2DGR offline eval 会在 `metrics.json` 和 matrix 中记录：
+
+- `odom_source`
+- `alignment_input_lidar_count`
+- `alignment_input_gt_count`
+- `alignment_matched_count`
+- `alignment_selected_count`
+- `alignment_dropped_lidar_count`
+- `alignment_dropped_gt_count`
+- `alignment_time_diff_median_s`
+- `alignment_time_diff_p95_s`
+- `alignment_time_diff_max_s`
 
 如果 ideal odom 下都失败，说明 backend 本身有问题。只有 frontend odom 通过，才接近实车端到端结论。
 
@@ -437,8 +466,8 @@ If GPT Pro says to add evidence, implement the smallest new diagnostic or struct
    - verify KITTI360 + M2DGR artifact consistency.
 
 2. `relocalization_false_lock_matrix`
-   - add lock precision / false lock / pose error at lock metrics.
-   - do not loosen lock thresholds.
+   - done for KITTI360 / M2DGR eval metrics and matrix summary.
+   - keep future relocalization changes false-lock first.
 
 3. `vertical_observability_next_signal`
    - only after GPT Pro chooses the next runtime evidence source.
