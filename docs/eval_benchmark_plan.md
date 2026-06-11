@@ -22,6 +22,9 @@ The working target is not "looks better in one RViz run". It is:
   - `n3mapping_kitti360_eval`
   - `n3mapping_loop_debug_analyze.py`
   - `n3mapping_eval_matrix.py`
+- M2DGR is the first indoor adapter path:
+  - `n3mapping_m2dgr_eval`
+  - See `docs/m2dgr_eval.md`.
 
 ## Indoor Dataset Shortlist
 
@@ -65,8 +68,8 @@ The matrix summary is the gate for algorithm changes. Key fields:
 ## Next Steps
 
 1. Keep using KITTI360 drive_0005 smoke to compare outdoor loop changes.
-2. Add an M2DGR reader/eval adapter that emits the same artifact contract as
-   KITTI360 eval.
+2. Run the M2DGR eval adapter on a real indoor sequence and add the result to
+   the matrix.
 3. Run `n3mapping_eval_matrix.py` across KITTI360 and M2DGR runs.
 4. Only then replace or tune loop/relocalization modules based on failure type:
    retrieval miss, false positive retrieval, ICP verification failure,

@@ -315,6 +315,20 @@ ros2 run n3mapping n3mapping_eval_matrix.py \
 Benchmark target and indoor dataset shortlist:
 [docs/eval_benchmark_plan.md](docs/eval_benchmark_plan.md).
 
+M2DGR extracted-cloud offline eval:
+
+```bash
+ros2 run n3mapping n3mapping_m2dgr_eval \
+  --m2dgr_root /path/to/M2DGR \
+  --sequence hall_03 \
+  --lidar_dir /path/to/M2DGR/hall_03/velodyne_points \
+  --gt /path/to/M2DGR/hall_03/groundtruth.txt \
+  --mode mapping_loop \
+  --output /tmp/n3mapping_m2dgr_hall03_mapping
+```
+
+Details: [docs/m2dgr_eval.md](docs/m2dgr_eval.md).
+
 </details>
 
 ---
@@ -482,6 +496,18 @@ Summarize eval runs:
 rosrun n3mapping n3mapping_eval_matrix.py \
   --run kitti360_drive0003=/tmp/n3mapping_kitti360_mapping_loop \
   --output /tmp/n3mapping_eval_matrix
+```
+
+M2DGR extracted-cloud offline eval:
+
+```bash
+rosrun n3mapping n3mapping_m2dgr_eval \
+  --m2dgr_root /path/to/M2DGR \
+  --sequence hall_03 \
+  --lidar_dir /path/to/M2DGR/hall_03/velodyne_points \
+  --gt /path/to/M2DGR/hall_03/groundtruth.txt \
+  --mode mapping_loop \
+  --output /tmp/n3mapping_m2dgr_hall03_mapping
 ```
 
 </details>

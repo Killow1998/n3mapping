@@ -148,7 +148,7 @@ def load_trajectory(path):
                 continue
             if len(parts) != 8:
                 raise RuntimeError(f"{path}:{line_number}: expected 8 trajectory fields")
-            frame_id = int(parts[0])
+            frame_id = parts[0]
             values = [finite_float(v) for v in parts[1:]]
             if not all(math.isfinite(v) for v in values):
                 raise RuntimeError(f"{path}:{line_number}: non-finite trajectory pose")
