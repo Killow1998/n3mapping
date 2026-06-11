@@ -66,6 +66,8 @@ struct Config {
     double loop_max_icp_translation = 5.0;
     double loop_max_icp_rotation = 0.5;
     bool loop_use_icp_information = false;
+    double loop_icp_prefilter_voxel_size = 0.2;
+    int loop_icp_max_points = 50000;
     bool loop_debug_enable = false;
     std::string loop_debug_path = "";
 

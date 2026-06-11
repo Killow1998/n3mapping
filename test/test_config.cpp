@@ -18,6 +18,8 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_EQ(config.reloc_lock_min_winner_streak, 3);
     EXPECT_FALSE(config.reloc_debug_enable);
     EXPECT_TRUE(config.reloc_debug_path.empty());
+    EXPECT_DOUBLE_EQ(config.loop_icp_prefilter_voxel_size, 0.2);
+    EXPECT_EQ(config.loop_icp_max_points, 50000);
     EXPECT_DOUBLE_EQ(config.save_global_map_voxel_size, 0.1);
     EXPECT_EQ(config.sync_queue_size, 100);
 }
@@ -57,6 +59,16 @@ TEST(ConfigTest, RejectsZeroNoiseAndNegativeVoxelParameters) {
     config.save_global_map_voxel_size = -0.1;
     EXPECT_FALSE(config.validate(&error));
     EXPECT_NE(error.find("save_global_map_voxel_size"), std::string::npos);
+
+    config = Config{};
+    config.loop_icp_prefilter_voxel_size = -0.1;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("loop_icp_prefilter_voxel_size"), std::string::npos);
+
+    config = Config{};
+    config.loop_icp_max_points = -1;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("loop_icp_max_points"), std::string::npos);
 
     config = Config{};
     config.num_threads = 0;

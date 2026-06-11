@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <set>
 #include <stdexcept>
@@ -126,6 +127,52 @@ Eigen::Isometry3d candidateResidual(const Eigen::Isometry3d& expected_match_quer
                                     const Eigen::Isometry3d& measured_match_query)
 {
     return expected_match_query.inverse() * measured_match_query;
+}
+
+core::LioFrame::PointCloud::Ptr strideLimitCloud(const core::LioFrame::PointCloud::Ptr& cloud,
+                                                 std::size_t max_points)
+{
+    if (!cloud || cloud->size() <= max_points || max_points == 0) {
+        return cloud;
+    }
+
+    auto limited = pcl::make_shared<core::LioFrame::PointCloud>();
+    limited->header = cloud->header;
+    limited->reserve(max_points);
+    const std::size_t stride =
+        std::max<std::size_t>(1, static_cast<std::size_t>(std::ceil(static_cast<double>(cloud->size()) /
+                                                                    static_cast<double>(max_points))));
+    for (std::size_t i = 0; i < cloud->size() && limited->size() < max_points; i += stride) {
+        const auto& point = cloud->points[i];
+        if (isFinitePoint(point)) {
+            limited->push_back(point);
+        }
+    }
+    limited->width = static_cast<std::uint32_t>(limited->size());
+    limited->height = 1;
+    limited->is_dense = true;
+    return limited;
+}
+
+core::LioFrame::PointCloud::Ptr prepareLoopIcpCloud(const core::LioFrame::PointCloud::Ptr& cloud,
+                                                    const Config& config)
+{
+    if (!cloud || cloud->empty() || config.loop_icp_max_points <= 0 ||
+        cloud->size() <= static_cast<std::size_t>(config.loop_icp_max_points)) {
+        return cloud;
+    }
+
+    core::LioFrame::PointCloud::Ptr prepared = cloud;
+    const double voxel_size = std::max(config.loop_icp_prefilter_voxel_size, config.gicp_downsampling_resolution);
+    if (voxel_size > 0.0) {
+        core::LioFrame::PointCloud::Ptr filtered;
+        if (safeVoxelGridFilter<pcl::PointXYZI>(cloud, voxel_size, &filtered) &&
+            filtered && !filtered->empty()) {
+            prepared = filtered;
+        }
+    }
+
+    return strideLimitCloud(prepared, static_cast<std::size_t>(config.loop_icp_max_points));
 }
 
 }  // namespace
@@ -453,6 +500,12 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             auto target = session_->keyframeManager().buildSubmapInRootFrame(candidate.match_id, config_.gicp_submap_size, candidate.match_id);
             if (!source || source->empty() || !target || target->empty()) {
                 make_rejected_event(candidate, "empty_submap");
+                continue;
+            }
+            source = prepareLoopIcpCloud(source, config_);
+            target = prepareLoopIcpCloud(target, config_);
+            if (!source || source->size() < 10 || !target || target->size() < 10) {
+                make_rejected_event(candidate, "empty_submap_after_prefilter");
                 continue;
             }
 

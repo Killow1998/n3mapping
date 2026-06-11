@@ -30,7 +30,9 @@ std::string Config::toString() const {
     oss << "Loop: fitness_thr=" << loop_fitness_threshold
         << ", min_inlier=" << loop_min_inlier_ratio
         << ", max_icp_t=" << loop_max_icp_translation
-        << ", max_icp_r=" << loop_max_icp_rotation << "\n";
+        << ", max_icp_r=" << loop_max_icp_rotation
+        << ", prefilter_voxel=" << loop_icp_prefilter_voxel_size
+        << ", max_points=" << loop_icp_max_points << "\n";
     oss << "Loop debug JSONL: " << (loop_debug_enable ? "ON" : "OFF")
         << " path=" << (loop_debug_path.empty() ? "<map_save_path>/loop_debug.jsonl" : loop_debug_path) << "\n";
     oss << "Loop candidate pipeline: RHPD primary retrieval -> optional SC yaw/weak rerank/veto -> ICP -> geom gate -> LoopClosureManager filter/select\n";
@@ -153,6 +155,8 @@ bool Config::validate(std::string* error) const {
     if (!positive(loop_fitness_threshold, "loop_fitness_threshold")) return false;
     if (!non_negative(loop_max_icp_translation, "loop_max_icp_translation")) return false;
     if (!non_negative(loop_max_icp_rotation, "loop_max_icp_rotation")) return false;
+    if (!non_negative(loop_icp_prefilter_voxel_size, "loop_icp_prefilter_voxel_size")) return false;
+    if (!at_least(loop_icp_max_points, 0, "loop_icp_max_points")) return false;
     if (!at_least(loop_kf_gap, 0, "loop_kf_gap")) return false;
     if (!at_least(loop_closest_id_th, 0, "loop_closest_id_th")) return false;
     if (!at_least(loop_min_id_interval, 0, "loop_min_id_interval")) return false;

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cerrno>
 #include <cmath>
 #include <cstdint>
@@ -106,6 +107,52 @@ struct RelocResult {
     int64_t matched_keyframe_id = -1;
     double translation_error_m = std::numeric_limits<double>::quiet_NaN();
     double yaw_error_deg = std::numeric_limits<double>::quiet_NaN();
+};
+
+class EvalProgressLog {
+public:
+    explicit EvalProgressLog(const fs::path& path)
+        : start_(Clock::now())
+    {
+        out_.open(path);
+        if (!out_.is_open()) {
+            throw std::runtime_error("failed to open eval progress log: " + path.string());
+        }
+        out_ << "frame_index,frame_id,event,elapsed_ms,keyframe_id,accepted_keyframe,success,loop_edge_count,accepted_loops\n";
+        out_.flush();
+    }
+
+    void write(size_t frame_index,
+               int64_t frame_id,
+               const std::string& event,
+               int64_t keyframe_id = -1,
+               bool accepted_keyframe = false,
+               bool success = false,
+               size_t loop_edge_count = 0,
+               size_t accepted_loops = 0)
+    {
+        out_ << frame_index << ','
+             << frame_id << ','
+             << event << ','
+             << elapsedMs() << ','
+             << keyframe_id << ','
+             << (accepted_keyframe ? "true" : "false") << ','
+             << (success ? "true" : "false") << ','
+             << loop_edge_count << ','
+             << accepted_loops << '\n';
+        out_.flush();
+    }
+
+private:
+    using Clock = std::chrono::steady_clock;
+
+    double elapsedMs() const
+    {
+        return std::chrono::duration<double, std::milli>(Clock::now() - start_).count();
+    }
+
+    Clock::time_point start_;
+    std::ofstream out_;
 };
 
 std::string jsonEscape(const std::string& input)
@@ -688,6 +735,7 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
 {
     fs::create_directories(options.output_dir);
     touchFile(options.output_dir / "loop_debug.jsonl");
+    EvalProgressLog progress(options.output_dir / "eval_progress.csv");
     std::ofstream trajectory_est(options.output_dir / "trajectory_est.txt");
     std::ofstream trajectory_gt(options.output_dir / "trajectory_gt.txt");
     std::ofstream keyframes_gt(options.output_dir / "keyframes_gt.csv");
@@ -703,29 +751,79 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
     N3MappingCore core(config);
     MappingStats stats;
     const auto& frames = aligned.frames;
-    for (const auto& frame : frames) {
+    for (size_t frame_index = 0; frame_index < frames.size(); ++frame_index) {
+        const auto& frame = frames[frame_index];
+        progress.write(frame_index, frame.frame_id, "read_cloud_start");
         auto cloud = readKittiBinCloud(frame.lidar_bin);
+        progress.write(frame_index, frame.frame_id, "read_cloud_done");
+        progress.write(frame_index, frame.frame_id, "process_mapping_start");
         auto output = core.processMappingFrame(makeFrame(frame, frame.T_world_lidar, cloud));
+        progress.write(frame_index,
+                       frame.frame_id,
+                       "process_mapping_done",
+                       output.keyframe_id,
+                       output.accepted_keyframe,
+                       output.success);
         ++stats.frames_processed;
         if (output.success) ++stats.successful_frames;
         if (output.accepted_keyframe) ++stats.accepted_keyframes;
+        progress.write(frame_index,
+                       frame.frame_id,
+                       "write_outputs_start",
+                       output.keyframe_id,
+                       output.accepted_keyframe,
+                       output.success);
         writeTrajectoryLine(trajectory_gt, frame.frame_id, frame.T_world_lidar);
         writeTrajectoryLine(trajectory_est, frame.frame_id, output.T_world_lidar);
         if (output.accepted_keyframe && output.keyframe_id >= 0) {
             writeKeyframeGt(keyframes_gt, output.keyframe_id, frame);
         }
+        trajectory_gt.flush();
+        trajectory_est.flush();
+        keyframes_gt.flush();
+        progress.write(frame_index,
+                       frame.frame_id,
+                       "write_outputs_done",
+                       output.keyframe_id,
+                       output.accepted_keyframe,
+                       output.success);
 
+        progress.write(frame_index,
+                       frame.frame_id,
+                       "process_loops_start",
+                       output.keyframe_id,
+                       output.accepted_keyframe,
+                       output.success);
         const auto loop_result = core.processPendingLoopClosures();
         stats.accepted_loops += loop_result.accepted_loops.size();
         for (const auto& loop : loop_result.accepted_loops) {
             writeAcceptedLoop(accepted_loops, loop);
         }
+        accepted_loops.flush();
+        progress.write(frame_index,
+                       frame.frame_id,
+                       "process_loops_done",
+                       output.keyframe_id,
+                       output.accepted_keyframe,
+                       output.success,
+                       static_cast<size_t>(loop_result.edge_count),
+                       loop_result.accepted_loops.size());
     }
+    progress.write(frames.size(), -1, "final_process_loops_start");
     const auto final_loop_result = core.processPendingLoopClosures();
     stats.accepted_loops += final_loop_result.accepted_loops.size();
     for (const auto& loop : final_loop_result.accepted_loops) {
         writeAcceptedLoop(accepted_loops, loop);
     }
+    accepted_loops.flush();
+    progress.write(frames.size(),
+                   -1,
+                   "final_process_loops_done",
+                   -1,
+                   false,
+                   true,
+                   static_cast<size_t>(final_loop_result.edge_count),
+                   final_loop_result.accepted_loops.size());
 
     const auto dense = core.getDenseOptimizedTrajectory();
     std::ofstream metrics(options.output_dir / "metrics.json");
