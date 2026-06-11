@@ -190,13 +190,32 @@ jobs:
           find "${SMALL_GICP_PREFIX}" -name '*small_gicp*cmake' -print
           mkdir -p "${ROS_WS}"
           cd "${ROS_WS}"
+          build_log="/tmp/n3mapping_colcon_build_${ROS_DISTRO}.log"
+          set +e
           colcon build \
             --base-paths "${GITHUB_WORKSPACE}/${PACKAGE_DIR}" \
             --packages-select n3mapping \
             --cmake-args \
               -DBUILD_TESTING=ON \
               -DCATKIN_ENABLE_TESTING=ON \
-              -DCMAKE_BUILD_TYPE=Release
+              -DCMAKE_BUILD_TYPE=Release 2>&1 | tee "${build_log}"
+          build_status=${PIPESTATUS[0]}
+          set -e
+          if [[ "${build_status}" -ne 0 ]]; then
+            echo "::group::colcon build failure tail"
+            tail -n 160 "${build_log}" || true
+            echo "::endgroup::"
+            python3 - "${build_log}" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+tail = "\n".join(path.read_text(errors="replace").splitlines()[-80:])
+tail = tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+print(f"::error title=colcon build failed::{tail}")
+PY
+            exit "${build_status}"
+          fi
 
       - name: Test n3mapping
         shell: bash
