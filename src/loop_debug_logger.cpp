@@ -95,6 +95,22 @@ void appendSize(std::ostream& os, bool* first, const char* key, std::size_t valu
     os << '"' << key << "\":" << value;
 }
 
+void appendAcceptedEdges(std::ostream& os,
+                         bool* first,
+                         const std::vector<std::pair<int64_t, int64_t>>& edges)
+{
+    appendComma(os, first);
+    os << "\"accepted_edges\":[";
+    for (std::size_t i = 0; i < edges.size(); ++i) {
+        if (i > 0) {
+            os << ',';
+        }
+        os << "{\"from_id\":" << edges[i].first
+           << ",\"to_id\":" << edges[i].second << '}';
+    }
+    os << ']';
+}
+
 const char* candidateSourceName(LoopCandidate::Source source)
 {
     switch (source) {
@@ -213,10 +229,23 @@ bool LoopDebugLogger::appendOptimizationSummary(const std::string& path, const L
     appendString(os, &first, "record_type", "optimization_summary");
     appendNumber(os, &first, "processing_time", event.processing_time);
     appendSize(os, &first, "accepted_edge_count", event.accepted_edge_count);
+    appendAcceptedEdges(os, &first, event.accepted_edges);
     appendNumber(os, &first, "loop_residual_translation_before", event.loop_residual_translation_before);
     appendNumber(os, &first, "loop_residual_translation_after", event.loop_residual_translation_after);
     appendNumber(os, &first, "loop_residual_rotation_before", event.loop_residual_rotation_before);
     appendNumber(os, &first, "loop_residual_rotation_after", event.loop_residual_rotation_after);
+    appendNumber(os, &first, "loop_residual_x_before", event.loop_residual_translation_axes_before.x());
+    appendNumber(os, &first, "loop_residual_y_before", event.loop_residual_translation_axes_before.y());
+    appendNumber(os, &first, "loop_residual_z_before", event.loop_residual_translation_axes_before.z());
+    appendNumber(os, &first, "loop_residual_x_after", event.loop_residual_translation_axes_after.x());
+    appendNumber(os, &first, "loop_residual_y_after", event.loop_residual_translation_axes_after.y());
+    appendNumber(os, &first, "loop_residual_z_after", event.loop_residual_translation_axes_after.z());
+    appendNumber(os, &first, "loop_residual_roll_before", event.loop_residual_rpy_axes_before.x());
+    appendNumber(os, &first, "loop_residual_pitch_before", event.loop_residual_rpy_axes_before.y());
+    appendNumber(os, &first, "loop_residual_yaw_before", event.loop_residual_rpy_axes_before.z());
+    appendNumber(os, &first, "loop_residual_roll_after", event.loop_residual_rpy_axes_after.x());
+    appendNumber(os, &first, "loop_residual_pitch_after", event.loop_residual_rpy_axes_after.y());
+    appendNumber(os, &first, "loop_residual_yaw_after", event.loop_residual_rpy_axes_after.z());
     appendNumber(os, &first, "mean_pose_update_translation", event.mean_pose_update_translation);
     appendNumber(os, &first, "max_pose_update_translation", event.max_pose_update_translation);
     appendNumber(os, &first, "mean_pose_update_rotation", event.mean_pose_update_rotation);

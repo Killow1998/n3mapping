@@ -1,8 +1,11 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -31,10 +34,15 @@ struct LoopDebugCandidateEvent {
 struct LoopDebugOptimizationEvent {
     double processing_time = 0.0;
     std::size_t accepted_edge_count = 0;
+    std::vector<std::pair<int64_t, int64_t>> accepted_edges;
     double loop_residual_translation_before = 0.0;
     double loop_residual_translation_after = 0.0;
     double loop_residual_rotation_before = 0.0;
     double loop_residual_rotation_after = 0.0;
+    Eigen::Vector3d loop_residual_translation_axes_before = Eigen::Vector3d::Zero();
+    Eigen::Vector3d loop_residual_translation_axes_after = Eigen::Vector3d::Zero();
+    Eigen::Vector3d loop_residual_rpy_axes_before = Eigen::Vector3d::Zero();
+    Eigen::Vector3d loop_residual_rpy_axes_after = Eigen::Vector3d::Zero();
     double mean_pose_update_translation = 0.0;
     double max_pose_update_translation = 0.0;
     double mean_pose_update_rotation = 0.0;

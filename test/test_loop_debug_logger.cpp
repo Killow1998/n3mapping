@@ -95,10 +95,15 @@ TEST(LoopDebugLoggerTest, AppendsOptimizationSummary)
     LoopDebugOptimizationEvent event;
     event.processing_time = 2.0;
     event.accepted_edge_count = 3;
+    event.accepted_edges = {{2, 10}, {4, 12}};
     event.loop_residual_translation_before = 1.0;
     event.loop_residual_translation_after = 0.2;
     event.loop_residual_rotation_before = 0.5;
     event.loop_residual_rotation_after = 0.1;
+    event.loop_residual_translation_axes_before = Eigen::Vector3d(1.0, 2.0, 3.0);
+    event.loop_residual_translation_axes_after = Eigen::Vector3d(0.1, 0.2, 0.3);
+    event.loop_residual_rpy_axes_before = Eigen::Vector3d(0.4, 0.5, 0.6);
+    event.loop_residual_rpy_axes_after = Eigen::Vector3d(0.04, 0.05, 0.06);
     event.mean_pose_update_translation = 0.05;
     event.max_pose_update_translation = 0.1;
     event.mean_pose_update_rotation = 0.02;
@@ -109,7 +114,12 @@ TEST(LoopDebugLoggerTest, AppendsOptimizationSummary)
     ASSERT_EQ(lines.size(), 2u);
     EXPECT_NE(lines[1].find("\"record_type\":\"optimization_summary\""), std::string::npos);
     EXPECT_NE(lines[1].find("\"accepted_edge_count\":3"), std::string::npos);
+    EXPECT_NE(lines[1].find("\"accepted_edges\":[{\"from_id\":2,\"to_id\":10},{\"from_id\":4,\"to_id\":12}]"), std::string::npos);
     EXPECT_NE(lines[1].find("\"loop_residual_translation_before\":1"), std::string::npos);
+    EXPECT_NE(lines[1].find("\"loop_residual_x_before\":1"), std::string::npos);
+    EXPECT_NE(lines[1].find("\"loop_residual_z_after\":0.29999999999999999"), std::string::npos);
+    EXPECT_NE(lines[1].find("\"loop_residual_pitch_before\":0.5"), std::string::npos);
+    EXPECT_NE(lines[1].find("\"loop_residual_yaw_after\":0.059999999999999998"), std::string::npos);
 
     std::filesystem::remove_all(temp_dir);
 }

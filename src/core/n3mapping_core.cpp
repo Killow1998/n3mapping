@@ -21,6 +21,16 @@ double rotationAngle(const Eigen::Isometry3d& transform)
     return std::abs(Eigen::AngleAxisd(transform.rotation()).angle());
 }
 
+Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
+{
+    return transform.rotation().eulerAngles(0, 1, 2);
+}
+
+struct LoopResidualAxisStats {
+    Eigen::Vector3d translation = Eigen::Vector3d::Zero();
+    Eigen::Vector3d rpy = Eigen::Vector3d::Zero();
+};
+
 std::pair<double, double> meanLoopResidual(
     const std::vector<EdgeInfo>& edges,
     const std::map<int64_t, Eigen::Isometry3d>& poses)
@@ -49,6 +59,33 @@ std::pair<double, double> meanLoopResidual(
         return {0.0, 0.0};
     }
     return {translation_sum / static_cast<double>(count), rotation_sum / static_cast<double>(count)};
+}
+
+LoopResidualAxisStats meanLoopResidualAxes(
+    const std::vector<EdgeInfo>& edges,
+    const std::map<int64_t, Eigen::Isometry3d>& poses)
+{
+    LoopResidualAxisStats stats;
+    std::size_t count = 0;
+    for (const auto& edge : edges) {
+        auto from_it = poses.find(edge.from_id);
+        auto to_it = poses.find(edge.to_id);
+        if (from_it == poses.end() || to_it == poses.end()) {
+            continue;
+        }
+        const Eigen::Isometry3d predicted = from_it->second.inverse() * to_it->second;
+        const Eigen::Isometry3d residual = edge.measurement.inverse() * predicted;
+        stats.translation += residual.translation().cwiseAbs();
+        stats.rpy += rollPitchYaw(residual).cwiseAbs();
+        ++count;
+    }
+    if (count == 0) {
+        return stats;
+    }
+    const double inv_count = 1.0 / static_cast<double>(count);
+    stats.translation *= inv_count;
+    stats.rpy *= inv_count;
+    return stats;
 }
 
 void accumulatePoseUpdateStats(const std::map<int64_t, Eigen::Isometry3d>& before,
@@ -585,6 +622,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
 
         const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
         const auto residual_before = meanLoopResidual(edges, poses_before);
+        const auto residual_axes_before = meanLoopResidualAxes(edges, poses_before);
         const bool optimization_committed =
             session_->loopClosureManager().applyEdges(edges, session_->graphOptimizer());
         if (!optimization_committed) {
@@ -602,6 +640,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         refreshOptimizedPoses();
         const auto poses_after = session_->graphOptimizer().getOptimizedPoses();
         const auto residual_after = meanLoopResidual(edges, poses_after);
+        const auto residual_axes_after = meanLoopResidualAxes(edges, poses_after);
 
         result.optimized = true;
         result.edge_count += edges.size();
@@ -616,10 +655,18 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             LoopDebugOptimizationEvent event;
             event.processing_time = processingTimeSeconds();
             event.accepted_edge_count = edges.size();
+            event.accepted_edges.reserve(edges.size());
+            for (const auto& edge : edges) {
+                event.accepted_edges.emplace_back(edge.from_id, edge.to_id);
+            }
             event.loop_residual_translation_before = residual_before.first;
             event.loop_residual_rotation_before = residual_before.second;
             event.loop_residual_translation_after = residual_after.first;
             event.loop_residual_rotation_after = residual_after.second;
+            event.loop_residual_translation_axes_before = residual_axes_before.translation;
+            event.loop_residual_translation_axes_after = residual_axes_after.translation;
+            event.loop_residual_rpy_axes_before = residual_axes_before.rpy;
+            event.loop_residual_rpy_axes_after = residual_axes_after.rpy;
             event.mean_pose_update_translation = result.mean_pose_update_translation;
             event.max_pose_update_translation = result.max_pose_update_translation;
             event.mean_pose_update_rotation = result.mean_pose_update_rotation;
