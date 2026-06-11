@@ -41,6 +41,56 @@ TEST(LoopClosureManagerTest, FilterValidLoopsAppliesThresholds)
     EXPECT_EQ(result.front().match_id, 2);
 }
 
+TEST(LoopClosureManagerTest, FilterValidLoopsRejectsLargeCandidateResidualZ)
+{
+    Config config;
+    config.loop_min_inlier_ratio = 0.3;
+    config.loop_fitness_threshold = 1.0;
+    config.loop_max_candidate_residual_z = 5.0;
+
+    LoopClosureManager manager(config);
+
+    VerifiedLoop valid;
+    valid.query_id = 1;
+    valid.match_id = 2;
+    valid.verified = true;
+    valid.inlier_ratio = 0.5;
+    valid.fitness_score = 0.5;
+    valid.candidate_residual = Eigen::Isometry3d::Identity();
+    valid.candidate_residual.translation().z() = 4.9;
+
+    VerifiedLoop bad_z = valid;
+    bad_z.query_id = 3;
+    bad_z.candidate_residual.translation().z() = 5.1;
+
+    auto result = manager.filterValidLoops({valid, bad_z});
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result.front().query_id, 1);
+}
+
+TEST(LoopClosureManagerTest, FilterValidLoopsAllowsResidualZGateDisabled)
+{
+    Config config;
+    config.loop_min_inlier_ratio = 0.3;
+    config.loop_fitness_threshold = 1.0;
+    config.loop_max_candidate_residual_z = 0.0;
+
+    LoopClosureManager manager(config);
+
+    VerifiedLoop loop;
+    loop.query_id = 1;
+    loop.match_id = 2;
+    loop.verified = true;
+    loop.inlier_ratio = 0.5;
+    loop.fitness_score = 0.5;
+    loop.candidate_residual = Eigen::Isometry3d::Identity();
+    loop.candidate_residual.translation().z() = 100.0;
+
+    auto result = manager.filterValidLoops({loop});
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result.front().query_id, 1);
+}
+
 TEST(LoopClosureManagerTest, SelectBestPerQueryChoosesLowestFitness)
 {
     Config config;

@@ -1,6 +1,7 @@
 #include "n3mapping/loop_closure_manager.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace n3mapping {
 
@@ -20,6 +21,12 @@ LoopClosureManager::filterValidLoops(const std::vector<VerifiedLoop>& loops) con
         if (loop.query_id < 0 || loop.match_id < 0) continue;
         if (loop.inlier_ratio < config_.loop_min_inlier_ratio) continue;
         if (loop.fitness_score > config_.loop_fitness_threshold) continue;
+        const double residual_z = loop.candidate_residual.translation().z();
+        if (config_.loop_max_candidate_residual_z > 0.0 &&
+            (!std::isfinite(residual_z) ||
+             std::abs(residual_z) > config_.loop_max_candidate_residual_z)) {
+            continue;
+        }
         valid.push_back(loop);
     }
 

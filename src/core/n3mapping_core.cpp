@@ -106,7 +106,8 @@ double processingTimeSeconds()
 std::string loopRejectReason(bool icp_converged,
                              bool fitness_ok,
                              bool inlier_ok,
-                             bool geom_ok)
+                             bool geom_ok,
+                             bool residual_z_ok)
 {
     if (!icp_converged) {
         return "icp_not_converged";
@@ -119,6 +120,9 @@ std::string loopRejectReason(bool icp_converged,
     }
     if (!geom_ok) {
         return "geometry_gate";
+    }
+    if (!residual_z_ok) {
+        return "candidate_residual_z";
     }
     return "";
 }
@@ -519,6 +523,11 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             loop.inlier_ratio = match_result.inlier_ratio;
             loop.information =
                 config_.loop_use_icp_information ? match_result.information : Eigen::Matrix<double, 6, 6>::Identity();
+            const Eigen::Isometry3d T_est_match_query =
+                match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
+            const Eigen::Isometry3d T_candidate_residual =
+                candidateResidual(T_est_match_query, match_result.T_target_source);
+            loop.candidate_residual = T_candidate_residual;
 
             const bool fitness_ok = match_result.fitness_score < config_.loop_fitness_threshold;
             const bool inlier_ok = match_result.inlier_ratio >= config_.loop_min_inlier_ratio;
@@ -526,11 +535,13 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             const double icp_rotation = Eigen::AngleAxisd(match_result.T_target_source.rotation()).angle();
             const bool geom_ok =
                 icp_translation <= config_.loop_max_icp_translation && icp_rotation <= config_.loop_max_icp_rotation;
+            const double residual_z = T_candidate_residual.translation().z();
+            const bool residual_z_ok =
+                config_.loop_max_candidate_residual_z <= 0.0 ||
+                (std::isfinite(residual_z) && std::abs(residual_z) <= config_.loop_max_candidate_residual_z);
 
-            loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok;
+            loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok && residual_z_ok;
             if (loop_debug_enabled) {
-                const Eigen::Isometry3d T_est_match_query =
-                    match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
                 LoopDebugCandidateEvent event;
                 event.processing_time = processingTimeSeconds();
                 event.query_timestamp = query_kf->timestamp;
@@ -540,15 +551,14 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.inlier_ratio = match_result.inlier_ratio;
                 event.icp_translation_norm = icp_translation;
                 event.icp_rotation_norm = icp_rotation;
-                event.residual = candidateResidual(T_est_match_query, match_result.T_target_source);
+                event.residual = T_candidate_residual;
                 event.loop_information = loop.information;
                 event.gate_result = loop.verified ? "accepted" : "rejected";
-                event.reject_reason = loop.verified ? "" : loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok);
+                event.reject_reason =
+                    loop.verified ? "" : loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok, residual_z_ok);
                 debug_events.push_back(event);
             }
             if (loop.verified) {
-                const Eigen::Isometry3d T_est_match_query =
-                    match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
                 const Eigen::Isometry3d T_residual = match_result.T_target_source;
                 loop.T_match_query = T_residual * T_est_match_query;
             }

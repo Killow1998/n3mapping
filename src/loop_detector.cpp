@@ -298,6 +298,7 @@ VerifiedLoop LoopDetector::verifyLoopCandidate(const LoopCandidate& candidate,
     result.fitness_score = match_result.fitness_score;
     result.inlier_ratio = match_result.inlier_ratio;
     result.information = match_result.information;
+    result.candidate_residual = init_guess.inverse() * match_result.T_target_source;
     result.verified = match_result.success;
     if (match_result.success) result.T_match_query = match_result.T_target_source;
     return result;

@@ -66,6 +66,7 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("loop_fitness_threshold", config->loop_fitness_threshold);
     get("loop_max_icp_translation", config->loop_max_icp_translation);
     get("loop_max_icp_rotation", config->loop_max_icp_rotation);
+    get("loop_max_candidate_residual_z", config->loop_max_candidate_residual_z);
     get("loop_use_icp_information", config->loop_use_icp_information);
     get("loop_icp_prefilter_voxel_size", config->loop_icp_prefilter_voxel_size);
     get("loop_icp_max_points", config->loop_icp_max_points);

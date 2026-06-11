@@ -51,6 +51,7 @@ struct VerifiedLoop {
     int64_t query_id = -1;
     int64_t match_id = -1;
     Eigen::Isometry3d T_match_query = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d candidate_residual = Eigen::Isometry3d::Identity();
     double fitness_score = std::numeric_limits<double>::max();
     double inlier_ratio = 0.0;
     Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
