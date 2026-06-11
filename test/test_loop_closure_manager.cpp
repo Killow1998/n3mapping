@@ -124,6 +124,62 @@ TEST(LoopClosureManagerTest, SelectBestPerQueryChoosesLowestFitness)
     EXPECT_DOUBLE_EQ(it->fitness_score, 0.2);
 }
 
+TEST(LoopClosureManagerTest, SelectBestPerQueryBreaksFitnessTieWithVerticalResidual)
+{
+    Config config;
+    config.loop_min_inlier_ratio = 0.0;
+    config.loop_fitness_threshold = 10.0;
+    config.loop_max_candidate_residual_z = 5.0;
+
+    LoopClosureManager manager(config);
+
+    VerifiedLoop high_z;
+    high_z.query_id = 1;
+    high_z.match_id = 10;
+    high_z.verified = true;
+    high_z.inlier_ratio = 1.0;
+    high_z.fitness_score = 0.20;
+    high_z.candidate_residual = Eigen::Isometry3d::Identity();
+    high_z.candidate_residual.translation().z() = 4.0;
+
+    VerifiedLoop low_z = high_z;
+    low_z.match_id = 11;
+    low_z.fitness_score = 0.205;
+    low_z.candidate_residual.translation().z() = 0.1;
+
+    auto best = manager.selectBestPerQuery({high_z, low_z});
+    ASSERT_EQ(best.size(), 1u);
+    EXPECT_EQ(best.front().match_id, 11);
+}
+
+TEST(LoopClosureManagerTest, SelectBestPerQueryKeepsClearlyBetterFitness)
+{
+    Config config;
+    config.loop_min_inlier_ratio = 0.0;
+    config.loop_fitness_threshold = 10.0;
+    config.loop_max_candidate_residual_z = 5.0;
+
+    LoopClosureManager manager(config);
+
+    VerifiedLoop strong_fitness;
+    strong_fitness.query_id = 1;
+    strong_fitness.match_id = 10;
+    strong_fitness.verified = true;
+    strong_fitness.inlier_ratio = 1.0;
+    strong_fitness.fitness_score = 0.05;
+    strong_fitness.candidate_residual = Eigen::Isometry3d::Identity();
+    strong_fitness.candidate_residual.translation().z() = 4.0;
+
+    VerifiedLoop low_z = strong_fitness;
+    low_z.match_id = 11;
+    low_z.fitness_score = 0.20;
+    low_z.candidate_residual.translation().z() = 0.1;
+
+    auto best = manager.selectBestPerQuery({strong_fitness, low_z});
+    ASSERT_EQ(best.size(), 1u);
+    EXPECT_EQ(best.front().match_id, 10);
+}
+
 TEST(LoopClosureManagerTest, BuildLoopEdgesRespectsDirection)
 {
     Config config;

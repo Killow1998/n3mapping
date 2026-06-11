@@ -5,6 +5,32 @@
 
 namespace n3mapping {
 
+namespace {
+
+bool preferLoopCandidate(const VerifiedLoop& candidate, const VerifiedLoop& current, const Config& config)
+{
+    // Keep ICP fitness dominant; use vertical consistency only to break near ties.
+    constexpr double kFitnessTieRatio = 1.05;
+    if (candidate.fitness_score < current.fitness_score / kFitnessTieRatio) {
+        return true;
+    }
+    if (candidate.fitness_score > current.fitness_score * kFitnessTieRatio) {
+        return false;
+    }
+    if (config.loop_max_candidate_residual_z <= 0.0) {
+        return candidate.fitness_score < current.fitness_score;
+    }
+    const double candidate_residual_z = std::abs(candidate.candidate_residual.translation().z());
+    const double current_residual_z = std::abs(current.candidate_residual.translation().z());
+    if (std::isfinite(candidate_residual_z) && std::isfinite(current_residual_z) &&
+        candidate_residual_z != current_residual_z) {
+        return candidate_residual_z < current_residual_z;
+    }
+    return candidate.fitness_score < current.fitness_score;
+}
+
+} // namespace
+
 LoopClosureManager::LoopClosureManager(const Config& config)
   : config_(config)
 {
@@ -39,7 +65,7 @@ LoopClosureManager::selectBestPerQuery(const std::vector<VerifiedLoop>& loops) c
     std::unordered_map<int64_t, VerifiedLoop> best;
     for (const auto& loop : loops) {
         auto it = best.find(loop.query_id);
-        if (it == best.end() || loop.fitness_score < it->second.fitness_score) {
+        if (it == best.end() || preferLoopCandidate(loop, it->second, config_)) {
             best[loop.query_id] = loop;
         }
     }
