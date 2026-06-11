@@ -205,15 +205,7 @@ jobs:
             echo "::group::colcon build failure tail"
             tail -n 160 "${build_log}" || true
             echo "::endgroup::"
-            python3 - "${build_log}" <<'PY'
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-tail = "\n".join(path.read_text(errors="replace").splitlines()[-80:])
-tail = tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-print(f"::error title=colcon build failed::{tail}")
-PY
+            python3 -c 'import sys; from pathlib import Path; tail = "\n".join(Path(sys.argv[1]).read_text(errors="replace").splitlines()[-80:]); tail = tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"); print(f"::error title=colcon build failed::{tail}")' "${build_log}"
             exit "${build_status}"
           fi
 
