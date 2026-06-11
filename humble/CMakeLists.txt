@@ -150,6 +150,7 @@ add_executable(n3mapping_synthetic_relocalization_eval
 target_link_libraries(n3mapping_synthetic_relocalization_eval
   n3mapping_core
   ${PCL_LIBRARIES}
+  glog::glog
 )
 
 add_executable(n3mapping_filter_nav_pbstream
@@ -170,6 +171,7 @@ add_executable(n3mapping_kitti360_eval
 target_link_libraries(n3mapping_kitti360_eval
   n3mapping_core
   ${PCL_LIBRARIES}
+  glog::glog
 )
 
 add_executable(n3mapping_m2dgr_eval
@@ -178,6 +180,7 @@ add_executable(n3mapping_m2dgr_eval
 target_link_libraries(n3mapping_m2dgr_eval
   n3mapping_core
   ${PCL_LIBRARIES}
+  glog::glog
 )
 
 add_executable(n3mapping_synthetic_relocalization_publisher

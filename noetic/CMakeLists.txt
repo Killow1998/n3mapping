@@ -166,6 +166,7 @@ add_executable(n3mapping_synthetic_relocalization_eval
 target_link_libraries(n3mapping_synthetic_relocalization_eval
   n3mapping_core
   ${PCL_LIBRARIES}
+  glog::glog
 )
 set_target_properties(n3mapping_synthetic_relocalization_eval PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
@@ -195,6 +196,7 @@ add_executable(n3mapping_kitti360_eval
 target_link_libraries(n3mapping_kitti360_eval
   n3mapping_core
   ${PCL_LIBRARIES}
+  glog::glog
 )
 set_target_properties(n3mapping_kitti360_eval PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
@@ -206,6 +208,7 @@ add_executable(n3mapping_m2dgr_eval
 target_link_libraries(n3mapping_m2dgr_eval
   n3mapping_core
   ${PCL_LIBRARIES}
+  glog::glog
 )
 set_target_properties(n3mapping_m2dgr_eval PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
