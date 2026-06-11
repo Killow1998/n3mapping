@@ -177,17 +177,20 @@ def build_query_summary(rows):
         query_rows = grouped[query_id]
         accepted_rows = [r for r in query_rows if r["candidate_accepted"]]
         true_rows = [r for r in query_rows if r["gt_is_loop"]]
+        selectable_true_rows = [r for r in true_rows if r["candidate_selectable"]]
         accepted = accepted_rows[0] if accepted_rows else None
         best_true = best_by_fitness(true_rows)
+        best_selectable_true = best_by_fitness(selectable_true_rows)
         best_candidate = best_by_fitness(query_rows)
-        selection_failure = bool(true_rows and accepted is not None and not accepted["gt_is_loop"])
-        missed_true_candidate = bool(true_rows and accepted is None)
+        selection_failure = bool(selectable_true_rows and accepted is not None and not accepted["gt_is_loop"])
+        missed_true_candidate = bool(true_rows and not selectable_true_rows)
 
         summary_rows.append(
             {
                 "query_id": query_id,
                 "candidate_count": len(query_rows),
                 "true_candidate_count": len(true_rows),
+                "true_selectable_candidate_count": len(selectable_true_rows),
                 "accepted_match_id": accepted["match_id"] if accepted else -1,
                 "accepted_is_gt_loop": accepted["gt_is_loop"] if accepted else False,
                 "accepted_gt_translation_m": accepted["gt_query_match_translation_m"] if accepted else float("nan"),
@@ -200,6 +203,10 @@ def build_query_summary(rows):
                 "best_true_inlier_ratio": best_true["inlier_ratio"] if best_true else float("nan"),
                 "best_true_gt_translation_m": best_true["gt_query_match_translation_m"] if best_true else float("nan"),
                 "best_true_residual_z": best_true["residual_z"] if best_true else float("nan"),
+                "best_selectable_true_match_id": best_selectable_true["match_id"] if best_selectable_true else -1,
+                "best_selectable_true_fitness_score": best_selectable_true["fitness_score"] if best_selectable_true else float("nan"),
+                "best_selectable_true_gt_translation_m": best_selectable_true["gt_query_match_translation_m"] if best_selectable_true else float("nan"),
+                "best_selectable_true_residual_z": best_selectable_true["residual_z"] if best_selectable_true else float("nan"),
                 "best_candidate_match_id": best_candidate["match_id"] if best_candidate else -1,
                 "best_candidate_is_gt_loop": best_candidate["gt_is_loop"] if best_candidate else False,
                 "best_candidate_fitness_score": best_candidate["fitness_score"] if best_candidate else float("nan"),
@@ -231,6 +238,7 @@ def analyze(args):
         "retrieval_false_positive": 0,
         "retrieval_miss_estimate": 0,
         "icp_reject_true_loop": 0,
+        "true_loop_not_selected": 0,
         "accepted_false_loop": 0,
         "accepted_true_loop": 0,
         "z_drift_suspect_count": 0,
@@ -252,6 +260,7 @@ def analyze(args):
             accepted = (query_id, match_id) in accepted_pairs
         else:
             accepted = event.get("gate_result") == "accepted"
+        candidate_selectable = accepted or event.get("reject_reason", "") == "not_selected"
 
         residual_z = event_float(event, "residual_z")
         residual_roll = event_float(event, "residual_roll")
@@ -284,7 +293,9 @@ def analyze(args):
             stats["retrieval_true_positive"] += 1
         elif has_gt:
             stats["retrieval_false_positive"] += 1
-        if gt_loop and not accepted:
+        if gt_loop and not accepted and candidate_selectable:
+            stats["true_loop_not_selected"] += 1
+        if gt_loop and not accepted and not candidate_selectable:
             stats["icp_reject_true_loop"] += 1
         if accepted and not gt_loop:
             stats["accepted_false_loop"] += 1
@@ -301,6 +312,7 @@ def analyze(args):
                 "gt_query_match_yaw_deg": yaw_deg,
                 "gt_is_loop": gt_loop,
                 "candidate_accepted": accepted,
+                "candidate_selectable": candidate_selectable,
                 "candidate_source": event.get("candidate_source", ""),
                 "gate_result": event.get("gate_result", ""),
                 "reject_reason": event.get("reject_reason", ""),
@@ -323,6 +335,9 @@ def analyze(args):
     stats["query_count"] = len(query_summary_rows)
     stats["query_with_true_candidate_count"] = sum(
         1 for row in query_summary_rows if row["true_candidate_count"] > 0
+    )
+    stats["query_with_selectable_true_candidate_count"] = sum(
+        1 for row in query_summary_rows if row["true_selectable_candidate_count"] > 0
     )
     stats["query_selection_failure_count"] = sum(
         1 for row in query_summary_rows if row["selection_failure"]
@@ -349,6 +364,7 @@ def analyze(args):
             "gt_query_match_yaw_deg",
             "gt_is_loop",
             "candidate_accepted",
+            "candidate_selectable",
             "candidate_source",
             "gate_result",
             "reject_reason",
@@ -384,6 +400,7 @@ def analyze(args):
             "query_id",
             "candidate_count",
             "true_candidate_count",
+            "true_selectable_candidate_count",
             "accepted_match_id",
             "accepted_is_gt_loop",
             "accepted_gt_translation_m",
@@ -396,6 +413,10 @@ def analyze(args):
             "best_true_inlier_ratio",
             "best_true_gt_translation_m",
             "best_true_residual_z",
+            "best_selectable_true_match_id",
+            "best_selectable_true_fitness_score",
+            "best_selectable_true_gt_translation_m",
+            "best_selectable_true_residual_z",
             "best_candidate_match_id",
             "best_candidate_is_gt_loop",
             "best_candidate_fitness_score",
@@ -416,6 +437,9 @@ def analyze(args):
                 "best_true_inlier_ratio",
                 "best_true_gt_translation_m",
                 "best_true_residual_z",
+                "best_selectable_true_fitness_score",
+                "best_selectable_true_gt_translation_m",
+                "best_selectable_true_residual_z",
                 "best_candidate_fitness_score",
             ):
                 formatted[key] = format_float(row[key])

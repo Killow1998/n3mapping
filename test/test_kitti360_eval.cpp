@@ -201,8 +201,8 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
               << "\"residual_z\":0.0,\"residual_roll\":0,\"residual_pitch\":0,"
               << "\"residual_yaw\":0}\n";
         debug << "{\"record_type\":\"candidate\",\"query_id\":4,\"match_id\":0,"
-              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"accepted\","
-              << "\"reject_reason\":\"\",\"fitness_score\":0.1,\"inlier_ratio\":0.9,"
+              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"rejected\","
+              << "\"reject_reason\":\"not_selected\",\"fitness_score\":0.1,\"inlier_ratio\":0.9,"
               << "\"residual_z\":0.0,\"residual_roll\":0,\"residual_pitch\":0,"
               << "\"residual_yaw\":0}\n";
     }
@@ -231,7 +231,8 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
     EXPECT_NE(diagnosis.find("\"candidate_count\": 5"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"accepted_true_loop\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"accepted_false_loop\": 2"), std::string::npos);
-    EXPECT_NE(diagnosis.find("\"icp_reject_true_loop\": 2"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"icp_reject_true_loop\": 1"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"true_loop_not_selected\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"query_selection_failure_count\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"z_drift_suspect_count\": 1"), std::string::npos);
 
@@ -242,7 +243,7 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
 
     const std::string query_summary = readTextFile(output / "loop_query_summary.csv");
     EXPECT_NE(query_summary.find("selection_failure"), std::string::npos);
-    EXPECT_NE(query_summary.find("4,2,1,2,False"), std::string::npos);
+    EXPECT_NE(query_summary.find("4,2,1,1,2,False"), std::string::npos);
 }
 
 TEST(N3MappingKitti360EvalTest, CalibrationModeChangesGroundTruthPoseAndMetrics)
