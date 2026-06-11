@@ -100,6 +100,23 @@ def load_loop_candidates(path):
     return candidates
 
 
+def load_optimization_summaries(path):
+    summaries = []
+    with open(path) as f:
+        for line_number, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(f"{path}:{line_number}: invalid JSONL: {exc}") from exc
+            if event.get("record_type") != "optimization_summary":
+                continue
+            summaries.append(event)
+    return summaries
+
+
 def load_accepted_pairs(path):
     pairs = set()
     if not path:
@@ -220,6 +237,7 @@ def build_query_summary(rows):
 def analyze(args):
     poses = load_keyframes_gt(args.keyframes_gt)
     candidates = load_loop_candidates(args.loop_debug)
+    optimization_summaries = load_optimization_summaries(args.loop_debug)
     accepted_pairs = load_accepted_pairs(args.accepted_loops)
     candidate_pairs = {(int(c["query_id"]), int(c["match_id"])) for c in candidates}
     gt_loop_pairs = enumerate_gt_loop_pairs(
@@ -242,6 +260,9 @@ def analyze(args):
         "accepted_false_loop": 0,
         "accepted_true_loop": 0,
         "z_drift_suspect_count": 0,
+        "optimization_summary_count": 0,
+        "optimization_high_residual_z_after_count": 0,
+        "optimization_max_residual_z_after": 0.0,
     }
     rpy_threshold_rad = args.rpy_drift_threshold_deg * math.pi / 180.0
     accepted_pairs_available = bool(args.accepted_loops)
@@ -353,6 +374,67 @@ def analyze(args):
         "rpy_drift_threshold_deg": args.rpy_drift_threshold_deg,
     }
 
+    optimization_rows = []
+    for index, event in enumerate(optimization_summaries):
+        accepted_edges = event.get("accepted_edges") or []
+        if not accepted_edges:
+            accepted_edges = [{"from_id": "", "to_id": ""}]
+        for edge in accepted_edges:
+            from_id = edge.get("from_id", "")
+            to_id = edge.get("to_id", "")
+            # n3mapping writes loop edges in match->query direction.
+            query_id = to_id if isinstance(to_id, int) else ""
+            match_id = from_id if isinstance(from_id, int) else ""
+            translation, yaw_deg, has_gt = (
+                gt_pair_metrics(poses, query_id, match_id)
+                if isinstance(query_id, int) and isinstance(match_id, int)
+                else (float("nan"), float("nan"), False)
+            )
+            gt_loop = is_gt_loop(
+                translation,
+                yaw_deg,
+                args.loop_translation_threshold,
+                args.loop_yaw_threshold_deg,
+            )
+            residual_z_after = event_float(event, "loop_residual_z_after")
+            optimization_rows.append(
+                {
+                    "summary_index": index,
+                    "from_id": from_id,
+                    "to_id": to_id,
+                    "query_id": query_id,
+                    "match_id": match_id,
+                    "gt_query_match_translation_m": translation,
+                    "gt_query_match_yaw_deg": yaw_deg,
+                    "gt_is_loop": gt_loop if has_gt else "",
+                    "accepted_edge_count": event.get("accepted_edge_count", 0),
+                    "loop_residual_x_before": event_float(event, "loop_residual_x_before"),
+                    "loop_residual_y_before": event_float(event, "loop_residual_y_before"),
+                    "loop_residual_z_before": event_float(event, "loop_residual_z_before"),
+                    "loop_residual_x_after": event_float(event, "loop_residual_x_after"),
+                    "loop_residual_y_after": event_float(event, "loop_residual_y_after"),
+                    "loop_residual_z_after": residual_z_after,
+                    "loop_residual_roll_before": event_float(event, "loop_residual_roll_before"),
+                    "loop_residual_pitch_before": event_float(event, "loop_residual_pitch_before"),
+                    "loop_residual_yaw_before": event_float(event, "loop_residual_yaw_before"),
+                    "loop_residual_roll_after": event_float(event, "loop_residual_roll_after"),
+                    "loop_residual_pitch_after": event_float(event, "loop_residual_pitch_after"),
+                    "loop_residual_yaw_after": event_float(event, "loop_residual_yaw_after"),
+                    "mean_pose_update_translation": event_float(event, "mean_pose_update_translation"),
+                    "max_pose_update_translation": event_float(event, "max_pose_update_translation"),
+                    "mean_pose_update_rotation": event_float(event, "mean_pose_update_rotation"),
+                    "max_pose_update_rotation": event_float(event, "max_pose_update_rotation"),
+                }
+            )
+            if math.isfinite(residual_z_after):
+                stats["optimization_max_residual_z_after"] = max(
+                    stats["optimization_max_residual_z_after"],
+                    abs(residual_z_after),
+                )
+                if abs(residual_z_after) >= args.z_drift_threshold:
+                    stats["optimization_high_residual_z_after_count"] += 1
+    stats["optimization_summary_count"] = len(optimization_summaries)
+
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
     csv_path = output / "loop_candidates_labeled.csv"
@@ -390,6 +472,62 @@ def analyze(args):
                 "residual_roll",
                 "residual_pitch",
                 "residual_yaw",
+            ):
+                formatted[key] = format_float(row[key])
+            writer.writerow(formatted)
+
+    optimization_csv_path = output / "loop_optimization_summary.csv"
+    with open(optimization_csv_path, "w", newline="") as f:
+        fieldnames = [
+            "summary_index",
+            "from_id",
+            "to_id",
+            "query_id",
+            "match_id",
+            "gt_query_match_translation_m",
+            "gt_query_match_yaw_deg",
+            "gt_is_loop",
+            "accepted_edge_count",
+            "loop_residual_x_before",
+            "loop_residual_y_before",
+            "loop_residual_z_before",
+            "loop_residual_x_after",
+            "loop_residual_y_after",
+            "loop_residual_z_after",
+            "loop_residual_roll_before",
+            "loop_residual_pitch_before",
+            "loop_residual_yaw_before",
+            "loop_residual_roll_after",
+            "loop_residual_pitch_after",
+            "loop_residual_yaw_after",
+            "mean_pose_update_translation",
+            "max_pose_update_translation",
+            "mean_pose_update_rotation",
+            "max_pose_update_rotation",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in optimization_rows:
+            formatted = dict(row)
+            for key in (
+                "gt_query_match_translation_m",
+                "gt_query_match_yaw_deg",
+                "loop_residual_x_before",
+                "loop_residual_y_before",
+                "loop_residual_z_before",
+                "loop_residual_x_after",
+                "loop_residual_y_after",
+                "loop_residual_z_after",
+                "loop_residual_roll_before",
+                "loop_residual_pitch_before",
+                "loop_residual_yaw_before",
+                "loop_residual_roll_after",
+                "loop_residual_pitch_after",
+                "loop_residual_yaw_after",
+                "mean_pose_update_translation",
+                "max_pose_update_translation",
+                "mean_pose_update_rotation",
+                "max_pose_update_rotation",
             ):
                 formatted[key] = format_float(row[key])
             writer.writerow(formatted)
