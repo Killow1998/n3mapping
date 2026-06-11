@@ -238,6 +238,9 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     if (event.has_loop_measurement) {
         appendTransformAxes(os, &first, "measurement", event.loop_measurement_match_query);
     }
+    appendString(os, &first, "edge_mode", event.edge_mode);
+    appendNumber(os, &first, "vertical_observability_score", event.vertical_observability_score);
+    appendBool(os, &first, "vertical_downweighted", event.vertical_downweighted);
     appendString(os, &first, "gate_result", event.gate_result);
     appendString(os, &first, "reject_reason", event.reject_reason);
     appendInformationDiag(os, &first, event.loop_information);

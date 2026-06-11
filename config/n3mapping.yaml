@@ -57,6 +57,8 @@ n3mapping_node:
     loop_max_icp_rotation: 0.5
     loop_max_candidate_residual_z: 5.0
     loop_use_icp_information: false
+    loop_observability_edge_model_enable: true
+    loop_planar_vertical_weight: 0.25
     loop_icp_prefilter_voxel_size: 0.2
     loop_icp_max_points: 50000
     loop_debug_enable: false

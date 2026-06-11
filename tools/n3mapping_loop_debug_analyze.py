@@ -424,6 +424,9 @@ def analyze(args):
         "optimization_high_residual_z_after_count": 0,
         "optimization_max_residual_z_after": 0.0,
         "failure_class_counts": {},
+        "edge_mode_counts": {},
+        "accepted_full6dof": 0,
+        "accepted_planar_xy_yaw": 0,
     }
     rpy_threshold_rad = args.rpy_drift_threshold_deg * math.pi / 180.0
     accepted_pairs_available = bool(args.accepted_loops)
@@ -464,6 +467,9 @@ def analyze(args):
         residual_roll_after = after_residual["roll"]
         residual_pitch_after = after_residual["pitch"]
         residual_yaw_after = after_residual["yaw"]
+        edge_mode = str(event.get("edge_mode", "unknown") or "unknown")
+        vertical_observability_score = event_float(event, "vertical_observability_score")
+        vertical_downweighted = bool(event.get("vertical_downweighted", False))
         z_drift_suspect = bool(
             accepted
             and (
@@ -518,6 +524,11 @@ def analyze(args):
             stats["candidate_with_gt_count"] += 1
         if accepted:
             stats["accepted_candidate_count"] += 1
+            stats["edge_mode_counts"][edge_mode] = stats["edge_mode_counts"].get(edge_mode, 0) + 1
+            if edge_mode == "full6dof":
+                stats["accepted_full6dof"] += 1
+            elif edge_mode == "planar_xy_yaw":
+                stats["accepted_planar_xy_yaw"] += 1
         if gt_loop:
             stats["retrieval_true_positive"] += 1
         elif has_gt:
@@ -559,6 +570,9 @@ def analyze(args):
                 "candidate_accepted": accepted,
                 "candidate_selectable": candidate_selectable,
                 "candidate_source": event.get("candidate_source", ""),
+                "edge_mode": edge_mode,
+                "vertical_observability_score": vertical_observability_score,
+                "vertical_downweighted": vertical_downweighted,
                 "gate_result": event.get("gate_result", ""),
                 "reject_reason": event.get("reject_reason", ""),
                 "fitness_score": event_float(event, "fitness_score"),
@@ -697,6 +711,9 @@ def analyze(args):
             "candidate_accepted",
             "candidate_selectable",
             "candidate_source",
+            "edge_mode",
+            "vertical_observability_score",
+            "vertical_downweighted",
             "gate_result",
             "reject_reason",
             "fitness_score",
@@ -740,6 +757,7 @@ def analyze(args):
                 "gt_relative_roll",
                 "gt_relative_pitch",
                 "gt_relative_yaw",
+                "vertical_observability_score",
                 "fitness_score",
                 "inlier_ratio",
                 "residual_z",

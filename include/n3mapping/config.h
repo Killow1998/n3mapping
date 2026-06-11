@@ -67,6 +67,8 @@ struct Config {
     double loop_max_icp_rotation = 0.5;
     double loop_max_candidate_residual_z = 5.0;
     bool loop_use_icp_information = false;
+    bool loop_observability_edge_model_enable = true;
+    double loop_planar_vertical_weight = 0.25;
     double loop_icp_prefilter_voxel_size = 0.2;
     int loop_icp_max_points = 50000;
     bool loop_debug_enable = false;

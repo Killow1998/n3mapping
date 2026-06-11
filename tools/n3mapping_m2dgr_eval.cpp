@@ -657,7 +657,7 @@ void writeKeyframeGt(std::ofstream& out, int64_t keyframe_id, const M2DGRFrame& 
 
 void writeAcceptedLoopsHeader(std::ofstream& out)
 {
-    out << "query_id,match_id,fitness_score,inlier_ratio,verified\n";
+    out << "query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,vertical_downweighted\n";
 }
 
 void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
@@ -666,7 +666,10 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << loop.match_id << ','
         << loop.fitness_score << ','
         << loop.inlier_ratio << ','
-        << (loop.verified ? "true" : "false") << '\n';
+        << (loop.verified ? "true" : "false") << ','
+        << loopEdgeModeName(loop.edge_mode) << ','
+        << loop.vertical_observability_score << ','
+        << (loop.vertical_downweighted ? "true" : "false") << '\n';
 }
 
 Config makeEvalConfig(const Options& options)

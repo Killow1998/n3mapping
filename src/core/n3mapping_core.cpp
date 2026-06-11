@@ -556,6 +556,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             VerifiedLoop loop;
             loop.query_id = query_id;
             loop.match_id = candidate.match_id;
+            loop.candidate_yaw_diff_rad = static_cast<double>(candidate.yaw_diff_rad);
             loop.fitness_score = match_result.fitness_score;
             loop.inlier_ratio = match_result.inlier_ratio;
             loop.information =
@@ -578,6 +579,16 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 (std::isfinite(residual_z) && std::abs(residual_z) <= config_.loop_max_candidate_residual_z);
 
             loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok && residual_z_ok;
+            std::string reject_reason =
+                loop.verified ? "" : loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok, residual_z_ok);
+            if (loop.verified) {
+                const Eigen::Isometry3d T_residual = match_result.T_target_source;
+                loop.T_match_query = T_residual * T_est_match_query;
+                loop = session_->loopClosureManager().applyEdgeModel(loop);
+                if (!loop.verified) {
+                    reject_reason = loopEdgeModeName(loop.edge_mode);
+                }
+            }
             if (loop_debug_enabled) {
                 LoopDebugCandidateEvent event;
                 event.processing_time = processingTimeSeconds();
@@ -592,14 +603,20 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.has_loop_measurement = true;
                 event.loop_measurement_match_query = match_result.T_target_source * T_est_match_query;
                 event.loop_information = loop.information;
+                event.edge_mode =
+                    (loop.verified ||
+                     loop.edge_mode == LoopEdgeMode::RejectedVerticalInconsistent ||
+                     loop.edge_mode == LoopEdgeMode::RejectedYawInconsistent)
+                    ? loopEdgeModeName(loop.edge_mode) : "not_applicable";
+                event.vertical_observability_score =
+                    (loop.verified ||
+                     loop.edge_mode == LoopEdgeMode::RejectedVerticalInconsistent ||
+                     loop.edge_mode == LoopEdgeMode::RejectedYawInconsistent)
+                    ? loop.vertical_observability_score : std::numeric_limits<double>::quiet_NaN();
+                event.vertical_downweighted = loop.vertical_downweighted;
                 event.gate_result = loop.verified ? "accepted" : "rejected";
-                event.reject_reason =
-                    loop.verified ? "" : loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok, residual_z_ok);
+                event.reject_reason = reject_reason;
                 debug_events.push_back(event);
-            }
-            if (loop.verified) {
-                const Eigen::Isometry3d T_residual = match_result.T_target_source;
-                loop.T_match_query = T_residual * T_est_match_query;
             }
             verified_loops.push_back(loop);
         }

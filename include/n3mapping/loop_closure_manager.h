@@ -44,6 +44,11 @@ class LoopClosureManager
     std::vector<EdgeInfo> buildLoopEdges(const std::vector<VerifiedLoop>& loops, LoopEdgeDirection direction) const;
 
     /**
+     * @brief 根据垂直观测性塑形回环边信息矩阵
+     */
+    VerifiedLoop applyEdgeModel(const VerifiedLoop& loop) const;
+
+    /**
      * @brief 将回环边应用到图优化器，并触发增量优化
      * @return true 若优化成功提交；false 表示无边或优化失败并已回滚
      */

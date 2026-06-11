@@ -47,14 +47,41 @@ struct LoopCandidate {
     bool fromRHPD() const { return (source_flags & SOURCE_RHPD) != 0u; }
 };
 
+enum class LoopEdgeMode {
+    Full6Dof,
+    PlanarXYYaw,
+    RejectedVerticalInconsistent,
+    RejectedYawInconsistent
+};
+
+inline const char* loopEdgeModeName(LoopEdgeMode mode)
+{
+    switch (mode) {
+        case LoopEdgeMode::Full6Dof:
+            return "full6dof";
+        case LoopEdgeMode::PlanarXYYaw:
+            return "planar_xy_yaw";
+        case LoopEdgeMode::RejectedVerticalInconsistent:
+            return "rejected_vertical_inconsistent";
+        case LoopEdgeMode::RejectedYawInconsistent:
+            return "rejected_yaw_inconsistent";
+        default:
+            return "unknown";
+    }
+}
+
 struct VerifiedLoop {
     int64_t query_id = -1;
     int64_t match_id = -1;
     Eigen::Isometry3d T_match_query = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d candidate_residual = Eigen::Isometry3d::Identity();
+    double candidate_yaw_diff_rad = 0.0;
     double fitness_score = std::numeric_limits<double>::max();
     double inlier_ratio = 0.0;
     Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
+    LoopEdgeMode edge_mode = LoopEdgeMode::Full6Dof;
+    double vertical_observability_score = 1.0;
+    bool vertical_downweighted = false;
     bool verified = false;
     bool isValid() const { return verified && query_id >= 0 && match_id >= 0; }
 };

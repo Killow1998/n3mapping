@@ -68,6 +68,8 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("loop_max_icp_rotation", config->loop_max_icp_rotation);
     get("loop_max_candidate_residual_z", config->loop_max_candidate_residual_z);
     get("loop_use_icp_information", config->loop_use_icp_information);
+    get("loop_observability_edge_model_enable", config->loop_observability_edge_model_enable);
+    get("loop_planar_vertical_weight", config->loop_planar_vertical_weight);
     get("loop_icp_prefilter_voxel_size", config->loop_icp_prefilter_voxel_size);
     get("loop_icp_max_points", config->loop_icp_max_points);
     get("loop_debug_enable", config->loop_debug_enable);

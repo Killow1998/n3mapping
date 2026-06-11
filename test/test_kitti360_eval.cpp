@@ -163,7 +163,7 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_NE(metrics.find("\"calib_loaded\": true"), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_mode_requested\": \"auto\""), std::string::npos);
     const std::string loops = readTextFile(output / "accepted_loops.csv");
-    EXPECT_NE(loops.find("query_id,match_id,fitness_score,inlier_ratio,verified"), std::string::npos);
+    EXPECT_NE(loops.find("query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,vertical_downweighted"), std::string::npos);
     const std::string keyframes_gt = readTextFile(output / "keyframes_gt.csv");
     EXPECT_NE(keyframes_gt.find("keyframe_id,frame_id,x,y,z,qx,qy,qz,qw"), std::string::npos);
 }
@@ -194,14 +194,16 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
               << "\"residual_z\":0.8,\"residual_roll\":0,\"residual_pitch\":0,"
               << "\"residual_yaw\":0,\"measurement_x\":0.5,\"measurement_y\":0.2,"
               << "\"measurement_z\":0.8,\"measurement_roll\":0,\"measurement_pitch\":0,"
-              << "\"measurement_yaw\":0}\n";
+              << "\"measurement_yaw\":0,\"edge_mode\":\"planar_xy_yaw\","
+              << "\"vertical_observability_score\":0.25,\"vertical_downweighted\":true}\n";
         debug << "{\"record_type\":\"candidate\",\"query_id\":2,\"match_id\":0,"
               << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"accepted\","
               << "\"reject_reason\":\"\",\"fitness_score\":0.1,\"inlier_ratio\":0.9,"
               << "\"residual_z\":0.0,\"residual_roll\":0,\"residual_pitch\":0,"
               << "\"residual_yaw\":0,\"measurement_x\":20,\"measurement_y\":0,"
               << "\"measurement_z\":0,\"measurement_roll\":0,\"measurement_pitch\":0,"
-              << "\"measurement_yaw\":0}\n";
+              << "\"measurement_yaw\":0,\"edge_mode\":\"full6dof\","
+              << "\"vertical_observability_score\":1,\"vertical_downweighted\":false}\n";
         debug << "{\"record_type\":\"candidate\",\"query_id\":1,\"match_id\":0,"
               << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"rejected\","
               << "\"reject_reason\":\"fitness_threshold\",\"fitness_score\":2.0,"
@@ -215,7 +217,8 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
               << "\"residual_z\":0.0,\"residual_roll\":0,\"residual_pitch\":0,"
               << "\"residual_yaw\":0,\"measurement_x\":-19.8,\"measurement_y\":0,"
               << "\"measurement_z\":0,\"measurement_roll\":0,\"measurement_pitch\":0,"
-              << "\"measurement_yaw\":0}\n";
+              << "\"measurement_yaw\":0,\"edge_mode\":\"full6dof\","
+              << "\"vertical_observability_score\":1,\"vertical_downweighted\":false}\n";
         debug << "{\"record_type\":\"candidate\",\"query_id\":4,\"match_id\":0,"
               << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"rejected\","
               << "\"reject_reason\":\"not_selected\",\"fitness_score\":0.1,\"inlier_ratio\":0.9,"
@@ -254,6 +257,8 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
     EXPECT_NE(diagnosis.find("\"true_loop_not_selected\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"accepted_true_loop_bad_z\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"accepted_true_loop_good\": 0"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"accepted_planar_xy_yaw\": 1"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"accepted_full6dof\": 2"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"query_selection_failure_count\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"z_drift_suspect_count\": 1"), std::string::npos);
 
@@ -262,6 +267,7 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
     EXPECT_NE(labeled.find("accepted_false_loop"), std::string::npos);
     EXPECT_NE(labeled.find("accepted_true_loop_bad_z"), std::string::npos);
     EXPECT_NE(labeled.find("verification_reject_true_loop"), std::string::npos);
+    EXPECT_NE(labeled.find("planar_xy_yaw"), std::string::npos);
     EXPECT_NE(labeled.find("icp_error_to_gt_z"), std::string::npos);
 
     const std::string query_summary = readTextFile(output / "loop_query_summary.csv");
@@ -314,6 +320,8 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
                   << "  \"accepted_true_loop_bad_z\": 1,\n"
                   << "  \"accepted_true_loop_bad_roll_pitch\": 0,\n"
                   << "  \"accepted_false_loop\": 0,\n"
+                  << "  \"accepted_full6dof\": 1,\n"
+                  << "  \"accepted_planar_xy_yaw\": 1,\n"
                   << "  \"icp_reject_true_loop\": 1,\n"
                   << "  \"verification_reject_true_loop\": 1,\n"
                   << "  \"true_loop_not_selected\": 0,\n"
@@ -327,6 +335,10 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
                   << "    \"accepted_true_loop_good\": 1,\n"
                   << "    \"accepted_true_loop_bad_z\": 1,\n"
                   << "    \"verification_reject_true_loop\": 1\n"
+                  << "  },\n"
+                  << "  \"edge_mode_counts\": {\n"
+                  << "    \"full6dof\": 1,\n"
+                  << "    \"planar_xy_yaw\": 1\n"
                   << "  }\n"
                   << "}\n";
     }
@@ -345,6 +357,7 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
     EXPECT_NE(json.find("\"loop_precision\": 1.0"), std::string::npos);
     EXPECT_NE(json.find("\"loop_accepted_true_loop_bad_z\": 1"), std::string::npos);
     EXPECT_NE(json.find("\"loop_verification_reject_true_loop\": 1"), std::string::npos);
+    EXPECT_NE(json.find("\"loop_accepted_planar_xy_yaw\": 1"), std::string::npos);
     EXPECT_NE(json.find("\"trajectory_pair_count\": 3"), std::string::npos);
 }
 

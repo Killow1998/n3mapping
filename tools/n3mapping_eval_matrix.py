@@ -39,6 +39,8 @@ SUMMARY_FIELDS = [
     "loop_accepted_true_loop_bad_z",
     "loop_accepted_true_loop_bad_roll_pitch",
     "loop_accepted_false_loop",
+    "loop_accepted_full6dof",
+    "loop_accepted_planar_xy_yaw",
     "loop_precision",
     "loop_gt_pair_coverage",
     "loop_icp_reject_true_loop",
@@ -253,6 +255,9 @@ def loop_diagnosis_has_current_schema(diagnosis):
         "accepted_true_loop_bad_roll_pitch",
         "verification_reject_true_loop",
         "failure_class_counts",
+        "edge_mode_counts",
+        "accepted_full6dof",
+        "accepted_planar_xy_yaw",
     }
     return required.issubset(set(diagnosis.keys()))
 
@@ -338,6 +343,8 @@ def summarize_run(args, run_name, run_dir, matrix_output):
             "accepted_true_loop_bad_z": "loop_accepted_true_loop_bad_z",
             "accepted_true_loop_bad_roll_pitch": "loop_accepted_true_loop_bad_roll_pitch",
             "accepted_false_loop": "loop_accepted_false_loop",
+            "accepted_full6dof": "loop_accepted_full6dof",
+            "accepted_planar_xy_yaw": "loop_accepted_planar_xy_yaw",
             "icp_reject_true_loop": "loop_icp_reject_true_loop",
             "verification_reject_true_loop": "loop_verification_reject_true_loop",
             "true_loop_not_selected": "loop_true_loop_not_selected",

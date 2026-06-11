@@ -290,6 +290,7 @@ VerifiedLoop LoopDetector::verifyLoopCandidate(const LoopCandidate& candidate,
     VerifiedLoop result;
     result.query_id = candidate.query_id;
     result.match_id = candidate.match_id;
+    result.candidate_yaw_diff_rad = static_cast<double>(candidate.yaw_diff_rad);
     if (!query_keyframe || !match_keyframe) return result;
     Eigen::Isometry3d init_guess = match_keyframe->pose_optimized.inverse() * query_keyframe->pose_optimized;
     Eigen::AngleAxisd yaw_correction(candidate.yaw_diff_rad, Eigen::Vector3d::UnitZ());

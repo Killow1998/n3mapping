@@ -207,6 +207,94 @@ TEST(LoopClosureManagerTest, BuildLoopEdgesRespectsDirection)
     EXPECT_TRUE(edges_mq.front().measurement.isApprox(loop.T_match_query, 1e-9));
 }
 
+TEST(LoopClosureManagerTest, ApplyEdgeModelKeepsFull6DofWhenVerticalResidualIsObservable)
+{
+    Config config;
+    config.loop_noise_position = 0.5;
+    config.loop_noise_rotation = 0.5;
+    LoopClosureManager manager(config);
+
+    VerifiedLoop loop;
+    loop.verified = true;
+    loop.query_id = 1;
+    loop.match_id = 2;
+    loop.information.diagonal() << 10.0, 20.0, 30.0, 40.0, 50.0, 60.0;
+    loop.candidate_residual = Eigen::Isometry3d::Identity();
+    loop.candidate_residual.translation().z() = 0.1;
+
+    const auto modeled = manager.applyEdgeModel(loop);
+    EXPECT_TRUE(modeled.verified);
+    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::Full6Dof);
+    EXPECT_FALSE(modeled.vertical_downweighted);
+    EXPECT_TRUE(modeled.information.isApprox(loop.information, 1e-12));
+}
+
+TEST(LoopClosureManagerTest, ApplyEdgeModelDownweightsVerticalAxesWhenResidualIsWeak)
+{
+    Config config;
+    config.loop_noise_position = 0.5;
+    config.loop_noise_rotation = 0.5;
+    config.loop_planar_vertical_weight = 0.25;
+    LoopClosureManager manager(config);
+
+    VerifiedLoop loop;
+    loop.verified = true;
+    loop.query_id = 1;
+    loop.match_id = 2;
+    loop.information.diagonal() << 10.0, 20.0, 30.0, 40.0, 50.0, 60.0;
+    loop.candidate_residual = Eigen::Isometry3d::Identity();
+    loop.candidate_residual.translation().z() = 3.0;
+
+    const auto modeled = manager.applyEdgeModel(loop);
+    EXPECT_TRUE(modeled.verified);
+    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::PlanarXYYaw);
+    EXPECT_TRUE(modeled.vertical_downweighted);
+    EXPECT_DOUBLE_EQ(modeled.information(0, 0), 10.0);
+    EXPECT_DOUBLE_EQ(modeled.information(1, 1), 20.0);
+    EXPECT_DOUBLE_EQ(modeled.information(2, 2), 7.5);
+    EXPECT_DOUBLE_EQ(modeled.information(3, 3), 10.0);
+    EXPECT_DOUBLE_EQ(modeled.information(4, 4), 12.5);
+    EXPECT_DOUBLE_EQ(modeled.information(5, 5), 60.0);
+    EXPECT_NEAR(modeled.vertical_observability_score, 0.375, 1e-12);
+}
+
+TEST(LoopClosureManagerTest, ApplyEdgeModelRejectsVerticalOutlier)
+{
+    Config config;
+    config.loop_max_candidate_residual_z = 5.0;
+    LoopClosureManager manager(config);
+
+    VerifiedLoop loop;
+    loop.verified = true;
+    loop.query_id = 1;
+    loop.match_id = 2;
+    loop.candidate_residual = Eigen::Isometry3d::Identity();
+    loop.candidate_residual.translation().z() = 4.5;
+
+    const auto modeled = manager.applyEdgeModel(loop);
+    EXPECT_FALSE(modeled.verified);
+    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::RejectedVerticalInconsistent);
+    EXPECT_TRUE(manager.buildLoopEdges({modeled}, LoopEdgeDirection::MatchToQuery).empty());
+}
+
+TEST(LoopClosureManagerTest, ApplyEdgeModelRejectsYawInconsistentOutlier)
+{
+    Config config;
+    LoopClosureManager manager(config);
+
+    VerifiedLoop loop;
+    loop.verified = true;
+    loop.query_id = 1;
+    loop.match_id = 2;
+    loop.candidate_yaw_diff_rad = M_PI;
+    loop.candidate_residual = Eigen::Isometry3d::Identity();
+
+    const auto modeled = manager.applyEdgeModel(loop);
+    EXPECT_FALSE(modeled.verified);
+    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::RejectedYawInconsistent);
+    EXPECT_TRUE(manager.buildLoopEdges({modeled}, LoopEdgeDirection::MatchToQuery).empty());
+}
+
 TEST(LoopClosureManagerTest, ApplyEdgesCallsOptimizer)
 {
     Config config;

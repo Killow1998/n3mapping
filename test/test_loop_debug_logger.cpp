@@ -48,6 +48,9 @@ LoopDebugCandidateEvent makeRejectedCandidateEvent()
     event.residual.translation() = Eigen::Vector3d(1.0, 2.0, 3.0);
     event.has_loop_measurement = true;
     event.loop_measurement_match_query.translation() = Eigen::Vector3d(4.0, 5.0, 6.0);
+    event.edge_mode = "planar_xy_yaw";
+    event.vertical_observability_score = 0.25;
+    event.vertical_downweighted = true;
     event.gate_result = "rejected";
     event.reject_reason = "bad\nreason";
     event.loop_information.diagonal() << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0;
@@ -82,6 +85,9 @@ TEST(LoopDebugLoggerTest, WritesRejectedCandidateAsSingleLineJson)
     EXPECT_NE(lines[0].find("\"gate_result\":\"rejected\""), std::string::npos);
     EXPECT_NE(lines[0].find("\"reject_reason\":\"bad\\nreason\""), std::string::npos);
     EXPECT_NE(lines[0].find("\"measurement_z\":6"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"edge_mode\":\"planar_xy_yaw\""), std::string::npos);
+    EXPECT_NE(lines[0].find("\"vertical_observability_score\":0.25"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"vertical_downweighted\":true"), std::string::npos);
     EXPECT_NE(lines[0].find("\"loop_information_diag\":[1,2,3,4,5,6]"), std::string::npos);
 
     std::filesystem::remove_all(temp_dir);
