@@ -31,6 +31,17 @@ struct LoopDebugCandidateEvent {
     std::string edge_mode = "not_applicable";
     double vertical_observability_score = std::numeric_limits<double>::quiet_NaN();
     bool vertical_downweighted = false;
+    double source_z_span = std::numeric_limits<double>::quiet_NaN();
+    double target_z_span = std::numeric_limits<double>::quiet_NaN();
+    double z_overlap_ratio_before = std::numeric_limits<double>::quiet_NaN();
+    double z_overlap_ratio_after = std::numeric_limits<double>::quiet_NaN();
+    double source_z_robust_span = std::numeric_limits<double>::quiet_NaN();
+    double target_z_robust_span = std::numeric_limits<double>::quiet_NaN();
+    double z_robust_overlap_ratio_before = std::numeric_limits<double>::quiet_NaN();
+    double z_robust_overlap_ratio_after = std::numeric_limits<double>::quiet_NaN();
+    double source_target_z_centroid_delta_before = std::numeric_limits<double>::quiet_NaN();
+    double source_target_z_centroid_delta_after = std::numeric_limits<double>::quiet_NaN();
+    double vertical_information_ratio = std::numeric_limits<double>::quiet_NaN();
     std::string gate_result = "rejected";
     std::string reject_reason;
     Eigen::Matrix<double, 6, 6> loop_information = Eigen::Matrix<double, 6, 6>::Identity();

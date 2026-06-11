@@ -417,6 +417,9 @@ def analyze(args):
         "accepted_true_loop": 0,
         "accepted_true_loop_good": 0,
         "accepted_true_loop_bad_z": 0,
+        "accepted_true_loop_bad_z_measurement": 0,
+        "accepted_true_loop_bad_z_after": 0,
+        "accepted_true_loop_corrected_z": 0,
         "accepted_true_loop_bad_roll_pitch": 0,
         "verification_reject_true_loop": 0,
         "z_drift_suspect_count": 0,
@@ -470,6 +473,31 @@ def analyze(args):
         edge_mode = str(event.get("edge_mode", "unknown") or "unknown")
         vertical_observability_score = event_float(event, "vertical_observability_score")
         vertical_downweighted = bool(event.get("vertical_downweighted", False))
+        source_z_span = event_float(event, "source_z_span")
+        target_z_span = event_float(event, "target_z_span")
+        z_overlap_ratio_before = event_float(event, "z_overlap_ratio_before")
+        z_overlap_ratio_after = event_float(event, "z_overlap_ratio_after")
+        source_z_robust_span = event_float(event, "source_z_robust_span")
+        target_z_robust_span = event_float(event, "target_z_robust_span")
+        z_robust_overlap_ratio_before = event_float(event, "z_robust_overlap_ratio_before")
+        z_robust_overlap_ratio_after = event_float(event, "z_robust_overlap_ratio_after")
+        source_target_z_centroid_delta_before = event_float(
+            event, "source_target_z_centroid_delta_before"
+        )
+        source_target_z_centroid_delta_after = event_float(
+            event, "source_target_z_centroid_delta_after"
+        )
+        vertical_information_ratio = event_float(event, "vertical_information_ratio")
+        z_candidate_residual_large = bool(
+            accepted and gt_loop and exceeds_abs(residual_z, args.z_drift_threshold)
+        )
+        z_measurement_bad = bool(
+            accepted and gt_loop and exceeds_abs(errors["z"], args.z_drift_threshold)
+        )
+        z_after_bad = bool(
+            accepted and gt_loop and exceeds_abs(residual_z_after, args.z_drift_threshold)
+        )
+        z_corrected = bool(z_candidate_residual_large and not z_after_bad)
         z_drift_suspect = bool(
             accepted
             and (
@@ -485,9 +513,9 @@ def analyze(args):
             accepted
             and gt_loop
             and (
-                exceeds_abs(errors["z"], args.z_drift_threshold)
-                or exceeds_abs(residual_z_after, args.z_drift_threshold)
-                or exceeds_abs(residual_z, args.z_drift_threshold)
+                z_measurement_bad
+                or z_after_bad
+                or z_candidate_residual_large
             )
         )
         roll_pitch_bad = bool(
@@ -548,6 +576,12 @@ def analyze(args):
             stats["accepted_true_loop_bad_z"] += 1
         elif failure_class == "accepted_true_loop_bad_roll_pitch":
             stats["accepted_true_loop_bad_roll_pitch"] += 1
+        if z_measurement_bad:
+            stats["accepted_true_loop_bad_z_measurement"] += 1
+        if z_after_bad:
+            stats["accepted_true_loop_bad_z_after"] += 1
+        if z_corrected:
+            stats["accepted_true_loop_corrected_z"] += 1
         if z_drift_suspect:
             stats["z_drift_suspect_count"] += 1
         stats["failure_class_counts"][failure_class] = stats["failure_class_counts"].get(failure_class, 0) + 1
@@ -573,6 +607,21 @@ def analyze(args):
                 "edge_mode": edge_mode,
                 "vertical_observability_score": vertical_observability_score,
                 "vertical_downweighted": vertical_downweighted,
+                "source_z_span": source_z_span,
+                "target_z_span": target_z_span,
+                "z_overlap_ratio_before": z_overlap_ratio_before,
+                "z_overlap_ratio_after": z_overlap_ratio_after,
+                "source_z_robust_span": source_z_robust_span,
+                "target_z_robust_span": target_z_robust_span,
+                "z_robust_overlap_ratio_before": z_robust_overlap_ratio_before,
+                "z_robust_overlap_ratio_after": z_robust_overlap_ratio_after,
+                "source_target_z_centroid_delta_before": source_target_z_centroid_delta_before,
+                "source_target_z_centroid_delta_after": source_target_z_centroid_delta_after,
+                "vertical_information_ratio": vertical_information_ratio,
+                "z_candidate_residual_large": z_candidate_residual_large,
+                "z_measurement_bad": z_measurement_bad,
+                "z_after_bad": z_after_bad,
+                "z_corrected": z_corrected,
                 "gate_result": event.get("gate_result", ""),
                 "reject_reason": event.get("reject_reason", ""),
                 "fitness_score": event_float(event, "fitness_score"),
@@ -714,6 +763,21 @@ def analyze(args):
             "edge_mode",
             "vertical_observability_score",
             "vertical_downweighted",
+            "source_z_span",
+            "target_z_span",
+            "z_overlap_ratio_before",
+            "z_overlap_ratio_after",
+            "source_z_robust_span",
+            "target_z_robust_span",
+            "z_robust_overlap_ratio_before",
+            "z_robust_overlap_ratio_after",
+            "source_target_z_centroid_delta_before",
+            "source_target_z_centroid_delta_after",
+            "vertical_information_ratio",
+            "z_candidate_residual_large",
+            "z_measurement_bad",
+            "z_after_bad",
+            "z_corrected",
             "gate_result",
             "reject_reason",
             "fitness_score",
@@ -758,6 +822,17 @@ def analyze(args):
                 "gt_relative_pitch",
                 "gt_relative_yaw",
                 "vertical_observability_score",
+                "source_z_span",
+                "target_z_span",
+                "z_overlap_ratio_before",
+                "z_overlap_ratio_after",
+                "source_z_robust_span",
+                "target_z_robust_span",
+                "z_robust_overlap_ratio_before",
+                "z_robust_overlap_ratio_after",
+                "source_target_z_centroid_delta_before",
+                "source_target_z_centroid_delta_after",
+                "vertical_information_ratio",
                 "fitness_score",
                 "inlier_ratio",
                 "residual_z",

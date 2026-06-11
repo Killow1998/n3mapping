@@ -51,6 +51,17 @@ LoopDebugCandidateEvent makeRejectedCandidateEvent()
     event.edge_mode = "planar_xy_yaw";
     event.vertical_observability_score = 0.25;
     event.vertical_downweighted = true;
+    event.source_z_span = 1.5;
+    event.target_z_span = 2.5;
+    event.z_overlap_ratio_before = 0.4;
+    event.z_overlap_ratio_after = 0.8;
+    event.source_z_robust_span = 1.1;
+    event.target_z_robust_span = 2.1;
+    event.z_robust_overlap_ratio_before = 0.3;
+    event.z_robust_overlap_ratio_after = 0.7;
+    event.source_target_z_centroid_delta_before = -1.2;
+    event.source_target_z_centroid_delta_after = 0.1;
+    event.vertical_information_ratio = 0.75;
     event.gate_result = "rejected";
     event.reject_reason = "bad\nreason";
     event.loop_information.diagonal() << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0;
@@ -88,6 +99,17 @@ TEST(LoopDebugLoggerTest, WritesRejectedCandidateAsSingleLineJson)
     EXPECT_NE(lines[0].find("\"edge_mode\":\"planar_xy_yaw\""), std::string::npos);
     EXPECT_NE(lines[0].find("\"vertical_observability_score\":0.25"), std::string::npos);
     EXPECT_NE(lines[0].find("\"vertical_downweighted\":true"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"source_z_span\":1.5"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"target_z_span\":2.5"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"z_overlap_ratio_before\":0.40000000000000002"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"z_overlap_ratio_after\":0.80000000000000004"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"source_z_robust_span\":1.1000000000000001"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"target_z_robust_span\":2.1000000000000001"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"z_robust_overlap_ratio_before\":0.29999999999999999"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"z_robust_overlap_ratio_after\":0.69999999999999996"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"source_target_z_centroid_delta_before\":-1.2"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"source_target_z_centroid_delta_after\":0.10000000000000001"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"vertical_information_ratio\":0.75"), std::string::npos);
     EXPECT_NE(lines[0].find("\"loop_information_diag\":[1,2,3,4,5,6]"), std::string::npos);
 
     std::filesystem::remove_all(temp_dir);

@@ -699,7 +699,10 @@ void touchFile(const fs::path& path)
 
 void writeAcceptedLoopsHeader(std::ofstream& out)
 {
-    out << "query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,vertical_downweighted\n";
+    out << "query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,"
+           "vertical_downweighted,source_z_span,target_z_span,z_overlap_ratio_before,z_overlap_ratio_after,"
+           "source_z_robust_span,target_z_robust_span,z_robust_overlap_ratio_before,z_robust_overlap_ratio_after,"
+           "source_target_z_centroid_delta_before,source_target_z_centroid_delta_after,vertical_information_ratio\n";
 }
 
 void writeKeyframesGtHeader(std::ofstream& out)
@@ -731,7 +734,18 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << (loop.verified ? "true" : "false") << ','
         << loopEdgeModeName(loop.edge_mode) << ','
         << loop.vertical_observability_score << ','
-        << (loop.vertical_downweighted ? "true" : "false") << '\n';
+        << (loop.vertical_downweighted ? "true" : "false") << ','
+        << loop.source_z_span << ','
+        << loop.target_z_span << ','
+        << loop.z_overlap_ratio_before << ','
+        << loop.z_overlap_ratio_after << ','
+        << loop.source_z_robust_span << ','
+        << loop.target_z_robust_span << ','
+        << loop.z_robust_overlap_ratio_before << ','
+        << loop.z_robust_overlap_ratio_after << ','
+        << loop.source_target_z_centroid_delta_before << ','
+        << loop.source_target_z_centroid_delta_after << ','
+        << loop.vertical_information_ratio << '\n';
 }
 
 int runMappingLoop(const Options& options, const AlignedFrames& aligned)

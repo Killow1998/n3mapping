@@ -7,6 +7,7 @@
 #include <limits>
 #include <set>
 #include <stdexcept>
+#include <vector>
 
 #include "n3mapping/cloud_utils.h"
 #include <pcl/common/transforms.h>
@@ -168,6 +169,153 @@ Eigen::Isometry3d candidateResidual(const Eigen::Isometry3d& expected_match_quer
                                     const Eigen::Isometry3d& measured_match_query)
 {
     return expected_match_query.inverse() * measured_match_query;
+}
+
+struct ZDistributionStats {
+    std::size_t count = 0;
+    double min_z = std::numeric_limits<double>::infinity();
+    double max_z = -std::numeric_limits<double>::infinity();
+    double sum_z = 0.0;
+    std::vector<double> samples;
+
+    double span() const
+    {
+        return count > 0 ? max_z - min_z : std::numeric_limits<double>::quiet_NaN();
+    }
+
+    double mean() const
+    {
+        return count > 0 ? sum_z / static_cast<double>(count) : std::numeric_limits<double>::quiet_NaN();
+    }
+
+    double quantile(double q) const
+    {
+        if (samples.empty()) {
+            return std::numeric_limits<double>::quiet_NaN();
+        }
+        std::vector<double> values = samples;
+        std::sort(values.begin(), values.end());
+        const double index = std::clamp(q, 0.0, 1.0) * static_cast<double>(values.size() - 1);
+        const std::size_t lo = static_cast<std::size_t>(std::floor(index));
+        const std::size_t hi = static_cast<std::size_t>(std::ceil(index));
+        if (lo == hi) {
+            return values[lo];
+        }
+        const double t = index - static_cast<double>(lo);
+        return values[lo] * (1.0 - t) + values[hi] * t;
+    }
+
+    double robustMin() const { return quantile(0.05); }
+    double robustMax() const { return quantile(0.95); }
+
+    double robustSpan() const
+    {
+        const double lo = robustMin();
+        const double hi = robustMax();
+        return std::isfinite(lo) && std::isfinite(hi) ? hi - lo : std::numeric_limits<double>::quiet_NaN();
+    }
+};
+
+ZDistributionStats computeZStats(const core::LioFrame::PointCloud::Ptr& cloud)
+{
+    ZDistributionStats stats;
+    if (!cloud) {
+        return stats;
+    }
+    for (const auto& point : cloud->points) {
+        if (!isFinitePoint(point)) {
+            continue;
+        }
+        const double z = static_cast<double>(point.z);
+        stats.min_z = std::min(stats.min_z, z);
+        stats.max_z = std::max(stats.max_z, z);
+        stats.sum_z += z;
+        stats.samples.push_back(z);
+        ++stats.count;
+    }
+    return stats;
+}
+
+ZDistributionStats computeTransformedZStats(const core::LioFrame::PointCloud::Ptr& cloud,
+                                            const Eigen::Isometry3d& transform)
+{
+    ZDistributionStats stats;
+    if (!cloud) {
+        return stats;
+    }
+    for (const auto& point : cloud->points) {
+        if (!isFinitePoint(point)) {
+            continue;
+        }
+        const Eigen::Vector3d transformed =
+            transform * Eigen::Vector3d(point.x, point.y, point.z);
+        if (!std::isfinite(transformed.z())) {
+            continue;
+        }
+        stats.min_z = std::min(stats.min_z, transformed.z());
+        stats.max_z = std::max(stats.max_z, transformed.z());
+        stats.sum_z += transformed.z();
+        stats.samples.push_back(transformed.z());
+        ++stats.count;
+    }
+    return stats;
+}
+
+double zOverlapRatio(const ZDistributionStats& a, const ZDistributionStats& b)
+{
+    if (a.count == 0 || b.count == 0) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    const double denominator = std::min(a.span(), b.span());
+    if (!std::isfinite(denominator) || denominator <= 1e-9) {
+        return 0.0;
+    }
+    const double overlap = std::min(a.max_z, b.max_z) - std::max(a.min_z, b.min_z);
+    return std::max(0.0, std::min(1.0, overlap / denominator));
+}
+
+double robustZOverlapRatio(const ZDistributionStats& a, const ZDistributionStats& b)
+{
+    if (a.count == 0 || b.count == 0) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    const double a_min = a.robustMin();
+    const double a_max = a.robustMax();
+    const double b_min = b.robustMin();
+    const double b_max = b.robustMax();
+    if (!std::isfinite(a_min) || !std::isfinite(a_max) ||
+        !std::isfinite(b_min) || !std::isfinite(b_max)) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    const double denominator = std::min(a_max - a_min, b_max - b_min);
+    if (denominator <= 1e-9) {
+        return 0.0;
+    }
+    const double overlap = std::min(a_max, b_max) - std::max(a_min, b_min);
+    return std::max(0.0, std::min(1.0, overlap / denominator));
+}
+
+double zCentroidDelta(const ZDistributionStats& source, const ZDistributionStats& target)
+{
+    const double source_mean = source.mean();
+    const double target_mean = target.mean();
+    if (!std::isfinite(source_mean) || !std::isfinite(target_mean)) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    return source_mean - target_mean;
+}
+
+double verticalInformationRatio(const Eigen::Matrix<double, 6, 6>& information)
+{
+    const double x = information(0, 0);
+    const double y = information(1, 1);
+    const double z = information(2, 2);
+    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) ||
+        x <= 0.0 || y <= 0.0 || z <= 0.0) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    const double xy_reference = std::sqrt(x * y);
+    return xy_reference > 0.0 ? z / xy_reference : std::numeric_limits<double>::quiet_NaN();
 }
 
 core::LioFrame::PointCloud::Ptr strideLimitCloud(const core::LioFrame::PointCloud::Ptr& cloud,
@@ -549,9 +697,19 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 make_rejected_event(candidate, "empty_submap_after_prefilter");
                 continue;
             }
+            ZDistributionStats source_z_before;
+            ZDistributionStats target_z;
+            if (loop_debug_enabled) {
+                source_z_before = computeZStats(source);
+                target_z = computeZStats(target);
+            }
 
             MatchResult match_result =
                 session_->pointCloudMatcher().alignCloud(target, source, Eigen::Isometry3d::Identity());
+            ZDistributionStats source_z_after;
+            if (loop_debug_enabled) {
+                source_z_after = computeTransformedZStats(source, match_result.T_target_source);
+            }
 
             VerifiedLoop loop;
             loop.query_id = query_id;
@@ -559,6 +717,17 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             loop.candidate_yaw_diff_rad = static_cast<double>(candidate.yaw_diff_rad);
             loop.fitness_score = match_result.fitness_score;
             loop.inlier_ratio = match_result.inlier_ratio;
+            loop.source_z_span = source_z_before.span();
+            loop.target_z_span = target_z.span();
+            loop.z_overlap_ratio_before = zOverlapRatio(source_z_before, target_z);
+            loop.z_overlap_ratio_after = zOverlapRatio(source_z_after, target_z);
+            loop.source_z_robust_span = source_z_before.robustSpan();
+            loop.target_z_robust_span = target_z.robustSpan();
+            loop.z_robust_overlap_ratio_before = robustZOverlapRatio(source_z_before, target_z);
+            loop.z_robust_overlap_ratio_after = robustZOverlapRatio(source_z_after, target_z);
+            loop.source_target_z_centroid_delta_before = zCentroidDelta(source_z_before, target_z);
+            loop.source_target_z_centroid_delta_after = zCentroidDelta(source_z_after, target_z);
+            loop.vertical_information_ratio = verticalInformationRatio(match_result.information);
             loop.information =
                 config_.loop_use_icp_information ? match_result.information : Eigen::Matrix<double, 6, 6>::Identity();
             const Eigen::Isometry3d T_est_match_query =
@@ -614,6 +783,17 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                      loop.edge_mode == LoopEdgeMode::RejectedYawInconsistent)
                     ? loop.vertical_observability_score : std::numeric_limits<double>::quiet_NaN();
                 event.vertical_downweighted = loop.vertical_downweighted;
+                event.source_z_span = loop.source_z_span;
+                event.target_z_span = loop.target_z_span;
+                event.z_overlap_ratio_before = loop.z_overlap_ratio_before;
+                event.z_overlap_ratio_after = loop.z_overlap_ratio_after;
+                event.source_z_robust_span = loop.source_z_robust_span;
+                event.target_z_robust_span = loop.target_z_robust_span;
+                event.z_robust_overlap_ratio_before = loop.z_robust_overlap_ratio_before;
+                event.z_robust_overlap_ratio_after = loop.z_robust_overlap_ratio_after;
+                event.source_target_z_centroid_delta_before = loop.source_target_z_centroid_delta_before;
+                event.source_target_z_centroid_delta_after = loop.source_target_z_centroid_delta_after;
+                event.vertical_information_ratio = loop.vertical_information_ratio;
                 event.gate_result = loop.verified ? "accepted" : "rejected";
                 event.reject_reason = reject_reason;
                 debug_events.push_back(event);

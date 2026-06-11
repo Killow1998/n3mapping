@@ -82,6 +82,17 @@ struct VerifiedLoop {
     LoopEdgeMode edge_mode = LoopEdgeMode::Full6Dof;
     double vertical_observability_score = 1.0;
     bool vertical_downweighted = false;
+    double source_z_span = std::numeric_limits<double>::quiet_NaN();
+    double target_z_span = std::numeric_limits<double>::quiet_NaN();
+    double z_overlap_ratio_before = std::numeric_limits<double>::quiet_NaN();
+    double z_overlap_ratio_after = std::numeric_limits<double>::quiet_NaN();
+    double source_z_robust_span = std::numeric_limits<double>::quiet_NaN();
+    double target_z_robust_span = std::numeric_limits<double>::quiet_NaN();
+    double z_robust_overlap_ratio_before = std::numeric_limits<double>::quiet_NaN();
+    double z_robust_overlap_ratio_after = std::numeric_limits<double>::quiet_NaN();
+    double source_target_z_centroid_delta_before = std::numeric_limits<double>::quiet_NaN();
+    double source_target_z_centroid_delta_after = std::numeric_limits<double>::quiet_NaN();
+    double vertical_information_ratio = std::numeric_limits<double>::quiet_NaN();
     bool verified = false;
     bool isValid() const { return verified && query_id >= 0 && match_id >= 0; }
 };

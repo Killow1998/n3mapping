@@ -241,6 +241,17 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendString(os, &first, "edge_mode", event.edge_mode);
     appendNumber(os, &first, "vertical_observability_score", event.vertical_observability_score);
     appendBool(os, &first, "vertical_downweighted", event.vertical_downweighted);
+    appendNumber(os, &first, "source_z_span", event.source_z_span);
+    appendNumber(os, &first, "target_z_span", event.target_z_span);
+    appendNumber(os, &first, "z_overlap_ratio_before", event.z_overlap_ratio_before);
+    appendNumber(os, &first, "z_overlap_ratio_after", event.z_overlap_ratio_after);
+    appendNumber(os, &first, "source_z_robust_span", event.source_z_robust_span);
+    appendNumber(os, &first, "target_z_robust_span", event.target_z_robust_span);
+    appendNumber(os, &first, "z_robust_overlap_ratio_before", event.z_robust_overlap_ratio_before);
+    appendNumber(os, &first, "z_robust_overlap_ratio_after", event.z_robust_overlap_ratio_after);
+    appendNumber(os, &first, "source_target_z_centroid_delta_before", event.source_target_z_centroid_delta_before);
+    appendNumber(os, &first, "source_target_z_centroid_delta_after", event.source_target_z_centroid_delta_after);
+    appendNumber(os, &first, "vertical_information_ratio", event.vertical_information_ratio);
     appendString(os, &first, "gate_result", event.gate_result);
     appendString(os, &first, "reject_reason", event.reject_reason);
     appendInformationDiag(os, &first, event.loop_information);

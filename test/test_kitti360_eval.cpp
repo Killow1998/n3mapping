@@ -163,7 +163,7 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_NE(metrics.find("\"calib_loaded\": true"), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_mode_requested\": \"auto\""), std::string::npos);
     const std::string loops = readTextFile(output / "accepted_loops.csv");
-    EXPECT_NE(loops.find("query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,vertical_downweighted"), std::string::npos);
+    EXPECT_NE(loops.find("query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,vertical_downweighted,source_z_span,target_z_span,z_overlap_ratio_before,z_overlap_ratio_after,source_z_robust_span,target_z_robust_span,z_robust_overlap_ratio_before,z_robust_overlap_ratio_after,source_target_z_centroid_delta_before,source_target_z_centroid_delta_after,vertical_information_ratio"), std::string::npos);
     const std::string keyframes_gt = readTextFile(output / "keyframes_gt.csv");
     EXPECT_NE(keyframes_gt.find("keyframe_id,frame_id,x,y,z,qx,qy,qz,qw"), std::string::npos);
 }
@@ -318,6 +318,9 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
                   << "  \"accepted_true_loop\": 2,\n"
                   << "  \"accepted_true_loop_good\": 1,\n"
                   << "  \"accepted_true_loop_bad_z\": 1,\n"
+                  << "  \"accepted_true_loop_bad_z_measurement\": 1,\n"
+                  << "  \"accepted_true_loop_bad_z_after\": 1,\n"
+                  << "  \"accepted_true_loop_corrected_z\": 0,\n"
                   << "  \"accepted_true_loop_bad_roll_pitch\": 0,\n"
                   << "  \"accepted_false_loop\": 0,\n"
                   << "  \"accepted_full6dof\": 1,\n"
