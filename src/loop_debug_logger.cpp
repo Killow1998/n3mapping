@@ -95,6 +95,12 @@ void appendSize(std::ostream& os, bool* first, const char* key, std::size_t valu
     os << '"' << key << "\":" << value;
 }
 
+void appendInt(std::ostream& os, bool* first, const char* key, int value)
+{
+    appendComma(os, first);
+    os << '"' << key << "\":" << value;
+}
+
 void appendAcceptedEdges(std::ostream& os,
                          bool* first,
                          const std::vector<std::pair<int64_t, int64_t>>& edges)
@@ -252,6 +258,15 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendNumber(os, &first, "source_target_z_centroid_delta_before", event.source_target_z_centroid_delta_before);
     appendNumber(os, &first, "source_target_z_centroid_delta_after", event.source_target_z_centroid_delta_after);
     appendNumber(os, &first, "vertical_information_ratio", event.vertical_information_ratio);
+    appendInt(os, &first, "vertical_hypothesis_count", event.vertical_hypothesis_count);
+    appendNumber(os, &first, "best_z_offset_m", event.best_z_offset_m);
+    appendNumber(os, &first, "best_z_offset_fitness", event.best_z_offset_fitness);
+    appendNumber(os, &first, "zero_z_fitness", event.zero_z_fitness);
+    appendNumber(os, &first, "fitness_gap_zero_vs_best", event.fitness_gap_zero_vs_best);
+    appendNumber(os, &first, "z_hypothesis_spread_m", event.z_hypothesis_spread_m);
+    appendNumber(os, &first, "vertical_ambiguity_score", event.vertical_ambiguity_score);
+    appendString(os, &first, "vertical_hypothesis_edge_recommendation",
+                 event.vertical_hypothesis_edge_recommendation);
     appendString(os, &first, "gate_result", event.gate_result);
     appendString(os, &first, "reject_reason", event.reject_reason);
     appendInformationDiag(os, &first, event.loop_information);

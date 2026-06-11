@@ -42,6 +42,14 @@ struct LoopDebugCandidateEvent {
     double source_target_z_centroid_delta_before = std::numeric_limits<double>::quiet_NaN();
     double source_target_z_centroid_delta_after = std::numeric_limits<double>::quiet_NaN();
     double vertical_information_ratio = std::numeric_limits<double>::quiet_NaN();
+    int vertical_hypothesis_count = 0;
+    double best_z_offset_m = std::numeric_limits<double>::quiet_NaN();
+    double best_z_offset_fitness = std::numeric_limits<double>::quiet_NaN();
+    double zero_z_fitness = std::numeric_limits<double>::quiet_NaN();
+    double fitness_gap_zero_vs_best = std::numeric_limits<double>::quiet_NaN();
+    double z_hypothesis_spread_m = std::numeric_limits<double>::quiet_NaN();
+    double vertical_ambiguity_score = std::numeric_limits<double>::quiet_NaN();
+    std::string vertical_hypothesis_edge_recommendation = "not_available";
     std::string gate_result = "rejected";
     std::string reject_reason;
     Eigen::Matrix<double, 6, 6> loop_information = Eigen::Matrix<double, 6, 6>::Identity();

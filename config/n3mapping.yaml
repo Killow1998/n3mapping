@@ -62,6 +62,7 @@ n3mapping_node:
     loop_icp_prefilter_voxel_size: 0.2
     loop_icp_max_points: 50000
     loop_debug_enable: false
+    loop_debug_vertical_hypotheses_enable: false
     loop_debug_path: ""
     loop_kf_gap: 5
     loop_closest_id_th: 50

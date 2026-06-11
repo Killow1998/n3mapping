@@ -62,6 +62,14 @@ LoopDebugCandidateEvent makeRejectedCandidateEvent()
     event.source_target_z_centroid_delta_before = -1.2;
     event.source_target_z_centroid_delta_after = 0.1;
     event.vertical_information_ratio = 0.75;
+    event.vertical_hypothesis_count = 7;
+    event.best_z_offset_m = -0.5;
+    event.best_z_offset_fitness = 0.11;
+    event.zero_z_fitness = 0.12;
+    event.fitness_gap_zero_vs_best = 0.01;
+    event.z_hypothesis_spread_m = 1.0;
+    event.vertical_ambiguity_score = 0.25;
+    event.vertical_hypothesis_edge_recommendation = "planar_xy_yaw";
     event.gate_result = "rejected";
     event.reject_reason = "bad\nreason";
     event.loop_information.diagonal() << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0;
@@ -110,6 +118,14 @@ TEST(LoopDebugLoggerTest, WritesRejectedCandidateAsSingleLineJson)
     EXPECT_NE(lines[0].find("\"source_target_z_centroid_delta_before\":-1.2"), std::string::npos);
     EXPECT_NE(lines[0].find("\"source_target_z_centroid_delta_after\":0.10000000000000001"), std::string::npos);
     EXPECT_NE(lines[0].find("\"vertical_information_ratio\":0.75"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"vertical_hypothesis_count\":7"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"best_z_offset_m\":-0.5"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"best_z_offset_fitness\":0.11"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"zero_z_fitness\":0.12"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"fitness_gap_zero_vs_best\":0.01"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"z_hypothesis_spread_m\":1"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"vertical_ambiguity_score\":0.25"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"vertical_hypothesis_edge_recommendation\":\"planar_xy_yaw\""), std::string::npos);
     EXPECT_NE(lines[0].find("\"loop_information_diag\":[1,2,3,4,5,6]"), std::string::npos);
 
     std::filesystem::remove_all(temp_dir);

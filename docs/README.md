@@ -177,13 +177,14 @@ python3 src/n3mapping/tools/n3mapping_eval_matrix.py \
 - 不是当前 smoke 中 false loop 太多：accepted false loop 为 0。
 - 不是所有 bad-Z 都会伤害优化：5 个被纠正。
 - 当前 Z overlap / robust overlap / raw Hessian vertical ratio 不足以稳定区分剩余坏例子。
+- 当前已加入 multi-hypothesis vertical ICP 诊断作为新的 runtime evidence；它只写诊断字段，不改变回环接受、edge mode 或优化行为。
 
 下一步可选方向：
 
 1. 新增 runtime 观测信号，而不是调现有阈值：
    - visibility/raycast-aware submap validation
    - ground / vertical structure segmentation
-   - multi-hypothesis ICP for vertical ambiguity
+   - multi-hypothesis ICP for vertical ambiguity（已作为诊断落地）
    - range image occlusion consistency
    - ICP covariance/eigen decomposition beyond simple diagonal ratio
 2. 如果 GPT Pro 判断可以 tuning，再基于 GT residual 设计明确的阈值/权重实验。
@@ -418,6 +419,15 @@ Offline eval accepted loop rows include:
 - vertical downweighted
 - Z distribution diagnostics
 - raw ICP vertical information ratio
+- vertical hypothesis diagnostics:
+  - `vertical_hypothesis_count`
+  - `best_z_offset_m`
+  - `best_z_offset_fitness`
+  - `zero_z_fitness`
+  - `fitness_gap_zero_vs_best`
+  - `z_hypothesis_spread_m`
+  - `vertical_ambiguity_score`
+  - `vertical_hypothesis_edge_recommendation`
 
 ### `loop_candidates_labeled.csv`
 
@@ -443,7 +453,7 @@ Ask GPT Pro to choose between:
    - visibility/raycast consistency
    - ground/vertical segmentation
    - better ICP covariance/eigen analysis
-   - multi-hypothesis vertical ICP
+   - inspect current multi-hypothesis vertical ICP evidence, then decide whether another signal is needed
 2. Allow a controlled tuning experiment:
    - explicitly define thresholds/weights
    - run against KITTI360 + M2DGR matrix
@@ -470,7 +480,8 @@ If GPT Pro says to add evidence, implement the smallest new diagnostic or struct
    - keep future relocalization changes false-lock first.
 
 3. `vertical_observability_next_signal`
-   - only after GPT Pro chooses the next runtime evidence source.
+   - multi-hypothesis vertical ICP diagnostics are implemented for KITTI360 / M2DGR eval.
+   - next step is to rerun the same matrix and inspect high-Z cases.
    - avoid tuning existing thresholds without a written gate.
 
 4. `indoor_benchmark_m2dgr`

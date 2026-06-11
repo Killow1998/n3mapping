@@ -72,6 +72,7 @@ struct Config {
     double loop_icp_prefilter_voxel_size = 0.2;
     int loop_icp_max_points = 50000;
     bool loop_debug_enable = false;
+    bool loop_debug_vertical_hypotheses_enable = false;
     std::string loop_debug_path = "";
 
     int loop_kf_gap = 5;

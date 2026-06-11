@@ -430,6 +430,11 @@ def analyze(args):
         "edge_mode_counts": {},
         "accepted_full6dof": 0,
         "accepted_planar_xy_yaw": 0,
+        "vertical_hypothesis_candidate_count": 0,
+        "vertical_hypothesis_planar_recommendation_count": 0,
+        "vertical_hypothesis_full6dof_recommendation_count": 0,
+        "accepted_true_loop_bad_z_with_vertical_hypothesis": 0,
+        "accepted_true_loop_bad_z_planar_recommended": 0,
     }
     rpy_threshold_rad = args.rpy_drift_threshold_deg * math.pi / 180.0
     accepted_pairs_available = bool(args.accepted_loops)
@@ -488,6 +493,16 @@ def analyze(args):
             event, "source_target_z_centroid_delta_after"
         )
         vertical_information_ratio = event_float(event, "vertical_information_ratio")
+        vertical_hypothesis_count = int(event.get("vertical_hypothesis_count") or 0)
+        best_z_offset_m = event_float(event, "best_z_offset_m")
+        best_z_offset_fitness = event_float(event, "best_z_offset_fitness")
+        zero_z_fitness = event_float(event, "zero_z_fitness")
+        fitness_gap_zero_vs_best = event_float(event, "fitness_gap_zero_vs_best")
+        z_hypothesis_spread_m = event_float(event, "z_hypothesis_spread_m")
+        vertical_ambiguity_score = event_float(event, "vertical_ambiguity_score")
+        vertical_hypothesis_edge_recommendation = str(
+            event.get("vertical_hypothesis_edge_recommendation", "not_available") or "not_available"
+        )
         z_candidate_residual_large = bool(
             accepted and gt_loop and exceeds_abs(residual_z, args.z_drift_threshold)
         )
@@ -557,6 +572,12 @@ def analyze(args):
                 stats["accepted_full6dof"] += 1
             elif edge_mode == "planar_xy_yaw":
                 stats["accepted_planar_xy_yaw"] += 1
+        if vertical_hypothesis_count > 0:
+            stats["vertical_hypothesis_candidate_count"] += 1
+            if vertical_hypothesis_edge_recommendation == "planar_xy_yaw":
+                stats["vertical_hypothesis_planar_recommendation_count"] += 1
+            elif vertical_hypothesis_edge_recommendation == "full6dof":
+                stats["vertical_hypothesis_full6dof_recommendation_count"] += 1
         if gt_loop:
             stats["retrieval_true_positive"] += 1
         elif has_gt:
@@ -580,6 +601,10 @@ def analyze(args):
             stats["accepted_true_loop_bad_z_measurement"] += 1
         if z_after_bad:
             stats["accepted_true_loop_bad_z_after"] += 1
+        if z_bad and vertical_hypothesis_count > 0:
+            stats["accepted_true_loop_bad_z_with_vertical_hypothesis"] += 1
+            if vertical_hypothesis_edge_recommendation == "planar_xy_yaw":
+                stats["accepted_true_loop_bad_z_planar_recommended"] += 1
         if z_corrected:
             stats["accepted_true_loop_corrected_z"] += 1
         if z_drift_suspect:
@@ -618,6 +643,14 @@ def analyze(args):
                 "source_target_z_centroid_delta_before": source_target_z_centroid_delta_before,
                 "source_target_z_centroid_delta_after": source_target_z_centroid_delta_after,
                 "vertical_information_ratio": vertical_information_ratio,
+                "vertical_hypothesis_count": vertical_hypothesis_count,
+                "best_z_offset_m": best_z_offset_m,
+                "best_z_offset_fitness": best_z_offset_fitness,
+                "zero_z_fitness": zero_z_fitness,
+                "fitness_gap_zero_vs_best": fitness_gap_zero_vs_best,
+                "z_hypothesis_spread_m": z_hypothesis_spread_m,
+                "vertical_ambiguity_score": vertical_ambiguity_score,
+                "vertical_hypothesis_edge_recommendation": vertical_hypothesis_edge_recommendation,
                 "z_candidate_residual_large": z_candidate_residual_large,
                 "z_measurement_bad": z_measurement_bad,
                 "z_after_bad": z_after_bad,
@@ -774,6 +807,14 @@ def analyze(args):
             "source_target_z_centroid_delta_before",
             "source_target_z_centroid_delta_after",
             "vertical_information_ratio",
+            "vertical_hypothesis_count",
+            "best_z_offset_m",
+            "best_z_offset_fitness",
+            "zero_z_fitness",
+            "fitness_gap_zero_vs_best",
+            "z_hypothesis_spread_m",
+            "vertical_ambiguity_score",
+            "vertical_hypothesis_edge_recommendation",
             "z_candidate_residual_large",
             "z_measurement_bad",
             "z_after_bad",
@@ -833,6 +874,12 @@ def analyze(args):
                 "source_target_z_centroid_delta_before",
                 "source_target_z_centroid_delta_after",
                 "vertical_information_ratio",
+                "best_z_offset_m",
+                "best_z_offset_fitness",
+                "zero_z_fitness",
+                "fitness_gap_zero_vs_best",
+                "z_hypothesis_spread_m",
+                "vertical_ambiguity_score",
                 "fitness_score",
                 "inlier_ratio",
                 "residual_z",

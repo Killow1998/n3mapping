@@ -1,6 +1,7 @@
 #include "n3mapping/core/n3mapping_core.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -316,6 +317,105 @@ double verticalInformationRatio(const Eigen::Matrix<double, 6, 6>& information)
     }
     const double xy_reference = std::sqrt(x * y);
     return xy_reference > 0.0 ? z / xy_reference : std::numeric_limits<double>::quiet_NaN();
+}
+
+struct VerticalHypothesisDiagnostics {
+    int count = 0;
+    double best_z_offset_m = std::numeric_limits<double>::quiet_NaN();
+    double best_z_offset_fitness = std::numeric_limits<double>::quiet_NaN();
+    double zero_z_fitness = std::numeric_limits<double>::quiet_NaN();
+    double fitness_gap_zero_vs_best = std::numeric_limits<double>::quiet_NaN();
+    double z_hypothesis_spread_m = std::numeric_limits<double>::quiet_NaN();
+    double vertical_ambiguity_score = std::numeric_limits<double>::quiet_NaN();
+    std::string edge_recommendation = "not_available";
+};
+
+bool hasUsableHypothesisFitness(const MatchResult& result)
+{
+    return result.converged && std::isfinite(result.fitness_score);
+}
+
+VerticalHypothesisDiagnostics computeVerticalHypothesisDiagnostics(
+    PointCloudMatcher& matcher,
+    const core::LioFrame::PointCloud::Ptr& target,
+    const core::LioFrame::PointCloud::Ptr& source,
+    const MatchResult& zero_result)
+{
+    VerticalHypothesisDiagnostics diagnostics;
+    constexpr std::array<double, 7> kZOffsets = {-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0};
+    struct Candidate {
+        double z_offset = 0.0;
+        double fitness = std::numeric_limits<double>::quiet_NaN();
+    };
+    std::vector<Candidate> usable;
+    usable.reserve(kZOffsets.size());
+
+    auto add_result = [&](double z_offset, const MatchResult& result) {
+        if (!hasUsableHypothesisFitness(result)) {
+            return;
+        }
+        ++diagnostics.count;
+        usable.push_back({z_offset, result.fitness_score});
+        if (!std::isfinite(diagnostics.best_z_offset_fitness) ||
+            result.fitness_score < diagnostics.best_z_offset_fitness) {
+            diagnostics.best_z_offset_m = z_offset;
+            diagnostics.best_z_offset_fitness = result.fitness_score;
+        }
+    };
+
+    diagnostics.zero_z_fitness =
+        std::isfinite(zero_result.fitness_score) ? zero_result.fitness_score
+                                                 : std::numeric_limits<double>::quiet_NaN();
+    add_result(0.0, zero_result);
+    for (double z_offset : kZOffsets) {
+        if (z_offset == 0.0) {
+            continue;
+        }
+        Eigen::Isometry3d init = Eigen::Isometry3d::Identity();
+        init.translation().z() = z_offset;
+        try {
+            add_result(z_offset, matcher.alignCloud(target, source, init));
+        } catch (const std::exception&) {
+            // Diagnostics must never affect loop-closure behavior.
+        }
+    }
+
+    if (diagnostics.count == 0 || !std::isfinite(diagnostics.best_z_offset_fitness)) {
+        diagnostics.edge_recommendation = "reject";
+        return diagnostics;
+    }
+    if (std::isfinite(diagnostics.zero_z_fitness)) {
+        diagnostics.fitness_gap_zero_vs_best =
+            diagnostics.zero_z_fitness - diagnostics.best_z_offset_fitness;
+    }
+
+    const double near_best_band = std::max(0.02, 0.10 * std::max(1e-6, diagnostics.best_z_offset_fitness));
+    double near_min = std::numeric_limits<double>::infinity();
+    double near_max = -std::numeric_limits<double>::infinity();
+    for (const auto& candidate : usable) {
+        if (candidate.fitness <= diagnostics.best_z_offset_fitness + near_best_band) {
+            near_min = std::min(near_min, candidate.z_offset);
+            near_max = std::max(near_max, candidate.z_offset);
+        }
+    }
+    if (std::isfinite(near_min) && std::isfinite(near_max)) {
+        diagnostics.z_hypothesis_spread_m = near_max - near_min;
+        diagnostics.vertical_ambiguity_score =
+            std::clamp(diagnostics.z_hypothesis_spread_m / 4.0, 0.0, 1.0);
+    } else {
+        diagnostics.z_hypothesis_spread_m = 0.0;
+        diagnostics.vertical_ambiguity_score = 0.0;
+    }
+
+    const double zero_best_gap =
+        std::isfinite(diagnostics.fitness_gap_zero_vs_best) ? diagnostics.fitness_gap_zero_vs_best : 0.0;
+    if (diagnostics.vertical_ambiguity_score >= 0.25 &&
+        zero_best_gap <= std::max(0.02, 0.10 * std::max(1e-6, diagnostics.zero_z_fitness))) {
+        diagnostics.edge_recommendation = "planar_xy_yaw";
+    } else {
+        diagnostics.edge_recommendation = "full6dof";
+    }
+    return diagnostics;
 }
 
 core::LioFrame::PointCloud::Ptr strideLimitCloud(const core::LioFrame::PointCloud::Ptr& cloud,
@@ -747,6 +847,20 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 config_.loop_max_candidate_residual_z <= 0.0 ||
                 (std::isfinite(residual_z) && std::abs(residual_z) <= config_.loop_max_candidate_residual_z);
 
+            if (loop_debug_enabled && config_.loop_debug_vertical_hypotheses_enable &&
+                match_result.converged && fitness_ok && inlier_ok && geom_ok) {
+                const auto diagnostics = computeVerticalHypothesisDiagnostics(
+                    session_->pointCloudMatcher(), target, source, match_result);
+                loop.vertical_hypothesis_count = diagnostics.count;
+                loop.best_z_offset_m = diagnostics.best_z_offset_m;
+                loop.best_z_offset_fitness = diagnostics.best_z_offset_fitness;
+                loop.zero_z_fitness = diagnostics.zero_z_fitness;
+                loop.fitness_gap_zero_vs_best = diagnostics.fitness_gap_zero_vs_best;
+                loop.z_hypothesis_spread_m = diagnostics.z_hypothesis_spread_m;
+                loop.vertical_ambiguity_score = diagnostics.vertical_ambiguity_score;
+                loop.vertical_hypothesis_edge_recommendation = diagnostics.edge_recommendation;
+            }
+
             loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok && residual_z_ok;
             std::string reject_reason =
                 loop.verified ? "" : loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok, residual_z_ok);
@@ -794,6 +908,14 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.source_target_z_centroid_delta_before = loop.source_target_z_centroid_delta_before;
                 event.source_target_z_centroid_delta_after = loop.source_target_z_centroid_delta_after;
                 event.vertical_information_ratio = loop.vertical_information_ratio;
+                event.vertical_hypothesis_count = loop.vertical_hypothesis_count;
+                event.best_z_offset_m = loop.best_z_offset_m;
+                event.best_z_offset_fitness = loop.best_z_offset_fitness;
+                event.zero_z_fitness = loop.zero_z_fitness;
+                event.fitness_gap_zero_vs_best = loop.fitness_gap_zero_vs_best;
+                event.z_hypothesis_spread_m = loop.z_hypothesis_spread_m;
+                event.vertical_ambiguity_score = loop.vertical_ambiguity_score;
+                event.vertical_hypothesis_edge_recommendation = loop.vertical_hypothesis_edge_recommendation;
                 event.gate_result = loop.verified ? "accepted" : "rejected";
                 event.reject_reason = reject_reason;
                 debug_events.push_back(event);

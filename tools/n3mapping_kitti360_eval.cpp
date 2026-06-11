@@ -741,6 +741,7 @@ Config makeEvalConfig(const Options& options)
     config.map_save_path = options.output_dir.string();
     config.map_path = options.map_path.string();
     config.loop_debug_enable = options.mode == "mapping_loop";
+    config.loop_debug_vertical_hypotheses_enable = options.mode == "mapping_loop";
     config.loop_debug_path = (options.output_dir / "loop_debug.jsonl").string();
     config.reloc_debug_enable = options.mode == "relocalization";
     config.reloc_debug_path = (options.output_dir / "relocalization_debug.jsonl").string();
@@ -757,7 +758,10 @@ void writeAcceptedLoopsHeader(std::ofstream& out)
     out << "query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,"
            "vertical_downweighted,source_z_span,target_z_span,z_overlap_ratio_before,z_overlap_ratio_after,"
            "source_z_robust_span,target_z_robust_span,z_robust_overlap_ratio_before,z_robust_overlap_ratio_after,"
-           "source_target_z_centroid_delta_before,source_target_z_centroid_delta_after,vertical_information_ratio\n";
+           "source_target_z_centroid_delta_before,source_target_z_centroid_delta_after,vertical_information_ratio,"
+           "vertical_hypothesis_count,best_z_offset_m,best_z_offset_fitness,zero_z_fitness,"
+           "fitness_gap_zero_vs_best,z_hypothesis_spread_m,vertical_ambiguity_score,"
+           "vertical_hypothesis_edge_recommendation\n";
 }
 
 void writeKeyframesGtHeader(std::ofstream& out)
@@ -800,7 +804,15 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << loop.z_robust_overlap_ratio_after << ','
         << loop.source_target_z_centroid_delta_before << ','
         << loop.source_target_z_centroid_delta_after << ','
-        << loop.vertical_information_ratio << '\n';
+        << loop.vertical_information_ratio << ','
+        << loop.vertical_hypothesis_count << ','
+        << loop.best_z_offset_m << ','
+        << loop.best_z_offset_fitness << ','
+        << loop.zero_z_fitness << ','
+        << loop.fitness_gap_zero_vs_best << ','
+        << loop.z_hypothesis_spread_m << ','
+        << loop.vertical_ambiguity_score << ','
+        << loop.vertical_hypothesis_edge_recommendation << '\n';
 }
 
 int runMappingLoop(const Options& options, const AlignedFrames& aligned)

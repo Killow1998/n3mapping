@@ -78,6 +78,7 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_icp_prefilter_voxel_size", config->loop_icp_prefilter_voxel_size);
     get("loop_icp_max_points", config->loop_icp_max_points);
     get("loop_debug_enable", config->loop_debug_enable);
+    get("loop_debug_vertical_hypotheses_enable", config->loop_debug_vertical_hypotheses_enable);
     gets("loop_debug_path", config->loop_debug_path);
     get("loop_kf_gap", config->loop_kf_gap);
     get("loop_closest_id_th", config->loop_closest_id_th);
