@@ -175,6 +175,7 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
         keyframes << "1,20,1,0,0,0,0,0,1\n";
         keyframes << "2,30,20,0,0,0,0,0,1\n";
         keyframes << "3,40,0.5,0.2,0,0,0,0,1\n";
+        keyframes << "4,50,0.2,0,0,0,0,0,1\n";
     }
     {
         std::ofstream debug(input / "loop_debug.jsonl");
@@ -194,6 +195,16 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
               << "\"reject_reason\":\"fitness_threshold\",\"fitness_score\":2.0,"
               << "\"inlier_ratio\":0.1,\"residual_z\":0.0,\"residual_roll\":0,"
               << "\"residual_pitch\":0,\"residual_yaw\":0}\n";
+        debug << "{\"record_type\":\"candidate\",\"query_id\":4,\"match_id\":2,"
+              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"accepted\","
+              << "\"reject_reason\":\"\",\"fitness_score\":0.05,\"inlier_ratio\":0.9,"
+              << "\"residual_z\":0.0,\"residual_roll\":0,\"residual_pitch\":0,"
+              << "\"residual_yaw\":0}\n";
+        debug << "{\"record_type\":\"candidate\",\"query_id\":4,\"match_id\":0,"
+              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"accepted\","
+              << "\"reject_reason\":\"\",\"fitness_score\":0.1,\"inlier_ratio\":0.9,"
+              << "\"residual_z\":0.0,\"residual_roll\":0,\"residual_pitch\":0,"
+              << "\"residual_yaw\":0}\n";
     }
     {
         std::ofstream accepted(input / "accepted_loops.csv");
@@ -201,6 +212,7 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
         accepted << "query_id,match_id,fitness_score,inlier_ratio,verified\n";
         accepted << "3,0,0.1,0.9,true\n";
         accepted << "2,0,0.1,0.9,true\n";
+        accepted << "4,2,0.05,0.9,true\n";
     }
 
     const std::string command =
@@ -216,16 +228,21 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
     ASSERT_EQ(std::system(command.c_str()), 0);
 
     const std::string diagnosis = readTextFile(output / "loop_diagnosis.json");
-    EXPECT_NE(diagnosis.find("\"candidate_count\": 3"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"candidate_count\": 5"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"accepted_true_loop\": 1"), std::string::npos);
-    EXPECT_NE(diagnosis.find("\"accepted_false_loop\": 1"), std::string::npos);
-    EXPECT_NE(diagnosis.find("\"icp_reject_true_loop\": 1"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"accepted_false_loop\": 2"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"icp_reject_true_loop\": 2"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"query_selection_failure_count\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"z_drift_suspect_count\": 1"), std::string::npos);
 
     const std::string labeled = readTextFile(output / "loop_candidates_labeled.csv");
     EXPECT_NE(labeled.find("accepted_true_loop"), std::string::npos);
     EXPECT_NE(labeled.find("accepted_false_loop"), std::string::npos);
     EXPECT_NE(labeled.find("rejected_true_loop"), std::string::npos);
+
+    const std::string query_summary = readTextFile(output / "loop_query_summary.csv");
+    EXPECT_NE(query_summary.find("selection_failure"), std::string::npos);
+    EXPECT_NE(query_summary.find("4,2,1,2,False"), std::string::npos);
 }
 
 TEST(N3MappingKitti360EvalTest, CalibrationModeChangesGroundTruthPoseAndMetrics)

@@ -160,6 +160,56 @@ def format_float(value):
     return ""
 
 
+def best_by_fitness(rows):
+    finite_rows = [r for r in rows if math.isfinite(r["fitness_score"])]
+    if finite_rows:
+        return min(finite_rows, key=lambda r: r["fitness_score"])
+    return rows[0] if rows else None
+
+
+def build_query_summary(rows):
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(row["query_id"], []).append(row)
+
+    summary_rows = []
+    for query_id in sorted(grouped):
+        query_rows = grouped[query_id]
+        accepted_rows = [r for r in query_rows if r["candidate_accepted"]]
+        true_rows = [r for r in query_rows if r["gt_is_loop"]]
+        accepted = accepted_rows[0] if accepted_rows else None
+        best_true = best_by_fitness(true_rows)
+        best_candidate = best_by_fitness(query_rows)
+        selection_failure = bool(true_rows and accepted is not None and not accepted["gt_is_loop"])
+        missed_true_candidate = bool(true_rows and accepted is None)
+
+        summary_rows.append(
+            {
+                "query_id": query_id,
+                "candidate_count": len(query_rows),
+                "true_candidate_count": len(true_rows),
+                "accepted_match_id": accepted["match_id"] if accepted else -1,
+                "accepted_is_gt_loop": accepted["gt_is_loop"] if accepted else False,
+                "accepted_gt_translation_m": accepted["gt_query_match_translation_m"] if accepted else float("nan"),
+                "accepted_gt_yaw_deg": accepted["gt_query_match_yaw_deg"] if accepted else float("nan"),
+                "accepted_fitness_score": accepted["fitness_score"] if accepted else float("nan"),
+                "accepted_inlier_ratio": accepted["inlier_ratio"] if accepted else float("nan"),
+                "accepted_residual_z": accepted["residual_z"] if accepted else float("nan"),
+                "best_true_match_id": best_true["match_id"] if best_true else -1,
+                "best_true_fitness_score": best_true["fitness_score"] if best_true else float("nan"),
+                "best_true_inlier_ratio": best_true["inlier_ratio"] if best_true else float("nan"),
+                "best_true_gt_translation_m": best_true["gt_query_match_translation_m"] if best_true else float("nan"),
+                "best_true_residual_z": best_true["residual_z"] if best_true else float("nan"),
+                "best_candidate_match_id": best_candidate["match_id"] if best_candidate else -1,
+                "best_candidate_is_gt_loop": best_candidate["gt_is_loop"] if best_candidate else False,
+                "best_candidate_fitness_score": best_candidate["fitness_score"] if best_candidate else float("nan"),
+                "selection_failure": selection_failure,
+                "missed_true_candidate": missed_true_candidate,
+            }
+        )
+    return summary_rows
+
+
 def analyze(args):
     poses = load_keyframes_gt(args.keyframes_gt)
     candidates = load_loop_candidates(args.loop_debug)
@@ -269,6 +319,17 @@ def analyze(args):
     stats["gt_loop_pair_count"] = len(gt_loop_pairs)
     stats["candidate_unique_pair_count"] = len(candidate_pairs)
     stats["accepted_pairs_source"] = "accepted_loops_csv" if accepted_pairs_available else "loop_debug_gate_result"
+    query_summary_rows = build_query_summary(rows)
+    stats["query_count"] = len(query_summary_rows)
+    stats["query_with_true_candidate_count"] = sum(
+        1 for row in query_summary_rows if row["true_candidate_count"] > 0
+    )
+    stats["query_selection_failure_count"] = sum(
+        1 for row in query_summary_rows if row["selection_failure"]
+    )
+    stats["query_missed_true_candidate_count"] = sum(
+        1 for row in query_summary_rows if row["missed_true_candidate"]
+    )
     stats["thresholds"] = {
         "loop_translation_threshold_m": args.loop_translation_threshold,
         "loop_yaw_threshold_deg": args.loop_yaw_threshold_deg,
@@ -313,6 +374,49 @@ def analyze(args):
                 "residual_roll",
                 "residual_pitch",
                 "residual_yaw",
+            ):
+                formatted[key] = format_float(row[key])
+            writer.writerow(formatted)
+
+    summary_csv_path = output / "loop_query_summary.csv"
+    with open(summary_csv_path, "w", newline="") as f:
+        fieldnames = [
+            "query_id",
+            "candidate_count",
+            "true_candidate_count",
+            "accepted_match_id",
+            "accepted_is_gt_loop",
+            "accepted_gt_translation_m",
+            "accepted_gt_yaw_deg",
+            "accepted_fitness_score",
+            "accepted_inlier_ratio",
+            "accepted_residual_z",
+            "best_true_match_id",
+            "best_true_fitness_score",
+            "best_true_inlier_ratio",
+            "best_true_gt_translation_m",
+            "best_true_residual_z",
+            "best_candidate_match_id",
+            "best_candidate_is_gt_loop",
+            "best_candidate_fitness_score",
+            "selection_failure",
+            "missed_true_candidate",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in query_summary_rows:
+            formatted = dict(row)
+            for key in (
+                "accepted_gt_translation_m",
+                "accepted_gt_yaw_deg",
+                "accepted_fitness_score",
+                "accepted_inlier_ratio",
+                "accepted_residual_z",
+                "best_true_fitness_score",
+                "best_true_inlier_ratio",
+                "best_true_gt_translation_m",
+                "best_true_residual_z",
+                "best_candidate_fitness_score",
             ):
                 formatted[key] = format_float(row[key])
             writer.writerow(formatted)
