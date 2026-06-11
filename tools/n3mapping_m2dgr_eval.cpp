@@ -510,7 +510,7 @@ Cloud::Ptr readBinCloud(const fs::path& path)
     }
     input.seekg(0, std::ios::beg);
     const size_t point_count = static_cast<size_t>(size) / (4 * sizeof(float));
-    auto cloud = std::make_shared<Cloud>();
+    auto cloud = pcl::make_shared<Cloud>();
     cloud->reserve(point_count);
     for (size_t i = 0; i < point_count; ++i) {
         float values[4] = {};
@@ -534,11 +534,11 @@ Cloud::Ptr readBinCloud(const fs::path& path)
 
 Cloud::Ptr readPcdCloud(const fs::path& path)
 {
-    auto cloud = std::make_shared<Cloud>();
+    auto cloud = pcl::make_shared<Cloud>();
     if (pcl::io::loadPCDFile<pcl::PointXYZI>(path.string(), *cloud) < 0) {
         throw std::runtime_error("failed to load PCD cloud: " + path.string());
     }
-    auto filtered = std::make_shared<Cloud>();
+    auto filtered = pcl::make_shared<Cloud>();
     filtered->reserve(cloud->size());
     for (const auto& point : cloud->points) {
         if (!std::isfinite(point.x) || !std::isfinite(point.y) ||
@@ -693,7 +693,7 @@ void touchFile(const fs::path& path)
 Cloud::Ptr makeQueryCloud(const Cloud::Ptr& source, const Options& options, size_t seed)
 {
     if (!source) return source;
-    auto query = std::make_shared<Cloud>();
+    auto query = pcl::make_shared<Cloud>();
     query->reserve(source->size());
     std::mt19937 rng(static_cast<uint32_t>(seed + 17U));
     std::uniform_real_distribution<double> keep_dist(0.0, 1.0);
