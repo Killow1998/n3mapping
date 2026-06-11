@@ -219,6 +219,7 @@ install(TARGETS
 
 install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/run_synthetic_relocalization_matrix.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_loop_debug_analyze.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

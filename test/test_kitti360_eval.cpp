@@ -62,6 +62,14 @@ std::filesystem::path findKittiEvalTool()
     return {};
 }
 
+std::filesystem::path findLoopDebugAnalyzer()
+{
+    const std::filesystem::path source_tool =
+        std::filesystem::path(N3MAPPING_SOURCE_DIR) / "tools" / "n3mapping_loop_debug_analyze.py";
+    if (std::filesystem::exists(source_tool)) return source_tool;
+    return {};
+}
+
 void writeFakeBin(const std::filesystem::path& path, int frame_index)
 {
     std::filesystem::create_directories(path.parent_path());
@@ -137,6 +145,7 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_TRUE(std::filesystem::exists(output / "metrics.json"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_est.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_gt.txt"));
+    EXPECT_TRUE(std::filesystem::exists(output / "keyframes_gt.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "accepted_loops.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "loop_debug.jsonl"));
     const std::string metrics = readTextFile(output / "metrics.json");
@@ -147,6 +156,76 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_NE(metrics.find("\"calib_mode_requested\": \"auto\""), std::string::npos);
     const std::string loops = readTextFile(output / "accepted_loops.csv");
     EXPECT_NE(loops.find("query_id,match_id,fitness_score,inlier_ratio,verified"), std::string::npos);
+    const std::string keyframes_gt = readTextFile(output / "keyframes_gt.csv");
+    EXPECT_NE(keyframes_gt.find("keyframe_id,frame_id,x,y,z,qx,qy,qz,qw"), std::string::npos);
+}
+
+TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth)
+{
+    const auto analyzer = findLoopDebugAnalyzer();
+    ASSERT_FALSE(analyzer.empty()) << "n3mapping_loop_debug_analyze.py not found";
+    const auto input = makeTempDir("n3mapping_loop_debug_analyze_input");
+    const auto output = makeTempDir("n3mapping_loop_debug_analyze_output");
+
+    {
+        std::ofstream keyframes(input / "keyframes_gt.csv");
+        ASSERT_TRUE(keyframes.is_open());
+        keyframes << "keyframe_id,frame_id,x,y,z,qx,qy,qz,qw\n";
+        keyframes << "0,10,0,0,0,0,0,0,1\n";
+        keyframes << "1,20,1,0,0,0,0,0,1\n";
+        keyframes << "2,30,20,0,0,0,0,0,1\n";
+        keyframes << "3,40,0.5,0.2,0,0,0,0,1\n";
+    }
+    {
+        std::ofstream debug(input / "loop_debug.jsonl");
+        ASSERT_TRUE(debug.is_open());
+        debug << "{\"record_type\":\"candidate\",\"query_id\":3,\"match_id\":0,"
+              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"accepted\","
+              << "\"reject_reason\":\"\",\"fitness_score\":0.1,\"inlier_ratio\":0.9,"
+              << "\"residual_z\":0.8,\"residual_roll\":0,\"residual_pitch\":0,"
+              << "\"residual_yaw\":0}\n";
+        debug << "{\"record_type\":\"candidate\",\"query_id\":2,\"match_id\":0,"
+              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"accepted\","
+              << "\"reject_reason\":\"\",\"fitness_score\":0.1,\"inlier_ratio\":0.9,"
+              << "\"residual_z\":0.0,\"residual_roll\":0,\"residual_pitch\":0,"
+              << "\"residual_yaw\":0}\n";
+        debug << "{\"record_type\":\"candidate\",\"query_id\":1,\"match_id\":0,"
+              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"rejected\","
+              << "\"reject_reason\":\"fitness_threshold\",\"fitness_score\":2.0,"
+              << "\"inlier_ratio\":0.1,\"residual_z\":0.0,\"residual_roll\":0,"
+              << "\"residual_pitch\":0,\"residual_yaw\":0}\n";
+    }
+    {
+        std::ofstream accepted(input / "accepted_loops.csv");
+        ASSERT_TRUE(accepted.is_open());
+        accepted << "query_id,match_id,fitness_score,inlier_ratio,verified\n";
+        accepted << "3,0,0.1,0.9,true\n";
+        accepted << "2,0,0.1,0.9,true\n";
+    }
+
+    const std::string command =
+        "python3 " + shellQuote(analyzer) +
+        " --loop_debug " + shellQuote(input / "loop_debug.jsonl") +
+        " --keyframes_gt " + shellQuote(input / "keyframes_gt.csv") +
+        " --accepted_loops " + shellQuote(input / "accepted_loops.csv") +
+        " --output " + shellQuote(output) +
+        " --loop_translation_threshold 5"
+        " --loop_yaw_threshold_deg 45"
+        " --min_id_gap 1"
+        " --z_drift_threshold 0.5";
+    ASSERT_EQ(std::system(command.c_str()), 0);
+
+    const std::string diagnosis = readTextFile(output / "loop_diagnosis.json");
+    EXPECT_NE(diagnosis.find("\"candidate_count\": 3"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"accepted_true_loop\": 1"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"accepted_false_loop\": 1"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"icp_reject_true_loop\": 1"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"z_drift_suspect_count\": 1"), std::string::npos);
+
+    const std::string labeled = readTextFile(output / "loop_candidates_labeled.csv");
+    EXPECT_NE(labeled.find("accepted_true_loop"), std::string::npos);
+    EXPECT_NE(labeled.find("accepted_false_loop"), std::string::npos);
+    EXPECT_NE(labeled.find("rejected_true_loop"), std::string::npos);
 }
 
 TEST(N3MappingKitti360EvalTest, CalibrationModeChangesGroundTruthPoseAndMetrics)

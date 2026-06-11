@@ -294,6 +294,16 @@ ros2 run n3mapping n3mapping_kitti360_eval \
   --output /tmp/n3mapping_kitti360_mapping_loop
 ```
 
+Label KITTI360 loop candidates with keyframe ground truth:
+
+```bash
+ros2 run n3mapping n3mapping_loop_debug_analyze.py \
+  --loop_debug /tmp/n3mapping_kitti360_mapping_loop/loop_debug.jsonl \
+  --keyframes_gt /tmp/n3mapping_kitti360_mapping_loop/keyframes_gt.csv \
+  --accepted_loops /tmp/n3mapping_kitti360_mapping_loop/accepted_loops.csv \
+  --output /tmp/n3mapping_kitti360_mapping_loop/loop_gt_analysis
+```
+
 </details>
 
 ---

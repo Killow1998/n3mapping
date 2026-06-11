@@ -73,9 +73,33 @@ Outputs:
 metrics.json
 trajectory_est.txt
 trajectory_gt.txt
+keyframes_gt.csv
 accepted_loops.csv
 loop_debug.jsonl
 ```
+
+Ground-truth loop-candidate labeling:
+
+```bash
+ros2 run n3mapping n3mapping_loop_debug_analyze.py \
+  --loop_debug /tmp/n3mapping_kitti360_mapping_loop/loop_debug.jsonl \
+  --keyframes_gt /tmp/n3mapping_kitti360_mapping_loop/keyframes_gt.csv \
+  --accepted_loops /tmp/n3mapping_kitti360_mapping_loop/accepted_loops.csv \
+  --output /tmp/n3mapping_kitti360_mapping_loop/loop_gt_analysis
+```
+
+This writes:
+
+```text
+loop_candidates_labeled.csv
+loop_diagnosis.json
+```
+
+The analyzer labels each loop candidate as a GT true loop or false candidate
+using keyframe ground-truth poses. It estimates retrieval misses from GT
+keyframe pairs that satisfy the translation/yaw thresholds but never appeared
+as candidates. Treat this as a diagnosis artifact, not as a parameter tuning
+result.
 
 Relocalization smoke:
 

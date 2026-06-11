@@ -655,6 +655,26 @@ void writeAcceptedLoopsHeader(std::ofstream& out)
     out << "query_id,match_id,fitness_score,inlier_ratio,verified\n";
 }
 
+void writeKeyframesGtHeader(std::ofstream& out)
+{
+    out << "keyframe_id,frame_id,x,y,z,qx,qy,qz,qw\n";
+}
+
+void writeKeyframeGt(std::ofstream& out, int64_t keyframe_id, const KittiFrame& frame)
+{
+    const Eigen::Quaterniond q(frame.T_world_lidar.rotation());
+    out << keyframe_id << ','
+        << frame.frame_id << ','
+        << std::setprecision(17)
+        << frame.T_world_lidar.translation().x() << ','
+        << frame.T_world_lidar.translation().y() << ','
+        << frame.T_world_lidar.translation().z() << ','
+        << q.x() << ','
+        << q.y() << ','
+        << q.z() << ','
+        << q.w() << '\n';
+}
+
 void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
 {
     out << loop.query_id << ','
@@ -670,10 +690,13 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
     touchFile(options.output_dir / "loop_debug.jsonl");
     std::ofstream trajectory_est(options.output_dir / "trajectory_est.txt");
     std::ofstream trajectory_gt(options.output_dir / "trajectory_gt.txt");
+    std::ofstream keyframes_gt(options.output_dir / "keyframes_gt.csv");
     std::ofstream accepted_loops(options.output_dir / "accepted_loops.csv");
-    if (!trajectory_est.is_open() || !trajectory_gt.is_open() || !accepted_loops.is_open()) {
+    if (!trajectory_est.is_open() || !trajectory_gt.is_open() ||
+        !keyframes_gt.is_open() || !accepted_loops.is_open()) {
         throw std::runtime_error("failed to open mapping_loop output files");
     }
+    writeKeyframesGtHeader(keyframes_gt);
     writeAcceptedLoopsHeader(accepted_loops);
 
     Config config = makeEvalConfig(options);
@@ -688,6 +711,9 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
         if (output.accepted_keyframe) ++stats.accepted_keyframes;
         writeTrajectoryLine(trajectory_gt, frame.frame_id, frame.T_world_lidar);
         writeTrajectoryLine(trajectory_est, frame.frame_id, output.T_world_lidar);
+        if (output.accepted_keyframe && output.keyframe_id >= 0) {
+            writeKeyframeGt(keyframes_gt, output.keyframe_id, frame);
+        }
 
         const auto loop_result = core.processPendingLoopClosures();
         stats.accepted_loops += loop_result.accepted_loops.size();
