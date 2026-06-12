@@ -443,6 +443,31 @@ Analyzer output adds GT labels:
 - `z_after_bad`
 - `z_corrected`
 
+## Falsified Edge-Model Attempt
+
+On 2026-06-12 a behavior experiment used the existing vertical-hypothesis recommendation directly:
+
+- if `vertical_hypothesis_edge_recommendation == planar_xy_yaw`, downweight Z/roll/pitch and keep the loop edge.
+- KITTI360 drive_0005 smoke, 450 frames, stride 5.
+- artifact: `/tmp/n3mapping_kitti360_drive0005_vertical_hyp_edge_model_450_20260612_r1`
+
+This did not pass the gate:
+
+- accepted loops: 9, all GT-true, false loops: 0.
+- edge modes: 2 `full6dof`, 7 `planar_xy_yaw`.
+- `optimization_high_residual_z_after_count`: 3, worse than the previous 2.
+- `optimization_max_residual_z_after_m`: 2.525, worse than the previous 1.348.
+- `trajectory_z_p95_m`: 1.253, worse than the previous 1.077.
+
+The key regression was loop `331 -> 63`:
+
+- GT true loop distance: 1.64 m.
+- ICP Z measurement error: about -2.38 m.
+- vertical hypothesis recommendation: `planar_xy_yaw`.
+- residual Z after optimization: about 2.53 m.
+
+Conclusion: the current vertical-hypothesis recommendation is useful diagnostic evidence, but it is not sufficient as a direct behavior rule. Continuing by lowering planar vertical weight or adding another residual threshold would be parameter tuning. The next algorithm step needs a new runtime signal or a controlled tuning plan with a written acceptance/rollback gate.
+
 ## Recommended next decision
 
 Current evidence does not justify another hidden threshold tweak.
