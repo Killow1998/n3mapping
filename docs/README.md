@@ -299,6 +299,56 @@ KITTI360 drive_0005 450-frame smoke 上的初步结果：
 - 但样本只有 `2` 个 bad-Z-after 和 `5` 个 corrected-Z，不能直接推出 runtime gate。
 - `graph_trial_consistency_score` 的均值中点阈值仍会产生一个 corrected-Z false positive；因此下一步必须先扩到 M2DGR indoor / 其它 KITTI360 sequence，再决定是否做 trial-gated behavior。
 
+### 2026-06-12 multi-sequence KITTI360 expansion
+
+为避免只在单个固定场景上判断 loop evidence，增加了一轮 KITTI360 多序列 smoke：
+
+```text
+artifact root: /tmp/n3mapping_kitti360_multi_sequence_20260612_r1
+sequences:
+  - 2013_05_28_drive_0003_sync
+  - 2013_05_28_drive_0005_sync
+  - 2013_05_28_drive_0007_sync
+  - 2013_05_28_drive_0010_sync
+  - 2013_05_28_drive_0000_sync
+mode: mapping_loop
+max_frames: 450
+stride: 5
+```
+
+输出：
+
+- `/tmp/n3mapping_kitti360_multi_sequence_20260612_r1/matrix/matrix_summary.csv`
+- `/tmp/n3mapping_kitti360_multi_sequence_20260612_r1/matrix/matrix_summary.json`
+- `/tmp/n3mapping_kitti360_multi_sequence_20260612_r1/combined_loop_candidates_labeled.csv`
+- `/tmp/n3mapping_kitti360_multi_sequence_20260612_r1/combined_evidence_correlation/loop_evidence_correlation.json`
+
+矩阵摘要：
+
+| run | frames | candidates | accepted loops | true loops | false loops | high-Z after | max Z after m | XY p95 m | Z p95 m |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `drive_0003` | 202 | 297 | 0 | 0 | 0 | 0 | 0 | 0.000003 | 0.000000 |
+| `drive_0005` | 450 | 787 | 8 | 8 | 0 | 2 | 1.3476 | 1.2607 | 1.0767 |
+| `drive_0007` | 450 | 787 | 0 | 0 | 0 | 0 | 0 | 0.000023 | 0.000001 |
+| `drive_0010` | 450 | 787 | 0 | 0 | 0 | 0 | 0 | 0.000011 | 0.000002 |
+| `drive_0000` | 450 | 787 | 3 | 3 | 0 | 0 | 0.2403 | 3.2265 | 0.0408 |
+| **total** | **2002** | **3445** | **11** | **11** | **0** | **2** | - | - | - |
+
+跨序列 evidence correlation 结果：
+
+| signal | direction | auc_like | overlap | false positives | false negatives | bad mean | corrected mean |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `graph_trial_residual_translation_norm_after` | higher is bad | 1.0 | 0 | 0 | 0 | 1.9891 | 0.6389 |
+| `graph_trial_residual_z_after` | higher is bad | 1.0 | 0 | 0 | 0 | 1.1839 | 0.2120 |
+| `graph_trial_consistency_score` | lower is bad | 0.875 | 2 | 2 | 0 | 0.3165 | 0.4718 |
+
+解释：
+
+- 多序列后，候选样本从单序列 `787` 增加到 `3445`，accepted true loop 从 `8` 增加到 `11`，false accepted loop 仍为 `0`。
+- high-Z-after 仍来自 `drive_0005` 的 `2` 个 case；其它序列在这 450-frame smoke 窗口内 accepted loop 很少或没有 accepted loop。
+- graph-trial residual 系列比 `graph_trial_consistency_score` 更干净，但样本中的 bad-Z-after 仍只有 `2` 个，不能直接变成 runtime gate。
+- 当前结论应更新为：outdoor 多序列候选覆盖已扩大，但真正用于 Z 行为决策的 accepted-loop bad case 仍不足；下一步必须引入 M2DGR indoor / 更长 KITTI360 window，再考虑行为改动。
+
 ## 当前已知问题
 
 ### P0：回环 Z / roll / pitch 可观测性还不够可靠
