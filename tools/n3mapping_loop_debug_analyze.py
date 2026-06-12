@@ -104,6 +104,20 @@ def finite_float(value, default=float("nan")):
     return parsed if math.isfinite(parsed) else default
 
 
+def mean_finite(values):
+    finite = [value for value in values if math.isfinite(value)]
+    if not finite:
+        return float("nan")
+    return sum(finite) / len(finite)
+
+
+def min_finite(values):
+    finite = [value for value in values if math.isfinite(value)]
+    if not finite:
+        return float("nan")
+    return min(finite)
+
+
 def load_keyframes_gt(path):
     poses = {}
     with open(path, newline="") as f:
@@ -438,7 +452,15 @@ def analyze(args):
         "heightmap_candidate_count": 0,
         "accepted_true_loop_bad_z_heightmap_high": 0,
         "heightmap_separates_bad_z_count": 0,
+        "graph_trial_candidate_count": 0,
+        "graph_trial_success_count": 0,
+        "accepted_true_loop_bad_z_after_graph_trial_score_mean": float("nan"),
+        "accepted_true_loop_bad_z_after_graph_trial_score_min": float("nan"),
+        "accepted_true_loop_corrected_z_graph_trial_score_mean": float("nan"),
+        "accepted_true_loop_corrected_z_graph_trial_score_min": float("nan"),
     }
+    bad_z_after_graph_trial_scores = []
+    corrected_z_graph_trial_scores = []
     rpy_threshold_rad = args.rpy_drift_threshold_deg * math.pi / 180.0
     accepted_pairs_available = bool(args.accepted_loops)
 
@@ -514,6 +536,39 @@ def analyze(args):
         heightmap_ground_support_ratio = event_float(event, "heightmap_ground_support_ratio")
         heightmap_vertical_consistency_score = event_float(
             event, "heightmap_vertical_consistency_score"
+        )
+        graph_trial_success = bool(event.get("graph_trial_success", False))
+        graph_trial_residual_x_after = event_float(event, "graph_trial_residual_x_after")
+        graph_trial_residual_y_after = event_float(event, "graph_trial_residual_y_after")
+        graph_trial_residual_z_after = event_float(event, "graph_trial_residual_z_after")
+        graph_trial_residual_roll_after = event_float(event, "graph_trial_residual_roll_after")
+        graph_trial_residual_pitch_after = event_float(event, "graph_trial_residual_pitch_after")
+        graph_trial_residual_yaw_after = event_float(event, "graph_trial_residual_yaw_after")
+        graph_trial_residual_translation_norm_after = event_float(
+            event, "graph_trial_residual_translation_norm_after"
+        )
+        graph_trial_residual_rotation_norm_after = event_float(
+            event, "graph_trial_residual_rotation_norm_after"
+        )
+        graph_trial_mean_pose_update_translation = event_float(
+            event, "graph_trial_mean_pose_update_translation"
+        )
+        graph_trial_max_pose_update_translation = event_float(
+            event, "graph_trial_max_pose_update_translation"
+        )
+        graph_trial_mean_pose_update_rotation = event_float(
+            event, "graph_trial_mean_pose_update_rotation"
+        )
+        graph_trial_max_pose_update_rotation = event_float(
+            event, "graph_trial_max_pose_update_rotation"
+        )
+        graph_trial_existing_loop_residual_delta = event_float(
+            event, "graph_trial_existing_loop_residual_delta"
+        )
+        graph_trial_odom_residual_delta = event_float(event, "graph_trial_odom_residual_delta")
+        graph_trial_consistency_score = event_float(event, "graph_trial_consistency_score")
+        graph_trial_recommendation = str(
+            event.get("graph_trial_recommendation", "not_available") or "not_available"
         )
         heightmap_high = bool(
             heightmap_overlap_cell_count > 0
@@ -597,6 +652,10 @@ def analyze(args):
                 stats["vertical_hypothesis_full6dof_recommendation_count"] += 1
         if heightmap_overlap_cell_count > 0:
             stats["heightmap_candidate_count"] += 1
+        if graph_trial_recommendation != "not_available":
+            stats["graph_trial_candidate_count"] += 1
+            if graph_trial_success:
+                stats["graph_trial_success_count"] += 1
         if gt_loop:
             stats["retrieval_true_positive"] += 1
         elif has_gt:
@@ -630,6 +689,10 @@ def analyze(args):
             stats["heightmap_separates_bad_z_count"] += 1
         if z_corrected:
             stats["accepted_true_loop_corrected_z"] += 1
+        if z_after_bad:
+            bad_z_after_graph_trial_scores.append(graph_trial_consistency_score)
+        if z_corrected:
+            corrected_z_graph_trial_scores.append(graph_trial_consistency_score)
         if z_drift_suspect:
             stats["z_drift_suspect_count"] += 1
         stats["failure_class_counts"][failure_class] = stats["failure_class_counts"].get(failure_class, 0) + 1
@@ -681,6 +744,23 @@ def analyze(args):
                 "heightmap_ground_dz_max": heightmap_ground_dz_max,
                 "heightmap_ground_support_ratio": heightmap_ground_support_ratio,
                 "heightmap_vertical_consistency_score": heightmap_vertical_consistency_score,
+                "graph_trial_success": graph_trial_success,
+                "graph_trial_residual_x_after": graph_trial_residual_x_after,
+                "graph_trial_residual_y_after": graph_trial_residual_y_after,
+                "graph_trial_residual_z_after": graph_trial_residual_z_after,
+                "graph_trial_residual_roll_after": graph_trial_residual_roll_after,
+                "graph_trial_residual_pitch_after": graph_trial_residual_pitch_after,
+                "graph_trial_residual_yaw_after": graph_trial_residual_yaw_after,
+                "graph_trial_residual_translation_norm_after": graph_trial_residual_translation_norm_after,
+                "graph_trial_residual_rotation_norm_after": graph_trial_residual_rotation_norm_after,
+                "graph_trial_mean_pose_update_translation": graph_trial_mean_pose_update_translation,
+                "graph_trial_max_pose_update_translation": graph_trial_max_pose_update_translation,
+                "graph_trial_mean_pose_update_rotation": graph_trial_mean_pose_update_rotation,
+                "graph_trial_max_pose_update_rotation": graph_trial_max_pose_update_rotation,
+                "graph_trial_existing_loop_residual_delta": graph_trial_existing_loop_residual_delta,
+                "graph_trial_odom_residual_delta": graph_trial_odom_residual_delta,
+                "graph_trial_consistency_score": graph_trial_consistency_score,
+                "graph_trial_recommendation": graph_trial_recommendation,
                 "z_candidate_residual_large": z_candidate_residual_large,
                 "z_measurement_bad": z_measurement_bad,
                 "z_after_bad": z_after_bad,
@@ -716,6 +796,18 @@ def analyze(args):
         )
 
     stats["retrieval_miss_estimate"] = len(gt_loop_pairs - candidate_pairs)
+    stats["accepted_true_loop_bad_z_after_graph_trial_score_mean"] = mean_finite(
+        bad_z_after_graph_trial_scores
+    )
+    stats["accepted_true_loop_bad_z_after_graph_trial_score_min"] = min_finite(
+        bad_z_after_graph_trial_scores
+    )
+    stats["accepted_true_loop_corrected_z_graph_trial_score_mean"] = mean_finite(
+        corrected_z_graph_trial_scores
+    )
+    stats["accepted_true_loop_corrected_z_graph_trial_score_min"] = min_finite(
+        corrected_z_graph_trial_scores
+    )
     stats["gt_loop_pair_count"] = len(gt_loop_pairs)
     stats["candidate_unique_pair_count"] = len(candidate_pairs)
     stats["accepted_pairs_source"] = "accepted_loops_csv" if accepted_pairs_available else "loop_debug_gate_result"
@@ -852,6 +944,23 @@ def analyze(args):
             "heightmap_ground_dz_max",
             "heightmap_ground_support_ratio",
             "heightmap_vertical_consistency_score",
+            "graph_trial_success",
+            "graph_trial_residual_x_after",
+            "graph_trial_residual_y_after",
+            "graph_trial_residual_z_after",
+            "graph_trial_residual_roll_after",
+            "graph_trial_residual_pitch_after",
+            "graph_trial_residual_yaw_after",
+            "graph_trial_residual_translation_norm_after",
+            "graph_trial_residual_rotation_norm_after",
+            "graph_trial_mean_pose_update_translation",
+            "graph_trial_max_pose_update_translation",
+            "graph_trial_mean_pose_update_rotation",
+            "graph_trial_max_pose_update_rotation",
+            "graph_trial_existing_loop_residual_delta",
+            "graph_trial_odom_residual_delta",
+            "graph_trial_consistency_score",
+            "graph_trial_recommendation",
             "z_candidate_residual_large",
             "z_measurement_bad",
             "z_after_bad",

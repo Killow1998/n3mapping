@@ -6,11 +6,13 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <set>
 #include <stdexcept>
 #include <vector>
 
 #include "n3mapping/cloud_utils.h"
+#include "n3mapping/loop_graph_trial_diagnostics.h"
 #include "n3mapping/loop_heightmap_diagnostics.h"
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
@@ -126,6 +128,54 @@ void accumulatePoseUpdateStats(const std::map<int64_t, Eigen::Isometry3d>& befor
         (result->mean_pose_update_rotation * static_cast<double>(previous_count) + rotation_sum) /
         static_cast<double>(total_count);
     result->pose_update_count = total_count;
+}
+
+void assignGraphTrialDiagnostics(VerifiedLoop* loop, const LoopGraphTrialDiagnostics& diagnostics)
+{
+    if (!loop) {
+        return;
+    }
+    loop->graph_trial_success = diagnostics.success;
+    loop->graph_trial_residual_x_after = diagnostics.residual_x_after;
+    loop->graph_trial_residual_y_after = diagnostics.residual_y_after;
+    loop->graph_trial_residual_z_after = diagnostics.residual_z_after;
+    loop->graph_trial_residual_roll_after = diagnostics.residual_roll_after;
+    loop->graph_trial_residual_pitch_after = diagnostics.residual_pitch_after;
+    loop->graph_trial_residual_yaw_after = diagnostics.residual_yaw_after;
+    loop->graph_trial_residual_translation_norm_after = diagnostics.residual_translation_norm_after;
+    loop->graph_trial_residual_rotation_norm_after = diagnostics.residual_rotation_norm_after;
+    loop->graph_trial_mean_pose_update_translation = diagnostics.mean_pose_update_translation;
+    loop->graph_trial_max_pose_update_translation = diagnostics.max_pose_update_translation;
+    loop->graph_trial_mean_pose_update_rotation = diagnostics.mean_pose_update_rotation;
+    loop->graph_trial_max_pose_update_rotation = diagnostics.max_pose_update_rotation;
+    loop->graph_trial_existing_loop_residual_delta = diagnostics.existing_loop_residual_delta;
+    loop->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
+    loop->graph_trial_consistency_score = diagnostics.consistency_score;
+    loop->graph_trial_recommendation = diagnostics.recommendation;
+}
+
+void assignGraphTrialDiagnostics(LoopDebugCandidateEvent* event, const LoopGraphTrialDiagnostics& diagnostics)
+{
+    if (!event) {
+        return;
+    }
+    event->graph_trial_success = diagnostics.success;
+    event->graph_trial_residual_x_after = diagnostics.residual_x_after;
+    event->graph_trial_residual_y_after = diagnostics.residual_y_after;
+    event->graph_trial_residual_z_after = diagnostics.residual_z_after;
+    event->graph_trial_residual_roll_after = diagnostics.residual_roll_after;
+    event->graph_trial_residual_pitch_after = diagnostics.residual_pitch_after;
+    event->graph_trial_residual_yaw_after = diagnostics.residual_yaw_after;
+    event->graph_trial_residual_translation_norm_after = diagnostics.residual_translation_norm_after;
+    event->graph_trial_residual_rotation_norm_after = diagnostics.residual_rotation_norm_after;
+    event->graph_trial_mean_pose_update_translation = diagnostics.mean_pose_update_translation;
+    event->graph_trial_max_pose_update_translation = diagnostics.max_pose_update_translation;
+    event->graph_trial_mean_pose_update_rotation = diagnostics.mean_pose_update_rotation;
+    event->graph_trial_max_pose_update_rotation = diagnostics.max_pose_update_rotation;
+    event->graph_trial_existing_loop_residual_delta = diagnostics.existing_loop_residual_delta;
+    event->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
+    event->graph_trial_consistency_score = diagnostics.consistency_score;
+    event->graph_trial_recommendation = diagnostics.recommendation;
 }
 
 Config validateOrThrow(const Config& config)
@@ -742,6 +792,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         std::vector<VerifiedLoop> verified_loops;
         verified_loops.reserve(candidates.size());
         std::vector<LoopDebugCandidateEvent> debug_events;
+        std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics> graph_trial_by_pair;
         const bool loop_debug_enabled = config_.loop_debug_enable;
         if (loop_debug_enabled) {
             debug_events.reserve(candidates.size());
@@ -754,6 +805,10 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             }
             for (auto& event : debug_events) {
                 const std::pair<int64_t, int64_t> key(event.candidate.query_id, event.candidate.match_id);
+                auto trial_it = graph_trial_by_pair.find(key);
+                if (trial_it != graph_trial_by_pair.end()) {
+                    assignGraphTrialDiagnostics(&event, trial_it->second);
+                }
                 if (accepted_pairs.find(key) != accepted_pairs.end()) {
                     event.gate_result = "accepted";
                     event.reject_reason.clear();
@@ -963,6 +1018,24 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
         const auto residual_before = meanLoopResidual(edges, poses_before);
         const auto residual_axes_before = meanLoopResidualAxes(edges, poses_before);
+        if (loop_debug_enabled) {
+            const auto committed_edges = session_->graphOptimizer().getEdges();
+            for (const auto& edge : edges) {
+                auto loop_it = std::find_if(
+                    best_loops.begin(), best_loops.end(),
+                    [&](const VerifiedLoop& loop) {
+                        return loop.match_id == edge.from_id && loop.query_id == edge.to_id;
+                    });
+                if (loop_it == best_loops.end()) {
+                    continue;
+                }
+                const std::vector<EdgeInfo> candidate_edges{edge};
+                const auto diagnostics = computeLoopGraphTrialDiagnostics(
+                    config_, poses_before, committed_edges, candidate_edges);
+                assignGraphTrialDiagnostics(&(*loop_it), diagnostics);
+                graph_trial_by_pair[{loop_it->query_id, loop_it->match_id}] = diagnostics;
+            }
+        }
         const bool optimization_committed =
             session_->loopClosureManager().applyEdges(edges, session_->graphOptimizer());
         if (!optimization_committed) {

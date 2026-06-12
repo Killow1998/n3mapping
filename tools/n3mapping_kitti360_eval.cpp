@@ -764,7 +764,14 @@ void writeAcceptedLoopsHeader(std::ofstream& out)
            "vertical_hypothesis_edge_recommendation,heightmap_overlap_cell_count,"
            "heightmap_overlap_ratio,heightmap_ground_dz_median,heightmap_ground_dz_p90,"
            "heightmap_ground_dz_max,heightmap_ground_support_ratio,"
-           "heightmap_vertical_consistency_score\n";
+           "heightmap_vertical_consistency_score,graph_trial_success,graph_trial_residual_x_after,"
+           "graph_trial_residual_y_after,graph_trial_residual_z_after,graph_trial_residual_roll_after,"
+           "graph_trial_residual_pitch_after,graph_trial_residual_yaw_after,"
+           "graph_trial_residual_translation_norm_after,graph_trial_residual_rotation_norm_after,"
+           "graph_trial_mean_pose_update_translation,graph_trial_max_pose_update_translation,"
+           "graph_trial_mean_pose_update_rotation,graph_trial_max_pose_update_rotation,"
+           "graph_trial_existing_loop_residual_delta,graph_trial_odom_residual_delta,"
+           "graph_trial_consistency_score,graph_trial_recommendation\n";
 }
 
 void writeKeyframesGtHeader(std::ofstream& out)
@@ -822,7 +829,24 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << loop.heightmap_ground_dz_p90 << ','
         << loop.heightmap_ground_dz_max << ','
         << loop.heightmap_ground_support_ratio << ','
-        << loop.heightmap_vertical_consistency_score << '\n';
+        << loop.heightmap_vertical_consistency_score << ','
+        << (loop.graph_trial_success ? "true" : "false") << ','
+        << loop.graph_trial_residual_x_after << ','
+        << loop.graph_trial_residual_y_after << ','
+        << loop.graph_trial_residual_z_after << ','
+        << loop.graph_trial_residual_roll_after << ','
+        << loop.graph_trial_residual_pitch_after << ','
+        << loop.graph_trial_residual_yaw_after << ','
+        << loop.graph_trial_residual_translation_norm_after << ','
+        << loop.graph_trial_residual_rotation_norm_after << ','
+        << loop.graph_trial_mean_pose_update_translation << ','
+        << loop.graph_trial_max_pose_update_translation << ','
+        << loop.graph_trial_mean_pose_update_rotation << ','
+        << loop.graph_trial_max_pose_update_rotation << ','
+        << loop.graph_trial_existing_loop_residual_delta << ','
+        << loop.graph_trial_odom_residual_delta << ','
+        << loop.graph_trial_consistency_score << ','
+        << loop.graph_trial_recommendation << '\n';
 }
 
 int runMappingLoop(const Options& options, const AlignedFrames& aligned)

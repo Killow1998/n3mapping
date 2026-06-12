@@ -77,6 +77,23 @@ LoopDebugCandidateEvent makeRejectedCandidateEvent()
     event.heightmap_ground_dz_max = 1.8;
     event.heightmap_ground_support_ratio = 0.6;
     event.heightmap_vertical_consistency_score = 0.27;
+    event.graph_trial_success = true;
+    event.graph_trial_residual_x_after = 0.1;
+    event.graph_trial_residual_y_after = 0.2;
+    event.graph_trial_residual_z_after = 0.3;
+    event.graph_trial_residual_roll_after = 0.01;
+    event.graph_trial_residual_pitch_after = 0.02;
+    event.graph_trial_residual_yaw_after = 0.03;
+    event.graph_trial_residual_translation_norm_after = 0.4;
+    event.graph_trial_residual_rotation_norm_after = 0.05;
+    event.graph_trial_mean_pose_update_translation = 0.06;
+    event.graph_trial_max_pose_update_translation = 0.07;
+    event.graph_trial_mean_pose_update_rotation = 0.08;
+    event.graph_trial_max_pose_update_rotation = 0.09;
+    event.graph_trial_existing_loop_residual_delta = -0.1;
+    event.graph_trial_odom_residual_delta = 0.2;
+    event.graph_trial_consistency_score = 0.75;
+    event.graph_trial_recommendation = "trial_success_score_only";
     event.gate_result = "rejected";
     event.reject_reason = "bad\nreason";
     event.loop_information.diagonal() << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0;
@@ -136,6 +153,10 @@ TEST(LoopDebugLoggerTest, WritesRejectedCandidateAsSingleLineJson)
     EXPECT_NE(lines[0].find("\"heightmap_overlap_cell_count\":12"), std::string::npos);
     EXPECT_NE(lines[0].find("\"heightmap_ground_dz_p90\":1.2"), std::string::npos);
     EXPECT_NE(lines[0].find("\"heightmap_vertical_consistency_score\":0.27000000000000002"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"graph_trial_success\":true"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"graph_trial_residual_z_after\":0.29999999999999999"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"graph_trial_consistency_score\":0.75"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"graph_trial_recommendation\":\"trial_success_score_only\""), std::string::npos);
     EXPECT_NE(lines[0].find("\"loop_information_diag\":[1,2,3,4,5,6]"), std::string::npos);
 
     std::filesystem::remove_all(temp_dir);

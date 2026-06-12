@@ -110,6 +110,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
   ${N3MAPPING_ROOT}/src/loop_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/loop_heightmap_diagnostics.cpp
+  ${N3MAPPING_ROOT}/src/loop_graph_trial_diagnostics.cpp
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
@@ -336,6 +337,12 @@ if(BUILD_TESTING)
   if(TARGET test_loop_heightmap_diagnostics)
     target_link_libraries(test_loop_heightmap_diagnostics ${PROJECT_NAME}_lib)
     ament_target_dependencies(test_loop_heightmap_diagnostics rclcpp)
+  endif()
+
+  ament_add_gtest(test_loop_graph_trial_diagnostics ${N3MAPPING_ROOT}/test/test_loop_graph_trial_diagnostics.cpp)
+  if(TARGET test_loop_graph_trial_diagnostics)
+    target_link_libraries(test_loop_graph_trial_diagnostics ${PROJECT_NAME}_lib)
+    ament_target_dependencies(test_loop_graph_trial_diagnostics rclcpp)
   endif()
 
   ament_add_gtest(test_loop_detector_pbt ${N3MAPPING_ROOT}/test/test_loop_detector_pbt.cpp)

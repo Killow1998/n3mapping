@@ -152,6 +152,7 @@ TEST(N3MappingM2DGREvalTest, MappingLoopWritesMatrixCompatibleArtifacts)
     EXPECT_NE(metrics.find("\"alignment_time_diff_max_s\": 0"), std::string::npos);
     const std::string loops = readTextFile(output / "accepted_loops.csv");
     EXPECT_NE(loops.find("vertical_hypothesis_count,best_z_offset_m,best_z_offset_fitness,zero_z_fitness,fitness_gap_zero_vs_best,z_hypothesis_spread_m,vertical_ambiguity_score,vertical_hypothesis_edge_recommendation,heightmap_overlap_cell_count"), std::string::npos);
+    EXPECT_NE(loops.find("graph_trial_success,graph_trial_residual_x_after"), std::string::npos);
 }
 
 TEST(N3MappingM2DGREvalTest, RelocalizationWritesMetricsAndDebug)

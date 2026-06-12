@@ -275,6 +275,30 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendNumber(os, &first, "heightmap_ground_support_ratio", event.heightmap_ground_support_ratio);
     appendNumber(os, &first, "heightmap_vertical_consistency_score",
                  event.heightmap_vertical_consistency_score);
+    appendBool(os, &first, "graph_trial_success", event.graph_trial_success);
+    appendNumber(os, &first, "graph_trial_residual_x_after", event.graph_trial_residual_x_after);
+    appendNumber(os, &first, "graph_trial_residual_y_after", event.graph_trial_residual_y_after);
+    appendNumber(os, &first, "graph_trial_residual_z_after", event.graph_trial_residual_z_after);
+    appendNumber(os, &first, "graph_trial_residual_roll_after", event.graph_trial_residual_roll_after);
+    appendNumber(os, &first, "graph_trial_residual_pitch_after", event.graph_trial_residual_pitch_after);
+    appendNumber(os, &first, "graph_trial_residual_yaw_after", event.graph_trial_residual_yaw_after);
+    appendNumber(os, &first, "graph_trial_residual_translation_norm_after",
+                 event.graph_trial_residual_translation_norm_after);
+    appendNumber(os, &first, "graph_trial_residual_rotation_norm_after",
+                 event.graph_trial_residual_rotation_norm_after);
+    appendNumber(os, &first, "graph_trial_mean_pose_update_translation",
+                 event.graph_trial_mean_pose_update_translation);
+    appendNumber(os, &first, "graph_trial_max_pose_update_translation",
+                 event.graph_trial_max_pose_update_translation);
+    appendNumber(os, &first, "graph_trial_mean_pose_update_rotation",
+                 event.graph_trial_mean_pose_update_rotation);
+    appendNumber(os, &first, "graph_trial_max_pose_update_rotation",
+                 event.graph_trial_max_pose_update_rotation);
+    appendNumber(os, &first, "graph_trial_existing_loop_residual_delta",
+                 event.graph_trial_existing_loop_residual_delta);
+    appendNumber(os, &first, "graph_trial_odom_residual_delta", event.graph_trial_odom_residual_delta);
+    appendNumber(os, &first, "graph_trial_consistency_score", event.graph_trial_consistency_score);
+    appendString(os, &first, "graph_trial_recommendation", event.graph_trial_recommendation);
     appendString(os, &first, "gate_result", event.gate_result);
     appendString(os, &first, "reject_reason", event.reject_reason);
     appendInformationDiag(os, &first, event.loop_information);
