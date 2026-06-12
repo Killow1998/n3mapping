@@ -78,6 +78,14 @@ std::filesystem::path findEvalMatrixTool()
     return {};
 }
 
+std::filesystem::path findLoopEvidenceCorrelationTool()
+{
+    const std::filesystem::path source_tool =
+        std::filesystem::path(N3MAPPING_SOURCE_DIR) / "tools" / "n3mapping_loop_evidence_correlation.py";
+    if (std::filesystem::exists(source_tool)) return source_tool;
+    return {};
+}
+
 void writeFakeBin(const std::filesystem::path& path, int frame_index)
 {
     std::filesystem::create_directories(path.parent_path());
@@ -435,6 +443,40 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
     EXPECT_NE(json.find("\"trajectory_pair_count\": 3"), std::string::npos);
     EXPECT_NE(json.find("\"odom_source\": \"gt\""), std::string::npos);
     EXPECT_NE(json.find("\"alignment_matched_count\": 3"), std::string::npos);
+}
+
+TEST(N3MappingKitti360EvalTest, LoopEvidenceCorrelationSummarizesRuntimeSignals)
+{
+    const auto tool = findLoopEvidenceCorrelationTool();
+    ASSERT_FALSE(tool.empty()) << "n3mapping_loop_evidence_correlation.py not found";
+    const auto input = makeTempDir("n3mapping_loop_evidence_correlation_input");
+    const auto output = makeTempDir("n3mapping_loop_evidence_correlation_output");
+    const auto labeled = input / "loop_candidates_labeled.csv";
+    {
+        std::ofstream csv(labeled);
+        ASSERT_TRUE(csv.is_open());
+        csv << "query_id,match_id,candidate_accepted,gt_is_loop,z_after_bad,z_corrected,"
+               "graph_trial_consistency_score,heightmap_ground_dz_p90,vertical_ambiguity_score\n";
+        csv << "10,1,True,True,True,False,0.30,2.0,0.8\n";
+        csv << "11,2,True,True,True,False,0.35,2.2,0.7\n";
+        csv << "12,3,True,True,False,True,0.70,0.4,0.2\n";
+        csv << "13,4,True,True,False,True,0.80,0.5,0.1\n";
+        csv << "14,5,False,True,False,False,0.10,9.0,1.0\n";
+    }
+
+    const std::string command =
+        "python3 " + shellQuote(tool) +
+        " --labeled_csv " + shellQuote(labeled) +
+        " --output " + shellQuote(output);
+    ASSERT_EQ(std::system(command.c_str()), 0);
+
+    const std::string report = readTextFile(output / "loop_evidence_correlation.json");
+    EXPECT_NE(report.find("\"signal_name\": \"graph_trial_consistency_score\""), std::string::npos);
+    EXPECT_NE(report.find("\"direction\": \"lower_bad\""), std::string::npos);
+    EXPECT_NE(report.find("\"auc_like_score\": 1.0"), std::string::npos);
+    const std::string csv = readTextFile(output / "loop_evidence_correlation.csv");
+    EXPECT_NE(csv.find("false_positive_if_thresholded"), std::string::npos);
+    EXPECT_NE(csv.find("heightmap_ground_dz_p90"), std::string::npos);
 }
 
 TEST(N3MappingKitti360EvalTest, CalibrationModeChangesGroundTruthPoseAndMetrics)

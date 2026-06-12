@@ -249,6 +249,56 @@ graph trial 分组结果：
 - 目前不能直接把 `graph_trial_consistency_score` 变成 commit gate 或 edge-mode 阈值。
 - 下一步若要改行为，必须先让 GPT Pro / 人工 review 判断是否接受“trial-gated commit / vertical-neutral constraint”的证明强度；否则应继续做 visibility/raycast consistency 或更强的局部可见性诊断。
 
+### 2026-06-12 evidence correlation report
+
+新增 `tools/n3mapping_loop_evidence_correlation.py`，用于比较当前 runtime evidence 对 `z_after_bad` 与 `z_corrected` 的区分力。
+
+输入：
+
+```bash
+python3 src/n3mapping/tools/n3mapping_loop_evidence_correlation.py \
+  --labeled_csv /tmp/n3mapping_kitti360_drive0005_graph_trial_diag_analysis_20260612_r1/loop_candidates_labeled.csv \
+  --output /tmp/n3mapping_loop_evidence_correlation_drive0005_20260612_r1
+```
+
+输出：
+
+- `loop_evidence_correlation.csv`
+- `loop_evidence_correlation.json`
+
+报告字段：
+
+- `signal_name`
+- `bad_z_after_mean`
+- `corrected_z_mean`
+- `auc_bad_greater`
+- `auc_like_score`
+- `direction`
+- `overlap_count`
+- `false_positive_if_thresholded`
+- `false_negative_if_thresholded`
+
+注意：
+
+- 这是 offline analysis，不参与 runtime。
+- `false_positive_if_thresholded` / `false_negative_if_thresholded` 只表示“若用均值中点做阈值”会发生什么，用来防止弱 signal 被误当强 gate。
+- 这个工具不会给出可直接上线的阈值；是否把某个 evidence 接入行为，仍需要固定 matrix + GPT Pro / 人工 review。
+
+KITTI360 drive_0005 450-frame smoke 上的初步结果：
+
+| signal | direction | auc_like | overlap | mean bad-Z-after | mean corrected-Z |
+|---|---|---:|---:|---:|---:|
+| `graph_trial_consistency_score` | lower is bad | 1.0 | 0 | 0.3165 | 0.4774 |
+| `graph_trial_residual_translation_norm_after` | higher is bad | 1.0 | 0 | 1.9891 | 0.6857 |
+| `graph_trial_residual_z_after` | higher is bad | 1.0 | 0 | 1.1839 | 0.2237 |
+| `best_z_offset_m` | lower is bad | 0.95 | 2 | -1.25 | 1.10 |
+
+解释：
+
+- 在这组 smoke 上，graph trial 系列信号是当前最强候选 evidence。
+- 但样本只有 `2` 个 bad-Z-after 和 `5` 个 corrected-Z，不能直接推出 runtime gate。
+- `graph_trial_consistency_score` 的均值中点阈值仍会产生一个 corrected-Z false positive；因此下一步必须先扩到 M2DGR indoor / 其它 KITTI360 sequence，再决定是否做 trial-gated behavior。
+
 ## 当前已知问题
 
 ### P0：回环 Z / roll / pitch 可观测性还不够可靠
@@ -637,7 +687,9 @@ If GPT Pro says to add evidence, implement the smallest new diagnostic or struct
 
 3. `vertical_observability_next_signal`
    - multi-hypothesis vertical ICP diagnostics are implemented for KITTI360 / M2DGR eval.
-   - next step is to rerun the same matrix and inspect high-Z cases.
+   - graph shadow trial diagnostics are implemented and preserve current behavior.
+   - evidence correlation report is implemented to compare vertical hypothesis / heightmap / graph trial signals.
+   - next step is to inspect correlation on KITTI360 + M2DGR before any behavior change.
    - avoid tuning existing thresholds without a written gate.
 
 4. `indoor_benchmark_m2dgr`
