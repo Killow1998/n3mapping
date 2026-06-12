@@ -267,6 +267,14 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendNumber(os, &first, "vertical_ambiguity_score", event.vertical_ambiguity_score);
     appendString(os, &first, "vertical_hypothesis_edge_recommendation",
                  event.vertical_hypothesis_edge_recommendation);
+    appendInt(os, &first, "heightmap_overlap_cell_count", event.heightmap_overlap_cell_count);
+    appendNumber(os, &first, "heightmap_overlap_ratio", event.heightmap_overlap_ratio);
+    appendNumber(os, &first, "heightmap_ground_dz_median", event.heightmap_ground_dz_median);
+    appendNumber(os, &first, "heightmap_ground_dz_p90", event.heightmap_ground_dz_p90);
+    appendNumber(os, &first, "heightmap_ground_dz_max", event.heightmap_ground_dz_max);
+    appendNumber(os, &first, "heightmap_ground_support_ratio", event.heightmap_ground_support_ratio);
+    appendNumber(os, &first, "heightmap_vertical_consistency_score",
+                 event.heightmap_vertical_consistency_score);
     appendString(os, &first, "gate_result", event.gate_result);
     appendString(os, &first, "reject_reason", event.reject_reason);
     appendInformationDiag(os, &first, event.loop_information);

@@ -761,7 +761,10 @@ void writeAcceptedLoopsHeader(std::ofstream& out)
            "source_target_z_centroid_delta_before,source_target_z_centroid_delta_after,vertical_information_ratio,"
            "vertical_hypothesis_count,best_z_offset_m,best_z_offset_fitness,zero_z_fitness,"
            "fitness_gap_zero_vs_best,z_hypothesis_spread_m,vertical_ambiguity_score,"
-           "vertical_hypothesis_edge_recommendation\n";
+           "vertical_hypothesis_edge_recommendation,heightmap_overlap_cell_count,"
+           "heightmap_overlap_ratio,heightmap_ground_dz_median,heightmap_ground_dz_p90,"
+           "heightmap_ground_dz_max,heightmap_ground_support_ratio,"
+           "heightmap_vertical_consistency_score\n";
 }
 
 void writeKeyframesGtHeader(std::ofstream& out)
@@ -812,7 +815,14 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << loop.fitness_gap_zero_vs_best << ','
         << loop.z_hypothesis_spread_m << ','
         << loop.vertical_ambiguity_score << ','
-        << loop.vertical_hypothesis_edge_recommendation << '\n';
+        << loop.vertical_hypothesis_edge_recommendation << ','
+        << loop.heightmap_overlap_cell_count << ','
+        << loop.heightmap_overlap_ratio << ','
+        << loop.heightmap_ground_dz_median << ','
+        << loop.heightmap_ground_dz_p90 << ','
+        << loop.heightmap_ground_dz_max << ','
+        << loop.heightmap_ground_support_ratio << ','
+        << loop.heightmap_vertical_consistency_score << '\n';
 }
 
 int runMappingLoop(const Options& options, const AlignedFrames& aligned)

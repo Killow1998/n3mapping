@@ -70,6 +70,13 @@ LoopDebugCandidateEvent makeRejectedCandidateEvent()
     event.z_hypothesis_spread_m = 1.0;
     event.vertical_ambiguity_score = 0.25;
     event.vertical_hypothesis_edge_recommendation = "planar_xy_yaw";
+    event.heightmap_overlap_cell_count = 12;
+    event.heightmap_overlap_ratio = 0.75;
+    event.heightmap_ground_dz_median = 0.4;
+    event.heightmap_ground_dz_p90 = 1.2;
+    event.heightmap_ground_dz_max = 1.8;
+    event.heightmap_ground_support_ratio = 0.6;
+    event.heightmap_vertical_consistency_score = 0.27;
     event.gate_result = "rejected";
     event.reject_reason = "bad\nreason";
     event.loop_information.diagonal() << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0;
@@ -126,6 +133,9 @@ TEST(LoopDebugLoggerTest, WritesRejectedCandidateAsSingleLineJson)
     EXPECT_NE(lines[0].find("\"z_hypothesis_spread_m\":1"), std::string::npos);
     EXPECT_NE(lines[0].find("\"vertical_ambiguity_score\":0.25"), std::string::npos);
     EXPECT_NE(lines[0].find("\"vertical_hypothesis_edge_recommendation\":\"planar_xy_yaw\""), std::string::npos);
+    EXPECT_NE(lines[0].find("\"heightmap_overlap_cell_count\":12"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"heightmap_ground_dz_p90\":1.2"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"heightmap_vertical_consistency_score\":0.27000000000000002"), std::string::npos);
     EXPECT_NE(lines[0].find("\"loop_information_diag\":[1,2,3,4,5,6]"), std::string::npos);
 
     std::filesystem::remove_all(temp_dir);

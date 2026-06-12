@@ -170,7 +170,7 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_NE(metrics.find("\"calib_mode_requested\": \"auto\""), std::string::npos);
     const std::string loops = readTextFile(output / "accepted_loops.csv");
     EXPECT_NE(loops.find("query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,vertical_downweighted,source_z_span,target_z_span,z_overlap_ratio_before,z_overlap_ratio_after,source_z_robust_span,target_z_robust_span,z_robust_overlap_ratio_before,z_robust_overlap_ratio_after,source_target_z_centroid_delta_before,source_target_z_centroid_delta_after,vertical_information_ratio"), std::string::npos);
-    EXPECT_NE(loops.find("vertical_hypothesis_count,best_z_offset_m,best_z_offset_fitness,zero_z_fitness,fitness_gap_zero_vs_best,z_hypothesis_spread_m,vertical_ambiguity_score,vertical_hypothesis_edge_recommendation"), std::string::npos);
+    EXPECT_NE(loops.find("vertical_hypothesis_count,best_z_offset_m,best_z_offset_fitness,zero_z_fitness,fitness_gap_zero_vs_best,z_hypothesis_spread_m,vertical_ambiguity_score,vertical_hypothesis_edge_recommendation,heightmap_overlap_cell_count"), std::string::npos);
     const std::string keyframes_gt = readTextFile(output / "keyframes_gt.csv");
     EXPECT_NE(keyframes_gt.find("keyframe_id,frame_id,x,y,z,qx,qy,qz,qw"), std::string::npos);
 }
@@ -207,7 +207,11 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
               << "\"best_z_offset_fitness\":0.11,\"zero_z_fitness\":0.12,"
               << "\"fitness_gap_zero_vs_best\":0.01,\"z_hypothesis_spread_m\":1.0,"
               << "\"vertical_ambiguity_score\":0.25,"
-              << "\"vertical_hypothesis_edge_recommendation\":\"planar_xy_yaw\"}\n";
+              << "\"vertical_hypothesis_edge_recommendation\":\"planar_xy_yaw\","
+              << "\"heightmap_overlap_cell_count\":4,\"heightmap_overlap_ratio\":1.0,"
+              << "\"heightmap_ground_dz_median\":0.8,\"heightmap_ground_dz_p90\":0.8,"
+              << "\"heightmap_ground_dz_max\":0.8,\"heightmap_ground_support_ratio\":1.0,"
+              << "\"heightmap_vertical_consistency_score\":0.55}\n";
         debug << "{\"record_type\":\"candidate\",\"query_id\":2,\"match_id\":0,"
               << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"accepted\","
               << "\"reject_reason\":\"\",\"fitness_score\":0.1,\"inlier_ratio\":0.9,"
@@ -272,6 +276,9 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
     EXPECT_NE(diagnosis.find("\"accepted_planar_xy_yaw\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"vertical_hypothesis_candidate_count\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"accepted_true_loop_bad_z_planar_recommended\": 1"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"heightmap_candidate_count\": 1"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"accepted_true_loop_bad_z_heightmap_high\": 1"), std::string::npos);
+    EXPECT_NE(diagnosis.find("\"heightmap_separates_bad_z_count\": 0"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"accepted_full6dof\": 2"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"query_selection_failure_count\": 1"), std::string::npos);
     EXPECT_NE(diagnosis.find("\"z_drift_suspect_count\": 1"), std::string::npos);
@@ -284,6 +291,7 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
     EXPECT_NE(labeled.find("planar_xy_yaw"), std::string::npos);
     EXPECT_NE(labeled.find("icp_error_to_gt_z"), std::string::npos);
     EXPECT_NE(labeled.find("vertical_hypothesis_edge_recommendation"), std::string::npos);
+    EXPECT_NE(labeled.find("heightmap_ground_dz_p90"), std::string::npos);
 
     const std::string query_summary = readTextFile(output / "loop_query_summary.csv");
     EXPECT_NE(query_summary.find("selection_failure"), std::string::npos);
@@ -355,6 +363,9 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
                   << "  \"vertical_hypothesis_full6dof_recommendation_count\": 0,\n"
                   << "  \"accepted_true_loop_bad_z_with_vertical_hypothesis\": 1,\n"
                   << "  \"accepted_true_loop_bad_z_planar_recommended\": 1,\n"
+                  << "  \"heightmap_candidate_count\": 1,\n"
+                  << "  \"accepted_true_loop_bad_z_heightmap_high\": 1,\n"
+                  << "  \"heightmap_separates_bad_z_count\": 1,\n"
                   << "  \"icp_reject_true_loop\": 1,\n"
                   << "  \"verification_reject_true_loop\": 1,\n"
                   << "  \"true_loop_not_selected\": 0,\n"
@@ -390,6 +401,7 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
     EXPECT_NE(json.find("\"loop_precision\": 1.0"), std::string::npos);
     EXPECT_NE(json.find("\"loop_accepted_true_loop_bad_z\": 1"), std::string::npos);
     EXPECT_NE(json.find("\"loop_accepted_true_loop_bad_z_planar_recommended\": 1"), std::string::npos);
+    EXPECT_NE(json.find("\"loop_accepted_true_loop_bad_z_heightmap_high\": 1"), std::string::npos);
     EXPECT_NE(json.find("\"loop_verification_reject_true_loop\": 1"), std::string::npos);
     EXPECT_NE(json.find("\"loop_accepted_planar_xy_yaw\": 1"), std::string::npos);
     EXPECT_NE(json.find("\"trajectory_pair_count\": 3"), std::string::npos);

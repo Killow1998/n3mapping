@@ -102,6 +102,13 @@ struct VerifiedLoop {
     double z_hypothesis_spread_m = std::numeric_limits<double>::quiet_NaN();
     double vertical_ambiguity_score = std::numeric_limits<double>::quiet_NaN();
     std::string vertical_hypothesis_edge_recommendation = "not_available";
+    int heightmap_overlap_cell_count = 0;
+    double heightmap_overlap_ratio = 0.0;
+    double heightmap_ground_dz_median = std::numeric_limits<double>::quiet_NaN();
+    double heightmap_ground_dz_p90 = std::numeric_limits<double>::quiet_NaN();
+    double heightmap_ground_dz_max = std::numeric_limits<double>::quiet_NaN();
+    double heightmap_ground_support_ratio = 0.0;
+    double heightmap_vertical_consistency_score = 0.0;
     bool verified = false;
     bool isValid() const { return verified && query_id >= 0 && match_id >= 0; }
 };

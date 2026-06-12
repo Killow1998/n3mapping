@@ -428,6 +428,14 @@ Offline eval accepted loop rows include:
   - `z_hypothesis_spread_m`
   - `vertical_ambiguity_score`
   - `vertical_hypothesis_edge_recommendation`
+- heightmap diagnostics:
+  - `heightmap_overlap_cell_count`
+  - `heightmap_overlap_ratio`
+  - `heightmap_ground_dz_median`
+  - `heightmap_ground_dz_p90`
+  - `heightmap_ground_dz_max`
+  - `heightmap_ground_support_ratio`
+  - `heightmap_vertical_consistency_score`
 
 ### `loop_candidates_labeled.csv`
 
@@ -442,6 +450,7 @@ Analyzer output adds GT labels:
 - `z_measurement_bad`
 - `z_after_bad`
 - `z_corrected`
+- heightmap consistency fields
 
 ## Falsified Edge-Model Attempt
 
@@ -467,6 +476,42 @@ The key regression was loop `331 -> 63`:
 - residual Z after optimization: about 2.53 m.
 
 Conclusion: the current vertical-hypothesis recommendation is useful diagnostic evidence, but it is not sufficient as a direct behavior rule. Continuing by lowering planar vertical weight or adding another residual threshold would be parameter tuning. The next algorithm step needs a new runtime signal or a controlled tuning plan with a written acceptance/rollback gate.
+
+## Heightmap / Ground Consistency Diagnostic
+
+The next runtime signal is a local 2.5D heightmap consistency check. It does not change loop behavior.
+
+For each ICP-converged loop candidate with loop debug enabled:
+
+- target submap and ICP-transformed source submap are binned in target-frame XY cells.
+- each cell uses a low Z percentile as a lightweight ground / low-surface proxy.
+- only overlapping cells with enough points on both sides are compared.
+- `heightmap_ground_dz_*` reports absolute low-surface height disagreement.
+
+The intended use is to test whether bad ICP Z measurements are visible in local low-surface disagreement. If the signal separates bad-Z after-optimization cases from corrected/healthy cases, a later PR can use it for a structural edge-model change. It should not be converted directly into another hidden threshold without a matrix gate.
+
+### 2026-06-12 KITTI360 Result
+
+KITTI360 drive_0005, 450 frames, stride 5:
+
+- artifact: `/tmp/n3mapping_kitti360_drive0005_heightmap_diag_450_20260612_r1`
+- accepted loops: 8.
+- false loops: 0.
+- `optimization_high_residual_z_after_count`: 2.
+- `optimization_max_residual_z_after_m`: 1.348.
+- `trajectory_xy_p95_m`: 1.261.
+- `trajectory_z_p95_m`: 1.077.
+
+The behavior metrics match the previous diagnostic baseline, so heightmap diagnostics do not change loop behavior.
+
+However, the signal did not separate the remaining bad-Z cases well enough:
+
+- `accepted_true_loop_bad_z_heightmap_high`: 7.
+- `heightmap_separates_bad_z_count`: 2.
+- the two remaining bad-Z-after loops were flagged.
+- the five corrected-Z bad-measurement loops were also flagged.
+
+Conclusion: heightmap consistency is useful as another artifact column, but this simple low-surface heightmap is not sufficient to drive `planar_xy_yaw_neutral_vertical`. Do not implement the neutral-vertical edge model from this signal alone.
 
 ## Recommended next decision
 

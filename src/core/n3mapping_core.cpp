@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "n3mapping/cloud_utils.h"
+#include "n3mapping/loop_heightmap_diagnostics.h"
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
 
@@ -860,6 +861,17 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 loop.vertical_ambiguity_score = diagnostics.vertical_ambiguity_score;
                 loop.vertical_hypothesis_edge_recommendation = diagnostics.edge_recommendation;
             }
+            if (loop_debug_enabled && match_result.converged) {
+                const auto heightmap =
+                    computeHeightmapConsistency(target, source, match_result.T_target_source);
+                loop.heightmap_overlap_cell_count = heightmap.overlap_cell_count;
+                loop.heightmap_overlap_ratio = heightmap.overlap_ratio;
+                loop.heightmap_ground_dz_median = heightmap.ground_dz_median;
+                loop.heightmap_ground_dz_p90 = heightmap.ground_dz_p90;
+                loop.heightmap_ground_dz_max = heightmap.ground_dz_max;
+                loop.heightmap_ground_support_ratio = heightmap.ground_support_ratio;
+                loop.heightmap_vertical_consistency_score = heightmap.vertical_consistency_score;
+            }
 
             loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok && residual_z_ok;
             std::string reject_reason =
@@ -916,6 +928,13 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.z_hypothesis_spread_m = loop.z_hypothesis_spread_m;
                 event.vertical_ambiguity_score = loop.vertical_ambiguity_score;
                 event.vertical_hypothesis_edge_recommendation = loop.vertical_hypothesis_edge_recommendation;
+                event.heightmap_overlap_cell_count = loop.heightmap_overlap_cell_count;
+                event.heightmap_overlap_ratio = loop.heightmap_overlap_ratio;
+                event.heightmap_ground_dz_median = loop.heightmap_ground_dz_median;
+                event.heightmap_ground_dz_p90 = loop.heightmap_ground_dz_p90;
+                event.heightmap_ground_dz_max = loop.heightmap_ground_dz_max;
+                event.heightmap_ground_support_ratio = loop.heightmap_ground_support_ratio;
+                event.heightmap_vertical_consistency_score = loop.heightmap_vertical_consistency_score;
                 event.gate_result = loop.verified ? "accepted" : "rejected";
                 event.reject_reason = reject_reason;
                 debug_events.push_back(event);

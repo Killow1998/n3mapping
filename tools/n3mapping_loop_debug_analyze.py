@@ -435,6 +435,9 @@ def analyze(args):
         "vertical_hypothesis_full6dof_recommendation_count": 0,
         "accepted_true_loop_bad_z_with_vertical_hypothesis": 0,
         "accepted_true_loop_bad_z_planar_recommended": 0,
+        "heightmap_candidate_count": 0,
+        "accepted_true_loop_bad_z_heightmap_high": 0,
+        "heightmap_separates_bad_z_count": 0,
     }
     rpy_threshold_rad = args.rpy_drift_threshold_deg * math.pi / 180.0
     accepted_pairs_available = bool(args.accepted_loops)
@@ -502,6 +505,20 @@ def analyze(args):
         vertical_ambiguity_score = event_float(event, "vertical_ambiguity_score")
         vertical_hypothesis_edge_recommendation = str(
             event.get("vertical_hypothesis_edge_recommendation", "not_available") or "not_available"
+        )
+        heightmap_overlap_cell_count = int(event.get("heightmap_overlap_cell_count") or 0)
+        heightmap_overlap_ratio = event_float(event, "heightmap_overlap_ratio")
+        heightmap_ground_dz_median = event_float(event, "heightmap_ground_dz_median")
+        heightmap_ground_dz_p90 = event_float(event, "heightmap_ground_dz_p90")
+        heightmap_ground_dz_max = event_float(event, "heightmap_ground_dz_max")
+        heightmap_ground_support_ratio = event_float(event, "heightmap_ground_support_ratio")
+        heightmap_vertical_consistency_score = event_float(
+            event, "heightmap_vertical_consistency_score"
+        )
+        heightmap_high = bool(
+            heightmap_overlap_cell_count > 0
+            and math.isfinite(heightmap_ground_dz_p90)
+            and heightmap_ground_dz_p90 >= args.z_drift_threshold
         )
         z_candidate_residual_large = bool(
             accepted and gt_loop and exceeds_abs(residual_z, args.z_drift_threshold)
@@ -578,6 +595,8 @@ def analyze(args):
                 stats["vertical_hypothesis_planar_recommendation_count"] += 1
             elif vertical_hypothesis_edge_recommendation == "full6dof":
                 stats["vertical_hypothesis_full6dof_recommendation_count"] += 1
+        if heightmap_overlap_cell_count > 0:
+            stats["heightmap_candidate_count"] += 1
         if gt_loop:
             stats["retrieval_true_positive"] += 1
         elif has_gt:
@@ -605,6 +624,10 @@ def analyze(args):
             stats["accepted_true_loop_bad_z_with_vertical_hypothesis"] += 1
             if vertical_hypothesis_edge_recommendation == "planar_xy_yaw":
                 stats["accepted_true_loop_bad_z_planar_recommended"] += 1
+        if z_bad and heightmap_high:
+            stats["accepted_true_loop_bad_z_heightmap_high"] += 1
+        if z_after_bad and heightmap_high:
+            stats["heightmap_separates_bad_z_count"] += 1
         if z_corrected:
             stats["accepted_true_loop_corrected_z"] += 1
         if z_drift_suspect:
@@ -651,6 +674,13 @@ def analyze(args):
                 "z_hypothesis_spread_m": z_hypothesis_spread_m,
                 "vertical_ambiguity_score": vertical_ambiguity_score,
                 "vertical_hypothesis_edge_recommendation": vertical_hypothesis_edge_recommendation,
+                "heightmap_overlap_cell_count": heightmap_overlap_cell_count,
+                "heightmap_overlap_ratio": heightmap_overlap_ratio,
+                "heightmap_ground_dz_median": heightmap_ground_dz_median,
+                "heightmap_ground_dz_p90": heightmap_ground_dz_p90,
+                "heightmap_ground_dz_max": heightmap_ground_dz_max,
+                "heightmap_ground_support_ratio": heightmap_ground_support_ratio,
+                "heightmap_vertical_consistency_score": heightmap_vertical_consistency_score,
                 "z_candidate_residual_large": z_candidate_residual_large,
                 "z_measurement_bad": z_measurement_bad,
                 "z_after_bad": z_after_bad,
@@ -815,6 +845,13 @@ def analyze(args):
             "z_hypothesis_spread_m",
             "vertical_ambiguity_score",
             "vertical_hypothesis_edge_recommendation",
+            "heightmap_overlap_cell_count",
+            "heightmap_overlap_ratio",
+            "heightmap_ground_dz_median",
+            "heightmap_ground_dz_p90",
+            "heightmap_ground_dz_max",
+            "heightmap_ground_support_ratio",
+            "heightmap_vertical_consistency_score",
             "z_candidate_residual_large",
             "z_measurement_bad",
             "z_after_bad",
