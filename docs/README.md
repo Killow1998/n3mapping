@@ -433,6 +433,19 @@ stride: 5
 
 M2DGR adapter 当前读取 extracted `.pcd` / KITTI-style `.bin` + TUM GT，不直接读 ROS bag。这样保持 Humble/Noetic 可用，也避免评估工具先被 ROS bag API 复杂度绑住。
 
+M2DGR 官方序列表说明它包含 36 条序列，覆盖 Street、Circle、Gate、Walk、Hall、Door、Lift、Room、Roomdark；GT 来源分别包括 RTK/INS、Leica laser tracker、Vicon mocap。当前最适合先做 n3mapping loop/relocalization smoke 的序列：
+
+| priority | sequence | type | why |
+|---|---|---|---|
+| 1 | `hall_05` | indoor, Leica GT | 官方标注 `circle`，最适合先找室内闭环机会。 |
+| 2 | `hall_01` / `hall_03` / `hall_04` | indoor, Leica GT | 官方标注 random walk，适合看 repeated-place / corridor ambiguity。 |
+| 3 | `gate_02` | outdoor, RTK/INS | 官方标注 `loop back`，体量比 street 小。 |
+| 4 | `street_04` / `street_08` | outdoor, RTK/INS | 官方标注 `loop back` 或 loop-like zigzag。 |
+| 5 | `walk_01` | outdoor, RTK/INS | 官方标注 back-and-forth，可测试反向经过同一路段。 |
+| 6 | `door_01` | indoor/outdoor, Leica GT | outdoor-to-indoor-to-outdoor long-term，适合后续跨场景鲁棒性。 |
+
+本机当前没有发现已解压的 M2DGR rosbag / GT 数据；只检测到了 n3mapping 的 M2DGR eval 二进制。拿到某条序列后，先用 GT 轨迹筛 loop opportunity，再决定是否提取点云跑完整 eval。
+
 ### P2：GT odometry 只能隔离 backend，不能代表端到端
 
 KITTI360 / M2DGR offline eval 如果用 GT pose 构造 `LioFrame.T_world_lidar`，评估的是：
@@ -542,6 +555,35 @@ M2DGR GT format:
 ```text
 timestamp x y z qx qy qz qw
 ```
+
+### M2DGR GT loop opportunity check
+
+先不要直接跑完整 mapping。拿到某个 M2DGR GT 文件后，先判断这条轨迹是否真的有闭环机会：
+
+```bash
+python3 src/n3mapping/tools/n3mapping_tum_loop_opportunities.py \
+  --trajectory /path/to/M2DGR/hall_05/groundtruth.txt \
+  --sequence hall_05 \
+  --output /tmp/n3mapping_m2dgr_hall05_loop_opportunities \
+  --distance_threshold_m 3.0 \
+  --yaw_threshold_deg 45 \
+  --min_time_gap_s 20 \
+  --min_index_gap 50 \
+  --sample_stride 1
+```
+
+输出：
+
+- `loop_opportunity_summary.json`
+- `loop_opportunities.csv`
+- `trajectory_xy.csv`
+
+判断规则：
+
+- `loop_opportunity_pair_count > 0`：有 GT 上可定义的回环对。
+- `query_with_loop_opportunity_ratio` 越高，越适合评估 loop recall。
+- `trajectory_xy.csv` 可直接用 Python/表格画 XY 轨迹；`has_loop_opportunity=true` 的 query 是优先检查位置。
+- 如果 `hall_05` 机会太少，再试 `gate_02`、`street_04`、`street_08`、`door_01`。
 
 ### Matrix summary
 
