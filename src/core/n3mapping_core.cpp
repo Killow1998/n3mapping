@@ -36,6 +36,27 @@ struct LoopResidualAxisStats {
     Eigen::Vector3d rpy = Eigen::Vector3d::Zero();
 };
 
+struct LoopRefereeShadowDecision {
+    std::string recommendation = "not_available";
+    std::string reason = "not_available";
+    std::string risk_flags = "not_available";
+};
+
+std::string joinRiskFlags(const std::vector<std::string>& flags)
+{
+    if (flags.empty()) {
+        return "none";
+    }
+    std::string joined;
+    for (const auto& flag : flags) {
+        if (!joined.empty()) {
+            joined += ";";
+        }
+        joined += flag;
+    }
+    return joined;
+}
+
 std::pair<double, double> meanLoopResidual(
     const std::vector<EdgeInfo>& edges,
     const std::map<int64_t, Eigen::Isometry3d>& poses)
@@ -152,6 +173,84 @@ void assignGraphTrialDiagnostics(VerifiedLoop* loop, const LoopGraphTrialDiagnos
     loop->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
     loop->graph_trial_consistency_score = diagnostics.consistency_score;
     loop->graph_trial_recommendation = diagnostics.recommendation;
+}
+
+void assignLoopRefereeRecommendation(VerifiedLoop* loop, const Config& config)
+{
+    if (!loop || !loop->verified) {
+        return;
+    }
+    const double residual_translation = loop->candidate_residual.translation().norm();
+    const Eigen::Vector3d residual_rpy = rollPitchYaw(loop->candidate_residual);
+    const double z_threshold =
+        config.loop_max_candidate_residual_z > 0.0
+        ? config.loop_max_candidate_residual_z * 0.36
+        : config.loop_noise_position * 5.0;
+
+    std::vector<std::string> flags;
+    int graph_flags = 0;
+    int vertical_flags = 0;
+    int local_geometry_flags = 0;
+
+    if (!loop->graph_trial_success) {
+        flags.push_back("graph_trial_failed");
+        ++graph_flags;
+    }
+    if (loop->graph_trial_success &&
+        std::isfinite(loop->graph_trial_residual_translation_norm_after) &&
+        loop->graph_trial_residual_translation_norm_after > config.loop_max_icp_translation) {
+        flags.push_back("graph_trial_residual_large");
+        ++graph_flags;
+    }
+    if (loop->graph_trial_success &&
+        std::isfinite(loop->graph_trial_max_pose_update_translation) &&
+        loop->graph_trial_max_pose_update_translation > config.keyframe_distance_threshold * 2.0) {
+        flags.push_back("graph_trial_update_large");
+        ++graph_flags;
+    }
+    if (loop->graph_trial_success &&
+        std::isfinite(loop->graph_trial_consistency_score) &&
+        loop->graph_trial_consistency_score < 0.25) {
+        flags.push_back("graph_trial_score_low");
+        ++graph_flags;
+    }
+    if (std::isfinite(residual_translation) &&
+        residual_translation > config.loop_max_icp_translation * 3.5) {
+        flags.push_back("candidate_prior_translation_conflict");
+        ++local_geometry_flags;
+    }
+    if (std::isfinite(residual_rpy.z()) &&
+        std::abs(residual_rpy.z()) > config.loop_max_icp_rotation * 3.0) {
+        flags.push_back("candidate_prior_yaw_conflict");
+        ++local_geometry_flags;
+    }
+    if (std::isfinite(loop->heightmap_ground_dz_p90) &&
+        loop->heightmap_ground_support_ratio > 0.1 &&
+        loop->heightmap_ground_dz_p90 > config.loop_noise_position) {
+        flags.push_back("heightmap_vertical_uncertain");
+        ++vertical_flags;
+    }
+    if (std::isfinite(loop->candidate_residual.translation().z()) &&
+        std::abs(loop->candidate_residual.translation().z()) > z_threshold) {
+        flags.push_back("candidate_prior_z_conflict");
+        ++vertical_flags;
+    }
+    if (loop->vertical_hypothesis_edge_recommendation == "planar_xy_yaw") {
+        flags.push_back("vertical_hypothesis_ambiguous");
+        ++vertical_flags;
+    }
+
+    loop->loop_referee_risk_flags = joinRiskFlags(flags);
+    if (graph_flags >= 2 || (graph_flags >= 1 && local_geometry_flags >= 1)) {
+        loop->loop_referee_recommendation = "reject_candidate";
+        loop->loop_referee_reason = "graph_and_prior_conflict";
+    } else if (graph_flags >= 1 || local_geometry_flags >= 1 || vertical_flags >= 1) {
+        loop->loop_referee_recommendation = "needs_more_evidence";
+        loop->loop_referee_reason = "ambiguous_evidence_bundle";
+    } else {
+        loop->loop_referee_recommendation = "commit_full6dof_candidate";
+        loop->loop_referee_reason = "evidence_consistent";
+    }
 }
 
 void assignGraphTrialDiagnostics(LoopDebugCandidateEvent* event, const LoopGraphTrialDiagnostics& diagnostics)
@@ -793,6 +892,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         verified_loops.reserve(candidates.size());
         std::vector<LoopDebugCandidateEvent> debug_events;
         std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics> graph_trial_by_pair;
+        std::map<std::pair<int64_t, int64_t>, LoopRefereeShadowDecision> referee_by_pair;
         const bool loop_debug_enabled = config_.loop_debug_enable;
         if (loop_debug_enabled) {
             debug_events.reserve(candidates.size());
@@ -808,6 +908,12 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 auto trial_it = graph_trial_by_pair.find(key);
                 if (trial_it != graph_trial_by_pair.end()) {
                     assignGraphTrialDiagnostics(&event, trial_it->second);
+                }
+                auto referee_it = referee_by_pair.find(key);
+                if (referee_it != referee_by_pair.end()) {
+                    event.loop_referee_recommendation = referee_it->second.recommendation;
+                    event.loop_referee_reason = referee_it->second.reason;
+                    event.loop_referee_risk_flags = referee_it->second.risk_flags;
                 }
                 if (accepted_pairs.find(key) != accepted_pairs.end()) {
                     event.gate_result = "accepted";
@@ -1033,7 +1139,14 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 const auto diagnostics = computeLoopGraphTrialDiagnostics(
                     config_, poses_before, committed_edges, candidate_edges);
                 assignGraphTrialDiagnostics(&(*loop_it), diagnostics);
-                graph_trial_by_pair[{loop_it->query_id, loop_it->match_id}] = diagnostics;
+                assignLoopRefereeRecommendation(&(*loop_it), config_);
+                const auto key = std::make_pair(loop_it->query_id, loop_it->match_id);
+                graph_trial_by_pair[key] = diagnostics;
+                referee_by_pair[key] = {
+                    loop_it->loop_referee_recommendation,
+                    loop_it->loop_referee_reason,
+                    loop_it->loop_referee_risk_flags
+                };
             }
         }
         const bool optimization_committed =

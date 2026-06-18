@@ -299,6 +299,9 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendNumber(os, &first, "graph_trial_odom_residual_delta", event.graph_trial_odom_residual_delta);
     appendNumber(os, &first, "graph_trial_consistency_score", event.graph_trial_consistency_score);
     appendString(os, &first, "graph_trial_recommendation", event.graph_trial_recommendation);
+    appendString(os, &first, "loop_referee_recommendation", event.loop_referee_recommendation);
+    appendString(os, &first, "loop_referee_reason", event.loop_referee_reason);
+    appendString(os, &first, "loop_referee_risk_flags", event.loop_referee_risk_flags);
     appendString(os, &first, "gate_result", event.gate_result);
     appendString(os, &first, "reject_reason", event.reject_reason);
     appendInformationDiag(os, &first, event.loop_information);

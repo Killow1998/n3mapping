@@ -570,6 +570,15 @@ def analyze(args):
         graph_trial_recommendation = str(
             event.get("graph_trial_recommendation", "not_available") or "not_available"
         )
+        loop_referee_recommendation = str(
+            event.get("loop_referee_recommendation", "not_available") or "not_available"
+        )
+        loop_referee_reason = str(
+            event.get("loop_referee_reason", "not_available") or "not_available"
+        )
+        loop_referee_risk_flags = str(
+            event.get("loop_referee_risk_flags", "not_available") or "not_available"
+        )
         heightmap_high = bool(
             heightmap_overlap_cell_count > 0
             and math.isfinite(heightmap_ground_dz_p90)
@@ -761,6 +770,9 @@ def analyze(args):
                 "graph_trial_odom_residual_delta": graph_trial_odom_residual_delta,
                 "graph_trial_consistency_score": graph_trial_consistency_score,
                 "graph_trial_recommendation": graph_trial_recommendation,
+                "loop_referee_recommendation": loop_referee_recommendation,
+                "loop_referee_reason": loop_referee_reason,
+                "loop_referee_risk_flags": loop_referee_risk_flags,
                 "z_candidate_residual_large": z_candidate_residual_large,
                 "z_measurement_bad": z_measurement_bad,
                 "z_after_bad": z_after_bad,
@@ -961,6 +973,9 @@ def analyze(args):
             "graph_trial_odom_residual_delta",
             "graph_trial_consistency_score",
             "graph_trial_recommendation",
+            "loop_referee_recommendation",
+            "loop_referee_reason",
+            "loop_referee_risk_flags",
             "z_candidate_residual_large",
             "z_measurement_bad",
             "z_after_bad",

@@ -249,6 +249,56 @@ graph trial 分组结果：
 - 目前不能直接把 `graph_trial_consistency_score` 变成 commit gate 或 edge-mode 阈值。
 - 下一步若要改行为，必须先让 GPT Pro / 人工 review 判断是否接受“trial-gated commit / vertical-neutral constraint”的证明强度；否则应继续做 visibility/raycast consistency 或更强的局部可见性诊断。
 
+### 2026-06-19 shadow LoopReferee evidence bundle
+
+新增 shadow-only LoopReferee 诊断字段：
+
+- `loop_referee_recommendation`
+- `loop_referee_reason`
+- `loop_referee_risk_flags`
+
+这些字段只写入 `loop_debug.jsonl`、`accepted_loops.csv` 和
+`loop_candidates_labeled.csv`。它们不改变 `verified`、`edge_mode`、
+`applyEdges()` 或 optimizer commit。
+
+本轮目标不是把某个 signal 直接变成 gate，而是验证“证据包 + referee”
+这个方向能不能解释 M2DGR indoor failure。M2DGR run：
+
+```text
+/tmp/n3mapping_m2dgr_matrix_20260619_referee_diag_r2
+```
+
+Humble 本地验证：
+
+```text
+266 tests, 0 errors, 0 failures, 0 skipped
+```
+
+M2DGR 行为指标保持当前实现形状：
+
+| run | yaw label | accepted loops | loop precision | relocalization |
+|---|---|---:|---:|---|
+| hall_05 mapping | yaw45 | 34 | 0.706 | - |
+| hall_05 mapping | yaw180 diagnostic | 34 | 0.882 | - |
+| gate_02 mapping | yaw45 | 1 | 0.0 | - |
+| gate_02 mapping | yaw180 diagnostic | 1 | 1.0 | - |
+| hall_05 relocalization | - | - | - | lock_precision=0, false_lock_rate=1.0 |
+| gate_02 relocalization | - | - | - | no locks, pose_success=0 |
+
+关键结论：
+
+- 之前“单一 vertical signal 直接接行为”的路线已经被证伪。
+- heightmap / vertical hypothesis / graph trial 在 M2DGR 上普遍触发，
+  不能单独区分 true loop 与 false loop。
+- 本轮保守 referee 把 accepted loops 标成 `needs_more_evidence`，并输出
+  `risk_flags`，没有给出可执行 gate。
+- 这不是算法改进结果，而是一个明确的反证：当前 runtime evidence 还不足
+  以驱动 loop commit / neutralize / reject。
+- 下一步如果要真正改善回环处理，应引入更强的 `LoopEvidenceBundle` /
+  `LoopReferee` 结构，并增加 visibility / raycast / local geometry consistency
+  等新证据；不能再用现有 `heightmap`、`vertical_hypothesis` 或
+  `graph_trial_consistency_score` 单独调阈值。
+
 ### 2026-06-12 evidence correlation report
 
 新增 `tools/n3mapping_loop_evidence_correlation.py`，用于比较当前 runtime evidence 对 `z_after_bad` 与 `z_corrected` 的区分力。

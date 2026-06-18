@@ -730,7 +730,8 @@ void writeAcceptedLoopsHeader(std::ofstream& out)
            "graph_trial_mean_pose_update_translation,graph_trial_max_pose_update_translation,"
            "graph_trial_mean_pose_update_rotation,graph_trial_max_pose_update_rotation,"
            "graph_trial_existing_loop_residual_delta,graph_trial_odom_residual_delta,"
-           "graph_trial_consistency_score,graph_trial_recommendation\n";
+           "graph_trial_consistency_score,graph_trial_recommendation,"
+           "loop_referee_recommendation,loop_referee_reason,loop_referee_risk_flags\n";
 }
 
 void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
@@ -785,7 +786,10 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << loop.graph_trial_existing_loop_residual_delta << ','
         << loop.graph_trial_odom_residual_delta << ','
         << loop.graph_trial_consistency_score << ','
-        << loop.graph_trial_recommendation << '\n';
+        << loop.graph_trial_recommendation << ','
+        << loop.loop_referee_recommendation << ','
+        << loop.loop_referee_reason << ','
+        << loop.loop_referee_risk_flags << '\n';
 }
 
 Config makeEvalConfig(const Options& options)

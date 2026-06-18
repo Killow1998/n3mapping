@@ -74,6 +74,9 @@ struct LoopDebugCandidateEvent {
     double graph_trial_odom_residual_delta = std::numeric_limits<double>::quiet_NaN();
     double graph_trial_consistency_score = std::numeric_limits<double>::quiet_NaN();
     std::string graph_trial_recommendation = "not_available";
+    std::string loop_referee_recommendation = "not_available";
+    std::string loop_referee_reason = "not_available";
+    std::string loop_referee_risk_flags = "not_available";
     std::string gate_result = "rejected";
     std::string reject_reason;
     Eigen::Matrix<double, 6, 6> loop_information = Eigen::Matrix<double, 6, 6>::Identity();
