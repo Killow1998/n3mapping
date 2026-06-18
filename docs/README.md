@@ -657,6 +657,27 @@ Interpretation:
 - The next algorithm work should not return to Z-only evidence. On M2DGR, the first failure to inspect is retrieval/verification admitting false loop candidates in repeated indoor geometry.
 - Relocalization should not be loosened: hall_05 already produced false locks, so lock precision must remain the primary metric.
 
+Rejected behavior experiment:
+
+```text
+experiment: graph-prior conflict gate
+artifact: /tmp/n3mapping_m2dgr_matrix_20260618_referee_r1
+rule tried: reject loop if ||candidate_residual.translation|| > 3.5 * loop_max_icp_translation
+```
+
+Offline on the baseline `hall_05` yaw-relaxed labels this looked clean: it would reject the 5 false accepted loops without rejecting the 28 true accepted loops. A full rerun did not produce a safe system-level improvement:
+
+| run / metric | baseline | experiment |
+|---|---:|---:|
+| `hall_05` yaw180 loop precision | 0.848 | 0.853 |
+| `hall_05` yaw180 false accepted loops | 5 | 5 |
+| `hall_05` high-Z-after count | 0 | 1 |
+| `gate_02` yaw180 loop precision | 1.0 | 0.0 |
+| `hall_05` relocalization pose_success_rate | 0.399 | 0.043 |
+| `hall_05` false locks | 2 | 5 |
+
+Conclusion: single-signal graph-prior gating is not stable enough. It slightly improved `hall_05` yaw-relaxed loop precision but damaged `gate_02`, introduced one high-Z-after case, and severely degraded `hall_05` relocalization. Do not reintroduce it as a hidden threshold. The next viable loop redesign should build a `LoopReferee` evidence bundle and prove its recommendation on KITTI360 + M2DGR before it controls commits.
+
 ### Matrix summary
 
 ```bash
