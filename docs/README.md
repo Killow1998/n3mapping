@@ -585,6 +585,78 @@ python3 src/n3mapping/tools/n3mapping_tum_loop_opportunities.py \
 - `trajectory_xy.csv` 可直接用 Python/表格画 XY 轨迹；`has_loop_opportunity=true` 的 query 是优先检查位置。
 - 如果 `hall_05` 机会太少，再试 `gate_02`、`street_04`、`street_08`、`door_01`。
 
+### 2026-06-18 M2DGR hall_05 / gate_02 first matrix
+
+已下载并提取：
+
+```text
+/home/user/dataset/M2DGR/hall_05/hall_05.bag
+/home/user/dataset/M2DGR/hall_05/hall_05.txt
+/home/user/dataset/M2DGR/hall_05/groundtruth_yaw_fallback.txt
+/home/user/dataset/M2DGR/hall_05/velodyne_points/*.bin
+
+/home/user/dataset/M2DGR/gate_02/gate_02.bag
+/home/user/dataset/M2DGR/gate_02/gate_02.txt
+/home/user/dataset/M2DGR/gate_02/velodyne_points/*.bin
+```
+
+点云提取结果：
+
+```text
+hall_05: 4017 lidar frames, 203348051 points, 3.1G extracted XYZI bins
+gate_02: 3268 lidar frames, 157231672 points, 2.4G extracted XYZI bins
+```
+
+GT loop opportunity：
+
+| sequence | pose count | path length XY m | loop opportunity pairs | query opportunity ratio |
+|---|---:|---:|---:|---:|
+| `hall_05` | 2698 | 285.50 | 428575 | 0.774 |
+| `gate_02` | 33677 | 200.53 | 1681 | 0.002 |
+
+Matrix artifact:
+
+```text
+/tmp/n3mapping_m2dgr_matrix_20260618_r1
+```
+
+Run settings:
+
+```text
+max_frames=800
+stride=5
+build_map_frames=250
+max_time_diff=0.05
+```
+
+Mapping-loop summary with the default GT loop yaw threshold 45 deg:
+
+| run | frames | keyframes | candidates | accepted loops | true loops | false loops | precision | high-Z after |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `hall_05_mapping_loop` | 531 | 225 | 337 | 33 | 20 | 13 | 0.606 | 0 |
+| `gate_02_mapping_loop` | 654 | 202 | 297 | 1 | 0 | 1 | 0.0 | 0 |
+
+Because `hall_05.txt` has zero quaternions, `groundtruth_yaw_fallback.txt` estimates yaw from local trajectory direction. That yaw is useful for running the tool, but it is not a trusted sensor attitude. Recomputing loop labels with yaw threshold 180 deg gives:
+
+| run | accepted loops | true loops | false loops | precision |
+|---|---:|---:|---:|---:|
+| `hall_05_mapping_loop` | 33 | 28 | 5 | 0.848 |
+| `gate_02_mapping_loop` | 1 | 1 | 0 | 1.0 |
+
+Relocalization summary:
+
+| run | queries | locks | pose successes | correct locks | false locks | lock precision | false lock rate |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `hall_05_relocalization` | 281 | 2 | 112 | 0 | 2 | 0.0 | 1.0 |
+| `gate_02_relocalization` | 404 | 0 | 0 | 0 | 0 | 0.0 | 0.0 |
+
+Interpretation:
+
+- M2DGR exposes a different dominant failure from KITTI360. KITTI360 outdoor smoke had false accepted loop count 0; M2DGR hall_05 shows accepted false loops even with position-only yaw relaxation.
+- `hall_05` is still the best indoor sequence because it has many GT loop opportunities, but the GT attitude contract is weak. Future loop metrics on hall_05 should prefer position-first labels or use yaw only as a secondary diagnostic.
+- The next algorithm work should not return to Z-only evidence. On M2DGR, the first failure to inspect is retrieval/verification admitting false loop candidates in repeated indoor geometry.
+- Relocalization should not be loosened: hall_05 already produced false locks, so lock precision must remain the primary metric.
+
 ### Matrix summary
 
 ```bash
