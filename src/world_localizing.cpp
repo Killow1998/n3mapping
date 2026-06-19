@@ -108,6 +108,25 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
         return result;
     }
 
+    auto descriptor_supports_keyframe = [&](const std::vector<LoopCandidate>& candidates, int64_t keyframe_id) {
+        auto target = keyframe_manager_.getKeyframe(keyframe_id);
+        if (!target) {
+            return false;
+        }
+        const Eigen::Vector2d target_xy = target->pose_optimized.translation().head<2>();
+        for (const auto& candidate : candidates) {
+            auto candidate_kf = keyframe_manager_.getKeyframe(candidate.match_id);
+            if (!candidate_kf) {
+                continue;
+            }
+            const double d_xy = (candidate_kf->pose_optimized.translation().head<2>() - target_xy).norm();
+            if (d_xy <= kRelocBasinAssignRadiusXY) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     if (pending_hypotheses_.empty()) {
         auto candidates = searchCandidates(query_cloud);
         if (reloc_debug_enabled) {
@@ -287,6 +306,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
             return result;
         }
     } else {
+        const auto current_candidates = searchCandidates(query_cloud);
+        if (reloc_debug_enabled) {
+            debug_event.candidate_count = current_candidates.size();
+            debug_event.top_candidates = current_candidates;
+        }
         hypothesis_window_count_++;
         for (auto& hyp : pending_hypotheses_) {
             if (!hyp.alive) continue;
@@ -294,6 +318,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
             Eigen::Isometry3d predicted_pose = hyp.T_map_odom * odom_pose;
             int64_t nearest_kf_id = findNearestKeyframe(predicted_pose);
             if (nearest_kf_id < 0) {
+                hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
+                continue;
+            }
+
+            if (!descriptor_supports_keyframe(current_candidates, nearest_kf_id)) {
                 hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
                 continue;
             }
