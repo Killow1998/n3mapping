@@ -410,6 +410,40 @@ different failure modes. The Z residual gate can stay, but the M2DGR issue needs
 a stronger loop candidate / verification redesign rather than another single
 graph-trial threshold.
 
+M2DGR candidate-source benchmark after the gate:
+
+```text
+hall_05 benchmark: /tmp/n3mapping_m2dgr_hall05_candidate_benchmark_yaw180_20260620_r1
+gate_02 benchmark: /tmp/n3mapping_m2dgr_gate02_candidate_benchmark_yaw180_20260620_r1
+labels: translation < 5m, yaw < 180deg, min_id_gap = 20
+```
+
+| run / method | pair precision | pair recall | query recall | accepted precision |
+|---|---:|---:|---:|---:|
+| hall_05 `n3mapping_logged` | 0.804 | 0.047 | 0.162 | 0.848 |
+| hall_05 `sc_rerank_logged_pool` | 0.860 | 0.025 | 0.162 | 0.846 |
+| hall_05 `liosam_spatial_nearest` | 0.926 | 0.028 | 0.818 | n/a |
+| gate_02 `n3mapping_logged` | 0.017 | 0.079 | 0.222 | 1.000 |
+| gate_02 `sc_rerank_logged_pool` | 0.033 | 0.079 | 0.222 | 1.000 |
+| gate_02 `liosam_spatial_nearest` | 0.321 | 0.143 | 1.000 | n/a |
+
+Interpretation:
+
+- `hall_05` current logged candidates are reasonably precise but have very low
+  query recall, so the system is only testing a small subset of GT loop
+  opportunities.
+- `gate_02` current logged candidates are noisy at the pair level, although the
+  one accepted loop is true under yaw-relaxed labels.
+- LIO-SAM-style spatial nearest candidates improve query coverage, especially on
+  `hall_05`, but are not safe as a direct runtime source because spatial/radius
+  candidates previously introduced poor-vertical true loops on KITTI360.
+- The next real redesign should not be "RHPD vs SC vs LIO-SAM" as mutually
+  exclusive choices. It should build a two-stage loop source:
+  1. descriptor candidates for precision,
+  2. spatial/submap-overlap candidates for recall,
+  followed by a LoopReferee that can reject unsafe true loops and repeated-geometry
+  false positives before graph commit.
+
 ### 2026-06-19 shadow LoopReferee evidence bundle
 
 新增 shadow-only LoopReferee 诊断字段：
