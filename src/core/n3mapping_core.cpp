@@ -883,6 +883,26 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         }
 
         std::vector<LoopCandidate> candidates = session_->loopDetector().detectLoopCandidates(query_id);
+        if (config_.loop_spatial_candidates_enable) {
+            std::map<int64_t, Keyframe::Ptr> keyframe_map;
+            for (const auto& keyframe : session_->keyframeManager().getAllKeyframes()) {
+                if (keyframe) {
+                    keyframe_map[keyframe->id] = keyframe;
+                }
+            }
+            auto spatial_candidates =
+                session_->loopDetector().detectSpatialCandidates(query_id, keyframe_map);
+            for (const auto& spatial : spatial_candidates) {
+                const bool duplicate = std::any_of(candidates.begin(), candidates.end(),
+                    [&](const LoopCandidate& existing) {
+                        return existing.query_id == spatial.query_id &&
+                               existing.match_id == spatial.match_id;
+                    });
+                if (!duplicate) {
+                    candidates.push_back(spatial);
+                }
+            }
+        }
         if (candidates.empty()) {
             continue;
         }

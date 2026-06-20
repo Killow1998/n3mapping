@@ -64,6 +64,10 @@ n3mapping_node:
     loop_debug_enable: false
     loop_debug_vertical_hypotheses_enable: false
     loop_debug_path: ""
+    loop_spatial_candidates_enable: false
+    loop_spatial_candidate_radius: 15.0
+    loop_spatial_candidate_min_id_gap: 50
+    loop_spatial_candidate_max_candidates: 5
     loop_kf_gap: 5
     loop_closest_id_th: 50
     loop_min_id_interval: 20

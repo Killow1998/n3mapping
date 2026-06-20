@@ -25,11 +25,13 @@ namespace n3mapping {
 struct LoopCandidate {
     static constexpr uint8_t SOURCE_SC = 1u;
     static constexpr uint8_t SOURCE_RHPD = 2u;
+    static constexpr uint8_t SOURCE_SPATIAL = 4u;
     enum class Source : uint8_t {
         Unknown = 0,
         RhpdPrimary = 1,
         ScanContextFallback = 2,
-        RhpdFrame = 3
+        RhpdFrame = 3,
+        SpatialRadius = 4
     };
 
     int64_t query_id = -1;
@@ -46,6 +48,7 @@ struct LoopCandidate {
     bool isValid() const { return query_id >= 0 && match_id >= 0; }
     bool fromSC() const { return (source_flags & SOURCE_SC) != 0u; }
     bool fromRHPD() const { return (source_flags & SOURCE_RHPD) != 0u; }
+    bool fromSpatial() const { return (source_flags & SOURCE_SPATIAL) != 0u; }
 };
 
 enum class LoopEdgeMode {
@@ -147,6 +150,9 @@ public:
     void addDescriptor(int64_t keyframe_id, const Eigen::MatrixXd& descriptor);
     bool isScanContextDescriptorCompatible(const Eigen::MatrixXd& descriptor) const;
     std::vector<LoopCandidate> detectLoopCandidates(int64_t query_id);
+    std::vector<LoopCandidate> detectSpatialCandidates(
+        int64_t query_id,
+        const std::map<int64_t, Keyframe::Ptr>& keyframes) const;
 
     VerifiedLoop verifyLoopCandidate(const LoopCandidate& candidate,
                                      const Keyframe::Ptr& query_keyframe,

@@ -283,6 +283,62 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
     return candidates;
 }
 
+std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
+    int64_t query_id,
+    const std::map<int64_t, Keyframe::Ptr>& keyframes) const {
+    std::vector<LoopCandidate> candidates;
+    if (!config_.loop_spatial_candidates_enable ||
+        config_.loop_spatial_candidate_radius <= 0.0 ||
+        config_.loop_spatial_candidate_max_candidates <= 0) {
+        return candidates;
+    }
+
+    auto query_it = keyframes.find(query_id);
+    if (query_it == keyframes.end() || !query_it->second) {
+        return candidates;
+    }
+    const auto& query_pose = query_it->second->pose_optimized;
+    const int min_gap = std::max(1, config_.loop_spatial_candidate_min_id_gap);
+    const double radius = config_.loop_spatial_candidate_radius;
+    const double radius_sq = radius * radius;
+
+    std::vector<std::pair<double, int64_t>> ranked;
+    for (const auto& [match_id, keyframe] : keyframes) {
+        if (!keyframe || match_id >= query_id) {
+            continue;
+        }
+        if (query_id - match_id < min_gap) {
+            continue;
+        }
+        const double squared_distance =
+            (query_pose.translation() - keyframe->pose_optimized.translation()).squaredNorm();
+        if (!std::isfinite(squared_distance) || squared_distance > radius_sq) {
+            continue;
+        }
+        ranked.emplace_back(std::sqrt(squared_distance), match_id);
+    }
+
+    std::sort(ranked.begin(), ranked.end(), [](const auto& a, const auto& b) {
+        if (a.first != b.first) return a.first < b.first;
+        return a.second < b.second;
+    });
+
+    const int keep = std::min(config_.loop_spatial_candidate_max_candidates,
+                              static_cast<int>(ranked.size()));
+    candidates.reserve(keep);
+    for (int i = 0; i < keep; ++i) {
+        LoopCandidate candidate;
+        candidate.query_id = query_id;
+        candidate.match_id = ranked[i].second;
+        candidate.source_flags = LoopCandidate::SOURCE_SPATIAL;
+        candidate.candidate_source = LoopCandidate::Source::SpatialRadius;
+        candidate.fused_score = ranked[i].first / std::max(1e-6, radius);
+        candidate.fused_rank = i;
+        candidates.push_back(candidate);
+    }
+    return candidates;
+}
+
 VerifiedLoop LoopDetector::verifyLoopCandidate(const LoopCandidate& candidate,
                                                 const Keyframe::Ptr& query_keyframe,
                                                 const Keyframe::Ptr& match_keyframe,

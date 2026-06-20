@@ -109,6 +109,8 @@ const char* candidateSourceName(LoopCandidate::Source source)
             return "scan_context_fallback";
         case LoopCandidate::Source::RhpdFrame:
             return "rhpd_frame";
+        case LoopCandidate::Source::SpatialRadius:
+            return "spatial_radius";
         case LoopCandidate::Source::Unknown:
         default:
             return "unknown";

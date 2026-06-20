@@ -80,6 +80,10 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_debug_enable", config->loop_debug_enable);
     get("loop_debug_vertical_hypotheses_enable", config->loop_debug_vertical_hypotheses_enable);
     gets("loop_debug_path", config->loop_debug_path);
+    get("loop_spatial_candidates_enable", config->loop_spatial_candidates_enable);
+    get("loop_spatial_candidate_radius", config->loop_spatial_candidate_radius);
+    get("loop_spatial_candidate_min_id_gap", config->loop_spatial_candidate_min_id_gap);
+    get("loop_spatial_candidate_max_candidates", config->loop_spatial_candidate_max_candidates);
     get("loop_kf_gap", config->loop_kf_gap);
     get("loop_closest_id_th", config->loop_closest_id_th);
     get("loop_min_id_interval", config->loop_min_id_interval);
