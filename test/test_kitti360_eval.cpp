@@ -70,6 +70,14 @@ std::filesystem::path findLoopDebugAnalyzer()
     return {};
 }
 
+std::filesystem::path findLoopCandidateBenchmarkTool()
+{
+    const std::filesystem::path source_tool =
+        std::filesystem::path(N3MAPPING_SOURCE_DIR) / "tools" / "n3mapping_loop_candidate_benchmark.py";
+    if (std::filesystem::exists(source_tool)) return source_tool;
+    return {};
+}
+
 std::filesystem::path findEvalMatrixTool()
 {
     const std::filesystem::path source_tool =
@@ -323,6 +331,80 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
     const std::string query_summary = readTextFile(output / "loop_query_summary.csv");
     EXPECT_NE(query_summary.find("selection_failure"), std::string::npos);
     EXPECT_NE(query_summary.find("4,2,1,1,2,False"), std::string::npos);
+}
+
+TEST(N3MappingKitti360EvalTest, LoopCandidateBenchmarkComparesLoggedAndSpatialCandidates)
+{
+    const auto benchmark = findLoopCandidateBenchmarkTool();
+    ASSERT_FALSE(benchmark.empty()) << "n3mapping_loop_candidate_benchmark.py not found";
+    const auto input = makeTempDir("n3mapping_loop_candidate_benchmark_input");
+    const auto output = makeTempDir("n3mapping_loop_candidate_benchmark_output");
+
+    {
+        std::ofstream keyframes(input / "keyframes_gt.csv");
+        ASSERT_TRUE(keyframes.is_open());
+        keyframes << "keyframe_id,frame_id,x,y,z,qx,qy,qz,qw\n";
+        keyframes << "0,10,0,0,0,0,0,0,1\n";
+        keyframes << "1,20,8,0,0,0,0,0,1\n";
+        keyframes << "2,30,18,0,0,0,0,0,1\n";
+        keyframes << "3,40,0.5,0.1,0,0,0,0,1\n";
+        keyframes << "4,50,22,0,0,0,0,0,1\n";
+    }
+    {
+        std::ofstream debug(input / "loop_debug.jsonl");
+        ASSERT_TRUE(debug.is_open());
+        debug << "{\"record_type\":\"candidate\",\"query_id\":3,\"match_id\":0,"
+              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"accepted\","
+              << "\"fused_score\":0.1,\"rhpd_distance\":1.0,\"sc_distance\":0.4}\n";
+        debug << "{\"record_type\":\"candidate\",\"query_id\":3,\"match_id\":1,"
+              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"rejected\","
+              << "\"reject_reason\":\"fitness_threshold\",\"fused_score\":0.2,"
+              << "\"rhpd_distance\":2.0,\"sc_distance\":0.1}\n";
+        debug << "{\"record_type\":\"candidate\",\"query_id\":4,\"match_id\":0,"
+              << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"rejected\","
+              << "\"reject_reason\":\"icp_not_converged\",\"fused_score\":0.3,"
+              << "\"rhpd_distance\":3.0,\"sc_distance\":0.2}\n";
+    }
+    {
+        std::ofstream accepted(input / "accepted_loops.csv");
+        ASSERT_TRUE(accepted.is_open());
+        accepted << "query_id,match_id,fitness_score,inlier_ratio,verified\n";
+        accepted << "3,0,0.1,0.9,true\n";
+    }
+
+    const std::string command =
+        "python3 " + shellQuote(benchmark) +
+        " --keyframes_gt " + shellQuote(input / "keyframes_gt.csv") +
+        " --loop_debug " + shellQuote(input / "loop_debug.jsonl") +
+        " --accepted_loops " + shellQuote(input / "accepted_loops.csv") +
+        " --output " + shellQuote(output) +
+        " --loop_translation_threshold 2"
+        " --loop_yaw_threshold_deg 45"
+        " --min_id_gap 1"
+        " --spatial_radius_m 10"
+        " --spatial_min_id_gap 1"
+        " --sc_top_k 1";
+    ASSERT_EQ(std::system(command.c_str()), 0);
+
+    const std::string summary = readTextFile(output / "candidate_benchmark_summary.json");
+    EXPECT_NE(summary.find("\"method\": \"n3mapping_logged\""), std::string::npos);
+    EXPECT_NE(summary.find("\"method\": \"sc_rerank_logged_pool\""), std::string::npos);
+    EXPECT_NE(summary.find("\"method\": \"liosam_spatial_all\""), std::string::npos);
+    EXPECT_NE(summary.find("\"method\": \"liosam_spatial_nearest\""), std::string::npos);
+    EXPECT_NE(summary.find("\"spatial_pose_source\": \"gt\""), std::string::npos);
+    EXPECT_NE(summary.find("sc_rerank_logged_pool ranks only within logged candidates"), std::string::npos);
+
+    const std::string pairs = readTextFile(output / "candidate_benchmark_pairs.csv");
+    EXPECT_NE(pairs.find("method,query_id,match_id,rank,candidate_source,score"), std::string::npos);
+    EXPECT_NE(pairs.find("n3mapping_logged,3,0"), std::string::npos);
+    EXPECT_NE(pairs.find("sc_rerank_logged_pool,3,1"), std::string::npos);
+    EXPECT_NE(pairs.find("liosam_spatial_all,3,0"), std::string::npos);
+    EXPECT_NE(pairs.find("True"), std::string::npos);
+
+    const std::string csv_summary = readTextFile(output / "candidate_benchmark_summary.csv");
+    EXPECT_NE(csv_summary.find("true_candidates_rejected_by_processing"), std::string::npos);
+    EXPECT_NE(csv_summary.find("n3mapping_logged"), std::string::npos);
+    EXPECT_NE(csv_summary.find("liosam_spatial_nearest"), std::string::npos);
 }
 
 TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
