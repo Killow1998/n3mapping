@@ -370,8 +370,45 @@ Current interpretation:
 - Spatial/radius candidates are useful as an experiment source but remain disabled
   by default because they add true loops with poor vertical measurements.
 - This gate improves the current outdoor smoke without introducing false accepted
-  loops, but it still needs M2DGR indoor and additional KITTI360 sequence checks
-  before claiming broad 80% indoor/outdoor reliability.
+  loops.
+
+M2DGR hall_05 / gate_02 cross-check:
+
+```text
+hall_05 gate artifact: /tmp/n3mapping_m2dgr_hall05_graph_trial_gate_20260620_r1
+gate_02 gate artifact: /tmp/n3mapping_m2dgr_gate02_graph_trial_gate_20260620_r1
+yaw45 matrix: /tmp/n3mapping_m2dgr_matrix_graph_trial_gate_20260620_r1
+yaw180 diagnostic matrix: /tmp/n3mapping_m2dgr_matrix_graph_trial_gate_yaw180_20260620_r1
+```
+
+| run / label | accepted loops | true loops | false loops | precision | high-Z-after | max Z after |
+|---|---:|---:|---:|---:|---:|---:|
+| hall_05 yaw45 | 33 | 20 | 13 | 0.606 | 0 | 0.394m |
+| hall_05 yaw180 diagnostic | 33 | 28 | 5 | 0.848 | 0 | 0.394m |
+| gate_02 yaw45 | 1 | 0 | 1 | 0.000 | 0 | 0.331m |
+| gate_02 yaw180 diagnostic | 1 | 1 | 0 | 1.000 | 0 | 0.331m |
+
+The graph-trial Z gate is neutral on these M2DGR sequences: it does not improve
+the repeated-indoor false accepted loop issue, but it also does not regress the
+trajectory metrics versus the existing M2DGR baseline. This means the gate is a
+targeted KITTI360-style high-Z residual protection, not a general false-loop
+solution.
+
+I also checked whether `graph_trial_residual_translation_norm_after` could serve
+as the next gate for M2DGR false loops. It should not be used directly:
+
+- On `hall_05` yaw180 labels, a `0.75m` threshold rejects all 5 false accepted
+  loops, but also rejects 15 / 28 true accepted loops.
+- A `1.0m` threshold still rejects 9 / 28 true loops while only rejecting 3 / 5
+  false loops.
+- On `gate_02`, the only yaw180-true accepted loop has trial translation residual
+  `2.77m`, so any useful hall_05 translation threshold would incorrectly remove
+  it.
+
+Current conclusion: KITTI360 high-Z residuals and M2DGR false accepted loops are
+different failure modes. The Z residual gate can stay, but the M2DGR issue needs
+a stronger loop candidate / verification redesign rather than another single
+graph-trial threshold.
 
 ### 2026-06-19 shadow LoopReferee evidence bundle
 
