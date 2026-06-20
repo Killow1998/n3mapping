@@ -319,6 +319,60 @@ graph trial 分组结果：
 - 目前不能直接把 `graph_trial_consistency_score` 变成 commit gate 或 edge-mode 阈值。
 - 下一步若要改行为，必须先让 GPT Pro / 人工 review 判断是否接受“trial-gated commit / vertical-neutral constraint”的证明强度；否则应继续做 visibility/raycast consistency 或更强的局部可见性诊断。
 
+### 2026-06-20 graph-trial residual gate behavior
+
+新增默认开启的 graph-trial residual gate：
+
+- 对候选 loop edge 先做 shadow graph trial。
+- 若 trial 本身失败，拒绝该 loop edge。
+- 若 trial 后该候选 edge 的 `abs(graph_trial_residual_z_after)` 大于
+  `loop_graph_trial_max_residual_z`，拒绝该 loop edge。
+- 默认阈值：`loop_graph_trial_max_residual_z = 1.0m`。
+
+这不是 `graph_trial_consistency_score` 阈值。此前 score 对 bad-Z-after 有趋势但
+存在重叠；本轮使用的是更直接的 trial 后候选边 Z residual。
+
+KITTI360 drive_0005 450-frame smoke：
+
+```text
+baseline: /tmp/n3mapping_kitti360_drive0005_graph_trial_diag_450_20260612_r1
+gate:     /tmp/n3mapping_kitti360_drive0005_graph_trial_gate_450_20260620_r1
+matrix:   /tmp/n3mapping_eval_matrix_drive0005_graph_trial_gate_20260620_r1
+```
+
+| metric | baseline | graph-trial gate |
+|---|---:|---:|
+| accepted loops | 8 | 6 |
+| accepted false loops | 0 | 0 |
+| high-Z-after count | 2 | 0 |
+| max residual Z after | 1.3476m | 0.3633m |
+| translation p95 | 1.6579m | 1.3181m |
+| XY p95 | 1.2607m | 0.9218m |
+| Z p95 | 1.0767m | 0.9421m |
+
+Rejected by the new gate:
+
+| query -> match | reason | graph_trial_residual_z_after |
+|---|---|---:|
+| 296 -> 16 | `graph_trial_residual_z` | 1.0200m |
+| 326 -> 56 | `graph_trial_residual_z` | 1.4250m |
+| 331 -> 63 | `graph_trial_residual_z` | 2.3874m |
+
+`331 -> 63` was a verified true loop candidate that previously appeared in spatial/radius
+experiments and exposed the same failure mode: detection can find true loops that the
+current ICP/edge model cannot safely commit. The graph-trial residual gate turns that
+from a map-damaging accepted loop into an explicit reject reason.
+
+Current interpretation:
+
+- The dominant KITTI360 Z failure is not just retrieval; it is whether a candidate
+  edge can be graph-consistently consumed.
+- Spatial/radius candidates are useful as an experiment source but remain disabled
+  by default because they add true loops with poor vertical measurements.
+- This gate improves the current outdoor smoke without introducing false accepted
+  loops, but it still needs M2DGR indoor and additional KITTI360 sequence checks
+  before claiming broad 80% indoor/outdoor reliability.
+
 ### 2026-06-19 shadow LoopReferee evidence bundle
 
 新增 shadow-only LoopReferee 诊断字段：

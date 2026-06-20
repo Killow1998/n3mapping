@@ -74,6 +74,8 @@ struct Config {
     bool loop_debug_enable = false;
     bool loop_debug_vertical_hypotheses_enable = false;
     std::string loop_debug_path = "";
+    bool loop_graph_trial_gate_enable = true;
+    double loop_graph_trial_max_residual_z = 1.0;
     bool loop_spatial_candidates_enable = false;
     double loop_spatial_candidate_radius = 15.0;
     int loop_spatial_candidate_min_id_gap = 50;

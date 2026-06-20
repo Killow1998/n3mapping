@@ -75,6 +75,8 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("loop_debug_enable", config->loop_debug_enable);
     get("loop_debug_vertical_hypotheses_enable", config->loop_debug_vertical_hypotheses_enable);
     gets("loop_debug_path", config->loop_debug_path);
+    get("loop_graph_trial_gate_enable", config->loop_graph_trial_gate_enable);
+    get("loop_graph_trial_max_residual_z", config->loop_graph_trial_max_residual_z);
     get("loop_spatial_candidates_enable", config->loop_spatial_candidates_enable);
     get("loop_spatial_candidate_radius", config->loop_spatial_candidate_radius);
     get("loop_spatial_candidate_min_id_gap", config->loop_spatial_candidate_min_id_gap);

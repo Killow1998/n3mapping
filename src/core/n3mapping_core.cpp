@@ -1142,10 +1142,14 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         }
 
         const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
-        const auto residual_before = meanLoopResidual(edges, poses_before);
-        const auto residual_axes_before = meanLoopResidualAxes(edges, poses_before);
-        if (loop_debug_enabled) {
+        if (loop_debug_enabled || config_.loop_graph_trial_gate_enable) {
             const auto committed_edges = session_->graphOptimizer().getEdges();
+            std::vector<EdgeInfo> gated_edges;
+            std::vector<VerifiedLoop> gated_best_loops;
+            gated_edges.reserve(edges.size());
+            gated_best_loops.reserve(best_loops.size());
+            std::string gate_reject_reason = "graph_trial_rejected";
+
             for (const auto& edge : edges) {
                 auto loop_it = std::find_if(
                     best_loops.begin(), best_loops.end(),
@@ -1155,20 +1159,51 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 if (loop_it == best_loops.end()) {
                     continue;
                 }
+
+                VerifiedLoop loop = *loop_it;
                 const std::vector<EdgeInfo> candidate_edges{edge};
                 const auto diagnostics = computeLoopGraphTrialDiagnostics(
                     config_, poses_before, committed_edges, candidate_edges);
-                assignGraphTrialDiagnostics(&(*loop_it), diagnostics);
-                assignLoopRefereeRecommendation(&(*loop_it), config_);
-                const auto key = std::make_pair(loop_it->query_id, loop_it->match_id);
+                assignGraphTrialDiagnostics(&loop, diagnostics);
+                assignLoopRefereeRecommendation(&loop, config_);
+                const auto key = std::make_pair(loop.query_id, loop.match_id);
                 graph_trial_by_pair[key] = diagnostics;
                 referee_by_pair[key] = {
-                    loop_it->loop_referee_recommendation,
-                    loop_it->loop_referee_reason,
-                    loop_it->loop_referee_risk_flags
+                    loop.loop_referee_recommendation,
+                    loop.loop_referee_reason,
+                    loop.loop_referee_risk_flags
                 };
+
+                bool rejected_by_trial = false;
+                if (config_.loop_graph_trial_gate_enable) {
+                    if (!diagnostics.success) {
+                        rejected_by_trial = true;
+                        gate_reject_reason = "graph_trial_failed";
+                    } else if (config_.loop_graph_trial_max_residual_z > 0.0) {
+                        const double residual_z = std::abs(diagnostics.residual_z_after);
+                        if (!std::isfinite(residual_z) ||
+                            residual_z > config_.loop_graph_trial_max_residual_z) {
+                            rejected_by_trial = true;
+                            gate_reject_reason = "graph_trial_residual_z";
+                        }
+                    }
+                }
+
+                if (!rejected_by_trial) {
+                    gated_edges.push_back(edge);
+                    gated_best_loops.push_back(loop);
+                }
+            }
+
+            edges.swap(gated_edges);
+            best_loops.swap(gated_best_loops);
+            if (edges.empty()) {
+                flush_debug_events({}, gate_reject_reason);
+                continue;
             }
         }
+        const auto residual_before = meanLoopResidual(edges, poses_before);
+        const auto residual_axes_before = meanLoopResidualAxes(edges, poses_before);
         const bool optimization_committed =
             session_->loopClosureManager().applyEdges(edges, session_->graphOptimizer());
         if (!optimization_committed) {

@@ -39,6 +39,8 @@ std::string Config::toString() const {
     oss << "Loop debug JSONL: " << (loop_debug_enable ? "ON" : "OFF")
         << " vertical_hypotheses=" << (loop_debug_vertical_hypotheses_enable ? "ON" : "OFF")
         << " path=" << (loop_debug_path.empty() ? "<map_save_path>/loop_debug.jsonl" : loop_debug_path) << "\n";
+    oss << "Loop graph trial gate: " << (loop_graph_trial_gate_enable ? "ON" : "OFF")
+        << " max_residual_z=" << loop_graph_trial_max_residual_z << "\n";
     oss << "Loop candidate pipeline: RHPD primary retrieval + optional spatial radius supplement -> optional SC yaw/weak rerank/veto -> ICP -> geom gate -> LoopClosureManager filter/select\n";
     oss << "Loop spatial candidates: " << (loop_spatial_candidates_enable ? "ON" : "OFF")
         << " radius=" << loop_spatial_candidate_radius
@@ -168,6 +170,7 @@ bool Config::validate(std::string* error) const {
     if (loop_planar_vertical_weight > 1.0) return fail("loop_planar_vertical_weight must be <= 1");
     if (!non_negative(loop_icp_prefilter_voxel_size, "loop_icp_prefilter_voxel_size")) return false;
     if (!at_least(loop_icp_max_points, 0, "loop_icp_max_points")) return false;
+    if (!non_negative(loop_graph_trial_max_residual_z, "loop_graph_trial_max_residual_z")) return false;
     if (!positive(loop_spatial_candidate_radius, "loop_spatial_candidate_radius")) return false;
     if (!at_least(loop_spatial_candidate_min_id_gap, 1, "loop_spatial_candidate_min_id_gap")) return false;
     if (!at_least(loop_spatial_candidate_max_candidates, 1, "loop_spatial_candidate_max_candidates")) return false;
