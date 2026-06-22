@@ -20,9 +20,7 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_TRUE(config.reloc_debug_path.empty());
     EXPECT_DOUBLE_EQ(config.loop_icp_prefilter_voxel_size, 0.2);
     EXPECT_EQ(config.loop_icp_max_points, 50000);
-    EXPECT_TRUE(config.loop_graph_trial_gate_enable);
-    EXPECT_DOUBLE_EQ(config.loop_graph_trial_max_residual_z, 1.0);
-    EXPECT_FALSE(config.loop_spatial_candidates_enable);
+    EXPECT_TRUE(config.loop_spatial_candidates_enable);
     EXPECT_DOUBLE_EQ(config.loop_spatial_candidate_radius, 15.0);
     EXPECT_EQ(config.loop_spatial_candidate_min_id_gap, 50);
     EXPECT_EQ(config.loop_spatial_candidate_max_candidates, 5);
@@ -41,9 +39,8 @@ TEST(ConfigTest, ToStringContainsKeyFields) {
 
     EXPECT_NE(summary.find("Mode: localization"), std::string::npos);
     EXPECT_NE(summary.find("Map path: /tmp/test.pbstream"), std::string::npos);
-    EXPECT_NE(summary.find("Loop candidate pipeline: RHPD primary retrieval"), std::string::npos);
-    EXPECT_NE(summary.find("Loop graph trial gate: ON"), std::string::npos);
-    EXPECT_NE(summary.find("Loop spatial candidates: OFF"), std::string::npos);
+    EXPECT_NE(summary.find("Loop candidate pipeline: descriptor + spatial proposals"), std::string::npos);
+    EXPECT_NE(summary.find("Loop spatial candidates: ON"), std::string::npos);
     EXPECT_NE(summary.find("RHPD primary retrieval: weight="), std::string::npos);
     EXPECT_NE(summary.find("Reloc temporal: window="), std::string::npos);
 }
@@ -77,11 +74,6 @@ TEST(ConfigTest, RejectsZeroNoiseAndNegativeVoxelParameters) {
     config.loop_icp_max_points = -1;
     EXPECT_FALSE(config.validate(&error));
     EXPECT_NE(error.find("loop_icp_max_points"), std::string::npos);
-
-    config = Config{};
-    config.loop_graph_trial_max_residual_z = -0.1;
-    EXPECT_FALSE(config.validate(&error));
-    EXPECT_NE(error.find("loop_graph_trial_max_residual_z"), std::string::npos);
 
     config = Config{};
     config.loop_spatial_candidate_radius = 0.0;

@@ -2,8 +2,28 @@
 #include <gtest/gtest.h>
 
 #include "n3mapping/loop_closure_manager.h"
+#include "n3mapping/loop_referee.h"
 
 namespace n3mapping {
+
+TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
+{
+    LoopFeatures good;
+    good.descriptor_score = 0.8;
+    good.spatial_score = 0.5;
+    good.geometric_overlap = 0.7;
+    good.temporal_gap = 1.0;
+    good.local_map_consistency = 0.9;
+    EXPECT_EQ(LoopReferee::decide(good), LoopDecision::Accept);
+
+    LoopFeatures bad;
+    bad.descriptor_score = 0.1;
+    bad.spatial_score = 0.1;
+    bad.geometric_overlap = 0.0;
+    bad.temporal_gap = 0.1;
+    bad.local_map_consistency = 0.1;
+    EXPECT_EQ(LoopReferee::decide(bad), LoopDecision::Reject);
+}
 
 class MockLoopOptimizer : public LoopOptimizerInterface
 {
@@ -12,7 +32,7 @@ class MockLoopOptimizer : public LoopOptimizerInterface
     MOCK_METHOD(bool, incrementalOptimize, (), (override));
 };
 
-TEST(LoopClosureManagerTest, FilterValidLoopsAppliesThresholds)
+TEST(LoopClosureManagerTest, FilterValidLoopsOnlyChecksValidity)
 {
     Config config;
     config.loop_min_inlier_ratio = 0.3;
@@ -36,17 +56,16 @@ TEST(LoopClosureManagerTest, FilterValidLoopsAppliesThresholds)
     not_verified.verified = false;
 
     auto result = manager.filterValidLoops({ valid, low_inlier, not_verified });
-    ASSERT_EQ(result.size(), 1u);
+    ASSERT_EQ(result.size(), 2u);
     EXPECT_EQ(result.front().query_id, 1);
     EXPECT_EQ(result.front().match_id, 2);
 }
 
-TEST(LoopClosureManagerTest, FilterValidLoopsRejectsLargeCandidateResidualZ)
+TEST(LoopClosureManagerTest, FilterValidLoopsDoesNotRejectLargeCandidateResidualZ)
 {
     Config config;
     config.loop_min_inlier_ratio = 0.3;
     config.loop_fitness_threshold = 1.0;
-    config.loop_max_candidate_residual_z = 5.0;
 
     LoopClosureManager manager(config);
 
@@ -64,16 +83,15 @@ TEST(LoopClosureManagerTest, FilterValidLoopsRejectsLargeCandidateResidualZ)
     bad_z.candidate_residual.translation().z() = 5.1;
 
     auto result = manager.filterValidLoops({valid, bad_z});
-    ASSERT_EQ(result.size(), 1u);
-    EXPECT_EQ(result.front().query_id, 1);
+    ASSERT_EQ(result.size(), 2u);
+    EXPECT_EQ(result[1].query_id, 3);
 }
 
-TEST(LoopClosureManagerTest, FilterValidLoopsAllowsResidualZGateDisabled)
+TEST(LoopClosureManagerTest, FilterValidLoopsIgnoresCandidateResidualZ)
 {
     Config config;
     config.loop_min_inlier_ratio = 0.3;
     config.loop_fitness_threshold = 1.0;
-    config.loop_max_candidate_residual_z = 0.0;
 
     LoopClosureManager manager(config);
 
@@ -91,7 +109,7 @@ TEST(LoopClosureManagerTest, FilterValidLoopsAllowsResidualZGateDisabled)
     EXPECT_EQ(result.front().query_id, 1);
 }
 
-TEST(LoopClosureManagerTest, SelectBestPerQueryChoosesLowestFitness)
+TEST(LoopClosureManagerTest, SelectBestPerQueryChoosesHighestRefereeEnergy)
 {
     Config config;
     config.loop_min_inlier_ratio = 0.0;
@@ -105,15 +123,18 @@ TEST(LoopClosureManagerTest, SelectBestPerQueryChoosesLowestFitness)
     a.verified = true;
     a.inlier_ratio = 1.0;
     a.fitness_score = 0.8;
+    a.loop_referee_energy = 0.7;
 
     VerifiedLoop b = a;
     b.match_id = 11;
     b.fitness_score = 0.2;
+    b.loop_referee_energy = 0.9;
 
     VerifiedLoop c = a;
     c.query_id = 2;
     c.match_id = 20;
     c.fitness_score = 0.4;
+    c.loop_referee_energy = 0.1;
 
     auto best = manager.selectBestPerQuery({ a, b, c });
     ASSERT_EQ(best.size(), 2u);
@@ -124,12 +145,11 @@ TEST(LoopClosureManagerTest, SelectBestPerQueryChoosesLowestFitness)
     EXPECT_DOUBLE_EQ(it->fitness_score, 0.2);
 }
 
-TEST(LoopClosureManagerTest, SelectBestPerQueryBreaksFitnessTieWithVerticalResidual)
+TEST(LoopClosureManagerTest, SelectBestPerQueryFallsBackToFitnessWithoutEnergy)
 {
     Config config;
     config.loop_min_inlier_ratio = 0.0;
     config.loop_fitness_threshold = 10.0;
-    config.loop_max_candidate_residual_z = 5.0;
 
     LoopClosureManager manager(config);
 
@@ -149,7 +169,7 @@ TEST(LoopClosureManagerTest, SelectBestPerQueryBreaksFitnessTieWithVerticalResid
 
     auto best = manager.selectBestPerQuery({high_z, low_z});
     ASSERT_EQ(best.size(), 1u);
-    EXPECT_EQ(best.front().match_id, 11);
+    EXPECT_EQ(best.front().match_id, 10);
 }
 
 TEST(LoopClosureManagerTest, SelectBestPerQueryKeepsClearlyBetterFitness)
@@ -157,7 +177,6 @@ TEST(LoopClosureManagerTest, SelectBestPerQueryKeepsClearlyBetterFitness)
     Config config;
     config.loop_min_inlier_ratio = 0.0;
     config.loop_fitness_threshold = 10.0;
-    config.loop_max_candidate_residual_z = 5.0;
 
     LoopClosureManager manager(config);
 
@@ -229,12 +248,11 @@ TEST(LoopClosureManagerTest, ApplyEdgeModelKeepsFull6DofWhenVerticalResidualIsOb
     EXPECT_TRUE(modeled.information.isApprox(loop.information, 1e-12));
 }
 
-TEST(LoopClosureManagerTest, ApplyEdgeModelDownweightsVerticalAxesWhenResidualIsWeak)
+TEST(LoopClosureManagerTest, ApplyEdgeModelDoesNotDownweightVerticalAxes)
 {
     Config config;
     config.loop_noise_position = 0.5;
     config.loop_noise_rotation = 0.5;
-    config.loop_planar_vertical_weight = 0.25;
     LoopClosureManager manager(config);
 
     VerifiedLoop loop;
@@ -247,21 +265,14 @@ TEST(LoopClosureManagerTest, ApplyEdgeModelDownweightsVerticalAxesWhenResidualIs
 
     const auto modeled = manager.applyEdgeModel(loop);
     EXPECT_TRUE(modeled.verified);
-    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::PlanarXYYaw);
-    EXPECT_TRUE(modeled.vertical_downweighted);
-    EXPECT_DOUBLE_EQ(modeled.information(0, 0), 10.0);
-    EXPECT_DOUBLE_EQ(modeled.information(1, 1), 20.0);
-    EXPECT_DOUBLE_EQ(modeled.information(2, 2), 7.5);
-    EXPECT_DOUBLE_EQ(modeled.information(3, 3), 10.0);
-    EXPECT_DOUBLE_EQ(modeled.information(4, 4), 12.5);
-    EXPECT_DOUBLE_EQ(modeled.information(5, 5), 60.0);
-    EXPECT_NEAR(modeled.vertical_observability_score, 0.375, 1e-12);
+    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::Full6Dof);
+    EXPECT_FALSE(modeled.vertical_downweighted);
+    EXPECT_TRUE(modeled.information.isApprox(loop.information, 1e-12));
 }
 
-TEST(LoopClosureManagerTest, ApplyEdgeModelRejectsVerticalOutlier)
+TEST(LoopClosureManagerTest, ApplyEdgeModelDoesNotRejectVerticalOutlier)
 {
     Config config;
-    config.loop_max_candidate_residual_z = 5.0;
     LoopClosureManager manager(config);
 
     VerifiedLoop loop;
@@ -272,12 +283,12 @@ TEST(LoopClosureManagerTest, ApplyEdgeModelRejectsVerticalOutlier)
     loop.candidate_residual.translation().z() = 4.5;
 
     const auto modeled = manager.applyEdgeModel(loop);
-    EXPECT_FALSE(modeled.verified);
-    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::RejectedVerticalInconsistent);
-    EXPECT_TRUE(manager.buildLoopEdges({modeled}, LoopEdgeDirection::MatchToQuery).empty());
+    EXPECT_TRUE(modeled.verified);
+    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::Full6Dof);
+    EXPECT_EQ(manager.buildLoopEdges({modeled}, LoopEdgeDirection::MatchToQuery).size(), 1u);
 }
 
-TEST(LoopClosureManagerTest, ApplyEdgeModelRejectsYawInconsistentOutlier)
+TEST(LoopClosureManagerTest, ApplyEdgeModelDoesNotRejectYawInconsistentOutlier)
 {
     Config config;
     LoopClosureManager manager(config);
@@ -290,9 +301,9 @@ TEST(LoopClosureManagerTest, ApplyEdgeModelRejectsYawInconsistentOutlier)
     loop.candidate_residual = Eigen::Isometry3d::Identity();
 
     const auto modeled = manager.applyEdgeModel(loop);
-    EXPECT_FALSE(modeled.verified);
-    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::RejectedYawInconsistent);
-    EXPECT_TRUE(manager.buildLoopEdges({modeled}, LoopEdgeDirection::MatchToQuery).empty());
+    EXPECT_TRUE(modeled.verified);
+    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::Full6Dof);
+    EXPECT_EQ(manager.buildLoopEdges({modeled}, LoopEdgeDirection::MatchToQuery).size(), 1u);
 }
 
 TEST(LoopClosureManagerTest, ApplyEdgesCallsOptimizer)

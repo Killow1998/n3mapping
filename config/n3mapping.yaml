@@ -55,18 +55,13 @@ n3mapping_node:
     loop_fitness_threshold: 0.2
     loop_max_icp_translation: 2.0
     loop_max_icp_rotation: 0.5
-    loop_max_candidate_residual_z: 5.0
     loop_use_icp_information: false
-    loop_observability_edge_model_enable: true
-    loop_planar_vertical_weight: 0.25
     loop_icp_prefilter_voxel_size: 0.2
     loop_icp_max_points: 50000
     loop_debug_enable: false
     loop_debug_vertical_hypotheses_enable: false
     loop_debug_path: ""
-    loop_graph_trial_gate_enable: true
-    loop_graph_trial_max_residual_z: 1.0
-    loop_spatial_candidates_enable: false
+    loop_spatial_candidates_enable: true
     loop_spatial_candidate_radius: 15.0
     loop_spatial_candidate_min_id_gap: 50
     loop_spatial_candidate_max_candidates: 5

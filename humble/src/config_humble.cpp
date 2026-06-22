@@ -71,17 +71,12 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_fitness_threshold", config->loop_fitness_threshold);
     get("loop_max_icp_translation", config->loop_max_icp_translation);
     get("loop_max_icp_rotation", config->loop_max_icp_rotation);
-    get("loop_max_candidate_residual_z", config->loop_max_candidate_residual_z);
     get("loop_use_icp_information", config->loop_use_icp_information);
-    get("loop_observability_edge_model_enable", config->loop_observability_edge_model_enable);
-    get("loop_planar_vertical_weight", config->loop_planar_vertical_weight);
     get("loop_icp_prefilter_voxel_size", config->loop_icp_prefilter_voxel_size);
     get("loop_icp_max_points", config->loop_icp_max_points);
     get("loop_debug_enable", config->loop_debug_enable);
     get("loop_debug_vertical_hypotheses_enable", config->loop_debug_vertical_hypotheses_enable);
     gets("loop_debug_path", config->loop_debug_path);
-    get("loop_graph_trial_gate_enable", config->loop_graph_trial_gate_enable);
-    get("loop_graph_trial_max_residual_z", config->loop_graph_trial_max_residual_z);
     get("loop_spatial_candidates_enable", config->loop_spatial_candidates_enable);
     get("loop_spatial_candidate_radius", config->loop_spatial_candidate_radius);
     get("loop_spatial_candidate_min_id_gap", config->loop_spatial_candidate_min_id_gap);

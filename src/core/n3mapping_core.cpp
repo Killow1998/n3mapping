@@ -12,8 +12,9 @@
 #include <vector>
 
 #include "n3mapping/cloud_utils.h"
-#include "n3mapping/loop_graph_trial_diagnostics.h"
 #include "n3mapping/loop_heightmap_diagnostics.h"
+#include "n3mapping/loop_graph_trial_diagnostics.h"
+#include "n3mapping/loop_referee.h"
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
 
@@ -36,26 +37,11 @@ struct LoopResidualAxisStats {
     Eigen::Vector3d rpy = Eigen::Vector3d::Zero();
 };
 
-struct LoopRefereeShadowDecision {
+struct LoopRefereeDebugDecision {
     std::string recommendation = "not_available";
     std::string reason = "not_available";
     std::string risk_flags = "not_available";
 };
-
-std::string joinRiskFlags(const std::vector<std::string>& flags)
-{
-    if (flags.empty()) {
-        return "none";
-    }
-    std::string joined;
-    for (const auto& flag : flags) {
-        if (!joined.empty()) {
-            joined += ";";
-        }
-        joined += flag;
-    }
-    return joined;
-}
 
 std::pair<double, double> meanLoopResidual(
     const std::vector<EdgeInfo>& edges,
@@ -175,84 +161,6 @@ void assignGraphTrialDiagnostics(VerifiedLoop* loop, const LoopGraphTrialDiagnos
     loop->graph_trial_recommendation = diagnostics.recommendation;
 }
 
-void assignLoopRefereeRecommendation(VerifiedLoop* loop, const Config& config)
-{
-    if (!loop || !loop->verified) {
-        return;
-    }
-    const double residual_translation = loop->candidate_residual.translation().norm();
-    const Eigen::Vector3d residual_rpy = rollPitchYaw(loop->candidate_residual);
-    const double z_threshold =
-        config.loop_max_candidate_residual_z > 0.0
-        ? config.loop_max_candidate_residual_z * 0.36
-        : config.loop_noise_position * 5.0;
-
-    std::vector<std::string> flags;
-    int graph_flags = 0;
-    int vertical_flags = 0;
-    int local_geometry_flags = 0;
-
-    if (!loop->graph_trial_success) {
-        flags.push_back("graph_trial_failed");
-        ++graph_flags;
-    }
-    if (loop->graph_trial_success &&
-        std::isfinite(loop->graph_trial_residual_translation_norm_after) &&
-        loop->graph_trial_residual_translation_norm_after > config.loop_max_icp_translation) {
-        flags.push_back("graph_trial_residual_large");
-        ++graph_flags;
-    }
-    if (loop->graph_trial_success &&
-        std::isfinite(loop->graph_trial_max_pose_update_translation) &&
-        loop->graph_trial_max_pose_update_translation > config.keyframe_distance_threshold * 2.0) {
-        flags.push_back("graph_trial_update_large");
-        ++graph_flags;
-    }
-    if (loop->graph_trial_success &&
-        std::isfinite(loop->graph_trial_consistency_score) &&
-        loop->graph_trial_consistency_score < 0.25) {
-        flags.push_back("graph_trial_score_low");
-        ++graph_flags;
-    }
-    if (std::isfinite(residual_translation) &&
-        residual_translation > config.loop_max_icp_translation * 3.5) {
-        flags.push_back("candidate_prior_translation_conflict");
-        ++local_geometry_flags;
-    }
-    if (std::isfinite(residual_rpy.z()) &&
-        std::abs(residual_rpy.z()) > config.loop_max_icp_rotation * 3.0) {
-        flags.push_back("candidate_prior_yaw_conflict");
-        ++local_geometry_flags;
-    }
-    if (std::isfinite(loop->heightmap_ground_dz_p90) &&
-        loop->heightmap_ground_support_ratio > 0.1 &&
-        loop->heightmap_ground_dz_p90 > config.loop_noise_position) {
-        flags.push_back("heightmap_vertical_uncertain");
-        ++vertical_flags;
-    }
-    if (std::isfinite(loop->candidate_residual.translation().z()) &&
-        std::abs(loop->candidate_residual.translation().z()) > z_threshold) {
-        flags.push_back("candidate_prior_z_conflict");
-        ++vertical_flags;
-    }
-    if (loop->vertical_hypothesis_edge_recommendation == "planar_xy_yaw") {
-        flags.push_back("vertical_hypothesis_ambiguous");
-        ++vertical_flags;
-    }
-
-    loop->loop_referee_risk_flags = joinRiskFlags(flags);
-    if (graph_flags >= 2 || (graph_flags >= 1 && local_geometry_flags >= 1)) {
-        loop->loop_referee_recommendation = "reject_candidate";
-        loop->loop_referee_reason = "graph_and_prior_conflict";
-    } else if (graph_flags >= 1 || local_geometry_flags >= 1 || vertical_flags >= 1) {
-        loop->loop_referee_recommendation = "needs_more_evidence";
-        loop->loop_referee_reason = "ambiguous_evidence_bundle";
-    } else {
-        loop->loop_referee_recommendation = "commit_full6dof_candidate";
-        loop->loop_referee_reason = "evidence_consistent";
-    }
-}
-
 void assignGraphTrialDiagnostics(LoopDebugCandidateEvent* event, const LoopGraphTrialDiagnostics& diagnostics)
 {
     if (!event) {
@@ -295,8 +203,7 @@ double processingTimeSeconds()
 std::string loopRejectReason(bool icp_converged,
                              bool fitness_ok,
                              bool inlier_ok,
-                             bool geom_ok,
-                             bool residual_z_ok)
+                             bool geom_ok)
 {
     if (!icp_converged) {
         return "icp_not_converged";
@@ -310,10 +217,39 @@ std::string loopRejectReason(bool icp_converged,
     if (!geom_ok) {
         return "geometry_gate";
     }
-    if (!residual_z_ok) {
-        return "candidate_residual_z";
-    }
     return "";
+}
+
+double unitScoreBelow(double value, double limit)
+{
+    if (!std::isfinite(value) || limit <= 0.0) {
+        return 0.0;
+    }
+    return std::clamp(1.0 - value / limit, 0.0, 1.0);
+}
+
+LoopFeatures makeLoopFeatures(const LoopCandidate& candidate,
+                              const VerifiedLoop& loop,
+                              double fitness_limit,
+                              double inlier_limit,
+                              double icp_translation,
+                              double icp_translation_limit,
+                              int recent_gap)
+{
+    LoopFeatures features;
+    features.descriptor_score = candidate.descriptor_score;
+    features.spatial_score = candidate.spatial_score;
+    features.geometric_overlap = loop.heightmap_overlap_ratio;
+    features.temporal_gap = std::clamp(
+        static_cast<double>(candidate.query_id - candidate.match_id) /
+        std::max(1.0, static_cast<double>(recent_gap)), 0.0, 1.0);
+    const double fitness_score = unitScoreBelow(loop.fitness_score, fitness_limit);
+    const double inlier_score = inlier_limit > 0.0
+        ? std::clamp(loop.inlier_ratio / inlier_limit, 0.0, 1.0)
+        : std::clamp(loop.inlier_ratio, 0.0, 1.0);
+    const double motion_score = unitScoreBelow(icp_translation, icp_translation_limit);
+    features.local_map_consistency = (fitness_score + inlier_score + motion_score) / 3.0;
+    return features;
 }
 
 Eigen::Isometry3d candidateResidual(const Eigen::Isometry3d& expected_match_query,
@@ -893,13 +829,16 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             auto spatial_candidates =
                 session_->loopDetector().detectSpatialCandidates(query_id, keyframe_map);
             for (const auto& spatial : spatial_candidates) {
-                const bool duplicate = std::any_of(candidates.begin(), candidates.end(),
+                auto duplicate = std::find_if(candidates.begin(), candidates.end(),
                     [&](const LoopCandidate& existing) {
                         return existing.query_id == spatial.query_id &&
                                existing.match_id == spatial.match_id;
                     });
-                if (!duplicate) {
+                if (duplicate == candidates.end()) {
                     candidates.push_back(spatial);
+                } else {
+                    duplicate->source_flags |= spatial.source_flags;
+                    duplicate->spatial_score = std::max(duplicate->spatial_score, spatial.spatial_score);
                 }
             }
         }
@@ -912,7 +851,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         verified_loops.reserve(candidates.size());
         std::vector<LoopDebugCandidateEvent> debug_events;
         std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics> graph_trial_by_pair;
-        std::map<std::pair<int64_t, int64_t>, LoopRefereeShadowDecision> referee_by_pair;
+        std::map<std::pair<int64_t, int64_t>, LoopRefereeDebugDecision> referee_by_pair;
         const bool loop_debug_enabled = config_.loop_debug_enable;
         if (loop_debug_enabled) {
             debug_events.reserve(candidates.size());
@@ -1024,11 +963,6 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             const double icp_rotation = Eigen::AngleAxisd(match_result.T_target_source.rotation()).angle();
             const bool geom_ok =
                 icp_translation <= config_.loop_max_icp_translation && icp_rotation <= config_.loop_max_icp_rotation;
-            const double residual_z = T_candidate_residual.translation().z();
-            const bool residual_z_ok =
-                config_.loop_max_candidate_residual_z <= 0.0 ||
-                (std::isfinite(residual_z) && std::abs(residual_z) <= config_.loop_max_candidate_residual_z);
-
             if (loop_debug_enabled && config_.loop_debug_vertical_hypotheses_enable &&
                 match_result.converged && fitness_ok && inlier_ok && geom_ok) {
                 const auto diagnostics = computeVerticalHypothesisDiagnostics(
@@ -1042,9 +976,8 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 loop.vertical_ambiguity_score = diagnostics.vertical_ambiguity_score;
                 loop.vertical_hypothesis_edge_recommendation = diagnostics.edge_recommendation;
             }
-            if (loop_debug_enabled && match_result.converged) {
-                const auto heightmap =
-                    computeHeightmapConsistency(target, source, match_result.T_target_source);
+            if (match_result.converged) {
+                const auto heightmap = computeHeightmapConsistency(target, source, match_result.T_target_source);
                 loop.heightmap_overlap_cell_count = heightmap.overlap_cell_count;
                 loop.heightmap_overlap_ratio = heightmap.overlap_ratio;
                 loop.heightmap_ground_dz_median = heightmap.ground_dz_median;
@@ -1054,15 +987,28 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 loop.heightmap_vertical_consistency_score = heightmap.vertical_consistency_score;
             }
 
-            loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok && residual_z_ok;
-            std::string reject_reason =
-                loop.verified ? "" : loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok, residual_z_ok);
+            loop.verified = false;
+            std::string reject_reason = loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok);
+            if (match_result.converged) {
+                const LoopFeatures features = makeLoopFeatures(
+                    candidate, loop, config_.loop_fitness_threshold, config_.loop_min_inlier_ratio,
+                    icp_translation, config_.loop_max_icp_translation, config_.sc_num_exclude_recent);
+                loop.loop_referee_energy = LoopReferee::energy(features);
+                loop.loop_referee_recommendation =
+                    LoopReferee::decide(features) == LoopDecision::Accept ? "accept" : "reject";
+                loop.loop_referee_reason = "linear_energy";
+                loop.loop_referee_risk_flags = "none";
+                loop.verified = loop.loop_referee_recommendation == "accept";
+                if (!loop.verified) {
+                    reject_reason = "loop_referee";
+                }
+            }
             if (loop.verified) {
                 const Eigen::Isometry3d T_residual = match_result.T_target_source;
                 loop.T_match_query = T_residual * T_est_match_query;
                 loop = session_->loopClosureManager().applyEdgeModel(loop);
                 if (!loop.verified) {
-                    reject_reason = loopEdgeModeName(loop.edge_mode);
+                    reject_reason = "edge_model";
                 }
             }
             if (loop_debug_enabled) {
@@ -1079,16 +1025,9 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.has_loop_measurement = true;
                 event.loop_measurement_match_query = match_result.T_target_source * T_est_match_query;
                 event.loop_information = loop.information;
-                event.edge_mode =
-                    (loop.verified ||
-                     loop.edge_mode == LoopEdgeMode::RejectedVerticalInconsistent ||
-                     loop.edge_mode == LoopEdgeMode::RejectedYawInconsistent)
-                    ? loopEdgeModeName(loop.edge_mode) : "not_applicable";
+                event.edge_mode = loop.verified ? loopEdgeModeName(loop.edge_mode) : "not_applicable";
                 event.vertical_observability_score =
-                    (loop.verified ||
-                     loop.edge_mode == LoopEdgeMode::RejectedVerticalInconsistent ||
-                     loop.edge_mode == LoopEdgeMode::RejectedYawInconsistent)
-                    ? loop.vertical_observability_score : std::numeric_limits<double>::quiet_NaN();
+                    loop.verified ? loop.vertical_observability_score : std::numeric_limits<double>::quiet_NaN();
                 event.vertical_downweighted = loop.vertical_downweighted;
                 event.source_z_span = loop.source_z_span;
                 event.target_z_span = loop.target_z_span;
@@ -1116,6 +1055,9 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.heightmap_ground_dz_max = loop.heightmap_ground_dz_max;
                 event.heightmap_ground_support_ratio = loop.heightmap_ground_support_ratio;
                 event.heightmap_vertical_consistency_score = loop.heightmap_vertical_consistency_score;
+                event.loop_referee_recommendation = loop.loop_referee_recommendation;
+                event.loop_referee_reason = loop.loop_referee_reason;
+                event.loop_referee_risk_flags = loop.loop_referee_risk_flags;
                 event.gate_result = loop.verified ? "accepted" : "rejected";
                 event.reject_reason = reject_reason;
                 debug_events.push_back(event);
@@ -1142,13 +1084,12 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         }
 
         const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
-        if (loop_debug_enabled || config_.loop_graph_trial_gate_enable) {
+        if (loop_debug_enabled) {
             const auto committed_edges = session_->graphOptimizer().getEdges();
             std::vector<EdgeInfo> gated_edges;
             std::vector<VerifiedLoop> gated_best_loops;
             gated_edges.reserve(edges.size());
             gated_best_loops.reserve(best_loops.size());
-            std::string gate_reject_reason = "graph_trial_rejected";
 
             for (const auto& edge : edges) {
                 auto loop_it = std::find_if(
@@ -1165,7 +1106,6 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 const auto diagnostics = computeLoopGraphTrialDiagnostics(
                     config_, poses_before, committed_edges, candidate_edges);
                 assignGraphTrialDiagnostics(&loop, diagnostics);
-                assignLoopRefereeRecommendation(&loop, config_);
                 const auto key = std::make_pair(loop.query_id, loop.match_id);
                 graph_trial_by_pair[key] = diagnostics;
                 referee_by_pair[key] = {
@@ -1173,32 +1113,14 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                     loop.loop_referee_reason,
                     loop.loop_referee_risk_flags
                 };
-
-                bool rejected_by_trial = false;
-                if (config_.loop_graph_trial_gate_enable) {
-                    if (!diagnostics.success) {
-                        rejected_by_trial = true;
-                        gate_reject_reason = "graph_trial_failed";
-                    } else if (config_.loop_graph_trial_max_residual_z > 0.0) {
-                        const double residual_z = std::abs(diagnostics.residual_z_after);
-                        if (!std::isfinite(residual_z) ||
-                            residual_z > config_.loop_graph_trial_max_residual_z) {
-                            rejected_by_trial = true;
-                            gate_reject_reason = "graph_trial_residual_z";
-                        }
-                    }
-                }
-
-                if (!rejected_by_trial) {
-                    gated_edges.push_back(edge);
-                    gated_best_loops.push_back(loop);
-                }
+                gated_edges.push_back(edge);
+                gated_best_loops.push_back(loop);
             }
 
             edges.swap(gated_edges);
             best_loops.swap(gated_best_loops);
             if (edges.empty()) {
-                flush_debug_events({}, gate_reject_reason);
+                flush_debug_events({}, "graph_trial_debug_empty");
                 continue;
             }
         }

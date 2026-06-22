@@ -42,6 +42,8 @@ struct LoopCandidate {
     uint8_t source_flags = 0u;
     Source candidate_source = Source::Unknown;
     double fused_score = std::numeric_limits<double>::max();
+    double descriptor_score = 0.0;
+    double spatial_score = 0.0;
     int fused_rank = -1;
     int sc_rank = -1;
     int rhpd_rank = -1;
@@ -52,10 +54,7 @@ struct LoopCandidate {
 };
 
 enum class LoopEdgeMode {
-    Full6Dof,
-    PlanarXYYaw,
-    RejectedVerticalInconsistent,
-    RejectedYawInconsistent
+    Full6Dof
 };
 
 inline const char* loopEdgeModeName(LoopEdgeMode mode)
@@ -63,12 +62,6 @@ inline const char* loopEdgeModeName(LoopEdgeMode mode)
     switch (mode) {
         case LoopEdgeMode::Full6Dof:
             return "full6dof";
-        case LoopEdgeMode::PlanarXYYaw:
-            return "planar_xy_yaw";
-        case LoopEdgeMode::RejectedVerticalInconsistent:
-            return "rejected_vertical_inconsistent";
-        case LoopEdgeMode::RejectedYawInconsistent:
-            return "rejected_yaw_inconsistent";
         default:
             return "unknown";
     }
@@ -132,6 +125,7 @@ struct VerifiedLoop {
     std::string loop_referee_recommendation = "not_available";
     std::string loop_referee_reason = "not_available";
     std::string loop_referee_risk_flags = "not_available";
+    double loop_referee_energy = std::numeric_limits<double>::quiet_NaN();
     bool verified = false;
     bool isValid() const { return verified && query_id >= 0 && match_id >= 0; }
 };
