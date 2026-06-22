@@ -382,22 +382,31 @@ def build_query_summary(rows):
         query_rows = grouped[query_id]
         accepted_rows = [r for r in query_rows if r["candidate_accepted"]]
         true_rows = [r for r in query_rows if r["gt_is_loop"]]
+        position_rows = [r for r in query_rows if r.get("gt_position_loop")]
         selectable_true_rows = [r for r in true_rows if r["candidate_selectable"]]
+        selectable_position_rows = [r for r in position_rows if r["candidate_selectable"]]
         accepted = accepted_rows[0] if accepted_rows else None
         best_true = best_by_fitness(true_rows)
         best_selectable_true = best_by_fitness(selectable_true_rows)
         best_candidate = best_by_fitness(query_rows)
         selection_failure = bool(selectable_true_rows and accepted is not None and not accepted["gt_is_loop"])
         missed_true_candidate = bool(true_rows and not selectable_true_rows)
+        position_selection_failure = bool(
+            selectable_position_rows and accepted is not None and not accepted.get("gt_position_loop")
+        )
+        missed_position_candidate = bool(position_rows and not selectable_position_rows)
 
         summary_rows.append(
             {
                 "query_id": query_id,
                 "candidate_count": len(query_rows),
                 "true_candidate_count": len(true_rows),
+                "position_candidate_count": len(position_rows),
                 "true_selectable_candidate_count": len(selectable_true_rows),
+                "position_selectable_candidate_count": len(selectable_position_rows),
                 "accepted_match_id": accepted["match_id"] if accepted else -1,
                 "accepted_is_gt_loop": accepted["gt_is_loop"] if accepted else False,
+                "accepted_is_position_loop": accepted.get("gt_position_loop", False) if accepted else False,
                 "accepted_gt_translation_m": accepted["gt_query_match_translation_m"] if accepted else float("nan"),
                 "accepted_gt_yaw_deg": accepted["gt_query_match_yaw_deg"] if accepted else float("nan"),
                 "accepted_fitness_score": accepted["fitness_score"] if accepted else float("nan"),
@@ -417,6 +426,8 @@ def build_query_summary(rows):
                 "best_candidate_fitness_score": best_candidate["fitness_score"] if best_candidate else float("nan"),
                 "selection_failure": selection_failure,
                 "missed_true_candidate": missed_true_candidate,
+                "position_selection_failure": position_selection_failure,
+                "missed_position_candidate": missed_position_candidate,
             }
         )
     return summary_rows
@@ -889,14 +900,26 @@ def analyze(args):
     stats["query_with_true_candidate_count"] = sum(
         1 for row in query_summary_rows if row["true_candidate_count"] > 0
     )
+    stats["query_with_position_candidate_count"] = sum(
+        1 for row in query_summary_rows if row["position_candidate_count"] > 0
+    )
     stats["query_with_selectable_true_candidate_count"] = sum(
         1 for row in query_summary_rows if row["true_selectable_candidate_count"] > 0
+    )
+    stats["query_with_selectable_position_candidate_count"] = sum(
+        1 for row in query_summary_rows if row["position_selectable_candidate_count"] > 0
     )
     stats["query_selection_failure_count"] = sum(
         1 for row in query_summary_rows if row["selection_failure"]
     )
+    stats["query_position_selection_failure_count"] = sum(
+        1 for row in query_summary_rows if row["position_selection_failure"]
+    )
     stats["query_missed_true_candidate_count"] = sum(
         1 for row in query_summary_rows if row["missed_true_candidate"]
+    )
+    stats["query_missed_position_candidate_count"] = sum(
+        1 for row in query_summary_rows if row["missed_position_candidate"]
     )
     stats["thresholds"] = {
         "loop_translation_threshold_m": args.loop_translation_threshold,
@@ -1202,9 +1225,12 @@ def analyze(args):
             "query_id",
             "candidate_count",
             "true_candidate_count",
+            "position_candidate_count",
             "true_selectable_candidate_count",
+            "position_selectable_candidate_count",
             "accepted_match_id",
             "accepted_is_gt_loop",
+            "accepted_is_position_loop",
             "accepted_gt_translation_m",
             "accepted_gt_yaw_deg",
             "accepted_fitness_score",
@@ -1224,6 +1250,8 @@ def analyze(args):
             "best_candidate_fitness_score",
             "selection_failure",
             "missed_true_candidate",
+            "position_selection_failure",
+            "missed_position_candidate",
         ]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
