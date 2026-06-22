@@ -278,6 +278,18 @@ def is_gt_loop(translation, yaw_deg, translation_threshold, yaw_threshold_deg):
     )
 
 
+def gt_heading_class(translation, yaw_deg, translation_threshold, yaw_threshold_deg):
+    if not math.isfinite(translation) or not math.isfinite(yaw_deg):
+        return "unknown"
+    if translation > translation_threshold:
+        return "far"
+    if yaw_deg <= yaw_threshold_deg:
+        return "same_heading"
+    if yaw_deg >= 180.0 - yaw_threshold_deg:
+        return "opposite_heading"
+    return "cross_heading"
+
+
 def enumerate_gt_loop_pairs(poses, translation_threshold, yaw_threshold_deg, min_id_gap):
     ids = sorted(poses.keys())
     pairs = set()
@@ -335,6 +347,7 @@ def build_optimization_after_map(optimization_summaries):
 
 def classify_candidate(accepted,
                        gt_loop,
+                       heading_class,
                        candidate_selectable,
                        z_bad,
                        roll_pitch_bad):
@@ -344,6 +357,10 @@ def classify_candidate(accepted,
         if roll_pitch_bad:
             return "accepted_true_loop_bad_roll_pitch"
         return "accepted_true_loop_good"
+    if accepted and heading_class == "opposite_heading":
+        return "accepted_opposite_heading_loop"
+    if accepted and heading_class == "cross_heading":
+        return "accepted_cross_heading_loop"
     if accepted and not gt_loop:
         return "accepted_false_loop"
     if gt_loop and candidate_selectable:
@@ -428,6 +445,10 @@ def analyze(args):
         "icp_reject_true_loop": 0,
         "true_loop_not_selected": 0,
         "accepted_false_loop": 0,
+        "accepted_far_false_loop": 0,
+        "accepted_opposite_heading_loop": 0,
+        "accepted_cross_heading_loop": 0,
+        "accepted_position_loop": 0,
         "accepted_true_loop": 0,
         "accepted_true_loop_good": 0,
         "accepted_true_loop_bad_z": 0,
@@ -468,6 +489,13 @@ def analyze(args):
         query_id = int(event["query_id"])
         match_id = int(event["match_id"])
         translation, yaw_deg, has_gt = gt_pair_metrics(poses, query_id, match_id)
+        heading_class = gt_heading_class(
+            translation,
+            yaw_deg,
+            args.loop_translation_threshold,
+            args.loop_yaw_threshold_deg,
+        )
+        position_loop = heading_class in ("same_heading", "opposite_heading", "cross_heading")
         gt_loop = is_gt_loop(
             translation,
             yaw_deg,
@@ -629,6 +657,7 @@ def analyze(args):
         failure_class = classify_candidate(
             accepted,
             gt_loop,
+            heading_class,
             candidate_selectable,
             z_bad,
             roll_pitch_bad,
@@ -636,7 +665,11 @@ def analyze(args):
 
         if accepted and gt_loop:
             category = "accepted_true_loop"
-        elif accepted and not gt_loop:
+        elif accepted and heading_class == "opposite_heading":
+            category = "accepted_opposite_heading_loop"
+        elif accepted and heading_class == "cross_heading":
+            category = "accepted_cross_heading_loop"
+        elif accepted:
             category = "accepted_false_loop"
         elif gt_loop:
             category = "rejected_true_loop"
@@ -674,8 +707,15 @@ def analyze(args):
         if gt_loop and not accepted and not candidate_selectable:
             stats["icp_reject_true_loop"] += 1
             stats["verification_reject_true_loop"] += 1
-        if accepted and not gt_loop:
+        if accepted and not position_loop:
             stats["accepted_false_loop"] += 1
+            stats["accepted_far_false_loop"] += 1
+        if accepted and heading_class == "opposite_heading":
+            stats["accepted_opposite_heading_loop"] += 1
+        if accepted and heading_class == "cross_heading":
+            stats["accepted_cross_heading_loop"] += 1
+        if accepted and position_loop:
+            stats["accepted_position_loop"] += 1
         if accepted and gt_loop:
             stats["accepted_true_loop"] += 1
         if failure_class == "accepted_true_loop_good":
@@ -715,6 +755,8 @@ def analyze(args):
                 "gt_distance_m": translation,
                 "gt_yaw_diff_deg": yaw_deg,
                 "gt_is_loop": gt_loop,
+                "gt_position_loop": position_loop,
+                "gt_heading_class": heading_class,
                 "gt_relative_x": gt_axes["x"] if gt_axes is not None else float("nan"),
                 "gt_relative_y": gt_axes["y"] if gt_axes is not None else float("nan"),
                 "gt_relative_z": gt_axes["z"] if gt_axes is not None else float("nan"),
@@ -820,6 +862,12 @@ def analyze(args):
     stats["accepted_true_loop_corrected_z_graph_trial_score_min"] = min_finite(
         corrected_z_graph_trial_scores
     )
+    if stats["accepted_candidate_count"] > 0:
+        stats["position_loop_precision"] = (
+            stats["accepted_position_loop"] / stats["accepted_candidate_count"]
+        )
+    else:
+        stats["position_loop_precision"] = float("nan")
     stats["gt_loop_pair_count"] = len(gt_loop_pairs)
     stats["candidate_unique_pair_count"] = len(candidate_pairs)
     stats["accepted_pairs_source"] = "accepted_loops_csv" if accepted_pairs_available else "loop_debug_gate_result"
@@ -861,6 +909,12 @@ def analyze(args):
                 if isinstance(query_id, int) and isinstance(match_id, int)
                 else (float("nan"), float("nan"), False)
             )
+            heading_class = gt_heading_class(
+                translation,
+                yaw_deg,
+                args.loop_translation_threshold,
+                args.loop_yaw_threshold_deg,
+            )
             gt_loop = is_gt_loop(
                 translation,
                 yaw_deg,
@@ -878,6 +932,8 @@ def analyze(args):
                     "gt_query_match_translation_m": translation,
                     "gt_query_match_yaw_deg": yaw_deg,
                     "gt_is_loop": gt_loop if has_gt else "",
+                    "gt_position_loop": heading_class in ("same_heading", "opposite_heading", "cross_heading") if has_gt else "",
+                    "gt_heading_class": heading_class if has_gt else "",
                     "accepted_edge_count": event.get("accepted_edge_count", 0),
                     "loop_residual_x_before": event_float(event, "loop_residual_x_before"),
                     "loop_residual_y_before": event_float(event, "loop_residual_y_before"),
@@ -918,6 +974,8 @@ def analyze(args):
             "gt_distance_m",
             "gt_yaw_diff_deg",
             "gt_is_loop",
+            "gt_position_loop",
+            "gt_heading_class",
             "gt_relative_x",
             "gt_relative_y",
             "gt_relative_z",
@@ -1078,6 +1136,8 @@ def analyze(args):
             "gt_query_match_translation_m",
             "gt_query_match_yaw_deg",
             "gt_is_loop",
+            "gt_position_loop",
+            "gt_heading_class",
             "accepted_edge_count",
             "loop_residual_x_before",
             "loop_residual_y_before",

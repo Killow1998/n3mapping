@@ -63,6 +63,10 @@ SUMMARY_FIELDS = [
     "loop_accepted_true_loop_corrected_z",
     "loop_accepted_true_loop_bad_roll_pitch",
     "loop_accepted_false_loop",
+    "loop_accepted_far_false_loop",
+    "loop_accepted_opposite_heading_loop",
+    "loop_accepted_cross_heading_loop",
+    "loop_accepted_position_loop",
     "loop_accepted_full6dof",
     "loop_accepted_planar_xy_yaw",
     "loop_vertical_hypothesis_candidate_count",
@@ -80,6 +84,7 @@ SUMMARY_FIELDS = [
     "loop_corrected_z_graph_trial_score_mean",
     "loop_corrected_z_graph_trial_score_min",
     "loop_precision",
+    "loop_position_precision",
     "loop_gt_pair_coverage",
     "loop_icp_reject_true_loop",
     "loop_verification_reject_true_loop",
@@ -408,6 +413,11 @@ def summarize_run(args, run_name, run_dir, matrix_output):
             "accepted_true_loop_corrected_z": "loop_accepted_true_loop_corrected_z",
             "accepted_true_loop_bad_roll_pitch": "loop_accepted_true_loop_bad_roll_pitch",
             "accepted_false_loop": "loop_accepted_false_loop",
+            "accepted_far_false_loop": "loop_accepted_far_false_loop",
+            "accepted_opposite_heading_loop": "loop_accepted_opposite_heading_loop",
+            "accepted_cross_heading_loop": "loop_accepted_cross_heading_loop",
+            "accepted_position_loop": "loop_accepted_position_loop",
+            "position_loop_precision": "loop_position_precision",
             "accepted_full6dof": "loop_accepted_full6dof",
             "accepted_planar_xy_yaw": "loop_accepted_planar_xy_yaw",
             "vertical_hypothesis_candidate_count": "loop_vertical_hypothesis_candidate_count",
@@ -444,6 +454,9 @@ def summarize_run(args, run_name, run_dir, matrix_output):
     loop_precision = accepted_true / accepted if accepted > 0 else float("nan")
     loop_coverage = accepted_true / gt_pairs if gt_pairs > 0 else float("nan")
     row["loop_precision"] = loop_precision
+    if "loop_position_precision" not in row:
+        accepted_position = finite_float(row.get("loop_accepted_position_loop"))
+        row["loop_position_precision"] = accepted_position / accepted if accepted > 0 else float("nan")
     row["loop_gt_pair_coverage"] = loop_coverage
     row["meets_loop_precision_80"] = bool(math.isfinite(loop_precision) and loop_precision >= 0.8)
     pose_success = finite_float(row.get("pose_success_rate"))
