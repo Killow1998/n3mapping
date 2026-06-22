@@ -32,6 +32,24 @@ Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
     return transform.rotation().eulerAngles(0, 1, 2);
 }
 
+Eigen::Matrix3d rotationFromRollPitchYaw(double roll, double pitch, double yaw)
+{
+    return (Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
+            Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ())).toRotationMatrix();
+}
+
+Eigen::Isometry3d neutralizeVerticalLoopMeasurement(const Eigen::Isometry3d& measured_match_query,
+                                                    const Eigen::Isometry3d& predicted_match_query)
+{
+    Eigen::Isometry3d neutral = measured_match_query;
+    neutral.translation().z() = predicted_match_query.translation().z();
+    const Eigen::Vector3d measured_rpy = rollPitchYaw(measured_match_query);
+    const Eigen::Vector3d predicted_rpy = rollPitchYaw(predicted_match_query);
+    neutral.linear() = rotationFromRollPitchYaw(predicted_rpy.x(), predicted_rpy.y(), measured_rpy.z());
+    return neutral;
+}
+
 struct LoopResidualAxisStats {
     Eigen::Vector3d translation = Eigen::Vector3d::Zero();
     Eigen::Vector3d rpy = Eigen::Vector3d::Zero();
@@ -239,7 +257,7 @@ LoopFeatures makeLoopFeatures(const LoopCandidate& candidate,
     LoopFeatures features;
     features.descriptor_score = candidate.descriptor_score;
     features.spatial_score = candidate.spatial_score;
-    features.geometric_overlap = loop.heightmap_overlap_ratio;
+    features.geometric_overlap = loop.heightmap_vertical_consistency_score;
     features.temporal_gap = std::clamp(
         static_cast<double>(candidate.query_id - candidate.match_id) /
         std::max(1.0, static_cast<double>(recent_gap)), 0.0, 1.0);
@@ -989,7 +1007,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
 
             loop.verified = false;
             std::string reject_reason = loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok);
-            if (match_result.converged) {
+            if (match_result.converged && fitness_ok && inlier_ok && geom_ok) {
                 const LoopFeatures features = makeLoopFeatures(
                     candidate, loop, config_.loop_fitness_threshold, config_.loop_min_inlier_ratio,
                     icp_translation, config_.loop_max_icp_translation, config_.sc_num_exclude_recent);
@@ -1006,6 +1024,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             if (loop.verified) {
                 const Eigen::Isometry3d T_residual = match_result.T_target_source;
                 loop.T_match_query = T_residual * T_est_match_query;
+                loop.T_match_query = neutralizeVerticalLoopMeasurement(loop.T_match_query, T_est_match_query);
                 loop = session_->loopClosureManager().applyEdgeModel(loop);
                 if (!loop.verified) {
                     reject_reason = "edge_model";
