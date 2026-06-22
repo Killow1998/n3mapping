@@ -367,6 +367,8 @@ def classify_candidate(accepted,
         return "true_loop_not_selected"
     if gt_loop:
         return "verification_reject_true_loop"
+    if heading_class in ("opposite_heading", "cross_heading"):
+        return "position_loop_not_selected" if candidate_selectable else "verification_reject_position_loop"
     return "retrieval_false_positive"
 
 
@@ -440,10 +442,12 @@ def analyze(args):
         "candidate_with_gt_count": 0,
         "accepted_candidate_count": 0,
         "retrieval_true_positive": 0,
+        "retrieval_position_positive": 0,
         "retrieval_false_positive": 0,
         "retrieval_miss_estimate": 0,
         "icp_reject_true_loop": 0,
         "true_loop_not_selected": 0,
+        "position_loop_not_selected": 0,
         "accepted_false_loop": 0,
         "accepted_far_false_loop": 0,
         "accepted_opposite_heading_loop": 0,
@@ -457,6 +461,7 @@ def analyze(args):
         "accepted_true_loop_corrected_z": 0,
         "accepted_true_loop_bad_roll_pitch": 0,
         "verification_reject_true_loop": 0,
+        "verification_reject_position_loop": 0,
         "z_drift_suspect_count": 0,
         "optimization_summary_count": 0,
         "optimization_high_residual_z_after_count": 0,
@@ -673,6 +678,8 @@ def analyze(args):
             category = "accepted_false_loop"
         elif gt_loop:
             category = "rejected_true_loop"
+        elif position_loop:
+            category = "rejected_position_loop"
         else:
             category = "rejected_false_candidate"
 
@@ -698,15 +705,21 @@ def analyze(args):
             stats["graph_trial_candidate_count"] += 1
             if graph_trial_success:
                 stats["graph_trial_success_count"] += 1
+        if position_loop:
+            stats["retrieval_position_positive"] += 1
         if gt_loop:
             stats["retrieval_true_positive"] += 1
-        elif has_gt:
+        elif has_gt and not position_loop:
             stats["retrieval_false_positive"] += 1
         if gt_loop and not accepted and candidate_selectable:
             stats["true_loop_not_selected"] += 1
         if gt_loop and not accepted and not candidate_selectable:
             stats["icp_reject_true_loop"] += 1
             stats["verification_reject_true_loop"] += 1
+        if position_loop and not gt_loop and not accepted and candidate_selectable:
+            stats["position_loop_not_selected"] += 1
+        if position_loop and not gt_loop and not accepted and not candidate_selectable:
+            stats["verification_reject_position_loop"] += 1
         if accepted and not position_loop:
             stats["accepted_false_loop"] += 1
             stats["accepted_far_false_loop"] += 1
