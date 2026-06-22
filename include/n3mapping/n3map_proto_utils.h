@@ -26,16 +26,6 @@ struct PbstreamLoadOptions {
     bool allow_keyframe_fallback_dense = false;
 };
 
-struct PbstreamResourceLimits {
-    uint64_t max_file_bytes = 1024ull * 1024ull * 1024ull;
-    uint32_t max_keyframes = 200000u;
-    uint32_t max_edges = 1000000u;
-    uint32_t max_dense_trajectory_poses = 5000000u;
-    uint64_t max_total_points = 50000000ull;
-    uint64_t max_total_descriptor_values = 50000000ull;
-    int protobuf_recursion_limit = 100;
-};
-
 struct PbstreamKeyframeParseOptions {
     PbstreamLoadPolicy policy = PbstreamLoadPolicy::STRICT;
     int expected_rhpd_dim = 0;
@@ -81,9 +71,6 @@ struct ParsedEdgeProto {
 
 constexpr uint32_t kMaxPbstreamPointsPerKeyframe = 5000000u;
 constexpr uint64_t kMaxPbstreamDescriptorValues = 1000000u;
-constexpr double kMinInformationEigenvalue = 1e-12;
-constexpr double kMaxInformationEigenvalue = 1e12;
-constexpr double kMaxInformationConditionNumber = 1e12;
 
 bool isFinitePoseProto(const Pose3D& proto);
 bool isFinitePose(const Eigen::Isometry3d& pose);
@@ -92,15 +79,6 @@ uint64_t countFinitePoints(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
 Eigen::Isometry3d poseFromProto(const Pose3D& proto);
 
 PbstreamMetadata extractPbstreamMetadata(const MapMetadata& proto);
-PbstreamResourceLimits defaultPbstreamResourceLimits();
-
-bool readN3MapProtoFromFile(const std::string& filepath,
-                            N3Map* map_proto,
-                            std::string* error);
-bool readN3MapProtoFromFile(const std::string& filepath,
-                            const PbstreamResourceLimits& limits,
-                            N3Map* map_proto,
-                            std::string* error);
 
 bool pointCloudFromProto(const PointCloudData& proto,
                          pcl::PointCloud<pcl::PointXYZI>::Ptr* cloud,
@@ -115,8 +93,6 @@ bool rhpdFromProto(const RHPDDescriptor& proto,
 bool informationFromProto(const InformationMatrix& proto,
                           Eigen::Matrix<double, 6, 6>* information,
                           std::string* error);
-bool isValidInformationMatrix(const Eigen::Matrix<double, 6, 6>& information,
-                              std::string* error = nullptr);
 
 bool parseKeyframesFromProto(const N3Map& map_proto,
                              const PbstreamKeyframeParseOptions& options,

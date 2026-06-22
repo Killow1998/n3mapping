@@ -11,7 +11,6 @@
 #include "n3mapping/core/n3mapping_session.h"
 #include "n3mapping/core/types.h"
 #include "n3mapping/keyframe.h"
-#include "n3mapping/loop_debug_logger.h"
 #include "n3mapping/loop_detector.h"
 
 namespace n3mapping {
@@ -92,13 +91,10 @@ class N3MappingCore {
     void addRhpdDescriptorForKeyframe(int64_t keyframe_id, const PointCloud::Ptr& fallback_cloud);
     bool addOdometryConstraint(int64_t keyframe_id, const Eigen::Isometry3d& pose);
     void refreshOptimizedPoses();
-    void appendLoopDebugCandidate(const LoopDebugCandidateEvent& event) const;
-    void appendLoopDebugOptimization(const LoopDebugOptimizationEvent& event) const;
 
     Config config_;
     std::unique_ptr<core::N3MappingSession> session_;
     mutable std::mutex loop_queue_mutex_;
-    mutable std::mutex loop_debug_mutex_;
     std::vector<int64_t> loop_detection_queue_;
     std::vector<core::AnchoredDenseTrajectorySample> dense_trajectory_samples_;
     core::DenseTrajectoryMetadata dense_trajectory_metadata_;

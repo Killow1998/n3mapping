@@ -1,19 +1,11 @@
 #include "n3mapping/core/n3mapping_core.h"
 
 #include <algorithm>
-#include <array>
-#include <chrono>
 #include <cmath>
-#include <cstdint>
 #include <limits>
-#include <map>
-#include <set>
 #include <stdexcept>
-#include <vector>
 
 #include "n3mapping/cloud_utils.h"
-#include "n3mapping/loop_graph_trial_diagnostics.h"
-#include "n3mapping/loop_heightmap_diagnostics.h"
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
 
@@ -24,37 +16,6 @@ namespace {
 double rotationAngle(const Eigen::Isometry3d& transform)
 {
     return std::abs(Eigen::AngleAxisd(transform.rotation()).angle());
-}
-
-Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
-{
-    return transform.rotation().eulerAngles(0, 1, 2);
-}
-
-struct LoopResidualAxisStats {
-    Eigen::Vector3d translation = Eigen::Vector3d::Zero();
-    Eigen::Vector3d rpy = Eigen::Vector3d::Zero();
-};
-
-struct LoopRefereeShadowDecision {
-    std::string recommendation = "not_available";
-    std::string reason = "not_available";
-    std::string risk_flags = "not_available";
-};
-
-std::string joinRiskFlags(const std::vector<std::string>& flags)
-{
-    if (flags.empty()) {
-        return "none";
-    }
-    std::string joined;
-    for (const auto& flag : flags) {
-        if (!joined.empty()) {
-            joined += ";";
-        }
-        joined += flag;
-    }
-    return joined;
 }
 
 std::pair<double, double> meanLoopResidual(
@@ -85,33 +46,6 @@ std::pair<double, double> meanLoopResidual(
         return {0.0, 0.0};
     }
     return {translation_sum / static_cast<double>(count), rotation_sum / static_cast<double>(count)};
-}
-
-LoopResidualAxisStats meanLoopResidualAxes(
-    const std::vector<EdgeInfo>& edges,
-    const std::map<int64_t, Eigen::Isometry3d>& poses)
-{
-    LoopResidualAxisStats stats;
-    std::size_t count = 0;
-    for (const auto& edge : edges) {
-        auto from_it = poses.find(edge.from_id);
-        auto to_it = poses.find(edge.to_id);
-        if (from_it == poses.end() || to_it == poses.end()) {
-            continue;
-        }
-        const Eigen::Isometry3d predicted = from_it->second.inverse() * to_it->second;
-        const Eigen::Isometry3d residual = edge.measurement.inverse() * predicted;
-        stats.translation += residual.translation().cwiseAbs();
-        stats.rpy += rollPitchYaw(residual).cwiseAbs();
-        ++count;
-    }
-    if (count == 0) {
-        return stats;
-    }
-    const double inv_count = 1.0 / static_cast<double>(count);
-    stats.translation *= inv_count;
-    stats.rpy *= inv_count;
-    return stats;
 }
 
 void accumulatePoseUpdateStats(const std::map<int64_t, Eigen::Isometry3d>& before,
@@ -151,132 +85,6 @@ void accumulatePoseUpdateStats(const std::map<int64_t, Eigen::Isometry3d>& befor
     result->pose_update_count = total_count;
 }
 
-void assignGraphTrialDiagnostics(VerifiedLoop* loop, const LoopGraphTrialDiagnostics& diagnostics)
-{
-    if (!loop) {
-        return;
-    }
-    loop->graph_trial_success = diagnostics.success;
-    loop->graph_trial_residual_x_after = diagnostics.residual_x_after;
-    loop->graph_trial_residual_y_after = diagnostics.residual_y_after;
-    loop->graph_trial_residual_z_after = diagnostics.residual_z_after;
-    loop->graph_trial_residual_roll_after = diagnostics.residual_roll_after;
-    loop->graph_trial_residual_pitch_after = diagnostics.residual_pitch_after;
-    loop->graph_trial_residual_yaw_after = diagnostics.residual_yaw_after;
-    loop->graph_trial_residual_translation_norm_after = diagnostics.residual_translation_norm_after;
-    loop->graph_trial_residual_rotation_norm_after = diagnostics.residual_rotation_norm_after;
-    loop->graph_trial_mean_pose_update_translation = diagnostics.mean_pose_update_translation;
-    loop->graph_trial_max_pose_update_translation = diagnostics.max_pose_update_translation;
-    loop->graph_trial_mean_pose_update_rotation = diagnostics.mean_pose_update_rotation;
-    loop->graph_trial_max_pose_update_rotation = diagnostics.max_pose_update_rotation;
-    loop->graph_trial_existing_loop_residual_delta = diagnostics.existing_loop_residual_delta;
-    loop->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
-    loop->graph_trial_consistency_score = diagnostics.consistency_score;
-    loop->graph_trial_recommendation = diagnostics.recommendation;
-}
-
-void assignLoopRefereeRecommendation(VerifiedLoop* loop, const Config& config)
-{
-    if (!loop || !loop->verified) {
-        return;
-    }
-    const double residual_translation = loop->candidate_residual.translation().norm();
-    const Eigen::Vector3d residual_rpy = rollPitchYaw(loop->candidate_residual);
-    const double z_threshold =
-        config.loop_max_candidate_residual_z > 0.0
-        ? config.loop_max_candidate_residual_z * 0.36
-        : config.loop_noise_position * 5.0;
-
-    std::vector<std::string> flags;
-    int graph_flags = 0;
-    int vertical_flags = 0;
-    int local_geometry_flags = 0;
-
-    if (!loop->graph_trial_success) {
-        flags.push_back("graph_trial_failed");
-        ++graph_flags;
-    }
-    if (loop->graph_trial_success &&
-        std::isfinite(loop->graph_trial_residual_translation_norm_after) &&
-        loop->graph_trial_residual_translation_norm_after > config.loop_max_icp_translation) {
-        flags.push_back("graph_trial_residual_large");
-        ++graph_flags;
-    }
-    if (loop->graph_trial_success &&
-        std::isfinite(loop->graph_trial_max_pose_update_translation) &&
-        loop->graph_trial_max_pose_update_translation > config.keyframe_distance_threshold * 2.0) {
-        flags.push_back("graph_trial_update_large");
-        ++graph_flags;
-    }
-    if (loop->graph_trial_success &&
-        std::isfinite(loop->graph_trial_consistency_score) &&
-        loop->graph_trial_consistency_score < 0.25) {
-        flags.push_back("graph_trial_score_low");
-        ++graph_flags;
-    }
-    if (std::isfinite(residual_translation) &&
-        residual_translation > config.loop_max_icp_translation * 3.5) {
-        flags.push_back("candidate_prior_translation_conflict");
-        ++local_geometry_flags;
-    }
-    if (std::isfinite(residual_rpy.z()) &&
-        std::abs(residual_rpy.z()) > config.loop_max_icp_rotation * 3.0) {
-        flags.push_back("candidate_prior_yaw_conflict");
-        ++local_geometry_flags;
-    }
-    if (std::isfinite(loop->heightmap_ground_dz_p90) &&
-        loop->heightmap_ground_support_ratio > 0.1 &&
-        loop->heightmap_ground_dz_p90 > config.loop_noise_position) {
-        flags.push_back("heightmap_vertical_uncertain");
-        ++vertical_flags;
-    }
-    if (std::isfinite(loop->candidate_residual.translation().z()) &&
-        std::abs(loop->candidate_residual.translation().z()) > z_threshold) {
-        flags.push_back("candidate_prior_z_conflict");
-        ++vertical_flags;
-    }
-    if (loop->vertical_hypothesis_edge_recommendation == "planar_xy_yaw") {
-        flags.push_back("vertical_hypothesis_ambiguous");
-        ++vertical_flags;
-    }
-
-    loop->loop_referee_risk_flags = joinRiskFlags(flags);
-    if (graph_flags >= 2 || (graph_flags >= 1 && local_geometry_flags >= 1)) {
-        loop->loop_referee_recommendation = "reject_candidate";
-        loop->loop_referee_reason = "graph_and_prior_conflict";
-    } else if (graph_flags >= 1 || local_geometry_flags >= 1 || vertical_flags >= 1) {
-        loop->loop_referee_recommendation = "needs_more_evidence";
-        loop->loop_referee_reason = "ambiguous_evidence_bundle";
-    } else {
-        loop->loop_referee_recommendation = "commit_full6dof_candidate";
-        loop->loop_referee_reason = "evidence_consistent";
-    }
-}
-
-void assignGraphTrialDiagnostics(LoopDebugCandidateEvent* event, const LoopGraphTrialDiagnostics& diagnostics)
-{
-    if (!event) {
-        return;
-    }
-    event->graph_trial_success = diagnostics.success;
-    event->graph_trial_residual_x_after = diagnostics.residual_x_after;
-    event->graph_trial_residual_y_after = diagnostics.residual_y_after;
-    event->graph_trial_residual_z_after = diagnostics.residual_z_after;
-    event->graph_trial_residual_roll_after = diagnostics.residual_roll_after;
-    event->graph_trial_residual_pitch_after = diagnostics.residual_pitch_after;
-    event->graph_trial_residual_yaw_after = diagnostics.residual_yaw_after;
-    event->graph_trial_residual_translation_norm_after = diagnostics.residual_translation_norm_after;
-    event->graph_trial_residual_rotation_norm_after = diagnostics.residual_rotation_norm_after;
-    event->graph_trial_mean_pose_update_translation = diagnostics.mean_pose_update_translation;
-    event->graph_trial_max_pose_update_translation = diagnostics.max_pose_update_translation;
-    event->graph_trial_mean_pose_update_rotation = diagnostics.mean_pose_update_rotation;
-    event->graph_trial_max_pose_update_rotation = diagnostics.max_pose_update_rotation;
-    event->graph_trial_existing_loop_residual_delta = diagnostics.existing_loop_residual_delta;
-    event->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
-    event->graph_trial_consistency_score = diagnostics.consistency_score;
-    event->graph_trial_recommendation = diagnostics.recommendation;
-}
-
 Config validateOrThrow(const Config& config)
 {
     std::string error;
@@ -284,334 +92,6 @@ Config validateOrThrow(const Config& config)
         throw std::invalid_argument("Invalid N3MappingCore config: " + error);
     }
     return config;
-}
-
-double processingTimeSeconds()
-{
-    using Clock = std::chrono::system_clock;
-    return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
-}
-
-std::string loopRejectReason(bool icp_converged,
-                             bool fitness_ok,
-                             bool inlier_ok,
-                             bool geom_ok,
-                             bool residual_z_ok)
-{
-    if (!icp_converged) {
-        return "icp_not_converged";
-    }
-    if (!fitness_ok) {
-        return "fitness_threshold";
-    }
-    if (!inlier_ok) {
-        return "inlier_threshold";
-    }
-    if (!geom_ok) {
-        return "geometry_gate";
-    }
-    if (!residual_z_ok) {
-        return "candidate_residual_z";
-    }
-    return "";
-}
-
-Eigen::Isometry3d candidateResidual(const Eigen::Isometry3d& expected_match_query,
-                                    const Eigen::Isometry3d& measured_match_query)
-{
-    return expected_match_query.inverse() * measured_match_query;
-}
-
-struct ZDistributionStats {
-    std::size_t count = 0;
-    double min_z = std::numeric_limits<double>::infinity();
-    double max_z = -std::numeric_limits<double>::infinity();
-    double sum_z = 0.0;
-    std::vector<double> samples;
-
-    double span() const
-    {
-        return count > 0 ? max_z - min_z : std::numeric_limits<double>::quiet_NaN();
-    }
-
-    double mean() const
-    {
-        return count > 0 ? sum_z / static_cast<double>(count) : std::numeric_limits<double>::quiet_NaN();
-    }
-
-    double quantile(double q) const
-    {
-        if (samples.empty()) {
-            return std::numeric_limits<double>::quiet_NaN();
-        }
-        std::vector<double> values = samples;
-        std::sort(values.begin(), values.end());
-        const double index = std::clamp(q, 0.0, 1.0) * static_cast<double>(values.size() - 1);
-        const std::size_t lo = static_cast<std::size_t>(std::floor(index));
-        const std::size_t hi = static_cast<std::size_t>(std::ceil(index));
-        if (lo == hi) {
-            return values[lo];
-        }
-        const double t = index - static_cast<double>(lo);
-        return values[lo] * (1.0 - t) + values[hi] * t;
-    }
-
-    double robustMin() const { return quantile(0.05); }
-    double robustMax() const { return quantile(0.95); }
-
-    double robustSpan() const
-    {
-        const double lo = robustMin();
-        const double hi = robustMax();
-        return std::isfinite(lo) && std::isfinite(hi) ? hi - lo : std::numeric_limits<double>::quiet_NaN();
-    }
-};
-
-ZDistributionStats computeZStats(const core::LioFrame::PointCloud::Ptr& cloud)
-{
-    ZDistributionStats stats;
-    if (!cloud) {
-        return stats;
-    }
-    for (const auto& point : cloud->points) {
-        if (!isFinitePoint(point)) {
-            continue;
-        }
-        const double z = static_cast<double>(point.z);
-        stats.min_z = std::min(stats.min_z, z);
-        stats.max_z = std::max(stats.max_z, z);
-        stats.sum_z += z;
-        stats.samples.push_back(z);
-        ++stats.count;
-    }
-    return stats;
-}
-
-ZDistributionStats computeTransformedZStats(const core::LioFrame::PointCloud::Ptr& cloud,
-                                            const Eigen::Isometry3d& transform)
-{
-    ZDistributionStats stats;
-    if (!cloud) {
-        return stats;
-    }
-    for (const auto& point : cloud->points) {
-        if (!isFinitePoint(point)) {
-            continue;
-        }
-        const Eigen::Vector3d transformed =
-            transform * Eigen::Vector3d(point.x, point.y, point.z);
-        if (!std::isfinite(transformed.z())) {
-            continue;
-        }
-        stats.min_z = std::min(stats.min_z, transformed.z());
-        stats.max_z = std::max(stats.max_z, transformed.z());
-        stats.sum_z += transformed.z();
-        stats.samples.push_back(transformed.z());
-        ++stats.count;
-    }
-    return stats;
-}
-
-double zOverlapRatio(const ZDistributionStats& a, const ZDistributionStats& b)
-{
-    if (a.count == 0 || b.count == 0) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    const double denominator = std::min(a.span(), b.span());
-    if (!std::isfinite(denominator) || denominator <= 1e-9) {
-        return 0.0;
-    }
-    const double overlap = std::min(a.max_z, b.max_z) - std::max(a.min_z, b.min_z);
-    return std::max(0.0, std::min(1.0, overlap / denominator));
-}
-
-double robustZOverlapRatio(const ZDistributionStats& a, const ZDistributionStats& b)
-{
-    if (a.count == 0 || b.count == 0) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    const double a_min = a.robustMin();
-    const double a_max = a.robustMax();
-    const double b_min = b.robustMin();
-    const double b_max = b.robustMax();
-    if (!std::isfinite(a_min) || !std::isfinite(a_max) ||
-        !std::isfinite(b_min) || !std::isfinite(b_max)) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    const double denominator = std::min(a_max - a_min, b_max - b_min);
-    if (denominator <= 1e-9) {
-        return 0.0;
-    }
-    const double overlap = std::min(a_max, b_max) - std::max(a_min, b_min);
-    return std::max(0.0, std::min(1.0, overlap / denominator));
-}
-
-double zCentroidDelta(const ZDistributionStats& source, const ZDistributionStats& target)
-{
-    const double source_mean = source.mean();
-    const double target_mean = target.mean();
-    if (!std::isfinite(source_mean) || !std::isfinite(target_mean)) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    return source_mean - target_mean;
-}
-
-double verticalInformationRatio(const Eigen::Matrix<double, 6, 6>& information)
-{
-    const double x = information(0, 0);
-    const double y = information(1, 1);
-    const double z = information(2, 2);
-    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) ||
-        x <= 0.0 || y <= 0.0 || z <= 0.0) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    const double xy_reference = std::sqrt(x * y);
-    return xy_reference > 0.0 ? z / xy_reference : std::numeric_limits<double>::quiet_NaN();
-}
-
-struct VerticalHypothesisDiagnostics {
-    int count = 0;
-    double best_z_offset_m = std::numeric_limits<double>::quiet_NaN();
-    double best_z_offset_fitness = std::numeric_limits<double>::quiet_NaN();
-    double zero_z_fitness = std::numeric_limits<double>::quiet_NaN();
-    double fitness_gap_zero_vs_best = std::numeric_limits<double>::quiet_NaN();
-    double z_hypothesis_spread_m = std::numeric_limits<double>::quiet_NaN();
-    double vertical_ambiguity_score = std::numeric_limits<double>::quiet_NaN();
-    std::string edge_recommendation = "not_available";
-};
-
-bool hasUsableHypothesisFitness(const MatchResult& result)
-{
-    return result.converged && std::isfinite(result.fitness_score);
-}
-
-VerticalHypothesisDiagnostics computeVerticalHypothesisDiagnostics(
-    PointCloudMatcher& matcher,
-    const core::LioFrame::PointCloud::Ptr& target,
-    const core::LioFrame::PointCloud::Ptr& source,
-    const MatchResult& zero_result)
-{
-    VerticalHypothesisDiagnostics diagnostics;
-    constexpr std::array<double, 7> kZOffsets = {-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0};
-    struct Candidate {
-        double z_offset = 0.0;
-        double fitness = std::numeric_limits<double>::quiet_NaN();
-    };
-    std::vector<Candidate> usable;
-    usable.reserve(kZOffsets.size());
-
-    auto add_result = [&](double z_offset, const MatchResult& result) {
-        if (!hasUsableHypothesisFitness(result)) {
-            return;
-        }
-        ++diagnostics.count;
-        usable.push_back({z_offset, result.fitness_score});
-        if (!std::isfinite(diagnostics.best_z_offset_fitness) ||
-            result.fitness_score < diagnostics.best_z_offset_fitness) {
-            diagnostics.best_z_offset_m = z_offset;
-            diagnostics.best_z_offset_fitness = result.fitness_score;
-        }
-    };
-
-    diagnostics.zero_z_fitness =
-        std::isfinite(zero_result.fitness_score) ? zero_result.fitness_score
-                                                 : std::numeric_limits<double>::quiet_NaN();
-    add_result(0.0, zero_result);
-    for (double z_offset : kZOffsets) {
-        if (z_offset == 0.0) {
-            continue;
-        }
-        Eigen::Isometry3d init = Eigen::Isometry3d::Identity();
-        init.translation().z() = z_offset;
-        try {
-            add_result(z_offset, matcher.alignCloud(target, source, init));
-        } catch (const std::exception&) {
-            // Diagnostics must never affect loop-closure behavior.
-        }
-    }
-
-    if (diagnostics.count == 0 || !std::isfinite(diagnostics.best_z_offset_fitness)) {
-        diagnostics.edge_recommendation = "reject";
-        return diagnostics;
-    }
-    if (std::isfinite(diagnostics.zero_z_fitness)) {
-        diagnostics.fitness_gap_zero_vs_best =
-            diagnostics.zero_z_fitness - diagnostics.best_z_offset_fitness;
-    }
-
-    const double near_best_band = std::max(0.02, 0.10 * std::max(1e-6, diagnostics.best_z_offset_fitness));
-    double near_min = std::numeric_limits<double>::infinity();
-    double near_max = -std::numeric_limits<double>::infinity();
-    for (const auto& candidate : usable) {
-        if (candidate.fitness <= diagnostics.best_z_offset_fitness + near_best_band) {
-            near_min = std::min(near_min, candidate.z_offset);
-            near_max = std::max(near_max, candidate.z_offset);
-        }
-    }
-    if (std::isfinite(near_min) && std::isfinite(near_max)) {
-        diagnostics.z_hypothesis_spread_m = near_max - near_min;
-        diagnostics.vertical_ambiguity_score =
-            std::clamp(diagnostics.z_hypothesis_spread_m / 4.0, 0.0, 1.0);
-    } else {
-        diagnostics.z_hypothesis_spread_m = 0.0;
-        diagnostics.vertical_ambiguity_score = 0.0;
-    }
-
-    const double zero_best_gap =
-        std::isfinite(diagnostics.fitness_gap_zero_vs_best) ? diagnostics.fitness_gap_zero_vs_best : 0.0;
-    if (diagnostics.vertical_ambiguity_score >= 0.25 &&
-        zero_best_gap <= std::max(0.02, 0.10 * std::max(1e-6, diagnostics.zero_z_fitness))) {
-        diagnostics.edge_recommendation = "planar_xy_yaw";
-    } else {
-        diagnostics.edge_recommendation = "full6dof";
-    }
-    return diagnostics;
-}
-
-core::LioFrame::PointCloud::Ptr strideLimitCloud(const core::LioFrame::PointCloud::Ptr& cloud,
-                                                 std::size_t max_points)
-{
-    if (!cloud || cloud->size() <= max_points || max_points == 0) {
-        return cloud;
-    }
-
-    auto limited = pcl::make_shared<core::LioFrame::PointCloud>();
-    limited->header = cloud->header;
-    limited->reserve(max_points);
-    const std::size_t stride =
-        std::max<std::size_t>(1, static_cast<std::size_t>(std::ceil(static_cast<double>(cloud->size()) /
-                                                                    static_cast<double>(max_points))));
-    for (std::size_t i = 0; i < cloud->size() && limited->size() < max_points; i += stride) {
-        const auto& point = cloud->points[i];
-        if (isFinitePoint(point)) {
-            limited->push_back(point);
-        }
-    }
-    limited->width = static_cast<std::uint32_t>(limited->size());
-    limited->height = 1;
-    limited->is_dense = true;
-    return limited;
-}
-
-core::LioFrame::PointCloud::Ptr prepareLoopIcpCloud(const core::LioFrame::PointCloud::Ptr& cloud,
-                                                    const Config& config)
-{
-    if (!cloud || cloud->empty() || config.loop_icp_max_points <= 0 ||
-        cloud->size() <= static_cast<std::size_t>(config.loop_icp_max_points)) {
-        return cloud;
-    }
-
-    core::LioFrame::PointCloud::Ptr prepared = cloud;
-    const double voxel_size = std::max(config.loop_icp_prefilter_voxel_size, config.gicp_downsampling_resolution);
-    if (voxel_size > 0.0) {
-        core::LioFrame::PointCloud::Ptr filtered;
-        if (safeVoxelGridFilter<pcl::PointXYZI>(cloud, voxel_size, &filtered) &&
-            filtered && !filtered->empty()) {
-            prepared = filtered;
-        }
-    }
-
-    return strideLimitCloud(prepared, static_cast<std::size_t>(config.loop_icp_max_points));
 }
 
 }  // namespace
@@ -624,36 +104,15 @@ N3MappingCore::N3MappingCore(const Config& config)
 
 N3MappingCore::~N3MappingCore() = default;
 
-void N3MappingCore::appendLoopDebugCandidate(const LoopDebugCandidateEvent& event) const
-{
-    if (!config_.loop_debug_enable) {
-        return;
-    }
-    std::lock_guard<std::mutex> lock(loop_debug_mutex_);
-    LoopDebugLogger::appendCandidate(LoopDebugLogger::resolvePath(config_), event);
-}
-
-void N3MappingCore::appendLoopDebugOptimization(const LoopDebugOptimizationEvent& event) const
-{
-    if (!config_.loop_debug_enable) {
-        return;
-    }
-    std::lock_guard<std::mutex> lock(loop_debug_mutex_);
-    LoopDebugLogger::appendOptimizationSummary(LoopDebugLogger::resolvePath(config_), event);
-}
-
 CoreRunMode parseCoreRunMode(const std::string& mode)
 {
-    if (mode == "mapping") {
-        return CoreRunMode::MAPPING;
-    }
     if (mode == "localization") {
         return CoreRunMode::LOCALIZATION;
     }
     if (mode == "map_extension") {
         return CoreRunMode::MAP_EXTENSION;
     }
-    throw std::invalid_argument("Invalid n3mapping mode: " + mode);
+    return CoreRunMode::MAPPING;
 }
 
 const char* coreRunModeName(CoreRunMode mode)
@@ -883,26 +342,6 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         }
 
         std::vector<LoopCandidate> candidates = session_->loopDetector().detectLoopCandidates(query_id);
-        if (config_.loop_spatial_candidates_enable) {
-            std::map<int64_t, Keyframe::Ptr> keyframe_map;
-            for (const auto& keyframe : session_->keyframeManager().getAllKeyframes()) {
-                if (keyframe) {
-                    keyframe_map[keyframe->id] = keyframe;
-                }
-            }
-            auto spatial_candidates =
-                session_->loopDetector().detectSpatialCandidates(query_id, keyframe_map);
-            for (const auto& spatial : spatial_candidates) {
-                const bool duplicate = std::any_of(candidates.begin(), candidates.end(),
-                    [&](const LoopCandidate& existing) {
-                        return existing.query_id == spatial.query_id &&
-                               existing.match_id == spatial.match_id;
-                    });
-                if (!duplicate) {
-                    candidates.push_back(spatial);
-                }
-            }
-        }
         if (candidates.empty()) {
             continue;
         }
@@ -910,113 +349,29 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
 
         std::vector<VerifiedLoop> verified_loops;
         verified_loops.reserve(candidates.size());
-        std::vector<LoopDebugCandidateEvent> debug_events;
-        std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics> graph_trial_by_pair;
-        std::map<std::pair<int64_t, int64_t>, LoopRefereeShadowDecision> referee_by_pair;
-        const bool loop_debug_enabled = config_.loop_debug_enable;
-        if (loop_debug_enabled) {
-            debug_events.reserve(candidates.size());
-        }
-
-        auto flush_debug_events = [&](const std::set<std::pair<int64_t, int64_t>>& accepted_pairs,
-                                      const std::string& not_selected_reason) {
-            if (!loop_debug_enabled) {
-                return;
-            }
-            for (auto& event : debug_events) {
-                const std::pair<int64_t, int64_t> key(event.candidate.query_id, event.candidate.match_id);
-                auto trial_it = graph_trial_by_pair.find(key);
-                if (trial_it != graph_trial_by_pair.end()) {
-                    assignGraphTrialDiagnostics(&event, trial_it->second);
-                }
-                auto referee_it = referee_by_pair.find(key);
-                if (referee_it != referee_by_pair.end()) {
-                    event.loop_referee_recommendation = referee_it->second.recommendation;
-                    event.loop_referee_reason = referee_it->second.reason;
-                    event.loop_referee_risk_flags = referee_it->second.risk_flags;
-                }
-                if (accepted_pairs.find(key) != accepted_pairs.end()) {
-                    event.gate_result = "accepted";
-                    event.reject_reason.clear();
-                } else if (event.gate_result == "accepted") {
-                    event.gate_result = "rejected";
-                    event.reject_reason = not_selected_reason.empty() ? "not_selected" : not_selected_reason;
-                }
-                appendLoopDebugCandidate(event);
-            }
-        };
-
-        auto make_rejected_event = [&](const LoopCandidate& candidate,
-                                       const std::string& reject_reason) {
-            if (!loop_debug_enabled) {
-                return;
-            }
-            LoopDebugCandidateEvent event;
-            event.processing_time = processingTimeSeconds();
-            event.query_timestamp = query_kf->timestamp;
-            event.candidate = candidate;
-            event.gate_result = "rejected";
-            event.reject_reason = reject_reason;
-            debug_events.push_back(event);
-        };
 
         for (const auto& candidate : candidates) {
             auto match_kf = session_->keyframeManager().getKeyframe(candidate.match_id);
             if (!match_kf || !query_kf->cloud || !match_kf->cloud || query_kf->cloud->empty() || match_kf->cloud->empty()) {
-                make_rejected_event(candidate, "missing_keyframe_or_cloud");
                 continue;
             }
 
             auto source = session_->keyframeManager().buildSubmapInRootFrame(query_id, 0, candidate.match_id);
             auto target = session_->keyframeManager().buildSubmapInRootFrame(candidate.match_id, config_.gicp_submap_size, candidate.match_id);
             if (!source || source->empty() || !target || target->empty()) {
-                make_rejected_event(candidate, "empty_submap");
                 continue;
-            }
-            source = prepareLoopIcpCloud(source, config_);
-            target = prepareLoopIcpCloud(target, config_);
-            if (!source || source->size() < 10 || !target || target->size() < 10) {
-                make_rejected_event(candidate, "empty_submap_after_prefilter");
-                continue;
-            }
-            ZDistributionStats source_z_before;
-            ZDistributionStats target_z;
-            if (loop_debug_enabled) {
-                source_z_before = computeZStats(source);
-                target_z = computeZStats(target);
             }
 
             MatchResult match_result =
                 session_->pointCloudMatcher().alignCloud(target, source, Eigen::Isometry3d::Identity());
-            ZDistributionStats source_z_after;
-            if (loop_debug_enabled) {
-                source_z_after = computeTransformedZStats(source, match_result.T_target_source);
-            }
 
             VerifiedLoop loop;
             loop.query_id = query_id;
             loop.match_id = candidate.match_id;
-            loop.candidate_yaw_diff_rad = static_cast<double>(candidate.yaw_diff_rad);
             loop.fitness_score = match_result.fitness_score;
             loop.inlier_ratio = match_result.inlier_ratio;
-            loop.source_z_span = source_z_before.span();
-            loop.target_z_span = target_z.span();
-            loop.z_overlap_ratio_before = zOverlapRatio(source_z_before, target_z);
-            loop.z_overlap_ratio_after = zOverlapRatio(source_z_after, target_z);
-            loop.source_z_robust_span = source_z_before.robustSpan();
-            loop.target_z_robust_span = target_z.robustSpan();
-            loop.z_robust_overlap_ratio_before = robustZOverlapRatio(source_z_before, target_z);
-            loop.z_robust_overlap_ratio_after = robustZOverlapRatio(source_z_after, target_z);
-            loop.source_target_z_centroid_delta_before = zCentroidDelta(source_z_before, target_z);
-            loop.source_target_z_centroid_delta_after = zCentroidDelta(source_z_after, target_z);
-            loop.vertical_information_ratio = verticalInformationRatio(match_result.information);
             loop.information =
                 config_.loop_use_icp_information ? match_result.information : Eigen::Matrix<double, 6, 6>::Identity();
-            const Eigen::Isometry3d T_est_match_query =
-                match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
-            const Eigen::Isometry3d T_candidate_residual =
-                candidateResidual(T_est_match_query, match_result.T_target_source);
-            loop.candidate_residual = T_candidate_residual;
 
             const bool fitness_ok = match_result.fitness_score < config_.loop_fitness_threshold;
             const bool inlier_ok = match_result.inlier_ratio >= config_.loop_min_inlier_ratio;
@@ -1024,204 +379,39 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             const double icp_rotation = Eigen::AngleAxisd(match_result.T_target_source.rotation()).angle();
             const bool geom_ok =
                 icp_translation <= config_.loop_max_icp_translation && icp_rotation <= config_.loop_max_icp_rotation;
-            const double residual_z = T_candidate_residual.translation().z();
-            const bool residual_z_ok =
-                config_.loop_max_candidate_residual_z <= 0.0 ||
-                (std::isfinite(residual_z) && std::abs(residual_z) <= config_.loop_max_candidate_residual_z);
 
-            if (loop_debug_enabled && config_.loop_debug_vertical_hypotheses_enable &&
-                match_result.converged && fitness_ok && inlier_ok && geom_ok) {
-                const auto diagnostics = computeVerticalHypothesisDiagnostics(
-                    session_->pointCloudMatcher(), target, source, match_result);
-                loop.vertical_hypothesis_count = diagnostics.count;
-                loop.best_z_offset_m = diagnostics.best_z_offset_m;
-                loop.best_z_offset_fitness = diagnostics.best_z_offset_fitness;
-                loop.zero_z_fitness = diagnostics.zero_z_fitness;
-                loop.fitness_gap_zero_vs_best = diagnostics.fitness_gap_zero_vs_best;
-                loop.z_hypothesis_spread_m = diagnostics.z_hypothesis_spread_m;
-                loop.vertical_ambiguity_score = diagnostics.vertical_ambiguity_score;
-                loop.vertical_hypothesis_edge_recommendation = diagnostics.edge_recommendation;
-            }
-            if (loop_debug_enabled && match_result.converged) {
-                const auto heightmap =
-                    computeHeightmapConsistency(target, source, match_result.T_target_source);
-                loop.heightmap_overlap_cell_count = heightmap.overlap_cell_count;
-                loop.heightmap_overlap_ratio = heightmap.overlap_ratio;
-                loop.heightmap_ground_dz_median = heightmap.ground_dz_median;
-                loop.heightmap_ground_dz_p90 = heightmap.ground_dz_p90;
-                loop.heightmap_ground_dz_max = heightmap.ground_dz_max;
-                loop.heightmap_ground_support_ratio = heightmap.ground_support_ratio;
-                loop.heightmap_vertical_consistency_score = heightmap.vertical_consistency_score;
-            }
-
-            loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok && residual_z_ok;
-            std::string reject_reason =
-                loop.verified ? "" : loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok, residual_z_ok);
+            loop.verified = match_result.converged && fitness_ok && inlier_ok && geom_ok;
             if (loop.verified) {
+                const Eigen::Isometry3d T_est_match_query =
+                    match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
                 const Eigen::Isometry3d T_residual = match_result.T_target_source;
                 loop.T_match_query = T_residual * T_est_match_query;
-                loop = session_->loopClosureManager().applyEdgeModel(loop);
-                if (!loop.verified) {
-                    reject_reason = loopEdgeModeName(loop.edge_mode);
-                }
-            }
-            if (loop_debug_enabled) {
-                LoopDebugCandidateEvent event;
-                event.processing_time = processingTimeSeconds();
-                event.query_timestamp = query_kf->timestamp;
-                event.candidate = candidate;
-                event.icp_converged = match_result.converged;
-                event.fitness_score = match_result.fitness_score;
-                event.inlier_ratio = match_result.inlier_ratio;
-                event.icp_translation_norm = icp_translation;
-                event.icp_rotation_norm = icp_rotation;
-                event.residual = T_candidate_residual;
-                event.has_loop_measurement = true;
-                event.loop_measurement_match_query = match_result.T_target_source * T_est_match_query;
-                event.loop_information = loop.information;
-                event.edge_mode =
-                    (loop.verified ||
-                     loop.edge_mode == LoopEdgeMode::RejectedVerticalInconsistent ||
-                     loop.edge_mode == LoopEdgeMode::RejectedYawInconsistent)
-                    ? loopEdgeModeName(loop.edge_mode) : "not_applicable";
-                event.vertical_observability_score =
-                    (loop.verified ||
-                     loop.edge_mode == LoopEdgeMode::RejectedVerticalInconsistent ||
-                     loop.edge_mode == LoopEdgeMode::RejectedYawInconsistent)
-                    ? loop.vertical_observability_score : std::numeric_limits<double>::quiet_NaN();
-                event.vertical_downweighted = loop.vertical_downweighted;
-                event.source_z_span = loop.source_z_span;
-                event.target_z_span = loop.target_z_span;
-                event.z_overlap_ratio_before = loop.z_overlap_ratio_before;
-                event.z_overlap_ratio_after = loop.z_overlap_ratio_after;
-                event.source_z_robust_span = loop.source_z_robust_span;
-                event.target_z_robust_span = loop.target_z_robust_span;
-                event.z_robust_overlap_ratio_before = loop.z_robust_overlap_ratio_before;
-                event.z_robust_overlap_ratio_after = loop.z_robust_overlap_ratio_after;
-                event.source_target_z_centroid_delta_before = loop.source_target_z_centroid_delta_before;
-                event.source_target_z_centroid_delta_after = loop.source_target_z_centroid_delta_after;
-                event.vertical_information_ratio = loop.vertical_information_ratio;
-                event.vertical_hypothesis_count = loop.vertical_hypothesis_count;
-                event.best_z_offset_m = loop.best_z_offset_m;
-                event.best_z_offset_fitness = loop.best_z_offset_fitness;
-                event.zero_z_fitness = loop.zero_z_fitness;
-                event.fitness_gap_zero_vs_best = loop.fitness_gap_zero_vs_best;
-                event.z_hypothesis_spread_m = loop.z_hypothesis_spread_m;
-                event.vertical_ambiguity_score = loop.vertical_ambiguity_score;
-                event.vertical_hypothesis_edge_recommendation = loop.vertical_hypothesis_edge_recommendation;
-                event.heightmap_overlap_cell_count = loop.heightmap_overlap_cell_count;
-                event.heightmap_overlap_ratio = loop.heightmap_overlap_ratio;
-                event.heightmap_ground_dz_median = loop.heightmap_ground_dz_median;
-                event.heightmap_ground_dz_p90 = loop.heightmap_ground_dz_p90;
-                event.heightmap_ground_dz_max = loop.heightmap_ground_dz_max;
-                event.heightmap_ground_support_ratio = loop.heightmap_ground_support_ratio;
-                event.heightmap_vertical_consistency_score = loop.heightmap_vertical_consistency_score;
-                event.gate_result = loop.verified ? "accepted" : "rejected";
-                event.reject_reason = reject_reason;
-                debug_events.push_back(event);
             }
             verified_loops.push_back(loop);
         }
 
         if (verified_loops.empty()) {
-            flush_debug_events({}, "not_selected");
             continue;
         }
 
         auto valid_loops = session_->loopClosureManager().filterValidLoops(verified_loops);
         auto best_loops = session_->loopClosureManager().selectBestPerQuery(valid_loops);
         if (best_loops.empty()) {
-            flush_debug_events({}, "not_selected");
             continue;
         }
 
         auto edges = session_->loopClosureManager().buildLoopEdges(best_loops, LoopEdgeDirection::MatchToQuery);
         if (edges.empty()) {
-            flush_debug_events({}, "edge_build_empty");
             continue;
         }
 
         const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
-        if (loop_debug_enabled || config_.loop_graph_trial_gate_enable) {
-            const auto committed_edges = session_->graphOptimizer().getEdges();
-            std::vector<EdgeInfo> gated_edges;
-            std::vector<VerifiedLoop> gated_best_loops;
-            gated_edges.reserve(edges.size());
-            gated_best_loops.reserve(best_loops.size());
-            std::string gate_reject_reason = "graph_trial_rejected";
-
-            for (const auto& edge : edges) {
-                auto loop_it = std::find_if(
-                    best_loops.begin(), best_loops.end(),
-                    [&](const VerifiedLoop& loop) {
-                        return loop.match_id == edge.from_id && loop.query_id == edge.to_id;
-                    });
-                if (loop_it == best_loops.end()) {
-                    continue;
-                }
-
-                VerifiedLoop loop = *loop_it;
-                const std::vector<EdgeInfo> candidate_edges{edge};
-                const auto diagnostics = computeLoopGraphTrialDiagnostics(
-                    config_, poses_before, committed_edges, candidate_edges);
-                assignGraphTrialDiagnostics(&loop, diagnostics);
-                assignLoopRefereeRecommendation(&loop, config_);
-                const auto key = std::make_pair(loop.query_id, loop.match_id);
-                graph_trial_by_pair[key] = diagnostics;
-                referee_by_pair[key] = {
-                    loop.loop_referee_recommendation,
-                    loop.loop_referee_reason,
-                    loop.loop_referee_risk_flags
-                };
-
-                bool rejected_by_trial = false;
-                if (config_.loop_graph_trial_gate_enable) {
-                    if (!diagnostics.success) {
-                        rejected_by_trial = true;
-                        gate_reject_reason = "graph_trial_failed";
-                    } else if (config_.loop_graph_trial_max_residual_z > 0.0) {
-                        const double residual_z = std::abs(diagnostics.residual_z_after);
-                        if (!std::isfinite(residual_z) ||
-                            residual_z > config_.loop_graph_trial_max_residual_z) {
-                            rejected_by_trial = true;
-                            gate_reject_reason = "graph_trial_residual_z";
-                        }
-                    }
-                }
-
-                if (!rejected_by_trial) {
-                    gated_edges.push_back(edge);
-                    gated_best_loops.push_back(loop);
-                }
-            }
-
-            edges.swap(gated_edges);
-            best_loops.swap(gated_best_loops);
-            if (edges.empty()) {
-                flush_debug_events({}, gate_reject_reason);
-                continue;
-            }
-        }
         const auto residual_before = meanLoopResidual(edges, poses_before);
-        const auto residual_axes_before = meanLoopResidualAxes(edges, poses_before);
-        const bool optimization_committed =
-            session_->loopClosureManager().applyEdges(edges, session_->graphOptimizer());
-        if (!optimization_committed) {
-            flush_debug_events({}, "optimization_failed");
-            continue;
-        }
-
-        std::set<std::pair<int64_t, int64_t>> accepted_debug_pairs;
-        for (const auto& loop : best_loops) {
-            accepted_debug_pairs.insert({loop.query_id, loop.match_id});
-        }
-        flush_debug_events(accepted_debug_pairs, "not_selected");
-
+        session_->loopClosureManager().applyEdges(edges, session_->graphOptimizer());
         loop_count_ += edges.size();
         refreshOptimizedPoses();
         const auto poses_after = session_->graphOptimizer().getOptimizedPoses();
         const auto residual_after = meanLoopResidual(edges, poses_after);
-        const auto residual_axes_after = meanLoopResidualAxes(edges, poses_after);
 
         result.optimized = true;
         result.edge_count += edges.size();
@@ -1231,29 +421,6 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         result.loop_residual_rotation_after = residual_after.second;
         accumulatePoseUpdateStats(poses_before, poses_after, &result);
         result.accepted_loops.insert(result.accepted_loops.end(), best_loops.begin(), best_loops.end());
-
-        if (loop_debug_enabled) {
-            LoopDebugOptimizationEvent event;
-            event.processing_time = processingTimeSeconds();
-            event.accepted_edge_count = edges.size();
-            event.accepted_edges.reserve(edges.size());
-            for (const auto& edge : edges) {
-                event.accepted_edges.emplace_back(edge.from_id, edge.to_id);
-            }
-            event.loop_residual_translation_before = residual_before.first;
-            event.loop_residual_rotation_before = residual_before.second;
-            event.loop_residual_translation_after = residual_after.first;
-            event.loop_residual_rotation_after = residual_after.second;
-            event.loop_residual_translation_axes_before = residual_axes_before.translation;
-            event.loop_residual_translation_axes_after = residual_axes_after.translation;
-            event.loop_residual_rpy_axes_before = residual_axes_before.rpy;
-            event.loop_residual_rpy_axes_after = residual_axes_after.rpy;
-            event.mean_pose_update_translation = result.mean_pose_update_translation;
-            event.max_pose_update_translation = result.max_pose_update_translation;
-            event.mean_pose_update_rotation = result.mean_pose_update_rotation;
-            event.max_pose_update_rotation = result.max_pose_update_rotation;
-            appendLoopDebugOptimization(event);
-        }
     }
 
     return result;

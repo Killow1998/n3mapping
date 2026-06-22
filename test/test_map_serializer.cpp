@@ -514,104 +514,6 @@ TEST_F(MapSerializerTest, StrictLoadRejectsMissingEdgeEndpoint) {
     EXPECT_EQ(loaded_optimizer.getNumNodes(), 0U);
 }
 
-TEST_F(MapSerializerTest, ReadN3MapProtoRejectsOversizedFile) {
-    n3mapping::N3Map map_proto;
-    map_proto.mutable_metadata()->set_version("2.3.0");
-    addValidKeyframeProto(&map_proto, 0);
-
-    const std::string map_file = config_.map_save_path + "/resource_file_limit.pbstream";
-    {
-        std::ofstream ofs(map_file, std::ios::binary);
-        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
-    }
-
-    PbstreamResourceLimits limits = defaultPbstreamResourceLimits();
-    limits.max_file_bytes = 1;
-    n3mapping::N3Map parsed;
-    std::string error;
-    EXPECT_FALSE(readN3MapProtoFromFile(map_file, limits, &parsed, &error));
-    EXPECT_NE(error.find("file size"), std::string::npos);
-}
-
-TEST_F(MapSerializerTest, ReadN3MapProtoRejectsTooManyKeyframes) {
-    n3mapping::N3Map map_proto;
-    map_proto.mutable_metadata()->set_version("2.3.0");
-    addValidKeyframeProto(&map_proto, 0);
-    addValidKeyframeProto(&map_proto, 1);
-
-    const std::string map_file = config_.map_save_path + "/resource_keyframe_limit.pbstream";
-    {
-        std::ofstream ofs(map_file, std::ios::binary);
-        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
-    }
-
-    PbstreamResourceLimits limits = defaultPbstreamResourceLimits();
-    limits.max_keyframes = 1;
-    n3mapping::N3Map parsed;
-    std::string error;
-    EXPECT_FALSE(readN3MapProtoFromFile(map_file, limits, &parsed, &error));
-    EXPECT_NE(error.find("too many keyframes"), std::string::npos);
-}
-
-TEST_F(MapSerializerTest, ReadN3MapProtoCountsEncodedPointValuesForLimits) {
-    n3mapping::N3Map map_proto;
-    map_proto.mutable_metadata()->set_version("2.3.0");
-    auto* keyframe = addValidKeyframeProto(&map_proto, 0);
-    keyframe->mutable_cloud()->set_num_points(0);
-    keyframe->mutable_cloud()->add_points(2.0f);
-    keyframe->mutable_cloud()->add_points(0.0f);
-    keyframe->mutable_cloud()->add_points(0.0f);
-    keyframe->mutable_cloud()->add_points(1.0f);
-
-    const std::string map_file = config_.map_save_path + "/resource_encoded_point_limit.pbstream";
-    {
-        std::ofstream ofs(map_file, std::ios::binary);
-        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
-    }
-
-    PbstreamResourceLimits limits = defaultPbstreamResourceLimits();
-    limits.max_total_points = 0;
-    n3mapping::N3Map parsed;
-    std::string error;
-    EXPECT_FALSE(readN3MapProtoFromFile(map_file, limits, &parsed, &error));
-    EXPECT_NE(error.find("invalid pbstream resource limits"), std::string::npos);
-
-    limits.max_total_points = 1;
-    EXPECT_FALSE(readN3MapProtoFromFile(map_file, limits, &parsed, &error));
-    EXPECT_NE(error.find("too many total points"), std::string::npos);
-}
-
-TEST_F(MapSerializerTest, StrictLoadRejectsNonPositiveDefiniteInformationMatrix) {
-    n3mapping::N3Map map_proto;
-    map_proto.mutable_metadata()->set_version("2.3.0");
-    map_proto.mutable_metadata()->set_num_keyframes(2);
-    addValidKeyframeProto(&map_proto, 0);
-    addValidKeyframeProto(&map_proto, 1);
-
-    auto* edge = map_proto.add_edges();
-    edge->set_from_id(0);
-    edge->set_to_id(1);
-    edge->mutable_measurement()->set_qw(1.0);
-    for (int r = 0; r < 6; ++r) {
-        for (int c = r; c < 6; ++c) {
-            edge->mutable_information()->add_values((r == c && r != 5) ? 1.0 : 0.0);
-        }
-    }
-    edge->set_type(n3mapping::EdgeProto::ODOMETRY);
-
-    const std::string map_file = config_.map_save_path + "/non_spd_information.pbstream";
-    {
-        std::ofstream ofs(map_file, std::ios::binary);
-        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
-    }
-
-    KeyframeManager loaded_kfs(config_);
-    LoopDetector loaded_loops(config_);
-    GraphOptimizer loaded_optimizer(config_);
-    MapSerializer serializer(config_);
-    EXPECT_FALSE(serializer.loadMap(map_file, loaded_kfs, loaded_loops, loaded_optimizer));
-}
-
 TEST_F(MapSerializerTest, SalvageLoadSkipsMissingEdgeEndpoint) {
     n3mapping::N3Map map_proto;
     map_proto.mutable_metadata()->set_version("2.3.0");
@@ -917,40 +819,6 @@ TEST_F(MapSerializerTest, SaveMapRejectsNonFiniteKeyframeTimestamp) {
     EXPECT_FALSE(std::filesystem::exists(map_file));
 }
 
-TEST_F(MapSerializerTest, SaveMapDoesNotPersistRolledBackNonPositiveDefiniteEdge) {
-    KeyframeManager kf_manager(config_);
-    LoopDetector loop_detector(config_);
-    GraphOptimizer optimizer(config_);
-    MapSerializer serializer(config_);
-
-    const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-    const int64_t kf0 = kf_manager.addKeyframe(1.0, pose, generateRandomPointCloud(16));
-    Eigen::Isometry3d pose1 = pose;
-    pose1.translation().x() = 1.0;
-    const int64_t kf1 = kf_manager.addKeyframe(2.0, pose1, generateRandomPointCloud(16));
-    optimizer.addPriorFactor(kf0, pose);
-
-    EdgeInfo edge;
-    edge.from_id = kf0;
-    edge.to_id = kf1;
-    edge.measurement = pose.inverse() * pose1;
-    edge.information = Eigen::Matrix<double, 6, 6>::Identity();
-    edge.information(5, 5) = 0.0;
-    edge.type = EdgeType::ODOMETRY;
-    optimizer.addOdometryEdge(edge);
-    optimizer.incrementalOptimize();
-    EXPECT_EQ(optimizer.getNumEdges(), 0U);
-
-    const std::string map_file = config_.map_save_path + "/non_spd_save_rejected.pbstream";
-    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
-
-    N3Map map_proto;
-    std::ifstream ifs(map_file, std::ios::binary);
-    ASSERT_TRUE(ifs.is_open());
-    ASSERT_TRUE(map_proto.ParseFromIstream(&ifs));
-    EXPECT_EQ(map_proto.edges_size(), 0);
-}
-
 TEST_F(MapSerializerTest, SaveMapRejectsEdgeWithMissingEndpoint) {
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
@@ -969,56 +837,10 @@ TEST_F(MapSerializerTest, SaveMapRejectsEdgeWithMissingEndpoint) {
     edge.information = Eigen::Matrix<double, 6, 6>::Identity();
     edge.type = EdgeType::ODOMETRY;
     optimizer.addOdometryEdge(edge);
-    optimizer.incrementalOptimize();
 
     const std::string map_file = config_.map_save_path + "/missing_save_edge_endpoint_rejected.pbstream";
     EXPECT_FALSE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
     EXPECT_FALSE(std::filesystem::exists(map_file));
-}
-
-TEST_F(MapSerializerTest, SaveMapDoesNotPersistRolledBackFailedGraphEdge) {
-    KeyframeManager kf_manager(config_);
-    LoopDetector loop_detector(config_);
-    GraphOptimizer optimizer(config_);
-    MapSerializer serializer(config_);
-
-    Eigen::Isometry3d pose0 = Eigen::Isometry3d::Identity();
-    Eigen::Isometry3d pose1 = Eigen::Isometry3d::Identity();
-    pose1.translation().x() = 1.0;
-
-    const int64_t kf0 = kf_manager.addKeyframe(1.0, pose0, generateRandomPointCloud(64));
-    const int64_t kf1 = kf_manager.addKeyframe(2.0, pose1, generateRandomPointCloud(64));
-    optimizer.addPriorFactor(kf0, pose0);
-    optimizer.addOdometryEdge({kf0, kf1, pose0.inverse() * pose1,
-                               Eigen::Matrix<double, 6, 6>::Identity(), EdgeType::ODOMETRY});
-    optimizer.incrementalOptimize();
-    ASSERT_EQ(optimizer.getNumEdges(), 1U);
-
-    EdgeInfo bad_loop;
-    bad_loop.from_id = kf1;
-    bad_loop.to_id = 999;
-    bad_loop.measurement = Eigen::Isometry3d::Identity();
-    bad_loop.information = Eigen::Matrix<double, 6, 6>::Identity();
-    bad_loop.type = EdgeType::LOOP;
-    optimizer.addLoopEdge(bad_loop);
-    EXPECT_FALSE(optimizer.incrementalOptimize());
-
-    ASSERT_EQ(optimizer.getNumEdges(), 1U);
-    ASSERT_FALSE(optimizer.hasNode(999));
-
-    const std::string map_file = config_.map_save_path + "/rolled_back_edge_not_saved.pbstream";
-    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
-
-    N3Map map_proto;
-    std::ifstream ifs(map_file, std::ios::binary);
-    ASSERT_TRUE(ifs.is_open());
-    ASSERT_TRUE(map_proto.ParseFromIstream(&ifs));
-    ASSERT_EQ(map_proto.edges_size(), 1);
-    EXPECT_EQ(map_proto.edges(0).to_id(), kf1);
-    for (const auto& edge_proto : map_proto.edges()) {
-        EXPECT_NE(edge_proto.to_id(), 999);
-        EXPECT_NE(edge_proto.from_id(), 999);
-    }
 }
 
 TEST_F(MapSerializerTest, SaveMapRejectsNonFiniteDenseTrajectoryPose) {

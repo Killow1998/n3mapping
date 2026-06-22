@@ -24,7 +24,7 @@ noetic/              ROS 1 Noetic wrapper package
 config/              shared runtime config
 humble/launch/       ROS 2 launch and RViz resources
 noetic/launch/       ROS 1 launch and RViz resources
-tools/               synthetic relocalization and offline dataset inspection tools
+tools/               synthetic relocalization tools
 ```
 
 ## 2. How To Use N3Mapping
@@ -266,69 +266,6 @@ ros2 run n3mapping n3mapping_synthetic_relocalization_eval \
   --strict
 ```
 
-KITTI360 lidar/pose alignment smoke:
-
-```bash
-ros2 run n3mapping n3mapping_kitti360_reader \
-  --kitti_root /home/user/DUALoc/KITTI360 \
-  --sequence 2013_05_28_drive_0003_sync \
-  --output /tmp/n3mapping_kitti360_reader_test \
-  --max_frames 50 \
-  --dump_sample_pcd
-```
-
-This is an offline evaluation input reader only; it does not run mapping or
-relocalization and does not replace real robot bags. See
-[docs/kitti360_reader.md](docs/kitti360_reader.md).
-
-KITTI360 offline mapping-loop smoke:
-
-```bash
-ros2 run n3mapping n3mapping_kitti360_eval \
-  --kitti_root /home/user/DUALoc/KITTI360 \
-  --sequence 2013_05_28_drive_0003_sync \
-  --mode mapping_loop \
-  --calib_mode auto \
-  --max_frames 200 \
-  --stride 1 \
-  --output /tmp/n3mapping_kitti360_mapping_loop
-```
-
-Label KITTI360 loop candidates with keyframe ground truth:
-
-```bash
-ros2 run n3mapping n3mapping_loop_debug_analyze.py \
-  --loop_debug /tmp/n3mapping_kitti360_mapping_loop/loop_debug.jsonl \
-  --keyframes_gt /tmp/n3mapping_kitti360_mapping_loop/keyframes_gt.csv \
-  --accepted_loops /tmp/n3mapping_kitti360_mapping_loop/accepted_loops.csv \
-  --output /tmp/n3mapping_kitti360_mapping_loop/loop_gt_analysis
-```
-
-Summarize one or more eval runs into a metric matrix:
-
-```bash
-ros2 run n3mapping n3mapping_eval_matrix.py \
-  --run kitti360_drive0003=/tmp/n3mapping_kitti360_mapping_loop \
-  --output /tmp/n3mapping_eval_matrix
-```
-
-Benchmark target and indoor dataset shortlist:
-[docs/eval_benchmark_plan.md](docs/eval_benchmark_plan.md).
-
-M2DGR extracted-cloud offline eval:
-
-```bash
-ros2 run n3mapping n3mapping_m2dgr_eval \
-  --m2dgr_root /path/to/M2DGR \
-  --sequence hall_03 \
-  --lidar_dir /path/to/M2DGR/hall_03/velodyne_points \
-  --gt /path/to/M2DGR/hall_03/groundtruth.txt \
-  --mode mapping_loop \
-  --output /tmp/n3mapping_m2dgr_hall03_mapping
-```
-
-Details: [docs/m2dgr_eval.md](docs/m2dgr_eval.md).
-
 </details>
 
 ---
@@ -461,53 +398,6 @@ rosrun n3mapping n3mapping_synthetic_relocalization_eval \
   --max_queries 100 \
   --query_source local_submap \
   --strict
-```
-
-KITTI360 lidar/pose alignment smoke:
-
-```bash
-rosrun n3mapping n3mapping_kitti360_reader \
-  --kitti_root /home/user/DUALoc/KITTI360 \
-  --sequence 2013_05_28_drive_0003_sync \
-  --output /tmp/n3mapping_kitti360_reader_test \
-  --max_frames 50 \
-  --dump_sample_pcd
-```
-
-This is an offline evaluation input reader only; it does not run mapping or
-relocalization and does not replace real robot bags. See
-[docs/kitti360_reader.md](docs/kitti360_reader.md).
-
-KITTI360 offline mapping-loop smoke:
-
-```bash
-rosrun n3mapping n3mapping_kitti360_eval \
-  --kitti_root /home/user/DUALoc/KITTI360 \
-  --sequence 2013_05_28_drive_0003_sync \
-  --mode mapping_loop \
-  --max_frames 200 \
-  --stride 1 \
-  --output /tmp/n3mapping_kitti360_mapping_loop
-```
-
-Summarize eval runs:
-
-```bash
-rosrun n3mapping n3mapping_eval_matrix.py \
-  --run kitti360_drive0003=/tmp/n3mapping_kitti360_mapping_loop \
-  --output /tmp/n3mapping_eval_matrix
-```
-
-M2DGR extracted-cloud offline eval:
-
-```bash
-rosrun n3mapping n3mapping_m2dgr_eval \
-  --m2dgr_root /path/to/M2DGR \
-  --sequence hall_03 \
-  --lidar_dir /path/to/M2DGR/hall_03/velodyne_points \
-  --gt /path/to/M2DGR/hall_03/groundtruth.txt \
-  --mode mapping_loop \
-  --output /tmp/n3mapping_m2dgr_hall03_mapping
 ```
 
 </details>

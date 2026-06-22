@@ -30,22 +30,8 @@ std::string Config::toString() const {
     oss << "Loop: fitness_thr=" << loop_fitness_threshold
         << ", min_inlier=" << loop_min_inlier_ratio
         << ", max_icp_t=" << loop_max_icp_translation
-        << ", max_icp_r=" << loop_max_icp_rotation
-        << ", max_residual_z=" << loop_max_candidate_residual_z
-        << ", edge_model=" << (loop_observability_edge_model_enable ? "observability" : "fixed")
-        << ", planar_vertical_weight=" << loop_planar_vertical_weight
-        << ", prefilter_voxel=" << loop_icp_prefilter_voxel_size
-        << ", max_points=" << loop_icp_max_points << "\n";
-    oss << "Loop debug JSONL: " << (loop_debug_enable ? "ON" : "OFF")
-        << " vertical_hypotheses=" << (loop_debug_vertical_hypotheses_enable ? "ON" : "OFF")
-        << " path=" << (loop_debug_path.empty() ? "<map_save_path>/loop_debug.jsonl" : loop_debug_path) << "\n";
-    oss << "Loop graph trial gate: " << (loop_graph_trial_gate_enable ? "ON" : "OFF")
-        << " max_residual_z=" << loop_graph_trial_max_residual_z << "\n";
-    oss << "Loop candidate pipeline: RHPD primary retrieval + optional spatial radius supplement -> optional SC yaw/weak rerank/veto -> ICP -> geom gate -> LoopClosureManager filter/select\n";
-    oss << "Loop spatial candidates: " << (loop_spatial_candidates_enable ? "ON" : "OFF")
-        << " radius=" << loop_spatial_candidate_radius
-        << " min_id_gap=" << loop_spatial_candidate_min_id_gap
-        << " max_candidates=" << loop_spatial_candidate_max_candidates << "\n";
+        << ", max_icp_r=" << loop_max_icp_rotation << "\n";
+    oss << "Loop candidate pipeline: RHPD primary retrieval -> optional SC yaw/weak rerank/veto -> ICP -> geom gate -> LoopClosureManager filter/select\n";
     oss << "loop_closest_id_th/min_id_interval/max_range are retained for compatibility/logging only; they are not used in the active mapping loop-candidate retrieval/verification path.\n";
     oss << "Loop timing: loop_kf_gap=" << loop_kf_gap << " (active)\n";
     oss << "Legacy loop distance params (inactive, compatibility/logging only): closest_id_th="
@@ -78,8 +64,6 @@ std::string Config::toString() const {
     oss << "Reloc ambiguity guard: margin>=" << reloc_ambiguity_min_margin
         << ", ratio>=" << reloc_ambiguity_min_ratio
         << ", basin_sep>=" << reloc_ambiguity_min_basin_separation << "m\n";
-    oss << "Reloc debug JSONL: " << (reloc_debug_enable ? "ON" : "OFF")
-        << " path=" << (reloc_debug_path.empty() ? "<map_save_path>/relocalization_debug.jsonl" : reloc_debug_path) << "\n";
     oss << "RHPD: enabled=" << (rhpd_enabled ? "YES" : "NO")
         << ", v2=" << (rhpd_v2_enable ? "YES" : "NO")
         << ", v3=" << (rhpd_v3_enable ? "YES" : "NO")
@@ -127,9 +111,6 @@ bool Config::validate(std::string* error) const {
         return value >= minimum ? true : fail(std::string(name) + " must be >= " + std::to_string(minimum));
     };
 
-    if (mode != "mapping" && mode != "localization" && mode != "map_extension") {
-        return fail("mode must be one of: mapping, localization, map_extension");
-    }
     if (!positive(keyframe_distance_threshold, "keyframe_distance_threshold")) return false;
     if (!positive(keyframe_angle_threshold, "keyframe_angle_threshold")) return false;
     if (!positive(prior_noise_position, "prior_noise_position")) return false;
@@ -165,15 +146,6 @@ bool Config::validate(std::string* error) const {
     if (!positive(loop_fitness_threshold, "loop_fitness_threshold")) return false;
     if (!non_negative(loop_max_icp_translation, "loop_max_icp_translation")) return false;
     if (!non_negative(loop_max_icp_rotation, "loop_max_icp_rotation")) return false;
-    if (!non_negative(loop_max_candidate_residual_z, "loop_max_candidate_residual_z")) return false;
-    if (!positive(loop_planar_vertical_weight, "loop_planar_vertical_weight")) return false;
-    if (loop_planar_vertical_weight > 1.0) return fail("loop_planar_vertical_weight must be <= 1");
-    if (!non_negative(loop_icp_prefilter_voxel_size, "loop_icp_prefilter_voxel_size")) return false;
-    if (!at_least(loop_icp_max_points, 0, "loop_icp_max_points")) return false;
-    if (!non_negative(loop_graph_trial_max_residual_z, "loop_graph_trial_max_residual_z")) return false;
-    if (!positive(loop_spatial_candidate_radius, "loop_spatial_candidate_radius")) return false;
-    if (!at_least(loop_spatial_candidate_min_id_gap, 1, "loop_spatial_candidate_min_id_gap")) return false;
-    if (!at_least(loop_spatial_candidate_max_candidates, 1, "loop_spatial_candidate_max_candidates")) return false;
     if (!at_least(loop_kf_gap, 0, "loop_kf_gap")) return false;
     if (!at_least(loop_closest_id_th, 0, "loop_closest_id_th")) return false;
     if (!at_least(loop_min_id_interval, 0, "loop_min_id_interval")) return false;

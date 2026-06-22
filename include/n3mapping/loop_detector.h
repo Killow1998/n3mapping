@@ -4,7 +4,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <string>
 #include <utility>
 #include <vector>
 #include <cstdint>
@@ -25,13 +24,11 @@ namespace n3mapping {
 struct LoopCandidate {
     static constexpr uint8_t SOURCE_SC = 1u;
     static constexpr uint8_t SOURCE_RHPD = 2u;
-    static constexpr uint8_t SOURCE_SPATIAL = 4u;
     enum class Source : uint8_t {
         Unknown = 0,
         RhpdPrimary = 1,
         ScanContextFallback = 2,
-        RhpdFrame = 3,
-        SpatialRadius = 4
+        RhpdFrame = 3
     };
 
     int64_t query_id = -1;
@@ -48,90 +45,15 @@ struct LoopCandidate {
     bool isValid() const { return query_id >= 0 && match_id >= 0; }
     bool fromSC() const { return (source_flags & SOURCE_SC) != 0u; }
     bool fromRHPD() const { return (source_flags & SOURCE_RHPD) != 0u; }
-    bool fromSpatial() const { return (source_flags & SOURCE_SPATIAL) != 0u; }
 };
-
-enum class LoopEdgeMode {
-    Full6Dof,
-    PlanarXYYaw,
-    RejectedVerticalInconsistent,
-    RejectedYawInconsistent
-};
-
-inline const char* loopEdgeModeName(LoopEdgeMode mode)
-{
-    switch (mode) {
-        case LoopEdgeMode::Full6Dof:
-            return "full6dof";
-        case LoopEdgeMode::PlanarXYYaw:
-            return "planar_xy_yaw";
-        case LoopEdgeMode::RejectedVerticalInconsistent:
-            return "rejected_vertical_inconsistent";
-        case LoopEdgeMode::RejectedYawInconsistent:
-            return "rejected_yaw_inconsistent";
-        default:
-            return "unknown";
-    }
-}
 
 struct VerifiedLoop {
     int64_t query_id = -1;
     int64_t match_id = -1;
     Eigen::Isometry3d T_match_query = Eigen::Isometry3d::Identity();
-    Eigen::Isometry3d candidate_residual = Eigen::Isometry3d::Identity();
-    double candidate_yaw_diff_rad = 0.0;
     double fitness_score = std::numeric_limits<double>::max();
     double inlier_ratio = 0.0;
     Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
-    LoopEdgeMode edge_mode = LoopEdgeMode::Full6Dof;
-    double vertical_observability_score = 1.0;
-    bool vertical_downweighted = false;
-    double source_z_span = std::numeric_limits<double>::quiet_NaN();
-    double target_z_span = std::numeric_limits<double>::quiet_NaN();
-    double z_overlap_ratio_before = std::numeric_limits<double>::quiet_NaN();
-    double z_overlap_ratio_after = std::numeric_limits<double>::quiet_NaN();
-    double source_z_robust_span = std::numeric_limits<double>::quiet_NaN();
-    double target_z_robust_span = std::numeric_limits<double>::quiet_NaN();
-    double z_robust_overlap_ratio_before = std::numeric_limits<double>::quiet_NaN();
-    double z_robust_overlap_ratio_after = std::numeric_limits<double>::quiet_NaN();
-    double source_target_z_centroid_delta_before = std::numeric_limits<double>::quiet_NaN();
-    double source_target_z_centroid_delta_after = std::numeric_limits<double>::quiet_NaN();
-    double vertical_information_ratio = std::numeric_limits<double>::quiet_NaN();
-    int vertical_hypothesis_count = 0;
-    double best_z_offset_m = std::numeric_limits<double>::quiet_NaN();
-    double best_z_offset_fitness = std::numeric_limits<double>::quiet_NaN();
-    double zero_z_fitness = std::numeric_limits<double>::quiet_NaN();
-    double fitness_gap_zero_vs_best = std::numeric_limits<double>::quiet_NaN();
-    double z_hypothesis_spread_m = std::numeric_limits<double>::quiet_NaN();
-    double vertical_ambiguity_score = std::numeric_limits<double>::quiet_NaN();
-    std::string vertical_hypothesis_edge_recommendation = "not_available";
-    int heightmap_overlap_cell_count = 0;
-    double heightmap_overlap_ratio = 0.0;
-    double heightmap_ground_dz_median = std::numeric_limits<double>::quiet_NaN();
-    double heightmap_ground_dz_p90 = std::numeric_limits<double>::quiet_NaN();
-    double heightmap_ground_dz_max = std::numeric_limits<double>::quiet_NaN();
-    double heightmap_ground_support_ratio = 0.0;
-    double heightmap_vertical_consistency_score = 0.0;
-    bool graph_trial_success = false;
-    double graph_trial_residual_x_after = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_residual_y_after = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_residual_z_after = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_residual_roll_after = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_residual_pitch_after = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_residual_yaw_after = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_residual_translation_norm_after = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_residual_rotation_norm_after = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_mean_pose_update_translation = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_max_pose_update_translation = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_mean_pose_update_rotation = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_max_pose_update_rotation = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_existing_loop_residual_delta = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_odom_residual_delta = std::numeric_limits<double>::quiet_NaN();
-    double graph_trial_consistency_score = std::numeric_limits<double>::quiet_NaN();
-    std::string graph_trial_recommendation = "not_available";
-    std::string loop_referee_recommendation = "not_available";
-    std::string loop_referee_reason = "not_available";
-    std::string loop_referee_risk_flags = "not_available";
     bool verified = false;
     bool isValid() const { return verified && query_id >= 0 && match_id >= 0; }
 };
@@ -150,9 +72,6 @@ public:
     void addDescriptor(int64_t keyframe_id, const Eigen::MatrixXd& descriptor);
     bool isScanContextDescriptorCompatible(const Eigen::MatrixXd& descriptor) const;
     std::vector<LoopCandidate> detectLoopCandidates(int64_t query_id);
-    std::vector<LoopCandidate> detectSpatialCandidates(
-        int64_t query_id,
-        const std::map<int64_t, Keyframe::Ptr>& keyframes) const;
 
     VerifiedLoop verifyLoopCandidate(const LoopCandidate& candidate,
                                      const Keyframe::Ptr& query_keyframe,

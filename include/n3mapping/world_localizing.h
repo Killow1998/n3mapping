@@ -2,7 +2,6 @@
 #pragma once
 
 #include <deque>
-#include <cstdint>
 #include <mutex>
 #include <vector>
 
@@ -15,7 +14,6 @@
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
-#include "n3mapping/relocalization_debug_logger.h"
 
 namespace n3mapping {
 
@@ -72,8 +70,6 @@ private:
     double computeTrackLogLikelihood(const MatchResult& match_result,
                                      const Eigen::Isometry3d& predicted_pose) const;
     PointCloudT::Ptr buildRelocQueryCloud(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
-    void appendRelocalizationDebug(const RelocalizationDebugEvent& event) const;
-    void appendTrackingDebug(const RelocTrackingDebugEvent& event) const;
     void clearRelocHypotheses();
     int64_t findNearestKeyframe(const Eigen::Isometry3d& pose) const;
 
@@ -94,9 +90,6 @@ private:
     int hypothesis_window_count_;
     int64_t last_window_winner_seed_id_;
     int winner_streak_;
-    uint64_t relocalize_debug_query_index_;
-    uint64_t track_debug_query_index_;
-    mutable std::mutex debug_mutex_;
     mutable std::mutex mutex_;
 };
 

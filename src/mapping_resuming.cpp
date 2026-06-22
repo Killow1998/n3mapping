@@ -166,9 +166,7 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     auto valid_loops = loop_closure_manager_.filterValidLoops(verified_loops);
     auto edges = loop_closure_manager_.buildLoopEdges(valid_loops, LoopEdgeDirection::MatchToQuery);
     if (!edges.empty()) {
-        if (!loop_closure_manager_.applyEdges(edges, optimizer_)) {
-            return 0;
-        }
+        loop_closure_manager_.applyEdges(edges, optimizer_);
         cross_loop_count_ += edges.size();
 
         auto optimized_poses = optimizer_.getOptimizedPoses();

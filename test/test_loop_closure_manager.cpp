@@ -9,7 +9,7 @@ class MockLoopOptimizer : public LoopOptimizerInterface
 {
   public:
     MOCK_METHOD(void, addLoopEdge, (const EdgeInfo& edge), (override));
-    MOCK_METHOD(bool, incrementalOptimize, (), (override));
+    MOCK_METHOD(void, incrementalOptimize, (), (override));
 };
 
 TEST(LoopClosureManagerTest, FilterValidLoopsAppliesThresholds)
@@ -39,56 +39,6 @@ TEST(LoopClosureManagerTest, FilterValidLoopsAppliesThresholds)
     ASSERT_EQ(result.size(), 1u);
     EXPECT_EQ(result.front().query_id, 1);
     EXPECT_EQ(result.front().match_id, 2);
-}
-
-TEST(LoopClosureManagerTest, FilterValidLoopsRejectsLargeCandidateResidualZ)
-{
-    Config config;
-    config.loop_min_inlier_ratio = 0.3;
-    config.loop_fitness_threshold = 1.0;
-    config.loop_max_candidate_residual_z = 5.0;
-
-    LoopClosureManager manager(config);
-
-    VerifiedLoop valid;
-    valid.query_id = 1;
-    valid.match_id = 2;
-    valid.verified = true;
-    valid.inlier_ratio = 0.5;
-    valid.fitness_score = 0.5;
-    valid.candidate_residual = Eigen::Isometry3d::Identity();
-    valid.candidate_residual.translation().z() = 4.9;
-
-    VerifiedLoop bad_z = valid;
-    bad_z.query_id = 3;
-    bad_z.candidate_residual.translation().z() = 5.1;
-
-    auto result = manager.filterValidLoops({valid, bad_z});
-    ASSERT_EQ(result.size(), 1u);
-    EXPECT_EQ(result.front().query_id, 1);
-}
-
-TEST(LoopClosureManagerTest, FilterValidLoopsAllowsResidualZGateDisabled)
-{
-    Config config;
-    config.loop_min_inlier_ratio = 0.3;
-    config.loop_fitness_threshold = 1.0;
-    config.loop_max_candidate_residual_z = 0.0;
-
-    LoopClosureManager manager(config);
-
-    VerifiedLoop loop;
-    loop.query_id = 1;
-    loop.match_id = 2;
-    loop.verified = true;
-    loop.inlier_ratio = 0.5;
-    loop.fitness_score = 0.5;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
-    loop.candidate_residual.translation().z() = 100.0;
-
-    auto result = manager.filterValidLoops({loop});
-    ASSERT_EQ(result.size(), 1u);
-    EXPECT_EQ(result.front().query_id, 1);
 }
 
 TEST(LoopClosureManagerTest, SelectBestPerQueryChoosesLowestFitness)
@@ -124,62 +74,6 @@ TEST(LoopClosureManagerTest, SelectBestPerQueryChoosesLowestFitness)
     EXPECT_DOUBLE_EQ(it->fitness_score, 0.2);
 }
 
-TEST(LoopClosureManagerTest, SelectBestPerQueryBreaksFitnessTieWithVerticalResidual)
-{
-    Config config;
-    config.loop_min_inlier_ratio = 0.0;
-    config.loop_fitness_threshold = 10.0;
-    config.loop_max_candidate_residual_z = 5.0;
-
-    LoopClosureManager manager(config);
-
-    VerifiedLoop high_z;
-    high_z.query_id = 1;
-    high_z.match_id = 10;
-    high_z.verified = true;
-    high_z.inlier_ratio = 1.0;
-    high_z.fitness_score = 0.20;
-    high_z.candidate_residual = Eigen::Isometry3d::Identity();
-    high_z.candidate_residual.translation().z() = 4.0;
-
-    VerifiedLoop low_z = high_z;
-    low_z.match_id = 11;
-    low_z.fitness_score = 0.205;
-    low_z.candidate_residual.translation().z() = 0.1;
-
-    auto best = manager.selectBestPerQuery({high_z, low_z});
-    ASSERT_EQ(best.size(), 1u);
-    EXPECT_EQ(best.front().match_id, 11);
-}
-
-TEST(LoopClosureManagerTest, SelectBestPerQueryKeepsClearlyBetterFitness)
-{
-    Config config;
-    config.loop_min_inlier_ratio = 0.0;
-    config.loop_fitness_threshold = 10.0;
-    config.loop_max_candidate_residual_z = 5.0;
-
-    LoopClosureManager manager(config);
-
-    VerifiedLoop strong_fitness;
-    strong_fitness.query_id = 1;
-    strong_fitness.match_id = 10;
-    strong_fitness.verified = true;
-    strong_fitness.inlier_ratio = 1.0;
-    strong_fitness.fitness_score = 0.05;
-    strong_fitness.candidate_residual = Eigen::Isometry3d::Identity();
-    strong_fitness.candidate_residual.translation().z() = 4.0;
-
-    VerifiedLoop low_z = strong_fitness;
-    low_z.match_id = 11;
-    low_z.fitness_score = 0.20;
-    low_z.candidate_residual.translation().z() = 0.1;
-
-    auto best = manager.selectBestPerQuery({strong_fitness, low_z});
-    ASSERT_EQ(best.size(), 1u);
-    EXPECT_EQ(best.front().match_id, 10);
-}
-
 TEST(LoopClosureManagerTest, BuildLoopEdgesRespectsDirection)
 {
     Config config;
@@ -207,94 +101,6 @@ TEST(LoopClosureManagerTest, BuildLoopEdgesRespectsDirection)
     EXPECT_TRUE(edges_mq.front().measurement.isApprox(loop.T_match_query, 1e-9));
 }
 
-TEST(LoopClosureManagerTest, ApplyEdgeModelKeepsFull6DofWhenVerticalResidualIsObservable)
-{
-    Config config;
-    config.loop_noise_position = 0.5;
-    config.loop_noise_rotation = 0.5;
-    LoopClosureManager manager(config);
-
-    VerifiedLoop loop;
-    loop.verified = true;
-    loop.query_id = 1;
-    loop.match_id = 2;
-    loop.information.diagonal() << 10.0, 20.0, 30.0, 40.0, 50.0, 60.0;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
-    loop.candidate_residual.translation().z() = 0.1;
-
-    const auto modeled = manager.applyEdgeModel(loop);
-    EXPECT_TRUE(modeled.verified);
-    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::Full6Dof);
-    EXPECT_FALSE(modeled.vertical_downweighted);
-    EXPECT_TRUE(modeled.information.isApprox(loop.information, 1e-12));
-}
-
-TEST(LoopClosureManagerTest, ApplyEdgeModelDownweightsVerticalAxesWhenResidualIsWeak)
-{
-    Config config;
-    config.loop_noise_position = 0.5;
-    config.loop_noise_rotation = 0.5;
-    config.loop_planar_vertical_weight = 0.25;
-    LoopClosureManager manager(config);
-
-    VerifiedLoop loop;
-    loop.verified = true;
-    loop.query_id = 1;
-    loop.match_id = 2;
-    loop.information.diagonal() << 10.0, 20.0, 30.0, 40.0, 50.0, 60.0;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
-    loop.candidate_residual.translation().z() = 3.0;
-
-    const auto modeled = manager.applyEdgeModel(loop);
-    EXPECT_TRUE(modeled.verified);
-    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::PlanarXYYaw);
-    EXPECT_TRUE(modeled.vertical_downweighted);
-    EXPECT_DOUBLE_EQ(modeled.information(0, 0), 10.0);
-    EXPECT_DOUBLE_EQ(modeled.information(1, 1), 20.0);
-    EXPECT_DOUBLE_EQ(modeled.information(2, 2), 7.5);
-    EXPECT_DOUBLE_EQ(modeled.information(3, 3), 10.0);
-    EXPECT_DOUBLE_EQ(modeled.information(4, 4), 12.5);
-    EXPECT_DOUBLE_EQ(modeled.information(5, 5), 60.0);
-    EXPECT_NEAR(modeled.vertical_observability_score, 0.375, 1e-12);
-}
-
-TEST(LoopClosureManagerTest, ApplyEdgeModelRejectsVerticalOutlier)
-{
-    Config config;
-    config.loop_max_candidate_residual_z = 5.0;
-    LoopClosureManager manager(config);
-
-    VerifiedLoop loop;
-    loop.verified = true;
-    loop.query_id = 1;
-    loop.match_id = 2;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
-    loop.candidate_residual.translation().z() = 4.5;
-
-    const auto modeled = manager.applyEdgeModel(loop);
-    EXPECT_FALSE(modeled.verified);
-    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::RejectedVerticalInconsistent);
-    EXPECT_TRUE(manager.buildLoopEdges({modeled}, LoopEdgeDirection::MatchToQuery).empty());
-}
-
-TEST(LoopClosureManagerTest, ApplyEdgeModelRejectsYawInconsistentOutlier)
-{
-    Config config;
-    LoopClosureManager manager(config);
-
-    VerifiedLoop loop;
-    loop.verified = true;
-    loop.query_id = 1;
-    loop.match_id = 2;
-    loop.candidate_yaw_diff_rad = M_PI;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
-
-    const auto modeled = manager.applyEdgeModel(loop);
-    EXPECT_FALSE(modeled.verified);
-    EXPECT_EQ(modeled.edge_mode, LoopEdgeMode::RejectedYawInconsistent);
-    EXPECT_TRUE(manager.buildLoopEdges({modeled}, LoopEdgeDirection::MatchToQuery).empty());
-}
-
 TEST(LoopClosureManagerTest, ApplyEdgesCallsOptimizer)
 {
     Config config;
@@ -312,28 +118,10 @@ TEST(LoopClosureManagerTest, ApplyEdgesCallsOptimizer)
 
     MockLoopOptimizer mock;
     EXPECT_CALL(mock, addLoopEdge(testing::_)).Times(2);
-    EXPECT_CALL(mock, incrementalOptimize()).Times(1).WillOnce(testing::Return(true));
+    EXPECT_CALL(mock, incrementalOptimize()).Times(1);
 
     bool optimized = manager.applyEdges({ e1, e2 }, mock);
     EXPECT_TRUE(optimized);
-}
-
-TEST(LoopClosureManagerTest, ApplyEdgesReturnsFalseWhenOptimizerRejects)
-{
-    Config config;
-    LoopClosureManager manager(config);
-
-    EdgeInfo edge;
-    edge.from_id = 1;
-    edge.to_id = 2;
-    edge.type = EdgeType::LOOP;
-
-    MockLoopOptimizer mock;
-    EXPECT_CALL(mock, addLoopEdge(testing::_)).Times(1);
-    EXPECT_CALL(mock, incrementalOptimize()).Times(1).WillOnce(testing::Return(false));
-
-    const bool optimized = manager.applyEdges({edge}, mock);
-    EXPECT_FALSE(optimized);
 }
 
 TEST(LoopClosureManagerTest, ApplyEdgesEmptyDoesNothing)

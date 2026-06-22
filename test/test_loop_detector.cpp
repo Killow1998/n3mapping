@@ -657,45 +657,6 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisa
     EXPECT_TRUE(found);
 }
 
-TEST_F(LoopDetectorTest, DetectSpatialCandidatesUsesPoseRadiusAndAgeGap) {
-    Config cfg = config_;
-    cfg.loop_spatial_candidates_enable = true;
-    cfg.loop_spatial_candidate_radius = 5.0;
-    cfg.loop_spatial_candidate_min_id_gap = 50;
-    cfg.loop_spatial_candidate_max_candidates = 2;
-    LoopDetector detector(cfg);
-
-    auto make_keyframe = [](int64_t id, const Eigen::Vector3d& position) {
-        Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-        pose.translation() = position;
-        return Keyframe::create(id, static_cast<double>(id), pose,
-                                pcl::make_shared<Keyframe::PointCloudT>());
-    };
-
-    std::map<int64_t, Keyframe::Ptr> keyframes;
-    keyframes[100] = make_keyframe(100, Eigen::Vector3d::Zero());
-    keyframes[5] = make_keyframe(5, Eigen::Vector3d(1.0, 0.0, 0.0));
-    keyframes[10] = make_keyframe(10, Eigen::Vector3d(3.0, 0.0, 0.0));
-    keyframes[20] = make_keyframe(20, Eigen::Vector3d(10.0, 0.0, 0.0));
-    keyframes[90] = make_keyframe(90, Eigen::Vector3d(0.5, 0.0, 0.0));
-
-    auto candidates = detector.detectSpatialCandidates(100, keyframes);
-    ASSERT_EQ(candidates.size(), 2u);
-
-    EXPECT_EQ(candidates[0].match_id, 5);
-    EXPECT_EQ(candidates[1].match_id, 10);
-    for (const auto& candidate : candidates) {
-        EXPECT_EQ(candidate.query_id, 100);
-        EXPECT_TRUE(candidate.fromSpatial());
-        EXPECT_FALSE(candidate.fromRHPD());
-        EXPECT_FALSE(candidate.fromSC());
-        EXPECT_EQ(candidate.candidate_source, LoopCandidate::Source::SpatialRadius);
-        EXPECT_TRUE(std::isfinite(candidate.fused_score));
-        EXPECT_GE(candidate.fused_score, 0.0);
-        EXPECT_LE(candidate.fused_score, 1.0);
-    }
-}
-
 TEST_F(LoopDetectorTest, RejectsIncompatibleScanContextDescriptorDimensions) {
     auto cloud = createCircularCloud();
     auto valid = detector_->makeScanContext(cloud);

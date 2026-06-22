@@ -11,14 +11,21 @@ namespace n3mapping {
 GraphOptimizer::GraphOptimizer(const Config& config)
     : config_(config)
     , has_loop_closure_(false)
-    , pending_has_loop_closure_(false)
     , needs_optimization_(false)
 {
     std::string config_error;
     if (!config_.validate(&config_error)) {
         throw std::invalid_argument("Invalid N3Mapping graph optimizer config: " + config_error);
     }
-    isam2_ = createISAM2();
+    // 初始化 iSAM2 优化器
+    gtsam::ISAM2Params params;
+    params.relinearizeThreshold = 0.1;
+    params.relinearizeSkip = 1;
+    params.cacheLinearizedFactors = false;
+    params.enableDetailedResults = false;
+    params.enablePartialRelinearizationCheck = true;
+    
+    isam2_ = std::make_unique<gtsam::ISAM2>(params);
 }
 
 // ==================== 添加因子 ====================
@@ -30,13 +37,15 @@ void GraphOptimizer::addPriorFactor(int64_t id, const Eigen::Isometry3d& pose) {
     // 创建先验噪声模型
     auto noise_model = createPriorNoiseModel();
     
-    // 添加到待提交因子；只有优化成功后才进入 committed graph。
+    // 添加先验因子
+    graph_.add(gtsam::PriorFactor<gtsam::Pose3>(key, gtsam_pose, noise_model));
     new_factors_.add(gtsam::PriorFactor<gtsam::Pose3>(key, gtsam_pose, noise_model));
     
-    // 添加待提交初始值
-    if (!hasAnyNode(id)) {
+    // 添加初始值
+    if (!initial_values_.exists(key)) {
+        initial_values_.insert(key, gtsam_pose);
         new_values_.insert(key, gtsam_pose);
-        pending_node_ids_.insert(id);
+        node_ids_.insert(id);
     }
     
     needs_optimization_ = true;
@@ -53,22 +62,27 @@ void GraphOptimizer::addOdometryEdge(const EdgeInfo& edge) {
         noise_model = createOdomNoiseModel();
     }
     
-    // 添加到待提交因子；只有优化成功后才进入 committed graph。
+    // 添加 Between 因子
+    graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
     new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
     
-    // 如果目标节点不存在，尝试从 from 节点推导待提交初始值。
-    if (!hasAnyNode(edge.to_id)) {
+    // 如果目标节点不存在，添加初始值
+    if (!initial_values_.exists(key_to)) {
         // 使用里程计测量值计算初始位姿
         gtsam::Pose3 pose_from;
-        if (getAnyPose(key_from, &pose_from)) {
-            gtsam::Pose3 pose_to = pose_from * measurement;
-            new_values_.insert(key_to, pose_to);
-            pending_node_ids_.insert(edge.to_id);
+        if (initial_values_.exists(key_from)) {
+            pose_from = initial_values_.at<gtsam::Pose3>(key_from);
+        } else if (current_estimate_.exists(key_from)) {
+            pose_from = current_estimate_.at<gtsam::Pose3>(key_from);
         }
+        gtsam::Pose3 pose_to = pose_from * measurement;
+        initial_values_.insert(key_to, pose_to);
+        new_values_.insert(key_to, pose_to);
+        node_ids_.insert(edge.to_id);
     }
     
-    // 存储待提交边信息
-    pending_edges_.push_back(edge);
+    // 存储边信息
+    edges_.push_back(edge);
     needs_optimization_ = true;
 }
 
@@ -81,87 +95,84 @@ void GraphOptimizer::addLoopEdge(const EdgeInfo& edge) {
     // 创建带鲁棒核函数的噪声模型
     auto noise_model = createRobustNoiseModel(edge.information, config_.use_robust_kernel);
     
-    // 添加到待提交因子；只有优化成功后才进入 committed graph。
+    // 添加 Between 因子
+    graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
     new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
     
-    // 存储待提交边信息
+    // 存储边信息
     EdgeInfo loop_edge = edge;
     loop_edge.type = EdgeType::LOOP;
-    pending_edges_.push_back(loop_edge);
+    edges_.push_back(loop_edge);
     
-    pending_has_loop_closure_ = true;
+    has_loop_closure_ = true;
     needs_optimization_ = true;
 }
 
 // ==================== 优化 ====================
 
 void GraphOptimizer::optimize() {
-    gtsam::NonlinearFactorGraph candidate_graph = graph_;
-    gtsam::Values candidate_values = initial_values_;
-    appendPendingTo(&candidate_graph, &candidate_values);
-
-    if (candidate_graph.empty() || candidate_values.empty()) {
+    if (graph_.empty() || initial_values_.empty()) {
         return;
-    }
-    
-    gtsam::Values optimized_estimate;
-    if (!optimizeCandidate(candidate_graph, candidate_values, &optimized_estimate)) {
-        rollbackToLastState();
-        return;
-    }
-
-    if (!new_factors_.empty() || !new_values_.empty() || !pending_edges_.empty()) {
-        commitPending(optimized_estimate, nullptr);
-    } else {
-        current_estimate_ = optimized_estimate;
-        last_good_estimate_ = optimized_estimate;
-        rebuildISAM2FromCommitted();
-        needs_optimization_ = false;
-    }
-}
-
-bool GraphOptimizer::incrementalOptimize() {
-    if (new_factors_.empty() && new_values_.empty() && pending_edges_.empty() && pending_node_ids_.empty()) {
-        return true;
     }
     
     try {
-        auto trial_isam2 = createISAM2();
+        // 使用 Levenberg-Marquardt 优化器进行批量优化
+        gtsam::LevenbergMarquardtParams params;
+        params.maxIterations = config_.optimization_iterations;
+        params.verbosity = gtsam::NonlinearOptimizerParams::SILENT;
+        
+        gtsam::LevenbergMarquardtOptimizer optimizer(graph_, initial_values_, params);
+        current_estimate_ = optimizer.optimize();
+        
+        needs_optimization_ = false;
+    } catch (const std::exception& e) {
+        std::cerr << "GraphOptimizer::optimize() failed: " << e.what() << std::endl;
+    }
+}
 
-        if (!graph_.empty()) {
-            const gtsam::Values& committed_values = !current_estimate_.empty() ? current_estimate_ : initial_values_;
-            trial_isam2->update(graph_, committed_values);
+void GraphOptimizer::incrementalOptimize() {
+    if (new_factors_.empty() && new_values_.empty()) {
+        return;
+    }
+    
+    try {
+        // 保存当前状态用于可能的回滚
+        if (!current_estimate_.empty()) {
+            last_good_estimate_ = current_estimate_;
         }
-
-        trial_isam2->update(new_factors_, new_values_);
+        
+        // 使用 iSAM2 进行增量优化
+        isam2_->update(new_factors_, new_values_);
         
         // 如果有回环约束，多执行几次优化迭代以确保收敛
-        if (has_loop_closure_ || pending_has_loop_closure_) {
+        if (has_loop_closure_) {
             for (int i = 0; i < config_.optimization_iterations; ++i) {
-                trial_isam2->update();
+                isam2_->update();
             }
         } else {
             // 普通情况下也执行一次额外更新以确保收敛
-            trial_isam2->update();
+            isam2_->update();
         }
         
         // 获取当前估计
-        gtsam::Values optimized_estimate = trial_isam2->calculateEstimate();
+        current_estimate_ = isam2_->calculateEstimate();
         
         // 检查优化健康度
-        if (optimized_estimate.empty()) {
+        if (!isOptimizationHealthy()) {
             std::cerr << "Optimization unhealthy, rolling back to last state" << std::endl;
             rollbackToLastState();
-            return false;
+            return;
         }
-
-        commitPending(optimized_estimate, std::move(trial_isam2));
-        return true;
-
+        
+        // 清空新增因子和值
+        new_factors_.resize(0);
+        new_values_.clear();
+        
+        needs_optimization_ = false;
+        
     } catch (const std::exception& e) {
         std::cerr << "GTSAM optimization exception: " << e.what() << std::endl;
         rollbackToLastState();
-        return false;
     }
 }
 
@@ -180,12 +191,6 @@ std::map<int64_t, Eigen::Isometry3d> GraphOptimizer::getOptimizedPoses() const {
             poses[id] = gtsamToEigen(pose);
         }
     }
-    for (int64_t id : pending_node_ids_) {
-        gtsam::Key key = gtsam::Symbol('x', id);
-        if (new_values_.exists(key)) {
-            poses[id] = gtsamToEigen(new_values_.at<gtsam::Pose3>(key));
-        }
-    }
     
     return poses;
 }
@@ -197,66 +202,53 @@ Eigen::Isometry3d GraphOptimizer::getOptimizedPose(int64_t id) const {
         return gtsamToEigen(current_estimate_.at<gtsam::Pose3>(key));
     } else if (initial_values_.exists(key)) {
         return gtsamToEigen(initial_values_.at<gtsam::Pose3>(key));
-    } else if (new_values_.exists(key)) {
-        return gtsamToEigen(new_values_.at<gtsam::Pose3>(key));
     }
     
     throw std::out_of_range("Node " + std::to_string(id) + " does not exist in graph");
 }
 
 bool GraphOptimizer::hasNode(int64_t id) const {
-    return hasAnyNode(id);
+    return node_ids_.find(id) != node_ids_.end();
 }
 
 size_t GraphOptimizer::getNumNodes() const {
-    size_t count = node_ids_.size();
-    for (int64_t id : pending_node_ids_) {
-        if (node_ids_.find(id) == node_ids_.end()) {
-            ++count;
-        }
-    }
-    return count;
+    return node_ids_.size();
 }
 
 size_t GraphOptimizer::getNumEdges() const {
-    return edges_.size() + pending_edges_.size();
+    return edges_.size();
 }
 
 bool GraphOptimizer::hasLoopClosure() const {
-    return has_loop_closure_ || pending_has_loop_closure_;
+    return has_loop_closure_;
 }
 
 
 // ==================== 序列化支持 ====================
 
-bool GraphOptimizer::loadGraph(
+void GraphOptimizer::loadGraph(
     const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes,
     const std::vector<EdgeInfo>& edges) {
-    GraphOptimizer temp(config_);
-
-    if (nodes.empty()) {
-        swapWith(temp);
-        return true;
-    }
+    
+    // 清空现有数据
+    clear();
     
     // 添加节点
     for (const auto& [id, pose] : nodes) {
         gtsam::Key key = gtsam::Symbol('x', id);
         gtsam::Pose3 gtsam_pose = eigenToGtsam(pose);
-        if (temp.initial_values_.exists(key)) {
-            std::cerr << "GraphOptimizer::loadGraph() duplicate node id: " << id << std::endl;
-            return false;
-        }
-        temp.initial_values_.insert(key, gtsam_pose);
-        temp.node_ids_.insert(id);
+        initial_values_.insert(key, gtsam_pose);
+        node_ids_.insert(id);
     }
     
     // 添加第一个节点的先验因子
-    int64_t first_id = nodes.front().first;
-    gtsam::Key first_key = gtsam::Symbol('x', first_id);
-    gtsam::Pose3 first_pose = temp.initial_values_.at<gtsam::Pose3>(first_key);
-    auto prior_noise = temp.createPriorNoiseModel();
-    temp.graph_.add(gtsam::PriorFactor<gtsam::Pose3>(first_key, first_pose, prior_noise));
+    if (!nodes.empty()) {
+        int64_t first_id = nodes.front().first;
+        gtsam::Key first_key = gtsam::Symbol('x', first_id);
+        gtsam::Pose3 first_pose = initial_values_.at<gtsam::Pose3>(first_key);
+        auto prior_noise = createPriorNoiseModel();
+        graph_.add(gtsam::PriorFactor<gtsam::Pose3>(first_key, first_pose, prior_noise));
+    }
     
     // 添加边
     for (const auto& edge : edges) {
@@ -266,38 +258,37 @@ bool GraphOptimizer::loadGraph(
         
         gtsam::noiseModel::Base::shared_ptr noise_model;
         if (edge.type == EdgeType::LOOP) {
-            noise_model = temp.createRobustNoiseModel(edge.information, config_.use_robust_kernel);
+            noise_model = createRobustNoiseModel(edge.information, config_.use_robust_kernel);
             if (!noise_model) {
-                noise_model = temp.createLoopNoiseModel();
+                noise_model = createLoopNoiseModel();
             }
-            temp.has_loop_closure_ = true;
+            has_loop_closure_ = true;
         } else {
             noise_model = createNoiseModel(edge.information);
             if (!noise_model) {
-                noise_model = temp.createOdomNoiseModel();
+                noise_model = createOdomNoiseModel();
             }
         }
         
-        temp.graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
-        temp.edges_.push_back(edge);
+        graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+        edges_.push_back(edge);
     }
     
     // 执行优化
-    if (!temp.graph_.empty() && !temp.initial_values_.empty()) {
-        gtsam::Values optimized_estimate;
-        if (!temp.optimizeCandidate(temp.graph_, temp.initial_values_, &optimized_estimate)) {
-            std::cerr << "GraphOptimizer::loadGraph() failed; existing graph left unchanged" << std::endl;
-            return false;
-        }
-        temp.current_estimate_ = optimized_estimate;
-        temp.last_good_estimate_ = optimized_estimate;
+    if (!graph_.empty() && !initial_values_.empty()) {
+        optimize();
     }
-
-    temp.rebuildISAM2FromCommitted();
-    temp.clearPending();
-    temp.needs_optimization_ = false;
-    swapWith(temp);
-    return true;
+    
+    // 重新初始化 iSAM2
+    gtsam::ISAM2Params params;
+    params.relinearizeThreshold = 0.1;
+    params.relinearizeSkip = 1;
+    isam2_ = std::make_unique<gtsam::ISAM2>(params);
+    
+    // 将当前图添加到 iSAM2
+    if (!current_estimate_.empty()) {
+        isam2_->update(graph_, current_estimate_);
+    }
 }
 
 void GraphOptimizer::swapWith(GraphOptimizer& other) {
@@ -312,11 +303,8 @@ void GraphOptimizer::swapWith(GraphOptimizer& other) {
     swap(current_estimate_, other.current_estimate_);
     swap(last_good_estimate_, other.last_good_estimate_);
     swap(edges_, other.edges_);
-    swap(pending_edges_, other.pending_edges_);
     swap(node_ids_, other.node_ids_);
-    swap(pending_node_ids_, other.pending_node_ids_);
     swap(has_loop_closure_, other.has_loop_closure_);
-    swap(pending_has_loop_closure_, other.pending_has_loop_closure_);
     swap(needs_optimization_, other.needs_optimization_);
 }
 
@@ -332,30 +320,28 @@ void GraphOptimizer::clear() {
     current_estimate_.clear();
     last_good_estimate_.clear();
     edges_.clear();
-    pending_edges_.clear();
     node_ids_.clear();
-    pending_node_ids_.clear();
     has_loop_closure_ = false;
-    pending_has_loop_closure_ = false;
     needs_optimization_ = false;
-    isam2_ = createISAM2();
+    
+    // 重新初始化 iSAM2
+    gtsam::ISAM2Params params;
+    params.relinearizeThreshold = 0.1;
+    params.relinearizeSkip = 1;
+    isam2_ = std::make_unique<gtsam::ISAM2>(params);
 }
 
 // ==================== 错误处理 ====================
 
 void GraphOptimizer::rollbackToLastState() {
-    clearPending();
     if (!last_good_estimate_.empty()) {
         current_estimate_ = last_good_estimate_;
-        rebuildISAM2FromCommitted();
+        new_factors_.resize(0);
+        new_values_.clear();
         std::cerr << "Rolled back to last good optimization state" << std::endl;
     } else {
-        if (!current_estimate_.empty() || !initial_values_.empty()) {
-            rebuildISAM2FromCommitted();
-        }
         std::cerr << "No previous state to rollback to" << std::endl;
     }
-    needs_optimization_ = false;
 }
 
 bool GraphOptimizer::isOptimizationHealthy() const {
@@ -365,124 +351,6 @@ bool GraphOptimizer::isOptimizationHealthy() const {
 }
 
 // ==================== 辅助函数 ====================
-
-std::unique_ptr<gtsam::ISAM2> GraphOptimizer::createISAM2() const {
-    gtsam::ISAM2Params params;
-    params.relinearizeThreshold = 0.1;
-    params.relinearizeSkip = 1;
-    params.cacheLinearizedFactors = false;
-    params.enableDetailedResults = false;
-    params.enablePartialRelinearizationCheck = true;
-    return std::make_unique<gtsam::ISAM2>(params);
-}
-
-void GraphOptimizer::clearPending() {
-    new_factors_.resize(0);
-    new_values_.clear();
-    pending_edges_.clear();
-    pending_node_ids_.clear();
-    pending_has_loop_closure_ = false;
-}
-
-bool GraphOptimizer::hasAnyNode(int64_t id) const {
-    return node_ids_.find(id) != node_ids_.end() ||
-           pending_node_ids_.find(id) != pending_node_ids_.end();
-}
-
-bool GraphOptimizer::getAnyPose(gtsam::Key key, gtsam::Pose3* pose) const {
-    if (!pose) return false;
-    if (new_values_.exists(key)) {
-        *pose = new_values_.at<gtsam::Pose3>(key);
-        return true;
-    }
-    if (current_estimate_.exists(key)) {
-        *pose = current_estimate_.at<gtsam::Pose3>(key);
-        return true;
-    }
-    if (initial_values_.exists(key)) {
-        *pose = initial_values_.at<gtsam::Pose3>(key);
-        return true;
-    }
-    return false;
-}
-
-void GraphOptimizer::commitPending(const gtsam::Values& optimized_estimate,
-                                   std::unique_ptr<gtsam::ISAM2> optimized_isam2) {
-    for (const auto& factor : new_factors_) {
-        graph_.push_back(factor);
-    }
-    for (int64_t id : pending_node_ids_) {
-        gtsam::Key key = gtsam::Symbol('x', id);
-        if (!initial_values_.exists(key) && new_values_.exists(key)) {
-            initial_values_.insert(key, new_values_.at<gtsam::Pose3>(key));
-        }
-        node_ids_.insert(id);
-    }
-    edges_.insert(edges_.end(), pending_edges_.begin(), pending_edges_.end());
-    has_loop_closure_ = has_loop_closure_ || pending_has_loop_closure_;
-    current_estimate_ = optimized_estimate;
-    last_good_estimate_ = optimized_estimate;
-    clearPending();
-    if (optimized_isam2) {
-        isam2_ = std::move(optimized_isam2);
-    } else {
-        rebuildISAM2FromCommitted();
-    }
-    needs_optimization_ = false;
-}
-
-void GraphOptimizer::rebuildISAM2FromCommitted() {
-    isam2_ = createISAM2();
-    if (graph_.empty()) {
-        return;
-    }
-    const gtsam::Values& values = !current_estimate_.empty() ? current_estimate_ : initial_values_;
-    if (values.empty()) {
-        return;
-    }
-    try {
-        isam2_->update(graph_, values);
-    } catch (const std::exception& e) {
-        std::cerr << "GraphOptimizer::rebuildISAM2FromCommitted() failed: " << e.what() << std::endl;
-        isam2_ = createISAM2();
-    }
-}
-
-bool GraphOptimizer::optimizeCandidate(const gtsam::NonlinearFactorGraph& candidate_graph,
-                                       const gtsam::Values& candidate_values,
-                                       gtsam::Values* optimized_estimate) const {
-    if (!optimized_estimate || candidate_graph.empty() || candidate_values.empty()) {
-        return false;
-    }
-    try {
-        gtsam::LevenbergMarquardtParams params;
-        params.maxIterations = config_.optimization_iterations;
-        params.verbosity = gtsam::NonlinearOptimizerParams::SILENT;
-
-        gtsam::LevenbergMarquardtOptimizer optimizer(candidate_graph, candidate_values, params);
-        *optimized_estimate = optimizer.optimize();
-        return !optimized_estimate->empty();
-    } catch (const std::exception& e) {
-        std::cerr << "GraphOptimizer::optimizeCandidate() failed: " << e.what() << std::endl;
-        return false;
-    }
-}
-
-void GraphOptimizer::appendPendingTo(gtsam::NonlinearFactorGraph* candidate_graph,
-                                     gtsam::Values* candidate_values) const {
-    if (!candidate_graph || !candidate_values) {
-        return;
-    }
-    for (const auto& factor : new_factors_) {
-        candidate_graph->push_back(factor);
-    }
-    for (int64_t id : pending_node_ids_) {
-        gtsam::Key key = gtsam::Symbol('x', id);
-        if (!candidate_values->exists(key) && new_values_.exists(key)) {
-            candidate_values->insert(key, new_values_.at<gtsam::Pose3>(key));
-        }
-    }
-}
 
 gtsam::Pose3 GraphOptimizer::eigenToGtsam(const Eigen::Isometry3d& pose) {
     Eigen::Matrix3d R = pose.rotation();

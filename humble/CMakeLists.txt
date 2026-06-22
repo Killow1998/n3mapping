@@ -108,15 +108,11 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
-  ${N3MAPPING_ROOT}/src/loop_debug_logger.cpp
-  ${N3MAPPING_ROOT}/src/loop_heightmap_diagnostics.cpp
-  ${N3MAPPING_ROOT}/src/loop_graph_trial_diagnostics.cpp
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
   ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
   ${N3MAPPING_ROOT}/include/Scancontext/Scancontext.cpp
@@ -152,7 +148,6 @@ add_executable(n3mapping_synthetic_relocalization_eval
 target_link_libraries(n3mapping_synthetic_relocalization_eval
   n3mapping_core
   ${PCL_LIBRARIES}
-  glog::glog
 )
 
 add_executable(n3mapping_filter_nav_pbstream
@@ -161,28 +156,6 @@ add_executable(n3mapping_filter_nav_pbstream
 target_link_libraries(n3mapping_filter_nav_pbstream
   n3mapping_core
   ${PCL_LIBRARIES}
-)
-
-add_executable(n3mapping_kitti360_reader
-  ${N3MAPPING_ROOT}/tools/n3mapping_kitti360_reader.cpp
-)
-
-add_executable(n3mapping_kitti360_eval
-  ${N3MAPPING_ROOT}/tools/n3mapping_kitti360_eval.cpp
-)
-target_link_libraries(n3mapping_kitti360_eval
-  n3mapping_core
-  ${PCL_LIBRARIES}
-  glog::glog
-)
-
-add_executable(n3mapping_m2dgr_eval
-  ${N3MAPPING_ROOT}/tools/n3mapping_m2dgr_eval.cpp
-)
-target_link_libraries(n3mapping_m2dgr_eval
-  n3mapping_core
-  ${PCL_LIBRARIES}
-  glog::glog
 )
 
 add_executable(n3mapping_synthetic_relocalization_publisher
@@ -220,9 +193,6 @@ install(TARGETS
   n3mapping_node
   n3mapping_synthetic_relocalization_eval
   n3mapping_filter_nav_pbstream
-  n3mapping_kitti360_reader
-  n3mapping_kitti360_eval
-  n3mapping_m2dgr_eval
   n3mapping_synthetic_relocalization_publisher
   n3mapping_synthetic_relocalization_visualizer
   EXPORT export_n3mapping
@@ -233,9 +203,6 @@ install(TARGETS
 
 install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/run_synthetic_relocalization_matrix.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_loop_debug_analyze.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_loop_candidate_benchmark.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -328,24 +295,6 @@ if(BUILD_TESTING)
     ament_target_dependencies(test_loop_detector rclcpp)
   endif()
 
-  ament_add_gtest(test_loop_debug_logger ${N3MAPPING_ROOT}/test/test_loop_debug_logger.cpp)
-  if(TARGET test_loop_debug_logger)
-    target_link_libraries(test_loop_debug_logger ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_loop_debug_logger rclcpp)
-  endif()
-
-  ament_add_gtest(test_loop_heightmap_diagnostics ${N3MAPPING_ROOT}/test/test_loop_heightmap_diagnostics.cpp)
-  if(TARGET test_loop_heightmap_diagnostics)
-    target_link_libraries(test_loop_heightmap_diagnostics ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_loop_heightmap_diagnostics rclcpp)
-  endif()
-
-  ament_add_gtest(test_loop_graph_trial_diagnostics ${N3MAPPING_ROOT}/test/test_loop_graph_trial_diagnostics.cpp)
-  if(TARGET test_loop_graph_trial_diagnostics)
-    target_link_libraries(test_loop_graph_trial_diagnostics ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_loop_graph_trial_diagnostics rclcpp)
-  endif()
-
   ament_add_gtest(test_loop_detector_pbt ${N3MAPPING_ROOT}/test/test_loop_detector_pbt.cpp)
   if(TARGET test_loop_detector_pbt)
     target_link_libraries(test_loop_detector_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
@@ -376,18 +325,6 @@ if(BUILD_TESTING)
     ament_target_dependencies(test_n3mapping_filter_nav_pbstream rclcpp)
   endif()
 
-  ament_add_gtest(test_kitti360_reader ${N3MAPPING_ROOT}/test/test_kitti360_reader.cpp)
-
-  ament_add_gtest(test_kitti360_eval ${N3MAPPING_ROOT}/test/test_kitti360_eval.cpp)
-  if(TARGET test_kitti360_eval)
-    target_link_libraries(test_kitti360_eval ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-  endif()
-
-  ament_add_gtest(test_m2dgr_eval ${N3MAPPING_ROOT}/test/test_m2dgr_eval.cpp)
-  if(TARGET test_m2dgr_eval)
-    target_link_libraries(test_m2dgr_eval ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-  endif()
-
   ament_add_gtest(test_map_serializer_pbt ${N3MAPPING_ROOT}/test/test_map_serializer_pbt.cpp)
   if(TARGET test_map_serializer_pbt)
     target_link_libraries(test_map_serializer_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
@@ -398,12 +335,6 @@ if(BUILD_TESTING)
   if(TARGET test_world_localizing)
     target_link_libraries(test_world_localizing ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
     ament_target_dependencies(test_world_localizing rclcpp)
-  endif()
-
-  ament_add_gtest(test_relocalization_debug_logger ${N3MAPPING_ROOT}/test/test_relocalization_debug_logger.cpp)
-  if(TARGET test_relocalization_debug_logger)
-    target_link_libraries(test_relocalization_debug_logger ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_relocalization_debug_logger rclcpp)
   endif()
 
   ament_add_gtest(test_world_localizing_pbt ${N3MAPPING_ROOT}/test/test_world_localizing_pbt.cpp)

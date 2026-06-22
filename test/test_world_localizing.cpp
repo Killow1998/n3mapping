@@ -4,13 +4,9 @@
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/world_localizing.h"
 #include <cmath>
-#include <filesystem>
-#include <fstream>
 #include <gtest/gtest.h>
 #include <pcl/common/transforms.h>
 #include <random>
-#include <string>
-#include <vector>
 
 namespace n3mapping {
 namespace test {
@@ -115,17 +111,6 @@ class WorldLocalizingTest : public ::testing::Test
     std::unique_ptr<PointCloudMatcher> matcher_;
 };
 
-std::vector<std::string> readDebugLines(const std::filesystem::path& path)
-{
-    std::vector<std::string> lines;
-    std::ifstream file(path);
-    std::string line;
-    while (std::getline(file, line)) {
-        lines.push_back(line);
-    }
-    return lines;
-}
-
 TEST_F(WorldLocalizingTest, BasicConstruction)
 {
     WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
@@ -144,63 +129,6 @@ TEST_F(WorldLocalizingTest, RelocalizationEmptyMap)
 
     EXPECT_FALSE(result.success);
     EXPECT_FALSE(reloc.isRelocalized());
-}
-
-TEST_F(WorldLocalizingTest, RelocalizationDebugWritesRejectPath)
-{
-    const std::filesystem::path dir =
-        std::filesystem::temp_directory_path() / "n3mapping_reloc_debug_reject";
-    std::filesystem::remove_all(dir);
-    std::filesystem::create_directories(dir);
-    const std::filesystem::path debug_path = dir / "relocalization_debug.jsonl";
-    config_.reloc_debug_enable = true;
-    config_.reloc_debug_path = debug_path.string();
-
-    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
-    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-    auto cloud = generateCorridorCloud(pose);
-
-    RelocResult result = reloc.relocalize(cloud, pose);
-
-    EXPECT_FALSE(result.success);
-    const auto lines = readDebugLines(debug_path);
-    ASSERT_EQ(lines.size(), 1u);
-    EXPECT_NE(lines[0].find("\"record_type\":\"relocalize\""), std::string::npos);
-    EXPECT_NE(lines[0].find("\"lock_result\":\"rejected\""), std::string::npos);
-    EXPECT_NE(lines[0].find("\"reject_reason\":\"missing_keyframes\""), std::string::npos);
-
-    std::filesystem::remove_all(dir);
-}
-
-TEST_F(WorldLocalizingTest, RelocalizationDebugWritesTrackingFailurePath)
-{
-    const std::filesystem::path dir =
-        std::filesystem::temp_directory_path() / "n3mapping_reloc_debug_tracking";
-    std::filesystem::remove_all(dir);
-    std::filesystem::create_directories(dir);
-    const std::filesystem::path debug_path = dir / "relocalization_debug.jsonl";
-    config_.reloc_debug_enable = true;
-    config_.reloc_debug_path = debug_path.string();
-    config_.reloc_search_radius = 1.0;
-
-    buildTestMap(3, 2.0);
-    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
-    reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
-
-    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-    pose.translation().x() = 100.0;
-    auto cloud = generateCorridorCloud(pose);
-
-    RelocResult result = reloc.trackLocalization(cloud, pose);
-
-    EXPECT_TRUE(result.success);
-    const auto lines = readDebugLines(debug_path);
-    ASSERT_EQ(lines.size(), 1u);
-    EXPECT_NE(lines[0].find("\"record_type\":\"tracking\""), std::string::npos);
-    EXPECT_NE(lines[0].find("\"nearest_kf_id\":-1"), std::string::npos);
-    EXPECT_NE(lines[0].find("\"reject_reason\":\"nearest_keyframe_missing\""), std::string::npos);
-
-    std::filesystem::remove_all(dir);
 }
 
 TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess)

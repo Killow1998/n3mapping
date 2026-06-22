@@ -105,15 +105,11 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
-  ${N3MAPPING_ROOT}/src/loop_debug_logger.cpp
-  ${N3MAPPING_ROOT}/src/loop_heightmap_diagnostics.cpp
-  ${N3MAPPING_ROOT}/src/loop_graph_trial_diagnostics.cpp
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
   ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
   ${N3MAPPING_ROOT}/include/Scancontext/Scancontext.cpp
@@ -168,7 +164,6 @@ add_executable(n3mapping_synthetic_relocalization_eval
 target_link_libraries(n3mapping_synthetic_relocalization_eval
   n3mapping_core
   ${PCL_LIBRARIES}
-  glog::glog
 )
 set_target_properties(n3mapping_synthetic_relocalization_eval PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
@@ -182,37 +177,6 @@ target_link_libraries(n3mapping_filter_nav_pbstream
   ${PCL_LIBRARIES}
 )
 set_target_properties(n3mapping_filter_nav_pbstream PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
-)
-
-add_executable(n3mapping_kitti360_reader
-  ${N3MAPPING_ROOT}/tools/n3mapping_kitti360_reader.cpp
-)
-set_target_properties(n3mapping_kitti360_reader PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
-)
-
-add_executable(n3mapping_kitti360_eval
-  ${N3MAPPING_ROOT}/tools/n3mapping_kitti360_eval.cpp
-)
-target_link_libraries(n3mapping_kitti360_eval
-  n3mapping_core
-  ${PCL_LIBRARIES}
-  glog::glog
-)
-set_target_properties(n3mapping_kitti360_eval PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
-)
-
-add_executable(n3mapping_m2dgr_eval
-  ${N3MAPPING_ROOT}/tools/n3mapping_m2dgr_eval.cpp
-)
-target_link_libraries(n3mapping_m2dgr_eval
-  n3mapping_core
-  ${PCL_LIBRARIES}
-  glog::glog
-)
-set_target_properties(n3mapping_m2dgr_eval PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
 )
 
@@ -252,20 +216,10 @@ install(TARGETS
   n3mapping_node
   n3mapping_synthetic_relocalization_eval
   n3mapping_filter_nav_pbstream
-  n3mapping_kitti360_reader
-  n3mapping_kitti360_eval
-  n3mapping_m2dgr_eval
   n3mapping_synthetic_relocalization_visualizer
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-install(PROGRAMS
-  ${N3MAPPING_ROOT}/tools/n3mapping_loop_debug_analyze.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_loop_candidate_benchmark.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(DIRECTORY ${N3MAPPING_ROOT}/include/
@@ -303,14 +257,6 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(test_loop_detector n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
   endif()
 
-  catkin_add_gtest(test_loop_debug_logger
-    ${N3MAPPING_ROOT}/test/test_loop_debug_logger.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_loop_debug_logger)
-    target_link_libraries(test_loop_debug_logger n3mapping_core)
-  endif()
-
   catkin_add_gtest(test_global_map_cache
     ${N3MAPPING_ROOT}/test/test_global_map_cache.cpp
     ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
@@ -325,35 +271,6 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_world_localizing)
     target_link_libraries(test_world_localizing n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
-  endif()
-
-  catkin_add_gtest(test_relocalization_debug_logger
-    ${N3MAPPING_ROOT}/test/test_relocalization_debug_logger.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_relocalization_debug_logger)
-    target_link_libraries(test_relocalization_debug_logger n3mapping_core)
-  endif()
-
-  catkin_add_gtest(test_kitti360_reader
-    ${N3MAPPING_ROOT}/test/test_kitti360_reader.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-
-  catkin_add_gtest(test_kitti360_eval
-    ${N3MAPPING_ROOT}/test/test_kitti360_eval.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_kitti360_eval)
-    target_link_libraries(test_kitti360_eval n3mapping_core ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-  endif()
-
-  catkin_add_gtest(test_m2dgr_eval
-    ${N3MAPPING_ROOT}/test/test_m2dgr_eval.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_m2dgr_eval)
-    target_link_libraries(test_m2dgr_eval n3mapping_core ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
   endif()
 
   catkin_add_gtest(test_synthetic_relocalization
