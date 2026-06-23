@@ -41,7 +41,20 @@ WorldLocalizing::WorldLocalizing(const Config& config,
     , consecutive_track_failures_(0)
     , hypothesis_window_count_(0)
     , last_window_winner_seed_id_(-1)
-    , winner_streak_(0) {}
+    , winner_streak_(0) {
+    tracking_prefetch_thread_ = std::thread(&WorldLocalizing::trackingTargetPrefetchLoop, this);
+}
+
+WorldLocalizing::~WorldLocalizing() {
+    {
+        std::lock_guard<std::mutex> lock(tracking_cache_mutex_);
+        tracking_prefetch_stop_ = true;
+    }
+    tracking_prefetch_cv_.notify_all();
+    if (tracking_prefetch_thread_.joinable()) {
+        tracking_prefetch_thread_.join();
+    }
+}
 
 RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose) {
     RelocResult result;
@@ -426,28 +439,49 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
 
     double submap_build_ms = 0.0;
     double target_prepare_ms = 0.0;
+    double align_ms = 0.0;
     bool target_cache_hit = false;
-    const TrackingTargetCache* target_cache =
-        getTrackingTargetCache(nearest_kf_id, submap_range, &submap_build_ms, &target_prepare_ms, &target_cache_hit);
-    const auto submap = target_cache ? target_cache->submap : nullptr;
-    if (!target_cache || !submap || submap->empty() || target_cache->targets.empty()) {
-        consecutive_track_failures_++;
-        if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
-            is_relocalized_ = false;
-            result.success = false;
-        } else {
-            result.success = true;
-        }
+    std::size_t cache_entries = 0;
+    TrackingTargetCache target_cache;
+    const bool has_target_cache =
+        getTrackingTargetCache(nearest_kf_id, submap_range, &target_cache, &target_cache_hit, &cache_entries);
+    requestTrackingTargetPrefetchNeighborhood(nearest_kf_id, submap_range);
+
+    const auto submap = has_target_cache ? target_cache.submap : nullptr;
+    if (!has_target_cache || !submap || submap->empty() || target_cache.targets.empty()) {
+        result.success = true;
         result.matched_keyframe_id = last_matched_id_;
         result.pose_in_map = predicted_pose;
         result.confidence = 0.5;
         last_odom_pose_ = odom_pose;
+
+        const double total_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - track_start).count();
+        if (++tracking_perf_count_ % 20 == 1) {
+            std::ofstream file(config_.map_save_path + "/tracking_perf.log", std::ios::out | std::ios::app);
+            if (file.is_open()) {
+                file << "total_ms=" << total_ms
+                     << " cache_hit=" << target_cache_hit
+                     << " target_ready=0"
+                     << " center_kf=" << nearest_kf_id
+                     << " submap_range=" << submap_range
+                     << " submap_ms=" << submap_build_ms
+                     << " target_prepare_ms=" << target_prepare_ms
+                     << " foreground_prepare_ms=0"
+                     << " align_ms=" << align_ms
+                     << " source_pts=" << cloud->size()
+                     << " target_pts=0"
+                     << " cache_entries=" << cache_entries
+                     << " failures=" << consecutive_track_failures_
+                     << '\n';
+            }
+        }
         return result;
     }
 
     const auto align_start = std::chrono::steady_clock::now();
-    MatchResult match_result = matcher_.alignCloudPrepared(target_cache->targets, cloud, predicted_pose);
-    double align_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - align_start).count();
+    MatchResult match_result = matcher_.alignCloudPrepared(target_cache.targets, cloud, predicted_pose);
+    align_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - align_start).count();
 
     // If ICP failed with standard params and we have recent failures, retry with wider search
     const bool icp_failed = !match_result.converged ||
@@ -461,7 +495,7 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         wide.max_iterations = config_.reloc_track_retry_max_iterations;
         matcher_.setSettings(wide);
         const auto retry_start = std::chrono::steady_clock::now();
-        auto retry = matcher_.alignCloudPrepared(target_cache->targets, cloud, predicted_pose);
+        auto retry = matcher_.alignCloudPrepared(target_cache.targets, cloud, predicted_pose);
         align_ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - retry_start).count();
         matcher_.setSettings(saved);
         if (retry.converged && retry.fitness_score < match_result.fitness_score)
@@ -559,14 +593,16 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         if (file.is_open()) {
             file << "total_ms=" << total_ms
                  << " cache_hit=" << target_cache_hit
+                 << " target_ready=1"
                  << " center_kf=" << nearest_kf_id
                  << " submap_range=" << submap_range
                  << " submap_ms=" << submap_build_ms
                  << " target_prepare_ms=" << target_prepare_ms
+                 << " foreground_prepare_ms=0"
                  << " align_ms=" << align_ms
                  << " source_pts=" << cloud->size()
                  << " target_pts=" << (submap ? submap->size() : 0)
-                 << " cache_entries=" << tracking_target_cache_.size()
+                 << " cache_entries=" << cache_entries
                  << " failures=" << consecutive_track_failures_
                  << '\n';
         }
@@ -606,14 +642,13 @@ void WorldLocalizing::setMapToOdomTransform(const Eigen::Isometry3d& T_map_odom)
     clearRelocHypotheses();
 }
 
-const WorldLocalizing::TrackingTargetCache* WorldLocalizing::getTrackingTargetCache(
+bool WorldLocalizing::getTrackingTargetCache(
     int64_t center_keyframe_id,
     int submap_range,
-    double* build_ms,
-    double* prepare_ms,
-    bool* cache_hit) {
-    if (build_ms) *build_ms = 0.0;
-    if (prepare_ms) *prepare_ms = 0.0;
+    TrackingTargetCache* cache,
+    bool* cache_hit,
+    std::size_t* cache_entries) {
+    std::lock_guard<std::mutex> lock(tracking_cache_mutex_);
     for (auto it = tracking_target_cache_.begin(); it != tracking_target_cache_.end(); ++it) {
         const bool hit = it->center_keyframe_id == center_keyframe_id &&
                          it->submap_range == submap_range &&
@@ -629,10 +664,32 @@ const WorldLocalizing::TrackingTargetCache* WorldLocalizing::getTrackingTargetCa
             tracking_target_cache_.erase(it);
             tracking_target_cache_.push_front(std::move(entry));
         }
-        return &tracking_target_cache_.front();
+        if (cache) {
+            *cache = tracking_target_cache_.front();
+        }
+        if (cache_entries) {
+            *cache_entries = tracking_target_cache_.size();
+        }
+        return true;
     }
     if (cache_hit) *cache_hit = false;
+    if (cache_entries) {
+        *cache_entries = tracking_target_cache_.size();
+    }
+    return false;
+}
 
+bool WorldLocalizing::buildTrackingTargetCache(
+    int64_t center_keyframe_id,
+    int submap_range,
+    TrackingTargetCache* cache_out,
+    double* build_ms,
+    double* prepare_ms) {
+    if (build_ms) *build_ms = 0.0;
+    if (prepare_ms) *prepare_ms = 0.0;
+    if (!cache_out) {
+        return false;
+    }
     TrackingTargetCache cache;
     cache.center_keyframe_id = center_keyframe_id;
     cache.submap_range = submap_range;
@@ -644,7 +701,7 @@ const WorldLocalizing::TrackingTargetCache* WorldLocalizing::getTrackingTargetCa
             std::chrono::steady_clock::now() - build_start).count();
     }
     if (!cache.submap || cache.submap->empty()) {
-        return nullptr;
+        return false;
     }
 
     const double base_res = std::max(1e-3, config_.gicp_downsampling_resolution);
@@ -676,18 +733,133 @@ const WorldLocalizing::TrackingTargetCache* WorldLocalizing::getTrackingTargetCa
             std::chrono::steady_clock::now() - prepare_start).count();
     }
     if (cache.targets.empty()) {
-        return nullptr;
+        return false;
     }
 
-    tracking_target_cache_.push_front(std::move(cache));
-    while (tracking_target_cache_.size() > kTrackingTargetCacheSize) {
-        tracking_target_cache_.pop_back();
+    *cache_out = std::move(cache);
+    return true;
+}
+
+bool WorldLocalizing::hasTrackingTargetCacheLocked(int64_t center_keyframe_id, int submap_range) const {
+    for (const auto& cache : tracking_target_cache_) {
+        if (cache.center_keyframe_id == center_keyframe_id &&
+            cache.submap_range == submap_range &&
+            cache.submap &&
+            !cache.submap->empty() &&
+            !cache.targets.empty()) {
+            return true;
+        }
     }
-    return &tracking_target_cache_.front();
+    return false;
+}
+
+void WorldLocalizing::requestTrackingTargetPrefetch(int64_t center_keyframe_id, int submap_range) {
+    if (center_keyframe_id < 0 || submap_range <= 0) {
+        return;
+    }
+    if (!keyframe_manager_.getKeyframe(center_keyframe_id)) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(tracking_cache_mutex_);
+    const auto key = std::make_pair(center_keyframe_id, submap_range);
+    if (hasTrackingTargetCacheLocked(center_keyframe_id, submap_range) ||
+        tracking_prefetch_pending_.count(key) > 0) {
+        return;
+    }
+
+    constexpr std::size_t kMaxPrefetchQueueSize = kTrackingTargetCacheSize * 4;
+    while (tracking_prefetch_queue_.size() >= kMaxPrefetchQueueSize) {
+        const auto dropped = tracking_prefetch_queue_.back();
+        tracking_prefetch_pending_.erase(std::make_pair(dropped.center_keyframe_id, dropped.submap_range));
+        tracking_prefetch_queue_.pop_back();
+    }
+
+    TrackingTargetRequest request;
+    request.center_keyframe_id = center_keyframe_id;
+    request.submap_range = submap_range;
+    request.generation = tracking_cache_generation_;
+    tracking_prefetch_queue_.push_back(request);
+    tracking_prefetch_pending_.insert(key);
+    tracking_prefetch_cv_.notify_one();
+}
+
+void WorldLocalizing::requestTrackingTargetPrefetchNeighborhood(int64_t center_keyframe_id, int submap_range) {
+    requestTrackingTargetPrefetch(center_keyframe_id, submap_range);
+    requestTrackingTargetPrefetch(center_keyframe_id + 1, submap_range);
+    requestTrackingTargetPrefetch(center_keyframe_id - 1, submap_range);
+    requestTrackingTargetPrefetch(center_keyframe_id + 2, submap_range);
+    requestTrackingTargetPrefetch(center_keyframe_id - 2, submap_range);
+}
+
+void WorldLocalizing::trackingTargetPrefetchLoop() {
+    while (true) {
+        TrackingTargetRequest request;
+        {
+            std::unique_lock<std::mutex> lock(tracking_cache_mutex_);
+            tracking_prefetch_cv_.wait(lock, [this]() {
+                return tracking_prefetch_stop_ || !tracking_prefetch_queue_.empty();
+            });
+            if (tracking_prefetch_stop_) {
+                return;
+            }
+            request = tracking_prefetch_queue_.front();
+            tracking_prefetch_queue_.pop_front();
+        }
+
+        TrackingTargetCache cache;
+        double build_ms = 0.0;
+        double prepare_ms = 0.0;
+        const bool built = buildTrackingTargetCache(
+            request.center_keyframe_id, request.submap_range, &cache, &build_ms, &prepare_ms);
+        const std::size_t target_points = cache.submap ? cache.submap->size() : 0;
+        std::size_t cache_entries = 0;
+
+        {
+            std::lock_guard<std::mutex> lock(tracking_cache_mutex_);
+            const auto key = std::make_pair(request.center_keyframe_id, request.submap_range);
+            tracking_prefetch_pending_.erase(key);
+            if (built &&
+                request.generation == tracking_cache_generation_ &&
+                !hasTrackingTargetCacheLocked(request.center_keyframe_id, request.submap_range)) {
+                tracking_target_cache_.push_front(std::move(cache));
+                while (tracking_target_cache_.size() > kTrackingTargetCacheSize) {
+                    tracking_target_cache_.pop_back();
+                }
+            }
+            cache_entries = tracking_target_cache_.size();
+        }
+
+        appendTrackingPrefetchLog(request, built, build_ms, prepare_ms, target_points, cache_entries);
+    }
+}
+
+void WorldLocalizing::appendTrackingPrefetchLog(const TrackingTargetRequest& request,
+                                                bool built,
+                                                double build_ms,
+                                                double prepare_ms,
+                                                std::size_t target_points,
+                                                std::size_t cache_entries) {
+    std::ofstream file(config_.map_save_path + "/target_prefetch.log", std::ios::out | std::ios::app);
+    if (!file.is_open()) {
+        return;
+    }
+    file << "center_kf=" << request.center_keyframe_id
+         << " submap_range=" << request.submap_range
+         << " built=" << built
+         << " submap_ms=" << build_ms
+         << " target_prepare_ms=" << prepare_ms
+         << " target_pts=" << target_points
+         << " cache_entries=" << cache_entries
+         << '\n';
 }
 
 void WorldLocalizing::clearTrackingTargetCache() {
+    std::lock_guard<std::mutex> lock(tracking_cache_mutex_);
     tracking_target_cache_.clear();
+    tracking_prefetch_queue_.clear();
+    tracking_prefetch_pending_.clear();
+    ++tracking_cache_generation_;
 }
 
 int64_t WorldLocalizing::getLastMatchedKeyframeId() const {

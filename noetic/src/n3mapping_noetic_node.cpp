@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <cmath>
 #include <cstdint>
@@ -538,9 +539,20 @@ class N3MappingNoeticNode {
             ROS_WARN("Failed to create performance log directory: %s", config_.map_save_path.c_str());
         }
         performance_log_path_ = config_.map_save_path + "/performance.log";
-        std::ofstream file(performance_log_path_, std::ios::out | std::ios::trunc);
-        if (!file.is_open()) {
+        std::ofstream performance_file(performance_log_path_, std::ios::out | std::ios::trunc);
+        if (!performance_file.is_open()) {
             ROS_WARN("Failed to open performance log: %s", performance_log_path_.c_str());
+        }
+
+        const std::array<std::string, 2> run_logs = {
+            config_.map_save_path + "/tracking_perf.log",
+            config_.map_save_path + "/target_prefetch.log",
+        };
+        for (const auto& path : run_logs) {
+            std::ofstream file(path, std::ios::out | std::ios::trunc);
+            if (!file.is_open()) {
+                ROS_WARN("Failed to reset run log: %s", path.c_str());
+            }
         }
     }
 
