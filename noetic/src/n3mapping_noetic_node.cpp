@@ -134,7 +134,7 @@ class N3MappingNoeticNode {
                 return;
             }
 
-            publishOdometry(output.T_world_lidar, cloud_msg->header);
+            publishOdometry(output.T_world_lidar, cloud_msg->header, *odom_msg);
             publishPath(cloud_msg->header, &output.T_world_lidar);
 
             if (output.relocalization_locked) {
@@ -307,13 +307,16 @@ class N3MappingNoeticNode {
         ROS_INFO("Debug global map saved: %s (%zu points)", global_map_file.c_str(), cloud->size());
     }
 
-    void publishOdometry(const Eigen::Isometry3d& pose, const std_msgs::Header& header)
+    void publishOdometry(const Eigen::Isometry3d& pose,
+                         const std_msgs::Header& header,
+                         const nav_msgs::Odometry& input_odom)
     {
         nav_msgs::Odometry odom_msg;
         odom_msg.header = header;
         odom_msg.header.frame_id = config_.world_frame;
         odom_msg.child_frame_id = config_.body_frame;
         odom_msg.pose.pose = makePose(pose);
+        odom_msg.twist = transformTwistToOutputFrame(pose, input_odom);
         odom_pub_.publish(odom_msg);
 
         ros::Time tf_stamp = odom_msg.header.stamp;
@@ -339,6 +342,44 @@ class N3MappingNoeticNode {
         tf.transform.rotation = odom_msg.pose.pose.orientation;
         tf_broadcaster_.sendTransform(tf);
         last_tf_stamp_ = tf_stamp;
+    }
+
+    geometry_msgs::TwistWithCovariance transformTwistToOutputFrame(
+        const Eigen::Isometry3d& output_pose,
+        const nav_msgs::Odometry& input_odom) const
+    {
+        geometry_msgs::TwistWithCovariance twist = input_odom.twist;
+        const Eigen::Isometry3d input_pose = odometryPoseToIsometry(input_odom);
+        const Eigen::Matrix3d rotation = output_pose.linear() * input_pose.linear().transpose();
+
+        const Eigen::Vector3d linear(twist.twist.linear.x, twist.twist.linear.y, twist.twist.linear.z);
+        const Eigen::Vector3d angular(twist.twist.angular.x, twist.twist.angular.y, twist.twist.angular.z);
+        const Eigen::Vector3d linear_out = rotation * linear;
+        const Eigen::Vector3d angular_out = rotation * angular;
+        twist.twist.linear.x = linear_out.x();
+        twist.twist.linear.y = linear_out.y();
+        twist.twist.linear.z = linear_out.z();
+        twist.twist.angular.x = angular_out.x();
+        twist.twist.angular.y = angular_out.y();
+        twist.twist.angular.z = angular_out.z();
+
+        Eigen::Matrix<double, 6, 6> covariance;
+        for (int row = 0; row < 6; ++row) {
+            for (int col = 0; col < 6; ++col) {
+                covariance(row, col) = twist.covariance[row * 6 + col];
+            }
+        }
+        Eigen::Matrix<double, 6, 6> transform = Eigen::Matrix<double, 6, 6>::Zero();
+        transform.block<3, 3>(0, 0) = rotation;
+        transform.block<3, 3>(3, 3) = rotation;
+        const Eigen::Matrix<double, 6, 6> covariance_out = transform * covariance * transform.transpose();
+        for (int row = 0; row < 6; ++row) {
+            for (int col = 0; col < 6; ++col) {
+                twist.covariance[row * 6 + col] = covariance_out(row, col);
+            }
+        }
+
+        return twist;
     }
 
     void publishPath(const std_msgs::Header& header, const Eigen::Isometry3d* current_pose)
