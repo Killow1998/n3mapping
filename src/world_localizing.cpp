@@ -5,7 +5,10 @@
 #include <Eigen/Geometry>
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
+#include <cstddef>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include "n3mapping/cloud_utils.h"
@@ -18,6 +21,7 @@ constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
 constexpr double kRelocBasinAmbiguousFitnessGap = 0.03;
+constexpr std::size_t kTrackingTargetCacheSize = 5;
 } // namespace
 
 WorldLocalizing::WorldLocalizing(const Config& config,
@@ -379,16 +383,10 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
 }
 
 RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose) {
-    Eigen::Isometry3d predicted_pose = T_map_odom_ * odom_pose;
-
     RelocResult result;
     result.success = false;
-    result.pose_in_map = predicted_pose;
 
-    if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
-        is_relocalized_ = false;
-        return result;
-    }
+    const auto track_start = std::chrono::steady_clock::now();
 
     if (!cloud || cloud->empty()) {
         LOG(WARNING) << "Empty point cloud for tracking.";
@@ -396,6 +394,14 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
+
+    Eigen::Isometry3d predicted_pose = T_map_odom_ * odom_pose;
+    result.pose_in_map = predicted_pose;
+
+    if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
+        is_relocalized_ = false;
+        return result;
+    }
 
     int64_t nearest_kf_id = findNearestKeyframe(predicted_pose);
     if (nearest_kf_id < 0) {
@@ -418,8 +424,13 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
     if (consecutive_track_failures_ > 0)
         submap_range = std::max(submap_range, config_.reloc_track_unstable_submap_size);
 
-    auto submap = keyframe_manager_.buildLocalSubmap(nearest_kf_id, submap_range);
-    if (!submap || submap->empty()) {
+    double submap_build_ms = 0.0;
+    double target_prepare_ms = 0.0;
+    bool target_cache_hit = false;
+    const TrackingTargetCache* target_cache =
+        getTrackingTargetCache(nearest_kf_id, submap_range, &submap_build_ms, &target_prepare_ms, &target_cache_hit);
+    const auto submap = target_cache ? target_cache->submap : nullptr;
+    if (!target_cache || !submap || submap->empty() || target_cache->targets.empty()) {
         consecutive_track_failures_++;
         if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
             is_relocalized_ = false;
@@ -434,7 +445,9 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         return result;
     }
 
-    MatchResult match_result = matcher_.alignCloud(submap, cloud, predicted_pose);
+    const auto align_start = std::chrono::steady_clock::now();
+    MatchResult match_result = matcher_.alignCloudPrepared(target_cache->targets, cloud, predicted_pose);
+    double align_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - align_start).count();
 
     // If ICP failed with standard params and we have recent failures, retry with wider search
     const bool icp_failed = !match_result.converged ||
@@ -447,7 +460,9 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         wide.max_correspondence_distance = saved.max_correspondence_distance * config_.reloc_track_retry_corr_scale;
         wide.max_iterations = config_.reloc_track_retry_max_iterations;
         matcher_.setSettings(wide);
-        auto retry = matcher_.alignCloud(submap, cloud, predicted_pose);
+        const auto retry_start = std::chrono::steady_clock::now();
+        auto retry = matcher_.alignCloudPrepared(target_cache->targets, cloud, predicted_pose);
+        align_ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - retry_start).count();
         matcher_.setSettings(saved);
         if (retry.converged && retry.fitness_score < match_result.fitness_score)
             match_result = retry;
@@ -524,6 +539,7 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
 
         if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
             is_relocalized_ = false;
+            clearTrackingTargetCache();
             result.success = false;
         } else {
             // Keep odometry-based continuity for transient dropouts.
@@ -534,6 +550,26 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
         result.pose_in_map = predicted_pose;
         result.confidence = 0.2;
         last_odom_pose_ = odom_pose;
+    }
+
+    const double total_ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - track_start).count();
+    if (++tracking_perf_count_ % 20 == 1) {
+        std::ofstream file(config_.map_save_path + "/tracking_perf.log", std::ios::out | std::ios::app);
+        if (file.is_open()) {
+            file << "total_ms=" << total_ms
+                 << " cache_hit=" << target_cache_hit
+                 << " center_kf=" << nearest_kf_id
+                 << " submap_range=" << submap_range
+                 << " submap_ms=" << submap_build_ms
+                 << " target_prepare_ms=" << target_prepare_ms
+                 << " align_ms=" << align_ms
+                 << " source_pts=" << cloud->size()
+                 << " target_pts=" << (submap ? submap->size() : 0)
+                 << " cache_entries=" << tracking_target_cache_.size()
+                 << " failures=" << consecutive_track_failures_
+                 << '\n';
+        }
     }
 
     return result;
@@ -557,6 +593,7 @@ void WorldLocalizing::reset() {
     last_odom_pose_ = Eigen::Isometry3d::Identity();
     consecutive_track_failures_ = 0;
     query_frame_buffer_.clear();
+    clearTrackingTargetCache();
     clearRelocHypotheses();
 }
 
@@ -565,7 +602,92 @@ void WorldLocalizing::setMapToOdomTransform(const Eigen::Isometry3d& T_map_odom)
     T_map_odom_ = T_map_odom;
     is_relocalized_ = true;
     query_frame_buffer_.clear();
+    clearTrackingTargetCache();
     clearRelocHypotheses();
+}
+
+const WorldLocalizing::TrackingTargetCache* WorldLocalizing::getTrackingTargetCache(
+    int64_t center_keyframe_id,
+    int submap_range,
+    double* build_ms,
+    double* prepare_ms,
+    bool* cache_hit) {
+    if (build_ms) *build_ms = 0.0;
+    if (prepare_ms) *prepare_ms = 0.0;
+    for (auto it = tracking_target_cache_.begin(); it != tracking_target_cache_.end(); ++it) {
+        const bool hit = it->center_keyframe_id == center_keyframe_id &&
+                         it->submap_range == submap_range &&
+                         it->submap &&
+                         !it->submap->empty() &&
+                         !it->targets.empty();
+        if (!hit) {
+            continue;
+        }
+        if (cache_hit) *cache_hit = true;
+        if (it != tracking_target_cache_.begin()) {
+            auto entry = std::move(*it);
+            tracking_target_cache_.erase(it);
+            tracking_target_cache_.push_front(std::move(entry));
+        }
+        return &tracking_target_cache_.front();
+    }
+    if (cache_hit) *cache_hit = false;
+
+    TrackingTargetCache cache;
+    cache.center_keyframe_id = center_keyframe_id;
+    cache.submap_range = submap_range;
+
+    const auto build_start = std::chrono::steady_clock::now();
+    cache.submap = keyframe_manager_.buildLocalSubmap(center_keyframe_id, submap_range);
+    if (build_ms) {
+        *build_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - build_start).count();
+    }
+    if (!cache.submap || cache.submap->empty()) {
+        return nullptr;
+    }
+
+    const double base_res = std::max(1e-3, config_.gicp_downsampling_resolution);
+    std::vector<double> resolutions = { base_res * 2.0, base_res };
+    if (config_.icp_refine_use_gicp) {
+        const double refine_res = config_.icp_refine_downsampling_resolution;
+        bool exists = false;
+        for (double res : resolutions) {
+            if (std::abs(res - refine_res) <= 1e-9) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            resolutions.push_back(refine_res);
+        }
+    }
+
+    const auto prepare_start = std::chrono::steady_clock::now();
+    cache.targets.reserve(resolutions.size());
+    for (double res : resolutions) {
+        auto target = matcher_.prepareTargetCloud(cache.submap, res);
+        if (target.kdtree && target.cloud && target.cloud->size() >= 10) {
+            cache.targets.push_back(std::move(target));
+        }
+    }
+    if (prepare_ms) {
+        *prepare_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - prepare_start).count();
+    }
+    if (cache.targets.empty()) {
+        return nullptr;
+    }
+
+    tracking_target_cache_.push_front(std::move(cache));
+    while (tracking_target_cache_.size() > kTrackingTargetCacheSize) {
+        tracking_target_cache_.pop_back();
+    }
+    return &tracking_target_cache_.front();
+}
+
+void WorldLocalizing::clearTrackingTargetCache() {
+    tracking_target_cache_.clear();
 }
 
 int64_t WorldLocalizing::getLastMatchedKeyframeId() const {

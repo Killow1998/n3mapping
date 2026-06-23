@@ -105,6 +105,17 @@ PointCloudMatcher::preprocessPointCloud(const PointCloudT::Ptr& cloud) {
     return preprocessTargetPointCloud(cloud, config_.gicp_downsampling_resolution);
 }
 
+PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
+    const PointCloudT::Ptr& cloud,
+    double downsampling_resolution) {
+    PreparedTarget target;
+    target.resolution = downsampling_resolution;
+    auto prepared = preprocessTargetPointCloud(cloud, downsampling_resolution);
+    target.cloud = prepared.first;
+    target.kdtree = prepared.second;
+    return target;
+}
+
 MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe::Ptr& source, const Eigen::Isometry3d& init_guess) {
     MatchResult result;
     if (!target || !source || !target->cloud || !source->cloud || target->cloud->empty() || source->cloud->empty()) return result;
@@ -211,6 +222,89 @@ MatchResult PointCloudMatcher::alignCloud(const PointCloudT::Ptr& target_cloud, 
         }
     } catch (const std::exception& e) {
         LOG(ERROR) << "[PointCloudMatcher] alignCloud exception: " << e.what();
+    }
+    return result;
+}
+
+MatchResult PointCloudMatcher::alignCloudPrepared(const std::vector<PreparedTarget>& targets,
+                                                  const PointCloudT::Ptr& source_cloud,
+                                                  const Eigen::Isometry3d& init_guess) {
+    MatchResult result;
+    if (targets.empty() || !source_cloud || source_cloud->empty()) return result;
+    try {
+        const double base_res = std::max(1e-3, config_.gicp_downsampling_resolution);
+        const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
+        Eigen::Isometry3d T = init_guess;
+        size_t coarse_inliers = 0; double coarse_inlier_ratio = 0.0;
+        Eigen::Matrix<double, 6, 6> coarse_H = Eigen::Matrix<double, 6, 6>::Identity();
+        bool coarse_converged = false; double coarse_fitness = std::numeric_limits<double>::max();
+
+        auto find_target = [&targets](double resolution) -> const PreparedTarget* {
+            constexpr double kResolutionEps = 1e-9;
+            for (const auto& target : targets) {
+                if (std::abs(target.resolution - resolution) <= kResolutionEps) {
+                    return &target;
+                }
+            }
+            return nullptr;
+        };
+
+        for (double res : resolutions) {
+            if (res < base_res * 0.99) continue;
+            const PreparedTarget* target = find_target(res);
+            auto sp = preprocessSourcePointCloud(source_cloud, res);
+            if (!target || !target->kdtree || !target->cloud || target->cloud->size() < 10 || sp->size() < 10) return result;
+            auto ls = setting_;
+            if (res > base_res * 1.01) ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
+            auto rr = small_gicp::align(*target->cloud, *sp, *target->kdtree, T, ls);
+            T = rr.T_target_source;
+            coarse_converged = rr.converged;
+            coarse_inliers = rr.num_inliers;
+            coarse_inlier_ratio = sp->empty() ? 0.0 : static_cast<double>(rr.num_inliers) / static_cast<double>(sp->size());
+            coarse_H = rr.H;
+            coarse_fitness = (rr.num_inliers > 0) ? rr.error / static_cast<double>(rr.num_inliers) : std::numeric_limits<double>::max();
+        }
+
+        result.T_target_source = T;
+        result.converged = coarse_converged;
+        result.num_inliers = coarse_inliers;
+        result.inlier_ratio = coarse_inlier_ratio;
+        result.information.block<3,3>(0,0)=coarse_H.block<3,3>(3,3); result.information.block<3,3>(0,3)=coarse_H.block<3,3>(3,0);
+        result.information.block<3,3>(3,0)=coarse_H.block<3,3>(0,3); result.information.block<3,3>(3,3)=coarse_H.block<3,3>(0,0);
+        result.fitness_score = coarse_fitness;
+        const bool coarse_quality_passed =
+            coarse_fitness < config_.gicp_fitness_threshold &&
+            coarse_inlier_ratio >= config_.reloc_min_inlier_ratio;
+        result.success = result.converged && coarse_quality_passed;
+
+        if (config_.icp_refine_use_gicp && coarse_fitness < config_.icp_refine_fitness_gate) {
+            const Eigen::Isometry3d delta = init_guess.inverse() * T;
+            if (delta.translation().norm() <= config_.icp_refine_delta_translation_gate &&
+                Eigen::AngleAxisd(delta.rotation()).angle() <= config_.icp_refine_delta_rotation_gate) {
+                const PreparedTarget* target = find_target(config_.icp_refine_downsampling_resolution);
+                auto sr_pair = preprocessTargetPointCloud(source_cloud, config_.icp_refine_downsampling_resolution);
+                auto sr = sr_pair.first;
+                if (target && target->kdtree && target->cloud && target->cloud->size() >= 10 && sr->size() >= 10) {
+                    auto rs = setting_;
+                    rs.type = small_gicp::RegistrationSetting::GICP;
+                    rs.max_iterations = config_.icp_refine_max_iterations;
+                    rs.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
+                    rs.downsampling_resolution = config_.icp_refine_downsampling_resolution;
+                    auto rr = small_gicp::align(*target->cloud, *sr, *target->kdtree, T, rs);
+                    double rf = (rr.num_inliers > 0) ? rr.error / static_cast<double>(rr.num_inliers) : std::numeric_limits<double>::max();
+                    if (rr.converged && rf < config_.gicp_fitness_threshold) {
+                        result.T_target_source = rr.T_target_source;
+                        result.converged = true; result.num_inliers = rr.num_inliers;
+                        result.inlier_ratio = sr->empty() ? 0.0 : static_cast<double>(rr.num_inliers) / static_cast<double>(sr->size());
+                        result.information.block<3,3>(0,0)=rr.H.block<3,3>(3,3); result.information.block<3,3>(0,3)=rr.H.block<3,3>(3,0);
+                        result.information.block<3,3>(3,0)=rr.H.block<3,3>(0,3); result.information.block<3,3>(3,3)=rr.H.block<3,3>(0,0);
+                        result.fitness_score = rf; result.success = true;
+                    }
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        LOG(ERROR) << "[PointCloudMatcher] alignCloudPrepared exception: " << e.what();
     }
     return result;
 }

@@ -2,7 +2,7 @@
   <arg name="config_file" default="$(find n3mapping)/config/n3mapping.yaml" />
   <arg name="rviz" default="true" />
 
-  <node pkg="n3mapping" type="n3mapping_node" name="n3mapping_node" output="screen">
+  <node pkg="n3mapping" type="n3mapping_node" name="n3mapping_node" output="screen" clear_params="true">
     <rosparam file="$(arg config_file)" command="load" />
     <param name="mode" value="map_extension" />
   </node>

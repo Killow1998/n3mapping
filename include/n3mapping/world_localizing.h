@@ -56,6 +56,13 @@ private:
         Eigen::Isometry3d odom_pose = Eigen::Isometry3d::Identity();
     };
 
+    struct TrackingTargetCache {
+        int64_t center_keyframe_id = -1;
+        int submap_range = -1;
+        PointCloudT::Ptr submap;
+        std::vector<PointCloudMatcher::PreparedTarget> targets;
+    };
+
     std::vector<LoopCandidate> searchCandidates(const PointCloudT::Ptr& cloud);
     RelocResult verifyCandidates(const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates);
     bool evaluateSingleCandidate(const PointCloudT::Ptr& cloud,
@@ -72,6 +79,12 @@ private:
     PointCloudT::Ptr buildRelocQueryCloud(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
     void clearRelocHypotheses();
     int64_t findNearestKeyframe(const Eigen::Isometry3d& pose) const;
+    const TrackingTargetCache* getTrackingTargetCache(int64_t center_keyframe_id,
+                                                      int submap_range,
+                                                      double* build_ms,
+                                                      double* prepare_ms,
+                                                      bool* cache_hit);
+    void clearTrackingTargetCache();
 
     Config config_;
     KeyframeManager& keyframe_manager_;
@@ -87,6 +100,8 @@ private:
     int consecutive_track_failures_;
     std::vector<RelocHypothesis> pending_hypotheses_;
     std::deque<QueryFrame> query_frame_buffer_;
+    std::deque<TrackingTargetCache> tracking_target_cache_;
+    uint64_t tracking_perf_count_ = 0;
     int hypothesis_window_count_;
     int64_t last_window_winner_seed_id_;
     int winner_streak_;

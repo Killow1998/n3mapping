@@ -45,12 +45,13 @@ class N3MappingNoeticNode {
     {
         loadConfigFromNoetic(private_nh_, &config_);
         global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
-        ROS_INFO("%s", config_.toString().c_str());
+        writeStartupConfigLog();
 
         run_mode_ = parseCoreRunMode(config_.mode);
         core_ = std::make_unique<N3MappingCore>(config_);
         core_->setExternalDenseTrajectoryRecordingEnabled(true);
         initializeOptimizationLogging();
+        initializePerformanceLogging();
 
         initializeRosInterfaces();
 
@@ -85,6 +86,7 @@ class N3MappingNoeticNode {
             config_.odom_topic, static_cast<uint32_t>(sync_queue_size), &N3MappingNoeticNode::denseOdomCallback, this);
 
         odom_pub_ = nh_.advertise<nav_msgs::Odometry>(config_.output_odom_topic, 10);
+        realtime_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/n3mapping/realtime_odometry", 20);
         path_pub_ = nh_.advertise<nav_msgs::Path>(config_.output_path_topic, 10);
         cloud_body_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(config_.output_cloud_body_topic, 10);
         cloud_world_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(config_.output_cloud_world_topic, 10);
@@ -97,6 +99,7 @@ class N3MappingNoeticNode {
         const double global_map_hz = std::max(0.1, config_.global_map_publish_hz);
         global_map_timer_ =
             nh_.createTimer(ros::Duration(1.0 / global_map_hz), &N3MappingNoeticNode::globalMapTimerCallback, this);
+        perf_timer_ = nh_.createTimer(ros::Duration(2.0), &N3MappingNoeticNode::perfTimerCallback, this);
     }
 
     void loadMap()
@@ -116,6 +119,7 @@ class N3MappingNoeticNode {
     void syncCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg,
                       const nav_msgs::OdometryConstPtr& odom_msg)
     {
+        const ros::WallTime process_start = ros::WallTime::now();
         core::BackendOutput output_for_clouds;
         std_msgs::Header cloud_header;
         bool publish_clouds = false;
@@ -131,10 +135,12 @@ class N3MappingNoeticNode {
             }
             if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
                 ++frame_count_;
+                recordProcessedFrame((ros::WallTime::now() - process_start).toSec() * 1000.0);
                 return;
             }
 
             publishOdometry(output.T_world_lidar, cloud_msg->header, *odom_msg);
+            updateRealtimeCorrection(output.T_world_lidar, *odom_msg);
             publishPath(cloud_msg->header, &output.T_world_lidar);
 
             if (output.relocalization_locked) {
@@ -156,10 +162,14 @@ class N3MappingNoeticNode {
         if (publish_clouds) {
             publishPointClouds(output_for_clouds, cloud_header);
         }
+        recordProcessedFrame((ros::WallTime::now() - process_start).toSec() * 1000.0);
     }
 
     void denseOdomCallback(const nav_msgs::OdometryConstPtr& odom_msg)
     {
+        recordInputOdom();
+        publishRealtimeOdometry(*odom_msg);
+
         if (!core_ || !coreRunModeSavesMap(run_mode_)) {
             return;
         }
@@ -222,6 +232,27 @@ class N3MappingNoeticNode {
             keyframes = snapshotKeyframesForGlobalMapLocked();
         }
         publishGlobalMap(keyframes);
+    }
+
+    void perfTimerCallback(const ros::TimerEvent&)
+    {
+        std::lock_guard<std::mutex> lock(perf_mutex_);
+        const ros::WallTime now = ros::WallTime::now();
+        const double elapsed = (now - perf_window_start_).toSec();
+        if (elapsed <= 0.0) {
+            return;
+        }
+        const double process_avg = perf_process_count_ == 0 ? 0.0 : perf_process_ms_sum_ / perf_process_count_;
+        appendPerformanceLog(now,
+                             perf_input_odom_count_ / elapsed,
+                             perf_process_count_ / elapsed,
+                             perf_realtime_odom_count_ / elapsed,
+                             process_avg,
+                             perf_process_ms_max_,
+                             perf_process_ms_sum_ / (elapsed * 10.0),
+                             perf_cloud_body_pubs_,
+                             perf_cloud_world_pubs_);
+        resetPerfWindow(now);
     }
 
     bool handleSaveMap(std_srvs::Trigger::Request&, std_srvs::Trigger::Response& res)
@@ -344,6 +375,39 @@ class N3MappingNoeticNode {
         last_tf_stamp_ = tf_stamp;
     }
 
+    void updateRealtimeCorrection(const Eigen::Isometry3d& output_pose,
+                                  const nav_msgs::Odometry& input_odom)
+    {
+        std::lock_guard<std::mutex> lock(realtime_mutex_);
+        realtime_map_T_odom_ = output_pose * odometryPoseToIsometry(input_odom).inverse();
+        realtime_correction_ready_ = true;
+    }
+
+    void publishRealtimeOdometry(const nav_msgs::Odometry& input_odom)
+    {
+        if (realtime_odom_pub_.getNumSubscribers() == 0) {
+            return;
+        }
+
+        Eigen::Isometry3d pose;
+        {
+            std::lock_guard<std::mutex> lock(realtime_mutex_);
+            if (!realtime_correction_ready_) {
+                return;
+            }
+            pose = realtime_map_T_odom_ * odometryPoseToIsometry(input_odom);
+        }
+
+        nav_msgs::Odometry msg;
+        msg.header = input_odom.header;
+        msg.header.frame_id = config_.world_frame;
+        msg.child_frame_id = config_.body_frame;
+        msg.pose.pose = makePose(pose);
+        msg.twist = transformTwistToOutputFrame(pose, input_odom);
+        realtime_odom_pub_.publish(msg);
+        recordRealtimeOdom();
+    }
+
     geometry_msgs::TwistWithCovariance transformTwistToOutputFrame(
         const Eigen::Isometry3d& output_pose,
         const nav_msgs::Odometry& input_odom) const
@@ -423,20 +487,22 @@ class N3MappingNoeticNode {
 
     void publishPointClouds(const core::BackendOutput& output, const std_msgs::Header& header)
     {
-        if (output.cloud_body && !output.cloud_body->empty()) {
+        if (cloud_body_pub_.getNumSubscribers() > 0 && output.cloud_body && !output.cloud_body->empty()) {
             sensor_msgs::PointCloud2 msg;
             pcl::toROSMsg(*output.cloud_body, msg);
             msg.header = header;
             msg.header.frame_id = config_.body_frame;
             cloud_body_pub_.publish(msg);
+            recordCloudBodyPub();
         }
 
-        if (output.cloud_world && !output.cloud_world->empty()) {
+        if (cloud_world_pub_.getNumSubscribers() > 0 && output.cloud_world && !output.cloud_world->empty()) {
             sensor_msgs::PointCloud2 msg;
             pcl::toROSMsg(*output.cloud_world, msg);
             msg.header = header;
             msg.header.frame_id = config_.world_frame;
             cloud_world_pub_.publish(msg);
+            recordCloudWorldPub();
         }
     }
 
@@ -450,6 +516,58 @@ class N3MappingNoeticNode {
         if (!file.is_open()) {
             ROS_WARN("Failed to open optimization log: %s", optimization_log_path_.c_str());
         }
+    }
+
+    void writeStartupConfigLog()
+    {
+        if (!ensureDirectoryExists(config_.map_save_path)) {
+            ROS_WARN("Failed to create startup config log directory: %s", config_.map_save_path.c_str());
+        }
+        const std::string path = config_.map_save_path + "/startup_config.log";
+        std::ofstream file(path, std::ios::out | std::ios::trunc);
+        if (!file.is_open()) {
+            ROS_WARN("Failed to open startup config log: %s", path.c_str());
+            return;
+        }
+        file << config_.toString() << '\n';
+    }
+
+    void initializePerformanceLogging()
+    {
+        if (!ensureDirectoryExists(config_.map_save_path)) {
+            ROS_WARN("Failed to create performance log directory: %s", config_.map_save_path.c_str());
+        }
+        performance_log_path_ = config_.map_save_path + "/performance.log";
+        std::ofstream file(performance_log_path_, std::ios::out | std::ios::trunc);
+        if (!file.is_open()) {
+            ROS_WARN("Failed to open performance log: %s", performance_log_path_.c_str());
+        }
+    }
+
+    void appendPerformanceLog(const ros::WallTime& stamp,
+                              double input_odom_hz,
+                              double sync_hz,
+                              double realtime_hz,
+                              double process_ms_avg,
+                              double process_ms_max,
+                              double process_duty_pct,
+                              std::size_t cloud_body_pubs,
+                              std::size_t cloud_world_pubs)
+    {
+        std::ofstream file(performance_log_path_, std::ios::out | std::ios::app);
+        if (!file.is_open()) {
+            return;
+        }
+        file << "stamp=" << stamp.toSec()
+             << " input_odom_hz=" << input_odom_hz
+             << " sync_hz=" << sync_hz
+             << " realtime_hz=" << realtime_hz
+             << " process_ms_avg=" << process_ms_avg
+             << " process_ms_max=" << process_ms_max
+             << " process_duty_pct=" << process_duty_pct
+             << " cloud_body_pubs=" << cloud_body_pubs
+             << " cloud_world_pubs=" << cloud_world_pubs
+             << '\n';
     }
 
     static bool ensureDirectoryExists(const std::string& path)
@@ -609,11 +727,58 @@ class N3MappingNoeticNode {
 
     void publishGlobalMap(const std::vector<Keyframe::Ptr>& keyframes)
     {
+        if (global_map_pub_.getNumSubscribers() == 0) {
+            return;
+        }
         sensor_msgs::PointCloud2 msg;
         if (!refreshGlobalMapMessage(keyframes, &msg)) {
             return;
         }
         global_map_pub_.publish(msg);
+    }
+
+    void resetPerfWindow(const ros::WallTime& now)
+    {
+        perf_window_start_ = now;
+        perf_input_odom_count_ = 0;
+        perf_process_count_ = 0;
+        perf_realtime_odom_count_ = 0;
+        perf_cloud_body_pubs_ = 0;
+        perf_cloud_world_pubs_ = 0;
+        perf_process_ms_sum_ = 0.0;
+        perf_process_ms_max_ = 0.0;
+    }
+
+    void recordInputOdom()
+    {
+        std::lock_guard<std::mutex> lock(perf_mutex_);
+        ++perf_input_odom_count_;
+    }
+
+    void recordRealtimeOdom()
+    {
+        std::lock_guard<std::mutex> lock(perf_mutex_);
+        ++perf_realtime_odom_count_;
+    }
+
+    void recordProcessedFrame(double process_ms)
+    {
+        std::lock_guard<std::mutex> lock(perf_mutex_);
+        ++perf_process_count_;
+        perf_process_ms_sum_ += process_ms;
+        perf_process_ms_max_ = std::max(perf_process_ms_max_, process_ms);
+    }
+
+    void recordCloudBodyPub()
+    {
+        std::lock_guard<std::mutex> lock(perf_mutex_);
+        ++perf_cloud_body_pubs_;
+    }
+
+    void recordCloudWorldPub()
+    {
+        std::lock_guard<std::mutex> lock(perf_mutex_);
+        ++perf_cloud_world_pubs_;
     }
 
     void publishRelocalizationLock(const std_msgs::Header&, const Eigen::Isometry3d& pose)
@@ -768,6 +933,7 @@ class N3MappingNoeticNode {
     ros::Subscriber dense_odom_sub_;
 
     ros::Publisher odom_pub_;
+    ros::Publisher realtime_odom_pub_;
     ros::Publisher path_pub_;
     ros::Publisher cloud_body_pub_;
     ros::Publisher cloud_world_pub_;
@@ -777,16 +943,30 @@ class N3MappingNoeticNode {
     ros::ServiceServer save_map_srv_;
     ros::Timer loop_timer_;
     ros::Timer global_map_timer_;
+    ros::Timer perf_timer_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
     GlobalMapCache global_map_cache_;
     std::optional<sensor_msgs::PointCloud2> global_map_msg_cache_;
     std::uint64_t global_map_msg_revision_ = 0;
     std::optional<std::uint64_t> global_map_last_published_revision_;
     std::string optimization_log_path_;
+    std::string performance_log_path_;
     std::mutex optimization_log_mutex_;
 
     std::vector<geometry_msgs::PoseStamped> localization_path_;
     ros::Time last_tf_stamp_;
+    std::mutex realtime_mutex_;
+    Eigen::Isometry3d realtime_map_T_odom_ = Eigen::Isometry3d::Identity();
+    bool realtime_correction_ready_ = false;
+    std::mutex perf_mutex_;
+    ros::WallTime perf_window_start_ = ros::WallTime::now();
+    std::size_t perf_input_odom_count_ = 0;
+    std::size_t perf_process_count_ = 0;
+    std::size_t perf_realtime_odom_count_ = 0;
+    std::size_t perf_cloud_body_pubs_ = 0;
+    std::size_t perf_cloud_world_pubs_ = 0;
+    double perf_process_ms_sum_ = 0.0;
+    double perf_process_ms_max_ = 0.0;
     std::size_t frame_count_ = 0;
     std::size_t keyframe_count_ = 0;
     std::size_t loop_count_ = 0;
@@ -800,6 +980,8 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "n3mapping_node");
     n3mapping::N3MappingNoeticNode node;
-    ros::spin();
+    ros::AsyncSpinner spinner(2);
+    spinner.start();
+    ros::waitForShutdown();
     return 0;
 }

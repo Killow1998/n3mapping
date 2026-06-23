@@ -36,6 +36,12 @@ public:
     using SmallGicpCloud = small_gicp::PointCloud;
     using SmallGicpKdTree = small_gicp::KdTree<SmallGicpCloud>;
 
+    struct PreparedTarget {
+        double resolution = 0.0;
+        SmallGicpCloud::Ptr cloud;
+        std::shared_ptr<SmallGicpKdTree> kdtree;
+    };
+
     explicit PointCloudMatcher(const Config& config);
     ~PointCloudMatcher() = default;
 
@@ -48,7 +54,11 @@ public:
 
     MatchResult alignCloud(const PointCloudT::Ptr& target_cloud, const PointCloudT::Ptr& source_cloud,
                            const Eigen::Isometry3d& init_guess = Eigen::Isometry3d::Identity());
+    MatchResult alignCloudPrepared(const std::vector<PreparedTarget>& targets,
+                                   const PointCloudT::Ptr& source_cloud,
+                                   const Eigen::Isometry3d& init_guess = Eigen::Isometry3d::Identity());
 
+    PreparedTarget prepareTargetCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution);
     std::pair<SmallGicpCloud::Ptr, std::shared_ptr<SmallGicpKdTree>> preprocessPointCloud(const PointCloudT::Ptr& cloud);
     const small_gicp::RegistrationSetting& getSettings() const { return setting_; }
     void setSettings(const small_gicp::RegistrationSetting& setting) { setting_ = setting; }
