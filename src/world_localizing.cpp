@@ -21,7 +21,7 @@ constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
 constexpr double kRelocBasinAmbiguousFitnessGap = 0.03;
-constexpr std::size_t kTrackingTargetCacheSize = 5;
+constexpr std::size_t kEstimatedTargetPointBytes = 160;
 } // namespace
 
 WorldLocalizing::WorldLocalizing(const Config& config,
@@ -472,6 +472,7 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
                      << " source_pts=" << cloud->size()
                      << " target_pts=0"
                      << " cache_entries=" << cache_entries
+                     << " cache_capacity=" << trackingTargetCacheLimit()
                      << " failures=" << consecutive_track_failures_
                      << '\n';
             }
@@ -603,6 +604,7 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
                  << " source_pts=" << cloud->size()
                  << " target_pts=" << (submap ? submap->size() : 0)
                  << " cache_entries=" << cache_entries
+                 << " cache_capacity=" << trackingTargetCacheLimit()
                  << " failures=" << consecutive_track_failures_
                  << '\n';
         }
@@ -753,6 +755,46 @@ bool WorldLocalizing::hasTrackingTargetCacheLocked(int64_t center_keyframe_id, i
     return false;
 }
 
+std::size_t WorldLocalizing::trackingTargetCacheLimit() const {
+    const std::size_t map_size = keyframe_manager_.size();
+    const std::size_t proportional = static_cast<std::size_t>(
+        std::ceil(static_cast<double>(map_size) * config_.tracking_target_cache_ratio));
+    const std::size_t minimum = static_cast<std::size_t>(std::max(0, config_.tracking_target_cache_min_size));
+    std::size_t limit = std::max(minimum, proportional);
+    if (config_.tracking_target_cache_max_size > 0) {
+        limit = std::min(limit, static_cast<std::size_t>(config_.tracking_target_cache_max_size));
+    }
+    return std::max<std::size_t>(1, limit);
+}
+
+std::size_t WorldLocalizing::trackingTargetCacheEstimatedBytesLocked() const {
+    std::size_t points = 0;
+    for (const auto& cache : tracking_target_cache_) {
+        if (cache.submap) {
+            points += cache.submap->size();
+        }
+        for (const auto& target : cache.targets) {
+            if (target.cloud) {
+                points += target.cloud->size();
+            }
+        }
+    }
+    return points * kEstimatedTargetPointBytes;
+}
+
+void WorldLocalizing::warnIfTrackingTargetCacheMemoryHighLocked() {
+    if (tracking_target_cache_memory_warning_logged_ || config_.tracking_target_cache_warning_mb <= 0.0) {
+        return;
+    }
+    const double estimated_mb = static_cast<double>(trackingTargetCacheEstimatedBytesLocked()) / (1024.0 * 1024.0);
+    if (estimated_mb > config_.tracking_target_cache_warning_mb) {
+        tracking_target_cache_memory_warning_logged_ = true;
+        LOG(WARNING) << "Tracking target cache estimated memory is high: "
+                     << estimated_mb << " MB, entries=" << tracking_target_cache_.size()
+                     << ", warning_mb=" << config_.tracking_target_cache_warning_mb;
+    }
+}
+
 void WorldLocalizing::requestTrackingTargetPrefetch(int64_t center_keyframe_id, int submap_range) {
     if (center_keyframe_id < 0 || submap_range <= 0) {
         return;
@@ -768,7 +810,7 @@ void WorldLocalizing::requestTrackingTargetPrefetch(int64_t center_keyframe_id, 
         return;
     }
 
-    constexpr std::size_t kMaxPrefetchQueueSize = kTrackingTargetCacheSize * 4;
+    const std::size_t kMaxPrefetchQueueSize = trackingTargetCacheLimit() * 4;
     while (tracking_prefetch_queue_.size() >= kMaxPrefetchQueueSize) {
         const auto dropped = tracking_prefetch_queue_.back();
         tracking_prefetch_pending_.erase(std::make_pair(dropped.center_keyframe_id, dropped.submap_range));
@@ -814,6 +856,7 @@ void WorldLocalizing::trackingTargetPrefetchLoop() {
             request.center_keyframe_id, request.submap_range, &cache, &build_ms, &prepare_ms);
         const std::size_t target_points = cache.submap ? cache.submap->size() : 0;
         std::size_t cache_entries = 0;
+        double cache_estimated_mb = 0.0;
 
         {
             std::lock_guard<std::mutex> lock(tracking_cache_mutex_);
@@ -823,14 +866,18 @@ void WorldLocalizing::trackingTargetPrefetchLoop() {
                 request.generation == tracking_cache_generation_ &&
                 !hasTrackingTargetCacheLocked(request.center_keyframe_id, request.submap_range)) {
                 tracking_target_cache_.push_front(std::move(cache));
-                while (tracking_target_cache_.size() > kTrackingTargetCacheSize) {
+                const std::size_t cache_limit = trackingTargetCacheLimit();
+                while (tracking_target_cache_.size() > cache_limit) {
                     tracking_target_cache_.pop_back();
                 }
+                warnIfTrackingTargetCacheMemoryHighLocked();
             }
             cache_entries = tracking_target_cache_.size();
+            cache_estimated_mb =
+                static_cast<double>(trackingTargetCacheEstimatedBytesLocked()) / (1024.0 * 1024.0);
         }
 
-        appendTrackingPrefetchLog(request, built, build_ms, prepare_ms, target_points, cache_entries);
+        appendTrackingPrefetchLog(request, built, build_ms, prepare_ms, target_points, cache_entries, cache_estimated_mb);
     }
 }
 
@@ -839,7 +886,8 @@ void WorldLocalizing::appendTrackingPrefetchLog(const TrackingTargetRequest& req
                                                 double build_ms,
                                                 double prepare_ms,
                                                 std::size_t target_points,
-                                                std::size_t cache_entries) {
+                                                std::size_t cache_entries,
+                                                double cache_estimated_mb) {
     std::ofstream file(config_.map_save_path + "/target_prefetch.log", std::ios::out | std::ios::app);
     if (!file.is_open()) {
         return;
@@ -851,6 +899,8 @@ void WorldLocalizing::appendTrackingPrefetchLog(const TrackingTargetRequest& req
          << " target_prepare_ms=" << prepare_ms
          << " target_pts=" << target_points
          << " cache_entries=" << cache_entries
+         << " cache_capacity=" << trackingTargetCacheLimit()
+         << " cache_estimated_mb=" << cache_estimated_mb
          << '\n';
 }
 
@@ -859,6 +909,7 @@ void WorldLocalizing::clearTrackingTargetCache() {
     tracking_target_cache_.clear();
     tracking_prefetch_queue_.clear();
     tracking_prefetch_pending_.clear();
+    tracking_target_cache_memory_warning_logged_ = false;
     ++tracking_cache_generation_;
 }
 

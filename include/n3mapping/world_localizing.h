@@ -104,13 +104,17 @@ private:
     void requestTrackingTargetPrefetch(int64_t center_keyframe_id, int submap_range);
     void requestTrackingTargetPrefetchNeighborhood(int64_t center_keyframe_id, int submap_range);
     void trackingTargetPrefetchLoop();
+    std::size_t trackingTargetCacheLimit() const;
+    std::size_t trackingTargetCacheEstimatedBytesLocked() const;
+    void warnIfTrackingTargetCacheMemoryHighLocked();
     bool hasTrackingTargetCacheLocked(int64_t center_keyframe_id, int submap_range) const;
     void appendTrackingPrefetchLog(const TrackingTargetRequest& request,
                                    bool built,
                                    double build_ms,
                                    double prepare_ms,
                                    std::size_t target_points,
-                                   std::size_t cache_entries);
+                                   std::size_t cache_entries,
+                                   double cache_estimated_mb);
     void clearTrackingTargetCache();
 
     Config config_;
@@ -134,6 +138,7 @@ private:
     std::condition_variable tracking_prefetch_cv_;
     std::thread tracking_prefetch_thread_;
     bool tracking_prefetch_stop_ = false;
+    bool tracking_target_cache_memory_warning_logged_ = false;
     uint64_t tracking_cache_generation_ = 0;
     uint64_t tracking_perf_count_ = 0;
     int hypothesis_window_count_;

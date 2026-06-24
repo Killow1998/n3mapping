@@ -111,6 +111,10 @@ struct Config {
     double reloc_track_retry_corr_scale = 5.0;
     int reloc_track_retry_max_iterations = 50;
     int reloc_track_unstable_submap_size = 10;
+    double tracking_target_cache_ratio = 0.5;
+    int tracking_target_cache_min_size = 32;
+    int tracking_target_cache_max_size = 0;  // 0 disables the cap.
+    double tracking_target_cache_warning_mb = 1024.0;
     bool reloc_static_agg_enable = true;
     int reloc_static_agg_max_frames = 5;
     int reloc_static_agg_min_frames = 3;

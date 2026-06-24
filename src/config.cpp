@@ -54,6 +54,11 @@ std::string Config::toString() const {
         << ", corr_scale=" << reloc_track_retry_corr_scale
         << ", max_iter=" << reloc_track_retry_max_iterations
         << ", unstable_submap=" << reloc_track_unstable_submap_size << "\n";
+    oss << "Tracking target cache: ratio=" << tracking_target_cache_ratio
+        << ", min=" << tracking_target_cache_min_size
+        << ", max=" << tracking_target_cache_max_size
+        << "(0=unlimited)"
+        << ", warning_mb=" << tracking_target_cache_warning_mb << "\n";
     oss << "Reloc static aggregation: enable="
         << (reloc_static_agg_enable ? "YES" : "NO")
         << ", frames=" << reloc_static_agg_max_frames
@@ -178,6 +183,13 @@ bool Config::validate(std::string* error) const {
     if (!positive(reloc_track_retry_corr_scale, "reloc_track_retry_corr_scale")) return false;
     if (!at_least(reloc_track_retry_max_iterations, 0, "reloc_track_retry_max_iterations")) return false;
     if (!at_least(reloc_track_unstable_submap_size, 1, "reloc_track_unstable_submap_size")) return false;
+    if (!non_negative(tracking_target_cache_ratio, "tracking_target_cache_ratio")) return false;
+    if (!at_least(tracking_target_cache_min_size, 0, "tracking_target_cache_min_size")) return false;
+    if (!at_least(tracking_target_cache_max_size, 0, "tracking_target_cache_max_size")) return false;
+    if (!non_negative(tracking_target_cache_warning_mb, "tracking_target_cache_warning_mb")) return false;
+    if (tracking_target_cache_max_size > 0 && tracking_target_cache_max_size < tracking_target_cache_min_size) {
+        return fail("tracking_target_cache_max_size must be 0 or >= tracking_target_cache_min_size");
+    }
     if (!at_least(reloc_static_agg_max_frames, 1, "reloc_static_agg_max_frames")) return false;
     if (!at_least(reloc_static_agg_min_frames, 1, "reloc_static_agg_min_frames")) return false;
     if (reloc_static_agg_min_frames > reloc_static_agg_max_frames) return fail("reloc_static_agg_min_frames must be <= reloc_static_agg_max_frames");

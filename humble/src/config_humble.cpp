@@ -109,6 +109,10 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("reloc_track_retry_corr_scale", config->reloc_track_retry_corr_scale);
     get("reloc_track_retry_max_iterations", config->reloc_track_retry_max_iterations);
     get("reloc_track_unstable_submap_size", config->reloc_track_unstable_submap_size);
+    get("tracking_target_cache_ratio", config->tracking_target_cache_ratio);
+    get("tracking_target_cache_min_size", config->tracking_target_cache_min_size);
+    get("tracking_target_cache_max_size", config->tracking_target_cache_max_size);
+    get("tracking_target_cache_warning_mb", config->tracking_target_cache_warning_mb);
     get("reloc_static_agg_enable", config->reloc_static_agg_enable);
     get("reloc_static_agg_max_frames", config->reloc_static_agg_max_frames);
     get("reloc_static_agg_min_frames", config->reloc_static_agg_min_frames);
