@@ -22,6 +22,10 @@ constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
 constexpr double kRelocBasinAmbiguousFitnessGap = 0.03;
 constexpr std::size_t kEstimatedTargetPointBytes = 160;
+
+bool isFiniteTransform(const Eigen::Isometry3d& transform) {
+    return transform.matrix().allFinite();
+}
 } // namespace
 
 WorldLocalizing::WorldLocalizing(const Config& config,
@@ -484,10 +488,25 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
     MatchResult match_result = matcher_.alignCloudPrepared(target_cache.targets, cloud, predicted_pose);
     align_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - align_start).count();
 
-    // If ICP failed with standard params and we have recent failures, retry with wider search
-    const bool icp_failed = !match_result.converged ||
-                            match_result.fitness_score >= config_.gicp_fitness_threshold ||
-                            match_result.inlier_ratio < config_.reloc_min_inlier_ratio;
+    auto transform_passes_motion_gate = [&](const MatchResult& match) {
+        if (!isFiniteTransform(match.T_target_source)) {
+            return false;
+        }
+        const Eigen::Isometry3d delta = predicted_pose.inverse() * match.T_target_source;
+        return delta.translation().norm() <= config_.reloc_track_max_translation &&
+               Eigen::AngleAxisd(delta.rotation()).angle() <= config_.reloc_track_max_rotation;
+    };
+    auto quality_passed = [&](const MatchResult& match) {
+        return std::isfinite(match.fitness_score) &&
+               match.fitness_score < config_.gicp_fitness_threshold &&
+               match.inlier_ratio >= config_.reloc_min_inlier_ratio;
+    };
+    auto tracking_accepted = [&](const MatchResult& match) {
+        return quality_passed(match) && (match.converged || transform_passes_motion_gate(match));
+    };
+
+    // If ICP failed with standard params and we have recent failures, retry with wider search.
+    const bool icp_failed = !tracking_accepted(match_result);
     if (icp_failed && consecutive_track_failures_ < config_.reloc_track_retry_max_failures) {
         // Save and widen correspondence distance
         auto saved = matcher_.getSettings();
@@ -507,12 +526,12 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
     double current_confidence = std::exp(-match_result.fitness_score / scale);
     current_confidence = std::max(0.0, std::min(1.0, current_confidence));
 
-    const bool icp_ok = match_result.converged &&
-                        match_result.fitness_score < config_.gicp_fitness_threshold &&
-                        match_result.inlier_ratio >= config_.reloc_min_inlier_ratio;
+    const bool accepted_without_convergence =
+        !match_result.converged && quality_passed(match_result) && transform_passes_motion_gate(match_result);
+    const bool icp_ok = tracking_accepted(match_result);
 
     double delta_translation = std::numeric_limits<double>::infinity();
-    if (match_result.converged) {
+    if (icp_ok) {
         const Eigen::Isometry3d delta = predicted_pose.inverse() * match_result.T_target_source;
         delta_translation = delta.translation().norm();
     }
@@ -603,6 +622,7 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
                  << " align_ms=" << align_ms
                  << " source_pts=" << cloud->size()
                  << " target_pts=" << (submap ? submap->size() : 0)
+                 << " accepted_unconverged=" << accepted_without_convergence
                  << " cache_entries=" << cache_entries
                  << " cache_capacity=" << trackingTargetCacheLimit()
                  << " failures=" << consecutive_track_failures_
