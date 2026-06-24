@@ -87,7 +87,6 @@ class N3MappingNoeticNode {
             config_.odom_topic, static_cast<uint32_t>(sync_queue_size), &N3MappingNoeticNode::denseOdomCallback, this);
 
         odom_pub_ = nh_.advertise<nav_msgs::Odometry>(config_.output_odom_topic, 10);
-        realtime_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/n3mapping/realtime_odometry", 20);
         path_pub_ = nh_.advertise<nav_msgs::Path>(config_.output_path_topic, 10);
         cloud_body_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(config_.output_cloud_body_topic, 10);
         cloud_world_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(config_.output_cloud_world_topic, 10);
@@ -135,14 +134,12 @@ class N3MappingNoeticNode {
                 ROS_INFO_THROTTLE(2.0, "Initial relocalization successful for map extension");
             }
             if (!output.success && !output.accepted_keyframe) {
-                resetRealtimeCorrection();
                 ++frame_count_;
                 recordProcessedFrame((ros::WallTime::now() - process_start).toSec() * 1000.0);
                 return;
             }
 
             publishOdometry(output.T_world_lidar, cloud_msg->header, *odom_msg);
-            updateRealtimeCorrection(output.T_world_lidar, *odom_msg);
             publishPath(cloud_msg->header, &output.T_world_lidar);
 
             if (output.relocalization_locked) {
@@ -170,7 +167,6 @@ class N3MappingNoeticNode {
     void denseOdomCallback(const nav_msgs::OdometryConstPtr& odom_msg)
     {
         recordInputOdom();
-        publishRealtimeOdometry(*odom_msg);
 
         if (!core_ || !coreRunModeSavesMap(run_mode_)) {
             return;
@@ -248,7 +244,6 @@ class N3MappingNoeticNode {
         appendPerformanceLog(now,
                              perf_input_odom_count_ / elapsed,
                              perf_process_count_ / elapsed,
-                             perf_realtime_odom_count_ / elapsed,
                              process_avg,
                              perf_process_ms_max_,
                              perf_process_ms_sum_ / (elapsed * 10.0),
@@ -375,45 +370,6 @@ class N3MappingNoeticNode {
         tf.transform.rotation = odom_msg.pose.pose.orientation;
         tf_broadcaster_.sendTransform(tf);
         last_tf_stamp_ = tf_stamp;
-    }
-
-    void updateRealtimeCorrection(const Eigen::Isometry3d& output_pose,
-                                  const nav_msgs::Odometry& input_odom)
-    {
-        std::lock_guard<std::mutex> lock(realtime_mutex_);
-        realtime_map_T_odom_ = output_pose * odometryPoseToIsometry(input_odom).inverse();
-        realtime_correction_ready_ = true;
-    }
-
-    void resetRealtimeCorrection()
-    {
-        std::lock_guard<std::mutex> lock(realtime_mutex_);
-        realtime_correction_ready_ = false;
-    }
-
-    void publishRealtimeOdometry(const nav_msgs::Odometry& input_odom)
-    {
-        if (realtime_odom_pub_.getNumSubscribers() == 0) {
-            return;
-        }
-
-        Eigen::Isometry3d pose;
-        {
-            std::lock_guard<std::mutex> lock(realtime_mutex_);
-            if (!realtime_correction_ready_) {
-                return;
-            }
-            pose = realtime_map_T_odom_ * odometryPoseToIsometry(input_odom);
-        }
-
-        nav_msgs::Odometry msg;
-        msg.header = input_odom.header;
-        msg.header.frame_id = config_.world_frame;
-        msg.child_frame_id = config_.body_frame;
-        msg.pose.pose = makePose(pose);
-        msg.twist = transformTwistToOutputFrame(pose, input_odom);
-        realtime_odom_pub_.publish(msg);
-        recordRealtimeOdom();
     }
 
     geometry_msgs::TwistWithCovariance transformTwistToOutputFrame(
@@ -566,7 +522,6 @@ class N3MappingNoeticNode {
     void appendPerformanceLog(const ros::WallTime& stamp,
                               double input_odom_hz,
                               double sync_hz,
-                              double realtime_hz,
                               double process_ms_avg,
                               double process_ms_max,
                               double process_duty_pct,
@@ -580,7 +535,6 @@ class N3MappingNoeticNode {
         file << "stamp=" << stamp.toSec()
              << " input_odom_hz=" << input_odom_hz
              << " sync_hz=" << sync_hz
-             << " realtime_hz=" << realtime_hz
              << " process_ms_avg=" << process_ms_avg
              << " process_ms_max=" << process_ms_max
              << " process_duty_pct=" << process_duty_pct
@@ -761,7 +715,6 @@ class N3MappingNoeticNode {
         perf_window_start_ = now;
         perf_input_odom_count_ = 0;
         perf_process_count_ = 0;
-        perf_realtime_odom_count_ = 0;
         perf_cloud_body_pubs_ = 0;
         perf_cloud_world_pubs_ = 0;
         perf_process_ms_sum_ = 0.0;
@@ -772,12 +725,6 @@ class N3MappingNoeticNode {
     {
         std::lock_guard<std::mutex> lock(perf_mutex_);
         ++perf_input_odom_count_;
-    }
-
-    void recordRealtimeOdom()
-    {
-        std::lock_guard<std::mutex> lock(perf_mutex_);
-        ++perf_realtime_odom_count_;
     }
 
     void recordProcessedFrame(double process_ms)
@@ -952,7 +899,6 @@ class N3MappingNoeticNode {
     ros::Subscriber dense_odom_sub_;
 
     ros::Publisher odom_pub_;
-    ros::Publisher realtime_odom_pub_;
     ros::Publisher path_pub_;
     ros::Publisher cloud_body_pub_;
     ros::Publisher cloud_world_pub_;
@@ -974,14 +920,10 @@ class N3MappingNoeticNode {
 
     std::vector<geometry_msgs::PoseStamped> localization_path_;
     ros::Time last_tf_stamp_;
-    std::mutex realtime_mutex_;
-    Eigen::Isometry3d realtime_map_T_odom_ = Eigen::Isometry3d::Identity();
-    bool realtime_correction_ready_ = false;
     std::mutex perf_mutex_;
     ros::WallTime perf_window_start_ = ros::WallTime::now();
     std::size_t perf_input_odom_count_ = 0;
     std::size_t perf_process_count_ = 0;
-    std::size_t perf_realtime_odom_count_ = 0;
     std::size_t perf_cloud_body_pubs_ = 0;
     std::size_t perf_cloud_world_pubs_ = 0;
     double perf_process_ms_sum_ = 0.0;
