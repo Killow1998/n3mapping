@@ -134,7 +134,8 @@ class N3MappingNoeticNode {
             if (run_mode_ == CoreRunMode::MAP_EXTENSION && output.relocalization_locked && !output.accepted_keyframe) {
                 ROS_INFO_THROTTLE(2.0, "Initial relocalization successful for map extension");
             }
-            if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
+            if (!output.success && !output.accepted_keyframe) {
+                resetRealtimeCorrection();
                 ++frame_count_;
                 recordProcessedFrame((ros::WallTime::now() - process_start).toSec() * 1000.0);
                 return;
@@ -382,6 +383,12 @@ class N3MappingNoeticNode {
         std::lock_guard<std::mutex> lock(realtime_mutex_);
         realtime_map_T_odom_ = output_pose * odometryPoseToIsometry(input_odom).inverse();
         realtime_correction_ready_ = true;
+    }
+
+    void resetRealtimeCorrection()
+    {
+        std::lock_guard<std::mutex> lock(realtime_mutex_);
+        realtime_correction_ready_ = false;
     }
 
     void publishRealtimeOdometry(const nav_msgs::Odometry& input_odom)
