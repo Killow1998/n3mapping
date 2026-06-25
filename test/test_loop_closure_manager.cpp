@@ -3,9 +3,33 @@
 
 #include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_referee.h"
+#include "n3mapping/loop_segment_consistency.h"
 #include "n3mapping/loop_verifier.h"
 
 namespace n3mapping {
+namespace {
+
+Keyframe::PointCloudT::Ptr makeTinyCloud()
+{
+    auto cloud = std::make_shared<Keyframe::PointCloudT>();
+    pcl::PointXYZI point;
+    point.x = 0.0f;
+    point.y = 0.0f;
+    point.z = 0.0f;
+    point.intensity = 1.0f;
+    cloud->push_back(point);
+    return cloud;
+}
+
+Eigen::Isometry3d poseAt(double x, double y = 0.0, double yaw = 0.0)
+{
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation() = Eigen::Vector3d(x, y, 0.0);
+    pose.linear() = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    return pose;
+}
+
+}  // namespace
 
 TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
 {
@@ -48,6 +72,56 @@ TEST(PointCloudMatcherEvidenceTest, ClassifiesTermination)
     EXPECT_EQ(classifyMatchTermination(false, 2, 10, true), MatchTermination::Stalled);
     EXPECT_EQ(classifyMatchTermination(false, 0, 10, false), MatchTermination::Invalid);
     EXPECT_STREQ(matchTerminationName(MatchTermination::MaxIterations), "max_iterations");
+}
+
+TEST(LoopSegmentConsistencyTest, ReportsConsistentSameDirectionSegments)
+{
+    Config config;
+    KeyframeManager manager(config);
+    std::vector<Keyframe::Ptr> keyframes;
+    for (int id = 0; id <= 12; ++id) {
+        keyframes.push_back(Keyframe::create(id, static_cast<double>(id), poseAt(id), makeTinyCloud()));
+    }
+    manager.loadKeyframes(keyframes);
+
+    VerifiedLoop loop;
+    loop.query_id = 10;
+    loop.match_id = 2;
+    loop.verified = true;
+    const auto diagnostics = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(diagnostics.valid_pair_count, 4);
+    EXPECT_EQ(diagnostics.consensus_inlier_count, 4);
+    EXPECT_DOUBLE_EQ(diagnostics.consensus_ratio, 1.0);
+    EXPECT_EQ(diagnostics.direction, "same");
+    EXPECT_EQ(diagnostics.recommendation, "consistent");
+}
+
+TEST(LoopSegmentConsistencyTest, ChoosesReverseDirectionWhenTraversalIsOpposite)
+{
+    Config config;
+    KeyframeManager manager(config);
+    std::vector<Keyframe::Ptr> keyframes;
+    for (int id = 0; id <= 12; ++id) {
+        keyframes.push_back(Keyframe::create(id, static_cast<double>(id), poseAt(id), makeTinyCloud()));
+    }
+    // Make the match segment around id=2 run opposite to the query segment around id=10.
+    keyframes[0]->pose_optimized = poseAt(2.0);
+    keyframes[1]->pose_optimized = poseAt(1.0);
+    keyframes[2]->pose_optimized = poseAt(0.0);
+    keyframes[3]->pose_optimized = poseAt(-1.0);
+    keyframes[4]->pose_optimized = poseAt(-2.0);
+    manager.loadKeyframes(keyframes);
+
+    VerifiedLoop loop;
+    loop.query_id = 10;
+    loop.match_id = 2;
+    loop.verified = true;
+    const auto diagnostics = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(diagnostics.valid_pair_count, 4);
+    EXPECT_EQ(diagnostics.consensus_inlier_count, 4);
+    EXPECT_DOUBLE_EQ(diagnostics.consensus_ratio, 1.0);
+    EXPECT_EQ(diagnostics.direction, "reverse");
+    EXPECT_EQ(diagnostics.recommendation, "consistent");
 }
 
 class MockLoopOptimizer : public LoopOptimizerInterface

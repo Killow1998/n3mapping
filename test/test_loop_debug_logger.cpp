@@ -94,6 +94,18 @@ LoopDebugCandidateEvent makeRejectedCandidateEvent()
     event.graph_trial_odom_residual_delta = 0.2;
     event.graph_trial_consistency_score = 0.75;
     event.graph_trial_recommendation = "trial_success_score_only";
+    event.segment_pair_count = 4;
+    event.segment_valid_pair_count = 3;
+    event.segment_consensus_inlier_count = 2;
+    event.segment_consensus_ratio = 2.0 / 3.0;
+    event.segment_translation_median = 0.3;
+    event.segment_translation_std = 0.4;
+    event.segment_yaw_median = 0.05;
+    event.segment_yaw_std = 0.06;
+    event.segment_z_std = 0.07;
+    event.segment_roll_pitch_std = 0.08;
+    event.segment_direction = "same";
+    event.segment_recommendation = "consistent";
     event.gate_result = "rejected";
     event.reject_reason = "bad\nreason";
     event.loop_information.diagonal() << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0;
@@ -157,6 +169,13 @@ TEST(LoopDebugLoggerTest, WritesRejectedCandidateAsSingleLineJson)
     EXPECT_NE(lines[0].find("\"graph_trial_residual_z_after\":0.29999999999999999"), std::string::npos);
     EXPECT_NE(lines[0].find("\"graph_trial_consistency_score\":0.75"), std::string::npos);
     EXPECT_NE(lines[0].find("\"graph_trial_recommendation\":\"trial_success_score_only\""), std::string::npos);
+    EXPECT_NE(lines[0].find("\"segment_pair_count\":4"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"segment_valid_pair_count\":3"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"segment_consensus_inlier_count\":2"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"segment_consensus_ratio\":0.66666666666666663"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"segment_translation_median\":0.29999999999999999"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"segment_direction\":\"same\""), std::string::npos);
+    EXPECT_NE(lines[0].find("\"segment_recommendation\":\"consistent\""), std::string::npos);
     EXPECT_NE(lines[0].find("\"loop_information_diag\":[1,2,3,4,5,6]"), std::string::npos);
 
     std::filesystem::remove_all(temp_dir);

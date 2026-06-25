@@ -15,6 +15,7 @@
 #include "n3mapping/loop_heightmap_diagnostics.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
 #include "n3mapping/loop_referee.h"
+#include "n3mapping/loop_segment_consistency.h"
 #include "n3mapping/loop_verifier.h"
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
@@ -184,6 +185,25 @@ void assignGraphTrialDiagnostics(LoopDebugCandidateEvent* event, const LoopGraph
     event->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
     event->graph_trial_consistency_score = diagnostics.consistency_score;
     event->graph_trial_recommendation = diagnostics.recommendation;
+}
+
+void assignSegmentDiagnostics(LoopDebugCandidateEvent* event, const VerifiedLoop& loop)
+{
+    if (!event) {
+        return;
+    }
+    event->segment_pair_count = loop.segment_pair_count;
+    event->segment_valid_pair_count = loop.segment_valid_pair_count;
+    event->segment_consensus_inlier_count = loop.segment_consensus_inlier_count;
+    event->segment_consensus_ratio = loop.segment_consensus_ratio;
+    event->segment_translation_median = loop.segment_translation_median;
+    event->segment_translation_std = loop.segment_translation_std;
+    event->segment_yaw_median = loop.segment_yaw_median;
+    event->segment_yaw_std = loop.segment_yaw_std;
+    event->segment_z_std = loop.segment_z_std;
+    event->segment_roll_pitch_std = loop.segment_roll_pitch_std;
+    event->segment_direction = loop.segment_direction;
+    event->segment_recommendation = loop.segment_recommendation;
 }
 
 Config validateOrThrow(const Config& config)
@@ -895,6 +915,11 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                     reject_reason = "edge_model";
                 }
             }
+            if (loop.verified) {
+                const auto segment = computeLoopSegmentConsistency(
+                    config_, session_->keyframeManager(), loop);
+                assignLoopSegmentConsistency(&loop, segment);
+            }
             if (loop_debug_enabled) {
                 LoopDebugCandidateEvent event;
                 event.processing_time = processingTimeSeconds();
@@ -945,6 +970,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.heightmap_ground_dz_max = loop.heightmap_ground_dz_max;
                 event.heightmap_ground_support_ratio = loop.heightmap_ground_support_ratio;
                 event.heightmap_vertical_consistency_score = loop.heightmap_vertical_consistency_score;
+                assignSegmentDiagnostics(&event, loop);
                 event.loop_referee_recommendation = loop.loop_referee_recommendation;
                 event.loop_referee_reason = loop.loop_referee_reason;
                 event.loop_referee_risk_flags = loop.loop_referee_risk_flags;

@@ -772,6 +772,10 @@ void writeAcceptedLoopsHeader(std::ofstream& out)
            "graph_trial_mean_pose_update_rotation,graph_trial_max_pose_update_rotation,"
            "graph_trial_existing_loop_residual_delta,graph_trial_odom_residual_delta,"
            "graph_trial_consistency_score,graph_trial_recommendation,"
+           "segment_pair_count,segment_valid_pair_count,segment_consensus_inlier_count,"
+           "segment_consensus_ratio,segment_translation_median,segment_translation_std,"
+           "segment_yaw_median,segment_yaw_std,segment_z_std,segment_roll_pitch_std,"
+           "segment_direction,segment_recommendation,"
            "loop_referee_recommendation,loop_referee_reason,loop_referee_risk_flags\n";
 }
 
@@ -848,6 +852,18 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << loop.graph_trial_odom_residual_delta << ','
         << loop.graph_trial_consistency_score << ','
         << loop.graph_trial_recommendation << ','
+        << loop.segment_pair_count << ','
+        << loop.segment_valid_pair_count << ','
+        << loop.segment_consensus_inlier_count << ','
+        << loop.segment_consensus_ratio << ','
+        << loop.segment_translation_median << ','
+        << loop.segment_translation_std << ','
+        << loop.segment_yaw_median << ','
+        << loop.segment_yaw_std << ','
+        << loop.segment_z_std << ','
+        << loop.segment_roll_pitch_std << ','
+        << loop.segment_direction << ','
+        << loop.segment_recommendation << ','
         << loop.loop_referee_recommendation << ','
         << loop.loop_referee_reason << ','
         << loop.loop_referee_risk_flags << '\n';

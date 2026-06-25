@@ -307,6 +307,18 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendNumber(os, &first, "graph_trial_odom_residual_delta", event.graph_trial_odom_residual_delta);
     appendNumber(os, &first, "graph_trial_consistency_score", event.graph_trial_consistency_score);
     appendString(os, &first, "graph_trial_recommendation", event.graph_trial_recommendation);
+    appendInt(os, &first, "segment_pair_count", event.segment_pair_count);
+    appendInt(os, &first, "segment_valid_pair_count", event.segment_valid_pair_count);
+    appendInt(os, &first, "segment_consensus_inlier_count", event.segment_consensus_inlier_count);
+    appendNumber(os, &first, "segment_consensus_ratio", event.segment_consensus_ratio);
+    appendNumber(os, &first, "segment_translation_median", event.segment_translation_median);
+    appendNumber(os, &first, "segment_translation_std", event.segment_translation_std);
+    appendNumber(os, &first, "segment_yaw_median", event.segment_yaw_median);
+    appendNumber(os, &first, "segment_yaw_std", event.segment_yaw_std);
+    appendNumber(os, &first, "segment_z_std", event.segment_z_std);
+    appendNumber(os, &first, "segment_roll_pitch_std", event.segment_roll_pitch_std);
+    appendString(os, &first, "segment_direction", event.segment_direction);
+    appendString(os, &first, "segment_recommendation", event.segment_recommendation);
     appendString(os, &first, "loop_referee_recommendation", event.loop_referee_recommendation);
     appendString(os, &first, "loop_referee_reason", event.loop_referee_reason);
     appendString(os, &first, "loop_referee_risk_flags", event.loop_referee_risk_flags);

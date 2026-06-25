@@ -525,13 +525,25 @@ def analyze(args):
         "heightmap_separates_bad_z_count": 0,
         "graph_trial_candidate_count": 0,
         "graph_trial_success_count": 0,
+        "segment_candidate_count": 0,
+        "segment_consistent_count": 0,
+        "segment_inconsistent_count": 0,
+        "segment_insufficient_count": 0,
         "accepted_true_loop_bad_z_after_graph_trial_score_mean": float("nan"),
         "accepted_true_loop_bad_z_after_graph_trial_score_min": float("nan"),
         "accepted_true_loop_corrected_z_graph_trial_score_mean": float("nan"),
         "accepted_true_loop_corrected_z_graph_trial_score_min": float("nan"),
+        "accepted_true_loop_bad_z_after_segment_consensus_ratio_mean": float("nan"),
+        "accepted_true_loop_bad_z_after_segment_translation_median_mean": float("nan"),
+        "accepted_true_loop_corrected_z_segment_consensus_ratio_mean": float("nan"),
+        "accepted_true_loop_corrected_z_segment_translation_median_mean": float("nan"),
     }
     bad_z_after_graph_trial_scores = []
     corrected_z_graph_trial_scores = []
+    bad_z_after_segment_ratios = []
+    bad_z_after_segment_translations = []
+    corrected_z_segment_ratios = []
+    corrected_z_segment_translations = []
     rpy_threshold_rad = args.rpy_drift_threshold_deg * math.pi / 180.0
     accepted_pairs_available = bool(args.accepted_loops)
 
@@ -648,6 +660,18 @@ def analyze(args):
         graph_trial_recommendation = str(
             event.get("graph_trial_recommendation", "not_available") or "not_available"
         )
+        segment_pair_count = int(event.get("segment_pair_count") or 0)
+        segment_valid_pair_count = int(event.get("segment_valid_pair_count") or 0)
+        segment_consensus_inlier_count = int(event.get("segment_consensus_inlier_count") or 0)
+        segment_consensus_ratio = event_float(event, "segment_consensus_ratio")
+        segment_translation_median = event_float(event, "segment_translation_median")
+        segment_translation_std = event_float(event, "segment_translation_std")
+        segment_yaw_median = event_float(event, "segment_yaw_median")
+        segment_yaw_std = event_float(event, "segment_yaw_std")
+        segment_z_std = event_float(event, "segment_z_std")
+        segment_roll_pitch_std = event_float(event, "segment_roll_pitch_std")
+        segment_direction = str(event.get("segment_direction", "not_available") or "not_available")
+        segment_recommendation = str(event.get("segment_recommendation", "not_available") or "not_available")
         candidate_source = str(event.get("candidate_source", "") or "")
         reject_reason = str(event.get("reject_reason", "") or "")
         icp_iterations = int(event.get("icp_iterations") or 0)
@@ -759,6 +783,14 @@ def analyze(args):
             stats["graph_trial_candidate_count"] += 1
             if graph_trial_success:
                 stats["graph_trial_success_count"] += 1
+        if segment_recommendation != "not_available":
+            stats["segment_candidate_count"] += 1
+            if segment_recommendation == "consistent":
+                stats["segment_consistent_count"] += 1
+            elif segment_recommendation == "inconsistent":
+                stats["segment_inconsistent_count"] += 1
+            elif segment_recommendation == "insufficient_support":
+                stats["segment_insufficient_count"] += 1
         if position_loop:
             stats["retrieval_position_positive"] += 1
         if gt_loop:
@@ -807,8 +839,12 @@ def analyze(args):
             stats["accepted_true_loop_corrected_z"] += 1
         if z_after_bad:
             bad_z_after_graph_trial_scores.append(graph_trial_consistency_score)
+            bad_z_after_segment_ratios.append(segment_consensus_ratio)
+            bad_z_after_segment_translations.append(segment_translation_median)
         if z_corrected:
             corrected_z_graph_trial_scores.append(graph_trial_consistency_score)
+            corrected_z_segment_ratios.append(segment_consensus_ratio)
+            corrected_z_segment_translations.append(segment_translation_median)
         if z_drift_suspect:
             stats["z_drift_suspect_count"] += 1
         stats["failure_class_counts"][failure_class] = stats["failure_class_counts"].get(failure_class, 0) + 1
@@ -889,6 +925,18 @@ def analyze(args):
                 "graph_trial_odom_residual_delta": graph_trial_odom_residual_delta,
                 "graph_trial_consistency_score": graph_trial_consistency_score,
                 "graph_trial_recommendation": graph_trial_recommendation,
+                "segment_pair_count": segment_pair_count,
+                "segment_valid_pair_count": segment_valid_pair_count,
+                "segment_consensus_inlier_count": segment_consensus_inlier_count,
+                "segment_consensus_ratio": segment_consensus_ratio,
+                "segment_translation_median": segment_translation_median,
+                "segment_translation_std": segment_translation_std,
+                "segment_yaw_median": segment_yaw_median,
+                "segment_yaw_std": segment_yaw_std,
+                "segment_z_std": segment_z_std,
+                "segment_roll_pitch_std": segment_roll_pitch_std,
+                "segment_direction": segment_direction,
+                "segment_recommendation": segment_recommendation,
                 "icp_iterations": icp_iterations,
                 "icp_optimizer_error": icp_optimizer_error,
                 "icp_termination": icp_termination,
@@ -943,6 +991,18 @@ def analyze(args):
     )
     stats["accepted_true_loop_corrected_z_graph_trial_score_min"] = min_finite(
         corrected_z_graph_trial_scores
+    )
+    stats["accepted_true_loop_bad_z_after_segment_consensus_ratio_mean"] = mean_finite(
+        bad_z_after_segment_ratios
+    )
+    stats["accepted_true_loop_bad_z_after_segment_translation_median_mean"] = mean_finite(
+        bad_z_after_segment_translations
+    )
+    stats["accepted_true_loop_corrected_z_segment_consensus_ratio_mean"] = mean_finite(
+        corrected_z_segment_ratios
+    )
+    stats["accepted_true_loop_corrected_z_segment_translation_median_mean"] = mean_finite(
+        corrected_z_segment_translations
     )
     if stats["accepted_candidate_count"] > 0:
         stats["position_loop_precision"] = (
@@ -1140,6 +1200,18 @@ def analyze(args):
             "graph_trial_odom_residual_delta",
             "graph_trial_consistency_score",
             "graph_trial_recommendation",
+            "segment_pair_count",
+            "segment_valid_pair_count",
+            "segment_consensus_inlier_count",
+            "segment_consensus_ratio",
+            "segment_translation_median",
+            "segment_translation_std",
+            "segment_yaw_median",
+            "segment_yaw_std",
+            "segment_z_std",
+            "segment_roll_pitch_std",
+            "segment_direction",
+            "segment_recommendation",
             "icp_iterations",
             "icp_optimizer_error",
             "icp_termination",
@@ -1250,6 +1322,13 @@ def analyze(args):
                 "graph_trial_existing_loop_residual_delta",
                 "graph_trial_odom_residual_delta",
                 "graph_trial_consistency_score",
+                "segment_consensus_ratio",
+                "segment_translation_median",
+                "segment_translation_std",
+                "segment_yaw_median",
+                "segment_yaw_std",
+                "segment_z_std",
+                "segment_roll_pitch_std",
                 "icp_optimizer_error",
                 "pred_match_query_x",
                 "pred_match_query_y",
