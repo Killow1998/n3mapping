@@ -20,7 +20,11 @@ Branch: `dev/better_loop`
 The bottleneck is loop verification, not candidate retrieval or best-loop
 selection.
 
-Expanded matrix evidence (`/tmp/n3mapping_verification_evidence_v1_matrix_20260625`):
+Expanded matrix evidence (`/tmp/n3mapping_verification_evidence_v1_matrix_current_20260625`):
+
+These runs were regenerated with the current `dev/better_loop` binary after
+extracting `LoopVerifier`; accepted loop counts and far-false counts stayed
+unchanged from the baseline artifacts.
 
 | run | GT position opportunity queries | queries with any position candidate | selectable position queries | missed position candidates |
 | --- | ---: | ---: | ---: | ---: |
