@@ -67,6 +67,38 @@ struct DirectionStats {
     std::string direction;
 };
 
+Keyframe::Ptr findLocalCorrespondence(const std::vector<Keyframe::Ptr>& keyframes,
+                                      int64_t match_id,
+                                      int query_offset,
+                                      int local_id_radius,
+                                      const Eigen::Isometry3d& expected_pose)
+{
+    Keyframe::Ptr best;
+    double best_distance = std::numeric_limits<double>::infinity();
+    for (const auto& keyframe : keyframes) {
+        if (!keyframe) {
+            continue;
+        }
+        const int64_t match_delta = keyframe->id - match_id;
+        if (match_delta == 0 || std::abs(match_delta) > local_id_radius) {
+            continue;
+        }
+        // Keyframe ids are temporal order. Compare the same temporal side of
+        // both segments; reverse traversal is represented by the inverse local
+        // displacement above, not by walking match ids backward.
+        if (query_offset * static_cast<int>(match_delta) <= 0) {
+            continue;
+        }
+        const double distance =
+            (keyframe->pose_optimized.translation() - expected_pose.translation()).norm();
+        if (distance < best_distance) {
+            best_distance = distance;
+            best = keyframe;
+        }
+    }
+    return best;
+}
+
 DirectionStats evaluateDirection(const Config& config,
                                  const KeyframeManager& keyframe_manager,
                                  const VerifiedLoop& loop,
@@ -81,6 +113,8 @@ DirectionStats evaluateDirection(const Config& config,
         return stats;
     }
 
+    const auto keyframes = keyframe_manager.getAllKeyframes();
+    const int local_id_radius = std::max(half_window * 6, 12);
     const double translation_threshold = std::max(1.0, config.loop_max_icp_translation);
     const double yaw_threshold = std::max(0.5, config.loop_max_icp_rotation);
 
@@ -90,19 +124,25 @@ DirectionStats evaluateDirection(const Config& config,
         }
         ++stats.pair_count;
         const auto query_neighbor = keyframe_manager.getKeyframe(loop.query_id + offset);
-        const auto match_neighbor = keyframe_manager.getKeyframe(
-            loop.match_id + direction_sign * offset);
-        if (!query_neighbor || !match_neighbor) {
+        if (!query_neighbor) {
+            continue;
+        }
+        const Eigen::Isometry3d T_query_query_neighbor =
+            query->pose_optimized.inverse() * query_neighbor->pose_optimized;
+        const Eigen::Isometry3d expected_match_neighbor =
+            direction_sign > 0
+                ? match->pose_optimized * T_query_query_neighbor
+                : match->pose_optimized * T_query_query_neighbor.inverse();
+        const auto match_neighbor = findLocalCorrespondence(
+            keyframes, loop.match_id, offset,
+            local_id_radius, expected_match_neighbor);
+        if (!match_neighbor) {
             continue;
         }
         ++stats.valid_pair_count;
 
-        const Eigen::Isometry3d T_query_query_neighbor =
-            query->pose_optimized.inverse() * query_neighbor->pose_optimized;
-        const Eigen::Isometry3d T_match_match_neighbor =
-            match->pose_optimized.inverse() * match_neighbor->pose_optimized;
         const Eigen::Isometry3d residual =
-            T_match_match_neighbor.inverse() * T_query_query_neighbor;
+            match_neighbor->pose_optimized.inverse() * expected_match_neighbor;
         const Eigen::Vector3d rpy = rollPitchYaw(residual);
         const double translation_error = residual.translation().norm();
         const double yaw_error = std::abs(normalizeAngle(rpy.z()));

@@ -6,33 +6,9 @@
 #include <stdexcept>
 
 #include "n3mapping/loop_heightmap_diagnostics.h"
-#include "n3mapping/loop_referee.h"
 
 namespace n3mapping {
 namespace {
-
-Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
-{
-    return transform.rotation().eulerAngles(0, 1, 2);
-}
-
-Eigen::Matrix3d rotationFromRollPitchYaw(double roll, double pitch, double yaw)
-{
-    return (Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
-            Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ())).toRotationMatrix();
-}
-
-Eigen::Isometry3d neutralizeVerticalLoopMeasurement(const Eigen::Isometry3d& measured_match_query,
-                                                    const Eigen::Isometry3d& predicted_match_query)
-{
-    Eigen::Isometry3d neutral = measured_match_query;
-    neutral.translation().z() = predicted_match_query.translation().z();
-    const Eigen::Vector3d measured_rpy = rollPitchYaw(measured_match_query);
-    const Eigen::Vector3d predicted_rpy = rollPitchYaw(predicted_match_query);
-    neutral.linear() = rotationFromRollPitchYaw(predicted_rpy.x(), predicted_rpy.y(), measured_rpy.z());
-    return neutral;
-}
 
 std::string loopRejectReason(bool icp_converged,
                              bool fitness_ok,
@@ -52,38 +28,6 @@ std::string loopRejectReason(bool icp_converged,
         return "geometry_gate";
     }
     return "";
-}
-
-double unitScoreBelow(double value, double limit)
-{
-    if (!std::isfinite(value) || limit <= 0.0) {
-        return 0.0;
-    }
-    return std::clamp(1.0 - value / limit, 0.0, 1.0);
-}
-
-LoopFeatures makeLoopFeatures(const LoopCandidate& candidate,
-                              const VerifiedLoop& loop,
-                              double fitness_limit,
-                              double inlier_limit,
-                              double icp_translation,
-                              double icp_translation_limit,
-                              int recent_gap)
-{
-    LoopFeatures features;
-    features.descriptor_score = candidate.descriptor_score;
-    features.spatial_score = candidate.spatial_score;
-    features.geometric_overlap = loop.heightmap_vertical_consistency_score;
-    features.temporal_gap = std::clamp(
-        static_cast<double>(candidate.query_id - candidate.match_id) /
-        std::max(1.0, static_cast<double>(recent_gap)), 0.0, 1.0);
-    const double fitness_score = unitScoreBelow(loop.fitness_score, fitness_limit);
-    const double inlier_score = inlier_limit > 0.0
-        ? std::clamp(loop.inlier_ratio / inlier_limit, 0.0, 1.0)
-        : std::clamp(loop.inlier_ratio, 0.0, 1.0);
-    const double motion_score = unitScoreBelow(icp_translation, icp_translation_limit);
-    features.local_map_consistency = (fitness_score + inlier_score + motion_score) / 3.0;
-    return features;
 }
 
 double verticalInformationRatio(const Eigen::Matrix<double, 6, 6>& information)
@@ -179,28 +123,12 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
         verification.match_result.converged, verification.fitness_ok,
         verification.inlier_ok, verification.geometry_ok);
 
-    if (verification.match_result.converged &&
-        verification.fitness_ok &&
-        verification.inlier_ok &&
-        verification.geometry_ok) {
-        const LoopFeatures features = makeLoopFeatures(
-            candidate, loop, config_.loop_fitness_threshold, config_.loop_min_inlier_ratio,
-            verification.icp_translation_norm, config_.loop_max_icp_translation,
-            config_.sc_num_exclude_recent);
-        loop.loop_referee_energy = LoopReferee::energy(features);
-        loop.loop_referee_recommendation =
-            LoopReferee::decide(features) == LoopDecision::Accept ? "accept" : "reject";
-        loop.loop_referee_reason = "linear_energy";
-        loop.loop_referee_risk_flags = "none";
-        loop.verified = loop.loop_referee_recommendation == "accept";
-        if (!loop.verified) {
-            verification.reject_reason = "loop_referee";
-        }
-    }
-
+    loop.verified = verification.match_result.converged &&
+                    verification.fitness_ok &&
+                    verification.inlier_ok &&
+                    verification.geometry_ok;
     if (loop.verified) {
-        loop.T_match_query =
-            neutralizeVerticalLoopMeasurement(verification.T_measured_match_query, verification.T_pred_match_query);
+        loop.T_match_query = verification.T_measured_match_query;
     }
     return verification;
 }

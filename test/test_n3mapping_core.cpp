@@ -220,7 +220,7 @@ TEST(N3MappingCoreTest, BuildGlobalMapAccumulatesAcceptedKeyframes)
     EXPECT_TRUE(has_translated_points);
 }
 
-TEST(N3MappingCoreTest, PendingLoopClosureProcessingIsCoreOwned)
+TEST(N3MappingCoreTest, PendingLoopClosureRejectsWithoutSegmentSupport)
 {
     N3MappingCore core(makeCoreTestConfig());
 
@@ -231,24 +231,13 @@ TEST(N3MappingCoreTest, PendingLoopClosureProcessingIsCoreOwned)
     ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose)).accepted_keyframe);
 
     const auto result = core.processPendingLoopClosures();
-    EXPECT_TRUE(result.optimized);
-    EXPECT_EQ(result.edge_count, 1U);
-    EXPECT_EQ(result.pose_update_count, 2U);
-    EXPECT_TRUE(std::isfinite(result.loop_residual_translation_before));
-    EXPECT_TRUE(std::isfinite(result.loop_residual_translation_after));
-    EXPECT_TRUE(std::isfinite(result.loop_residual_rotation_before));
-    EXPECT_TRUE(std::isfinite(result.loop_residual_rotation_after));
-    EXPECT_TRUE(std::isfinite(result.mean_pose_update_translation));
-    EXPECT_TRUE(std::isfinite(result.max_pose_update_translation));
-    EXPECT_TRUE(std::isfinite(result.mean_pose_update_rotation));
-    EXPECT_TRUE(std::isfinite(result.max_pose_update_rotation));
-    ASSERT_EQ(result.accepted_loops.size(), 1U);
-    EXPECT_EQ(result.accepted_loops.front().query_id, 1);
-    EXPECT_EQ(result.accepted_loops.front().match_id, 0);
-    EXPECT_TRUE(result.accepted_loops.front().isValid());
+    EXPECT_FALSE(result.optimized);
+    EXPECT_EQ(result.edge_count, 0U);
+    EXPECT_EQ(result.pose_update_count, 0U);
+    EXPECT_TRUE(result.accepted_loops.empty());
 }
 
-TEST(N3MappingCoreTest, DenseTrajectorySavedAfterLoopClosureMatchesFinalKeyframePose)
+TEST(N3MappingCoreTest, DenseTrajectorySavedWithoutLoopClosureMatchesFinalKeyframePose)
 {
     Config config = makeCoreTestConfig();
     const std::filesystem::path dir =
@@ -270,7 +259,7 @@ TEST(N3MappingCoreTest, DenseTrajectorySavedAfterLoopClosureMatchesFinalKeyframe
     ASSERT_EQ(core.getDenseOptimizedTrajectory().size(), 3U);
 
     const auto result = core.processPendingLoopClosures();
-    ASSERT_TRUE(result.optimized);
+    ASSERT_FALSE(result.optimized);
 
     const auto final_kf = core.getKeyframe(1);
     ASSERT_NE(final_kf, nullptr);

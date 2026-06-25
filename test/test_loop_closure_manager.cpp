@@ -39,6 +39,8 @@ TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
     good.geometric_overlap = 0.7;
     good.temporal_gap = 1.0;
     good.local_map_consistency = 0.9;
+    good.segment_consistency = 1.0;
+    good.segment_support = 1.0;
     EXPECT_EQ(LoopReferee::decide(good), LoopDecision::Accept);
 
     LoopFeatures bad;
@@ -47,7 +49,26 @@ TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
     bad.geometric_overlap = 0.0;
     bad.temporal_gap = 0.1;
     bad.local_map_consistency = 0.1;
+    bad.segment_consistency = 0.0;
+    bad.segment_support = 1.0;
     EXPECT_EQ(LoopReferee::decide(bad), LoopDecision::Reject);
+}
+
+TEST(LoopRefereeTest, RejectsSupportedButInconsistentSegments)
+{
+    LoopFeatures features;
+    features.descriptor_score = 1.0;
+    features.spatial_score = 1.0;
+    features.geometric_overlap = 1.0;
+    features.temporal_gap = 1.0;
+    features.local_map_consistency = 1.0;
+    features.segment_support = 1.0;
+    features.segment_consistency = 0.25;
+
+    const auto decision = LoopReferee::evaluate(features);
+    EXPECT_EQ(decision.decision, LoopDecision::Reject);
+    EXPECT_EQ(decision.reason, "segment_inconsistent");
+    EXPECT_EQ(decision.risk_flags, "segment");
 }
 
 TEST(LoopVerifierEvidenceTest, MeasurementResidualUsesPredictedAndMeasuredTransforms)
@@ -80,7 +101,9 @@ TEST(LoopSegmentConsistencyTest, ReportsConsistentSameDirectionSegments)
     KeyframeManager manager(config);
     std::vector<Keyframe::Ptr> keyframes;
     for (int id = 0; id <= 12; ++id) {
-        keyframes.push_back(Keyframe::create(id, static_cast<double>(id), poseAt(id), makeTinyCloud()));
+        auto keyframe = Keyframe::create(id, static_cast<double>(id), poseAt(id), makeTinyCloud());
+        keyframe->pose_optimized = poseAt(id);
+        keyframes.push_back(keyframe);
     }
     manager.loadKeyframes(keyframes);
 
@@ -102,7 +125,9 @@ TEST(LoopSegmentConsistencyTest, ChoosesReverseDirectionWhenTraversalIsOpposite)
     KeyframeManager manager(config);
     std::vector<Keyframe::Ptr> keyframes;
     for (int id = 0; id <= 12; ++id) {
-        keyframes.push_back(Keyframe::create(id, static_cast<double>(id), poseAt(id), makeTinyCloud()));
+        auto keyframe = Keyframe::create(id, static_cast<double>(id), poseAt(id), makeTinyCloud());
+        keyframe->pose_optimized = poseAt(id);
+        keyframes.push_back(keyframe);
     }
     // Make the match segment around id=2 run opposite to the query segment around id=10.
     keyframes[0]->pose_optimized = poseAt(2.0);

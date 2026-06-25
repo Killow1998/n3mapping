@@ -45,6 +45,57 @@ struct LoopRefereeDebugDecision {
     std::string risk_flags = "not_available";
 };
 
+Eigen::Matrix3d rotationFromRollPitchYaw(double roll, double pitch, double yaw)
+{
+    return (Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
+            Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ())).toRotationMatrix();
+}
+
+Eigen::Isometry3d neutralizeVerticalLoopMeasurement(const Eigen::Isometry3d& measured_match_query,
+                                                    const Eigen::Isometry3d& predicted_match_query)
+{
+    Eigen::Isometry3d neutral = measured_match_query;
+    neutral.translation().z() = predicted_match_query.translation().z();
+    const Eigen::Vector3d measured_rpy = rollPitchYaw(measured_match_query);
+    const Eigen::Vector3d predicted_rpy = rollPitchYaw(predicted_match_query);
+    neutral.linear() = rotationFromRollPitchYaw(predicted_rpy.x(), predicted_rpy.y(), measured_rpy.z());
+    return neutral;
+}
+
+double unitScoreBelow(double value, double limit)
+{
+    if (!std::isfinite(value) || limit <= 0.0) {
+        return 0.0;
+    }
+    return std::clamp(1.0 - value / limit, 0.0, 1.0);
+}
+
+LoopFeatures makeSegmentAwareLoopFeatures(const Config& config,
+                                          const LoopCandidate& candidate,
+                                          const VerifiedLoop& loop,
+                                          double icp_translation_norm)
+{
+    LoopFeatures features;
+    features.descriptor_score = candidate.descriptor_score;
+    features.spatial_score = candidate.spatial_score;
+    features.geometric_overlap = loop.heightmap_vertical_consistency_score;
+    features.temporal_gap = std::clamp(
+        static_cast<double>(candidate.query_id - candidate.match_id) /
+        std::max(1.0, static_cast<double>(config.sc_num_exclude_recent)), 0.0, 1.0);
+    const double fitness_score = unitScoreBelow(loop.fitness_score, config.loop_fitness_threshold);
+    const double inlier_score = config.loop_min_inlier_ratio > 0.0
+        ? std::clamp(loop.inlier_ratio / config.loop_min_inlier_ratio, 0.0, 1.0)
+        : std::clamp(loop.inlier_ratio, 0.0, 1.0);
+    const double motion_score = unitScoreBelow(icp_translation_norm, config.loop_max_icp_translation);
+    features.local_map_consistency = (fitness_score + inlier_score + motion_score) / 3.0;
+    features.segment_consistency = loop.segment_consensus_ratio;
+    features.segment_support = loop.segment_pair_count > 0
+        ? static_cast<double>(loop.segment_valid_pair_count) / static_cast<double>(loop.segment_pair_count)
+        : 0.0;
+    return features;
+}
+
 std::pair<double, double> meanLoopResidual(
     const std::vector<EdgeInfo>& edges,
     const std::map<int64_t, Eigen::Isometry3d>& poses)
@@ -919,6 +970,23 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 const auto segment = computeLoopSegmentConsistency(
                     config_, session_->keyframeManager(), loop);
                 assignLoopSegmentConsistency(&loop, segment);
+                const LoopFeatures features = makeSegmentAwareLoopFeatures(
+                    config_, candidate, loop, verification.icp_translation_norm);
+                const LoopRefereeDecision referee = LoopReferee::evaluate(features);
+                loop.loop_referee_energy = referee.energy;
+                loop.loop_referee_recommendation =
+                    referee.decision == LoopDecision::Accept ? "accept" : "reject";
+                loop.loop_referee_reason = referee.reason;
+                loop.loop_referee_risk_flags = referee.risk_flags;
+                loop.verified = referee.decision == LoopDecision::Accept;
+                if (loop.verified) {
+                    loop.edge_mode = LoopEdgeMode::VerticalNeutral;
+                    loop.T_match_query = neutralizeVerticalLoopMeasurement(
+                        loop.T_measured_match_query, loop.T_pred_match_query);
+                    loop.vertical_downweighted = true;
+                } else {
+                    reject_reason = "loop_referee";
+                }
             }
             if (loop_debug_enabled) {
                 LoopDebugCandidateEvent event;
