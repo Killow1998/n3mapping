@@ -337,45 +337,6 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
     return candidates;
 }
 
-VerifiedLoop LoopDetector::verifyLoopCandidate(const LoopCandidate& candidate,
-                                                const Keyframe::Ptr& query_keyframe,
-                                                const Keyframe::Ptr& match_keyframe,
-                                                PointCloudMatcher& matcher) {
-    VerifiedLoop result;
-    result.query_id = candidate.query_id;
-    result.match_id = candidate.match_id;
-    result.candidate_yaw_diff_rad = static_cast<double>(candidate.yaw_diff_rad);
-    if (!query_keyframe || !match_keyframe) return result;
-    Eigen::Isometry3d init_guess = match_keyframe->pose_optimized.inverse() * query_keyframe->pose_optimized;
-    Eigen::AngleAxisd yaw_correction(candidate.yaw_diff_rad, Eigen::Vector3d::UnitZ());
-    init_guess.linear() = init_guess.linear() * yaw_correction.toRotationMatrix();
-    MatchResult match_result = matcher.align(match_keyframe, query_keyframe, init_guess);
-    result.fitness_score = match_result.fitness_score;
-    result.inlier_ratio = match_result.inlier_ratio;
-    result.information = match_result.information;
-    result.candidate_residual = init_guess.inverse() * match_result.T_target_source;
-    result.verified = match_result.success;
-    if (match_result.success) result.T_match_query = match_result.T_target_source;
-    return result;
-}
-
-std::vector<VerifiedLoop> LoopDetector::verifyLoopCandidatesBatch(
-    const std::vector<LoopCandidate>& candidates,
-    const std::map<int64_t, Keyframe::Ptr>& keyframes,
-    PointCloudMatcher& matcher) {
-    std::vector<VerifiedLoop> results(candidates.size());
-#pragma omp parallel for schedule(dynamic)
-    for (size_t i = 0; i < candidates.size(); ++i) {
-        auto qit = keyframes.find(candidates[i].query_id);
-        auto mit = keyframes.find(candidates[i].match_id);
-        if (qit != keyframes.end() && mit != keyframes.end())
-            results[i] = verifyLoopCandidate(candidates[i], qit->second, mit->second, matcher);
-    }
-    std::vector<VerifiedLoop> valid;
-    for (auto& r : results) if (r.verified) valid.push_back(std::move(r));
-    return valid;
-}
-
 void LoopDetector::rebuildTree() {
     std::lock_guard<std::mutex> lock(mutex_);
     rebuildTreeUnlocked();

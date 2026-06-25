@@ -303,6 +303,30 @@ def enumerate_gt_loop_pairs(poses, translation_threshold, yaw_threshold_deg, min
     return pairs
 
 
+def enumerate_gt_position_pairs(poses, translation_threshold, yaw_threshold_deg, min_id_gap):
+    ids = sorted(poses.keys())
+    pairs = set()
+    for i, match_id in enumerate(ids):
+        for query_id in ids[i + 1 :]:
+            if abs(query_id - match_id) < min_id_gap:
+                continue
+            translation, yaw_deg, valid = gt_pair_metrics(poses, query_id, match_id)
+            if not valid:
+                continue
+            heading_class = gt_heading_class(translation, yaw_deg, translation_threshold, yaw_threshold_deg)
+            if heading_class in ("same_heading", "opposite_heading", "cross_heading"):
+                pairs.add((query_id, match_id))
+    return pairs
+
+
+def increment_nested_counter(container, *keys):
+    current = container
+    for key in keys[:-1]:
+        current = current.setdefault(str(key), {})
+    leaf = str(keys[-1])
+    current[leaf] = current.get(leaf, 0) + 1
+
+
 def event_float(event, key):
     return finite_float(event.get(key))
 
@@ -446,6 +470,12 @@ def analyze(args):
         args.loop_yaw_threshold_deg,
         args.min_id_gap,
     )
+    gt_position_pairs = enumerate_gt_position_pairs(
+        poses,
+        args.loop_translation_threshold,
+        args.loop_yaw_threshold_deg,
+        args.min_id_gap,
+    )
 
     rows = []
     stats = {
@@ -478,6 +508,10 @@ def analyze(args):
         "optimization_high_residual_z_after_count": 0,
         "optimization_max_residual_z_after": 0.0,
         "failure_class_counts": {},
+        "reject_reason_counts": {},
+        "reject_reason_by_source": {},
+        "reject_reason_by_heading_class": {},
+        "reject_reason_by_source_heading": {},
         "edge_mode_counts": {},
         "accepted_full6dof": 0,
         "accepted_planar_xy_yaw": 0,
@@ -614,6 +648,15 @@ def analyze(args):
         graph_trial_recommendation = str(
             event.get("graph_trial_recommendation", "not_available") or "not_available"
         )
+        candidate_source = str(event.get("candidate_source", "") or "")
+        reject_reason = str(event.get("reject_reason", "") or "")
+        icp_iterations = int(event.get("icp_iterations") or 0)
+        icp_optimizer_error = event_float(event, "icp_optimizer_error")
+        icp_termination = str(event.get("icp_termination", "invalid") or "invalid")
+        transform_debug_axes = {}
+        for prefix in ("pred_match_query", "icp_correction_match", "measured_match_query"):
+            for axis in ("x", "y", "z", "roll", "pitch", "yaw"):
+                transform_debug_axes[f"{prefix}_{axis}"] = event_float(event, f"{prefix}_{axis}")
         loop_referee_recommendation = str(
             event.get("loop_referee_recommendation", "not_available") or "not_available"
         )
@@ -628,7 +671,7 @@ def analyze(args):
             and math.isfinite(heightmap_ground_dz_p90)
             and heightmap_ground_dz_p90 >= args.z_drift_threshold
         )
-        z_candidate_residual_large = bool(
+        z_measurement_residual_large = bool(
             accepted and gt_loop and exceeds_abs(residual_z, args.z_drift_threshold)
         )
         z_measurement_bad = bool(
@@ -637,7 +680,7 @@ def analyze(args):
         z_after_bad = bool(
             accepted and gt_loop and exceeds_abs(residual_z_after, args.z_drift_threshold)
         )
-        z_corrected = bool(z_candidate_residual_large and not z_after_bad)
+        z_corrected = bool(z_measurement_residual_large and not z_after_bad)
         z_drift_suspect = bool(
             accepted
             and (
@@ -655,7 +698,7 @@ def analyze(args):
             and (
                 z_measurement_bad
                 or z_after_bad
-                or z_candidate_residual_large
+                or z_measurement_residual_large
             )
         )
         roll_pitch_bad = bool(
@@ -769,6 +812,16 @@ def analyze(args):
         if z_drift_suspect:
             stats["z_drift_suspect_count"] += 1
         stats["failure_class_counts"][failure_class] = stats["failure_class_counts"].get(failure_class, 0) + 1
+        if not accepted:
+            increment_nested_counter(stats["reject_reason_counts"], reject_reason or "none")
+            increment_nested_counter(stats["reject_reason_by_source"], candidate_source or "unknown", reject_reason or "none")
+            increment_nested_counter(stats["reject_reason_by_heading_class"], heading_class, reject_reason or "none")
+            increment_nested_counter(
+                stats["reject_reason_by_source_heading"],
+                candidate_source or "unknown",
+                heading_class,
+                reject_reason or "none",
+            )
 
         rows.append(
             {
@@ -789,7 +842,7 @@ def analyze(args):
                 "gt_relative_yaw": gt_axes["yaw"] if gt_axes is not None else float("nan"),
                 "candidate_accepted": accepted,
                 "candidate_selectable": candidate_selectable,
-                "candidate_source": event.get("candidate_source", ""),
+                "candidate_source": candidate_source,
                 "edge_mode": edge_mode,
                 "vertical_observability_score": vertical_observability_score,
                 "vertical_downweighted": vertical_downweighted,
@@ -836,15 +889,19 @@ def analyze(args):
                 "graph_trial_odom_residual_delta": graph_trial_odom_residual_delta,
                 "graph_trial_consistency_score": graph_trial_consistency_score,
                 "graph_trial_recommendation": graph_trial_recommendation,
+                "icp_iterations": icp_iterations,
+                "icp_optimizer_error": icp_optimizer_error,
+                "icp_termination": icp_termination,
+                **transform_debug_axes,
                 "loop_referee_recommendation": loop_referee_recommendation,
                 "loop_referee_reason": loop_referee_reason,
                 "loop_referee_risk_flags": loop_referee_risk_flags,
-                "z_candidate_residual_large": z_candidate_residual_large,
+                "z_measurement_residual_large": z_measurement_residual_large,
                 "z_measurement_bad": z_measurement_bad,
                 "z_after_bad": z_after_bad,
                 "z_corrected": z_corrected,
                 "gate_result": event.get("gate_result", ""),
-                "reject_reason": event.get("reject_reason", ""),
+                "reject_reason": reject_reason,
                 "fitness_score": event_float(event, "fitness_score"),
                 "inlier_ratio": event_float(event, "inlier_ratio"),
                 "residual_z": residual_z,
@@ -874,6 +931,7 @@ def analyze(args):
         )
 
     stats["retrieval_miss_estimate"] = len(gt_loop_pairs - candidate_pairs)
+    stats["position_retrieval_miss_estimate"] = len(gt_position_pairs - candidate_pairs)
     stats["accepted_true_loop_bad_z_after_graph_trial_score_mean"] = mean_finite(
         bad_z_after_graph_trial_scores
     )
@@ -893,6 +951,21 @@ def analyze(args):
     else:
         stats["position_loop_precision"] = float("nan")
     stats["gt_loop_pair_count"] = len(gt_loop_pairs)
+    stats["gt_position_pair_count"] = len(gt_position_pairs)
+    gt_loop_opportunity_queries = {query_id for query_id, _ in gt_loop_pairs}
+    gt_position_opportunity_queries = {query_id for query_id, _ in gt_position_pairs}
+    candidate_queries = {int(c["query_id"]) for c in candidates}
+    candidate_position_queries = {
+        row["query_id"] for row in rows if row.get("gt_position_loop")
+    }
+    stats["gt_loop_opportunity_query_count"] = len(gt_loop_opportunity_queries)
+    stats["gt_position_opportunity_query_count"] = len(gt_position_opportunity_queries)
+    stats["query_with_any_candidate_count"] = len(candidate_queries)
+    stats["query_without_any_candidate_count"] = len(set(poses.keys()) - candidate_queries)
+    stats["query_with_any_position_candidate_count"] = len(candidate_position_queries)
+    stats["query_without_position_candidate_count"] = len(
+        gt_position_opportunity_queries - candidate_position_queries
+    )
     stats["candidate_unique_pair_count"] = len(candidate_pairs)
     stats["accepted_pairs_source"] = "accepted_loops_csv" if accepted_pairs_available else "loop_debug_gate_result"
     query_summary_rows = build_query_summary(rows)
@@ -1067,10 +1140,31 @@ def analyze(args):
             "graph_trial_odom_residual_delta",
             "graph_trial_consistency_score",
             "graph_trial_recommendation",
+            "icp_iterations",
+            "icp_optimizer_error",
+            "icp_termination",
+            "pred_match_query_x",
+            "pred_match_query_y",
+            "pred_match_query_z",
+            "pred_match_query_roll",
+            "pred_match_query_pitch",
+            "pred_match_query_yaw",
+            "icp_correction_match_x",
+            "icp_correction_match_y",
+            "icp_correction_match_z",
+            "icp_correction_match_roll",
+            "icp_correction_match_pitch",
+            "icp_correction_match_yaw",
+            "measured_match_query_x",
+            "measured_match_query_y",
+            "measured_match_query_z",
+            "measured_match_query_roll",
+            "measured_match_query_pitch",
+            "measured_match_query_yaw",
             "loop_referee_recommendation",
             "loop_referee_reason",
             "loop_referee_risk_flags",
-            "z_candidate_residual_large",
+            "z_measurement_residual_large",
             "z_measurement_bad",
             "z_after_bad",
             "z_corrected",
@@ -1135,6 +1229,46 @@ def analyze(args):
                 "fitness_gap_zero_vs_best",
                 "z_hypothesis_spread_m",
                 "vertical_ambiguity_score",
+                "heightmap_overlap_ratio",
+                "heightmap_ground_dz_median",
+                "heightmap_ground_dz_p90",
+                "heightmap_ground_dz_max",
+                "heightmap_ground_support_ratio",
+                "heightmap_vertical_consistency_score",
+                "graph_trial_residual_x_after",
+                "graph_trial_residual_y_after",
+                "graph_trial_residual_z_after",
+                "graph_trial_residual_roll_after",
+                "graph_trial_residual_pitch_after",
+                "graph_trial_residual_yaw_after",
+                "graph_trial_residual_translation_norm_after",
+                "graph_trial_residual_rotation_norm_after",
+                "graph_trial_mean_pose_update_translation",
+                "graph_trial_max_pose_update_translation",
+                "graph_trial_mean_pose_update_rotation",
+                "graph_trial_max_pose_update_rotation",
+                "graph_trial_existing_loop_residual_delta",
+                "graph_trial_odom_residual_delta",
+                "graph_trial_consistency_score",
+                "icp_optimizer_error",
+                "pred_match_query_x",
+                "pred_match_query_y",
+                "pred_match_query_z",
+                "pred_match_query_roll",
+                "pred_match_query_pitch",
+                "pred_match_query_yaw",
+                "icp_correction_match_x",
+                "icp_correction_match_y",
+                "icp_correction_match_z",
+                "icp_correction_match_roll",
+                "icp_correction_match_pitch",
+                "icp_correction_match_yaw",
+                "measured_match_query_x",
+                "measured_match_query_y",
+                "measured_match_query_z",
+                "measured_match_query_roll",
+                "measured_match_query_pitch",
+                "measured_match_query_yaw",
                 "fitness_score",
                 "inlier_ratio",
                 "residual_z",

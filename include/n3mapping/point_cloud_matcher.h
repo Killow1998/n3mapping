@@ -2,6 +2,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -19,14 +20,43 @@
 
 namespace n3mapping {
 
+enum class MatchTermination {
+    Invalid,
+    Converged,
+    MaxIterations,
+    Stalled
+};
+
+const char* matchTerminationName(MatchTermination termination);
+MatchTermination classifyMatchTermination(bool converged,
+                                          size_t iterations,
+                                          int max_iterations,
+                                          bool valid_result);
+
+struct MatchStageResult {
+    std::string stage;
+    double resolution = std::numeric_limits<double>::quiet_NaN();
+    bool converged = false;
+    size_t iterations = 0;
+    double optimizer_error = std::numeric_limits<double>::quiet_NaN();
+    double fitness_score = std::numeric_limits<double>::max();
+    size_t num_inliers = 0;
+    double inlier_ratio = 0.0;
+    MatchTermination termination = MatchTermination::Invalid;
+};
+
 struct MatchResult {
     bool success = false;
     bool converged = false;
     Eigen::Isometry3d T_target_source = Eigen::Isometry3d::Identity();
     double fitness_score = std::numeric_limits<double>::max();
     size_t num_inliers = 0;
+    size_t iterations = 0;
+    double optimizer_error = std::numeric_limits<double>::quiet_NaN();
+    MatchTermination termination = MatchTermination::Invalid;
     double inlier_ratio = 0.0;
     Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
+    std::vector<MatchStageResult> stages;
 };
 
 class PointCloudMatcher {

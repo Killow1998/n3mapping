@@ -21,11 +21,17 @@ struct LoopDebugCandidateEvent {
     double query_timestamp = 0.0;
     LoopCandidate candidate;
     bool icp_converged = false;
+    size_t icp_iterations = 0;
+    double icp_optimizer_error = std::numeric_limits<double>::quiet_NaN();
+    std::string icp_termination = "invalid";
     double fitness_score = std::numeric_limits<double>::quiet_NaN();
     double inlier_ratio = std::numeric_limits<double>::quiet_NaN();
     double icp_translation_norm = std::numeric_limits<double>::quiet_NaN();
     double icp_rotation_norm = std::numeric_limits<double>::quiet_NaN();
     Eigen::Isometry3d residual = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d T_pred_match_query = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d T_icp_correction_match = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d T_measured_match_query = Eigen::Isometry3d::Identity();
     bool has_loop_measurement = false;
     Eigen::Isometry3d loop_measurement_match_query = Eigen::Isometry3d::Identity();
     std::string edge_mode = "not_applicable";

@@ -93,11 +93,20 @@ SUMMARY_FIELDS = [
     "loop_position_loop_not_selected",
     "loop_retrieval_position_positive",
     "loop_query_with_position_candidate_count",
+    "loop_gt_position_opportunity_query_count",
+    "loop_query_without_position_candidate_count",
     "loop_query_with_selectable_position_candidate_count",
     "loop_query_position_selection_failure_count",
     "loop_query_missed_position_candidate_count",
     "loop_retrieval_false_positive",
     "loop_retrieval_miss_estimate",
+    "loop_position_retrieval_miss_estimate",
+    "loop_reject_icp_not_converged",
+    "loop_reject_fitness_threshold",
+    "loop_reject_inlier_threshold",
+    "loop_reject_geometry_gate",
+    "loop_reject_loop_referee",
+    "loop_reject_edge_model",
     "loop_z_drift_suspect_count",
     "optimization_summary_count",
     "optimization_high_residual_z_after_count",
@@ -311,6 +320,9 @@ def loop_diagnosis_has_current_schema(diagnosis):
         "edge_mode_counts",
         "accepted_full6dof",
         "accepted_planar_xy_yaw",
+        "gt_position_opportunity_query_count",
+        "query_without_position_candidate_count",
+        "reject_reason_counts",
     }
     return required.issubset(set(diagnosis.keys()))
 
@@ -448,11 +460,14 @@ def summarize_run(args, run_name, run_dir, matrix_output):
             "position_loop_not_selected": "loop_position_loop_not_selected",
             "retrieval_position_positive": "loop_retrieval_position_positive",
             "query_with_position_candidate_count": "loop_query_with_position_candidate_count",
+            "gt_position_opportunity_query_count": "loop_gt_position_opportunity_query_count",
+            "query_without_position_candidate_count": "loop_query_without_position_candidate_count",
             "query_with_selectable_position_candidate_count": "loop_query_with_selectable_position_candidate_count",
             "query_position_selection_failure_count": "loop_query_position_selection_failure_count",
             "query_missed_position_candidate_count": "loop_query_missed_position_candidate_count",
             "retrieval_false_positive": "loop_retrieval_false_positive",
             "retrieval_miss_estimate": "loop_retrieval_miss_estimate",
+            "position_retrieval_miss_estimate": "loop_position_retrieval_miss_estimate",
             "z_drift_suspect_count": "loop_z_drift_suspect_count",
             "optimization_summary_count": "optimization_summary_count",
             "optimization_high_residual_z_after_count": "optimization_high_residual_z_after_count",
@@ -461,6 +476,18 @@ def summarize_run(args, run_name, run_dir, matrix_output):
         for source_key, dest_key in mapping.items():
             if source_key in diagnosis:
                 row[dest_key] = diagnosis[source_key]
+        reject_counts = diagnosis.get("reject_reason_counts", {})
+        if isinstance(reject_counts, dict):
+            reason_mapping = {
+                "icp_not_converged": "loop_reject_icp_not_converged",
+                "fitness_threshold": "loop_reject_fitness_threshold",
+                "inlier_threshold": "loop_reject_inlier_threshold",
+                "geometry_gate": "loop_reject_geometry_gate",
+                "loop_referee": "loop_reject_loop_referee",
+                "edge_model": "loop_reject_edge_model",
+            }
+            for reason, dest_key in reason_mapping.items():
+                row[dest_key] = reject_counts.get(reason, 0)
 
     accepted = finite_float(row.get("loop_accepted_candidate_count"))
     accepted_true = finite_float(row.get("loop_accepted_true_loop"))

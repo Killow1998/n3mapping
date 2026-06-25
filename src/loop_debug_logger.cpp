@@ -238,11 +238,17 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendNumber(os, &first, "fused_score", event.candidate.fused_score);
     appendNumber(os, &first, "yaw_diff_rad", static_cast<double>(event.candidate.yaw_diff_rad));
     appendBool(os, &first, "icp_converged", event.icp_converged);
+    appendSize(os, &first, "icp_iterations", event.icp_iterations);
+    appendNumber(os, &first, "icp_optimizer_error", event.icp_optimizer_error);
+    appendString(os, &first, "icp_termination", event.icp_termination);
     appendNumber(os, &first, "fitness_score", event.fitness_score);
     appendNumber(os, &first, "inlier_ratio", event.inlier_ratio);
     appendNumber(os, &first, "icp_translation_norm", event.icp_translation_norm);
     appendNumber(os, &first, "icp_rotation_norm", event.icp_rotation_norm);
     appendResidual(os, &first, event.residual);
+    appendTransformAxes(os, &first, "pred_match_query", event.T_pred_match_query);
+    appendTransformAxes(os, &first, "icp_correction_match", event.T_icp_correction_match);
+    appendTransformAxes(os, &first, "measured_match_query", event.T_measured_match_query);
     if (event.has_loop_measurement) {
         appendTransformAxes(os, &first, "measurement", event.loop_measurement_match_query);
     }

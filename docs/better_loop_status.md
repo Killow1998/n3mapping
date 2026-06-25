@@ -34,6 +34,50 @@ Pair-level rejected position candidates:
 | drive0005_900 | 48 | 2 |
 | hall05_600 | 33 | 8 |
 
+Reject-reason breakdown from the current logged candidates:
+
+| run | icp_not_converged | fitness_threshold | inlier_threshold | geometry_gate | loop_referee | not_selected |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| drive0005_900 | 392 | 1823 | 126 | 3 | 55 | 29 |
+| hall05_600 | 115 | 0 | 0 | 1 | 127 | 95 |
+
+This breakdown is pair-level over logged candidates, not a direct true-loop
+recall number. It is useful because it shows different dominant failure modes:
+KITTI360 is mostly failing before or inside ICP quality gates, while hall05 is
+dominated by non-convergence and LoopReferee rejection.
+
+## Verification Evidence v1
+
+The current development direction is evidence-only. Runtime accept/reject
+behavior must stay unchanged until a verifier signal separates true recoverable
+loops from repeated-structure false positives on both outdoor and indoor smoke
+runs.
+
+Implemented evidence contract:
+
+- Replace ambiguous `candidate_residual` diagnostics with explicit transforms:
+  - `T_pred_match_query`
+  - `T_icp_correction_match`
+  - `T_measured_match_query`
+- Enforce the frame invariant:
+
+```text
+T_measured_match_query = T_icp_correction_match * T_pred_match_query
+```
+
+- Export registration termination evidence:
+  - `icp_iterations`
+  - `icp_optimizer_error`
+  - `icp_termination`
+- Add global query-level position opportunity metrics so queries with no logged
+  candidate are not silently removed from recall accounting.
+- Add reject reason summaries by source and heading class in the analyzer.
+
+The important interpretation change: `converged=false` is no longer treated as
+proof that a loop is geometrically false. It is only one evidence field. A
+future verifier must explain whether the geometry is stable, symmetric, and
+unique before any runtime rescue path is considered.
+
 ## Rejected Experiment
 
 Tested allowing `non-converged + high inlier` ICP results into LoopReferee.
@@ -50,19 +94,15 @@ repeated structure makes it unsafe.
 
 ## Next Step
 
-Do not tune LoopReferee weights yet. The next useful change is to improve
-verification so more true position-level candidates become selectable without
-adding far false loops.
+Do not tune LoopReferee weights yet. Do not add a runtime rescue path yet.
 
-Concrete next probe:
+The next useful change is a shadow-only symmetric verifier:
 
-1. Add a second, stricter verification attempt only for candidates that already
-   pass descriptor/spatial proposal and have a position-level opportunity in
-   eval.
-2. Compare against the same matrix fields:
-   - `loop_accepted_far_false_loop`
-   - `loop_query_with_selectable_position_candidate_count`
-   - `loop_query_missed_position_candidate_count`
-   - trajectory p95 metrics
+1. Use equal-length causal submaps for query and match.
+2. Evaluate forward and reverse registration with the same final transform
+   scoring function.
+3. Record symmetric support, transform cycle error, and coarse/fine stability.
+4. Keep the runtime committed loops unchanged.
 
-If far false loops appear, reject the change.
+Only if that shadow evidence separates KITTI true candidates from hall05
+repeated-structure false candidates should it become a runtime decision input.

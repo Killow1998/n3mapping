@@ -330,7 +330,8 @@ TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth
 
     const std::string query_summary = readTextFile(output / "loop_query_summary.csv");
     EXPECT_NE(query_summary.find("selection_failure"), std::string::npos);
-    EXPECT_NE(query_summary.find("4,2,1,1,2,False"), std::string::npos);
+    EXPECT_NE(query_summary.find("position_selection_failure"), std::string::npos);
+    EXPECT_NE(query_summary.find("4,2,1,1,1,1,2,False,False"), std::string::npos);
 }
 
 TEST(N3MappingKitti360EvalTest, LoopCandidateBenchmarkComparesLoggedAndSpatialCandidates)
@@ -467,6 +468,19 @@ TEST(N3MappingKitti360EvalTest, EvalMatrixSummarizesRunArtifacts)
                   << "  \"accepted_false_loop\": 0,\n"
                   << "  \"accepted_full6dof\": 1,\n"
                   << "  \"accepted_planar_xy_yaw\": 1,\n"
+                  << "  \"gt_position_opportunity_query_count\": 2,\n"
+                  << "  \"query_without_position_candidate_count\": 1,\n"
+                  << "  \"query_with_position_candidate_count\": 1,\n"
+                  << "  \"query_with_selectable_position_candidate_count\": 1,\n"
+                  << "  \"query_position_selection_failure_count\": 0,\n"
+                  << "  \"query_missed_position_candidate_count\": 1,\n"
+                  << "  \"retrieval_position_positive\": 1,\n"
+                  << "  \"position_retrieval_miss_estimate\": 1,\n"
+                  << "  \"reject_reason_counts\": {\n"
+                  << "    \"icp_not_converged\": 1,\n"
+                  << "    \"fitness_threshold\": 2,\n"
+                  << "    \"loop_referee\": 3\n"
+                  << "  },\n"
                   << "  \"vertical_hypothesis_candidate_count\": 1,\n"
                   << "  \"vertical_hypothesis_planar_recommendation_count\": 1,\n"
                   << "  \"vertical_hypothesis_full6dof_recommendation_count\": 0,\n"

@@ -71,7 +71,10 @@ struct VerifiedLoop {
     int64_t query_id = -1;
     int64_t match_id = -1;
     Eigen::Isometry3d T_match_query = Eigen::Isometry3d::Identity();
-    Eigen::Isometry3d candidate_residual = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d T_pred_match_query = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d T_icp_correction_match = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d T_measured_match_query = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d T_measurement_residual = Eigen::Isometry3d::Identity();
     double candidate_yaw_diff_rad = 0.0;
     double fitness_score = std::numeric_limits<double>::max();
     double inlier_ratio = 0.0;
@@ -147,16 +150,6 @@ public:
     std::vector<LoopCandidate> detectSpatialCandidates(
         int64_t query_id,
         const std::map<int64_t, Keyframe::Ptr>& keyframes) const;
-
-    VerifiedLoop verifyLoopCandidate(const LoopCandidate& candidate,
-                                     const Keyframe::Ptr& query_keyframe,
-                                     const Keyframe::Ptr& match_keyframe,
-                                     PointCloudMatcher& matcher);
-
-    std::vector<VerifiedLoop> verifyLoopCandidatesBatch(
-        const std::vector<LoopCandidate>& candidates,
-        const std::map<int64_t, Keyframe::Ptr>& keyframes,
-        PointCloudMatcher& matcher);
 
     void rebuildTree();
     std::vector<std::pair<int64_t, Eigen::MatrixXd>> getDescriptors() const;

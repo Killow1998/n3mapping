@@ -3,6 +3,7 @@
 
 #include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_referee.h"
+#include "n3mapping/loop_verifier.h"
 
 namespace n3mapping {
 
@@ -23,6 +24,30 @@ TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
     bad.temporal_gap = 0.1;
     bad.local_map_consistency = 0.1;
     EXPECT_EQ(LoopReferee::decide(bad), LoopDecision::Reject);
+}
+
+TEST(LoopVerifierEvidenceTest, MeasurementResidualUsesPredictedAndMeasuredTransforms)
+{
+    Eigen::Isometry3d predicted = Eigen::Isometry3d::Identity();
+    predicted.translation() = Eigen::Vector3d(10.0, 0.0, 1.0);
+
+    Eigen::Isometry3d correction = Eigen::Isometry3d::Identity();
+    correction.translation() = Eigen::Vector3d(0.5, -0.25, 0.75);
+
+    const Eigen::Isometry3d measured = correction * predicted;
+    const Eigen::Isometry3d residual = LoopVerifier::measurementResidual(predicted, measured);
+
+    EXPECT_TRUE(measured.isApprox(correction * predicted, 1e-12));
+    EXPECT_TRUE(residual.isApprox(predicted.inverse() * measured, 1e-12));
+}
+
+TEST(PointCloudMatcherEvidenceTest, ClassifiesTermination)
+{
+    EXPECT_EQ(classifyMatchTermination(true, 2, 10, true), MatchTermination::Converged);
+    EXPECT_EQ(classifyMatchTermination(false, 9, 10, true), MatchTermination::MaxIterations);
+    EXPECT_EQ(classifyMatchTermination(false, 2, 10, true), MatchTermination::Stalled);
+    EXPECT_EQ(classifyMatchTermination(false, 0, 10, false), MatchTermination::Invalid);
+    EXPECT_STREQ(matchTerminationName(MatchTermination::MaxIterations), "max_iterations");
 }
 
 class MockLoopOptimizer : public LoopOptimizerInterface
@@ -61,7 +86,7 @@ TEST(LoopClosureManagerTest, FilterValidLoopsOnlyChecksValidity)
     EXPECT_EQ(result.front().match_id, 2);
 }
 
-TEST(LoopClosureManagerTest, FilterValidLoopsDoesNotRejectLargeCandidateResidualZ)
+TEST(LoopClosureManagerTest, FilterValidLoopsDoesNotRejectLargeMeasurementResidualZ)
 {
     Config config;
     config.loop_min_inlier_ratio = 0.3;
@@ -75,19 +100,19 @@ TEST(LoopClosureManagerTest, FilterValidLoopsDoesNotRejectLargeCandidateResidual
     valid.verified = true;
     valid.inlier_ratio = 0.5;
     valid.fitness_score = 0.5;
-    valid.candidate_residual = Eigen::Isometry3d::Identity();
-    valid.candidate_residual.translation().z() = 4.9;
+    valid.T_measurement_residual = Eigen::Isometry3d::Identity();
+    valid.T_measurement_residual.translation().z() = 4.9;
 
     VerifiedLoop bad_z = valid;
     bad_z.query_id = 3;
-    bad_z.candidate_residual.translation().z() = 5.1;
+    bad_z.T_measurement_residual.translation().z() = 5.1;
 
     auto result = manager.filterValidLoops({valid, bad_z});
     ASSERT_EQ(result.size(), 2u);
     EXPECT_EQ(result[1].query_id, 3);
 }
 
-TEST(LoopClosureManagerTest, FilterValidLoopsIgnoresCandidateResidualZ)
+TEST(LoopClosureManagerTest, FilterValidLoopsIgnoresMeasurementResidualZ)
 {
     Config config;
     config.loop_min_inlier_ratio = 0.3;
@@ -101,8 +126,8 @@ TEST(LoopClosureManagerTest, FilterValidLoopsIgnoresCandidateResidualZ)
     loop.verified = true;
     loop.inlier_ratio = 0.5;
     loop.fitness_score = 0.5;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
-    loop.candidate_residual.translation().z() = 100.0;
+    loop.T_measurement_residual = Eigen::Isometry3d::Identity();
+    loop.T_measurement_residual.translation().z() = 100.0;
 
     auto result = manager.filterValidLoops({loop});
     ASSERT_EQ(result.size(), 1u);
@@ -159,13 +184,13 @@ TEST(LoopClosureManagerTest, SelectBestPerQueryFallsBackToFitnessWithoutEnergy)
     high_z.verified = true;
     high_z.inlier_ratio = 1.0;
     high_z.fitness_score = 0.20;
-    high_z.candidate_residual = Eigen::Isometry3d::Identity();
-    high_z.candidate_residual.translation().z() = 4.0;
+    high_z.T_measurement_residual = Eigen::Isometry3d::Identity();
+    high_z.T_measurement_residual.translation().z() = 4.0;
 
     VerifiedLoop low_z = high_z;
     low_z.match_id = 11;
     low_z.fitness_score = 0.205;
-    low_z.candidate_residual.translation().z() = 0.1;
+    low_z.T_measurement_residual.translation().z() = 0.1;
 
     auto best = manager.selectBestPerQuery({high_z, low_z});
     ASSERT_EQ(best.size(), 1u);
@@ -186,13 +211,13 @@ TEST(LoopClosureManagerTest, SelectBestPerQueryKeepsClearlyBetterFitness)
     strong_fitness.verified = true;
     strong_fitness.inlier_ratio = 1.0;
     strong_fitness.fitness_score = 0.05;
-    strong_fitness.candidate_residual = Eigen::Isometry3d::Identity();
-    strong_fitness.candidate_residual.translation().z() = 4.0;
+    strong_fitness.T_measurement_residual = Eigen::Isometry3d::Identity();
+    strong_fitness.T_measurement_residual.translation().z() = 4.0;
 
     VerifiedLoop low_z = strong_fitness;
     low_z.match_id = 11;
     low_z.fitness_score = 0.20;
-    low_z.candidate_residual.translation().z() = 0.1;
+    low_z.T_measurement_residual.translation().z() = 0.1;
 
     auto best = manager.selectBestPerQuery({strong_fitness, low_z});
     ASSERT_EQ(best.size(), 1u);
@@ -238,8 +263,8 @@ TEST(LoopClosureManagerTest, ApplyEdgeModelKeepsFull6DofWhenVerticalResidualIsOb
     loop.query_id = 1;
     loop.match_id = 2;
     loop.information.diagonal() << 10.0, 20.0, 30.0, 40.0, 50.0, 60.0;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
-    loop.candidate_residual.translation().z() = 0.1;
+    loop.T_measurement_residual = Eigen::Isometry3d::Identity();
+    loop.T_measurement_residual.translation().z() = 0.1;
 
     const auto modeled = manager.applyEdgeModel(loop);
     EXPECT_TRUE(modeled.verified);
@@ -260,8 +285,8 @@ TEST(LoopClosureManagerTest, ApplyEdgeModelDoesNotDownweightVerticalAxes)
     loop.query_id = 1;
     loop.match_id = 2;
     loop.information.diagonal() << 10.0, 20.0, 30.0, 40.0, 50.0, 60.0;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
-    loop.candidate_residual.translation().z() = 3.0;
+    loop.T_measurement_residual = Eigen::Isometry3d::Identity();
+    loop.T_measurement_residual.translation().z() = 3.0;
 
     const auto modeled = manager.applyEdgeModel(loop);
     EXPECT_TRUE(modeled.verified);
@@ -279,8 +304,8 @@ TEST(LoopClosureManagerTest, ApplyEdgeModelDoesNotRejectVerticalOutlier)
     loop.verified = true;
     loop.query_id = 1;
     loop.match_id = 2;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
-    loop.candidate_residual.translation().z() = 4.5;
+    loop.T_measurement_residual = Eigen::Isometry3d::Identity();
+    loop.T_measurement_residual.translation().z() = 4.5;
 
     const auto modeled = manager.applyEdgeModel(loop);
     EXPECT_TRUE(modeled.verified);
@@ -298,7 +323,7 @@ TEST(LoopClosureManagerTest, ApplyEdgeModelDoesNotRejectYawInconsistentOutlier)
     loop.query_id = 1;
     loop.match_id = 2;
     loop.candidate_yaw_diff_rad = M_PI;
-    loop.candidate_residual = Eigen::Isometry3d::Identity();
+    loop.T_measurement_residual = Eigen::Isometry3d::Identity();
 
     const auto modeled = manager.applyEdgeModel(loop);
     EXPECT_TRUE(modeled.verified);

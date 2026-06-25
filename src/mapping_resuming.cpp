@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include "n3mapping/cloud_utils.h"
+#include "n3mapping/loop_verifier.h"
 
 namespace n3mapping {
 
@@ -152,6 +153,7 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
 
     std::vector<VerifiedLoop> verified_loops;
     verified_loops.reserve(candidates.size());
+    LoopVerifier verifier(config_);
 
     for (const auto& candidate : candidates) {
         if (!isFromOriginalMap(candidate.match_id)) continue;
@@ -159,7 +161,7 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
         auto match_kf = keyframe_manager_.getKeyframe(candidate.match_id);
         if (!match_kf || !match_kf->cloud) continue;
 
-        VerifiedLoop verified = loop_detector_.verifyLoopCandidate(candidate, new_kf, match_kf, matcher_);
+        VerifiedLoop verified = verifier.verifyKeyframesLegacy(candidate, new_kf, match_kf, matcher_).loop;
         verified_loops.push_back(verified);
     }
 

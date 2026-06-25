@@ -15,6 +15,7 @@
 #include "n3mapping/loop_heightmap_diagnostics.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
 #include "n3mapping/loop_referee.h"
+#include "n3mapping/loop_verifier.h"
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
 
@@ -30,24 +31,6 @@ double rotationAngle(const Eigen::Isometry3d& transform)
 Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
 {
     return transform.rotation().eulerAngles(0, 1, 2);
-}
-
-Eigen::Matrix3d rotationFromRollPitchYaw(double roll, double pitch, double yaw)
-{
-    return (Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
-            Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ())).toRotationMatrix();
-}
-
-Eigen::Isometry3d neutralizeVerticalLoopMeasurement(const Eigen::Isometry3d& measured_match_query,
-                                                    const Eigen::Isometry3d& predicted_match_query)
-{
-    Eigen::Isometry3d neutral = measured_match_query;
-    neutral.translation().z() = predicted_match_query.translation().z();
-    const Eigen::Vector3d measured_rpy = rollPitchYaw(measured_match_query);
-    const Eigen::Vector3d predicted_rpy = rollPitchYaw(predicted_match_query);
-    neutral.linear() = rotationFromRollPitchYaw(predicted_rpy.x(), predicted_rpy.y(), measured_rpy.z());
-    return neutral;
 }
 
 struct LoopResidualAxisStats {
@@ -218,64 +201,6 @@ double processingTimeSeconds()
     return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
 }
 
-std::string loopRejectReason(bool icp_converged,
-                             bool fitness_ok,
-                             bool inlier_ok,
-                             bool geom_ok)
-{
-    if (!icp_converged) {
-        return "icp_not_converged";
-    }
-    if (!fitness_ok) {
-        return "fitness_threshold";
-    }
-    if (!inlier_ok) {
-        return "inlier_threshold";
-    }
-    if (!geom_ok) {
-        return "geometry_gate";
-    }
-    return "";
-}
-
-double unitScoreBelow(double value, double limit)
-{
-    if (!std::isfinite(value) || limit <= 0.0) {
-        return 0.0;
-    }
-    return std::clamp(1.0 - value / limit, 0.0, 1.0);
-}
-
-LoopFeatures makeLoopFeatures(const LoopCandidate& candidate,
-                              const VerifiedLoop& loop,
-                              double fitness_limit,
-                              double inlier_limit,
-                              double icp_translation,
-                              double icp_translation_limit,
-                              int recent_gap)
-{
-    LoopFeatures features;
-    features.descriptor_score = candidate.descriptor_score;
-    features.spatial_score = candidate.spatial_score;
-    features.geometric_overlap = loop.heightmap_vertical_consistency_score;
-    features.temporal_gap = std::clamp(
-        static_cast<double>(candidate.query_id - candidate.match_id) /
-        std::max(1.0, static_cast<double>(recent_gap)), 0.0, 1.0);
-    const double fitness_score = unitScoreBelow(loop.fitness_score, fitness_limit);
-    const double inlier_score = inlier_limit > 0.0
-        ? std::clamp(loop.inlier_ratio / inlier_limit, 0.0, 1.0)
-        : std::clamp(loop.inlier_ratio, 0.0, 1.0);
-    const double motion_score = unitScoreBelow(icp_translation, icp_translation_limit);
-    features.local_map_consistency = (fitness_score + inlier_score + motion_score) / 3.0;
-    return features;
-}
-
-Eigen::Isometry3d candidateResidual(const Eigen::Isometry3d& expected_match_query,
-                                    const Eigen::Isometry3d& measured_match_query)
-{
-    return expected_match_query.inverse() * measured_match_query;
-}
-
 struct ZDistributionStats {
     std::size_t count = 0;
     double min_z = std::numeric_limits<double>::infinity();
@@ -408,19 +333,6 @@ double zCentroidDelta(const ZDistributionStats& source, const ZDistributionStats
         return std::numeric_limits<double>::quiet_NaN();
     }
     return source_mean - target_mean;
-}
-
-double verticalInformationRatio(const Eigen::Matrix<double, 6, 6>& information)
-{
-    const double x = information(0, 0);
-    const double y = information(1, 1);
-    const double z = information(2, 2);
-    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) ||
-        x <= 0.0 || y <= 0.0 || z <= 0.0) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    const double xy_reference = std::sqrt(x * y);
-    return xy_reference > 0.0 ? z / xy_reference : std::numeric_limits<double>::quiet_NaN();
 }
 
 struct VerticalHypothesisDiagnostics {
@@ -866,6 +778,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         last_loop_check_id_ = query_id;
 
         std::vector<VerifiedLoop> verified_loops;
+        LoopVerifier loop_verifier(config_);
         verified_loops.reserve(candidates.size());
         std::vector<LoopDebugCandidateEvent> debug_events;
         std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics> graph_trial_by_pair;
@@ -943,19 +856,15 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 target_z = computeZStats(target);
             }
 
-            MatchResult match_result =
-                session_->pointCloudMatcher().alignCloud(target, source, Eigen::Isometry3d::Identity());
+            LoopVerification verification = loop_verifier.verifyPreparedSubmaps(
+                candidate, query_kf, match_kf, source, target, session_->pointCloudMatcher());
+            MatchResult match_result = verification.match_result;
             ZDistributionStats source_z_after;
             if (loop_debug_enabled) {
-                source_z_after = computeTransformedZStats(source, match_result.T_target_source);
+                source_z_after = computeTransformedZStats(source, verification.T_icp_correction_match);
             }
 
-            VerifiedLoop loop;
-            loop.query_id = query_id;
-            loop.match_id = candidate.match_id;
-            loop.candidate_yaw_diff_rad = static_cast<double>(candidate.yaw_diff_rad);
-            loop.fitness_score = match_result.fitness_score;
-            loop.inlier_ratio = match_result.inlier_ratio;
+            VerifiedLoop loop = verification.loop;
             loop.source_z_span = source_z_before.span();
             loop.target_z_span = target_z.span();
             loop.z_overlap_ratio_before = zOverlapRatio(source_z_before, target_z);
@@ -966,23 +875,8 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             loop.z_robust_overlap_ratio_after = robustZOverlapRatio(source_z_after, target_z);
             loop.source_target_z_centroid_delta_before = zCentroidDelta(source_z_before, target_z);
             loop.source_target_z_centroid_delta_after = zCentroidDelta(source_z_after, target_z);
-            loop.vertical_information_ratio = verticalInformationRatio(match_result.information);
-            loop.information =
-                config_.loop_use_icp_information ? match_result.information : Eigen::Matrix<double, 6, 6>::Identity();
-            const Eigen::Isometry3d T_est_match_query =
-                match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
-            const Eigen::Isometry3d T_candidate_residual =
-                candidateResidual(T_est_match_query, match_result.T_target_source);
-            loop.candidate_residual = T_candidate_residual;
-
-            const bool fitness_ok = match_result.fitness_score < config_.loop_fitness_threshold;
-            const bool inlier_ok = match_result.inlier_ratio >= config_.loop_min_inlier_ratio;
-            const double icp_translation = match_result.T_target_source.translation().norm();
-            const double icp_rotation = Eigen::AngleAxisd(match_result.T_target_source.rotation()).angle();
-            const bool geom_ok =
-                icp_translation <= config_.loop_max_icp_translation && icp_rotation <= config_.loop_max_icp_rotation;
             if (loop_debug_enabled && config_.loop_debug_vertical_hypotheses_enable &&
-                match_result.converged && fitness_ok && inlier_ok && geom_ok) {
+                match_result.converged && verification.fitness_ok && verification.inlier_ok && verification.geometry_ok) {
                 const auto diagnostics = computeVerticalHypothesisDiagnostics(
                     session_->pointCloudMatcher(), target, source, match_result);
                 loop.vertical_hypothesis_count = diagnostics.count;
@@ -994,37 +888,8 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 loop.vertical_ambiguity_score = diagnostics.vertical_ambiguity_score;
                 loop.vertical_hypothesis_edge_recommendation = diagnostics.edge_recommendation;
             }
-            if (match_result.converged) {
-                const auto heightmap = computeHeightmapConsistency(target, source, match_result.T_target_source);
-                loop.heightmap_overlap_cell_count = heightmap.overlap_cell_count;
-                loop.heightmap_overlap_ratio = heightmap.overlap_ratio;
-                loop.heightmap_ground_dz_median = heightmap.ground_dz_median;
-                loop.heightmap_ground_dz_p90 = heightmap.ground_dz_p90;
-                loop.heightmap_ground_dz_max = heightmap.ground_dz_max;
-                loop.heightmap_ground_support_ratio = heightmap.ground_support_ratio;
-                loop.heightmap_vertical_consistency_score = heightmap.vertical_consistency_score;
-            }
-
-            loop.verified = false;
-            std::string reject_reason = loopRejectReason(match_result.converged, fitness_ok, inlier_ok, geom_ok);
-            if (match_result.converged && fitness_ok && inlier_ok && geom_ok) {
-                const LoopFeatures features = makeLoopFeatures(
-                    candidate, loop, config_.loop_fitness_threshold, config_.loop_min_inlier_ratio,
-                    icp_translation, config_.loop_max_icp_translation, config_.sc_num_exclude_recent);
-                loop.loop_referee_energy = LoopReferee::energy(features);
-                loop.loop_referee_recommendation =
-                    LoopReferee::decide(features) == LoopDecision::Accept ? "accept" : "reject";
-                loop.loop_referee_reason = "linear_energy";
-                loop.loop_referee_risk_flags = "none";
-                loop.verified = loop.loop_referee_recommendation == "accept";
-                if (!loop.verified) {
-                    reject_reason = "loop_referee";
-                }
-            }
+            std::string reject_reason = verification.reject_reason;
             if (loop.verified) {
-                const Eigen::Isometry3d T_residual = match_result.T_target_source;
-                loop.T_match_query = T_residual * T_est_match_query;
-                loop.T_match_query = neutralizeVerticalLoopMeasurement(loop.T_match_query, T_est_match_query);
                 loop = session_->loopClosureManager().applyEdgeModel(loop);
                 if (!loop.verified) {
                     reject_reason = "edge_model";
@@ -1036,13 +901,19 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.query_timestamp = query_kf->timestamp;
                 event.candidate = candidate;
                 event.icp_converged = match_result.converged;
+                event.icp_iterations = match_result.iterations;
+                event.icp_optimizer_error = match_result.optimizer_error;
+                event.icp_termination = matchTerminationName(match_result.termination);
                 event.fitness_score = match_result.fitness_score;
                 event.inlier_ratio = match_result.inlier_ratio;
-                event.icp_translation_norm = icp_translation;
-                event.icp_rotation_norm = icp_rotation;
-                event.residual = T_candidate_residual;
+                event.icp_translation_norm = verification.icp_translation_norm;
+                event.icp_rotation_norm = verification.icp_rotation_norm;
+                event.residual = verification.T_measurement_residual;
+                event.T_pred_match_query = verification.T_pred_match_query;
+                event.T_icp_correction_match = verification.T_icp_correction_match;
+                event.T_measured_match_query = verification.T_measured_match_query;
                 event.has_loop_measurement = true;
-                event.loop_measurement_match_query = match_result.T_target_source * T_est_match_query;
+                event.loop_measurement_match_query = verification.T_measured_match_query;
                 event.loop_information = loop.information;
                 event.edge_mode = loop.verified ? loopEdgeModeName(loop.edge_mode) : "not_applicable";
                 event.vertical_observability_score =

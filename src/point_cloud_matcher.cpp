@@ -34,6 +34,85 @@ bool isSmallGicpVoxelCoordSafe(const pcl::PointXYZI& pt, double leaf_size) {
 
 }  // namespace
 
+const char* matchTerminationName(MatchTermination termination)
+{
+    switch (termination) {
+        case MatchTermination::Converged:
+            return "converged";
+        case MatchTermination::MaxIterations:
+            return "max_iterations";
+        case MatchTermination::Stalled:
+            return "stalled";
+        case MatchTermination::Invalid:
+        default:
+            return "invalid";
+    }
+}
+
+MatchTermination classifyMatchTermination(bool converged,
+                                          size_t iterations,
+                                          int max_iterations,
+                                          bool valid_result)
+{
+    if (!valid_result) {
+        return MatchTermination::Invalid;
+    }
+    if (converged) {
+        return MatchTermination::Converged;
+    }
+    if (max_iterations > 0 && iterations + 1 >= static_cast<size_t>(max_iterations)) {
+        return MatchTermination::MaxIterations;
+    }
+    return MatchTermination::Stalled;
+}
+
+namespace {
+
+void copyInformation(const Eigen::Matrix<double, 6, 6>& H, Eigen::Matrix<double, 6, 6>* information)
+{
+    if (!information) {
+        return;
+    }
+    information->block<3,3>(0,0)=H.block<3,3>(3,3); information->block<3,3>(0,3)=H.block<3,3>(3,0);
+    information->block<3,3>(3,0)=H.block<3,3>(0,3); information->block<3,3>(3,3)=H.block<3,3>(0,0);
+}
+
+MatchStageResult makeStageResult(const std::string& stage,
+                                 double resolution,
+                                 const small_gicp::RegistrationResult& rr,
+                                 size_t source_size,
+                                 int max_iterations)
+{
+    MatchStageResult result;
+    result.stage = stage;
+    result.resolution = resolution;
+    result.converged = rr.converged;
+    result.iterations = rr.iterations;
+    result.optimizer_error = rr.error;
+    result.num_inliers = rr.num_inliers;
+    result.inlier_ratio = source_size == 0 ? 0.0 : static_cast<double>(rr.num_inliers) / static_cast<double>(source_size);
+    result.fitness_score =
+        rr.num_inliers > 0 ? rr.error / static_cast<double>(rr.num_inliers) : std::numeric_limits<double>::max();
+    result.termination = classifyMatchTermination(rr.converged, rr.iterations, max_iterations, true);
+    return result;
+}
+
+void copyStageToMatch(const MatchStageResult& stage, MatchResult* result)
+{
+    if (!result) {
+        return;
+    }
+    result->converged = stage.converged;
+    result->iterations = stage.iterations;
+    result->optimizer_error = stage.optimizer_error;
+    result->num_inliers = stage.num_inliers;
+    result->inlier_ratio = stage.inlier_ratio;
+    result->fitness_score = stage.fitness_score;
+    result->termination = stage.termination;
+}
+
+}  // namespace
+
 PointCloudMatcher::PointCloudMatcher(const Config& config) : config_(config) {
     std::string config_error;
     if (!config_.validate(&config_error)) {
@@ -115,14 +194,12 @@ MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe
         auto ls = setting_;
         ls.type = small_gicp::RegistrationSetting::GICP;
         auto rr = small_gicp::align(*tp, *sp, *tt, init_guess, ls);
+        const auto stage = makeStageResult("single_gicp", config_.gicp_downsampling_resolution,
+                                           rr, sp->size(), ls.max_iterations);
+        result.stages.push_back(stage);
         result.T_target_source = rr.T_target_source;
-        result.converged = rr.converged;
-        result.num_inliers = rr.num_inliers;
-        result.inlier_ratio = sp->empty() ? 0.0 : static_cast<double>(rr.num_inliers) / static_cast<double>(sp->size());
-        const auto& H = rr.H;
-        result.information.block<3,3>(0,0)=H.block<3,3>(3,3); result.information.block<3,3>(0,3)=H.block<3,3>(3,0);
-        result.information.block<3,3>(3,0)=H.block<3,3>(0,3); result.information.block<3,3>(3,3)=H.block<3,3>(0,0);
-        result.fitness_score = (rr.num_inliers > 0) ? rr.error / static_cast<double>(rr.num_inliers) : std::numeric_limits<double>::max();
+        copyStageToMatch(stage, &result);
+        copyInformation(rr.H, &result.information);
         const bool quality_passed =
             result.fitness_score < config_.gicp_fitness_threshold &&
             result.inlier_ratio >= config_.reloc_min_inlier_ratio;
@@ -171,6 +248,9 @@ MatchResult PointCloudMatcher::alignCloudWithSetting(const PointCloudT::Ptr& tar
         size_t coarse_inliers = 0; double coarse_inlier_ratio = 0.0;
         Eigen::Matrix<double, 6, 6> coarse_H = Eigen::Matrix<double, 6, 6>::Identity();
         bool coarse_converged = false; double coarse_fitness = std::numeric_limits<double>::max();
+        size_t coarse_iterations = 0;
+        double coarse_error = std::numeric_limits<double>::quiet_NaN();
+        MatchTermination coarse_termination = MatchTermination::Invalid;
 
         for (double res : resolutions) {
             if (res < base_res * 0.99) continue;
@@ -181,19 +261,28 @@ MatchResult PointCloudMatcher::alignCloudWithSetting(const PointCloudT::Ptr& tar
             if (res > base_res * 1.01) ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
             auto rr = small_gicp::align(*tp, *sp, *tt, T, ls);
             T = rr.T_target_source;
-            coarse_converged = rr.converged;
-            coarse_inliers = rr.num_inliers;
-            coarse_inlier_ratio = sp->empty() ? 0.0 : static_cast<double>(rr.num_inliers) / static_cast<double>(sp->size());
+            const auto stage = makeStageResult(
+                res > base_res * 1.01 ? "coarse_plane_icp" : "fine_plane_icp",
+                res, rr, sp->size(), ls.max_iterations);
+            result.stages.push_back(stage);
+            coarse_converged = stage.converged;
+            coarse_inliers = stage.num_inliers;
+            coarse_inlier_ratio = stage.inlier_ratio;
             coarse_H = rr.H;
-            coarse_fitness = (rr.num_inliers > 0) ? rr.error / static_cast<double>(rr.num_inliers) : std::numeric_limits<double>::max();
+            coarse_fitness = stage.fitness_score;
+            coarse_iterations = stage.iterations;
+            coarse_error = stage.optimizer_error;
+            coarse_termination = stage.termination;
         }
 
         result.T_target_source = T;
         result.converged = coarse_converged;
+        result.iterations = coarse_iterations;
+        result.optimizer_error = coarse_error;
         result.num_inliers = coarse_inliers;
         result.inlier_ratio = coarse_inlier_ratio;
-        result.information.block<3,3>(0,0)=coarse_H.block<3,3>(3,3); result.information.block<3,3>(0,3)=coarse_H.block<3,3>(3,0);
-        result.information.block<3,3>(3,0)=coarse_H.block<3,3>(0,3); result.information.block<3,3>(3,3)=coarse_H.block<3,3>(0,0);
+        result.termination = coarse_termination;
+        copyInformation(coarse_H, &result.information);
         result.fitness_score = coarse_fitness;
         const bool coarse_quality_passed =
             coarse_fitness < config_.gicp_fitness_threshold &&
@@ -213,14 +302,15 @@ MatchResult PointCloudMatcher::alignCloudWithSetting(const PointCloudT::Ptr& tar
                     rs.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
                     rs.downsampling_resolution = config_.icp_refine_downsampling_resolution;
                     auto rr = small_gicp::align(*tr, *sr, *trt, T, rs);
-                    double rf = (rr.num_inliers > 0) ? rr.error / static_cast<double>(rr.num_inliers) : std::numeric_limits<double>::max();
+                    const auto stage = makeStageResult("refine_gicp", config_.icp_refine_downsampling_resolution,
+                                                       rr, sr->size(), rs.max_iterations);
+                    result.stages.push_back(stage);
+                    double rf = stage.fitness_score;
                     if (rr.converged && rf < config_.gicp_fitness_threshold) {
                         result.T_target_source = rr.T_target_source;
-                        result.converged = true; result.num_inliers = rr.num_inliers;
-                        result.inlier_ratio = sr->empty() ? 0.0 : static_cast<double>(rr.num_inliers) / static_cast<double>(sr->size());
-                        result.information.block<3,3>(0,0)=rr.H.block<3,3>(3,3); result.information.block<3,3>(0,3)=rr.H.block<3,3>(3,0);
-                        result.information.block<3,3>(3,0)=rr.H.block<3,3>(0,3); result.information.block<3,3>(3,3)=rr.H.block<3,3>(0,0);
-                        result.fitness_score = rf; result.success = true;
+                        copyStageToMatch(stage, &result);
+                        copyInformation(rr.H, &result.information);
+                        result.success = true;
                     }
                 }
             }
