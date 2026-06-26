@@ -146,6 +146,23 @@ matrix evidence:
      - translation p95: `0.048m -> 0.056m`
    - Verdict: do not commit this behavior. Strengthening loop edges through
      configured noise also strengthens bad KITTI loop deformation.
+7. correlated loop burst suppression by query segment cooldown.
+   - Artifact: `/tmp/n3mapping_correlated_loop_suppression_20260626`.
+   - Behavior tested: after one committed loop, suppress additional loop
+     commits whose query id falls within the existing descriptor exclusion
+     segment length. The intention was to avoid treating many correlated
+     revisit edges as independent graph constraints.
+   - KITTI360 accepted loops dropped from `11 -> 2`; this reduced high-Z-after
+     from `7 -> 1`, but global XY/translation regressed badly:
+     - translation p95: `3.537m -> 5.815m`
+     - XY p95: `1.550m -> 5.518m`
+     - Z p95: `3.179m -> 1.837m`
+   - M2DGR hall05 improved in this smoke (`21 -> 3` accepted loops,
+     p95 translation `0.048m -> 0.012m`), but the outdoor regression violates
+     the matrix gate.
+   - Verdict: do not commit this behavior. The problem is not simply loop
+     density; KITTI needs enough true loop constraints to correct XY/global
+     drift, while still preventing bad vertical measurements from deforming Z.
 
 ## 2026-06-25 Earlier Segment Referee Trial
 
