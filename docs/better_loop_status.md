@@ -83,9 +83,12 @@ Current verdict:
 ```text
 Keep the risk-aware referee direction.
 Do not declare the loop subsystem solved.
-Next improvement should be a hybrid edge model:
-  full-6DoF for vertically trustworthy loops,
-  vertical-neutral only for loops with strong runtime evidence of bad vertical measurement.
+Do not continue direct evidence-to-gate tuning:
+  vertical hypothesis, heightmap, segment consistency, graph trial, and XY/yaw
+  edge variants have all failed as standalone behavior rules.
+Next proof point should move above single-pair ICP:
+  multi-submap / segment-level correspondence consensus should decide whether a
+  loop measurement is graph-worthy.
 ```
 
 ### Rejected Alternatives
@@ -195,6 +198,50 @@ matrix evidence:
    - Verdict: keep the explicit XY/yaw graph factor as a substrate for a future
      graph-authority decision, but do not let the vertical-hypothesis diagnostic
      alone select XY/yaw behavior.
+10. segment-only graph authority.
+    - Artifact: `/tmp/n3mapping_graph_authority_matrix_20260626`.
+    - Behavior tested: split place acceptance from graph commit; allow graph
+      commit only when segment evidence recommends `commit`, while keeping
+      accepted-place candidates in debug output.
+    - KITTI360 drive0005 450 stride5 regressed:
+      - loop precision: `0.875`
+      - accepted far-false loop: `1`
+      - the false graph edge was `295 -> 13`, with GT distance `5.94m`.
+    - M2DGR hall05 stayed clean in this smoke:
+      - loop precision: `1.0`
+      - false loops: `0`
+      - trajectory translation p95: `0.038m`
+    - Failure mode: segment evidence was too weak. A candidate with only two
+      valid segment-neighbor pairs could look `consistent` while still being a
+      false KITTI place loop.
+    - Verdict: do not commit this behavior. Segment consistency is evidence,
+      not a graph-authority rule by itself.
+11. graph-trial-before-selection.
+    - Artifact: `/tmp/n3mapping_graph_trial_selection_matrix_20260627`.
+    - Behavior tested: compute graph-trial consistency for every graph-authority
+      candidate before selecting the per-query graph edge, then prefer higher
+      graph-trial consistency over local ICP fitness.
+    - KITTI360 drive0005 450 stride5 regressed further:
+      - loop precision: `0.75`
+      - accepted far-false loops: `2`
+      - trajectory XY p95 stayed near `1.35m`, but false loop rate is
+        unacceptable for the v2 goal.
+    - M2DGR hall05 also regressed in loop quality:
+      - loop precision: `0.92`
+      - cross-heading graph edges: `2`
+      - false far loops remained `0`
+    - Verdict: do not commit this behavior. Graph trial is a useful diagnostic,
+      but it is not a reliable per-query selector or commit authority.
+
+Current high-level conclusion from rejected experiments 4-11:
+
+```text
+The bottleneck is no longer "find one more local evidence score".
+Single-pair ICP measurement is the wrong authority boundary.
+The next credible direction is multi-submap correspondence consensus:
+  a loop edge should be committed only after a neighborhood of query/match
+  submap correspondences agrees on the same relative constraint.
+```
 
 ## 2026-06-25 Earlier Segment Referee Trial
 
