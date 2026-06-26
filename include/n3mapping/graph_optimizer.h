@@ -30,6 +30,12 @@ enum class EdgeType
     LOOP      ///< 回环约束
 };
 
+enum class EdgeConstraintMode
+{
+    FULL_6DOF,
+    XY_YAW
+};
+
 /**
  * @brief 约束边信息结构
  *
@@ -42,6 +48,7 @@ struct EdgeInfo
     Eigen::Isometry3d measurement;           ///< 相对位姿测量值
     Eigen::Matrix<double, 6, 6> information; ///< 信息矩阵 (协方差逆)
     EdgeType type;                           ///< 边类型
+    EdgeConstraintMode constraint_mode;       ///< 约束维度
 
     EdgeInfo()
       : from_id(-1)
@@ -49,6 +56,7 @@ struct EdgeInfo
       , measurement(Eigen::Isometry3d::Identity())
       , information(Eigen::Matrix<double, 6, 6>::Identity())
       , type(EdgeType::ODOMETRY)
+      , constraint_mode(EdgeConstraintMode::FULL_6DOF)
     {
     }
 
@@ -58,6 +66,7 @@ struct EdgeInfo
       , measurement(meas)
       , information(info)
       , type(t)
+      , constraint_mode(EdgeConstraintMode::FULL_6DOF)
     {
     }
 };
@@ -338,6 +347,9 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @return GTSAM 噪声模型
      */
     gtsam::noiseModel::Base::shared_ptr createRobustNoiseModel(const Eigen::Matrix<double, 6, 6>& information, bool use_robust = true) const;
+
+    gtsam::noiseModel::Base::shared_ptr createXYYawLoopNoiseModel(const Eigen::Matrix<double, 6, 6>& information,
+                                                                  bool use_robust = true) const;
 };
 
 } // namespace n3mapping

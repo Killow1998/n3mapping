@@ -59,6 +59,11 @@ message EdgeProto {
         LOOP = 1;
     }
     EdgeType type = 5;
+    enum ConstraintMode {
+        FULL_6DOF = 0;
+        XY_YAW = 1;
+    }
+    ConstraintMode constraint_mode = 6;
 }
 
 message DenseTrajectoryPose {

@@ -55,6 +55,7 @@ struct LoopCandidate {
 
 enum class LoopEdgeMode {
     Full6Dof,
+    XYYaw,
     VerticalNeutral
 };
 
@@ -63,6 +64,8 @@ inline const char* loopEdgeModeName(LoopEdgeMode mode)
     switch (mode) {
         case LoopEdgeMode::Full6Dof:
             return "full6dof";
+        case LoopEdgeMode::XYYaw:
+            return "xy_yaw";
         case LoopEdgeMode::VerticalNeutral:
             return "vertical_neutral";
         default:

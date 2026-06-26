@@ -61,6 +61,11 @@ enum class PbstreamEdgeType {
     LOOP
 };
 
+enum class PbstreamEdgeConstraintMode {
+    FULL_6DOF,
+    XY_YAW
+};
+
 struct ParsedKeyframeProto {
     int64_t id = -1;
     double timestamp = 0.0;
@@ -77,6 +82,7 @@ struct ParsedEdgeProto {
     Eigen::Isometry3d measurement = Eigen::Isometry3d::Identity();
     Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
     PbstreamEdgeType type = PbstreamEdgeType::ODOMETRY;
+    PbstreamEdgeConstraintMode constraint_mode = PbstreamEdgeConstraintMode::FULL_6DOF;
 };
 
 constexpr uint32_t kMaxPbstreamPointsPerKeyframe = 5000000u;

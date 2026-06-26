@@ -130,6 +130,9 @@ EdgeInfo edgeFromParsedProto(const ParsedEdgeProto& parsed) {
     edge.measurement = parsed.measurement;
     edge.information = parsed.information;
     edge.type = (parsed.type == PbstreamEdgeType::LOOP) ? EdgeType::LOOP : EdgeType::ODOMETRY;
+    edge.constraint_mode = parsed.constraint_mode == PbstreamEdgeConstraintMode::XY_YAW
+        ? EdgeConstraintMode::XY_YAW
+        : EdgeConstraintMode::FULL_6DOF;
     return edge;
 }
 }  // namespace
@@ -521,6 +524,9 @@ void MapSerializer::edgeToProto(const EdgeInfo& edge, n3mapping::EdgeProto* prot
     poseToProto(edge.measurement, proto->mutable_measurement());
     informationToProto(edge.information, proto->mutable_information());
     proto->set_type(edge.type == EdgeType::ODOMETRY ? n3mapping::EdgeProto::ODOMETRY : n3mapping::EdgeProto::LOOP);
+    proto->set_constraint_mode(edge.constraint_mode == EdgeConstraintMode::XY_YAW
+        ? n3mapping::EdgeProto::XY_YAW
+        : n3mapping::EdgeProto::FULL_6DOF);
 }
 
 void MapSerializer::denseTrajectoryToProto(const core::DenseTrajectoryPose& pose,

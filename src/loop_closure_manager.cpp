@@ -94,6 +94,9 @@ LoopClosureManager::buildLoopEdges(const std::vector<VerifiedLoop>& loops, LoopE
         }
         edge.information = loop.information;
         edge.type = EdgeType::LOOP;
+        if (loop.edge_mode == LoopEdgeMode::XYYaw || loop.edge_mode == LoopEdgeMode::VerticalNeutral) {
+            edge.constraint_mode = EdgeConstraintMode::XY_YAW;
+        }
         edges.push_back(edge);
     }
 

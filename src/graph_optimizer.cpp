@@ -1,5 +1,7 @@
 #include "n3mapping/graph_optimizer.h"
 
+#include <cmath>
+#include <functional>
 #include <stdexcept>
 #include <iostream>
 #include <utility>
@@ -7,6 +9,96 @@
 #include <gtsam/nonlinear/DoglegOptimizer.h>
 
 namespace n3mapping {
+namespace {
+
+double normalizeAngle(double angle)
+{
+    while (angle > M_PI) angle -= 2.0 * M_PI;
+    while (angle < -M_PI) angle += 2.0 * M_PI;
+    return angle;
+}
+
+class Pose3XYYawFactor : public gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3> {
+  public:
+    using Base = gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3>;
+
+    Pose3XYYawFactor(gtsam::Key key1,
+                     gtsam::Key key2,
+                     const gtsam::Pose3& measured,
+                     const gtsam::SharedNoiseModel& noise_model)
+      : Base(noise_model, key1, key2)
+      , measured_(measured)
+    {
+    }
+
+    gtsam::NonlinearFactor::shared_ptr clone() const override
+    {
+        return boost::static_pointer_cast<gtsam::NonlinearFactor>(
+            gtsam::NonlinearFactor::shared_ptr(new Pose3XYYawFactor(*this)));
+    }
+
+    gtsam::Vector evaluateError(const gtsam::Pose3& pose1,
+                                const gtsam::Pose3& pose2,
+                                boost::optional<gtsam::Matrix&> H1 = boost::none,
+                                boost::optional<gtsam::Matrix&> H2 = boost::none) const override
+    {
+        if (H1) {
+            *H1 = numericalJacobian1(pose1, pose2);
+        }
+        if (H2) {
+            *H2 = numericalJacobian2(pose1, pose2);
+        }
+        return errorVector(pose1, pose2);
+    }
+
+  private:
+    gtsam::Pose3 measured_;
+
+    Eigen::Vector3d errorVector(const gtsam::Pose3& pose1, const gtsam::Pose3& pose2) const
+    {
+        const gtsam::Pose3 predicted = pose1.between(pose2);
+        Eigen::Vector3d error;
+        error << predicted.translation().x() - measured_.translation().x(),
+                 predicted.translation().y() - measured_.translation().y(),
+                 normalizeAngle(predicted.rotation().yaw() - measured_.rotation().yaw());
+        return error;
+    }
+
+    Eigen::Matrix<double, 3, 6> numericalJacobian1(const gtsam::Pose3& pose1,
+                                                  const gtsam::Pose3& pose2) const
+    {
+        return numericalJacobian(
+            [&](const gtsam::Pose3& p) { return errorVector(p, pose2); }, pose1);
+    }
+
+    Eigen::Matrix<double, 3, 6> numericalJacobian2(const gtsam::Pose3& pose1,
+                                                  const gtsam::Pose3& pose2) const
+    {
+        return numericalJacobian(
+            [&](const gtsam::Pose3& p) { return errorVector(pose1, p); }, pose2);
+    }
+
+    Eigen::Matrix<double, 3, 6> numericalJacobian(
+        const std::function<Eigen::Vector3d(const gtsam::Pose3&)>& fn,
+        const gtsam::Pose3& pose) const
+    {
+        constexpr double kDelta = 1e-5;
+        Eigen::Matrix<double, 3, 6> H;
+        H.setZero();
+        for (int i = 0; i < 6; ++i) {
+            gtsam::Vector6 d;
+            d.setZero();
+            d(i) = kDelta;
+            const Eigen::Vector3d plus = fn(pose.retract(d));
+            d(i) = -kDelta;
+            const Eigen::Vector3d minus = fn(pose.retract(d));
+            H.col(i) = (plus - minus) / (2.0 * kDelta);
+        }
+        return H;
+    }
+};
+
+} // namespace
 
 GraphOptimizer::GraphOptimizer(const Config& config)
     : config_(config)
@@ -79,10 +171,16 @@ void GraphOptimizer::addLoopEdge(const EdgeInfo& edge) {
     gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
     
     // 创建带鲁棒核函数的噪声模型
-    auto noise_model = createRobustNoiseModel(edge.information, config_.use_robust_kernel);
+    auto noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
+        ? createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
+        : createRobustNoiseModel(edge.information, config_.use_robust_kernel);
     
     // 添加到待提交因子；只有优化成功后才进入 committed graph。
-    new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+    if (edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
+        new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
+    } else {
+        new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+    }
     
     // 存储待提交边信息
     EdgeInfo loop_edge = edge;
@@ -124,7 +222,7 @@ bool GraphOptimizer::incrementalOptimize() {
     if (new_factors_.empty() && new_values_.empty() && pending_edges_.empty() && pending_node_ids_.empty()) {
         return true;
     }
-    
+
     try {
         auto trial_isam2 = createISAM2();
 
@@ -266,7 +364,9 @@ bool GraphOptimizer::loadGraph(
         
         gtsam::noiseModel::Base::shared_ptr noise_model;
         if (edge.type == EdgeType::LOOP) {
-            noise_model = temp.createRobustNoiseModel(edge.information, config_.use_robust_kernel);
+            noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
+                ? temp.createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
+                : temp.createRobustNoiseModel(edge.information, config_.use_robust_kernel);
             if (!noise_model) {
                 noise_model = temp.createLoopNoiseModel();
             }
@@ -278,7 +378,11 @@ bool GraphOptimizer::loadGraph(
             }
         }
         
-        temp.graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+        if (edge.type == EdgeType::LOOP && edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
+            temp.graph_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
+        } else {
+            temp.graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+        }
         temp.edges_.push_back(edge);
     }
     
@@ -592,6 +696,35 @@ gtsam::noiseModel::Base::shared_ptr GraphOptimizer::createRobustNoiseModel(
         }
     }
     
+    return base_noise;
+}
+
+gtsam::noiseModel::Base::shared_ptr GraphOptimizer::createXYYawLoopNoiseModel(
+    const Eigen::Matrix<double, 6, 6>& information,
+    bool use_robust) const {
+
+    auto sigmaFromInfo = [](double info, double fallback) {
+        return std::isfinite(info) && info > 1e-12 ? 1.0 / std::sqrt(info) : fallback;
+    };
+
+    gtsam::Vector3 sigmas;
+    sigmas << sigmaFromInfo(information(0, 0), config_.loop_noise_position),
+              sigmaFromInfo(information(1, 1), config_.loop_noise_position),
+              sigmaFromInfo(information(5, 5), config_.loop_noise_rotation);
+    auto base_noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+
+    if (use_robust && config_.use_robust_kernel) {
+        if (config_.robust_kernel_type == "Huber") {
+            auto huber = gtsam::noiseModel::mEstimator::Huber::Create(config_.robust_kernel_delta);
+            return gtsam::noiseModel::Robust::Create(huber, base_noise);
+        } else if (config_.robust_kernel_type == "Cauchy") {
+            auto cauchy = gtsam::noiseModel::mEstimator::Cauchy::Create(config_.robust_kernel_delta);
+            return gtsam::noiseModel::Robust::Create(cauchy, base_noise);
+        } else if (config_.robust_kernel_type == "DCS") {
+            auto dcs = gtsam::noiseModel::mEstimator::DCS::Create(config_.robust_kernel_delta);
+            return gtsam::noiseModel::Robust::Create(dcs, base_noise);
+        }
+    }
     return base_noise;
 }
 

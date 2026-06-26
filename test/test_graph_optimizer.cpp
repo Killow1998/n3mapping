@@ -248,6 +248,36 @@ TEST_F(GraphOptimizerTest, FailedIncrementalOptimizeRollsBackPendingEdgeAndAllow
     EXPECT_TRUE(posesNear(createPose(1, 0, 0), optimizer_->getOptimizedPose(1), 1e-3, 1e-3));
 }
 
+TEST_F(GraphOptimizerTest, XYYawLoopEdgeDoesNotConstrainBadVerticalMeasurement) {
+    config_.use_robust_kernel = false;
+    optimizer_ = std::make_unique<GraphOptimizer>(config_);
+
+    optimizer_->addPriorFactor(0, createPose(0, 0, 0));
+
+    EdgeInfo odom;
+    odom.from_id = 0;
+    odom.to_id = 1;
+    odom.measurement = createPose(5.0, 0.0, 2.0, 0.0, 0.0, 0.5);
+    odom.information = createInformationMatrix(100.0, 100.0);
+    odom.type = EdgeType::ODOMETRY;
+    optimizer_->addOdometryEdge(odom);
+    ASSERT_TRUE(optimizer_->incrementalOptimize());
+
+    EdgeInfo loop;
+    loop.from_id = 0;
+    loop.to_id = 1;
+    loop.measurement = createPose(1.0, 0.0, 100.0, 1.0, 1.0, 0.0);
+    loop.information = createInformationMatrix(1000.0, 1000.0);
+    loop.type = EdgeType::LOOP;
+    loop.constraint_mode = EdgeConstraintMode::XY_YAW;
+    optimizer_->addLoopEdge(loop);
+    ASSERT_TRUE(optimizer_->incrementalOptimize());
+
+    const auto pose1 = optimizer_->getOptimizedPose(1);
+    EXPECT_NEAR(pose1.translation().z(), 2.0, 0.2);
+    EXPECT_LT(pose1.translation().x(), 4.0);
+}
+
 // ==================== 测试获取优化后位姿 ====================
 
 TEST_F(GraphOptimizerTest, GetOptimizedPoses) {

@@ -486,6 +486,9 @@ bool parseEdgesFromProto(const N3Map& map_proto,
         }
         edge.measurement = poseFromProto(proto.measurement());
         edge.type = (proto.type() == EdgeProto::LOOP) ? PbstreamEdgeType::LOOP : PbstreamEdgeType::ODOMETRY;
+        edge.constraint_mode = proto.constraint_mode() == EdgeProto::XY_YAW
+            ? PbstreamEdgeConstraintMode::XY_YAW
+            : PbstreamEdgeConstraintMode::FULL_6DOF;
         edges->push_back(std::move(edge));
     }
     return true;

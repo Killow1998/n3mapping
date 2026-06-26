@@ -495,6 +495,26 @@ TEST(LoopClosureManagerTest, ApplyEdgeModelDoesNotRejectYawInconsistentOutlier)
     EXPECT_EQ(manager.buildLoopEdges({modeled}, LoopEdgeDirection::MatchToQuery).size(), 1u);
 }
 
+TEST(LoopClosureManagerTest, BuildLoopEdgesSupportsExplicitXYYawLoopEdge)
+{
+    Config config;
+    LoopClosureManager manager(config);
+
+    VerifiedLoop loop;
+    loop.verified = true;
+    loop.query_id = 10;
+    loop.match_id = 3;
+    loop.edge_mode = LoopEdgeMode::XYYaw;
+    loop.T_match_query = Eigen::Isometry3d::Identity();
+
+    const auto edges = manager.buildLoopEdges({loop}, LoopEdgeDirection::MatchToQuery);
+    ASSERT_EQ(edges.size(), 1u);
+    EXPECT_EQ(edges[0].from_id, 3);
+    EXPECT_EQ(edges[0].to_id, 10);
+    EXPECT_EQ(edges[0].type, EdgeType::LOOP);
+    EXPECT_EQ(edges[0].constraint_mode, EdgeConstraintMode::XY_YAW);
+}
+
 TEST(LoopClosureManagerTest, ApplyEdgesCallsOptimizer)
 {
     Config config;

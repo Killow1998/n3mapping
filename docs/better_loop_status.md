@@ -179,6 +179,22 @@ matrix evidence:
    - Verdict: do not commit this behavior. Retargeting the keyframe anchor
      weakens the KITTI loop constraints needed for outdoor XY/global correction
      and does not solve vertical deformation.
+9. automatic `XY_YAW` edge mode from
+   `vertical_hypothesis_edge_recommendation == planar_xy_yaw`.
+   - Artifact: `/tmp/n3mapping_xyyaw_clean_matrix_20260626`.
+   - Behavior tested: add a graph-level XY/yaw-only loop factor and use it
+     whenever the vertical-hypothesis diagnostic recommended
+     `planar_xy_yaw`.
+   - Positive: trajectory p95 improved on the smoke runs:
+     - KITTI360 drive0005 450 stride5 translation p95 `0.813m`, XY p95
+       `0.555m`, Z p95 `0.601m`.
+     - M2DGR hall05 600 stride5 translation p95 `0.032m`.
+   - Negative: the trigger was not safe enough:
+     - KITTI360 loop precision was `0.9` with one false place loop.
+     - M2DGR hall05 loop precision was `0.929` with two cross-heading loops.
+   - Verdict: keep the explicit XY/yaw graph factor as a substrate for a future
+     graph-authority decision, but do not let the vertical-hypothesis diagnostic
+     alone select XY/yaw behavior.
 
 ## 2026-06-25 Earlier Segment Referee Trial
 
