@@ -163,6 +163,22 @@ matrix evidence:
    - Verdict: do not commit this behavior. The problem is not simply loop
      density; KITTI needs enough true loop constraints to correct XY/global
      drift, while still preventing bad vertical measurements from deforming Z.
+8. loop correspondence retargeting to nearest pose in the matched segment.
+   - Artifact: `/tmp/n3mapping_loop_retarget_experiment_20260626`.
+   - Behavior tested: preserve the ICP-implied measured world pose, but anchor
+     the graph edge to the nearest keyframe inside the original matched
+     segment instead of the descriptor-selected `match_id`.
+   - KITTI360 accepted loops dropped from `11 -> 9` and high-Z-after improved
+     from `7 -> 5`, but trajectory consistency regressed sharply:
+     - translation p95: `3.537m -> 6.227m`
+     - XY p95: `1.550m -> 4.954m`
+     - Z p95: `3.179m -> 3.772m`
+   - M2DGR hall05 improved in this smoke (`21 -> 10` accepted loops,
+     p95 translation `0.048m -> 0.016m`), but the outdoor regression violates
+     the matrix gate.
+   - Verdict: do not commit this behavior. Retargeting the keyframe anchor
+     weakens the KITTI loop constraints needed for outdoor XY/global correction
+     and does not solve vertical deformation.
 
 ## 2026-06-25 Earlier Segment Referee Trial
 
