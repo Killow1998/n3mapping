@@ -2,9 +2,123 @@
 
 Branch: `dev/better_loop`
 
-## 2026-06-25 Segment Referee Trial
+## 2026-06-25 Risk-Aware Referee + Full-6DoF Checkpoint
 
-Current unmerged development state has moved beyond shadow-only evidence:
+Latest local development state replaces the over-strict segment energy gate
+with an explicit risk-referee model:
+
+- descriptor-backed verified geometry may commit even when segment evidence is
+  limited;
+- spatial-only candidates cannot commit without descriptor support;
+- large predicted motion with weak segment support is rejected;
+- yaw-flip ICP corrections with large segment disagreement are rejected;
+- accepted loops keep the normal full-6DoF measurement from
+  `LoopClosureManager::applyEdgeModel()`.
+
+This is a better checkpoint than the two rejected alternatives below, but it is
+still not the final v2 loop model.
+
+### Regression
+
+Focused Humble tests:
+
+```bash
+source /opt/ros/humble/setup.bash
+colcon build --packages-select n3mapping --symlink-install --parallel-workers 1 \
+  --cmake-args -DBUILD_TESTING=ON
+ROS_LOG_DIR=/tmp/n3mapping_ros_log colcon test --packages-select n3mapping \
+  --event-handlers console_direct+ --parallel-workers 1 \
+  --ctest-args -R 'test_loop_closure_manager|test_n3mapping_core'
+colcon test-result --test-result-base build/n3mapping --verbose
+```
+
+Result:
+
+```text
+252 tests, 0 errors, 0 failures, 0 skipped
+```
+
+### Matrix
+
+Artifact:
+
+```text
+/tmp/n3mapping_risk_full6dof_matrix_20260625_230512
+```
+
+Compared to the pre-referee evidence baseline
+`/tmp/n3mapping_verification_evidence_v1_matrix_current_20260625`:
+
+| run | metric | baseline | risk full-6DoF |
+| --- | --- | ---: | ---: |
+| KITTI360 drive0005 900 stride5 | accepted_loop_count | 12 | 11 |
+| KITTI360 drive0005 900 stride5 | loop_precision | 0.833 | 0.909 |
+| KITTI360 drive0005 900 stride5 | accepted_false_loop | 0 | 0 |
+| KITTI360 drive0005 900 stride5 | accepted_opposite_heading_loop | 2 | 1 |
+| KITTI360 drive0005 900 stride5 | trajectory_translation_p95_m | 12.041 | 3.537 |
+| KITTI360 drive0005 900 stride5 | trajectory_xy_p95_m | 4.854 | 1.550 |
+| KITTI360 drive0005 900 stride5 | trajectory_z_p95_m | 1.932 | 3.179 |
+| KITTI360 drive0005 900 stride5 | optimization_high_residual_z_after_count | 1 | 7 |
+| M2DGR hall05 600 stride5 | accepted_loop_count | 29 | 21 |
+| M2DGR hall05 600 stride5 | loop_precision | 0.966 | 0.952 |
+| M2DGR hall05 600 stride5 | accepted_false_loop | 0 | 0 |
+| M2DGR hall05 600 stride5 | trajectory_translation_p95_m | 0.010 | 0.048 |
+| M2DGR hall05 600 stride5 | trajectory_xy_p95_m | 0.010 | 0.048 |
+
+Interpretation:
+
+- Positive: the risk referee is the first checkpoint that improves KITTI360
+  loop precision and overall/XY trajectory consistency at the same time.
+- Positive: the spatial-only false loop failure mode from the segment-veto
+  trial is removed.
+- Positive: M2DGR remains above the 0.95 loop-precision line and keeps
+  far-false loops at zero.
+- Negative: full-6DoF restores trajectory correction but reintroduces high
+  per-loop Z residuals on KITTI360.
+- Negative: M2DGR recall and centimeter-level trajectory error are still worse
+  than the baseline.
+
+Current verdict:
+
+```text
+Keep the risk-aware referee direction.
+Do not declare the loop subsystem solved.
+Next improvement should be a hybrid edge model:
+  full-6DoF for vertically trustworthy loops,
+  vertical-neutral only for loops with strong runtime evidence of bad vertical measurement.
+```
+
+### Rejected Alternatives
+
+The following behaviors were tested and should not be revived without new
+matrix evidence:
+
+1. `segment-energy` as the main accept threshold.
+   - KITTI accepted loops dropped to 6 and trajectory worsened.
+   - M2DGR accepted loops dropped to 15.
+2. `segment-veto` that accepts any verified geometry unless segment is clearly
+   inconsistent.
+   - KITTI accepted loops rose to 17 but precision fell to 0.588 and trajectory
+     degraded badly.
+   - M2DGR precision fell to 0.76.
+3. all accepted loops forced to `vertical_neutral`.
+   - This reduced high-Z residual count, but did not repair trajectory Z and
+     removed useful full-6DoF correction.
+4. conservative hybrid neutralization using heightmap + vertical-hypothesis
+   disagreement.
+   - Artifact: `/tmp/n3mapping_hybrid_edge_matrix_20260626`.
+   - KITTI360 high-Z-after improved from 7 to 3 and Z p95 improved from
+     3.179m to 1.953m versus the risk full-6DoF checkpoint.
+   - KITTI360 XY p95 regressed from 1.550m to 4.351m and translation p95
+     regressed from 3.537m to 4.770m.
+   - M2DGR hall05 stayed safe on far-false loops but accepted loops dropped
+     from 21 to 19 and trajectory p95 regressed from 0.048m to 0.053m.
+   - Verdict: do not commit this behavior. The evidence is useful, but direct
+     vertical-neutral conversion still removes useful full-6DoF correction.
+
+## 2026-06-25 Earlier Segment Referee Trial
+
+Earlier unmerged development state moved beyond shadow-only evidence:
 
 - `LoopReferee` now uses segment support/consensus as runtime commit evidence.
 - Supported but segment-inconsistent loops are rejected.

@@ -54,8 +54,12 @@ SUMMARY_FIELDS = [
     "trajectory_yaw_p95_deg",
     "loop_candidate_count",
     "loop_gt_pair_count",
+    "loop_gt_pose_pair_count",
+    "loop_gt_place_pair_count",
     "loop_accepted_candidate_count",
     "loop_accepted_true_loop",
+    "loop_accepted_pose_loop",
+    "loop_accepted_place_loop",
     "loop_accepted_true_loop_good",
     "loop_accepted_true_loop_bad_z",
     "loop_accepted_true_loop_bad_z_measurement",
@@ -93,6 +97,8 @@ SUMMARY_FIELDS = [
     "loop_corrected_z_segment_translation_median_mean",
     "loop_precision",
     "loop_position_precision",
+    "loop_pose_precision",
+    "loop_place_precision",
     "loop_gt_pair_coverage",
     "loop_icp_reject_true_loop",
     "loop_verification_reject_true_loop",
@@ -120,6 +126,8 @@ SUMMARY_FIELDS = [
     "optimization_high_residual_z_after_count",
     "optimization_max_residual_z_after_m",
     "meets_loop_precision_80",
+    "meets_loop_pose_precision_80",
+    "meets_loop_place_precision_80",
     "meets_reloc_pose_success_80",
 ]
 
@@ -431,8 +439,12 @@ def summarize_run(args, run_name, run_dir, matrix_output):
         mapping = {
             "candidate_count": "loop_candidate_count",
             "gt_loop_pair_count": "loop_gt_pair_count",
+            "gt_pose_pair_count": "loop_gt_pose_pair_count",
+            "gt_place_pair_count": "loop_gt_place_pair_count",
             "accepted_candidate_count": "loop_accepted_candidate_count",
             "accepted_true_loop": "loop_accepted_true_loop",
+            "accepted_pose_loop": "loop_accepted_pose_loop",
+            "accepted_place_loop": "loop_accepted_place_loop",
             "accepted_true_loop_good": "loop_accepted_true_loop_good",
             "accepted_true_loop_bad_z": "loop_accepted_true_loop_bad_z",
             "accepted_true_loop_bad_z_measurement": "loop_accepted_true_loop_bad_z_measurement",
@@ -444,6 +456,8 @@ def summarize_run(args, run_name, run_dir, matrix_output):
             "accepted_opposite_heading_loop": "loop_accepted_opposite_heading_loop",
             "accepted_cross_heading_loop": "loop_accepted_cross_heading_loop",
             "accepted_position_loop": "loop_accepted_position_loop",
+            "pose_loop_precision": "loop_pose_precision",
+            "place_loop_precision": "loop_place_precision",
             "position_loop_precision": "loop_position_precision",
             "accepted_full6dof": "loop_accepted_full6dof",
             "accepted_planar_xy_yaw": "loop_accepted_planar_xy_yaw",
@@ -506,16 +520,29 @@ def summarize_run(args, run_name, run_dir, matrix_output):
                 row[dest_key] = reject_counts.get(reason, 0)
 
     accepted = finite_float(row.get("loop_accepted_candidate_count"))
-    accepted_true = finite_float(row.get("loop_accepted_true_loop"))
+    accepted_pose = finite_float(row.get("loop_accepted_pose_loop"))
+    if not math.isfinite(accepted_pose):
+        accepted_pose = finite_float(row.get("loop_accepted_true_loop"))
+    accepted_place = finite_float(row.get("loop_accepted_place_loop"))
+    if not math.isfinite(accepted_place):
+        accepted_place = finite_float(row.get("loop_accepted_position_loop"))
     gt_pairs = finite_float(row.get("loop_gt_pair_count"))
-    loop_precision = accepted_true / accepted if accepted > 0 else float("nan")
-    loop_coverage = accepted_true / gt_pairs if gt_pairs > 0 else float("nan")
-    row["loop_precision"] = loop_precision
-    if "loop_position_precision" not in row:
-        accepted_position = finite_float(row.get("loop_accepted_position_loop"))
-        row["loop_position_precision"] = accepted_position / accepted if accepted > 0 else float("nan")
+    pose_loop_precision = accepted_pose / accepted if accepted > 0 else float("nan")
+    place_loop_precision = accepted_place / accepted if accepted > 0 else float("nan")
+    loop_coverage = accepted_pose / gt_pairs if gt_pairs > 0 else float("nan")
+    row["loop_pose_precision"] = pose_loop_precision
+    row["loop_place_precision"] = place_loop_precision
+    # Backward-compatible aliases:
+    # - loop_precision is strict same-heading pose precision.
+    # - loop_position_precision is place precision allowing same/opposite/cross heading.
+    row["loop_precision"] = pose_loop_precision
+    row["loop_position_precision"] = place_loop_precision
     row["loop_gt_pair_coverage"] = loop_coverage
-    row["meets_loop_precision_80"] = bool(math.isfinite(loop_precision) and loop_precision >= 0.8)
+    row["meets_loop_precision_80"] = bool(math.isfinite(pose_loop_precision) and pose_loop_precision >= 0.8)
+    row["meets_loop_pose_precision_80"] = row["meets_loop_precision_80"]
+    row["meets_loop_place_precision_80"] = bool(
+        math.isfinite(place_loop_precision) and place_loop_precision >= 0.8
+    )
     pose_success = finite_float(row.get("pose_success_rate"))
     row["meets_reloc_pose_success_80"] = bool(math.isfinite(pose_success) and pose_success >= 0.8)
     return row

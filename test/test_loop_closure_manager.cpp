@@ -71,6 +71,71 @@ TEST(LoopRefereeTest, RejectsSupportedButInconsistentSegments)
     EXPECT_EQ(decision.risk_flags, "segment");
 }
 
+TEST(LoopRefereeTest, RejectsSpatialOnlyWithoutDescriptorSupport)
+{
+    LoopFeatures features;
+    features.spatial_only = true;
+    features.spatial_score = 1.0;
+    features.local_map_consistency = 1.0;
+    features.segment_support = 1.0;
+    features.segment_consistency = 1.0;
+
+    const auto decision = LoopReferee::evaluate(features);
+    EXPECT_EQ(decision.decision, LoopDecision::Reject);
+    EXPECT_EQ(decision.reason, "spatial_only_unconfirmed");
+    EXPECT_EQ(decision.risk_flags, "source");
+}
+
+TEST(LoopRefereeTest, RejectsLargePredictedMotionWithWeakSegment)
+{
+    LoopFeatures features;
+    features.descriptor_supported = true;
+    features.descriptor_score = 1.0;
+    features.local_map_consistency = 1.0;
+    features.segment_support = 0.5;
+    features.segment_consistency = 0.5;
+    features.predicted_translation_norm = LoopReferee::kLargePredictedTranslationM + 0.1;
+
+    const auto decision = LoopReferee::evaluate(features);
+    EXPECT_EQ(decision.decision, LoopDecision::Reject);
+    EXPECT_EQ(decision.reason, "large_prediction_with_weak_segment");
+    EXPECT_EQ(decision.risk_flags, "prediction_segment");
+}
+
+TEST(LoopRefereeTest, RejectsYawFlipWhenSegmentTranslationDisagrees)
+{
+    LoopFeatures features;
+    features.descriptor_supported = true;
+    features.descriptor_score = 1.0;
+    features.local_map_consistency = 1.0;
+    features.segment_support = 1.0;
+    features.segment_consistency = 1.0;
+    features.icp_correction_yaw_abs = LoopReferee::kYawFlipRad + 0.1;
+    features.segment_translation_median = LoopReferee::kLargeSegmentTranslationM + 0.1;
+
+    const auto decision = LoopReferee::evaluate(features);
+    EXPECT_EQ(decision.decision, LoopDecision::Reject);
+    EXPECT_EQ(decision.reason, "yaw_flip_with_segment_disagreement");
+    EXPECT_EQ(decision.risk_flags, "yaw_segment");
+}
+
+TEST(LoopRefereeTest, AcceptsDescriptorBackedVerifiedGeometryWithLimitedSegmentEvidence)
+{
+    LoopFeatures features;
+    features.descriptor_supported = true;
+    features.descriptor_score = 1.0;
+    features.local_map_consistency = 1.0;
+    features.segment_support = 0.5;
+    features.segment_consistency = 0.5;
+    features.predicted_translation_norm = 2.0;
+    features.icp_correction_yaw_abs = 0.1;
+    features.segment_translation_median = 0.5;
+
+    const auto decision = LoopReferee::evaluate(features);
+    EXPECT_EQ(decision.decision, LoopDecision::Accept);
+    EXPECT_EQ(decision.reason, "descriptor_geometry_consistent");
+}
+
 TEST(LoopVerifierEvidenceTest, MeasurementResidualUsesPredictedAndMeasuredTransforms)
 {
     Eigen::Isometry3d predicted = Eigen::Isometry3d::Identity();

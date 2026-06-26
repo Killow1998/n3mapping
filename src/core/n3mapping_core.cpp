@@ -45,24 +45,6 @@ struct LoopRefereeDebugDecision {
     std::string risk_flags = "not_available";
 };
 
-Eigen::Matrix3d rotationFromRollPitchYaw(double roll, double pitch, double yaw)
-{
-    return (Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
-            Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ())).toRotationMatrix();
-}
-
-Eigen::Isometry3d neutralizeVerticalLoopMeasurement(const Eigen::Isometry3d& measured_match_query,
-                                                    const Eigen::Isometry3d& predicted_match_query)
-{
-    Eigen::Isometry3d neutral = measured_match_query;
-    neutral.translation().z() = predicted_match_query.translation().z();
-    const Eigen::Vector3d measured_rpy = rollPitchYaw(measured_match_query);
-    const Eigen::Vector3d predicted_rpy = rollPitchYaw(predicted_match_query);
-    neutral.linear() = rotationFromRollPitchYaw(predicted_rpy.x(), predicted_rpy.y(), measured_rpy.z());
-    return neutral;
-}
-
 double unitScoreBelow(double value, double limit)
 {
     if (!std::isfinite(value) || limit <= 0.0) {
@@ -93,6 +75,12 @@ LoopFeatures makeSegmentAwareLoopFeatures(const Config& config,
     features.segment_support = loop.segment_pair_count > 0
         ? static_cast<double>(loop.segment_valid_pair_count) / static_cast<double>(loop.segment_pair_count)
         : 0.0;
+    const bool from_descriptor = candidate.fromRHPD() || candidate.fromSC();
+    features.descriptor_supported = from_descriptor;
+    features.spatial_only = candidate.fromSpatial() && !from_descriptor;
+    features.predicted_translation_norm = loop.T_pred_match_query.translation().norm();
+    features.icp_correction_yaw_abs = std::abs(rollPitchYaw(loop.T_icp_correction_match).z());
+    features.segment_translation_median = loop.segment_translation_median;
     return features;
 }
 
@@ -979,12 +967,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 loop.loop_referee_reason = referee.reason;
                 loop.loop_referee_risk_flags = referee.risk_flags;
                 loop.verified = referee.decision == LoopDecision::Accept;
-                if (loop.verified) {
-                    loop.edge_mode = LoopEdgeMode::VerticalNeutral;
-                    loop.T_match_query = neutralizeVerticalLoopMeasurement(
-                        loop.T_measured_match_query, loop.T_pred_match_query);
-                    loop.vertical_downweighted = true;
-                } else {
+                if (!loop.verified) {
                     reject_reason = "loop_referee";
                 }
             }

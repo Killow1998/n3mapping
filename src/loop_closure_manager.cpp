@@ -1,6 +1,5 @@
 #include "n3mapping/loop_closure_manager.h"
 
-#include <algorithm>
 #include <cmath>
 
 namespace n3mapping {

@@ -220,7 +220,7 @@ TEST(N3MappingCoreTest, BuildGlobalMapAccumulatesAcceptedKeyframes)
     EXPECT_TRUE(has_translated_points);
 }
 
-TEST(N3MappingCoreTest, PendingLoopClosureRejectsWithoutSegmentSupport)
+TEST(N3MappingCoreTest, PendingLoopClosureAcceptsDescriptorGeometryWithLimitedSegmentEvidence)
 {
     N3MappingCore core(makeCoreTestConfig());
 
@@ -231,13 +231,13 @@ TEST(N3MappingCoreTest, PendingLoopClosureRejectsWithoutSegmentSupport)
     ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose)).accepted_keyframe);
 
     const auto result = core.processPendingLoopClosures();
-    EXPECT_FALSE(result.optimized);
-    EXPECT_EQ(result.edge_count, 0U);
-    EXPECT_EQ(result.pose_update_count, 0U);
-    EXPECT_TRUE(result.accepted_loops.empty());
+    EXPECT_TRUE(result.optimized);
+    EXPECT_EQ(result.edge_count, 1U);
+    EXPECT_FALSE(result.accepted_loops.empty());
+    EXPECT_EQ(result.accepted_loops.front().loop_referee_reason, "descriptor_geometry_consistent");
 }
 
-TEST(N3MappingCoreTest, DenseTrajectorySavedWithoutLoopClosureMatchesFinalKeyframePose)
+TEST(N3MappingCoreTest, DenseTrajectorySavedAfterLoopClosureMatchesFinalKeyframePose)
 {
     Config config = makeCoreTestConfig();
     const std::filesystem::path dir =
@@ -259,7 +259,7 @@ TEST(N3MappingCoreTest, DenseTrajectorySavedWithoutLoopClosureMatchesFinalKeyfra
     ASSERT_EQ(core.getDenseOptimizedTrajectory().size(), 3U);
 
     const auto result = core.processPendingLoopClosures();
-    ASSERT_FALSE(result.optimized);
+    ASSERT_TRUE(result.optimized);
 
     const auto final_kf = core.getKeyframe(1);
     ASSERT_NE(final_kf, nullptr);

@@ -868,7 +868,9 @@ def analyze(args):
                 "gt_distance_m": translation,
                 "gt_yaw_diff_deg": yaw_deg,
                 "gt_is_loop": gt_loop,
+                "gt_pose_loop": gt_loop,
                 "gt_position_loop": position_loop,
+                "gt_place_loop": position_loop,
                 "gt_heading_class": heading_class,
                 "gt_relative_x": gt_axes["x"] if gt_axes is not None else float("nan"),
                 "gt_relative_y": gt_axes["y"] if gt_axes is not None else float("nan"),
@@ -1004,14 +1006,26 @@ def analyze(args):
     stats["accepted_true_loop_corrected_z_segment_translation_median_mean"] = mean_finite(
         corrected_z_segment_translations
     )
+    stats["accepted_pose_loop"] = stats["accepted_true_loop"]
+    stats["accepted_place_loop"] = stats["accepted_position_loop"]
     if stats["accepted_candidate_count"] > 0:
+        stats["pose_loop_precision"] = (
+            stats["accepted_pose_loop"] / stats["accepted_candidate_count"]
+        )
         stats["position_loop_precision"] = (
             stats["accepted_position_loop"] / stats["accepted_candidate_count"]
         )
+        stats["place_loop_precision"] = (
+            stats["accepted_place_loop"] / stats["accepted_candidate_count"]
+        )
     else:
+        stats["pose_loop_precision"] = float("nan")
         stats["position_loop_precision"] = float("nan")
+        stats["place_loop_precision"] = float("nan")
     stats["gt_loop_pair_count"] = len(gt_loop_pairs)
+    stats["gt_pose_pair_count"] = len(gt_loop_pairs)
     stats["gt_position_pair_count"] = len(gt_position_pairs)
+    stats["gt_place_pair_count"] = len(gt_position_pairs)
     gt_loop_opportunity_queries = {query_id for query_id, _ in gt_loop_pairs}
     gt_position_opportunity_queries = {query_id for query_id, _ in gt_position_pairs}
     candidate_queries = {int(c["query_id"]) for c in candidates}
@@ -1101,7 +1115,9 @@ def analyze(args):
                     "gt_query_match_translation_m": translation,
                     "gt_query_match_yaw_deg": yaw_deg,
                     "gt_is_loop": gt_loop if has_gt else "",
+                    "gt_pose_loop": gt_loop if has_gt else "",
                     "gt_position_loop": heading_class in ("same_heading", "opposite_heading", "cross_heading") if has_gt else "",
+                    "gt_place_loop": heading_class in ("same_heading", "opposite_heading", "cross_heading") if has_gt else "",
                     "gt_heading_class": heading_class if has_gt else "",
                     "accepted_edge_count": event.get("accepted_edge_count", 0),
                     "loop_residual_x_before": event_float(event, "loop_residual_x_before"),
@@ -1143,7 +1159,9 @@ def analyze(args):
             "gt_distance_m",
             "gt_yaw_diff_deg",
             "gt_is_loop",
+            "gt_pose_loop",
             "gt_position_loop",
+            "gt_place_loop",
             "gt_heading_class",
             "gt_relative_x",
             "gt_relative_y",
@@ -1385,7 +1403,9 @@ def analyze(args):
             "gt_query_match_translation_m",
             "gt_query_match_yaw_deg",
             "gt_is_loop",
+            "gt_pose_loop",
             "gt_position_loop",
+            "gt_place_loop",
             "gt_heading_class",
             "accepted_edge_count",
             "loop_residual_x_before",
