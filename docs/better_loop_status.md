@@ -115,6 +115,37 @@ matrix evidence:
      from 21 to 19 and trajectory p95 regressed from 0.048m to 0.053m.
    - Verdict: do not commit this behavior. The evidence is useful, but direct
      vertical-neutral conversion still removes useful full-6DoF correction.
+5. narrow opposite-heading place-loop neutralization.
+   - Artifact: `/tmp/n3mapping_place_neutral_matrix_20260626`.
+   - Behavior tested: same-heading pose loops stayed full-6DoF; only
+     runtime opposite-heading loops with segment support used
+     `vertical_neutral`.
+   - KITTI360 accepted loop count and false-loop count stayed unchanged, but
+     trajectory p95 regressed:
+     - translation p95: `3.537m -> 3.992m`
+     - XY p95: `1.550m -> 1.695m`
+     - Z p95: `3.179m -> 3.615m`
+   - M2DGR hall05 improved in this smoke (`21 -> 26` accepted loops,
+     p95 translation `0.048m -> 0.044m`), but the outdoor regression violates
+     the matrix gate.
+   - Verdict: do not commit this behavior. Even narrow place-loop
+     neutralization is not a reliable global-map improvement yet.
+6. configured loop-noise information when ICP information is disabled.
+   - Artifact: `/tmp/n3mapping_loop_noise_matrix_20260626`.
+   - Behavior tested: when `loop_use_icp_information=false`, replace the
+     identity loop information matrix with one derived from
+     `loop_noise_position` / `loop_noise_rotation`.
+   - KITTI360 regressed sharply:
+     - translation p95: `3.537m -> 7.133m`
+     - XY p95: `1.550m -> 6.151m`
+     - Z p95: `3.179m -> 3.612m`
+     - high-Z-after stayed at `7`
+   - M2DGR hall05 also regressed despite accepting more loops:
+     - accepted loops: `21 -> 25`
+     - pose precision: `0.952 -> 0.960`
+     - translation p95: `0.048m -> 0.056m`
+   - Verdict: do not commit this behavior. Strengthening loop edges through
+     configured noise also strengthens bad KITTI loop deformation.
 
 ## 2026-06-25 Earlier Segment Referee Trial
 

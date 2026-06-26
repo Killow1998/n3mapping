@@ -515,6 +515,7 @@ def analyze(args):
         "edge_mode_counts": {},
         "accepted_full6dof": 0,
         "accepted_planar_xy_yaw": 0,
+        "accepted_vertical_neutral": 0,
         "vertical_hypothesis_candidate_count": 0,
         "vertical_hypothesis_planar_recommendation_count": 0,
         "vertical_hypothesis_full6dof_recommendation_count": 0,
@@ -771,6 +772,8 @@ def analyze(args):
                 stats["accepted_full6dof"] += 1
             elif edge_mode == "planar_xy_yaw":
                 stats["accepted_planar_xy_yaw"] += 1
+            elif edge_mode == "vertical_neutral":
+                stats["accepted_vertical_neutral"] += 1
         if vertical_hypothesis_count > 0:
             stats["vertical_hypothesis_candidate_count"] += 1
             if vertical_hypothesis_edge_recommendation == "planar_xy_yaw":
