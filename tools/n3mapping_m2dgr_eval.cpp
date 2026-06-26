@@ -87,6 +87,8 @@ struct MappingStats {
     size_t frames_processed = 0;
     size_t successful_frames = 0;
     size_t accepted_keyframes = 0;
+    size_t place_candidates = 0;
+    size_t graph_edges = 0;
     size_t accepted_loops = 0;
 };
 
@@ -940,6 +942,8 @@ int runMappingLoop(const Options& options,
 
         progress.write(i, frame.lidar_stamp, "process_loops_start", output.keyframe_id, output.accepted_keyframe, output.success);
         const auto loop_result = core.processPendingLoopClosures();
+        stats.place_candidates += loop_result.place_candidate_count;
+        stats.graph_edges += loop_result.graph_edge_count;
         stats.accepted_loops += loop_result.accepted_loops.size();
         for (const auto& loop : loop_result.accepted_loops) {
             writeAcceptedLoop(accepted_loops, loop);
@@ -956,6 +960,8 @@ int runMappingLoop(const Options& options,
     }
     progress.write(frames.size(), -1.0, "final_process_loops_start");
     const auto final_loop_result = core.processPendingLoopClosures();
+    stats.place_candidates += final_loop_result.place_candidate_count;
+    stats.graph_edges += final_loop_result.graph_edge_count;
     stats.accepted_loops += final_loop_result.accepted_loops.size();
     for (const auto& loop : final_loop_result.accepted_loops) {
         writeAcceptedLoop(accepted_loops, loop);
@@ -971,6 +977,8 @@ int runMappingLoop(const Options& options,
             << "  \"frames_processed\": " << stats.frames_processed << ",\n"
             << "  \"successful_frames\": " << stats.successful_frames << ",\n"
             << "  \"accepted_keyframes\": " << stats.accepted_keyframes << ",\n"
+            << "  \"place_candidate_count\": " << stats.place_candidates << ",\n"
+            << "  \"graph_edge_count\": " << stats.graph_edges << ",\n"
             << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
             << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
             << "  \"stride\": " << options.stride << ",\n"

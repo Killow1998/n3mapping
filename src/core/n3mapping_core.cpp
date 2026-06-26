@@ -1049,7 +1049,6 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             flush_debug_events({}, "edge_build_empty");
             continue;
         }
-
         const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
         if (loop_debug_enabled) {
             const auto committed_edges = session_->graphOptimizer().getEdges();
@@ -1091,6 +1090,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 continue;
             }
         }
+        result.place_candidate_count += best_loops.size();
         const auto residual_before = meanLoopResidual(edges, poses_before);
         const auto residual_axes_before = meanLoopResidualAxes(edges, poses_before);
         const bool optimization_committed =
@@ -1114,6 +1114,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
 
         result.optimized = true;
         result.edge_count += edges.size();
+        result.graph_edge_count += edges.size();
         result.loop_residual_translation_before = residual_before.first;
         result.loop_residual_rotation_before = residual_before.second;
         result.loop_residual_translation_after = residual_after.first;

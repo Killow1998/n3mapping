@@ -232,7 +232,9 @@ TEST(N3MappingCoreTest, PendingLoopClosureAcceptsDescriptorGeometryWithLimitedSe
 
     const auto result = core.processPendingLoopClosures();
     EXPECT_TRUE(result.optimized);
+    EXPECT_EQ(result.place_candidate_count, 1U);
     EXPECT_EQ(result.edge_count, 1U);
+    EXPECT_EQ(result.graph_edge_count, 1U);
     EXPECT_FALSE(result.accepted_loops.empty());
     EXPECT_EQ(result.accepted_loops.front().loop_referee_reason, "descriptor_geometry_consistent");
 }

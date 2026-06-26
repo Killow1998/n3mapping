@@ -30,7 +30,9 @@ bool coreRunModeProcessesLoopClosures(CoreRunMode mode);
 
 struct CoreLoopClosureResult {
     bool optimized = false;
+    std::size_t place_candidate_count = 0;
     std::size_t edge_count = 0;
+    std::size_t graph_edge_count = 0;
     std::size_t pose_update_count = 0;
     double loop_residual_translation_before = 0.0;
     double loop_residual_translation_after = 0.0;
