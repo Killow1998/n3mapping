@@ -42,6 +42,7 @@ struct Options {
     fs::path output_dir;
     fs::path map_path;
     int64_t max_frames = -1;
+    int64_t start_index = 0;
     int stride = 1;
     int build_map_frames = 0;
     double dropout = 0.0;
@@ -205,6 +206,7 @@ void printUsage(std::ostream& os)
        << "--mode mapping_loop|relocalization --output <dir> [options]\n\n"
        << "Options:\n"
        << "  --max_frames <N>                 Maximum selected common frames.\n"
+       << "  --start_index <N>                Skip first N stride-selected frames. Default: 0.\n"
        << "  --stride <N>                     Use every Nth common frame. Default: 1.\n"
        << "  --calib_mode auto|cam_to_velo|velo_to_cam\n"
        << "                                   KITTI360 calibration direction. Default: auto.\n"
@@ -265,6 +267,8 @@ Options parseArgs(int argc, char** argv)
             options.output_dir = requireValue(arg);
         } else if (arg == "--max_frames") {
             options.max_frames = parseInt64(requireValue(arg), arg);
+        } else if (arg == "--start_index") {
+            options.start_index = parseInt64(requireValue(arg), arg);
         } else if (arg == "--stride") {
             options.stride = std::max<int>(1, static_cast<int>(parseInt64(requireValue(arg), arg)));
         } else if (arg == "--map") {
@@ -301,6 +305,7 @@ Options parseArgs(int argc, char** argv)
         throw std::runtime_error("--calib_mode must be auto, cam_to_velo, or velo_to_cam");
     }
     if (options.max_frames < -1) throw std::runtime_error("--max_frames must be non-negative");
+    if (options.start_index < 0) throw std::runtime_error("--start_index must be non-negative");
     return options;
 }
 
@@ -474,10 +479,12 @@ AlignedFrames loadAlignedFrames(const Options& options)
         aligned.alignment.input_gt_count - matched_pose_ids.size();
 
     int stride_count = 0;
+    int64_t selected_index = 0;
     for (const auto& [frame_id, bin_path] : lidar_bins) {
         auto pose_it = poses.find(frame_id);
         if (pose_it == poses.end()) continue;
         if ((stride_count++ % options.stride) != 0) continue;
+        if (selected_index++ < options.start_index) continue;
         KittiFrame frame;
         frame.frame_id = frame_id;
         frame.lidar_bin = bin_path;
@@ -1003,6 +1010,7 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
             << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
             << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
             << "  \"stride\": " << options.stride << ",\n";
+    metrics << "  \"start_index\": " << options.start_index << ",\n";
     writeAlignmentMetricsJson(metrics, aligned.alignment);
     writeCalibrationJson(metrics, aligned.calibration);
     metrics << "\n"
@@ -1190,6 +1198,7 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
     metrics << ",\n  \"lock_latency_p95_frames\": ";
     writeJsonDoubleOrNull(metrics, percentile(lock_latency_frames, 0.95));
     metrics << ",\n"
+            << "  \"start_index\": " << options.start_index << ",\n"
             << "  \"dropout\": " << options.dropout << ",\n"
             << "  \"noise_sigma\": " << options.noise_sigma << ",\n"
             << "  \"fake_yaw_deg\": " << options.fake_yaw_deg << ",\n";

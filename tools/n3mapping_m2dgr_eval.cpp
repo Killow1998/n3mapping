@@ -44,6 +44,7 @@ struct Options {
     fs::path output_dir;
     fs::path map_path;
     int64_t max_frames = -1;
+    int64_t start_index = 0;
     int stride = 1;
     double max_time_diff = 0.05;
     int build_map_frames = 0;
@@ -188,6 +189,7 @@ void printUsage(std::ostream& os)
        << "  --lidar_dir <dir>                Explicit extracted lidar cloud directory.\n"
        << "  --gt <path>                      Explicit TUM ground-truth trajectory file.\n"
        << "  --max_frames <N>                 Maximum aligned frames.\n"
+       << "  --start_index <N>                Skip first N stride-selected frames. Default: 0.\n"
        << "  --stride <N>                     Use every Nth aligned frame. Default: 1.\n"
        << "  --max_time_diff <S>              Max lidar/GT timestamp difference. Default: 0.05.\n"
        << "  --map <n3map.pbstream>           Existing map for relocalization mode.\n"
@@ -249,6 +251,8 @@ Options parseArgs(int argc, char** argv)
             options.output_dir = requireValue(arg);
         } else if (arg == "--max_frames") {
             options.max_frames = parseInt64(requireValue(arg), arg);
+        } else if (arg == "--start_index") {
+            options.start_index = parseInt64(requireValue(arg), arg);
         } else if (arg == "--stride") {
             options.stride = static_cast<int>(parseInt64(requireValue(arg), arg));
         } else if (arg == "--max_time_diff") {
@@ -292,6 +296,9 @@ Options parseArgs(int argc, char** argv)
     }
     if (options.max_frames < -1) {
         throw std::runtime_error("--max_frames must be non-negative or -1");
+    }
+    if (options.start_index < 0) {
+        throw std::runtime_error("--start_index must be non-negative");
     }
     if (options.max_time_diff < 0.0 || !std::isfinite(options.max_time_diff)) {
         throw std::runtime_error("--max_time_diff must be non-negative");
@@ -497,6 +504,7 @@ std::vector<M2DGRFrame> alignFrames(const std::vector<LidarRecord>& lidar,
     }
     size_t pose_index = 0;
     int64_t accepted_count = 0;
+    int64_t selected_index = 0;
     for (const auto& record : lidar) {
         while (pose_index + 1 < poses.size() &&
                std::abs(poses[pose_index + 1].stamp - record.stamp) <=
@@ -513,6 +521,10 @@ std::vector<M2DGRFrame> alignFrames(const std::vector<LidarRecord>& lidar,
         if (accepted_count % options.stride == 0 &&
             (options.max_frames < 0 ||
              static_cast<int64_t>(aligned.size()) < options.max_frames)) {
+            if (selected_index++ < options.start_index) {
+                ++accepted_count;
+                continue;
+            }
             M2DGRFrame frame;
             frame.frame_index = aligned.size();
             frame.lidar_stamp = record.stamp;
@@ -1003,6 +1015,7 @@ int runMappingLoop(const Options& options,
             << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
             << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
             << "  \"stride\": " << options.stride << ",\n"
+            << "  \"start_index\": " << options.start_index << ",\n"
             << "  \"max_time_diff\": " << options.max_time_diff << ",\n"
             << "  \"lidar_dir\": \"" << jsonEscape(resolveLidarDir(options).string()) << "\",\n"
             << "  \"gt_path\": \"" << jsonEscape(resolveGtPath(options).string()) << "\",\n";
@@ -1141,6 +1154,7 @@ int runRelocalization(const Options& options,
     metrics << ",\n  \"lock_latency_p95_frames\": ";
     writeJsonDoubleOrNull(metrics, percentile(lock_latency_frames, 0.95));
     metrics << ",\n"
+            << "  \"start_index\": " << options.start_index << ",\n"
             << "  \"dropout\": " << options.dropout << ",\n"
             << "  \"noise_sigma\": " << options.noise_sigma << ",\n"
             << "  \"fake_yaw_deg\": " << options.fake_yaw_deg << ",\n"

@@ -2,6 +2,58 @@
 
 Branch: `dev/better_loop`
 
+## 2026-06-27 Consensus Referee Gate Checkpoint
+
+Runtime change:
+
+- `LoopConsensusVerifier` now runs for selected `best_loops` before graph commit,
+  not only for debug output.
+- The commit path rejects two narrow high-risk cases:
+  - `consensus_insufficient_planar`: no estimator support while vertical
+    hypothesis says the loop is only planar.
+  - `consensus_unstable_large_delta`: unstable consensus and consensus-vs-ICP
+    translation delta >= 5 m.
+- KITTI360/M2DGR eval tools now support `--start_index` so broad tests can use
+  GT-selected loop-opportunity windows instead of always starting at frame 0.
+
+Regression artifacts:
+
+```text
+/tmp/n3mapping_consensus_referee_matrix_20260627
+/tmp/n3mapping_combined_broad_matrix_20260627
+/tmp/n3mapping_opportunity_matrix_20260627
+```
+
+Key matrix results:
+
+| run | loops | precision | trans p95 m | XY p95 m | Z p95 m | high-Z after | max Z after m |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| KITTI360 drive0000 start0 900/s5 | 4 | 0.750 | 2.445 | 2.429 | 1.726 | 2 | 0.983 |
+| KITTI360 drive0000 start400 600/s10 | 2 | 0.500 | 2.181 | 2.180 | 0.123 | 0 | 0.407 |
+| KITTI360 drive0005 900/s5 | 3 | 1.000 | 0.750 | 0.729 | 0.247 | 1 | 0.792 |
+| M2DGR hall05 600/s5 | 14 | 0.929 | 0.015 | 0.015 | 0.001 | 0 | 0.162 |
+| M2DGR gate02 600/s5 | 0 | n/a | ~0 | ~0 | ~0 | 0 | 0 |
+
+Compared with the previous drive0000 start0 900/s5 run:
+
+```text
+accepted loops: 6 -> 4
+precision: 0.50 -> 0.75
+translation p95: 3.39 m -> 2.45 m
+Z p95: 1.93 m -> 1.73 m
+```
+
+Current verdict:
+
+```text
+Keep the consensus referee gate. It removes part of the descriptor+ICP
+straight-through failure without regressing drive0005 or M2DGR hall/gate.
+It is not enough: drive0000 start400 still has a false accepted loop, and many
+KITTI360 GT-opportunity windows have true loop candidates but zero accepted
+loops. The next improvement should target recall/correspondence quality across
+GT-selected windows, not another narrow Z or graph residual threshold.
+```
+
 ## 2026-06-27 Consensus-Estimator Graph-Trial Checkpoint
 
 Added a second shadow graph-trial path:

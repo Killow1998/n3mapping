@@ -46,6 +46,23 @@ bool graphTrialTranslationInconsistent(const LoopGraphTrialDiagnostics& diagnost
            diagnostics.residual_translation_norm_after >= kLargeGraphResidualTranslationM;
 }
 
+std::string consensusRefereeRejectReason(const VerifiedLoop& loop)
+{
+    if (loop.consensus_estimator_recommendation == "insufficient_estimator_support" &&
+        loop.vertical_hypothesis_edge_recommendation == "planar_xy_yaw") {
+        return "consensus_insufficient_planar";
+    }
+
+    constexpr double kLargeConsensusMeasurementDeltaM = 5.0;
+    if (loop.consensus_estimator_recommendation == "unstable_consensus_measurement" &&
+        std::isfinite(loop.consensus_estimator_measurement_delta_translation) &&
+        loop.consensus_estimator_measurement_delta_translation >= kLargeConsensusMeasurementDeltaM) {
+        return "consensus_unstable_large_delta";
+    }
+
+    return {};
+}
+
 Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
 {
     return transform.rotation().eulerAngles(0, 1, 2);
@@ -1163,15 +1180,26 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             continue;
         }
 
-        if (loop_debug_enabled) {
-            LoopConsensusVerifier consensus_verifier(config_);
-            for (auto& loop : best_loops) {
-                const auto consensus = consensus_verifier.evaluate(
-                    session_->keyframeManager(), session_->pointCloudMatcher(), loop,
-                    std::max(2, config_.gicp_submap_size));
-                assignLoopConsensus(&loop, consensus);
-                consensus_by_pair[{loop.query_id, loop.match_id}] = consensus;
+        LoopConsensusVerifier consensus_verifier(config_);
+        std::vector<VerifiedLoop> consensus_gated_loops;
+        consensus_gated_loops.reserve(best_loops.size());
+        for (auto& loop : best_loops) {
+            const auto consensus = consensus_verifier.evaluate(
+                session_->keyframeManager(), session_->pointCloudMatcher(), loop,
+                std::max(2, config_.gicp_submap_size));
+            assignLoopConsensus(&loop, consensus);
+            const auto key = std::make_pair(loop.query_id, loop.match_id);
+            consensus_by_pair[key] = consensus;
+            if (const std::string reason = consensusRefereeRejectReason(loop); !reason.empty()) {
+                graph_reject_by_pair[key] = reason;
+                continue;
             }
+            consensus_gated_loops.push_back(loop);
+        }
+        best_loops.swap(consensus_gated_loops);
+        if (best_loops.empty()) {
+            flush_debug_events({}, "consensus_referee_rejected");
+            continue;
         }
 
         auto edges = session_->loopClosureManager().buildLoopEdges(best_loops, LoopEdgeDirection::MatchToQuery);
