@@ -106,6 +106,16 @@ LoopDebugCandidateEvent makeRejectedCandidateEvent()
     event.segment_roll_pitch_std = 0.08;
     event.segment_direction = "same";
     event.segment_recommendation = "consistent";
+    event.consensus_shadow_decision = "defer";
+    event.consensus_shadow_reason = "insufficient_support";
+    event.consensus_valid_pair_count = 2;
+    event.consensus_left_support_count = 1;
+    event.consensus_right_support_count = 1;
+    event.consensus_contradiction_count = 0;
+    event.consensus_median_translation_delta = 0.12;
+    event.consensus_mad_translation_delta = 0.02;
+    event.consensus_median_rotation_delta = 0.03;
+    event.consensus_mad_rotation_delta = 0.01;
     event.gate_result = "rejected";
     event.reject_reason = "bad\nreason";
     event.loop_information.diagonal() << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0;
@@ -176,6 +186,11 @@ TEST(LoopDebugLoggerTest, WritesRejectedCandidateAsSingleLineJson)
     EXPECT_NE(lines[0].find("\"segment_translation_median\":0.29999999999999999"), std::string::npos);
     EXPECT_NE(lines[0].find("\"segment_direction\":\"same\""), std::string::npos);
     EXPECT_NE(lines[0].find("\"segment_recommendation\":\"consistent\""), std::string::npos);
+    EXPECT_NE(lines[0].find("\"consensus_shadow_decision\":\"defer\""), std::string::npos);
+    EXPECT_NE(lines[0].find("\"consensus_shadow_reason\":\"insufficient_support\""), std::string::npos);
+    EXPECT_NE(lines[0].find("\"consensus_valid_pair_count\":2"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"consensus_median_translation_delta\":0.12"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"consensus_median_rotation_delta\":0.029999999999999999"), std::string::npos);
     EXPECT_NE(lines[0].find("\"loop_information_diag\":[1,2,3,4,5,6]"), std::string::npos);
 
     std::filesystem::remove_all(temp_dir);

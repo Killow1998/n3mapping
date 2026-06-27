@@ -92,6 +92,16 @@ struct LoopDebugCandidateEvent {
     double segment_roll_pitch_std = std::numeric_limits<double>::quiet_NaN();
     std::string segment_direction = "not_available";
     std::string segment_recommendation = "not_available";
+    std::string consensus_shadow_decision = "not_available";
+    std::string consensus_shadow_reason = "not_available";
+    int consensus_valid_pair_count = 0;
+    int consensus_left_support_count = 0;
+    int consensus_right_support_count = 0;
+    int consensus_contradiction_count = 0;
+    double consensus_median_translation_delta = std::numeric_limits<double>::quiet_NaN();
+    double consensus_mad_translation_delta = std::numeric_limits<double>::quiet_NaN();
+    double consensus_median_rotation_delta = std::numeric_limits<double>::quiet_NaN();
+    double consensus_mad_rotation_delta = std::numeric_limits<double>::quiet_NaN();
     std::string loop_referee_recommendation = "not_available";
     std::string loop_referee_reason = "not_available";
     std::string loop_referee_risk_flags = "not_available";

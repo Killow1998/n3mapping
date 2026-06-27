@@ -13,6 +13,7 @@
 
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/loop_heightmap_diagnostics.h"
+#include "n3mapping/loop_consensus_verifier.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
 #include "n3mapping/loop_referee.h"
 #include "n3mapping/loop_segment_consistency.h"
@@ -243,6 +244,40 @@ void assignSegmentDiagnostics(LoopDebugCandidateEvent* event, const VerifiedLoop
     event->segment_roll_pitch_std = loop.segment_roll_pitch_std;
     event->segment_direction = loop.segment_direction;
     event->segment_recommendation = loop.segment_recommendation;
+}
+
+void assignConsensusDiagnostics(LoopDebugCandidateEvent* event, const VerifiedLoop& loop)
+{
+    if (!event) {
+        return;
+    }
+    event->consensus_shadow_decision = loop.consensus_shadow_decision;
+    event->consensus_shadow_reason = loop.consensus_shadow_reason;
+    event->consensus_valid_pair_count = loop.consensus_valid_pair_count;
+    event->consensus_left_support_count = loop.consensus_left_support_count;
+    event->consensus_right_support_count = loop.consensus_right_support_count;
+    event->consensus_contradiction_count = loop.consensus_contradiction_count;
+    event->consensus_median_translation_delta = loop.consensus_median_translation_delta;
+    event->consensus_mad_translation_delta = loop.consensus_mad_translation_delta;
+    event->consensus_median_rotation_delta = loop.consensus_median_rotation_delta;
+    event->consensus_mad_rotation_delta = loop.consensus_mad_rotation_delta;
+}
+
+void assignConsensusDiagnostics(LoopDebugCandidateEvent* event, const LoopConsensusResult& consensus)
+{
+    if (!event) {
+        return;
+    }
+    event->consensus_shadow_decision = loopConsensusDecisionName(consensus.decision);
+    event->consensus_shadow_reason = consensus.reason;
+    event->consensus_valid_pair_count = consensus.valid_pair_count;
+    event->consensus_left_support_count = consensus.left_support_count;
+    event->consensus_right_support_count = consensus.right_support_count;
+    event->consensus_contradiction_count = consensus.contradiction_count;
+    event->consensus_median_translation_delta = consensus.median_translation_delta;
+    event->consensus_mad_translation_delta = consensus.mad_translation_delta;
+    event->consensus_median_rotation_delta = consensus.median_rotation_delta;
+    event->consensus_mad_rotation_delta = consensus.mad_rotation_delta;
 }
 
 Config validateOrThrow(const Config& config)
@@ -842,6 +877,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         std::vector<LoopDebugCandidateEvent> debug_events;
         std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics> graph_trial_by_pair;
         std::map<std::pair<int64_t, int64_t>, LoopRefereeDebugDecision> referee_by_pair;
+        std::map<std::pair<int64_t, int64_t>, LoopConsensusResult> consensus_by_pair;
         const bool loop_debug_enabled = config_.loop_debug_enable;
         if (loop_debug_enabled) {
             debug_events.reserve(candidates.size());
@@ -863,6 +899,10 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                     event.loop_referee_recommendation = referee_it->second.recommendation;
                     event.loop_referee_reason = referee_it->second.reason;
                     event.loop_referee_risk_flags = referee_it->second.risk_flags;
+                }
+                auto consensus_it = consensus_by_pair.find(key);
+                if (consensus_it != consensus_by_pair.end()) {
+                    assignConsensusDiagnostics(&event, consensus_it->second);
                 }
                 if (accepted_pairs.find(key) != accepted_pairs.end()) {
                     event.gate_result = "accepted";
@@ -1022,6 +1062,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.heightmap_ground_support_ratio = loop.heightmap_ground_support_ratio;
                 event.heightmap_vertical_consistency_score = loop.heightmap_vertical_consistency_score;
                 assignSegmentDiagnostics(&event, loop);
+                assignConsensusDiagnostics(&event, loop);
                 event.loop_referee_recommendation = loop.loop_referee_recommendation;
                 event.loop_referee_reason = loop.loop_referee_reason;
                 event.loop_referee_risk_flags = loop.loop_referee_risk_flags;
@@ -1042,6 +1083,17 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         if (best_loops.empty()) {
             flush_debug_events({}, "not_selected");
             continue;
+        }
+
+        if (loop_debug_enabled) {
+            LoopConsensusVerifier consensus_verifier(config_);
+            for (auto& loop : best_loops) {
+                const auto consensus = consensus_verifier.evaluate(
+                    session_->keyframeManager(), session_->pointCloudMatcher(), loop,
+                    std::max(2, config_.gicp_submap_size));
+                assignLoopConsensus(&loop, consensus);
+                consensus_by_pair[{loop.query_id, loop.match_id}] = consensus;
+            }
         }
 
         auto edges = session_->loopClosureManager().buildLoopEdges(best_loops, LoopEdgeDirection::MatchToQuery);

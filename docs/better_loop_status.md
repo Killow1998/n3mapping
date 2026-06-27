@@ -2,6 +2,145 @@
 
 Branch: `dev/better_loop`
 
+## 2026-06-27 LoopConsensusVerifier Shadow Checkpoint
+
+Implemented `LoopConsensusVerifier` as shadow-only evidence for the next
+proof point:
+
+```text
+single loop pair -> central ICP measurement -> neighborhood correspondence
+consensus diagnostics
+```
+
+The runtime behavior is intentionally unchanged:
+
+- no graph-trial authority;
+- no segment-only authority;
+- no vertical/heightmap/XY-yaw gate;
+- no LoopReferee weight tuning;
+- no graph optimizer changes;
+- no GT in runtime.
+
+### Implementation
+
+New files:
+
+```text
+include/n3mapping/loop_consensus_verifier.h
+src/loop_consensus_verifier.cpp
+test/test_loop_consensus_verifier.cpp
+```
+
+`LoopConsensusVerifier` evaluates neighbor pairs `(query+d, match+d)` for a
+verified central loop measurement. For each valid neighbor pair it predicts the
+relative transform:
+
+```text
+T_mi_qi_pred = T_mi_m * T_m_q * T_q_qi
+```
+
+and records the ICP refinement delta. The summary writes:
+
+```text
+consensus_shadow_decision
+consensus_shadow_reason
+consensus_valid_pair_count
+consensus_left_support_count
+consensus_right_support_count
+consensus_contradiction_count
+consensus_median_translation_delta
+consensus_mad_translation_delta
+consensus_median_rotation_delta
+consensus_mad_rotation_delta
+```
+
+The first implementation evaluated consensus for every verified candidate.
+That made KITTI smoke too slow and stopped around frame 301/450 in
+`process_loops_start`. The corrected implementation evaluates consensus only
+for the loops selected by the existing pipeline. This preserves behavior while
+keeping the shadow diagnostic cost bounded.
+
+### Regression
+
+Focused Humble regression:
+
+```bash
+source /opt/ros/humble/setup.bash
+MAKEFLAGS=-j1 colcon build --packages-select n3mapping --symlink-install \
+  --parallel-workers 1 --cmake-args -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+ROS_LOG_DIR=/tmp/n3mapping_ros_log colcon test --packages-select n3mapping \
+  --event-handlers console_direct+ --parallel-workers 1 \
+  --ctest-args -R 'test_loop_consensus_verifier|test_loop_debug_logger|test_n3mapping_core'
+colcon test-result --test-result-base build/n3mapping --verbose
+```
+
+Result:
+
+```text
+259 tests, 0 errors, 0 failures, 0 skipped
+```
+
+### KITTI360 Smoke
+
+Artifact:
+
+```text
+/tmp/n3mapping_loop_consensus_shadow_selected_smoke_20260627/drive0005_330_stride5_online_support
+```
+
+Command:
+
+```bash
+ros2 run n3mapping n3mapping_kitti360_eval \
+  --kitti_root /home/user/DUALoc/KITTI360 \
+  --sequence 2013_05_28_drive_0005_sync \
+  --mode mapping_loop \
+  --calib_mode auto \
+  --max_frames 330 \
+  --stride 5 \
+  --output /tmp/n3mapping_loop_consensus_shadow_selected_smoke_20260627/drive0005_330_stride5_online_support
+```
+
+Result:
+
+```text
+frames=330
+keyframes=329
+accepted_loop_count=9
+accepted_false_loop=0
+loop_precision=1.0
+trajectory_translation_p95_m=0.307648823
+trajectory_xy_p95_m=0.222619781
+trajectory_z_p95_m=0.151083766
+optimization_high_residual_z_after_count=5
+optimization_max_residual_z_after_m=1.68667993
+consensus_candidate_count=9
+consensus_commit_count=2
+consensus_defer_count=7
+consensus_reject_count=0
+bad_z_after_consensus_commit_count=1
+```
+
+Interpretation:
+
+- Positive: consensus shadow now produces non-trivial evidence instead of all
+  `defer`.
+- Positive: the smoke crosses the previous frame-301 stall and completes.
+- Positive: accepted false loops remain zero in this smoke.
+- Negative: one bad-Z-after loop still receives `consensus_shadow_decision =
+  commit`; therefore consensus v1 is not ready to become a runtime gate.
+- Negative: online mapping naturally has no future `query+d` support, so the
+  verifier must treat enough past-side support as usable shadow evidence.
+
+Current verdict:
+
+```text
+Keep LoopConsensusVerifier as shadow evidence.
+Do not connect it to graph commit behavior yet.
+Next proof point should compare this consensus signal across longer KITTI360
+and M2DGR hall/gate runs before any runtime behavior change.
+```
+
 ## 2026-06-25 Risk-Aware Referee + Full-6DoF Checkpoint
 
 Latest local development state replaces the over-strict segment energy gate

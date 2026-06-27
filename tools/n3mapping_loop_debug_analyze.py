@@ -530,6 +530,11 @@ def analyze(args):
         "segment_consistent_count": 0,
         "segment_inconsistent_count": 0,
         "segment_insufficient_count": 0,
+        "consensus_candidate_count": 0,
+        "consensus_commit_count": 0,
+        "consensus_defer_count": 0,
+        "consensus_reject_count": 0,
+        "accepted_true_loop_bad_z_after_consensus_commit": 0,
         "accepted_true_loop_bad_z_after_graph_trial_score_mean": float("nan"),
         "accepted_true_loop_bad_z_after_graph_trial_score_min": float("nan"),
         "accepted_true_loop_corrected_z_graph_trial_score_mean": float("nan"),
@@ -673,6 +678,20 @@ def analyze(args):
         segment_roll_pitch_std = event_float(event, "segment_roll_pitch_std")
         segment_direction = str(event.get("segment_direction", "not_available") or "not_available")
         segment_recommendation = str(event.get("segment_recommendation", "not_available") or "not_available")
+        consensus_shadow_decision = str(
+            event.get("consensus_shadow_decision", "not_available") or "not_available"
+        )
+        consensus_shadow_reason = str(
+            event.get("consensus_shadow_reason", "not_available") or "not_available"
+        )
+        consensus_valid_pair_count = int(event.get("consensus_valid_pair_count") or 0)
+        consensus_left_support_count = int(event.get("consensus_left_support_count") or 0)
+        consensus_right_support_count = int(event.get("consensus_right_support_count") or 0)
+        consensus_contradiction_count = int(event.get("consensus_contradiction_count") or 0)
+        consensus_median_translation_delta = event_float(event, "consensus_median_translation_delta")
+        consensus_mad_translation_delta = event_float(event, "consensus_mad_translation_delta")
+        consensus_median_rotation_delta = event_float(event, "consensus_median_rotation_delta")
+        consensus_mad_rotation_delta = event_float(event, "consensus_mad_rotation_delta")
         candidate_source = str(event.get("candidate_source", "") or "")
         reject_reason = str(event.get("reject_reason", "") or "")
         icp_iterations = int(event.get("icp_iterations") or 0)
@@ -794,6 +813,14 @@ def analyze(args):
                 stats["segment_inconsistent_count"] += 1
             elif segment_recommendation == "insufficient_support":
                 stats["segment_insufficient_count"] += 1
+        if consensus_shadow_decision != "not_available":
+            stats["consensus_candidate_count"] += 1
+            if consensus_shadow_decision == "commit":
+                stats["consensus_commit_count"] += 1
+            elif consensus_shadow_decision == "defer":
+                stats["consensus_defer_count"] += 1
+            elif consensus_shadow_decision == "reject":
+                stats["consensus_reject_count"] += 1
         if position_loop:
             stats["retrieval_position_positive"] += 1
         if gt_loop:
@@ -838,6 +865,8 @@ def analyze(args):
             stats["accepted_true_loop_bad_z_heightmap_high"] += 1
         if z_after_bad and heightmap_high:
             stats["heightmap_separates_bad_z_count"] += 1
+        if z_after_bad and consensus_shadow_decision == "commit":
+            stats["accepted_true_loop_bad_z_after_consensus_commit"] += 1
         if z_corrected:
             stats["accepted_true_loop_corrected_z"] += 1
         if z_after_bad:
@@ -942,6 +971,16 @@ def analyze(args):
                 "segment_roll_pitch_std": segment_roll_pitch_std,
                 "segment_direction": segment_direction,
                 "segment_recommendation": segment_recommendation,
+                "consensus_shadow_decision": consensus_shadow_decision,
+                "consensus_shadow_reason": consensus_shadow_reason,
+                "consensus_valid_pair_count": consensus_valid_pair_count,
+                "consensus_left_support_count": consensus_left_support_count,
+                "consensus_right_support_count": consensus_right_support_count,
+                "consensus_contradiction_count": consensus_contradiction_count,
+                "consensus_median_translation_delta": consensus_median_translation_delta,
+                "consensus_mad_translation_delta": consensus_mad_translation_delta,
+                "consensus_median_rotation_delta": consensus_median_rotation_delta,
+                "consensus_mad_rotation_delta": consensus_mad_rotation_delta,
                 "icp_iterations": icp_iterations,
                 "icp_optimizer_error": icp_optimizer_error,
                 "icp_termination": icp_termination,
@@ -1233,6 +1272,16 @@ def analyze(args):
             "segment_roll_pitch_std",
             "segment_direction",
             "segment_recommendation",
+            "consensus_shadow_decision",
+            "consensus_shadow_reason",
+            "consensus_valid_pair_count",
+            "consensus_left_support_count",
+            "consensus_right_support_count",
+            "consensus_contradiction_count",
+            "consensus_median_translation_delta",
+            "consensus_mad_translation_delta",
+            "consensus_median_rotation_delta",
+            "consensus_mad_rotation_delta",
             "icp_iterations",
             "icp_optimizer_error",
             "icp_termination",
@@ -1350,6 +1399,10 @@ def analyze(args):
                 "segment_yaw_std",
                 "segment_z_std",
                 "segment_roll_pitch_std",
+                "consensus_median_translation_delta",
+                "consensus_mad_translation_delta",
+                "consensus_median_rotation_delta",
+                "consensus_mad_rotation_delta",
                 "icp_optimizer_error",
                 "pred_match_query_x",
                 "pred_match_query_y",

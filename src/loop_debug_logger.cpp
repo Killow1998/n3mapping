@@ -319,6 +319,20 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendNumber(os, &first, "segment_roll_pitch_std", event.segment_roll_pitch_std);
     appendString(os, &first, "segment_direction", event.segment_direction);
     appendString(os, &first, "segment_recommendation", event.segment_recommendation);
+    appendString(os, &first, "consensus_shadow_decision", event.consensus_shadow_decision);
+    appendString(os, &first, "consensus_shadow_reason", event.consensus_shadow_reason);
+    appendInt(os, &first, "consensus_valid_pair_count", event.consensus_valid_pair_count);
+    appendInt(os, &first, "consensus_left_support_count", event.consensus_left_support_count);
+    appendInt(os, &first, "consensus_right_support_count", event.consensus_right_support_count);
+    appendInt(os, &first, "consensus_contradiction_count", event.consensus_contradiction_count);
+    appendNumber(os, &first, "consensus_median_translation_delta",
+                 event.consensus_median_translation_delta);
+    appendNumber(os, &first, "consensus_mad_translation_delta",
+                 event.consensus_mad_translation_delta);
+    appendNumber(os, &first, "consensus_median_rotation_delta",
+                 event.consensus_median_rotation_delta);
+    appendNumber(os, &first, "consensus_mad_rotation_delta",
+                 event.consensus_mad_rotation_delta);
     appendString(os, &first, "loop_referee_recommendation", event.loop_referee_recommendation);
     appendString(os, &first, "loop_referee_reason", event.loop_referee_reason);
     appendString(os, &first, "loop_referee_risk_flags", event.loop_referee_risk_flags);
