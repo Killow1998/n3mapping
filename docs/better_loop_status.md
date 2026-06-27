@@ -972,3 +972,67 @@ correspondence-level referee for indoor aliasing:
    symmetric local submap support or a small sequence-window consistency check.
 3. Keep graph consistency as a final commit referee, not as the only decision
    layer.
+
+## 2026-06-27 Graph-Consistency Translation Gate
+
+Status: kept. This is the second behavior-changing graph referee gate after
+the yaw gate.
+
+Change:
+
+- Reject a candidate before commit when the shadow graph trial succeeds but
+  still leaves a large translation residual.
+- Log the rejected candidate as `reject_reason=graph_inconsistent_translation`.
+
+Rationale:
+
+After the yaw gate, the remaining harmful cases were no longer near-pi yaw
+failures. The next clean graph-level signal was residual translation after the
+same shadow trial. This is still not a raw ICP fitness threshold and does not
+use GT; it asks whether the proposed edge can be absorbed by the current graph
+without leaving a large residual.
+
+Behavior matrix:
+
+```text
+/tmp/n3mapping_graph_yaw_translation_gate_20260627
+```
+
+Three-stage result comparison:
+
+| run | accepted loops | precision | trans p95 m | xy p95 m | z p95 m | high-Z after | max Z after m |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| KITTI360 baseline | 11 | 0.909 | 3.537 | 1.550 | 3.179 | 7 | 1.687 |
+| KITTI360 yaw gate | 5 | 1.000 | 1.055 | 0.746 | 0.867 | 3 | 1.418 |
+| KITTI360 yaw+translation gate | 3 | 1.000 | 0.750 | 0.729 | 0.247 | 1 | 0.792 |
+| M2DGR hall05 baseline | 27 | 0.926 | 0.0459 | 0.0458 | 0.00225 | 0 | 0.164 |
+| M2DGR hall05 yaw gate | 16 | 0.875 | 0.0217 | 0.0217 | 0.000087 | 0 | 0.0307 |
+| M2DGR hall05 yaw+translation gate | 14 | 0.929 | 0.0203 | 0.0203 | 0.000137 | 0 | 0.0307 |
+| M2DGR gate02 baseline | 1 | 0.000 | 0.0284 | 0.0274 | 0.00470 | 0 | 0.0378 |
+| M2DGR gate02 yaw gate | 0 | n/a | ~0 | ~0 | ~0 | 0 | 0 |
+| M2DGR gate02 yaw+translation gate | 0 | n/a | ~0 | ~0 | ~0 | 0 | 0 |
+
+Interpretation:
+
+- Positive: KITTI360 Z consistency improved again; `z_p95` dropped from
+  `0.867 m` after yaw-only gating to `0.247 m`.
+- Positive: hall05 precision recovered from `0.875` to `0.929` while trajectory
+  p95 improved slightly.
+- Positive: gate02 still has no accepted loop, so the previous false loop stays
+  removed.
+- Caveat: accepted loop count is now conservative. This is acceptable for a
+  dev branch while proving the graph referee model, but the next step must
+  recover safe recall with better correspondence evidence rather than weakening
+  these consistency gates.
+
+Next step:
+
+Stop adding one-off graph thresholds unless a larger matrix shows a new
+dominant damage pattern. The next useful algorithm work is recall recovery:
+
+1. Build a sequence-window correspondence check around accepted/rejected loop
+   candidates.
+2. Accept only if several neighboring query frames support a coherent match
+   sequence.
+3. Use graph consistency as a final commit referee, not as the only source of
+   loop proposals.

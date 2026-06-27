@@ -38,6 +38,14 @@ bool graphTrialYawInconsistent(const LoopGraphTrialDiagnostics& diagnostics)
            std::abs(diagnostics.residual_yaw_after) >= kNearHalfTurnYawRad;
 }
 
+bool graphTrialTranslationInconsistent(const LoopGraphTrialDiagnostics& diagnostics)
+{
+    constexpr double kLargeGraphResidualTranslationM = 2.0;
+    return diagnostics.success &&
+           std::isfinite(diagnostics.residual_translation_norm_after) &&
+           diagnostics.residual_translation_norm_after >= kLargeGraphResidualTranslationM;
+}
+
 Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
 {
     return transform.rotation().eulerAngles(0, 1, 2);
@@ -1213,6 +1221,10 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             };
             if (graphTrialYawInconsistent(diagnostics)) {
                 graph_reject_by_pair[key] = "graph_inconsistent_yaw";
+                continue;
+            }
+            if (graphTrialTranslationInconsistent(diagnostics)) {
+                graph_reject_by_pair[key] = "graph_inconsistent_translation";
                 continue;
             }
             gated_edges.push_back(edge);
