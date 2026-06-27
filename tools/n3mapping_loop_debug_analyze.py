@@ -536,6 +536,8 @@ def analyze(args):
         "consensus_reject_count": 0,
         "consensus_estimator_candidate_count": 0,
         "consensus_estimator_valid_count": 0,
+        "consensus_estimator_trial_candidate_count": 0,
+        "consensus_estimator_trial_success_count": 0,
         "accepted_true_loop_bad_z_after_consensus_commit": 0,
         "accepted_true_loop_bad_z_after_graph_trial_score_mean": float("nan"),
         "accepted_true_loop_bad_z_after_graph_trial_score_min": float("nan"),
@@ -549,6 +551,8 @@ def analyze(args):
         "accepted_true_loop_bad_z_after_consensus_estimator_delta_mean": float("nan"),
         "accepted_true_loop_corrected_z_consensus_estimator_z_mad_mean": float("nan"),
         "accepted_true_loop_corrected_z_consensus_estimator_delta_mean": float("nan"),
+        "accepted_true_loop_bad_z_after_consensus_estimator_trial_z_mean": float("nan"),
+        "accepted_true_loop_corrected_z_consensus_estimator_trial_z_mean": float("nan"),
     }
     bad_z_after_graph_trial_scores = []
     corrected_z_graph_trial_scores = []
@@ -560,6 +564,8 @@ def analyze(args):
     bad_z_after_estimator_deltas = []
     corrected_z_estimator_z_mads = []
     corrected_z_estimator_deltas = []
+    bad_z_after_estimator_trial_zs = []
+    corrected_z_estimator_trial_zs = []
     rpy_threshold_rad = args.rpy_drift_threshold_deg * math.pi / 180.0
     accepted_pairs_available = bool(args.accepted_loops)
 
@@ -721,6 +727,19 @@ def analyze(args):
         consensus_estimator_recommendation = str(
             event.get("consensus_estimator_recommendation", "not_available") or "not_available"
         )
+        consensus_estimator_trial_success = bool(event.get("consensus_estimator_trial_success") or False)
+        consensus_estimator_trial_residual_z_after = event_float(
+            event, "consensus_estimator_trial_residual_z_after"
+        )
+        consensus_estimator_trial_residual_translation_norm_after = event_float(
+            event, "consensus_estimator_trial_residual_translation_norm_after"
+        )
+        consensus_estimator_trial_consistency_score = event_float(
+            event, "consensus_estimator_trial_consistency_score"
+        )
+        consensus_estimator_trial_recommendation = str(
+            event.get("consensus_estimator_trial_recommendation", "not_available") or "not_available"
+        )
         candidate_source = str(event.get("candidate_source", "") or "")
         reject_reason = str(event.get("reject_reason", "") or "")
         icp_iterations = int(event.get("icp_iterations") or 0)
@@ -854,6 +873,10 @@ def analyze(args):
             stats["consensus_estimator_candidate_count"] += 1
             if consensus_estimator_valid:
                 stats["consensus_estimator_valid_count"] += 1
+        if consensus_estimator_trial_recommendation != "not_available":
+            stats["consensus_estimator_trial_candidate_count"] += 1
+            if consensus_estimator_trial_success:
+                stats["consensus_estimator_trial_success_count"] += 1
         if position_loop:
             stats["retrieval_position_positive"] += 1
         if gt_loop:
@@ -908,12 +931,14 @@ def analyze(args):
             bad_z_after_segment_translations.append(segment_translation_median)
             bad_z_after_estimator_z_mads.append(consensus_estimator_z_mad)
             bad_z_after_estimator_deltas.append(consensus_estimator_measurement_delta_translation)
+            bad_z_after_estimator_trial_zs.append(consensus_estimator_trial_residual_z_after)
         if z_corrected:
             corrected_z_graph_trial_scores.append(graph_trial_consistency_score)
             corrected_z_segment_ratios.append(segment_consensus_ratio)
             corrected_z_segment_translations.append(segment_translation_median)
             corrected_z_estimator_z_mads.append(consensus_estimator_z_mad)
             corrected_z_estimator_deltas.append(consensus_estimator_measurement_delta_translation)
+            corrected_z_estimator_trial_zs.append(consensus_estimator_trial_residual_z_after)
         if z_drift_suspect:
             stats["z_drift_suspect_count"] += 1
         stats["failure_class_counts"][failure_class] = stats["failure_class_counts"].get(failure_class, 0) + 1
@@ -1031,6 +1056,11 @@ def analyze(args):
                 "consensus_estimator_measurement_delta_translation": consensus_estimator_measurement_delta_translation,
                 "consensus_estimator_measurement_delta_rotation": consensus_estimator_measurement_delta_rotation,
                 "consensus_estimator_recommendation": consensus_estimator_recommendation,
+                "consensus_estimator_trial_success": consensus_estimator_trial_success,
+                "consensus_estimator_trial_residual_z_after": consensus_estimator_trial_residual_z_after,
+                "consensus_estimator_trial_residual_translation_norm_after": consensus_estimator_trial_residual_translation_norm_after,
+                "consensus_estimator_trial_consistency_score": consensus_estimator_trial_consistency_score,
+                "consensus_estimator_trial_recommendation": consensus_estimator_trial_recommendation,
                 "icp_iterations": icp_iterations,
                 "icp_optimizer_error": icp_optimizer_error,
                 "icp_termination": icp_termination,
@@ -1109,6 +1139,12 @@ def analyze(args):
     )
     stats["accepted_true_loop_corrected_z_consensus_estimator_delta_mean"] = mean_finite(
         corrected_z_estimator_deltas
+    )
+    stats["accepted_true_loop_bad_z_after_consensus_estimator_trial_z_mean"] = mean_finite(
+        bad_z_after_estimator_trial_zs
+    )
+    stats["accepted_true_loop_corrected_z_consensus_estimator_trial_z_mean"] = mean_finite(
+        corrected_z_estimator_trial_zs
     )
     stats["accepted_pose_loop"] = stats["accepted_true_loop"]
     stats["accepted_place_loop"] = stats["accepted_position_loop"]
@@ -1357,6 +1393,11 @@ def analyze(args):
             "consensus_estimator_measurement_delta_translation",
             "consensus_estimator_measurement_delta_rotation",
             "consensus_estimator_recommendation",
+            "consensus_estimator_trial_success",
+            "consensus_estimator_trial_residual_z_after",
+            "consensus_estimator_trial_residual_translation_norm_after",
+            "consensus_estimator_trial_consistency_score",
+            "consensus_estimator_trial_recommendation",
             "icp_iterations",
             "icp_optimizer_error",
             "icp_termination",

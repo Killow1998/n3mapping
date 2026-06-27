@@ -117,6 +117,26 @@ struct LoopDebugCandidateEvent {
     double consensus_estimator_measurement_delta_rotation =
         std::numeric_limits<double>::quiet_NaN();
     std::string consensus_estimator_recommendation = "not_available";
+    bool consensus_estimator_trial_success = false;
+    double consensus_estimator_trial_residual_x_after =
+        std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_trial_residual_y_after =
+        std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_trial_residual_z_after =
+        std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_trial_residual_roll_after =
+        std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_trial_residual_pitch_after =
+        std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_trial_residual_yaw_after =
+        std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_trial_residual_translation_norm_after =
+        std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_trial_residual_rotation_norm_after =
+        std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_trial_consistency_score =
+        std::numeric_limits<double>::quiet_NaN();
+    std::string consensus_estimator_trial_recommendation = "not_available";
     std::string loop_referee_recommendation = "not_available";
     std::string loop_referee_reason = "not_available";
     std::string loop_referee_risk_flags = "not_available";

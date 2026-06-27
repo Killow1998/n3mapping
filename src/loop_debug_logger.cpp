@@ -358,6 +358,28 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
                  event.consensus_estimator_measurement_delta_rotation);
     appendString(os, &first, "consensus_estimator_recommendation",
                  event.consensus_estimator_recommendation);
+    appendBool(os, &first, "consensus_estimator_trial_success",
+               event.consensus_estimator_trial_success);
+    appendNumber(os, &first, "consensus_estimator_trial_residual_x_after",
+                 event.consensus_estimator_trial_residual_x_after);
+    appendNumber(os, &first, "consensus_estimator_trial_residual_y_after",
+                 event.consensus_estimator_trial_residual_y_after);
+    appendNumber(os, &first, "consensus_estimator_trial_residual_z_after",
+                 event.consensus_estimator_trial_residual_z_after);
+    appendNumber(os, &first, "consensus_estimator_trial_residual_roll_after",
+                 event.consensus_estimator_trial_residual_roll_after);
+    appendNumber(os, &first, "consensus_estimator_trial_residual_pitch_after",
+                 event.consensus_estimator_trial_residual_pitch_after);
+    appendNumber(os, &first, "consensus_estimator_trial_residual_yaw_after",
+                 event.consensus_estimator_trial_residual_yaw_after);
+    appendNumber(os, &first, "consensus_estimator_trial_residual_translation_norm_after",
+                 event.consensus_estimator_trial_residual_translation_norm_after);
+    appendNumber(os, &first, "consensus_estimator_trial_residual_rotation_norm_after",
+                 event.consensus_estimator_trial_residual_rotation_norm_after);
+    appendNumber(os, &first, "consensus_estimator_trial_consistency_score",
+                 event.consensus_estimator_trial_consistency_score);
+    appendString(os, &first, "consensus_estimator_trial_recommendation",
+                 event.consensus_estimator_trial_recommendation);
     appendString(os, &first, "loop_referee_recommendation", event.loop_referee_recommendation);
     appendString(os, &first, "loop_referee_reason", event.loop_referee_reason);
     appendString(os, &first, "loop_referee_risk_flags", event.loop_referee_risk_flags);

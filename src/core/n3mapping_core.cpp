@@ -227,6 +227,27 @@ void assignGraphTrialDiagnostics(LoopDebugCandidateEvent* event, const LoopGraph
     event->graph_trial_recommendation = diagnostics.recommendation;
 }
 
+void assignConsensusEstimatorTrialDiagnostics(LoopDebugCandidateEvent* event,
+                                              const LoopGraphTrialDiagnostics& diagnostics)
+{
+    if (!event) {
+        return;
+    }
+    event->consensus_estimator_trial_success = diagnostics.success;
+    event->consensus_estimator_trial_residual_x_after = diagnostics.residual_x_after;
+    event->consensus_estimator_trial_residual_y_after = diagnostics.residual_y_after;
+    event->consensus_estimator_trial_residual_z_after = diagnostics.residual_z_after;
+    event->consensus_estimator_trial_residual_roll_after = diagnostics.residual_roll_after;
+    event->consensus_estimator_trial_residual_pitch_after = diagnostics.residual_pitch_after;
+    event->consensus_estimator_trial_residual_yaw_after = diagnostics.residual_yaw_after;
+    event->consensus_estimator_trial_residual_translation_norm_after =
+        diagnostics.residual_translation_norm_after;
+    event->consensus_estimator_trial_residual_rotation_norm_after =
+        diagnostics.residual_rotation_norm_after;
+    event->consensus_estimator_trial_consistency_score = diagnostics.consistency_score;
+    event->consensus_estimator_trial_recommendation = diagnostics.recommendation;
+}
+
 void assignSegmentDiagnostics(LoopDebugCandidateEvent* event, const VerifiedLoop& loop)
 {
     if (!event) {
@@ -906,6 +927,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         verified_loops.reserve(candidates.size());
         std::vector<LoopDebugCandidateEvent> debug_events;
         std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics> graph_trial_by_pair;
+        std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics> consensus_estimator_trial_by_pair;
         std::map<std::pair<int64_t, int64_t>, LoopRefereeDebugDecision> referee_by_pair;
         std::map<std::pair<int64_t, int64_t>, LoopConsensusResult> consensus_by_pair;
         const bool loop_debug_enabled = config_.loop_debug_enable;
@@ -923,6 +945,10 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 auto trial_it = graph_trial_by_pair.find(key);
                 if (trial_it != graph_trial_by_pair.end()) {
                     assignGraphTrialDiagnostics(&event, trial_it->second);
+                }
+                auto consensus_trial_it = consensus_estimator_trial_by_pair.find(key);
+                if (consensus_trial_it != consensus_estimator_trial_by_pair.end()) {
+                    assignConsensusEstimatorTrialDiagnostics(&event, consensus_trial_it->second);
                 }
                 auto referee_it = referee_by_pair.find(key);
                 if (referee_it != referee_by_pair.end()) {
@@ -1156,6 +1182,17 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 assignGraphTrialDiagnostics(&loop, diagnostics);
                 const auto key = std::make_pair(loop.query_id, loop.match_id);
                 graph_trial_by_pair[key] = diagnostics;
+                auto consensus_it = consensus_by_pair.find(key);
+                if (consensus_it != consensus_by_pair.end() &&
+                    consensus_it->second.estimator_pair_count >= 3) {
+                    EdgeInfo estimator_edge = edge;
+                    estimator_edge.measurement =
+                        consensus_it->second.estimator_measurement_match_query;
+                    const std::vector<EdgeInfo> estimator_edges{estimator_edge};
+                    consensus_estimator_trial_by_pair[key] =
+                        computeLoopGraphTrialDiagnostics(
+                            config_, poses_before, committed_edges, estimator_edges);
+                }
                 referee_by_pair[key] = {
                     loop.loop_referee_recommendation,
                     loop.loop_referee_reason,

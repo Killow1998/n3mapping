@@ -2,6 +2,86 @@
 
 Branch: `dev/better_loop`
 
+## 2026-06-27 Consensus-Estimator Graph-Trial Checkpoint
+
+Added a second shadow graph-trial path:
+
+```text
+central ICP measurement -> existing graph_trial_*
+consensus-estimated measurement -> consensus_estimator_trial_*
+```
+
+Runtime behavior is still unchanged:
+
+- the committed edge still uses the current runtime loop measurement;
+- consensus-estimator trial output is debug/eval only;
+- no consensus gate or edge-mode change.
+
+### Fields
+
+```text
+consensus_estimator_trial_success
+consensus_estimator_trial_residual_x_after
+consensus_estimator_trial_residual_y_after
+consensus_estimator_trial_residual_z_after
+consensus_estimator_trial_residual_roll_after
+consensus_estimator_trial_residual_pitch_after
+consensus_estimator_trial_residual_yaw_after
+consensus_estimator_trial_residual_translation_norm_after
+consensus_estimator_trial_residual_rotation_norm_after
+consensus_estimator_trial_consistency_score
+consensus_estimator_trial_recommendation
+```
+
+### Regression
+
+Focused Humble regression:
+
+```text
+260 tests, 0 errors, 0 failures, 0 skipped
+```
+
+### Smoke Matrix
+
+Artifact:
+
+```text
+/tmp/n3mapping_consensus_estimator_trial_smoke_20260627
+```
+
+| run | accepted loops | precision | trans p95 m | XY p95 m | Z p95 m | high-Z after | estimator trial candidates | estimator trial success |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| KITTI360 drive0005 330 stride5 | 9 | 1.000 | 0.308 | 0.223 | 0.151 | 5 | 8 | 8 |
+| M2DGR hall05 300 stride5 | 7 | 0.857 | 0.014 | 0.014 | 0.0001 | 0 | 4 | 4 |
+
+KITTI separation signal:
+
+| signal | bad-Z-after | corrected-Z |
+| --- | ---: | ---: |
+| consensus_estimator_trial_residual_z_after_mean | 0.736 | 0.136 |
+
+### Interpretation
+
+- Positive: unlike `estimator_valid`, the graph trial residual from the
+  consensus-estimated measurement separates bad-Z-after and corrected-Z cases
+  on the 330-frame KITTI smoke.
+- Positive: this signal is closer to the final goal than raw heightmap,
+  vertical hypothesis, or component-wise consensus, because it evaluates whether
+  the alternative measurement can be absorbed by the graph.
+- Negative: this is still a short smoke. It is not enough to authorize runtime
+  gating or measurement replacement.
+
+Current verdict:
+
+```text
+Keep consensus-estimator graph trial as the next behavior proof point.
+Before changing runtime behavior, rerun this on longer KITTI360 900-frame and
+M2DGR hall/gate matrices. If the separation remains, the next behavior trial
+should commit the consensus-estimated measurement only when its graph-trial Z
+residual is lower than the central ICP graph-trial residual and precision stays
+safe.
+```
+
 ## 2026-06-27 Robust SE(3) LoopConsensusEstimator Checkpoint
 
 Replaced the component-wise consensus estimator with a robust SE(3) estimator:
