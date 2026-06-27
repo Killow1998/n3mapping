@@ -2,6 +2,124 @@
 
 Branch: `dev/better_loop`
 
+## 2026-06-27 LoopConsensusEstimator Shadow Checkpoint
+
+Implemented a shadow-only consensus measurement estimator on top of
+`LoopConsensusVerifier`.
+
+The runtime behavior is intentionally unchanged:
+
+- no graph commit gate from consensus estimator;
+- no XY-yaw / vertical-neutral behavior revival;
+- no threshold tuning;
+- no GT in runtime.
+
+### What Changed
+
+Each converged neighbor-pair ICP refinement now back-solves a central
+`T_match_query` estimate:
+
+```text
+T_m_q_est = inverse(T_mi_m) * T_mi_qi_icp * inverse(T_q_qi)
+```
+
+The estimator then reports median/MAD evidence:
+
+```text
+consensus_estimator_valid
+consensus_estimator_pair_count
+consensus_estimator_inlier_count
+consensus_estimator_inlier_ratio
+consensus_estimator_translation_median
+consensus_estimator_z_median
+consensus_estimator_yaw_median
+consensus_estimator_translation_mad
+consensus_estimator_z_mad
+consensus_estimator_yaw_mad
+consensus_estimator_measurement_delta_translation
+consensus_estimator_measurement_delta_rotation
+consensus_estimator_recommendation
+```
+
+These fields are written through:
+
+```text
+loop_debug.jsonl
+accepted_loops.csv
+loop_candidates_labeled.csv
+matrix_summary.csv/json
+```
+
+### Regression
+
+Focused Humble regression:
+
+```bash
+source /opt/ros/humble/setup.bash
+MAKEFLAGS=-j1 colcon build --packages-select n3mapping --symlink-install \
+  --parallel-workers 1 --cmake-args -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+ROS_LOG_DIR=/tmp/n3mapping_ros_log colcon test --packages-select n3mapping \
+  --event-handlers console_direct+ --parallel-workers 1 \
+  --ctest-args -R 'test_loop_consensus_verifier|test_loop_debug_logger|test_kitti360_eval'
+colcon test-result --test-result-base build/n3mapping --verbose
+```
+
+Result:
+
+```text
+260 tests, 0 errors, 0 failures, 0 skipped
+```
+
+### Smoke Matrix
+
+Artifact:
+
+```text
+/tmp/n3mapping_consensus_estimator_smoke_20260627
+```
+
+Runs:
+
+```text
+drive0005_330_stride5
+hall05_300_stride5
+```
+
+| run | accepted loops | precision | trans p95 m | XY p95 m | Z p95 m | high-Z after | max Z after m | estimator candidates | estimator valid |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| KITTI360 drive0005 330 stride5 | 9 | 1.000 | 0.308 | 0.223 | 0.151 | 5 | 1.687 | 9 | 0 |
+| M2DGR hall05 300 stride5 | 8 | 0.875 | 0.014 | 0.014 | 0.0001 | 0 | 0.060 | 7 | 2 |
+
+Estimator separation signals:
+
+| run | bad-Z estimator z MAD mean | bad-Z estimator central delta mean | corrected-Z estimator z MAD mean | corrected-Z estimator central delta mean |
+| --- | ---: | ---: | ---: | ---: |
+| KITTI360 drive0005 330 stride5 | 0.353 | 1.319 | 1.039 | 0.898 |
+
+### Interpretation
+
+- Positive: the estimator is now a real measurement-level signal, not just a
+  consistency label.
+- Positive: it produces non-empty evidence on both KITTI360 and M2DGR.
+- Negative: KITTI360 `estimator_valid_count=0`; this cannot be used as a
+  runtime gate yet.
+- Negative: the current z-MAD signal is inverted for this smoke: bad-Z-after
+  loops have lower z-MAD than corrected-Z loops. Directly gating on z-MAD would
+  be another hack.
+- Mixed: `consensus_estimator_measurement_delta_translation` is higher for
+  bad-Z-after loops than corrected-Z loops, but the margin is not enough by
+  itself to become a commit rule.
+
+Current verdict:
+
+```text
+Keep LoopConsensusEstimator as shadow evidence.
+Do not connect it to graph commit behavior yet.
+Next proof point should improve the estimator from component-wise medians to a
+robust SE(3) consensus estimate and compare it on longer KITTI360 + M2DGR
+matrices.
+```
+
 ## 2026-06-27 LoopConsensusVerifier Shadow Checkpoint
 
 Implemented `LoopConsensusVerifier` as shadow-only evidence for the next

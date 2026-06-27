@@ -29,6 +29,14 @@ LoopConsensusPairEvidence pairEvidence(int offset, double translation, double ro
     return pair;
 }
 
+LoopConsensusPairEvidence estimatedPair(int offset, const Eigen::Isometry3d& estimate)
+{
+    LoopConsensusPairEvidence pair = pairEvidence(offset, 0.1, 0.04);
+    pair.has_estimated_measurement = true;
+    pair.estimated_match_query = estimate;
+    return pair;
+}
+
 Config consensusConfig()
 {
     Config config;
@@ -113,6 +121,26 @@ TEST(LoopConsensusVerifierTest, RejectsWhenMostValidPairsContradictCentralMeasur
     EXPECT_EQ(result.decision, LoopConsensusDecision::Reject);
     EXPECT_EQ(result.reason, "neighborhood_contradiction");
     EXPECT_EQ(result.contradiction_count, 3);
+}
+
+TEST(LoopConsensusVerifierTest, EstimatesConsensusMeasurementFromNeighborPairs)
+{
+    const auto result = LoopConsensusVerifier::summarizePairs(consensusConfig(), {
+        estimatedPair(-2, pose(5.0, 1.0, 0.20, 0.10)),
+        estimatedPair(-1, pose(5.1, 0.9, 0.25, 0.11)),
+        estimatedPair(1, pose(4.9, 1.1, 0.15, 0.09)),
+        estimatedPair(2, pose(20.0, 1.0, 4.00, 1.50)),
+    }, pose(5.0, 1.0, 0.20, 0.10));
+
+    EXPECT_TRUE(result.estimator_valid);
+    EXPECT_EQ(result.estimator_pair_count, 4);
+    EXPECT_EQ(result.estimator_inlier_count, 3);
+    EXPECT_NEAR(result.estimator_inlier_ratio, 0.75, 1.0e-9);
+    EXPECT_NEAR(result.estimator_z_median, 0.225, 1.0e-9);
+    EXPECT_NEAR(result.estimator_yaw_median, 0.105, 1.0e-9);
+    EXPECT_EQ(result.estimator_recommendation, "stable_consensus_measurement");
+    EXPECT_LT(result.estimator_measurement_delta_translation, 0.2);
+    EXPECT_LT(result.estimator_measurement_delta_rotation, 0.1);
 }
 
 }  // namespace n3mapping

@@ -13,6 +13,22 @@ double rotationAngle(const Eigen::Isometry3d& transform)
     return Eigen::AngleAxisd(transform.rotation()).angle();
 }
 
+double normalizeAngle(double angle)
+{
+    while (angle > M_PI) {
+        angle -= 2.0 * M_PI;
+    }
+    while (angle < -M_PI) {
+        angle += 2.0 * M_PI;
+    }
+    return angle;
+}
+
+Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
+{
+    return transform.rotation().eulerAngles(0, 1, 2);
+}
+
 double median(std::vector<double> values)
 {
     if (values.empty()) {
@@ -39,6 +55,117 @@ double mad(const std::vector<double>& values, double center)
         deviations.push_back(std::abs(value - center));
     }
     return median(std::move(deviations));
+}
+
+Eigen::Isometry3d composeFromTranslationRpy(const Eigen::Vector3d& translation,
+                                            const Eigen::Vector3d& rpy)
+{
+    Eigen::Isometry3d transform = Eigen::Isometry3d::Identity();
+    transform.translation() = translation;
+    transform.linear() =
+        (Eigen::AngleAxisd(rpy.x(), Eigen::Vector3d::UnitX()) *
+         Eigen::AngleAxisd(rpy.y(), Eigen::Vector3d::UnitY()) *
+         Eigen::AngleAxisd(rpy.z(), Eigen::Vector3d::UnitZ())).toRotationMatrix();
+    return transform;
+}
+
+void estimateConsensusMeasurement(const Config& config,
+                                  const std::vector<LoopConsensusPairEvidence>& pairs,
+                                  const Eigen::Isometry3d* central_measurement,
+                                  LoopConsensusResult* result)
+{
+    if (!result) {
+        return;
+    }
+
+    std::vector<Eigen::Vector3d> translations;
+    std::vector<Eigen::Vector3d> rpys;
+    translations.reserve(pairs.size());
+    rpys.reserve(pairs.size());
+    for (const auto& pair : pairs) {
+        if (!pair.valid || !pair.converged || !pair.has_estimated_measurement) {
+            continue;
+        }
+        translations.push_back(pair.estimated_match_query.translation());
+        rpys.push_back(rollPitchYaw(pair.estimated_match_query));
+    }
+
+    result->estimator_pair_count = static_cast<int>(translations.size());
+    if (translations.size() < 3) {
+        result->estimator_recommendation = "insufficient_estimator_support";
+        return;
+    }
+
+    std::vector<double> xs;
+    std::vector<double> ys;
+    std::vector<double> zs;
+    std::vector<double> rolls;
+    std::vector<double> pitches;
+    std::vector<double> yaws;
+    xs.reserve(translations.size());
+    ys.reserve(translations.size());
+    zs.reserve(translations.size());
+    rolls.reserve(rpys.size());
+    pitches.reserve(rpys.size());
+    yaws.reserve(rpys.size());
+    for (std::size_t i = 0; i < translations.size(); ++i) {
+        xs.push_back(translations[i].x());
+        ys.push_back(translations[i].y());
+        zs.push_back(translations[i].z());
+        rolls.push_back(normalizeAngle(rpys[i].x()));
+        pitches.push_back(normalizeAngle(rpys[i].y()));
+        yaws.push_back(normalizeAngle(rpys[i].z()));
+    }
+
+    const Eigen::Vector3d median_translation(
+        median(xs), median(ys), median(zs));
+    const Eigen::Vector3d median_rpy(
+        median(rolls), median(pitches), median(yaws));
+    result->estimator_measurement_match_query =
+        composeFromTranslationRpy(median_translation, median_rpy);
+    result->estimator_translation_median = median_translation.norm();
+    result->estimator_z_median = median_translation.z();
+    result->estimator_yaw_median = median_rpy.z();
+
+    std::vector<double> translation_errors;
+    std::vector<double> z_errors;
+    std::vector<double> yaw_errors;
+    translation_errors.reserve(translations.size());
+    z_errors.reserve(translations.size());
+    yaw_errors.reserve(translations.size());
+    for (std::size_t i = 0; i < translations.size(); ++i) {
+        const double translation_error = (translations[i] - median_translation).norm();
+        const double z_error = std::abs(translations[i].z() - median_translation.z());
+        const double yaw_error = std::abs(normalizeAngle(rpys[i].z() - median_rpy.z()));
+        translation_errors.push_back(translation_error);
+        z_errors.push_back(z_error);
+        yaw_errors.push_back(yaw_error);
+        if (translation_error <= config.keyframe_distance_threshold &&
+            yaw_error <= config.keyframe_angle_threshold) {
+            ++result->estimator_inlier_count;
+        }
+    }
+    result->estimator_inlier_ratio =
+        translations.empty() ? 0.0
+                             : static_cast<double>(result->estimator_inlier_count) /
+                                   static_cast<double>(translations.size());
+    result->estimator_translation_mad = median(translation_errors);
+    result->estimator_z_mad = median(z_errors);
+    result->estimator_yaw_mad = median(yaw_errors);
+    result->estimator_valid = result->estimator_inlier_count >= 3 &&
+                              result->estimator_inlier_ratio >= 0.75 &&
+                              result->estimator_translation_mad <= config.keyframe_distance_threshold &&
+                              result->estimator_yaw_mad <= config.keyframe_angle_threshold;
+    result->estimator_recommendation =
+        result->estimator_valid ? "stable_consensus_measurement"
+                                : "unstable_consensus_measurement";
+
+    if (central_measurement) {
+        const Eigen::Isometry3d delta =
+            central_measurement->inverse() * result->estimator_measurement_match_query;
+        result->estimator_measurement_delta_translation = delta.translation().norm();
+        result->estimator_measurement_delta_rotation = rotationAngle(delta);
+    }
 }
 
 std::string consensusReason(LoopConsensusDecision decision,
@@ -101,6 +228,14 @@ Eigen::Isometry3d LoopConsensusVerifier::predictNeighborTransform(
 LoopConsensusResult LoopConsensusVerifier::summarizePairs(
     const Config& config,
     const std::vector<LoopConsensusPairEvidence>& pairs)
+{
+    return summarizePairs(config, pairs, Eigen::Isometry3d::Identity());
+}
+
+LoopConsensusResult LoopConsensusVerifier::summarizePairs(
+    const Config& config,
+    const std::vector<LoopConsensusPairEvidence>& pairs,
+    const Eigen::Isometry3d& central_measurement)
 {
     LoopConsensusResult result;
     result.pairs = pairs;
@@ -171,6 +306,7 @@ LoopConsensusResult LoopConsensusVerifier::summarizePairs(
     result.reason = consensusReason(result.decision,
                                     result.valid_pair_count,
                                     result.contradiction_count);
+    estimateConsensusMeasurement(config, pairs, &central_measurement, &result);
     return result;
 }
 
@@ -234,13 +370,22 @@ LoopConsensusResult LoopConsensusVerifier::evaluate(const KeyframeManager& keyfr
             const Eigen::Isometry3d delta = predicted.inverse() * match_result.T_target_source;
             evidence.delta_translation_norm = delta.translation().norm();
             evidence.delta_rotation_norm = rotationAngle(delta);
+            const Eigen::Isometry3d T_match_neighbor_match =
+                match_neighbor->pose_optimized.inverse() * match->pose_optimized;
+            const Eigen::Isometry3d T_query_query_neighbor =
+                query->pose_optimized.inverse() * query_neighbor->pose_optimized;
+            evidence.estimated_match_query =
+                T_match_neighbor_match.inverse() *
+                match_result.T_target_source *
+                T_query_query_neighbor.inverse();
+            evidence.has_estimated_measurement = true;
         } else {
             evidence.reject_reason = "icp_not_converged";
         }
         pairs.push_back(evidence);
     }
 
-    return summarizePairs(config_, pairs);
+    return summarizePairs(config_, pairs, central_loop.T_measured_match_query);
 }
 
 void assignLoopConsensus(VerifiedLoop* loop, const LoopConsensusResult& result)
@@ -258,6 +403,21 @@ void assignLoopConsensus(VerifiedLoop* loop, const LoopConsensusResult& result)
     loop->consensus_mad_translation_delta = result.mad_translation_delta;
     loop->consensus_median_rotation_delta = result.median_rotation_delta;
     loop->consensus_mad_rotation_delta = result.mad_rotation_delta;
+    loop->consensus_estimator_valid = result.estimator_valid;
+    loop->consensus_estimator_pair_count = result.estimator_pair_count;
+    loop->consensus_estimator_inlier_count = result.estimator_inlier_count;
+    loop->consensus_estimator_inlier_ratio = result.estimator_inlier_ratio;
+    loop->consensus_estimator_translation_median = result.estimator_translation_median;
+    loop->consensus_estimator_z_median = result.estimator_z_median;
+    loop->consensus_estimator_yaw_median = result.estimator_yaw_median;
+    loop->consensus_estimator_translation_mad = result.estimator_translation_mad;
+    loop->consensus_estimator_z_mad = result.estimator_z_mad;
+    loop->consensus_estimator_yaw_mad = result.estimator_yaw_mad;
+    loop->consensus_estimator_measurement_delta_translation =
+        result.estimator_measurement_delta_translation;
+    loop->consensus_estimator_measurement_delta_rotation =
+        result.estimator_measurement_delta_rotation;
+    loop->consensus_estimator_recommendation = result.estimator_recommendation;
 }
 
 }  // namespace n3mapping

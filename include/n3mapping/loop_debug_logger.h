@@ -102,6 +102,21 @@ struct LoopDebugCandidateEvent {
     double consensus_mad_translation_delta = std::numeric_limits<double>::quiet_NaN();
     double consensus_median_rotation_delta = std::numeric_limits<double>::quiet_NaN();
     double consensus_mad_rotation_delta = std::numeric_limits<double>::quiet_NaN();
+    bool consensus_estimator_valid = false;
+    int consensus_estimator_pair_count = 0;
+    int consensus_estimator_inlier_count = 0;
+    double consensus_estimator_inlier_ratio = 0.0;
+    double consensus_estimator_translation_median = std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_z_median = std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_yaw_median = std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_translation_mad = std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_z_mad = std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_yaw_mad = std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_measurement_delta_translation =
+        std::numeric_limits<double>::quiet_NaN();
+    double consensus_estimator_measurement_delta_rotation =
+        std::numeric_limits<double>::quiet_NaN();
+    std::string consensus_estimator_recommendation = "not_available";
     std::string loop_referee_recommendation = "not_available";
     std::string loop_referee_reason = "not_available";
     std::string loop_referee_risk_flags = "not_available";

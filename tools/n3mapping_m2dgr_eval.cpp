@@ -737,6 +737,14 @@ void writeAcceptedLoopsHeader(std::ofstream& out)
            "segment_consensus_ratio,segment_translation_median,segment_translation_std,"
            "segment_yaw_median,segment_yaw_std,segment_z_std,segment_roll_pitch_std,"
            "segment_direction,segment_recommendation,"
+           "consensus_estimator_valid,consensus_estimator_pair_count,"
+           "consensus_estimator_inlier_count,consensus_estimator_inlier_ratio,"
+           "consensus_estimator_translation_median,consensus_estimator_z_median,"
+           "consensus_estimator_yaw_median,consensus_estimator_translation_mad,"
+           "consensus_estimator_z_mad,consensus_estimator_yaw_mad,"
+           "consensus_estimator_measurement_delta_translation,"
+           "consensus_estimator_measurement_delta_rotation,"
+           "consensus_estimator_recommendation,"
            "loop_referee_recommendation,loop_referee_reason,loop_referee_risk_flags\n";
 }
 
@@ -805,6 +813,19 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << loop.segment_roll_pitch_std << ','
         << loop.segment_direction << ','
         << loop.segment_recommendation << ','
+        << (loop.consensus_estimator_valid ? "true" : "false") << ','
+        << loop.consensus_estimator_pair_count << ','
+        << loop.consensus_estimator_inlier_count << ','
+        << loop.consensus_estimator_inlier_ratio << ','
+        << loop.consensus_estimator_translation_median << ','
+        << loop.consensus_estimator_z_median << ','
+        << loop.consensus_estimator_yaw_median << ','
+        << loop.consensus_estimator_translation_mad << ','
+        << loop.consensus_estimator_z_mad << ','
+        << loop.consensus_estimator_yaw_mad << ','
+        << loop.consensus_estimator_measurement_delta_translation << ','
+        << loop.consensus_estimator_measurement_delta_rotation << ','
+        << loop.consensus_estimator_recommendation << ','
         << loop.loop_referee_recommendation << ','
         << loop.loop_referee_reason << ','
         << loop.loop_referee_risk_flags << '\n';

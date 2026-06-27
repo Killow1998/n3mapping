@@ -534,6 +534,8 @@ def analyze(args):
         "consensus_commit_count": 0,
         "consensus_defer_count": 0,
         "consensus_reject_count": 0,
+        "consensus_estimator_candidate_count": 0,
+        "consensus_estimator_valid_count": 0,
         "accepted_true_loop_bad_z_after_consensus_commit": 0,
         "accepted_true_loop_bad_z_after_graph_trial_score_mean": float("nan"),
         "accepted_true_loop_bad_z_after_graph_trial_score_min": float("nan"),
@@ -543,6 +545,10 @@ def analyze(args):
         "accepted_true_loop_bad_z_after_segment_translation_median_mean": float("nan"),
         "accepted_true_loop_corrected_z_segment_consensus_ratio_mean": float("nan"),
         "accepted_true_loop_corrected_z_segment_translation_median_mean": float("nan"),
+        "accepted_true_loop_bad_z_after_consensus_estimator_z_mad_mean": float("nan"),
+        "accepted_true_loop_bad_z_after_consensus_estimator_delta_mean": float("nan"),
+        "accepted_true_loop_corrected_z_consensus_estimator_z_mad_mean": float("nan"),
+        "accepted_true_loop_corrected_z_consensus_estimator_delta_mean": float("nan"),
     }
     bad_z_after_graph_trial_scores = []
     corrected_z_graph_trial_scores = []
@@ -550,6 +556,10 @@ def analyze(args):
     bad_z_after_segment_translations = []
     corrected_z_segment_ratios = []
     corrected_z_segment_translations = []
+    bad_z_after_estimator_z_mads = []
+    bad_z_after_estimator_deltas = []
+    corrected_z_estimator_z_mads = []
+    corrected_z_estimator_deltas = []
     rpy_threshold_rad = args.rpy_drift_threshold_deg * math.pi / 180.0
     accepted_pairs_available = bool(args.accepted_loops)
 
@@ -692,6 +702,25 @@ def analyze(args):
         consensus_mad_translation_delta = event_float(event, "consensus_mad_translation_delta")
         consensus_median_rotation_delta = event_float(event, "consensus_median_rotation_delta")
         consensus_mad_rotation_delta = event_float(event, "consensus_mad_rotation_delta")
+        consensus_estimator_valid = bool(event.get("consensus_estimator_valid") or False)
+        consensus_estimator_pair_count = int(event.get("consensus_estimator_pair_count") or 0)
+        consensus_estimator_inlier_count = int(event.get("consensus_estimator_inlier_count") or 0)
+        consensus_estimator_inlier_ratio = event_float(event, "consensus_estimator_inlier_ratio")
+        consensus_estimator_translation_median = event_float(event, "consensus_estimator_translation_median")
+        consensus_estimator_z_median = event_float(event, "consensus_estimator_z_median")
+        consensus_estimator_yaw_median = event_float(event, "consensus_estimator_yaw_median")
+        consensus_estimator_translation_mad = event_float(event, "consensus_estimator_translation_mad")
+        consensus_estimator_z_mad = event_float(event, "consensus_estimator_z_mad")
+        consensus_estimator_yaw_mad = event_float(event, "consensus_estimator_yaw_mad")
+        consensus_estimator_measurement_delta_translation = event_float(
+            event, "consensus_estimator_measurement_delta_translation"
+        )
+        consensus_estimator_measurement_delta_rotation = event_float(
+            event, "consensus_estimator_measurement_delta_rotation"
+        )
+        consensus_estimator_recommendation = str(
+            event.get("consensus_estimator_recommendation", "not_available") or "not_available"
+        )
         candidate_source = str(event.get("candidate_source", "") or "")
         reject_reason = str(event.get("reject_reason", "") or "")
         icp_iterations = int(event.get("icp_iterations") or 0)
@@ -821,6 +850,10 @@ def analyze(args):
                 stats["consensus_defer_count"] += 1
             elif consensus_shadow_decision == "reject":
                 stats["consensus_reject_count"] += 1
+        if consensus_estimator_pair_count > 0:
+            stats["consensus_estimator_candidate_count"] += 1
+            if consensus_estimator_valid:
+                stats["consensus_estimator_valid_count"] += 1
         if position_loop:
             stats["retrieval_position_positive"] += 1
         if gt_loop:
@@ -873,10 +906,14 @@ def analyze(args):
             bad_z_after_graph_trial_scores.append(graph_trial_consistency_score)
             bad_z_after_segment_ratios.append(segment_consensus_ratio)
             bad_z_after_segment_translations.append(segment_translation_median)
+            bad_z_after_estimator_z_mads.append(consensus_estimator_z_mad)
+            bad_z_after_estimator_deltas.append(consensus_estimator_measurement_delta_translation)
         if z_corrected:
             corrected_z_graph_trial_scores.append(graph_trial_consistency_score)
             corrected_z_segment_ratios.append(segment_consensus_ratio)
             corrected_z_segment_translations.append(segment_translation_median)
+            corrected_z_estimator_z_mads.append(consensus_estimator_z_mad)
+            corrected_z_estimator_deltas.append(consensus_estimator_measurement_delta_translation)
         if z_drift_suspect:
             stats["z_drift_suspect_count"] += 1
         stats["failure_class_counts"][failure_class] = stats["failure_class_counts"].get(failure_class, 0) + 1
@@ -981,6 +1018,19 @@ def analyze(args):
                 "consensus_mad_translation_delta": consensus_mad_translation_delta,
                 "consensus_median_rotation_delta": consensus_median_rotation_delta,
                 "consensus_mad_rotation_delta": consensus_mad_rotation_delta,
+                "consensus_estimator_valid": consensus_estimator_valid,
+                "consensus_estimator_pair_count": consensus_estimator_pair_count,
+                "consensus_estimator_inlier_count": consensus_estimator_inlier_count,
+                "consensus_estimator_inlier_ratio": consensus_estimator_inlier_ratio,
+                "consensus_estimator_translation_median": consensus_estimator_translation_median,
+                "consensus_estimator_z_median": consensus_estimator_z_median,
+                "consensus_estimator_yaw_median": consensus_estimator_yaw_median,
+                "consensus_estimator_translation_mad": consensus_estimator_translation_mad,
+                "consensus_estimator_z_mad": consensus_estimator_z_mad,
+                "consensus_estimator_yaw_mad": consensus_estimator_yaw_mad,
+                "consensus_estimator_measurement_delta_translation": consensus_estimator_measurement_delta_translation,
+                "consensus_estimator_measurement_delta_rotation": consensus_estimator_measurement_delta_rotation,
+                "consensus_estimator_recommendation": consensus_estimator_recommendation,
                 "icp_iterations": icp_iterations,
                 "icp_optimizer_error": icp_optimizer_error,
                 "icp_termination": icp_termination,
@@ -1047,6 +1097,18 @@ def analyze(args):
     )
     stats["accepted_true_loop_corrected_z_segment_translation_median_mean"] = mean_finite(
         corrected_z_segment_translations
+    )
+    stats["accepted_true_loop_bad_z_after_consensus_estimator_z_mad_mean"] = mean_finite(
+        bad_z_after_estimator_z_mads
+    )
+    stats["accepted_true_loop_bad_z_after_consensus_estimator_delta_mean"] = mean_finite(
+        bad_z_after_estimator_deltas
+    )
+    stats["accepted_true_loop_corrected_z_consensus_estimator_z_mad_mean"] = mean_finite(
+        corrected_z_estimator_z_mads
+    )
+    stats["accepted_true_loop_corrected_z_consensus_estimator_delta_mean"] = mean_finite(
+        corrected_z_estimator_deltas
     )
     stats["accepted_pose_loop"] = stats["accepted_true_loop"]
     stats["accepted_place_loop"] = stats["accepted_position_loop"]
@@ -1282,6 +1344,19 @@ def analyze(args):
             "consensus_mad_translation_delta",
             "consensus_median_rotation_delta",
             "consensus_mad_rotation_delta",
+            "consensus_estimator_valid",
+            "consensus_estimator_pair_count",
+            "consensus_estimator_inlier_count",
+            "consensus_estimator_inlier_ratio",
+            "consensus_estimator_translation_median",
+            "consensus_estimator_z_median",
+            "consensus_estimator_yaw_median",
+            "consensus_estimator_translation_mad",
+            "consensus_estimator_z_mad",
+            "consensus_estimator_yaw_mad",
+            "consensus_estimator_measurement_delta_translation",
+            "consensus_estimator_measurement_delta_rotation",
+            "consensus_estimator_recommendation",
             "icp_iterations",
             "icp_optimizer_error",
             "icp_termination",

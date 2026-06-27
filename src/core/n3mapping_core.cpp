@@ -261,6 +261,21 @@ void assignConsensusDiagnostics(LoopDebugCandidateEvent* event, const VerifiedLo
     event->consensus_mad_translation_delta = loop.consensus_mad_translation_delta;
     event->consensus_median_rotation_delta = loop.consensus_median_rotation_delta;
     event->consensus_mad_rotation_delta = loop.consensus_mad_rotation_delta;
+    event->consensus_estimator_valid = loop.consensus_estimator_valid;
+    event->consensus_estimator_pair_count = loop.consensus_estimator_pair_count;
+    event->consensus_estimator_inlier_count = loop.consensus_estimator_inlier_count;
+    event->consensus_estimator_inlier_ratio = loop.consensus_estimator_inlier_ratio;
+    event->consensus_estimator_translation_median = loop.consensus_estimator_translation_median;
+    event->consensus_estimator_z_median = loop.consensus_estimator_z_median;
+    event->consensus_estimator_yaw_median = loop.consensus_estimator_yaw_median;
+    event->consensus_estimator_translation_mad = loop.consensus_estimator_translation_mad;
+    event->consensus_estimator_z_mad = loop.consensus_estimator_z_mad;
+    event->consensus_estimator_yaw_mad = loop.consensus_estimator_yaw_mad;
+    event->consensus_estimator_measurement_delta_translation =
+        loop.consensus_estimator_measurement_delta_translation;
+    event->consensus_estimator_measurement_delta_rotation =
+        loop.consensus_estimator_measurement_delta_rotation;
+    event->consensus_estimator_recommendation = loop.consensus_estimator_recommendation;
 }
 
 void assignConsensusDiagnostics(LoopDebugCandidateEvent* event, const LoopConsensusResult& consensus)
@@ -278,6 +293,21 @@ void assignConsensusDiagnostics(LoopDebugCandidateEvent* event, const LoopConsen
     event->consensus_mad_translation_delta = consensus.mad_translation_delta;
     event->consensus_median_rotation_delta = consensus.median_rotation_delta;
     event->consensus_mad_rotation_delta = consensus.mad_rotation_delta;
+    event->consensus_estimator_valid = consensus.estimator_valid;
+    event->consensus_estimator_pair_count = consensus.estimator_pair_count;
+    event->consensus_estimator_inlier_count = consensus.estimator_inlier_count;
+    event->consensus_estimator_inlier_ratio = consensus.estimator_inlier_ratio;
+    event->consensus_estimator_translation_median = consensus.estimator_translation_median;
+    event->consensus_estimator_z_median = consensus.estimator_z_median;
+    event->consensus_estimator_yaw_median = consensus.estimator_yaw_median;
+    event->consensus_estimator_translation_mad = consensus.estimator_translation_mad;
+    event->consensus_estimator_z_mad = consensus.estimator_z_mad;
+    event->consensus_estimator_yaw_mad = consensus.estimator_yaw_mad;
+    event->consensus_estimator_measurement_delta_translation =
+        consensus.estimator_measurement_delta_translation;
+    event->consensus_estimator_measurement_delta_rotation =
+        consensus.estimator_measurement_delta_rotation;
+    event->consensus_estimator_recommendation = consensus.estimator_recommendation;
 }
 
 Config validateOrThrow(const Config& config)
