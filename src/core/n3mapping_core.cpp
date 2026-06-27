@@ -30,6 +30,14 @@ double rotationAngle(const Eigen::Isometry3d& transform)
     return std::abs(Eigen::AngleAxisd(transform.rotation()).angle());
 }
 
+bool graphTrialYawInconsistent(const LoopGraphTrialDiagnostics& diagnostics)
+{
+    constexpr double kNearHalfTurnYawRad = 2.8;
+    return diagnostics.success &&
+           std::isfinite(diagnostics.residual_yaw_after) &&
+           std::abs(diagnostics.residual_yaw_after) >= kNearHalfTurnYawRad;
+}
+
 Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
 {
     return transform.rotation().eulerAngles(0, 1, 2);
@@ -930,6 +938,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics> consensus_estimator_trial_by_pair;
         std::map<std::pair<int64_t, int64_t>, LoopRefereeDebugDecision> referee_by_pair;
         std::map<std::pair<int64_t, int64_t>, LoopConsensusResult> consensus_by_pair;
+        std::map<std::pair<int64_t, int64_t>, std::string> graph_reject_by_pair;
         const bool loop_debug_enabled = config_.loop_debug_enable;
         if (loop_debug_enabled) {
             debug_events.reserve(candidates.size());
@@ -965,7 +974,12 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                     event.reject_reason.clear();
                 } else if (event.gate_result == "accepted") {
                     event.gate_result = "rejected";
-                    event.reject_reason = not_selected_reason.empty() ? "not_selected" : not_selected_reason;
+                    auto graph_reject_it = graph_reject_by_pair.find(key);
+                    if (graph_reject_it != graph_reject_by_pair.end()) {
+                        event.reject_reason = graph_reject_it->second;
+                    } else {
+                        event.reject_reason = not_selected_reason.empty() ? "not_selected" : not_selected_reason;
+                    }
                 }
                 appendLoopDebugCandidate(event);
             }
@@ -1158,56 +1172,58 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             continue;
         }
         const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
-        if (loop_debug_enabled) {
-            const auto committed_edges = session_->graphOptimizer().getEdges();
-            std::vector<EdgeInfo> gated_edges;
-            std::vector<VerifiedLoop> gated_best_loops;
-            gated_edges.reserve(edges.size());
-            gated_best_loops.reserve(best_loops.size());
+        const auto committed_edges = session_->graphOptimizer().getEdges();
+        std::vector<EdgeInfo> gated_edges;
+        std::vector<VerifiedLoop> gated_best_loops;
+        gated_edges.reserve(edges.size());
+        gated_best_loops.reserve(best_loops.size());
 
-            for (const auto& edge : edges) {
-                auto loop_it = std::find_if(
-                    best_loops.begin(), best_loops.end(),
-                    [&](const VerifiedLoop& loop) {
-                        return loop.match_id == edge.from_id && loop.query_id == edge.to_id;
-                    });
-                if (loop_it == best_loops.end()) {
-                    continue;
-                }
-
-                VerifiedLoop loop = *loop_it;
-                const std::vector<EdgeInfo> candidate_edges{edge};
-                const auto diagnostics = computeLoopGraphTrialDiagnostics(
-                    config_, poses_before, committed_edges, candidate_edges);
-                assignGraphTrialDiagnostics(&loop, diagnostics);
-                const auto key = std::make_pair(loop.query_id, loop.match_id);
-                graph_trial_by_pair[key] = diagnostics;
-                auto consensus_it = consensus_by_pair.find(key);
-                if (consensus_it != consensus_by_pair.end() &&
-                    consensus_it->second.estimator_pair_count >= 3) {
-                    EdgeInfo estimator_edge = edge;
-                    estimator_edge.measurement =
-                        consensus_it->second.estimator_measurement_match_query;
-                    const std::vector<EdgeInfo> estimator_edges{estimator_edge};
-                    consensus_estimator_trial_by_pair[key] =
-                        computeLoopGraphTrialDiagnostics(
-                            config_, poses_before, committed_edges, estimator_edges);
-                }
-                referee_by_pair[key] = {
-                    loop.loop_referee_recommendation,
-                    loop.loop_referee_reason,
-                    loop.loop_referee_risk_flags
-                };
-                gated_edges.push_back(edge);
-                gated_best_loops.push_back(loop);
-            }
-
-            edges.swap(gated_edges);
-            best_loops.swap(gated_best_loops);
-            if (edges.empty()) {
-                flush_debug_events({}, "graph_trial_debug_empty");
+        for (const auto& edge : edges) {
+            auto loop_it = std::find_if(
+                best_loops.begin(), best_loops.end(),
+                [&](const VerifiedLoop& loop) {
+                    return loop.match_id == edge.from_id && loop.query_id == edge.to_id;
+                });
+            if (loop_it == best_loops.end()) {
                 continue;
             }
+
+            VerifiedLoop loop = *loop_it;
+            const std::vector<EdgeInfo> candidate_edges{edge};
+            const auto diagnostics = computeLoopGraphTrialDiagnostics(
+                config_, poses_before, committed_edges, candidate_edges);
+            assignGraphTrialDiagnostics(&loop, diagnostics);
+            const auto key = std::make_pair(loop.query_id, loop.match_id);
+            graph_trial_by_pair[key] = diagnostics;
+            auto consensus_it = consensus_by_pair.find(key);
+            if (consensus_it != consensus_by_pair.end() &&
+                consensus_it->second.estimator_pair_count >= 3) {
+                EdgeInfo estimator_edge = edge;
+                estimator_edge.measurement =
+                    consensus_it->second.estimator_measurement_match_query;
+                const std::vector<EdgeInfo> estimator_edges{estimator_edge};
+                consensus_estimator_trial_by_pair[key] =
+                    computeLoopGraphTrialDiagnostics(
+                        config_, poses_before, committed_edges, estimator_edges);
+            }
+            referee_by_pair[key] = {
+                loop.loop_referee_recommendation,
+                loop.loop_referee_reason,
+                loop.loop_referee_risk_flags
+            };
+            if (graphTrialYawInconsistent(diagnostics)) {
+                graph_reject_by_pair[key] = "graph_inconsistent_yaw";
+                continue;
+            }
+            gated_edges.push_back(edge);
+            gated_best_loops.push_back(loop);
+        }
+
+        edges.swap(gated_edges);
+        best_loops.swap(gated_best_loops);
+        if (edges.empty()) {
+            flush_debug_events({}, "graph_trial_rejected");
+            continue;
         }
         result.place_candidate_count += best_loops.size();
         const auto residual_before = meanLoopResidual(edges, poses_before);

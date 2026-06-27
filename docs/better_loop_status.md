@@ -904,3 +904,71 @@ The next useful change is a shadow-only symmetric verifier:
 
 Only if that shadow evidence separates KITTI true candidates from hall05
 repeated-structure false candidates should it become a runtime decision input.
+
+## 2026-06-27 Graph-Consistency Yaw Gate
+
+Status: kept as the first behavior-changing dev-branch referee gate.
+
+Change:
+
+- Compute graph-trial diagnostics for best loop candidates regardless of
+  `loop_debug_enable`.
+- Reject a candidate before commit when the shadow graph trial succeeds but
+  leaves a near half-turn yaw residual.
+- Log the rejected candidate as `reject_reason=graph_inconsistent_yaw`.
+
+Rationale:
+
+The 900-frame KITTI360 + 600-frame M2DGR matrix showed that all accepted
+opposite/cross-heading failures had `graph_trial_residual_yaw_after` near pi.
+The same gate also removed several true-but-damaging full-6DoF loops whose
+shadow graph trial could not absorb rotation consistently. This is not a Z
+threshold and does not use GT; it is a graph-consistency referee check.
+
+Baseline matrix:
+
+```text
+/tmp/n3mapping_long_matrix_20260627
+```
+
+Behavior matrix:
+
+```text
+/tmp/n3mapping_graph_yaw_gate_20260627
+```
+
+Results:
+
+| run | accepted loops | loop precision | trans p95 m | xy p95 m | z p95 m | high-Z after | max Z after m |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| KITTI360 drive0005 900 baseline | 11 | 0.909 | 3.537 | 1.550 | 3.179 | 7 | 1.687 |
+| KITTI360 drive0005 900 yaw-gate | 5 | 1.000 | 1.055 | 0.746 | 0.867 | 3 | 1.418 |
+| M2DGR hall05 600 baseline | 27 | 0.926 | 0.0459 | 0.0458 | 0.00225 | 0 | 0.164 |
+| M2DGR hall05 600 yaw-gate | 16 | 0.875 | 0.0217 | 0.0217 | 0.000087 | 0 | 0.0307 |
+| M2DGR gate02 600 baseline | 1 | 0.000 | 0.0284 | 0.0274 | 0.00470 | 0 | 0.0378 |
+| M2DGR gate02 600 yaw-gate | 0 | n/a | ~0 | ~0 | ~0 | 0 | 0 |
+
+Interpretation:
+
+- Positive: global trajectory consistency improved substantially on KITTI360 and
+  M2DGR hall05; the single gate02 false loop was removed.
+- Positive: the gate removes the most obvious opposite-heading / near-pi graph
+  inconsistency without changing descriptor retrieval or ICP thresholds.
+- Caveat: hall05 still has two accepted cross-heading loops after this gate:
+  `200 -> 134` and `210 -> 8`. Their graph-trial yaw residual is small, so this
+  gate cannot solve same-place / wrong-heading aliasing by itself.
+- Caveat: accepted loop count drops. This is acceptable for a dev-branch
+  consistency-first trial, but the next model must recover safe recall through
+  better correspondence evidence rather than by weakening the gate.
+
+Next step:
+
+Do not tune the yaw threshold. The next behavior target should be a
+correspondence-level referee for indoor aliasing:
+
+1. Detect when ICP requires a near-pi roll/pitch/yaw measurement residual to
+   explain a corridor/hall match.
+2. Distinguish real reverse traversal from wrong-heading aliasing using
+   symmetric local submap support or a small sequence-window consistency check.
+3. Keep graph consistency as a final commit referee, not as the only decision
+   layer.
