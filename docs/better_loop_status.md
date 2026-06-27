@@ -2,6 +2,101 @@
 
 Branch: `dev/better_loop`
 
+## 2026-06-27 Robust SE(3) LoopConsensusEstimator Checkpoint
+
+Replaced the component-wise consensus estimator with a robust SE(3) estimator:
+
+1. collect neighbor-pair central `T_match_query` estimates;
+2. select a medoid transform using normalized SE(3) residuals;
+3. keep inliers around the medoid;
+4. average inlier translation and quaternion orientation;
+5. report the same `consensus_estimator_*` fields as shadow evidence.
+
+Runtime behavior is still unchanged:
+
+- no consensus gate;
+- no edge-mode change;
+- no threshold tuning;
+- no GT in runtime.
+
+### Regression
+
+Focused Humble regression:
+
+```bash
+source /opt/ros/humble/setup.bash
+MAKEFLAGS=-j1 colcon build --packages-select n3mapping --symlink-install \
+  --parallel-workers 1 --cmake-args -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+ROS_LOG_DIR=/tmp/n3mapping_ros_log colcon test --packages-select n3mapping \
+  --event-handlers console_direct+ --parallel-workers 1 \
+  --ctest-args -R 'test_loop_consensus_verifier|test_loop_debug_logger|test_kitti360_eval'
+colcon test-result --test-result-base build/n3mapping --verbose
+```
+
+Result:
+
+```text
+260 tests, 0 errors, 0 failures, 0 skipped
+```
+
+### Smoke Matrix
+
+Artifact:
+
+```text
+/tmp/n3mapping_consensus_estimator_se3_smoke_20260627
+```
+
+Runs:
+
+```text
+drive0005_330_stride5
+hall05_300_stride5
+```
+
+| run | accepted loops | precision | trans p95 m | XY p95 m | Z p95 m | high-Z after | max Z after m | estimator candidates | estimator valid |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| KITTI360 drive0005 330 stride5 | 9 | 1.000 | 0.308 | 0.223 | 0.151 | 5 | 1.687 | 9 | 3 |
+| M2DGR hall05 300 stride5 | 7 | 0.857 | 0.014 | 0.014 | 0.0001 | 0 | 0.073 | 6 | 2 |
+
+Compared to the component-wise estimator:
+
+```text
+KITTI estimator_valid_count: 0 -> 3
+KITTI behavior metrics: unchanged
+M2DGR accepted loops: 8 -> 7 on this short smoke
+```
+
+KITTI separation signals:
+
+| signal | bad-Z-after | corrected-Z |
+| --- | ---: | ---: |
+| consensus_estimator_z_mad_mean | 0.465 | 0.822 |
+| consensus_estimator_measurement_delta_translation_mean | 1.268 | 0.793 |
+
+### Interpretation
+
+- Positive: robust SE(3) medoid/inlier estimation produces stable estimates on
+  some real KITTI loops, where the component-wise estimator produced none.
+- Positive: behavior remains unchanged, so this is a clean diagnostic upgrade.
+- Negative: two bad-Z-after KITTI loops still receive
+  `stable_consensus_measurement`; therefore this estimator is not ready to
+  become a commit gate.
+- Negative: z-MAD still does not directly separate bad-Z-after from corrected-Z
+  cases.
+- Useful signal: central-vs-consensus translation delta is higher for bad-Z
+  than corrected-Z on this smoke, but the margin is not yet enough for an
+  algorithmic rule.
+
+Current verdict:
+
+```text
+Keep robust SE(3) LoopConsensusEstimator as shadow evidence.
+Do not connect estimator_valid to graph commit.
+The next credible behavior change should use the consensus estimate as an
+alternative measurement in a shadow graph trial, not as an accept/reject gate.
+```
+
 ## 2026-06-27 LoopConsensusEstimator Shadow Checkpoint
 
 Implemented a shadow-only consensus measurement estimator on top of

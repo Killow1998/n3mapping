@@ -136,8 +136,8 @@ TEST(LoopConsensusVerifierTest, EstimatesConsensusMeasurementFromNeighborPairs)
     EXPECT_EQ(result.estimator_pair_count, 4);
     EXPECT_EQ(result.estimator_inlier_count, 3);
     EXPECT_NEAR(result.estimator_inlier_ratio, 0.75, 1.0e-9);
-    EXPECT_NEAR(result.estimator_z_median, 0.225, 1.0e-9);
-    EXPECT_NEAR(result.estimator_yaw_median, 0.105, 1.0e-9);
+    EXPECT_NEAR(result.estimator_z_median, 0.20, 1.0e-9);
+    EXPECT_NEAR(result.estimator_yaw_median, 0.10, 1.0e-9);
     EXPECT_EQ(result.estimator_recommendation, "stable_consensus_measurement");
     EXPECT_LT(result.estimator_measurement_delta_translation, 0.2);
     EXPECT_LT(result.estimator_measurement_delta_rotation, 0.1);

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <Eigen/Eigenvalues>
 #include <numeric>
 #include <stdexcept>
 
@@ -57,16 +58,54 @@ double mad(const std::vector<double>& values, double center)
     return median(std::move(deviations));
 }
 
-Eigen::Isometry3d composeFromTranslationRpy(const Eigen::Vector3d& translation,
-                                            const Eigen::Vector3d& rpy)
+struct TransformResidual {
+    double translation = std::numeric_limits<double>::quiet_NaN();
+    double rotation = std::numeric_limits<double>::quiet_NaN();
+};
+
+TransformResidual transformResidual(const Eigen::Isometry3d& a,
+                                    const Eigen::Isometry3d& b)
 {
-    Eigen::Isometry3d transform = Eigen::Isometry3d::Identity();
-    transform.translation() = translation;
-    transform.linear() =
-        (Eigen::AngleAxisd(rpy.x(), Eigen::Vector3d::UnitX()) *
-         Eigen::AngleAxisd(rpy.y(), Eigen::Vector3d::UnitY()) *
-         Eigen::AngleAxisd(rpy.z(), Eigen::Vector3d::UnitZ())).toRotationMatrix();
-    return transform;
+    const Eigen::Isometry3d delta = a.inverse() * b;
+    return {delta.translation().norm(), rotationAngle(delta)};
+}
+
+double normalizedResidualScore(const Config& config,
+                               const TransformResidual& residual)
+{
+    const double translation_scale =
+        std::max(1.0e-6, config.keyframe_distance_threshold);
+    const double rotation_scale =
+        std::max(1.0e-6, config.keyframe_angle_threshold);
+    return residual.translation / translation_scale + residual.rotation / rotation_scale;
+}
+
+Eigen::Quaterniond averageQuaternions(const std::vector<Eigen::Quaterniond>& quaternions,
+                                      const Eigen::Quaterniond& reference)
+{
+    if (quaternions.empty()) {
+        return reference.normalized();
+    }
+    Eigen::Matrix4d accumulator = Eigen::Matrix4d::Zero();
+    for (Eigen::Quaterniond q : quaternions) {
+        q.normalize();
+        if (q.coeffs().dot(reference.coeffs()) < 0.0) {
+            q.coeffs() *= -1.0;
+        }
+        const Eigen::Vector4d v(q.w(), q.x(), q.y(), q.z());
+        accumulator += v * v.transpose();
+    }
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix4d> solver(accumulator);
+    if (solver.info() != Eigen::Success) {
+        return reference.normalized();
+    }
+    const Eigen::Vector4d v = solver.eigenvectors().col(3);
+    Eigen::Quaterniond q(v.x(), v.y(), v.z(), v.w());
+    q.normalize();
+    if (q.coeffs().dot(reference.coeffs()) < 0.0) {
+        q.coeffs() *= -1.0;
+    }
+    return q;
 }
 
 void estimateConsensusMeasurement(const Config& config,
@@ -78,82 +117,99 @@ void estimateConsensusMeasurement(const Config& config,
         return;
     }
 
-    std::vector<Eigen::Vector3d> translations;
-    std::vector<Eigen::Vector3d> rpys;
-    translations.reserve(pairs.size());
-    rpys.reserve(pairs.size());
+    std::vector<Eigen::Isometry3d> estimates;
+    estimates.reserve(pairs.size());
     for (const auto& pair : pairs) {
         if (!pair.valid || !pair.converged || !pair.has_estimated_measurement) {
             continue;
         }
-        translations.push_back(pair.estimated_match_query.translation());
-        rpys.push_back(rollPitchYaw(pair.estimated_match_query));
+        estimates.push_back(pair.estimated_match_query);
     }
 
-    result->estimator_pair_count = static_cast<int>(translations.size());
-    if (translations.size() < 3) {
+    result->estimator_pair_count = static_cast<int>(estimates.size());
+    if (estimates.size() < 3) {
         result->estimator_recommendation = "insufficient_estimator_support";
         return;
     }
 
-    std::vector<double> xs;
-    std::vector<double> ys;
-    std::vector<double> zs;
-    std::vector<double> rolls;
-    std::vector<double> pitches;
-    std::vector<double> yaws;
-    xs.reserve(translations.size());
-    ys.reserve(translations.size());
-    zs.reserve(translations.size());
-    rolls.reserve(rpys.size());
-    pitches.reserve(rpys.size());
-    yaws.reserve(rpys.size());
-    for (std::size_t i = 0; i < translations.size(); ++i) {
-        xs.push_back(translations[i].x());
-        ys.push_back(translations[i].y());
-        zs.push_back(translations[i].z());
-        rolls.push_back(normalizeAngle(rpys[i].x()));
-        pitches.push_back(normalizeAngle(rpys[i].y()));
-        yaws.push_back(normalizeAngle(rpys[i].z()));
+    std::size_t medoid_index = 0;
+    double best_score = std::numeric_limits<double>::infinity();
+    for (std::size_t i = 0; i < estimates.size(); ++i) {
+        std::vector<double> scores;
+        scores.reserve(estimates.size());
+        for (std::size_t j = 0; j < estimates.size(); ++j) {
+            if (i == j) {
+                continue;
+            }
+            scores.push_back(normalizedResidualScore(
+                config, transformResidual(estimates[i], estimates[j])));
+        }
+        const double score = median(scores);
+        if (score < best_score) {
+            best_score = score;
+            medoid_index = i;
+        }
     }
-
-    const Eigen::Vector3d median_translation(
-        median(xs), median(ys), median(zs));
-    const Eigen::Vector3d median_rpy(
-        median(rolls), median(pitches), median(yaws));
-    result->estimator_measurement_match_query =
-        composeFromTranslationRpy(median_translation, median_rpy);
-    result->estimator_translation_median = median_translation.norm();
-    result->estimator_z_median = median_translation.z();
-    result->estimator_yaw_median = median_rpy.z();
 
     std::vector<double> translation_errors;
     std::vector<double> z_errors;
     std::vector<double> yaw_errors;
-    translation_errors.reserve(translations.size());
-    z_errors.reserve(translations.size());
-    yaw_errors.reserve(translations.size());
-    for (std::size_t i = 0; i < translations.size(); ++i) {
-        const double translation_error = (translations[i] - median_translation).norm();
-        const double z_error = std::abs(translations[i].z() - median_translation.z());
-        const double yaw_error = std::abs(normalizeAngle(rpys[i].z() - median_rpy.z()));
-        translation_errors.push_back(translation_error);
+    std::vector<Eigen::Isometry3d> inliers;
+    translation_errors.reserve(estimates.size());
+    z_errors.reserve(estimates.size());
+    yaw_errors.reserve(estimates.size());
+    inliers.reserve(estimates.size());
+    const Eigen::Isometry3d& medoid = estimates[medoid_index];
+    const Eigen::Vector3d medoid_rpy = rollPitchYaw(medoid);
+    for (const auto& estimate : estimates) {
+        const TransformResidual residual = transformResidual(medoid, estimate);
+        const double z_error = std::abs(estimate.translation().z() - medoid.translation().z());
+        const double yaw_error =
+            std::abs(normalizeAngle(rollPitchYaw(estimate).z() - medoid_rpy.z()));
+        translation_errors.push_back(residual.translation);
         z_errors.push_back(z_error);
         yaw_errors.push_back(yaw_error);
-        if (translation_error <= config.keyframe_distance_threshold &&
-            yaw_error <= config.keyframe_angle_threshold) {
+        if (residual.translation <= config.keyframe_distance_threshold &&
+            residual.rotation <= config.keyframe_angle_threshold) {
             ++result->estimator_inlier_count;
+            inliers.push_back(estimate);
         }
     }
+
+    Eigen::Vector3d mean_translation = Eigen::Vector3d::Zero();
+    std::vector<Eigen::Quaterniond> inlier_quaternions;
+    inlier_quaternions.reserve(inliers.size());
+    for (const auto& inlier : inliers) {
+        mean_translation += inlier.translation();
+        inlier_quaternions.emplace_back(inlier.rotation());
+    }
+    if (!inliers.empty()) {
+        mean_translation /= static_cast<double>(inliers.size());
+    } else {
+        mean_translation = medoid.translation();
+        inlier_quaternions.emplace_back(medoid.rotation());
+    }
+    const Eigen::Quaterniond reference(medoid.rotation());
+    const Eigen::Quaterniond mean_rotation =
+        averageQuaternions(inlier_quaternions, reference);
+    result->estimator_measurement_match_query = Eigen::Isometry3d::Identity();
+    result->estimator_measurement_match_query.translation() = mean_translation;
+    result->estimator_measurement_match_query.linear() = mean_rotation.toRotationMatrix();
+
+    const Eigen::Vector3d mean_rpy = rollPitchYaw(result->estimator_measurement_match_query);
+    result->estimator_translation_median = mean_translation.norm();
+    result->estimator_z_median = mean_translation.z();
+    result->estimator_yaw_median = mean_rpy.z();
+
     result->estimator_inlier_ratio =
-        translations.empty() ? 0.0
+        estimates.empty() ? 0.0
                              : static_cast<double>(result->estimator_inlier_count) /
-                                   static_cast<double>(translations.size());
+                                   static_cast<double>(estimates.size());
     result->estimator_translation_mad = median(translation_errors);
     result->estimator_z_mad = median(z_errors);
     result->estimator_yaw_mad = median(yaw_errors);
     result->estimator_valid = result->estimator_inlier_count >= 3 &&
-                              result->estimator_inlier_ratio >= 0.75 &&
+                              result->estimator_inlier_count > static_cast<int>(estimates.size() / 2) &&
                               result->estimator_translation_mad <= config.keyframe_distance_threshold &&
                               result->estimator_yaw_mad <= config.keyframe_angle_threshold;
     result->estimator_recommendation =
