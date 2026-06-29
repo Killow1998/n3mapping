@@ -1376,3 +1376,77 @@ If this line continues, keep it offline and improve the benchmark first:
 2. Add a query-level recall/precision view for clustered representatives.
 3. Only consider runtime code if a cluster rule reduces candidates while
    preserving query recall on both KITTI360 and M2DGR.
+
+## 2026-06-29 Expanded Segment Candidate Benchmark
+
+Status: broader diagnostic kept; still no runtime behavior change.
+
+Artifact:
+
+```text
+/tmp/n3mapping_segment_cluster_benchmark_full_20260629
+```
+
+Scope:
+
+- Reused the range-gate baseline matrix at
+  `/tmp/n3mapping_better_loop_range_gate_matrix_20260629`.
+- Ran the offline candidate benchmark across all 8 available runs instead of
+  the previous 4-run subset.
+- Compared current logged candidates, diagonal segment clustering, logged+spatial
+  union clustering, and a LIO-SAM-style spatial nearest oracle.
+
+Summary:
+
+| run | method | pairs | precision | pair recall | query recall | false rate |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| drive0000_s0_900_s5 | n3mapping_logged | 2438 | 0.008 | 0.218 | 0.200 | 0.992 |
+| drive0000_s0_900_s5 | segment_clustered_logged | 874 | 0.017 | 0.172 | 0.200 | 0.983 |
+| drive0000_s0_900_s5 | segment_clustered_union | 969 | 0.019 | 0.207 | 0.225 | 0.981 |
+| drive0000_s0_900_s5 | liosam_spatial_nearest | 217 | 0.180 | 0.448 | 0.975 | 0.820 |
+| drive0000_s400_600_s10 | n3mapping_logged | 1539 | 0.008 | 0.188 | 0.196 | 0.992 |
+| drive0000_s400_600_s10 | segment_clustered_logged | 580 | 0.017 | 0.156 | 0.161 | 0.983 |
+| drive0000_s400_600_s10 | segment_clustered_union | 649 | 0.028 | 0.281 | 0.286 | 0.972 |
+| drive0000_s400_600_s10 | liosam_spatial_nearest | 117 | 0.470 | 0.859 | 0.982 | 0.530 |
+| drive0004_s500_600_s10 | n3mapping_logged | 1560 | 0.003 | 0.211 | 0.188 | 0.997 |
+| drive0004_s500_600_s10 | segment_clustered_logged | 562 | 0.005 | 0.158 | 0.188 | 0.995 |
+| drive0004_s500_600_s10 | segment_clustered_union | 593 | 0.012 | 0.368 | 0.375 | 0.988 |
+| drive0004_s500_600_s10 | liosam_spatial_nearest | 75 | 0.187 | 0.737 | 0.875 | 0.813 |
+| drive0005_s0_900_s5 | n3mapping_logged | 2444 | 0.012 | 0.194 | 0.204 | 0.988 |
+| drive0005_s0_900_s5 | segment_clustered_logged | 866 | 0.028 | 0.155 | 0.204 | 0.972 |
+| drive0005_s0_900_s5 | segment_clustered_union | 970 | 0.046 | 0.290 | 0.429 | 0.954 |
+| drive0005_s0_900_s5 | liosam_spatial_nearest | 175 | 0.280 | 0.316 | 1.000 | 0.720 |
+| drive0006_s300_600_s10 | n3mapping_logged | 1550 | 0.008 | 0.165 | 0.180 | 0.992 |
+| drive0006_s300_600_s10 | segment_clustered_logged | 574 | 0.016 | 0.114 | 0.131 | 0.984 |
+| drive0006_s300_600_s10 | segment_clustered_union | 640 | 0.023 | 0.190 | 0.213 | 0.977 |
+| drive0006_s300_600_s10 | liosam_spatial_nearest | 145 | 0.421 | 0.772 | 1.000 | 0.579 |
+| drive0009_s500_600_s10 | n3mapping_logged | 1542 | 0.012 | 0.173 | 0.176 | 0.988 |
+| drive0009_s500_600_s10 | segment_clustered_logged | 589 | 0.027 | 0.154 | 0.162 | 0.973 |
+| drive0009_s500_600_s10 | segment_clustered_union | 684 | 0.056 | 0.365 | 0.392 | 0.944 |
+| drive0009_s500_600_s10 | liosam_spatial_nearest | 133 | 0.556 | 0.712 | 1.000 | 0.444 |
+| gate02_s0_600_s5 | n3mapping_logged | 390 | 0.003 | 0.100 | 0.333 | 0.997 |
+| gate02_s0_600_s5 | segment_clustered_logged | 164 | 0.000 | 0.000 | 0.000 | 1.000 |
+| gate02_s0_600_s5 | segment_clustered_union | 176 | 0.006 | 0.100 | 0.333 | 0.994 |
+| gate02_s0_600_s5 | liosam_spatial_nearest | 28 | 0.036 | 0.100 | 0.333 | 0.964 |
+| hall05_s0_600_s5 | n3mapping_logged | 367 | 0.695 | 0.066 | 0.158 | 0.305 |
+| hall05_s0_600_s5 | segment_clustered_logged | 143 | 0.706 | 0.026 | 0.158 | 0.294 |
+| hall05_s0_600_s5 | segment_clustered_union | 466 | 0.599 | 0.073 | 0.389 | 0.401 |
+| hall05_s0_600_s5 | liosam_spatial_nearest | 175 | 0.789 | 0.036 | 0.726 | 0.211 |
+
+Interpretation:
+
+- Diagonal clustering still compresses logged candidates, but it loses recall on
+  most sequences. It is not a runtime candidate rule.
+- Naively unioning spatial candidates improves query recall outdoors, but it
+  keeps a high false-pair rate and hurts hall05 precision.
+- The spatial-nearest oracle shows a useful direction: spatial proximity has
+  strong query-level coverage, especially on KITTI360, but it is not enough by
+  itself because false-pair rate remains high.
+
+Current verdict:
+
+```text
+The next runtime design should not be diagonal segment clustering. If we borrow
+from LIO-SAM-style processing, use spatial proximity only as a proposal prior
+and require a cheap local geometric consistency check before ICP.
+```
