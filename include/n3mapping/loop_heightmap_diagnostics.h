@@ -19,15 +19,6 @@ struct HeightmapConsistencyDiagnostics {
     double vertical_consistency_score = 0.0;
 };
 
-struct SubmapOverlapDiagnostics {
-    int target_cell_count = 0;
-    int source_cell_count = 0;
-    int overlap_cell_count = 0;
-    double overlap_ratio = 0.0;
-    double support_ratio = 0.0;
-    double consistency_score = 0.0;
-};
-
 HeightmapConsistencyDiagnostics computeHeightmapConsistency(
     const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& target,
     const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& source,
@@ -35,11 +26,5 @@ HeightmapConsistencyDiagnostics computeHeightmapConsistency(
     double cell_size = 0.5,
     std::size_t min_points_per_cell = 3,
     double low_quantile = 0.10);
-
-SubmapOverlapDiagnostics computeSubmapOverlapConsistency(
-    const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& target,
-    const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& source,
-    const Eigen::Isometry3d& T_target_source,
-    double voxel_size = 0.8);
 
 }  // namespace n3mapping

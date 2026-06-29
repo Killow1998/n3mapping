@@ -283,15 +283,6 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendNumber(os, &first, "heightmap_ground_support_ratio", event.heightmap_ground_support_ratio);
     appendNumber(os, &first, "heightmap_vertical_consistency_score",
                  event.heightmap_vertical_consistency_score);
-    appendInt(os, &first, "submap_pred_overlap_cell_count", event.submap_pred_overlap_cell_count);
-    appendNumber(os, &first, "submap_pred_overlap_ratio", event.submap_pred_overlap_ratio);
-    appendNumber(os, &first, "submap_pred_support_ratio", event.submap_pred_support_ratio);
-    appendNumber(os, &first, "submap_pred_consistency_score", event.submap_pred_consistency_score);
-    appendInt(os, &first, "submap_measured_overlap_cell_count", event.submap_measured_overlap_cell_count);
-    appendNumber(os, &first, "submap_measured_overlap_ratio", event.submap_measured_overlap_ratio);
-    appendNumber(os, &first, "submap_measured_support_ratio", event.submap_measured_support_ratio);
-    appendNumber(os, &first, "submap_measured_consistency_score", event.submap_measured_consistency_score);
-    appendNumber(os, &first, "submap_overlap_gain", event.submap_overlap_gain);
     appendBool(os, &first, "graph_trial_success", event.graph_trial_success);
     appendNumber(os, &first, "graph_trial_residual_x_after", event.graph_trial_residual_x_after);
     appendNumber(os, &first, "graph_trial_residual_y_after", event.graph_trial_residual_y_after);

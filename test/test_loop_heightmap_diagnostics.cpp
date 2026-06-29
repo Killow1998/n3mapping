@@ -59,25 +59,5 @@ TEST(LoopHeightmapDiagnosticsTest, ReportsNoSupportWhenCellsDoNotOverlap)
     EXPECT_DOUBLE_EQ(diagnostics.vertical_consistency_score, 0.0);
 }
 
-TEST(LoopSubmapOverlapDiagnosticsTest, MeasuresVoxelOverlapBeforeAndAfterAlignment)
-{
-    const auto target = makeGridCloud(0.0);
-    const auto source = makeGridCloud(0.0, 10.0);
-
-    const auto before = computeSubmapOverlapConsistency(
-        target, source, Eigen::Isometry3d::Identity(), 1.0);
-    EXPECT_EQ(before.overlap_cell_count, 0);
-    EXPECT_DOUBLE_EQ(before.consistency_score, 0.0);
-
-    Eigen::Isometry3d align = Eigen::Isometry3d::Identity();
-    align.translation().x() = -10.0;
-    const auto after = computeSubmapOverlapConsistency(target, source, align, 1.0);
-    EXPECT_EQ(after.target_cell_count, after.source_cell_count);
-    EXPECT_EQ(after.overlap_cell_count, after.target_cell_count);
-    EXPECT_DOUBLE_EQ(after.overlap_ratio, 1.0);
-    EXPECT_DOUBLE_EQ(after.support_ratio, 1.0);
-    EXPECT_DOUBLE_EQ(after.consistency_score, 1.0);
-}
-
 }  // namespace
 }  // namespace n3mapping

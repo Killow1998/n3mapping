@@ -63,15 +63,6 @@ struct LoopDebugCandidateEvent {
     double heightmap_ground_dz_max = std::numeric_limits<double>::quiet_NaN();
     double heightmap_ground_support_ratio = 0.0;
     double heightmap_vertical_consistency_score = 0.0;
-    int submap_pred_overlap_cell_count = 0;
-    double submap_pred_overlap_ratio = 0.0;
-    double submap_pred_support_ratio = 0.0;
-    double submap_pred_consistency_score = 0.0;
-    int submap_measured_overlap_cell_count = 0;
-    double submap_measured_overlap_ratio = 0.0;
-    double submap_measured_support_ratio = 0.0;
-    double submap_measured_consistency_score = 0.0;
-    double submap_overlap_gain = 0.0;
     bool graph_trial_success = false;
     double graph_trial_residual_x_after = std::numeric_limits<double>::quiet_NaN();
     double graph_trial_residual_y_after = std::numeric_limits<double>::quiet_NaN();

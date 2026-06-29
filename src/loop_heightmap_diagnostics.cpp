@@ -4,8 +4,6 @@
 #include <cmath>
 #include <cstdint>
 #include <map>
-#include <set>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -15,7 +13,6 @@ namespace n3mapping {
 namespace {
 
 using CellKey = std::pair<int64_t, int64_t>;
-using VoxelKey = std::tuple<int64_t, int64_t, int64_t>;
 using Heightmap = std::map<CellKey, double>;
 
 double percentile(std::vector<double> values, double q)
@@ -71,34 +68,6 @@ Heightmap buildHeightmap(const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& cloud,
     return heightmap;
 }
 
-std::set<VoxelKey> buildVoxelSet(const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& cloud,
-                                 const Eigen::Isometry3d& transform,
-                                 double voxel_size)
-{
-    std::set<VoxelKey> voxels;
-    if (!cloud || voxel_size <= 0.0 || !std::isfinite(voxel_size)) {
-        return voxels;
-    }
-
-    for (const auto& point : cloud->points) {
-        if (!isFinitePoint(point)) {
-            continue;
-        }
-        const Eigen::Vector3d p =
-            transform * Eigen::Vector3d(static_cast<double>(point.x),
-                                        static_cast<double>(point.y),
-                                        static_cast<double>(point.z));
-        if (!p.allFinite()) {
-            continue;
-        }
-        voxels.emplace(
-            static_cast<int64_t>(std::floor(p.x() / voxel_size)),
-            static_cast<int64_t>(std::floor(p.y() / voxel_size)),
-            static_cast<int64_t>(std::floor(p.z() / voxel_size)));
-    }
-    return voxels;
-}
-
 }  // namespace
 
 HeightmapConsistencyDiagnostics computeHeightmapConsistency(
@@ -145,39 +114,6 @@ HeightmapConsistencyDiagnostics computeHeightmapConsistency(
     diagnostics.ground_dz_max = *std::max_element(abs_dz.begin(), abs_dz.end());
     diagnostics.vertical_consistency_score =
         diagnostics.ground_support_ratio / (1.0 + diagnostics.ground_dz_p90);
-    return diagnostics;
-}
-
-SubmapOverlapDiagnostics computeSubmapOverlapConsistency(
-    const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& target,
-    const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& source,
-    const Eigen::Isometry3d& T_target_source,
-    double voxel_size)
-{
-    SubmapOverlapDiagnostics diagnostics;
-    const auto target_voxels = buildVoxelSet(target, Eigen::Isometry3d::Identity(), voxel_size);
-    const auto source_voxels = buildVoxelSet(source, T_target_source, voxel_size);
-    diagnostics.target_cell_count = static_cast<int>(target_voxels.size());
-    diagnostics.source_cell_count = static_cast<int>(source_voxels.size());
-    if (target_voxels.empty() || source_voxels.empty()) {
-        return diagnostics;
-    }
-
-    std::size_t overlap = 0;
-    const auto& smaller = target_voxels.size() <= source_voxels.size() ? target_voxels : source_voxels;
-    const auto& larger = target_voxels.size() <= source_voxels.size() ? source_voxels : target_voxels;
-    for (const auto& voxel : smaller) {
-        if (larger.find(voxel) != larger.end()) {
-            ++overlap;
-        }
-    }
-
-    diagnostics.overlap_cell_count = static_cast<int>(overlap);
-    const double smaller_count = static_cast<double>(smaller.size());
-    const double larger_count = static_cast<double>(larger.size());
-    diagnostics.overlap_ratio = smaller_count > 0.0 ? static_cast<double>(overlap) / smaller_count : 0.0;
-    diagnostics.support_ratio = larger_count > 0.0 ? static_cast<double>(overlap) / larger_count : 0.0;
-    diagnostics.consistency_score = 0.5 * (diagnostics.overlap_ratio + diagnostics.support_ratio);
     return diagnostics;
 }
 

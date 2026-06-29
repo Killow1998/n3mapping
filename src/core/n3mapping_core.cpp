@@ -95,7 +95,7 @@ LoopFeatures makeSegmentAwareLoopFeatures(const Config& config,
     LoopFeatures features;
     features.descriptor_score = candidate.descriptor_score;
     features.spatial_score = candidate.spatial_score;
-    features.geometric_overlap = loop.submap_measured_consistency_score;
+    features.geometric_overlap = loop.heightmap_vertical_consistency_score;
     features.temporal_gap = std::clamp(
         static_cast<double>(candidate.query_id - candidate.match_id) /
         std::max(1.0, static_cast<double>(config.sc_num_exclude_recent)), 0.0, 1.0);
@@ -104,8 +104,7 @@ LoopFeatures makeSegmentAwareLoopFeatures(const Config& config,
         ? std::clamp(loop.inlier_ratio / config.loop_min_inlier_ratio, 0.0, 1.0)
         : std::clamp(loop.inlier_ratio, 0.0, 1.0);
     const double motion_score = unitScoreBelow(icp_translation_norm, config.loop_max_icp_translation);
-    features.local_map_consistency =
-        (fitness_score + inlier_score + motion_score + loop.submap_measured_consistency_score) / 4.0;
+    features.local_map_consistency = (fitness_score + inlier_score + motion_score) / 3.0;
     features.segment_consistency = loop.segment_consensus_ratio;
     features.segment_support = loop.segment_pair_count > 0
         ? static_cast<double>(loop.segment_valid_pair_count) / static_cast<double>(loop.segment_pair_count)
@@ -1163,15 +1162,6 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 event.heightmap_ground_dz_max = loop.heightmap_ground_dz_max;
                 event.heightmap_ground_support_ratio = loop.heightmap_ground_support_ratio;
                 event.heightmap_vertical_consistency_score = loop.heightmap_vertical_consistency_score;
-                event.submap_pred_overlap_cell_count = loop.submap_pred_overlap_cell_count;
-                event.submap_pred_overlap_ratio = loop.submap_pred_overlap_ratio;
-                event.submap_pred_support_ratio = loop.submap_pred_support_ratio;
-                event.submap_pred_consistency_score = loop.submap_pred_consistency_score;
-                event.submap_measured_overlap_cell_count = loop.submap_measured_overlap_cell_count;
-                event.submap_measured_overlap_ratio = loop.submap_measured_overlap_ratio;
-                event.submap_measured_support_ratio = loop.submap_measured_support_ratio;
-                event.submap_measured_consistency_score = loop.submap_measured_consistency_score;
-                event.submap_overlap_gain = loop.submap_overlap_gain;
                 assignSegmentDiagnostics(&event, loop);
                 assignConsensusDiagnostics(&event, loop);
                 event.loop_referee_recommendation = loop.loop_referee_recommendation;
