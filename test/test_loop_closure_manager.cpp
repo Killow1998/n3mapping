@@ -91,6 +91,7 @@ TEST(LoopRefereeTest, RejectsLargePredictedMotionWithWeakSegment)
     LoopFeatures features;
     features.descriptor_supported = true;
     features.descriptor_score = 1.0;
+    features.geometric_overlap = 0.2;
     features.local_map_consistency = 1.0;
     features.segment_support = 0.5;
     features.segment_consistency = 0.5;
@@ -134,6 +135,22 @@ TEST(LoopRefereeTest, AcceptsDescriptorBackedVerifiedGeometryWithLimitedSegmentE
     const auto decision = LoopReferee::evaluate(features);
     EXPECT_EQ(decision.decision, LoopDecision::Accept);
     EXPECT_EQ(decision.reason, "descriptor_geometry_consistent");
+}
+
+TEST(LoopRefereeTest, RejectsDescriptorBackedLoopWithNoSubmapOrSegmentSupport)
+{
+    LoopFeatures features;
+    features.descriptor_supported = true;
+    features.descriptor_score = 1.0;
+    features.geometric_overlap = 0.0;
+    features.local_map_consistency = 0.3;
+    features.segment_support = 0.0;
+    features.segment_consistency = 0.0;
+
+    const auto decision = LoopReferee::evaluate(features);
+    EXPECT_EQ(decision.decision, LoopDecision::Reject);
+    EXPECT_EQ(decision.reason, "descriptor_submap_inconsistent");
+    EXPECT_EQ(decision.risk_flags, "submap");
 }
 
 TEST(LoopVerifierEvidenceTest, MeasurementResidualUsesPredictedAndMeasuredTransforms)

@@ -77,6 +77,15 @@ LoopDebugCandidateEvent makeRejectedCandidateEvent()
     event.heightmap_ground_dz_max = 1.8;
     event.heightmap_ground_support_ratio = 0.6;
     event.heightmap_vertical_consistency_score = 0.27;
+    event.submap_pred_overlap_cell_count = 10;
+    event.submap_pred_overlap_ratio = 0.25;
+    event.submap_pred_support_ratio = 0.1;
+    event.submap_pred_consistency_score = 0.175;
+    event.submap_measured_overlap_cell_count = 20;
+    event.submap_measured_overlap_ratio = 0.5;
+    event.submap_measured_support_ratio = 0.2;
+    event.submap_measured_consistency_score = 0.35;
+    event.submap_overlap_gain = 0.175;
     event.graph_trial_success = true;
     event.graph_trial_residual_x_after = 0.1;
     event.graph_trial_residual_y_after = 0.2;
@@ -175,6 +184,9 @@ TEST(LoopDebugLoggerTest, WritesRejectedCandidateAsSingleLineJson)
     EXPECT_NE(lines[0].find("\"heightmap_overlap_cell_count\":12"), std::string::npos);
     EXPECT_NE(lines[0].find("\"heightmap_ground_dz_p90\":1.2"), std::string::npos);
     EXPECT_NE(lines[0].find("\"heightmap_vertical_consistency_score\":0.27000000000000002"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"submap_pred_overlap_cell_count\":10"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"submap_measured_overlap_ratio\":0.5"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"submap_overlap_gain\":0.17499999999999999"), std::string::npos);
     EXPECT_NE(lines[0].find("\"graph_trial_success\":true"), std::string::npos);
     EXPECT_NE(lines[0].find("\"graph_trial_residual_z_after\":0.29999999999999999"), std::string::npos);
     EXPECT_NE(lines[0].find("\"graph_trial_consistency_score\":0.75"), std::string::npos);

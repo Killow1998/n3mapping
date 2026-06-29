@@ -99,6 +99,13 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
         : Eigen::Matrix<double, 6, 6>::Identity();
     loop.vertical_information_ratio = verticalInformationRatio(verification.match_result.information);
 
+    const auto predicted_overlap = computeSubmapOverlapConsistency(
+        target_in_match_frame, source_in_match_frame, Eigen::Isometry3d::Identity());
+    loop.submap_pred_overlap_cell_count = predicted_overlap.overlap_cell_count;
+    loop.submap_pred_overlap_ratio = predicted_overlap.overlap_ratio;
+    loop.submap_pred_support_ratio = predicted_overlap.support_ratio;
+    loop.submap_pred_consistency_score = predicted_overlap.consistency_score;
+
     verification.fitness_ok = verification.match_result.fitness_score < config_.loop_fitness_threshold;
     verification.inlier_ok = verification.match_result.inlier_ratio >= config_.loop_min_inlier_ratio;
     verification.icp_translation_norm = verification.T_icp_correction_match.translation().norm();
@@ -117,6 +124,15 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
         loop.heightmap_ground_dz_max = heightmap.ground_dz_max;
         loop.heightmap_ground_support_ratio = heightmap.ground_support_ratio;
         loop.heightmap_vertical_consistency_score = heightmap.vertical_consistency_score;
+
+        const auto measured_overlap = computeSubmapOverlapConsistency(
+            target_in_match_frame, source_in_match_frame, verification.T_icp_correction_match);
+        loop.submap_measured_overlap_cell_count = measured_overlap.overlap_cell_count;
+        loop.submap_measured_overlap_ratio = measured_overlap.overlap_ratio;
+        loop.submap_measured_support_ratio = measured_overlap.support_ratio;
+        loop.submap_measured_consistency_score = measured_overlap.consistency_score;
+        loop.submap_overlap_gain =
+            loop.submap_measured_consistency_score - loop.submap_pred_consistency_score;
     }
 
     verification.reject_reason = loopRejectReason(

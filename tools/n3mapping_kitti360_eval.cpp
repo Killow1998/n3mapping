@@ -773,7 +773,11 @@ void writeAcceptedLoopsHeader(std::ofstream& out)
            "vertical_hypothesis_edge_recommendation,heightmap_overlap_cell_count,"
            "heightmap_overlap_ratio,heightmap_ground_dz_median,heightmap_ground_dz_p90,"
            "heightmap_ground_dz_max,heightmap_ground_support_ratio,"
-           "heightmap_vertical_consistency_score,graph_trial_success,graph_trial_residual_x_after,"
+           "heightmap_vertical_consistency_score,submap_pred_overlap_cell_count,"
+           "submap_pred_overlap_ratio,submap_pred_support_ratio,submap_pred_consistency_score,"
+           "submap_measured_overlap_cell_count,submap_measured_overlap_ratio,"
+           "submap_measured_support_ratio,submap_measured_consistency_score,submap_overlap_gain,"
+           "graph_trial_success,graph_trial_residual_x_after,"
            "graph_trial_residual_y_after,graph_trial_residual_z_after,graph_trial_residual_roll_after,"
            "graph_trial_residual_pitch_after,graph_trial_residual_yaw_after,"
            "graph_trial_residual_translation_norm_after,graph_trial_residual_rotation_norm_after,"
@@ -852,6 +856,15 @@ void writeAcceptedLoop(std::ofstream& out, const VerifiedLoop& loop)
         << loop.heightmap_ground_dz_max << ','
         << loop.heightmap_ground_support_ratio << ','
         << loop.heightmap_vertical_consistency_score << ','
+        << loop.submap_pred_overlap_cell_count << ','
+        << loop.submap_pred_overlap_ratio << ','
+        << loop.submap_pred_support_ratio << ','
+        << loop.submap_pred_consistency_score << ','
+        << loop.submap_measured_overlap_cell_count << ','
+        << loop.submap_measured_overlap_ratio << ','
+        << loop.submap_measured_support_ratio << ','
+        << loop.submap_measured_consistency_score << ','
+        << loop.submap_overlap_gain << ','
         << (loop.graph_trial_success ? "true" : "false") << ','
         << loop.graph_trial_residual_x_after << ','
         << loop.graph_trial_residual_y_after << ','

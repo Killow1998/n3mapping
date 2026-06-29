@@ -649,6 +649,15 @@ def analyze(args):
         heightmap_vertical_consistency_score = event_float(
             event, "heightmap_vertical_consistency_score"
         )
+        submap_pred_overlap_cell_count = int(event.get("submap_pred_overlap_cell_count") or 0)
+        submap_pred_overlap_ratio = event_float(event, "submap_pred_overlap_ratio")
+        submap_pred_support_ratio = event_float(event, "submap_pred_support_ratio")
+        submap_pred_consistency_score = event_float(event, "submap_pred_consistency_score")
+        submap_measured_overlap_cell_count = int(event.get("submap_measured_overlap_cell_count") or 0)
+        submap_measured_overlap_ratio = event_float(event, "submap_measured_overlap_ratio")
+        submap_measured_support_ratio = event_float(event, "submap_measured_support_ratio")
+        submap_measured_consistency_score = event_float(event, "submap_measured_consistency_score")
+        submap_overlap_gain = event_float(event, "submap_overlap_gain")
         graph_trial_success = bool(event.get("graph_trial_success", False))
         graph_trial_residual_x_after = event_float(event, "graph_trial_residual_x_after")
         graph_trial_residual_y_after = event_float(event, "graph_trial_residual_y_after")
@@ -1004,6 +1013,15 @@ def analyze(args):
                 "heightmap_ground_dz_max": heightmap_ground_dz_max,
                 "heightmap_ground_support_ratio": heightmap_ground_support_ratio,
                 "heightmap_vertical_consistency_score": heightmap_vertical_consistency_score,
+                "submap_pred_overlap_cell_count": submap_pred_overlap_cell_count,
+                "submap_pred_overlap_ratio": submap_pred_overlap_ratio,
+                "submap_pred_support_ratio": submap_pred_support_ratio,
+                "submap_pred_consistency_score": submap_pred_consistency_score,
+                "submap_measured_overlap_cell_count": submap_measured_overlap_cell_count,
+                "submap_measured_overlap_ratio": submap_measured_overlap_ratio,
+                "submap_measured_support_ratio": submap_measured_support_ratio,
+                "submap_measured_consistency_score": submap_measured_consistency_score,
+                "submap_overlap_gain": submap_overlap_gain,
                 "graph_trial_success": graph_trial_success,
                 "graph_trial_residual_x_after": graph_trial_residual_x_after,
                 "graph_trial_residual_y_after": graph_trial_residual_y_after,
@@ -1341,6 +1359,15 @@ def analyze(args):
             "heightmap_ground_dz_max",
             "heightmap_ground_support_ratio",
             "heightmap_vertical_consistency_score",
+            "submap_pred_overlap_cell_count",
+            "submap_pred_overlap_ratio",
+            "submap_pred_support_ratio",
+            "submap_pred_consistency_score",
+            "submap_measured_overlap_cell_count",
+            "submap_measured_overlap_ratio",
+            "submap_measured_support_ratio",
+            "submap_measured_consistency_score",
+            "submap_overlap_gain",
             "graph_trial_success",
             "graph_trial_residual_x_after",
             "graph_trial_residual_y_after",

@@ -38,6 +38,7 @@ public:
     static constexpr double kLargePredictedTranslationM = 5.0;
     static constexpr double kYawFlipRad = 2.8;
     static constexpr double kLargeSegmentTranslationM = 2.0;
+    static constexpr double kNearZeroSubmapConsistency = 0.05;
 
     // ponytail: fixed first-principles weights; tune only after matrix evidence says this model is right.
     static double energy(const LoopFeatures& f)
@@ -89,6 +90,15 @@ public:
             result.decision = LoopDecision::Reject;
             result.reason = "segment_inconsistent";
             result.risk_flags = "segment";
+            return result;
+        }
+
+        if (has_descriptor &&
+            clamp01(f.geometric_overlap) <= kNearZeroSubmapConsistency &&
+            segment_support < 0.5) {
+            result.decision = LoopDecision::Reject;
+            result.reason = "descriptor_submap_inconsistent";
+            result.risk_flags = "submap";
             return result;
         }
 
