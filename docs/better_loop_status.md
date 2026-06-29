@@ -1246,3 +1246,62 @@ Next step:
 Continue from the kept range-gate baseline. If recall recovery is attempted
 again, do it before expensive ICP by forming segment-level candidate clusters,
 not by adding more ICP inside consensus verification.
+
+## 2026-06-29 Pre-ICP Candidate Buffer Falsifier
+
+Status: rejected; no behavior code kept.
+
+Experiment:
+
+- Tried a minimal pre-ICP candidate clustering pass inside
+  `N3MappingCore::processPendingLoopClosures()`.
+- The implementation kept a small pending candidate buffer across calls,
+  dropped candidates beyond `loop_max_range` before clustering, and let only
+  these candidates enter submap ICP:
+  - candidates supported by a cheap query/match ID segment cluster;
+  - or isolated descriptor candidates already passing existing descriptor
+    thresholds (`sc_dist_threshold` or `rhpd_dist_threshold`).
+- It did not change `LoopVerifier`, `LoopReferee`, graph-trial gates, edge
+  model, or optimizer behavior.
+
+Result:
+
+- Humble build/test passed:
+
+```text
+288 tests, 0 errors, 0 failures, 0 skipped
+```
+
+- KITTI360 drive0005 340-frame smoke stalled around frame/index `301` during
+  `process_loops_start` and did not write `metrics.json`.
+
+Artifact:
+
+```text
+/tmp/n3mapping_pre_icp_cluster_smoke_340_20260629
+```
+
+Interpretation:
+
+- A stateful candidate buffer inside `processPendingLoopClosures()` is not a
+  safe minimal path. It still routes too much work into the expensive loop
+  processing phase, or delays candidates in a way that creates a burst at the
+  same known stall point.
+- This also shows that "cheap clustering" cannot be bolted onto the current
+  per-query processing loop by simply buffering candidates.
+
+Current verdict:
+
+```text
+Do not reintroduce a stateful pre-ICP candidate buffer in N3MappingCore.
+If segment-level recall recovery is attempted again, it needs a cheaper
+offline/descriptor-space proposal stage that produces bounded representative
+pairs before `processPendingLoopClosures()` starts expensive submap work.
+```
+
+Next step:
+
+The kept behavior baseline is still `c141b0e` plus this documentation. The next
+real behavior attempt should first prove, with a standalone candidate
+benchmark, that segment clustering reduces representative count and preserves GT
+loop opportunities without invoking submap ICP.
