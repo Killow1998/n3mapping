@@ -326,6 +326,54 @@ def make_spatial_rows(candidate_poses, gt_poses, args):
     return rows_all + rows_nearest
 
 
+def row_sort_key(row):
+    score = row.get("score", float("nan"))
+    finite_score = score if isinstance(score, (int, float)) and math.isfinite(score) else float("inf")
+    descriptor = row.get("method") in ("n3mapping_logged", "sc_rerank_logged_pool")
+    return (
+        0 if row.get("accepted_by_n3mapping") else 1,
+        0 if descriptor else 1,
+        finite_score,
+        row["query_id"],
+        row["match_id"],
+    )
+
+
+def make_segment_cluster_rows(source_rows, method_name):
+    by_pair = {}
+    for row in source_rows:
+        if row.get("method", "").startswith("segment_clustered_"):
+            continue
+        key = (row["query_id"], row["match_id"])
+        if key not in by_pair or row_sort_key(row) < row_sort_key(by_pair[key]):
+            by_pair[key] = row
+
+    groups = {}
+    for row in by_pair.values():
+        query_id = row["query_id"]
+        match_id = row["match_id"]
+        groups.setdefault(("forward", query_id - match_id), []).append(row)
+        groups.setdefault(("reverse", query_id + match_id), []).append(row)
+
+    representatives = {}
+    for _key, rows in groups.items():
+        if len(rows) < 2:
+            continue
+        representative = min(rows, key=row_sort_key)
+        pair = (representative["query_id"], representative["match_id"])
+        if pair not in representatives or row_sort_key(representative) < row_sort_key(representatives[pair]):
+            representatives[pair] = representative
+
+    clustered = []
+    for rank, row in enumerate(sorted(representatives.values(), key=row_sort_key), start=1):
+        clustered_row = dict(row)
+        clustered_row["method"] = method_name
+        clustered_row["rank"] = rank
+        clustered_row["candidate_source"] = "segment_cluster"
+        clustered.append(clustered_row)
+    return clustered
+
+
 def annotate_rows(rows, gt_poses, args):
     annotated = []
     for row in rows:
@@ -434,9 +482,12 @@ def main():
 
     rows = []
     if loop_candidates:
-        rows.extend(make_logged_candidate_rows(loop_candidates, accepted_pairs))
+        logged_rows = make_logged_candidate_rows(loop_candidates, accepted_pairs)
+        rows.extend(logged_rows)
         rows.extend(make_sc_rerank_rows(loop_candidates, accepted_pairs, args.sc_top_k))
+        rows.extend(make_segment_cluster_rows(logged_rows, "segment_clustered_logged"))
     rows.extend(make_spatial_rows(candidate_poses, gt_poses, args))
+    rows.extend(make_segment_cluster_rows(rows, "segment_clustered_union"))
     rows = annotate_rows(rows, gt_poses, args)
     summaries = method_summary(rows, gt_pairs, gt_queries)
 
@@ -501,6 +552,8 @@ def main():
             "n3mapping_logged is the current loop_debug candidate set, normally RHPD-primary with SC auxiliary scores.",
             "sc_rerank_logged_pool ranks only within logged candidates; it is not pure SC global retrieval.",
             "liosam_spatial_* is a LIO-SAM-style spatial/time-gap candidate oracle over keyframe poses; it does not run ICP.",
+            "segment_clustered_logged clusters only n3mapping_logged candidate pairs by query-match id diagonals; it does not run ICP.",
+            "segment_clustered_union clusters logged/spatial candidate pairs by query-match id diagonals; it does not run ICP.",
         ],
     }
     with open(output / "candidate_benchmark_summary.json", "w") as f:

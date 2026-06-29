@@ -1305,3 +1305,74 @@ The kept behavior baseline is still `c141b0e` plus this documentation. The next
 real behavior attempt should first prove, with a standalone candidate
 benchmark, that segment clustering reduces representative count and preserves GT
 loop opportunities without invoking submap ICP.
+
+## 2026-06-29 Offline Segment Candidate Benchmark
+
+Status: diagnostic kept; no runtime behavior change.
+
+Change:
+
+- Added offline-only methods to `tools/n3mapping_loop_candidate_benchmark.py`:
+  - `segment_clustered_logged`: clusters only current `n3mapping_logged`
+    candidate pairs by query/match ID diagonals.
+  - `segment_clustered_union`: clusters logged plus LIO-SAM-style spatial
+    candidate pairs by query/match ID diagonals.
+- Both methods are evaluation-only. They do not run ICP and do not affect
+  runtime mapping.
+
+Validation:
+
+```text
+test_kitti360_eval: passed
+```
+
+Artifact:
+
+```text
+/tmp/n3mapping_segment_cluster_benchmark_20260629
+```
+
+Summary against the range-gate matrix:
+
+| run | method | pairs | precision | pair recall | query recall | false rate |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| drive0000_s0_900_s5 | n3mapping_logged | 2438 | 0.0078 | 0.218 | 0.200 | 0.992 |
+| drive0000_s0_900_s5 | segment_clustered_logged | 874 | 0.0172 | 0.172 | 0.200 | 0.983 |
+| drive0000_s0_900_s5 | segment_clustered_union | 969 | 0.0186 | 0.207 | 0.225 | 0.981 |
+| drive0005_s0_900_s5 | n3mapping_logged | 2444 | 0.0123 | 0.194 | 0.204 | 0.988 |
+| drive0005_s0_900_s5 | segment_clustered_logged | 866 | 0.0277 | 0.155 | 0.204 | 0.972 |
+| drive0005_s0_900_s5 | segment_clustered_union | 970 | 0.0464 | 0.290 | 0.429 | 0.954 |
+| hall05_s0_600_s5 | n3mapping_logged | 367 | 0.695 | 0.066 | 0.158 | 0.305 |
+| hall05_s0_600_s5 | segment_clustered_logged | 143 | 0.706 | 0.026 | 0.158 | 0.294 |
+| hall05_s0_600_s5 | segment_clustered_union | 466 | 0.599 | 0.073 | 0.389 | 0.401 |
+| gate02_s0_600_s5 | n3mapping_logged | 390 | 0.0026 | 0.100 | 0.333 | 0.997 |
+| gate02_s0_600_s5 | segment_clustered_logged | 164 | 0.000 | 0.000 | 0.000 | 1.000 |
+| gate02_s0_600_s5 | segment_clustered_union | 176 | 0.0057 | 0.100 | 0.333 | 0.994 |
+
+Interpretation:
+
+- `segment_clustered_logged` is useful for candidate compression: it cuts
+  logged candidate pairs by roughly 60% on the sampled runs.
+- It is not runtime-ready: it loses pair recall on KITTI360 and completely loses
+  the single gate02 GT opportunity in this benchmark.
+- `segment_clustered_union` recovers more outdoor recall on drive0005, but it
+  increases hall05 candidate count and false rate when spatial candidates are
+  included naively.
+
+Current verdict:
+
+```text
+Segment clustering is promising as an offline candidate-analysis lens, but the
+current diagonal-only rule is too blunt for runtime. Do not wire either
+segment_clustered_logged or segment_clustered_union into `processPendingLoopClosures`.
+```
+
+Next step:
+
+If this line continues, keep it offline and improve the benchmark first:
+
+1. Compare diagonal clustering against GT-opportunity windows across more
+   sequences.
+2. Add a query-level recall/precision view for clustered representatives.
+3. Only consider runtime code if a cluster rule reduces candidates while
+   preserving query recall on both KITTI360 and M2DGR.

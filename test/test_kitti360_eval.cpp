@@ -403,6 +403,8 @@ TEST(N3MappingKitti360EvalTest, LoopCandidateBenchmarkComparesLoggedAndSpatialCa
     EXPECT_NE(summary.find("\"method\": \"sc_rerank_logged_pool\""), std::string::npos);
     EXPECT_NE(summary.find("\"method\": \"liosam_spatial_all\""), std::string::npos);
     EXPECT_NE(summary.find("\"method\": \"liosam_spatial_nearest\""), std::string::npos);
+    EXPECT_NE(summary.find("\"method\": \"segment_clustered_logged\""), std::string::npos);
+    EXPECT_NE(summary.find("\"method\": \"segment_clustered_union\""), std::string::npos);
     EXPECT_NE(summary.find("\"spatial_pose_source\": \"gt\""), std::string::npos);
     EXPECT_NE(summary.find("sc_rerank_logged_pool ranks only within logged candidates"), std::string::npos);
 
@@ -411,6 +413,8 @@ TEST(N3MappingKitti360EvalTest, LoopCandidateBenchmarkComparesLoggedAndSpatialCa
     EXPECT_NE(pairs.find("n3mapping_logged,3,0"), std::string::npos);
     EXPECT_NE(pairs.find("sc_rerank_logged_pool,3,1"), std::string::npos);
     EXPECT_NE(pairs.find("liosam_spatial_all,3,0"), std::string::npos);
+    EXPECT_NE(pairs.find("segment_clustered_logged"), std::string::npos);
+    EXPECT_NE(pairs.find("segment_clustered_union"), std::string::npos);
     EXPECT_NE(pairs.find("True"), std::string::npos);
 
     const std::string csv_summary = readTextFile(output / "candidate_benchmark_summary.csv");
