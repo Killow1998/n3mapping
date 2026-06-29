@@ -1184,3 +1184,65 @@ candidate formation before graph commit, not looser graph commit:
 3. Reject isolated descriptor-only edges unless they have strong local
    correspondence support.
 4. Keep graph trial as a final damage guard.
+
+## 2026-06-29 Reverse Consensus Direction Falsifier
+
+Status: rejected; no behavior code kept.
+
+Experiment:
+
+- Tried extending `LoopConsensusVerifier` to evaluate reverse-direction
+  neighbor support, so opposite traversal could use:
+
+```text
+query_neighbor_id = query_id + offset
+match_neighbor_id = match_id - offset
+```
+
+- First version evaluated reverse consensus for every non-commit same-direction
+  result.
+- Second version only evaluated reverse consensus when the cheap segment
+  diagnostics already reported `segment_direction == reverse`.
+
+Result:
+
+- Both versions passed the normal Humble test suite locally:
+
+```text
+288 tests, 0 errors, 0 failures, 0 skipped
+```
+
+- The first version stalled KITTI360 drive0005 around frame/index `331` during
+  `process_loops_start`.
+- The gated version still stalled earlier, around frame/index `301`, during the
+  same `process_loops_start` phase.
+- The smoke output did not reach `metrics.json`, so the behavior is not usable.
+
+Artifacts:
+
+```text
+/tmp/n3mapping_reverse_consensus_matrix_20260629
+/tmp/n3mapping_reverse_consensus_smoke_340_20260629
+```
+
+Interpretation:
+
+- Reverse neighbor consensus is not a cheap recall-recovery path in the current
+  implementation. Even with segment-direction gating, it can multiply neighbor
+  ICP work enough to block eval progress.
+- The failure is runtime cost, not unit-test correctness. This is exactly the
+  kind of change that must not be kept just because small tests pass.
+
+Current verdict:
+
+```text
+Do not reintroduce reverse-direction LoopConsensusVerifier behavior unless it is
+implemented without extra per-candidate neighbor ICP, for example by using an
+already-computed segment/candidate cluster representation.
+```
+
+Next step:
+
+Continue from the kept range-gate baseline. If recall recovery is attempted
+again, do it before expensive ICP by forming segment-level candidate clusters,
+not by adding more ICP inside consensus verification.
