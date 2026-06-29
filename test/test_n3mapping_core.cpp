@@ -239,6 +239,26 @@ TEST(N3MappingCoreTest, PendingLoopClosureAcceptsDescriptorGeometryWithLimitedSe
     EXPECT_EQ(result.accepted_loops.front().loop_referee_reason, "descriptor_geometry_consistent");
 }
 
+TEST(N3MappingCoreTest, PendingLoopClosureRejectsCandidateBeyondPredictionRange)
+{
+    Config config = makeCoreTestConfig();
+    config.loop_max_range = 0.5;
+    N3MappingCore core(config);
+
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = 1.0;
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose)).accepted_keyframe);
+
+    const auto result = core.processPendingLoopClosures();
+    EXPECT_FALSE(result.optimized);
+    EXPECT_EQ(result.place_candidate_count, 0U);
+    EXPECT_EQ(result.edge_count, 0U);
+    EXPECT_EQ(result.graph_edge_count, 0U);
+    EXPECT_TRUE(result.accepted_loops.empty());
+}
+
 TEST(N3MappingCoreTest, DenseTrajectorySavedAfterLoopClosureMatchesFinalKeyframePose)
 {
     Config config = makeCoreTestConfig();

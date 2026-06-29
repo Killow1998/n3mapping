@@ -1088,3 +1088,99 @@ dominant damage pattern. The next useful algorithm work is recall recovery:
    sequence.
 3. Use graph consistency as a final commit referee, not as the only source of
    loop proposals.
+
+## 2026-06-29 Prediction Range Gate And Graph-Gate Falsifier
+
+Status: prediction range gate kept; graph-gate removal rejected.
+
+Change kept:
+
+- `loop_max_range` now rejects loop candidates before submap ICP when the
+  current optimized query/match prediction is farther than the configured
+  range.
+- The reject reason is `prediction_range_gate`.
+- This restores `loop_max_range` as an active pre-ICP physical consistency
+  filter instead of only a logged legacy value.
+
+Why:
+
+The broader 2026-06-29 matrix initially exposed an eval/runtime reliability
+problem: some far descriptor candidates entered expensive submap ICP and made
+KITTI360 eval windows fail to finish. The range gate fixed that failure mode.
+
+Validation artifacts:
+
+```text
+/tmp/n3mapping_eval_exit_smoke_after_range_gate_20260629
+/tmp/n3mapping_better_loop_range_gate_matrix_20260629
+```
+
+Important smoke result:
+
+```text
+KITTI360 drive0005 300/s5:
+  frames=300
+  accepted_loop_count=1
+  accepted_false_loop=0
+  prediction_range_gate rejects=657
+  metrics.json written successfully
+```
+
+Broader matrix after the range gate:
+
+| run | accepted loops | precision | trans p95 m | z p95 m | false loops |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| drive0000_s0_900_s5 | 4 | 0.75 | 2.445 | 1.726 | 1 |
+| drive0000_s400_600_s10 | 2 | 0.50 | 2.181 | 0.123 | 1 |
+| drive0004_s500_600_s10 | 0 | n/a | ~0 | ~0 | 0 |
+| drive0005_s0_900_s5 | 3 | 1.00 | 0.750 | 0.247 | 0 |
+| drive0006_s300_600_s10 | 0 | n/a | ~0 | ~0 | 0 |
+| drive0009_s500_600_s10 | 0 | n/a | ~0 | ~0 | 0 |
+| hall05_s0_600_s5 | 14 | 0.929 | 0.015 | 0.001 | 0 |
+| gate02_s0_600_s5 | 0 | n/a | ~0 | ~0 | 0 |
+
+Falsified experiment:
+
+Removing graph-trial yaw/translation gates increased recall, but damaged global
+consistency. The graph-trial gates should not be removed blindly.
+
+Artifacts:
+
+```text
+/tmp/n3mapping_better_loop_no_graph_gate_matrix_20260629
+```
+
+Comparison against the range-gate matrix:
+
+| run | loops before | loops without graph gate | precision before | precision without graph gate | trans p95 before | trans p95 without graph gate | z p95 before | z p95 without graph gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| drive0000_s0_900_s5 | 4 | 8 | 0.75 | 0.50 | 2.445 | 6.806 | 1.726 | 4.510 |
+| drive0000_s400_600_s10 | 2 | 3 | 0.50 | 0.667 | 2.181 | 2.741 | 0.123 | 0.587 |
+| drive0004_s500_600_s10 | 0 | 3 | n/a | 0.667 | ~0 | 1.852 | ~0 | 1.421 |
+| drive0005_s0_900_s5 | 3 | 10 | 1.00 | 0.90 | 0.750 | 6.268 | 0.247 | 2.480 |
+| drive0006_s300_600_s10 | 0 | 5 | n/a | 0.60 | ~0 | 2.324 | ~0 | 0.188 |
+| drive0009_s500_600_s10 | 0 | 6 | n/a | 0.833 | ~0 | 3.123 | ~0 | 0.437 |
+| hall05_s0_600_s5 | 14 | 21 | 0.929 | 0.952 | 0.015 | 0.035 | 0.001 | 0.001 |
+| gate02_s0_600_s5 | 0 | 0 | n/a | n/a | ~0 | ~0 | ~0 | ~0 |
+
+Interpretation:
+
+- `prediction_range_gate` is a valid engineering fix: it prevents far,
+  physically implausible candidates from entering expensive ICP and makes eval
+  windows complete.
+- Removing graph-trial gates recovers true loops in several KITTI windows, but
+  it also injects damaging constraints and breaks global trajectory consistency.
+- Therefore the current bottleneck is not just detection recall. It is safe
+  recall: the system needs a correspondence model that can recover true loop
+  opportunities without committing graph-inconsistent edges.
+
+Next step:
+
+Do not weaken graph gates. The next behavior change should be segment-level
+candidate formation before graph commit, not looser graph commit:
+
+1. Build candidate clusters from neighboring query/match IDs before `buildLoopEdges`.
+2. Select one representative edge per coherent segment.
+3. Reject isolated descriptor-only edges unless they have strong local
+   correspondence support.
+4. Keep graph trial as a final damage guard.

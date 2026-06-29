@@ -1030,6 +1030,12 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 make_rejected_event(candidate, "missing_keyframe_or_cloud");
                 continue;
             }
+            const Eigen::Isometry3d T_pred_match_query =
+                match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
+            if (T_pred_match_query.translation().norm() > config_.loop_max_range) {
+                make_rejected_event(candidate, "prediction_range_gate");
+                continue;
+            }
 
             auto source = session_->keyframeManager().buildSubmapInRootFrame(query_id, 0, candidate.match_id);
             auto target = session_->keyframeManager().buildSubmapInRootFrame(candidate.match_id, config_.gicp_submap_size, candidate.match_id);

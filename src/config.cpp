@@ -41,11 +41,11 @@ std::string Config::toString() const {
         << " radius=" << loop_spatial_candidate_radius
         << " min_id_gap=" << loop_spatial_candidate_min_id_gap
         << " max_candidates=" << loop_spatial_candidate_max_candidates << "\n";
-    oss << "loop_closest_id_th/min_id_interval/max_range are retained for compatibility/logging only; they are not used in the active mapping loop-candidate retrieval/verification path.\n";
+    oss << "Loop prediction range gate: max_range=" << loop_max_range
+        << " (pre-ICP candidate filter)\n";
     oss << "Loop timing: loop_kf_gap=" << loop_kf_gap << " (active)\n";
-    oss << "Legacy loop distance params (inactive, compatibility/logging only): closest_id_th="
-        << loop_closest_id_th << ", min_id_interval=" << loop_min_id_interval
-        << ", max_range=" << loop_max_range << "\n";
+    oss << "Legacy loop id params (inactive, compatibility/logging only): closest_id_th="
+        << loop_closest_id_th << ", min_id_interval=" << loop_min_id_interval << "\n";
     oss << "Reloc: candidates=" << reloc_num_candidates
         << ", sc_thr=" << reloc_sc_dist_threshold
         << ", min_conf=" << reloc_min_confidence << "\n";
