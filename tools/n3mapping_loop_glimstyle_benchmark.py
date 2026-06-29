@@ -21,6 +21,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--kitti_root", required=False, default="")
     parser.add_argument("--sequence", required=False, default="")
+    parser.add_argument("--cloud_dir", default="", help="Optional generic XYZI .bin cloud directory, e.g. M2DGR velodyne_points")
+    parser.add_argument("--cloud_index_stride", type=int, default=1, help="Map keyframes_gt frame_id to sorted cloud index via frame_id * stride + start")
+    parser.add_argument("--cloud_index_start", type=int, default=0)
     parser.add_argument("--keyframes_gt", required=False, default="")
     parser.add_argument("--loop_debug", required=False, default="")
     parser.add_argument("--accepted_loops", default="")
@@ -91,8 +94,34 @@ def cost_proxy(T_target_source, source, target, threshold):
     }
 
 
-def load_submap(gt_poses, sorted_ids, keyframe_id, args):
-    points = common.load_submap_points(args.kitti_root, args.sequence, gt_poses, sorted_ids, keyframe_id, args)
+def sorted_cloud_files(args):
+    if not args.cloud_dir:
+        return []
+    files = sorted(Path(args.cloud_dir).glob("*.bin"))
+    if not files:
+        raise RuntimeError(f"no .bin clouds found under {args.cloud_dir}")
+    return files
+
+
+def load_submap(gt_poses, sorted_ids, keyframe_id, args, cloud_files):
+    if not cloud_files:
+        points = common.load_submap_points(args.kitti_root, args.sequence, gt_poses, sorted_ids, keyframe_id, args)
+        points = common.voxel_downsample(points, args.voxel_size)
+        return cap_points(points, args.max_points)
+    center_pose = gt_poses[keyframe_id]
+    center_index = sorted_ids.index(keyframe_id)
+    start = max(0, center_index - args.submap_keyframe_radius)
+    stop = min(len(sorted_ids), center_index + args.submap_keyframe_radius + 1)
+    T_center_world = np.linalg.inv(center_pose["T_world_lidar"])
+    chunks = []
+    for neighbor_id in sorted_ids[start:stop]:
+        pose = gt_poses[neighbor_id]
+        cloud_index = int(pose["frame_id"]) * args.cloud_index_stride + args.cloud_index_start
+        if cloud_index < 0 or cloud_index >= len(cloud_files):
+            raise RuntimeError(f"cloud index {cloud_index} out of range for keyframe {neighbor_id}")
+        points = common.load_kitti_points(cloud_files[cloud_index], args.range_min, args.range_max)
+        chunks.append(common.transform_points(T_center_world @ pose["T_world_lidar"], points))
+    points = np.vstack(chunks) if chunks else np.empty((0, 3), dtype=np.float64)
     points = common.voxel_downsample(points, args.voxel_size)
     return cap_points(points, args.max_points)
 
@@ -146,6 +175,7 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     gt_poses = common.load_keyframes_gt(args.keyframes_gt)
     sorted_ids = sorted(gt_poses)
+    cloud_files = sorted_cloud_files(args)
     accepted_pairs = common.load_accepted_pairs(args.accepted_loops)
     candidates = common.select_candidate_pairs(
         common.load_loop_debug_candidates(args.loop_debug),
@@ -162,7 +192,7 @@ def main():
             continue
         for keyframe_id in (query_id, match_id):
             if keyframe_id not in cloud_cache:
-                cloud_cache[keyframe_id] = load_submap(gt_poses, sorted_ids, keyframe_id, args)
+                cloud_cache[keyframe_id] = load_submap(gt_poses, sorted_ids, keyframe_id, args, cloud_files)
         source = cloud_cache[query_id]
         target = cloud_cache[match_id]
         gt_is_loop, gt_distance, gt_yaw, T_gt = common.gt_loop_label(
@@ -211,6 +241,8 @@ def main():
     write_csv(output / "glimstyle_pairs.csv", rows)
     report = {
         "tested_pair_count": len(rows),
+        "cloud_dir": args.cloud_dir,
+        "cloud_index_stride": args.cloud_index_stride,
         "gt_loop_pair_count": sum(1 for row in rows if row["gt_is_loop"]),
         "non_loop_pair_count": sum(1 for row in rows if not row["gt_is_loop"]),
         "gt_inlier_mean_true_loop": summarize(rows, "gt_inlier_ratio", lambda row: row["gt_is_loop"]),
