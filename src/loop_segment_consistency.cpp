@@ -160,6 +160,60 @@ DirectionStats evaluateDirection(const Config& config,
     return stats;
 }
 
+DirectionStats evaluateCandidateDirection(const Config& config,
+                                          const KeyframeManager& keyframe_manager,
+                                          const LoopCandidate& candidate,
+                                          int half_window,
+                                          int direction_sign)
+{
+    DirectionStats stats;
+    stats.direction = direction_sign > 0 ? "same" : "reverse";
+    const auto query = keyframe_manager.getKeyframe(candidate.query_id);
+    const auto match = keyframe_manager.getKeyframe(candidate.match_id);
+    if (!query || !match) {
+        return stats;
+    }
+
+    const double translation_threshold = std::max(1.0, config.loop_max_icp_translation);
+    const double yaw_threshold = std::max(0.5, config.loop_max_icp_rotation);
+
+    for (int offset = -half_window; offset <= half_window; ++offset) {
+        if (offset == 0) {
+            continue;
+        }
+        ++stats.pair_count;
+        const auto query_neighbor = keyframe_manager.getKeyframe(candidate.query_id + offset);
+        const auto match_neighbor = keyframe_manager.getKeyframe(
+            candidate.match_id + direction_sign * offset);
+        if (!query_neighbor || !match_neighbor) {
+            continue;
+        }
+        ++stats.valid_pair_count;
+
+        const Eigen::Isometry3d query_step =
+            query->pose_optimized.inverse() * query_neighbor->pose_optimized;
+        const Eigen::Isometry3d match_step =
+            match->pose_optimized.inverse() * match_neighbor->pose_optimized;
+        const Eigen::Isometry3d expected_match_step =
+            direction_sign > 0 ? query_step : query_step.inverse();
+        const Eigen::Isometry3d residual = match_step.inverse() * expected_match_step;
+        const Eigen::Vector3d rpy = rollPitchYaw(residual);
+        const double translation_error = residual.translation().norm();
+        const double yaw_error = std::abs(normalizeAngle(rpy.z()));
+        const double z_error = std::abs(residual.translation().z());
+        const double roll_pitch_error = std::hypot(normalizeAngle(rpy.x()), normalizeAngle(rpy.y()));
+
+        stats.translation_errors.push_back(translation_error);
+        stats.yaw_errors.push_back(yaw_error);
+        stats.z_errors.push_back(z_error);
+        stats.roll_pitch_errors.push_back(roll_pitch_error);
+        if (translation_error <= translation_threshold && yaw_error <= yaw_threshold) {
+            ++stats.inlier_count;
+        }
+    }
+    return stats;
+}
+
 double directionScore(const DirectionStats& stats)
 {
     if (stats.valid_pair_count == 0) {
@@ -212,6 +266,20 @@ LoopSegmentConsistencyDiagnostics computeLoopSegmentConsistency(
     }
     const DirectionStats same = evaluateDirection(config, keyframe_manager, loop, half_window, 1);
     const DirectionStats reverse = evaluateDirection(config, keyframe_manager, loop, half_window, -1);
+    return makeDiagnostics(directionScore(reverse) < directionScore(same) ? reverse : same);
+}
+
+LoopSegmentConsistencyDiagnostics computeLoopCandidateSegmentConsistency(
+    const Config& config,
+    const KeyframeManager& keyframe_manager,
+    const LoopCandidate& candidate,
+    int half_window)
+{
+    if (half_window < 1 || candidate.query_id < 0 || candidate.match_id < 0) {
+        return {};
+    }
+    const DirectionStats same = evaluateCandidateDirection(config, keyframe_manager, candidate, half_window, 1);
+    const DirectionStats reverse = evaluateCandidateDirection(config, keyframe_manager, candidate, half_window, -1);
     return makeDiagnostics(directionScore(reverse) < directionScore(same) ? reverse : same);
 }
 

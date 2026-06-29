@@ -1450,3 +1450,52 @@ The next runtime design should not be diagonal segment clustering. If we borrow
 from LIO-SAM-style processing, use spatial proximity only as a proposal prior
 and require a cheap local geometric consistency check before ICP.
 ```
+
+## 2026-06-29 Runtime Segment Representative Model
+
+Status: behavior change kept for now; it is conservative but improves global
+consistency on the current smoke matrix.
+
+Change:
+
+- Collect descriptor/spatial proposals across pending query keyframes.
+- Reject proposals outside `loop_max_range` before submap construction.
+- Require either a strong existing descriptor threshold or local segment support.
+- Cluster proposals by forward/reverse query-match continuity.
+- Run expensive ICP only for one representative per cluster.
+- Keep graph-trial and consensus-estimator paths as diagnostics/guards only;
+  do not replace central loop measurements with consensus estimates.
+- Keep spatial-only candidates rejected by `LoopReferee`.
+
+Artifacts:
+
+```text
+/tmp/n3mapping_segment_model_matrix_20260629
+/tmp/n3mapping_segment_model_long_matrix_20260629
+```
+
+Short smoke:
+
+| run | loops | precision | translation p95 m | xy p95 m | z p95 m | high-Z-after |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| drive0005_330 | 2 | 1.00 | 0.492 | 0.487 | 0.081 | 0 |
+| hall05_300 | 2 | 1.00 | 0.007 | 0.007 | 0.00005 | 0 |
+| gate02_300 | 0 | n/a | 0.000 | 0.000 | 0.000 | 0 |
+
+Longer smoke:
+
+| run | loops | precision | translation p95 m | xy p95 m | z p95 m | high-Z-after |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| drive0005_900 | 2 | 1.00 | 0.481 | 0.480 | 0.061 | 0 |
+| hall05_600 | 10 | 1.00 | 0.030 | 0.030 | 0.00007 | 0 |
+
+Interpretation:
+
+- This model trades recall for safety: fewer committed loops than the previous
+  range-gate baseline, but better drive0005 global consistency and no false
+  loops in these smoke runs.
+- It is not the final 80% solution; it is a safer foundation because bad
+  isolated pairs are removed before ICP instead of being rescued after graph
+  trial.
+- The previous consensus measurement rescue is not kept: it raised loop count
+  but increased high-Z-after cases.

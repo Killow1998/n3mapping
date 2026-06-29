@@ -214,6 +214,48 @@ TEST(LoopSegmentConsistencyTest, ChoosesReverseDirectionWhenTraversalIsOpposite)
     EXPECT_EQ(diagnostics.recommendation, "consistent");
 }
 
+TEST(LoopSegmentConsistencyTest, CandidateSegmentConsistencyRunsBeforeIcp)
+{
+    Config config;
+    KeyframeManager manager(config);
+    std::vector<Keyframe::Ptr> keyframes;
+    for (int id = 0; id <= 12; ++id) {
+        auto keyframe = Keyframe::create(id, static_cast<double>(id), poseAt(id), makeTinyCloud());
+        keyframe->pose_optimized = poseAt(id);
+        keyframes.push_back(keyframe);
+    }
+    manager.loadKeyframes(keyframes);
+
+    LoopCandidate candidate;
+    candidate.query_id = 10;
+    candidate.match_id = 2;
+    const auto diagnostics = computeLoopCandidateSegmentConsistency(config, manager, candidate, 2);
+    EXPECT_EQ(diagnostics.valid_pair_count, 4);
+    EXPECT_EQ(diagnostics.consensus_inlier_count, 4);
+    EXPECT_DOUBLE_EQ(diagnostics.consensus_ratio, 1.0);
+    EXPECT_EQ(diagnostics.direction, "same");
+    EXPECT_EQ(diagnostics.recommendation, "consistent");
+}
+
+TEST(LoopSegmentConsistencyTest, CandidateSegmentConsistencyReportsInsufficientSupport)
+{
+    Config config;
+    KeyframeManager manager(config);
+    std::vector<Keyframe::Ptr> keyframes;
+    keyframes.push_back(Keyframe::create(2, 2.0, poseAt(2), makeTinyCloud()));
+    keyframes.push_back(Keyframe::create(10, 10.0, poseAt(10), makeTinyCloud()));
+    manager.loadKeyframes(keyframes);
+
+    LoopCandidate candidate;
+    candidate.query_id = 10;
+    candidate.match_id = 2;
+    const auto diagnostics = computeLoopCandidateSegmentConsistency(config, manager, candidate, 2);
+    EXPECT_EQ(diagnostics.valid_pair_count, 0);
+    EXPECT_EQ(diagnostics.consensus_inlier_count, 0);
+    EXPECT_DOUBLE_EQ(diagnostics.consensus_ratio, 0.0);
+    EXPECT_EQ(diagnostics.recommendation, "insufficient_support");
+}
+
 class MockLoopOptimizer : public LoopOptimizerInterface
 {
   public:

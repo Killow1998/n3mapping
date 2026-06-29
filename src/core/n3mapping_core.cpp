@@ -9,6 +9,7 @@
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <tuple>
 #include <vector>
 
 #include "n3mapping/cloud_utils.h"
@@ -116,6 +117,196 @@ LoopFeatures makeSegmentAwareLoopFeatures(const Config& config,
     features.icp_correction_yaw_abs = std::abs(rollPitchYaw(loop.T_icp_correction_match).z());
     features.segment_translation_median = loop.segment_translation_median;
     return features;
+}
+
+bool hasStrongLoopDescriptor(const Config& config, const LoopCandidate& candidate)
+{
+    return (candidate.fromSC() &&
+            std::isfinite(candidate.sc_distance) &&
+            candidate.sc_distance <= config.sc_dist_threshold) ||
+           (candidate.fromRHPD() &&
+            std::isfinite(candidate.rhpd_distance) &&
+            candidate.rhpd_distance <= config.rhpd_dist_threshold);
+}
+
+bool hasPreIcpSegmentSupport(const LoopSegmentConsistencyDiagnostics& segment)
+{
+    return segment.valid_pair_count >= 2 && segment.consensus_ratio >= 0.75;
+}
+
+using CandidatePair = std::pair<int64_t, int64_t>;
+
+struct PreIcpCandidate {
+    LoopCandidate candidate;
+    LoopSegmentConsistencyDiagnostics segment;
+    double predicted_range_m = std::numeric_limits<double>::infinity();
+    bool strong_descriptor = false;
+};
+
+struct SegmentClusterKey {
+    int direction = 0;
+    int64_t bucket = 0;
+
+    bool operator<(const SegmentClusterKey& other) const
+    {
+        return std::tie(direction, bucket) < std::tie(other.direction, other.bucket);
+    }
+};
+
+struct CandidateSelectionResult {
+    std::vector<LoopCandidate> selected;
+    std::map<CandidatePair, std::string> rejected;
+};
+
+CandidatePair candidatePair(const LoopCandidate& candidate)
+{
+    return {candidate.query_id, candidate.match_id};
+}
+
+int64_t floorDiv(int64_t value, int64_t divisor)
+{
+    if (divisor <= 1) {
+        return value;
+    }
+    if (value >= 0) {
+        return value / divisor;
+    }
+    return -(((-value) + divisor - 1) / divisor);
+}
+
+SegmentClusterKey segmentClusterKey(const Config& config,
+                                    const LoopCandidate& candidate,
+                                    const LoopSegmentConsistencyDiagnostics& segment)
+{
+    const bool reverse = segment.direction == "reverse";
+    const int64_t axis = reverse
+        ? candidate.query_id + candidate.match_id
+        : candidate.query_id - candidate.match_id;
+    const int64_t bucket_width = std::max<int64_t>(2, config.loop_kf_gap);
+    return {reverse ? -1 : 1, floorDiv(axis, bucket_width)};
+}
+
+int sourceRank(const LoopCandidate& candidate)
+{
+    const bool descriptor = candidate.fromSC() || candidate.fromRHPD();
+    const bool spatial = candidate.fromSpatial();
+    if (descriptor && spatial) {
+        return 3;
+    }
+    if (descriptor) {
+        return 2;
+    }
+    if (spatial) {
+        return 1;
+    }
+    return 0;
+}
+
+bool preferPreIcpRepresentative(const PreIcpCandidate& candidate,
+                                const PreIcpCandidate& current)
+{
+    const int candidate_source = sourceRank(candidate.candidate);
+    const int current_source = sourceRank(current.candidate);
+    if (candidate_source != current_source) {
+        return candidate_source > current_source;
+    }
+    if (candidate.strong_descriptor != current.strong_descriptor) {
+        return candidate.strong_descriptor;
+    }
+    if (candidate.segment.consensus_ratio != current.segment.consensus_ratio) {
+        return candidate.segment.consensus_ratio > current.segment.consensus_ratio;
+    }
+    if (std::abs(candidate.predicted_range_m - current.predicted_range_m) > 1.0e-6) {
+        return candidate.predicted_range_m < current.predicted_range_m;
+    }
+    if (candidate.candidate.fused_score != current.candidate.fused_score) {
+        return candidate.candidate.fused_score < current.candidate.fused_score;
+    }
+    return candidate.candidate.match_id < current.candidate.match_id;
+}
+
+CandidateSelectionResult selectPreIcpSegmentRepresentatives(
+    const Config& config,
+    const KeyframeManager& keyframe_manager,
+    const std::vector<LoopCandidate>& raw_candidates)
+{
+    CandidateSelectionResult result;
+    std::vector<PreIcpCandidate> eligible;
+    eligible.reserve(raw_candidates.size());
+
+    for (const auto& candidate : raw_candidates) {
+        const CandidatePair key = candidatePair(candidate);
+        const auto query = keyframe_manager.getKeyframe(candidate.query_id);
+        const auto match = keyframe_manager.getKeyframe(candidate.match_id);
+        if (!query || !match) {
+            result.rejected[key] = "missing_keyframe_or_cloud";
+            continue;
+        }
+        const double predicted_range =
+            (match->pose_optimized.inverse() * query->pose_optimized).translation().norm();
+        if (predicted_range > config.loop_max_range) {
+            result.rejected[key] = "prediction_range_gate";
+            continue;
+        }
+
+        PreIcpCandidate proposal;
+        proposal.candidate = candidate;
+        proposal.predicted_range_m = predicted_range;
+        proposal.strong_descriptor = hasStrongLoopDescriptor(config, candidate);
+        proposal.segment = computeLoopCandidateSegmentConsistency(
+            config, keyframe_manager, candidate);
+        if (!hasPreIcpSegmentSupport(proposal.segment) && !proposal.strong_descriptor) {
+            result.rejected[key] = "pre_icp_segment_unconfirmed";
+            continue;
+        }
+        eligible.push_back(std::move(proposal));
+    }
+
+    std::map<SegmentClusterKey, std::vector<std::size_t>> clusters;
+    for (std::size_t i = 0; i < eligible.size(); ++i) {
+        clusters[segmentClusterKey(config, eligible[i].candidate, eligible[i].segment)].push_back(i);
+    }
+
+    std::vector<bool> selected(eligible.size(), false);
+    for (const auto& [cluster_key, indices] : clusters) {
+        (void)cluster_key;
+        if (indices.empty()) {
+            continue;
+        }
+        std::set<int64_t> query_ids;
+        for (const std::size_t index : indices) {
+            query_ids.insert(eligible[index].candidate.query_id);
+        }
+
+        std::size_t best = indices.front();
+        for (const std::size_t index : indices) {
+            if (preferPreIcpRepresentative(eligible[index], eligible[best])) {
+                best = index;
+            }
+        }
+
+        const bool cluster_supported = query_ids.size() >= 2;
+        if (!cluster_supported && !eligible[best].strong_descriptor) {
+            for (const std::size_t index : indices) {
+                result.rejected[candidatePair(eligible[index].candidate)] = "pre_icp_isolated_weak_cluster";
+            }
+            continue;
+        }
+
+        selected[best] = true;
+        for (const std::size_t index : indices) {
+            if (index != best) {
+                result.rejected[candidatePair(eligible[index].candidate)] = "pre_icp_cluster_non_representative";
+            }
+        }
+    }
+
+    for (std::size_t i = 0; i < eligible.size(); ++i) {
+        if (selected[i]) {
+            result.selected.push_back(eligible[i].candidate);
+        }
+    }
+    return result;
 }
 
 std::pair<double, double> meanLoopResidual(
@@ -916,8 +1107,21 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         keyframes_to_check.swap(loop_detection_queue_);
     }
 
+    std::map<int64_t, std::vector<LoopCandidate>> raw_candidates_by_query;
+    std::map<int64_t, Keyframe::Ptr> query_keyframes;
+    std::vector<LoopCandidate> raw_candidates;
+    std::map<int64_t, Keyframe::Ptr> keyframe_map;
+    if (config_.loop_spatial_candidates_enable) {
+        for (const auto& keyframe : session_->keyframeManager().getAllKeyframes()) {
+            if (keyframe) {
+                keyframe_map[keyframe->id] = keyframe;
+            }
+        }
+    }
+
+    int64_t next_last_loop_check_id = last_loop_check_id_;
     for (int64_t query_id : keyframes_to_check) {
-        if (query_id - last_loop_check_id_ < config_.loop_kf_gap) {
+        if (query_id - next_last_loop_check_id < config_.loop_kf_gap) {
             continue;
         }
 
@@ -928,12 +1132,6 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
 
         std::vector<LoopCandidate> candidates = session_->loopDetector().detectLoopCandidates(query_id);
         if (config_.loop_spatial_candidates_enable) {
-            std::map<int64_t, Keyframe::Ptr> keyframe_map;
-            for (const auto& keyframe : session_->keyframeManager().getAllKeyframes()) {
-                if (keyframe) {
-                    keyframe_map[keyframe->id] = keyframe;
-                }
-            }
             auto spatial_candidates =
                 session_->loopDetector().detectSpatialCandidates(query_id, keyframe_map);
             for (const auto& spatial : spatial_candidates) {
@@ -953,7 +1151,26 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         if (candidates.empty()) {
             continue;
         }
-        last_loop_check_id_ = query_id;
+        next_last_loop_check_id = query_id;
+        query_keyframes[query_id] = query_kf;
+        raw_candidates.insert(raw_candidates.end(), candidates.begin(), candidates.end());
+        raw_candidates_by_query[query_id] = std::move(candidates);
+    }
+    last_loop_check_id_ = next_last_loop_check_id;
+
+    if (raw_candidates.empty()) {
+        return result;
+    }
+
+    const CandidateSelectionResult pre_icp_selection =
+        selectPreIcpSegmentRepresentatives(config_, session_->keyframeManager(), raw_candidates);
+    std::map<int64_t, std::vector<LoopCandidate>> candidates_by_query;
+    for (const auto& candidate : pre_icp_selection.selected) {
+        candidates_by_query[candidate.query_id].push_back(candidate);
+    }
+
+    for (const auto& [query_id, query_kf] : query_keyframes) {
+        std::vector<LoopCandidate> candidates = candidates_by_query[query_id];
 
         std::vector<VerifiedLoop> verified_loops;
         LoopVerifier loop_verifier(config_);
@@ -966,7 +1183,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
         std::map<std::pair<int64_t, int64_t>, std::string> graph_reject_by_pair;
         const bool loop_debug_enabled = config_.loop_debug_enable;
         if (loop_debug_enabled) {
-            debug_events.reserve(candidates.size());
+            debug_events.reserve(raw_candidates_by_query[query_id].size());
         }
 
         auto flush_debug_events = [&](const std::set<std::pair<int64_t, int64_t>>& accepted_pairs,
@@ -1024,16 +1241,22 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             debug_events.push_back(event);
         };
 
+        for (const auto& candidate : raw_candidates_by_query[query_id]) {
+            auto rejected = pre_icp_selection.rejected.find(candidatePair(candidate));
+            if (rejected != pre_icp_selection.rejected.end()) {
+                make_rejected_event(candidate, rejected->second);
+            }
+        }
+
+        if (candidates.empty()) {
+            flush_debug_events({}, "pre_icp_cluster_empty");
+            continue;
+        }
+
         for (const auto& candidate : candidates) {
             auto match_kf = session_->keyframeManager().getKeyframe(candidate.match_id);
             if (!match_kf || !query_kf->cloud || !match_kf->cloud || query_kf->cloud->empty() || match_kf->cloud->empty()) {
                 make_rejected_event(candidate, "missing_keyframe_or_cloud");
-                continue;
-            }
-            const Eigen::Isometry3d T_pred_match_query =
-                match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
-            if (T_pred_match_query.translation().norm() > config_.loop_max_range) {
-                make_rejected_event(candidate, "prediction_range_gate");
                 continue;
             }
 
@@ -1234,9 +1457,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
             const std::vector<EdgeInfo> candidate_edges{edge};
             const auto diagnostics = computeLoopGraphTrialDiagnostics(
                 config_, poses_before, committed_edges, candidate_edges);
-            assignGraphTrialDiagnostics(&loop, diagnostics);
             const auto key = std::make_pair(loop.query_id, loop.match_id);
-            graph_trial_by_pair[key] = diagnostics;
             auto consensus_it = consensus_by_pair.find(key);
             if (consensus_it != consensus_by_pair.end() &&
                 consensus_it->second.estimator_pair_count >= 3) {
@@ -1244,10 +1465,12 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures()
                 estimator_edge.measurement =
                     consensus_it->second.estimator_measurement_match_query;
                 const std::vector<EdgeInfo> estimator_edges{estimator_edge};
-                consensus_estimator_trial_by_pair[key] =
-                    computeLoopGraphTrialDiagnostics(
-                        config_, poses_before, committed_edges, estimator_edges);
+                const auto estimator_diagnostics = computeLoopGraphTrialDiagnostics(
+                    config_, poses_before, committed_edges, estimator_edges);
+                consensus_estimator_trial_by_pair[key] = estimator_diagnostics;
             }
+            assignGraphTrialDiagnostics(&loop, diagnostics);
+            graph_trial_by_pair[key] = diagnostics;
             referee_by_pair[key] = {
                 loop.loop_referee_recommendation,
                 loop.loop_referee_reason,

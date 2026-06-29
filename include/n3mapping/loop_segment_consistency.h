@@ -30,6 +30,12 @@ LoopSegmentConsistencyDiagnostics computeLoopSegmentConsistency(
     const VerifiedLoop& loop,
     int half_window = 2);
 
+LoopSegmentConsistencyDiagnostics computeLoopCandidateSegmentConsistency(
+    const Config& config,
+    const KeyframeManager& keyframe_manager,
+    const LoopCandidate& candidate,
+    int half_window = 2);
+
 void assignLoopSegmentConsistency(
     VerifiedLoop* loop,
     const LoopSegmentConsistencyDiagnostics& diagnostics);
