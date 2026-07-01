@@ -397,6 +397,15 @@ Safety rule:
 - Stage A must not alter default behavior.
 - If the implementation cannot be compiled and tested locally, do not land it.
 
+Implementation status:
+
+- Implemented as debug-only instrumentation in `WorldLocalizing`.
+- Runtime relocalization still uses the existing stationary/static query cloud.
+- When `reloc_debug_enable=true`, `relocalization_debug.jsonl` now records both:
+  - `query_*`: current stationary/static query mode, frame count, motion span, raw/downsampled points, and normal candidate count;
+  - `motion_query_*`: measurement-only short motion-submap query stats and candidate count/top candidates.
+- The motion-submap query is not used for lock, reject, ICP acceptance, or map state updates.
+
 ### Stage B: Query local submap construction
 
 Goal: add an optional query submap builder.

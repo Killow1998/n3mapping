@@ -213,6 +213,22 @@ void appendHypotheses(std::ostream& os, bool* first, const std::vector<RelocDebu
     os << ']';
 }
 
+void appendQueryCloudSummary(std::ostream& os,
+                             bool* first,
+                             const char* prefix,
+                             const RelocQueryCloudDebugSummary& summary)
+{
+    const std::string base(prefix);
+    appendString(os, first, (base + "_mode").c_str(), summary.mode);
+    appendInteger(os, first, (base + "_frame_count").c_str(), summary.frame_count);
+    appendNumber(os, first, (base + "_motion_translation_m").c_str(), summary.motion_translation_m);
+    appendNumber(os, first, (base + "_motion_rotation_rad").c_str(), summary.motion_rotation_rad);
+    appendSize(os, first, (base + "_raw_points").c_str(), summary.raw_points);
+    appendSize(os, first, (base + "_downsampled_points").c_str(), summary.downsampled_points);
+    appendSize(os, first, (base + "_candidate_count").c_str(), summary.candidate_count);
+    appendCandidates(os, first, (base + "_top_candidates").c_str(), summary.top_candidates);
+}
+
 void appendPose(std::ostream& os, bool* first, const char* key, const Eigen::Isometry3d& pose)
 {
     appendComma(os, first);
@@ -270,6 +286,8 @@ bool RelocalizationDebugLogger::appendRelocalization(const std::string& path,
     appendString(os, &first, "record_type", "relocalize");
     appendNumber(os, &first, "processing_time", event.processing_time);
     appendSize(os, &first, "query_index", event.query_index);
+    appendQueryCloudSummary(os, &first, "query", event.query_cloud);
+    appendQueryCloudSummary(os, &first, "motion_query", event.motion_query_cloud);
     appendSize(os, &first, "candidate_count", event.candidate_count);
     appendCandidates(os, &first, "top_candidates", event.top_candidates);
     appendBasins(os, &first, event.basins);

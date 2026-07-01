@@ -71,7 +71,11 @@ private:
     double computeRelocLogLikelihood(const LoopCandidate& candidate, const MatchResult& match_result) const;
     double computeTrackLogLikelihood(const MatchResult& match_result,
                                      const Eigen::Isometry3d& predicted_pose) const;
-    PointCloudT::Ptr buildRelocQueryCloud(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
+    PointCloudT::Ptr buildRelocQueryCloud(const PointCloudT::Ptr& cloud,
+                                          const Eigen::Isometry3d& odom_pose,
+                                          RelocQueryCloudDebugSummary* debug_summary = nullptr);
+    PointCloudT::Ptr buildRelocMotionQueryCloudForDebug(const Eigen::Isometry3d& odom_pose,
+                                                        RelocQueryCloudDebugSummary* debug_summary) const;
     void appendRelocalizationDebug(const RelocalizationDebugEvent& event) const;
     void appendTrackingDebug(const RelocTrackingDebugEvent& event) const;
     void clearRelocHypotheses();

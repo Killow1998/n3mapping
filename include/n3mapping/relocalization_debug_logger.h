@@ -38,9 +38,22 @@ struct RelocDebugHypothesisSummary {
     bool alive = false;
 };
 
+struct RelocQueryCloudDebugSummary {
+    std::string mode;
+    int frame_count = 0;
+    double motion_translation_m = std::numeric_limits<double>::quiet_NaN();
+    double motion_rotation_rad = std::numeric_limits<double>::quiet_NaN();
+    std::size_t raw_points = 0;
+    std::size_t downsampled_points = 0;
+    std::size_t candidate_count = 0;
+    std::vector<LoopCandidate> top_candidates;
+};
+
 struct RelocalizationDebugEvent {
     double processing_time = 0.0;
     uint64_t query_index = 0;
+    RelocQueryCloudDebugSummary query_cloud;
+    RelocQueryCloudDebugSummary motion_query_cloud;
     std::size_t candidate_count = 0;
     std::vector<LoopCandidate> top_candidates;
     std::vector<RelocDebugBasinSummary> basins;

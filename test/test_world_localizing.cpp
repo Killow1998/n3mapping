@@ -203,6 +203,47 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesTrackingFailurePath)
     std::filesystem::remove_all(dir);
 }
 
+TEST_F(WorldLocalizingTest, RelocalizationDebugWritesQueryCloudDiagnostics)
+{
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "n3mapping_reloc_debug_query_cloud";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path debug_path = dir / "relocalization_debug.jsonl";
+    config_.reloc_debug_enable = true;
+    config_.reloc_debug_path = debug_path.string();
+    config_.reloc_static_agg_enable = true;
+    config_.reloc_static_agg_max_frames = 3;
+    config_.reloc_static_agg_min_frames = 1;
+    config_.reloc_static_agg_max_translation = 0.01;
+    config_.reloc_lock_min_margin = 0.1;
+
+    buildTestMap(6, 2.0);
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = 4.0;
+    auto cloud = generateCorridorCloud(pose);
+    (void)reloc.relocalize(cloud, pose);
+
+    Eigen::Isometry3d moved_pose = pose;
+    moved_pose.translation().x() += 0.5;
+    auto moved_cloud = generateCorridorCloud(moved_pose);
+    (void)reloc.relocalize(moved_cloud, moved_pose);
+
+    const auto lines = readDebugLines(debug_path);
+    ASSERT_GE(lines.size(), 2u);
+    const std::string& latest = lines.back();
+    EXPECT_NE(latest.find("\"record_type\":\"relocalize\""), std::string::npos);
+    EXPECT_NE(latest.find("\"query_mode\":\"stationary\""), std::string::npos);
+    EXPECT_NE(latest.find("\"query_frame_count\":1"), std::string::npos);
+    EXPECT_NE(latest.find("\"motion_query_mode\":\"motion_submap\""), std::string::npos);
+    EXPECT_NE(latest.find("\"motion_query_frame_count\":2"), std::string::npos);
+    EXPECT_NE(latest.find("\"motion_query_candidate_count\":"), std::string::npos);
+
+    std::filesystem::remove_all(dir);
+}
+
 TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess)
 {
     config_.reloc_lock_min_margin = 0.1;
