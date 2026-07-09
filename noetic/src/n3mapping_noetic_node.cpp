@@ -23,6 +23,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <std_msgs/String.h>
 #include <std_msgs/UInt32.h>
 #include <std_srvs/Trigger.h>
 #include <sys/stat.h>
@@ -93,6 +94,7 @@ class N3MappingNoeticNode {
         loop_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/n3mapping/loop_closure_markers", 10, true);
         global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/n3mapping/global_map", 1, true);
         relocalization_lock_pub_ = nh_.advertise<std_msgs::UInt32>("/n3mapping/relocalization_lock", 10);
+        status_pub_ = nh_.advertise<std_msgs::String>("/n3mapping/status", 10, true);
         save_map_srv_ = nh_.advertiseService("/n3mapping/save_map", &N3MappingNoeticNode::handleSaveMap, this);
 
         loop_timer_ = nh_.createTimer(ros::Duration(0.1), &N3MappingNoeticNode::loopTimerCallback, this);
@@ -100,6 +102,8 @@ class N3MappingNoeticNode {
         global_map_timer_ =
             nh_.createTimer(ros::Duration(1.0 / global_map_hz), &N3MappingNoeticNode::globalMapTimerCallback, this);
         perf_timer_ = nh_.createTimer(ros::Duration(2.0), &N3MappingNoeticNode::perfTimerCallback, this);
+        status_timer_ = nh_.createTimer(ros::Duration(0.5), &N3MappingNoeticNode::statusTimerCallback, this);
+        publishStatus(ros::Time::now());
     }
 
     void loadMap()
@@ -114,6 +118,8 @@ class N3MappingNoeticNode {
         }
         ROS_INFO("Loaded map with %zu keyframes", core_->getAllKeyframes().size());
         resetGlobalMapCache();
+        updateMapLoadedStatus();
+        publishStatus(ros::Time::now());
     }
 
     void syncCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg,
@@ -134,6 +140,7 @@ class N3MappingNoeticNode {
                 ROS_INFO_THROTTLE(2.0, "Initial relocalization successful for map extension");
             }
             if (!output.success && !output.accepted_keyframe) {
+                updateBackendStatus(output, cloud_msg->header.stamp, false);
                 ++frame_count_;
                 recordProcessedFrame((ros::WallTime::now() - process_start).toSec() * 1000.0);
                 return;
@@ -141,6 +148,7 @@ class N3MappingNoeticNode {
 
             publishOdometry(output.T_world_lidar, cloud_msg->header, *odom_msg);
             publishPath(cloud_msg->header, &output.T_world_lidar);
+            updateBackendStatus(output, cloud_msg->header.stamp, true);
 
             if (output.relocalization_locked) {
                 publishRelocalizationLock(cloud_msg->header, output.T_world_lidar);
@@ -167,6 +175,9 @@ class N3MappingNoeticNode {
     void denseOdomCallback(const nav_msgs::OdometryConstPtr& odom_msg)
     {
         recordInputOdom();
+        if (odom_msg) {
+            recordInputOdomStatus(odom_msg->header.stamp);
+        }
 
         if (!core_ || !coreRunModeSavesMap(run_mode_)) {
             return;
@@ -250,6 +261,11 @@ class N3MappingNoeticNode {
                              perf_cloud_body_pubs_,
                              perf_cloud_world_pubs_);
         resetPerfWindow(now);
+    }
+
+    void statusTimerCallback(const ros::TimerEvent&)
+    {
+        publishStatus(ros::Time::now());
     }
 
     bool handleSaveMap(std_srvs::Trigger::Request&, std_srvs::Trigger::Response& res)
@@ -727,6 +743,156 @@ class N3MappingNoeticNode {
         ++perf_input_odom_count_;
     }
 
+    void recordInputOdomStatus(const ros::Time& stamp)
+    {
+        std::lock_guard<std::mutex> lock(status_mutex_);
+        status_last_input_odom_stamp_ = stamp;
+        status_last_input_odom_receive_time_ = ros::Time::now();
+    }
+
+    void updateMapLoadedStatus()
+    {
+        std::lock_guard<std::mutex> lock(status_mutex_);
+        status_map_loaded_ = core_ && core_->mapLoaded();
+        if (run_mode_ == CoreRunMode::LOCALIZATION) {
+            status_node_state_ = status_map_loaded_ ? "localizing" : "map_not_loaded";
+        } else if (run_mode_ == CoreRunMode::MAP_EXTENSION) {
+            status_node_state_ = status_map_loaded_ ? "map_extension_ready" : "map_not_loaded";
+            status_map_extension_state_ = status_node_state_;
+        } else {
+            status_node_state_ = "mapping";
+        }
+    }
+
+    void updateBackendStatus(const core::BackendOutput& output,
+                             const ros::Time& stamp,
+                             bool published_output_odom)
+    {
+        std::lock_guard<std::mutex> lock(status_mutex_);
+        ++status_processed_frames_;
+        status_map_loaded_ = core_ && core_->mapLoaded();
+        status_last_processed_stamp_ = stamp;
+        status_last_processed_receive_time_ = ros::Time::now();
+        if (output.matched_keyframe_id >= 0) {
+            status_last_matched_keyframe_id_ = output.matched_keyframe_id;
+        }
+        if (output.accepted_keyframe) {
+            ++status_accepted_keyframes_;
+        }
+
+        if (coreRunModeLoadsMap(run_mode_)) {
+            if (output.relocalization_locked || output.success) {
+                status_is_relocalized_ = true;
+            }
+            if (output.success) {
+                status_track_failures_ = 0;
+            } else if (status_is_relocalized_) {
+                status_track_failures_ += 1;
+            }
+            if (!status_map_loaded_) {
+                status_node_state_ = "map_not_loaded";
+            } else if (!status_is_relocalized_) {
+                status_node_state_ = "localizing";
+            } else if (status_track_failures_ > config_.reloc_max_track_failures) {
+                status_node_state_ = "localization_lost";
+            } else if (status_track_failures_ > 0) {
+                status_node_state_ = "localized_degraded";
+            } else {
+                status_node_state_ = "localized";
+            }
+            status_map_extension_state_ =
+                run_mode_ == CoreRunMode::MAP_EXTENSION ? status_node_state_ : "";
+        } else {
+            status_node_state_ = output.success ? "mapping" : "mapping_frame_rejected";
+            status_map_extension_state_.clear();
+            status_is_relocalized_ = false;
+            status_track_failures_ = 0;
+        }
+
+        if (published_output_odom) {
+            ++status_output_odom_pubs_;
+            status_last_output_odom_stamp_ = stamp;
+            status_last_output_odom_receive_time_ = status_last_processed_receive_time_;
+        }
+    }
+
+    static std::string jsonEscape(const std::string& value)
+    {
+        std::ostringstream escaped;
+        for (const char ch : value) {
+            switch (ch) {
+                case '\\':
+                    escaped << "\\\\";
+                    break;
+                case '"':
+                    escaped << "\\\"";
+                    break;
+                case '\n':
+                    escaped << "\\n";
+                    break;
+                case '\r':
+                    escaped << "\\r";
+                    break;
+                case '\t':
+                    escaped << "\\t";
+                    break;
+                default:
+                    escaped << ch;
+                    break;
+            }
+        }
+        return escaped.str();
+    }
+
+    static double optionalTimeSec(const std::optional<ros::Time>& time)
+    {
+        return time ? time->toSec() : 0.0;
+    }
+
+    static double optionalAgeSec(const std::optional<ros::Time>& time, const ros::Time& now)
+    {
+        if (!time) {
+            return -1.0;
+        }
+        return std::max(0.0, (now - *time).toSec());
+    }
+
+    void publishStatus(const ros::Time& now)
+    {
+        std_msgs::String msg;
+        {
+            std::lock_guard<std::mutex> lock(status_mutex_);
+            std::ostringstream json;
+            json << "{\"type\":\"n3mapping_status\"";
+            json << ",\"seq\":" << (++status_seq_);
+            json << ",\"stamp\":" << now.toSec();
+            json << ",\"mode\":\"" << jsonEscape(coreRunModeName(run_mode_)) << "\"";
+            json << ",\"node_state\":\"" << jsonEscape(status_node_state_) << "\"";
+            json << ",\"map_extension_state\":\"" << jsonEscape(status_map_extension_state_) << "\"";
+            json << ",\"map_loaded\":" << (status_map_loaded_ ? "true" : "false");
+            json << ",\"is_relocalized\":" << (status_is_relocalized_ ? "true" : "false");
+            json << ",\"track_failures\":" << status_track_failures_;
+            json << ",\"track_failures_max\":" << config_.reloc_max_track_failures;
+            json << ",\"last_matched_keyframe_id\":" << status_last_matched_keyframe_id_;
+            json << ",\"last_input_odom_stamp\":" << optionalTimeSec(status_last_input_odom_stamp_);
+            json << ",\"last_input_odom_age_s\":"
+                 << optionalAgeSec(status_last_input_odom_receive_time_, now);
+            json << ",\"last_processed_stamp\":" << optionalTimeSec(status_last_processed_stamp_);
+            json << ",\"last_processed_age_s\":"
+                 << optionalAgeSec(status_last_processed_receive_time_, now);
+            json << ",\"last_output_odom_stamp\":" << optionalTimeSec(status_last_output_odom_stamp_);
+            json << ",\"last_output_odom_age_s\":"
+                 << optionalAgeSec(status_last_output_odom_receive_time_, now);
+            json << ",\"processed_frames\":" << status_processed_frames_;
+            json << ",\"output_odom_pubs\":" << status_output_odom_pubs_;
+            json << ",\"accepted_keyframes\":" << status_accepted_keyframes_;
+            json << ",\"relocalization_locks\":" << status_relocalization_locks_;
+            json << "}";
+            msg.data = json.str();
+        }
+        status_pub_.publish(msg);
+    }
+
     void recordProcessedFrame(double process_ms)
     {
         std::lock_guard<std::mutex> lock(perf_mutex_);
@@ -752,6 +918,10 @@ class N3MappingNoeticNode {
         std_msgs::UInt32 msg;
         msg.data = ++relocalization_lock_count_;
         relocalization_lock_pub_.publish(msg);
+        {
+            std::lock_guard<std::mutex> lock(status_mutex_);
+            status_relocalization_locks_ = msg.data;
+        }
 
         const Eigen::Quaterniond q(pose.rotation());
         const double yaw = std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
@@ -905,10 +1075,12 @@ class N3MappingNoeticNode {
     ros::Publisher loop_marker_pub_;
     ros::Publisher global_map_pub_;
     ros::Publisher relocalization_lock_pub_;
+    ros::Publisher status_pub_;
     ros::ServiceServer save_map_srv_;
     ros::Timer loop_timer_;
     ros::Timer global_map_timer_;
     ros::Timer perf_timer_;
+    ros::Timer status_timer_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
     GlobalMapCache global_map_cache_;
     std::optional<sensor_msgs::PointCloud2> global_map_msg_cache_;
@@ -921,6 +1093,7 @@ class N3MappingNoeticNode {
     std::vector<geometry_msgs::PoseStamped> localization_path_;
     ros::Time last_tf_stamp_;
     std::mutex perf_mutex_;
+    std::mutex status_mutex_;
     ros::WallTime perf_window_start_ = ros::WallTime::now();
     std::size_t perf_input_odom_count_ = 0;
     std::size_t perf_process_count_ = 0;
@@ -932,6 +1105,23 @@ class N3MappingNoeticNode {
     std::size_t keyframe_count_ = 0;
     std::size_t loop_count_ = 0;
     uint32_t relocalization_lock_count_ = 0;
+    std::uint64_t status_seq_ = 0;
+    std::uint64_t status_processed_frames_ = 0;
+    std::uint64_t status_output_odom_pubs_ = 0;
+    std::uint64_t status_accepted_keyframes_ = 0;
+    std::uint64_t status_relocalization_locks_ = 0;
+    bool status_map_loaded_ = false;
+    bool status_is_relocalized_ = false;
+    int status_track_failures_ = 0;
+    int64_t status_last_matched_keyframe_id_ = -1;
+    std::string status_node_state_ = "starting";
+    std::string status_map_extension_state_;
+    std::optional<ros::Time> status_last_input_odom_stamp_;
+    std::optional<ros::Time> status_last_input_odom_receive_time_;
+    std::optional<ros::Time> status_last_processed_stamp_;
+    std::optional<ros::Time> status_last_processed_receive_time_;
+    std::optional<ros::Time> status_last_output_odom_stamp_;
+    std::optional<ros::Time> status_last_output_odom_receive_time_;
     bool shutdown_called_ = false;
 };
 
