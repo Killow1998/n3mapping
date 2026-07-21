@@ -17,6 +17,8 @@
 #include <vector>
 
 #include <pcl/common/transforms.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
 #include <glog/logging.h>
 
 #include "n3mapping/cloud_utils.h"
@@ -61,6 +63,7 @@ struct Options {
     double pose_roll_pitch_threshold_deg = 5.0;
     std::string query_source = "same_keyframe";
     std::string query_pose_manifest;
+    std::string review_pcd_dir;
     std::string eval_profile = "relaxed_smoke";
     bool strict = false;
 };
@@ -141,6 +144,8 @@ void printUsage(const char* argv0)
         << "  --query_pose_manifest CSV Deterministic absolute 6DoF poses. Requires local_submap or global_map.\n"
         << "                            Standalone header: query_id,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg\n"
         << "                            Episode header: query_id,episode_id,frame_index,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg\n"
+        << "  --review_pcd_dir DIR      Export one colored map-frame PCD for the last frame of each episode.\n"
+        << "                            Gray=global map, green=query at GT, red=query at a locked estimate.\n"
         << "  --eval_profile PROFILE    relaxed_smoke or product_default. Default: relaxed_smoke\n"
         << "                            product_default requires an episode manifest and remains synthetic evidence.\n"
         << "  --range_min M             Min range for map-query synthesis. Default: 0.5\n"
@@ -216,6 +221,8 @@ bool parseArgs(int argc, char** argv, Options* options)
             }
         } else if (arg == "--query_pose_manifest") {
             if (const char* v = needValue(arg)) options->query_pose_manifest = v; else return false;
+        } else if (arg == "--review_pcd_dir") {
+            if (const char* v = needValue(arg)) options->review_pcd_dir = v; else return false;
         } else if (arg == "--eval_profile") {
             if (const char* v = needValue(arg)) options->eval_profile = v; else return false;
             if (options->eval_profile != "relaxed_smoke" && options->eval_profile != "product_default") {
@@ -548,6 +555,187 @@ bool poseAccurate(const QueryResult& r, const Options& options)
            r.translation_error_m <= options.pose_translation_threshold_m &&
            r.yaw_error_deg <= options.pose_yaw_threshold_deg &&
            r.roll_pitch_error_deg <= options.pose_roll_pitch_threshold_deg;
+}
+
+using ReviewPoint = pcl::PointXYZRGB;
+using ReviewCloud = pcl::PointCloud<ReviewPoint>;
+
+struct ReviewCloudCounts {
+    std::size_t map_points = 0;
+    std::size_t gt_query_points = 0;
+    std::size_t estimated_query_points = 0;
+};
+
+std::size_t appendReviewCloud(const Cloud& source,
+                              const Eigen::Isometry3d& T_map_source,
+                              std::uint8_t red,
+                              std::uint8_t green,
+                              std::uint8_t blue,
+                              ReviewCloud* destination)
+{
+    if (!destination) return 0;
+    const std::size_t size_before = destination->size();
+    destination->reserve(destination->size() + source.size());
+    for (const auto& point : source) {
+        if (!pcl::isFinite(point)) continue;
+        const Eigen::Vector3d transformed =
+            T_map_source * Eigen::Vector3d(point.x, point.y, point.z);
+        if (!transformed.array().isFinite().all()) continue;
+        ReviewPoint review_point{};
+        review_point.x = static_cast<float>(transformed.x());
+        review_point.y = static_cast<float>(transformed.y());
+        review_point.z = static_cast<float>(transformed.z());
+        review_point.r = red;
+        review_point.g = green;
+        review_point.b = blue;
+        destination->push_back(review_point);
+    }
+    return destination->size() - size_before;
+}
+
+bool writeReviewPcd(const std::filesystem::path& path,
+                    const Cloud& map_cloud,
+                    const Cloud& query_cloud,
+                    const Eigen::Isometry3d& T_map_lidar_gt,
+                    bool estimated_pose_available,
+                    const Eigen::Isometry3d& T_map_lidar_estimated,
+                    ReviewCloudCounts* counts)
+{
+    if (!counts) return false;
+    auto composite = pcl::make_shared<ReviewCloud>();
+    counts->map_points = appendReviewCloud(
+        map_cloud, Eigen::Isometry3d::Identity(), 96, 96, 96, composite.get());
+    counts->gt_query_points = appendReviewCloud(
+        query_cloud, T_map_lidar_gt, 0, 255, 0, composite.get());
+    if (estimated_pose_available) {
+        counts->estimated_query_points = appendReviewCloud(
+            query_cloud, T_map_lidar_estimated, 255, 0, 0, composite.get());
+    }
+    composite->width = static_cast<std::uint32_t>(composite->size());
+    composite->height = 1;
+    composite->is_dense = true;
+    return pcl::io::savePCDFileBinaryCompressed(path.string(), *composite) == 0;
+}
+
+bool prepareFreshDirectory(const std::filesystem::path& path, const std::string& label)
+{
+    std::error_code error;
+    const bool exists = std::filesystem::exists(path, error);
+    if (error) {
+        std::cerr << "Failed to inspect " << label << ": " << error.message() << "\n";
+        return false;
+    }
+    if (exists) {
+        if (!std::filesystem::is_directory(path, error) || error) {
+            std::cerr << label << " exists and is not a readable directory: " << path << "\n";
+            return false;
+        }
+        const auto begin = std::filesystem::directory_iterator(path, error);
+        if (error) {
+            std::cerr << "Failed to inspect " << label << " contents: " << error.message() << "\n";
+            return false;
+        }
+        if (begin != std::filesystem::directory_iterator{}) {
+            std::cerr << label << " must be fresh (missing or empty); refusing to overwrite: "
+                      << path << "\n";
+            return false;
+        }
+        return true;
+    }
+    std::filesystem::create_directories(path, error);
+    if (error) {
+        std::cerr << "Failed to create " << label << ": " << error.message() << "\n";
+        return false;
+    }
+    return true;
+}
+
+bool writeReviewReadme(const std::filesystem::path& path, const Options& options)
+{
+    std::ofstream file(path);
+    if (!file.is_open()) return false;
+    file << "Synthetic relocalization visual review\n\n"
+         << "Every PCD is in the global map frame and contains:\n"
+         << "  gray  RGB(96,96,96): global map\n"
+         << "  green RGB(0,255,0): exact localizer input query transformed by manifest GT pose\n"
+         << "  red   RGB(255,0,0): same input query transformed by the locked output pose\n"
+         << "No red points means the episode ended without a lock; no estimate is invented.\n\n"
+         << "Interpretation:\n"
+         << "  gray vs green checks whether the rendered query and GT placement are plausible.\n"
+         << "  green vs red checks the locked pose. Overlap means agreement; separation means pose error.\n\n"
+         << "Inputs:\n"
+         << "  map: " << options.map_path << "\n"
+         << "  query_pose_manifest: " << options.query_pose_manifest << "\n"
+         << "  query_source: " << options.query_source << "\n"
+         << "  evidence_class: synthetic_map_render\n"
+         << "This evaluator does not read a rosbag; bag provenance of the map is not established here.\n";
+    return file.good();
+}
+
+bool writeReviewIndexHeader(std::ofstream* file)
+{
+    if (!file || !file->is_open()) return false;
+    *file << "pcd_file,episode_id,query_id,frame_index,status,locked_after_frame,lock_event_type,"
+             "matched_keyframe_id,map_points,gt_query_points,estimated_query_points,"
+             "gt_x_m,gt_y_m,gt_z_m,gt_roll_deg,gt_pitch_deg,gt_yaw_deg,"
+             "estimated_x_m,estimated_y_m,estimated_z_m,estimated_roll_deg,estimated_pitch_deg,estimated_yaw_deg,"
+             "translation_error_m,yaw_error_deg,roll_pitch_error_deg,"
+             "map_rgb,gt_query_rgb,estimated_query_rgb\n";
+    return file->good();
+}
+
+bool writeReviewIndexRow(std::ofstream* file,
+                         const std::string& pcd_file,
+                         const QuerySpec& spec,
+                         const QueryResult& result,
+                         const Options& options,
+                         bool estimated_pose_available,
+                         const Eigen::Isometry3d& T_map_lidar_estimated,
+                         const ReviewCloudCounts& counts)
+{
+    if (!file || !file->is_open()) return false;
+    double estimated_roll_deg = std::numeric_limits<double>::quiet_NaN();
+    double estimated_pitch_deg = std::numeric_limits<double>::quiet_NaN();
+    double estimated_yaw_deg = std::numeric_limits<double>::quiet_NaN();
+    double translation_error_m = std::numeric_limits<double>::quiet_NaN();
+    double yaw_error_deg = std::numeric_limits<double>::quiet_NaN();
+    double roll_pitch_error_deg = std::numeric_limits<double>::quiet_NaN();
+    Eigen::Vector3d estimated_translation = Eigen::Vector3d::Constant(
+        std::numeric_limits<double>::quiet_NaN());
+    std::string status = "no_lock";
+    if (estimated_pose_available) {
+        estimated_translation = T_map_lidar_estimated.translation();
+        poseEulerDeg(
+            T_map_lidar_estimated,
+            &estimated_roll_deg,
+            &estimated_pitch_deg,
+            &estimated_yaw_deg);
+        translation_error_m =
+            (estimated_translation - spec.T_map_lidar_gt.translation()).norm();
+        yaw_error_deg = planarYawErrorDeg(T_map_lidar_estimated, spec.T_map_lidar_gt);
+        roll_pitch_error_deg = rollPitchErrorDeg(T_map_lidar_estimated, spec.T_map_lidar_gt);
+        const bool accurate =
+            translation_error_m <= options.pose_translation_threshold_m &&
+            yaw_error_deg <= options.pose_yaw_threshold_deg &&
+            roll_pitch_error_deg <= options.pose_roll_pitch_threshold_deg;
+        status = accurate ? "correct_lock" : "false_lock";
+    }
+
+    *file << std::setprecision(17)
+          << pcd_file << ',' << spec.episode_id << ',' << spec.query_id << ',' << spec.frame_index << ','
+          << status << ',' << result.locked_after_frame << ',' << result.lock_event_type << ','
+          << result.matched_keyframe_id << ',' << counts.map_points << ',' << counts.gt_query_points << ','
+          << counts.estimated_query_points << ','
+          << spec.T_map_lidar_gt.translation().x() << ','
+          << spec.T_map_lidar_gt.translation().y() << ','
+          << spec.T_map_lidar_gt.translation().z() << ','
+          << spec.roll_deg << ',' << spec.pitch_deg << ',' << spec.yaw_deg << ','
+          << estimated_translation.x() << ',' << estimated_translation.y() << ','
+          << estimated_translation.z() << ',' << estimated_roll_deg << ','
+          << estimated_pitch_deg << ',' << estimated_yaw_deg << ','
+          << translation_error_m << ',' << yaw_error_deg << ',' << roll_pitch_error_deg << ','
+          << "96|96|96,0|255|0," << (estimated_pose_available ? "255|0|0" : "none") << '\n';
+    return file->good();
 }
 
 double percentile(std::vector<double> values, double q)
@@ -1073,42 +1261,43 @@ int main(int argc, char** argv)
         }
     }
 
-    std::error_code output_error;
     const std::filesystem::path output_dir(options.output_dir);
-    const bool output_exists = std::filesystem::exists(output_dir, output_error);
-    if (output_error) {
-        std::cerr << "Failed to inspect output directory: " << output_error.message() << "\n";
+    if (!prepareFreshDirectory(output_dir, "output directory")) {
         return 1;
     }
-    if (output_exists) {
-        if (!std::filesystem::is_directory(output_dir, output_error) || output_error) {
-            std::cerr << "Output path exists and is not a readable directory: " << output_dir << "\n";
+
+    std::filesystem::path review_pcd_dir;
+    std::ofstream review_index;
+    std::map<int64_t, std::size_t> episode_review_positions;
+    if (!options.review_pcd_dir.empty()) {
+        review_pcd_dir = std::filesystem::path(options.review_pcd_dir);
+        if (review_pcd_dir.lexically_normal() == output_dir.lexically_normal()) {
+            std::cerr << "--review_pcd_dir must differ from --output\n";
             return 1;
         }
-        const auto begin = std::filesystem::directory_iterator(output_dir, output_error);
-        if (output_error) {
-            std::cerr << "Failed to inspect output directory contents: " << output_error.message() << "\n";
+        if (!prepareFreshDirectory(review_pcd_dir, "review PCD directory")) {
             return 1;
         }
-        if (begin != std::filesystem::directory_iterator{}) {
-            std::cerr << "Output directory must be fresh (missing or empty); refusing to overwrite: "
-                      << output_dir << "\n";
+        if (!writeReviewReadme(review_pcd_dir / "README.txt", options)) {
+            std::cerr << "Failed to write review PCD README\n";
             return 1;
         }
-    } else {
-        std::filesystem::create_directories(output_dir, output_error);
-        if (output_error) {
-            std::cerr << "Failed to create output directory: " << output_error.message() << "\n";
+        review_index.open(review_pcd_dir / "review_index.csv");
+        if (!writeReviewIndexHeader(&review_index)) {
+            std::cerr << "Failed to write review PCD index header\n";
             return 1;
+        }
+        for (std::size_t i = 0; i < query_specs.size(); ++i) {
+            episode_review_positions[query_specs[i].episode_id] = i;
         }
     }
 
     const Eigen::Isometry3d T_map_odom_fake = makeFakeMapOdom(options);
     Cloud::Ptr global_map;
-    if (options.query_source == "global_map") {
+    if (options.query_source == "global_map" || !options.review_pcd_dir.empty()) {
         global_map = downsampleCloud(catalog.buildGlobalMap(), options.query_voxel_size);
         if (!global_map || global_map->empty()) {
-            std::cerr << "Failed to build global map for query synthesis\n";
+            std::cerr << "Failed to build global map for query synthesis or review export\n";
             return 1;
         }
     }
@@ -1122,7 +1311,10 @@ int main(int argc, char** argv)
     const auto generation_thresholds = synthetic::queryGenerationThresholds(
         options.eval_profile == "product_default");
 
-    for (const auto& spec : query_specs) {
+    for (std::size_t spec_index = 0; spec_index < query_specs.size(); ++spec_index) {
+        const auto& spec = query_specs[spec_index];
+        const bool export_review_frame = !options.review_pcd_dir.empty() &&
+            episode_review_positions.at(spec.episode_id) == spec_index;
         const std::size_t idx = spec.reference_keyframe_index;
         const auto& kf = keyframes[idx];
         if (active_episode_id != spec.episode_id) {
@@ -1156,6 +1348,11 @@ int main(int argc, char** argv)
                     std::chrono::steady_clock::now() - renderer_start).count());
             qr.generation_reason = "invalid_pose";
             results.push_back(qr);
+            if (export_review_frame) {
+                std::cerr << "Cannot export review PCD for episode " << spec.episode_id
+                          << ": final query pose is invalid\n";
+                return 1;
+            }
             continue;
         }
 
@@ -1192,6 +1389,11 @@ int main(int argc, char** argv)
         if (query_cloud->empty()) {
             qr.generation_reason = emptyGenerationReason(qr);
             results.push_back(qr);
+            if (export_review_frame) {
+                std::cerr << "Cannot export review PCD for episode " << spec.episode_id
+                          << ": final query cloud is empty\n";
+                return 1;
+            }
             continue;
         }
         const auto generation_support = synthetic::evaluateQueryGenerationSupport(
@@ -1202,6 +1404,11 @@ int main(int argc, char** argv)
         if (generation_support != synthetic::QueryGenerationSupport::SUFFICIENT) {
             qr.generation_reason = synthetic::queryGenerationSupportReason(generation_support);
             results.push_back(qr);
+            if (export_review_frame) {
+                std::cerr << "Cannot export review PCD for episode " << spec.episode_id
+                          << ": final query generation support is insufficient\n";
+                return 1;
+            }
             continue;
         }
         qr.generation_valid = true;
@@ -1252,7 +1459,67 @@ int main(int argc, char** argv)
                 std::chrono::duration<double, std::milli>(
                     std::chrono::steady_clock::now() - scorer_start).count());
         }
+        if (export_review_frame) {
+            const bool estimated_pose_available = output.success && transition.locked_after_frame;
+            if (estimated_pose_available && !isValidRigidPose(output.T_world_lidar)) {
+                std::cerr << "Cannot export review PCD for episode " << spec.episode_id
+                          << ": locked output pose is invalid\n";
+                return 1;
+            }
+            const double review_translation_error = estimated_pose_available
+                ? (output.T_world_lidar.translation() - spec.T_map_lidar_gt.translation()).norm()
+                : std::numeric_limits<double>::quiet_NaN();
+            const double review_yaw_error = estimated_pose_available
+                ? planarYawErrorDeg(output.T_world_lidar, spec.T_map_lidar_gt)
+                : std::numeric_limits<double>::quiet_NaN();
+            const double review_roll_pitch_error = estimated_pose_available
+                ? rollPitchErrorDeg(output.T_world_lidar, spec.T_map_lidar_gt)
+                : std::numeric_limits<double>::quiet_NaN();
+            const bool accurate = estimated_pose_available &&
+                review_translation_error <= options.pose_translation_threshold_m &&
+                review_yaw_error <= options.pose_yaw_threshold_deg &&
+                review_roll_pitch_error <= options.pose_roll_pitch_threshold_deg;
+            const std::string status = !estimated_pose_available
+                ? "no_lock"
+                : (accurate ? "correct_lock" : "false_lock");
+            const std::string pcd_file =
+                "episode_" + std::to_string(spec.episode_id) +
+                "_frame_" + std::to_string(spec.frame_index) +
+                "_" + status + ".pcd";
+            ReviewCloudCounts counts;
+            if (!writeReviewPcd(
+                    review_pcd_dir / pcd_file,
+                    *global_map,
+                    *query_cloud,
+                    spec.T_map_lidar_gt,
+                    estimated_pose_available,
+                    output.T_world_lidar,
+                    &counts)) {
+                std::cerr << "Failed to write review PCD: " << (review_pcd_dir / pcd_file) << "\n";
+                return 1;
+            }
+            if (!writeReviewIndexRow(
+                    &review_index,
+                    pcd_file,
+                    spec,
+                    qr,
+                    options,
+                    estimated_pose_available,
+                    output.T_world_lidar,
+                    counts)) {
+                std::cerr << "Failed to write review PCD index row\n";
+                return 1;
+            }
+        }
         results.push_back(qr);
+    }
+
+    if (review_index.is_open()) {
+        review_index.close();
+        if (!review_index) {
+            std::cerr << "Failed to finalize review PCD index\n";
+            return 1;
+        }
     }
 
     bool artifacts_ok = true;
