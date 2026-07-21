@@ -16,6 +16,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_debug_logger.h"
+#include "n3mapping/visibility_consistency.h"
 
 namespace n3mapping {
 
@@ -50,6 +51,9 @@ private:
         double cumulative_log_likelihood = 0.0;
         int num_updates = 0;
         int converged_updates = 0;
+        double visibility_consistency_sum = 0.0;
+        double visibility_evidence_sum = 0.0;
+        int visibility_updates = 0;
         bool alive = true;
     };
 
@@ -58,12 +62,22 @@ private:
         Eigen::Isometry3d odom_pose = Eigen::Isometry3d::Identity();
     };
 
+    struct CandidatePoseEvaluation {
+        MatchResult match;
+        int64_t matched_kf_id = -1;
+        VisibilityConsistencyResult visibility;
+    };
+
     std::vector<LoopCandidate> searchCandidates(const PointCloudT::Ptr& cloud);
-    RelocResult verifyCandidates(const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates);
-    bool evaluateSingleCandidate(const PointCloudT::Ptr& cloud,
-                                 const LoopCandidate& candidate,
-                                 MatchResult& best_match,
-                                 int64_t& matched_kf_id);
+    std::vector<CandidatePoseEvaluation> evaluateCandidatePoses(
+        const PointCloudT::Ptr& cloud,
+        const LoopCandidate& candidate);
+    void rebuildRelocMapCacheIfNeeded();
+    PointCloudT::Ptr buildRelocTargetCloud(int64_t center_id);
+    VisibilityConsistencyResult evaluatePoseVisibility(
+        const PointCloudT::Ptr& target_cloud,
+        const PointCloudT::Ptr& query_cloud,
+        const Eigen::Isometry3d& T_map_lidar) const;
     void rebuildFrameRHPDIndexIfNeeded();
     void appendFrameRHPDCandidates(const Eigen::VectorXd& query_rhpd,
                                    const Eigen::MatrixXd& query_sc,
@@ -87,6 +101,8 @@ private:
     PointCloudMatcher& matcher_;
     RHPDManager frame_rhpd_manager_;
     size_t frame_rhpd_indexed_keyframes_;
+    PointCloudT::Ptr reloc_map_cache_;
+    size_t reloc_map_cached_keyframes_;
 
     bool is_relocalized_;
     Eigen::Isometry3d T_map_odom_;
@@ -96,7 +112,7 @@ private:
     std::vector<RelocHypothesis> pending_hypotheses_;
     std::deque<QueryFrame> query_frame_buffer_;
     int hypothesis_window_count_;
-    int64_t last_window_winner_seed_id_;
+    int64_t last_window_winner_match_id_;
     int winner_streak_;
     uint64_t relocalize_debug_query_index_;
     uint64_t track_debug_query_index_;

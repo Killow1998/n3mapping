@@ -23,18 +23,27 @@ struct RelocDebugBasinBestSummary {
     int64_t basin_center_id = -1;
     int64_t matched_kf_id = -1;
     LoopCandidate candidate;
+    Eigen::Isometry3d pose_in_map = Eigen::Isometry3d::Identity();
     double fitness_score = std::numeric_limits<double>::quiet_NaN();
     double inlier_ratio = std::numeric_limits<double>::quiet_NaN();
     double selection_score = std::numeric_limits<double>::quiet_NaN();
     double log_likelihood = std::numeric_limits<double>::quiet_NaN();
+    double visibility_consistency_ratio = std::numeric_limits<double>::quiet_NaN();
+    double visibility_observed_coverage = std::numeric_limits<double>::quiet_NaN();
+    double visibility_foreground_conflict_ratio = std::numeric_limits<double>::quiet_NaN();
+    double visibility_evidence_log_odds = std::numeric_limits<double>::quiet_NaN();
 };
 
 struct RelocDebugHypothesisSummary {
     int64_t seed_match_id = -1;
     int64_t last_match_id = -1;
+    Eigen::Isometry3d pose_in_map = Eigen::Isometry3d::Identity();
     double cumulative_log_likelihood = std::numeric_limits<double>::quiet_NaN();
     int num_updates = 0;
     int converged_updates = 0;
+    int visibility_updates = 0;
+    double mean_visibility_consistency = std::numeric_limits<double>::quiet_NaN();
+    double mean_visibility_evidence = std::numeric_limits<double>::quiet_NaN();
     bool alive = false;
 };
 
@@ -64,6 +73,8 @@ struct RelocalizationDebugEvent {
     int winner_streak = 0;
     double margin = std::numeric_limits<double>::quiet_NaN();
     double ratio = std::numeric_limits<double>::quiet_NaN();
+    double visibility_margin = std::numeric_limits<double>::quiet_NaN();
+    double visibility_ratio = std::numeric_limits<double>::quiet_NaN();
     double basin_separation = std::numeric_limits<double>::quiet_NaN();
     bool lock_accepted = false;
     std::string lock_result = "rejected";

@@ -116,6 +116,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
+  ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
   ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
   ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
@@ -328,6 +329,13 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_world_localizing)
     target_link_libraries(test_world_localizing n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+  endif()
+
+  catkin_add_gtest(test_visibility_consistency
+    ${N3MAPPING_ROOT}/test/test_visibility_consistency.cpp
+  )
+  if(TARGET test_visibility_consistency)
+    target_link_libraries(test_visibility_consistency n3mapping_core ${PCL_LIBRARIES})
   endif()
 
   catkin_add_gtest(test_relocalization_debug_logger

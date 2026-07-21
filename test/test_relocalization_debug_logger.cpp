@@ -77,6 +77,23 @@ TEST(RelocalizationDebugLoggerTest, WritesRelocalizationRejectAsSingleLineJson)
     event.motion_query_cloud.top_candidates.push_back(makeCandidate());
     event.candidate_count = 1;
     event.top_candidates.push_back(makeCandidate());
+    RelocDebugBasinBestSummary basin_best;
+    basin_best.basin_center_id = 7;
+    basin_best.matched_kf_id = 8;
+    basin_best.candidate = makeCandidate();
+    basin_best.pose_in_map.translation() = Eigen::Vector3d(1.0, 2.0, 3.0);
+    basin_best.visibility_consistency_ratio = 0.8;
+    basin_best.visibility_evidence_log_odds = 1.5;
+    event.basin_best_results.push_back(basin_best);
+    RelocDebugHypothesisSummary hypothesis;
+    hypothesis.seed_match_id = 7;
+    hypothesis.last_match_id = 8;
+    hypothesis.visibility_updates = 3;
+    hypothesis.mean_visibility_consistency = 0.8;
+    hypothesis.mean_visibility_evidence = 1.5;
+    event.hypotheses.push_back(hypothesis);
+    event.visibility_margin = 1.2;
+    event.visibility_ratio = 3.3;
     event.lock_result = "rejected";
     event.reject_reason = "bad\nreason";
 
@@ -93,6 +110,9 @@ TEST(RelocalizationDebugLoggerTest, WritesRelocalizationRejectAsSingleLineJson)
     EXPECT_NE(lines[0].find("\"motion_query_frame_count\":3"), std::string::npos);
     EXPECT_NE(lines[0].find("\"motion_query_candidate_count\":1"), std::string::npos);
     EXPECT_NE(lines[0].find("\"candidate_count\":1"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"visibility_evidence_log_odds\":1.5"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"mean_visibility_evidence\":1.5"), std::string::npos);
+    EXPECT_NE(lines[0].find("\"visibility_margin\":1.2"), std::string::npos);
     EXPECT_NE(lines[0].find("\"lock_result\":\"rejected\""), std::string::npos);
     EXPECT_NE(lines[0].find("\"reject_reason\":\"bad\\nreason\""), std::string::npos);
 

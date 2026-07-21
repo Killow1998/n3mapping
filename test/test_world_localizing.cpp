@@ -50,48 +50,65 @@ class WorldLocalizingTest : public ::testing::Test
         matcher_ = std::make_unique<PointCloudMatcher>(config_);
     }
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr generateCorridorCloud(const Eigen::Isometry3d& pose, double corridor_width = 3.0)
+    pcl::PointCloud<pcl::PointXYZI>::Ptr generateCorridorCloud(
+        const Eigen::Isometry3d& pose,
+        double corridor_width = 3.0)
     {
-
-        auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        auto world_cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         std::mt19937 rng(42);
         std::uniform_real_distribution<float> noise(-0.05f, 0.05f);
+        const float center_x = static_cast<float>(pose.translation().x());
 
-        for (float x = -5.0f; x <= 5.0f; x += 0.2f) {
+        for (float x = center_x - 5.0f; x <= center_x + 5.0f; x += 0.2f) {
             for (float z = 0.0f; z <= 2.5f; z += 0.3f) {
                 pcl::PointXYZI pt_left;
                 pt_left.x = x + noise(rng);
                 pt_left.y = -corridor_width / 2.0f + noise(rng);
                 pt_left.z = z + noise(rng);
                 pt_left.intensity = 50.0f;
-                cloud->push_back(pt_left);
+                world_cloud->push_back(pt_left);
                 pcl::PointXYZI pt_right;
                 pt_right.x = x + noise(rng);
                 pt_right.y = corridor_width / 2.0f + noise(rng);
                 pt_right.z = z + noise(rng);
                 pt_right.intensity = 50.0f;
-                cloud->push_back(pt_right);
+                world_cloud->push_back(pt_right);
             }
         }
-        for (float x = -5.0f; x <= 5.0f; x += 0.3f) {
+        for (float x = center_x - 5.0f; x <= center_x + 5.0f; x += 0.3f) {
             for (float y = -corridor_width / 2.0f; y <= corridor_width / 2.0f; y += 0.3f) {
                 pcl::PointXYZI pt;
                 pt.x = x + noise(rng);
                 pt.y = y + noise(rng);
                 pt.z = noise(rng);
                 pt.intensity = 30.0f;
-                cloud->push_back(pt);
+                world_cloud->push_back(pt);
             }
         }
 
-        auto transformed = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-        Eigen::Matrix4f transform = pose.matrix().cast<float>();
-        pcl::transformPointCloud(*cloud, *transformed, transform);
+        // A fixed vertical plate makes the success fixture observable in both position
+        // and heading. Without it, an ideal corridor has a genuine 180-degree symmetry.
+        constexpr float kLandmarkX = 8.35f;
+        if (std::abs(kLandmarkX - center_x) <= 5.0f) {
+            for (float y = -0.9f; y <= -0.1f; y += 0.12f) {
+                for (float z = 0.2f; z <= 2.3f; z += 0.12f) {
+                    pcl::PointXYZI point;
+                    point.x = kLandmarkX + noise(rng) * 0.2f;
+                    point.y = y + noise(rng) * 0.2f;
+                    point.z = z + noise(rng) * 0.2f;
+                    point.intensity = 90.0f;
+                    world_cloud->push_back(point);
+                }
+            }
+        }
 
-        transformed->width = transformed->size();
-        transformed->height = 1;
-        transformed->is_dense = true;
-        return transformed;
+        auto body_cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        pcl::transformPointCloud(*world_cloud, *body_cloud, pose.inverse().matrix().cast<float>());
+
+        body_cloud->width = body_cloud->size();
+        body_cloud->height = 1;
+        body_cloud->is_dense = true;
+        return body_cloud;
     }
 
     void buildTestMap(int num_keyframes = 10, double spacing = 2.0)
@@ -265,6 +282,37 @@ TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess)
     EXPECT_GT(result.confidence, 0.0);
     double position_error = (result.pose_in_map.translation() - query_pose.translation()).norm();
     EXPECT_LT(position_error, 3.0);
+}
+
+TEST_F(WorldLocalizingTest, DuplicatedGeometryDoesNotClaimAUniquePlace)
+{
+    config_.reloc_lock_min_margin = 0.1;
+    config_.reloc_ambiguity_min_basin_separation = 3.0;
+
+    Eigen::Isometry3d observation_pose = Eigen::Isometry3d::Identity();
+    observation_pose.translation().x() = 8.0;
+    auto repeated_observation = generateCorridorCloud(observation_pose);
+    for (double x : {0.0, 20.0}) {
+        Eigen::Isometry3d map_pose = Eigen::Isometry3d::Identity();
+        map_pose.translation().x() = x;
+        const int64_t kf_id = keyframe_manager_->addKeyframe(0.0, map_pose, repeated_observation);
+        loop_detector_->addDescriptor(kf_id, repeated_observation);
+        auto rhpd = loop_detector_->addRHPD(kf_id, repeated_observation);
+        auto keyframe = keyframe_manager_->getKeyframe(kf_id);
+        ASSERT_NE(keyframe, nullptr);
+        keyframe->rhpd_descriptor = rhpd;
+    }
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+
+    const Eigen::Isometry3d odom_pose = Eigen::Isometry3d::Identity();
+
+    RelocResult result;
+    for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+        result = reloc.relocalize(repeated_observation, odom_pose);
+    }
+
+    EXPECT_FALSE(result.success);
+    EXPECT_FALSE(reloc.isRelocalized());
 }
 
 TEST_F(WorldLocalizingTest, RelocalizationWindowOneCanLock)

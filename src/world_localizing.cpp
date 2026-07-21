@@ -10,6 +10,7 @@
 #include <limits>
 #include <memory>
 #include "n3mapping/cloud_utils.h"
+#include <pcl/common/point_tests.h>
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
 
@@ -18,7 +19,41 @@ namespace {
 constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
-constexpr double kRelocBasinAmbiguousFitnessGap = 0.03;
+
+double wrapYaw(double yaw)
+{
+    while (yaw >= M_PI) yaw -= 2.0 * M_PI;
+    while (yaw < -M_PI) yaw += 2.0 * M_PI;
+    return yaw;
+}
+
+std::vector<double> buildYawHypotheses(const LoopCandidate& candidate,
+                                       const Config& config,
+                                       double scan_context_sector_rad)
+{
+    std::vector<double> yaws;
+    auto append_unique = [&](double yaw) {
+        const double wrapped = wrapYaw(yaw);
+        const bool duplicate = std::any_of(yaws.begin(), yaws.end(), [&](double existing) {
+            return std::abs(wrapYaw(existing - wrapped)) < 1e-6;
+        });
+        if (!duplicate) yaws.push_back(wrapped);
+    };
+
+    if (config.rhpd_use_sc_yaw && candidate.fromSC() && std::isfinite(candidate.sc_distance)) {
+        const double base_yaw = static_cast<double>(candidate.yaw_diff_rad);
+        append_unique(base_yaw);
+        append_unique(base_yaw - scan_context_sector_rad);
+        append_unique(base_yaw + scan_context_sector_rad);
+    }
+    if (candidate.fromRHPD() || yaws.empty()) {
+        const int count = std::max(1, config.rhpd_yaw_hypotheses);
+        for (int i = 0; i < count; ++i) {
+            append_unique(2.0 * M_PI * static_cast<double>(i) / static_cast<double>(count));
+        }
+    }
+    return yaws;
+}
 
 double processingTimeSeconds()
 {
@@ -37,13 +72,15 @@ WorldLocalizing::WorldLocalizing(const Config& config,
     , matcher_(matcher)
     , frame_rhpd_manager_(loop_detector.getRHPDManager().getDescriptorParams())
     , frame_rhpd_indexed_keyframes_(0)
+    , reloc_map_cache_(pcl::make_shared<PointCloudT>())
+    , reloc_map_cached_keyframes_(0)
     , is_relocalized_(false)
     , T_map_odom_(Eigen::Isometry3d::Identity())
     , last_matched_id_(-1)
     , last_odom_pose_(Eigen::Isometry3d::Identity())
     , consecutive_track_failures_(0)
     , hypothesis_window_count_(0)
-    , last_window_winner_seed_id_(-1)
+    , last_window_winner_match_id_(-1)
     , winner_streak_(0)
     , relocalize_debug_query_index_(0)
     , track_debug_query_index_(0) {}
@@ -207,52 +244,79 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
             int64_t matched_kf_id = -1;
             LoopCandidate candidate;
             MatchResult match;
+            VisibilityConsistencyResult visibility;
             double selection_score = std::numeric_limits<double>::max();
         };
         std::vector<BasinBest> basin_best_results;
-        basin_best_results.reserve(basins.size());
+        basin_best_results.reserve(basins.size() * kRelocPerBasinVerifyCount);
+        const auto better_basin_mode = [](const BasinBest& candidate, const BasinBest& incumbent) {
+            if (candidate.visibility.valid != incumbent.visibility.valid) {
+                return candidate.visibility.valid;
+            }
+            if (candidate.visibility.valid &&
+                std::abs(candidate.visibility.consistency_ratio -
+                         incumbent.visibility.consistency_ratio) > 1e-9) {
+                return candidate.visibility.consistency_ratio >
+                       incumbent.visibility.consistency_ratio;
+            }
+            return candidate.selection_score < incumbent.selection_score;
+        };
 
         for (const auto& basin : basins) {
-            BasinBest best;
-            best.basin_center_id = basin.center_match_id;
-            best.match.fitness_score = std::numeric_limits<double>::max();
+            std::vector<BasinBest> basin_modes;
             int verified = 0;
 
             for (const auto& candidate : basin.members) {
                 if (verified >= kRelocPerBasinVerifyCount) break;
                 ++verified;
 
-                MatchResult match_result;
-                int64_t matched_kf_id = -1;
-                if (!evaluateSingleCandidate(query_cloud, candidate, match_result, matched_kf_id)) continue;
+                for (const auto& evaluation : evaluateCandidatePoses(query_cloud, candidate)) {
+                    const double scale = config_.gicp_fitness_threshold * 0.5;
+                    const double confidence = std::exp(
+                        -evaluation.match.fitness_score / std::max(1e-6, scale));
+                    const bool valid = evaluation.match.converged &&
+                                       evaluation.match.fitness_score < config_.gicp_fitness_threshold &&
+                                       evaluation.match.inlier_ratio >= config_.reloc_min_inlier_ratio &&
+                                       confidence >= config_.reloc_min_confidence;
+                    if (!valid) continue;
 
-                const double scale = config_.gicp_fitness_threshold * 0.5;
-                const double confidence = std::exp(-match_result.fitness_score / std::max(1e-6, scale));
-                const bool valid = match_result.converged &&
-                                   match_result.fitness_score < config_.gicp_fitness_threshold &&
-                                   match_result.inlier_ratio >= config_.reloc_min_inlier_ratio &&
-                                   confidence >= config_.reloc_min_confidence;
-                if (!valid) continue;
+                    BasinBest mode;
+                    mode.basin_center_id = basin.center_match_id;
+                    mode.matched_kf_id = evaluation.matched_kf_id;
+                    mode.candidate = candidate;
+                    mode.match = evaluation.match;
+                    mode.visibility = evaluation.visibility;
+                    const double descriptor_score = std::isfinite(candidate.fused_score)
+                        ? candidate.fused_score
+                        : 1.0;
+                    mode.selection_score = evaluation.match.fitness_score + descriptor_score;
 
-                const double descriptor_score = std::isfinite(candidate.fused_score) ? candidate.fused_score : 1.0;
-                const double selection_score = match_result.fitness_score + descriptor_score;
-                if (selection_score < best.selection_score) {
-                    best.candidate = candidate;
-                    best.match = match_result;
-                    best.matched_kf_id = matched_kf_id;
-                    best.selection_score = selection_score;
+                    auto duplicate = std::find_if(
+                        basin_modes.begin(), basin_modes.end(), [&](const BasinBest& existing) {
+                            const Eigen::Isometry3d delta =
+                                existing.match.T_target_source.inverse() * mode.match.T_target_source;
+                            return delta.translation().norm() <
+                                       config_.reloc_ambiguity_min_basin_separation &&
+                                   Eigen::AngleAxisd(delta.rotation()).angle() <
+                                       config_.reloc_track_max_rotation;
+                        });
+                    if (duplicate == basin_modes.end()) {
+                        basin_modes.push_back(std::move(mode));
+                    } else if (better_basin_mode(mode, *duplicate)) {
+                        *duplicate = std::move(mode);
+                    }
                 }
             }
 
-            if (best.matched_kf_id >= 0) {
-                basin_best_results.push_back(best);
+            std::sort(basin_modes.begin(), basin_modes.end(), better_basin_mode);
+            if (basin_modes.size() > static_cast<std::size_t>(kRelocPerBasinVerifyCount)) {
+                basin_modes.resize(kRelocPerBasinVerifyCount);
             }
+            basin_best_results.insert(
+                basin_best_results.end(), basin_modes.begin(), basin_modes.end());
         }
 
-        std::sort(basin_best_results.begin(), basin_best_results.end(),
-                  [](const BasinBest& a, const BasinBest& b) {
-                      return a.selection_score < b.selection_score;
-                  });
+        std::sort(basin_best_results.begin(), basin_best_results.end(), better_basin_mode);
         if (reloc_debug_enabled) {
             debug_event.basin_best_results.clear();
             debug_event.basin_best_results.reserve(basin_best_results.size());
@@ -261,43 +325,30 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                 summary.basin_center_id = best.basin_center_id;
                 summary.matched_kf_id = best.matched_kf_id;
                 summary.candidate = best.candidate;
+                summary.pose_in_map = best.match.T_target_source;
                 summary.fitness_score = best.match.fitness_score;
                 summary.inlier_ratio = best.match.inlier_ratio;
                 summary.selection_score = best.selection_score;
                 summary.log_likelihood = computeRelocLogLikelihood(best.candidate, best.match);
+                summary.visibility_consistency_ratio = best.visibility.valid
+                    ? best.visibility.consistency_ratio
+                    : std::numeric_limits<double>::quiet_NaN();
+                summary.visibility_observed_coverage = best.visibility.valid
+                    ? best.visibility.observed_coverage
+                    : std::numeric_limits<double>::quiet_NaN();
+                summary.visibility_foreground_conflict_ratio = best.visibility.valid
+                    ? best.visibility.foreground_conflict_ratio
+                    : std::numeric_limits<double>::quiet_NaN();
+                summary.visibility_evidence_log_odds = best.visibility.valid
+                    ? best.visibility.evidence_log_odds
+                    : std::numeric_limits<double>::quiet_NaN();
                 debug_event.basin_best_results.push_back(std::move(summary));
-            }
-        }
-
-        if (basin_best_results.size() >= 2) {
-            const auto& b1 = basin_best_results[0];
-            const auto& b2 = basin_best_results[1];
-            auto kf1 = keyframe_manager_.getKeyframe(b1.matched_kf_id);
-            auto kf2 = keyframe_manager_.getKeyframe(b2.matched_kf_id);
-            const double basin_sep = (kf1 && kf2)
-                ? (kf1->pose_optimized.translation().head<2>() - kf2->pose_optimized.translation().head<2>()).norm()
-                : 0.0;
-            const double fitness_gap = std::abs(b1.match.fitness_score - b2.match.fitness_score);
-
-            if (basin_sep >= config_.reloc_ambiguity_min_basin_separation &&
-                fitness_gap <= kRelocBasinAmbiguousFitnessGap) {
-                LOG(WARNING) << "AMBIGUOUS_BASIN_REJECT init: top1_basin=" << b1.basin_center_id
-                             << " top1_kf=" << b1.matched_kf_id
-                             << " top1_fit=" << b1.match.fitness_score
-                             << " top2_basin=" << b2.basin_center_id
-                             << " top2_kf=" << b2.matched_kf_id
-                             << " top2_fit=" << b2.match.fitness_score
-                             << " basin_sep=" << basin_sep
-                             << " fitness_gap=" << fitness_gap;
-                debug_event.basin_separation = basin_sep;
-                finish_debug("rejected", "ambiguous_basin_init");
-                return result;
             }
         }
 
         VLOG(1) << "Relocalization basin init: coarse_candidates=" << candidates.size()
                 << " basins=" << basins.size()
-                << " verified_basins=" << basin_best_results.size();
+                << " retained_pose_modes=" << basin_best_results.size();
 
         for (const auto& bb : basin_best_results) {
             RelocHypothesis hyp;
@@ -307,6 +358,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
             hyp.cumulative_log_likelihood = computeRelocLogLikelihood(bb.candidate, bb.match);
             hyp.num_updates = 1;
             hyp.converged_updates = 1;
+            if (bb.visibility.valid) {
+                hyp.visibility_consistency_sum = bb.visibility.consistency_ratio;
+                hyp.visibility_evidence_sum = bb.visibility.evidence_log_odds;
+                hyp.visibility_updates = 1;
+            }
             hyp.alive = true;
             pending_hypotheses_.push_back(hyp);
         }
@@ -339,19 +395,40 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                 continue;
             }
 
-            auto submap = keyframe_manager_.buildLocalSubmap(nearest_kf_id, config_.gicp_submap_size);
+            auto submap = buildRelocTargetCloud(nearest_kf_id);
             if (!submap || submap->empty()) {
                 hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
                 continue;
             }
 
+            // Registration proposes a local correction; the LiDAR observation model decides
+            // whether that correction actually explains the measured nearest surface on each ray.
+            // This prevents one-way ICP from dragging a valid pose onto a remote dense surface.
+            const auto predicted_visibility =
+                evaluatePoseVisibility(submap, query_cloud, predicted_pose);
             MatchResult mr = matcher_.alignCloud(submap, query_cloud, predicted_pose);
             hyp.cumulative_log_likelihood += computeTrackLogLikelihood(mr, predicted_pose);
             hyp.num_updates += 1;
+            VisibilityConsistencyResult selected_visibility = predicted_visibility;
+            Eigen::Isometry3d selected_pose = predicted_pose;
             if (mr.converged) {
-                hyp.T_map_odom = mr.T_target_source * odom_pose.inverse();
+                const auto refined_visibility =
+                    evaluatePoseVisibility(submap, query_cloud, mr.T_target_source);
+                if (refined_visibility.valid &&
+                    (!selected_visibility.valid ||
+                     refined_visibility.consistency_ratio >
+                         selected_visibility.consistency_ratio + 1e-9)) {
+                    selected_visibility = refined_visibility;
+                    selected_pose = mr.T_target_source;
+                }
+                hyp.T_map_odom = selected_pose * odom_pose.inverse();
                 hyp.last_match_id = nearest_kf_id;
                 hyp.converged_updates += 1;
+            }
+            if (selected_visibility.valid) {
+                hyp.visibility_consistency_sum += selected_visibility.consistency_ratio;
+                hyp.visibility_evidence_sum += selected_visibility.evidence_log_odds;
+                hyp.visibility_updates += 1;
             }
         }
     }
@@ -363,9 +440,17 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
             RelocDebugHypothesisSummary summary;
             summary.seed_match_id = hyp.seed_match_id;
             summary.last_match_id = hyp.last_match_id;
+            summary.pose_in_map = hyp.T_map_odom * odom_pose;
             summary.cumulative_log_likelihood = hyp.cumulative_log_likelihood;
             summary.num_updates = hyp.num_updates;
             summary.converged_updates = hyp.converged_updates;
+            summary.visibility_updates = hyp.visibility_updates;
+            summary.mean_visibility_consistency = hyp.visibility_updates > 0
+                ? hyp.visibility_consistency_sum / static_cast<double>(hyp.visibility_updates)
+                : std::numeric_limits<double>::quiet_NaN();
+            summary.mean_visibility_evidence = hyp.visibility_updates > 0
+                ? hyp.visibility_evidence_sum / static_cast<double>(hyp.visibility_updates)
+                : std::numeric_limits<double>::quiet_NaN();
             summary.alive = hyp.alive;
             debug_event.hypotheses.push_back(std::move(summary));
         }
@@ -376,26 +461,87 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
     for (const auto& hyp : pending_hypotheses_) {
         if (hyp.alive) ranked_hypotheses.push_back(&hyp);
     }
-    std::sort(ranked_hypotheses.begin(), ranked_hypotheses.end(), [](const RelocHypothesis* a, const RelocHypothesis* b) {
-        return a->cumulative_log_likelihood > b->cumulative_log_likelihood;
-    });
+    const auto mean_visibility_evidence = [](const RelocHypothesis* hypothesis) {
+        return hypothesis && hypothesis->visibility_updates > 0
+            ? hypothesis->visibility_evidence_sum /
+                  static_cast<double>(hypothesis->visibility_updates)
+            : std::numeric_limits<double>::quiet_NaN();
+    };
+    std::sort(ranked_hypotheses.begin(), ranked_hypotheses.end(),
+              [&](const RelocHypothesis* a, const RelocHypothesis* b) {
+                  const double a_visibility = mean_visibility_evidence(a);
+                  const double b_visibility = mean_visibility_evidence(b);
+                  const bool a_has_visibility = std::isfinite(a_visibility);
+                  const bool b_has_visibility = std::isfinite(b_visibility);
+                  if (a_has_visibility != b_has_visibility) return a_has_visibility;
+                  if (a_has_visibility && std::abs(a_visibility - b_visibility) > 1e-9) {
+                      return a_visibility > b_visibility;
+                  }
+                  return a->cumulative_log_likelihood > b->cumulative_log_likelihood;
+              });
 
-    if (!ranked_hypotheses.empty()) {
-        const RelocHypothesis* top1 = ranked_hypotheses[0];
-        const RelocHypothesis* top2 = ranked_hypotheses.size() > 1 ? ranked_hypotheses[1] : nullptr;
-        const double top1_ll = top1->cumulative_log_likelihood;
-        const double top2_ll = top2 ? top2->cumulative_log_likelihood : -std::numeric_limits<double>::infinity();
-        const double margin = top2 ? (top1_ll - top2_ll) : std::numeric_limits<double>::infinity();
+    const RelocHypothesis* top1 = ranked_hypotheses.empty() ? nullptr : ranked_hypotheses[0];
+    const auto same_physical_pose = [&](const RelocHypothesis* a, const RelocHypothesis* b) {
+        if (!a || !b) return false;
+        const Eigen::Isometry3d a_pose = a->T_map_odom * odom_pose;
+        const Eigen::Isometry3d b_pose = b->T_map_odom * odom_pose;
+        const double translation = (a_pose.translation() - b_pose.translation()).norm();
+        const double rotation = Eigen::AngleAxisd(a_pose.rotation().transpose() * b_pose.rotation()).angle();
+        return translation < config_.reloc_ambiguity_min_basin_separation &&
+               rotation < config_.reloc_track_max_rotation;
+    };
+    const RelocHypothesis* top2 = nullptr;
+    for (std::size_t i = 1; top1 && i < ranked_hypotheses.size(); ++i) {
+        if (!same_physical_pose(top1, ranked_hypotheses[i])) {
+            top2 = ranked_hypotheses[i];
+            break;
+        }
+    }
+
+    const double top1_ll = top1
+        ? top1->cumulative_log_likelihood
+        : -std::numeric_limits<double>::infinity();
+    const double top2_ll = top2
+        ? top2->cumulative_log_likelihood
+        : -std::numeric_limits<double>::infinity();
+    const double top1_visibility = mean_visibility_evidence(top1);
+    const double top2_visibility = mean_visibility_evidence(top2);
+    const bool use_visibility_evidence = std::isfinite(top1_visibility);
+    const double top1_decision_score = use_visibility_evidence ? top1_visibility : top1_ll;
+    const double top2_decision_score = top2
+        ? (use_visibility_evidence && std::isfinite(top2_visibility)
+               ? top2_visibility
+               : (use_visibility_evidence
+                      ? -std::numeric_limits<double>::infinity()
+                      : top2_ll))
+        : -std::numeric_limits<double>::infinity();
+    const double margin = top2
+        ? top1_decision_score - top2_decision_score
+        : std::numeric_limits<double>::infinity();
+    const double ratio = use_visibility_evidence
+        ? (top2 ? std::exp(std::clamp(margin, -700.0, 700.0))
+                : std::numeric_limits<double>::infinity())
+        : (top2 && top2_decision_score > 1e-6
+               ? top1_decision_score / top2_decision_score
+               : std::numeric_limits<double>::infinity());
+
+    if (top1) {
         if (reloc_debug_enabled) {
-            debug_event.temporal_hypothesis_score = top1_ll;
+            debug_event.temporal_hypothesis_score = top1_decision_score;
             debug_event.log_likelihood = top1_ll;
             debug_event.margin = margin;
+            if (use_visibility_evidence) {
+                debug_event.visibility_margin = margin;
+                debug_event.visibility_ratio = ratio;
+            }
         }
 
-        if (top1->seed_match_id == last_window_winner_seed_id_) {
+        int64_t winner_match_id = findNearestKeyframe(top1->T_map_odom * odom_pose);
+        if (winner_match_id < 0) winner_match_id = top1->last_match_id;
+        if (winner_match_id == last_window_winner_match_id_) {
             winner_streak_ += 1;
         } else {
-            last_window_winner_seed_id_ = top1->seed_match_id;
+            last_window_winner_match_id_ = winner_match_id;
             winner_streak_ = 1;
         }
         if (reloc_debug_enabled) {
@@ -406,11 +552,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
                 << "/" << config_.reloc_temporal_window_size
                 << " top1(seed=" << top1->seed_match_id << ",last_kf=" << top1->last_match_id
                 << ",ll=" << top1_ll << ",conv_updates=" << top1->converged_updates
+                << ",visibility=" << top1_visibility
                 << ",updates=" << top1->num_updates << ")"
                 << " top2(seed=" << (top2 ? top2->seed_match_id : -1)
                 << ",last_kf=" << (top2 ? top2->last_match_id : -1)
-                << ",ll=" << (top2 ? top2_ll : -1e9) << ")"
+                << ",ll=" << (top2 ? top2_ll : -1e9)
+                << ",visibility=" << top2_visibility << ")"
                 << " margin=" << margin
+                << " evidence=" << (use_visibility_evidence ? "visibility" : "legacy_loglik")
                 << " winner_streak=" << winner_streak_;
     }
 
@@ -423,11 +572,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
         return result;
     }
 
-    const RelocHypothesis* top1 = ranked_hypotheses.empty() ? nullptr : ranked_hypotheses[0];
-    const RelocHypothesis* top2 = ranked_hypotheses.size() > 1 ? ranked_hypotheses[1] : nullptr;
-    const double top1_ll = top1 ? top1->cumulative_log_likelihood : -std::numeric_limits<double>::infinity();
-    const double top2_ll = top2 ? top2->cumulative_log_likelihood : -std::numeric_limits<double>::infinity();
-    const double margin = top2 ? (top1_ll - top2_ll) : std::numeric_limits<double>::infinity();
     const int effective_min_winner_streak = std::min(
         std::max(1, config_.reloc_lock_min_winner_streak), effective_temporal_window);
     const int effective_min_converged_updates = std::min(
@@ -441,28 +585,29 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr& cloud, const Eig
     const bool top2_viable = top2 &&
                              (top2_ll >= config_.reloc_lock_log_likelihood_threshold) &&
                              (top2->converged_updates >= effective_min_converged_updates);
-    const double ratio = (top2 && top2_ll > 1e-6) ? (top1_ll / top2_ll) : std::numeric_limits<double>::infinity();
     double basin_separation = 0.0;
     bool basin_separated = false;
     if (top1 && top2) {
-        auto kf1 = keyframe_manager_.getKeyframe(top1->last_match_id);
-        auto kf2 = keyframe_manager_.getKeyframe(top2->last_match_id);
-        if (kf1 && kf2) {
-            basin_separation = (kf1->pose_optimized.translation() - kf2->pose_optimized.translation()).norm();
-            basin_separated = basin_separation >= config_.reloc_ambiguity_min_basin_separation;
-        }
+        const Eigen::Isometry3d top1_pose = top1->T_map_odom * odom_pose;
+        const Eigen::Isometry3d top2_pose = top2->T_map_odom * odom_pose;
+        basin_separation = (top1_pose.translation() - top2_pose.translation()).norm();
+        basin_separated = basin_separation >= config_.reloc_ambiguity_min_basin_separation;
     }
     const bool ambiguous = top2_viable &&
                            basin_separated &&
                            (margin < config_.reloc_ambiguity_min_margin) &&
                            (ratio < config_.reloc_ambiguity_min_ratio);
     if (reloc_debug_enabled) {
-        debug_event.temporal_hypothesis_score = top1_ll;
+        debug_event.temporal_hypothesis_score = top1_decision_score;
         debug_event.log_likelihood = top1_ll;
         debug_event.winner_streak = winner_streak_;
         debug_event.margin = margin;
         debug_event.ratio = ratio;
         debug_event.basin_separation = basin_separation;
+        if (use_visibility_evidence) {
+            debug_event.visibility_margin = margin;
+            debug_event.visibility_ratio = ratio;
+        }
     }
 
     if (!ambiguous && pass_loglik && pass_margin && pass_winner_streak && pass_converged_updates) {
@@ -616,6 +761,8 @@ RelocResult WorldLocalizing::trackLocalization(const PointCloudT::Ptr& cloud, co
     if (consecutive_track_failures_ > 0)
         submap_range = std::max(submap_range, config_.reloc_track_unstable_submap_size);
 
+    // Keep the established tracking target unchanged. The global visibility target is
+    // specific to global-hypothesis verification, not ordinary local odometry tracking.
     auto submap = keyframe_manager_.buildLocalSubmap(nearest_kf_id, submap_range);
     debug_event.submap_size = submap ? submap->size() : 0;
     if (!submap || submap->empty()) {
@@ -763,6 +910,8 @@ void WorldLocalizing::reset() {
     consecutive_track_failures_ = 0;
     query_frame_buffer_.clear();
     clearRelocHypotheses();
+    reloc_map_cache_->clear();
+    reloc_map_cached_keyframes_ = 0;
 }
 
 void WorldLocalizing::setMapToOdomTransform(const Eigen::Isometry3d& T_map_odom) {
@@ -908,6 +1057,77 @@ std::vector<LoopCandidate> WorldLocalizing::searchCandidates(const PointCloudT::
     return candidates;
 }
 
+void WorldLocalizing::rebuildRelocMapCacheIfNeeded()
+{
+    const std::size_t current_size = keyframe_manager_.size();
+    if (reloc_map_cache_ && !reloc_map_cache_->empty() &&
+        reloc_map_cached_keyframes_ == current_size) {
+        return;
+    }
+
+    auto global_map = pcl::make_shared<PointCloudT>();
+    for (const auto& keyframe : keyframe_manager_.getAllKeyframes()) {
+        if (!keyframe || !keyframe->cloud || keyframe->cloud->empty()) continue;
+        PointCloudT transformed;
+        pcl::transformPointCloud(
+            *keyframe->cloud,
+            transformed,
+            keyframe->pose_optimized.matrix().cast<float>());
+        *global_map += transformed;
+    }
+
+    PointCloudT::Ptr downsampled;
+    const double voxel_size = std::max(1e-3, config_.global_map_voxel_size);
+    if (!global_map->empty() &&
+        safeVoxelGridFilter<pcl::PointXYZI>(global_map, voxel_size, &downsampled) &&
+        downsampled) {
+        reloc_map_cache_ = downsampled;
+    } else {
+        reloc_map_cache_ = global_map;
+    }
+    reloc_map_cached_keyframes_ = current_size;
+}
+
+WorldLocalizing::PointCloudT::Ptr WorldLocalizing::buildRelocTargetCloud(int64_t center_id)
+{
+    rebuildRelocMapCacheIfNeeded();
+    auto target = pcl::make_shared<PointCloudT>();
+    const auto center_keyframe = keyframe_manager_.getKeyframe(center_id);
+    if (!center_keyframe || !reloc_map_cache_ || reloc_map_cache_->empty()) return target;
+
+    const Eigen::Vector3d center = center_keyframe->pose_optimized.translation();
+    const double radius = std::max(1.0, config_.rhpd_max_range) +
+                          std::max(0.0, config_.gicp_max_correspondence_distance);
+    const double squared_radius = radius * radius;
+    target->reserve(reloc_map_cache_->size());
+    for (const auto& point : *reloc_map_cache_) {
+        if (!pcl::isFinite(point)) continue;
+        const Eigen::Vector3d position(point.x, point.y, point.z);
+        if ((position - center).squaredNorm() <= squared_radius) {
+            target->push_back(point);
+        }
+    }
+    target->width = static_cast<std::uint32_t>(target->size());
+    target->height = 1;
+    target->is_dense = true;
+    return target;
+}
+
+VisibilityConsistencyResult WorldLocalizing::evaluatePoseVisibility(
+    const PointCloudT::Ptr& target_cloud,
+    const PointCloudT::Ptr& query_cloud,
+    const Eigen::Isometry3d& T_map_lidar) const
+{
+    if (!target_cloud || !query_cloud) return {};
+    VisibilityConsistencyOptions options;
+    options.range_min_m = 0.5;
+    options.range_max_m = std::max(1.0, config_.rhpd_max_range);
+    options.range_tolerance_m = std::max(
+        0.05,
+        3.0 * std::max(config_.global_map_voxel_size, config_.gicp_downsampling_resolution));
+    return evaluateVisibilityConsistency(*target_cloud, *query_cloud, T_map_lidar, options);
+}
+
 void WorldLocalizing::rebuildFrameRHPDIndexIfNeeded() {
     const size_t current_size = keyframe_manager_.size();
     if (frame_rhpd_indexed_keyframes_ == current_size) {
@@ -982,126 +1202,78 @@ void WorldLocalizing::appendFrameRHPDCandidates(const Eigen::VectorXd& query_rhp
     }
 }
 
-RelocResult WorldLocalizing::verifyCandidates(const PointCloudT::Ptr& cloud,
-                                              const std::vector<LoopCandidate>& candidates) {
-    RelocResult best_result;
-    double best_score = std::numeric_limits<double>::max();
-    double best_descriptor_distance = std::numeric_limits<double>::max();
-    const double fitness_epsilon = 1e-4;
-
-    for (const auto& candidate : candidates) {
-        auto match_kf = keyframe_manager_.getKeyframe(candidate.match_id);
-        if (!match_kf) continue;
-
-        auto submap = keyframe_manager_.buildLocalSubmap(candidate.match_id, config_.gicp_submap_size);
-        if (!submap || submap->empty()) {
-            if (!match_kf->cloud || match_kf->cloud->empty()) continue;
-            submap = pcl::make_shared<PointCloudT>();
-            Eigen::Matrix4f transform = match_kf->pose_optimized.matrix().cast<float>();
-            pcl::transformPointCloud(*match_kf->cloud, *submap, transform);
-        }
-
-        std::vector<double> yaws_to_try;
-        if (config_.rhpd_use_sc_yaw && candidate.fromSC() && std::isfinite(candidate.sc_distance)) {
-            const double base_yaw = static_cast<double>(candidate.yaw_diff_rad);
-            const double sector = loop_detector_.getScanContextSectorAngleDeg() * M_PI / 180.0;
-            yaws_to_try = {base_yaw, base_yaw - sector, base_yaw + sector};
-        } else {
-            const int n = std::max(1, config_.rhpd_yaw_hypotheses);
-            for (int i = 0; i < n; ++i) {
-                yaws_to_try.push_back(2.0 * M_PI * static_cast<double>(i) / static_cast<double>(n));
-            }
-        }
-
-        MatchResult best_match;
-        best_match.fitness_score = std::numeric_limits<double>::max();
-        for (double yaw : yaws_to_try) {
-            Eigen::Isometry3d init_guess = match_kf->pose_optimized;
-            init_guess.linear() = match_kf->pose_optimized.linear() *
-                Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
-            MatchResult mr = matcher_.alignCloud(submap, cloud, init_guess);
-            if (mr.converged && mr.fitness_score < best_match.fitness_score) {
-                best_match = mr;
-            }
-        }
-        const MatchResult& match_result = best_match;
-
-        VLOG(1) << "[Reloc] candidate match_id=" << candidate.match_id
-                << " rhpd=" << candidate.rhpd_distance
-                << " sc=" << candidate.sc_distance
-                << " converged=" << match_result.converged
-                << " fitness=" << match_result.fitness_score
-                << " inlier=" << match_result.inlier_ratio;
-
-        double scale = config_.gicp_fitness_threshold * 0.5;
-        double current_confidence = std::exp(-match_result.fitness_score / scale);
-        current_confidence = std::max(0.0, std::min(1.0, current_confidence));
-
-        if (match_result.converged &&
-            match_result.fitness_score < config_.gicp_fitness_threshold &&
-            match_result.inlier_ratio >= config_.reloc_min_inlier_ratio &&
-            current_confidence >= config_.reloc_min_confidence) {
-
-            const bool better_fitness = match_result.fitness_score + fitness_epsilon < best_score;
-            const bool fitness_tie = std::abs(match_result.fitness_score - best_score) <= fitness_epsilon;
-            const double desc_distance = std::isfinite(candidate.rhpd_distance) ? candidate.rhpd_distance : candidate.sc_distance;
-            const bool better_desc = desc_distance < best_descriptor_distance;
-
-            if (better_fitness || (fitness_tie && better_desc)) {
-                best_score = match_result.fitness_score;
-                best_descriptor_distance = desc_distance;
-                best_result.success = true;
-                best_result.matched_keyframe_id = candidate.match_id;
-                best_result.pose_in_map = match_result.T_target_source;
-                best_result.fitness_score = match_result.fitness_score;
-                best_result.confidence = current_confidence;
-            }
-        }
-    }
-
-    return best_result;
-}
-
-bool WorldLocalizing::evaluateSingleCandidate(const PointCloudT::Ptr& cloud,
-                                              const LoopCandidate& candidate,
-                                              MatchResult& best_match,
-                                              int64_t& matched_kf_id) {
+std::vector<WorldLocalizing::CandidatePoseEvaluation>
+WorldLocalizing::evaluateCandidatePoses(const PointCloudT::Ptr& cloud,
+                                        const LoopCandidate& candidate) {
+    std::vector<CandidatePoseEvaluation> evaluations;
     auto match_kf = keyframe_manager_.getKeyframe(candidate.match_id);
-    if (!match_kf) return false;
+    if (!match_kf) return evaluations;
 
-    auto submap = keyframe_manager_.buildLocalSubmap(candidate.match_id, config_.gicp_submap_size);
+    auto submap = buildRelocTargetCloud(candidate.match_id);
     if (!submap || submap->empty()) {
-        if (!match_kf->cloud || match_kf->cloud->empty()) return false;
+        if (!match_kf->cloud || match_kf->cloud->empty()) return evaluations;
         submap = pcl::make_shared<PointCloudT>();
         Eigen::Matrix4f transform = match_kf->pose_optimized.matrix().cast<float>();
         pcl::transformPointCloud(*match_kf->cloud, *submap, transform);
     }
 
-    std::vector<double> yaws_to_try;
-    if (config_.rhpd_use_sc_yaw && candidate.fromSC() && std::isfinite(candidate.sc_distance)) {
-        const double base_yaw = static_cast<double>(candidate.yaw_diff_rad);
-        const double sector = loop_detector_.getScanContextSectorAngleDeg() * M_PI / 180.0;
-        yaws_to_try = {base_yaw, base_yaw - sector, base_yaw + sector};
-    } else {
-        const int n = std::max(1, config_.rhpd_yaw_hypotheses);
-        for (int i = 0; i < n; ++i) {
-            yaws_to_try.push_back(2.0 * M_PI * static_cast<double>(i) / static_cast<double>(n));
-        }
-    }
+    const auto yaws_to_try = buildYawHypotheses(
+        candidate,
+        config_,
+        loop_detector_.getScanContextSectorAngleDeg() * M_PI / 180.0);
 
-    best_match.fitness_score = std::numeric_limits<double>::max();
     for (double yaw : yaws_to_try) {
         Eigen::Isometry3d init_guess = match_kf->pose_optimized;
         init_guess.linear() = match_kf->pose_optimized.linear() *
             Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+        const auto initial_visibility =
+            evaluatePoseVisibility(submap, cloud, init_guess);
         MatchResult mr = matcher_.alignCloud(submap, cloud, init_guess);
-        if (mr.converged && mr.fitness_score < best_match.fitness_score) {
-            best_match = mr;
-            matched_kf_id = candidate.match_id;
+        const bool quality_passed =
+            mr.converged &&
+            mr.fitness_score < config_.gicp_fitness_threshold &&
+            mr.inlier_ratio >= config_.reloc_min_inlier_ratio;
+        if (!quality_passed) continue;
+        auto pose_visibility = evaluatePoseVisibility(submap, cloud, mr.T_target_source);
+        if (initial_visibility.valid &&
+            (!pose_visibility.valid ||
+             initial_visibility.consistency_ratio > pose_visibility.consistency_ratio + 1e-9)) {
+            // ICP is only a local pose proposal. Keep the descriptor pose when it explains
+            // the measured first-return geometry better than the optimizer's endpoint.
+            mr.T_target_source = init_guess;
+            pose_visibility = initial_visibility;
         }
+        CandidatePoseEvaluation evaluation;
+        evaluation.match = mr;
+        evaluation.matched_kf_id = candidate.match_id;
+        evaluation.visibility = pose_visibility;
+        evaluations.push_back(std::move(evaluation));
     }
 
-    return best_match.converged;
+    std::sort(evaluations.begin(), evaluations.end(), [](const auto& a, const auto& b) {
+        if (a.visibility.valid != b.visibility.valid) return a.visibility.valid;
+        if (a.visibility.valid &&
+            std::abs(a.visibility.consistency_ratio - b.visibility.consistency_ratio) > 1e-9) {
+            return a.visibility.consistency_ratio > b.visibility.consistency_ratio;
+        }
+        return a.match.fitness_score < b.match.fitness_score;
+    });
+
+    // Different yaw seeds often converge onto the same physical solution. Keep one
+    // representative per mode, but retain genuinely different orientations so the
+    // temporal ambiguity logic can see (and reject) unobservable symmetries.
+    std::vector<CandidatePoseEvaluation> distinct;
+    distinct.reserve(evaluations.size());
+    for (const auto& evaluation : evaluations) {
+        const bool duplicate = std::any_of(distinct.begin(), distinct.end(), [&](const auto& kept) {
+            const Eigen::Isometry3d delta =
+                kept.match.T_target_source.inverse() * evaluation.match.T_target_source;
+            return delta.translation().norm() < config_.reloc_ambiguity_min_basin_separation &&
+                   Eigen::AngleAxisd(delta.rotation()).angle() < config_.reloc_track_max_rotation;
+        });
+        if (!duplicate) distinct.push_back(evaluation);
+    }
+    return distinct;
 }
 
 WorldLocalizing::PointCloudT::Ptr WorldLocalizing::buildRelocQueryCloud(
@@ -1288,7 +1460,7 @@ double WorldLocalizing::computeTrackLogLikelihood(const MatchResult& match_resul
 void WorldLocalizing::clearRelocHypotheses() {
     pending_hypotheses_.clear();
     hypothesis_window_count_ = 0;
-    last_window_winner_seed_id_ = -1;
+    last_window_winner_match_id_ = -1;
     winner_streak_ = 0;
 }
 

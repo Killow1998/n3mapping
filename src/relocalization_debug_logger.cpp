@@ -143,6 +143,8 @@ void appendCandidates(std::ostream& os, bool* first, const char* key, const std:
     os << ']';
 }
 
+void appendPose(std::ostream& os, bool* first, const char* key, const Eigen::Isometry3d& pose);
+
 void appendBasins(std::ostream& os, bool* first, const std::vector<RelocDebugBasinSummary>& basins)
 {
     appendComma(os, first);
@@ -180,6 +182,7 @@ void appendBasinBest(std::ostream& os, bool* first, const std::vector<RelocDebug
         os << '{';
         appendInteger(os, &item_first, "basin_center_id", results[i].basin_center_id);
         appendInteger(os, &item_first, "matched_kf_id", results[i].matched_kf_id);
+        appendPose(os, &item_first, "pose_in_map", results[i].pose_in_map);
         appendComma(os, &item_first);
         os << "\"candidate\":";
         appendCandidateObject(os, results[i].candidate);
@@ -187,6 +190,14 @@ void appendBasinBest(std::ostream& os, bool* first, const std::vector<RelocDebug
         appendNumber(os, &item_first, "inlier_ratio", results[i].inlier_ratio);
         appendNumber(os, &item_first, "selection_score", results[i].selection_score);
         appendNumber(os, &item_first, "log_likelihood", results[i].log_likelihood);
+        appendNumber(os, &item_first, "visibility_consistency_ratio",
+                     results[i].visibility_consistency_ratio);
+        appendNumber(os, &item_first, "visibility_observed_coverage",
+                     results[i].visibility_observed_coverage);
+        appendNumber(os, &item_first, "visibility_foreground_conflict_ratio",
+                     results[i].visibility_foreground_conflict_ratio);
+        appendNumber(os, &item_first, "visibility_evidence_log_odds",
+                     results[i].visibility_evidence_log_odds);
         os << '}';
     }
     os << ']';
@@ -204,9 +215,15 @@ void appendHypotheses(std::ostream& os, bool* first, const std::vector<RelocDebu
         os << '{';
         appendInteger(os, &item_first, "seed_match_id", hypotheses[i].seed_match_id);
         appendInteger(os, &item_first, "last_match_id", hypotheses[i].last_match_id);
+        appendPose(os, &item_first, "pose_in_map", hypotheses[i].pose_in_map);
         appendNumber(os, &item_first, "cumulative_log_likelihood", hypotheses[i].cumulative_log_likelihood);
         appendInteger(os, &item_first, "num_updates", hypotheses[i].num_updates);
         appendInteger(os, &item_first, "converged_updates", hypotheses[i].converged_updates);
+        appendInteger(os, &item_first, "visibility_updates", hypotheses[i].visibility_updates);
+        appendNumber(os, &item_first, "mean_visibility_consistency",
+                     hypotheses[i].mean_visibility_consistency);
+        appendNumber(os, &item_first, "mean_visibility_evidence",
+                     hypotheses[i].mean_visibility_evidence);
         appendBool(os, &item_first, "alive", hypotheses[i].alive);
         os << '}';
     }
@@ -298,6 +315,8 @@ bool RelocalizationDebugLogger::appendRelocalization(const std::string& path,
     appendInteger(os, &first, "winner_streak", event.winner_streak);
     appendNumber(os, &first, "margin", event.margin);
     appendNumber(os, &first, "ratio", event.ratio);
+    appendNumber(os, &first, "visibility_margin", event.visibility_margin);
+    appendNumber(os, &first, "visibility_ratio", event.visibility_ratio);
     appendNumber(os, &first, "basin_separation", event.basin_separation);
     appendBool(os, &first, "lock_accepted", event.lock_accepted);
     appendString(os, &first, "lock_result", event.lock_result);

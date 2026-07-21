@@ -65,6 +65,7 @@ struct Options {
     std::string query_pose_manifest;
     std::string review_pcd_dir;
     std::string eval_profile = "relaxed_smoke";
+    bool reloc_debug = false;
     bool strict = false;
 };
 
@@ -146,6 +147,7 @@ void printUsage(const char* argv0)
         << "                            Episode header: query_id,episode_id,frame_index,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg\n"
         << "  --review_pcd_dir DIR      Export one colored map-frame PCD for the last frame of each episode.\n"
         << "                            Gray=global map, green=query at GT, red=query at a locked estimate.\n"
+        << "  --reloc_debug             Write relocalization_debug.jsonl inside --output.\n"
         << "  --eval_profile PROFILE    relaxed_smoke or product_default. Default: relaxed_smoke\n"
         << "                            product_default requires an episode manifest and remains synthetic evidence.\n"
         << "  --range_min M             Min range for map-query synthesis. Default: 0.5\n"
@@ -223,6 +225,8 @@ bool parseArgs(int argc, char** argv, Options* options)
             if (const char* v = needValue(arg)) options->query_pose_manifest = v; else return false;
         } else if (arg == "--review_pcd_dir") {
             if (const char* v = needValue(arg)) options->review_pcd_dir = v; else return false;
+        } else if (arg == "--reloc_debug") {
+            options->reloc_debug = true;
         } else if (arg == "--eval_profile") {
             if (const char* v = needValue(arg)) options->eval_profile = v; else return false;
             if (options->eval_profile != "relaxed_smoke" && options->eval_profile != "product_default") {
@@ -1174,6 +1178,11 @@ int main(int argc, char** argv)
     }
 
     Config config = makeEvalConfig(options.eval_profile);
+    if (options.reloc_debug) {
+        config.reloc_debug_enable = true;
+        config.reloc_debug_path =
+            (std::filesystem::path(options.output_dir) / "relocalization_debug.jsonl").string();
+    }
     N3MappingCore catalog(config);
     if (!catalog.loadMap(options.map_path)) {
         std::cerr << "Failed to load map: " << options.map_path << "\n";
