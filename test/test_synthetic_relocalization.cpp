@@ -1,7 +1,10 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <iomanip>
+#include <limits>
 #include <random>
+#include <sstream>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -270,7 +273,9 @@ TEST(SyntheticRelocalizationTest, RaycastQuerySynthesisSupportsNewPoseAndFov)
     options.raycast_azimuth_resolution_deg = 10.0;
     options.raycast_vertical_resolution_deg = 10.0;
 
-    const auto query = synthetic::synthesizeBodyCloudFromMapCloud(world, query_pose, options, 7U);
+    synthetic::QueryVisibilityStats visibility;
+    const auto query = synthetic::synthesizeBodyCloudFromMapCloud(
+        world, query_pose, options, 7U, nullptr, &visibility);
     ASSERT_FALSE(query->empty());
     bool saw_front = false;
     bool saw_back = false;
@@ -284,6 +289,451 @@ TEST(SyntheticRelocalizationTest, RaycastQuerySynthesisSupportsNewPoseAndFov)
     EXPECT_FALSE(saw_back);
     EXPECT_FALSE(saw_occluded_wall);
     EXPECT_LT(query->size(), world->size());
+    EXPECT_TRUE(visibility.raycast_enabled);
+    EXPECT_EQ(visibility.input_map_points, world->size());
+    EXPECT_GT(visibility.same_ray_occluded_points, 0U);
+    EXPECT_EQ(visibility.output_points, query->size());
+    EXPECT_TRUE(synthetic::queryVisibilityStatsConserved(visibility));
+}
+
+TEST(SyntheticRelocalizationTest, RaycastFovEnvelopeWrapsAcrossZeroAzimuth)
+{
+    auto world = pcl::make_shared<Cloud>();
+    auto reference = pcl::make_shared<Cloud>();
+    auto addPolar = [](Cloud* cloud, double range, double azimuth_deg, float intensity) {
+        const double azimuth = azimuth_deg * M_PI / 180.0;
+        pcl::PointXYZI point;
+        point.x = static_cast<float>(range * std::cos(azimuth));
+        point.y = static_cast<float>(range * std::sin(azimuth));
+        point.z = 0.0f;
+        point.intensity = intensity;
+        cloud->push_back(point);
+    };
+    addPolar(world.get(), 5.0, 355.0, 1.0f);
+    addPolar(world.get(), 5.0, 5.0, 2.0f);
+    addPolar(world.get(), 5.0, 180.0, 3.0f);
+    for (double azimuth : {350.0, 352.0, 354.0, 356.0, 0.0, 4.0, 6.0, 8.0, 10.0}) {
+        addPolar(reference.get(), 4.0, azimuth, 10.0f);
+    }
+
+    synthetic::QuerySynthesisOptions options;
+    options.range_min = 0.1;
+    options.range_max = 10.0;
+    options.raycast_azimuth_resolution_deg = 1.0;
+    options.raycast_vertical_resolution_deg = 1.0;
+    options.occlusion_dilation_bins = 0;
+
+    synthetic::QueryVisibilityStats visibility;
+    const auto query = synthetic::synthesizeBodyCloudFromMapCloud(
+        world, Eigen::Isometry3d::Identity(), options, 11U, reference, &visibility);
+
+    ASSERT_EQ(query->size(), 2U);
+    bool saw_355 = false;
+    bool saw_5 = false;
+    bool saw_back = false;
+    for (const auto& point : query->points) {
+        saw_355 = saw_355 || std::abs(point.intensity - 1.0f) < 1e-6f;
+        saw_5 = saw_5 || std::abs(point.intensity - 2.0f) < 1e-6f;
+        saw_back = saw_back || std::abs(point.intensity - 3.0f) < 1e-6f;
+    }
+    EXPECT_TRUE(saw_355);
+    EXPECT_TRUE(saw_5);
+    EXPECT_FALSE(saw_back);
+    EXPECT_FALSE(visibility.envelope_azimuth_full);
+    EXPECT_LT(visibility.envelope_azimuth_start_deg, 360.0);
+    EXPECT_LT(visibility.envelope_azimuth_span_deg, 30.0);
+}
+
+TEST(SyntheticRelocalizationTest, RaycastRenderingAndVisibilityStatsAreDeterministic)
+{
+    const auto world = makeWorldScene();
+    synthetic::QuerySynthesisOptions options;
+    options.dropout = 0.25;
+    options.noise_sigma = 0.01;
+    options.range_min = 0.5;
+    options.range_max = 20.0;
+    options.raycast_azimuth_resolution_deg = 2.0;
+    options.raycast_vertical_resolution_deg = 2.0;
+
+    synthetic::QueryVisibilityStats first_stats;
+    synthetic::QueryVisibilityStats second_stats;
+    const auto first = synthetic::synthesizeBodyCloudFromMapCloud(
+        world, makePose(2.0, 0.0, 0.1), options, 12345U, nullptr, &first_stats);
+    const auto second = synthetic::synthesizeBodyCloudFromMapCloud(
+        world, makePose(2.0, 0.0, 0.1), options, 12345U, nullptr, &second_stats);
+
+    ASSERT_EQ(first->size(), second->size());
+    EXPECT_EQ(first_stats.input_map_points, second_stats.input_map_points);
+    EXPECT_EQ(first_stats.range_eligible_points, second_stats.range_eligible_points);
+    EXPECT_EQ(first_stats.fov_eligible_points, second_stats.fov_eligible_points);
+    EXPECT_EQ(first_stats.occupied_ray_bins, second_stats.occupied_ray_bins);
+    EXPECT_EQ(first_stats.same_ray_occluded_points, second_stats.same_ray_occluded_points);
+    EXPECT_EQ(first_stats.dropout_suppressed_points, second_stats.dropout_suppressed_points);
+    EXPECT_EQ(first_stats.occlusion_suppressed_bins, second_stats.occlusion_suppressed_bins);
+    EXPECT_TRUE(synthetic::queryVisibilityStatsConserved(first_stats));
+    EXPECT_TRUE(synthetic::queryVisibilityStatsConserved(second_stats));
+    EXPECT_EQ(synthetic::fingerprintPointSequenceFNV1a64(*first),
+              synthetic::fingerprintPointSequenceFNV1a64(*second));
+    for (std::size_t i = 0; i < first->size(); ++i) {
+        EXPECT_FLOAT_EQ(first->points[i].x, second->points[i].x);
+        EXPECT_FLOAT_EQ(first->points[i].y, second->points[i].y);
+        EXPECT_FLOAT_EQ(first->points[i].z, second->points[i].z);
+        EXPECT_FLOAT_EQ(first->points[i].intensity, second->points[i].intensity);
+    }
+}
+
+TEST(SyntheticRelocalizationTest, RangeAndFovFilteringCanProduceExplicitEmptyVisibility)
+{
+    auto world = pcl::make_shared<Cloud>();
+    auto add = [&](double x, double y, double z) {
+        pcl::PointXYZI point;
+        point.x = static_cast<float>(x);
+        point.y = static_cast<float>(y);
+        point.z = static_cast<float>(z);
+        world->push_back(point);
+    };
+    add(50.0, 0.0, 0.0);   // Outside range.
+    add(-2.0, 0.0, 0.0);   // Inside range, behind a forward-facing FOV.
+
+    synthetic::QuerySynthesisOptions options;
+    options.range_min = 0.1;
+    options.range_max = 10.0;
+    options.fov_azimuth_deg = 90.0;
+    options.fov_vertical_deg = 60.0;
+    options.raycast_azimuth_resolution_deg = 1.0;
+    options.raycast_vertical_resolution_deg = 1.0;
+
+    synthetic::QueryVisibilityStats visibility;
+    const auto query = synthetic::synthesizeBodyCloudFromMapCloud(
+        world, Eigen::Isometry3d::Identity(), options, 21U, nullptr, &visibility);
+
+    EXPECT_TRUE(query->empty());
+    EXPECT_EQ(visibility.input_map_points, 2U);
+    EXPECT_EQ(visibility.finite_points, 2U);
+    EXPECT_EQ(visibility.range_eligible_points, 1U);
+    EXPECT_EQ(visibility.fov_eligible_points, 0U);
+    EXPECT_EQ(visibility.occupied_ray_bins, 0U);
+    EXPECT_EQ(visibility.output_points, 0U);
+    EXPECT_TRUE(synthetic::queryVisibilityStatsConserved(visibility));
+}
+
+TEST(SyntheticRelocalizationTest, NeighborDilationSuppressesBackgroundWithoutDeletingRemoteSurface)
+{
+    auto world = pcl::make_shared<Cloud>();
+    auto addPolar = [&](double range, double azimuth_deg, float intensity) {
+        const double azimuth = azimuth_deg * M_PI / 180.0;
+        pcl::PointXYZI point;
+        point.x = static_cast<float>(range * std::cos(azimuth));
+        point.y = static_cast<float>(range * std::sin(azimuth));
+        point.z = 0.0f;
+        point.intensity = intensity;
+        world->push_back(point);
+    };
+    addPolar(2.0, 0.0, 1.0f);    // Foreground.
+    addPolar(5.0, 1.2, 2.0f);    // Adjacent-bin background: should be suppressed.
+    addPolar(5.0, 10.2, 3.0f);   // Remote surface: outside dilation neighborhood.
+
+    synthetic::QuerySynthesisOptions options;
+    options.range_min = 0.1;
+    options.range_max = 10.0;
+    options.raycast_azimuth_resolution_deg = 1.0;
+    options.raycast_vertical_resolution_deg = 1.0;
+    options.occlusion_dilation_bins = 1;
+    options.occlusion_depth_tolerance_m = 0.1;
+
+    synthetic::QueryVisibilityStats visibility;
+    const auto query = synthetic::synthesizeBodyCloudFromMapCloud(
+        world, Eigen::Isometry3d::Identity(), options, 22U, nullptr, &visibility);
+
+    bool saw_foreground = false;
+    bool saw_background = false;
+    bool saw_remote = false;
+    for (const auto& point : query->points) {
+        saw_foreground = saw_foreground || std::abs(point.intensity - 1.0f) < 1e-6f;
+        saw_background = saw_background || std::abs(point.intensity - 2.0f) < 1e-6f;
+        saw_remote = saw_remote || std::abs(point.intensity - 3.0f) < 1e-6f;
+    }
+    EXPECT_TRUE(saw_foreground);
+    EXPECT_FALSE(saw_background);
+    EXPECT_TRUE(saw_remote);
+    EXPECT_EQ(visibility.fov_eligible_points, 3U);
+    EXPECT_EQ(visibility.occupied_ray_bins, 3U);
+    EXPECT_EQ(visibility.occlusion_suppressed_bins, 1U);
+    EXPECT_EQ(visibility.output_points, 2U);
+    EXPECT_TRUE(synthetic::queryVisibilityStatsConserved(visibility));
+}
+
+TEST(SyntheticRelocalizationTest, RaycastDisabledPreservesLegacyPointOrderAndConservation)
+{
+    auto world = pcl::make_shared<Cloud>();
+    for (int i = 0; i < 3; ++i) {
+        pcl::PointXYZI point;
+        point.x = static_cast<float>(1.0 + i);
+        point.y = static_cast<float>(0.1 * i);
+        point.z = 0.0f;
+        point.intensity = static_cast<float>(10 + i);
+        world->push_back(point);
+    }
+
+    synthetic::QuerySynthesisOptions options;
+    options.range_min = 0.1;
+    options.range_max = 10.0;
+    options.raycast_azimuth_resolution_deg = 0.0;
+    options.raycast_vertical_resolution_deg = 0.0;
+
+    synthetic::QueryVisibilityStats visibility;
+    const auto query = synthetic::synthesizeBodyCloudFromMapCloud(
+        world, Eigen::Isometry3d::Identity(), options, 23U, nullptr, &visibility);
+
+    ASSERT_EQ(query->size(), world->size());
+    EXPECT_FALSE(visibility.raycast_enabled);
+    EXPECT_EQ(visibility.input_map_points, 3U);
+    EXPECT_EQ(visibility.finite_points, 3U);
+    EXPECT_EQ(visibility.range_eligible_points, 3U);
+    EXPECT_EQ(visibility.fov_eligible_points, 3U);
+    EXPECT_EQ(visibility.azimuth_bins, 0U);
+    EXPECT_EQ(visibility.vertical_bins, 0U);
+    EXPECT_EQ(visibility.output_points, 3U);
+    EXPECT_TRUE(synthetic::queryVisibilityStatsConserved(visibility));
+    EXPECT_EQ(synthetic::fingerprintPointSequenceFNV1a64(*world),
+              synthetic::fingerprintPointSequenceFNV1a64(*query));
+}
+
+TEST(SyntheticRelocalizationTest, NonFiniteMapPointsAndEmptyMapsRemainFiniteSafe)
+{
+    auto world = pcl::make_shared<Cloud>();
+    pcl::PointXYZI finite;
+    finite.x = 2.0f;
+    finite.y = 0.0f;
+    finite.z = 0.0f;
+    finite.intensity = 1.0f;
+    world->push_back(finite);
+    pcl::PointXYZI nonfinite;
+    nonfinite.x = std::numeric_limits<float>::quiet_NaN();
+    nonfinite.y = 0.0f;
+    nonfinite.z = 0.0f;
+    nonfinite.intensity = 2.0f;
+    world->push_back(nonfinite);
+
+    synthetic::QuerySynthesisOptions options;
+    options.range_min = 0.1;
+    options.range_max = 10.0;
+    options.raycast_azimuth_resolution_deg = 1.0;
+    options.raycast_vertical_resolution_deg = 1.0;
+
+    synthetic::QueryVisibilityStats visibility;
+    const auto query = synthetic::synthesizeBodyCloudFromMapCloud(
+        world, Eigen::Isometry3d::Identity(), options, 24U, nullptr, &visibility);
+    ASSERT_EQ(query->size(), 1U);
+    EXPECT_TRUE(std::isfinite(query->front().x));
+    EXPECT_EQ(visibility.input_map_points, 2U);
+    EXPECT_EQ(visibility.finite_points, 1U);
+    EXPECT_EQ(visibility.range_eligible_points, 1U);
+    EXPECT_EQ(visibility.fov_eligible_points, 1U);
+    EXPECT_TRUE(synthetic::queryVisibilityStatsConserved(visibility));
+
+    synthetic::QueryVisibilityStats empty_visibility;
+    const auto empty_world = pcl::make_shared<Cloud>();
+    const auto empty_query = synthetic::synthesizeBodyCloudFromMapCloud(
+        empty_world, Eigen::Isometry3d::Identity(), options, 25U, nullptr, &empty_visibility);
+    EXPECT_TRUE(empty_query->empty());
+    EXPECT_EQ(empty_visibility.input_map_points, 0U);
+    EXPECT_EQ(empty_visibility.finite_points, 0U);
+    EXPECT_TRUE(synthetic::queryVisibilityStatsConserved(empty_visibility));
+    EXPECT_EQ(synthetic::fingerprintPointSequenceFNV1a64(*empty_query),
+              14695981039346656037ULL);
+}
+
+TEST(SyntheticRelocalizationTest, QueryPoseManifestParsesStrictStandaloneAndEpisodeSchemas)
+{
+    {
+        std::istringstream csv(
+            "query_id,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg\n"
+            "7,1.0,-2.0,0.5,3.0,-4.0,90.0\n");
+        synthetic::QueryPoseManifest manifest;
+        std::string error;
+        ASSERT_TRUE(synthetic::parseQueryPoseManifestCsv(csv, &manifest, &error)) << error;
+        ASSERT_FALSE(manifest.has_episode_columns);
+        ASSERT_EQ(manifest.entries.size(), 1U);
+        EXPECT_EQ(manifest.entries[0].query_id, 7);
+        EXPECT_EQ(manifest.entries[0].episode_id, 7);
+        EXPECT_EQ(manifest.entries[0].frame_index, 0);
+        EXPECT_NEAR(manifest.entries[0].T_map_lidar.translation().x(), 1.0, 1e-12);
+        EXPECT_NEAR(manifest.entries[0].T_map_lidar.translation().y(), -2.0, 1e-12);
+    }
+    {
+        std::istringstream csv(
+            "query_id,episode_id,frame_index,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg\n"
+            "10,3,0,0,0,0,0,0,0\n"
+            "11,3,1,0.1,0,0,0,0,1\n"
+            "12,4,0,1,2,3,4,5,6\n");
+        synthetic::QueryPoseManifest manifest;
+        std::string error;
+        ASSERT_TRUE(synthetic::parseQueryPoseManifestCsv(csv, &manifest, &error)) << error;
+        ASSERT_TRUE(manifest.has_episode_columns);
+        ASSERT_EQ(manifest.entries.size(), 3U);
+        EXPECT_EQ(manifest.entries[1].episode_id, 3);
+        EXPECT_EQ(manifest.entries[1].frame_index, 1);
+        EXPECT_EQ(manifest.entries[2].episode_id, 4);
+    }
+}
+
+TEST(SyntheticRelocalizationTest, QueryPoseManifestRejectsAmbiguousOrNonDeterministicRows)
+{
+    {
+        std::istringstream csv(
+            "query_id,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg\n"
+            "1,0,0,0,0,0,nan\n");
+        synthetic::QueryPoseManifest manifest;
+        std::string error;
+        EXPECT_FALSE(synthetic::parseQueryPoseManifestCsv(csv, &manifest, &error));
+        EXPECT_NE(error.find("invalid_yaw_deg"), std::string::npos);
+    }
+    {
+        std::istringstream csv(
+            "query_id,episode_id,frame_index,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg\n"
+            "1,9,0,0,0,0,0,0,0\n"
+            "2,9,2,0,0,0,0,0,0\n");
+        synthetic::QueryPoseManifest manifest;
+        std::string error;
+        EXPECT_FALSE(synthetic::parseQueryPoseManifestCsv(csv, &manifest, &error));
+        EXPECT_NE(error.find("frame_index_expected_1_got_2"), std::string::npos);
+    }
+    {
+        std::istringstream csv(
+            "query_id,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg\n"
+            "5,0,0,0,0,0,0\n"
+            "5,1,0,0,0,0,0\n");
+        synthetic::QueryPoseManifest manifest;
+        std::string error;
+        EXPECT_FALSE(synthetic::parseQueryPoseManifestCsv(csv, &manifest, &error));
+        EXPECT_NE(error.find("duplicate_query_id"), std::string::npos);
+    }
+}
+
+TEST(SyntheticRelocalizationTest, EpisodeStateClearsTrackLossAndLocksOnNextFrameReentry)
+{
+    auto transition = synthetic::advanceEpisodeFrameState(
+        false, false, true, true);
+    EXPECT_FALSE(transition.locked_before_frame);
+    EXPECT_TRUE(transition.locked_after_frame);
+    EXPECT_FALSE(transition.ever_locked_before_frame);
+    EXPECT_TRUE(transition.ever_locked_after_frame);
+    EXPECT_TRUE(transition.localization_attempted);
+    EXPECT_FALSE(transition.tracking_processed);
+    EXPECT_TRUE(transition.lock_event);
+    EXPECT_FALSE(transition.tracking_loss_event);
+    EXPECT_EQ(transition.stage, synthetic::EpisodeFrameStage::INITIAL_LOCK);
+    EXPECT_STREQ(synthetic::episodeLockEventTypeName(transition.stage), "initial_lock");
+
+    transition = synthetic::advanceEpisodeFrameState(
+        transition.locked_after_frame,
+        transition.ever_locked_after_frame,
+        false,
+        false);
+    EXPECT_TRUE(transition.locked_before_frame);
+    EXPECT_FALSE(transition.locked_after_frame);
+    EXPECT_TRUE(transition.ever_locked_before_frame);
+    EXPECT_TRUE(transition.ever_locked_after_frame);
+    EXPECT_FALSE(transition.localization_attempted);
+    EXPECT_TRUE(transition.tracking_processed);
+    EXPECT_FALSE(transition.lock_event);
+    EXPECT_TRUE(transition.tracking_loss_event);
+    EXPECT_EQ(transition.stage, synthetic::EpisodeFrameStage::TRACKING_LOSS);
+
+    transition = synthetic::advanceEpisodeFrameState(
+        transition.locked_after_frame,
+        transition.ever_locked_after_frame,
+        true,
+        true);
+    EXPECT_FALSE(transition.locked_before_frame);
+    EXPECT_TRUE(transition.locked_after_frame);
+    EXPECT_TRUE(transition.ever_locked_before_frame);
+    EXPECT_TRUE(transition.localization_attempted);
+    EXPECT_FALSE(transition.tracking_processed);
+    EXPECT_TRUE(transition.lock_event);
+    EXPECT_FALSE(transition.tracking_loss_event);
+    EXPECT_EQ(transition.stage, synthetic::EpisodeFrameStage::REENTRY_LOCK);
+    EXPECT_STREQ(synthetic::episodeLockEventTypeName(transition.stage), "reentry_lock");
+}
+
+TEST(SyntheticRelocalizationTest, EpisodeStateAuditsSameFrameTrackingLossAndReentryLock)
+{
+    const auto ordinary_tracking = synthetic::advanceEpisodeFrameState(
+        true, true, true, false);
+    EXPECT_TRUE(ordinary_tracking.locked_before_frame);
+    EXPECT_TRUE(ordinary_tracking.locked_after_frame);
+    EXPECT_FALSE(ordinary_tracking.localization_attempted);
+    EXPECT_TRUE(ordinary_tracking.tracking_processed);
+    EXPECT_FALSE(ordinary_tracking.lock_event);
+    EXPECT_FALSE(ordinary_tracking.tracking_loss_event);
+    EXPECT_EQ(ordinary_tracking.stage, synthetic::EpisodeFrameStage::TRACKING);
+
+    const auto transition = synthetic::advanceEpisodeFrameState(
+        true, true, true, true);
+
+    EXPECT_TRUE(transition.locked_before_frame);
+    EXPECT_TRUE(transition.locked_after_frame);
+    EXPECT_TRUE(transition.ever_locked_before_frame);
+    EXPECT_TRUE(transition.ever_locked_after_frame);
+    EXPECT_TRUE(transition.localization_attempted);
+    EXPECT_TRUE(transition.tracking_processed);
+    EXPECT_TRUE(transition.lock_event);
+    EXPECT_FALSE(transition.tracking_loss_event);
+    EXPECT_EQ(transition.stage, synthetic::EpisodeFrameStage::REENTRY_LOCK);
+    EXPECT_STREQ(synthetic::episodeFrameStageName(transition.stage), "reentry_lock");
+    EXPECT_STREQ(synthetic::episodeLockEventTypeName(transition.stage), "reentry_lock");
+}
+
+TEST(SyntheticRelocalizationTest, ProductQueryGenerationSupportUsesFrozenHundredPointBoundaries)
+{
+    const auto relaxed = synthetic::queryGenerationThresholds(false);
+    EXPECT_EQ(relaxed.minimum_query_points, 1U);
+    EXPECT_EQ(relaxed.minimum_occupied_ray_bins, 1U);
+    EXPECT_EQ(
+        synthetic::evaluateQueryGenerationSupport(1U, 0U, false, relaxed),
+        synthetic::QueryGenerationSupport::SUFFICIENT);
+
+    const auto product = synthetic::queryGenerationThresholds(true);
+    EXPECT_EQ(product.minimum_query_points, 100U);
+    EXPECT_EQ(product.minimum_occupied_ray_bins, 100U);
+    EXPECT_EQ(
+        synthetic::evaluateQueryGenerationSupport(99U, 100U, true, product),
+        synthetic::QueryGenerationSupport::INSUFFICIENT_QUERY_POINTS);
+    EXPECT_EQ(
+        synthetic::evaluateQueryGenerationSupport(100U, 99U, true, product),
+        synthetic::QueryGenerationSupport::INSUFFICIENT_OCCUPIED_RAY_BINS);
+    EXPECT_EQ(
+        synthetic::evaluateQueryGenerationSupport(100U, 100U, true, product),
+        synthetic::QueryGenerationSupport::SUFFICIENT);
+}
+
+TEST(SyntheticRelocalizationTest, PerQueryCsvPrecisionRoundTripsLargePoseCoordinates)
+{
+    EXPECT_EQ(synthetic::kEvaluationCsvDoublePrecision, 17);
+    const std::vector<double> pose_values = {
+        123.45678901234567,
+        -234.56789012345678,
+        101.00000000000013,
+        12.345678901234567,
+        -23.456789012345678,
+        179.99999999999997,
+    };
+
+    std::ostringstream serialized;
+    serialized << std::setprecision(synthetic::kEvaluationCsvDoublePrecision);
+    for (std::size_t i = 0; i < pose_values.size(); ++i) {
+        if (i > 0) serialized << ',';
+        serialized << pose_values[i];
+    }
+
+    std::istringstream input(serialized.str());
+    for (const double expected : pose_values) {
+        std::string field;
+        ASSERT_TRUE(std::getline(input, field, ','));
+        const double decoded = std::stod(field);
+        EXPECT_LE(std::abs(decoded - expected), 1e-12);
+    }
 }
 
 }  // namespace test

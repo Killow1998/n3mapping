@@ -239,7 +239,15 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_loop_debug_analyze.py
   ${N3MAPPING_ROOT}/tools/n3mapping_loop_candidate_benchmark.py
   ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_eval_validate.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_eval_compare.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_eval_gate.py
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(FILES
+  ${N3MAPPING_ROOT}/test/fixtures/eval_v2/synthetic_frozen_contract.yaml
+  DESTINATION share/${PROJECT_NAME}/eval_contracts
 )
 
 ament_export_targets(export_n3mapping HAS_LIBRARY_TARGET)
@@ -288,6 +296,15 @@ install(DIRECTORY ${N3MAPPING_ROOT}/config/
 
 if(BUILD_TESTING)
   n3mapping_find_test_dependencies()
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+  add_test(
+    NAME test_n3mapping_eval_tools
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_eval_tools.py
+  )
+  set_tests_properties(test_n3mapping_eval_tools PROPERTIES TIMEOUT 60)
 
   ament_add_gtest(test_keyframe_manager ${N3MAPPING_ROOT}/test/test_keyframe_manager.cpp)
   if(TARGET test_keyframe_manager)
@@ -395,6 +412,12 @@ if(BUILD_TESTING)
   ament_add_gtest(test_m2dgr_eval ${N3MAPPING_ROOT}/test/test_m2dgr_eval.cpp)
   if(TARGET test_m2dgr_eval)
     target_link_libraries(test_m2dgr_eval ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
+  endif()
+
+  ament_add_gtest(test_synthetic_relocalization ${N3MAPPING_ROOT}/test/test_synthetic_relocalization.cpp)
+  if(TARGET test_synthetic_relocalization)
+    target_link_libraries(test_synthetic_relocalization ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+    ament_target_dependencies(test_synthetic_relocalization rclcpp)
   endif()
 
   ament_add_gtest(test_map_serializer_pbt ${N3MAPPING_ROOT}/test/test_map_serializer_pbt.cpp)

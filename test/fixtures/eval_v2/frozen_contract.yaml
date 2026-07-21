@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "required_eval_profile": "product_default",
+  "required_frame_period_s": 1.0,
+  "required_temporal_window_size": 5,
+  "minimum_query_points": 100,
+  "minimum_occupied_ray_bins": 100,
+  "required_label_thresholds": {
+    "pose_translation_threshold_m": 1.0,
+    "pose_yaw_threshold_deg": 10.0,
+    "pose_roll_pitch_threshold_deg": 5.0
+  },
+  "required_artifacts": [
+    "manifest.json",
+    "resolved_config.yaml",
+    "dataset_manifest.json",
+    "frozen_contract.yaml",
+    "command.txt",
+    "environment.json",
+    "stdout.log",
+    "raw/runtime_events.jsonl",
+    "raw/relocalization_queries.csv",
+    "raw/relocalization_attempts.csv",
+    "raw/stage_timing.csv",
+    "summary/metrics.json",
+    "summary/failure_counts.json",
+    "checksums.sha256",
+    "COMPLETE"
+  ],
+  "paired_comparison": {
+    "require_equal": [
+      "schema_version",
+      "mode",
+      "dataset_id",
+      "odom_source",
+      "query_source",
+      "evidence_class",
+      "dataset_manifest_sha256",
+      "resolved_config_sha256",
+      "candidate_budget",
+      "icp_budget",
+      "label_thresholds"
+    ],
+    "metrics": [
+      {
+        "metric": "false_lock_attempt_rate",
+        "gate": "safety",
+        "direction": "lower",
+        "absolute_margin": 0.0,
+        "relative_margin": 0.0,
+        "margin_mode": "both",
+        "maximum": 0.1
+      },
+      {
+        "metric": "correct_lock_by_10s",
+        "gate": "utility",
+        "direction": "higher",
+        "absolute_margin": 0.05,
+        "relative_margin": 0.1,
+        "margin_mode": "both",
+        "minimum": 0.1
+      },
+      {
+        "metric": "p95_total_ms",
+        "gate": "resource",
+        "direction": "lower",
+        "absolute_margin": 1.0,
+        "relative_margin": 0.05,
+        "margin_mode": "both",
+        "maximum": 100.0
+      }
+    ]
+  }
+}
