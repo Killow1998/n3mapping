@@ -24,7 +24,7 @@ SYNTHETIC_FIXTURE_CONTRACT = (
 sys.path.insert(0, str(TOOLS_DIR))
 
 from n3mapping_dataset_readiness import build_report, spatial_coverage  # noqa: E402
-from n3mapping_episode_benchmark import classify_episode  # noqa: E402
+from n3mapping_episode_benchmark import _verify_manifest, classify_episode  # noqa: E402
 from n3mapping_episode_diagnose import diagnose_benchmark  # noqa: E402
 from n3mapping_episode_freeze import freeze_episodes  # noqa: E402
 from n3mapping_eval_compare import compare_runs  # noqa: E402
@@ -784,6 +784,12 @@ class DatasetReadinessTest(unittest.TestCase):
                 )
                 pose_lines.append(f"{frame_id} 1 0 0 {x} 0 1 0 0 0 0 1 0")
             (pose_dir / "poses.txt").write_text("\n".join(pose_lines) + "\n", encoding="utf-8")
+            calibration_dir = kitti / "calibration"
+            calibration_dir.mkdir()
+            for calibration_name in ("calib_cam_to_pose.txt", "calib_cam_to_velo.txt"):
+                (calibration_dir / calibration_name).write_text(
+                    "1 0 0 0\n0 1 0 0\n0 0 1 0\n", encoding="utf-8"
+                )
             output = root / "episodes"
             manifest = freeze_episodes(
                 dataset="kitti360",
@@ -800,13 +806,72 @@ class DatasetReadinessTest(unittest.TestCase):
                 m2dgr_max_time_diff_s=0.05,
             )
             self.assertTrue(manifest["map_query_disjoint"])
+            self.assertEqual(manifest["schema_version"], 2)
             self.assertEqual(manifest["query_episode_count"], 2)
             self.assertEqual(manifest["query_frame_count"], 10)
+            self.assertEqual(manifest["kitti360_calibration"]["mode"], "official")
+            self.assertEqual(len(manifest["kitti360_calibration"]["files"]), 2)
             with (output / "episode_frames.csv").open(encoding="utf-8") as stream:
                 rows = list(csv.DictReader(stream))
             self.assertEqual(sum(row["role"] == "query" for row in rows), 10)
             self.assertTrue(all(len(row["cloud_sha256"]) == 64 for row in rows))
             self.assertTrue((output / "checksums.sha256").is_file())
+
+            _verify_manifest(output)
+            original_gt = (pose_dir / "poses.txt").read_text(encoding="utf-8")
+            (pose_dir / "poses.txt").write_text("changed\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "ground-truth hash mismatch"):
+                _verify_manifest(output)
+            (pose_dir / "poses.txt").write_text(original_gt, encoding="utf-8")
+            (calibration_dir / "calib_cam_to_velo.txt").write_text(
+                "changed\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "calibration hash mismatch"):
+                _verify_manifest(output)
+
+    def test_verify_kitti_manifest_requires_frozen_calibration_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest_dir = root / "manifest"
+            manifest_dir.mkdir()
+            cloud = root / "cloud.bin"
+            cloud.write_bytes(b"cloud")
+            gt = root / "poses.txt"
+            gt.write_text("0 1 0 0 0 0 1 0 0 0 0 1 0\n", encoding="utf-8")
+            _write_csv(
+                manifest_dir / "episode_frames.csv",
+                ["episode_id", "role", "relative_cloud_path", "cloud_sha256"],
+                [
+                    {
+                        "episode_id": "map",
+                        "role": "map",
+                        "relative_cloud_path": "cloud.bin",
+                        "cloud_sha256": sha256_file(cloud),
+                    }
+                ],
+            )
+            _write_json(
+                manifest_dir / "dataset_manifest.json",
+                {
+                    "schema_version": 1,
+                    "dataset": "kitti360",
+                    "root": str(root),
+                    "map_gt_path": str(gt),
+                    "query_gt_path": str(gt),
+                    "map_gt_sha256": sha256_file(gt),
+                    "query_gt_sha256": sha256_file(gt),
+                    "episode_frames_sha256": sha256_file(
+                        manifest_dir / "episode_frames.csv"
+                    ),
+                    "map_query_disjoint": True,
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "no frozen official calibration"):
+                _verify_manifest(manifest_dir)
+            _verify_manifest(
+                manifest_dir, allow_legacy_unhashed_calibration=True
+            )
 
     def test_freeze_m2dgr_records_alignment_tolerance(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

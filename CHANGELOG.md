@@ -64,6 +64,7 @@
 - Require moving multi-view windows to provide non-negative ray-consistency evidence while keeping stationary descriptor-led relocalization unchanged.
 - Add an offline oracle/descriptor registration-seed probe to isolate retrieval, initialization, registration, and lock-decision failures without exposing ground truth to runtime localization.
 - Correct KITTI-360 evaluation to compose pose/IMU, camera, and Velodyne frames using the official calibration contract; default `auto` to this contract and fail closed when required calibration is missing or malformed.
+- Freeze and verify KITTI-360 official calibration hashes in episode manifests, verify previously recorded GT hashes before execution, and require an explicit escape hatch for legacy unhashed calibration evidence.
 
 ### Tests and Checks
 

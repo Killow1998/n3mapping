@@ -14,13 +14,18 @@ from pathlib import Path
 from typing import Any
 
 from n3mapping_dataset_readiness import sha256_file
+from n3mapping_episode_freeze import KITTI360_OFFICIAL_CALIBRATION_FILES
 
 
 def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _verify_manifest(manifest_dir: Path) -> tuple[dict[str, Any], list[dict[str, str]]]:
+def _verify_manifest(
+    manifest_dir: Path,
+    *,
+    allow_legacy_unhashed_calibration: bool = False,
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
     manifest_path = manifest_dir / "dataset_manifest.json"
     frames_path = manifest_dir / "episode_frames.csv"
     manifest = _read_json(manifest_path)
@@ -29,12 +34,49 @@ def _verify_manifest(manifest_dir: Path) -> tuple[dict[str, Any], list[dict[str,
     with frames_path.open(encoding="utf-8", newline="") as stream:
         rows = list(csv.DictReader(stream))
     root = Path(manifest["root"])
+    for role in ("map", "query"):
+        gt_path = Path(manifest[f"{role}_gt_path"])
+        if sha256_file(gt_path) != manifest[f"{role}_gt_sha256"]:
+            raise ValueError(f"{role} ground-truth hash mismatch: {gt_path}")
     for row in rows:
         cloud = root / row["relative_cloud_path"]
         if sha256_file(cloud) != row["cloud_sha256"]:
             raise ValueError(f"point-cloud hash mismatch: {cloud}")
     if not manifest.get("map_query_disjoint", False):
         raise ValueError("manifest does not prove map/query disjointness")
+    if manifest.get("dataset") == "kitti360":
+        calibration = manifest.get("kitti360_calibration")
+        if calibration is None:
+            if not allow_legacy_unhashed_calibration:
+                raise ValueError(
+                    "KITTI-360 manifest has no frozen official calibration; "
+                    "re-freeze it or explicitly allow legacy unhashed calibration"
+                )
+        else:
+            if calibration.get("mode") != "official":
+                raise ValueError("KITTI-360 calibration mode must be official")
+            files = calibration.get("files")
+            if not isinstance(files, list):
+                raise ValueError("KITTI-360 calibration files must be a list")
+            by_relative_path = {
+                entry.get("relative_path"): entry
+                for entry in files
+                if isinstance(entry, dict)
+            }
+            expected = set(KITTI360_OFFICIAL_CALIBRATION_FILES)
+            if set(by_relative_path) != expected:
+                raise ValueError(
+                    "KITTI-360 calibration contract must contain exactly: "
+                    + ", ".join(KITTI360_OFFICIAL_CALIBRATION_FILES)
+                )
+            for relative in KITTI360_OFFICIAL_CALIBRATION_FILES:
+                calibration_path = root / relative
+                if sha256_file(calibration_path) != by_relative_path[relative].get(
+                    "sha256"
+                ):
+                    raise ValueError(
+                        f"KITTI-360 calibration hash mismatch: {calibration_path}"
+                    )
     return manifest, rows
 
 
@@ -94,10 +136,14 @@ def run_benchmark(
     fake_yaw_deg: float,
     input_voxel_size_m: float,
     m2dgr_max_time_diff_s: float | None,
+    allow_legacy_unhashed_calibration: bool = False,
 ) -> dict[str, Any]:
     if output.exists() and any(output.iterdir()):
         raise ValueError(f"refusing to overwrite non-empty output: {output}")
-    manifest, rows = _verify_manifest(manifest_dir)
+    manifest, rows = _verify_manifest(
+        manifest_dir,
+        allow_legacy_unhashed_calibration=allow_legacy_unhashed_calibration,
+    )
     output.mkdir(parents=True, exist_ok=True)
     dataset = manifest["dataset"]
     root = manifest["root"]
@@ -131,6 +177,7 @@ def run_benchmark(
         map_command = [
             str(evaluator), "--kitti_root", root,
             "--sequence", manifest["map_sequence"],
+            "--calib_mode", "official",
             "--mode", "mapping_loop",
             "--frame_manifest", str(frame_manifest),
             "--episode_id", "map",
@@ -192,7 +239,11 @@ def run_benchmark(
             "--output", str(episode_output),
         ]
         if dataset == "kitti360":
-            command = [str(evaluator), "--kitti_root", root, *common]
+            command = [
+                str(evaluator), "--kitti_root", root,
+                "--calib_mode", "official",
+                *common,
+            ]
         else:
             command = [
                 str(evaluator), "--m2dgr_root", root,
@@ -269,6 +320,7 @@ def run_benchmark(
         "m2dgr_max_time_diff_s": (
             effective_m2dgr_max_time_diff_s if dataset == "m2dgr" else None
         ),
+        "kitti360_calibration": manifest.get("kitti360_calibration"),
         "manifest_sha256": sha256_file(manifest_dir / "dataset_manifest.json"),
         "map_sha256": sha256_file(map_path),
         "atlas_sha256": sha256_file(atlas_path),
@@ -292,6 +344,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fake-yaw", type=float, default=90.0)
     parser.add_argument("--input-voxel-size", type=float, default=0.2)
     parser.add_argument("--m2dgr-max-time-diff-s", type=float)
+    parser.add_argument(
+        "--allow-legacy-unhashed-calibration",
+        action="store_true",
+        help="permit old KITTI-360 manifests that do not freeze calibration hashes",
+    )
     return parser.parse_args()
 
 
@@ -307,6 +364,7 @@ def main() -> int:
         fake_yaw_deg=args.fake_yaw,
         input_voxel_size_m=args.input_voxel_size,
         m2dgr_max_time_diff_s=args.m2dgr_max_time_diff_s,
+        allow_legacy_unhashed_calibration=args.allow_legacy_unhashed_calibration,
     )
     print(json.dumps(summary, sort_keys=True))
     return 0

@@ -16,6 +16,12 @@ from typing import Iterable
 from n3mapping_dataset_readiness import read_kitti_poses, read_tum, sha256_file
 
 
+KITTI360_OFFICIAL_CALIBRATION_FILES = (
+    "calibration/calib_cam_to_pose.txt",
+    "calibration/calib_cam_to_velo.txt",
+)
+
+
 @dataclass(frozen=True)
 class Frame:
     token: str
@@ -149,6 +155,15 @@ def freeze_episodes(
     if output.exists() and any(output.iterdir()):
         raise ValueError(f"refusing to overwrite non-empty output: {output}")
     if dataset == "kitti360":
+        calibration_files = [
+            root / relative for relative in KITTI360_OFFICIAL_CALIBRATION_FILES
+        ]
+        missing_calibration = [path for path in calibration_files if not path.is_file()]
+        if missing_calibration:
+            raise ValueError(
+                "KITTI-360 official calibration is incomplete: "
+                + ", ".join(str(path) for path in missing_calibration)
+            )
         map_all, map_gt = _kitti_frames(root, map_sequence)
         query_all, query_gt = _kitti_frames(root, query_sequence)
     elif dataset == "m2dgr":
@@ -241,7 +256,7 @@ def freeze_episodes(
     map_tokens = {frame.token for frame in contextual_map}
     query_tokens = {frame.token for episode in episodes for frame in episode}
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "dataset": dataset,
         "root": str(root),
         "map_sequence": map_sequence,
@@ -271,6 +286,17 @@ def freeze_episodes(
         "gt_runtime_access": True,
         "formal_gate_ready": False,
     }
+    if dataset == "kitti360":
+        manifest["kitti360_calibration"] = {
+            "mode": "official",
+            "files": [
+                {
+                    "relative_path": relative,
+                    "sha256": sha256_file(root / relative),
+                }
+                for relative in KITTI360_OFFICIAL_CALIBRATION_FILES
+            ],
+        }
     if dataset == "m2dgr":
         manifest["m2dgr_max_time_diff_s"] = m2dgr_max_time_diff_s
     manifest_path = output / "dataset_manifest.json"
