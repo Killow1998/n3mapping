@@ -52,6 +52,7 @@ from n3mapping_verifier_pair_freeze import (  # noqa: E402
 )
 from n3mapping_verifier_split_freeze import (  # noqa: E402
     assign_development_test_splits,
+    assign_train_validation_test_splits,
 )
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
@@ -662,6 +663,36 @@ def _run_fake_gate(
 
 
 class DatasetReadinessTest(unittest.TestCase):
+    def test_verifier_three_way_split_keeps_components_atomic(self) -> None:
+        rows = [
+            {
+                "case_id": "train",
+                "dataset": "kitti360",
+                "map_sequence": "0004",
+                "query_sequence": "0005",
+            },
+            {
+                "case_id": "validation",
+                "dataset": "kitti360",
+                "map_sequence": "0006",
+                "query_sequence": "0003",
+            },
+            {
+                "case_id": "test",
+                "dataset": "kitti360",
+                "map_sequence": "0000",
+                "query_sequence": "0002",
+            },
+        ]
+        assignments = assign_train_validation_test_splits(
+            rows,
+            {("kitti360", "0002")},
+            {("kitti360", "0003")},
+        )
+        self.assertEqual(assignments["train"], "train")
+        self.assertEqual(assignments["validation"], "validation")
+        self.assertEqual(assignments["test"], "test")
+
     def test_verifier_split_moves_entire_connected_component(self) -> None:
         rows = [
             {

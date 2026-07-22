@@ -61,6 +61,29 @@ def assign_development_test_splits(
     return assignments
 
 
+def assign_train_validation_test_splits(
+    case_rows: list[dict[str, Any]],
+    test_sequences: set[tuple[str, str]],
+    validation_sequences: set[tuple[str, str]],
+) -> dict[str, str]:
+    if not validation_sequences:
+        raise ValueError("validation sequences are required")
+    test_marks = assign_development_test_splits(case_rows, test_sequences)
+    validation_marks = assign_development_test_splits(case_rows, validation_sequences)
+    assignments = {}
+    for case_id in test_marks:
+        in_test = test_marks[case_id] == "test"
+        in_validation = validation_marks[case_id] == "test"
+        if in_test and in_validation:
+            raise ValueError("test and validation sequence components overlap")
+        assignments[case_id] = (
+            "test" if in_test else ("validation" if in_validation else "train")
+        )
+    if set(assignments.values()) != {"train", "validation", "test"}:
+        raise ValueError("train, validation and test cases are all required")
+    return assignments
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(encoding="utf-8", newline="") as stream:
         return list(csv.DictReader(stream))
@@ -70,6 +93,7 @@ def freeze_verifier_split(
     pair_dir: Path,
     output: Path,
     test_sequences: set[tuple[str, str]],
+    validation_sequences: set[tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     if output.exists():
         raise ValueError(f"refusing to overwrite verifier split freeze: {output}")
@@ -82,9 +106,21 @@ def freeze_verifier_split(
 
     pairs = _read_csv(pair_dir / "candidate_observation_pairs.csv")
     cases = _read_csv(pair_dir / "source_cases.csv")
-    assignments = assign_development_test_splits(cases, test_sequences)
-    if set(assignments.values()) != {"development", "test"}:
-        raise ValueError("both development and test cases are required")
+    validation_sequences = validation_sequences or set()
+    if validation_sequences:
+        assignments = assign_train_validation_test_splits(
+            cases, test_sequences, validation_sequences
+        )
+        split_names = ("train", "validation", "test")
+        split_assignment = "train_validation_test_frozen"
+        evidence_class = "oracle_gt_candidate_observation_train_validation_test_split"
+    else:
+        assignments = assign_development_test_splits(cases, test_sequences)
+        if set(assignments.values()) != {"development", "test"}:
+            raise ValueError("both development and test cases are required")
+        split_names = ("development", "test")
+        split_assignment = "development_test_frozen"
+        evidence_class = "oracle_gt_candidate_observation_development_test_split"
     for row in cases:
         row["split"] = assignments[row["case_id"]]
     for row in pairs:
@@ -97,7 +133,7 @@ def freeze_verifier_split(
             "wrong_pose_pair_count": 0,
             "surface_absent_pair_count": 0,
         }
-        for split in ("development", "test")
+        for split in split_names
     }
     for row in pairs:
         split_counts = counts[row["split"]]
@@ -128,16 +164,19 @@ def freeze_verifier_split(
 
     summary = {
         "schema_version": 1,
-        "evidence_class": "oracle_gt_candidate_observation_development_test_split",
+        "evidence_class": evidence_class,
         "authority": False,
         "training_authorized": False,
-        "split_assignment": "development_test_frozen",
+        "split_assignment": split_assignment,
         "test_sequence_nodes": [
             {"dataset": dataset, "sequence": sequence}
             for dataset, sequence in sorted(test_sequences)
         ],
-        "development": counts["development"],
-        "test": counts["test"],
+        "validation_sequence_nodes": [
+            {"dataset": dataset, "sequence": sequence}
+            for dataset, sequence in sorted(validation_sequences)
+        ],
+        "splits": counts,
         "source_pair_summary_sha256": sha256_file(pair_dir / "summary.json"),
         "source_pair_csv_sha256": sha256_file(
             pair_dir / "candidate_observation_pairs.csv"
@@ -145,9 +184,9 @@ def freeze_verifier_split(
         "candidate_observation_pairs_sha256": sha256_file(pairs_path),
         "source_cases_sha256": sha256_file(cases_path),
         "boundary": (
-            "Connected sequence identities are atomic across development/test. "
-            "The test split is immutable evaluation-only. Train/validation remain "
-            "unassigned, so supervised training is not authorized."
+            "Connected sequence identities are atomic across split boundaries. "
+            "The test split is immutable evaluation-only. A frozen split does not "
+            "authorize a model, training run, threshold fit or lock authority."
         ),
     }
     (output / "summary.json").write_text(
@@ -174,10 +213,18 @@ def main() -> int:
     parser.add_argument(
         "--test-sequence", type=_parse_sequence, action="append", required=True
     )
+    parser.add_argument(
+        "--validation-sequence", type=_parse_sequence, action="append", default=[]
+    )
     args = parser.parse_args()
     print(
         json.dumps(
-            freeze_verifier_split(args.pair_dir, args.output, set(args.test_sequence)),
+            freeze_verifier_split(
+                args.pair_dir,
+                args.output,
+                set(args.test_sequence),
+                set(args.validation_sequence),
+            ),
             sort_keys=True,
         )
     )
