@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from scipy.spatial import cKDTree
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +43,9 @@ from n3mapping_episode_review_prepare import (  # noqa: E402
 )
 from n3mapping_surface_overlap_audit import classify_surface_overlap  # noqa: E402
 from n3mapping_runtime_signal_audit import summarize_ranges  # noqa: E402
+from n3mapping_multiview_free_space_audit import (  # noqa: E402
+    classify_map_ray_observations,
+)
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
 from n3mapping_synthetic_eval_gate import SyntheticGateError, run_synthetic_gate  # noqa: E402
@@ -651,6 +655,35 @@ def _run_fake_gate(
 
 
 class DatasetReadinessTest(unittest.TestCase):
+    def test_multiview_free_space_distinguishes_support_free_and_unknown(self) -> None:
+        map_points = np.array(
+            [
+                [10.0, 0.0, 0.0],
+                [10.0, 1.0, 0.0],
+            ]
+        )
+        map_ranges = np.linalg.norm(map_points, axis=1)
+        map_directions = map_points / map_ranges[:, None]
+        query_world = np.array(
+            [
+                [10.0, 0.0, 0.0],  # same endpoint: supported
+                [5.0, 0.0, 0.0],   # map ray passed through: explicit free conflict
+                [15.0, 0.0, 0.0],  # behind map return: occluded/unknown
+                [5.0, 2.0, 0.0],   # no matching observed ray: unknown
+            ]
+        )
+
+        support, free_conflict = classify_map_ray_observations(
+            query_world,
+            np.eye(4),
+            cKDTree(map_directions),
+            map_ranges,
+            0.5,
+        )
+
+        np.testing.assert_array_equal(support, [True, False, False, False])
+        np.testing.assert_array_equal(free_conflict, [False, True, False, False])
+
     def test_runtime_signal_range_summary_does_not_invent_threshold(self) -> None:
         rows = [
             {"analysis_group": "positive_correct_lock", "signal": 0.2},
