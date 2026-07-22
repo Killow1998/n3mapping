@@ -46,7 +46,13 @@ from n3mapping_runtime_signal_audit import summarize_ranges  # noqa: E402
 from n3mapping_multiview_free_space_audit import (  # noqa: E402
     classify_map_ray_observations,
 )
-from n3mapping_verifier_pair_freeze import classify_pair  # noqa: E402
+from n3mapping_verifier_pair_freeze import (  # noqa: E402
+    classify_pair,
+    sequence_component_by_case,
+)
+from n3mapping_verifier_split_freeze import (  # noqa: E402
+    assign_development_test_splits,
+)
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
 from n3mapping_synthetic_eval_gate import SyntheticGateError, run_synthetic_gate  # noqa: E402
@@ -656,6 +662,67 @@ def _run_fake_gate(
 
 
 class DatasetReadinessTest(unittest.TestCase):
+    def test_verifier_split_moves_entire_connected_component(self) -> None:
+        rows = [
+            {
+                "case_id": "positive_test",
+                "dataset": "kitti360",
+                "map_sequence": "0000",
+                "query_sequence": "0000",
+            },
+            {
+                "case_id": "negative_test",
+                "dataset": "kitti360",
+                "map_sequence": "0000",
+                "query_sequence": "0002",
+            },
+            {
+                "case_id": "development",
+                "dataset": "kitti360",
+                "map_sequence": "0004",
+                "query_sequence": "0005",
+            },
+        ]
+        assignments = assign_development_test_splits(
+            rows, {("kitti360", "0002")}
+        )
+        self.assertEqual(assignments["positive_test"], "test")
+        self.assertEqual(assignments["negative_test"], "test")
+        self.assertEqual(assignments["development"], "development")
+
+    def test_verifier_split_components_close_transitive_sequence_leakage(self) -> None:
+        components = sequence_component_by_case(
+            [
+                {
+                    "case_id": "forward",
+                    "dataset": "kitti360",
+                    "map_sequence": "0004",
+                    "query_sequence": "0005",
+                },
+                {
+                    "case_id": "reverse",
+                    "dataset": "kitti360",
+                    "map_sequence": "0005",
+                    "query_sequence": "0004",
+                },
+                {
+                    "case_id": "negative",
+                    "dataset": "kitti360",
+                    "map_sequence": "0004",
+                    "query_sequence": "0009",
+                },
+                {
+                    "case_id": "independent",
+                    "dataset": "kitti360",
+                    "map_sequence": "0000",
+                    "query_sequence": "0000",
+                },
+            ]
+        )
+        self.assertEqual(components["forward"], components["reverse"])
+        self.assertEqual(components["forward"], components["negative"])
+        self.assertNotEqual(components["forward"], components["independent"])
+
     def test_verifier_pair_labels_preserve_abstain_and_pose_contracts(self) -> None:
         self.assertEqual(
             classify_pair(

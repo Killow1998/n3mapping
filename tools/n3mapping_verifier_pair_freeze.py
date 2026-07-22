@@ -53,6 +53,33 @@ def classify_pair(
     return "hard_negative"
 
 
+def sequence_component_by_case(
+    case_rows: list[dict[str, Any]],
+) -> dict[str, tuple[str, str]]:
+    parents: dict[tuple[str, str], tuple[str, str]] = {}
+
+    def find(node: tuple[str, str]) -> tuple[str, str]:
+        parents.setdefault(node, node)
+        if parents[node] != node:
+            parents[node] = find(parents[node])
+        return parents[node]
+
+    def union(first: tuple[str, str], second: tuple[str, str]) -> None:
+        first_root = find(first)
+        second_root = find(second)
+        if first_root != second_root:
+            parents[max(first_root, second_root)] = min(first_root, second_root)
+
+    for row in case_rows:
+        map_node = (row["dataset"], row["map_sequence"])
+        query_node = (row["dataset"], row["query_sequence"])
+        union(map_node, query_node)
+    return {
+        row["case_id"]: find((row["dataset"], row["map_sequence"]))
+        for row in case_rows
+    }
+
+
 def _keyframe_clouds(
     manifest: dict[str, Any],
     rows: list[dict[str, str]],
@@ -280,6 +307,18 @@ def freeze_verifier_pairs(
         for row in pair_rows
         if row["negative_kind"] == "surface_absent"
     }
+    component_by_case = sequence_component_by_case(case_rows)
+    sequence_components = set(component_by_case.values())
+    positive_components = {
+        component_by_case[row["case_id"]]
+        for row in pair_rows
+        if row["pair_label"] == "positive"
+    }
+    surface_absent_components = {
+        component_by_case[row["case_id"]]
+        for row in pair_rows
+        if row["negative_kind"] == "surface_absent"
+    }
     summary = {
         "schema_version": 1,
         "evidence_class": "oracle_gt_candidate_observation_pair_freeze",
@@ -290,9 +329,12 @@ def freeze_verifier_pairs(
         "yaw_gate_deg": yaw_gate_deg,
         "case_count": len(case_rows),
         "sequence_group_count": len(sequence_groups),
+        "sequence_component_count": len(sequence_components),
         "positive_sequence_group_count": len(positive_groups),
         "surface_absent_sequence_group_count": len(surface_absent_groups),
-        "held_out_surface_absent_split_ready": len(surface_absent_groups) >= 2,
+        "positive_sequence_component_count": len(positive_components),
+        "surface_absent_sequence_component_count": len(surface_absent_components),
+        "held_out_surface_absent_split_ready": len(surface_absent_components) >= 2,
         "pair_count": len(pair_rows),
         "positive_pair_count": positive_count,
         "hard_negative_pair_count": hard_negative_count,
@@ -303,8 +345,8 @@ def freeze_verifier_pairs(
         "boundary": (
             "Rows point to immutable raw clouds and post-registration basin hypotheses. "
             "No split is assigned and no model training or lock authority is authorized. "
-            "At least two independent surface-absent sequence groups are required before "
-            "one can be held out."
+            "At least two disconnected surface-absent sequence components are required "
+            "before one can be held out without identity leakage."
         ),
     }
     (output / "summary.json").write_text(
