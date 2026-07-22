@@ -78,9 +78,16 @@ inline void writeRegistrationProbeArtifacts(
                 "final_translation_error_m,final_yaw_error_deg,within_pose_gate,"
                 "fitness_score,fitness_pass,inlier_ratio,inlier_pass,"
                 "derived_confidence,confidence_pass,production_quality_pass,"
-                "initial_visibility_valid,initial_visibility_consistency,"
-                "initial_visibility_evidence,refined_visibility_valid,"
-                "refined_visibility_consistency,refined_visibility_evidence,"
+                "initial_visibility_valid,initial_visibility_resolution_deg,"
+                "initial_visibility_observed_bins,initial_visibility_common_bins,"
+                "initial_visibility_consistent_bins,initial_visibility_conflict_bins,"
+                "initial_visibility_coverage,initial_visibility_consistency,"
+                "initial_visibility_conflict_ratio,initial_visibility_evidence,"
+                "refined_visibility_valid,refined_visibility_resolution_deg,"
+                "refined_visibility_observed_bins,refined_visibility_common_bins,"
+                "refined_visibility_consistent_bins,refined_visibility_conflict_bins,"
+                "refined_visibility_coverage,refined_visibility_consistency,"
+                "refined_visibility_conflict_ratio,refined_visibility_evidence,"
                 "production_kept_initial_pose,production_translation_error_m,"
                 "production_yaw_error_deg,production_within_pose_gate,"
                 "iterations,optimizer_error\n";
@@ -146,11 +153,25 @@ inline void writeRegistrationProbeArtifacts(
                      << (attempt.production_quality_pass ? "true" : "false")
                      << ','
                      << (attempt.initial_visibility.valid ? "true" : "false")
+                     << ',' << attempt.initial_visibility.angular_resolution_deg
+                     << ',' << attempt.initial_visibility.observed_bins
+                     << ',' << attempt.initial_visibility.common_bins
+                     << ',' << attempt.initial_visibility.consistent_bins
+                     << ',' << attempt.initial_visibility.foreground_conflict_bins
+                     << ',' << attempt.initial_visibility.observed_coverage
                      << ',' << attempt.initial_visibility.consistency_ratio
+                     << ',' << attempt.initial_visibility.foreground_conflict_ratio
                      << ',' << attempt.initial_visibility.evidence_log_odds
                      << ','
                      << (attempt.refined_visibility.valid ? "true" : "false")
+                     << ',' << attempt.refined_visibility.angular_resolution_deg
+                     << ',' << attempt.refined_visibility.observed_bins
+                     << ',' << attempt.refined_visibility.common_bins
+                     << ',' << attempt.refined_visibility.consistent_bins
+                     << ',' << attempt.refined_visibility.foreground_conflict_bins
+                     << ',' << attempt.refined_visibility.observed_coverage
                      << ',' << attempt.refined_visibility.consistency_ratio
+                     << ',' << attempt.refined_visibility.foreground_conflict_ratio
                      << ',' << attempt.refined_visibility.evidence_log_odds
                      << ','
                      << (attempt.production_kept_initial_pose ? "true" : "false")
