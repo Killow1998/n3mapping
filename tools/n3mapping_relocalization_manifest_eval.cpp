@@ -22,6 +22,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
+#include "n3mapping/cloud_utils.h"
 #include "n3mapping/core/n3mapping_core.h"
 
 namespace fs = std::filesystem;
@@ -39,6 +40,10 @@ struct Options {
   fs::path manifest_path;
   fs::path output_dir;
   bool reloc_debug = false;
+  double input_voxel_size_m = 0.0;
+  double reference_map_x_m = std::numeric_limits<double>::quiet_NaN();
+  double reference_map_y_m = std::numeric_limits<double>::quiet_NaN();
+  double reference_map_yaw_deg = std::numeric_limits<double>::quiet_NaN();
 };
 
 struct FrameRecord {
@@ -71,9 +76,15 @@ void printUsage(const char *argv0) {
       << " --map MAP.pbstream --manifest frames.csv --output DIR [options]\n"
       << "Options:\n"
       << "  --atlas FILE     Enable a map-bound localization atlas sidecar.\n"
+      << "  --input-voxel-size METERS  Match evaluator-side query preprocessing.\n"
+      << "  --reference-map-x METERS --reference-map-y METERS "
+         "--reference-map-yaw DEG\n"
+      << "                    Add a blue oracle reference layer for eval review only.\n"
       << "  --reloc-debug    Write relocalization_debug.jsonl in the output "
          "directory.\n";
 }
+
+double parseFiniteDouble(const std::string &text, const char *field_name);
 
 bool parseArgs(int argc, char **argv, Options *options) {
   if (!options)
@@ -107,6 +118,29 @@ bool parseArgs(int argc, char **argv, Options *options) {
       options->output_dir = value;
     } else if (arg == "--reloc-debug") {
       options->reloc_debug = true;
+    } else if (arg == "--input-voxel-size") {
+      const char *value = needValue();
+      if (!value)
+        return false;
+      options->input_voxel_size_m = parseFiniteDouble(value, "input_voxel_size");
+      if (options->input_voxel_size_m < 0.0)
+        return false;
+    } else if (arg == "--reference-map-x") {
+      const char *value = needValue();
+      if (!value)
+        return false;
+      options->reference_map_x_m = parseFiniteDouble(value, "reference_map_x");
+    } else if (arg == "--reference-map-y") {
+      const char *value = needValue();
+      if (!value)
+        return false;
+      options->reference_map_y_m = parseFiniteDouble(value, "reference_map_y");
+    } else if (arg == "--reference-map-yaw") {
+      const char *value = needValue();
+      if (!value)
+        return false;
+      options->reference_map_yaw_deg =
+          parseFiniteDouble(value, "reference_map_yaw");
     } else if (arg == "--help" || arg == "-h") {
       printUsage(argv[0]);
       std::exit(0);
@@ -115,8 +149,13 @@ bool parseArgs(int argc, char **argv, Options *options) {
       return false;
     }
   }
+  const int reference_fields =
+      static_cast<int>(std::isfinite(options->reference_map_x_m)) +
+      static_cast<int>(std::isfinite(options->reference_map_y_m)) +
+      static_cast<int>(std::isfinite(options->reference_map_yaw_deg));
   return !options->map_path.empty() && !options->manifest_path.empty() &&
-         !options->output_dir.empty();
+         !options->output_dir.empty() &&
+         (reference_fields == 0 || reference_fields == 3);
 }
 
 std::vector<std::string> splitCsv(const std::string &line) {
@@ -244,10 +283,19 @@ void ensureFreshOutput(const fs::path &path) {
   }
 }
 
-Cloud::Ptr loadCloud(const fs::path &path) {
+Cloud::Ptr loadCloud(const fs::path &path, double voxel_size_m) {
   auto cloud = pcl::make_shared<Cloud>();
   if (pcl::io::loadPCDFile(path.string(), *cloud) != 0 || cloud->empty()) {
     throw std::runtime_error("failed to load non-empty PCD: " + path.string());
+  }
+  if (voxel_size_m > 1e-6) {
+    Cloud::Ptr filtered;
+    if (!safeVoxelGridFilter<pcl::PointXYZI>(cloud, voxel_size_m, &filtered) ||
+        !filtered || filtered->empty()) {
+      throw std::runtime_error("failed to voxelize review PCD: " +
+                               path.string());
+    }
+    cloud = filtered;
   }
   return cloud;
 }
@@ -331,7 +379,17 @@ struct ReviewCounts {
   std::size_t seed_keyframe_points = 0;
   std::size_t support_keyframe_points = 0;
   std::size_t query_points = 0;
+  std::size_t reference_query_points = 0;
 };
+
+Eigen::Isometry3d planarMapToOdom(double x_m, double y_m, double yaw_deg) {
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation() = Eigen::Vector3d(x_m, y_m, 0.0);
+  pose.linear() = Eigen::AngleAxisd(yaw_deg * M_PI / 180.0,
+                                    Eigen::Vector3d::UnitZ())
+                      .toRotationMatrix();
+  return pose;
+}
 
 ReviewCounts writeReviewPcd(const fs::path &path, const Cloud &map_cloud,
                             const Keyframe::Ptr &seed_keyframe,
@@ -375,6 +433,43 @@ ReviewCounts writeReviewPcd(const fs::path &path, const Cloud &map_cloud,
   return counts;
 }
 
+ReviewCounts writeComparisonPcd(
+    const fs::path &path, const Cloud &map_cloud,
+    const std::deque<BufferedFrame> &buffered_frames,
+    const Eigen::Isometry3d &T_estimated_map_odom, bool locked,
+    const Eigen::Isometry3d &T_reference_map_odom) {
+  static constexpr std::array<std::array<std::uint8_t, 3>, 5> palette = {
+      {{{255, 0, 0}},
+       {{255, 128, 0}},
+       {{255, 255, 0}},
+       {{255, 0, 255}},
+       {{0, 255, 255}}}};
+  ReviewCounts counts;
+  auto review = pcl::make_shared<ReviewCloud>();
+  counts.map_points = appendCloud(map_cloud, Eigen::Isometry3d::Identity(),
+                                  {{90, 90, 90}}, review.get());
+  std::size_t palette_index = 0;
+  for (const auto &frame : buffered_frames) {
+    if (locked) {
+      counts.query_points += appendCloud(
+          *frame.cloud, T_estimated_map_odom * frame.record.T_odom_body,
+          palette[palette_index % palette.size()], review.get());
+    }
+    counts.reference_query_points += appendCloud(
+        *frame.cloud, T_reference_map_odom * frame.record.T_odom_body,
+        {{0, 96, 255}}, review.get());
+    ++palette_index;
+  }
+  review->width = static_cast<std::uint32_t>(review->size());
+  review->height = 1;
+  review->is_dense = true;
+  if (pcl::io::savePCDFileBinaryCompressed(path.string(), *review) != 0) {
+    throw std::runtime_error("failed to write comparison PCD: " +
+                             path.string());
+  }
+  return counts;
+}
+
 void writeFrameResults(const fs::path &path,
                        const std::vector<FrameResult> &results) {
   std::ofstream stream(path);
@@ -397,7 +492,7 @@ void writeFrameResults(const fs::path &path,
   }
 }
 
-void writeReadme(const fs::path &path, bool locked) {
+void writeReadme(const fs::path &path, bool locked, bool has_reference) {
   std::ofstream stream(path);
   stream << "Manual review contract\n"
          << "======================\n"
@@ -415,10 +510,20 @@ void writeReadme(const fs::path &path, bool locked) {
          << "Red/orange/yellow/magenta/cyan: consecutive real query scans "
             "transformed by odometry "
             "and the reported map-to-odom transform.\n"
+         << "*_comparison.pcd is present only when an evaluator reference "
+            "map-to-odom was explicitly supplied. Blue is the same real "
+            "query at that oracle reference pose; colored points are emitted "
+            "only for an algorithm lock. The reference layer is never passed "
+            "to the localizer.\n"
          << "algorithm_lock=" << (locked ? "true" : "false") << "\n"
-         << "No ground truth is available. This tool never labels a lock "
-            "correct or false; inspect colored query geometry against the "
-            "gray global map in *_alignment.pcd.\n";
+         << "oracle_reference_layer=" << (has_reference ? "true" : "false")
+         << "\n"
+         << (has_reference
+                 ? "The blue reference is evaluator-only ground truth; it is "
+                   "not localizer input and does not change the lock.\n"
+                 : "No ground truth is available. This tool never labels a "
+                   "lock correct or false; inspect colored query geometry "
+                   "against the gray global map in *_alignment.pcd.\n");
 }
 
 int run(const Options &options) {
@@ -461,7 +566,7 @@ int run(const Options &options) {
   const FrameRecord *last_record = nullptr;
   bool locked = false;
   for (const auto &record : records) {
-    auto cloud = loadCloud(record.pcd_path);
+    auto cloud = loadCloud(record.pcd_path, options.input_voxel_size_m);
     buffered_frames.push_back({record, cloud});
     while (static_cast<int>(buffered_frames.size()) >
            config.reloc_static_agg_max_frames) {
@@ -485,6 +590,7 @@ int run(const Options &options) {
 
   const Eigen::Isometry3d T_map_odom =
       last_output.T_world_lidar * last_record->T_odom_body.inverse();
+  const bool has_reference = std::isfinite(options.reference_map_x_m);
   const auto seed_keyframe =
       locked ? core.getKeyframe(last_output.relocalization_seed_keyframe_id)
              : nullptr;
@@ -498,6 +604,8 @@ int run(const Options &options) {
       records.front().episode_id + "_alignment.pcd";
   const std::string provenance_review_name =
       records.front().episode_id + "_provenance.pcd";
+  const std::string comparison_review_name =
+      has_reference ? records.front().episode_id + "_comparison.pcd" : "";
   const ReviewCounts counts = writeReviewPcd(
       options.output_dir / review_name, *global_map, seed_keyframe,
       support_keyframe, buffered_frames, T_map_odom);
@@ -505,8 +613,16 @@ int run(const Options &options) {
                  nullptr, nullptr, buffered_frames, T_map_odom);
   writeReviewPcd(options.output_dir / provenance_review_name, *global_map,
                  seed_keyframe, support_keyframe, {}, T_map_odom);
+  ReviewCounts comparison_counts;
+  if (has_reference) {
+    comparison_counts = writeComparisonPcd(
+        options.output_dir / comparison_review_name, *global_map,
+        buffered_frames, T_map_odom, locked,
+        planarMapToOdom(options.reference_map_x_m, options.reference_map_y_m,
+                        options.reference_map_yaw_deg));
+  }
   writeFrameResults(options.output_dir / "frame_results.csv", results);
-  writeReadme(options.output_dir / "README.txt", locked);
+  writeReadme(options.output_dir / "README.txt", locked, has_reference);
 
   std::ofstream summary(options.output_dir / "result.json");
   if (!summary.is_open())
@@ -546,11 +662,18 @@ int run(const Options &options) {
       << jsonEscape(alignment_review_name) << "\",\n"
       << "  \"provenance_review_pcd\": \""
       << jsonEscape(provenance_review_name) << "\",\n"
+      << "  \"comparison_review_pcd\": \""
+      << jsonEscape(comparison_review_name) << "\",\n"
       << "  \"review_counts\": {\"map\":" << counts.map_points
       << ",\"seed_keyframe\":" << counts.seed_keyframe_points
       << ",\"support_keyframe\":" << counts.support_keyframe_points
       << ",\"real_query\":" << counts.query_points << "},\n"
+      << "  \"comparison_counts\": {\"map\":"
+      << comparison_counts.map_points << ",\"estimated_query\":"
+      << comparison_counts.query_points << ",\"reference_query\":"
+      << comparison_counts.reference_query_points << "},\n"
       << "  \"config_source\": \"compiled_product_defaults_no_overrides\",\n"
+      << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n"
       << "  \"relocalization_contract\": {"
       << "\"temporal_window_size\":" << config.reloc_temporal_window_size << ','
       << "\"static_agg_max_frames\":" << config.reloc_static_agg_max_frames

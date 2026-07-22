@@ -34,6 +34,10 @@ from n3mapping_episode_benchmark import (  # noqa: E402
 )
 from n3mapping_episode_diagnose import diagnose_benchmark  # noqa: E402
 from n3mapping_episode_freeze import freeze_episodes  # noqa: E402
+from n3mapping_episode_review_prepare import (  # noqa: E402
+    _matrix_from_xyzw,
+    _xyzw_from_rotation,
+)
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
 from n3mapping_synthetic_eval_gate import SyntheticGateError, run_synthetic_gate  # noqa: E402
@@ -643,6 +647,15 @@ def _run_fake_gate(
 
 
 class DatasetReadinessTest(unittest.TestCase):
+    def test_review_pose_quaternion_round_trip(self) -> None:
+        quaternion = (0.2, -0.3, 0.4, 0.8)
+        pose = _matrix_from_xyzw((1.0, 2.0, 3.0), quaternion)
+        recovered = _xyzw_from_rotation(pose[:3, :3])
+        expected_norm = sum(value * value for value in quaternion) ** 0.5
+        expected = tuple(value / expected_norm for value in quaternion)
+        self.assertAlmostEqual(abs(sum(a * b for a, b in zip(recovered, expected))), 1.0)
+        self.assertEqual(tuple(pose[:3, 3]), (1.0, 2.0, 3.0))
+
     def test_episode_outcome_is_attempt_level_and_false_lock_dominates(self) -> None:
         self.assertEqual(classify_episode({"correct_lock_count": 1}), "correct_lock")
         self.assertEqual(classify_episode({"correct_lock_count": 0}), "no_lock")
