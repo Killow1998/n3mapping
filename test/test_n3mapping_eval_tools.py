@@ -54,6 +54,9 @@ from n3mapping_verifier_split_freeze import (  # noqa: E402
     assign_development_test_splits,
     assign_train_validation_test_splits,
 )
+from n3mapping_frozen_bev_verifier_audit import (  # noqa: E402
+    select_zero_false_accept_threshold,
+)
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
 from n3mapping_synthetic_eval_gate import SyntheticGateError, run_synthetic_gate  # noqa: E402
@@ -663,6 +666,17 @@ def _run_fake_gate(
 
 
 class DatasetReadinessTest(unittest.TestCase):
+    def test_frozen_verifier_threshold_accepts_no_train_negative(self) -> None:
+        rows = [
+            {"pair_label": "positive", "score": 0.9},
+            {"pair_label": "positive", "score": 0.7},
+            {"pair_label": "hard_negative", "score": 0.8},
+            {"pair_label": "hard_negative", "score": 0.6},
+        ]
+        threshold = select_zero_false_accept_threshold(rows)
+        self.assertGreater(threshold, 0.8)
+        self.assertLessEqual(threshold, 0.9)
+
     def test_verifier_three_way_split_keeps_components_atomic(self) -> None:
         rows = [
             {
