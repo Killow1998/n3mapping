@@ -35,6 +35,11 @@ SIGNALS = (
     "query_any_support_fraction",
     "query_any_free_conflict_fraction",
     "query_free_without_support_fraction",
+    "nearest_view_observed_support_fraction",
+    "nearest_view_observed_free_conflict_fraction",
+    "nearest_view_query_support_fraction",
+    "nearest_view_query_free_conflict_fraction",
+    "nearest_view_origin_distance_m",
 )
 
 
@@ -164,6 +169,23 @@ def audit_multiview_free_space(
                 free_count += int(np.count_nonzero(free_conflict))
                 any_support |= support
                 any_free |= free_conflict
+            query_pose = _pose_from_hypothesis(_winner(accepted))
+            nearest_pose, nearest_tree, nearest_ranges = min(
+                map_views,
+                key=lambda view: float(
+                    np.linalg.norm(view[0][:3, 3] - query_pose[:3, 3])
+                ),
+            )
+            nearest_support, nearest_free = classify_map_ray_observations(
+                query_world,
+                nearest_pose,
+                nearest_tree,
+                nearest_ranges,
+                geometry_scale_m,
+            )
+            nearest_observed_count = int(
+                np.count_nonzero(nearest_support) + np.count_nonzero(nearest_free)
+            )
             observed_count = support_count + free_count
             result.update(
                 {
@@ -177,6 +199,25 @@ def audit_multiview_free_space(
                     "query_any_free_conflict_fraction": float(np.mean(any_free)),
                     "query_free_without_support_fraction": float(
                         np.mean(any_free & ~any_support)
+                    ),
+                    "nearest_view_observed_support_fraction": (
+                        float(np.count_nonzero(nearest_support)) / nearest_observed_count
+                        if nearest_observed_count
+                        else None
+                    ),
+                    "nearest_view_observed_free_conflict_fraction": (
+                        float(np.count_nonzero(nearest_free)) / nearest_observed_count
+                        if nearest_observed_count
+                        else None
+                    ),
+                    "nearest_view_query_support_fraction": float(
+                        np.mean(nearest_support)
+                    ),
+                    "nearest_view_query_free_conflict_fraction": float(
+                        np.mean(nearest_free)
+                    ),
+                    "nearest_view_origin_distance_m": float(
+                        np.linalg.norm(nearest_pose[:3, 3] - query_pose[:3, 3])
                     ),
                 }
             )
@@ -197,7 +238,7 @@ def audit_multiview_free_space(
         writer.writeheader()
         writer.writerows(range_rows)
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "evidence_class": "shadow_post_lock_map_origin_free_space",
         "authority": False,
         "geometry_scale_m": geometry_scale_m,
@@ -215,7 +256,8 @@ def audit_multiview_free_space(
         "multiview_free_space_ranges_sha256": sha256_file(ranges),
         "boundary": (
             "Only a nearer query endpoint on a map-observed ray is explicit free-space conflict; "
-            "occluded and angularly unobserved points remain unknown."
+            "occluded and angularly unobserved points remain unknown. Nearest-view signals use "
+            "exactly one frozen map scan selected only by sensor-origin distance to the lock pose."
         ),
     }
     (output / "summary.json").write_text(
