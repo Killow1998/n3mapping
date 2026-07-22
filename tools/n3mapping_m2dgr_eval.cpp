@@ -168,6 +168,8 @@ struct RelocResult {
     bool lock_correct = false;
     bool false_lock = false;
     std::string relocalization_decision = "not_attempted";
+    RelocalizationState relocalization_state = RelocalizationState::SEARCHING;
+    PoseSource pose_source = PoseSource::NONE;
     int lock_latency_frames = -1;
     int64_t matched_keyframe_id = -1;
     double translation_error_m = std::numeric_limits<double>::quiet_NaN();
@@ -1225,6 +1227,8 @@ int runRelocalization(const Options& options,
         result.success = output.success;
         result.lock = output.relocalization_locked;
         result.relocalization_decision = output.relocalization_decision;
+        result.relocalization_state = output.relocalization_state;
+        result.pose_source = output.pose_source;
         result.matched_keyframe_id = output.matched_keyframe_id;
         const Eigen::Vector3d dt = output.T_world_lidar.translation() - frame.T_world_lidar.translation();
         result.translation_error_m = dt.norm();
@@ -1324,13 +1328,15 @@ int runRelocalization(const Options& options,
             << "}\n";
 
     std::ofstream per_query(options.output_dir / "relocalization_queries.csv");
-    per_query << "frame_index,timestamp,success,lock,matched_keyframe_id,translation_error_m,yaw_error_deg,"
+    per_query << "frame_index,timestamp,success,lock,relocalization_state,pose_source,matched_keyframe_id,translation_error_m,yaw_error_deg,"
                  "pose_success,lock_correct,false_lock,lock_latency_frames,failure_class\n";
     for (const auto& result : results) {
         per_query << result.frame_index << ','
                   << std::fixed << std::setprecision(9) << result.timestamp << ','
                   << (result.success ? "true" : "false") << ','
                   << (result.lock ? "true" : "false") << ','
+                  << relocalizationStateName(result.relocalization_state) << ','
+                  << poseSourceName(result.pose_source) << ','
                   << result.matched_keyframe_id << ','
                   << result.translation_error_m << ','
                   << result.yaw_error_deg << ','

@@ -20,12 +20,15 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_debug_logger.h"
+#include "n3mapping/relocalization_state.h"
 #include "n3mapping/visibility_consistency.h"
 
 namespace n3mapping {
 
 struct RelocResult {
   bool success = false;
+  RelocalizationState state = RelocalizationState::SEARCHING;
+  PoseSource pose_source = PoseSource::NONE;
   // Machine-readable terminal or pending decision for this relocalize() call.
   // Examples: no_candidates, temporal_window_pending, log_likelihood,
   // accepted. This is evidence output; it does not participate in decisions.
@@ -85,9 +88,10 @@ public:
   bool loadLocalizationAtlas(const std::string &map_path,
                              std::string *error = nullptr);
   bool localizationAtlasLoaded() const;
-  RegistrationSeedProbeResult probeRegistrationSeeds(
-      const PointCloudT::Ptr &cloud, const Eigen::Isometry3d &odom_pose,
-      const Eigen::Isometry3d &oracle_pose);
+  RegistrationSeedProbeResult
+  probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
+                         const Eigen::Isometry3d &odom_pose,
+                         const Eigen::Isometry3d &oracle_pose);
 
 private:
   struct RelocHypothesis {

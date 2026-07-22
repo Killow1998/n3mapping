@@ -771,6 +771,8 @@ TEST(N3MappingKitti360EvalTest, RelocalizationWritesMetricsAndDebug)
     EXPECT_NE(metrics.find("\"fake_y_m\": -10"), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_loaded\": true"), std::string::npos);
     const std::string queries = readTextFile(output / "relocalization_queries.csv");
+    EXPECT_NE(queries.find("relocalization_state,pose_source"),
+              std::string::npos);
     EXPECT_NE(queries.find("pose_success,lock_correct,false_lock,lock_latency_frames,failure_class"), std::string::npos);
 }
 

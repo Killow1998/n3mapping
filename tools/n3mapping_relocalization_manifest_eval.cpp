@@ -64,6 +64,8 @@ struct FrameResult {
   int64_t stamp_ns = 0;
   bool success = false;
   bool lock = false;
+  RelocalizationState state = RelocalizationState::SEARCHING;
+  PoseSource pose_source = PoseSource::NONE;
   int64_t seed_keyframe_id = -1;
   int64_t support_keyframe_id = -1;
   int64_t matched_keyframe_id = -1;
@@ -76,10 +78,12 @@ void printUsage(const char *argv0) {
       << " --map MAP.pbstream --manifest frames.csv --output DIR [options]\n"
       << "Options:\n"
       << "  --atlas FILE     Enable a map-bound localization atlas sidecar.\n"
-      << "  --input-voxel-size METERS  Match evaluator-side query preprocessing.\n"
+      << "  --input-voxel-size METERS  Match evaluator-side query "
+         "preprocessing.\n"
       << "  --reference-map-x METERS --reference-map-y METERS "
          "--reference-map-yaw DEG\n"
-      << "                    Add a blue oracle reference layer for eval review only.\n"
+      << "                    Add a blue oracle reference layer for eval "
+         "review only.\n"
       << "  --reloc-debug    Write relocalization_debug.jsonl in the output "
          "directory.\n";
 }
@@ -122,7 +126,8 @@ bool parseArgs(int argc, char **argv, Options *options) {
       const char *value = needValue();
       if (!value)
         return false;
-      options->input_voxel_size_m = parseFiniteDouble(value, "input_voxel_size");
+      options->input_voxel_size_m =
+          parseFiniteDouble(value, "input_voxel_size");
       if (options->input_voxel_size_m < 0.0)
         return false;
     } else if (arg == "--reference-map-x") {
@@ -385,9 +390,9 @@ struct ReviewCounts {
 Eigen::Isometry3d planarMapToOdom(double x_m, double y_m, double yaw_deg) {
   Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
   pose.translation() = Eigen::Vector3d(x_m, y_m, 0.0);
-  pose.linear() = Eigen::AngleAxisd(yaw_deg * M_PI / 180.0,
-                                    Eigen::Vector3d::UnitZ())
-                      .toRotationMatrix();
+  pose.linear() =
+      Eigen::AngleAxisd(yaw_deg * M_PI / 180.0, Eigen::Vector3d::UnitZ())
+          .toRotationMatrix();
   return pose;
 }
 
@@ -433,11 +438,11 @@ ReviewCounts writeReviewPcd(const fs::path &path, const Cloud &map_cloud,
   return counts;
 }
 
-ReviewCounts writeComparisonPcd(
-    const fs::path &path, const Cloud &map_cloud,
-    const std::deque<BufferedFrame> &buffered_frames,
-    const Eigen::Isometry3d &T_estimated_map_odom, bool locked,
-    const Eigen::Isometry3d &T_reference_map_odom) {
+ReviewCounts
+writeComparisonPcd(const fs::path &path, const Cloud &map_cloud,
+                   const std::deque<BufferedFrame> &buffered_frames,
+                   const Eigen::Isometry3d &T_estimated_map_odom, bool locked,
+                   const Eigen::Isometry3d &T_reference_map_odom) {
   static constexpr std::array<std::array<std::uint8_t, 3>, 5> palette = {
       {{{255, 0, 0}},
        {{255, 128, 0}},
@@ -477,6 +482,7 @@ void writeFrameResults(const fs::path &path,
     throw std::runtime_error("failed to write frame results");
   stream << "frame_index,stamp_ns,success,relocalization_locked,seed_"
             "keyframe_id,support_keyframe_id,matched_keyframe_id,"
+            "relocalization_state,pose_source,"
             "map_tx,map_ty,map_tz,map_qx,map_qy,map_qz,map_qw\n";
   stream << std::setprecision(17);
   for (const auto &result : results) {
@@ -485,6 +491,8 @@ void writeFrameResults(const fs::path &path,
            << (result.success ? 1 : 0) << ',' << (result.lock ? 1 : 0) << ','
            << result.seed_keyframe_id << ',' << result.support_keyframe_id
            << ',' << result.matched_keyframe_id << ','
+           << relocalizationStateName(result.state) << ','
+           << poseSourceName(result.pose_source) << ','
            << result.T_map_body.translation().x() << ','
            << result.T_map_body.translation().y() << ','
            << result.T_map_body.translation().z() << ',' << q.x() << ','
@@ -574,12 +582,12 @@ int run(const Options &options) {
     }
     last_output = core.processLocalizationFrame(makeFrame(record, cloud));
     last_record = &record;
-    results.push_back({record.frame_index, record.stamp_ns, last_output.success,
-                       last_output.relocalization_locked,
-                       last_output.relocalization_seed_keyframe_id,
-                       last_output.relocalization_support_keyframe_id,
-                       last_output.matched_keyframe_id,
-                       last_output.T_world_lidar});
+    results.push_back(
+        {record.frame_index, record.stamp_ns, last_output.success,
+         last_output.relocalization_locked, last_output.relocalization_state,
+         last_output.pose_source, last_output.relocalization_seed_keyframe_id,
+         last_output.relocalization_support_keyframe_id,
+         last_output.matched_keyframe_id, last_output.T_world_lidar});
     if (last_output.relocalization_locked) {
       locked = true;
       break;
@@ -658,20 +666,20 @@ int run(const Options &options) {
   summary
       << ",\n"
       << "  \"review_pcd\": \"" << jsonEscape(review_name) << "\",\n"
-      << "  \"alignment_review_pcd\": \""
-      << jsonEscape(alignment_review_name) << "\",\n"
-      << "  \"provenance_review_pcd\": \""
-      << jsonEscape(provenance_review_name) << "\",\n"
-      << "  \"comparison_review_pcd\": \""
-      << jsonEscape(comparison_review_name) << "\",\n"
+      << "  \"alignment_review_pcd\": \"" << jsonEscape(alignment_review_name)
+      << "\",\n"
+      << "  \"provenance_review_pcd\": \"" << jsonEscape(provenance_review_name)
+      << "\",\n"
+      << "  \"comparison_review_pcd\": \"" << jsonEscape(comparison_review_name)
+      << "\",\n"
       << "  \"review_counts\": {\"map\":" << counts.map_points
       << ",\"seed_keyframe\":" << counts.seed_keyframe_points
       << ",\"support_keyframe\":" << counts.support_keyframe_points
       << ",\"real_query\":" << counts.query_points << "},\n"
-      << "  \"comparison_counts\": {\"map\":"
-      << comparison_counts.map_points << ",\"estimated_query\":"
-      << comparison_counts.query_points << ",\"reference_query\":"
-      << comparison_counts.reference_query_points << "},\n"
+      << "  \"comparison_counts\": {\"map\":" << comparison_counts.map_points
+      << ",\"estimated_query\":" << comparison_counts.query_points
+      << ",\"reference_query\":" << comparison_counts.reference_query_points
+      << "},\n"
       << "  \"config_source\": \"compiled_product_defaults_no_overrides\",\n"
       << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n"
       << "  \"relocalization_contract\": {"

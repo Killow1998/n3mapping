@@ -36,8 +36,8 @@ std::vector<double> buildYawHypotheses(const LoopCandidate &candidate,
   std::vector<double> yaws;
   auto append_unique = [&](double yaw) {
     const double wrapped = wrapYaw(yaw);
-    const bool duplicate = std::any_of(
-        yaws.begin(), yaws.end(), [&](double existing) {
+    const bool duplicate =
+        std::any_of(yaws.begin(), yaws.end(), [&](double existing) {
           return std::abs(wrapYaw(existing - wrapped)) < 1e-6;
         });
     if (!duplicate)
@@ -73,7 +73,8 @@ WorldLocalizing::WorldLocalizing(const Config &config,
                                  PointCloudMatcher &matcher)
     : config_(config), keyframe_manager_(keyframe_manager),
       loop_detector_(loop_detector), matcher_(matcher),
-      localization_atlas_(std::make_unique<LocalizationAtlas>(config_, matcher_)),
+      localization_atlas_(
+          std::make_unique<LocalizationAtlas>(config_, matcher_)),
       frame_rhpd_manager_(loop_detector.getRHPDManager().getDescriptorParams()),
       frame_rhpd_indexed_keyframes_(0),
       reloc_map_cache_(pcl::make_shared<PointCloudT>()),
@@ -85,8 +86,8 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       hypothesis_window_start_odom_pose_(Eigen::Isometry3d::Identity()),
       has_last_window_winner_transform_(false),
       last_window_winner_map_odom_(Eigen::Isometry3d::Identity()),
-      winner_streak_(0),
-      relocalize_debug_query_index_(0), track_debug_query_index_(0) {}
+      winner_streak_(0), relocalize_debug_query_index_(0),
+      track_debug_query_index_(0) {}
 
 void WorldLocalizing::appendRelocalizationDebug(
     const RelocalizationDebugEvent &event) const {
@@ -351,8 +352,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       std::vector<std::future<std::vector<BasinBest>>> futures;
       futures.reserve(basins.size());
       for (const auto &basin : basins) {
-        futures.push_back(std::async(std::launch::async, evaluate_basin,
-                                     std::cref(basin)));
+        futures.push_back(
+            std::async(std::launch::async, evaluate_basin, std::cref(basin)));
       }
       for (auto &future : futures) {
         auto basin_modes = future.get();
@@ -473,8 +474,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         local_prepared_target = matcher_.prepareTargetCloud(submap);
         prepared_target = &local_prepared_target;
       }
-      MatchResult mr =
-          matcher_.alignPrepared(*prepared_target, prepared_query, predicted_pose);
+      MatchResult mr = matcher_.alignPrepared(*prepared_target, prepared_query,
+                                              predicted_pose);
       hyp.cumulative_log_likelihood +=
           computeTrackLogLikelihood(mr, predicted_pose);
       hyp.num_updates += 1;
@@ -606,6 +607,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                                   : std::numeric_limits<double>::infinity());
 
   if (top1) {
+    result.state = RelocalizationState::REGION_HYPOTHESIS;
+    result.pose_source = PoseSource::NONE;
     if (reloc_debug_enabled) {
       debug_event.temporal_hypothesis_score = top1_decision_score;
       debug_event.log_likelihood = top1_ll;
@@ -635,8 +638,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       const Eigen::Isometry3d current_pose = top1->T_map_odom * odom_pose;
       const Eigen::Isometry3d winner_pose_delta =
           previous_pose.inverse() * current_pose;
-      winner_pose_translation_delta =
-          winner_pose_delta.translation().norm();
+      winner_pose_translation_delta = winner_pose_delta.translation().norm();
       winner_pose_rotation_delta =
           Eigen::AngleAxisd(winner_pose_delta.rotation()).angle();
       same_winner_pose =
@@ -652,8 +654,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     has_last_window_winner_transform_ = true;
     if (reloc_debug_enabled) {
       debug_event.winner_streak = winner_streak_;
-      debug_event.winner_pose_translation_delta =
-          winner_pose_translation_delta;
+      debug_event.winner_pose_translation_delta = winner_pose_translation_delta;
       debug_event.winner_pose_rotation_delta = winner_pose_rotation_delta;
     }
 
@@ -670,8 +671,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             << ",visibility=" << top2_visibility << ")"
             << " margin=" << margin << " evidence="
             << (use_visibility_evidence ? "visibility" : "legacy_loglik")
-            << " winner_streak=" << winner_streak_
-            << " winner_pose_delta=(" << winner_pose_translation_delta << "m,"
+            << " winner_streak=" << winner_streak_ << " winner_pose_delta=("
+            << winner_pose_translation_delta << "m,"
             << winner_pose_rotation_delta << "rad)";
   }
 
@@ -765,6 +766,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     consecutive_track_failures_ = 0;
 
     result.success = true;
+    result.state = RelocalizationState::FULL_6DOF_LOCKED;
+    result.pose_source = PoseSource::GEOMETRICALLY_CORRECTED;
     result.seed_keyframe_id = best.seed_match_id;
     result.support_keyframe_id = best.last_match_id;
     result.matched_keyframe_id = best.last_match_id;
@@ -878,6 +881,10 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
 
   if (!cloud || cloud->empty()) {
     std::lock_guard<std::mutex> lock(mutex_);
+    result.state = is_relocalized_ ? RelocalizationState::DEGRADED_TRACKING
+                                   : RelocalizationState::SEARCHING;
+    result.pose_source =
+        is_relocalized_ ? PoseSource::ODOM_PREDICTED : PoseSource::NONE;
     result.seed_keyframe_id = relocalization_seed_id_;
     result.support_keyframe_id = last_matched_id_;
     result.matched_keyframe_id = last_matched_id_;
@@ -897,6 +904,8 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
 
   if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
     is_relocalized_ = false;
+    result.state = RelocalizationState::SEARCHING;
+    result.pose_source = PoseSource::NONE;
     finish_tracking_debug("max_track_failures");
     return result;
   }
@@ -908,8 +917,12 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
       is_relocalized_ = false;
       result.success = false;
+      result.state = RelocalizationState::SEARCHING;
+      result.pose_source = PoseSource::NONE;
     } else {
       result.success = true;
+      result.state = RelocalizationState::DEGRADED_TRACKING;
+      result.pose_source = PoseSource::ODOM_PREDICTED;
     }
     result.matched_keyframe_id = last_matched_id_;
     result.support_keyframe_id = last_matched_id_;
@@ -936,8 +949,12 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
       is_relocalized_ = false;
       result.success = false;
+      result.state = RelocalizationState::SEARCHING;
+      result.pose_source = PoseSource::NONE;
     } else {
       result.success = true;
+      result.state = RelocalizationState::DEGRADED_TRACKING;
+      result.pose_source = PoseSource::ODOM_PREDICTED;
     }
     result.matched_keyframe_id = last_matched_id_;
     result.support_keyframe_id = last_matched_id_;
@@ -1023,6 +1040,8 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     T_map_odom_.linear() = q_new.toRotationMatrix();
 
     result.success = true;
+    result.state = RelocalizationState::FULL_6DOF_LOCKED;
+    result.pose_source = PoseSource::GEOMETRICALLY_CORRECTED;
     result.matched_keyframe_id = nearest_kf_id;
     result.support_keyframe_id = nearest_kf_id;
     result.pose_in_map = T_map_odom_ * odom_pose;
@@ -1056,9 +1075,13 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
       is_relocalized_ = false;
       result.success = false;
+      result.state = RelocalizationState::SEARCHING;
+      result.pose_source = PoseSource::NONE;
     } else {
       // Keep odometry-based continuity for transient dropouts.
       result.success = true;
+      result.state = RelocalizationState::DEGRADED_TRACKING;
+      result.pose_source = PoseSource::ODOM_PREDICTED;
     }
 
     result.matched_keyframe_id = last_matched_id_;
@@ -1123,17 +1146,17 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
   localization_atlas_->clear();
   if (!config_.reloc_atlas_enable)
     return true;
-  const std::string atlas_path = config_.reloc_atlas_path.empty()
-                                     ? LocalizationAtlas::defaultAtlasPath(map_path)
-                                     : config_.reloc_atlas_path;
+  const std::string atlas_path =
+      config_.reloc_atlas_path.empty()
+          ? LocalizationAtlas::defaultAtlasPath(map_path)
+          : config_.reloc_atlas_path;
   LocalizationAtlasStats stats;
   if (!localization_atlas_->load(map_path, atlas_path, &stats, error))
     return false;
   LOG(INFO) << "[LocalizationAtlas] Loaded " << atlas_path
             << " global_points=" << stats.global_point_count
             << " prepared_points=" << stats.prepared_point_count
-            << " bytes=" << stats.sidecar_bytes
-            << " load_ms=" << stats.load_ms
+            << " bytes=" << stats.sidecar_bytes << " load_ms=" << stats.load_ms
             << " kdtree_ms=" << stats.kdtree_ms;
   return true;
 }
@@ -1143,9 +1166,10 @@ bool WorldLocalizing::localizationAtlasLoaded() const {
   return localization_atlas_ && localization_atlas_->loaded();
 }
 
-RegistrationSeedProbeResult WorldLocalizing::probeRegistrationSeeds(
-    const PointCloudT::Ptr &cloud, const Eigen::Isometry3d &odom_pose,
-    const Eigen::Isometry3d &oracle_pose) {
+RegistrationSeedProbeResult
+WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
+                                        const Eigen::Isometry3d &odom_pose,
+                                        const Eigen::Isometry3d &oracle_pose) {
   RegistrationSeedProbeResult result;
   if (!cloud || cloud->empty()) {
     result.error = "empty_cloud";
@@ -1244,19 +1268,14 @@ RegistrationSeedProbeResult WorldLocalizing::probeRegistrationSeeds(
 WorldLocalizing::RelocMatchQuality
 WorldLocalizing::evaluateRelocMatchQuality(const MatchResult &match) const {
   RelocMatchQuality quality;
-  quality.fitness_pass =
-      match.fitness_score < config_.gicp_fitness_threshold;
-  quality.inlier_pass =
-      match.inlier_ratio >= config_.reloc_min_inlier_ratio;
-  const double scale =
-      std::max(1e-6, config_.gicp_fitness_threshold * 0.5);
+  quality.fitness_pass = match.fitness_score < config_.gicp_fitness_threshold;
+  quality.inlier_pass = match.inlier_ratio >= config_.reloc_min_inlier_ratio;
+  const double scale = std::max(1e-6, config_.gicp_fitness_threshold * 0.5);
   quality.confidence = std::exp(-match.fitness_score / scale);
   quality.confidence = std::clamp(quality.confidence, 0.0, 1.0);
-  quality.confidence_pass =
-      quality.confidence >= config_.reloc_min_confidence;
-  quality.accepted =
-      match.converged && quality.fitness_pass && quality.inlier_pass &&
-      quality.confidence_pass;
+  quality.confidence_pass = quality.confidence >= config_.reloc_min_confidence;
+  quality.accepted = match.converged && quality.fitness_pass &&
+                     quality.inlier_pass && quality.confidence_pass;
   return quality;
 }
 
@@ -1584,8 +1603,8 @@ WorldLocalizing::evaluateCandidatePoses(
         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     const auto initial_visibility =
         evaluatePoseVisibility(submap, cloud, init_guess);
-    MatchResult mr = matcher_.alignPrepared(*registration_target, prepared_cloud,
-                                            init_guess);
+    MatchResult mr = matcher_.alignPrepared(*registration_target,
+                                            prepared_cloud, init_guess);
     const bool quality_passed =
         mr.converged && mr.fitness_score < config_.gicp_fitness_threshold &&
         mr.inlier_ratio >= config_.reloc_min_inlier_ratio;
@@ -1610,17 +1629,18 @@ WorldLocalizing::evaluateCandidatePoses(
     evaluations.push_back(std::move(evaluation));
   }
 
-  std::sort(evaluations.begin(), evaluations.end(), [](const auto &a,
-                                                       const auto &b) {
-    if (a.visibility.valid != b.visibility.valid)
-      return a.visibility.valid;
-    if (a.visibility.valid &&
-        std::abs(a.visibility.consistency_ratio -
-                 b.visibility.consistency_ratio) > 1e-9) {
-      return a.visibility.consistency_ratio > b.visibility.consistency_ratio;
-    }
-    return a.match.fitness_score < b.match.fitness_score;
-  });
+  std::sort(evaluations.begin(), evaluations.end(),
+            [](const auto &a, const auto &b) {
+              if (a.visibility.valid != b.visibility.valid)
+                return a.visibility.valid;
+              if (a.visibility.valid &&
+                  std::abs(a.visibility.consistency_ratio -
+                           b.visibility.consistency_ratio) > 1e-9) {
+                return a.visibility.consistency_ratio >
+                       b.visibility.consistency_ratio;
+              }
+              return a.match.fitness_score < b.match.fitness_score;
+            });
 
   // Different yaw seeds often converge onto the same physical solution. Keep
   // one representative per mode, but retain genuinely different orientations so
@@ -1805,17 +1825,15 @@ WorldLocalizing::buildRelocMotionQueryCloudForDebug(
       query_frame_buffer_.back().cloud
           ? std::max<std::size_t>(1, query_frame_buffer_.back().cloud->size())
           : merged->size();
-  double adaptive_voxel =
-      std::max(1e-3, config_.reloc_static_agg_voxel_size);
-  for (int iteration = 0;
-       iteration < 6 && merged->size() > point_budget;
+  double adaptive_voxel = std::max(1e-3, config_.reloc_static_agg_voxel_size);
+  for (int iteration = 0; iteration < 6 && merged->size() > point_budget;
        ++iteration) {
-    const double ratio = static_cast<double>(merged->size()) /
-                         static_cast<double>(point_budget);
+    const double ratio =
+        static_cast<double>(merged->size()) / static_cast<double>(point_budget);
     adaptive_voxel *= std::max(1.1, 1.05 * std::cbrt(ratio));
     PointCloudT::Ptr downsampled;
-    if (!safeVoxelGridFilter<pcl::PointXYZI>(
-            merged, adaptive_voxel, &downsampled) ||
+    if (!safeVoxelGridFilter<pcl::PointXYZI>(merged, adaptive_voxel,
+                                             &downsampled) ||
         !downsampled || downsampled->size() >= merged->size()) {
       break;
     }

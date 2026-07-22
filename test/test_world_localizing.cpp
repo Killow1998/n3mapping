@@ -162,6 +162,8 @@ TEST_F(WorldLocalizingTest, RelocalizationEmptyMap) {
 
   EXPECT_FALSE(result.success);
   EXPECT_EQ(result.decision, "missing_keyframes");
+  EXPECT_EQ(result.state, RelocalizationState::SEARCHING);
+  EXPECT_EQ(result.pose_source, PoseSource::NONE);
   EXPECT_FALSE(reloc.isRelocalized());
 }
 
@@ -227,6 +229,8 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesTrackingFailurePath) {
   RelocResult result = reloc.trackLocalization(cloud, pose);
 
   EXPECT_TRUE(result.success);
+  EXPECT_EQ(result.state, RelocalizationState::DEGRADED_TRACKING);
+  EXPECT_EQ(result.pose_source, PoseSource::ODOM_PREDICTED);
   const auto lines = readDebugLines(debug_path);
   ASSERT_EQ(lines.size(), 1u);
   EXPECT_NE(lines[0].find("\"record_type\":\"tracking\""), std::string::npos);
@@ -294,9 +298,16 @@ TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess) {
   RelocResult result;
   for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
     result = reloc.relocalize(cloud, query_pose);
+    if (i + 1 < config_.reloc_temporal_window_size) {
+      EXPECT_FALSE(result.success);
+      EXPECT_EQ(result.state, RelocalizationState::REGION_HYPOTHESIS);
+      EXPECT_EQ(result.pose_source, PoseSource::NONE);
+    }
   }
 
   ASSERT_TRUE(result.success);
+  EXPECT_EQ(result.state, RelocalizationState::FULL_6DOF_LOCKED);
+  EXPECT_EQ(result.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
   EXPECT_TRUE(reloc.isRelocalized());
   EXPECT_GE(result.seed_keyframe_id, 0);
   EXPECT_GE(result.support_keyframe_id, 0);
@@ -327,8 +338,7 @@ TEST_F(WorldLocalizingTest, MovingAcrossKeyframesKeepsPhysicalWinnerStreak) {
     Eigen::Isometry3d query_pose = Eigen::Isometry3d::Identity();
     query_pose.translation().x() = kMapOriginX + x;
     const Eigen::Isometry3d odom_pose = fake_map_odom.inverse() * query_pose;
-    result =
-        reloc.relocalize(generateCorridorCloud(query_pose), odom_pose);
+    result = reloc.relocalize(generateCorridorCloud(query_pose), odom_pose);
   }
 
   ASSERT_TRUE(result.success);
@@ -415,6 +425,8 @@ TEST_F(WorldLocalizingTest, TrackLocalization) {
 
   RelocResult track_result = reloc.trackLocalization(track_cloud, odom_pose);
   EXPECT_TRUE(track_result.success);
+  EXPECT_EQ(track_result.state, RelocalizationState::FULL_6DOF_LOCKED);
+  EXPECT_EQ(track_result.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
 }
 
 TEST_F(WorldLocalizingTest, Reset) {

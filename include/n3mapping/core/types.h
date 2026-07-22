@@ -10,6 +10,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
+#include "n3mapping/relocalization_state.h"
+
 namespace n3mapping {
 namespace core {
 
@@ -53,6 +55,8 @@ struct BackendOutput {
   bool success = false;
   bool accepted_keyframe = false;
   bool relocalization_locked = false;
+  RelocalizationState relocalization_state = RelocalizationState::SEARCHING;
+  PoseSource pose_source = PoseSource::NONE;
   // Decision from the relocalization attempt made for this frame. "tracking"
   // means the already-locked tracker supplied the pose without a new attempt.
   std::string relocalization_decision = "not_attempted";

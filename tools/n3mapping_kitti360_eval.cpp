@@ -136,6 +136,8 @@ struct RelocResult {
     bool lock_correct = false;
     bool false_lock = false;
     std::string relocalization_decision = "not_attempted";
+    RelocalizationState relocalization_state = RelocalizationState::SEARCHING;
+    PoseSource pose_source = PoseSource::NONE;
     int lock_latency_frames = -1;
     int64_t matched_keyframe_id = -1;
     double translation_error_m = std::numeric_limits<double>::quiet_NaN();
@@ -1262,6 +1264,8 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
         result.success = output.success;
         result.lock = output.relocalization_locked;
         result.relocalization_decision = output.relocalization_decision;
+        result.relocalization_state = output.relocalization_state;
+        result.pose_source = output.pose_source;
         result.matched_keyframe_id = output.matched_keyframe_id;
         if (output.success) {
             result.translation_error_m =
@@ -1359,12 +1363,14 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
             << "}\n";
 
     std::ofstream per_query(options.output_dir / "relocalization_queries.csv");
-    per_query << "frame_id,success,lock,matched_keyframe_id,translation_error_m,yaw_error_deg,"
+    per_query << "frame_id,success,lock,relocalization_state,pose_source,matched_keyframe_id,translation_error_m,yaw_error_deg,"
                  "pose_success,lock_correct,false_lock,lock_latency_frames,failure_class\n";
     for (const auto& result : results) {
         per_query << result.frame_id << ','
                   << (result.success ? "true" : "false") << ','
                   << (result.lock ? "true" : "false") << ','
+                  << relocalizationStateName(result.relocalization_state) << ','
+                  << poseSourceName(result.pose_source) << ','
                   << result.matched_keyframe_id << ','
                   << result.translation_error_m << ','
                   << result.yaw_error_deg << ','
