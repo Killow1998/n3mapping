@@ -46,6 +46,7 @@ from n3mapping_runtime_signal_audit import summarize_ranges  # noqa: E402
 from n3mapping_multiview_free_space_audit import (  # noqa: E402
     classify_map_ray_observations,
 )
+from n3mapping_verifier_pair_freeze import classify_pair  # noqa: E402
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
 from n3mapping_synthetic_eval_gate import SyntheticGateError, run_synthetic_gate  # noqa: E402
@@ -655,6 +656,26 @@ def _run_fake_gate(
 
 
 class DatasetReadinessTest(unittest.TestCase):
+    def test_verifier_pair_labels_preserve_abstain_and_pose_contracts(self) -> None:
+        self.assertEqual(
+            classify_pair(
+                "lock", 0.25, 2.0, translation_gate_m=1.0, yaw_gate_deg=10.0
+            ),
+            "positive",
+        )
+        self.assertEqual(
+            classify_pair(
+                "lock", 1.25, 2.0, translation_gate_m=1.0, yaw_gate_deg=10.0
+            ),
+            "hard_negative",
+        )
+        self.assertEqual(
+            classify_pair(
+                "abstain", 0.1, 0.1, translation_gate_m=1.0, yaw_gate_deg=10.0
+            ),
+            "hard_negative",
+        )
+
     def test_multiview_free_space_distinguishes_support_free_and_unknown(self) -> None:
         map_points = np.array(
             [
