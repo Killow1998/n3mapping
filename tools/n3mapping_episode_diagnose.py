@@ -15,7 +15,12 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from n3mapping_episode_benchmark import _verify_benchmark_output
+from n3mapping_dataset_readiness import sha256_file
+from n3mapping_episode_benchmark import (
+    _finalize_hashed_output,
+    _verify_benchmark_output,
+    _verify_hashed_output,
+)
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -75,11 +80,15 @@ def _candidate_min_distance(
 def diagnose_benchmark(
     manifest_dir: Path,
     benchmark_dir: Path,
+    output_dir: Path,
     *,
     allow_legacy_unfinalized: bool = False,
 ) -> dict[str, Any]:
     if not allow_legacy_unfinalized:
         _verify_benchmark_output(benchmark_dir)
+    if output_dir.exists():
+        raise ValueError(f"refusing to overwrite diagnostic output: {output_dir}")
+    output_dir.mkdir(parents=True)
     manifest = json.loads((manifest_dir / "dataset_manifest.json").read_text(encoding="utf-8"))
     manifest_rows = _read_csv(manifest_dir / "episode_frames.csv")
     keyframes = _keyframe_positions(
@@ -167,17 +176,36 @@ def diagnose_benchmark(
         "motion_topk_recall_count": count("motion_topk_recall"),
         "motion_topk_recall_rate": rate("motion_topk_recall"),
         "decision_counts": dict(sorted(decisions.items())),
+        "dataset_manifest_sha256": sha256_file(
+            manifest_dir / "dataset_manifest.json"
+        ),
+        "benchmark_complete_sha256": (
+            sha256_file(benchmark_dir / "COMPLETE")
+            if (benchmark_dir / "COMPLETE").is_file()
+            else None
+        ),
+        "benchmark_checksums_sha256": (
+            sha256_file(benchmark_dir / "checksums.sha256")
+            if (benchmark_dir / "checksums.sha256").is_file()
+            else None
+        ),
     }
-    benchmark_dir.joinpath("oracle_candidate_diagnostics.json").write_text(
+    output_dir.joinpath("oracle_candidate_diagnostics.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     fields = list(output_rows[0]) if output_rows else ["episode_id"]
-    with benchmark_dir.joinpath("oracle_candidate_frames.csv").open(
+    with output_dir.joinpath("oracle_candidate_frames.csv").open(
         "w", encoding="utf-8", newline=""
     ) as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()
         writer.writerows(output_rows)
+    required_outputs = {
+        "oracle_candidate_diagnostics.json",
+        "oracle_candidate_frames.csv",
+    }
+    _finalize_hashed_output(output_dir, required_outputs)
+    _verify_hashed_output(output_dir, required_outputs)
     return summary
 
 
@@ -185,6 +213,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest-dir", required=True, type=Path)
     parser.add_argument("--benchmark-dir", required=True, type=Path)
+    parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument(
         "--allow-legacy-unfinalized",
         action="store_true",
@@ -196,6 +225,7 @@ def main() -> int:
             diagnose_benchmark(
                 args.manifest_dir,
                 args.benchmark_dir,
+                args.output_dir,
                 allow_legacy_unfinalized=args.allow_legacy_unfinalized,
             ),
             sort_keys=True,

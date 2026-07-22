@@ -66,6 +66,7 @@
 - Correct KITTI-360 evaluation to compose pose/IMU, camera, and Velodyne frames using the official calibration contract; default `auto` to this contract and fail closed when required calibration is missing or malformed.
 - Freeze and verify KITTI-360 official calibration hashes in episode manifests, verify previously recorded GT hashes before execution, and require an explicit escape hatch for legacy unhashed calibration evidence.
 - Finalize episode benchmark outputs with payload checksums and an atomic `COMPLETE` sentinel; require finalized evidence in the diagnostic tool unless legacy input is explicitly allowed.
+- Write oracle candidate diagnostics to a separate finalized output directory bound to the input manifest and benchmark hashes, leaving benchmark evidence immutable.
 
 ### Tests and Checks
 

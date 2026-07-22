@@ -22,7 +22,7 @@ def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _finalize_benchmark_output(output: Path) -> None:
+def _finalize_hashed_output(output: Path, required_relative_paths: set[str]) -> None:
     checksum_path = output / "checksums.sha256"
     complete_path = output / "COMPLETE"
     if checksum_path.exists() or complete_path.exists():
@@ -33,9 +33,12 @@ def _finalize_benchmark_output(output: Path) -> None:
             raise ValueError(f"benchmark output contains a symlink: {path}")
         if path.is_file():
             payloads.append(path)
-    required = {output / "summary.json", output / "episodes.csv"}
+    required = {output / relative for relative in required_relative_paths}
     if not required.issubset(payloads):
-        raise ValueError("benchmark output is missing summary.json or episodes.csv")
+        raise ValueError(
+            "artifact output is missing required payloads: "
+            + ", ".join(sorted(required_relative_paths))
+        )
     lines = [
         f"{sha256_file(path)}  {path.relative_to(output).as_posix()}"
         for path in payloads
@@ -55,7 +58,7 @@ def _finalize_benchmark_output(output: Path) -> None:
     os.replace(complete_tmp, complete_path)
 
 
-def _verify_benchmark_output(output: Path) -> None:
+def _verify_hashed_output(output: Path, required_relative_paths: set[str]) -> None:
     complete_path = output / "COMPLETE"
     checksum_path = output / "checksums.sha256"
     if not complete_path.is_file() or complete_path.is_symlink():
@@ -91,8 +94,19 @@ def _verify_benchmark_output(output: Path) -> None:
             raise ValueError(f"benchmark payload is missing or not regular: {path}")
         if sha256_file(path) != expected:
             raise ValueError(f"benchmark payload hash mismatch: {path}")
-    if not {"summary.json", "episodes.csv"}.issubset(seen):
-        raise ValueError("benchmark checksums omit summary.json or episodes.csv")
+    if not required_relative_paths.issubset(seen):
+        raise ValueError(
+            "artifact checksums omit required payloads: "
+            + ", ".join(sorted(required_relative_paths))
+        )
+
+
+def _finalize_benchmark_output(output: Path) -> None:
+    _finalize_hashed_output(output, {"summary.json", "episodes.csv"})
+
+
+def _verify_benchmark_output(output: Path) -> None:
+    _verify_hashed_output(output, {"summary.json", "episodes.csv"})
 
 
 def _verify_manifest(

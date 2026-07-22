@@ -26,6 +26,7 @@ sys.path.insert(0, str(TOOLS_DIR))
 from n3mapping_dataset_readiness import build_report, spatial_coverage  # noqa: E402
 from n3mapping_episode_benchmark import (  # noqa: E402
     _finalize_benchmark_output,
+    _verify_hashed_output,
     _verify_benchmark_output,
     _verify_manifest,
     classify_episode,
@@ -713,7 +714,10 @@ class DatasetReadinessTest(unittest.TestCase):
             )
             _finalize_benchmark_output(benchmark_dir)
 
-            report = diagnose_benchmark(manifest_dir, benchmark_dir)
+            diagnostic_dir = root / "diagnostics"
+            report = diagnose_benchmark(
+                manifest_dir, benchmark_dir, diagnostic_dir
+            )
             self.assertEqual(report["oracle_overlap_frame_count"], 2)
             self.assertEqual(report["main_top1_recall_rate"], 0.5)
             self.assertEqual(report["main_topk_recall_rate"], 0.5)
@@ -722,7 +726,14 @@ class DatasetReadinessTest(unittest.TestCase):
                 report["decision_counts"],
                 {"no_valid_icp_hypothesis": 1, "temporal_window_pending": 1},
             )
-            self.assertTrue((benchmark_dir / "oracle_candidate_frames.csv").is_file())
+            self.assertTrue((diagnostic_dir / "oracle_candidate_frames.csv").is_file())
+            _verify_hashed_output(
+                diagnostic_dir,
+                {
+                    "oracle_candidate_diagnostics.json",
+                    "oracle_candidate_frames.csv",
+                },
+            )
             _verify_benchmark_output(benchmark_dir)
 
     def test_benchmark_finalization_detects_incomplete_and_mutated_output(self) -> None:
