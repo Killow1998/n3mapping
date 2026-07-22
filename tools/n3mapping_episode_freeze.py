@@ -151,7 +151,10 @@ def freeze_episodes(
     max_map_frames: int,
     map_stride: int,
     m2dgr_max_time_diff_s: float,
+    expected_behavior: str = "lock",
 ) -> dict:
+    if expected_behavior not in {"lock", "abstain"}:
+        raise ValueError(f"unsupported expected behavior: {expected_behavior}")
     if output.exists() and any(output.iterdir()):
         raise ValueError(f"refusing to overwrite non-empty output: {output}")
     if dataset == "kitti360":
@@ -167,6 +170,10 @@ def freeze_episodes(
         map_all, map_gt = _kitti_frames(root, map_sequence)
         query_all, query_gt = _kitti_frames(root, query_sequence)
     elif dataset == "m2dgr":
+        if expected_behavior == "abstain":
+            raise ValueError(
+                "M2DGR cross-scene coordinates are not frozen; abstain episodes require KITTI-360"
+            )
         if map_sequence != query_sequence:
             raise ValueError("M2DGR cross-sequence coordinates are not frozen; use one sequence")
         map_all, map_gt = _m2dgr_frames(root, map_sequence, m2dgr_max_time_diff_s)
@@ -175,6 +182,8 @@ def freeze_episodes(
         raise ValueError(f"unsupported dataset: {dataset}")
     if not map_all or not query_all:
         raise ValueError("map/query sequence has no aligned frames")
+    if expected_behavior == "abstain" and map_sequence == query_sequence:
+        raise ValueError("abstain episodes require distinct map/query sequences")
 
     if map_sequence == query_sequence:
         split = len(map_all) // 2
@@ -186,20 +195,38 @@ def freeze_episodes(
         query_pool = query_all
 
     covered = _covered_mask(map_pool, query_pool, overlap_radius_m)
-    windows = _consecutive_windows(covered, query_episode_frames, max_episodes)
+    selection_mask = (
+        covered if expected_behavior == "lock" else [not value for value in covered]
+    )
+    windows = _consecutive_windows(selection_mask, query_episode_frames, max_episodes)
     if not windows:
-        raise ValueError("no consecutive spatially covered query episode found")
+        relationship = "covered" if expected_behavior == "lock" else "uncovered"
+        raise ValueError(f"no consecutive spatially {relationship} query episode found")
     episodes = [query_pool[start:end] for start, end in windows]
     query_positions = [frame.position for episode in episodes for frame in episode]
-    contextual_map = [
-        frame
-        for frame in map_pool
-        if _near_any(frame.position, query_positions, map_context_radius_m)
-    ]
+    if expected_behavior == "lock":
+        contextual_map = [
+            frame
+            for frame in map_pool
+            if _near_any(frame.position, query_positions, map_context_radius_m)
+        ]
+    else:
+        contextual_map = map_pool
     contextual_map = contextual_map[::map_stride]
     contextual_map = _uniform_cap(contextual_map, max_map_frames)
     if len(contextual_map) < 5:
         raise ValueError("fewer than five map frames remain after spatial selection")
+    frozen_query_frames = [frame for episode in episodes for frame in episode]
+    frozen_covered = _covered_mask(
+        contextual_map, frozen_query_frames, overlap_radius_m
+    )
+    if expected_behavior == "lock" and not all(frozen_covered):
+        raise ValueError(
+            "frozen map selection does not cover every query frame; "
+            "increase map budget or reduce map stride"
+        )
+    if expected_behavior == "abstain" and any(frozen_covered):
+        raise ValueError("frozen abstain episode unexpectedly overlaps the map")
 
     output.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -256,7 +283,7 @@ def freeze_episodes(
     map_tokens = {frame.token for frame in contextual_map}
     query_tokens = {frame.token for episode in episodes for frame in episode}
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "dataset": dataset,
         "root": str(root),
         "map_sequence": map_sequence,
@@ -274,6 +301,14 @@ def freeze_episodes(
         "query_episode_count": len(episodes),
         "query_frames_per_episode": query_episode_frames,
         "query_frame_count": sum(len(episode) for episode in episodes),
+        "expected_behavior": expected_behavior,
+        "spatial_relationship": (
+            "covered_within_radius" if expected_behavior == "lock" else "uncovered_within_radius"
+        ),
+        "source_covered_query_frame_count": sum(
+            covered[start:end].count(True) for start, end in windows
+        ),
+        "frozen_covered_query_frame_count": frozen_covered.count(True),
         "overlap_radius_m": overlap_radius_m,
         "map_context_radius_m": map_context_radius_m,
         "map_stride": map_stride,
@@ -323,6 +358,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-map-frames", type=int, default=500)
     parser.add_argument("--map-stride", type=int, default=5)
     parser.add_argument("--m2dgr-max-time-diff-s", type=float, default=0.05)
+    parser.add_argument(
+        "--expected-behavior",
+        choices=("lock", "abstain"),
+        default="lock",
+        help="Freeze spatially covered lock episodes or uncovered abstain episodes.",
+    )
     args = parser.parse_args()
     positive = {
         "overlap_radius_m": args.overlap_radius_m,
@@ -354,6 +395,7 @@ def main() -> int:
         max_map_frames=args.max_map_frames,
         map_stride=args.map_stride,
         m2dgr_max_time_diff_s=args.m2dgr_max_time_diff_s,
+        expected_behavior=args.expected_behavior,
     )
     print(json.dumps(manifest, sort_keys=True))
     return 0

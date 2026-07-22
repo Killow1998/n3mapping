@@ -121,6 +121,51 @@ def _verify_manifest(
         raise ValueError("episode_frames.csv hash does not match dataset_manifest.json")
     with frames_path.open(encoding="utf-8", newline="") as stream:
         rows = list(csv.DictReader(stream))
+    if "expected_behavior" in manifest:
+        expected_behavior = manifest["expected_behavior"]
+        if expected_behavior not in {"lock", "abstain"}:
+            raise ValueError(f"unsupported expected behavior: {expected_behavior}")
+        overlap_radius_m = float(manifest["overlap_radius_m"])
+        if not math.isfinite(overlap_radius_m) or overlap_radius_m <= 0.0:
+            raise ValueError("manifest overlap_radius_m must be finite and positive")
+
+        def positions(role: str) -> list[tuple[float, float, float]]:
+            result = []
+            for row in rows:
+                if row.get("role") != role:
+                    continue
+                try:
+                    position = tuple(float(row[axis]) for axis in ("x", "y", "z"))
+                except (KeyError, TypeError, ValueError) as error:
+                    raise ValueError(f"manifest row has invalid {role} position") from error
+                if not all(math.isfinite(value) for value in position):
+                    raise ValueError(f"manifest row has non-finite {role} position")
+                result.append(position)
+            return result
+
+        map_positions = positions("map")
+        query_positions = positions("query")
+        if not map_positions or not query_positions:
+            raise ValueError("manifest must contain map and query frames")
+        radius_sq = overlap_radius_m * overlap_radius_m
+        frozen_covered_count = sum(
+            any(
+                sum((query[axis] - mapped[axis]) ** 2 for axis in range(3))
+                <= radius_sq
+                for mapped in map_positions
+            )
+            for query in query_positions
+        )
+        declared_covered_count = manifest.get("frozen_covered_query_frame_count")
+        if (
+            declared_covered_count is not None
+            and int(declared_covered_count) != frozen_covered_count
+        ):
+            raise ValueError("manifest frozen coverage count does not match episode frames")
+        if expected_behavior == "lock" and frozen_covered_count != len(query_positions):
+            raise ValueError("lock manifest contains query frames outside frozen map coverage")
+        if expected_behavior == "abstain" and frozen_covered_count != 0:
+            raise ValueError("abstain manifest contains query frames covered by the frozen map")
     root = Path(manifest["root"])
     for role in ("map", "query"):
         gt_path = Path(manifest[f"{role}_gt_path"])
@@ -190,6 +235,14 @@ def classify_episode(metrics: dict[str, Any]) -> str:
     if int(metrics.get("correct_lock_count", 0)) > 0:
         return "correct_lock"
     return "no_lock"
+
+
+def classify_contract(outcome: str, expected_behavior: str) -> str:
+    if expected_behavior == "lock":
+        return "pass" if outcome == "correct_lock" else "fail"
+    if expected_behavior == "abstain":
+        return "pass" if outcome == "no_lock" else "fail"
+    raise ValueError(f"unsupported expected behavior: {expected_behavior}")
 
 
 def _finite(value: Any) -> float | None:
@@ -308,6 +361,9 @@ def run_benchmark(
         )
 
     episode_ids = sorted({row["episode_id"] for row in rows if row["role"] == "query"})
+    expected_behavior = manifest.get("expected_behavior", "lock")
+    if expected_behavior not in {"lock", "abstain"}:
+        raise ValueError(f"unsupported expected behavior: {expected_behavior}")
     episode_rows = []
     translation_errors = []
     yaw_errors = []
@@ -343,6 +399,7 @@ def run_benchmark(
         elapsed, _, _ = _run(command, episode_output)
         metrics = _read_json(episode_output / "metrics.json")
         outcome = classify_episode(metrics)
+        contract_outcome = classify_contract(outcome, expected_behavior)
         with (episode_output / "relocalization_queries.csv").open(
             encoding="utf-8", newline=""
         ) as stream:
@@ -360,6 +417,8 @@ def run_benchmark(
             {
                 "episode_id": episode_id,
                 "outcome": outcome,
+                "expected_behavior": expected_behavior,
+                "contract_outcome": contract_outcome,
                 "wall_seconds": elapsed,
                 "query_count": metrics.get("query_count", 0),
                 "correct_lock_count": metrics.get("correct_lock_count", 0),
@@ -378,6 +437,11 @@ def run_benchmark(
     correct = sum(row["outcome"] == "correct_lock" for row in episode_rows)
     false = sum(row["outcome"] == "false_lock" for row in episode_rows)
     no_lock = sum(row["outcome"] == "no_lock" for row in episode_rows)
+    contract_pass = sum(row["contract_outcome"] == "pass" for row in episode_rows)
+    unexpected_lock = sum(
+        expected_behavior == "abstain" and row["outcome"] != "no_lock"
+        for row in episode_rows
+    )
     summary = {
         "schema_version": 1,
         "dataset": dataset,
@@ -389,6 +453,11 @@ def run_benchmark(
         "correct_attempt_count": correct,
         "false_attempt_count": false,
         "no_lock_attempt_count": no_lock,
+        "expected_behavior": expected_behavior,
+        "contract_pass_count": contract_pass,
+        "contract_pass_rate": contract_pass / len(episode_rows),
+        "unexpected_lock_count": unexpected_lock,
+        "unexpected_lock_rate": unexpected_lock / len(episode_rows),
         "correct_attempt_rate": correct / len(episode_rows),
         "false_attempt_rate": false / len(episode_rows),
         "map_build_seconds": map_seconds,

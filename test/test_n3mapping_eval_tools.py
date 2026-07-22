@@ -29,6 +29,7 @@ from n3mapping_episode_benchmark import (  # noqa: E402
     _verify_hashed_output,
     _verify_benchmark_output,
     _verify_manifest,
+    classify_contract,
     classify_episode,
 )
 from n3mapping_episode_diagnose import diagnose_benchmark  # noqa: E402
@@ -649,6 +650,10 @@ class DatasetReadinessTest(unittest.TestCase):
             classify_episode({"correct_lock_count": 1, "false_lock_count": 1}),
             "false_lock",
         )
+        self.assertEqual(classify_contract("correct_lock", "lock"), "pass")
+        self.assertEqual(classify_contract("no_lock", "lock"), "fail")
+        self.assertEqual(classify_contract("no_lock", "abstain"), "pass")
+        self.assertEqual(classify_contract("correct_lock", "abstain"), "fail")
 
     def test_oracle_candidate_diagnosis_separates_main_and_motion_recall(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -851,7 +856,10 @@ class DatasetReadinessTest(unittest.TestCase):
                 m2dgr_max_time_diff_s=0.05,
             )
             self.assertTrue(manifest["map_query_disjoint"])
-            self.assertEqual(manifest["schema_version"], 2)
+            self.assertEqual(manifest["schema_version"], 3)
+            self.assertEqual(manifest["expected_behavior"], "lock")
+            self.assertEqual(manifest["source_covered_query_frame_count"], 10)
+            self.assertEqual(manifest["frozen_covered_query_frame_count"], 10)
             self.assertEqual(manifest["query_episode_count"], 2)
             self.assertEqual(manifest["query_frame_count"], 10)
             self.assertEqual(manifest["kitti360_calibration"]["mode"], "official")
@@ -873,6 +881,55 @@ class DatasetReadinessTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "calibration hash mismatch"):
                 _verify_manifest(output)
+
+    def test_freeze_uncovered_cross_drive_abstain_episodes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "KITTI360"
+            for sequence, offset in (("drive_map_sync", 0.0), ("drive_query_sync", 100.0)):
+                lidar_dir = root / "data_3d_raw" / sequence / "velodyne_points" / "data"
+                pose_dir = root / "data_poses" / sequence
+                lidar_dir.mkdir(parents=True)
+                pose_dir.mkdir(parents=True)
+                pose_lines = []
+                for frame_id in range(12):
+                    (lidar_dir / f"{frame_id:010d}.bin").write_bytes(
+                        frame_id.to_bytes(4, byteorder="little")
+                    )
+                    pose_lines.append(
+                        f"{frame_id} 1 0 0 {offset + frame_id} 0 1 0 0 0 0 1 0"
+                    )
+                (pose_dir / "poses.txt").write_text(
+                    "\n".join(pose_lines) + "\n", encoding="utf-8"
+                )
+            calibration_dir = root / "calibration"
+            calibration_dir.mkdir()
+            for name in ("calib_cam_to_pose.txt", "calib_cam_to_velo.txt"):
+                (calibration_dir / name).write_text(
+                    "1 0 0 0\n0 1 0 0\n0 0 1 0\n", encoding="utf-8"
+                )
+
+            manifest = freeze_episodes(
+                dataset="kitti360",
+                root=root,
+                map_sequence="drive_map_sync",
+                query_sequence="drive_query_sync",
+                output=Path(temporary) / "episodes",
+                overlap_radius_m=5.0,
+                map_context_radius_m=30.0,
+                query_episode_frames=4,
+                max_episodes=2,
+                max_map_frames=6,
+                map_stride=1,
+                m2dgr_max_time_diff_s=0.05,
+                expected_behavior="abstain",
+            )
+            self.assertEqual(manifest["expected_behavior"], "abstain")
+            self.assertEqual(manifest["spatial_relationship"], "uncovered_within_radius")
+            self.assertEqual(manifest["source_covered_query_frame_count"], 0)
+            self.assertEqual(manifest["frozen_covered_query_frame_count"], 0)
+            self.assertEqual(manifest["query_episode_count"], 2)
+            self.assertEqual(manifest["map_frame_count"], 6)
+            _verify_manifest(Path(temporary) / "episodes")
 
     def test_verify_kitti_manifest_requires_frozen_calibration_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
