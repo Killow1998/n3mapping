@@ -268,6 +268,7 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_episode_review_prepare.py
   ${N3MAPPING_ROOT}/tools/n3mapping_surface_overlap_audit.py
   ${N3MAPPING_ROOT}/tools/n3mapping_runtime_signal_audit.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_keyframe_surface_support_audit.py
   ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py
   ${N3MAPPING_ROOT}/tools/n3mapping_eval_validate.py
   ${N3MAPPING_ROOT}/tools/n3mapping_eval_compare.py
