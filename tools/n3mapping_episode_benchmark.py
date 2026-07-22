@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+"""Run a frozen relocalization manifest as independent map/query episodes."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import math
+import shlex
+import subprocess
+import time
+from pathlib import Path
+from typing import Any
+
+from n3mapping_dataset_readiness import sha256_file
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _verify_manifest(manifest_dir: Path) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    manifest_path = manifest_dir / "dataset_manifest.json"
+    frames_path = manifest_dir / "episode_frames.csv"
+    manifest = _read_json(manifest_path)
+    if sha256_file(frames_path) != manifest["episode_frames_sha256"]:
+        raise ValueError("episode_frames.csv hash does not match dataset_manifest.json")
+    with frames_path.open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    root = Path(manifest["root"])
+    for row in rows:
+        cloud = root / row["relative_cloud_path"]
+        if sha256_file(cloud) != row["cloud_sha256"]:
+            raise ValueError(f"point-cloud hash mismatch: {cloud}")
+    if not manifest.get("map_query_disjoint", False):
+        raise ValueError("manifest does not prove map/query disjointness")
+    return manifest, rows
+
+
+def _run(command: list[str], output_dir: Path) -> tuple[float, str, str]:
+    output_dir.mkdir(parents=True, exist_ok=False)
+    (output_dir / "command.txt").write_text(shlex.join(command) + "\n", encoding="utf-8")
+    start = time.monotonic()
+    process = subprocess.run(command, check=False, capture_output=True, text=True)
+    elapsed = time.monotonic() - start
+    (output_dir / "stdout.log").write_text(process.stdout, encoding="utf-8")
+    (output_dir / "stderr.log").write_text(process.stderr, encoding="utf-8")
+    if process.returncode != 0:
+        raise RuntimeError(
+            f"evaluator failed with code {process.returncode}: {shlex.join(command)}\n"
+            f"{process.stderr[-2000:]}"
+        )
+    return elapsed, process.stdout, process.stderr
+
+
+def classify_episode(metrics: dict[str, Any]) -> str:
+    if int(metrics.get("false_lock_count", 0)) > 0:
+        return "false_lock"
+    if int(metrics.get("correct_lock_count", 0)) > 0:
+        return "correct_lock"
+    return "no_lock"
+
+
+def _finite(value: Any) -> float | None:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if math.isfinite(parsed) else None
+
+
+def _percentile(values: list[float], q: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    index = q * (len(ordered) - 1)
+    low = math.floor(index)
+    high = math.ceil(index)
+    if low == high:
+        return ordered[low]
+    ratio = index - low
+    return ordered[low] * (1.0 - ratio) + ordered[high] * ratio
+
+
+def run_benchmark(
+    *,
+    evaluator: Path,
+    atlas_compiler: Path,
+    manifest_dir: Path,
+    output: Path,
+    fake_x_m: float,
+    fake_y_m: float,
+    fake_yaw_deg: float,
+    input_voxel_size_m: float,
+    m2dgr_max_time_diff_s: float | None,
+) -> dict[str, Any]:
+    if output.exists() and any(output.iterdir()):
+        raise ValueError(f"refusing to overwrite non-empty output: {output}")
+    manifest, rows = _verify_manifest(manifest_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    dataset = manifest["dataset"]
+    root = manifest["root"]
+    frame_manifest = manifest_dir / "episode_frames.csv"
+    effective_m2dgr_max_time_diff_s = m2dgr_max_time_diff_s
+    if dataset == "m2dgr":
+        frozen_tolerance = manifest.get("m2dgr_max_time_diff_s")
+        if frozen_tolerance is None and effective_m2dgr_max_time_diff_s is None:
+            raise ValueError(
+                "legacy M2DGR manifest has no m2dgr_max_time_diff_s; "
+                "provide --m2dgr-max-time-diff-s explicitly"
+            )
+        if frozen_tolerance is not None:
+            frozen_tolerance = float(frozen_tolerance)
+            if (
+                effective_m2dgr_max_time_diff_s is not None
+                and not math.isclose(
+                    effective_m2dgr_max_time_diff_s,
+                    frozen_tolerance,
+                    rel_tol=0.0,
+                    abs_tol=1e-12,
+                )
+            ):
+                raise ValueError(
+                    "--m2dgr-max-time-diff-s differs from the frozen manifest"
+                )
+            effective_m2dgr_max_time_diff_s = frozen_tolerance
+
+    map_output = output / "map"
+    if dataset == "kitti360":
+        map_command = [
+            str(evaluator), "--kitti_root", root,
+            "--sequence", manifest["map_sequence"],
+            "--mode", "mapping_loop",
+            "--frame_manifest", str(frame_manifest),
+            "--episode_id", "map",
+            "--input_voxel_size", str(input_voxel_size_m),
+            "--output", str(map_output),
+        ]
+    elif dataset == "m2dgr":
+        map_command = [
+            str(evaluator), "--m2dgr_root", root,
+            "--sequence", manifest["map_sequence"],
+            "--gt", manifest["map_gt_path"],
+            "--max_time_diff", str(effective_m2dgr_max_time_diff_s),
+            "--normalize_gt_origin",
+            "--mode", "mapping_loop",
+            "--frame_manifest", str(frame_manifest),
+            "--episode_id", "map",
+            "--input_voxel_size", str(input_voxel_size_m),
+            "--output", str(map_output),
+        ]
+    else:
+        raise ValueError(f"unsupported dataset: {dataset}")
+    map_seconds, _, _ = _run(map_command, map_output)
+    map_path = map_output / "n3map.pbstream"
+    if not map_path.is_file():
+        raise RuntimeError("mapping evaluator did not write n3map.pbstream")
+    atlas_path = map_path.with_name(map_path.name + ".localization_atlas.pb")
+    atlas_command = [
+        str(atlas_compiler), "--map", str(map_path), "--output", str(atlas_path)
+    ]
+    (map_output / "atlas_command.txt").write_text(
+        shlex.join(atlas_command) + "\n", encoding="utf-8"
+    )
+    atlas_process = subprocess.run(atlas_command, check=False, capture_output=True, text=True)
+    (map_output / "atlas_stdout.log").write_text(atlas_process.stdout, encoding="utf-8")
+    (map_output / "atlas_stderr.log").write_text(atlas_process.stderr, encoding="utf-8")
+    if atlas_process.returncode != 0 or not atlas_path.is_file():
+        raise RuntimeError(
+            f"Atlas compilation failed with code {atlas_process.returncode}: "
+            f"{atlas_process.stderr[-2000:]}"
+        )
+
+    episode_ids = sorted({row["episode_id"] for row in rows if row["role"] == "query"})
+    episode_rows = []
+    translation_errors = []
+    yaw_errors = []
+    for episode_id in episode_ids:
+        episode_output = output / "episodes" / episode_id
+        common = [
+            "--sequence", manifest["query_sequence"],
+            "--mode", "relocalization",
+            "--map", str(map_path),
+            "--atlas", str(atlas_path),
+            "--frame_manifest", str(frame_manifest),
+            "--episode_id", episode_id,
+            "--fake_x", str(fake_x_m),
+            "--fake_y", str(fake_y_m),
+            "--fake_yaw", str(fake_yaw_deg),
+            "--input_voxel_size", str(input_voxel_size_m),
+            "--output", str(episode_output),
+        ]
+        if dataset == "kitti360":
+            command = [str(evaluator), "--kitti_root", root, *common]
+        else:
+            command = [
+                str(evaluator), "--m2dgr_root", root,
+                "--gt", manifest["query_gt_path"],
+                "--max_time_diff", str(effective_m2dgr_max_time_diff_s),
+                "--normalize_gt_origin",
+                *common,
+            ]
+        elapsed, _, _ = _run(command, episode_output)
+        metrics = _read_json(episode_output / "metrics.json")
+        outcome = classify_episode(metrics)
+        with (episode_output / "relocalization_queries.csv").open(
+            encoding="utf-8", newline=""
+        ) as stream:
+            queries = list(csv.DictReader(stream))
+        for query in queries:
+            if query.get("lock", "").lower() != "true":
+                continue
+            translation = _finite(query.get("translation_error_m"))
+            yaw = _finite(query.get("yaw_error_deg"))
+            if translation is not None:
+                translation_errors.append(translation)
+            if yaw is not None:
+                yaw_errors.append(yaw)
+        episode_rows.append(
+            {
+                "episode_id": episode_id,
+                "outcome": outcome,
+                "wall_seconds": elapsed,
+                "query_count": metrics.get("query_count", 0),
+                "correct_lock_count": metrics.get("correct_lock_count", 0),
+                "false_lock_count": metrics.get("false_lock_count", 0),
+                "first_lock_frame": metrics.get("first_lock_frame", -1),
+                "pose_error_at_lock_p95_m": metrics.get("pose_error_at_lock_p95_m"),
+                "yaw_error_at_lock_p95_deg": metrics.get("yaw_error_at_lock_p95_deg"),
+            }
+        )
+
+    episodes_csv = output / "episodes.csv"
+    with episodes_csv.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(episode_rows[0]))
+        writer.writeheader()
+        writer.writerows(episode_rows)
+    correct = sum(row["outcome"] == "correct_lock" for row in episode_rows)
+    false = sum(row["outcome"] == "false_lock" for row in episode_rows)
+    no_lock = sum(row["outcome"] == "no_lock" for row in episode_rows)
+    summary = {
+        "schema_version": 1,
+        "dataset": dataset,
+        "evidence_class": manifest["evidence_class"],
+        "map_sequence": manifest["map_sequence"],
+        "query_sequence": manifest["query_sequence"],
+        "map_frame_count": manifest["map_frame_count"],
+        "attempt_count": len(episode_rows),
+        "correct_attempt_count": correct,
+        "false_attempt_count": false,
+        "no_lock_attempt_count": no_lock,
+        "correct_attempt_rate": correct / len(episode_rows),
+        "false_attempt_rate": false / len(episode_rows),
+        "map_build_seconds": map_seconds,
+        "episode_wall_seconds_p50": _percentile(
+            [float(row["wall_seconds"]) for row in episode_rows], 0.5
+        ),
+        "episode_wall_seconds_p95": _percentile(
+            [float(row["wall_seconds"]) for row in episode_rows], 0.95
+        ),
+        "translation_error_at_lock_p50_m": _percentile(translation_errors, 0.5),
+        "translation_error_at_lock_p95_m": _percentile(translation_errors, 0.95),
+        "yaw_error_at_lock_p50_deg": _percentile(yaw_errors, 0.5),
+        "yaw_error_at_lock_p95_deg": _percentile(yaw_errors, 0.95),
+        "fake_map_to_odom": {"x_m": fake_x_m, "y_m": fake_y_m, "yaw_deg": fake_yaw_deg},
+        "input_voxel_size_m": input_voxel_size_m,
+        "normalize_gt_origin": dataset == "m2dgr",
+        "m2dgr_max_time_diff_s": (
+            effective_m2dgr_max_time_diff_s if dataset == "m2dgr" else None
+        ),
+        "manifest_sha256": sha256_file(manifest_dir / "dataset_manifest.json"),
+        "map_sha256": sha256_file(map_path),
+        "atlas_sha256": sha256_file(atlas_path),
+        "atlas_enabled": True,
+        "formal_gate_ready": False,
+    }
+    (output / "summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return summary
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evaluator", type=Path, required=True)
+    parser.add_argument("--atlas-compiler", type=Path, required=True)
+    parser.add_argument("--manifest-dir", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--fake-x", type=float, default=20.0)
+    parser.add_argument("--fake-y", type=float, default=-15.0)
+    parser.add_argument("--fake-yaw", type=float, default=90.0)
+    parser.add_argument("--input-voxel-size", type=float, default=0.2)
+    parser.add_argument("--m2dgr-max-time-diff-s", type=float)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    summary = run_benchmark(
+        evaluator=args.evaluator,
+        atlas_compiler=args.atlas_compiler,
+        manifest_dir=args.manifest_dir,
+        output=args.output,
+        fake_x_m=args.fake_x,
+        fake_y_m=args.fake_y,
+        fake_yaw_deg=args.fake_yaw,
+        input_voxel_size_m=args.input_voxel_size,
+        m2dgr_max_time_diff_s=args.m2dgr_max_time_diff_s,
+    )
+    print(json.dumps(summary, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

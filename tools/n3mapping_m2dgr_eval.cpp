@@ -27,6 +27,8 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/cloud_utils.h"
+#include "eval_episode_manifest.h"
 
 namespace fs = std::filesystem;
 
@@ -43,6 +45,9 @@ struct Options {
     std::string mode;
     fs::path output_dir;
     fs::path map_path;
+    fs::path frame_manifest;
+    fs::path atlas_path;
+    std::string episode_id;
     int64_t max_frames = -1;
     int64_t start_index = 0;
     int stride = 1;
@@ -51,8 +56,12 @@ struct Options {
     double dropout = 0.0;
     double noise_sigma = 0.0;
     double fake_yaw_deg = 0.0;
+    double fake_x_m = 0.0;
+    double fake_y_m = 0.0;
     double pose_translation_threshold_m = 1.0;
     double pose_yaw_threshold_deg = 10.0;
+    double input_voxel_size_m = 0.0;
+    bool normalize_gt_origin = false;
 };
 
 struct LidarRecord {
@@ -81,8 +90,64 @@ struct AlignmentStats {
     size_t selected_count = 0;
     size_t dropped_lidar_count = 0;
     size_t dropped_gt_count = 0;
+    std::string gt_position_frame = "source";
     std::vector<double> time_diffs_s;
 };
+
+Eigen::Matrix3d ecefToEnuRotation(const Eigen::Vector3d& origin_ecef)
+{
+    constexpr double kWgs84A = 6378137.0;
+    constexpr double kWgs84E2 = 6.69437999014e-3;
+    const double x = origin_ecef.x();
+    const double y = origin_ecef.y();
+    const double z = origin_ecef.z();
+    const double longitude = std::atan2(y, x);
+    const double horizontal = std::hypot(x, y);
+    double latitude = std::atan2(z, horizontal * (1.0 - kWgs84E2));
+    for (int iteration = 0; iteration < 8; ++iteration) {
+        const double sin_latitude = std::sin(latitude);
+        const double prime_vertical =
+            kWgs84A /
+            std::sqrt(1.0 - kWgs84E2 * sin_latitude * sin_latitude);
+        const double height = horizontal / std::cos(latitude) - prime_vertical;
+        latitude = std::atan2(
+            z,
+            horizontal *
+                (1.0 - kWgs84E2 * prime_vertical /
+                           (prime_vertical + height)));
+    }
+    const double sin_lon = std::sin(longitude);
+    const double cos_lon = std::cos(longitude);
+    const double sin_lat = std::sin(latitude);
+    const double cos_lat = std::cos(latitude);
+    Eigen::Matrix3d rotation;
+    rotation << -sin_lon, cos_lon, 0.0,
+        -sin_lat * cos_lon, -sin_lat * sin_lon, cos_lat,
+        cos_lat * cos_lon, cos_lat * sin_lon, sin_lat;
+    return rotation;
+}
+
+std::string normalizeGroundTruthToFirstPose(std::vector<PoseRecord>* poses)
+{
+    if (!poses || poses->empty()) return "source";
+    const Eigen::Vector3d source_origin =
+        poses->front().T_world_lidar.translation();
+    const bool ecef_position = source_origin.norm() > 1.0e6;
+    if (ecef_position) {
+        const Eigen::Matrix3d R_enu_ecef = ecefToEnuRotation(source_origin);
+        for (auto& pose : *poses) {
+            pose.T_world_lidar.translation() =
+                R_enu_ecef *
+                (pose.T_world_lidar.translation() - source_origin);
+        }
+    }
+    const Eigen::Isometry3d T_local_world =
+        poses->front().T_world_lidar.inverse();
+    for (auto& pose : *poses) {
+        pose.T_world_lidar = T_local_world * pose.T_world_lidar;
+    }
+    return ecef_position ? "ecef_to_enu_first_pose" : "first_pose";
+}
 
 struct MappingStats {
     size_t frames_processed = 0;
@@ -101,6 +166,7 @@ struct RelocResult {
     bool pose_success = false;
     bool lock_correct = false;
     bool false_lock = false;
+    std::string relocalization_decision = "not_attempted";
     int lock_latency_frames = -1;
     int64_t matched_keyframe_id = -1;
     double translation_error_m = std::numeric_limits<double>::quiet_NaN();
@@ -193,13 +259,20 @@ void printUsage(std::ostream& os)
        << "  --stride <N>                     Use every Nth aligned frame. Default: 1.\n"
        << "  --max_time_diff <S>              Max lidar/GT timestamp difference. Default: 0.05.\n"
        << "  --map <n3map.pbstream>           Existing map for relocalization mode.\n"
+       << "  --frame_manifest <csv>           Frozen episode_frames.csv selector.\n"
+       << "  --episode_id <id>                Manifest episode to run (map or query_NNN).\n"
+       << "  --atlas <path>                   Enable and load a map-bound localization Atlas.\n"
        << "  --build_map_frames <N>           Build temporary map from first N frames when --map is absent.\n"
        << "  --dropout <R>                    Query point dropout ratio for relocalization [0,0.95].\n"
        << "  --noise <M>                      Query XYZ Gaussian noise sigma in meters.\n"
        << "  --fake_yaw <DEG>                 Fake map->odom yaw for relocalization.\n"
+       << "  --fake_x <M>                     Fake map->odom X translation. Default: 0.\n"
+       << "  --fake_y <M>                     Fake map->odom Y translation. Default: 0.\n"
        << "  --fake_yaw_deg <DEG>             Alias for --fake_yaw.\n"
        << "  --pose_translation_threshold <M> Pose success translation threshold. Default: 1.\n"
        << "  --pose_yaw_threshold_deg <DEG>   Pose success yaw threshold. Default: 10.\n"
+       << "  --input_voxel_size <M>           Symmetric map/query input voxel; 0 disables.\n"
+       << "  --normalize_gt_origin            Express every GT pose in the first-pose local frame.\n"
        << "  --help                           Show this help.\n";
 }
 
@@ -259,6 +332,12 @@ Options parseArgs(int argc, char** argv)
             options.max_time_diff = parseDouble(requireValue(arg), arg);
         } else if (arg == "--map") {
             options.map_path = requireValue(arg);
+        } else if (arg == "--frame_manifest") {
+            options.frame_manifest = requireValue(arg);
+        } else if (arg == "--episode_id") {
+            options.episode_id = requireValue(arg);
+        } else if (arg == "--atlas") {
+            options.atlas_path = requireValue(arg);
         } else if (arg == "--build_map_frames") {
             options.build_map_frames = static_cast<int>(parseInt64(requireValue(arg), arg));
         } else if (arg == "--dropout") {
@@ -267,10 +346,18 @@ Options parseArgs(int argc, char** argv)
             options.noise_sigma = parseDouble(requireValue(arg), arg);
         } else if (arg == "--fake_yaw" || arg == "--fake_yaw_deg") {
             options.fake_yaw_deg = parseDouble(requireValue(arg), arg);
+        } else if (arg == "--fake_x") {
+            options.fake_x_m = parseDouble(requireValue(arg), arg);
+        } else if (arg == "--fake_y") {
+            options.fake_y_m = parseDouble(requireValue(arg), arg);
         } else if (arg == "--pose_translation_threshold") {
             options.pose_translation_threshold_m = parseDouble(requireValue(arg), arg);
         } else if (arg == "--pose_yaw_threshold_deg") {
             options.pose_yaw_threshold_deg = parseDouble(requireValue(arg), arg);
+        } else if (arg == "--input_voxel_size") {
+            options.input_voxel_size_m = parseDouble(requireValue(arg), arg);
+        } else if (arg == "--normalize_gt_origin") {
+            options.normalize_gt_origin = true;
         } else if (arg == "--help" || arg == "-h") {
             printUsage(std::cout);
             std::exit(0);
@@ -311,6 +398,21 @@ Options parseArgs(int argc, char** argv)
     }
     if (options.noise_sigma < 0.0) {
         throw std::runtime_error("--noise must be non-negative");
+    }
+    if (options.input_voxel_size_m < 0.0) {
+        throw std::runtime_error("--input_voxel_size must be non-negative");
+    }
+    if (options.frame_manifest.empty() != options.episode_id.empty()) {
+        throw std::runtime_error("--frame_manifest and --episode_id must be provided together");
+    }
+    if (!options.frame_manifest.empty() &&
+        (options.start_index != 0 || options.stride != 1 || options.max_frames != -1)) {
+        throw std::runtime_error(
+            "manifest selection cannot be combined with --start_index/--stride/--max_frames");
+    }
+    if (!options.frame_manifest.empty() && options.mode == "relocalization" &&
+        options.map_path.empty()) {
+        throw std::runtime_error("manifest relocalization requires an explicit --map");
     }
     return options;
 }
@@ -505,6 +607,11 @@ std::vector<M2DGRFrame> alignFrames(const std::vector<LidarRecord>& lidar,
     size_t pose_index = 0;
     int64_t accepted_count = 0;
     int64_t selected_index = 0;
+    const auto manifest_tokens = eval::loadEpisodeFrameTokens(
+        options.frame_manifest,
+        options.episode_id,
+        options.mode == "mapping_loop" ? "map" : "query");
+    size_t manifest_match_count = 0;
     for (const auto& record : lidar) {
         while (pose_index + 1 < poses.size() &&
                std::abs(poses[pose_index + 1].stamp - record.stamp) <=
@@ -518,6 +625,11 @@ std::vector<M2DGRFrame> alignFrames(const std::vector<LidarRecord>& lidar,
             alignment->time_diffs_s.push_back(diff);
             matched_pose_indices.insert(pose_index);
         }
+        const std::string frame_token = record.path.stem().string();
+        if (!manifest_tokens.empty() && manifest_tokens.count(frame_token) == 0) {
+            continue;
+        }
+        if (!manifest_tokens.empty()) ++manifest_match_count;
         if (accepted_count % options.stride == 0 &&
             (options.max_frames < 0 ||
              static_cast<int64_t>(aligned.size()) < options.max_frames)) {
@@ -540,6 +652,9 @@ std::vector<M2DGRFrame> alignFrames(const std::vector<LidarRecord>& lidar,
         alignment->selected_count = aligned.size();
         alignment->dropped_lidar_count = alignment->input_lidar_count - alignment->matched_count;
         alignment->dropped_gt_count = alignment->input_gt_count - matched_pose_indices.size();
+    }
+    if (!manifest_tokens.empty() && manifest_match_count != manifest_tokens.size()) {
+        throw std::runtime_error("episode manifest references M2DGR frames absent from lidar/GT alignment");
     }
     if (aligned.empty()) {
         throw std::runtime_error("no lidar/GT frames aligned; try increasing --max_time_diff");
@@ -611,6 +726,17 @@ Cloud::Ptr readCloud(const fs::path& path)
     return cloud;
 }
 
+Cloud::Ptr readEvalCloud(const fs::path& path, double voxel_size_m)
+{
+    auto cloud = readCloud(path);
+    if (voxel_size_m <= 1e-6 || cloud->empty()) return cloud;
+    Cloud::Ptr filtered;
+    if (!safeVoxelGridFilter<pcl::PointXYZI>(cloud, voxel_size_m, &filtered) || !filtered) {
+        throw std::runtime_error("failed to voxelize M2DGR evaluator input: " + path.string());
+    }
+    return filtered;
+}
+
 core::LioFrame makeFrame(const M2DGRFrame& frame,
                          const Eigen::Isometry3d& pose,
                          const Cloud::Ptr& cloud)
@@ -623,9 +749,10 @@ core::LioFrame makeFrame(const M2DGRFrame& frame,
     return out;
 }
 
-Eigen::Isometry3d fakeMapToOdom(double fake_yaw_deg)
+Eigen::Isometry3d fakeMapToOdom(double fake_x_m, double fake_y_m, double fake_yaw_deg)
 {
     Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
+    T.translation() = Eigen::Vector3d(fake_x_m, fake_y_m, 0.0);
     T.linear() = Eigen::AngleAxisd(fake_yaw_deg * M_PI / 180.0, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     return T;
 }
@@ -676,6 +803,8 @@ void writeJsonDoubleOrNull(std::ostream& out, double value)
 void writeAlignmentMetricsJson(std::ostream& out, const AlignmentStats& alignment)
 {
     out << "  \"odom_source\": \"gt\",\n"
+        << "  \"gt_position_frame\": \"" << alignment.gt_position_frame
+        << "\",\n"
         << "  \"alignment_input_lidar_count\": " << alignment.input_lidar_count << ",\n"
         << "  \"alignment_input_gt_count\": " << alignment.input_gt_count << ",\n"
         << "  \"alignment_matched_count\": " << alignment.matched_count << ",\n"
@@ -854,6 +983,8 @@ Config makeEvalConfig(const Options& options)
     config.loop_debug_path = (options.output_dir / "loop_debug.jsonl").string();
     config.reloc_debug_enable = options.mode == "relocalization";
     config.reloc_debug_path = (options.output_dir / "relocalization_debug.jsonl").string();
+    config.reloc_atlas_enable = !options.atlas_path.empty();
+    config.reloc_atlas_path = options.atlas_path.string();
     return config;
 }
 
@@ -901,7 +1032,7 @@ bool buildTemporaryMap(const Options& options,
 
     for (int i = 0; i < build_count; ++i) {
         const auto& frame = frames[static_cast<size_t>(i)];
-        auto cloud = readCloud(frame.cloud_path);
+        auto cloud = readEvalCloud(frame.cloud_path, options.input_voxel_size_m);
         mapper.processMappingFrame(makeFrame(frame, frame.T_world_lidar, cloud));
         mapper.processPendingLoopClosures();
     }
@@ -923,9 +1054,8 @@ std::string classifyRelocalizationResult(const RelocResult& result)
 {
     if (result.lock_correct) return "correct_lock";
     if (result.false_lock) return "false_lock";
-    if (!result.success) return "no_candidate";
-    if (result.pose_success) return "temporal_guard_reject";
-    return result.matched_keyframe_id >= 0 ? "icp_bad" : "wrong_basin";
+    if (result.success) return result.pose_success ? "tracking_correct" : "tracking_wrong";
+    return result.relocalization_decision;
 }
 
 int runMappingLoop(const Options& options,
@@ -951,7 +1081,7 @@ int runMappingLoop(const Options& options,
     for (size_t i = 0; i < frames.size(); ++i) {
         const auto& frame = frames[i];
         progress.write(i, frame.lidar_stamp, "read_cloud_start");
-        auto cloud = readCloud(frame.cloud_path);
+        auto cloud = readEvalCloud(frame.cloud_path, options.input_voxel_size_m);
         progress.write(i, frame.lidar_stamp, "read_cloud_done");
         progress.write(i, frame.lidar_stamp, "process_mapping_start");
         const auto output = core.processMappingFrame(makeFrame(frame, frame.T_world_lidar, cloud));
@@ -1001,6 +1131,10 @@ int runMappingLoop(const Options& options,
     }
     accepted_loops.flush();
 
+    const fs::path saved_map_path = options.output_dir / "n3map.pbstream";
+    if (!core.saveMap(saved_map_path.string())) {
+        throw std::runtime_error("failed to save M2DGR mapping map: " + saved_map_path.string());
+    }
     const auto dense = core.getDenseOptimizedTrajectory();
     std::ofstream metrics(options.output_dir / "metrics.json");
     metrics << "{\n"
@@ -1014,6 +1148,11 @@ int runMappingLoop(const Options& options,
             << "  \"graph_edge_count\": " << stats.graph_edges << ",\n"
             << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
             << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
+            << "  \"map_path\": \"" << jsonEscape(saved_map_path.string()) << "\",\n"
+            << "  \"frame_manifest\": \"" << jsonEscape(options.frame_manifest.string()) << "\",\n"
+            << "  \"episode_id\": \"" << jsonEscape(options.episode_id) << "\",\n"
+            << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n"
+            << "  \"normalize_gt_origin\": " << (options.normalize_gt_origin ? "true" : "false") << ",\n"
             << "  \"stride\": " << options.stride << ",\n"
             << "  \"start_index\": " << options.start_index << ",\n"
             << "  \"max_time_diff\": " << options.max_time_diff << ",\n"
@@ -1059,12 +1198,13 @@ int runRelocalization(const Options& options,
         throw std::runtime_error("failed to load relocalization map: " + map_path.string());
     }
 
-    const Eigen::Isometry3d T_map_odom = fakeMapToOdom(options.fake_yaw_deg);
+    const Eigen::Isometry3d T_map_odom =
+        fakeMapToOdom(options.fake_x_m, options.fake_y_m, options.fake_yaw_deg);
     std::vector<RelocResult> results;
     const size_t start = map_path == options.map_path ? 0U : static_cast<size_t>(build_count);
     for (size_t i = start; i < frames.size(); ++i) {
         const auto& frame = frames[i];
-        auto source_cloud = readCloud(frame.cloud_path);
+        auto source_cloud = readEvalCloud(frame.cloud_path, options.input_voxel_size_m);
         auto query_cloud = makeQueryCloud(source_cloud, options, i);
         RelocResult result;
         result.frame_index = i;
@@ -1073,6 +1213,7 @@ int runRelocalization(const Options& options,
         const auto output = core.processLocalizationFrame(makeFrame(frame, T_odom_lidar, query_cloud));
         result.success = output.success;
         result.lock = output.relocalization_locked;
+        result.relocalization_decision = output.relocalization_decision;
         result.matched_keyframe_id = output.matched_keyframe_id;
         const Eigen::Vector3d dt = output.T_world_lidar.translation() - frame.T_world_lidar.translation();
         result.translation_error_m = dt.norm();
@@ -1158,6 +1299,13 @@ int runRelocalization(const Options& options,
             << "  \"dropout\": " << options.dropout << ",\n"
             << "  \"noise_sigma\": " << options.noise_sigma << ",\n"
             << "  \"fake_yaw_deg\": " << options.fake_yaw_deg << ",\n"
+            << "  \"fake_x_m\": " << options.fake_x_m << ",\n"
+            << "  \"fake_y_m\": " << options.fake_y_m << ",\n"
+            << "  \"frame_manifest\": \"" << jsonEscape(options.frame_manifest.string()) << "\",\n"
+            << "  \"episode_id\": \"" << jsonEscape(options.episode_id) << "\",\n"
+            << "  \"atlas_path\": \"" << jsonEscape(options.atlas_path.string()) << "\",\n"
+            << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n"
+            << "  \"normalize_gt_origin\": " << (options.normalize_gt_origin ? "true" : "false") << ",\n"
             << "  \"max_time_diff\": " << options.max_time_diff << ",\n";
     writeAlignmentMetricsJson(metrics, alignment);
     metrics
@@ -1194,8 +1342,13 @@ int run(const Options& options)
     const auto lidar_dir = resolveLidarDir(options);
     const auto gt_path = resolveGtPath(options);
     const auto lidar = listLidarRecords(lidar_dir);
-    const auto poses = readTumGroundTruth(gt_path);
+    auto poses = readTumGroundTruth(gt_path);
+    std::string gt_position_frame = "source";
+    if (options.normalize_gt_origin && !poses.empty()) {
+        gt_position_frame = normalizeGroundTruthToFirstPose(&poses);
+    }
     AlignmentStats alignment;
+    alignment.gt_position_frame = gt_position_frame;
     const auto frames = alignFrames(lidar, poses, options, &alignment);
     if (options.mode == "mapping_loop") {
         return runMappingLoop(options, frames, alignment);

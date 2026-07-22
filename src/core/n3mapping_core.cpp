@@ -860,6 +860,7 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   Eigen::Isometry3d pose_map = frame.T_world_lidar;
   bool success = false;
   bool relocalization_locked = false;
+  std::string relocalization_decision = "not_attempted";
   int64_t seed_keyframe_id = -1;
   int64_t support_keyframe_id = -1;
   int64_t matched_keyframe_id = -1;
@@ -871,6 +872,7 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
     if (result.success) {
       pose_map = result.pose_in_map;
       success = true;
+      relocalization_decision = "tracking";
       seed_keyframe_id = result.seed_keyframe_id;
       support_keyframe_id = result.support_keyframe_id;
       matched_keyframe_id = result.matched_keyframe_id;
@@ -880,6 +882,7 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   if (!localizer.isRelocalized() || !success) {
     auto result =
         localizer.relocalize(frame.undistorted_cloud, frame.T_world_lidar);
+    relocalization_decision = result.decision;
     if (result.success) {
       pose_map = result.pose_in_map;
       success = true;
@@ -896,6 +899,7 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
 
   auto output = makeOutput(success, pose_map, frame.undistorted_cloud);
   output.relocalization_locked = relocalization_locked;
+  output.relocalization_decision = relocalization_decision;
   output.relocalization_seed_keyframe_id = seed_keyframe_id;
   output.relocalization_support_keyframe_id = support_keyframe_id;
   output.matched_keyframe_id = matched_keyframe_id;

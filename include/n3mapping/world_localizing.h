@@ -6,6 +6,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include <Eigen/Core>
@@ -25,6 +26,10 @@ namespace n3mapping {
 
 struct RelocResult {
   bool success = false;
+  // Machine-readable terminal or pending decision for this relocalize() call.
+  // Examples: no_candidates, temporal_window_pending, log_likelihood,
+  // accepted. This is evidence output; it does not participate in decisions.
+  std::string decision = "not_attempted";
   int64_t seed_keyframe_id = -1;
   int64_t support_keyframe_id = -1;
   // Legacy alias for support_keyframe_id.

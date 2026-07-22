@@ -26,6 +26,8 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/cloud_utils.h"
+#include "eval_episode_manifest.h"
 
 namespace fs = std::filesystem;
 
@@ -41,6 +43,9 @@ struct Options {
     std::string calib_mode = "auto";
     fs::path output_dir;
     fs::path map_path;
+    fs::path frame_manifest;
+    fs::path atlas_path;
+    std::string episode_id;
     int64_t max_frames = -1;
     int64_t start_index = 0;
     int stride = 1;
@@ -48,8 +53,11 @@ struct Options {
     double dropout = 0.0;
     double noise_sigma = 0.0;
     double fake_yaw_deg = 0.0;
+    double fake_x_m = 0.0;
+    double fake_y_m = 0.0;
     double pose_translation_threshold_m = 1.0;
     double pose_yaw_threshold_deg = 10.0;
+    double input_voxel_size_m = 0.0;
 };
 
 struct PoseRecord {
@@ -122,6 +130,7 @@ struct RelocResult {
     bool pose_success = false;
     bool lock_correct = false;
     bool false_lock = false;
+    std::string relocalization_decision = "not_attempted";
     int lock_latency_frames = -1;
     int64_t matched_keyframe_id = -1;
     double translation_error_m = std::numeric_limits<double>::quiet_NaN();
@@ -211,13 +220,19 @@ void printUsage(std::ostream& os)
        << "  --calib_mode auto|cam_to_velo|velo_to_cam\n"
        << "                                   KITTI360 calibration direction. Default: auto.\n"
        << "  --map <n3map.pbstream>           Existing map for relocalization mode.\n"
+       << "  --frame_manifest <csv>           Frozen episode_frames.csv selector.\n"
+       << "  --episode_id <id>                Manifest episode to run (map or query_NNN).\n"
+       << "  --atlas <path>                   Enable and load a map-bound localization Atlas.\n"
        << "  --build_map_frames <N>           Build a temporary map from first N selected frames when --map is absent.\n"
        << "  --dropout <R>                    Query point dropout ratio for relocalization [0,0.95]. Default: 0.\n"
        << "  --noise <M>                      Query XYZ Gaussian noise sigma in meters. Default: 0.\n"
        << "  --fake_yaw <DEG>                 Fake map->odom yaw for relocalization. Default: 0.\n"
+       << "  --fake_x <M>                     Fake map->odom X translation. Default: 0.\n"
+       << "  --fake_y <M>                     Fake map->odom Y translation. Default: 0.\n"
        << "  --fake_yaw_deg <DEG>             Alias for --fake_yaw.\n"
        << "  --pose_translation_threshold <M> Pose success translation threshold. Default: 1.\n"
        << "  --pose_yaw_threshold_deg <DEG>   Pose success yaw threshold. Default: 10.\n"
+       << "  --input_voxel_size <M>           Symmetric map/query input voxel; 0 disables.\n"
        << "  --help                           Show this help.\n";
 }
 
@@ -273,6 +288,12 @@ Options parseArgs(int argc, char** argv)
             options.stride = std::max<int>(1, static_cast<int>(parseInt64(requireValue(arg), arg)));
         } else if (arg == "--map") {
             options.map_path = requireValue(arg);
+        } else if (arg == "--frame_manifest") {
+            options.frame_manifest = requireValue(arg);
+        } else if (arg == "--episode_id") {
+            options.episode_id = requireValue(arg);
+        } else if (arg == "--atlas") {
+            options.atlas_path = requireValue(arg);
         } else if (arg == "--build_map_frames") {
             options.build_map_frames = std::max<int>(0, static_cast<int>(parseInt64(requireValue(arg), arg)));
         } else if (arg == "--dropout") {
@@ -281,10 +302,16 @@ Options parseArgs(int argc, char** argv)
             options.noise_sigma = std::max(0.0, parseDouble(requireValue(arg), arg));
         } else if (arg == "--fake_yaw" || arg == "--fake_yaw_deg") {
             options.fake_yaw_deg = parseDouble(requireValue(arg), arg);
+        } else if (arg == "--fake_x") {
+            options.fake_x_m = parseDouble(requireValue(arg), arg);
+        } else if (arg == "--fake_y") {
+            options.fake_y_m = parseDouble(requireValue(arg), arg);
         } else if (arg == "--pose_translation_threshold") {
             options.pose_translation_threshold_m = std::max(0.0, parseDouble(requireValue(arg), arg));
         } else if (arg == "--pose_yaw_threshold_deg") {
             options.pose_yaw_threshold_deg = std::max(0.0, parseDouble(requireValue(arg), arg));
+        } else if (arg == "--input_voxel_size") {
+            options.input_voxel_size_m = std::max(0.0, parseDouble(requireValue(arg), arg));
         } else if (arg == "--help" || arg == "-h") {
             printUsage(std::cout);
             std::exit(0);
@@ -306,6 +333,18 @@ Options parseArgs(int argc, char** argv)
     }
     if (options.max_frames < -1) throw std::runtime_error("--max_frames must be non-negative");
     if (options.start_index < 0) throw std::runtime_error("--start_index must be non-negative");
+    if (options.frame_manifest.empty() != options.episode_id.empty()) {
+        throw std::runtime_error("--frame_manifest and --episode_id must be provided together");
+    }
+    if (!options.frame_manifest.empty() &&
+        (options.start_index != 0 || options.stride != 1 || options.max_frames != -1)) {
+        throw std::runtime_error(
+            "manifest selection cannot be combined with --start_index/--stride/--max_frames");
+    }
+    if (!options.frame_manifest.empty() && options.mode == "relocalization" &&
+        options.map_path.empty()) {
+        throw std::runtime_error("manifest relocalization requires an explicit --map");
+    }
     return options;
 }
 
@@ -478,11 +517,21 @@ AlignedFrames loadAlignedFrames(const Options& options)
     aligned.alignment.dropped_gt_count =
         aligned.alignment.input_gt_count - matched_pose_ids.size();
 
+    const auto manifest_tokens = eval::loadEpisodeFrameTokens(
+        options.frame_manifest,
+        options.episode_id,
+        options.mode == "mapping_loop" ? "map" : "query");
+    size_t manifest_match_count = 0;
+
     int stride_count = 0;
     int64_t selected_index = 0;
     for (const auto& [frame_id, bin_path] : lidar_bins) {
         auto pose_it = poses.find(frame_id);
         if (pose_it == poses.end()) continue;
+        if (!manifest_tokens.empty() && manifest_tokens.count(std::to_string(frame_id)) == 0) {
+            continue;
+        }
+        if (!manifest_tokens.empty()) ++manifest_match_count;
         if ((stride_count++ % options.stride) != 0) continue;
         if (selected_index++ < options.start_index) continue;
         KittiFrame frame;
@@ -495,6 +544,9 @@ AlignedFrames loadAlignedFrames(const Options& options)
         }
     }
     aligned.alignment.selected_count = aligned.frames.size();
+    if (!manifest_tokens.empty() && manifest_match_count != manifest_tokens.size()) {
+        throw std::runtime_error("episode manifest references KITTI360 frames absent from lidar/GT intersection");
+    }
     if (aligned.frames.empty()) {
         throw std::runtime_error("no common KITTI360 lidar/pose frame ids selected");
     }
@@ -549,6 +601,17 @@ Cloud::Ptr readKittiBinCloud(const fs::path& path)
     cloud->height = 1;
     cloud->is_dense = false;
     return cloud;
+}
+
+Cloud::Ptr readEvalCloud(const fs::path& path, double voxel_size_m)
+{
+    auto cloud = readKittiBinCloud(path);
+    if (voxel_size_m <= 1e-6 || cloud->empty()) return cloud;
+    Cloud::Ptr filtered;
+    if (!safeVoxelGridFilter<pcl::PointXYZI>(cloud, voxel_size_m, &filtered) || !filtered) {
+        throw std::runtime_error("failed to voxelize KITTI360 evaluator input: " + path.string());
+    }
+    return filtered;
 }
 
 void updateRange(Range3* range, double x, double y, double z)
@@ -754,6 +817,8 @@ Config makeEvalConfig(const Options& options)
     config.loop_debug_path = (options.output_dir / "loop_debug.jsonl").string();
     config.reloc_debug_enable = options.mode == "relocalization";
     config.reloc_debug_path = (options.output_dir / "relocalization_debug.jsonl").string();
+    config.reloc_atlas_enable = !options.atlas_path.empty();
+    config.reloc_atlas_path = options.atlas_path.string();
     return config;
 }
 
@@ -922,7 +987,7 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
     for (size_t frame_index = 0; frame_index < frames.size(); ++frame_index) {
         const auto& frame = frames[frame_index];
         progress.write(frame_index, frame.frame_id, "read_cloud_start");
-        auto cloud = readKittiBinCloud(frame.lidar_bin);
+        auto cloud = readEvalCloud(frame.lidar_bin, options.input_voxel_size_m);
         progress.write(frame_index, frame.frame_id, "read_cloud_done");
         progress.write(frame_index, frame.frame_id, "process_mapping_start");
         auto output = core.processMappingFrame(makeFrame(frame, frame.T_world_lidar, cloud));
@@ -997,6 +1062,10 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
                    static_cast<size_t>(final_loop_result.edge_count),
                    final_loop_result.accepted_loops.size());
 
+    const fs::path saved_map_path = options.output_dir / "n3map.pbstream";
+    if (!core.saveMap(saved_map_path.string())) {
+        throw std::runtime_error("failed to save KITTI360 mapping map: " + saved_map_path.string());
+    }
     const auto dense = core.getDenseOptimizedTrajectory();
     std::ofstream metrics(options.output_dir / "metrics.json");
     metrics << "{\n"
@@ -1009,6 +1078,10 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
             << "  \"graph_edge_count\": " << stats.graph_edges << ",\n"
             << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
             << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
+            << "  \"map_path\": \"" << jsonEscape(saved_map_path.string()) << "\",\n"
+            << "  \"frame_manifest\": \"" << jsonEscape(options.frame_manifest.string()) << "\",\n"
+            << "  \"episode_id\": \"" << jsonEscape(options.episode_id) << "\",\n"
+            << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n"
             << "  \"stride\": " << options.stride << ",\n";
     metrics << "  \"start_index\": " << options.start_index << ",\n";
     writeAlignmentMetricsJson(metrics, aligned.alignment);
@@ -1022,9 +1095,10 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
     return 0;
 }
 
-Eigen::Isometry3d fakeMapToOdom(double fake_yaw_deg)
+Eigen::Isometry3d fakeMapToOdom(double fake_x_m, double fake_y_m, double fake_yaw_deg)
 {
     Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
+    T.translation() = Eigen::Vector3d(fake_x_m, fake_y_m, 0.0);
     T.linear() = Eigen::AngleAxisd(fake_yaw_deg * M_PI / 180.0, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     return T;
 }
@@ -1044,7 +1118,7 @@ bool buildTemporaryMap(const Options& options,
 
     for (int i = 0; i < build_count; ++i) {
         const auto& frame = frames[static_cast<size_t>(i)];
-        auto cloud = readKittiBinCloud(frame.lidar_bin);
+        auto cloud = readEvalCloud(frame.lidar_bin, options.input_voxel_size_m);
         mapper.processMappingFrame(makeFrame(frame, frame.T_world_lidar, cloud));
         mapper.processPendingLoopClosures();
     }
@@ -1066,9 +1140,8 @@ std::string classifyRelocalizationResult(const RelocResult& result)
 {
     if (result.lock_correct) return "correct_lock";
     if (result.false_lock) return "false_lock";
-    if (!result.success) return "no_candidate";
-    if (result.pose_success) return "temporal_guard_reject";
-    return result.matched_keyframe_id >= 0 ? "icp_bad" : "wrong_basin";
+    if (result.success) return result.pose_success ? "tracking_correct" : "tracking_wrong";
+    return result.relocalization_decision;
 }
 
 int runRelocalization(const Options& options, const AlignedFrames& aligned)
@@ -1102,12 +1175,13 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
         throw std::runtime_error("failed to load relocalization map: " + map_path.string());
     }
 
-    const Eigen::Isometry3d T_map_odom = fakeMapToOdom(options.fake_yaw_deg);
+    const Eigen::Isometry3d T_map_odom =
+        fakeMapToOdom(options.fake_x_m, options.fake_y_m, options.fake_yaw_deg);
     std::vector<RelocResult> results;
     results.reserve(frames.size() - static_cast<size_t>(query_start));
     for (size_t i = static_cast<size_t>(query_start); i < frames.size(); ++i) {
         const auto& frame = frames[i];
-        auto cloud = perturbCloud(readKittiBinCloud(frame.lidar_bin),
+        auto cloud = perturbCloud(readEvalCloud(frame.lidar_bin, options.input_voxel_size_m),
                                   options.dropout,
                                   options.noise_sigma,
                                   static_cast<uint32_t>(frame.frame_id));
@@ -1117,6 +1191,7 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
         result.frame_id = frame.frame_id;
         result.success = output.success;
         result.lock = output.relocalization_locked;
+        result.relocalization_decision = output.relocalization_decision;
         result.matched_keyframe_id = output.matched_keyframe_id;
         if (output.success) {
             result.translation_error_m =
@@ -1202,6 +1277,12 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
             << "  \"dropout\": " << options.dropout << ",\n"
             << "  \"noise_sigma\": " << options.noise_sigma << ",\n"
             << "  \"fake_yaw_deg\": " << options.fake_yaw_deg << ",\n";
+    metrics << "  \"fake_x_m\": " << options.fake_x_m << ",\n"
+            << "  \"fake_y_m\": " << options.fake_y_m << ",\n"
+            << "  \"frame_manifest\": \"" << jsonEscape(options.frame_manifest.string()) << "\",\n"
+            << "  \"episode_id\": \"" << jsonEscape(options.episode_id) << "\",\n";
+    metrics << "  \"atlas_path\": \"" << jsonEscape(options.atlas_path.string()) << "\",\n";
+    metrics << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n";
     writeAlignmentMetricsJson(metrics, aligned.alignment);
     writeCalibrationJson(metrics, aligned.calibration);
     metrics << "\n"

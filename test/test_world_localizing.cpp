@@ -159,6 +159,7 @@ TEST_F(WorldLocalizingTest, RelocalizationEmptyMap) {
   RelocResult result = reloc.relocalize(cloud, pose);
 
   EXPECT_FALSE(result.success);
+  EXPECT_EQ(result.decision, "missing_keyframes");
   EXPECT_FALSE(reloc.isRelocalized());
 }
 
@@ -260,6 +261,7 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesQueryCloudDiagnostics) {
   EXPECT_NE(latest.find("\"motion_query_frame_count\":2"), std::string::npos);
   EXPECT_NE(latest.find("\"motion_query_candidate_count\":"),
             std::string::npos);
+  EXPECT_EQ(latest.find("\"query_candidate_count\":0"), std::string::npos);
 
   std::filesystem::remove_all(dir);
 }
@@ -404,10 +406,12 @@ TEST_F(WorldLocalizingTest, EmptyCloudInput) {
   RelocResult result =
       reloc.relocalize(empty_cloud, Eigen::Isometry3d::Identity());
   EXPECT_FALSE(result.success);
+  EXPECT_EQ(result.decision, "empty_cloud");
 
   RelocResult result2 =
       reloc.relocalize(nullptr, Eigen::Isometry3d::Identity());
   EXPECT_FALSE(result2.success);
+  EXPECT_EQ(result2.decision, "empty_cloud");
 }
 
 TEST_F(WorldLocalizingTest, PoseTransformConsistency) {

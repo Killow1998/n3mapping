@@ -36,6 +36,7 @@ TEST(CoreTypesTest, DefaultValuesAreRosFreeAndStable) {
   EXPECT_FALSE(output.success);
   EXPECT_FALSE(output.accepted_keyframe);
   EXPECT_FALSE(output.relocalization_locked);
+  EXPECT_EQ(output.relocalization_decision, "not_attempted");
   EXPECT_EQ(output.keyframe_id, -1);
   EXPECT_EQ(output.relocalization_seed_keyframe_id, -1);
   EXPECT_EQ(output.relocalization_support_keyframe_id, -1);
@@ -91,6 +92,7 @@ TEST(CoreTypesTest, BackendOutputCarriesCoreResults) {
   output.success = true;
   output.accepted_keyframe = true;
   output.relocalization_locked = true;
+  output.relocalization_decision = "accepted";
   output.keyframe_id = 42;
   output.relocalization_seed_keyframe_id = 12;
   output.relocalization_support_keyframe_id = 24;
@@ -102,6 +104,7 @@ TEST(CoreTypesTest, BackendOutputCarriesCoreResults) {
   EXPECT_TRUE(output.success);
   EXPECT_TRUE(output.accepted_keyframe);
   EXPECT_TRUE(output.relocalization_locked);
+  EXPECT_EQ(output.relocalization_decision, "accepted");
   EXPECT_EQ(output.keyframe_id, 42);
   EXPECT_EQ(output.relocalization_seed_keyframe_id, 12);
   EXPECT_EQ(output.relocalization_support_keyframe_id, 24);

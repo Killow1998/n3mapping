@@ -24,6 +24,9 @@ SYNTHETIC_FIXTURE_CONTRACT = (
 sys.path.insert(0, str(TOOLS_DIR))
 
 from n3mapping_dataset_readiness import build_report, spatial_coverage  # noqa: E402
+from n3mapping_episode_benchmark import classify_episode  # noqa: E402
+from n3mapping_episode_diagnose import diagnose_benchmark  # noqa: E402
+from n3mapping_episode_freeze import freeze_episodes  # noqa: E402
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
 from n3mapping_synthetic_eval_gate import SyntheticGateError, run_synthetic_gate  # noqa: E402
@@ -633,6 +636,79 @@ def _run_fake_gate(
 
 
 class DatasetReadinessTest(unittest.TestCase):
+    def test_episode_outcome_is_attempt_level_and_false_lock_dominates(self) -> None:
+        self.assertEqual(classify_episode({"correct_lock_count": 1}), "correct_lock")
+        self.assertEqual(classify_episode({"correct_lock_count": 0}), "no_lock")
+        self.assertEqual(
+            classify_episode({"correct_lock_count": 1, "false_lock_count": 1}),
+            "false_lock",
+        )
+
+    def test_oracle_candidate_diagnosis_separates_main_and_motion_recall(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest_dir = root / "manifest"
+            benchmark_dir = root / "benchmark"
+            manifest_dir.mkdir()
+            (benchmark_dir / "map").mkdir(parents=True)
+            episode_dir = benchmark_dir / "episodes" / "query_000"
+            episode_dir.mkdir(parents=True)
+            _write_json(
+                manifest_dir / "dataset_manifest.json",
+                {
+                    "dataset": "kitti360",
+                    "evidence_class": "oracle_gt_same_session",
+                    "overlap_radius_m": 1.0,
+                },
+            )
+            _write_csv(
+                manifest_dir / "episode_frames.csv",
+                ["episode_id", "role", "frame_token", "x", "y", "z"],
+                [
+                    {"episode_id": "map", "role": "map", "frame_token": "10", "x": 0, "y": 0, "z": 0},
+                    {"episode_id": "map", "role": "map", "frame_token": "20", "x": 10, "y": 0, "z": 0},
+                    {"episode_id": "query_000", "role": "query", "frame_token": "30", "x": 0.5, "y": 0, "z": 0},
+                    {"episode_id": "query_000", "role": "query", "frame_token": "31", "x": 9.5, "y": 0, "z": 0},
+                ],
+            )
+            _write_csv(
+                benchmark_dir / "map" / "keyframes_gt.csv",
+                ["keyframe_id", "frame_id", "x", "y", "z"],
+                [
+                    {"keyframe_id": 0, "frame_id": 10, "x": 0, "y": 0, "z": 0},
+                    {"keyframe_id": 1, "frame_id": 20, "x": 10, "y": 0, "z": 0},
+                ],
+            )
+            events = [
+                {
+                    "record_type": "relocalize",
+                    "top_candidates": [{"match_id": 0}],
+                    "motion_query_top_candidates": [{"match_id": 1}],
+                    "reject_reason": "temporal_window_pending",
+                },
+                {
+                    "record_type": "relocalize",
+                    "top_candidates": [{"match_id": 0}],
+                    "motion_query_top_candidates": [{"match_id": 1}],
+                    "reject_reason": "no_valid_icp_hypothesis",
+                },
+            ]
+            (episode_dir / "relocalization_debug.jsonl").write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+            report = diagnose_benchmark(manifest_dir, benchmark_dir)
+            self.assertEqual(report["oracle_overlap_frame_count"], 2)
+            self.assertEqual(report["main_top1_recall_rate"], 0.5)
+            self.assertEqual(report["main_topk_recall_rate"], 0.5)
+            self.assertEqual(report["motion_topk_recall_rate"], 0.5)
+            self.assertEqual(
+                report["decision_counts"],
+                {"no_valid_icp_hypothesis": 1, "temporal_window_pending": 1},
+            )
+            self.assertTrue((benchmark_dir / "oracle_candidate_frames.csv").is_file())
+
     def test_spatial_coverage_counts_only_queries_inside_radius(self) -> None:
         report = spatial_coverage(
             [(0.0, 0.0, 0.0), (10.0, 0.0, 0.0)],
@@ -690,6 +766,81 @@ class DatasetReadinessTest(unittest.TestCase):
             gate = report["m2dgr"]["sequences"][0]
             self.assertEqual(gate["aligned_frame_count"], 4)
             self.assertEqual(gate["orientation_quality"], "measured_quaternion")
+
+    def test_freeze_episodes_writes_disjoint_hashed_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            kitti = root / "KITTI360"
+            sequence = "drive_0009_sync"
+            lidar_dir = kitti / "data_3d_raw" / sequence / "velodyne_points" / "data"
+            pose_dir = kitti / "data_poses" / sequence
+            lidar_dir.mkdir(parents=True)
+            pose_dir.mkdir(parents=True)
+            pose_lines = []
+            for frame_id in range(20):
+                x = float(frame_id) if frame_id < 10 else float(frame_id - 10) + 0.1
+                (lidar_dir / f"{frame_id:010d}.bin").write_bytes(
+                    frame_id.to_bytes(4, byteorder="little")
+                )
+                pose_lines.append(f"{frame_id} 1 0 0 {x} 0 1 0 0 0 0 1 0")
+            (pose_dir / "poses.txt").write_text("\n".join(pose_lines) + "\n", encoding="utf-8")
+            output = root / "episodes"
+            manifest = freeze_episodes(
+                dataset="kitti360",
+                root=kitti,
+                map_sequence=sequence,
+                query_sequence=sequence,
+                output=output,
+                overlap_radius_m=1.0,
+                map_context_radius_m=5.0,
+                query_episode_frames=5,
+                max_episodes=2,
+                max_map_frames=10,
+                map_stride=1,
+                m2dgr_max_time_diff_s=0.05,
+            )
+            self.assertTrue(manifest["map_query_disjoint"])
+            self.assertEqual(manifest["query_episode_count"], 2)
+            self.assertEqual(manifest["query_frame_count"], 10)
+            with (output / "episode_frames.csv").open(encoding="utf-8") as stream:
+                rows = list(csv.DictReader(stream))
+            self.assertEqual(sum(row["role"] == "query" for row in rows), 10)
+            self.assertTrue(all(len(row["cloud_sha256"]) == 64 for row in rows))
+            self.assertTrue((output / "checksums.sha256").is_file())
+
+    def test_freeze_m2dgr_records_alignment_tolerance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "M2DGR"
+            sequence = "gate_02"
+            lidar_dir = root / sequence / "velodyne_points"
+            lidar_dir.mkdir(parents=True)
+            gt_lines = []
+            for frame_id in range(20):
+                stamp = float(frame_id)
+                x = float(frame_id) if frame_id < 10 else float(frame_id - 10) + 0.1
+                (lidar_dir / f"{stamp:.3f}.bin").write_bytes(
+                    frame_id.to_bytes(4, byteorder="little")
+                )
+                gt_lines.append(f"{stamp:.3f} {x} 0 0 0 0 0 1")
+            (root / sequence / f"{sequence}.txt").write_text(
+                "\n".join(gt_lines) + "\n", encoding="utf-8"
+            )
+
+            manifest = freeze_episodes(
+                dataset="m2dgr",
+                root=root,
+                map_sequence=sequence,
+                query_sequence=sequence,
+                output=Path(temporary) / "episodes",
+                overlap_radius_m=1.0,
+                map_context_radius_m=5.0,
+                query_episode_frames=5,
+                max_episodes=1,
+                max_map_frames=10,
+                map_stride=1,
+                m2dgr_max_time_diff_s=0.005,
+            )
+            self.assertEqual(manifest["m2dgr_max_time_diff_s"], 0.005)
 
 
 class EvalValidateTest(unittest.TestCase):

@@ -172,6 +172,7 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_TRUE(std::filesystem::exists(output / "keyframes_gt.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "accepted_loops.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "loop_debug.jsonl"));
+    EXPECT_TRUE(std::filesystem::exists(output / "n3map.pbstream"));
     const std::string metrics = readTextFile(output / "metrics.json");
     EXPECT_NE(metrics.find("\"mode\": \"mapping_loop\""), std::string::npos);
     EXPECT_NE(metrics.find("\"frames_processed\": 5"), std::string::npos);
@@ -191,6 +192,37 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_NE(loops.find("segment_pair_count,segment_valid_pair_count,segment_consensus_inlier_count"), std::string::npos);
     const std::string keyframes_gt = readTextFile(output / "keyframes_gt.csv");
     EXPECT_NE(keyframes_gt.find("keyframe_id,frame_id,x,y,z,qx,qy,qz,qw"), std::string::npos);
+}
+
+TEST(N3MappingKitti360EvalTest, EpisodeManifestSelectsExactMappingFrames)
+{
+    const auto tool = findKittiEvalTool();
+    ASSERT_FALSE(tool.empty()) << "n3mapping_kitti360_eval executable not found";
+    const std::string sequence = "2013_05_28_drive_0003_sync";
+    const auto root = makeMiniKitti360Fixture(sequence);
+    const auto output = makeTempDir("n3mapping_kitti360_manifest_output");
+    const auto manifest_dir = makeTempDir("n3mapping_kitti360_manifest");
+    const auto manifest = manifest_dir / "episode_frames.csv";
+    std::ofstream frames(manifest);
+    ASSERT_TRUE(frames.is_open());
+    frames << "episode_id,role,frame_token\n"
+           << "map,map,1\n"
+           << "map,map,3\n"
+           << "map,map,5\n";
+    frames.close();
+
+    const std::string command = shellQuote(tool) +
+        " --kitti_root " + shellQuote(root) +
+        " --sequence " + sequence +
+        " --mode mapping_loop"
+        " --frame_manifest " + shellQuote(manifest) +
+        " --episode_id map"
+        " --output " + shellQuote(output);
+    ASSERT_EQ(std::system(command.c_str()), 0);
+    const std::string metrics = readTextFile(output / "metrics.json");
+    EXPECT_NE(metrics.find("\"frames_processed\": 3"), std::string::npos);
+    EXPECT_NE(metrics.find("\"episode_id\": \"map\""), std::string::npos);
+    EXPECT_TRUE(std::filesystem::exists(output / "n3map.pbstream"));
 }
 
 TEST(N3MappingKitti360EvalTest, LoopDebugAnalyzerLabelsCandidatesWithGroundTruth)
@@ -676,6 +708,8 @@ TEST(N3MappingKitti360EvalTest, RelocalizationWritesMetricsAndDebug)
         " --build_map_frames 3"
         " --dropout 0.1"
         " --noise 0.01"
+        " --fake_x 20"
+        " --fake_y -10"
         " --fake_yaw 15"
         " --output " + shellQuote(output);
     ASSERT_EQ(std::system(command.c_str()), 0);
@@ -695,6 +729,8 @@ TEST(N3MappingKitti360EvalTest, RelocalizationWritesMetricsAndDebug)
     EXPECT_NE(metrics.find("\"alignment_matched_count\": 6"), std::string::npos);
     EXPECT_NE(metrics.find("\"median_translation_error_m\""), std::string::npos);
     EXPECT_NE(metrics.find("\"p95_yaw_error_deg\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"fake_x_m\": 20"), std::string::npos);
+    EXPECT_NE(metrics.find("\"fake_y_m\": -10"), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_loaded\": true"), std::string::npos);
     const std::string queries = readTextFile(output / "relocalization_queries.csv");
     EXPECT_NE(queries.find("pose_success,lock_correct,false_lock,lock_latency_frames,failure_class"), std::string::npos);

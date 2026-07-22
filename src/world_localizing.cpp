@@ -118,6 +118,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   }
   auto finish_debug = [&](const std::string &lock_result,
                           const std::string &reject_reason) {
+    result.decision = reject_reason.empty() ? lock_result : reject_reason;
     if (!reloc_debug_enabled) {
       return;
     }
@@ -193,6 +194,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (pending_hypotheses_.empty()) {
     auto candidates = searchCandidates(query_cloud);
     if (reloc_debug_enabled) {
+      debug_event.query_cloud.candidate_count = candidates.size();
+      debug_event.query_cloud.top_candidates = candidates;
       debug_event.candidate_count = candidates.size();
       debug_event.top_candidates = candidates;
     }
@@ -431,6 +434,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   } else {
     const auto current_candidates = searchCandidates(query_cloud);
     if (reloc_debug_enabled) {
+      debug_event.query_cloud.candidate_count = current_candidates.size();
+      debug_event.query_cloud.top_candidates = current_candidates;
       debug_event.candidate_count = current_candidates.size();
       debug_event.top_candidates = current_candidates;
     }
@@ -1615,6 +1620,30 @@ WorldLocalizing::buildRelocMotionQueryCloudForDebug(
         downsampled) {
       *merged = *downsampled;
     }
+  }
+
+  // A wider temporal footprint should add geometry, not multiply optimizer
+  // work. Keep the authoritative/shadow motion query within the information
+  // budget of the current scan by increasing only its spatial sampling pitch.
+  const std::size_t point_budget =
+      query_frame_buffer_.back().cloud
+          ? std::max<std::size_t>(1, query_frame_buffer_.back().cloud->size())
+          : merged->size();
+  double adaptive_voxel =
+      std::max(1e-3, config_.reloc_static_agg_voxel_size);
+  for (int iteration = 0;
+       iteration < 6 && merged->size() > point_budget;
+       ++iteration) {
+    const double ratio = static_cast<double>(merged->size()) /
+                         static_cast<double>(point_budget);
+    adaptive_voxel *= std::max(1.1, 1.05 * std::cbrt(ratio));
+    PointCloudT::Ptr downsampled;
+    if (!safeVoxelGridFilter<pcl::PointXYZI>(
+            merged, adaptive_voxel, &downsampled) ||
+        !downsampled || downsampled->size() >= merged->size()) {
+      break;
+    }
+    *merged = *downsampled;
   }
 
   if (debug_summary) {

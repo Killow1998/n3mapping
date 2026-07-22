@@ -53,6 +53,9 @@ struct BackendOutput {
   bool success = false;
   bool accepted_keyframe = false;
   bool relocalization_locked = false;
+  // Decision from the relocalization attempt made for this frame. "tracking"
+  // means the already-locked tracker supplied the pose without a new attempt.
+  std::string relocalization_decision = "not_attempted";
   int64_t keyframe_id = -1;
   int64_t relocalization_seed_keyframe_id = -1;
   int64_t relocalization_support_keyframe_id = -1;
