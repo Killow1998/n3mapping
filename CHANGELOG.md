@@ -67,6 +67,7 @@
 - Freeze and verify KITTI-360 official calibration hashes in episode manifests, verify previously recorded GT hashes before execution, and require an explicit escape hatch for legacy unhashed calibration evidence.
 - Finalize episode benchmark outputs with payload checksums and an atomic `COMPLETE` sentinel; require finalized evidence in the diagnostic tool unless legacy input is explicitly allowed.
 - Write oracle candidate diagnostics to a separate finalized output directory bound to the input manifest and benchmark hashes, leaving benchmark evidence immutable.
+- Extend the offline registration probe with the exact production fitness/inlier/confidence sub-gates and initial-vs-refined visibility endpoint decision, sharing one behavior-preserving quality calculation with runtime basin initialization.
 
 ### Tests and Checks
 

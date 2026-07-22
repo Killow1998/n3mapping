@@ -47,6 +47,15 @@ struct RegistrationSeedProbeAttempt {
   double yaw_offset_rad = 0.0;
   Eigen::Isometry3d initial_pose = Eigen::Isometry3d::Identity();
   MatchResult match;
+  bool fitness_pass = false;
+  bool inlier_pass = false;
+  double derived_confidence = 0.0;
+  bool confidence_pass = false;
+  bool production_quality_pass = false;
+  VisibilityConsistencyResult initial_visibility;
+  VisibilityConsistencyResult refined_visibility;
+  bool production_kept_initial_pose = false;
+  Eigen::Isometry3d production_pose = Eigen::Isometry3d::Identity();
 };
 
 struct RegistrationSeedProbeResult {
@@ -98,6 +107,16 @@ private:
     PointCloudT::Ptr cloud;
     Eigen::Isometry3d odom_pose = Eigen::Isometry3d::Identity();
   };
+
+  struct RelocMatchQuality {
+    bool fitness_pass = false;
+    bool inlier_pass = false;
+    double confidence = 0.0;
+    bool confidence_pass = false;
+    bool accepted = false;
+  };
+
+  RelocMatchQuality evaluateRelocMatchQuality(const MatchResult &match) const;
 
   struct CandidatePoseEvaluation {
     MatchResult match;

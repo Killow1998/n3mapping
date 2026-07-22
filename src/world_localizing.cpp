@@ -298,15 +298,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 
         for (const auto &evaluation :
              evaluateCandidatePoses(query_cloud, prepared_query, candidate)) {
-          const double scale = config_.gicp_fitness_threshold * 0.5;
-          const double confidence =
-              std::exp(-evaluation.match.fitness_score / std::max(1e-6, scale));
-          const bool valid =
-              evaluation.match.converged &&
-              evaluation.match.fitness_score < config_.gicp_fitness_threshold &&
-              evaluation.match.inlier_ratio >= config_.reloc_min_inlier_ratio &&
-              confidence >= config_.reloc_min_confidence;
-          if (!valid)
+          const auto quality = evaluateRelocMatchQuality(evaluation.match);
+          if (!quality.accepted)
             continue;
 
           BasinBest mode;
@@ -1177,6 +1170,31 @@ RegistrationSeedProbeResult WorldLocalizing::probeRegistrationSeeds(
   const auto prepared_query = matcher_.prepareSourceCloud(query_cloud);
   const auto &target = localization_atlas_->preparedTarget();
 
+  const auto finish_attempt = [&](RegistrationSeedProbeAttempt *attempt) {
+    if (!attempt)
+      return;
+    const auto quality = evaluateRelocMatchQuality(attempt->match);
+    attempt->fitness_pass = quality.fitness_pass;
+    attempt->inlier_pass = quality.inlier_pass;
+    attempt->derived_confidence = quality.confidence;
+    attempt->confidence_pass = quality.confidence_pass;
+    attempt->production_quality_pass = quality.accepted;
+    const auto visibility_target =
+        buildRelocTargetCloud(attempt->seed_keyframe_id);
+    attempt->initial_visibility = evaluatePoseVisibility(
+        visibility_target, query_cloud, attempt->initial_pose);
+    attempt->refined_visibility = evaluatePoseVisibility(
+        visibility_target, query_cloud, attempt->match.T_target_source);
+    attempt->production_kept_initial_pose =
+        attempt->initial_visibility.valid &&
+        (!attempt->refined_visibility.valid ||
+         attempt->initial_visibility.consistency_ratio >
+             attempt->refined_visibility.consistency_ratio + 1e-9);
+    attempt->production_pose = attempt->production_kept_initial_pose
+                                   ? attempt->initial_pose
+                                   : attempt->match.T_target_source;
+  };
+
   result.oracle_nearest_keyframe_id = findNearestKeyframe(oracle_pose);
   RegistrationSeedProbeAttempt oracle_attempt;
   oracle_attempt.seed_kind = "oracle_gt";
@@ -1184,6 +1202,7 @@ RegistrationSeedProbeResult WorldLocalizing::probeRegistrationSeeds(
   oracle_attempt.initial_pose = oracle_pose;
   oracle_attempt.match =
       matcher_.alignPrepared(target, prepared_query, oracle_pose);
+  finish_attempt(&oracle_attempt);
   result.attempts.push_back(std::move(oracle_attempt));
 
   const auto candidates = searchCandidates(query_cloud);
@@ -1215,10 +1234,30 @@ RegistrationSeedProbeResult WorldLocalizing::probeRegistrationSeeds(
         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     attempt.match =
         matcher_.alignPrepared(target, prepared_query, attempt.initial_pose);
+    finish_attempt(&attempt);
     result.attempts.push_back(std::move(attempt));
   }
   result.valid = true;
   return result;
+}
+
+WorldLocalizing::RelocMatchQuality
+WorldLocalizing::evaluateRelocMatchQuality(const MatchResult &match) const {
+  RelocMatchQuality quality;
+  quality.fitness_pass =
+      match.fitness_score < config_.gicp_fitness_threshold;
+  quality.inlier_pass =
+      match.inlier_ratio >= config_.reloc_min_inlier_ratio;
+  const double scale =
+      std::max(1e-6, config_.gicp_fitness_threshold * 0.5);
+  quality.confidence = std::exp(-match.fitness_score / scale);
+  quality.confidence = std::clamp(quality.confidence, 0.0, 1.0);
+  quality.confidence_pass =
+      quality.confidence >= config_.reloc_min_confidence;
+  quality.accepted =
+      match.converged && quality.fitness_pass && quality.inlier_pass &&
+      quality.confidence_pass;
+  return quality;
 }
 
 std::vector<LoopCandidate>

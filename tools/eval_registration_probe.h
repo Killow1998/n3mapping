@@ -76,7 +76,14 @@ inline void writeRegistrationProbeArtifacts(
                 "seed_keyframe_id,yaw_offset_deg,initial_translation_error_m,"
                 "initial_yaw_error_deg,converged,quality_success,termination,"
                 "final_translation_error_m,final_yaw_error_deg,within_pose_gate,"
-                "fitness_score,inlier_ratio,iterations,optimizer_error\n";
+                "fitness_score,fitness_pass,inlier_ratio,inlier_pass,"
+                "derived_confidence,confidence_pass,production_quality_pass,"
+                "initial_visibility_valid,initial_visibility_consistency,"
+                "initial_visibility_evidence,refined_visibility_valid,"
+                "refined_visibility_consistency,refined_visibility_evidence,"
+                "production_kept_initial_pose,production_translation_error_m,"
+                "production_yaw_error_deg,production_within_pose_gate,"
+                "iterations,optimizer_error\n";
     stages << "frame_index,frame_token,seed_kind,seed_keyframe_id,stage_index,"
               "stage,resolution,converged,termination,fitness_score,inlier_ratio,"
               "num_inliers,iterations,optimizer_error\n";
@@ -112,6 +119,13 @@ inline void writeRegistrationProbeArtifacts(
                 attempt.match.T_target_source, frame.oracle_pose);
             const double final_yaw = probeYawErrorDeg(
                 attempt.match.T_target_source, frame.oracle_pose);
+            const double production_translation = probeTranslationError(
+                attempt.production_pose, frame.oracle_pose);
+            const double production_yaw = probeYawErrorDeg(
+                attempt.production_pose, frame.oracle_pose);
+            const bool production_within =
+                production_translation <= translation_gate_m &&
+                production_yaw <= yaw_gate_deg;
             attempts << frame.frame_index << ',' << frame.frame_token << ','
                      << (frame.result.valid ? "true" : "false") << ','
                      << frame.result.error << ',' << attempt.seed_kind << ','
@@ -124,7 +138,24 @@ inline void writeRegistrationProbeArtifacts(
                      << final_translation << ',' << final_yaw << ','
                      << (within ? "true" : "false") << ','
                      << attempt.match.fitness_score << ','
+                     << (attempt.fitness_pass ? "true" : "false") << ','
                      << attempt.match.inlier_ratio << ','
+                     << (attempt.inlier_pass ? "true" : "false") << ','
+                     << attempt.derived_confidence << ','
+                     << (attempt.confidence_pass ? "true" : "false") << ','
+                     << (attempt.production_quality_pass ? "true" : "false")
+                     << ','
+                     << (attempt.initial_visibility.valid ? "true" : "false")
+                     << ',' << attempt.initial_visibility.consistency_ratio
+                     << ',' << attempt.initial_visibility.evidence_log_odds
+                     << ','
+                     << (attempt.refined_visibility.valid ? "true" : "false")
+                     << ',' << attempt.refined_visibility.consistency_ratio
+                     << ',' << attempt.refined_visibility.evidence_log_odds
+                     << ','
+                     << (attempt.production_kept_initial_pose ? "true" : "false")
+                     << ',' << production_translation << ',' << production_yaw
+                     << ',' << (production_within ? "true" : "false") << ','
                      << attempt.match.iterations << ','
                      << attempt.match.optimizer_error << '\n';
             for (std::size_t stage_index = 0;
