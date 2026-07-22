@@ -109,6 +109,106 @@ def _verify_benchmark_output(output: Path) -> None:
     _verify_hashed_output(output, {"summary.json", "episodes.csv"})
 
 
+def _expected_behaviors(
+    manifest: dict[str, Any], rows: list[dict[str, str]]
+) -> dict[str, str]:
+    episode_ids = sorted(
+        {row["episode_id"] for row in rows if row.get("role") == "query"}
+    )
+    declared = manifest.get("expected_behavior_by_episode")
+    if declared is None:
+        behavior = manifest.get("expected_behavior", "lock")
+        if behavior not in {"lock", "abstain"}:
+            raise ValueError(f"unsupported expected behavior: {behavior}")
+        return {episode_id: behavior for episode_id in episode_ids}
+    if not isinstance(declared, dict) or set(declared) != set(episode_ids):
+        raise ValueError("expected_behavior_by_episode must cover every query episode exactly")
+    if any(behavior not in {"lock", "abstain"} for behavior in declared.values()):
+        raise ValueError("episode expected behavior must be lock or abstain")
+    overall = manifest.get("expected_behavior")
+    unique = set(declared.values())
+    expected_overall = next(iter(unique)) if len(unique) == 1 else "mixed"
+    if overall != expected_overall:
+        raise ValueError("manifest expected_behavior disagrees with episode labels")
+    return {episode_id: declared[episode_id] for episode_id in episode_ids}
+
+
+def _verify_surface_overlap_evidence(
+    manifest_dir: Path,
+    manifest: dict[str, Any],
+    rows: list[dict[str, str]],
+    expected_by_episode: dict[str, str],
+) -> None:
+    evidence = manifest.get("surface_overlap_evidence")
+    if not isinstance(evidence, dict):
+        raise ValueError("schema v4 manifest requires surface_overlap_evidence")
+
+    def verified_path(name: str) -> Path:
+        relative_text = evidence.get(name)
+        relative = PurePosixPath(relative_text) if isinstance(relative_text, str) else None
+        if relative is None or relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"invalid surface overlap evidence path: {name}")
+        path = manifest_dir.joinpath(*relative.parts)
+        if not path.is_file() or path.is_symlink():
+            raise ValueError(f"surface overlap evidence is missing: {path}")
+        if sha256_file(path) != evidence.get(f"{name}_sha256"):
+            raise ValueError(f"surface overlap evidence hash mismatch: {path}")
+        return path
+
+    report_path = verified_path("report")
+    frames_path = verified_path("frames")
+    episodes_path = verified_path("episodes")
+    source_path = manifest_dir / "source_candidate_manifest.json"
+    if not source_path.is_file() or source_path.is_symlink():
+        raise ValueError("surface-classified manifest has no source candidate manifest")
+    source_hash = sha256_file(source_path)
+    if source_hash != manifest.get("source_candidate_manifest_sha256"):
+        raise ValueError("source candidate manifest hash mismatch")
+    source_manifest = _read_json(source_path)
+    source_frames_path = manifest_dir / "source_candidate_episode_frames.csv"
+    if not source_frames_path.is_file() or source_frames_path.is_symlink():
+        raise ValueError("surface-classified manifest has no source candidate frame manifest")
+    source_frames_hash = sha256_file(source_frames_path)
+    if source_frames_hash != source_manifest.get("episode_frames_sha256"):
+        raise ValueError("source candidate frame-manifest hash mismatch")
+    report = _read_json(report_path)
+    if report.get("evidence_class") != "oracle_gt_visible_surface_overlap":
+        raise ValueError("unsupported surface overlap evidence class")
+    if report.get("source_candidate_manifest_sha256") != source_hash:
+        raise ValueError("surface overlap report source hash mismatch")
+    if report.get("source_candidate_episode_frames_sha256") != source_frames_hash:
+        raise ValueError("surface overlap report source frame hash mismatch")
+    if report.get("episode_frames_sha256") != manifest.get("episode_frames_sha256"):
+        raise ValueError("surface overlap report frame-manifest hash mismatch")
+    if report.get("surface_overlap_frames_sha256") != sha256_file(frames_path):
+        raise ValueError("surface overlap frame report hash mismatch")
+    if report.get("surface_overlap_episodes_sha256") != sha256_file(episodes_path):
+        raise ValueError("surface overlap episode report hash mismatch")
+    if report.get("expected_behavior_by_episode") != expected_by_episode:
+        raise ValueError("surface overlap labels disagree with dataset manifest")
+    contract = report.get("classification_contract")
+    if (
+        not isinstance(contract, dict)
+        or contract.get("ambiguous_policy") != "exclude_from_derived_manifest"
+    ):
+        raise ValueError("surface overlap evidence must exclude ambiguous episodes")
+    with episodes_path.open(encoding="utf-8", newline="") as stream:
+        episode_rows = list(csv.DictReader(stream))
+    included_rows = [row for row in episode_rows if row.get("expected_behavior") != "exclude"]
+    csv_labels = {row.get("episode_id"): row.get("expected_behavior") for row in included_rows}
+    excluded = sorted(
+        row.get("episode_id") for row in episode_rows if row.get("expected_behavior") == "exclude"
+    )
+    if csv_labels != expected_by_episode or len(csv_labels) != len(included_rows):
+        raise ValueError("surface overlap episode CSV labels are incomplete or inconsistent")
+    if excluded != sorted(report.get("excluded_ambiguous_episode_ids", [])):
+        raise ValueError("surface overlap excluded episodes are inconsistent")
+    if set(expected_by_episode) != {
+        row["episode_id"] for row in rows if row.get("role") == "query"
+    }:
+        raise ValueError("surface overlap labels do not match query episodes")
+
+
 def _verify_manifest(
     manifest_dir: Path,
     *,
@@ -121,9 +221,15 @@ def _verify_manifest(
         raise ValueError("episode_frames.csv hash does not match dataset_manifest.json")
     with frames_path.open(encoding="utf-8", newline="") as stream:
         rows = list(csv.DictReader(stream))
+    expected_by_episode = _expected_behaviors(manifest, rows)
+    surface_classified = int(manifest.get("schema_version", 0)) >= 4
+    if surface_classified:
+        _verify_surface_overlap_evidence(
+            manifest_dir, manifest, rows, expected_by_episode
+        )
     if "expected_behavior" in manifest:
         expected_behavior = manifest["expected_behavior"]
-        if expected_behavior not in {"lock", "abstain"}:
+        if expected_behavior not in {"lock", "abstain", "mixed"}:
             raise ValueError(f"unsupported expected behavior: {expected_behavior}")
         overlap_radius_m = float(manifest["overlap_radius_m"])
         if not math.isfinite(overlap_radius_m) or overlap_radius_m <= 0.0:
@@ -162,10 +268,11 @@ def _verify_manifest(
             and int(declared_covered_count) != frozen_covered_count
         ):
             raise ValueError("manifest frozen coverage count does not match episode frames")
-        if expected_behavior == "lock" and frozen_covered_count != len(query_positions):
-            raise ValueError("lock manifest contains query frames outside frozen map coverage")
-        if expected_behavior == "abstain" and frozen_covered_count != 0:
-            raise ValueError("abstain manifest contains query frames covered by the frozen map")
+        if not surface_classified:
+            if expected_behavior == "lock" and frozen_covered_count != len(query_positions):
+                raise ValueError("lock manifest contains query frames outside frozen map coverage")
+            if expected_behavior == "abstain" and frozen_covered_count != 0:
+                raise ValueError("abstain manifest contains query frames covered by the frozen map")
     root = Path(manifest["root"])
     for role in ("map", "query"):
         gt_path = Path(manifest[f"{role}_gt_path"])
@@ -361,13 +468,13 @@ def run_benchmark(
         )
 
     episode_ids = sorted({row["episode_id"] for row in rows if row["role"] == "query"})
+    expected_by_episode = _expected_behaviors(manifest, rows)
     expected_behavior = manifest.get("expected_behavior", "lock")
-    if expected_behavior not in {"lock", "abstain"}:
-        raise ValueError(f"unsupported expected behavior: {expected_behavior}")
     episode_rows = []
     translation_errors = []
     yaw_errors = []
     for episode_id in episode_ids:
+        episode_expected_behavior = expected_by_episode[episode_id]
         episode_output = output / "episodes" / episode_id
         common = [
             "--sequence", manifest["query_sequence"],
@@ -399,7 +506,7 @@ def run_benchmark(
         elapsed, _, _ = _run(command, episode_output)
         metrics = _read_json(episode_output / "metrics.json")
         outcome = classify_episode(metrics)
-        contract_outcome = classify_contract(outcome, expected_behavior)
+        contract_outcome = classify_contract(outcome, episode_expected_behavior)
         with (episode_output / "relocalization_queries.csv").open(
             encoding="utf-8", newline=""
         ) as stream:
@@ -417,7 +524,7 @@ def run_benchmark(
             {
                 "episode_id": episode_id,
                 "outcome": outcome,
-                "expected_behavior": expected_behavior,
+                "expected_behavior": episode_expected_behavior,
                 "contract_outcome": contract_outcome,
                 "wall_seconds": elapsed,
                 "query_count": metrics.get("query_count", 0),
@@ -439,9 +546,13 @@ def run_benchmark(
     no_lock = sum(row["outcome"] == "no_lock" for row in episode_rows)
     contract_pass = sum(row["contract_outcome"] == "pass" for row in episode_rows)
     unexpected_lock = sum(
-        expected_behavior == "abstain" and row["outcome"] != "no_lock"
+        row["expected_behavior"] == "abstain" and row["outcome"] != "no_lock"
         for row in episode_rows
     )
+    expected_behavior_counts = {
+        behavior: sum(row["expected_behavior"] == behavior for row in episode_rows)
+        for behavior in ("lock", "abstain")
+    }
     summary = {
         "schema_version": 1,
         "dataset": dataset,
@@ -454,10 +565,16 @@ def run_benchmark(
         "false_attempt_count": false,
         "no_lock_attempt_count": no_lock,
         "expected_behavior": expected_behavior,
+        "expected_behavior_counts": expected_behavior_counts,
         "contract_pass_count": contract_pass,
         "contract_pass_rate": contract_pass / len(episode_rows),
         "unexpected_lock_count": unexpected_lock,
         "unexpected_lock_rate": unexpected_lock / len(episode_rows),
+        "unexpected_lock_rate_among_abstain": (
+            unexpected_lock / expected_behavior_counts["abstain"]
+            if expected_behavior_counts["abstain"]
+            else None
+        ),
         "correct_attempt_rate": correct / len(episode_rows),
         "false_attempt_rate": false / len(episode_rows),
         "map_build_seconds": map_seconds,

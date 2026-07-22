@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Golden tests for the dependency-free n3mapping v2 eval artifact tools."""
+"""Golden tests for the n3mapping v2 evaluation artifact tools."""
 
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ import textwrap
 import unittest
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +40,7 @@ from n3mapping_episode_review_prepare import (  # noqa: E402
     _matrix_from_xyzw,
     _xyzw_from_rotation,
 )
+from n3mapping_surface_overlap_audit import classify_surface_overlap  # noqa: E402
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
 from n3mapping_synthetic_eval_gate import SyntheticGateError, run_synthetic_gate  # noqa: E402
@@ -1021,6 +1024,130 @@ class DatasetReadinessTest(unittest.TestCase):
                 m2dgr_max_time_diff_s=0.005,
             )
             self.assertEqual(manifest["m2dgr_max_time_diff_s"], 0.005)
+
+    def test_surface_overlap_labels_trajectory_near_positive_and_hard_negative(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "KITTI360"
+            map_sequence = "drive_map_sync"
+            query_sequence = "drive_query_sync"
+            map_lidar = root / "data_3d_raw" / map_sequence / "velodyne_points" / "data"
+            query_lidar = root / "data_3d_raw" / query_sequence / "velodyne_points" / "data"
+            map_lidar.mkdir(parents=True)
+            query_lidar.mkdir(parents=True)
+            grid = np.asarray(
+                [[x, y, 0.0, 1.0] for x in np.arange(0.0, 4.0, 0.5) for y in np.arange(0.0, 4.0, 0.5)],
+                dtype="<f4",
+            )
+            map_cloud = map_lidar / "0000000000.bin"
+            positive_cloud = query_lidar / "0000000000.bin"
+            negative_cloud = query_lidar / "0000000001.bin"
+            ambiguous_cloud = query_lidar / "0000000002.bin"
+            grid.tofile(map_cloud)
+            grid.tofile(positive_cloud)
+            displaced = grid.copy()
+            displaced[:, 2] += 10.0
+            displaced.tofile(negative_cloud)
+            ambiguous = grid.copy()
+            ambiguous[::2, 2] += 10.0
+            ambiguous.tofile(ambiguous_cloud)
+            pose_line = "1 0 0 0 0 1 0 0 0 0 1 0"
+            for sequence, lines in (
+                (map_sequence, [f"0 {pose_line}"]),
+                (query_sequence, [f"0 {pose_line}", f"1 {pose_line}", f"2 {pose_line}"]),
+            ):
+                pose_dir = root / "data_poses" / sequence
+                pose_dir.mkdir(parents=True)
+                (pose_dir / "poses.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+            calibration = root / "calibration"
+            calibration.mkdir()
+            (calibration / "calib_cam_to_velo.txt").write_text(pose_line + "\n", encoding="utf-8")
+            (calibration / "calib_cam_to_pose.txt").write_text(
+                "image_00: " + pose_line + "\n", encoding="utf-8"
+            )
+
+            candidate = Path(temporary) / "candidate"
+            candidate.mkdir()
+            rows = [
+                {
+                    "episode_id": "map",
+                    "role": "map",
+                    "frame_token": "0",
+                    "relative_cloud_path": map_cloud.relative_to(root).as_posix(),
+                    "cloud_sha256": sha256_file(map_cloud),
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                }
+            ]
+            rows.extend(
+                {
+                    "episode_id": episode_id,
+                    "role": "query",
+                    "frame_token": str(frame_token),
+                    "relative_cloud_path": cloud.relative_to(root).as_posix(),
+                    "cloud_sha256": sha256_file(cloud),
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                }
+                for episode_id, frame_token, cloud in (
+                    ("query_000", 0, positive_cloud),
+                    ("query_001", 1, negative_cloud),
+                    ("query_002", 2, ambiguous_cloud),
+                )
+            )
+            _write_csv(candidate / "episode_frames.csv", list(rows[0]), rows)
+            calibration_files = []
+            for relative in (
+                "calibration/calib_cam_to_pose.txt",
+                "calibration/calib_cam_to_velo.txt",
+            ):
+                calibration_files.append(
+                    {"relative_path": relative, "sha256": sha256_file(root / relative)}
+                )
+            _write_json(
+                candidate / "dataset_manifest.json",
+                {
+                    "schema_version": 3,
+                    "dataset": "kitti360",
+                    "root": str(root),
+                    "map_sequence": map_sequence,
+                    "query_sequence": query_sequence,
+                    "evidence_class": "oracle_gt_cross_drive",
+                    "map_query_disjoint": True,
+                    "map_frame_count": 1,
+                    "query_episode_count": 3,
+                    "query_frame_count": 3,
+                    "expected_behavior": "lock",
+                    "spatial_relationship": "covered_within_radius",
+                    "frozen_covered_query_frame_count": 3,
+                    "overlap_radius_m": 5.0,
+                    "map_gt_path": str(root / "data_poses" / map_sequence / "poses.txt"),
+                    "query_gt_path": str(root / "data_poses" / query_sequence / "poses.txt"),
+                    "map_gt_sha256": sha256_file(root / "data_poses" / map_sequence / "poses.txt"),
+                    "query_gt_sha256": sha256_file(root / "data_poses" / query_sequence / "poses.txt"),
+                    "episode_frames_sha256": sha256_file(candidate / "episode_frames.csv"),
+                    "kitti360_calibration": {"mode": "official", "files": calibration_files},
+                },
+            )
+
+            labeled = Path(temporary) / "labeled"
+            manifest = classify_surface_overlap(manifest_dir=candidate, output=labeled)
+            self.assertEqual(manifest["schema_version"], 4)
+            self.assertEqual(manifest["expected_behavior"], "mixed")
+            self.assertEqual(
+                manifest["expected_behavior_by_episode"],
+                {"query_000": "lock", "query_001": "abstain"},
+            )
+            self.assertEqual(manifest["excluded_ambiguous_episode_ids"], ["query_002"])
+            with (labeled / "episode_frames.csv").open(encoding="utf-8", newline="") as stream:
+                labeled_rows = list(csv.DictReader(stream))
+            self.assertNotIn("query_002", {row["episode_id"] for row in labeled_rows})
+            _verify_manifest(labeled)
+            report_path = labeled / "surface_overlap.json"
+            report_path.write_text(report_path.read_text(encoding="utf-8") + " ", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "evidence hash mismatch"):
+                _verify_manifest(labeled)
 
 
 class EvalValidateTest(unittest.TestCase):

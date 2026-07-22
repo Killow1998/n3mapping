@@ -15,7 +15,11 @@ from typing import Any
 import numpy as np
 
 from n3mapping_dataset_readiness import sha256_file
-from n3mapping_episode_benchmark import _verify_benchmark_output, _verify_manifest
+from n3mapping_episode_benchmark import (
+    _expected_behaviors,
+    _verify_benchmark_output,
+    _verify_manifest,
+)
 
 
 def _ensure_fresh(path: Path) -> None:
@@ -282,7 +286,7 @@ def prepare_review(
         "dataset": manifest["dataset"],
         "episode_id": episode_id,
         "baseline_outcome": episode_results[episode_id]["outcome"],
-        "expected_behavior": manifest.get("expected_behavior", "lock"),
+        "expected_behavior": _expected_behaviors(manifest, rows)[episode_id],
         "frame_count": len(review_rows),
         "source_manifest_sha256": sha256_file(manifest_dir / "dataset_manifest.json"),
         "source_baseline_summary_sha256": sha256_file(benchmark_dir / "summary.json"),

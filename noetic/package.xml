@@ -34,4 +34,7 @@
   <depend>libgoogle-glog-dev</depend>
   <depend>libopencv-dev</depend>
   <depend>openssl</depend>
+
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
 </package>
