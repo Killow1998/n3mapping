@@ -178,6 +178,18 @@ set_target_properties(n3mapping_synthetic_relocalization_eval PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
 )
 
+add_executable(n3mapping_relocalization_manifest_eval
+  ${N3MAPPING_ROOT}/tools/n3mapping_relocalization_manifest_eval.cpp
+)
+target_link_libraries(n3mapping_relocalization_manifest_eval
+  n3mapping_core
+  ${PCL_LIBRARIES}
+  glog::glog
+)
+set_target_properties(n3mapping_relocalization_manifest_eval PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
+)
+
 add_executable(n3mapping_filter_nav_pbstream
   ${N3MAPPING_ROOT}/tools/n3mapping_filter_nav_pbstream.cpp
 )
@@ -255,6 +267,7 @@ install(TARGETS
   n3mapping_noetic_wrapper
   n3mapping_node
   n3mapping_synthetic_relocalization_eval
+  n3mapping_relocalization_manifest_eval
   n3mapping_filter_nav_pbstream
   n3mapping_kitti360_reader
   n3mapping_kitti360_eval
@@ -266,6 +279,7 @@ install(TARGETS
 )
 
 install(PROGRAMS
+  ${N3MAPPING_ROOT}/tools/extract_ros1_relocalization_manifest.py
   ${N3MAPPING_ROOT}/tools/n3mapping_loop_debug_analyze.py
   ${N3MAPPING_ROOT}/tools/n3mapping_loop_candidate_benchmark.py
   ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py

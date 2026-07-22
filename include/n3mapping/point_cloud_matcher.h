@@ -66,6 +66,33 @@ public:
     using SmallGicpCloud = small_gicp::PointCloud;
     using SmallGicpKdTree = small_gicp::KdTree<SmallGicpCloud>;
 
+    struct PreparedTargetLevel {
+        double resolution = 0.0;
+        SmallGicpCloud::Ptr cloud;
+        std::shared_ptr<SmallGicpKdTree> kdtree;
+    };
+
+    struct PreparedSourceLevel {
+        double resolution = 0.0;
+        SmallGicpCloud::Ptr cloud;
+    };
+
+    // Immutable, call-scoped registration inputs. Preparing them once avoids
+    // repeating voxelization, target KD-tree construction, and normal/covariance
+    // estimation for every yaw seed or retry while leaving the optimizer inputs
+    // and settings unchanged.
+    struct PreparedTarget {
+        std::vector<PreparedTargetLevel> plane_levels;
+        PreparedTargetLevel refine_level;
+        bool has_refine_level = false;
+    };
+
+    struct PreparedSource {
+        std::vector<PreparedSourceLevel> plane_levels;
+        SmallGicpCloud::Ptr refine_cloud;
+        bool has_refine_cloud = false;
+    };
+
     explicit PointCloudMatcher(const Config& config);
     ~PointCloudMatcher() = default;
 
@@ -82,6 +109,16 @@ public:
                            const Eigen::Isometry3d& init_guess,
                            const small_gicp::RegistrationSetting& setting);
 
+    PreparedTarget prepareTargetCloud(const PointCloudT::Ptr& cloud);
+    PreparedSource prepareSourceCloud(const PointCloudT::Ptr& cloud);
+    MatchResult alignPrepared(const PreparedTarget& target,
+                              const PreparedSource& source,
+                              const Eigen::Isometry3d& init_guess = Eigen::Isometry3d::Identity());
+    MatchResult alignPrepared(const PreparedTarget& target,
+                              const PreparedSource& source,
+                              const Eigen::Isometry3d& init_guess,
+                              const small_gicp::RegistrationSetting& setting);
+
     std::pair<SmallGicpCloud::Ptr, std::shared_ptr<SmallGicpKdTree>> preprocessPointCloud(const PointCloudT::Ptr& cloud);
     const small_gicp::RegistrationSetting& getSettings() const { return setting_; }
     void setSettings(const small_gicp::RegistrationSetting& setting) { setting_ = setting; }
@@ -95,6 +132,10 @@ private:
                                       const PointCloudT::Ptr& source_cloud,
                                       const Eigen::Isometry3d& init_guess,
                                       const small_gicp::RegistrationSetting& setting);
+    MatchResult alignPreparedWithSetting(const PreparedTarget& target,
+                                         const PreparedSource& source,
+                                         const Eigen::Isometry3d& init_guess,
+                                         const small_gicp::RegistrationSetting& setting);
 
     Config config_;
     small_gicp::RegistrationSetting setting_;

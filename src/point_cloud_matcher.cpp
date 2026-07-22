@@ -184,6 +184,60 @@ PointCloudMatcher::preprocessPointCloud(const PointCloudT::Ptr& cloud) {
     return preprocessTargetPointCloud(cloud, config_.gicp_downsampling_resolution);
 }
 
+PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
+    const PointCloudT::Ptr& cloud) {
+    PreparedTarget prepared;
+    if (!cloud || cloud->empty()) return prepared;
+
+    try {
+        const double base_res = std::max(1e-3, config_.gicp_downsampling_resolution);
+        const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
+        prepared.plane_levels.reserve(resolutions.size());
+        for (double resolution : resolutions) {
+            auto [points, kdtree] = preprocessTargetPointCloud(cloud, resolution);
+            prepared.plane_levels.push_back({ resolution, points, kdtree });
+        }
+
+        if (config_.icp_refine_use_gicp) {
+            const double resolution = config_.icp_refine_downsampling_resolution;
+            auto [points, kdtree] = preprocessTargetPointCloud(cloud, resolution);
+            prepared.refine_level = { resolution, points, kdtree };
+            prepared.has_refine_level = true;
+        }
+    } catch (const std::exception& e) {
+        LOG(ERROR) << "[PointCloudMatcher] prepareTargetCloud exception: " << e.what();
+        return {};
+    }
+    return prepared;
+}
+
+PointCloudMatcher::PreparedSource PointCloudMatcher::prepareSourceCloud(
+    const PointCloudT::Ptr& cloud) {
+    PreparedSource prepared;
+    if (!cloud || cloud->empty()) return prepared;
+
+    try {
+        const double base_res = std::max(1e-3, config_.gicp_downsampling_resolution);
+        const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
+        prepared.plane_levels.reserve(resolutions.size());
+        for (double resolution : resolutions) {
+            prepared.plane_levels.push_back(
+                { resolution, preprocessSourcePointCloud(cloud, resolution) });
+        }
+
+        if (config_.icp_refine_use_gicp) {
+            auto [points, unused_kdtree] = preprocessTargetPointCloud(
+                cloud, config_.icp_refine_downsampling_resolution);
+            prepared.refine_cloud = points;
+            prepared.has_refine_cloud = true;
+        }
+    } catch (const std::exception& e) {
+        LOG(ERROR) << "[PointCloudMatcher] prepareSourceCloud exception: " << e.what();
+        return {};
+    }
+    return prepared;
+}
+
 MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe::Ptr& source, const Eigen::Isometry3d& init_guess) {
     MatchResult result;
     if (!target || !source || !target->cloud || !source->cloud || target->cloud->empty() || source->cloud->empty()) return result;
@@ -239,11 +293,37 @@ MatchResult PointCloudMatcher::alignCloudWithSetting(const PointCloudT::Ptr& tar
                                                      const PointCloudT::Ptr& source_cloud,
                                                      const Eigen::Isometry3d& init_guess,
                                                      const small_gicp::RegistrationSetting& setting) {
+    if (!target_cloud || target_cloud->empty() || !source_cloud || source_cloud->empty()) return {};
+    const auto target = prepareTargetCloud(target_cloud);
+    const auto source = prepareSourceCloud(source_cloud);
+    return alignPreparedWithSetting(target, source, init_guess, setting);
+}
+
+MatchResult PointCloudMatcher::alignPrepared(
+    const PreparedTarget& target,
+    const PreparedSource& source,
+    const Eigen::Isometry3d& init_guess) {
+    return alignPreparedWithSetting(target, source, init_guess, setting_);
+}
+
+MatchResult PointCloudMatcher::alignPrepared(
+    const PreparedTarget& target,
+    const PreparedSource& source,
+    const Eigen::Isometry3d& init_guess,
+    const small_gicp::RegistrationSetting& setting) {
+    return alignPreparedWithSetting(target, source, init_guess, setting);
+}
+
+MatchResult PointCloudMatcher::alignPreparedWithSetting(
+    const PreparedTarget& target,
+    const PreparedSource& source,
+    const Eigen::Isometry3d& init_guess,
+    const small_gicp::RegistrationSetting& setting) {
     MatchResult result;
-    if (!target_cloud || target_cloud->empty() || !source_cloud || source_cloud->empty()) return result;
+    if (target.plane_levels.empty() || source.plane_levels.empty()) return result;
+
     try {
         const double base_res = std::max(1e-3, config_.gicp_downsampling_resolution);
-        const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
         Eigen::Isometry3d T = init_guess;
         size_t coarse_inliers = 0; double coarse_inlier_ratio = 0.0;
         Eigen::Matrix<double, 6, 6> coarse_H = Eigen::Matrix<double, 6, 6>::Identity();
@@ -252,18 +332,39 @@ MatchResult PointCloudMatcher::alignCloudWithSetting(const PointCloudT::Ptr& tar
         double coarse_error = std::numeric_limits<double>::quiet_NaN();
         MatchTermination coarse_termination = MatchTermination::Invalid;
 
+        auto find_target = [&target](double resolution) -> const PreparedTargetLevel* {
+            constexpr double kResolutionEps = 1e-9;
+            for (const auto& level : target.plane_levels) {
+                if (std::abs(level.resolution - resolution) <= kResolutionEps) return &level;
+            }
+            return nullptr;
+        };
+        auto find_source = [&source](double resolution) -> const PreparedSourceLevel* {
+            constexpr double kResolutionEps = 1e-9;
+            for (const auto& level : source.plane_levels) {
+                if (std::abs(level.resolution - resolution) <= kResolutionEps) return &level;
+            }
+            return nullptr;
+        };
+
+        const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
         for (double res : resolutions) {
             if (res < base_res * 0.99) continue;
-            auto [tp, tt] = preprocessTargetPointCloud(target_cloud, res);
-            auto sp = preprocessSourcePointCloud(source_cloud, res);
-            if (!tt || tp->size() < 10 || sp->size() < 10) return result;
+            const auto* target_level = find_target(res);
+            const auto* source_level = find_source(res);
+            if (!target_level || !target_level->kdtree || !target_level->cloud ||
+                !source_level || !source_level->cloud ||
+                target_level->cloud->size() < 10 || source_level->cloud->size() < 10) {
+                return result;
+            }
             auto ls = setting;
             if (res > base_res * 1.01) ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
-            auto rr = small_gicp::align(*tp, *sp, *tt, T, ls);
+            auto rr = small_gicp::align(*target_level->cloud, *source_level->cloud,
+                                        *target_level->kdtree, T, ls);
             T = rr.T_target_source;
             const auto stage = makeStageResult(
                 res > base_res * 1.01 ? "coarse_plane_icp" : "fine_plane_icp",
-                res, rr, sp->size(), ls.max_iterations);
+                res, rr, source_level->cloud->size(), ls.max_iterations);
             result.stages.push_back(stage);
             coarse_converged = stage.converged;
             coarse_inliers = stage.num_inliers;
@@ -293,15 +394,17 @@ MatchResult PointCloudMatcher::alignCloudWithSetting(const PointCloudT::Ptr& tar
             const Eigen::Isometry3d delta = init_guess.inverse() * T;
             if (delta.translation().norm() <= config_.icp_refine_delta_translation_gate &&
                 Eigen::AngleAxisd(delta.rotation()).angle() <= config_.icp_refine_delta_rotation_gate) {
-                auto [tr, trt] = preprocessTargetPointCloud(target_cloud, config_.icp_refine_downsampling_resolution);
-                auto [sr, srt] = preprocessTargetPointCloud(source_cloud, config_.icp_refine_downsampling_resolution);
-                if (trt && tr->size() >= 10 && sr->size() >= 10) {
+                const auto& tr = target.refine_level;
+                const auto& sr = source.refine_cloud;
+                if (target.has_refine_level && source.has_refine_cloud &&
+                    tr.kdtree && tr.cloud && sr &&
+                    tr.cloud->size() >= 10 && sr->size() >= 10) {
                     auto rs = setting;
                     rs.type = small_gicp::RegistrationSetting::GICP;
                     rs.max_iterations = config_.icp_refine_max_iterations;
                     rs.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
                     rs.downsampling_resolution = config_.icp_refine_downsampling_resolution;
-                    auto rr = small_gicp::align(*tr, *sr, *trt, T, rs);
+                    auto rr = small_gicp::align(*tr.cloud, *sr, *tr.kdtree, T, rs);
                     const auto stage = makeStageResult("refine_gicp", config_.icp_refine_downsampling_resolution,
                                                        rr, sr->size(), rs.max_iterations);
                     result.stages.push_back(stage);
@@ -316,7 +419,7 @@ MatchResult PointCloudMatcher::alignCloudWithSetting(const PointCloudT::Ptr& tar
             }
         }
     } catch (const std::exception& e) {
-        LOG(ERROR) << "[PointCloudMatcher] alignCloud exception: " << e.what();
+        LOG(ERROR) << "[PointCloudMatcher] alignPrepared exception: " << e.what();
     }
     return result;
 }

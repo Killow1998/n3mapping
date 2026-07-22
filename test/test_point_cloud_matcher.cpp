@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <rclcpp/rclcpp.hpp>
+#include <array>
 #include <random>
 #include <cmath>
 
@@ -356,6 +357,70 @@ TEST_F(PointCloudMatcherTest, AlignWithInitialGuess) {
     
     EXPECT_TRUE(result.success);
     EXPECT_TRUE(posesAreClose(result.T_target_source, known_transform, 0.2, 0.15));
+}
+
+TEST_F(PointCloudMatcherTest, PreparedCloudsMatchRawPathAcrossInitialGuesses) {
+    auto target_cloud = createSphereCloud(2500);
+    const Eigen::Isometry3d known_transform =
+        createPose(0.25, -0.15, 0.08, 0.01, -0.02, 0.08);
+    auto source_cloud = transformCloud(target_cloud, known_transform.inverse());
+
+    const auto prepared_target = matcher_->prepareTargetCloud(target_cloud);
+    const auto prepared_source = matcher_->prepareSourceCloud(source_cloud);
+    ASSERT_EQ(prepared_target.plane_levels.size(), 2u);
+    ASSERT_EQ(prepared_source.plane_levels.size(), 2u);
+
+    auto expect_equivalent = [](const MatchResult& raw,
+                                const MatchResult& prepared) {
+        EXPECT_EQ(prepared.success, raw.success);
+        EXPECT_EQ(prepared.converged, raw.converged);
+        EXPECT_EQ(prepared.termination, raw.termination);
+        EXPECT_EQ(prepared.iterations, raw.iterations);
+        EXPECT_EQ(prepared.num_inliers, raw.num_inliers);
+        EXPECT_NEAR(prepared.fitness_score, raw.fitness_score, 1e-9);
+        EXPECT_NEAR(prepared.inlier_ratio, raw.inlier_ratio, 1e-12);
+        EXPECT_TRUE(prepared.T_target_source.matrix().isApprox(
+            raw.T_target_source.matrix(), 1e-9));
+        EXPECT_TRUE(prepared.information.isApprox(raw.information, 1e-8));
+        ASSERT_EQ(prepared.stages.size(), raw.stages.size());
+        for (size_t i = 0; i < raw.stages.size(); ++i) {
+            EXPECT_EQ(prepared.stages[i].stage, raw.stages[i].stage);
+            EXPECT_DOUBLE_EQ(prepared.stages[i].resolution,
+                             raw.stages[i].resolution);
+            EXPECT_EQ(prepared.stages[i].converged,
+                      raw.stages[i].converged);
+            EXPECT_EQ(prepared.stages[i].iterations,
+                      raw.stages[i].iterations);
+            EXPECT_EQ(prepared.stages[i].num_inliers,
+                      raw.stages[i].num_inliers);
+            EXPECT_EQ(prepared.stages[i].termination,
+                      raw.stages[i].termination);
+            EXPECT_NEAR(prepared.stages[i].fitness_score,
+                        raw.stages[i].fitness_score, 1e-9);
+            EXPECT_NEAR(prepared.stages[i].inlier_ratio,
+                        raw.stages[i].inlier_ratio, 1e-12);
+        }
+    };
+
+    const std::array<Eigen::Isometry3d, 2> guesses = {
+        Eigen::Isometry3d::Identity(),
+        createPose(0.2, -0.1, 0.05, 0.0, 0.0, 0.05)
+    };
+    for (const auto& guess : guesses) {
+        const auto raw = matcher_->alignCloud(target_cloud, source_cloud, guess);
+        const auto prepared =
+            matcher_->alignPrepared(prepared_target, prepared_source, guess);
+        expect_equivalent(raw, prepared);
+    }
+
+    auto wide = matcher_->getSettings();
+    wide.max_correspondence_distance *= 1.5;
+    wide.max_iterations += 5;
+    const auto raw_wide =
+        matcher_->alignCloud(target_cloud, source_cloud, guesses[1], wide);
+    const auto prepared_wide = matcher_->alignPrepared(
+        prepared_target, prepared_source, guesses[1], wide);
+    expect_equivalent(raw_wide, prepared_wide);
 }
 
 // 测试信息矩阵输出
