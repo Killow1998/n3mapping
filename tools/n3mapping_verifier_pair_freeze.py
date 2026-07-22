@@ -84,7 +84,7 @@ def _keyframe_clouds(
     manifest: dict[str, Any],
     rows: list[dict[str, str]],
     benchmark_dir: Path,
-) -> dict[int, tuple[str, str]]:
+) -> dict[int, dict[str, Any]]:
     ordered_map_rows = [row for row in rows if row.get("role") == "map"]
     map_rows = {
         row["frame_token"]: row
@@ -107,10 +107,17 @@ def _keyframe_clouds(
                     )
                 map_row = ordered_map_rows[frame_index]
             relative = map_row["relative_cloud_path"]
-            result[int(keyframe["keyframe_id"])] = (
-                relative,
-                sha256_file(root / relative),
-            )
+            result[int(keyframe["keyframe_id"])] = {
+                "relative_cloud_path": relative,
+                "cloud_sha256": sha256_file(root / relative),
+                "x": keyframe["x"],
+                "y": keyframe["y"],
+                "z": keyframe["z"],
+                "qx": keyframe["qx"],
+                "qy": keyframe["qy"],
+                "qz": keyframe["qz"],
+                "qw": keyframe["qw"],
+            }
     return result
 
 
@@ -187,7 +194,7 @@ def freeze_verifier_pairs(
                         raise ValueError(
                             f"missing cloud for keyframe {matched_keyframe_id}"
                         )
-                    map_relative, map_sha256 = keyframe_clouds[matched_keyframe_id]
+                    map_keyframe = keyframe_clouds[matched_keyframe_id]
                     candidate = hypothesis["candidate"]
                     pair_label = classify_pair(
                         expected[episode_id],
@@ -221,8 +228,17 @@ def freeze_verifier_pairs(
                             "query_relative_cloud_path": query_relative,
                             "query_cloud_sha256": query_sha256,
                             "matched_keyframe_id": matched_keyframe_id,
-                            "map_relative_cloud_path": map_relative,
-                            "map_cloud_sha256": map_sha256,
+                            "map_relative_cloud_path": map_keyframe[
+                                "relative_cloud_path"
+                            ],
+                            "map_cloud_sha256": map_keyframe["cloud_sha256"],
+                            "map_keyframe_x": map_keyframe["x"],
+                            "map_keyframe_y": map_keyframe["y"],
+                            "map_keyframe_z": map_keyframe["z"],
+                            "map_keyframe_qx": map_keyframe["qx"],
+                            "map_keyframe_qy": map_keyframe["qy"],
+                            "map_keyframe_qz": map_keyframe["qz"],
+                            "map_keyframe_qw": map_keyframe["qw"],
                             "hypothesis_x": pose_fields["x"],
                             "hypothesis_y": pose_fields["y"],
                             "hypothesis_z": pose_fields["z"],
