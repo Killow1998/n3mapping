@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -9,7 +10,9 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#include <pcl/common/transforms.h>
 
+#include "n3mapping/cloud_utils.h"
 #include "n3mapping/world_localizing.h"
 
 namespace n3mapping::eval {
@@ -17,9 +20,51 @@ namespace n3mapping::eval {
 struct RegistrationProbeFrame {
     std::size_t frame_index = 0;
     std::string frame_token;
+    std::size_t query_frame_count = 1;
+    std::size_t query_point_count = 0;
     Eigen::Isometry3d oracle_pose = Eigen::Isometry3d::Identity();
     RegistrationSeedProbeResult result;
 };
+
+struct RegistrationProbeMotionFrame {
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
+    Eigen::Isometry3d odom_pose = Eigen::Isometry3d::Identity();
+};
+
+inline pcl::PointCloud<pcl::PointXYZI>::Ptr buildRegistrationProbeMotionQuery(
+    const std::vector<RegistrationProbeMotionFrame>& history,
+    double base_voxel_size)
+{
+    auto merged = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    if (history.empty() || !history.back().cloud) return merged;
+    const Eigen::Isometry3d T_current_odom = history.back().odom_pose.inverse();
+    for (const auto& frame : history) {
+        if (!frame.cloud) continue;
+        pcl::PointCloud<pcl::PointXYZI> transformed;
+        pcl::transformPointCloud(
+            *frame.cloud, transformed,
+            (T_current_odom * frame.odom_pose).matrix().cast<float>());
+        *merged += transformed;
+    }
+    const std::size_t point_budget =
+        std::max<std::size_t>(1, history.back().cloud->size());
+    double adaptive_voxel = std::max(1e-3, base_voxel_size);
+    for (int iteration = 0;
+         iteration < 8 && merged->size() > point_budget;
+         ++iteration) {
+        const double ratio = static_cast<double>(merged->size()) /
+                             static_cast<double>(point_budget);
+        adaptive_voxel *= std::max(1.1, 1.05 * std::cbrt(ratio));
+        pcl::PointCloud<pcl::PointXYZI>::Ptr downsampled;
+        if (!safeVoxelGridFilter<pcl::PointXYZI>(
+                merged, adaptive_voxel, &downsampled) ||
+            !downsampled || downsampled->size() >= merged->size()) {
+            break;
+        }
+        merged = downsampled;
+    }
+    return merged;
+}
 
 inline double probeYaw(const Eigen::Isometry3d& pose)
 {
@@ -72,7 +117,8 @@ inline void writeRegistrationProbeArtifacts(
     if (!attempts.is_open() || !stages.is_open()) {
         throw std::runtime_error("failed to open registration probe output");
     }
-    attempts << "frame_index,frame_token,probe_valid,probe_error,seed_kind,"
+    attempts << "frame_index,frame_token,query_frame_count,query_point_count,"
+                "probe_valid,probe_error,seed_kind,"
                 "seed_keyframe_id,yaw_offset_deg,initial_translation_error_m,"
                 "initial_yaw_error_deg,converged,quality_success,termination,"
                 "final_translation_error_m,final_yaw_error_deg,within_pose_gate,"
@@ -134,6 +180,8 @@ inline void writeRegistrationProbeArtifacts(
                 production_translation <= translation_gate_m &&
                 production_yaw <= yaw_gate_deg;
             attempts << frame.frame_index << ',' << frame.frame_token << ','
+                     << frame.query_frame_count << ','
+                     << frame.query_point_count << ','
                      << (frame.result.valid ? "true" : "false") << ','
                      << frame.result.error << ',' << attempt.seed_kind << ','
                      << attempt.seed_keyframe_id << ',' << std::setprecision(12)

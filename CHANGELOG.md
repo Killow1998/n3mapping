@@ -68,6 +68,7 @@
 - Finalize episode benchmark outputs with payload checksums and an atomic `COMPLETE` sentinel; require finalized evidence in the diagnostic tool unless legacy input is explicitly allowed.
 - Write oracle candidate diagnostics to a separate finalized output directory bound to the input manifest and benchmark hashes, leaving benchmark evidence immutable.
 - Extend the offline registration probe with the exact production fitness/inlier/confidence sub-gates, initial-vs-refined visibility endpoint decision, and per-projection resolution/coverage/support/conflict counts, sharing one behavior-preserving quality calculation with runtime basin initialization.
+- Add a point-budgeted `registration_probe_motion` evaluator mode for KITTI-360 and M2DGR, recording query frame/point counts so motion-footprint evidence can be compared with single-scan registration without changing production behavior.
 
 ### Tests and Checks
 

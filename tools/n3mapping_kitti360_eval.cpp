@@ -217,7 +217,8 @@ std::string jsonEscape(const std::string& input)
 void printUsage(std::ostream& os)
 {
     os << "Usage: n3mapping_kitti360_eval --kitti_root <path> --sequence <name> "
-       << "--mode mapping_loop|relocalization|registration_probe --output <dir> [options]\n\n"
+       << "--mode mapping_loop|relocalization|registration_probe|registration_probe_motion "
+          "--output <dir> [options]\n\n"
        << "Options:\n"
        << "  --max_frames <N>                 Maximum selected common frames.\n"
        << "  --start_index <N>                Skip first N stride-selected frames. Default: 0.\n"
@@ -329,9 +330,11 @@ Options parseArgs(int argc, char** argv)
     if (options.sequence.empty()) throw std::runtime_error("--sequence is required");
     if (options.output_dir.empty()) throw std::runtime_error("--output is required");
     if (options.mode != "mapping_loop" && options.mode != "relocalization" &&
-        options.mode != "registration_probe") {
+        options.mode != "registration_probe" &&
+        options.mode != "registration_probe_motion") {
         throw std::runtime_error(
-            "--mode must be mapping_loop, relocalization, or registration_probe");
+            "--mode must be mapping_loop, relocalization, registration_probe, "
+            "or registration_probe_motion");
     }
     if (options.calib_mode != "auto" &&
         options.calib_mode != "official" &&
@@ -354,7 +357,9 @@ Options parseArgs(int argc, char** argv)
         options.map_path.empty()) {
         throw std::runtime_error("manifest localization mode requires an explicit --map");
     }
-    if (options.mode == "registration_probe" && options.atlas_path.empty()) {
+    if ((options.mode == "registration_probe" ||
+         options.mode == "registration_probe_motion") &&
+        options.atlas_path.empty()) {
         throw std::runtime_error("registration_probe requires an explicit --atlas");
     }
     return options;
@@ -1395,6 +1400,9 @@ int runRegistrationProbe(const Options& options, const AlignedFrames& aligned)
         fakeMapToOdom(options.fake_x_m, options.fake_y_m, options.fake_yaw_deg);
     std::vector<eval::RegistrationProbeFrame> probe_frames;
     probe_frames.reserve(aligned.frames.size());
+    std::vector<eval::RegistrationProbeMotionFrame> motion_history;
+    motion_history.reserve(aligned.frames.size());
+    const bool use_motion_query = options.mode == "registration_probe_motion";
     for (size_t i = 0; i < aligned.frames.size(); ++i) {
         const auto& frame = aligned.frames[i];
         auto cloud = perturbCloud(
@@ -1403,9 +1411,16 @@ int runRegistrationProbe(const Options& options, const AlignedFrames& aligned)
             static_cast<uint32_t>(frame.frame_id));
         const Eigen::Isometry3d T_odom_lidar =
             T_map_odom.inverse() * frame.T_world_lidar;
+        motion_history.push_back({cloud, T_odom_lidar});
+        if (use_motion_query) {
+            cloud = eval::buildRegistrationProbeMotionQuery(
+                motion_history, options.input_voxel_size_m);
+        }
         eval::RegistrationProbeFrame probe;
         probe.frame_index = i;
         probe.frame_token = std::to_string(frame.frame_id);
+        probe.query_frame_count = use_motion_query ? motion_history.size() : 1;
+        probe.query_point_count = cloud ? cloud->size() : 0;
         probe.oracle_pose = frame.T_world_lidar;
         probe.result = core.probeLocalizationRegistration(
             cloud, T_odom_lidar, frame.T_world_lidar);
@@ -1433,7 +1448,8 @@ int main(int argc, char** argv)
         if (options.mode == "mapping_loop") {
             return n3mapping::runMappingLoop(options, aligned);
         }
-        if (options.mode == "registration_probe") {
+        if (options.mode == "registration_probe" ||
+            options.mode == "registration_probe_motion") {
             return n3mapping::runRegistrationProbe(options, aligned);
         }
         return n3mapping::runRelocalization(options, aligned);
