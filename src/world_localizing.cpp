@@ -82,7 +82,10 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       relocalization_seed_id_(-1),
       last_odom_pose_(Eigen::Isometry3d::Identity()),
       consecutive_track_failures_(0), hypothesis_window_count_(0),
-      last_window_winner_match_id_(-1), winner_streak_(0),
+      hypothesis_window_start_odom_pose_(Eigen::Isometry3d::Identity()),
+      has_last_window_winner_transform_(false),
+      last_window_winner_map_odom_(Eigen::Isometry3d::Identity()),
+      winner_streak_(0),
       relocalize_debug_query_index_(0), track_debug_query_index_(0) {}
 
 void WorldLocalizing::appendRelocalizationDebug(
@@ -424,6 +427,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       hyp.alive = true;
       pending_hypotheses_.push_back(hyp);
     }
+    hypothesis_window_start_odom_pose_ = odom_pose;
     hypothesis_window_count_ = 1;
 
     if (pending_hypotheses_.empty()) {
@@ -619,17 +623,45 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       }
     }
 
-    int64_t winner_match_id = findNearestKeyframe(top1->T_map_odom * odom_pose);
-    if (winner_match_id < 0)
-      winner_match_id = top1->last_match_id;
-    if (winner_match_id == last_window_winner_match_id_) {
+    // A relocalization solution is a physical pose trajectory, not the map
+    // keyframe nearest to the moving sensor. Tracking nearest-keyframe ids here
+    // resets the streak whenever a correct trajectory crosses a keyframe
+    // Voronoi boundary. Comparing the raw map-to-odom translations is also
+    // origin-dependent: a small rotation update around a large global
+    // coordinate can look like a multi-meter translation. Apply both the
+    // previous and current transforms to the current odom pose, then compare
+    // the two physical LiDAR poses at the same instant.
+    double winner_pose_translation_delta =
+        std::numeric_limits<double>::quiet_NaN();
+    double winner_pose_rotation_delta =
+        std::numeric_limits<double>::quiet_NaN();
+    bool same_winner_pose = false;
+    if (has_last_window_winner_transform_) {
+      const Eigen::Isometry3d previous_pose =
+          last_window_winner_map_odom_ * odom_pose;
+      const Eigen::Isometry3d current_pose = top1->T_map_odom * odom_pose;
+      const Eigen::Isometry3d winner_pose_delta =
+          previous_pose.inverse() * current_pose;
+      winner_pose_translation_delta =
+          winner_pose_delta.translation().norm();
+      winner_pose_rotation_delta =
+          Eigen::AngleAxisd(winner_pose_delta.rotation()).angle();
+      same_winner_pose =
+          winner_pose_translation_delta < config_.reloc_track_max_translation &&
+          winner_pose_rotation_delta < config_.reloc_track_max_rotation;
+    }
+    if (same_winner_pose) {
       winner_streak_ += 1;
     } else {
-      last_window_winner_match_id_ = winner_match_id;
       winner_streak_ = 1;
     }
+    last_window_winner_map_odom_ = top1->T_map_odom;
+    has_last_window_winner_transform_ = true;
     if (reloc_debug_enabled) {
       debug_event.winner_streak = winner_streak_;
+      debug_event.winner_pose_translation_delta =
+          winner_pose_translation_delta;
+      debug_event.winner_pose_rotation_delta = winner_pose_rotation_delta;
     }
 
     VLOG(1) << "[Reloc/Stability] window=" << hypothesis_window_count_ << "/"
@@ -645,7 +677,9 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             << ",visibility=" << top2_visibility << ")"
             << " margin=" << margin << " evidence="
             << (use_visibility_evidence ? "visibility" : "legacy_loglik")
-            << " winner_streak=" << winner_streak_;
+            << " winner_streak=" << winner_streak_
+            << " winner_pose_delta=(" << winner_pose_translation_delta << "m,"
+            << winner_pose_rotation_delta << "rad)";
   }
 
   const int effective_temporal_window =
@@ -674,6 +708,26 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       top1 && (winner_streak_ >= effective_min_winner_streak);
   const bool pass_converged_updates =
       top1 && (top1->converged_updates >= effective_min_converged_updates);
+  double evidence_motion_translation = 0.0;
+  double evidence_motion_rotation = 0.0;
+  if (hypothesis_window_count_ >= 2) {
+    const Eigen::Isometry3d evidence_motion =
+        odom_pose.inverse() * hypothesis_window_start_odom_pose_;
+    evidence_motion_translation = evidence_motion.translation().norm();
+    evidence_motion_rotation =
+        Eigen::AngleAxisd(evidence_motion.rotation()).angle();
+  }
+  // Repeated scans from one stationary viewpoint are not independent ray
+  // evidence, so descriptor/registration evidence remains authoritative there.
+  // Once the sensor has moved beyond the existing static-aggregation contract,
+  // the new viewpoints must not cumulatively disconfirm the pose. Zero log odds
+  // is the model's semantic support/opposition boundary, not a tuned score.
+  const bool moving_visibility_required =
+      evidence_motion_translation > config_.reloc_static_agg_max_translation ||
+      evidence_motion_rotation > config_.reloc_static_agg_max_rotation;
+  const bool pass_moving_visibility =
+      top1 && (!moving_visibility_required || !use_visibility_evidence ||
+               top1_visibility >= 0.0);
   const bool top2_viable =
       top2 && (top2_ll >= config_.reloc_lock_log_likelihood_threshold) &&
       (top2->converged_updates >= effective_min_converged_updates);
@@ -694,6 +748,10 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     debug_event.temporal_hypothesis_score = top1_decision_score;
     debug_event.log_likelihood = top1_ll;
     debug_event.winner_streak = winner_streak_;
+    debug_event.evidence_motion_translation = evidence_motion_translation;
+    debug_event.evidence_motion_rotation = evidence_motion_rotation;
+    debug_event.moving_visibility_required = moving_visibility_required;
+    debug_event.moving_visibility_passed = pass_moving_visibility;
     debug_event.margin = margin;
     debug_event.ratio = ratio;
     debug_event.basin_separation = basin_separation;
@@ -704,7 +762,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   }
 
   if (!ambiguous && pass_loglik && pass_margin && pass_winner_streak &&
-      pass_converged_updates) {
+      pass_converged_updates && pass_moving_visibility) {
     const RelocHypothesis &best = *top1;
     T_map_odom_ = best.T_map_odom;
     is_relocalized_ = true;
@@ -729,6 +787,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
               << ", guard(loglik=" << pass_loglik << ", margin=" << pass_margin
               << ", winner_streak=" << pass_winner_streak
               << ", converged_updates=" << pass_converged_updates
+              << ", moving_visibility=" << pass_moving_visibility
               << ", ambiguous=" << ambiguous << ")"
               << ", margin_value=" << margin
               << ", winner_streak_value=" << winner_streak_
@@ -759,6 +818,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         reject_reason = "no_active_hypothesis";
       } else if (!pass_loglik) {
         reject_reason = "log_likelihood";
+      } else if (!pass_moving_visibility) {
+        reject_reason = "moving_visibility_disagreement";
       } else if (!pass_margin) {
         reject_reason = "margin";
       } else if (!pass_winner_streak) {
@@ -778,13 +839,18 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           << " ratio=" << ratio << " basin_separation=" << basin_separation
           << " winner_streak=" << winner_streak_
           << " top1_converged_updates=" << (top1 ? top1->converged_updates : 0)
+          << " evidence_motion=(" << evidence_motion_translation << "m,"
+          << evidence_motion_rotation << "rad)"
+          << " moving_visibility_required=" << moving_visibility_required
+          << " top1_visibility=" << top1_visibility
           << " require(loglik>=" << config_.reloc_lock_log_likelihood_threshold
           << ", margin>=" << effective_min_margin
           << ", winner_streak>=" << effective_min_winner_streak
           << ", converged_updates>=" << effective_min_converged_updates << ")"
           << " pass(loglik=" << pass_loglik << ", margin=" << pass_margin
           << ", winner_streak=" << pass_winner_streak
-          << ", converged_updates=" << pass_converged_updates << ")";
+          << ", converged_updates=" << pass_converged_updates
+          << ", moving_visibility=" << pass_moving_visibility << ")";
     }
     finish_debug("rejected", reject_reason);
   }
@@ -1082,6 +1148,77 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
 bool WorldLocalizing::localizationAtlasLoaded() const {
   std::lock_guard<std::mutex> lock(mutex_);
   return localization_atlas_ && localization_atlas_->loaded();
+}
+
+RegistrationSeedProbeResult WorldLocalizing::probeRegistrationSeeds(
+    const PointCloudT::Ptr &cloud, const Eigen::Isometry3d &odom_pose,
+    const Eigen::Isometry3d &oracle_pose) {
+  RegistrationSeedProbeResult result;
+  if (!cloud || cloud->empty()) {
+    result.error = "empty_cloud";
+    return result;
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (keyframe_manager_.size() == 0) {
+    result.error = "missing_keyframes";
+    return result;
+  }
+  if (!localization_atlas_ || !localization_atlas_->loaded()) {
+    result.error = "atlas_required";
+    return result;
+  }
+
+  auto query_cloud = buildRelocQueryCloud(cloud, odom_pose, nullptr);
+  if (!query_cloud || query_cloud->empty()) {
+    result.error = "empty_query_cloud";
+    return result;
+  }
+  const auto prepared_query = matcher_.prepareSourceCloud(query_cloud);
+  const auto &target = localization_atlas_->preparedTarget();
+
+  result.oracle_nearest_keyframe_id = findNearestKeyframe(oracle_pose);
+  RegistrationSeedProbeAttempt oracle_attempt;
+  oracle_attempt.seed_kind = "oracle_gt";
+  oracle_attempt.seed_keyframe_id = result.oracle_nearest_keyframe_id;
+  oracle_attempt.initial_pose = oracle_pose;
+  oracle_attempt.match =
+      matcher_.alignPrepared(target, prepared_query, oracle_pose);
+  result.attempts.push_back(std::move(oracle_attempt));
+
+  const auto candidates = searchCandidates(query_cloud);
+  if (candidates.empty()) {
+    result.error = "no_descriptor_candidates";
+    result.valid = true;
+    return result;
+  }
+  const auto &candidate = candidates.front();
+  result.descriptor_candidate_keyframe_id = candidate.match_id;
+  const auto keyframe = keyframe_manager_.getKeyframe(candidate.match_id);
+  if (!keyframe) {
+    result.error = "descriptor_keyframe_missing";
+    result.valid = true;
+    return result;
+  }
+
+  const auto yaw_hypotheses = buildYawHypotheses(
+      candidate, config_,
+      loop_detector_.getScanContextSectorAngleDeg() * M_PI / 180.0);
+  for (const double yaw : yaw_hypotheses) {
+    RegistrationSeedProbeAttempt attempt;
+    attempt.seed_kind = "descriptor";
+    attempt.seed_keyframe_id = candidate.match_id;
+    attempt.yaw_offset_rad = yaw;
+    attempt.initial_pose = keyframe->pose_optimized;
+    attempt.initial_pose.linear() =
+        keyframe->pose_optimized.linear() *
+        Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    attempt.match =
+        matcher_.alignPrepared(target, prepared_query, attempt.initial_pose);
+    result.attempts.push_back(std::move(attempt));
+  }
+  result.valid = true;
+  return result;
 }
 
 std::vector<LoopCandidate>
@@ -1700,7 +1837,9 @@ double WorldLocalizing::computeTrackLogLikelihood(
 void WorldLocalizing::clearRelocHypotheses() {
   pending_hypotheses_.clear();
   hypothesis_window_count_ = 0;
-  last_window_winner_match_id_ = -1;
+  hypothesis_window_start_odom_pose_ = Eigen::Isometry3d::Identity();
+  has_last_window_winner_transform_ = false;
+  last_window_winner_map_odom_ = Eigen::Isometry3d::Identity();
   winner_streak_ = 0;
 }
 

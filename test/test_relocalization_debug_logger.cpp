@@ -95,6 +95,12 @@ TEST(RelocalizationDebugLoggerTest,
   event.hypotheses.push_back(hypothesis);
   event.visibility_margin = 1.2;
   event.visibility_ratio = 3.3;
+  event.winner_pose_translation_delta = 0.12;
+  event.winner_pose_rotation_delta = 0.03;
+  event.evidence_motion_translation = 1.2;
+  event.evidence_motion_rotation = 0.1;
+  event.moving_visibility_required = true;
+  event.moving_visibility_passed = false;
   event.lock_result = "rejected";
   event.reject_reason = "bad\nreason";
 
@@ -112,6 +118,16 @@ TEST(RelocalizationDebugLoggerTest,
             std::string::npos);
   EXPECT_NE(lines[0].find("\"motion_query_frame_count\":3"), std::string::npos);
   EXPECT_NE(lines[0].find("\"motion_query_candidate_count\":1"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"winner_pose_translation_delta\":"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"winner_pose_rotation_delta\":"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"evidence_motion_translation\":1.2"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"moving_visibility_required\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"moving_visibility_passed\":false"),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"candidate_count\":1"), std::string::npos);
   EXPECT_NE(lines[0].find("\"visibility_evidence_log_odds\":1.5"),

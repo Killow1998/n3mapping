@@ -321,6 +321,18 @@ bool RelocalizationDebugLogger::appendRelocalization(
                event.temporal_hypothesis_score);
   appendNumber(os, &first, "log_likelihood", event.log_likelihood);
   appendInteger(os, &first, "winner_streak", event.winner_streak);
+  appendNumber(os, &first, "winner_pose_translation_delta",
+               event.winner_pose_translation_delta);
+  appendNumber(os, &first, "winner_pose_rotation_delta",
+               event.winner_pose_rotation_delta);
+  appendNumber(os, &first, "evidence_motion_translation",
+               event.evidence_motion_translation);
+  appendNumber(os, &first, "evidence_motion_rotation",
+               event.evidence_motion_rotation);
+  appendBool(os, &first, "moving_visibility_required",
+             event.moving_visibility_required);
+  appendBool(os, &first, "moving_visibility_passed",
+             event.moving_visibility_passed);
   appendNumber(os, &first, "margin", event.margin);
   appendNumber(os, &first, "ratio", event.ratio);
   appendNumber(os, &first, "visibility_margin", event.visibility_margin);

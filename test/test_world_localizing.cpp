@@ -111,8 +111,10 @@ protected:
     return body_cloud;
   }
 
-  void buildTestMap(int num_keyframes = 10, double spacing = 2.0) {
+  void buildTestMap(int num_keyframes = 10, double spacing = 2.0,
+                    double origin_x = 0.0) {
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = origin_x;
     for (int i = 0; i < num_keyframes; ++i) {
       auto cloud = generateCorridorCloud(pose);
       int64_t kf_id = keyframe_manager_->addKeyframe(i * 0.1, pose, cloud);
@@ -161,6 +163,19 @@ TEST_F(WorldLocalizingTest, RelocalizationEmptyMap) {
   EXPECT_FALSE(result.success);
   EXPECT_EQ(result.decision, "missing_keyframes");
   EXPECT_FALSE(reloc.isRelocalized());
+}
+
+TEST_F(WorldLocalizingTest, RegistrationProbeRequiresLoadedAtlas) {
+  buildTestMap(3);
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  const auto result =
+      reloc.probeRegistrationSeeds(generateCorridorCloud(pose), pose, pose);
+
+  EXPECT_FALSE(result.valid);
+  EXPECT_EQ(result.error, "atlas_required");
+  EXPECT_TRUE(result.attempts.empty());
 }
 
 TEST_F(WorldLocalizingTest, RelocalizationDebugWritesRejectPath) {
@@ -291,6 +306,37 @@ TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess) {
   double position_error =
       (result.pose_in_map.translation() - query_pose.translation()).norm();
   EXPECT_LT(position_error, 3.0);
+}
+
+TEST_F(WorldLocalizingTest, MovingAcrossKeyframesKeepsPhysicalWinnerStreak) {
+  config_.reloc_lock_min_margin = 0.1;
+  config_.reloc_lock_min_winner_streak = 3;
+  config_.reloc_lock_min_converged_updates = 3;
+  constexpr double kMapOriginX = -2800.0;
+  buildTestMap(10, 2.0, kMapOriginX);
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+
+  Eigen::Isometry3d fake_map_odom = Eigen::Isometry3d::Identity();
+  fake_map_odom.translation() = Eigen::Vector3d(20.0, -15.0, 0.0);
+  fake_map_odom.linear() =
+      Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+
+  RelocResult result;
+  for (double x : {7.4, 8.4, 9.4}) {
+    Eigen::Isometry3d query_pose = Eigen::Isometry3d::Identity();
+    query_pose.translation().x() = kMapOriginX + x;
+    const Eigen::Isometry3d odom_pose = fake_map_odom.inverse() * query_pose;
+    result =
+        reloc.relocalize(generateCorridorCloud(query_pose), odom_pose);
+  }
+
+  ASSERT_TRUE(result.success);
+  EXPECT_EQ(result.decision, "accepted");
+  EXPECT_LT((result.pose_in_map.translation() -
+             Eigen::Vector3d(kMapOriginX + 9.4, 0.0, 0.0))
+                .norm(),
+            3.0);
 }
 
 TEST_F(WorldLocalizingTest, DuplicatedGeometryDoesNotClaimAUniquePlace) {

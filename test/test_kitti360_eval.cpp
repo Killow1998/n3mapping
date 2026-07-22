@@ -144,6 +144,11 @@ std::filesystem::path makeMiniKitti360Fixture(
         throw std::runtime_error("failed to open synthetic calibration");
     }
     calib << calibration;
+    std::ofstream cam_to_pose(calibration_dir / "calib_cam_to_pose.txt");
+    if (!cam_to_pose.is_open()) {
+        throw std::runtime_error("failed to open synthetic cam-to-pose calibration");
+    }
+    cam_to_pose << "image_00: 1 0 0 0 0 1 0 0 0 0 1 0\n";
     return root;
 }
 
@@ -185,6 +190,8 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_NE(metrics.find("\"alignment_time_diff_max_s\": 0"), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_loaded\": true"), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_mode_requested\": \"auto\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"calib_mode_used\": \"official\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"cam_to_pose_loaded\": true"), std::string::npos);
     const std::string loops = readTextFile(output / "accepted_loops.csv");
     EXPECT_NE(loops.find("query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,vertical_downweighted,source_z_span,target_z_span,z_overlap_ratio_before,z_overlap_ratio_after,source_z_robust_span,target_z_robust_span,z_robust_overlap_ratio_before,z_robust_overlap_ratio_after,source_target_z_centroid_delta_before,source_target_z_centroid_delta_after,vertical_information_ratio"), std::string::npos);
     EXPECT_NE(loops.find("vertical_hypothesis_count,best_z_offset_m,best_z_offset_fitness,zero_z_fitness,fitness_gap_zero_vs_best,z_hypothesis_spread_m,vertical_ambiguity_score,vertical_hypothesis_edge_recommendation,heightmap_overlap_cell_count"), std::string::npos);
@@ -638,6 +645,7 @@ TEST(N3MappingKitti360EvalTest, CalibrationModeChangesGroundTruthPoseAndMetrics)
     const auto root = makeMiniKitti360Fixture(sequence, "1 0 0 10 0 1 0 0 0 0 1 0\n");
     const auto cam_to_velo_output = makeTempDir("n3mapping_kitti360_eval_cam_to_velo_output");
     const auto velo_to_cam_output = makeTempDir("n3mapping_kitti360_eval_velo_to_cam_output");
+    const auto official_output = makeTempDir("n3mapping_kitti360_eval_official_output");
 
     const std::string common =
         " --kitti_root " + shellQuote(root) +
@@ -656,19 +664,29 @@ TEST(N3MappingKitti360EvalTest, CalibrationModeChangesGroundTruthPoseAndMetrics)
         " --output " + shellQuote(velo_to_cam_output);
     ASSERT_EQ(std::system(inverse_command.c_str()), 0);
 
+    const std::string official_command = shellQuote(tool) + common +
+        " --calib_mode official"
+        " --output " + shellQuote(official_output);
+    ASSERT_EQ(std::system(official_command.c_str()), 0);
+
     const std::string direct_traj = readTextFile(cam_to_velo_output / "trajectory_gt.txt");
     const std::string inverse_traj = readTextFile(velo_to_cam_output / "trajectory_gt.txt");
+    const std::string official_traj = readTextFile(official_output / "trajectory_gt.txt");
     EXPECT_NE(direct_traj.find("1 10.000000000"), std::string::npos);
     EXPECT_NE(inverse_traj.find("1 -10.000000000"), std::string::npos);
+    EXPECT_NE(official_traj.find("1 -10.000000000"), std::string::npos);
 
     const std::string direct_metrics = readTextFile(cam_to_velo_output / "metrics.json");
     const std::string inverse_metrics = readTextFile(velo_to_cam_output / "metrics.json");
+    const std::string official_metrics = readTextFile(official_output / "metrics.json");
     EXPECT_NE(direct_metrics.find("\"calib_mode_used\": \"cam_to_velo\""), std::string::npos);
     EXPECT_NE(inverse_metrics.find("\"calib_mode_used\": \"velo_to_cam\""), std::string::npos);
+    EXPECT_NE(official_metrics.find("\"calib_mode_used\": \"official\""), std::string::npos);
+    EXPECT_NE(official_metrics.find("\"cam_to_pose_loaded\": true"), std::string::npos);
     EXPECT_NE(direct_metrics.find("\"first_pose_delta_translation_m\": 20"), std::string::npos);
 }
 
-TEST(N3MappingKitti360EvalTest, MalformedCalibrationIsReportedInMetrics)
+TEST(N3MappingKitti360EvalTest, LegacyMalformedCalibrationIsReportedInMetrics)
 {
     const auto tool = findKittiEvalTool();
     ASSERT_FALSE(tool.empty()) << "n3mapping_kitti360_eval executable not found";
@@ -682,6 +700,7 @@ TEST(N3MappingKitti360EvalTest, MalformedCalibrationIsReportedInMetrics)
         " --mode mapping_loop"
         " --max_frames 1"
         " --stride 1"
+        " --calib_mode cam_to_velo"
         " --output " + shellQuote(output);
     ASSERT_EQ(std::system(command.c_str()), 0);
 
@@ -689,6 +708,25 @@ TEST(N3MappingKitti360EvalTest, MalformedCalibrationIsReportedInMetrics)
     EXPECT_NE(metrics.find("\"calib_loaded\": false"), std::string::npos);
     EXPECT_NE(metrics.find("failed to parse calib_cam_to_velo.txt"), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_mode_used\": \"identity\""), std::string::npos);
+}
+
+TEST(N3MappingKitti360EvalTest, OfficialCalibrationFailsClosedWhenMalformed)
+{
+    const auto tool = findKittiEvalTool();
+    ASSERT_FALSE(tool.empty()) << "n3mapping_kitti360_eval executable not found";
+    const std::string sequence = "2013_05_28_drive_0003_sync";
+    const auto root = makeMiniKitti360Fixture(sequence, "malformed calibration\n");
+    const auto output = makeTempDir("n3mapping_kitti360_eval_official_bad_calib_output");
+
+    const std::string command = shellQuote(tool) +
+        " --kitti_root " + shellQuote(root) +
+        " --sequence " + sequence +
+        " --mode mapping_loop"
+        " --max_frames 1"
+        " --stride 1"
+        " --output " + shellQuote(output);
+    EXPECT_NE(std::system(command.c_str()), 0);
+    EXPECT_FALSE(std::filesystem::exists(output / "metrics.json"));
 }
 
 TEST(N3MappingKitti360EvalTest, RelocalizationWritesMetricsAndDebug)

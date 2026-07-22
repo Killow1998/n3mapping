@@ -906,6 +906,19 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   return output;
 }
 
+RegistrationSeedProbeResult N3MappingCore::probeLocalizationRegistration(
+    const core::LioFrame::PointCloud::Ptr &cloud,
+    const Eigen::Isometry3d &odom_pose,
+    const Eigen::Isometry3d &oracle_pose) {
+  if (!map_loaded_) {
+    RegistrationSeedProbeResult result;
+    result.error = "map_not_loaded";
+    return result;
+  }
+  return session_->worldLocalizing().probeRegistrationSeeds(
+      cloud, odom_pose, oracle_pose);
+}
+
 core::BackendOutput
 N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   if (!frame.pose_valid || !frame.undistorted_cloud ||

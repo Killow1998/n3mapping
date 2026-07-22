@@ -39,6 +39,24 @@ struct RelocResult {
   double fitness_score = 0.0;
 };
 
+// Offline-only registration evidence. The oracle pose is never used by the
+// runtime relocalization path; this result exists to locate which stage fails.
+struct RegistrationSeedProbeAttempt {
+  std::string seed_kind;
+  int64_t seed_keyframe_id = -1;
+  double yaw_offset_rad = 0.0;
+  Eigen::Isometry3d initial_pose = Eigen::Isometry3d::Identity();
+  MatchResult match;
+};
+
+struct RegistrationSeedProbeResult {
+  bool valid = false;
+  std::string error;
+  int64_t oracle_nearest_keyframe_id = -1;
+  int64_t descriptor_candidate_keyframe_id = -1;
+  std::vector<RegistrationSeedProbeAttempt> attempts;
+};
+
 class WorldLocalizing {
 public:
   using PointCloudT = pcl::PointCloud<pcl::PointXYZI>;
@@ -58,6 +76,9 @@ public:
   bool loadLocalizationAtlas(const std::string &map_path,
                              std::string *error = nullptr);
   bool localizationAtlasLoaded() const;
+  RegistrationSeedProbeResult probeRegistrationSeeds(
+      const PointCloudT::Ptr &cloud, const Eigen::Isometry3d &odom_pose,
+      const Eigen::Isometry3d &oracle_pose);
 
 private:
   struct RelocHypothesis {
@@ -135,7 +156,9 @@ private:
   std::vector<RelocHypothesis> pending_hypotheses_;
   std::deque<QueryFrame> query_frame_buffer_;
   int hypothesis_window_count_;
-  int64_t last_window_winner_match_id_;
+  Eigen::Isometry3d hypothesis_window_start_odom_pose_;
+  bool has_last_window_winner_transform_;
+  Eigen::Isometry3d last_window_winner_map_odom_;
   int winner_streak_;
   uint64_t relocalize_debug_query_index_;
   uint64_t track_debug_query_index_;

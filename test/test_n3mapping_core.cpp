@@ -69,6 +69,18 @@ TEST(N3MappingCoreTest, ConstructAndRejectInvalidMappingFrame)
     EXPECT_TRUE(core.getAllKeyframes().empty());
 }
 
+TEST(N3MappingCoreTest, RegistrationProbeRequiresLoadedMap)
+{
+    N3MappingCore core(makeCoreTestConfig());
+    const auto frame = makeFrame(1000000000, Eigen::Isometry3d::Identity());
+    const auto result = core.probeLocalizationRegistration(
+        frame.undistorted_cloud, frame.T_world_lidar, frame.T_world_lidar);
+
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.error, "map_not_loaded");
+    EXPECT_TRUE(result.attempts.empty());
+}
+
 TEST(N3MappingCoreTest, ProcessMappingFrameAcceptsFirstKeyframe)
 {
     N3MappingCore core(makeCoreTestConfig());

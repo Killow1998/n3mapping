@@ -75,6 +75,16 @@ struct RelocalizationDebugEvent {
   double temporal_hypothesis_score = std::numeric_limits<double>::quiet_NaN();
   double log_likelihood = std::numeric_limits<double>::quiet_NaN();
   int winner_streak = 0;
+  double winner_pose_translation_delta =
+      std::numeric_limits<double>::quiet_NaN();
+  double winner_pose_rotation_delta =
+      std::numeric_limits<double>::quiet_NaN();
+  double evidence_motion_translation =
+      std::numeric_limits<double>::quiet_NaN();
+  double evidence_motion_rotation =
+      std::numeric_limits<double>::quiet_NaN();
+  bool moving_visibility_required = false;
+  bool moving_visibility_passed = true;
   double margin = std::numeric_limits<double>::quiet_NaN();
   double ratio = std::numeric_limits<double>::quiet_NaN();
   double visibility_margin = std::numeric_limits<double>::quiet_NaN();

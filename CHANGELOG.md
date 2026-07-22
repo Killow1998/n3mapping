@@ -60,12 +60,17 @@
 - Add `RhpdFrame` candidate source tracking while preserving RHPD-primary and ScanContext-auxiliary semantics.
 - Improve ScanContext yaw verification by testing adjacent sector yaw hypotheses instead of a forced 180-degree alternative.
 - Select relocalization basins using ICP fitness plus fused descriptor score.
+- Define temporal winner continuity by the physical LiDAR pose at the current odometry state instead of the nearest keyframe ID or origin-dependent raw transform translation.
+- Require moving multi-view windows to provide non-negative ray-consistency evidence while keeping stationary descriptor-led relocalization unchanged.
+- Add an offline oracle/descriptor registration-seed probe to isolate retrieval, initialization, registration, and lock-decision failures without exposing ground truth to runtime localization.
+- Correct KITTI-360 evaluation to compose pose/IMU, camera, and Velodyne frames using the official calibration contract; default `auto` to this contract and fail closed when required calibration is missing or malformed.
 
 ### Tests and Checks
 
 - Add core type, config, Humble conversion, `N3MappingCore`, synthetic relocalization, no-ROS-core, Humble wrapper-boundary, and Noetic wrapper checks.
 - Keep existing RHPD, loop detector, map serializer, loop closure, and relocalization regression tests in the refactored target layout.
 - Validate the current test suite at 272 tests passing after the wrapper split and synthetic relocalization additions.
+- Add global-coordinate moving-winner coverage, registration-probe precondition checks, official KITTI-360 calibration direction/fail-closed coverage, and debug evidence fields.
 - Revalidate Noetic after Humble wrapper parity updates: `catkin build n3mapping --no-status -j2 --catkin-make-args run_tests`, local `ctest --output-on-failure`, headless `mapping`/`localization`/`map_extension` launch initialization, and `/n3mapping/save_map` service discovery all pass.
 
 ### Retrieval Pipeline

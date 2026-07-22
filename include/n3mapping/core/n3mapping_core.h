@@ -63,6 +63,11 @@ class N3MappingCore {
     core::LioFrame::PointCloud::Ptr buildGlobalMap() const;
     bool mapLoaded() const;
 
+    RegistrationSeedProbeResult probeLocalizationRegistration(
+        const core::LioFrame::PointCloud::Ptr& cloud,
+        const Eigen::Isometry3d& odom_pose,
+        const Eigen::Isometry3d& oracle_pose);
+
     Keyframe::Ptr getKeyframe(int64_t id) const;
     std::vector<Keyframe::Ptr> getAllKeyframes() const;
     std::map<int64_t, Eigen::Isometry3d> getOptimizedPoses() const;

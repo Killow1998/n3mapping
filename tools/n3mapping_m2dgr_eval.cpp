@@ -29,6 +29,7 @@
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/cloud_utils.h"
 #include "eval_episode_manifest.h"
+#include "eval_registration_probe.h"
 
 namespace fs = std::filesystem;
 
@@ -248,7 +249,7 @@ std::string jsonEscape(const std::string& input)
 void printUsage(std::ostream& os)
 {
     os << "Usage: n3mapping_m2dgr_eval --m2dgr_root <path> --sequence <name> "
-       << "--mode mapping_loop|relocalization --output <dir> [options]\n\n"
+       << "--mode mapping_loop|relocalization|registration_probe --output <dir> [options]\n\n"
        << "This tool expects M2DGR lidar clouds extracted from rosbag into .pcd or .bin files,\n"
        << "plus a TUM-format ground-truth trajectory: timestamp x y z qx qy qz qw.\n\n"
        << "Options:\n"
@@ -372,8 +373,10 @@ Options parseArgs(int argc, char** argv)
     if (options.sequence.empty()) {
         throw std::runtime_error("--sequence is required");
     }
-    if (options.mode != "mapping_loop" && options.mode != "relocalization") {
-        throw std::runtime_error("--mode must be mapping_loop or relocalization");
+    if (options.mode != "mapping_loop" && options.mode != "relocalization" &&
+        options.mode != "registration_probe") {
+        throw std::runtime_error(
+            "--mode must be mapping_loop, relocalization, or registration_probe");
     }
     if (options.output_dir.empty()) {
         throw std::runtime_error("--output is required");
@@ -410,9 +413,12 @@ Options parseArgs(int argc, char** argv)
         throw std::runtime_error(
             "manifest selection cannot be combined with --start_index/--stride/--max_frames");
     }
-    if (!options.frame_manifest.empty() && options.mode == "relocalization" &&
+    if (!options.frame_manifest.empty() && options.mode != "mapping_loop" &&
         options.map_path.empty()) {
-        throw std::runtime_error("manifest relocalization requires an explicit --map");
+        throw std::runtime_error("manifest localization mode requires an explicit --map");
+    }
+    if (options.mode == "registration_probe" && options.atlas_path.empty()) {
+        throw std::runtime_error("registration_probe requires an explicit --atlas");
     }
     return options;
 }
@@ -1337,6 +1343,49 @@ int runRelocalization(const Options& options,
     return 0;
 }
 
+int runRegistrationProbe(const Options& options,
+                         const std::vector<M2DGRFrame>& frames)
+{
+    if (options.map_path.empty()) {
+        throw std::runtime_error("registration_probe requires an explicit --map");
+    }
+    Config config = makeEvalConfig(options);
+    config.mode = "localization";
+    config.map_path = options.map_path.string();
+    N3MappingCore core(config);
+    if (!core.loadMap(options.map_path.string())) {
+        throw std::runtime_error("failed to load registration probe map: " +
+                                 options.map_path.string());
+    }
+
+    const Eigen::Isometry3d T_map_odom =
+        fakeMapToOdom(options.fake_x_m, options.fake_y_m, options.fake_yaw_deg);
+    std::vector<eval::RegistrationProbeFrame> probe_frames;
+    probe_frames.reserve(frames.size());
+    for (size_t i = 0; i < frames.size(); ++i) {
+        const auto& frame = frames[i];
+        auto source_cloud =
+            readEvalCloud(frame.cloud_path, options.input_voxel_size_m);
+        auto query_cloud = makeQueryCloud(source_cloud, options, i);
+        const Eigen::Isometry3d T_odom_lidar =
+            T_map_odom.inverse() * frame.T_world_lidar;
+        eval::RegistrationProbeFrame probe;
+        probe.frame_index = i;
+        probe.frame_token = frame.cloud_path.stem().string();
+        probe.oracle_pose = frame.T_world_lidar;
+        probe.result = core.probeLocalizationRegistration(
+            query_cloud, T_odom_lidar, frame.T_world_lidar);
+        probe_frames.push_back(std::move(probe));
+    }
+    eval::writeRegistrationProbeArtifacts(
+        options.output_dir, "M2DGR", options.sequence, probe_frames,
+        options.pose_translation_threshold_m,
+        options.pose_yaw_threshold_deg);
+    std::cout << "registration probe frames=" << probe_frames.size()
+              << " output=" << options.output_dir << "\n";
+    return 0;
+}
+
 int run(const Options& options)
 {
     const auto lidar_dir = resolveLidarDir(options);
@@ -1352,6 +1401,9 @@ int run(const Options& options)
     const auto frames = alignFrames(lidar, poses, options, &alignment);
     if (options.mode == "mapping_loop") {
         return runMappingLoop(options, frames, alignment);
+    }
+    if (options.mode == "registration_probe") {
+        return runRegistrationProbe(options, frames);
     }
     return runRelocalization(options, frames, alignment);
 }
