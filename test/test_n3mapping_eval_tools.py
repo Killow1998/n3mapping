@@ -24,7 +24,12 @@ SYNTHETIC_FIXTURE_CONTRACT = (
 sys.path.insert(0, str(TOOLS_DIR))
 
 from n3mapping_dataset_readiness import build_report, spatial_coverage  # noqa: E402
-from n3mapping_episode_benchmark import _verify_manifest, classify_episode  # noqa: E402
+from n3mapping_episode_benchmark import (  # noqa: E402
+    _finalize_benchmark_output,
+    _verify_benchmark_output,
+    _verify_manifest,
+    classify_episode,
+)
 from n3mapping_episode_diagnose import diagnose_benchmark  # noqa: E402
 from n3mapping_episode_freeze import freeze_episodes  # noqa: E402
 from n3mapping_eval_compare import compare_runs  # noqa: E402
@@ -697,6 +702,16 @@ class DatasetReadinessTest(unittest.TestCase):
                 "".join(json.dumps(event) + "\n" for event in events),
                 encoding="utf-8",
             )
+            _write_json(
+                benchmark_dir / "summary.json",
+                {"schema_version": 1, "attempt_count": 1},
+            )
+            _write_csv(
+                benchmark_dir / "episodes.csv",
+                ["episode_id", "outcome"],
+                [{"episode_id": "query_000", "outcome": "no_lock"}],
+            )
+            _finalize_benchmark_output(benchmark_dir)
 
             report = diagnose_benchmark(manifest_dir, benchmark_dir)
             self.assertEqual(report["oracle_overlap_frame_count"], 2)
@@ -708,6 +723,25 @@ class DatasetReadinessTest(unittest.TestCase):
                 {"no_valid_icp_hypothesis": 1, "temporal_window_pending": 1},
             )
             self.assertTrue((benchmark_dir / "oracle_candidate_frames.csv").is_file())
+            _verify_benchmark_output(benchmark_dir)
+
+    def test_benchmark_finalization_detects_incomplete_and_mutated_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            _write_json(output / "summary.json", {"attempt_count": 1})
+            _write_csv(
+                output / "episodes.csv",
+                ["episode_id", "outcome"],
+                [{"episode_id": "query_000", "outcome": "correct_lock"}],
+            )
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                _verify_benchmark_output(output)
+            _finalize_benchmark_output(output)
+            _verify_benchmark_output(output)
+            self.assertTrue((output / "COMPLETE").is_file())
+            (output / "summary.json").write_text("changed\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "payload hash mismatch"):
+                _verify_benchmark_output(output)
 
     def test_spatial_coverage_counts_only_queries_inside_radius(self) -> None:
         report = spatial_coverage(

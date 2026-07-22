@@ -7,10 +7,11 @@ import argparse
 import csv
 import json
 import math
+import os
 import shlex
 import subprocess
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from n3mapping_dataset_readiness import sha256_file
@@ -19,6 +20,79 @@ from n3mapping_episode_freeze import KITTI360_OFFICIAL_CALIBRATION_FILES
 
 def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _finalize_benchmark_output(output: Path) -> None:
+    checksum_path = output / "checksums.sha256"
+    complete_path = output / "COMPLETE"
+    if checksum_path.exists() or complete_path.exists():
+        raise ValueError(f"benchmark output is already finalized: {output}")
+    payloads = []
+    for path in sorted(output.rglob("*")):
+        if path.is_symlink():
+            raise ValueError(f"benchmark output contains a symlink: {path}")
+        if path.is_file():
+            payloads.append(path)
+    required = {output / "summary.json", output / "episodes.csv"}
+    if not required.issubset(payloads):
+        raise ValueError("benchmark output is missing summary.json or episodes.csv")
+    lines = [
+        f"{sha256_file(path)}  {path.relative_to(output).as_posix()}"
+        for path in payloads
+    ]
+    with checksum_path.open("x", encoding="utf-8") as stream:
+        stream.write("\n".join(lines) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    complete_tmp = output / ".COMPLETE.tmp"
+    with complete_tmp.open("x", encoding="utf-8") as stream:
+        stream.write(
+            "status=complete\n"
+            f"checksums_sha256={sha256_file(checksum_path)}\n"
+        )
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(complete_tmp, complete_path)
+
+
+def _verify_benchmark_output(output: Path) -> None:
+    complete_path = output / "COMPLETE"
+    checksum_path = output / "checksums.sha256"
+    if not complete_path.is_file() or complete_path.is_symlink():
+        raise ValueError(f"benchmark output is incomplete: {output}")
+    complete_fields = {}
+    for line in complete_path.read_text(encoding="utf-8").splitlines():
+        key, separator, value = line.partition("=")
+        if not separator or key in complete_fields:
+            raise ValueError(f"malformed benchmark COMPLETE file: {complete_path}")
+        complete_fields[key] = value
+    if complete_fields.get("status") != "complete":
+        raise ValueError(f"benchmark COMPLETE status is not complete: {complete_path}")
+    if not checksum_path.is_file() or checksum_path.is_symlink():
+        raise ValueError(f"benchmark checksums are missing: {checksum_path}")
+    if sha256_file(checksum_path) != complete_fields.get("checksums_sha256"):
+        raise ValueError(f"benchmark checksum manifest hash mismatch: {checksum_path}")
+    seen = set()
+    for line in checksum_path.read_text(encoding="utf-8").splitlines():
+        expected, separator, relative_text = line.partition("  ")
+        relative = PurePosixPath(relative_text)
+        if (
+            not separator
+            or len(expected) != 64
+            or any(character not in "0123456789abcdef" for character in expected)
+            or relative.is_absolute()
+            or ".." in relative.parts
+            or relative_text in seen
+        ):
+            raise ValueError(f"malformed benchmark checksum line: {line!r}")
+        seen.add(relative_text)
+        path = output.joinpath(*relative.parts)
+        if not path.is_file() or path.is_symlink():
+            raise ValueError(f"benchmark payload is missing or not regular: {path}")
+        if sha256_file(path) != expected:
+            raise ValueError(f"benchmark payload hash mismatch: {path}")
+    if not {"summary.json", "episodes.csv"}.issubset(seen):
+        raise ValueError("benchmark checksums omit summary.json or episodes.csv")
 
 
 def _verify_manifest(
@@ -330,6 +404,8 @@ def run_benchmark(
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+    _finalize_benchmark_output(output)
+    _verify_benchmark_output(output)
     return summary
 
 

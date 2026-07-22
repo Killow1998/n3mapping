@@ -15,6 +15,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from n3mapping_episode_benchmark import _verify_benchmark_output
+
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as stream:
@@ -70,7 +72,14 @@ def _candidate_min_distance(
     return min(distances) if distances else None
 
 
-def diagnose_benchmark(manifest_dir: Path, benchmark_dir: Path) -> dict[str, Any]:
+def diagnose_benchmark(
+    manifest_dir: Path,
+    benchmark_dir: Path,
+    *,
+    allow_legacy_unfinalized: bool = False,
+) -> dict[str, Any]:
+    if not allow_legacy_unfinalized:
+        _verify_benchmark_output(benchmark_dir)
     manifest = json.loads((manifest_dir / "dataset_manifest.json").read_text(encoding="utf-8"))
     manifest_rows = _read_csv(manifest_dir / "episode_frames.csv")
     keyframes = _keyframe_positions(
@@ -176,8 +185,22 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest-dir", required=True, type=Path)
     parser.add_argument("--benchmark-dir", required=True, type=Path)
+    parser.add_argument(
+        "--allow-legacy-unfinalized",
+        action="store_true",
+        help="permit old benchmark directories without COMPLETE/checksums.sha256",
+    )
     args = parser.parse_args()
-    print(json.dumps(diagnose_benchmark(args.manifest_dir, args.benchmark_dir), sort_keys=True))
+    print(
+        json.dumps(
+            diagnose_benchmark(
+                args.manifest_dir,
+                args.benchmark_dir,
+                allow_legacy_unfinalized=args.allow_legacy_unfinalized,
+            ),
+            sort_keys=True,
+        )
+    )
     return 0
 
 
