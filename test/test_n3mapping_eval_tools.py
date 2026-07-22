@@ -23,6 +23,7 @@ SYNTHETIC_FIXTURE_CONTRACT = (
 )
 sys.path.insert(0, str(TOOLS_DIR))
 
+from n3mapping_dataset_readiness import build_report, spatial_coverage  # noqa: E402
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
 from n3mapping_synthetic_eval_gate import SyntheticGateError, run_synthetic_gate  # noqa: E402
@@ -629,6 +630,66 @@ def _run_fake_gate(
         build_type="test",
     )
     return output
+
+
+class DatasetReadinessTest(unittest.TestCase):
+    def test_spatial_coverage_counts_only_queries_inside_radius(self) -> None:
+        report = spatial_coverage(
+            [(0.0, 0.0, 0.0), (10.0, 0.0, 0.0)],
+            [(0.5, 0.0, 0.0), (20.0, 0.0, 0.0)],
+            1.0,
+        )
+        self.assertEqual(report["covered_query_count"], 1)
+        self.assertEqual(report["covered_query_rate"], 0.5)
+
+    def test_build_report_discovers_kitti_and_m2dgr_contracts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            kitti = root / "KITTI360"
+            for sequence, offset in (("drive_0000_sync", 0.0), ("drive_0001_sync", 0.2)):
+                lidar_dir = kitti / "data_3d_raw" / sequence / "velodyne_points" / "data"
+                lidar_dir.mkdir(parents=True)
+                pose_dir = kitti / "data_poses" / sequence
+                pose_dir.mkdir(parents=True)
+                pose_lines = []
+                for frame_id, x in enumerate((0.0, 10.0, 0.5, 50.0)):
+                    (lidar_dir / f"{frame_id:010d}.bin").write_bytes(b"")
+                    pose_lines.append(
+                        f"{frame_id} 1 0 0 {x + offset} 0 1 0 0 0 0 1 0"
+                    )
+                (pose_dir / "poses.txt").write_text("\n".join(pose_lines) + "\n", encoding="utf-8")
+            calibration = kitti / "calibration"
+            calibration.mkdir()
+            (calibration / "calib_cam_to_velo.txt").write_text("1 0 0 0\n", encoding="utf-8")
+
+            m2dgr = root / "M2DGR"
+            lidar_dir = m2dgr / "gate_02" / "velodyne_points"
+            lidar_dir.mkdir(parents=True)
+            gt_lines = []
+            for timestamp, x in ((1.0, 0.0), (2.0, 10.0), (3.0, 0.5), (4.0, 50.0)):
+                (lidar_dir / f"{timestamp:.3f}.bin").write_bytes(b"")
+                gt_lines.append(f"{timestamp:.3f} {x} 0 0 0 0 0 1")
+            (m2dgr / "gate_02" / "gate_02.txt").write_text(
+                "\n".join(gt_lines) + "\n", encoding="utf-8"
+            )
+
+            report = build_report(kitti, m2dgr, 1.0, 0.05, 1, 0.2)
+            self.assertFalse(report["formal_gate_ready"])
+            self.assertEqual(len(report["kitti360"]["sequences"]), 2)
+            self.assertEqual(
+                report["kitti360"]["sequences"][0]["same_session_half_split"][
+                    "covered_query_count"
+                ],
+                1,
+            )
+            self.assertTrue(
+                report["kitti360"]["cross_sequence_overlap"][0][
+                    "positive_pair_candidate"
+                ]
+            )
+            gate = report["m2dgr"]["sequences"][0]
+            self.assertEqual(gate["aligned_frame_count"], 4)
+            self.assertEqual(gate["orientation_quality"], "measured_quaternion")
 
 
 class EvalValidateTest(unittest.TestCase):

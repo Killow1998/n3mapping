@@ -296,6 +296,7 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/extract_ros1_relocalization_manifest.py
   ${N3MAPPING_ROOT}/tools/n3mapping_loop_debug_analyze.py
   ${N3MAPPING_ROOT}/tools/n3mapping_loop_candidate_benchmark.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_dataset_readiness.py
   ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
