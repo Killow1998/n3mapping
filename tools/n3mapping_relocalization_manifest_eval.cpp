@@ -35,6 +35,7 @@ using ReviewCloud = pcl::PointCloud<ReviewPoint>;
 
 struct Options {
   fs::path map_path;
+  fs::path atlas_path;
   fs::path manifest_path;
   fs::path output_dir;
   bool reloc_debug = false;
@@ -69,6 +70,7 @@ void printUsage(const char *argv0) {
       << "Usage: " << argv0
       << " --map MAP.pbstream --manifest frames.csv --output DIR [options]\n"
       << "Options:\n"
+      << "  --atlas FILE     Enable a map-bound localization atlas sidecar.\n"
       << "  --reloc-debug    Write relocalization_debug.jsonl in the output "
          "directory.\n";
 }
@@ -88,6 +90,11 @@ bool parseArgs(int argc, char **argv, Options *options) {
       if (!value)
         return false;
       options->map_path = value;
+    } else if (arg == "--atlas") {
+      const char *value = needValue();
+      if (!value)
+        return false;
+      options->atlas_path = value;
     } else if (arg == "--manifest") {
       const char *value = needValue();
       if (!value)
@@ -429,6 +436,10 @@ int run(const Options &options) {
   Config config;
   config.mode = "localization";
   config.map_path = options.map_path.string();
+  if (!options.atlas_path.empty()) {
+    config.reloc_atlas_enable = true;
+    config.reloc_atlas_path = options.atlas_path.string();
+  }
   if (options.reloc_debug) {
     config.reloc_debug_enable = true;
     config.reloc_debug_path =

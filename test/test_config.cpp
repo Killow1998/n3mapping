@@ -18,6 +18,8 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_EQ(config.reloc_lock_min_winner_streak, 3);
     EXPECT_FALSE(config.reloc_debug_enable);
     EXPECT_TRUE(config.reloc_debug_path.empty());
+    EXPECT_FALSE(config.reloc_atlas_enable);
+    EXPECT_TRUE(config.reloc_atlas_path.empty());
     EXPECT_DOUBLE_EQ(config.loop_icp_prefilter_voxel_size, 0.2);
     EXPECT_EQ(config.loop_icp_max_points, 50000);
     EXPECT_TRUE(config.loop_spatial_candidates_enable);

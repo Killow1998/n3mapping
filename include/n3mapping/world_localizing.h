@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -14,6 +15,7 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/keyframe_manager.h"
+#include "n3mapping/localization_atlas.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_debug_logger.h"
@@ -48,6 +50,9 @@ public:
   void reset();
   void setMapToOdomTransform(const Eigen::Isometry3d &T_map_odom);
   int64_t getLastMatchedKeyframeId() const;
+  bool loadLocalizationAtlas(const std::string &map_path,
+                             std::string *error = nullptr);
+  bool localizationAtlasLoaded() const;
 
 private:
   struct RelocHypothesis {
@@ -110,6 +115,7 @@ private:
   KeyframeManager &keyframe_manager_;
   LoopDetector &loop_detector_;
   PointCloudMatcher &matcher_;
+  std::unique_ptr<LocalizationAtlas> localization_atlas_;
   RHPDManager frame_rhpd_manager_;
   size_t frame_rhpd_indexed_keyframes_;
   PointCloudT::Ptr reloc_map_cache_;

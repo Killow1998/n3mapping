@@ -35,6 +35,7 @@ find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(Protobuf REQUIRED)
+find_package(OpenSSL REQUIRED)
 find_package(small_gicp REQUIRED)
 find_package(Glog QUIET)
 if(NOT Glog_FOUND AND NOT TARGET glog::glog)
@@ -118,6 +119,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
+  ${N3MAPPING_ROOT}/src/localization_atlas.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
   ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
   ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
@@ -161,6 +163,14 @@ target_link_libraries(n3mapping_synthetic_relocalization_eval
 
 add_executable(n3mapping_relocalization_manifest_eval
   ${N3MAPPING_ROOT}/tools/n3mapping_relocalization_manifest_eval.cpp
+)
+
+add_executable(n3mapping_localization_atlas_compile
+  ${N3MAPPING_ROOT}/tools/n3mapping_localization_atlas_compile.cpp
+)
+target_link_libraries(n3mapping_localization_atlas_compile
+  n3mapping_core
+  glog::glog
 )
 target_link_libraries(n3mapping_relocalization_manifest_eval
   n3mapping_core
@@ -233,6 +243,7 @@ install(TARGETS
   n3mapping_node
   n3mapping_synthetic_relocalization_eval
   n3mapping_relocalization_manifest_eval
+  n3mapping_localization_atlas_compile
   n3mapping_filter_nav_pbstream
   n3mapping_kitti360_reader
   n3mapping_kitti360_eval
@@ -277,6 +288,7 @@ ament_export_dependencies(
   tf2_geometry_msgs
   pcl_conversions
   small_gicp
+  OpenSSL
 )
 
 install(DIRECTORY ${N3MAPPING_ROOT}/include/
@@ -334,6 +346,12 @@ if(BUILD_TESTING)
   if(TARGET test_config)
     target_link_libraries(test_config ${PROJECT_NAME}_lib)
     ament_target_dependencies(test_config rclcpp)
+  endif()
+
+  ament_add_gtest(test_localization_atlas ${N3MAPPING_ROOT}/test/test_localization_atlas.cpp)
+  if(TARGET test_localization_atlas)
+    target_link_libraries(test_localization_atlas ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
+    ament_target_dependencies(test_localization_atlas rclcpp)
   endif()
 
   ament_add_gtest(test_n3mapping_core ${N3MAPPING_ROOT}/test/test_n3mapping_core.cpp)

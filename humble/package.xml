@@ -35,6 +35,7 @@
   <depend>libgtsam-dev</depend>
   <depend>libgoogle-glog-dev</depend>
   <depend>libopencv-dev</depend>
+  <depend>openssl</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_cmake_gtest</test_depend>

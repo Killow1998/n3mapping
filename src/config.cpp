@@ -75,6 +75,8 @@ std::string Config::toString() const {
         << ", basin_sep>=" << reloc_ambiguity_min_basin_separation << "m\n";
     oss << "Reloc debug JSONL: " << (reloc_debug_enable ? "ON" : "OFF")
         << " path=" << (reloc_debug_path.empty() ? "<map_save_path>/relocalization_debug.jsonl" : reloc_debug_path) << "\n";
+    oss << "Reloc localization atlas: " << (reloc_atlas_enable ? "ON" : "OFF")
+        << " path=" << (reloc_atlas_path.empty() ? "<map_path>.localization_atlas.pb" : reloc_atlas_path) << "\n";
     oss << "RHPD: enabled=" << (rhpd_enabled ? "YES" : "NO")
         << ", v2=" << (rhpd_v2_enable ? "YES" : "NO")
         << ", v3=" << (rhpd_v3_enable ? "YES" : "NO")

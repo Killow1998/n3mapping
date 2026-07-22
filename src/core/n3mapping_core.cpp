@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <iostream>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -1452,6 +1453,12 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
     return false;
   }
   session_->worldLocalizing().reset();
+  std::string atlas_error;
+  if (!session_->worldLocalizing().loadLocalizationAtlas(map_path,
+                                                         &atlas_error)) {
+    std::cerr << "Failed to load localization atlas: " << atlas_error << '\n';
+    return false;
+  }
   dense_trajectory_metadata_ = loaded_dense_metadata;
   initializeDenseSamplesFromOptimized(loaded_dense_optimized);
   map_loaded_ = true;

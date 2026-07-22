@@ -33,6 +33,7 @@ find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(Protobuf REQUIRED)
+find_package(OpenSSL REQUIRED)
 find_package(small_gicp REQUIRED)
 find_package(Glog QUIET)
 if(NOT Glog_FOUND AND NOT TARGET glog::glog)
@@ -115,6 +116,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
+  ${N3MAPPING_ROOT}/src/localization_atlas.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
   ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
   ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
@@ -187,6 +189,17 @@ target_link_libraries(n3mapping_relocalization_manifest_eval
   glog::glog
 )
 set_target_properties(n3mapping_relocalization_manifest_eval PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
+)
+
+add_executable(n3mapping_localization_atlas_compile
+  ${N3MAPPING_ROOT}/tools/n3mapping_localization_atlas_compile.cpp
+)
+target_link_libraries(n3mapping_localization_atlas_compile
+  n3mapping_core
+  glog::glog
+)
+set_target_properties(n3mapping_localization_atlas_compile PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
 )
 
@@ -268,6 +281,7 @@ install(TARGETS
   n3mapping_node
   n3mapping_synthetic_relocalization_eval
   n3mapping_relocalization_manifest_eval
+  n3mapping_localization_atlas_compile
   n3mapping_filter_nav_pbstream
   n3mapping_kitti360_reader
   n3mapping_kitti360_eval
@@ -335,6 +349,14 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_global_map_cache)
     target_link_libraries(test_global_map_cache n3mapping_core ${PCL_LIBRARIES})
+  endif()
+
+  catkin_add_gtest(test_localization_atlas
+    ${N3MAPPING_ROOT}/test/test_localization_atlas.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_localization_atlas)
+    target_link_libraries(test_localization_atlas n3mapping_core ${PCL_LIBRARIES})
   endif()
 
   catkin_add_gtest(test_world_localizing

@@ -33,6 +33,7 @@ using Cloud = core::LioFrame::PointCloud;
 
 struct Options {
     std::string map_path;
+    std::string atlas_path;
     std::string output_dir;
     int max_queries = 100;
     int stride = 0;
@@ -127,6 +128,7 @@ void printUsage(const char* argv0)
         << "Usage: " << argv0 << " --map /path/to/n3map.pbstream [options]\n"
         << "Options:\n"
         << "  --output DIR              Output directory. Default: <map_dir>/synthetic_relocalization_eval\n"
+        << "  --atlas FILE              Enable a map-bound localization atlas sidecar.\n"
         << "  --max_queries N           Maximum sampled keyframes. Default: 100\n"
         << "  --stride N                Query every N keyframes. Default: auto from max_queries\n"
         << "  --dropout R               Random point dropout ratio [0,1). Default: 0\n"
@@ -183,6 +185,8 @@ bool parseArgs(int argc, char** argv, Options* options)
             return false;
         } else if (arg == "--map") {
             if (const char* v = needValue(arg)) options->map_path = v; else return false;
+        } else if (arg == "--atlas") {
+            if (const char* v = needValue(arg)) options->atlas_path = v; else return false;
         } else if (arg == "--output") {
             if (const char* v = needValue(arg)) options->output_dir = v; else return false;
         } else if (arg == "--max_queries") {
@@ -1178,6 +1182,10 @@ int main(int argc, char** argv)
     }
 
     Config config = makeEvalConfig(options.eval_profile);
+    if (!options.atlas_path.empty()) {
+        config.reloc_atlas_enable = true;
+        config.reloc_atlas_path = options.atlas_path;
+    }
     if (options.reloc_debug) {
         config.reloc_debug_enable = true;
         config.reloc_debug_path =

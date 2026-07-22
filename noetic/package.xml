@@ -33,4 +33,5 @@
   <depend>libgtsam-dev</depend>
   <depend>libgoogle-glog-dev</depend>
   <depend>libopencv-dev</depend>
+  <depend>openssl</depend>
 </package>

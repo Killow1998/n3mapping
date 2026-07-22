@@ -9,6 +9,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <future>
 #include <glog/logging.h>
 #include <limits>
 #include <memory>
@@ -72,6 +73,7 @@ WorldLocalizing::WorldLocalizing(const Config &config,
                                  PointCloudMatcher &matcher)
     : config_(config), keyframe_manager_(keyframe_manager),
       loop_detector_(loop_detector), matcher_(matcher),
+      localization_atlas_(std::make_unique<LocalizationAtlas>(config_, matcher_)),
       frame_rhpd_manager_(loop_detector.getRHPDManager().getDescriptorParams()),
       frame_rhpd_indexed_keyframes_(0),
       reloc_map_cache_(pcl::make_shared<PointCloudT>()),
@@ -279,7 +281,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       return candidate.selection_score < incumbent.selection_score;
     };
 
-    for (const auto &basin : basins) {
+    const auto evaluate_basin = [&](const BasinGroup &basin) {
       std::vector<BasinBest> basin_modes;
       int verified = 0;
 
@@ -337,8 +339,33 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           static_cast<std::size_t>(kRelocPerBasinVerifyCount)) {
         basin_modes.resize(kRelocPerBasinVerifyCount);
       }
-      basin_best_results.insert(basin_best_results.end(), basin_modes.begin(),
-                                basin_modes.end());
+      return basin_modes;
+    };
+
+    // Atlas registration shares one immutable target across all independent
+    // spatial basins. Evaluate those basins concurrently, then merge in the
+    // original order so ranking and tie-breaking remain deterministic. The
+    // default path stays sequential.
+    if (localization_atlas_ && localization_atlas_->loaded() &&
+        basins.size() > 1) {
+      rebuildRelocMapCacheIfNeeded();
+      std::vector<std::future<std::vector<BasinBest>>> futures;
+      futures.reserve(basins.size());
+      for (const auto &basin : basins) {
+        futures.push_back(std::async(std::launch::async, evaluate_basin,
+                                     std::cref(basin)));
+      }
+      for (auto &future : futures) {
+        auto basin_modes = future.get();
+        basin_best_results.insert(basin_best_results.end(), basin_modes.begin(),
+                                  basin_modes.end());
+      }
+    } else {
+      for (const auto &basin : basins) {
+        auto basin_modes = evaluate_basin(basin);
+        basin_best_results.insert(basin_best_results.end(), basin_modes.begin(),
+                                  basin_modes.end());
+      }
     }
 
     std::sort(basin_best_results.begin(), basin_best_results.end(),
@@ -436,9 +463,16 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       // pose onto a remote dense surface.
       const auto predicted_visibility =
           evaluatePoseVisibility(submap, query_cloud, predicted_pose);
-      const auto prepared_target = matcher_.prepareTargetCloud(submap);
+      PointCloudMatcher::PreparedTarget local_prepared_target;
+      const PointCloudMatcher::PreparedTarget *prepared_target = nullptr;
+      if (localization_atlas_ && localization_atlas_->loaded()) {
+        prepared_target = &localization_atlas_->preparedTarget();
+      } else {
+        local_prepared_target = matcher_.prepareTargetCloud(submap);
+        prepared_target = &local_prepared_target;
+      }
       MatchResult mr =
-          matcher_.alignPrepared(prepared_target, prepared_query, predicted_pose);
+          matcher_.alignPrepared(*prepared_target, prepared_query, predicted_pose);
       hyp.cumulative_log_likelihood +=
           computeTrackLogLikelihood(mr, predicted_pose);
       hyp.num_updates += 1;
@@ -994,7 +1028,9 @@ void WorldLocalizing::reset() {
   consecutive_track_failures_ = 0;
   query_frame_buffer_.clear();
   clearRelocHypotheses();
-  reloc_map_cache_->clear();
+  // The cache may alias the immutable atlas map. Replace our view instead of
+  // mutating shared atlas storage during a localization reset.
+  reloc_map_cache_ = pcl::make_shared<PointCloudT>();
   reloc_map_cached_keyframes_ = 0;
 }
 
@@ -1011,6 +1047,36 @@ void WorldLocalizing::setMapToOdomTransform(
 int64_t WorldLocalizing::getLastMatchedKeyframeId() const {
   std::lock_guard<std::mutex> lock(mutex_);
   return last_matched_id_;
+}
+
+bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
+                                            std::string *error) {
+  if (!localization_atlas_) {
+    if (error)
+      *error = "localization atlas object is unavailable";
+    return false;
+  }
+  localization_atlas_->clear();
+  if (!config_.reloc_atlas_enable)
+    return true;
+  const std::string atlas_path = config_.reloc_atlas_path.empty()
+                                     ? LocalizationAtlas::defaultAtlasPath(map_path)
+                                     : config_.reloc_atlas_path;
+  LocalizationAtlasStats stats;
+  if (!localization_atlas_->load(map_path, atlas_path, &stats, error))
+    return false;
+  LOG(INFO) << "[LocalizationAtlas] Loaded " << atlas_path
+            << " global_points=" << stats.global_point_count
+            << " prepared_points=" << stats.prepared_point_count
+            << " bytes=" << stats.sidecar_bytes
+            << " load_ms=" << stats.load_ms
+            << " kdtree_ms=" << stats.kdtree_ms;
+  return true;
+}
+
+bool WorldLocalizing::localizationAtlasLoaded() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return localization_atlas_ && localization_atlas_->loaded();
 }
 
 std::vector<LoopCandidate>
@@ -1167,60 +1233,33 @@ WorldLocalizing::searchCandidates(const PointCloudT::Ptr &cloud) {
 }
 
 void WorldLocalizing::rebuildRelocMapCacheIfNeeded() {
+  if (localization_atlas_ && localization_atlas_->loaded()) {
+    const auto &atlas_map = localization_atlas_->globalMap();
+    if (reloc_map_cache_ != atlas_map) {
+      reloc_map_cache_ = atlas_map;
+      reloc_map_cached_keyframes_ = keyframe_manager_.size();
+    }
+    return;
+  }
   const std::size_t current_size = keyframe_manager_.size();
   if (reloc_map_cache_ && !reloc_map_cache_->empty() &&
       reloc_map_cached_keyframes_ == current_size) {
     return;
   }
 
-  auto global_map = pcl::make_shared<PointCloudT>();
-  for (const auto &keyframe : keyframe_manager_.getAllKeyframes()) {
-    if (!keyframe || !keyframe->cloud || keyframe->cloud->empty())
-      continue;
-    PointCloudT transformed;
-    pcl::transformPointCloud(*keyframe->cloud, transformed,
-                             keyframe->pose_optimized.matrix().cast<float>());
-    *global_map += transformed;
-  }
-
-  PointCloudT::Ptr downsampled;
-  const double voxel_size = std::max(1e-3, config_.global_map_voxel_size);
-  if (!global_map->empty() &&
-      safeVoxelGridFilter<pcl::PointXYZI>(global_map, voxel_size,
-                                          &downsampled) &&
-      downsampled) {
-    reloc_map_cache_ = downsampled;
-  } else {
-    reloc_map_cache_ = global_map;
-  }
+  reloc_map_cache_ = LocalizationAtlas::buildGlobalMap(
+      config_, keyframe_manager_.getAllKeyframes());
   reloc_map_cached_keyframes_ = current_size;
 }
 
 WorldLocalizing::PointCloudT::Ptr
 WorldLocalizing::buildRelocTargetCloud(int64_t center_id) {
   rebuildRelocMapCacheIfNeeded();
-  auto target = pcl::make_shared<PointCloudT>();
   const auto center_keyframe = keyframe_manager_.getKeyframe(center_id);
-  if (!center_keyframe || !reloc_map_cache_ || reloc_map_cache_->empty())
-    return target;
-
-  const Eigen::Vector3d center = center_keyframe->pose_optimized.translation();
-  const double radius = std::max(1.0, config_.rhpd_max_range) +
-                        std::max(0.0, config_.gicp_max_correspondence_distance);
-  const double squared_radius = radius * radius;
-  target->reserve(reloc_map_cache_->size());
-  for (const auto &point : *reloc_map_cache_) {
-    if (!pcl::isFinite(point))
-      continue;
-    const Eigen::Vector3d position(point.x, point.y, point.z);
-    if ((position - center).squaredNorm() <= squared_radius) {
-      target->push_back(point);
-    }
-  }
-  target->width = static_cast<std::uint32_t>(target->size());
-  target->height = 1;
-  target->is_dense = true;
-  return target;
+  if (!center_keyframe)
+    return pcl::make_shared<PointCloudT>();
+  return LocalizationAtlas::cropGlobalMap(
+      config_, reloc_map_cache_, center_keyframe->pose_optimized.translation());
 }
 
 VisibilityConsistencyResult WorldLocalizing::evaluatePoseVisibility(
@@ -1344,7 +1383,14 @@ WorldLocalizing::evaluateCandidatePoses(
     Eigen::Matrix4f transform = match_kf->pose_optimized.matrix().cast<float>();
     pcl::transformPointCloud(*match_kf->cloud, *submap, transform);
   }
-  const auto prepared_target = matcher_.prepareTargetCloud(submap);
+  PointCloudMatcher::PreparedTarget local_prepared_target;
+  const PointCloudMatcher::PreparedTarget *registration_target = nullptr;
+  if (localization_atlas_ && localization_atlas_->loaded()) {
+    registration_target = &localization_atlas_->preparedTarget();
+  } else {
+    local_prepared_target = matcher_.prepareTargetCloud(submap);
+    registration_target = &local_prepared_target;
+  }
 
   const auto yaws_to_try = buildYawHypotheses(
       candidate, config_,
@@ -1357,8 +1403,8 @@ WorldLocalizing::evaluateCandidatePoses(
         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     const auto initial_visibility =
         evaluatePoseVisibility(submap, cloud, init_guess);
-    MatchResult mr =
-        matcher_.alignPrepared(prepared_target, prepared_cloud, init_guess);
+    MatchResult mr = matcher_.alignPrepared(*registration_target, prepared_cloud,
+                                            init_guess);
     const bool quality_passed =
         mr.converged && mr.fitness_score < config_.gicp_fitness_threshold &&
         mr.inlier_ratio >= config_.reloc_min_inlier_ratio;

@@ -1,0 +1,22 @@
+syntax = "proto3";
+package n3mapping;
+
+message LocalizationAtlasPreparedLevel {
+    double resolution = 1;
+    uint64 num_points = 2;
+    repeated double points = 3 [packed = true];
+    repeated double normals = 4 [packed = true];
+    repeated double covariances = 5 [packed = true];
+}
+
+message LocalizationAtlasData {
+    string format_version = 1;
+    string map_sha256 = 2;
+    string config_sha256 = 3;
+    uint64 keyframe_count = 4;
+    uint64 global_point_count = 5;
+    repeated float global_points = 6 [packed = true];
+    repeated LocalizationAtlasPreparedLevel plane_levels = 7;
+    bool refine_level_present = 8;
+    LocalizationAtlasPreparedLevel refine_level = 9;
+}

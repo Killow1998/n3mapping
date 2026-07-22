@@ -260,3 +260,53 @@ The frozen paired comparator therefore reports safety `FAIL`, utility `FAIL`, re
 - The existing map provenance remains `unknown_legacy`; synthetic query and target use the same map.
 - This evidence cannot establish product readiness and cannot authorize P1A or any runtime threshold/decision change.
 - A follow-up algorithm experiment is needed only after separate user authorization. The first target should be the deterministic episode-103 false lock; the falsifier is already frozen and reproducible.
+
+## 2026-07-22 Localization Atlas shadow performance stage
+
+The reviewed correctness and 53.9% prepared-matcher improvement were first
+frozen at commit `119ecb072a90360f4211dca883cc2d822cc4cc19`. The subsequent
+stage remained optional and default-off.
+
+The Atlas compiler writes a sidecar bound to the complete pbstream SHA-256 and
+a signature of every config field that affects its global cloud or prepared
+registration target. It serializes the raw global cloud plus the exact
+multi-resolution point, normal, and covariance arrays; runtime reconstructs
+only KD-trees. Atlas-enabled map loading fails closed on a missing, malformed,
+stale, config-incompatible, or larger-than-1-GiB sidecar.
+
+The floor-7 sidecar contains 152115 global and 348894 prepared points. It is
+69421764 bytes; compile-time verification load is 103.096 ms, including
+51.753 ms KD-tree construction. Compiler peak RSS was 297284 KiB with zero
+swap. Exact compiler and evaluator commands are recorded in
+`artifacts/n3mapping_localization_atlas/20260722/EXPERIMENT.md` and the two
+final strict runs' `command.txt` files.
+
+Independent spatial basins share the immutable Atlas target and execute
+concurrently. Results are collected in original basin order before the existing
+sort and tie-break logic. Candidate budget, yaw hypotheses, ICP settings,
+visibility scoring, temporal policy, and lock authority are unchanged. The
+default-off path remains sequential.
+
+Final strict P0-S results:
+
+```text
+run A: p95=975.8973518 ms, 4 correct, 0 false, 0 timeout, RSS=501036 KiB, swap=0
+run B: p95=953.3620535 ms, 4 correct, 0 false, 0 timeout, RSS=500752 KiB, swap=0
+```
+
+Both runs are strict-valid. Their producer summaries and resolved-query files
+are byte-identical. The paired comparator reports Safety `PASS`, Utility
+`PASS`, and Resource `PASS`; the evidence ceiling remains `SHADOW_ONLY`.
+
+All five real floor-7 regressions preserve processed/lock frame, seed, support,
+and matched keyframe. outside713 remains frame 104, seed 62, support 61 and now
+finishes in 39.25 seconds. The maximum body-pose component change versus the
+accepted prepared-target run is 0.0001555. Review PCDs are under
+`artifacts/n3mapping_localization_atlas/20260722/real_atlas_final/`.
+
+The final full build and 34/34 CTest pass under the recorded systemd limits.
+After `cmake --install`, the installed evaluator completed a third strict run
+at 895.006 ms p95 with 4 correct / 0 false / 0 timeout; its producer summary
+and resolved-query file are byte-identical to final build run A.
+This stage does not authorize Atlas by default, recorded-LIO formal claims,
+P1A, tracking policy changes, or loop-closure phases.

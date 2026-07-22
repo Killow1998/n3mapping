@@ -17,5 +17,6 @@ function(n3mapping_configure_core_target target_name)
     OpenMP::OpenMP_CXX
     small_gicp::small_gicp
     glog::glog
+    OpenSSL::Crypto
   )
 endfunction()
