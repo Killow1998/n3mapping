@@ -41,6 +41,7 @@ from n3mapping_episode_review_prepare import (  # noqa: E402
     _xyzw_from_rotation,
 )
 from n3mapping_surface_overlap_audit import classify_surface_overlap  # noqa: E402
+from n3mapping_runtime_signal_audit import summarize_ranges  # noqa: E402
 from n3mapping_eval_compare import compare_runs  # noqa: E402
 from n3mapping_eval_validate import load_contract, sha256_file, validate_run  # noqa: E402
 from n3mapping_synthetic_eval_gate import SyntheticGateError, run_synthetic_gate  # noqa: E402
@@ -650,6 +651,20 @@ def _run_fake_gate(
 
 
 class DatasetReadinessTest(unittest.TestCase):
+    def test_runtime_signal_range_summary_does_not_invent_threshold(self) -> None:
+        rows = [
+            {"analysis_group": "positive_correct_lock", "signal": 0.2},
+            {"analysis_group": "positive_correct_lock", "signal": 0.6},
+            {"analysis_group": "hard_negative_false_lock", "signal": 0.5},
+            {"analysis_group": "hard_negative_false_lock", "signal": 0.9},
+        ]
+        overlap = summarize_ranges(rows, "signal")
+        self.assertFalse(overlap["range_disjoint"])
+        rows[2]["signal"] = 0.7
+        disjoint = summarize_ranges(rows, "signal")
+        self.assertTrue(disjoint["range_disjoint"])
+        self.assertNotIn("threshold", disjoint)
+
     def test_review_pose_quaternion_round_trip(self) -> None:
         quaternion = (0.2, -0.3, 0.4, 0.8)
         pose = _matrix_from_xyzw((1.0, 2.0, 3.0), quaternion)

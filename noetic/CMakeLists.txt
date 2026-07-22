@@ -302,6 +302,7 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_episode_diagnose.py
   ${N3MAPPING_ROOT}/tools/n3mapping_episode_review_prepare.py
   ${N3MAPPING_ROOT}/tools/n3mapping_surface_overlap_audit.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_runtime_signal_audit.py
   ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
