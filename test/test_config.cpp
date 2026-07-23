@@ -9,6 +9,7 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     Config config;
 
     EXPECT_EQ(config.mode, "mapping");
+    EXPECT_TRUE(config.map_path.empty());
     EXPECT_EQ(config.cloud_topic, "/cloud_registered_body");
     EXPECT_EQ(config.odom_topic, "/Odometry");
     EXPECT_TRUE(config.rhpd_enabled);
@@ -115,6 +116,36 @@ TEST(ConfigTest, RejectsUnknownMode) {
     config.mode = "localizaton";
     EXPECT_FALSE(config.validate(&error));
     EXPECT_NE(error.find("mode"), std::string::npos);
+}
+
+TEST(ConfigTest, LoadedMapModesRequireExplicitMapPath) {
+    Config config;
+    std::string error;
+
+    config.mode = "localization";
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("map_path"), std::string::npos);
+
+    config.mode = "map_extension";
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("map_path"), std::string::npos);
+
+    config.map_path = "/deployment/map.pbstream";
+    EXPECT_TRUE(config.validate(&error)) << error;
+}
+
+TEST(ConfigTest, ProductFactoryFreezesLocalizationProfileAndPaths) {
+    const Config product = makeProductLocalizationConfig(
+        "/deployment/map.pbstream",
+        "/deployment/map.pbstream.localization_atlas.pb");
+    EXPECT_EQ(product.mode, "localization");
+    EXPECT_EQ(product.map_path, "/deployment/map.pbstream");
+    EXPECT_TRUE(product.reloc_atlas_enable);
+    EXPECT_EQ(product.reloc_atlas_path,
+              "/deployment/map.pbstream.localization_atlas.pb");
+    EXPECT_FALSE(product.save_global_map_on_shutdown);
+    std::string error;
+    EXPECT_TRUE(product.validate(&error)) << error;
 }
 
 }  // namespace test

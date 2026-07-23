@@ -876,7 +876,7 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
     if (result.success) {
       pose_map = result.pose_in_map;
       success = true;
-      relocalization_decision = "tracking";
+      relocalization_decision = result.decision;
       seed_keyframe_id = result.seed_keyframe_id;
       support_keyframe_id = result.support_keyframe_id;
       matched_keyframe_id = result.matched_keyframe_id;
@@ -944,9 +944,19 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
         locked, localizer.getMapToOdomTransform() * frame.T_world_lidar,
         frame.undistorted_cloud);
     output.relocalization_locked = locked;
+    output.relocalization_state =
+        locked ? RelocalizationState::FULL_6DOF_LOCKED
+               : RelocalizationState::SEARCHING;
+    output.pose_source =
+        locked ? PoseSource::GEOMETRICALLY_CORRECTED : PoseSource::NONE;
+    output.relocalization_decision =
+        locked ? "accepted" : "initial_relocalization_rejected";
     if (locked) {
       const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
       const int64_t matched_id = localizer.getLastMatchedKeyframeId();
+      output.relocalization_seed_keyframe_id = matched_id;
+      output.relocalization_support_keyframe_id = matched_id;
+      output.matched_keyframe_id = matched_id;
       auto matched_kf = session_->keyframeManager().getKeyframe(matched_id);
       if (!external_dense_trajectory_recording_enabled_ && matched_kf) {
         appendDenseTrajectorySample(timestamp, output.T_world_lidar, matched_id,

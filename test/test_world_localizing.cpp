@@ -231,6 +231,7 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesTrackingFailurePath) {
   EXPECT_TRUE(result.success);
   EXPECT_EQ(result.state, RelocalizationState::DEGRADED_TRACKING);
   EXPECT_EQ(result.pose_source, PoseSource::ODOM_PREDICTED);
+  EXPECT_EQ(result.decision, "nearest_keyframe_missing");
   const auto lines = readDebugLines(debug_path);
   ASSERT_EQ(lines.size(), 1u);
   EXPECT_NE(lines[0].find("\"record_type\":\"tracking\""), std::string::npos);
@@ -427,6 +428,7 @@ TEST_F(WorldLocalizingTest, TrackLocalization) {
   EXPECT_TRUE(track_result.success);
   EXPECT_EQ(track_result.state, RelocalizationState::FULL_6DOF_LOCKED);
   EXPECT_EQ(track_result.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
+  EXPECT_EQ(track_result.decision, "tracking_geometric");
 }
 
 TEST_F(WorldLocalizingTest, Reset) {

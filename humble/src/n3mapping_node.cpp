@@ -11,6 +11,7 @@
 
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/synchronizer.h>
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
@@ -27,6 +28,7 @@
 #include <filesystem>
 #include <fstream>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <iostream>
 #include <limits>
 #include <mutex>
 #include <nav_msgs/msg/odometry.hpp>
@@ -34,6 +36,7 @@
 #include <optional>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <stdexcept>
 #include <string_view>
 #include <std_msgs/msg/u_int32.hpp>
 #include <std_srvs/srv/trigger.hpp>
@@ -47,6 +50,9 @@
 #include "n3mapping/global_map_cache.h"
 #include "n3mapping/humble/config_humble.h"
 #include "n3mapping/humble/conversions.h"
+#include "n3mapping/msg/relocalization_status.hpp"
+#include "n3mapping/product_build_identity.h"
+#include "n3mapping/relocalization_output_authority.h"
 
 namespace n3mapping {
 
@@ -60,13 +66,32 @@ class N3MappingNode : public rclcpp::Node
 {
   public:
     using PointCloud = pcl::PointCloud<pcl::PointXYZI>;
-    using SyncPolicy = message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, nav_msgs::msg::Odometry>;
+    using ApproxSyncPolicy =
+      message_filters::sync_policies::ApproximateTime<
+        sensor_msgs::msg::PointCloud2, nav_msgs::msg::Odometry>;
+    using ExactSyncPolicy =
+      message_filters::sync_policies::ExactTime<
+        sensor_msgs::msg::PointCloud2, nav_msgs::msg::Odometry>;
 
     N3MappingNode()
       : Node("n3mapping_node")
     {
-        // 加载配置
-        loadConfigFromHumble(this, &config_);
+        product_profile_v1_ =
+          this->declare_parameter<bool>("product_profile_v1", false);
+        if (product_profile_v1_) {
+            const std::string map_path =
+              this->declare_parameter<std::string>("map_path", "");
+            const std::string atlas_path =
+              this->declare_parameter<std::string>("reloc_atlas_path", "");
+            if (map_path.empty() || atlas_path.empty()) {
+                throw std::runtime_error(
+                  "product_profile_v1 requires non-empty map_path and "
+                  "reloc_atlas_path");
+            }
+            config_ = makeProductLocalizationConfig(map_path, atlas_path);
+        } else {
+            loadConfigFromHumble(this, &config_);
+        }
         RCLCPP_INFO(this->get_logger(), "%s", config_.toString().c_str());
 
         run_mode_ = parseCoreRunMode(config_.mode);
@@ -80,7 +105,9 @@ class N3MappingNode : public rclcpp::Node
         // 初始化 ROS 接口
         initializeROS();
 
-        initializeOptimizationLogging();
+        if (coreRunModeSavesMap(run_mode_)) {
+            initializeOptimizationLogging();
+        }
 
         // 根据模式加载地图
         if (coreRunModeLoadsMap(run_mode_)) {
@@ -150,11 +177,32 @@ class N3MappingNode : public rclcpp::Node
           rclcpp::QoS(static_cast<std::size_t>(sync_queue_size)),
           std::bind(&N3MappingNode::denseOdomCallback, this, std::placeholders::_1));
 
-        SyncPolicy sync_policy(static_cast<uint32_t>(sync_queue_size));
-        sync_policy.setMaxIntervalDuration(rclcpp::Duration::from_seconds(config_.sync_time_tolerance));
-        sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(
-          static_cast<const SyncPolicy&>(sync_policy), cloud_sub_, odom_sub_);
-        sync_->registerCallback(std::bind(&N3MappingNode::syncCallback, this, std::placeholders::_1, std::placeholders::_2));
+        if (product_profile_v1_) {
+            ExactSyncPolicy sync_policy(static_cast<uint32_t>(sync_queue_size));
+            exact_sync_ =
+              std::make_unique<
+                message_filters::Synchronizer<ExactSyncPolicy>>(
+                static_cast<const ExactSyncPolicy&>(sync_policy),
+                cloud_sub_, odom_sub_);
+            exact_sync_->registerCallback(
+              std::bind(
+                &N3MappingNode::syncCallback, this,
+                std::placeholders::_1, std::placeholders::_2));
+        } else {
+            ApproxSyncPolicy sync_policy(
+              static_cast<uint32_t>(sync_queue_size));
+            sync_policy.setMaxIntervalDuration(
+              rclcpp::Duration::from_seconds(config_.sync_time_tolerance));
+            approx_sync_ =
+              std::make_unique<
+                message_filters::Synchronizer<ApproxSyncPolicy>>(
+                static_cast<const ApproxSyncPolicy&>(sync_policy),
+                cloud_sub_, odom_sub_);
+            approx_sync_->registerCallback(
+              std::bind(
+                &N3MappingNode::syncCallback, this,
+                std::placeholders::_1, std::placeholders::_2));
+        }
 
         // 发布者
         odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(config_.output_odom_topic, 10);
@@ -165,8 +213,24 @@ class N3MappingNode : public rclcpp::Node
         marker_qos.transient_local();
         loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/n3mapping/loop_closure_markers", marker_qos);
         relocalization_lock_pub_ = this->create_publisher<std_msgs::msg::UInt32>("/n3mapping/relocalization_lock", 10);
-        save_map_srv_ =
-          this->create_service<std_srvs::srv::Trigger>("/n3mapping/save_map", std::bind(&N3MappingNode::handleSaveMap, this, std::placeholders::_1, std::placeholders::_2));
+        rclcpp::QoS relocalization_status_qos(1);
+        relocalization_status_qos.reliable();
+        relocalization_status_qos.transient_local();
+        relocalization_status_pub_ = this->create_publisher<msg::RelocalizationStatus>(
+          "/n3mapping/relocalization_status", relocalization_status_qos);
+        rclcpp::QoS relocalization_pose_qos(1);
+        relocalization_pose_qos.reliable();
+        relocalization_pose_qos.durability_volatile();
+        relocalization_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+          "/n3mapping/relocalization_pose", relocalization_pose_qos);
+        if (coreRunModeSavesMap(run_mode_)) {
+            save_map_srv_ =
+              this->create_service<std_srvs::srv::Trigger>(
+                "/n3mapping/save_map",
+                std::bind(&N3MappingNode::handleSaveMap, this,
+                          std::placeholders::_1,
+                          std::placeholders::_2));
+        }
 
         // 全局地图发布者 (transient_local QoS，等价于 latched topic 语义)
         rclcpp::QoS global_map_qos(1);
@@ -265,22 +329,50 @@ class N3MappingNode : public rclcpp::Node
 
             auto frame = toCoreLioFrame(*cloud_msg, *odom_msg);
             const double timestamp = rclcpp::Time(cloud_msg->header.stamp).seconds();
-            const auto output = n3mapping_core_->processFrame(run_mode_, frame);
+            auto output = n3mapping_core_->processFrame(run_mode_, frame);
             const auto& header = cloud_msg->header;
+            const bool localization_mode = run_mode_ == CoreRunMode::LOCALIZATION;
+            const auto output_mode =
+              localization_mode
+                ? RelocalizationOutputMode::LOCALIZATION
+                : (run_mode_ == CoreRunMode::MAP_EXTENSION
+                     ? RelocalizationOutputMode::MAP_EXTENSION
+                     : RelocalizationOutputMode::OTHER);
+            const auto publication =
+              relocalization_output_authority_.process(output_mode, output);
 
             if (run_mode_ == CoreRunMode::MAP_EXTENSION && output.relocalization_locked && !output.accepted_keyframe) {
                 RCLCPP_INFO(this->get_logger(), "Initial relocalization successful for map extension");
+            }
+            if (publication.inconsistent_lock_event) {
+                RCLCPP_ERROR(this->get_logger(),
+                             "Suppressed inconsistent relocalization lock event: state=%s pose_source=%s",
+                             relocalizationStateName(output.relocalization_state),
+                             poseSourceName(output.pose_source));
+            }
+            if (publication.invalid_usable_pose_suppressed) {
+                RCLCPP_ERROR(this->get_logger(),
+                             "Suppressed non-finite or non-rigid localization pose");
+            }
+            if (publication.publish_legacy_lock) {
+                publishLegacyRelocalizationLock(publication.lock_epoch);
+            }
+            if (publication.publish_status) {
+                publishRelocalizationStatus(
+                  header, output, publication.lock_epoch);
+            }
+            if (publication.publish_authoritative_pose) {
+                publishAuthoritativeRelocalizationPose(
+                  header, output.T_world_lidar, publication.lock_epoch);
             }
             if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
                 ++frame_count_;
                 return;
             }
 
-            publishOdometry(output.T_world_lidar, header);
-            publishPath(header, &output.T_world_lidar);
-
-            if (output.relocalization_locked) {
-                publishRelocalizationLock(header, output.T_world_lidar);
+            if (publication.publish_global_pose) {
+                publishOdometry(output.T_world_lidar, header);
+                publishPath(header, &output.T_world_lidar);
             }
 
             if (output.accepted_keyframe && (run_mode_ == CoreRunMode::MAPPING || run_mode_ == CoreRunMode::MAP_EXTENSION)) {
@@ -291,6 +383,9 @@ class N3MappingNode : public rclcpp::Node
 
             ++frame_count_;
             output_for_clouds = output;
+            if (!publication.publish_world_cloud) {
+                output_for_clouds.cloud_world.reset();
+            }
             cloud_header = header;
             publish_clouds = true;
         }
@@ -373,6 +468,20 @@ class N3MappingNode : public rclcpp::Node
     /**
      * @brief 发布里程计
      */
+    geometry_msgs::msg::Pose makePose(const Eigen::Isometry3d& pose) const
+    {
+        geometry_msgs::msg::Pose out;
+        out.position.x = pose.translation().x();
+        out.position.y = pose.translation().y();
+        out.position.z = pose.translation().z();
+        const Eigen::Quaterniond q(pose.rotation());
+        out.orientation.w = q.w();
+        out.orientation.x = q.x();
+        out.orientation.y = q.y();
+        out.orientation.z = q.z();
+        return out;
+    }
+
     void publishOdometry(const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header)
     {
         nav_msgs::msg::Odometry odom_msg;
@@ -421,27 +530,64 @@ class N3MappingNode : public rclcpp::Node
         last_tf_stamp_ = tf_stamp;
     }
 
-    void publishRelocalizationLock(const std_msgs::msg::Header& header, const Eigen::Isometry3d& pose)
+    void publishLegacyRelocalizationLock(std::uint64_t lock_epoch)
     {
-        if (!relocalization_lock_pub_) {
-            return;
+        if (relocalization_lock_pub_) {
+            std_msgs::msg::UInt32 msg;
+            msg.data = static_cast<std::uint32_t>(lock_epoch);
+            relocalization_lock_pub_->publish(msg);
         }
+    }
 
-        std_msgs::msg::UInt32 msg;
-        msg.data = ++relocalization_lock_count_;
-        relocalization_lock_pub_->publish(msg);
+    void publishAuthoritativeRelocalizationPose(
+      const std_msgs::msg::Header& header, const Eigen::Isometry3d& pose,
+      std::uint64_t lock_epoch)
+    {
+        if (relocalization_pose_pub_) {
+            geometry_msgs::msg::PoseStamped pose_msg;
+            pose_msg.header = header;
+            pose_msg.header.frame_id = config_.world_frame;
+            pose_msg.pose = makePose(pose);
+            relocalization_pose_pub_->publish(pose_msg);
+        }
 
         Eigen::Quaterniond q(pose.rotation());
         const double yaw = std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
                                       1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
         RCLCPP_INFO(this->get_logger(),
-                    "Relocalization lock event #%u @ %.3f pose=(%.3f, %.3f, %.3f) yaw=%.3f",
-                    msg.data,
+                    "Relocalization lock event #%llu @ %.3f pose=(%.3f, %.3f, %.3f) yaw=%.3f",
+                    static_cast<unsigned long long>(lock_epoch),
                     rclcpp::Time(header.stamp).seconds(),
                     pose.translation().x(),
                     pose.translation().y(),
                     pose.translation().z(),
                     yaw);
+    }
+
+    void publishRelocalizationStatus(
+      const std_msgs::msg::Header& header, const core::BackendOutput& output,
+      std::uint64_t lock_epoch)
+    {
+        if (!relocalization_status_pub_) {
+            return;
+        }
+
+        msg::RelocalizationStatus status;
+        status.header = header;
+        status.header.frame_id = config_.world_frame;
+        status.state = static_cast<std::uint8_t>(output.relocalization_state);
+        status.pose_source = static_cast<std::uint8_t>(output.pose_source);
+        status.pose.orientation.w = 1.0;
+        if (hasUsableGlobalRelocalizationPose(
+              output.relocalization_state, output.pose_source)) {
+            status.pose = makePose(output.T_world_lidar);
+        }
+        status.lock_epoch = lock_epoch;
+        status.seed_keyframe_id = output.relocalization_seed_keyframe_id;
+        status.support_keyframe_id =
+          output.relocalization_support_keyframe_id;
+        status.decision = output.relocalization_decision;
+        relocalization_status_pub_->publish(status);
     }
 
     /**
@@ -944,6 +1090,7 @@ class N3MappingNode : public rclcpp::Node
     // 配置
     Config config_;
     CoreRunMode run_mode_ = CoreRunMode::MAPPING;
+    bool product_profile_v1_ = false;
 
     // 核心组件
     std::unique_ptr<N3MappingCore> n3mapping_core_;
@@ -951,7 +1098,10 @@ class N3MappingNode : public rclcpp::Node
     // ROS 接口
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloud_sub_;
     message_filters::Subscriber<nav_msgs::msg::Odometry> odom_sub_;
-    std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
+    std::unique_ptr<message_filters::Synchronizer<ApproxSyncPolicy>>
+      approx_sync_;
+    std::unique_ptr<message_filters::Synchronizer<ExactSyncPolicy>>
+      exact_sync_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr dense_odom_sub_;
 
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
@@ -961,6 +1111,10 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr loop_marker_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt32>::SharedPtr relocalization_lock_pub_;
+    rclcpp::Publisher<msg::RelocalizationStatus>::SharedPtr
+      relocalization_status_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr
+      relocalization_pose_pub_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr save_map_srv_;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
@@ -990,7 +1144,7 @@ class N3MappingNode : public rclcpp::Node
     size_t frame_count_ = 0;
     size_t keyframe_count_ = 0;
     size_t loop_count_ = 0;
-    uint32_t relocalization_lock_count_ = 0;
+    RelocalizationOutputAuthority relocalization_output_authority_;
 };
 
 } // namespace n3mapping
@@ -1006,6 +1160,10 @@ signalHandler(int signum)
 int
 main(int argc, char** argv)
 {
+    if (n3mapping::productBuildIdentityRequested(argc, argv)) {
+        std::cout << n3mapping::productBuildIdentityJson() << '\n';
+        return 0;
+    }
     rclcpp::init(argc, argv);
 
     // 注册信号处理

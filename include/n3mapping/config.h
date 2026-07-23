@@ -7,11 +7,7 @@ namespace n3mapping {
 
 struct Config {
     std::string mode = "mapping";
-#ifdef N3MAPPING_SOURCE_DIR
-    std::string map_path = std::string(N3MAPPING_SOURCE_DIR) + "/map/n3map.pbstream";
-#else
     std::string map_path = "";
-#endif
 
     std::string cloud_topic = "/cloud_registered_body";
     std::string odom_topic = "/Odometry";
@@ -158,6 +154,16 @@ struct Config {
     std::string toString() const;
     bool validate(std::string* error = nullptr) const;
 };
+
+// The offline product Gate must exercise the same frozen localization profile
+// as the ROS runtime. Deployment paths are explicit inputs; no case may
+// override algorithm fields.
+Config makeProductLocalizationConfig(const std::string& map_path,
+                                     const std::string& atlas_path);
+
+// Stable, complete field serialization used to prove that a ROS-loaded
+// product_v1.yaml and makeProductLocalizationConfig() are equivalent.
+std::string runtimeConfigCanonical(const Config& config);
 
 } // namespace n3mapping
 

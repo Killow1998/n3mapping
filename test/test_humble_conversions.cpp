@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <limits>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include "n3mapping/humble/conversions.h"
@@ -63,6 +64,24 @@ TEST(HumbleConversionsTest, PointCloudAndOdometryBuildCoreLioFrame)
     ASSERT_EQ(frame.undistorted_cloud->size(), 1U);
     EXPECT_FLOAT_EQ(frame.undistorted_cloud->front().x, 1.0f);
     EXPECT_DOUBLE_EQ(frame.T_world_lidar.translation().x(), 5.0);
+}
+
+TEST(HumbleConversionsTest, InvalidOdometryCannotBecomeAValidCoreFrame)
+{
+    sensor_msgs::msg::PointCloud2 cloud_msg;
+    nav_msgs::msg::Odometry odom;
+    odom.pose.pose.orientation.w = 0.0;
+
+    auto frame = toCoreLioFrame(cloud_msg, odom);
+    EXPECT_FALSE(frame.pose_valid);
+    EXPECT_TRUE(frame.T_world_lidar.isApprox(Eigen::Isometry3d::Identity()));
+
+    odom.pose.pose.orientation.w = 1.0;
+    odom.pose.pose.position.x =
+        std::numeric_limits<double>::quiet_NaN();
+    frame = toCoreLioFrame(cloud_msg, odom);
+    EXPECT_FALSE(frame.pose_valid);
+    EXPECT_TRUE(frame.T_world_lidar.isApprox(Eigen::Isometry3d::Identity()));
 }
 
 }  // namespace test

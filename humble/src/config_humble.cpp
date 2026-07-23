@@ -8,12 +8,8 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
         node->get_parameter(name, value);
     };
     auto gets = [node](const std::string& name, std::string& value) {
-        std::string loaded = value;
         node->declare_parameter(name, value);
-        node->get_parameter(name, loaded);
-        if (!loaded.empty()) {
-            value = loaded;
-        }
+        node->get_parameter(name, value);
     };
 
     get("mode", config->mode);

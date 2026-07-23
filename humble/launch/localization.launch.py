@@ -14,35 +14,24 @@ import os
 
 
 def generate_launch_description():
-    # 获取包路径
     pkg_dir = get_package_share_directory('n3mapping')
-    
-    # 声明参数
-    config_file_arg = DeclareLaunchArgument(
-        'config_file',
-        default_value=os.path.join(pkg_dir, 'config', 'n3mapping.yaml'),
-        description='Path to the configuration file'
+    bundle_arg = DeclareLaunchArgument(
+        'bundle',
+        description='Verified Product Map Bundle V1 directory'
     )
     rviz_arg = DeclareLaunchArgument(
-        'rviz',
-        default_value='true',
+        'rviz', default_value='false',
         description='Whether to start RViz'
     )
     
     rviz_config_path = os.path.join(pkg_dir, 'launch', 'n3.rviz')
     
-    # N3Mapping node. Empty config map_path falls back to Config defaults.
     n3mapping_node = Node(
         package='n3mapping',
-        executable='n3mapping_node',
+        executable='n3mapping_product_runtime.py',
         name='n3mapping_node',
         output='screen',
-        parameters=[
-            LaunchConfiguration('config_file'),
-            {
-                'mode': 'localization',
-            }
-        ],
+        arguments=['--bundle', LaunchConfiguration('bundle')],
     )
     
     rviz_node = Node(
@@ -55,7 +44,7 @@ def generate_launch_description():
     )
     
     return LaunchDescription([
-        config_file_arg,
+        bundle_arg,
         rviz_arg,
         n3mapping_node,
         rviz_node,

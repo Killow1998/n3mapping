@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -12,6 +13,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <sys/resource.h>
 #include <vector>
 
 #include <Eigen/Core>
@@ -24,6 +26,7 @@
 
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/product_build_identity.h"
 
 namespace fs = std::filesystem;
 
@@ -41,6 +44,7 @@ struct Options {
   fs::path output_dir;
   bool reloc_debug = false;
   double input_voxel_size_m = 0.0;
+  int64_t raw_first_stamp_ns = 0;
   double reference_map_x_m = std::numeric_limits<double>::quiet_NaN();
   double reference_map_y_m = std::numeric_limits<double>::quiet_NaN();
   double reference_map_yaw_deg = std::numeric_limits<double>::quiet_NaN();
@@ -64,11 +68,16 @@ struct FrameResult {
   int64_t stamp_ns = 0;
   bool success = false;
   bool lock = false;
+  bool authoritative_full = false;
   RelocalizationState state = RelocalizationState::SEARCHING;
   PoseSource pose_source = PoseSource::NONE;
   int64_t seed_keyframe_id = -1;
   int64_t support_keyframe_id = -1;
   int64_t matched_keyframe_id = -1;
+  std::string decision = "not_attempted";
+  double preprocessing_ms = 0.0;
+  double backend_ms = 0.0;
+  double strict_ms = 0.0;
   Eigen::Isometry3d T_map_body = Eigen::Isometry3d::Identity();
 };
 
@@ -80,6 +89,8 @@ void printUsage(const char *argv0) {
       << "  --atlas FILE     Enable a map-bound localization atlas sidecar.\n"
       << "  --input-voxel-size METERS  Match evaluator-side query "
          "preprocessing.\n"
+      << "  --raw-first-stamp-ns NS  Original first valid LiDAR stamp used "
+         "for acquisition-to-lock latency.\n"
       << "  --reference-map-x METERS --reference-map-y METERS "
          "--reference-map-yaw DEG\n"
       << "                    Add a blue oracle reference layer for eval "
@@ -89,6 +100,7 @@ void printUsage(const char *argv0) {
 }
 
 double parseFiniteDouble(const std::string &text, const char *field_name);
+int64_t parseInteger(const std::string &text, const char *field_name);
 
 bool parseArgs(int argc, char **argv, Options *options) {
   if (!options)
@@ -129,6 +141,14 @@ bool parseArgs(int argc, char **argv, Options *options) {
       options->input_voxel_size_m =
           parseFiniteDouble(value, "input_voxel_size");
       if (options->input_voxel_size_m < 0.0)
+        return false;
+    } else if (arg == "--raw-first-stamp-ns") {
+      const char *value = needValue();
+      if (!value)
+        return false;
+      options->raw_first_stamp_ns =
+          parseInteger(value, "raw_first_stamp_ns");
+      if (options->raw_first_stamp_ns <= 0)
         return false;
     } else if (arg == "--reference-map-x") {
       const char *value = needValue();
@@ -288,11 +308,13 @@ void ensureFreshOutput(const fs::path &path) {
   }
 }
 
-Cloud::Ptr loadCloud(const fs::path &path, double voxel_size_m) {
+Cloud::Ptr loadCloud(const fs::path &path, double voxel_size_m,
+                     double *preprocessing_ms) {
   auto cloud = pcl::make_shared<Cloud>();
   if (pcl::io::loadPCDFile(path.string(), *cloud) != 0 || cloud->empty()) {
     throw std::runtime_error("failed to load non-empty PCD: " + path.string());
   }
+  const auto preprocess_start = std::chrono::steady_clock::now();
   if (voxel_size_m > 1e-6) {
     Cloud::Ptr filtered;
     if (!safeVoxelGridFilter<pcl::PointXYZI>(cloud, voxel_size_m, &filtered) ||
@@ -301,6 +323,12 @@ Cloud::Ptr loadCloud(const fs::path &path, double voxel_size_m) {
                                path.string());
     }
     cloud = filtered;
+  }
+  if (preprocessing_ms) {
+    *preprocessing_ms =
+        std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - preprocess_start)
+            .count();
   }
   return cloud;
 }
@@ -480,19 +508,24 @@ void writeFrameResults(const fs::path &path,
   std::ofstream stream(path);
   if (!stream.is_open())
     throw std::runtime_error("failed to write frame results");
-  stream << "frame_index,stamp_ns,success,relocalization_locked,seed_"
+  stream << "frame_index,stamp_ns,success,relocalization_lock_edge,"
+            "authoritative_full,seed_"
             "keyframe_id,support_keyframe_id,matched_keyframe_id,"
-            "relocalization_state,pose_source,"
+            "relocalization_state,pose_source,decision,"
+            "preprocessing_ms,backend_ms,strict_ms,"
             "map_tx,map_ty,map_tz,map_qx,map_qy,map_qz,map_qw\n";
   stream << std::setprecision(17);
   for (const auto &result : results) {
     const Eigen::Quaterniond q(result.T_map_body.rotation());
     stream << result.frame_index << ',' << result.stamp_ns << ','
            << (result.success ? 1 : 0) << ',' << (result.lock ? 1 : 0) << ','
-           << result.seed_keyframe_id << ',' << result.support_keyframe_id
-           << ',' << result.matched_keyframe_id << ','
+           << (result.authoritative_full ? 1 : 0) << ','
+           << result.seed_keyframe_id << ',' << result.support_keyframe_id << ','
+           << result.matched_keyframe_id << ','
            << relocalizationStateName(result.state) << ','
            << poseSourceName(result.pose_source) << ','
+           << result.decision << ',' << result.preprocessing_ms << ','
+           << result.backend_ms << ',' << result.strict_ms << ','
            << result.T_map_body.translation().x() << ','
            << result.T_map_body.translation().y() << ','
            << result.T_map_body.translation().z() << ',' << q.x() << ','
@@ -500,11 +533,33 @@ void writeFrameResults(const fs::path &path,
   }
 }
 
+double percentile95(std::vector<double> values) {
+  if (values.empty())
+    return 0.0;
+  std::sort(values.begin(), values.end());
+  const double position =
+      0.95 * static_cast<double>(values.size() - 1);
+  const auto lower = static_cast<std::size_t>(std::floor(position));
+  const auto upper = static_cast<std::size_t>(std::ceil(position));
+  const double fraction = position - static_cast<double>(lower);
+  return values[lower] + fraction * (values[upper] - values[lower]);
+}
+
+long peakRssKiB() {
+  struct rusage usage {};
+  return getrusage(RUSAGE_SELF, &usage) == 0 ? usage.ru_maxrss : -1;
+}
+
+long swapOperationCount() {
+  struct rusage usage {};
+  return getrusage(RUSAGE_SELF, &usage) == 0 ? usage.ru_nswap : -1;
+}
+
 void writeReadme(const fs::path &path, bool locked, bool has_reference) {
   std::ofstream stream(path);
   stream << "Manual review contract\n"
          << "======================\n"
-         << "*_alignment.pcd is authoritative for pose review: gray global "
+         << "alignment.pcd is authoritative for pose review: gray global "
             "map plus colored real query scans only.\n"
          << "*_provenance.pcd is authoritative for hypothesis provenance: "
             "gray global map plus blue seed and green support keyframes.\n"
@@ -531,7 +586,7 @@ void writeReadme(const fs::path &path, bool locked, bool has_reference) {
                    "not localizer input and does not change the lock.\n"
                  : "No ground truth is available. This tool never labels a "
                    "lock correct or false; inspect colored query geometry "
-                   "against the gray global map in *_alignment.pcd.\n");
+                   "against the gray global map in alignment.pcd.\n");
 }
 
 int run(const Options &options) {
@@ -546,18 +601,23 @@ int run(const Options &options) {
   ensureFreshOutput(options.output_dir);
   const auto records = readManifest(options.manifest_path);
 
-  Config config;
-  config.mode = "localization";
-  config.map_path = options.map_path.string();
-  if (!options.atlas_path.empty()) {
-    config.reloc_atlas_enable = true;
-    config.reloc_atlas_path = options.atlas_path.string();
+  if (options.atlas_path.empty()) {
+    throw std::runtime_error(
+        "product Gate requires an explicit verified localization atlas");
   }
+  Config config = makeProductLocalizationConfig(
+      options.map_path.string(), options.atlas_path.string());
   if (options.reloc_debug) {
     config.reloc_debug_enable = true;
     config.reloc_debug_path =
         (options.output_dir / "relocalization_debug.jsonl").string();
   }
+  std::string config_error;
+  if (!config.validate(&config_error)) {
+    throw std::runtime_error("invalid product localization config: " +
+                             config_error);
+  }
+  const auto map_load_start = std::chrono::steady_clock::now();
   N3MappingCore core(config);
   if (!core.loadMap(options.map_path.string())) {
     throw std::runtime_error("failed to load map: " +
@@ -567,76 +627,136 @@ int run(const Options &options) {
   if (!global_map || global_map->empty()) {
     throw std::runtime_error("loaded map has no global cloud");
   }
+  const double map_load_ms =
+      std::chrono::duration<double, std::milli>(
+          std::chrono::steady_clock::now() - map_load_start)
+          .count();
 
   std::vector<FrameResult> results;
+  std::vector<double> strict_times_ms;
+  std::vector<double> search_phase_times_ms;
   std::deque<BufferedFrame> buffered_frames;
+  std::deque<BufferedFrame> first_lock_frames;
   core::BackendOutput last_output;
+  core::BackendOutput first_lock_output;
+  FrameRecord first_lock_record;
   const FrameRecord *last_record = nullptr;
   bool locked = false;
   for (const auto &record : records) {
-    auto cloud = loadCloud(record.pcd_path, options.input_voxel_size_m);
+    double preprocessing_ms = 0.0;
+    auto cloud =
+        loadCloud(record.pcd_path, options.input_voxel_size_m,
+                  &preprocessing_ms);
     buffered_frames.push_back({record, cloud});
     while (static_cast<int>(buffered_frames.size()) >
            config.reloc_static_agg_max_frames) {
       buffered_frames.pop_front();
     }
+    const auto backend_start = std::chrono::steady_clock::now();
     last_output = core.processLocalizationFrame(makeFrame(record, cloud));
+    const double backend_ms =
+        std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - backend_start)
+            .count();
+    const double strict_ms = preprocessing_ms + backend_ms;
+    strict_times_ms.push_back(strict_ms);
+    if (!locked) {
+      search_phase_times_ms.push_back(strict_ms);
+    }
     last_record = &record;
+    const bool authoritative_full =
+        hasAuthoritativeRelocalizationInitializationPose(
+            last_output.relocalization_state, last_output.pose_source);
     results.push_back(
         {record.frame_index, record.stamp_ns, last_output.success,
-         last_output.relocalization_locked, last_output.relocalization_state,
-         last_output.pose_source, last_output.relocalization_seed_keyframe_id,
+         last_output.relocalization_locked, authoritative_full,
+         last_output.relocalization_state, last_output.pose_source,
+         last_output.relocalization_seed_keyframe_id,
          last_output.relocalization_support_keyframe_id,
-         last_output.matched_keyframe_id, last_output.T_world_lidar});
-    if (last_output.relocalization_locked) {
+         last_output.matched_keyframe_id,
+         last_output.relocalization_decision, preprocessing_ms, backend_ms,
+         strict_ms, last_output.T_world_lidar});
+    if (authoritative_full && !locked) {
       locked = true;
-      break;
+      first_lock_output = last_output;
+      first_lock_record = record;
+      first_lock_frames = buffered_frames;
     }
   }
   if (!last_record)
     throw std::runtime_error("no frames were processed");
 
   const Eigen::Isometry3d T_map_odom =
-      last_output.T_world_lidar * last_record->T_odom_body.inverse();
+      locked ? first_lock_output.T_world_lidar *
+                   first_lock_record.T_odom_body.inverse()
+             : Eigen::Isometry3d::Identity();
+  const auto &review_frames = locked ? first_lock_frames : buffered_frames;
+  const int64_t acquisition_start_stamp_ns =
+      options.raw_first_stamp_ns > 0 ? options.raw_first_stamp_ns
+                                     : records.front().stamp_ns;
+  const double acquisition_to_lock_s =
+      locked ? static_cast<double>(first_lock_record.stamp_ns -
+                                   acquisition_start_stamp_ns) /
+                   1e9
+             : -1.0;
+  if (locked && acquisition_to_lock_s < 0.0) {
+    throw std::runtime_error(
+        "raw_first_stamp_ns is later than the authoritative lock stamp");
+  }
+  const double strict_p95_ms = percentile95(strict_times_ms);
+  const double strict_max_ms =
+      strict_times_ms.empty()
+          ? 0.0
+          : *std::max_element(strict_times_ms.begin(), strict_times_ms.end());
+  const double search_phase_p95_ms =
+      percentile95(search_phase_times_ms);
+  const double search_phase_max_ms =
+      search_phase_times_ms.empty()
+          ? 0.0
+          : *std::max_element(search_phase_times_ms.begin(),
+                              search_phase_times_ms.end());
+  const long runtime_peak_rss_kib = peakRssKiB();
+  const long runtime_swap_operations = swapOperationCount();
   const bool has_reference = std::isfinite(options.reference_map_x_m);
   const auto seed_keyframe =
-      locked ? core.getKeyframe(last_output.relocalization_seed_keyframe_id)
+      locked
+          ? core.getKeyframe(first_lock_output.relocalization_seed_keyframe_id)
              : nullptr;
   const auto support_keyframe =
-      locked ? core.getKeyframe(last_output.relocalization_support_keyframe_id)
+      locked ? core.getKeyframe(
+                   first_lock_output.relocalization_support_keyframe_id)
              : nullptr;
   const std::string review_name =
       records.front().episode_id +
       (locked ? "_locked.pcd" : "_no_lock_unverified_pose.pcd");
-  const std::string alignment_review_name =
-      records.front().episode_id + "_alignment.pcd";
+  const std::string alignment_review_name = "alignment.pcd";
   const std::string provenance_review_name =
       records.front().episode_id + "_provenance.pcd";
   const std::string comparison_review_name =
       has_reference ? records.front().episode_id + "_comparison.pcd" : "";
   const ReviewCounts counts = writeReviewPcd(
       options.output_dir / review_name, *global_map, seed_keyframe,
-      support_keyframe, buffered_frames, T_map_odom);
+      support_keyframe, review_frames, T_map_odom);
   writeReviewPcd(options.output_dir / alignment_review_name, *global_map,
-                 nullptr, nullptr, buffered_frames, T_map_odom);
+                 nullptr, nullptr, review_frames, T_map_odom);
   writeReviewPcd(options.output_dir / provenance_review_name, *global_map,
                  seed_keyframe, support_keyframe, {}, T_map_odom);
   ReviewCounts comparison_counts;
   if (has_reference) {
     comparison_counts = writeComparisonPcd(
         options.output_dir / comparison_review_name, *global_map,
-        buffered_frames, T_map_odom, locked,
+        review_frames, T_map_odom, locked,
         planarMapToOdom(options.reference_map_x_m, options.reference_map_y_m,
                         options.reference_map_yaw_deg));
   }
-  writeFrameResults(options.output_dir / "frame_results.csv", results);
+  writeFrameResults(options.output_dir / "frame_status.csv", results);
   writeReadme(options.output_dir / "README.txt", locked, has_reference);
 
   std::ofstream summary(options.output_dir / "result.json");
   if (!summary.is_open())
     throw std::runtime_error("failed to write result.json");
   summary << "{\n"
-          << "  \"schema\": \"n3mapping_real_relocalization_result_v2\",\n"
+          << "  \"schema\": \"n3mapping_product_gate_case_result_v1\",\n"
           << "  \"episode_id\": \"" << jsonEscape(records.front().episode_id)
           << "\",\n"
           << "  \"map_path\": \""
@@ -646,20 +766,38 @@ int run(const Options &options) {
           << "  \"input_frame_count\": " << records.size() << ",\n"
           << "  \"processed_frame_count\": " << results.size() << ",\n"
           << "  \"algorithm_lock\": " << (locked ? "true" : "false") << ",\n"
+          << "  \"alignment_pose_authoritative\": "
+          << (locked ? "true" : "false") << ",\n"
+          << "  \"final_state\": \""
+          << relocalizationStateName(last_output.relocalization_state)
+          << "\",\n"
+          << "  \"final_pose_source\": \""
+          << poseSourceName(last_output.pose_source) << "\",\n"
+          << "  \"final_decision\": \""
+          << jsonEscape(last_output.relocalization_decision) << "\",\n"
           << "  \"manual_alignment_correct\": null,\n"
           << "  \"lock_frame_index\": "
-          << (locked ? last_record->frame_index : -1) << ",\n"
-          << "  \"lock_stamp_ns\": " << (locked ? last_record->stamp_ns : 0)
+          << (locked ? first_lock_record.frame_index : -1) << ",\n"
+          << "  \"lock_stamp_ns\": "
+          << (locked ? first_lock_record.stamp_ns : 0)
+          << ",\n"
+          << "  \"acquisition_start_stamp_ns\": "
+          << acquisition_start_stamp_ns << ",\n"
+          << "  \"acquisition_to_lock_s\": " << acquisition_to_lock_s
           << ",\n"
           << "  \"matched_keyframe_id\": "
-          << (locked ? last_output.matched_keyframe_id : -1) << ",\n"
+          << (locked ? first_lock_output.matched_keyframe_id : -1) << ",\n"
           << "  \"relocalization_seed_keyframe_id\": "
-          << (locked ? last_output.relocalization_seed_keyframe_id : -1)
+          << (locked ? first_lock_output.relocalization_seed_keyframe_id : -1)
           << ",\n"
           << "  \"relocalization_support_keyframe_id\": "
-          << (locked ? last_output.relocalization_support_keyframe_id : -1)
+          << (locked ? first_lock_output.relocalization_support_keyframe_id
+                     : -1)
           << ",\n"
           << "  \"reported_map_body_pose\": ";
+  writePoseJson(summary, locked ? first_lock_output.T_world_lidar
+                                : last_output.T_world_lidar);
+  summary << ",\n  \"final_map_body_pose\": ";
   writePoseJson(summary, last_output.T_world_lidar);
   summary << ",\n  \"reported_map_odom_transform\": ";
   writePoseJson(summary, T_map_odom);
@@ -668,6 +806,7 @@ int run(const Options &options) {
       << "  \"review_pcd\": \"" << jsonEscape(review_name) << "\",\n"
       << "  \"alignment_review_pcd\": \"" << jsonEscape(alignment_review_name)
       << "\",\n"
+      << "  \"frame_status_csv\": \"frame_status.csv\",\n"
       << "  \"provenance_review_pcd\": \"" << jsonEscape(provenance_review_name)
       << "\",\n"
       << "  \"comparison_review_pcd\": \"" << jsonEscape(comparison_review_name)
@@ -680,8 +819,16 @@ int run(const Options &options) {
       << ",\"estimated_query\":" << comparison_counts.query_points
       << ",\"reference_query\":" << comparison_counts.reference_query_points
       << "},\n"
-      << "  \"config_source\": \"compiled_product_defaults_no_overrides\",\n"
+      << "  \"config_source\": "
+         "\"product_localization_factory_compiled_defaults\",\n"
       << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n"
+      << "  \"performance\": {\"map_load_ms\":" << map_load_ms
+      << ",\"strict_p95_ms\":" << strict_p95_ms
+      << ",\"strict_max_ms\":" << strict_max_ms
+      << ",\"search_phase_p95_ms\":" << search_phase_p95_ms
+      << ",\"search_phase_max_ms\":" << search_phase_max_ms
+      << ",\"runtime_peak_rss_kib\":" << runtime_peak_rss_kib
+      << ",\"runtime_swap_operations\":" << runtime_swap_operations << "},\n"
       << "  \"relocalization_contract\": {"
       << "\"temporal_window_size\":" << config.reloc_temporal_window_size << ','
       << "\"static_agg_max_frames\":" << config.reloc_static_agg_max_frames
@@ -693,9 +840,14 @@ int run(const Options &options) {
   std::cout << "episode=" << records.front().episode_id
             << " algorithm_lock=" << (locked ? 1 : 0)
             << " processed_frames=" << results.size() << " seed_keyframe_id="
-            << (locked ? last_output.relocalization_seed_keyframe_id : -1)
+            << (locked ? first_lock_output.relocalization_seed_keyframe_id : -1)
             << " support_keyframe_id="
-            << (locked ? last_output.relocalization_support_keyframe_id : -1)
+            << (locked ? first_lock_output.relocalization_support_keyframe_id
+                       : -1)
+            << " final_state="
+            << relocalizationStateName(last_output.relocalization_state)
+            << " strict_p95_ms=" << strict_p95_ms
+            << " runtime_peak_rss_kib=" << runtime_peak_rss_kib
             << " review_pcd=" << (options.output_dir / review_name) << '\n';
   return locked ? 0 : 2;
 }
@@ -704,6 +856,10 @@ int run(const Options &options) {
 } // namespace n3mapping
 
 int main(int argc, char **argv) {
+  if (n3mapping::productBuildIdentityRequested(argc, argv)) {
+    std::cout << n3mapping::productBuildIdentityJson() << '\n';
+    return 0;
+  }
   google::InitGoogleLogging(argv[0]);
   n3mapping::Options options;
   if (!n3mapping::parseArgs(argc, argv, &options)) {

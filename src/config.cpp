@@ -1,9 +1,166 @@
 #include "n3mapping/config.h"
 
 #include <cmath>
+#include <iomanip>
 #include <sstream>
 
 namespace n3mapping {
+
+Config makeProductLocalizationConfig(const std::string& map_path,
+                                     const std::string& atlas_path) {
+    Config config;
+    config.mode = "localization";
+    config.map_path = map_path;
+
+    // These values differ from the C++ fallback defaults and are frozen in
+    // config/product_v1.yaml. Most are mapping/output-only, but assigning the
+    // complete profile keeps the Gate and deployed ROS node equivalent.
+    config.sc_num_candidates = 5;
+    config.loop_min_inlier_ratio = 0.7;
+    config.loop_fitness_threshold = 0.2;
+    config.loop_max_icp_translation = 2.0;
+    config.output_cloud_voxel_size = 0.2;
+    config.save_global_map_on_shutdown = false;
+    config.map_save_path.clear();
+
+    config.reloc_atlas_enable = true;
+    config.reloc_atlas_path = atlas_path;
+    return config;
+}
+
+std::string runtimeConfigCanonical(const Config& config) {
+    std::ostringstream oss;
+    oss << std::setprecision(17) << std::boolalpha;
+#define N3MAPPING_CONFIG_FIELD(name) oss << #name << '=' << config.name << '\n'
+    N3MAPPING_CONFIG_FIELD(mode);
+    N3MAPPING_CONFIG_FIELD(map_path);
+    N3MAPPING_CONFIG_FIELD(cloud_topic);
+    N3MAPPING_CONFIG_FIELD(odom_topic);
+    N3MAPPING_CONFIG_FIELD(output_odom_topic);
+    N3MAPPING_CONFIG_FIELD(output_path_topic);
+    N3MAPPING_CONFIG_FIELD(output_cloud_body_topic);
+    N3MAPPING_CONFIG_FIELD(output_cloud_world_topic);
+    N3MAPPING_CONFIG_FIELD(world_frame);
+    N3MAPPING_CONFIG_FIELD(body_frame);
+    N3MAPPING_CONFIG_FIELD(keyframe_distance_threshold);
+    N3MAPPING_CONFIG_FIELD(keyframe_angle_threshold);
+    N3MAPPING_CONFIG_FIELD(gicp_downsampling_resolution);
+    N3MAPPING_CONFIG_FIELD(gicp_max_correspondence_distance);
+    N3MAPPING_CONFIG_FIELD(gicp_max_iterations);
+    N3MAPPING_CONFIG_FIELD(gicp_transformation_epsilon);
+    N3MAPPING_CONFIG_FIELD(gicp_rotation_epsilon_deg);
+    N3MAPPING_CONFIG_FIELD(gicp_fitness_threshold);
+    N3MAPPING_CONFIG_FIELD(gicp_num_neighbors);
+    N3MAPPING_CONFIG_FIELD(gicp_submap_size);
+    N3MAPPING_CONFIG_FIELD(icp_refine_use_gicp);
+    N3MAPPING_CONFIG_FIELD(icp_refine_max_iterations);
+    N3MAPPING_CONFIG_FIELD(icp_refine_max_correspondence_distance);
+    N3MAPPING_CONFIG_FIELD(icp_refine_downsampling_resolution);
+    N3MAPPING_CONFIG_FIELD(icp_refine_fitness_gate);
+    N3MAPPING_CONFIG_FIELD(icp_refine_delta_translation_gate);
+    N3MAPPING_CONFIG_FIELD(icp_refine_delta_rotation_gate);
+    N3MAPPING_CONFIG_FIELD(sc_dist_threshold);
+    N3MAPPING_CONFIG_FIELD(sc_num_exclude_recent);
+    N3MAPPING_CONFIG_FIELD(sc_num_candidates);
+    N3MAPPING_CONFIG_FIELD(sc_max_radius);
+    N3MAPPING_CONFIG_FIELD(sc_num_rings);
+    N3MAPPING_CONFIG_FIELD(sc_num_sectors);
+    N3MAPPING_CONFIG_FIELD(kdtree_cache_size);
+    N3MAPPING_CONFIG_FIELD(optimization_iterations);
+    N3MAPPING_CONFIG_FIELD(prior_noise_position);
+    N3MAPPING_CONFIG_FIELD(prior_noise_rotation);
+    N3MAPPING_CONFIG_FIELD(odom_noise_position);
+    N3MAPPING_CONFIG_FIELD(odom_noise_rotation);
+    N3MAPPING_CONFIG_FIELD(loop_noise_position);
+    N3MAPPING_CONFIG_FIELD(loop_noise_rotation);
+    N3MAPPING_CONFIG_FIELD(use_robust_kernel);
+    N3MAPPING_CONFIG_FIELD(robust_kernel_type);
+    N3MAPPING_CONFIG_FIELD(robust_kernel_delta);
+    N3MAPPING_CONFIG_FIELD(loop_min_inlier_ratio);
+    N3MAPPING_CONFIG_FIELD(loop_fitness_threshold);
+    N3MAPPING_CONFIG_FIELD(loop_max_icp_translation);
+    N3MAPPING_CONFIG_FIELD(loop_max_icp_rotation);
+    N3MAPPING_CONFIG_FIELD(loop_use_icp_information);
+    N3MAPPING_CONFIG_FIELD(loop_icp_prefilter_voxel_size);
+    N3MAPPING_CONFIG_FIELD(loop_icp_max_points);
+    N3MAPPING_CONFIG_FIELD(loop_debug_enable);
+    N3MAPPING_CONFIG_FIELD(loop_debug_vertical_hypotheses_enable);
+    N3MAPPING_CONFIG_FIELD(loop_debug_path);
+    N3MAPPING_CONFIG_FIELD(loop_spatial_candidates_enable);
+    N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_radius);
+    N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_min_id_gap);
+    N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_max_candidates);
+    N3MAPPING_CONFIG_FIELD(loop_kf_gap);
+    N3MAPPING_CONFIG_FIELD(loop_closest_id_th);
+    N3MAPPING_CONFIG_FIELD(loop_min_id_interval);
+    N3MAPPING_CONFIG_FIELD(loop_max_range);
+    N3MAPPING_CONFIG_FIELD(output_cloud_voxel_size);
+    N3MAPPING_CONFIG_FIELD(map_save_path);
+    N3MAPPING_CONFIG_FIELD(global_map_voxel_size);
+    N3MAPPING_CONFIG_FIELD(save_global_map_voxel_size);
+    N3MAPPING_CONFIG_FIELD(global_map_publish_hz);
+    N3MAPPING_CONFIG_FIELD(save_global_map_on_shutdown);
+    N3MAPPING_CONFIG_FIELD(num_threads);
+    N3MAPPING_CONFIG_FIELD(sync_queue_size);
+    N3MAPPING_CONFIG_FIELD(sync_time_tolerance);
+    N3MAPPING_CONFIG_FIELD(reloc_num_candidates);
+    N3MAPPING_CONFIG_FIELD(reloc_sc_dist_threshold);
+    N3MAPPING_CONFIG_FIELD(reloc_min_confidence);
+    N3MAPPING_CONFIG_FIELD(reloc_min_inlier_ratio);
+    N3MAPPING_CONFIG_FIELD(reloc_search_radius);
+    N3MAPPING_CONFIG_FIELD(reloc_max_track_failures);
+    N3MAPPING_CONFIG_FIELD(reloc_track_max_translation);
+    N3MAPPING_CONFIG_FIELD(reloc_track_max_rotation);
+    N3MAPPING_CONFIG_FIELD(reloc_temporal_window_size);
+    N3MAPPING_CONFIG_FIELD(reloc_lock_log_likelihood_threshold);
+    N3MAPPING_CONFIG_FIELD(reloc_lock_min_winner_streak);
+    N3MAPPING_CONFIG_FIELD(reloc_lock_min_converged_updates);
+    N3MAPPING_CONFIG_FIELD(reloc_lock_min_margin);
+    N3MAPPING_CONFIG_FIELD(reloc_hypothesis_miss_penalty);
+    N3MAPPING_CONFIG_FIELD(reloc_hypothesis_not_converged_penalty);
+    N3MAPPING_CONFIG_FIELD(reloc_reloc_inlier_weight);
+    N3MAPPING_CONFIG_FIELD(reloc_reloc_desc_dist_weight);
+    N3MAPPING_CONFIG_FIELD(reloc_track_motion_weight);
+    N3MAPPING_CONFIG_FIELD(reloc_track_retry_max_failures);
+    N3MAPPING_CONFIG_FIELD(reloc_track_retry_corr_scale);
+    N3MAPPING_CONFIG_FIELD(reloc_track_retry_max_iterations);
+    N3MAPPING_CONFIG_FIELD(reloc_track_unstable_submap_size);
+    N3MAPPING_CONFIG_FIELD(reloc_static_agg_enable);
+    N3MAPPING_CONFIG_FIELD(reloc_static_agg_max_frames);
+    N3MAPPING_CONFIG_FIELD(reloc_static_agg_min_frames);
+    N3MAPPING_CONFIG_FIELD(reloc_static_agg_max_translation);
+    N3MAPPING_CONFIG_FIELD(reloc_static_agg_max_rotation);
+    N3MAPPING_CONFIG_FIELD(reloc_static_agg_voxel_size);
+    N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_margin);
+    N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_ratio);
+    N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_basin_separation);
+    N3MAPPING_CONFIG_FIELD(reloc_debug_enable);
+    N3MAPPING_CONFIG_FIELD(reloc_debug_path);
+    N3MAPPING_CONFIG_FIELD(reloc_atlas_enable);
+    N3MAPPING_CONFIG_FIELD(reloc_atlas_path);
+    N3MAPPING_CONFIG_FIELD(rhpd_enabled);
+    N3MAPPING_CONFIG_FIELD(rhpd_v2_enable);
+    N3MAPPING_CONFIG_FIELD(rhpd_v3_enable);
+    N3MAPPING_CONFIG_FIELD(rhpd_max_range);
+    N3MAPPING_CONFIG_FIELD(rhpd_z_min);
+    N3MAPPING_CONFIG_FIELD(rhpd_z_max);
+    N3MAPPING_CONFIG_FIELD(rhpd_dist_threshold);
+    N3MAPPING_CONFIG_FIELD(rhpd_num_candidates);
+    N3MAPPING_CONFIG_FIELD(rhpd_preselect_candidates);
+    N3MAPPING_CONFIG_FIELD(rhpd_submap_kf_radius);
+    N3MAPPING_CONFIG_FIELD(rhpd_submap_voxel_size);
+    N3MAPPING_CONFIG_FIELD(rhpd_primary_weight);
+    N3MAPPING_CONFIG_FIELD(sc_aux_weight);
+    N3MAPPING_CONFIG_FIELD(sc_aux_veto_enabled);
+    N3MAPPING_CONFIG_FIELD(sc_aux_veto_threshold);
+    N3MAPPING_CONFIG_FIELD(rhpd_use_sc_yaw);
+    N3MAPPING_CONFIG_FIELD(rhpd_yaw_hypotheses);
+    N3MAPPING_CONFIG_FIELD(rhpd_enable_negative_space);
+    N3MAPPING_CONFIG_FIELD(rhpd_enable_vertical_tokens);
+    N3MAPPING_CONFIG_FIELD(rhpd_enable_pca_confidence);
+#undef N3MAPPING_CONFIG_FIELD
+    return oss.str();
+}
 
 std::string Config::toString() const {
     std::ostringstream oss;
@@ -126,6 +283,10 @@ bool Config::validate(std::string* error) const {
 
     if (mode != "mapping" && mode != "localization" && mode != "map_extension") {
         return fail("mode must be one of: mapping, localization, map_extension");
+    }
+    if ((mode == "localization" || mode == "map_extension") &&
+        map_path.empty()) {
+        return fail("map_path is required for localization and map_extension");
     }
     if (!positive(keyframe_distance_threshold, "keyframe_distance_threshold")) return false;
     if (!positive(keyframe_angle_threshold, "keyframe_angle_threshold")) return false;

@@ -3,10 +3,12 @@
 #include <cmath>
 #include <cstdint>
 #include <fstream>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -15,6 +17,7 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/synchronizer.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
@@ -30,8 +33,12 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include <n3mapping/RelocalizationStatus.h>
+
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/global_map_cache.h"
+#include "n3mapping/product_build_identity.h"
+#include "n3mapping/relocalization_output_authority.h"
 #include "n3mapping_noetic/config_noetic.h"
 #include "n3mapping_noetic/conversions.h"
 
@@ -43,14 +50,31 @@ class N3MappingNoeticNode {
       : nh_()
       , private_nh_("~")
     {
-        loadConfigFromNoetic(private_nh_, &config_);
+        private_nh_.param(
+            "product_profile_v1", product_profile_v1_, product_profile_v1_);
+        if (product_profile_v1_) {
+            std::string map_path;
+            std::string atlas_path;
+            private_nh_.param("map_path", map_path, map_path);
+            private_nh_.param("reloc_atlas_path", atlas_path, atlas_path);
+            if (map_path.empty() || atlas_path.empty()) {
+                throw std::runtime_error(
+                    "product_profile_v1 requires non-empty map_path and "
+                    "reloc_atlas_path");
+            }
+            config_ = makeProductLocalizationConfig(map_path, atlas_path);
+        } else {
+            loadConfigFromNoetic(private_nh_, &config_);
+        }
         global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
         ROS_INFO("%s", config_.toString().c_str());
 
         run_mode_ = parseCoreRunMode(config_.mode);
         core_ = std::make_unique<N3MappingCore>(config_);
         core_->setExternalDenseTrajectoryRecordingEnabled(true);
-        initializeOptimizationLogging();
+        if (coreRunModeSavesMap(run_mode_)) {
+            initializeOptimizationLogging();
+        }
 
         initializeRosInterfaces();
 
@@ -67,20 +91,38 @@ class N3MappingNoeticNode {
     ~N3MappingNoeticNode() { shutdown(); }
 
   private:
-    using SyncPolicy =
+    using ApproxSyncPolicy =
         message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry>;
-    using Synchronizer = message_filters::Synchronizer<SyncPolicy>;
+    using ExactSyncPolicy =
+        message_filters::sync_policies::ExactTime<sensor_msgs::PointCloud2, nav_msgs::Odometry>;
+    using ApproxSynchronizer =
+        message_filters::Synchronizer<ApproxSyncPolicy>;
+    using ExactSynchronizer =
+        message_filters::Synchronizer<ExactSyncPolicy>;
 
     void initializeRosInterfaces()
     {
         const int sync_queue_size = std::max(1, config_.sync_queue_size);
         cloud_sub_.subscribe(nh_, config_.cloud_topic, static_cast<uint32_t>(sync_queue_size));
         odom_sub_.subscribe(nh_, config_.odom_topic, static_cast<uint32_t>(sync_queue_size));
-        SyncPolicy sync_policy(static_cast<uint32_t>(sync_queue_size));
-        sync_policy.setMaxIntervalDuration(ros::Duration(config_.sync_time_tolerance));
-        sync_ = std::make_unique<Synchronizer>(
-            static_cast<const SyncPolicy&>(sync_policy), cloud_sub_, odom_sub_);
-        sync_->registerCallback(boost::bind(&N3MappingNoeticNode::syncCallback, this, _1, _2));
+        if (product_profile_v1_) {
+            ExactSyncPolicy sync_policy(static_cast<uint32_t>(sync_queue_size));
+            exact_sync_ = std::make_unique<ExactSynchronizer>(
+                static_cast<const ExactSyncPolicy&>(sync_policy),
+                cloud_sub_, odom_sub_);
+            exact_sync_->registerCallback(boost::bind(
+                &N3MappingNoeticNode::syncCallback, this, _1, _2));
+        } else {
+            ApproxSyncPolicy sync_policy(
+                static_cast<uint32_t>(sync_queue_size));
+            sync_policy.setMaxIntervalDuration(
+                ros::Duration(config_.sync_time_tolerance));
+            approx_sync_ = std::make_unique<ApproxSynchronizer>(
+                static_cast<const ApproxSyncPolicy&>(sync_policy),
+                cloud_sub_, odom_sub_);
+            approx_sync_->registerCallback(boost::bind(
+                &N3MappingNoeticNode::syncCallback, this, _1, _2));
+        }
         dense_odom_sub_ = nh_.subscribe(
             config_.odom_topic, static_cast<uint32_t>(sync_queue_size), &N3MappingNoeticNode::denseOdomCallback, this);
 
@@ -91,7 +133,15 @@ class N3MappingNoeticNode {
         loop_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/n3mapping/loop_closure_markers", 10, true);
         global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/n3mapping/global_map", 1, true);
         relocalization_lock_pub_ = nh_.advertise<std_msgs::UInt32>("/n3mapping/relocalization_lock", 10);
-        save_map_srv_ = nh_.advertiseService("/n3mapping/save_map", &N3MappingNoeticNode::handleSaveMap, this);
+        relocalization_status_pub_ =
+            nh_.advertise<RelocalizationStatus>("/n3mapping/relocalization_status", 1, true);
+        relocalization_pose_pub_ =
+            nh_.advertise<geometry_msgs::PoseStamped>("/n3mapping/relocalization_pose", 1, false);
+        if (coreRunModeSavesMap(run_mode_)) {
+            save_map_srv_ = nh_.advertiseService(
+                "/n3mapping/save_map",
+                &N3MappingNoeticNode::handleSaveMap, this);
+        }
 
         loop_timer_ = nh_.createTimer(ros::Duration(0.1), &N3MappingNoeticNode::loopTimerCallback, this);
         const double global_map_hz = std::max(0.1, config_.global_map_publish_hz);
@@ -124,21 +174,48 @@ class N3MappingNoeticNode {
             std::lock_guard<std::mutex> lock(data_mutex_);
             const auto frame = toCoreLioFrame(*cloud_msg, *odom_msg);
 
-            const auto output = core_->processFrame(run_mode_, frame);
+            auto output = core_->processFrame(run_mode_, frame);
+            const bool localization_mode = run_mode_ == CoreRunMode::LOCALIZATION;
+            const auto output_mode =
+                localization_mode
+                    ? RelocalizationOutputMode::LOCALIZATION
+                    : (run_mode_ == CoreRunMode::MAP_EXTENSION
+                           ? RelocalizationOutputMode::MAP_EXTENSION
+                           : RelocalizationOutputMode::OTHER);
+            const auto publication =
+                relocalization_output_authority_.process(output_mode, output);
 
             if (run_mode_ == CoreRunMode::MAP_EXTENSION && output.relocalization_locked && !output.accepted_keyframe) {
                 ROS_INFO_THROTTLE(2.0, "Initial relocalization successful for map extension");
+            }
+            if (publication.inconsistent_lock_event) {
+                ROS_ERROR("Suppressed inconsistent relocalization lock event: state=%s pose_source=%s",
+                          relocalizationStateName(output.relocalization_state),
+                          poseSourceName(output.pose_source));
+            }
+            if (publication.invalid_usable_pose_suppressed) {
+                ROS_ERROR("Suppressed non-finite or non-rigid localization pose");
+            }
+            if (publication.publish_legacy_lock) {
+                publishLegacyRelocalizationLock(publication.lock_epoch);
+            }
+            if (publication.publish_status) {
+                publishRelocalizationStatus(
+                    cloud_msg->header, output, publication.lock_epoch);
+            }
+            if (publication.publish_authoritative_pose) {
+                publishAuthoritativeRelocalizationPose(
+                    cloud_msg->header, output.T_world_lidar,
+                    publication.lock_epoch);
             }
             if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
                 ++frame_count_;
                 return;
             }
 
-            publishOdometry(output.T_world_lidar, cloud_msg->header);
-            publishPath(cloud_msg->header, &output.T_world_lidar);
-
-            if (output.relocalization_locked) {
-                publishRelocalizationLock(cloud_msg->header, output.T_world_lidar);
+            if (publication.publish_global_pose) {
+                publishOdometry(output.T_world_lidar, cloud_msg->header);
+                publishPath(cloud_msg->header, &output.T_world_lidar);
             }
             if (output.accepted_keyframe) {
                 ++keyframe_count_;
@@ -149,6 +226,9 @@ class N3MappingNoeticNode {
             }
             ++frame_count_;
             output_for_clouds = output;
+            if (!publication.publish_world_cloud) {
+                output_for_clouds.cloud_world.reset();
+            }
             cloud_header = cloud_msg->header;
             publish_clouds = true;
         }
@@ -575,21 +655,54 @@ class N3MappingNoeticNode {
         global_map_pub_.publish(msg);
     }
 
-    void publishRelocalizationLock(const std_msgs::Header&, const Eigen::Isometry3d& pose)
+    void publishLegacyRelocalizationLock(std::uint64_t lock_epoch)
     {
-        std_msgs::UInt32 msg;
-        msg.data = ++relocalization_lock_count_;
-        relocalization_lock_pub_.publish(msg);
+        std_msgs::UInt32 legacy_msg;
+        legacy_msg.data = static_cast<std::uint32_t>(lock_epoch);
+        relocalization_lock_pub_.publish(legacy_msg);
+    }
+
+    void publishAuthoritativeRelocalizationPose(
+        const std_msgs::Header& header, const Eigen::Isometry3d& pose,
+        std::uint64_t lock_epoch)
+    {
+        geometry_msgs::PoseStamped pose_msg;
+        pose_msg.header = header;
+        pose_msg.header.frame_id = config_.world_frame;
+        pose_msg.pose = makePose(pose);
+        relocalization_pose_pub_.publish(pose_msg);
 
         const Eigen::Quaterniond q(pose.rotation());
         const double yaw = std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
                                       1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
-        ROS_INFO("Relocalization lock #%u pose=(%.3f, %.3f, %.3f) yaw=%.3f",
-                 msg.data,
+        ROS_INFO("Relocalization lock #%llu pose=(%.3f, %.3f, %.3f) yaw=%.3f",
+                 static_cast<unsigned long long>(lock_epoch),
                  pose.translation().x(),
                  pose.translation().y(),
                  pose.translation().z(),
                  yaw);
+    }
+
+    void publishRelocalizationStatus(const std_msgs::Header& header,
+                                     const core::BackendOutput& output,
+                                     std::uint64_t lock_epoch)
+    {
+        RelocalizationStatus status;
+        status.header = header;
+        status.header.frame_id = config_.world_frame;
+        status.state = static_cast<std::uint8_t>(output.relocalization_state);
+        status.pose_source = static_cast<std::uint8_t>(output.pose_source);
+        status.pose.orientation.w = 1.0;
+        if (hasUsableGlobalRelocalizationPose(
+                output.relocalization_state, output.pose_source)) {
+            status.pose = makePose(output.T_world_lidar);
+        }
+        status.lock_epoch = lock_epoch;
+        status.seed_keyframe_id = output.relocalization_seed_keyframe_id;
+        status.support_keyframe_id =
+            output.relocalization_support_keyframe_id;
+        status.decision = output.relocalization_decision;
+        relocalization_status_pub_.publish(status);
     }
 
     void publishLoopMarkers(const std::vector<VerifiedLoop>& loops)
@@ -717,13 +830,15 @@ class N3MappingNoeticNode {
     ros::NodeHandle private_nh_;
     Config config_;
     CoreRunMode run_mode_ = CoreRunMode::MAPPING;
+    bool product_profile_v1_ = false;
     std::unique_ptr<N3MappingCore> core_;
     std::mutex data_mutex_;
     std::mutex global_map_mutex_;
 
     message_filters::Subscriber<sensor_msgs::PointCloud2> cloud_sub_;
     message_filters::Subscriber<nav_msgs::Odometry> odom_sub_;
-    std::unique_ptr<Synchronizer> sync_;
+    std::unique_ptr<ApproxSynchronizer> approx_sync_;
+    std::unique_ptr<ExactSynchronizer> exact_sync_;
     ros::Subscriber dense_odom_sub_;
 
     ros::Publisher odom_pub_;
@@ -733,6 +848,8 @@ class N3MappingNoeticNode {
     ros::Publisher loop_marker_pub_;
     ros::Publisher global_map_pub_;
     ros::Publisher relocalization_lock_pub_;
+    ros::Publisher relocalization_status_pub_;
+    ros::Publisher relocalization_pose_pub_;
     ros::ServiceServer save_map_srv_;
     ros::Timer loop_timer_;
     ros::Timer global_map_timer_;
@@ -749,7 +866,7 @@ class N3MappingNoeticNode {
     std::size_t frame_count_ = 0;
     std::size_t keyframe_count_ = 0;
     std::size_t loop_count_ = 0;
-    uint32_t relocalization_lock_count_ = 0;
+    RelocalizationOutputAuthority relocalization_output_authority_;
     bool shutdown_called_ = false;
 };
 
@@ -757,6 +874,10 @@ class N3MappingNoeticNode {
 
 int main(int argc, char** argv)
 {
+    if (n3mapping::productBuildIdentityRequested(argc, argv)) {
+        std::cout << n3mapping::productBuildIdentityJson() << '\n';
+        return 0;
+    }
     ros::init(argc, argv, "n3mapping_node");
     n3mapping::N3MappingNoeticNode node;
     ros::spin();

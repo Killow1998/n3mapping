@@ -6,6 +6,8 @@ get_filename_component(N3MAPPING_ROOT "${N3MAPPING_ROOT}" ABSOLUTE)
 
 add_compile_definitions(N3MAPPING_SOURCE_DIR="${N3MAPPING_ROOT}")
 option(BUILD_TESTING "Build the testing tree." OFF)
+option(N3MAPPING_BUILD_RESEARCH_TOOLS
+  "Build and install offline synthetic/dataset/research tools." OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,6 +16,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
+include(${N3MAPPING_ROOT}/cmake/n3mapping_product_identity.cmake)
 add_compile_options(-O3 -Wall -Wextra)
 
 find_package(ament_cmake REQUIRED)
@@ -29,6 +32,12 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "${N3MAPPING_ROOT}:msg/RelocalizationStatus.msg"
+  DEPENDENCIES std_msgs geometry_msgs
+)
 
 find_package(PCL REQUIRED COMPONENTS common io filters)
 find_package(Eigen3 REQUIRED)
@@ -37,6 +46,8 @@ find_package(GTSAM REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(small_gicp REQUIRED)
+include(${N3MAPPING_ROOT}/cmake/n3mapping_dependency_abi.cmake)
+n3mapping_verify_dependency_abi()
 find_package(Glog QUIET)
 if(NOT Glog_FOUND AND NOT TARGET glog::glog)
   find_library(GLOG_LIBRARY glog REQUIRED)
@@ -137,6 +148,7 @@ set(N3MAPPING_HUMBLE_WRAPPER_SOURCES
 add_library(n3mapping_core SHARED
   ${N3MAPPING_CORE_SOURCES}
 )
+n3mapping_guard_product_target(n3mapping_core)
 add_library(${PROJECT_NAME}_lib ALIAS n3mapping_core)
 n3mapping_configure_core_target(n3mapping_core)
 
@@ -145,36 +157,23 @@ n3mapping_add_nav_resource_reader(n3map_nav_resource_reader)
 add_library(n3mapping_humble_wrapper SHARED
   ${N3MAPPING_HUMBLE_WRAPPER_SOURCES}
 )
+n3mapping_guard_product_target(n3mapping_humble_wrapper)
 n3mapping_configure_humble_wrapper_target(n3mapping_humble_wrapper)
 
 add_executable(n3mapping_node
   ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node.cpp
 )
+n3mapping_guard_product_target(n3mapping_node)
 n3mapping_configure_humble_node_target(n3mapping_node)
-
-add_executable(n3mapping_synthetic_relocalization_eval
-  ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_eval.cpp
-)
-target_link_libraries(n3mapping_synthetic_relocalization_eval
-  n3mapping_core
-  ${PCL_LIBRARIES}
-  glog::glog
-)
-
-add_executable(n3mapping_relocalization_manifest_eval
-  ${N3MAPPING_ROOT}/tools/n3mapping_relocalization_manifest_eval.cpp
-)
+rosidl_get_typesupport_target(n3mapping_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
+target_link_libraries(n3mapping_node "${n3mapping_typesupport_target}")
 
 add_executable(n3mapping_localization_atlas_compile
   ${N3MAPPING_ROOT}/tools/n3mapping_localization_atlas_compile.cpp
 )
 target_link_libraries(n3mapping_localization_atlas_compile
   n3mapping_core
-  glog::glog
-)
-target_link_libraries(n3mapping_relocalization_manifest_eval
-  n3mapping_core
-  ${PCL_LIBRARIES}
   glog::glog
 )
 
@@ -186,70 +185,94 @@ target_link_libraries(n3mapping_filter_nav_pbstream
   ${PCL_LIBRARIES}
 )
 
-add_executable(n3mapping_kitti360_reader
-  ${N3MAPPING_ROOT}/tools/n3mapping_kitti360_reader.cpp
+add_executable(n3mapping_dense_trajectory_export
+  ${N3MAPPING_ROOT}/tools/n3mapping_dense_trajectory_export.cpp
+)
+target_link_libraries(n3mapping_dense_trajectory_export
+  n3map_nav_resource_reader
+  OpenSSL::Crypto
 )
 
-add_executable(n3mapping_kitti360_eval
-  ${N3MAPPING_ROOT}/tools/n3mapping_kitti360_eval.cpp
+add_executable(n3mapping_relocalization_manifest_eval
+  ${N3MAPPING_ROOT}/tools/n3mapping_relocalization_manifest_eval.cpp
 )
-target_link_libraries(n3mapping_kitti360_eval
+n3mapping_guard_product_target(n3mapping_relocalization_manifest_eval)
+target_link_libraries(n3mapping_relocalization_manifest_eval
   n3mapping_core
   ${PCL_LIBRARIES}
   glog::glog
 )
 
-add_executable(n3mapping_m2dgr_eval
-  ${N3MAPPING_ROOT}/tools/n3mapping_m2dgr_eval.cpp
-)
-target_link_libraries(n3mapping_m2dgr_eval
-  n3mapping_core
-  ${PCL_LIBRARIES}
-  glog::glog
-)
+if(N3MAPPING_BUILD_RESEARCH_TOOLS)
+  add_executable(n3mapping_synthetic_relocalization_eval
+    ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_eval.cpp
+  )
+  target_link_libraries(n3mapping_synthetic_relocalization_eval
+    n3mapping_core
+    ${PCL_LIBRARIES}
+    glog::glog
+  )
 
-add_executable(n3mapping_synthetic_relocalization_publisher
-  ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_publisher.cpp
-)
-target_link_libraries(n3mapping_synthetic_relocalization_publisher
-  n3mapping_core
-  ${PCL_LIBRARIES}
-)
-ament_target_dependencies(n3mapping_synthetic_relocalization_publisher
-  rclcpp
-  sensor_msgs
-  nav_msgs
-  pcl_conversions
-)
+  add_executable(n3mapping_kitti360_reader
+    ${N3MAPPING_ROOT}/tools/n3mapping_kitti360_reader.cpp
+  )
 
-add_executable(n3mapping_synthetic_relocalization_visualizer
-  ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_visualizer.cpp
-)
-target_link_libraries(n3mapping_synthetic_relocalization_visualizer
-  n3mapping_core
-  ${PCL_LIBRARIES}
-)
-ament_target_dependencies(n3mapping_synthetic_relocalization_visualizer
-  rclcpp
-  sensor_msgs
-  visualization_msgs
-  pcl_conversions
-)
+  add_executable(n3mapping_kitti360_eval
+    ${N3MAPPING_ROOT}/tools/n3mapping_kitti360_eval.cpp
+  )
+  target_link_libraries(n3mapping_kitti360_eval
+    n3mapping_core
+    ${PCL_LIBRARIES}
+    glog::glog
+  )
+
+  add_executable(n3mapping_m2dgr_eval
+    ${N3MAPPING_ROOT}/tools/n3mapping_m2dgr_eval.cpp
+  )
+  target_link_libraries(n3mapping_m2dgr_eval
+    n3mapping_core
+    ${PCL_LIBRARIES}
+    glog::glog
+  )
+
+  add_executable(n3mapping_synthetic_relocalization_publisher
+    ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_publisher.cpp
+  )
+  target_link_libraries(n3mapping_synthetic_relocalization_publisher
+    n3mapping_core
+    ${PCL_LIBRARIES}
+  )
+  ament_target_dependencies(n3mapping_synthetic_relocalization_publisher
+    rclcpp
+    sensor_msgs
+    nav_msgs
+    pcl_conversions
+  )
+
+  add_executable(n3mapping_synthetic_relocalization_visualizer
+    ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_visualizer.cpp
+  )
+  target_link_libraries(n3mapping_synthetic_relocalization_visualizer
+    n3mapping_core
+    ${PCL_LIBRARIES}
+  )
+  ament_target_dependencies(n3mapping_synthetic_relocalization_visualizer
+    rclcpp
+    sensor_msgs
+    visualization_msgs
+    pcl_conversions
+  )
+endif()
 
 install(TARGETS
   n3mapping_core
   n3map_nav_resource_reader
   n3mapping_humble_wrapper
   n3mapping_node
-  n3mapping_synthetic_relocalization_eval
-  n3mapping_relocalization_manifest_eval
   n3mapping_localization_atlas_compile
   n3mapping_filter_nav_pbstream
-  n3mapping_kitti360_reader
-  n3mapping_kitti360_eval
-  n3mapping_m2dgr_eval
-  n3mapping_synthetic_relocalization_publisher
-  n3mapping_synthetic_relocalization_visualizer
+  n3mapping_dense_trajectory_export
+  n3mapping_relocalization_manifest_eval
   EXPORT export_n3mapping
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -258,32 +281,58 @@ install(TARGETS
 
 install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/extract_ros1_relocalization_manifest.py
-  ${N3MAPPING_ROOT}/tools/run_synthetic_relocalization_matrix.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_loop_debug_analyze.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_loop_candidate_benchmark.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_dataset_readiness.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_episode_freeze.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_episode_benchmark.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_episode_diagnose.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_episode_review_prepare.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_surface_overlap_audit.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_runtime_signal_audit.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_keyframe_surface_support_audit.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_multiview_free_space_audit.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_verifier_pair_freeze.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_verifier_split_freeze.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_frozen_bev_verifier_audit.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_eval_validate.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_eval_compare.py
-  ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_eval_gate.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_ros1_raw_bag_inventory.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_same_frame_reference_join.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_product_bundle.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_product_gate.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_product_identity.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_product_preflight.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_product_runtime.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_deterministic_ros2_replay.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_raw_lio_replay_evidence.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_ros1_raw_bag_slice.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(FILES
-  ${N3MAPPING_ROOT}/test/fixtures/eval_v2/synthetic_frozen_contract.yaml
-  DESTINATION share/${PROJECT_NAME}/eval_contracts
-)
+if(N3MAPPING_BUILD_RESEARCH_TOOLS)
+  install(TARGETS
+    n3mapping_synthetic_relocalization_eval
+    n3mapping_kitti360_reader
+    n3mapping_kitti360_eval
+    n3mapping_m2dgr_eval
+    n3mapping_synthetic_relocalization_publisher
+    n3mapping_synthetic_relocalization_visualizer
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+  install(PROGRAMS
+    ${N3MAPPING_ROOT}/tools/run_synthetic_relocalization_matrix.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_loop_debug_analyze.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_loop_candidate_benchmark.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_dataset_readiness.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_episode_freeze.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_episode_benchmark.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_episode_diagnose.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_episode_review_prepare.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_surface_overlap_audit.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_runtime_signal_audit.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_keyframe_surface_support_audit.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_multiview_free_space_audit.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_verifier_pair_freeze.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_verifier_split_freeze.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_frozen_bev_verifier_audit.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_eval_matrix.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_eval_validate.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_eval_compare.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_eval_gate.py
+    DESTINATION lib/${PROJECT_NAME}
+  )
+
+  install(FILES
+    ${N3MAPPING_ROOT}/test/fixtures/eval_v2/synthetic_frozen_contract.yaml
+    DESTINATION share/${PROJECT_NAME}/eval_contracts
+  )
+endif()
 
 ament_export_targets(export_n3mapping HAS_LIBRARY_TARGET)
 ament_export_dependencies(
@@ -299,6 +348,7 @@ ament_export_dependencies(
   tf2_ros
   tf2_geometry_msgs
   pcl_conversions
+  rosidl_default_runtime
   small_gicp
   OpenSSL
 )
@@ -311,23 +361,27 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-install(CODE "
-  file(REMOVE
-    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/mapping.launch\"
-    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/localization.launch\"
-    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/map_extension.launch\"
-    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/synthetic_relocalization_visualization.launch\"
-    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/n3_noetic.rviz\"
-    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/launch/synthetic_relocalization_visualization_noetic.rviz\"
-  )
-")
-
-install(DIRECTORY launch/
+install(FILES
+  launch/localization.launch.py
+  launch/map_extension.launch.py
+  launch/mapping.launch.py
+  launch/n3.rviz
   DESTINATION share/${PROJECT_NAME}/launch
 )
+if(N3MAPPING_BUILD_RESEARCH_TOOLS)
+  install(FILES
+    launch/synthetic_relocalization_visualization.launch.py
+    launch/synthetic_relocalization_visualization.rviz
+    DESTINATION share/${PROJECT_NAME}/launch
+  )
+endif()
 
 install(DIRECTORY ${N3MAPPING_ROOT}/config/
   DESTINATION share/${PROJECT_NAME}/config
+)
+
+install(FILES ${N3MAPPING_ROOT}/requirements-product-tools.txt
+  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
@@ -335,12 +389,70 @@ if(BUILD_TESTING)
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
   add_test(
-    NAME test_n3mapping_eval_tools
+    NAME test_n3mapping_product_bundle
     COMMAND ${CMAKE_COMMAND} -E env
       PYTHONDONTWRITEBYTECODE=1
-      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_eval_tools.py
+      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_product_bundle.py
   )
-  set_tests_properties(test_n3mapping_eval_tools PROPERTIES TIMEOUT 60)
+  set_tests_properties(test_n3mapping_product_bundle PROPERTIES TIMEOUT 30)
+
+  add_test(
+    NAME test_n3mapping_product_gate
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_product_gate.py
+  )
+  set_tests_properties(test_n3mapping_product_gate PROPERTIES TIMEOUT 30)
+
+  add_test(
+    NAME test_n3mapping_product_runtime
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_product_runtime.py
+  )
+  set_tests_properties(test_n3mapping_product_runtime PROPERTIES TIMEOUT 30)
+
+  add_test(
+    NAME test_n3mapping_product_preflight
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_product_preflight.py
+  )
+  set_tests_properties(test_n3mapping_product_preflight PROPERTIES TIMEOUT 60)
+
+  add_test(
+    NAME test_n3mapping_raw_lio_replay_evidence
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_raw_lio_replay_evidence.py
+  )
+  set_tests_properties(test_n3mapping_raw_lio_replay_evidence PROPERTIES TIMEOUT 60)
+
+  add_test(
+    NAME test_n3mapping_ros1_raw_bag_slice
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_ros1_raw_bag_slice.py
+  )
+  set_tests_properties(test_n3mapping_ros1_raw_bag_slice PROPERTIES TIMEOUT 60)
+
+  add_test(
+    NAME test_n3mapping_data_contract_tools
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_data_contract_tools.py
+  )
+  set_tests_properties(test_n3mapping_data_contract_tools PROPERTIES TIMEOUT 30)
+
+  if(N3MAPPING_BUILD_RESEARCH_TOOLS)
+    add_test(
+      NAME test_n3mapping_eval_tools
+      COMMAND ${CMAKE_COMMAND} -E env
+        PYTHONDONTWRITEBYTECODE=1
+        ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_eval_tools.py
+    )
+    set_tests_properties(test_n3mapping_eval_tools PROPERTIES TIMEOUT 60)
+  endif()
 
   ament_add_gtest(test_keyframe_manager ${N3MAPPING_ROOT}/test/test_keyframe_manager.cpp)
   if(TARGET test_keyframe_manager)
@@ -358,6 +470,30 @@ if(BUILD_TESTING)
   if(TARGET test_config)
     target_link_libraries(test_config ${PROJECT_NAME}_lib)
     ament_target_dependencies(test_config rclcpp)
+  endif()
+
+  ament_add_gtest(test_core_types
+    ${N3MAPPING_ROOT}/test/test_core_types.cpp)
+  if(TARGET test_core_types)
+    target_link_libraries(test_core_types ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
+  endif()
+
+  ament_add_gtest(test_product_config_humble
+    ${N3MAPPING_ROOT}/test/test_product_config_humble.cpp)
+  if(TARGET test_product_config_humble)
+    target_link_libraries(test_product_config_humble
+      ${PROJECT_NAME}_lib
+      n3mapping_humble_wrapper
+    )
+    ament_target_dependencies(test_product_config_humble rclcpp)
+  endif()
+
+  ament_add_gtest(test_dense_trajectory_export
+    ${N3MAPPING_ROOT}/test/test_dense_trajectory_export.cpp)
+  if(TARGET test_dense_trajectory_export)
+    target_link_libraries(test_dense_trajectory_export
+      n3map_nav_resource_reader
+    )
   endif()
 
   ament_add_gtest(test_localization_atlas ${N3MAPPING_ROOT}/test/test_localization_atlas.cpp)
@@ -444,16 +580,18 @@ if(BUILD_TESTING)
     ament_target_dependencies(test_n3mapping_filter_nav_pbstream rclcpp)
   endif()
 
-  ament_add_gtest(test_kitti360_reader ${N3MAPPING_ROOT}/test/test_kitti360_reader.cpp)
+  if(N3MAPPING_BUILD_RESEARCH_TOOLS)
+    ament_add_gtest(test_kitti360_reader ${N3MAPPING_ROOT}/test/test_kitti360_reader.cpp)
 
-  ament_add_gtest(test_kitti360_eval ${N3MAPPING_ROOT}/test/test_kitti360_eval.cpp)
-  if(TARGET test_kitti360_eval)
-    target_link_libraries(test_kitti360_eval ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-  endif()
+    ament_add_gtest(test_kitti360_eval ${N3MAPPING_ROOT}/test/test_kitti360_eval.cpp)
+    if(TARGET test_kitti360_eval)
+      target_link_libraries(test_kitti360_eval ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
+    endif()
 
-  ament_add_gtest(test_m2dgr_eval ${N3MAPPING_ROOT}/test/test_m2dgr_eval.cpp)
-  if(TARGET test_m2dgr_eval)
-    target_link_libraries(test_m2dgr_eval ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
+    ament_add_gtest(test_m2dgr_eval ${N3MAPPING_ROOT}/test/test_m2dgr_eval.cpp)
+    if(TARGET test_m2dgr_eval)
+      target_link_libraries(test_m2dgr_eval ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
+    endif()
   endif()
 
   ament_add_gtest(test_synthetic_relocalization ${N3MAPPING_ROOT}/test/test_synthetic_relocalization.cpp)

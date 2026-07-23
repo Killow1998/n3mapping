@@ -1,0 +1,2 @@
+# Offline Product Gate data-contract tools; not required by the runtime node.
+rosbags>=0.9.23,<0.12

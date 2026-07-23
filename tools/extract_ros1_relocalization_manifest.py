@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Extract synchronized ROS1 PointCloud2/Odometry frames without ROS1 runtime."""
+"""Extract synchronized ROS1/ROS2 PointCloud2/Odometry frames without ROS."""
 
 from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -13,7 +14,7 @@ import sys
 import numpy as np
 
 try:
-    from rosbags.rosbag1 import Reader
+    from rosbags.highlevel import AnyReader
     from rosbags.typesys import Stores, get_typestore
 except ImportError as exc:  # pragma: no cover - environment diagnostic
     raise SystemExit("rosbags is required: python3 -m pip install rosbags") from exc
@@ -22,10 +23,30 @@ except ImportError as exc:  # pragma: no cover - environment diagnostic
 POINT_FIELD_FLOAT32 = 7
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(4 * 1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def pcd_set_sha256(entries: list[dict[str, object]]) -> str:
+    digest = hashlib.sha256()
+    for entry in entries:
+        digest.update(str(entry["path"]).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(entry["bytes"]).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(str(entry["sha256"]).encode("ascii"))
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Extract exact-stamp ROS1 PointCloud2/Odometry pairs into binary PCD files "
+            "Extract exact-stamp ROS1/ROS2 PointCloud2/Odometry pairs into binary PCD files "
             "and a ROS-free n3mapping relocalization manifest."
         )
     )
@@ -119,35 +140,49 @@ def quaternion_is_valid(values: tuple[float, float, float, float]) -> bool:
     return math.isfinite(norm) and norm > 1e-9
 
 
+def read_bag_messages(
+    bag: Path, cloud_topic: str, odom_topic: str
+) -> tuple[dict[int, object], list[tuple[int, object]], str]:
+    """Read normalized messages while retaining their exact header nanoseconds."""
+    odometry: dict[int, object] = {}
+    cloud_records: list[tuple[int, object]] = []
+    with AnyReader(
+        [bag], default_typestore=get_typestore(Stores.ROS2_HUMBLE)
+    ) as reader:
+        bag_format = "ros2" if reader.is2 else "ros1"
+        selected_connections = [
+            connection
+            for connection in reader.connections
+            if connection.topic in {cloud_topic, odom_topic}
+        ]
+        found_topics = {connection.topic for connection in selected_connections}
+        required_topics = {cloud_topic, odom_topic}
+        if found_topics != required_topics:
+            missing = sorted(required_topics - found_topics)
+            raise RuntimeError(f"bag is missing topics: {', '.join(missing)}")
+        for connection, _, rawdata in reader.messages(
+            connections=selected_connections
+        ):
+            message = reader.deserialize(rawdata, connection.msgtype)
+            message_stamp = stamp_ns(message)
+            if connection.topic == odom_topic:
+                odometry[message_stamp] = message
+            else:
+                cloud_records.append((message_stamp, message))
+    return odometry, cloud_records, bag_format
+
+
 def main() -> int:
     args = parse_args()
     if args.start_offset < 0.0 or args.duration < 0.0 or args.max_frames < 0:
         raise RuntimeError("start-offset, duration, and max-frames must be non-negative")
-    if not args.bag.is_file():
+    if not args.bag.exists():
         raise RuntimeError(f"bag does not exist: {args.bag}")
     ensure_fresh_output(args.output)
 
-    typestore = get_typestore(Stores.ROS1_NOETIC)
-    odometry: dict[int, object] = {}
-    cloud_records: list[tuple[int, object]] = []
-    with Reader(args.bag) as reader:
-        selected_connections = [
-            connection
-            for connection in reader.connections
-            if connection.topic in {args.cloud_topic, args.odom_topic}
-        ]
-        found_topics = {connection.topic for connection in selected_connections}
-        required_topics = {args.cloud_topic, args.odom_topic}
-        if found_topics != required_topics:
-            missing = sorted(required_topics - found_topics)
-            raise RuntimeError(f"bag is missing topics: {', '.join(missing)}")
-        for connection, _, rawdata in reader.messages(connections=selected_connections):
-            message = typestore.deserialize_ros1(rawdata, connection.msgtype)
-            message_stamp = stamp_ns(message)
-            if connection.topic == args.odom_topic:
-                odometry[message_stamp] = message
-            else:
-                cloud_records.append((message_stamp, message))
+    odometry, cloud_records, bag_format = read_bag_messages(
+        args.bag, args.cloud_topic, args.odom_topic
+    )
 
     if not cloud_records:
         raise RuntimeError("bag contains no cloud messages")
@@ -161,6 +196,7 @@ def main() -> int:
     manifest_path = args.output / "frames.csv"
     frame_count = 0
     total_points = 0
+    pcd_files: list[dict[str, object]] = []
     cloud_frame_id = None
     odom_frame_id = None
     child_frame_id = None
@@ -204,7 +240,15 @@ def main() -> int:
                 raise RuntimeError(f"invalid odometry quaternion at stamp {message_stamp}")
             cloud = pointcloud_xyzi(cloud_message)
             pcd_name = f"frame_{frame_count:06d}.pcd"
-            write_binary_pcd(args.output / pcd_name, cloud)
+            pcd_path = args.output / pcd_name
+            write_binary_pcd(pcd_path, cloud)
+            pcd_files.append(
+                {
+                    "path": pcd_name,
+                    "bytes": pcd_path.stat().st_size,
+                    "sha256": sha256_file(pcd_path),
+                }
+            )
             writer.writerow(
                 [
                     args.episode,
@@ -227,7 +271,12 @@ def main() -> int:
         raise RuntimeError("selected interval contains no synchronized frames")
 
     metadata = {
-        "schema": "n3mapping_ros1_relocalization_manifest_v1",
+        "schema": (
+            "n3mapping_ros2_relocalization_manifest_v1"
+            if bag_format == "ros2"
+            else "n3mapping_ros1_relocalization_manifest_v1"
+        ),
+        "bag_format": bag_format,
         "bag": str(args.bag.resolve()),
         "episode_id": args.episode,
         "cloud_topic": args.cloud_topic,
@@ -242,6 +291,9 @@ def main() -> int:
         "total_points": total_points,
         "pairing": "exact_header_stamp",
         "point_encoding": "binary_pcd_xyzi_float32",
+        "frames_csv_sha256": sha256_file(manifest_path),
+        "pcd_set_sha256": pcd_set_sha256(pcd_files),
+        "pcd_files": pcd_files,
     }
     (args.output / "metadata.json").write_text(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8"

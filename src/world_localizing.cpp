@@ -65,6 +65,12 @@ double processingTimeSeconds() {
   using Clock = std::chrono::system_clock;
   return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
 }
+
+bool hasValidRegistrationResult(const MatchResult &match) {
+  return match.converged && std::isfinite(match.fitness_score) &&
+         std::isfinite(match.inlier_ratio) &&
+         isFiniteRigidPose(match.T_target_source);
+}
 } // namespace
 
 WorldLocalizing::WorldLocalizing(const Config &config,
@@ -481,7 +487,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       hyp.num_updates += 1;
       VisibilityConsistencyResult selected_visibility = predicted_visibility;
       Eigen::Isometry3d selected_pose = predicted_pose;
-      if (mr.converged) {
+      if (hasValidRegistrationResult(mr)) {
         const auto refined_visibility =
             evaluatePoseVisibility(submap, query_cloud, mr.T_target_source);
         if (refined_visibility.valid &&
@@ -869,6 +875,8 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     debug_event.processing_time = processingTimeSeconds();
   }
   auto finish_tracking_debug = [&](const std::string &reject_reason) {
+    result.decision =
+        reject_reason.empty() ? "tracking_geometric" : reject_reason;
     if (!reloc_debug_enabled) {
       return;
     }
@@ -974,7 +982,7 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
   // If ICP failed with standard params and we have recent failures, retry with
   // wider search
   const bool icp_failed =
-      !match_result.converged ||
+      !hasValidRegistrationResult(match_result) ||
       match_result.fitness_score >= config_.gicp_fitness_threshold ||
       match_result.inlier_ratio < config_.reloc_min_inlier_ratio;
   if (icp_failed &&
@@ -987,7 +995,9 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     auto retry = matcher_.alignPrepared(prepared_target, prepared_source,
                                         predicted_pose, wide);
     retry_used = true;
-    if (retry.converged && retry.fitness_score < match_result.fitness_score)
+    if (hasValidRegistrationResult(retry) &&
+        (!hasValidRegistrationResult(match_result) ||
+         retry.fitness_score < match_result.fitness_score))
       match_result = retry;
   }
   debug_event.icp_converged = match_result.converged;
@@ -1000,12 +1010,12 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
   current_confidence = std::max(0.0, std::min(1.0, current_confidence));
 
   const bool icp_ok =
-      match_result.converged &&
+      hasValidRegistrationResult(match_result) &&
       match_result.fitness_score < config_.gicp_fitness_threshold &&
       match_result.inlier_ratio >= config_.reloc_min_inlier_ratio;
 
   double delta_translation = std::numeric_limits<double>::infinity();
-  if (match_result.converged) {
+  if (hasValidRegistrationResult(match_result)) {
     const Eigen::Isometry3d delta =
         predicted_pose.inverse() * match_result.T_target_source;
     delta_translation = delta.translation().norm();
@@ -1268,13 +1278,20 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
 WorldLocalizing::RelocMatchQuality
 WorldLocalizing::evaluateRelocMatchQuality(const MatchResult &match) const {
   RelocMatchQuality quality;
-  quality.fitness_pass = match.fitness_score < config_.gicp_fitness_threshold;
-  quality.inlier_pass = match.inlier_ratio >= config_.reloc_min_inlier_ratio;
+  const bool finite_metrics =
+      std::isfinite(match.fitness_score) && std::isfinite(match.inlier_ratio);
+  quality.fitness_pass =
+      finite_metrics &&
+      match.fitness_score < config_.gicp_fitness_threshold;
+  quality.inlier_pass =
+      finite_metrics &&
+      match.inlier_ratio >= config_.reloc_min_inlier_ratio;
   const double scale = std::max(1e-6, config_.gicp_fitness_threshold * 0.5);
   quality.confidence = std::exp(-match.fitness_score / scale);
   quality.confidence = std::clamp(quality.confidence, 0.0, 1.0);
   quality.confidence_pass = quality.confidence >= config_.reloc_min_confidence;
-  quality.accepted = match.converged && quality.fitness_pass &&
+  quality.accepted = hasValidRegistrationResult(match) &&
+                     quality.fitness_pass &&
                      quality.inlier_pass && quality.confidence_pass;
   return quality;
 }
@@ -1606,7 +1623,8 @@ WorldLocalizing::evaluateCandidatePoses(
     MatchResult mr = matcher_.alignPrepared(*registration_target,
                                             prepared_cloud, init_guess);
     const bool quality_passed =
-        mr.converged && mr.fitness_score < config_.gicp_fitness_threshold &&
+        hasValidRegistrationResult(mr) &&
+        mr.fitness_score < config_.gicp_fitness_threshold &&
         mr.inlier_ratio >= config_.reloc_min_inlier_ratio;
     if (!quality_passed)
       continue;
@@ -1858,7 +1876,7 @@ WorldLocalizing::buildRelocMotionQueryCloudForDebug(
 
 double WorldLocalizing::computeRelocLogLikelihood(
     const LoopCandidate &candidate, const MatchResult &match_result) const {
-  if (!match_result.converged)
+  if (!hasValidRegistrationResult(match_result))
     return -config_.reloc_hypothesis_not_converged_penalty;
   const double fit_scale = std::max(1e-6, config_.gicp_fitness_threshold);
   const double inlier_term = config_.reloc_reloc_inlier_weight *
@@ -1875,7 +1893,8 @@ double WorldLocalizing::computeRelocLogLikelihood(
 double WorldLocalizing::computeTrackLogLikelihood(
     const MatchResult &match_result,
     const Eigen::Isometry3d &predicted_pose) const {
-  if (!match_result.converged)
+  if (!hasValidRegistrationResult(match_result) ||
+      !isFiniteRigidPose(predicted_pose))
     return -config_.reloc_hypothesis_not_converged_penalty;
 
   const double fit_scale = std::max(1e-6, config_.gicp_fitness_threshold);
