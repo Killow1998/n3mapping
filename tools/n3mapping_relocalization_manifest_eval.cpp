@@ -382,6 +382,19 @@ void writePoseJson(std::ostream &stream, const Eigen::Isometry3d &pose) {
          << "}";
 }
 
+void writeNonnegativeNanosecondsAsSecondsJson(std::ostream &stream,
+                                              int64_t duration_ns) {
+  if (duration_ns < 0) {
+    throw std::invalid_argument("duration_ns must be nonnegative");
+  }
+  constexpr int64_t kNanosecondsPerSecond = 1000000000LL;
+  const int64_t whole_seconds = duration_ns / kNanosecondsPerSecond;
+  const int64_t fractional_nanoseconds = duration_ns % kNanosecondsPerSecond;
+  const char previous_fill = stream.fill('0');
+  stream << whole_seconds << '.' << std::setw(9) << fractional_nanoseconds;
+  stream.fill(previous_fill);
+}
+
 std::size_t appendCloud(const Cloud &source,
                         const Eigen::Isometry3d &T_map_source,
                         const std::array<std::uint8_t, 3> &color,
@@ -694,12 +707,9 @@ int run(const Options &options) {
   const int64_t acquisition_start_stamp_ns =
       options.raw_first_stamp_ns > 0 ? options.raw_first_stamp_ns
                                      : records.front().stamp_ns;
-  const double acquisition_to_lock_s =
-      locked ? static_cast<double>(first_lock_record.stamp_ns -
-                                   acquisition_start_stamp_ns) /
-                   1e9
-             : -1.0;
-  if (locked && acquisition_to_lock_s < 0.0) {
+  const int64_t acquisition_to_lock_ns =
+      locked ? first_lock_record.stamp_ns - acquisition_start_stamp_ns : -1;
+  if (locked && acquisition_to_lock_ns < 0) {
     throw std::runtime_error(
         "raw_first_stamp_ns is later than the authoritative lock stamp");
   }
@@ -783,8 +793,13 @@ int run(const Options &options) {
           << ",\n"
           << "  \"acquisition_start_stamp_ns\": "
           << acquisition_start_stamp_ns << ",\n"
-          << "  \"acquisition_to_lock_s\": " << acquisition_to_lock_s
-          << ",\n"
+          << "  \"acquisition_to_lock_s\": ";
+  if (locked) {
+    writeNonnegativeNanosecondsAsSecondsJson(summary, acquisition_to_lock_ns);
+  } else {
+    summary << "-1.0";
+  }
+  summary << ",\n"
           << "  \"matched_keyframe_id\": "
           << (locked ? first_lock_output.matched_keyframe_id : -1) << ",\n"
           << "  \"relocalization_seed_keyframe_id\": "
