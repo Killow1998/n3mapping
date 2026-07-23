@@ -258,11 +258,21 @@ class ProductPreflightTest(unittest.TestCase):
         return bundle
 
     def make_observation(
-        self, root: Path, node: Path, *, distro: str = "humble"
+        self,
+        root: Path,
+        node: Path,
+        *,
+        distro: str = "humble",
+        trusted_runner: bool = False,
     ) -> tuple[Path, dict[str, object]]:
-        harness = root / "authority_harness.py"
+        harness = (
+            TOOLS / "n3mapping_product_authority_runner.py"
+            if trusted_runner
+            else root / "authority_harness.py"
+        )
         log = root / "authority_raw.jsonl"
-        harness.write_text("# deterministic harness\n", encoding="utf-8")
+        if not trusted_runner:
+            harness.write_text("# caller supplied harness\n", encoding="utf-8")
         log.write_text('{"event":"raw"}\n', encoding="utf-8")
 
         first_pose = pose(100, 1.0)
@@ -743,7 +753,7 @@ class ProductPreflightTest(unittest.TestCase):
             self.assertNotEqual(forbidden_install.returncode, 0)
             self.assertIn("research runtime file is forbidden", forbidden_install.stderr)
 
-    def test_synthetic_authority_create_and_verify_are_disabled(self) -> None:
+    def test_caller_supplied_authority_observation_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             node, _ = self.make_binaries(root)
@@ -759,34 +769,51 @@ class ProductPreflightTest(unittest.TestCase):
             )
             self.assertNotEqual(created.returncode, 0)
             self.assertIn(
-                "active-runtime authority evidence is not implemented",
+                "the following arguments are required: --node, --evidence-dir",
                 created.stderr,
             )
             self.assertFalse(artifact.exists())
 
-            artifact.write_text(
-                json.dumps(
-                    {
-                        "schema": "n3mapping_product_authority_preflight_v1",
-                        "status": "PASS",
-                    }
-                )
-                + "\n",
-                encoding="utf-8",
-            )
-            verified = self.run_tool(
-                "authority-verify", "--artifact", str(artifact)
-            )
-            self.assertNotEqual(verified.returncode, 0)
-            self.assertIn(
-                "active-runtime authority evidence is not implemented",
-                verified.stderr,
-            )
             with self.assertRaisesRegex(
                 preflight.PreflightError,
-                "active-runtime authority evidence is not implemented",
+                "verifier-owned runner",
             ):
-                preflight.authority_artifact({})
+                preflight.validate_authority_observation(observation)
+
+    def test_trusted_active_observation_artifact_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            node, _ = self.make_binaries(root)
+            observation, _ = self.make_observation(
+                root, node, trusted_runner=True
+            )
+            evidence = preflight.validate_authority_observation(observation)
+            artifact = preflight.authority_artifact(evidence)
+            artifact_path = root / "authority_preflight.json"
+            write_json(artifact_path, artifact)
+
+            verified = self.run_tool(
+                "authority-verify", "--artifact", str(artifact_path)
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertEqual(
+                json.loads(verified.stdout),
+                {
+                    "artifact": str(artifact_path),
+                    "distro": "humble",
+                    "kind": "authority",
+                    "status": "PASS",
+                },
+            )
+
+            Path(evidence["source_files"]["log"]["path"]).write_text(
+                '{"tampered":true}\n', encoding="utf-8"
+            )
+            rejected = self.run_tool(
+                "authority-verify", "--artifact", str(artifact_path)
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("hash mismatch", rejected.stderr)
 
 
 if __name__ == "__main__":

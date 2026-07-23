@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <csignal>
 #include <cstdint>
@@ -73,9 +74,15 @@ class N3MappingNode : public rclcpp::Node
       message_filters::sync_policies::ExactTime<
         sensor_msgs::msg::PointCloud2, nav_msgs::msg::Odometry>;
 
-    N3MappingNode()
-      : Node("n3mapping_node")
+    explicit N3MappingNode(
+      std::optional<std::string> authority_probe_scenario = std::nullopt)
+      : Node("n3mapping_node"),
+        authority_probe_scenario_(std::move(authority_probe_scenario))
     {
+        if (authority_probe_scenario_) {
+            initializeAuthorityProbe();
+            return;
+        }
         product_profile_v1_ =
           this->declare_parameter<bool>("product_profile_v1", false);
         if (product_profile_v1_) {
@@ -136,6 +143,12 @@ class N3MappingNode : public rclcpp::Node
         if (loop_timer_) {
             loop_timer_->cancel();
         }
+        if (authority_probe_timer_) {
+            authority_probe_timer_->cancel();
+        }
+        if (authority_probe_scenario_) {
+            return;
+        }
 
         // 保存地图
         if (coreRunModeSavesMap(run_mode_)) {
@@ -147,6 +160,190 @@ class N3MappingNode : public rclcpp::Node
     }
 
   private:
+    void initializeAuthorityProbe()
+    {
+        if (*authority_probe_scenario_ == "localization_authority_sequence" ||
+            *authority_probe_scenario_ == "invalid_pose_suppression") {
+            run_mode_ = CoreRunMode::LOCALIZATION;
+        } else if (
+          *authority_probe_scenario_ ==
+          "map_extension_legacy_compatibility") {
+            run_mode_ = CoreRunMode::MAP_EXTENSION;
+        } else {
+            throw std::runtime_error(
+              "unknown Product V1 authority probe scenario: " +
+              *authority_probe_scenario_);
+        }
+
+        tf_broadcaster_ =
+          std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+        odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(
+          config_.output_odom_topic, 10);
+        path_pub_ = this->create_publisher<nav_msgs::msg::Path>(
+          config_.output_path_topic, 10);
+        cloud_body_pub_ =
+          this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            config_.output_cloud_body_topic, 10);
+        cloud_world_pub_ =
+          this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            config_.output_cloud_world_topic, 10);
+        relocalization_lock_pub_ =
+          this->create_publisher<std_msgs::msg::UInt32>(
+            "/n3mapping/relocalization_lock", 10);
+
+        rclcpp::QoS status_qos(1);
+        status_qos.reliable();
+        status_qos.transient_local();
+        relocalization_status_pub_ =
+          this->create_publisher<msg::RelocalizationStatus>(
+            "/n3mapping/relocalization_status", status_qos);
+
+        rclcpp::QoS pose_qos(1);
+        pose_qos.reliable();
+        pose_qos.durability_volatile();
+        relocalization_pose_pub_ =
+          this->create_publisher<geometry_msgs::msg::PoseStamped>(
+            "/n3mapping/relocalization_pose", pose_qos);
+
+        const auto status_actual =
+          relocalization_status_pub_->get_actual_qos().get_rmw_qos_profile();
+        const auto pose_actual =
+          relocalization_pose_pub_->get_actual_qos().get_rmw_qos_profile();
+        const auto lock_actual =
+          relocalization_lock_pub_->get_actual_qos().get_rmw_qos_profile();
+        const auto odom_actual =
+          odom_pub_->get_actual_qos().get_rmw_qos_profile();
+        const auto cloud_actual =
+          cloud_world_pub_->get_actual_qos().get_rmw_qos_profile();
+        std::cout
+          << "N3MAPPING_AUTHORITY_PROBE_QOS "
+          << "{\"relocalization_status\":" << status_actual.depth
+          << ",\"authoritative_pose\":" << pose_actual.depth
+          << ",\"legacy_lock\":" << lock_actual.depth
+          << ",\"global_odometry\":" << odom_actual.depth
+          << ",\"global_world_cloud\":" << cloud_actual.depth
+          << "}" << std::endl;
+
+        authority_probe_timer_ = this->create_wall_timer(
+          std::chrono::milliseconds(250),
+          std::bind(&N3MappingNode::authorityProbeTick, this));
+        RCLCPP_INFO(
+          this->get_logger(),
+          "Product V1 active-runtime authority probe ready: %s",
+          authority_probe_scenario_->c_str());
+    }
+
+    static core::BackendOutput makeAuthorityProbeOutput(
+      const std::string& label, int event_index)
+    {
+        core::BackendOutput output;
+        output.relocalization_decision = label;
+        output.relocalization_seed_keyframe_id = 1000 + event_index;
+        output.relocalization_support_keyframe_id = 2000 + event_index;
+        output.T_world_lidar.translation() =
+          Eigen::Vector3d(10.0 * event_index, event_index, 0.1 * event_index);
+        output.T_world_lidar.linear() =
+          Eigen::AngleAxisd(
+            0.1 * event_index, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+
+        if (label == "region_hypothesis") {
+            output.relocalization_state =
+              RelocalizationState::REGION_HYPOTHESIS;
+        } else if (label == "first_full_lock" ||
+                   label == "steady_full_lock" ||
+                   label == "recovered_full_lock" ||
+                   label == "invalid_full_pose" ||
+                   label == "map_extension_lock") {
+            output.success = true;
+            output.relocalization_state =
+              RelocalizationState::FULL_6DOF_LOCKED;
+            output.pose_source = PoseSource::GEOMETRICALLY_CORRECTED;
+            output.relocalization_locked =
+              label != "steady_full_lock";
+        } else if (label == "degraded_tracking") {
+            output.success = true;
+            output.relocalization_state =
+              RelocalizationState::DEGRADED_TRACKING;
+            output.pose_source = PoseSource::ODOM_PREDICTED;
+        }
+
+        if (label == "invalid_full_pose") {
+            output.T_world_lidar.linear()(0, 0) = 2.0;
+        }
+        if (hasUsableGlobalRelocalizationPose(
+              output.relocalization_state, output.pose_source) ||
+            label == "map_extension_lock") {
+            output.cloud_world =
+              std::make_shared<core::LioFrame::PointCloud>();
+            pcl::PointXYZI point;
+            point.x = static_cast<float>(event_index);
+            point.y = 0.0F;
+            point.z = 0.0F;
+            point.intensity = 1.0F;
+            output.cloud_world->push_back(point);
+        }
+        return output;
+    }
+
+    void authorityProbeTick()
+    {
+        ++authority_probe_tick_;
+        if (authority_probe_tick_ < 8) {
+            return;
+        }
+
+        std::vector<std::string> labels;
+        if (*authority_probe_scenario_ ==
+            "localization_authority_sequence") {
+            labels = {
+              "searching",
+              "region_hypothesis",
+              "first_full_lock",
+              "steady_full_lock",
+              "degraded_tracking",
+              "recovered_full_lock",
+            };
+        } else if (
+          *authority_probe_scenario_ == "invalid_pose_suppression") {
+            labels = {"invalid_full_pose"};
+        } else {
+            labels = {"map_extension_lock"};
+        }
+
+        const int elapsed_ticks = authority_probe_tick_ - 8;
+        if (elapsed_ticks % 2 != 0) {
+            return;
+        }
+        const int event_index = elapsed_ticks / 2;
+        if (event_index >= static_cast<int>(labels.size())) {
+            if (event_index >= static_cast<int>(labels.size()) + 2) {
+                std::cout << "N3MAPPING_AUTHORITY_PROBE_DONE "
+                          << *authority_probe_scenario_ << std::endl;
+                g_shutdown_requested = true;
+            }
+            return;
+        }
+
+        const std::string& label = labels[static_cast<std::size_t>(event_index)];
+        std_msgs::msg::Header header;
+        header.frame_id = config_.body_frame;
+        header.stamp.sec = 100 + event_index;
+        header.stamp.nanosec = 0;
+        auto output = makeAuthorityProbeOutput(label, event_index + 1);
+        std::cout << "N3MAPPING_AUTHORITY_PROBE_EVENT "
+                  << *authority_probe_scenario_ << " " << label << " "
+                  << header.stamp.sec << std::endl;
+        const auto publication =
+          publishRelocalizationOutput(header, output);
+        if (publication.publish_global_pose) {
+            publishOdometry(output.T_world_lidar, header);
+            publishPath(header, &output.T_world_lidar);
+        }
+        if (publication.publish_world_cloud) {
+            publishPointClouds(output, header);
+        }
+    }
+
     /**
      * @brief 初始化组件
      */
@@ -331,40 +528,8 @@ class N3MappingNode : public rclcpp::Node
             const double timestamp = rclcpp::Time(cloud_msg->header.stamp).seconds();
             auto output = n3mapping_core_->processFrame(run_mode_, frame);
             const auto& header = cloud_msg->header;
-            const bool localization_mode = run_mode_ == CoreRunMode::LOCALIZATION;
-            const auto output_mode =
-              localization_mode
-                ? RelocalizationOutputMode::LOCALIZATION
-                : (run_mode_ == CoreRunMode::MAP_EXTENSION
-                     ? RelocalizationOutputMode::MAP_EXTENSION
-                     : RelocalizationOutputMode::OTHER);
             const auto publication =
-              relocalization_output_authority_.process(output_mode, output);
-
-            if (run_mode_ == CoreRunMode::MAP_EXTENSION && output.relocalization_locked && !output.accepted_keyframe) {
-                RCLCPP_INFO(this->get_logger(), "Initial relocalization successful for map extension");
-            }
-            if (publication.inconsistent_lock_event) {
-                RCLCPP_ERROR(this->get_logger(),
-                             "Suppressed inconsistent relocalization lock event: state=%s pose_source=%s",
-                             relocalizationStateName(output.relocalization_state),
-                             poseSourceName(output.pose_source));
-            }
-            if (publication.invalid_usable_pose_suppressed) {
-                RCLCPP_ERROR(this->get_logger(),
-                             "Suppressed non-finite or non-rigid localization pose");
-            }
-            if (publication.publish_legacy_lock) {
-                publishLegacyRelocalizationLock(publication.lock_epoch);
-            }
-            if (publication.publish_status) {
-                publishRelocalizationStatus(
-                  header, output, publication.lock_epoch);
-            }
-            if (publication.publish_authoritative_pose) {
-                publishAuthoritativeRelocalizationPose(
-                  header, output.T_world_lidar, publication.lock_epoch);
-            }
+              publishRelocalizationOutput(header, output);
             if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
                 ++frame_count_;
                 return;
@@ -393,6 +558,53 @@ class N3MappingNode : public rclcpp::Node
         if (publish_clouds) {
             publishPointClouds(output_for_clouds, cloud_header);
         }
+    }
+
+    RelocalizationPublicationPlan publishRelocalizationOutput(
+      const std_msgs::msg::Header& header, core::BackendOutput& output)
+    {
+        const bool localization_mode =
+          run_mode_ == CoreRunMode::LOCALIZATION;
+        const auto output_mode =
+          localization_mode
+            ? RelocalizationOutputMode::LOCALIZATION
+            : (run_mode_ == CoreRunMode::MAP_EXTENSION
+                 ? RelocalizationOutputMode::MAP_EXTENSION
+                 : RelocalizationOutputMode::OTHER);
+        const auto publication =
+          relocalization_output_authority_.process(output_mode, output);
+
+        if (run_mode_ == CoreRunMode::MAP_EXTENSION &&
+            output.relocalization_locked && !output.accepted_keyframe) {
+            RCLCPP_INFO(
+              this->get_logger(),
+              "Initial relocalization successful for map extension");
+        }
+        if (publication.inconsistent_lock_event) {
+            RCLCPP_ERROR(
+              this->get_logger(),
+              "Suppressed inconsistent relocalization lock event: "
+              "state=%s pose_source=%s",
+              relocalizationStateName(output.relocalization_state),
+              poseSourceName(output.pose_source));
+        }
+        if (publication.invalid_usable_pose_suppressed) {
+            RCLCPP_ERROR(
+              this->get_logger(),
+              "Suppressed non-finite or non-rigid localization pose");
+        }
+        if (publication.publish_legacy_lock) {
+            publishLegacyRelocalizationLock(publication.lock_epoch);
+        }
+        if (publication.publish_status) {
+            publishRelocalizationStatus(
+              header, output, publication.lock_epoch);
+        }
+        if (publication.publish_authoritative_pose) {
+            publishAuthoritativeRelocalizationPose(
+              header, output.T_world_lidar, publication.lock_epoch);
+        }
+        return publication;
     }
 
     void denseOdomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr odom_msg)
@@ -1122,6 +1334,7 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr loop_timer_;
     rclcpp::CallbackGroup::SharedPtr loop_callback_group_;
     rclcpp::TimerBase::SharedPtr global_map_timer_;
+    rclcpp::TimerBase::SharedPtr authority_probe_timer_;
     GlobalMapCache global_map_cache_;
     std::optional<sensor_msgs::msg::PointCloud2> global_map_msg_cache_;
     std::uint64_t global_map_msg_revision_ = 0;
@@ -1145,6 +1358,8 @@ class N3MappingNode : public rclcpp::Node
     size_t keyframe_count_ = 0;
     size_t loop_count_ = 0;
     RelocalizationOutputAuthority relocalization_output_authority_;
+    std::optional<std::string> authority_probe_scenario_;
+    int authority_probe_tick_ = 0;
 };
 
 } // namespace n3mapping
@@ -1157,6 +1372,28 @@ signalHandler(int signum)
     n3mapping::g_shutdown_requested = true;
 }
 
+std::optional<std::string>
+extractAuthorityProbeScenario(int* argc, char** argv)
+{
+    std::optional<std::string> scenario;
+    int write_index = 1;
+    for (int read_index = 1; read_index < *argc; ++read_index) {
+        const std::string_view argument(argv[read_index]);
+        if (argument == "--product-authority-probe") {
+            if (scenario || read_index + 1 >= *argc) {
+                throw std::runtime_error(
+                  "--product-authority-probe requires exactly one scenario");
+            }
+            scenario = std::string(argv[++read_index]);
+            continue;
+        }
+        argv[write_index++] = argv[read_index];
+    }
+    *argc = write_index;
+    argv[write_index] = nullptr;
+    return scenario;
+}
+
 int
 main(int argc, char** argv)
 {
@@ -1164,13 +1401,16 @@ main(int argc, char** argv)
         std::cout << n3mapping::productBuildIdentityJson() << '\n';
         return 0;
     }
+    const auto authority_probe_scenario =
+      extractAuthorityProbeScenario(&argc, argv);
     rclcpp::init(argc, argv);
 
     // 注册信号处理
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
 
-    auto node = std::make_shared<n3mapping::N3MappingNode>();
+    auto node =
+      std::make_shared<n3mapping::N3MappingNode>(authority_probe_scenario);
 
     // 使用多线程执行器
     rclcpp::executors::MultiThreadedExecutor executor;

@@ -287,6 +287,7 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_product_gate.py
   ${N3MAPPING_ROOT}/tools/n3mapping_product_identity.py
   ${N3MAPPING_ROOT}/tools/n3mapping_product_preflight.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_product_authority_runner.py
   ${N3MAPPING_ROOT}/tools/n3mapping_product_runtime.py
   ${N3MAPPING_ROOT}/tools/n3mapping_deterministic_ros2_replay.py
   ${N3MAPPING_ROOT}/tools/n3mapping_raw_lio_replay_evidence.py

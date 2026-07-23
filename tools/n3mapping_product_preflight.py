@@ -27,11 +27,10 @@ BUILD_IDENTITY_SCHEMA = "n3mapping_product_build_identity_v2"
 BUNDLE_SCHEMA = "n3mapping_product_map_bundle_v1"
 RUNTIME_SCHEMA = "n3mapping_product_runtime_preflight_v1"
 AUTHORITY_OBSERVATION_SCHEMA = "n3mapping_authority_observation_v1"
-SCHEMA_VERSION = 1
-ACTIVE_RUNTIME_AUTHORITY_REQUIRED = (
-    "active-runtime authority evidence is not implemented; "
-    "caller-supplied authority observations are forbidden"
+ACTIVE_RUNTIME_AUTHORITY_SCHEMA = (
+    "n3mapping_product_active_runtime_authority_preflight_v1"
 )
+SCHEMA_VERSION = 1
 
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -403,6 +402,14 @@ def inspect_binary(path: Path, role: str) -> dict[str, Any]:
 def preflight_tool_identity() -> dict[str, str]:
     tool = require_regular_file(Path(__file__), "Product V1 preflight tool")
     return {"path": str(tool), "sha256": sha256_file(tool)}
+
+
+def authority_runner_identity() -> dict[str, str]:
+    runner = require_regular_file(
+        Path(__file__).with_name("n3mapping_product_authority_runner.py"),
+        "Product V1 authority runner",
+    )
+    return {"path": str(runner), "sha256": sha256_file(runner)}
 
 
 def is_within(path: Path, directory: Path) -> bool:
@@ -1267,14 +1274,19 @@ def resolve_declared_file(
 def validate_authority_observation(
     observation_path: Path,
 ) -> dict[str, Any]:
-    del observation_path
-    raise PreflightError(ACTIVE_RUNTIME_AUTHORITY_REQUIRED)
+    evidence = _validate_future_runner_observation(observation_path)
+    expected_runner = authority_runner_identity()
+    if evidence["source_files"]["harness"] != expected_runner:
+        raise PreflightError(
+            "authority observation was not produced by the verifier-owned runner"
+        )
+    return evidence
 
 
 def _validate_future_runner_observation(
     observation_path: Path,
 ) -> dict[str, Any]:
-    """Parse future runner output; unreachable from the current signing CLI."""
+    """Parse and structurally validate active-runtime runner output."""
     observation_file, observation = strict_json_file(
         observation_path, "authority raw observation"
     )
@@ -1402,8 +1414,131 @@ def _validate_future_runner_observation(
 
 
 def authority_artifact(evidence: dict[str, Any]) -> dict[str, Any]:
-    del evidence
-    raise PreflightError(ACTIVE_RUNTIME_AUTHORITY_REQUIRED)
+    return {
+        "schema": ACTIVE_RUNTIME_AUTHORITY_SCHEMA,
+        "schema_version": SCHEMA_VERSION,
+        "created_at": created_at_utc8(),
+        "status": "PASS",
+        "evidence_kind": "active_runtime",
+        "distro": evidence["distro"],
+        "candidate_commit": evidence["candidate_commit"],
+        "product_profile_sha256": evidence["product_profile_sha256"],
+        "preflight_tool": evidence["preflight_tool"],
+        "observation": {
+            "path": evidence["observation_path"],
+            "sha256": evidence["observation_sha256"],
+        },
+        "source_files": evidence["source_files"],
+        "runtime_node_identity": evidence["runtime_node_identity"],
+        "checks": evidence["checks"],
+    }
+
+
+def validate_authority_artifact_shape(value: Any) -> dict[str, Any]:
+    artifact = require_exact_keys(
+        value,
+        {
+            "schema",
+            "schema_version",
+            "created_at",
+            "status",
+            "evidence_kind",
+            "distro",
+            "candidate_commit",
+            "product_profile_sha256",
+            "preflight_tool",
+            "observation",
+            "source_files",
+            "runtime_node_identity",
+            "checks",
+        },
+        "authority preflight artifact",
+    )
+    if (
+        artifact["schema"] != ACTIVE_RUNTIME_AUTHORITY_SCHEMA
+        or artifact["schema_version"] != 1
+    ):
+        raise PreflightError("authority preflight artifact schema mismatch")
+    if (
+        artifact["status"] != "PASS"
+        or artifact["evidence_kind"] != "active_runtime"
+    ):
+        raise PreflightError("authority preflight artifact is not active PASS")
+    validate_utc8_timestamp(artifact["created_at"], "artifact.created_at")
+    require_commit(artifact["candidate_commit"], "artifact.candidate_commit")
+    require_sha256(
+        artifact["product_profile_sha256"],
+        "artifact.product_profile_sha256",
+    )
+    require_exact_keys(
+        artifact["observation"],
+        {"path", "sha256"},
+        "artifact.observation",
+    )
+    if artifact["distro"] not in {"humble", "noetic"}:
+        raise PreflightError("authority preflight distro is unsupported")
+    if not isinstance(artifact["checks"], list) or not artifact["checks"]:
+        raise PreflightError("authority preflight checks are missing")
+    return artifact
+
+
+def run_authority_observer(
+    node_path: Path, evidence_dir_path: Path
+) -> dict[str, Any]:
+    node = require_regular_file(node_path, "authority runtime node")
+    runner = authority_runner_identity()
+    evidence_dir = _absolute_without_resolving(evidence_dir_path)
+    require_no_symlink_components(evidence_dir, include_leaf=False)
+    if evidence_dir.exists() or evidence_dir.is_symlink():
+        raise PreflightError(
+            f"authority evidence directory already exists: {evidence_dir}"
+        )
+    try:
+        evidence_dir.mkdir(mode=0o700)
+    except OSError as error:
+        raise PreflightError(
+            f"cannot create authority evidence directory: {error}"
+        ) from error
+
+    observation = evidence_dir / "authority_observation.json"
+    raw_log = evidence_dir / "authority_raw.jsonl"
+    command = [
+        sys.executable,
+        "-B",
+        runner["path"],
+        "--node",
+        str(node),
+        "--observation",
+        str(observation),
+        "--log",
+        str(raw_log),
+    ]
+    environment = dict(os.environ)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=environment,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise PreflightError(
+            f"cannot run active-runtime authority observer: {error}"
+        ) from error
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        raise PreflightError(
+            f"active-runtime authority observer failed: {detail}"
+        )
+    evidence = validate_authority_observation(observation)
+    if Path(evidence["source_files"]["runtime_node"]["path"]) != node:
+        raise PreflightError(
+            "active-runtime authority observer used a different runtime node"
+        )
+    return evidence
 
 
 def write_artifact(path: Path, value: dict[str, Any], overwrite: bool) -> Path:
@@ -1456,8 +1591,24 @@ def verify_runtime(path: Path) -> dict[str, Any]:
 
 
 def verify_authority(path: Path) -> dict[str, Any]:
-    del path
-    raise PreflightError(ACTIVE_RUNTIME_AUTHORITY_REQUIRED)
+    artifact_path, loaded = strict_json_file(
+        path, "authority preflight artifact"
+    )
+    artifact = validate_authority_artifact_shape(loaded)
+    observation = resolve_declared_file(
+        artifact["observation"],
+        "artifact.observation",
+        artifact_path.parent,
+    )
+    evidence = validate_authority_observation(Path(observation["path"]))
+    expected = authority_artifact(evidence)
+    expected["created_at"] = artifact["created_at"]
+    if normalize_ldd_addresses(expected) != normalize_ldd_addresses(artifact):
+        raise PreflightError(
+            f"authority preflight evidence changed since creation: "
+            f"{artifact_path}"
+        )
+    return artifact
 
 
 def make_parser() -> argparse.ArgumentParser:
@@ -1488,15 +1639,18 @@ def make_parser() -> argparse.ArgumentParser:
 
     authority_create = commands.add_parser(
         "authority-create",
-        help="disabled until verifier-owned active-runtime observation exists",
+        help="run the verifier-owned observer against an exact Humble node",
     )
-    authority_create.add_argument("--observation", type=Path, required=True)
+    authority_create.add_argument("--node", type=Path, required=True)
+    authority_create.add_argument(
+        "--evidence-dir", type=Path, required=True
+    )
     authority_create.add_argument("--output", type=Path, required=True)
     authority_create.add_argument("--overwrite", action="store_true")
 
     authority_verify = commands.add_parser(
         "authority-verify",
-        help="disabled until verifier-owned active-runtime observation exists",
+        help="recompute an active-runtime authority preflight artifact",
     )
     authority_verify.add_argument("--artifact", type=Path, required=True)
     return parser
@@ -1527,7 +1681,9 @@ def main() -> int:
                 "status": "PASS",
             }
         elif args.action == "authority-create":
-            evidence = validate_authority_observation(args.observation)
+            evidence = run_authority_observer(
+                args.node, args.evidence_dir
+            )
             artifact = authority_artifact(evidence)
             output = write_artifact(args.output, artifact, args.overwrite)
             result = {
