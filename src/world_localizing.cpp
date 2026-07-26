@@ -3,6 +3,7 @@
 #include "n3mapping/world_localizing.h"
 
 #include <cstdlib>
+#include <string>
 
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/pcl_compat.h"
@@ -19,6 +20,10 @@
 #include <pcl/common/transforms.h>
 
 namespace n3mapping {
+namespace {
+bool freeSpaceModeIsKill();
+} // namespace
+
 namespace {
 constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
@@ -511,7 +516,10 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     }
   }
 
-  killFreeSpaceDominatedHypotheses(query_cloud, odom_pose);
+  const RelocHypothesis *free_space_best =
+      freeSpaceBestHypothesis(query_cloud, odom_pose);
+  if (freeSpaceModeIsKill())
+    killFreeSpaceDominatedHypotheses(query_cloud, odom_pose);
 
   if (reloc_debug_enabled) {
     debug_event.hypotheses.clear();
@@ -765,8 +773,23 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     }
   }
 
+  // Free space never selects; it only refuses. When the hypothesis the map's
+  // own free space favours is a different physical pose than the one the
+  // visibility ranking put first, the two independent kinds of evidence
+  // disagree and no lock is warranted. This can only remove locks, never
+  // create one, which is the only form in which this evidence is safe: the
+  // kill variant, which let free space pick the winner outright, locked a
+  // 32.9 m alias on 11-58-53 that the visibility ranking had got right.
+  const bool pass_free_space =
+      freeSpaceModeIsKill() || !free_space_best || !top1 ||
+      free_space_best == top1 || same_physical_pose(free_space_best, top1);
+  if (!pass_free_space) {
+    VLOG(1) << "[Reloc/FreeSpace] veto: free-space best disagrees with ranked "
+               "top1";
+  }
+
   if (!ambiguous && pass_loglik && pass_margin && pass_winner_streak &&
-      pass_converged_updates && pass_moving_visibility) {
+      pass_converged_updates && pass_moving_visibility && pass_free_space) {
     const RelocHypothesis &best = *top1;
     T_map_odom_ = best.T_map_odom;
     is_relocalized_ = true;
@@ -1460,6 +1483,10 @@ bool freeSpaceSelectEnabled() {
   const char *v = std::getenv("N3MAPPING_FREESPACE_SELECT");
   return !(v && v[0] == 0x30);
 }
+bool freeSpaceModeIsKill() {
+  const char *v = std::getenv("N3MAPPING_FREESPACE_MODE");
+  return v && std::string(v) == "kill";
+}
 double envDouble(const char *name, double fallback) {
   const char *v = std::getenv(name);
   if (!v || !*v)
@@ -1512,6 +1539,30 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
 // replacing the ranking key makes the gate margin measure something the
 // ranking no longer orders, and the gate stops working. Here the existing
 // visibility ranking and the existing gate run unchanged, on survivors.
+const WorldLocalizing::RelocHypothesis *
+WorldLocalizing::freeSpaceBestHypothesis(
+    const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose) {
+  if (!freeSpaceSelectEnabled() || !query_cloud || query_cloud->empty())
+    return nullptr;
+  rebuildFreeSpaceGridIfNeeded();
+  if (!free_space_grid_.valid())
+    return nullptr;
+  const RelocHypothesis *best = nullptr;
+  double best_value = 0.0;
+  for (const auto &hyp : pending_hypotheses_) {
+    if (!hyp.alive)
+      continue;
+    const auto s = free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
+    if (!s.valid)
+      continue;
+    if (!best || s.value > best_value) {
+      best = &hyp;
+      best_value = s.value;
+    }
+  }
+  return best;
+}
+
 void WorldLocalizing::killFreeSpaceDominatedHypotheses(
     const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose) {
   if (!freeSpaceSelectEnabled() || !query_cloud || query_cloud->empty())
@@ -1541,6 +1592,19 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
   }
   if (best < 0)
     return;
+
+  for (size_t i = 0; i < pending_hypotheses_.size(); ++i) {
+    if (!pending_hypotheses_[i].alive)
+      continue;
+    const Eigen::Isometry3d hp = pending_hypotheses_[i].T_map_odom * odom_pose;
+    VLOG(1) << "[Reloc/FreeSpaceDump] i=" << i
+            << " seed=" << pending_hypotheses_[i].seed_match_id
+            << " conv=" << pending_hypotheses_[i].converged_updates
+            << " value=" << scores[i].value << " occ=" << scores[i].occupied_fraction
+            << " free=" << scores[i].free_fraction << " n=" << scores[i].scored_points
+            << " sd=" << scores[i].stddev << " xyz=" << hp.translation().x() << ","
+            << hp.translation().y() << "," << hp.translation().z();
+  }
 
   // The separation test is the sampling noise itself, not a tuned threshold:
   // two hypotheses are only distinguishable when their scores differ by more

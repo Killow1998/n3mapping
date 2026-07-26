@@ -138,6 +138,8 @@ private:
   void rebuildFreeSpaceGridIfNeeded();
   void killFreeSpaceDominatedHypotheses(const PointCloudT::Ptr &query_cloud,
                                         const Eigen::Isometry3d &odom_pose);
+  const RelocHypothesis *freeSpaceBestHypothesis(
+      const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose);
   PointCloudT::Ptr buildRelocTargetCloud(int64_t center_id);
   VisibilityConsistencyResult
   evaluatePoseVisibility(const PointCloudT::Ptr &target_cloud,
