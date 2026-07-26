@@ -106,6 +106,12 @@ private:
     double visibility_evidence_sum = 0.0;
     int visibility_updates = 0;
     bool alive = true;
+    double last_rot_info_min = 0.0;
+    double last_trans_info_min = 0.0;
+    int last_iterations = 0;
+    int last_termination = 0;
+    double last_inlier_ratio = 0.0;
+    double last_fitness = 0.0;
   };
 
   struct QueryFrame {

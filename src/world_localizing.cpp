@@ -3,6 +3,7 @@
 #include "n3mapping/world_localizing.h"
 
 #include <cstdlib>
+#include <iomanip>
 
 #include <pcl/io/pcd_io.h>
 #include <string>
@@ -491,6 +492,24 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       }
       MatchResult mr = matcher_.alignPrepared(*prepared_target, prepared_query,
                                               predicted_pose);
+      if (hasValidRegistrationResult(mr)) {
+        const Eigen::Matrix3d rot_info = mr.information.block<3, 3>(3, 3);
+        const Eigen::Matrix3d trans_info = mr.information.block<3, 3>(0, 0);
+        const Eigen::Vector3d re =
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_info).eigenvalues();
+        const Eigen::Vector3d te =
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(trans_info).eigenvalues();
+        hyp.last_rot_info_min = re(0);
+        hyp.last_iterations = static_cast<int>(mr.iterations);
+        hyp.last_termination = static_cast<int>(mr.termination);
+        hyp.last_inlier_ratio = mr.inlier_ratio;
+        hyp.last_fitness = mr.fitness_score;
+        hyp.last_trans_info_min = te(0);
+        VLOG(1) << "[Reloc/Info] seed=" << hyp.seed_match_id
+                << " rot_eig=" << re(0) << "," << re(1) << "," << re(2)
+                << " trans_eig=" << te(0) << "," << te(1) << "," << te(2)
+                << " inliers=" << mr.num_inliers;
+      }
       hyp.cumulative_log_likelihood +=
           computeTrackLogLikelihood(mr, predicted_pose);
       hyp.num_updates += 1;
@@ -811,6 +830,26 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         std::max(0.0, std::min(1.0, best.cumulative_log_likelihood / 10.0));
     result.fitness_score = 0.0;
 
+    if (const auto skf = keyframe_manager_.getKeyframe(best.last_match_id)) {
+      const Eigen::Quaterniond kq(skf->pose_optimized.rotation());
+      const Eigen::Vector3d kt = skf->pose_optimized.translation();
+      LOG(INFO) << std::fixed << std::setprecision(9)
+                << "[Reloc/LockKF] id=" << skf->id << " stamp=" << skf->timestamp
+                << " t=" << kt.x() << "," << kt.y() << "," << kt.z()
+                << " q=" << kq.x() << "," << kq.y() << "," << kq.z() << ","
+                << kq.w();
+    }
+    LOG(INFO) << "[Reloc/LockTerm] iters=" << best.last_iterations
+              << " term=" << matchTerminationName(
+                     static_cast<MatchTermination>(best.last_termination))
+              << " inlier_ratio=" << best.last_inlier_ratio
+              << " fitness=" << best.last_fitness;
+    LOG(INFO) << "[Reloc/LockInfo] rot_info_min=" << best.last_rot_info_min
+              << " trans_info_min=" << best.last_trans_info_min
+              << " sigma_att_deg="
+              << (best.last_rot_info_min > 0.0
+                      ? 180.0 / M_PI / std::sqrt(best.last_rot_info_min)
+                      : -1.0);
     LOG(INFO) << "Relocalization locked after temporal window. seed_kf="
               << result.seed_keyframe_id
               << " support_kf=" << result.support_keyframe_id
@@ -1930,6 +1969,18 @@ WorldLocalizing::PointCloudT::Ptr WorldLocalizing::buildRelocQueryCloud(
       std::max(1, config_.reloc_static_agg_min_frames)) {
     fill_current_summary();
     return current_cloud;
+  }
+
+  {
+    double max_dr = 0.0, max_dt = 0.0;
+    for (const QueryFrame *src : selected) {
+      const Eigen::Isometry3d d = odom_pose.inverse() * src->odom_pose;
+      max_dt = std::max(max_dt, d.translation().norm());
+      max_dr = std::max(max_dr, Eigen::AngleAxisd(d.rotation()).angle());
+    }
+    VLOG(1) << "[Reloc/QueryAgg] frames=" << selected.size()
+            << " max_dt_m=" << max_dt
+            << " max_dr_deg=" << max_dr * 180.0 / M_PI;
   }
 
   auto merged = pcl::make_shared<PointCloudT>();
