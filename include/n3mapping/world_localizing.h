@@ -15,6 +15,7 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/config.h"
+#include "n3mapping/free_space_grid.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/loop_detector.h"
@@ -134,6 +135,9 @@ private:
       const PointCloudMatcher::PreparedSource &prepared_cloud,
       const LoopCandidate &candidate);
   void rebuildRelocMapCacheIfNeeded();
+  void rebuildFreeSpaceGridIfNeeded();
+  void killFreeSpaceDominatedHypotheses(const PointCloudT::Ptr &query_cloud,
+                                        const Eigen::Isometry3d &odom_pose);
   PointCloudT::Ptr buildRelocTargetCloud(int64_t center_id);
   VisibilityConsistencyResult
   evaluatePoseVisibility(const PointCloudT::Ptr &target_cloud,
@@ -169,6 +173,9 @@ private:
   size_t frame_rhpd_indexed_keyframes_;
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
+  FreeSpaceGrid free_space_grid_;
+  size_t free_space_grid_keyframes_ = 0;
+  bool free_space_grid_failed_ = false;
 
   bool is_relocalized_;
   Eigen::Isometry3d T_map_odom_;

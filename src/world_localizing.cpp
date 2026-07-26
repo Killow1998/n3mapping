@@ -2,6 +2,8 @@
 // localization with T_map_odom.
 #include "n3mapping/world_localizing.h"
 
+#include <cstdlib>
+
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/pcl_compat.h"
 #include <Eigen/Geometry>
@@ -508,6 +510,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       }
     }
   }
+
+  killFreeSpaceDominatedHypotheses(query_cloud, odom_pose);
 
   if (reloc_debug_enabled) {
     debug_event.hypotheses.clear();
@@ -1447,6 +1451,120 @@ WorldLocalizing::searchCandidates(const PointCloudT::Ptr &cloud) {
           << " rhpd_db=" << rhpd_mgr.size();
 
   return candidates;
+}
+
+namespace {
+// Reading the environment keeps the experiment switchable without rebuilding;
+// the defaults below are the values the offline validation on today20 used.
+bool freeSpaceSelectEnabled() {
+  const char *v = std::getenv("N3MAPPING_FREESPACE_SELECT");
+  return !(v && v[0] == 0x30);
+}
+double envDouble(const char *name, double fallback) {
+  const char *v = std::getenv(name);
+  if (!v || !*v)
+    return fallback;
+  return std::atof(v);
+}
+} // namespace
+
+void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
+  if (free_space_grid_failed_)
+    return;
+  const size_t current_size = keyframe_manager_.size();
+  if (free_space_grid_.valid() && free_space_grid_keyframes_ == current_size)
+    return;
+  rebuildRelocMapCacheIfNeeded();
+  if (!reloc_map_cache_ || reloc_map_cache_->empty()) {
+    free_space_grid_failed_ = true;
+    return;
+  }
+  std::vector<Eigen::Vector3d> origins;
+  origins.reserve(keyframe_manager_.size());
+  for (const auto &kf : keyframe_manager_.getAllKeyframes()) {
+    if (!kf || !kf->isValid())
+      continue;
+    origins.push_back(kf->pose_optimized.translation());
+  }
+  if (origins.empty()) {
+    free_space_grid_failed_ = true;
+    return;
+  }
+  const bool ok = free_space_grid_.build(
+      *reloc_map_cache_, origins, envDouble("N3MAPPING_FREESPACE_RES", 0.20),
+      envDouble("N3MAPPING_FREESPACE_MAX_RAY", 30.0),
+      static_cast<int>(envDouble("N3MAPPING_FREESPACE_OCCMIN", 2.0)));
+  if (!ok) {
+    free_space_grid_failed_ = true;
+    return;
+  }
+  free_space_grid_keyframes_ = current_size;
+  LOG(INFO) << "[Reloc/FreeSpace] grid built res="
+            << free_space_grid_.resolution()
+            << " occupied=" << free_space_grid_.occupiedCells()
+            << " free=" << free_space_grid_.freeCells() << " in "
+            << free_space_grid_.buildSeconds() << " s";
+}
+
+// Kills hypotheses whose observed cloud is contradicted by the map's own free
+// space by more than the sampling noise of the measurement. This deliberately
+// does not touch the ranking key or the acceptance gate: A0 showed that
+// replacing the ranking key makes the gate margin measure something the
+// ranking no longer orders, and the gate stops working. Here the existing
+// visibility ranking and the existing gate run unchanged, on survivors.
+void WorldLocalizing::killFreeSpaceDominatedHypotheses(
+    const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose) {
+  if (!freeSpaceSelectEnabled() || !query_cloud || query_cloud->empty())
+    return;
+  size_t alive = 0;
+  for (const auto &hyp : pending_hypotheses_)
+    if (hyp.alive)
+      ++alive;
+  if (alive < 2)
+    return;
+  rebuildFreeSpaceGridIfNeeded();
+  if (!free_space_grid_.valid())
+    return;
+
+  std::vector<FreeSpaceGrid::Score> scores(pending_hypotheses_.size());
+  int best = -1;
+  for (size_t i = 0; i < pending_hypotheses_.size(); ++i) {
+    const auto &hyp = pending_hypotheses_[i];
+    if (!hyp.alive)
+      continue;
+    scores[i] =
+        free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
+    if (!scores[i].valid)
+      continue;
+    if (best < 0 || scores[i].value > scores[best].value)
+      best = static_cast<int>(i);
+  }
+  if (best < 0)
+    return;
+
+  // The separation test is the sampling noise itself, not a tuned threshold:
+  // two hypotheses are only distinguishable when their scores differ by more
+  // than the binomial deviation of the difference.
+  const double sigmas = envDouble("N3MAPPING_FREESPACE_SIGMAS", 5.0);
+  const auto &top = scores[static_cast<size_t>(best)];
+  size_t killed = 0;
+  for (size_t i = 0; i < pending_hypotheses_.size(); ++i) {
+    auto &hyp = pending_hypotheses_[i];
+    if (!hyp.alive || static_cast<int>(i) == best || !scores[i].valid)
+      continue;
+    const double noise = std::sqrt(top.stddev * top.stddev +
+                                   scores[i].stddev * scores[i].stddev);
+    if (top.value - scores[i].value > sigmas * noise) {
+      hyp.alive = false;
+      ++killed;
+    }
+  }
+  if (killed > 0) {
+    VLOG(1) << "[Reloc/FreeSpace] killed " << killed << " of " << alive
+            << " hypotheses, best value=" << top.value
+            << " occ=" << top.occupied_fraction
+            << " free=" << top.free_fraction << " n=" << top.scored_points;
+  }
 }
 
 void WorldLocalizing::rebuildRelocMapCacheIfNeeded() {
