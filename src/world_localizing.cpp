@@ -3,6 +3,8 @@
 #include "n3mapping/world_localizing.h"
 
 #include <cstdlib>
+
+#include <pcl/io/pcd_io.h>
 #include <string>
 
 #include "n3mapping/cloud_utils.h"
@@ -1502,7 +1504,20 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
   if (free_space_grid_.valid() && free_space_grid_keyframes_ == current_size)
     return;
   rebuildRelocMapCacheIfNeeded();
-  if (!reloc_map_cache_ || reloc_map_cache_->empty()) {
+  PointCloudT::Ptr grid_source = reloc_map_cache_;
+  const char *pcd_override = std::getenv("N3MAPPING_FREESPACE_MAP_PCD");
+  if (pcd_override && *pcd_override) {
+    PointCloudT::Ptr dense(new PointCloudT);
+    if (pcl::io::loadPCDFile<pcl::PointXYZI>(pcd_override, *dense) == 0 &&
+        !dense->empty()) {
+      grid_source = dense;
+      LOG(INFO) << "[Reloc/FreeSpace] grid source overridden by " << pcd_override
+                << " points=" << dense->size();
+    } else {
+      LOG(WARNING) << "[Reloc/FreeSpace] failed to load " << pcd_override;
+    }
+  }
+  if (!grid_source || grid_source->empty()) {
     free_space_grid_failed_ = true;
     return;
   }
@@ -1518,7 +1533,7 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
     return;
   }
   const bool ok = free_space_grid_.build(
-      *reloc_map_cache_, origins, envDouble("N3MAPPING_FREESPACE_RES", 0.20),
+      *grid_source, origins, envDouble("N3MAPPING_FREESPACE_RES", 0.20),
       envDouble("N3MAPPING_FREESPACE_MAX_RAY", 30.0),
       static_cast<int>(envDouble("N3MAPPING_FREESPACE_OCCMIN", 2.0)));
   if (!ok) {
