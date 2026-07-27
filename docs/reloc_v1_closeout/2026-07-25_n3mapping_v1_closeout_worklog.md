@@ -1839,7 +1839,8 @@ worklog §71 与 README 中据此得出的「3D 体素零错锁」表述，作�
 
 1. **占据 + 自由空间不能分离真值与感知别名。** 这是第六种失败的方法
    （前五种见 §44–59）。它能修掉 §72 那三个灾难性别名，但不是一个通用判别器。
-   它唯一安全的用法是 **veto（只否决不选择）**，因为那条路径的错误方向只会是「少锁」。
+   它唯一相对安全的用法是 **veto（只否决不选择）**。
+   注意该「安全」只到单窗口为止，不是 episode 级保证——见 §76。
 2. **离线重选择实验必须覆盖 baseline 已正确的案例**，否则度量的是「在失败例上有多好」，
    而不是「会不会把对的弄坏」。今后任何离线选择器实验，
    **判据里必须显式包含「baseline 正确的案例一个都不能坏」**。
@@ -2074,4 +2075,200 @@ $BL/eval_floor7_on0723/                                               6 组输�
     --bag /home/user/ros_ws/bagfile/n3mapping_test/floor7_710toMeeting.bag \
     --output <dir> --episode floor7_710toMeeting_full \
     --cloud-topic /cloud_registered_body --odom-topic /Odometry --duration 0
+```
+
+---
+
+## 76. 外部审查发现的四个实现/测量缺陷（2026-07-26）
+
+用户请外部模型审查 `wip/freespace-select`。以下四条**已在代码中逐条核实成立**，
+其中两条影响本记录此前已下的结论。核实用的是 GitHub 上的分支快照
+（远端主机当时不可达），文件行号对应提交 `1eddf00`。
+
+### 76.1 veto 的安全性被表述过强 —— 我的错误
+
+此前 README / HANDOFF / worklog / 代码注释均写着 veto
+「只能减少锁、不可能制造错锁」。**该表述超出代码能保证的范围。**
+
+`src/world_localizing.cpp:928`，在 accept 与 reject 两条路径之后**无条件**执行：
+
+```cpp
+clearRelocHypotheses();   // 2161-2168 行：清空 pending_hypotheses_、
+                          // hypothesis_window_count_、winner_streak_、
+                          // has_last_window_winner_transform_、
+                          // last_window_winner_map_odom_
+```
+
+因此 veto 拒绝一个窗口后，**全部证据被遗忘**，下一窗口从零重新检索、重新聚类、
+重新 ICP，top-K 与 yaw 种子都可能不同，仍可能锁到另一个错误假设。
+
+- **能证明**：veto 对**单窗口接受事件**具有局部单调性。
+- **不能证明**：加入 veto 后 episode 级错误 FULL 集合 ⊆ baseline 错误 FULL 集合。
+
+today20 上「没有弄坏任何 baseline 正确案例」是**实测结果，不是结构保证**。
+相关表述已在 README、HANDOFF_next、本文件中改正。
+
+### 76.2 信息矩阵探针可能记录了未被采用的位姿 —— §74.3 降级为未验证
+
+`world_localizing.cpp:495-507` 记录 `mr.information`（即 refined 位姿
+`mr.T_target_source` 的 Hessian）。但 517-527 行：
+
+```cpp
+Eigen::Isometry3d selected_pose = predicted_pose;
+if (hasValidRegistrationResult(mr)) {
+  const auto refined_visibility = evaluatePoseVisibility(submap, query_cloud, mr.T_target_source);
+  if (refined_visibility.valid && refined_visibility.consistency_ratio > ...)
+    selected_pose = mr.T_target_source;      // 只有更好才切换
+  hyp.T_map_odom = selected_pose * odom_pose.inverse();
+}
+```
+
+若 refined visibility 更差，最终位姿保持 `predicted_pose`，
+而 `hyp.last_rot_info_min` 仍来自**被否决的** refined 位姿。
+即可能出现「锁定位姿 = predicted，LockInfo H = 被否决的 refined 的 Hessian」。
+
+**§74.3「信息矩阵不可分」的结论因此降级为「未验证」**——
+不是反过来成立，而是那次测量的归属不可信，需重测。
+
+审查另指出三点（未逐条核实，但机理合理，重测时应一并处理）：
+1. 取的是条件旋转块 `Hrr`，而非消去平移耦合后的边缘信息
+   `Hrr − Hrt Htt⁻¹ Htr`（Schur 补）。倾装雷达 + 长走廊下平移-旋转耦合可能很强；
+2. small_gicp 返回的 `H` 是**最后一次更新前**线性化的结果，不对应最终位姿；
+3. `1/sqrt(λ_min)` 缺残差噪声尺度与点数归一化，不能直接读成绝对角度标准差。
+
+### 76.3 自由空间分数把 unknown 混进分母
+
+`src/free_space_grid.cpp` 的 `score()`：`++scored` 发生在判断 occupied/free **之前**，
+所以所有落在包围盒内的点都进分母，包括既非 occupied 也非 free 的 unknown 格。
+
+于是 `value = occ% − free%` 把两个不同问题混在一起：
+**位姿是否与已知地图矛盾** vs **该候选区域是否有足够地图覆盖**。
+覆盖率低的候选可以靠极少数已知点赢得 argmax。
+
+`Score` 应至少拆出 `known_points` / `unknown_points` / `known_fraction`
+与 `occupied_given_known` / `free_given_known`。
+
+### 76.4 方差公式少一项（影响有限）
+
+occupied/free 互斥，单点变量取值 +1/−1/0，iid 方差应为
+`(p_o + p_f − (p_o − p_f)²)/n`；代码写的是 `(p_o(1−p_o) + p_f(1−p_f))/n`，
+**少了 `2·p_o·p_f/n`，系统性低估方差**。
+
+但这条**不改变任何结论**：5σ 判据已因「主导误差是模型误差而非采样噪声」
+被 §72.3 证伪，公式改对也救不回来。
+
+### 76.5 其余核实成立但优先级较低的两条
+
+- `hasValidRegistrationResult()` 只要求 converged + fitness/inlier/pose 有限，
+  **没有 fitness 阈值也没有 inlier 阈值**，比假设初始化时的门松得多；
+  但它同样会累加 `cumulative_log_likelihood` 与 `converged_updates`。
+  即「优化器宣布收敛」被当成了「一次有效独立支持」。
+- README 曾同时保留「地图倾斜已推翻」（§69）与
+  「roll 错误是地图倾斜 4.14° 的直接后果」两条互相矛盾的表述。已改正。
+
+### 76.6 审查中未采纳 / 暂缓的部分
+
+- **拆分 `same_physical_pose` 语义**（现用 3.0 m / 57.3° 判「同一位姿」，
+  而合同是 0.5 m / 2°；且 `basin_separated` 只查平移，纯旋转歧义永不被标记）：
+  **分析成立**，但该改动会引入三组新阈值，而当前没有独立数据可验证它们。
+  **先出这三个尺度上的统计，不改运行行为。**
+- 评测协议 V2 的七个子条目中，**刚需只有两条**（完整流水线跑、
+  baseline 正确集不得回归），其余为增强项。
+- 审查提出的整体方向（保留少量 basin、不急着选 winner、主动获取新观测）
+  与已有工作卡 C/D 是同一件事，非新增路线。
+- **唯一的新想法**：四足可在**足底位置不变**的前提下，通过站立/下蹲/小幅俯仰
+  改变雷达高度与倾角，从而制造真实视角基线。倾装雷达在高度变化后遮挡关系确实不同。
+  这是目前唯一可能绕开「必须走动」前提的方案，**值得采数据验证**（新工作卡 H）。
+
+---
+
+## 77. 测量正确性补丁与 §74.3 重测（2026-07-26）
+
+针对 §76 的三条缺陷做修复，**要求不改变任何流水线行为**，然后用修正后的探针重做 §74.3。
+
+### 77.1 「逐位一致」不是可达的验收门 —— 协议 V2 必须改
+
+预注册判据原为「today20 逐例结果逐位不变」。实测 **20 例中 14 例的位姿字段不同**，
+但决策字段（`algorithm_lock` / `lock_frame_index` / `lock_stamp_ns` /
+`relocalization_seed_keyframe_id` / `relocalization_support_keyframe_id` /
+`final_state`）**全部一致**，位姿最大差 **4.07e-15 m**。
+
+进一步用**同一个二进制连跑两次**：位置差 **1.776e-15 m**。
+
+**管线本身是非确定性的**（多线程 GICP 的浮点归约顺序）。4e-15 落在其自身噪声地板内。
+
+因此：
+
+- 本补丁按正确判据 **PASS**（决策全同 + 位姿差 4e-15 m，比合同 0.50 m 小 14 个数量级）；
+- **外部审查建议的「同一批输入输出必须逐位一致」若照抄会让每次回归假性失败。**
+  协议 V2 的回归门应写成：**决策字段全同，且位姿差 < 1e-9 m / 1e-6 rad。**
+
+### 77.2 修复内容
+
+1. **探针归属**：信息矩阵的记录从「配准结束时」移到「`selected_pose` 确定之后」，
+   并新增 `last_pose_is_refined` 显式标注采用的是 predicted 还是 refined。
+2. **边缘化旋转信息**：新增 `H_marg = H_rr − H_rt · H_tt⁺ · H_rtᵀ`（Schur 补），
+   与原来的条件块 `H_rr` 并列输出。
+3. **分数拆分**：`Score` 增加 `known_points` / `known_fraction` /
+   `occupied_given_known` / `free_given_known`；`value` 本身**一字节未动**。
+   方差补上缺失的 `2·p_o·p_f/n`（互斥变量取值 +1/−1/0）。
+4. **`prod_quality`**：记录该次配准是否达到假设初始化时的 fitness/inlier 门槛，
+   **只记录不作用**。
+
+### 77.3 §74.3 重测结果：仍不可分
+
+| case | 边缘化 H_marg | 条件 H_rr | 采用位姿 | prod_q | t_err | roll | pitch |
+|---|---|---|---|---|---|---|---|
+| 11-45-43 | **2.951e5** | 3.290e5 | refined | 1 | 1.132 | **2.12** | **2.05** |
+| 11-55-38 | 7.226e5 | 1.038e6 | refined | 1 | 0.049 | 1.37 | 0.25 |
+| 11-47-53 | 1.055e6 | 1.723e6 | **predicted** | 1 | 0.445 | 1.07 | 0.03 |
+| 11-56-10 | 1.337e6 | 1.895e6 | **predicted** | 1 | 0.038 | 0.85 | 0.41 |
+| 11-58-53 | 1.358e6 | 2.760e6 | refined | 1 | 0.186 | 0.07 | 0.53 |
+| **11-54-55** | **2.328e6** | 2.942e6 | **predicted** | 1 | 0.031 | **2.46** | 0.12 |
+| 11-48-26 | 2.643e6 | 3.399e6 | predicted | 1 | 0.056 | 0.17 | 0.22 |
+| 11-53-11 | 2.717e6 | 5.322e6 | refined | 1 | 0.032 | 0.82 | 0.06 |
+| 11-52-34 | 4.534e6 | 4.778e6 | refined | 1 | 0.034 | 0.04 | 0.31 |
+| 11-52-00 | 4.888e6 | 5.778e6 | refined | 1 | 0.107 | 0.58 | 0.31 |
+| 11-53-44 | 4.919e6 | 6.641e6 | refined | 1 | 0.107 | 0.12 | 0.78 |
+| 11-54-17 | 5.621e6 | 6.272e6 | refined | 1 | 0.102 | 0.68 | 0.02 |
+| 11-58-18 | 8.124e6 | 9.722e6 | refined | 1 | 0.020 | 0.09 | 0.07 |
+| 11-57-16 | 9.810e6 | 9.997e6 | refined | 1 | 0.022 | 0.02 | 0.48 |
+
+**roll 误差最大的 11-54-55（2.46°）边缘化信息量 2.328e6，高于四个达标案例**
+（7.23e5 / 1.06e6 / 1.34e6 / 1.36e6）。4 组重叠对，**不可分**。
+
+存在可见趋势（信息量越低姿态误差越大：9.81e6→0.02°，2.95e5→2.12°），
+**但 11-54-55 决定性地破坏了它。是弱相关量，不能作闸门。**
+
+### 77.4 错配确实存在，且正好命中关键案例
+
+14 次锁定中 **4 次 `pose=predicted`**（11-47-53 / 11-56-10 / 11-54-55 / 11-48-26），
+即 refined visibility 更差、最终保留了 predicted 位姿。
+**其中包括 11-54-55——§74.3 整条结论所依据的那个案例。** §76.2 的指认成立。
+
+### 77.5 本次修复的未尽之处（不要当成已完成）
+
+**探针只做到一半。** 记录时机与 `pose=refined/predicted` 标注已修正，
+但记录的仍是 `mr.information`，即 **refined 位姿的 Hessian**。
+对那 4 个 `pose=predicted` 的案例，H 依然不描述真正被采用的位姿。
+**审查建议的「在实际被选中的 pose 重新线性化一次」尚未实现。**
+
+因此 77.3 的结论应读作：**在「边缘化 + 归属已标注」这一层级上仍不可分**；
+11-54-55 那一行要完全可信，还需补做重新线性化。
+
+另两条已知但未处理（见 §76.2）：small_gicp 返回的 `H` 是最后一次更新**前**
+线性化的结果；`1/sqrt(λ)` 缺残差噪声尺度与点数归一化，不能读成绝对角度标准差。
+
+### 77.6 关闭的一条顾虑
+
+`prod_quality=1` 在全部 14 次锁定上均成立——
+**`hasValidRegistrationResult()` 的宽松口子在这些案例里一次都没被利用。**
+§76.5 的第一条对当前失败案例不构成解释。
+
+### 77.7 资产
+
+```
+$BL/eval_probefix/   补丁后 20 case 输出（用于逐位对照）
+/tmp/join74.py       探针输出与姿态误差的联立表
+/tmp/det1 /tmp/det2  同一二进制两次运行，用于确认非确定性
 ```

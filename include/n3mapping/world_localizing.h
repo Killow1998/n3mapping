@@ -109,6 +109,12 @@ private:
     double last_rot_info_min = 0.0;
     double last_trans_info_min = 0.0;
     int last_iterations = 0;
+    // Diagnostics only: which pose the recorded registration numbers
+    // describe, and whether that registration would have passed the gate
+    // used when a hypothesis is first created.
+    bool last_pose_is_refined = false;
+    bool last_production_quality = false;
+    double last_rot_info_marginal_min = 0.0;
     int last_termination = 0;
     double last_inlier_ratio = 0.0;
     double last_fitness = 0.0;

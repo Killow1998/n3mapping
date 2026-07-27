@@ -492,24 +492,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       }
       MatchResult mr = matcher_.alignPrepared(*prepared_target, prepared_query,
                                               predicted_pose);
-      if (hasValidRegistrationResult(mr)) {
-        const Eigen::Matrix3d rot_info = mr.information.block<3, 3>(3, 3);
-        const Eigen::Matrix3d trans_info = mr.information.block<3, 3>(0, 0);
-        const Eigen::Vector3d re =
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_info).eigenvalues();
-        const Eigen::Vector3d te =
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(trans_info).eigenvalues();
-        hyp.last_rot_info_min = re(0);
-        hyp.last_iterations = static_cast<int>(mr.iterations);
-        hyp.last_termination = static_cast<int>(mr.termination);
-        hyp.last_inlier_ratio = mr.inlier_ratio;
-        hyp.last_fitness = mr.fitness_score;
-        hyp.last_trans_info_min = te(0);
-        VLOG(1) << "[Reloc/Info] seed=" << hyp.seed_match_id
-                << " rot_eig=" << re(0) << "," << re(1) << "," << re(2)
-                << " trans_eig=" << te(0) << "," << te(1) << "," << te(2)
-                << " inliers=" << mr.num_inliers;
-      }
       hyp.cumulative_log_likelihood +=
           computeTrackLogLikelihood(mr, predicted_pose);
       hyp.num_updates += 1;
@@ -528,6 +510,44 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         hyp.T_map_odom = selected_pose * odom_pose.inverse();
         hyp.last_match_id = nearest_kf_id;
         hyp.converged_updates += 1;
+
+        // Recorded here, not at alignment, so the numbers describe the pose
+        // this hypothesis actually carries.
+        const bool pose_is_refined = selected_pose.isApprox(mr.T_target_source);
+        const Eigen::Matrix3d trans_info = mr.information.block<3, 3>(0, 0);
+        const Eigen::Matrix3d rot_info = mr.information.block<3, 3>(3, 3);
+        const Eigen::Matrix3d cross_info = mr.information.block<3, 3>(3, 0);
+        const Eigen::Matrix3d rot_marginal =
+            rot_info -
+            cross_info * trans_info.completeOrthogonalDecomposition().pseudoInverse() *
+                cross_info.transpose();
+        const Eigen::Vector3d re =
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_info).eigenvalues();
+        const Eigen::Vector3d rm =
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_marginal).eigenvalues();
+        const Eigen::Vector3d te =
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(trans_info).eigenvalues();
+        const bool production_quality =
+            mr.success && mr.fitness_score <= config_.gicp_fitness_threshold &&
+            mr.inlier_ratio >= config_.reloc_min_inlier_ratio;
+        hyp.last_rot_info_min = re(0);
+        hyp.last_rot_info_marginal_min = rm(0);
+        hyp.last_trans_info_min = te(0);
+        hyp.last_iterations = static_cast<int>(mr.iterations);
+        hyp.last_termination = static_cast<int>(mr.termination);
+        hyp.last_inlier_ratio = mr.inlier_ratio;
+        hyp.last_fitness = mr.fitness_score;
+        hyp.last_pose_is_refined = pose_is_refined;
+        hyp.last_production_quality = production_quality;
+        VLOG(1) << "[Reloc/Info] seed=" << hyp.seed_match_id
+                << " pose=" << (pose_is_refined ? "refined" : "predicted")
+                << " prod_quality=" << production_quality
+                << " rot_eig=" << re(0) << "," << re(1) << "," << re(2)
+                << " rot_marg_eig=" << rm(0) << "," << rm(1) << "," << rm(2)
+                << " trans_eig=" << te(0) << "," << te(1) << "," << te(2)
+                << " inliers=" << mr.num_inliers
+                << " fitness=" << mr.fitness_score
+                << " inlier_ratio=" << mr.inlier_ratio;
       }
       if (selected_visibility.valid) {
         hyp.visibility_consistency_sum += selected_visibility.consistency_ratio;
@@ -839,6 +859,10 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                 << " q=" << kq.x() << "," << kq.y() << "," << kq.z() << ","
                 << kq.w();
     }
+    LOG(INFO) << "[Reloc/LockPose] pose="
+              << (best.last_pose_is_refined ? "refined" : "predicted")
+              << " prod_quality=" << best.last_production_quality
+              << " rot_info_marginal_min=" << best.last_rot_info_marginal_min;
     LOG(INFO) << "[Reloc/LockTerm] iters=" << best.last_iterations
               << " term=" << matchTerminationName(
                      static_cast<MatchTermination>(best.last_termination))
@@ -1609,6 +1633,11 @@ WorldLocalizing::freeSpaceBestHypothesis(
     const auto s = free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
     if (!s.valid)
       continue;
+    VLOG(1) << "[Reloc/FreeSpaceCov] seed=" << hyp.seed_match_id
+            << " value=" << s.value << " known_frac=" << s.known_fraction
+            << " occ|known=" << s.occupied_given_known
+            << " free|known=" << s.free_given_known
+            << " n=" << s.scored_points << " known=" << s.known_points;
     if (!best || s.value > best_value) {
       best = &hyp;
       best_value = s.value;

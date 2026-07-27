@@ -35,6 +35,16 @@ public:
     double occupied_fraction = 0.0;
     double free_fraction = 0.0;
     int scored_points = 0;
+    // Coverage and contradiction are different questions. scored_points counts
+    // every point inside the grid; known_points counts only those landing in a
+    // cell the map has an opinion about. A pose over thin coverage can look
+    // uncontradicted simply because the map never observed the region.
+    int known_points = 0;
+    int occupied_points = 0;
+    int free_points = 0;
+    double known_fraction = 0.0;
+    double occupied_given_known = 0.0;
+    double free_given_known = 0.0;
     // occupied_fraction - free_fraction, with the binomial sampling standard
     // deviation of that difference. The deviation is what makes a survival test
     // possible without inventing a threshold: two hypotheses are only separated

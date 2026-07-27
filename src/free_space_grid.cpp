@@ -163,14 +163,30 @@ FreeSpaceGrid::score(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
   if (scored == 0)
     return out;
   const double n = static_cast<double>(scored);
+  const std::size_t known = occupied_hits + free_hits;
   out.valid = true;
   out.scored_points = static_cast<int>(scored);
+  out.known_points = static_cast<int>(known);
+  out.occupied_points = static_cast<int>(occupied_hits);
+  out.free_points = static_cast<int>(free_hits);
   out.occupied_fraction = static_cast<double>(occupied_hits) / n;
   out.free_fraction = static_cast<double>(free_hits) / n;
+  out.known_fraction = static_cast<double>(known) / n;
+  if (known > 0) {
+    out.occupied_given_known = static_cast<double>(occupied_hits) /
+                               static_cast<double>(known);
+    out.free_given_known = static_cast<double>(free_hits) /
+                           static_cast<double>(known);
+  }
   out.value = out.occupied_fraction - out.free_fraction;
+  // Occupied and free are mutually exclusive, so the per-point variable takes
+  // +1/-1/0 and its iid variance is E[X^2] - E[X]^2 with E[X^2] = p_o + p_f.
+  // The previous expression treated the two as independent Bernoullis and
+  // understated the variance by 2*p_o*p_f/n.
   const double variance =
-      (out.occupied_fraction * (1.0 - out.occupied_fraction) +
-       out.free_fraction * (1.0 - out.free_fraction)) /
+      (out.occupied_fraction + out.free_fraction -
+       (out.occupied_fraction - out.free_fraction) *
+           (out.occupied_fraction - out.free_fraction)) /
       n;
   out.stddev = std::sqrt(std::max(variance, 0.0));
   return out;
