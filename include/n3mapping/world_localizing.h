@@ -187,6 +187,10 @@ private:
   size_t frame_rhpd_indexed_keyframes_;
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
+  // Frames the current hypothesis set has survived across rejected
+  // windows. Only a valve: a set that never resolves must not wedge the
+  // episode forever.
+  int hypothesis_persist_frames_ = 0;
   FreeSpaceGrid free_space_grid_;
   size_t free_space_grid_keyframes_ = 0;
   bool free_space_grid_failed_ = false;

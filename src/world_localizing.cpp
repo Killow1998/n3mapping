@@ -25,6 +25,11 @@
 namespace n3mapping {
 namespace {
 bool freeSpaceModeIsKill();
+bool relocPersistHypotheses();
+// A hypothesis set that never resolves must not wedge the episode. 300 frames
+// is 30 s at 10 Hz, far beyond any acquisition the contract allows; it is a
+// valve, not a tuned parameter.
+constexpr int kRelocPersistMaxFrames = 300;
 } // namespace
 
 namespace {
@@ -775,6 +780,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   // Once the sensor has moved beyond the existing static-aggregation contract,
   // the new viewpoints must not cumulatively disconfirm the pose. Zero log odds
   // is the model's semantic support/opposition boundary, not a tuned score.
+  VLOG(1) << "[Reloc/Baseline] window=" << hypothesis_window_count_
+          << " persisted=" << hypothesis_persist_frames_
+          << " motion_translation_m=" << evidence_motion_translation
+          << " motion_rotation_deg="
+          << evidence_motion_rotation * 180.0 / M_PI;
   const bool moving_visibility_required =
       evidence_motion_translation > config_.reloc_static_agg_max_translation ||
       evidence_motion_rotation > config_.reloc_static_agg_max_rotation;
@@ -949,7 +959,25 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     finish_debug("rejected", reject_reason);
   }
 
-  clearRelocHypotheses();
+  // Card C/D: clearing here after every rejected window is what capped the
+  // accumulated viewpoint baseline at 1-3 cm. Keep the set alive instead, so
+  // hypothesis_window_start_odom_pose_ stays at the seed pose and the baseline
+  // grows with the motion the robot is already making.
+  if (result.success || !relocPersistHypotheses()) {
+    clearRelocHypotheses();
+    hypothesis_persist_frames_ = 0;
+  } else {
+    ++hypothesis_persist_frames_;
+    const bool any_alive =
+        std::any_of(pending_hypotheses_.begin(), pending_hypotheses_.end(),
+                    [](const RelocHypothesis &h) { return h.alive; });
+    if (!any_alive || hypothesis_persist_frames_ > kRelocPersistMaxFrames) {
+      VLOG(1) << "[Reloc/Persist] reseeding: alive=" << any_alive
+              << " persisted_frames=" << hypothesis_persist_frames_;
+      clearRelocHypotheses();
+      hypothesis_persist_frames_ = 0;
+    }
+  }
 
   return result;
 }
@@ -1547,6 +1575,19 @@ namespace {
 bool freeSpaceSelectEnabled() {
   const char *v = std::getenv("N3MAPPING_FREESPACE_SELECT");
   return !(v && v[0] == 0x30);
+}
+// Card C/D, first cut. Measured worse than clearing on every rejected window
+// -- 8/2/10 with the veto and 9/3/8 without, against 12/2/6 for the veto alone
+// -- so it stays off unless asked for. The mechanism it was built for did
+// work: the accumulated baseline went from 1-3 cm to 3.34-4.89 m, and it fixed
+// the 2.46 deg attitude error on 11-54-55 that five separate hypotheses had
+// failed to explain. What it needs before it can be the default is a
+// free-space test that accumulates contradiction across independent
+// viewpoints, rather than comparing argmax identity every frame -- under
+// persistence that turns one disagreement into a permanent veto.
+bool relocPersistHypotheses() {
+  const char *v = std::getenv("N3MAPPING_RELOC_PERSIST");
+  return v && v[0] != 0x30 && v[0] != 0;
 }
 bool freeSpaceModeIsKill() {
   const char *v = std::getenv("N3MAPPING_FREESPACE_MODE");
