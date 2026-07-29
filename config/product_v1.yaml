@@ -48,7 +48,7 @@ n3mapping_node:
     prior_noise_position: 0.01
     prior_noise_rotation: 0.01
     odom_noise_position: 0.01
-    odom_noise_rotation: 0.001
+    odom_noise_rotation: 0.0046
     loop_noise_position: 0.5
     loop_noise_rotation: 0.5
     use_robust_kernel: true
@@ -71,7 +71,7 @@ n3mapping_node:
     loop_kf_gap: 5
     loop_closest_id_th: 50
     loop_min_id_interval: 20
-    loop_max_range: 30.0
+    loop_max_range: 150.0
 
     output_cloud_voxel_size: 0.2
 

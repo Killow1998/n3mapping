@@ -59,19 +59,32 @@ public:
         const double segment_consistency = clamp01(f.segment_consistency);
         const bool has_descriptor = f.descriptor_supported || clamp01(f.descriptor_score) > 0.0;
 
-        if (f.spatial_only && !has_descriptor) {
+        // A spatial candidate is proposed by the drifted poses, so it does
+        // need confirmation from somewhere the poses cannot reach. A
+        // descriptor hit is one such source; neighbouring keyframes that all
+        // register consistently against the same match are another, and a
+        // stronger one. Requiring the descriptor specifically discarded 26 of
+        // the 57 best-evidenced candidates in the session.
+        const bool segment_confirmed = segment_consistency >= 1.0 - 1e-9 &&
+                                       segment_support > 0.0;
+        if (f.spatial_only && !has_descriptor && !segment_confirmed) {
             result.decision = LoopDecision::Reject;
             result.reason = "spatial_only_unconfirmed";
             result.risk_flags = "source";
             return result;
         }
 
-        if (std::isfinite(f.predicted_translation_norm) &&
-            f.predicted_translation_norm > kLargePredictedTranslationM &&
-            segment_consistency <= 0.5) {
+        // Every accepted loop needs at least one confirmation the drifted
+        // poses could not have produced: a descriptor hit, or neighbouring
+        // keyframes registering consistently against the same match. This
+        // replaces a conjunction whose first clause was predicted_translation_
+        // norm -- the separation the drifted poses report, which grows
+        // precisely for the loops that would repair the drift, and which
+        // rejected 86 candidates registering at a median fitness of 0.052.
+        if (segment_consistency <= 0.5 && !has_descriptor) {
             result.decision = LoopDecision::Reject;
-            result.reason = "large_prediction_with_weak_segment";
-            result.risk_flags = "prediction_segment";
+            result.reason = "unconfirmed_weak_segment";
+            result.risk_flags = "segment";
             return result;
         }
 

@@ -36,13 +36,25 @@ bool graphTrialYawInconsistent(const LoopGraphTrialDiagnostics &diagnostics) {
          std::abs(diagnostics.residual_yaw_after) >= kNearHalfTurnYawRad;
 }
 
+// An edge is inconsistent when it makes the constraints already in the graph
+// worse, not when it asks for a large correction. residual_translation_norm_after
+// measures the latter: a single trial edge moves poses by about 3 mm against a
+// 256-edge odometry chain, so any correction beyond a few centimetres survives
+// the trial almost intact and looked like a 5 m inconsistency. What the edge
+// actually costs the graph is already measured here -- across every trial in
+// the session the existing-loop delta stayed within 2e-4 m and the odometry
+// delta was exactly zero -- so the bound below sits far above that numerical
+// floor and far below any degradation that would matter geometrically.
 bool graphTrialTranslationInconsistent(
     const LoopGraphTrialDiagnostics &diagnostics) {
-  constexpr double kLargeGraphResidualTranslationM = 2.0;
-  return diagnostics.success &&
-         std::isfinite(diagnostics.residual_translation_norm_after) &&
-         diagnostics.residual_translation_norm_after >=
-             kLargeGraphResidualTranslationM;
+  constexpr double kConstraintDegradationM = 0.05;
+  if (!diagnostics.success) {
+    return false;
+  }
+  const double existing = diagnostics.existing_loop_residual_delta;
+  const double odom = diagnostics.odom_residual_delta;
+  return (std::isfinite(existing) && existing > kConstraintDegradationM) ||
+         (std::isfinite(odom) && odom > kConstraintDegradationM);
 }
 
 std::string consensusRefereeRejectReason(const VerifiedLoop &loop) {
@@ -1151,6 +1163,11 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
       }
       const Eigen::Isometry3d T_pred_match_query =
           match_kf->pose_optimized.inverse() * query_kf->pose_optimized;
+      // A bound on work, not a verdict. The separation here is measured with
+      // the drifted poses, so using it to reject a descriptor match rejects
+      // exactly the loops that would repair the drift; loop_max_range is now
+      // set beyond the map's own extent and only stops the pipeline from
+      // registering pairs that cannot overlap under any correction.
       if (T_pred_match_query.translation().norm() > config_.loop_max_range) {
         make_rejected_event(candidate, "prediction_range_gate");
         continue;

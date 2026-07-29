@@ -10,22 +10,18 @@
 namespace n3mapping {
 namespace {
 
-std::string loopRejectReason(bool icp_converged,
-                             bool fitness_ok,
-                             bool inlier_ok,
-                             bool geom_ok)
+// Only the registration quality decides. `converged` describes the path the
+// solver took, not the answer it reached: a run that spends its whole
+// iteration budget and lands on an excellent alignment reports converged
+// false. The geometry check compares the correction against the prior, which
+// is the quantity the loop exists to fix.
+std::string loopRejectReason(bool fitness_ok, bool inlier_ok)
 {
-    if (!icp_converged) {
-        return "icp_not_converged";
-    }
     if (!fitness_ok) {
         return "fitness_threshold";
     }
     if (!inlier_ok) {
         return "inlier_threshold";
-    }
-    if (!geom_ok) {
-        return "geometry_gate";
     }
     return "";
 }
@@ -107,7 +103,11 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
         verification.icp_translation_norm <= config_.loop_max_icp_translation &&
         verification.icp_rotation_norm <= config_.loop_max_icp_rotation;
 
-    if (verification.match_result.converged) {
+    // Computed for every candidate the registration quality admits, so the
+    // referee downstream sees them. Previously this was gated on `converged`,
+    // which is why 541 of 588 candidates reached the referee with no evidence
+    // attached at all.
+    if (verification.fitness_ok && verification.inlier_ok) {
         const auto heightmap = computeHeightmapConsistency(
             target_in_match_frame, source_in_match_frame, verification.T_icp_correction_match);
         loop.heightmap_overlap_cell_count = heightmap.overlap_cell_count;
@@ -119,14 +119,15 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
         loop.heightmap_vertical_consistency_score = heightmap.vertical_consistency_score;
     }
 
-    verification.reject_reason = loopRejectReason(
-        verification.match_result.converged, verification.fitness_ok,
-        verification.inlier_ok, verification.geometry_ok);
+    verification.reject_reason =
+        loopRejectReason(verification.fitness_ok, verification.inlier_ok);
 
-    loop.verified = verification.match_result.converged &&
-                    verification.fitness_ok &&
-                    verification.inlier_ok &&
-                    verification.geometry_ok;
+    // icp_translation_norm, icp_rotation_norm and match_result.converged stay
+    // populated above and still reach the debug stream; they are evidence
+    // about the loop, not grounds to refuse it. A loop that moves the prior by
+    // five metres is not suspect -- on a map that has drifted by two and a
+    // half, it is the correction.
+    loop.verified = verification.fitness_ok && verification.inlier_ok;
     if (loop.verified) {
         loop.T_match_query = verification.T_measured_match_query;
     }

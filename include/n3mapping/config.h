@@ -75,7 +75,10 @@ struct Config {
     int loop_kf_gap = 5;
     int loop_closest_id_th = 50;
     int loop_min_id_interval = 20;
-    double loop_max_range = 30.0;
+    // Bounds registration work only. It must exceed the map's own extent, or
+    // it silently becomes a correctness gate that rejects large corrections --
+    // which is what 30.0 did on a 69 x 94 m map that had drifted 2.49 m.
+    double loop_max_range = 150.0;
 
     double output_cloud_voxel_size = 0.1;
 

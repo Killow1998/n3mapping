@@ -2480,3 +2480,135 @@ Q:\DocumentFile\bull&horseLife\jammy_dev\docs\floorplan_alias_sites.html    三�
 
 查看器：CloudCompare（Windows 原生，直接读 binary PCD，按 z 着色 + 侧视图
 可肉眼确认走廊是否倾斜）。
+
+---
+
+## 80. 建图闭环：完整因果链与三轮实测（2026-07-29）
+
+承 §79。用户要求「从第一性原理修复闭环处理与检测」。三轮实测，**判据未达成**，
+但把整条因果链量清楚了。
+
+### 80.1 前端根因：重力初值是假设，不是估计
+
+LIO bag 里有 `/lio_gravity`（8250 条，FAST_LIO 重力发布补丁的产物）：
+
+```
+t=  0 s   g = (-0.00000, 0.00000, -9.80900)   偏转  0.000°  ← 硬初始化
+t= 60 s   g = (-1.50986, 0.86391, -9.65352)   偏转 10.215°
+t=780 s   g = (-0.64159, -0.33031, -9.78242)  偏转  4.219°
+峰值 10.779°   最终 4.228°   |g| 恒为 9.8090（只估方向）
+```
+
+x/y 精确为零、模长精确 9.809 —— **FAST_LIO 把「开机时机体水平」当初值**，
+而该机器人雷达倾装约 18°。且**没有静止初始化窗口**：t=10 s 已走 0.75 m，
+t=20 s 走 4.13 m。重力估计只能边走边收敛，**且从未回到初始参考系**（终值 4.2°）。
+
+最严重的重访（t=0 vs t=102.4 s，|dz|=2.49 m）正落在偏转 10.2° 的收敛暂态里。
+
+### 80.2 检测没问题，淘汰在验证
+
+候选来源：`rhpd_primary` 405 / `spatial_radius` 183（SC 已在退役路径上，不依赖）。
+**588 个候选里 262 个配准质量合格**（fitness<0.2 且 inlier≥0.7），覆盖 33 个关键帧。
+
+### 80.3 同一个反模式写了四层
+
+**原则**：闭环是关于几何的断言，证据全在两帧扫描里；
+**先验只有提名权，没有否决权；不确定性属于噪声模型，不属于阈值。**
+
+| 层 | 违反 | 代价 |
+|---|---|---|
+| verifier | `loop.verified = match_result.converged && ...` | 181 个，fitness 中位 0.053 / inlier 0.950（**比接受的两条还好**） |
+| verifier | `geometry_ok = icp_translation_norm <= 2.0 m` | 64 个，fitness 0.032 / inlier 0.989，修正中位 5.34 m |
+| core | `T_pred.norm() > loop_max_range(30)` | 120 个 |
+| referee | `predicted_translation_norm > 5.0 && segment<=0.5` | 86 个，fitness 中位 0.052 |
+| graph trial | `residual_translation_norm_after >= 2.0 m` | 28/31（通过其余全部检验者） |
+
+graph trial 那层最能说明问题。对**证据最强的 31 个**（配准合格 + 段一致性满分）：
+
+```
+residual_translation_norm_after   中位  5.6052 m   ← 被 2.0 m 门砍掉
+existing_loop_residual_delta      中位 -0.0004 m   ← 加了它，已有约束变好
+odom_residual_delta               全部  0.0000 m
+max_pose_update_translation       中位  0.0033 m   ← 试算只挪了 3 毫米
+```
+
+**真正衡量一致性的两个量就在同一结构体里，算出来了，没参与决策。**
+而 3 毫米说明 `residual_after` 为什么大：一条边拉不动 256 条边的链条，
+所以任何大修正试算后都原样保留。这道门测的是「一步没吸收完」。
+
+### 80.4 已实施的修改（提交在分支上）
+
+1. `loop.verified = fitness_ok && inlier_ok`；`converged` 与 `geometry_ok` 降级为诊断
+2. heightmap 诊断改为「质量合格即计算」（原先 gate 在 `converged` 上，
+   导致 541/588 到达 referee 时身上没有任何证据）
+3. `loop_max_range` 30 → 150 m，并在注释中限定其语义为**算力边界**
+4. referee `spatial_only_unconfirmed`：段一致性满分**也算独立确认**
+5. referee `large_prediction_with_weak_segment` → `unconfirmed_weak_segment`
+   （删先验项，改为「段弱**且**无描述子」；**未放宽成来者不拒**）
+6. graph trial 判据 → `existing_loop_residual_delta / odom_residual_delta > 0.05 m`
+   （实测数值噪声上限 2e-4，该界为其 250 倍）
+7. `odom_noise_rotation` 0.001 → 0.0046 rad
+   （推导：0.057°×√257 = 0.91°，而实测重力持续偏 4.2°；4.2°/√257 = 0.26°）
+
+### 80.5 三轮结果：判据未达成
+
+| | 闭环边 | pose_update 最大 | z 跨度 | \|dz\| 中位 | p90 | 最大 | >0.5 m |
+|---|---|---|---|---|---|---|---|
+| orig | 2 | 0.0004 m | 5.71 m | 0.041 | 0.852 | 2.486 | 17/99 |
+| fix2（1–6） | 19 | 0.0223 m | 5.69 m | 0.039 | 0.901 | 2.485 | 16/98 |
+| fix3（+7） | 16 | 0.3789 m | 5.60 m | 0.046 | **1.374** | 2.481 | 22/105 |
+
+判据 `p90<0.10 m、最大<0.30 m、闭环≥20` —— **FAIL**。
+几何未折叠（轨迹总长三轮均为 235.7 m），但也未被修正。
+
+### 80.6 最后一个未解的压制：鲁棒核
+
+`fix2` 的优化日志：
+
+```
+loop_residual_t = 18.0827 -> 18.0820      18 米残差，优化后减少 0.7 毫米
+loop_residual_t = 19.6327 -> 19.6316      1.1 毫米
+```
+
+两层压制：
+
+```yaml
+odom_noise_position: 0.01     # 链条信息量 256/0.01² ≈ 2.6e6
+loop_noise_position: 0.5      # 闭环信息量  19/0.5²  ≈ 76      → 差约 3 万倍
+robust_kernel_type: "Cauchy"
+robust_kernel_delta: 1.0      # 权重 1/(1+(r/δ)²)：r=18 m 时 0.003
+```
+
+**δ=1.0 的语义是「残差超过 1 米即视为外点」，而这张图需要 5–18 米的修正。
+鲁棒核在精确消灭正确的大闭环。** fix3 松了姿态噪声后位姿修正涨了 17 倍
+（0.022 → 0.379 m）仍远远不够，正是因为压不过核函数 2–3 个数量级的衰减。
+
+**下一步（未做）**：
+- Cauchy δ 提到与预期修正同量级，或
+- 分级策略：先无核批量收敛，收敛后再加核剔除外点（GNC 思路），或
+- switchable constraints
+
+### 80.7 可复用结论
+
+1. **「先验只有提名权，没有否决权」** —— 该反模式在本代码库出现四次。
+   任何以「与当前位姿的分歧量」为判据的闭环门，
+   都在结构上保证大漂移不可修复：误差越大，正确闭环要求的修正越大，越会被拒。
+2. **鲁棒核的 δ 是外点尺度，不是修正尺度。** 当 δ 小于系统需要的修正量时，
+   鲁棒核从「防错锁」变成「防修复」。
+3. **求解器的 `converged` 不是结果质量。** 该误用同时出现在重定位（§74.4）
+   与建图闭环两处。
+4. **验收判据必须包含防折叠项。** 三轮里几何都没折叠（轨迹长度不变），
+   若只看 z 一致性会误判。
+
+### 80.8 资产
+
+```
+~/ros_ws/n3mapping_v1_closeout/run_mapping_loopdebug.sh   开 loop_debug 重跑建图
+~/ros_ws/n3mapping_v1_closeout/loopdebug_map/             基线复现（2 条闭环）
+~/ros_ws/n3mapping_v1_closeout/loopfix2_map/              1–6 号修改（19 条）
+~/ros_ws/n3mapping_v1_closeout/loopfix3_map/              +7 号修改（16 条）
+/tmp/gravity.py                                           /lio_gravity 漂移分析
+/tmp/pb/n3map_pb2.py                                      protoc 生成，直读 pbstream
+tools/map_revisit_consistency.py                          重访自洽性（不需 GT）
+LIO bag: artifacts/.../20260723/0723_gravity_v2/full/lio_ros2   建图输入，含 /lio_gravity
+```
