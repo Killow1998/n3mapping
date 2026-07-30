@@ -111,6 +111,10 @@ class N3MappingCore {
     core::DenseTrajectoryMetadata dense_trajectory_metadata_;
     bool external_dense_trajectory_recording_enabled_ = false;
     int64_t last_loop_check_id_ = -1000;
+    // How many keyframes contributed an absolute attitude observation. Reported
+    // so a run that silently stops finding the floor is visible.
+    int floor_attitude_accepted_ = 0;
+    int floor_attitude_rejected_ = 0;
     std::size_t loop_count_ = 0;
     bool map_loaded_ = false;
 };

@@ -22,7 +22,8 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, sys.argv[2] if len(sys.argv) > 2 else "/tmp/pb")
+POSE = sys.argv[2] if len(sys.argv) > 2 else "optimized"
+sys.path.insert(0, sys.argv[3] if len(sys.argv) > 3 else "/tmp/pb")
 sys.setrecursionlimit(10000)
 import n3map_pb2  # noqa: E402
 
@@ -52,10 +53,11 @@ for k in kfs:
     if len(P) < MIN_PTS:
         continue
 
-    R_wb = q2R(k.pose_odom.qx, k.pose_odom.qy, k.pose_odom.qz, k.pose_odom.qw)
+    src = k.pose_optimized if POSE == "optimized" else k.pose_odom
+    R_wb = q2R(src.qx, src.qy, src.qz, src.qw)
     # Body-frame cloud rotated into world axes, so 'down' is whatever the LIO
     # world frame currently believes it to be.
-    t_wb = np.array([k.pose_odom.tx, k.pose_odom.ty, k.pose_odom.tz])
+    t_wb = np.array([src.tx, src.ty, src.tz])
     W = P @ R_wb.T
     r = np.hypot(W[:, 0], W[:, 1])
     W = W[r < MAX_RADIUS]
@@ -78,7 +80,7 @@ for k in kfs:
     rows.append((k.timestamp - t0, k.id, tilt, nrm, len(F), floor_world_z,
                  float(t_wb[2])))
 
-print("可用关键帧 %d / %d" % (len(rows), len(kfs)))
+print("位姿来源: %s   可用关键帧 %d / %d" % (POSE, len(rows), len(kfs)))
 if not rows:
     raise SystemExit("no usable floor fits")
 tilts = np.array([r[2] for r in rows])

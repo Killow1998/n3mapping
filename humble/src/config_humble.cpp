@@ -81,6 +81,10 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_closest_id_th", config->loop_closest_id_th);
     get("loop_min_id_interval", config->loop_min_id_interval);
     get("loop_min_path_length_m", config->loop_min_path_length_m);
+    get("floor_attitude_enable", config->floor_attitude_enable);
+    get("floor_attitude_noise_deg", config->floor_attitude_noise_deg);
+    get("floor_attitude_max_radius_m", config->floor_attitude_max_radius_m);
+    get("floor_attitude_min_points", config->floor_attitude_min_points);
     get("loop_max_range", config->loop_max_range);
 
     get("output_cloud_voxel_size", config->output_cloud_voxel_size);

@@ -1,5 +1,7 @@
 #include "n3mapping/graph_optimizer.h"
 
+#include <gtsam/navigation/AttitudeFactor.h>
+
 #include <cmath>
 #include <functional>
 #include <stdexcept>
@@ -114,6 +116,36 @@ GraphOptimizer::GraphOptimizer(const Config& config)
 }
 
 // ==================== 添加因子 ====================
+
+void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
+                                            const Eigen::Vector3d& normal_body) {
+    if (!config_.floor_attitude_enable) {
+        return;
+    }
+    if (!normal_body.allFinite() || normal_body.norm() < 1e-6) {
+        return;
+    }
+    // Pose3AttitudeFactor(key, nZ, model, bRef) asserts that bRef, taken through
+    // the pose's rotation, lands on nZ. Here bRef is the floor normal in the
+    // sensor frame and nZ is world up, so the factor constrains roll and pitch
+    // and nothing else.
+    const gtsam::Key key = gtsam::Symbol('x', id);
+    const double sigma = config_.floor_attitude_noise_deg * M_PI / 180.0;
+    auto noise = gtsam::noiseModel::Isotropic::Sigma(2, sigma);
+    new_factors_.add(gtsam::Pose3AttitudeFactor(
+        key, gtsam::Unit3(0.0, 0.0, 1.0), noise,
+        gtsam::Unit3(normal_body.normalized())));
+    ++floor_attitude_factor_count_;
+    if (floor_attitude_factor_count_ == 1 ||
+        floor_attitude_factor_count_ % 25 == 0) {
+        std::cout << "[OPTIMIZATION] floor_attitude kf=" << id
+                  << " normal_body=" << normal_body.transpose()
+                  << " sigma_deg=" << config_.floor_attitude_noise_deg
+                  << " total_factors=" << floor_attitude_factor_count_
+                  << std::endl;
+    }
+    needs_optimization_ = true;
+}
 
 void GraphOptimizer::addPriorFactor(int64_t id, const Eigen::Isometry3d& pose) {
     gtsam::Key key = gtsam::Symbol('x', id);

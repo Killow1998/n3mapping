@@ -115,6 +115,11 @@ class GraphOptimizer : public LoopOptimizerInterface
      */
     void addPriorFactor(int64_t id, const Eigen::Isometry3d& pose);
 
+    // Absolute roll/pitch for one node, from the floor normal measured in that
+    // keyframe's own sensor frame. Leaves yaw free.
+    void addFloorAttitudeFactor(int64_t id, const Eigen::Vector3d& normal_body);
+    int floorAttitudeFactorCount() const { return floor_attitude_factor_count_; }
+
     /**
      * @brief 添加里程计边
      *
@@ -254,6 +259,7 @@ class GraphOptimizer : public LoopOptimizerInterface
     std::set<int64_t> pending_node_ids_;      ///< 待提交节点 ID
     bool has_loop_closure_;                   ///< 是否有回环约束
     bool pending_has_loop_closure_;           ///< 待提交更新是否含回环约束
+    int floor_attitude_factor_count_ = 0;
     bool needs_optimization_;                 ///< 是否需要优化
 
     /**

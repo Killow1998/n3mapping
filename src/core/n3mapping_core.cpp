@@ -18,6 +18,7 @@
 #include "n3mapping/loop_heightmap_diagnostics.h"
 #include "n3mapping/loop_referee.h"
 #include "n3mapping/loop_segment_consistency.h"
+#include "n3mapping/floor_attitude.h"
 #include "n3mapping/loop_verifier.h"
 #include "n3mapping/pcl_compat.h"
 #include <pcl/common/transforms.h>
@@ -826,6 +827,23 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
     session_->graphOptimizer().addPriorFactor(keyframe_id, frame.T_world_lidar);
   } else {
     addOdometryConstraint(keyframe_id, frame.T_world_lidar);
+  }
+
+  // The only absolute attitude the graph ever sees. Measured from this scan's
+  // own returns, so it is independent of the pose it constrains.
+  if (config_.floor_attitude_enable) {
+    FloorNormalOptions floor_options;
+    floor_options.max_radius_m = config_.floor_attitude_max_radius_m;
+    floor_options.min_points = config_.floor_attitude_min_points;
+    const auto floor = estimateFloorNormal(*frame.undistorted_cloud,
+                                           frame.T_world_lidar, floor_options);
+    if (floor.valid) {
+      session_->graphOptimizer().addFloorAttitudeFactor(keyframe_id,
+                                                        floor.normal_body);
+      ++floor_attitude_accepted_;
+    } else {
+      ++floor_attitude_rejected_;
+    }
   }
 
   session_->graphOptimizer().incrementalOptimize();

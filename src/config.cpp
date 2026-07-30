@@ -94,6 +94,10 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(loop_closest_id_th);
     N3MAPPING_CONFIG_FIELD(loop_min_id_interval);
     N3MAPPING_CONFIG_FIELD(loop_min_path_length_m);
+    N3MAPPING_CONFIG_FIELD(floor_attitude_enable);
+    N3MAPPING_CONFIG_FIELD(floor_attitude_noise_deg);
+    N3MAPPING_CONFIG_FIELD(floor_attitude_max_radius_m);
+    N3MAPPING_CONFIG_FIELD(floor_attitude_min_points);
     N3MAPPING_CONFIG_FIELD(loop_max_range);
     N3MAPPING_CONFIG_FIELD(output_cloud_voxel_size);
     N3MAPPING_CONFIG_FIELD(map_save_path);
@@ -333,6 +337,9 @@ bool Config::validate(std::string* error) const {
     if (!at_least(loop_closest_id_th, 0, "loop_closest_id_th")) return false;
     if (!at_least(loop_min_id_interval, 0, "loop_min_id_interval")) return false;
     if (!at_least(loop_min_path_length_m, 0.0, "loop_min_path_length_m")) return false;
+    if (!positive(floor_attitude_noise_deg, "floor_attitude_noise_deg")) return false;
+    if (!positive(floor_attitude_max_radius_m, "floor_attitude_max_radius_m")) return false;
+    if (!at_least(floor_attitude_min_points, 1, "floor_attitude_min_points")) return false;
     if (!positive(loop_max_range, "loop_max_range")) return false;
     if (!positive(output_cloud_voxel_size, "output_cloud_voxel_size")) return false;
     if (!non_negative(global_map_voxel_size, "global_map_voxel_size")) return false;

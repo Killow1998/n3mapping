@@ -82,6 +82,18 @@ struct Config {
     // counts it spanned about 50 m of travel in a building that loops back
     // within 30, which excluded the only revisit that showed the drift.
     double loop_min_path_length_m = 5.0;
+
+    // Absolute roll/pitch from the floor under each scan. Without it the pose
+    // graph has no observation of gravity at all: every edge is relative, so a
+    // world frame that tilts while running is invisible and the height error it
+    // causes cannot be recovered.
+    bool floor_attitude_enable = true;
+    // How level a building floor is, not how precisely the plane fits. The fit
+    // is sub-degree over several hundred points; the horizontality assumption is
+    // the looser of the two and is what belongs in the noise model.
+    double floor_attitude_noise_deg = 1.0;
+    double floor_attitude_max_radius_m = 8.0;
+    int floor_attitude_min_points = 400;
     // Bounds registration work only. It must exceed the map's own extent, or
     // it silently becomes a correctness gate that rejects large corrections --
     // which is what 30.0 did on a 69 x 94 m map that had drifted 2.49 m.
