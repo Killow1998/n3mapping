@@ -49,6 +49,12 @@ GATE = {
     # opening ten metres, which hold a front-end startup transient no pose graph
     # can undo. Unlike the revisit figure this cannot be improved by leaning
     # harder on the loop edges, because it is not what they constrain.
+    #
+    # Single-storey only, the same precondition the revisit test has: one plane
+    # cannot describe a session that changes level, so on b22 -- two levels
+    # 5.05 m apart -- this reads 3.838 m and calls the storey drift. For a
+    # multi-storey recording the structural check is whether the floor-height
+    # histogram keeps its modes and their separation.
     "residual_band_span_max": 0.50,
 }
 
@@ -238,6 +244,9 @@ span_c, tilt_c, bands_c = residual_band_span(cand["kfs"])
 span_b = residual_band_span(base["kfs"])[0] if base else None
 if span_c is not None:
     row("地板残差段间跨度 m", span_c, span_b, "%.3f")
+    if span_c > GATE["residual_band_span_max"]:
+        print("      注意：该项与重访判据一样只对单层录制成立。"
+              "多层录制下层高会被算成漂移。")
 
 print()
 if bands_c:

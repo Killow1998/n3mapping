@@ -71,7 +71,7 @@ n3mapping_node:
     loop_kf_gap: 5
     loop_closest_id_th: 50
     loop_min_id_interval: 20
-    loop_max_range: 3.0
+    loop_max_range: 6.0
 
     output_cloud_voxel_size: 0.2
 

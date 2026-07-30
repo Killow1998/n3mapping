@@ -118,7 +118,7 @@ struct Config {
     // error, 3.0 brought it to 0.887. This is the value the product ships and
     // the built-in default has to agree with it -- a caller that does not load
     // the YAML was silently getting the aliasing one.
-    double loop_max_range = 3.0;
+    double loop_max_range = 6.0;
 
     double output_cloud_voxel_size = 0.1;
 
