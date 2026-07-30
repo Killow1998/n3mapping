@@ -87,6 +87,12 @@ struct Config {
     // graph has no observation of gravity at all: every edge is relative, so a
     // world frame that tilts while running is invisible and the height error it
     // causes cannot be recovered.
+    // Commit every loop that passed verification rather than one per query.
+    // Selecting one made sense when the search window was wide enough to admit
+    // corridor aliases; with the window sized to the drift it only throws away
+    // constraints, and it ranks by a fitness that favours near neighbours.
+    bool loop_keep_all_verified = true;
+
     bool floor_attitude_enable = true;
     // How level a building floor is, not how precisely the plane fits. The fit
     // is sub-degree over several hundred points; the horizontality assumption is

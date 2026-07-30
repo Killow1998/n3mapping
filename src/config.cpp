@@ -94,6 +94,7 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(loop_closest_id_th);
     N3MAPPING_CONFIG_FIELD(loop_min_id_interval);
     N3MAPPING_CONFIG_FIELD(loop_min_path_length_m);
+    N3MAPPING_CONFIG_FIELD(loop_keep_all_verified);
     N3MAPPING_CONFIG_FIELD(floor_attitude_enable);
     N3MAPPING_CONFIG_FIELD(floor_attitude_noise_deg);
     N3MAPPING_CONFIG_FIELD(floor_attitude_max_radius_m);

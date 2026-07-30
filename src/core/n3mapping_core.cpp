@@ -32,9 +32,18 @@ double rotationAngle(const Eigen::Isometry3d &transform) {
 }
 
 bool graphTrialYawInconsistent(const LoopGraphTrialDiagnostics &diagnostics) {
-  constexpr double kNearHalfTurnYawRad = 2.8;
-  return diagnostics.success && std::isfinite(diagnostics.residual_yaw_after) &&
-         std::abs(diagnostics.residual_yaw_after) >= kNearHalfTurnYawRad;
+  // Inconsistency is degrading what the graph already holds, not proposing a
+  // large correction. residual_yaw_after measures the latter: one trial edge
+  // moves poses by about 3 mm against a 256-edge odometry chain, so a large
+  // rotation correction survives the trial intact and read as a half-turn
+  // mismatch. The rotational degradation of the existing constraints is what
+  // the test should ask, and it is measured in the same struct.
+  constexpr double kConstraintRotationDegradationRad = 0.05;  // ~2.9 deg
+  if (!diagnostics.success) {
+    return false;
+  }
+  const double existing = diagnostics.existing_loop_residual_delta;
+  return std::isfinite(existing) && existing > kConstraintRotationDegradationRad;
 }
 
 // An edge is inconsistent when it makes the constraints already in the graph
@@ -1353,8 +1362,13 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
 
     auto valid_loops =
         session_->loopClosureManager().filterValidLoops(verified_loops);
+    // Every verified loop, not the single best-scoring one per query. The
+    // bounded window is what keeps aliases out now; ranking by fitness only
+    // discarded informative loops in favour of near neighbours.
     auto best_loops =
-        session_->loopClosureManager().selectBestPerQuery(valid_loops);
+        config_.loop_keep_all_verified
+            ? valid_loops
+            : session_->loopClosureManager().selectBestPerQuery(valid_loops);
     if (best_loops.empty()) {
       flush_debug_events({}, "not_selected");
       continue;

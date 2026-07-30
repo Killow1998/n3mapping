@@ -81,6 +81,7 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_closest_id_th", config->loop_closest_id_th);
     get("loop_min_id_interval", config->loop_min_id_interval);
     get("loop_min_path_length_m", config->loop_min_path_length_m);
+    get("loop_keep_all_verified", config->loop_keep_all_verified);
     get("floor_attitude_enable", config->floor_attitude_enable);
     get("floor_attitude_noise_deg", config->floor_attitude_noise_deg);
     get("floor_attitude_max_radius_m", config->floor_attitude_max_radius_m);

@@ -88,19 +88,24 @@ public:
             return result;
         }
 
+        // A yaw correction near half a turn is a flipped match whatever the
+        // segment says, so this one keeps its own evidence and drops the
+        // segment clause.
         if (std::isfinite(f.icp_correction_yaw_abs) &&
-            std::isfinite(f.segment_translation_median) &&
-            f.icp_correction_yaw_abs > kYawFlipRad &&
-            f.segment_translation_median > kLargeSegmentTranslationM) {
+            f.icp_correction_yaw_abs > kYawFlipRad) {
             result.decision = LoopDecision::Reject;
-            result.reason = "yaw_flip_with_segment_disagreement";
-            result.risk_flags = "yaw_segment";
+            result.reason = "yaw_flip";
+            result.risk_flags = "yaw";
             return result;
         }
 
-        if (segment_support >= 0.5 && segment_consistency < 0.5) {
+        // Weak segment support alone no longer rejects: the statistic rests on
+        // two neighbour pairs, and with the search window sized to the drift it
+        // is the descriptor that carries the independent confirmation.
+        if (segment_support >= 0.5 && segment_consistency < 0.5 &&
+            !has_descriptor) {
             result.decision = LoopDecision::Reject;
-            result.reason = "segment_inconsistent";
+            result.reason = "segment_inconsistent_unconfirmed";
             result.risk_flags = "segment";
             return result;
         }
