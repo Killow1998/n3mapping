@@ -26,7 +26,7 @@ n3mapping_node:
     gicp_submap_size: 5
     icp_refine_use_gicp: true
     icp_refine_max_iterations: 20
-    icp_refine_max_correspondence_distance: 1.0
+    icp_refine_max_correspondence_distance: 0.3
     icp_refine_downsampling_resolution: 0.05
     icp_refine_fitness_gate: 0.5
     icp_refine_delta_translation_gate: 3.0
@@ -51,7 +51,8 @@ n3mapping_node:
     loop_keep_all_verified: true
     loop_min_path_length_m: 5.0
     loop_noise_position: 0.05
-    loop_noise_rotation: 0.05
+    loop_noise_position_z: 0.4
+    loop_noise_rotation: 0.5
     use_robust_kernel: true
     robust_kernel_type: "Cauchy"
     robust_kernel_delta: 1.0

@@ -32,7 +32,7 @@ struct Config {
     int gicp_submap_size = 5;
     bool icp_refine_use_gicp = true;
     int icp_refine_max_iterations = 20;
-    double icp_refine_max_correspondence_distance = 1.0;
+    double icp_refine_max_correspondence_distance = 0.3;
     double icp_refine_downsampling_resolution = 0.05;
     double icp_refine_fitness_gate = 0.5;
     double icp_refine_delta_translation_gate = 3.0;
