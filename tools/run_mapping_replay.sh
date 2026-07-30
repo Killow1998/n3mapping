@@ -16,7 +16,7 @@ log_dir="${3:-/home/user/ros_ws/n3mapping_v1_closeout/s5b_keepall_logs}"
 root="/home/user/ros_ws/to_migrate_ws"
 build="/home/user/ros_ws/n3mapping_fs_build/install/n3mapping"
 node="$build/lib/n3mapping/n3mapping_node"
-params="/home/user/ros_ws/n3mapping_v1_closeout/loopdebug_params.yaml"
+params="${PARAMS:?set PARAMS to a per-stage params file}"
 replay="$build/lib/n3mapping/n3mapping_deterministic_ros2_replay.py"
 
 source /opt/ros/humble/setup.bash
@@ -27,13 +27,21 @@ set -u
 # A run that was interrupted leaves its node alive, and a second run started
 # alongside it competes for the same topics and silently mixes two mappings into
 # one output. Refuse rather than rely on remembering to clean up.
-if pgrep -f n3mapping_node >/dev/null; then
+if pgrep -x n3mapping_node >/dev/null; then
   echo "a n3mapping_node is already running; kill it before starting" >&2
   exit 3
 fi
 
 rm -rf "$map_output" "$log_dir"
 mkdir -p "$map_output" "$log_dir"
+
+cp "$params" "$log_dir/params.effective.yaml"
+{
+  echo "bag=$lio_bag"
+  echo "rate=${REPLAY_RATE:-1.0}"
+  echo "params=$params"
+  grep -E "odom_noise_rotation|floor_attitude|loop_max_range|loop_keep_all_verified|loop_min_path_length_m|robust_kernel" "$params"
+} | tee "$log_dir/provenance.txt"
 
 node_pid=""
 cleanup() {

@@ -1,0 +1,144 @@
+n3mapping_node:
+  ros__parameters:
+    mode: "mapping"
+    map_path: ""
+
+    cloud_topic: "/cloud_registered_body"
+    odom_topic: "/Odometry"
+    output_odom_topic: "/n3mapping/odometry"
+    output_path_topic: "/n3mapping/path"
+    output_cloud_body_topic: "/n3mapping/cloud_body"
+    output_cloud_world_topic: "/n3mapping/cloud_world"
+
+    world_frame: "map"
+    body_frame: "body"
+
+    keyframe_distance_threshold: 1.0
+    keyframe_angle_threshold: 0.5
+
+    gicp_downsampling_resolution: 0.1
+    gicp_max_correspondence_distance: 2.0
+    gicp_max_iterations: 30
+    gicp_transformation_epsilon: 1e-6
+    gicp_rotation_epsilon_deg: 1.0
+    gicp_fitness_threshold: 0.3
+    gicp_num_neighbors: 20
+    gicp_submap_size: 5
+    icp_refine_use_gicp: true
+    icp_refine_max_iterations: 20
+    icp_refine_max_correspondence_distance: 1.0
+    icp_refine_downsampling_resolution: 0.05
+    icp_refine_fitness_gate: 0.5
+    icp_refine_delta_translation_gate: 3.0
+    icp_refine_delta_rotation_gate: 0.5
+
+    sc_dist_threshold: 0.2
+    sc_num_exclude_recent: 50
+    sc_num_candidates: 5
+    sc_max_radius: 80.0
+    sc_num_rings: 20
+    sc_num_sectors: 60
+
+    kdtree_cache_size: 20
+
+    optimization_iterations: 10
+    prior_noise_position: 0.01
+    prior_noise_rotation: 0.01
+    odom_noise_position: 0.01
+    odom_noise_rotation: 0.004
+    floor_attitude_enable: true
+    floor_attitude_noise_deg: 2.7
+    loop_keep_all_verified: true
+    loop_min_path_length_m: 5.0
+    loop_noise_position: 0.5
+    loop_noise_rotation: 0.5
+    use_robust_kernel: true
+    robust_kernel_type: "Cauchy"
+    robust_kernel_delta: 1.0
+    loop_min_inlier_ratio: 0.7
+    loop_fitness_threshold: 0.2
+    loop_max_icp_translation: 2.0
+    loop_max_icp_rotation: 0.5
+    loop_use_icp_information: false
+    loop_icp_prefilter_voxel_size: 0.2
+    loop_icp_max_points: 50000
+    loop_debug_enable: true
+    loop_debug_vertical_hypotheses_enable: false
+    loop_debug_path: ""
+    loop_spatial_candidates_enable: true
+    loop_spatial_candidate_radius: 15.0
+    loop_spatial_candidate_min_id_gap: 50
+    loop_spatial_candidate_max_candidates: 5
+    loop_kf_gap: 5
+    loop_closest_id_th: 50
+    loop_min_id_interval: 20
+    loop_max_range: 3.0
+
+    output_cloud_voxel_size: 0.2
+
+    map_save_path: ""
+    global_map_voxel_size: 0.1
+    save_global_map_voxel_size: 0.1
+    global_map_publish_hz: 1.0
+    save_global_map_on_shutdown: true
+
+    num_threads: 4
+    sync_queue_size: 100
+    sync_time_tolerance: 0.1
+
+    reloc_num_candidates: 10
+    reloc_sc_dist_threshold: 0.3
+    reloc_min_confidence: 0.3
+    reloc_min_inlier_ratio: 0.03
+    reloc_search_radius: 20.0
+    reloc_max_track_failures: 5
+    reloc_track_max_translation: 3.0
+    reloc_track_max_rotation: 1.0
+    reloc_temporal_window_size: 5
+    reloc_lock_log_likelihood_threshold: 2.0
+    reloc_lock_min_winner_streak: 3
+    reloc_lock_min_converged_updates: 3
+    reloc_lock_min_margin: 0.35
+    reloc_hypothesis_miss_penalty: 8.0
+    reloc_hypothesis_not_converged_penalty: 8.0
+    reloc_reloc_inlier_weight: 2.0
+    reloc_reloc_desc_dist_weight: 0.2
+    reloc_track_motion_weight: 0.5
+    reloc_track_retry_max_failures: 5
+    reloc_track_retry_corr_scale: 5.0
+    reloc_track_retry_max_iterations: 50
+    reloc_track_unstable_submap_size: 10
+    reloc_static_agg_enable: true
+    reloc_static_agg_max_frames: 5
+    reloc_static_agg_min_frames: 3
+    reloc_static_agg_max_translation: 0.25
+    reloc_static_agg_max_rotation: 0.20
+    reloc_static_agg_voxel_size: 0.12
+    reloc_ambiguity_min_margin: 0.35
+    reloc_ambiguity_min_ratio: 1.05
+    reloc_ambiguity_min_basin_separation: 3.0
+    reloc_debug_enable: false
+    reloc_debug_path: ""
+    reloc_atlas_enable: false
+    reloc_atlas_path: ""
+
+    rhpd_enabled: true
+    rhpd_v2_enable: true
+    rhpd_v3_enable: false
+    rhpd_max_range: 30.0
+    rhpd_z_min: -2.0
+    rhpd_z_max: 6.0
+    rhpd_dist_threshold: 25.0
+    rhpd_num_candidates: 10
+    rhpd_preselect_candidates: 100
+    rhpd_submap_kf_radius: 3
+    rhpd_submap_voxel_size: 0.15
+    rhpd_primary_weight: 1.0
+    sc_aux_weight: 0.15
+    sc_aux_veto_enabled: false
+    sc_aux_veto_threshold: 0.6
+    rhpd_use_sc_yaw: true
+    rhpd_yaw_hypotheses: 4
+    rhpd_enable_negative_space: true
+    rhpd_enable_vertical_tokens: true
+    rhpd_enable_pca_confidence: true
