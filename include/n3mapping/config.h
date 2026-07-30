@@ -109,10 +109,16 @@ struct Config {
     double floor_attitude_noise_deg = 1.0;
     double floor_attitude_max_radius_m = 8.0;
     int floor_attitude_min_points = 400;
-    // Bounds registration work only. It must exceed the map's own extent, or
-    // it silently becomes a correctness gate that rejects large corrections --
-    // which is what 30.0 did on a 69 x 94 m map that had drifted 2.49 m.
-    double loop_max_range = 150.0;
+    // How far apart two keyframes may be, by the drifted poses, and still be
+    // worth registering. The comment here used to argue it must exceed the
+    // map's extent so it could not act as a correctness gate; that was written
+    // before the aliases were understood. A window sized to the drift rather
+    // than to the map is what separates a true revisit from a corridor that
+    // looks like one: 150 admitted matches from 14.766 m of cycle-closure
+    // error, 3.0 brought it to 0.887. This is the value the product ships and
+    // the built-in default has to agree with it -- a caller that does not load
+    // the YAML was silently getting the aliasing one.
+    double loop_max_range = 3.0;
 
     double output_cloud_voxel_size = 0.1;
 

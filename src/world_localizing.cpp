@@ -930,6 +930,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         reject_reason = "winner_streak";
       } else if (!pass_converged_updates) {
         reject_reason = "converged_updates";
+      } else if (!pass_free_space) {
+        reject_reason = "free_space_veto";
       } else {
         reject_reason = "stability_guard";
       }
@@ -954,7 +956,9 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           << " pass(loglik=" << pass_loglik << ", margin=" << pass_margin
           << ", winner_streak=" << pass_winner_streak
           << ", converged_updates=" << pass_converged_updates
-          << ", moving_visibility=" << pass_moving_visibility << ")";
+          << ", moving_visibility=" << pass_moving_visibility
+          << ", free_space=" << pass_free_space << ")"
+          << " free_cells=" << free_space_grid_.freeCells();
     }
     finish_debug("rejected", reject_reason);
   }
@@ -1665,6 +1669,13 @@ WorldLocalizing::freeSpaceBestHypothesis(
     return nullptr;
   rebuildFreeSpaceGridIfNeeded();
   if (!free_space_grid_.valid())
+    return nullptr;
+  // A grid with no free cells has nothing to say about which hypothesis sits in
+  // free space, so whichever it names would be an artefact of ranking noise.
+  // Vetoing on that refuses a lock over no evidence at all -- and this is
+  // reachable: a map with a single keyframe builds 28 occupied cells and zero
+  // free ones.
+  if (free_space_grid_.freeCells() == 0)
     return nullptr;
   const RelocHypothesis *best = nullptr;
   double best_value = 0.0;

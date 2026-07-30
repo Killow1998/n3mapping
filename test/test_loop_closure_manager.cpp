@@ -43,8 +43,10 @@ TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
     good.segment_support = 1.0;
     EXPECT_EQ(LoopReferee::decide(good), LoopDecision::Accept);
 
+    // A descriptor hit is now enough on its own, so a bundle that is weak
+    // everywhere else has to be weak there too before it can be rejected.
     LoopFeatures bad;
-    bad.descriptor_score = 0.1;
+    bad.descriptor_score = 0.0;
     bad.spatial_score = 0.1;
     bad.geometric_overlap = 0.0;
     bad.temporal_gap = 0.1;
@@ -52,12 +54,17 @@ TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
     bad.segment_consistency = 0.0;
     bad.segment_support = 1.0;
     EXPECT_EQ(LoopReferee::decide(bad), LoopDecision::Reject);
+
+    // What the same bundle does once a descriptor backs it, stated here so the
+    // loosening is visible rather than implied.
+    LoopFeatures bad_but_recognised = bad;
+    bad_but_recognised.descriptor_score = 0.8;
+    EXPECT_EQ(LoopReferee::decide(bad_but_recognised), LoopDecision::Accept);
 }
 
-TEST(LoopRefereeTest, RejectsSupportedButInconsistentSegments)
+TEST(LoopRefereeTest, RejectsInconsistentSegmentsOnlyWithoutADescriptor)
 {
     LoopFeatures features;
-    features.descriptor_score = 1.0;
     features.spatial_score = 1.0;
     features.geometric_overlap = 1.0;
     features.temporal_gap = 1.0;
@@ -67,8 +74,15 @@ TEST(LoopRefereeTest, RejectsSupportedButInconsistentSegments)
 
     const auto decision = LoopReferee::evaluate(features);
     EXPECT_EQ(decision.decision, LoopDecision::Reject);
-    EXPECT_EQ(decision.reason, "segment_inconsistent");
+    EXPECT_EQ(decision.reason, "unconfirmed_weak_segment");
     EXPECT_EQ(decision.risk_flags, "segment");
+
+    // The segment statistic rests on two neighbour pairs. With the window sized
+    // to the drift it is the descriptor that carries the independent
+    // confirmation, and requiring both discarded 86 candidates that registered
+    // at a median fitness of 0.052.
+    features.descriptor_score = 1.0;
+    EXPECT_EQ(LoopReferee::evaluate(features).decision, LoopDecision::Accept);
 }
 
 TEST(LoopRefereeTest, RejectsSpatialOnlyWithoutDescriptorSupport)
@@ -78,16 +92,27 @@ TEST(LoopRefereeTest, RejectsSpatialOnlyWithoutDescriptorSupport)
     features.spatial_score = 1.0;
     features.local_map_consistency = 1.0;
     features.segment_support = 1.0;
-    features.segment_consistency = 1.0;
+    features.segment_consistency = 0.75;
 
     const auto decision = LoopReferee::evaluate(features);
     EXPECT_EQ(decision.decision, LoopDecision::Reject);
     EXPECT_EQ(decision.reason, "spatial_only_unconfirmed");
     EXPECT_EQ(decision.risk_flags, "source");
+
+    // A spatial candidate is proposed by the drifted poses, so it needs
+    // confirmation from somewhere those poses cannot reach. Neighbouring
+    // keyframes that all register against the same match are such a source, and
+    // a stronger one than a descriptor hit; insisting on the descriptor
+    // specifically discarded 26 of the session's 57 best-evidenced candidates.
+    features.segment_consistency = 1.0;
+    EXPECT_EQ(LoopReferee::evaluate(features).decision, LoopDecision::Accept);
 }
 
-TEST(LoopRefereeTest, RejectsLargePredictedMotionWithWeakSegment)
+TEST(LoopRefereeTest, DoesNotJudgeALoopByHowFarItAsksToMove)
 {
+    // predicted_translation_norm is the separation the drifted poses report,
+    // which grows precisely for the loops that would repair the drift. Using it
+    // as evidence against a candidate rejected the corrections worth making.
     LoopFeatures features;
     features.descriptor_supported = true;
     features.descriptor_score = 1.0;
@@ -97,12 +122,21 @@ TEST(LoopRefereeTest, RejectsLargePredictedMotionWithWeakSegment)
     features.predicted_translation_norm = LoopReferee::kLargePredictedTranslationM + 0.1;
 
     const auto decision = LoopReferee::evaluate(features);
-    EXPECT_EQ(decision.decision, LoopDecision::Reject);
-    EXPECT_EQ(decision.reason, "large_prediction_with_weak_segment");
-    EXPECT_EQ(decision.risk_flags, "prediction_segment");
+    EXPECT_EQ(decision.decision, LoopDecision::Accept);
+    EXPECT_EQ(decision.reason, "descriptor_geometry_consistent");
+
+    // What still rejects it is the absence of any confirmation, at any distance.
+    features.descriptor_supported = false;
+    features.descriptor_score = 0.0;
+    const auto unconfirmed = LoopReferee::evaluate(features);
+    EXPECT_EQ(unconfirmed.decision, LoopDecision::Reject);
+    EXPECT_EQ(unconfirmed.reason, "unconfirmed_weak_segment");
+
+    features.predicted_translation_norm = 0.1;
+    EXPECT_EQ(LoopReferee::evaluate(features).decision, LoopDecision::Reject);
 }
 
-TEST(LoopRefereeTest, RejectsYawFlipWhenSegmentTranslationDisagrees)
+TEST(LoopRefereeTest, RejectsAYawFlipWhateverTheSegmentSays)
 {
     LoopFeatures features;
     features.descriptor_supported = true;
@@ -115,8 +149,14 @@ TEST(LoopRefereeTest, RejectsYawFlipWhenSegmentTranslationDisagrees)
 
     const auto decision = LoopReferee::evaluate(features);
     EXPECT_EQ(decision.decision, LoopDecision::Reject);
-    EXPECT_EQ(decision.reason, "yaw_flip_with_segment_disagreement");
-    EXPECT_EQ(decision.risk_flags, "yaw_segment");
+    EXPECT_EQ(decision.reason, "yaw_flip");
+    EXPECT_EQ(decision.risk_flags, "yaw");
+
+    // A correction near half a turn is a flipped match on its own evidence, so
+    // this rule keeps rejecting once the segment agrees -- the one place the
+    // referee was made stricter rather than looser.
+    features.segment_translation_median = 0.0;
+    EXPECT_EQ(LoopReferee::evaluate(features).reason, "yaw_flip");
 }
 
 TEST(LoopRefereeTest, AcceptsDescriptorBackedVerifiedGeometryWithLimitedSegmentEvidence)

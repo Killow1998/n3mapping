@@ -8,6 +8,24 @@
 namespace n3mapping {
 namespace test {
 
+// detectLoopCandidates bounds RHPD candidates by the path travelled between two
+// keyframes rather than by how many frames apart they are, so it needs their
+// poses. Laying them out a metre apart and setting loop_min_path_length_m to
+// the frame-count exclusion makes the two bounds coincide, which keeps these
+// cases testing what they were written to test.
+inline std::map<int64_t, Keyframe::Ptr> lineOfKeyframes(int count,
+                                                        double spacing_m = 1.0) {
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    for (int i = 0; i < count; ++i) {
+        auto kf = std::make_shared<Keyframe>();
+        kf->pose_odom = Eigen::Isometry3d::Identity();
+        kf->pose_odom.translation().x() = i * spacing_m;
+        keyframes[i] = kf;
+    }
+    return keyframes;
+}
+
+
 class LoopDetectorTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -18,6 +36,8 @@ protected:
         config_.num_threads = 2;
         config_.gicp_fitness_threshold = 0.5;
         config_.rhpd_enabled = true;
+        config_.loop_min_path_length_m =
+            config_.sc_num_exclude_recent * 1.0;
         config_.rhpd_dist_threshold = 100.0;
         config_.rhpd_num_candidates = 5;
         config_.rhpd_preselect_candidates = 12;
@@ -495,7 +515,7 @@ TEST_F(LoopDetectorTest, ExcludeRecentFrames) {
     
     // 查询第 14 帧 (索引从 0 开始)
     // 应该只在 [0, 4) 范围内搜索 (14 - 10 = 4)
-    auto candidates = detector_->detectLoopCandidates(14);
+    auto candidates = detector_->detectLoopCandidates(14, lineOfKeyframes(15));
     
     // 验证所有候选帧都在排除范围之外
     for (const auto& candidate : candidates) {
@@ -512,7 +532,7 @@ TEST_F(LoopDetectorTest, InsufficientHistory) {
     }
     
     // 查询最后一帧，应该返回空列表
-    auto candidates = detector_->detectLoopCandidates(4);
+    auto candidates = detector_->detectLoopCandidates(4, lineOfKeyframes(5));
     EXPECT_TRUE(candidates.empty());
 }
 
@@ -532,7 +552,7 @@ TEST_F(LoopDetectorTest, DetectSimilarScenes) {
     }
     
     // 查询第 15 帧，应该能找到第 0 帧作为候选
-    auto candidates = detector_->detectLoopCandidates(15);
+    auto candidates = detector_->detectLoopCandidates(15, lineOfKeyframes(16));
     
     // 由于使用相同的点云，应该能检测到回环
     // 注意：由于 ScanContext 的特性，相同点云应该有很小的距离
@@ -558,6 +578,7 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesUsesRHPDPrimary) {
     cfg.sc_aux_veto_enabled = false;
     cfg.rhpd_dist_threshold = 100.0;
     cfg.sc_num_exclude_recent = 10;
+    cfg.loop_min_path_length_m = 10 * 1.0;
     LoopDetector detector(cfg);
 
     for (int i = 0; i < 20; ++i) {
@@ -575,7 +596,7 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesUsesRHPDPrimary) {
         detector.addRHPD(i, cloud);
     }
 
-    auto candidates = detector.detectLoopCandidates(15);
+    auto candidates = detector.detectLoopCandidates(15, lineOfKeyframes(16));
     ASSERT_FALSE(candidates.empty());
     bool found = false;
     for (const auto& candidate : candidates) {
@@ -595,6 +616,7 @@ TEST_F(LoopDetectorTest, RHPDPrimarySearchFiltersRecentFramesBeforePrefilter) {
     cfg.rhpd_enabled = true;
     cfg.sc_aux_veto_enabled = false;
     cfg.sc_num_exclude_recent = 50;
+    cfg.loop_min_path_length_m = 50 * 1.0;
     cfg.rhpd_num_candidates = 5;
     cfg.sc_num_candidates = 3;
     cfg.rhpd_preselect_candidates = 8;
@@ -616,7 +638,7 @@ TEST_F(LoopDetectorTest, RHPDPrimarySearchFiltersRecentFramesBeforePrefilter) {
         detector.addRHPD(i, cloud);
     }
 
-    auto candidates = detector.detectLoopCandidates(180);
+    auto candidates = detector.detectLoopCandidates(180, lineOfKeyframes(181));
     ASSERT_FALSE(candidates.empty());
     bool found_old_loop = false;
     for (const auto& candidate : candidates) {
@@ -635,6 +657,7 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisa
     cfg.rhpd_enabled = false;
     cfg.sc_dist_threshold = 1.0;
     cfg.sc_num_exclude_recent = 10;
+    cfg.loop_min_path_length_m = 10 * 1.0;
     LoopDetector detector(cfg);
 
     for (int i = 0; i < 20; ++i) {
@@ -644,7 +667,7 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisa
         detector.addRHPD(i, cloud);
     }
 
-    auto candidates = detector.detectLoopCandidates(15);
+    auto candidates = detector.detectLoopCandidates(15, lineOfKeyframes(16));
     ASSERT_FALSE(candidates.empty());
     bool found = false;
     for (const auto& candidate : candidates) {

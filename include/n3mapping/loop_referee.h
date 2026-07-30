@@ -88,6 +88,11 @@ public:
             return result;
         }
 
+        // This also subsumes what used to be a separate rule for a supported
+        // but inconsistent segment: it asked for consistency < 0.5 with no
+        // descriptor, which the line above has already caught at <= 0.5, so
+        // the branch could never be reached.
+
         // A yaw correction near half a turn is a flipped match whatever the
         // segment says, so this one keeps its own evidence and drops the
         // segment clause.
@@ -96,17 +101,6 @@ public:
             result.decision = LoopDecision::Reject;
             result.reason = "yaw_flip";
             result.risk_flags = "yaw";
-            return result;
-        }
-
-        // Weak segment support alone no longer rejects: the statistic rests on
-        // two neighbour pairs, and with the search window sized to the drift it
-        // is the descriptor that carries the independent confirmation.
-        if (segment_support >= 0.5 && segment_consistency < 0.5 &&
-            !has_descriptor) {
-            result.decision = LoopDecision::Reject;
-            result.reason = "segment_inconsistent_unconfirmed";
-            result.risk_flags = "segment";
             return result;
         }
 

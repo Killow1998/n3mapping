@@ -19,6 +19,24 @@
 namespace n3mapping {
 namespace test {
 
+// detectLoopCandidates bounds RHPD candidates by the path travelled between two
+// keyframes rather than by how many frames apart they are, so it needs their
+// poses. Laying them out a metre apart and setting loop_min_path_length_m to
+// the frame-count exclusion makes the two bounds coincide, which keeps these
+// cases testing what they were written to test.
+inline std::map<int64_t, Keyframe::Ptr> lineOfKeyframes(int count,
+                                                        double spacing_m = 1.0) {
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    for (int i = 0; i < count; ++i) {
+        auto kf = std::make_shared<Keyframe>();
+        kf->pose_odom = Eigen::Isometry3d::Identity();
+        kf->pose_odom.translation().x() = i * spacing_m;
+        keyframes[i] = kf;
+    }
+    return keyframes;
+}
+
+
 /**
  * @brief 属性测试基类
  */
@@ -99,6 +117,8 @@ protected:
         std::uniform_real_distribution<double> threshold_dist(0.1, 0.5);
         
         config.sc_num_exclude_recent = exclude_dist(rng_);
+        config.loop_min_path_length_m =
+            config.sc_num_exclude_recent * 1.0;
         config.sc_num_candidates = candidates_dist(rng_);
         config.sc_dist_threshold = threshold_dist(rng_);
         config.num_threads = 2;
@@ -146,7 +166,7 @@ TEST_F(LoopDetectorPBTTest, Property4_ExcludeRecentFrames) {
         int query_id = query_dist(rng_);
         
         // 执行回环检测
-        auto candidates = detector->detectLoopCandidates(query_id);
+        auto candidates = detector->detectLoopCandidates(query_id, lineOfKeyframes(num_frames));
         
         // 验证属性：所有候选帧索引都小于 (query_id - num_exclude_recent)
         int max_allowed_id = query_id - config.sc_num_exclude_recent;
@@ -246,7 +266,8 @@ TEST_F(LoopDetectorPBTTest, InsufficientHistoryReturnsEmpty) {
         }
         
         // 查询最后一帧
-        auto candidates = detector->detectLoopCandidates(num_frames - 1);
+        auto candidates = detector->detectLoopCandidates(num_frames - 1,
+                                                        lineOfKeyframes(num_frames));
         
         // 验证：应该返回空列表
         EXPECT_TRUE(candidates.empty())
@@ -277,7 +298,8 @@ TEST_F(LoopDetectorPBTTest, CandidateCountLimit) {
         }
         
         // 查询最后一帧
-        auto candidates = detector->detectLoopCandidates(num_frames - 1);
+        auto candidates = detector->detectLoopCandidates(num_frames - 1,
+                                                        lineOfKeyframes(num_frames));
         
         // 验证：候选数量不超过配置值
         EXPECT_LE(static_cast<int>(candidates.size()), config.sc_num_candidates)
