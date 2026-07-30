@@ -51,7 +51,7 @@ n3mapping_node:
     loop_keep_all_verified: true
     loop_min_path_length_m: 5.0
     loop_noise_position: 0.05
-    loop_noise_rotation: 0.5
+    loop_noise_rotation: 0.05
     use_robust_kernel: true
     robust_kernel_type: "Cauchy"
     robust_kernel_delta: 1.0

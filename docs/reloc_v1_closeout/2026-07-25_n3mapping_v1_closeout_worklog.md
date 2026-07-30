@@ -4068,3 +4068,95 @@ S7 用的是修完测试之后重新编译的二进制（守卫、裁判死分�
 预测 p90 **< 0.30 m**。护栏：轨迹长与 xy 范围相对 S5d 变化 <5%
 （收紧闭环 + 万一有坏闭环 = 折叠风险最高的组合）。
 **失败则后端真的穷尽。**
+
+---
+
+## 97. `loop_noise_position` / `loop_noise_rotation` 从未生效（2026-07-30）
+
+### 97.1 S8 与 S7 逐位相同
+
+`loop_noise_position` 0.5 → 0.05（十倍），产出的地图**每一位都一样**：
+闭环 45、中位 0.2594、p90 0.4764、最大 2.3250、轨迹 235.7 / 48.58 / 41.16 / 3.75。
+
+不是"没有改善"，是**这个参数根本没到优化器**。
+
+### 97.2 缺陷
+
+`src/loop_verifier.cpp`：
+
+```cpp
+loop.information = config_.loop_use_icp_information
+    ? verification.match_result.information
+    : Eigen::Matrix<double, 6, 6>::Identity();   // ← 单位阵
+```
+
+`graph_optimizer.cpp::createRobustNoiseModel` 的分支条件是
+`if (!information.isZero(1e-10))` —— **单位阵不是零**，
+于是走"使用提供的信息矩阵"分支，
+**永远到不了下面那个用 `loop_noise_position` 的回退。**
+
+单位信息阵 = 每条闭环边 **σ = 1.0 m / 1.0 rad**。
+对照里程计边 0.01 m / 0.001 rad：
+
+**闭环边在位置上弱 100 倍，在旋转上弱 1000 倍（1.0 rad = 57°）。**
+
+XY-yaw 那条路径同样中招：`sigmaFromInfo(information(0,0), fallback)`
+读到 `information(0,0) = 1`，返回 `1/sqrt(1) = 1.0`，回退同样用不上。
+
+### 97.3 这两个参数是"看起来在工作"的死参数
+
+它们写在 `product_v1.yaml` 与 `n3mapping.yaml` 里、
+出现在 `config.cpp:192` 的配置摘要打印里、
+在 `config.cpp:307` 被 `positive()` 校验、
+被 `config_humble.cpp:61` 从 ROS 参数读入 ——
+**全套仪式齐备，而对闭环边没有任何作用。**
+
+`mapping_resuming.cpp:239` 用了它们（那条路径自己算信息矩阵），
+所以 grep 会显示"在用"，掩盖了主路径上的失效。
+
+### 97.4 这解释了 S7
+
+S7 把闭环从 11 加到 45，残差剖面逐段变化不到 2 cm。
+**45 条在旋转上比里程计弱一千倍的边，推不动任何东西。**
+我上一轮估的"弱 50 倍"是按配置里的 0.5 算的，
+而实际生效的是 1.0 —— 估小了一半，方向是对的。
+
+### 97.5 修复
+
+`loop_use_icp_information` 为假时，用配置的闭环噪声构造信息矩阵，
+而不是塞一个单位阵：
+
+```cpp
+loop.information = Eigen::Matrix<double, 6, 6>::Identity();
+loop.information.block<3, 3>(0, 0) *= 1.0 / (loop_noise_position ^ 2);
+loop.information.block<3, 3>(3, 3) *= 1.0 / (loop_noise_rotation ^ 2);
+```
+
+块顺序 (translation, rotation) 与 `addOdometryConstraint` 一致，
+`createRobustNoiseModel` 会为 GTSAM 交换。修在源头，两条路径都覆盖。
+
+**325 个测试仍全过。**
+
+**注意：这会改变默认行为**（σ 从实际的 1.0 变成配置声称的 0.5），
+所以必须分两步测，不能假设。
+
+### 97.6 先写死的判据
+
+| 阶段 | 改动 | 预测 | 失败含义 |
+|---|---|---|---|
+| S9 | 修缺陷，参数不动（0.5/0.5） | 与 S7 **不同** | 若相同，说明我对这条路径的理解仍是错的 |
+| S10 | S9 + 闭环噪声 0.05/0.05 | p90 **< 0.30 m** | 后端穷尽 |
+
+护栏：轨迹长与 xy 范围相对 S5d 变化 <5%。
+
+### 97.7 教训
+
+**"关掉某个来源"不等于"没有信息"。**
+用单位阵表示"不用 ICP 的信息"，实际是断言了一米一弧度的精度，
+而下游用 `isZero()` 判断"有没有提供信息" —— 两边对同一个矩阵的含义理解不同，
+中间没有任何东西会报错。
+
+这是本轮第三个同一类缺陷：
+- §95：自由空间否决在零自由空间证据上照常否决
+- §95：`loop_max_range` 内置默认与发布的 YAML 不一致
+- §97：闭环噪声参数走完全套仪式却不生效

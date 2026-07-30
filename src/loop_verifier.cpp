@@ -90,9 +90,21 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
     loop.T_measurement_residual = verification.T_measurement_residual;
     loop.fitness_score = verification.match_result.fitness_score;
     loop.inlier_ratio = verification.match_result.inlier_ratio;
-    loop.information = config_.loop_use_icp_information
-        ? verification.match_result.information
-        : Eigen::Matrix<double, 6, 6>::Identity();
+    // Identity is not "no information" -- it is a metre and a radian of sigma,
+    // and it silently displaces the configured fallback because every consumer
+    // downstream tests the matrix for zero, not for meaning. With ICP's own
+    // information switched off, the configured loop noise is what belongs here.
+    // Block order is (translation, rotation), matching addOdometryConstraint;
+    // createRobustNoiseModel swaps them for GTSAM.
+    if (config_.loop_use_icp_information) {
+        loop.information = verification.match_result.information;
+    } else {
+        loop.information = Eigen::Matrix<double, 6, 6>::Identity();
+        loop.information.block<3, 3>(0, 0) *=
+            1.0 / (config_.loop_noise_position * config_.loop_noise_position);
+        loop.information.block<3, 3>(3, 3) *=
+            1.0 / (config_.loop_noise_rotation * config_.loop_noise_rotation);
+    }
     loop.vertical_information_ratio = verticalInformationRatio(verification.match_result.information);
 
     verification.fitness_ok = verification.match_result.fitness_score < config_.loop_fitness_threshold;
