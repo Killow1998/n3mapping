@@ -25,6 +25,13 @@ sys.path.insert(0, PB_DIR)
 sys.setrecursionlimit(10000)
 import n3map_pb2  # noqa: E402
 
+# Two poses at the same horizontal position on different floors are not a
+# revisit, and pairing them reports the storey height as drift: b22, which is
+# genuinely two levels about 11 m apart, came out at 14.28 m of revisit error
+# purely from that. Pairs are therefore also required to see the floor at a
+# similar height, which keeps the test to one level without needing to know how
+# many levels there are.
+SAME_LEVEL_TOL = 1.5   # metres of floor-height difference still one level
 XY_TOL = 1.0      # metres: close enough to be the same place
 T_GAP = 30.0      # seconds: far enough apart to be a revisit
 GATE = {
@@ -45,8 +52,34 @@ def load(path):
                       for k in kfs])
     t = np.array([k.timestamp for k in kfs])
     loop = sum(1 for e in m.edges if e.type == n3map_pb2.EdgeProto.LOOP)
+    # Floor height under each keyframe, fitted from that keyframe's own returns.
+    # Used only to keep the revisit test on one level; deriving it from the scans
+    # means the test needs no prior knowledge of how many levels exist.
+    floor_z = np.full(len(kfs), np.nan)
+    for i, k in enumerate(kfs):
+        if k.cloud.num_points < 400:
+            continue
+        pts = np.asarray(k.cloud.points, dtype=np.float64).reshape(-1, 4)[:, :3]
+        q = k.pose_optimized
+        R = np.array([
+            [1 - 2 * (q.qy * q.qy + q.qz * q.qz), 2 * (q.qx * q.qy - q.qz * q.qw),
+             2 * (q.qx * q.qz + q.qy * q.qw)],
+            [2 * (q.qx * q.qy + q.qz * q.qw), 1 - 2 * (q.qx * q.qx + q.qz * q.qz),
+             2 * (q.qy * q.qz - q.qx * q.qw)],
+            [2 * (q.qx * q.qz - q.qy * q.qw), 2 * (q.qy * q.qz + q.qx * q.qw),
+             1 - 2 * (q.qx * q.qx + q.qy * q.qy)]])
+        W = pts @ R.T
+        r = np.hypot(W[:, 0], W[:, 1])
+        W = W[r < 8.0]
+        if len(W) < 400:
+            continue
+        zlo = np.percentile(W[:, 2], 2.0)
+        band = W[(W[:, 2] > zlo - 0.10) & (W[:, 2] < zlo + 0.35)]
+        if len(band) < 400:
+            continue
+        floor_z[i] = float(np.percentile(band[:, 2], 50.0)) + q.tz
     return {"P": P, "Podom": Podom, "t": t - t[0], "loop": loop,
-            "edges": len(m.edges), "n": len(kfs)}
+            "edges": len(m.edges), "n": len(kfs), "floor_z": floor_z}
 
 
 def revisit(d):
@@ -59,10 +92,22 @@ def revisit(d):
     pairs = pairs[gap > T_GAP]
     if len(pairs) == 0:
         return None
+    # Deliberately not filtered. Dropping pairs whose observed floors sit far
+    # apart looks like it separates storeys from drift, and on 0723 -- a single
+    # floor -- it took the worst revisit error from 2.33 m to 0.68 m by removing
+    # exactly the pairs that prove the map has drifted. On a drifted single floor
+    # the same place does report two floor heights, so the filter hides the
+    # defect it is meant to measure. The count is reported instead, and the
+    # caller has to know whether the recording is single-storey.
+    fz = d.get("floor_z")
+    far = 0
+    if fz is not None:
+        dz_floor = np.abs(fz[pairs[:, 0]] - fz[pairs[:, 1]])
+        far = int((dz_floor >= SAME_LEVEL_TOL).sum())
     dz = np.abs(P[pairs[:, 0], 2] - P[pairs[:, 1], 2])
     return {"n": len(dz), "median": float(np.median(dz)),
             "p90": float(np.percentile(dz, 90)), "max": float(dz.max()),
-            "over_half": int((dz > 0.5).sum())}
+            "over_half": int((dz > 0.5).sum()), "far_floor": far}
 
 
 def geometry(d):
@@ -81,6 +126,11 @@ gc, gb = geometry(cand), (geometry(base) if base else None)
 back_end = np.linalg.norm(cand["P"] - cand["Podom"], axis=1)
 
 print("关键帧 %d   边 %d (闭环 %d)" % (cand["n"], cand["edges"], cand["loop"]))
+print("前提：重访判据只对单层录制成立。多层建筑里同一 xy 的不同楼层会被当成重访。")
+if rc and rc.get("far_floor"):
+    print("注意：%d / %d 对配对的观测地板高度相差 >%.1f m。单层录制下这是漂移的证据；"
+          % (rc["far_floor"], rc["n"], SAME_LEVEL_TOL))
+    print("      多层录制下这些配对不是重访，本表的 |dz| 不可解读。")
 print("后端对前端的位移修正: 中位 %.3e m  最大 %.4f m"
       % (float(np.median(back_end)), float(back_end.max())))
 print()
