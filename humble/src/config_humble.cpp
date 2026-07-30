@@ -60,6 +60,7 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("odom_noise_rotation", config->odom_noise_rotation);
     get("loop_noise_position", config->loop_noise_position);
     get("loop_noise_rotation", config->loop_noise_rotation);
+    get("loop_noise_position_z", config->loop_noise_position_z);
     get("use_robust_kernel", config->use_robust_kernel);
     get("robust_kernel_type", config->robust_kernel_type);
     get("robust_kernel_delta", config->robust_kernel_delta);

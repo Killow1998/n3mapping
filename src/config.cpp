@@ -73,6 +73,7 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(odom_noise_rotation);
     N3MAPPING_CONFIG_FIELD(loop_noise_position);
     N3MAPPING_CONFIG_FIELD(loop_noise_rotation);
+    N3MAPPING_CONFIG_FIELD(loop_noise_position_z);
     N3MAPPING_CONFIG_FIELD(use_robust_kernel);
     N3MAPPING_CONFIG_FIELD(robust_kernel_type);
     N3MAPPING_CONFIG_FIELD(robust_kernel_delta);

@@ -54,6 +54,13 @@ struct Config {
     double odom_noise_rotation = 0.001;
     double loop_noise_position = 0.5;
     double loop_noise_rotation = 0.5;
+    // Height is the axis a loop registers worst. Measured against the floor on
+    // 0723, a loop's z correction carries a median error of 0.407 m while the
+    // same edge's horizontal agreement has no reason to be as poor: a floor is
+    // one plane seen edge-on, whereas walls and furniture pin x and y from
+    // several directions. Non-positive means "use loop_noise_position", which
+    // is the isotropic behaviour everything was measured against.
+    double loop_noise_position_z = -1.0;
     bool use_robust_kernel = true;
     std::string robust_kernel_type = "Cauchy";
     double robust_kernel_delta = 1.0;

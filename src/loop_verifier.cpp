@@ -99,9 +99,14 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
     if (config_.loop_use_icp_information) {
         loop.information = verification.match_result.information;
     } else {
+        const double sigma_xy = config_.loop_noise_position;
+        const double sigma_z = config_.loop_noise_position_z > 0.0
+                                   ? config_.loop_noise_position_z
+                                   : config_.loop_noise_position;
         loop.information = Eigen::Matrix<double, 6, 6>::Identity();
-        loop.information.block<3, 3>(0, 0) *=
-            1.0 / (config_.loop_noise_position * config_.loop_noise_position);
+        loop.information(0, 0) = 1.0 / (sigma_xy * sigma_xy);
+        loop.information(1, 1) = 1.0 / (sigma_xy * sigma_xy);
+        loop.information(2, 2) = 1.0 / (sigma_z * sigma_z);
         loop.information.block<3, 3>(3, 3) *=
             1.0 / (config_.loop_noise_rotation * config_.loop_noise_rotation);
     }
