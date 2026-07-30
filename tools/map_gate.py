@@ -34,11 +34,22 @@ import n3map_pb2  # noqa: E402
 SAME_LEVEL_TOL = 1.5   # metres of floor-height difference still one level
 XY_TOL = 1.0      # metres: close enough to be the same place
 T_GAP = 30.0      # seconds: far enough apart to be a revisit
+# Distance bands the floor residual is summarised over. Coarse enough that each
+# holds tens of keyframes, fine enough that a section sinking on its own shows up.
+RESIDUAL_BANDS = [(0, 10), (10, 25), (25, 50), (50, 75), (75, 100),
+                  (100, 150), (150, 200), (200, 300), (300, 10 ** 9)]
+
 GATE = {
     "loop_edges_min": 20,
     "dz_p90_max": 0.10,
     "dz_max_max": 0.30,
     "geometry_drift_max": 0.05,   # fraction, vs baseline
+    # How far apart two bands of the session may place the same floor. Read on
+    # the optimised poses with the map's fixed tilt taken out, and excluding the
+    # opening ten metres, which hold a front-end startup transient no pose graph
+    # can undo. Unlike the revisit figure this cannot be improved by leaning
+    # harder on the loop edges, because it is not what they constrain.
+    "residual_band_span_max": 0.50,
 }
 
 
@@ -79,7 +90,8 @@ def load(path):
             continue
         floor_z[i] = float(np.percentile(band[:, 2], 50.0)) + q.tz
     return {"P": P, "Podom": Podom, "t": t - t[0], "loop": loop,
-            "edges": len(m.edges), "n": len(kfs), "floor_z": floor_z}
+            "edges": len(m.edges), "n": len(kfs), "floor_z": floor_z,
+            "kfs": kfs}
 
 
 def revisit(d):
@@ -115,6 +127,69 @@ def geometry(d):
     return {"path": float(np.linalg.norm(np.diff(P, axis=0), axis=1).sum()),
             "x": float(P[:, 0].ptp()), "y": float(P[:, 1].ptp()),
             "z": float(P[:, 2].ptp())}
+
+
+def residual_band_span(kfs, pose_attr="pose_optimized"):
+    """Spread of the floor height between bands, with one fixed plane removed.
+
+    A map tilted by a constant angle puts the same place at the same height
+    every time, so the revisit test is blind to it and it does not belong in
+    this number either. What is left after subtracting the best-fit plane is the
+    part that changes as the session goes on, which is what makes a revisit
+    disagree. Returns (span, tilt_deg, rows) or (None, None, []) when too few
+    keyframes yield a floor.
+    """
+    import numpy as np
+
+    rows = []
+    path = 0.0
+    previous = None
+    for k in kfs:
+        q = getattr(k, pose_attr)
+        here = np.array([q.tx, q.ty, q.tz])
+        if previous is not None:
+            path += float(np.linalg.norm(here - previous))
+        previous = here
+        if k.cloud.num_points < 400:
+            continue
+        pts = np.asarray(k.cloud.points, dtype=np.float64).reshape(-1, 4)[:, :3]
+        R = np.array([
+            [1 - 2 * (q.qy * q.qy + q.qz * q.qz), 2 * (q.qx * q.qy - q.qz * q.qw),
+             2 * (q.qx * q.qz + q.qy * q.qw)],
+            [2 * (q.qx * q.qy + q.qz * q.qw), 1 - 2 * (q.qx * q.qx + q.qz * q.qz),
+             2 * (q.qy * q.qz - q.qx * q.qw)],
+            [2 * (q.qx * q.qz - q.qy * q.qw), 2 * (q.qy * q.qz + q.qx * q.qw),
+             1 - 2 * (q.qx * q.qx + q.qy * q.qy)]])
+        W = pts @ R.T
+        W = W[np.hypot(W[:, 0], W[:, 1]) < 8.0]
+        if len(W) < 400:
+            continue
+        lo = np.percentile(W[:, 2], 2.0)
+        band = W[(W[:, 2] > lo - 0.10) & (W[:, 2] < lo + 0.35)]
+        if len(band) < 400:
+            continue
+        rows.append((path, q.tx, q.ty, float(np.median(band[:, 2])) + q.tz))
+    if len(rows) < 20:
+        return None, None, []
+
+    A = np.array(rows)
+    M = np.column_stack([A[:, 1], A[:, 2], np.ones(len(A))])
+    coef, *_ = np.linalg.lstsq(M, A[:, 3], rcond=None)
+    residual = A[:, 3] - M @ coef
+    tilt = math.degrees(math.atan(math.hypot(coef[0], coef[1])))
+
+    out = []
+    for lo, hi in RESIDUAL_BANDS:
+        sel = residual[(A[:, 0] >= lo) & (A[:, 0] < hi)]
+        if len(sel) >= 3:
+            out.append((lo, hi, len(sel), float(np.median(sel)), float(sel.std())))
+    # The opening band carries the startup transient, which is a property of the
+    # recording rather than of the pose graph, and including it would report the
+    # same failure whatever the back end did.
+    settled = [r[3] for r in out if r[0] >= 10]
+    if len(settled) < 2:
+        return None, tilt, out
+    return max(settled) - min(settled), tilt, out
 
 
 cand = load(sys.argv[1])
@@ -159,12 +234,34 @@ row("x 范围 m", gc["x"], gb["x"] if gb else None, "%.2f")
 row("y 范围 m", gc["y"], gb["y"] if gb else None, "%.2f")
 row("z 范围 m", gc["z"], gb["z"] if gb else None, "%.2f")
 
+span_c, tilt_c, bands_c = residual_band_span(cand["kfs"])
+span_b = residual_band_span(base["kfs"])[0] if base else None
+if span_c is not None:
+    row("地板残差段间跨度 m", span_c, span_b, "%.3f")
+
 print()
+if bands_c:
+    print("地板残差按路程（已去掉 %.2f° 的固定倾斜，该倾斜对重访不可见）："
+          % (tilt_c or 0.0))
+    print("  %-12s %6s %10s %10s" % ("路程段", "帧数", "中位", "标准差"))
+    for lo, hi, n, med, sd in bands_c:
+        label = "%d-%s" % (lo, "%d" % hi if hi < 10 ** 9 else "+")
+        note = "  ← 开机暂态，不计入跨度" if lo < 10 else ""
+        print("  %-12s %6d %10.3f %10.3f%s" % (label, n, med, sd, note))
+    print()
 checks = [
     ("闭环边 >= %d" % GATE["loop_edges_min"], cand["loop"] >= GATE["loop_edges_min"]),
     ("|dz| p90 < %.2f m" % GATE["dz_p90_max"], rc["p90"] < GATE["dz_p90_max"]),
     ("|dz| max < %.2f m" % GATE["dz_max_max"], rc["max"] < GATE["dz_max_max"]),
 ]
+if span_c is not None:
+    # The revisit figure alone can be driven down by leaning harder on the loop
+    # edges, because it scores very nearly the pairs those edges constrain:
+    # loop_noise_position 0.5 -> 0.05 took it from 0.4605 to 0.3283 while the
+    # floor under the last stretch of the session sank 0.33 m. This is the check
+    # that notices.
+    checks.append(("地板残差段间跨度 < %.2f m" % GATE["residual_band_span_max"],
+                   span_c < GATE["residual_band_span_max"]))
 if gb:
     worst = max(abs(gc[k] - gb[k]) / gb[k] for k in ("path", "x", "y"))
     checks.append(("几何未折叠 (变化 %.1f%% < %.0f%%)"
@@ -174,3 +271,4 @@ for name, ok in checks:
     print("  %-42s %s" % (name, "PASS" if ok else "FAIL"))
 print()
 print("总判定: %s" % ("PASS" if all(ok for _, ok in checks) else "FAIL"))
+
