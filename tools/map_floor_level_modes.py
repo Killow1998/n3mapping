@@ -6,7 +6,7 @@ def R(q):
     return np.array([[1-2*(q.qy*q.qy+q.qz*q.qz),2*(q.qx*q.qy-q.qz*q.qw),2*(q.qx*q.qz+q.qy*q.qw)],
                      [2*(q.qx*q.qy+q.qz*q.qw),1-2*(q.qx*q.qx+q.qz*q.qz),2*(q.qy*q.qz-q.qx*q.qw)],
                      [2*(q.qx*q.qz-q.qy*q.qw),2*(q.qy*q.qz+q.qx*q.qw),1-2*(q.qx*q.qx+q.qy*q.qy)]])
-for tag,p in (('b22 S5d','x_b22_s5d'),('b22 S9','x_b22_s9')):
+for tag,p in (('b22 S5d','x_b22_s5d'),('b22 S12','x_b22_s12')):
     m=n3map_pb2.N3Map(); m.ParseFromString(Path('/home/user/ros_ws/n3mapping_v1_closeout/%s/map/n3map.pbstream'%p).read_bytes())
     z=[]
     for k in sorted(m.keyframes,key=lambda k:k.timestamp):

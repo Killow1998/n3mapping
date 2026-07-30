@@ -46,7 +46,8 @@ n3mapping_node:
     prior_noise_rotation: 0.01
     odom_noise_position: 0.01
     odom_noise_rotation: 0.001
-    loop_noise_position: 0.5
+    loop_noise_position: 0.05
+    loop_noise_position_z: 0.4
     loop_noise_rotation: 0.5
     use_robust_kernel: true
     robust_kernel_type: "Cauchy"
