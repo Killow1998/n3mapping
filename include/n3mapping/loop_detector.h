@@ -189,7 +189,11 @@ public:
     Eigen::MatrixXd addDescriptor(int64_t keyframe_id, const PointCloudT::Ptr& cloud);
     void addDescriptor(int64_t keyframe_id, const Eigen::MatrixXd& descriptor);
     bool isScanContextDescriptorCompatible(const Eigen::MatrixXd& descriptor) const;
-    std::vector<LoopCandidate> detectLoopCandidates(int64_t query_id);
+    // keyframes supplies the odometry poses the path-length exclusion needs;
+    // pass the same map used for spatial candidates.
+    std::vector<LoopCandidate> detectLoopCandidates(
+        int64_t query_id,
+        const std::map<int64_t, Keyframe::Ptr>& keyframes);
     std::vector<LoopCandidate> detectSpatialCandidates(
         int64_t query_id,
         const std::map<int64_t, Keyframe::Ptr>& keyframes) const;

@@ -75,6 +75,13 @@ struct Config {
     int loop_kf_gap = 5;
     int loop_closest_id_th = 50;
     int loop_min_id_interval = 20;
+    // Odometry path travelled between two keyframes, below which a loop is not
+    // worth forming because the odometry chain already constrains the pair far
+    // more tightly than registration could. Replaces the keyframe-count
+    // exclusion for RHPD candidates: a count is not a distance, and at 50
+    // counts it spanned about 50 m of travel in a building that loops back
+    // within 30, which excluded the only revisit that showed the drift.
+    double loop_min_path_length_m = 5.0;
     // Bounds registration work only. It must exceed the map's own extent, or
     // it silently becomes a correctness gate that rejects large corrections --
     // which is what 30.0 did on a 69 x 94 m map that had drifted 2.49 m.

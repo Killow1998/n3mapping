@@ -1,6 +1,8 @@
 // MappingResuming: map extension — load existing map, relocalize, add new keyframes, detect cross-loops.
 #include "n3mapping/mapping_resuming.h"
 
+#include <map>
+
 #include <algorithm>
 
 #include "n3mapping/cloud_utils.h"
@@ -149,7 +151,14 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     auto new_kf = keyframe_manager_.getKeyframe(new_keyframe_id);
     if (!new_kf || !new_kf->cloud) return 0;
 
-    auto candidates = loop_detector_.detectLoopCandidates(new_keyframe_id);
+    std::map<int64_t, Keyframe::Ptr> keyframe_map;
+    for (const auto& keyframe : keyframe_manager_.getAllKeyframes()) {
+        if (keyframe) {
+            keyframe_map[keyframe->id] = keyframe;
+        }
+    }
+    auto candidates =
+        loop_detector_.detectLoopCandidates(new_keyframe_id, keyframe_map);
 
     std::vector<VerifiedLoop> verified_loops;
     verified_loops.reserve(candidates.size());

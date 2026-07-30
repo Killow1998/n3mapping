@@ -119,7 +119,8 @@ void LoopDetector::addDescriptor(int64_t keyframe_id, const Eigen::MatrixXd& des
     sc_manager_.polarcontext_invkeys_mat_.push_back(eig2stdvec(ringkey));
 }
 
-std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) {
+std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
+    int64_t query_id, const std::map<int64_t, Keyframe::Ptr>& keyframes) {
     std::vector<LoopCandidate> candidates;
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -127,11 +128,37 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
     if (it == id_to_index_.end()) return candidates;
     size_t query_index = it->second;
 
-    int num_exclude = config_.sc_num_exclude_recent;
-    if (static_cast<int>(query_index) < num_exclude) return candidates;
+    // Scan Context searches a contiguous prefix of its key matrix, so it still
+    // needs an index cutoff; RHPD does not, and is excluded by travelled path
+    // below. A query too early for the prefix therefore skips Scan Context but
+    // still gets RHPD candidates -- previously it returned nothing at all,
+    // which is why no keyframe below 50 was ever examined.
+    const int num_exclude = config_.sc_num_exclude_recent;
+    const size_t search_end = static_cast<int>(query_index) >= num_exclude
+                                  ? query_index - num_exclude
+                                  : 0;
 
-    size_t search_end = query_index - num_exclude;
-    if (search_end == 0) return candidates;
+    // Cumulative odometry path length per keyframe index, so the distance
+    // travelled between any two of them is one subtraction.
+    std::vector<double> path_at(index_to_id_.size(), 0.0);
+    {
+        const Eigen::Vector3d *prev = nullptr;
+        Eigen::Vector3d prev_store;
+        double acc = 0.0;
+        for (size_t i = 0; i < index_to_id_.size(); ++i) {
+            const auto kit = keyframes.find(index_to_id_[i]);
+            if (kit != keyframes.end() && kit->second) {
+                const Eigen::Vector3d t =
+                    kit->second->pose_odom.translation();
+                if (prev)
+                    acc += (t - *prev).norm();
+                prev_store = t;
+                prev = &prev_store;
+            }
+            path_at[i] = acc;
+        }
+    }
+    const double min_path = std::max(0.0, config_.loop_min_path_length_m);
 
     const Eigen::MatrixXd& query_desc = descriptors_[query_index];
     const bool sc_query_available = query_desc.size() > 0;
@@ -140,9 +167,13 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
         Eigen::VectorXd query_rhpd;
         if (rhpd_manager_.get(query_id, &query_rhpd) && query_rhpd.size() == RHPD_DIM && !query_rhpd.isZero()) {
             const int preselect = std::max(config_.rhpd_num_candidates * 3, config_.sc_num_candidates * 4);
+            // Informative rather than merely old: the pair must be separated by
+            // enough travel that the odometry no longer pins it down.
             auto accept_old_enough = [&](int64_t id) {
-                auto mit = id_to_index_.find(id);
-                return mit != id_to_index_.end() && mit->second < search_end;
+                const auto mit = id_to_index_.find(id);
+                if (mit == id_to_index_.end() || mit->second >= query_index)
+                    return false;
+                return path_at[query_index] - path_at[mit->second] >= min_path;
             };
             auto rhpd_hits = rhpd_manager_.searchFiltered(
                 query_rhpd, std::max(1, preselect), config_.rhpd_preselect_candidates, accept_old_enough);
@@ -209,6 +240,7 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(int64_t query_id) 
     }
 
     // RHPD disabled or unavailable: fallback to ScanContext for A/B testing and legacy maps.
+    if (search_end == 0) return candidates;
     const auto& query_ringkey_vec = sc_manager_.polarcontext_invkeys_mat_[query_index];
 
     // 构建临时搜索集合（仅前 search_end 帧），避免匹配到最近帧

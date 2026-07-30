@@ -80,6 +80,7 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_kf_gap", config->loop_kf_gap);
     get("loop_closest_id_th", config->loop_closest_id_th);
     get("loop_min_id_interval", config->loop_min_id_interval);
+    get("loop_min_path_length_m", config->loop_min_path_length_m);
     get("loop_max_range", config->loop_max_range);
 
     get("output_cloud_voxel_size", config->output_cloud_voxel_size);
