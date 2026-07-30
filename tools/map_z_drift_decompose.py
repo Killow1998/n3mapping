@@ -27,6 +27,13 @@ def floors(path_pb, pose='odom'):
         out.append((pl[i],q.tx,q.ty,float(np.median(band[:,2]))+q.tz))
     return np.array(out)
 A=floors(sys.argv[1], sys.argv[2] if len(sys.argv)>2 else 'odom')
+# One plane cannot describe a session that changes storey, and fitting it across
+# a level change reports the storey height as tilt. Restricting the fit to a
+# stretch known to stay on one level keeps the decomposition meaningful; the
+# startup question only needs the beginning of the session in any case.
+if len(sys.argv)>3:
+    lim=float(sys.argv[3]); A=A[A[:,0]<lim]
+    print('(only path < %.0f m, so a level change cannot contaminate the plane fit)'%lim)
 pl,x,y,z=A[:,0],A[:,1],A[:,2],A[:,3]
 M=np.column_stack([x,y,np.ones_like(x)])
 coef,*_=np.linalg.lstsq(M,z,rcond=None)
