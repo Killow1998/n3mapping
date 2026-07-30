@@ -93,6 +93,15 @@ struct Config {
     // constraints, and it ranks by a fitness that favours near neighbours.
     bool loop_keep_all_verified = true;
 
+    // Stops mapping once the front end's pose has run away. FAST_LIO emits no
+    // divergence signal, so without this a stairwell that breaks scan matching
+    // turns a usable partial map into a 3,000,000 m one. Limits are set at the
+    // physically impossible, not at the merely poor.
+    bool odom_sanity_enable = true;
+    double odom_sanity_max_speed_mps = 10.0;
+    double odom_sanity_max_angular_rate_dps = 720.0;
+    int odom_sanity_max_consecutive = 5;
+
     bool floor_attitude_enable = true;
     // How level a building floor is, not how precisely the plane fits. The fit
     // is sub-degree over several hundred points; the horizontality assumption is

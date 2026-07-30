@@ -527,6 +527,19 @@ class N3MappingNode : public rclcpp::Node
             auto frame = toCoreLioFrame(*cloud_msg, *odom_msg);
             const double timestamp = rclcpp::Time(cloud_msg->header.stamp).seconds();
             auto output = n3mapping_core_->processFrame(run_mode_, frame);
+            // Core cannot log, so the one thing that must not pass unnoticed is
+            // said here: the front end has run away and everything from this
+            // point on is being discarded.
+            if (const auto& sanity = n3mapping_core_->odometrySanity();
+                sanity.diverged && !odometry_divergence_reported_) {
+                odometry_divergence_reported_ = true;
+                RCLCPP_ERROR(get_logger(),
+                    "[ODOM-SANITY] front-end odometry diverged at t=%.3f "
+                    "(speed=%.1f m/s, rate=%.0f deg/s, %d consecutive). "
+                    "Mapping stopped; the saved map covers only what came before.",
+                    sanity.timestamp, sanity.speed_mps, sanity.angular_rate_dps,
+                    sanity.consecutive);
+            }
             const auto& header = cloud_msg->header;
             const auto publication =
               publishRelocalizationOutput(header, output);
@@ -1354,6 +1367,7 @@ class N3MappingNode : public rclcpp::Node
     std::optional<rclcpp::Time> last_tf_stamp_;
 
     // 统计
+    bool odometry_divergence_reported_ = false;
     size_t frame_count_ = 0;
     size_t keyframe_count_ = 0;
     size_t loop_count_ = 0;

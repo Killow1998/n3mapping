@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "n3mapping/odometry_sanity.h"
 #include "n3mapping/config.h"
 #include "n3mapping/core/n3mapping_session.h"
 #include "n3mapping/core/types.h"
@@ -62,6 +63,9 @@ class N3MappingCore {
     bool saveMapSnapshot(std::string* error = nullptr);
     core::LioFrame::PointCloud::Ptr buildGlobalMap() const;
     bool mapLoaded() const;
+    const OdometrySanityVerdict& odometrySanity() const {
+      return odometry_sanity_.verdict();
+    }
 
     RegistrationSeedProbeResult probeLocalizationRegistration(
         const core::LioFrame::PointCloud::Ptr& cloud,
@@ -113,6 +117,8 @@ class N3MappingCore {
     int64_t last_loop_check_id_ = -1000;
     // How many keyframes contributed an absolute attitude observation. Reported
     // so a run that silently stops finding the floor is visible.
+    OdometrySanity odometry_sanity_;
+    bool odometry_sanity_configured_ = false;
     int floor_attitude_accepted_ = 0;
     int floor_attitude_rejected_ = 0;
     std::size_t loop_count_ = 0;

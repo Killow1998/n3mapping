@@ -816,8 +816,25 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
     return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
   }
 
-  auto output = makeOutput(true, frame.T_world_lidar, frame.undistorted_cloud);
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
+  // Once the front end has run away nothing downstream can use what it sends,
+  // and every frame that keeps being added replaces a usable partial map with
+  // an unusable whole one. Stop taking them.
+  if (config_.odom_sanity_enable) {
+    if (!odometry_sanity_configured_) {
+      OdometrySanityLimits limits;
+      limits.max_speed_mps = config_.odom_sanity_max_speed_mps;
+      limits.max_angular_rate_dps = config_.odom_sanity_max_angular_rate_dps;
+      limits.max_consecutive_violations = config_.odom_sanity_max_consecutive;
+      odometry_sanity_ = OdometrySanity(limits);
+      odometry_sanity_configured_ = true;
+    }
+    if (odometry_sanity_.check(timestamp, frame.T_world_lidar).diverged) {
+      return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+    }
+  }
+
+  auto output = makeOutput(true, frame.T_world_lidar, frame.undistorted_cloud);
   auto &keyframes = session_->keyframeManager();
   if (!keyframes.shouldAddKeyframe(frame.T_world_lidar)) {
     if (!external_dense_trajectory_recording_enabled_) {

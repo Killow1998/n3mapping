@@ -95,6 +95,10 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(loop_min_id_interval);
     N3MAPPING_CONFIG_FIELD(loop_min_path_length_m);
     N3MAPPING_CONFIG_FIELD(loop_keep_all_verified);
+    N3MAPPING_CONFIG_FIELD(odom_sanity_enable);
+    N3MAPPING_CONFIG_FIELD(odom_sanity_max_speed_mps);
+    N3MAPPING_CONFIG_FIELD(odom_sanity_max_angular_rate_dps);
+    N3MAPPING_CONFIG_FIELD(odom_sanity_max_consecutive);
     N3MAPPING_CONFIG_FIELD(floor_attitude_enable);
     N3MAPPING_CONFIG_FIELD(floor_attitude_noise_deg);
     N3MAPPING_CONFIG_FIELD(floor_attitude_max_radius_m);
@@ -339,6 +343,9 @@ bool Config::validate(std::string* error) const {
     if (!at_least(loop_min_id_interval, 0, "loop_min_id_interval")) return false;
     if (!at_least(loop_min_path_length_m, 0.0, "loop_min_path_length_m")) return false;
     if (!positive(floor_attitude_noise_deg, "floor_attitude_noise_deg")) return false;
+    if (!positive(odom_sanity_max_speed_mps, "odom_sanity_max_speed_mps")) return false;
+    if (!positive(odom_sanity_max_angular_rate_dps, "odom_sanity_max_angular_rate_dps")) return false;
+    if (!at_least(odom_sanity_max_consecutive, 1, "odom_sanity_max_consecutive")) return false;
     if (!positive(floor_attitude_max_radius_m, "floor_attitude_max_radius_m")) return false;
     if (!at_least(floor_attitude_min_points, 1, "floor_attitude_min_points")) return false;
     if (!positive(loop_max_range, "loop_max_range")) return false;

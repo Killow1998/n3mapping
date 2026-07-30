@@ -134,6 +134,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
   ${N3MAPPING_ROOT}/src/free_space_grid.cpp
   ${N3MAPPING_ROOT}/src/floor_attitude.cpp
+  ${N3MAPPING_ROOT}/src/odometry_sanity.cpp
   ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
   ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
@@ -473,6 +474,12 @@ if(BUILD_TESTING)
   if(TARGET test_config)
     target_link_libraries(test_config ${PROJECT_NAME}_lib)
     ament_target_dependencies(test_config rclcpp)
+  endif()
+
+  ament_add_gtest(test_odometry_sanity
+    ${N3MAPPING_ROOT}/test/test_odometry_sanity.cpp)
+  if(TARGET test_odometry_sanity)
+    target_link_libraries(test_odometry_sanity ${PROJECT_NAME}_lib)
   endif()
 
   ament_add_gtest(test_core_types

@@ -82,6 +82,10 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_min_id_interval", config->loop_min_id_interval);
     get("loop_min_path_length_m", config->loop_min_path_length_m);
     get("loop_keep_all_verified", config->loop_keep_all_verified);
+    get("odom_sanity_enable", config->odom_sanity_enable);
+    get("odom_sanity_max_speed_mps", config->odom_sanity_max_speed_mps);
+    get("odom_sanity_max_angular_rate_dps", config->odom_sanity_max_angular_rate_dps);
+    get("odom_sanity_max_consecutive", config->odom_sanity_max_consecutive);
     get("floor_attitude_enable", config->floor_attitude_enable);
     get("floor_attitude_noise_deg", config->floor_attitude_noise_deg);
     get("floor_attitude_max_radius_m", config->floor_attitude_max_radius_m);
