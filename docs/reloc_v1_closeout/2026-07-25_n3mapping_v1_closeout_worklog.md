@@ -4940,3 +4940,140 @@ FAST_LIO 是 `MAX_INI_COUNT = 10`，固定十帧，之后直接进完整估计�
 - 静止 10 s 可平均约 2000 个样本而不是 20，精度好一个数量级
 - 退出条件：检测到运动，或达到上限（防止误判静止而一直不出图）
 - 静止检测几乎免费：`IMU_init` 已在增量计算 `cov_acc` / `cov_gyr`
+
+---
+
+## 107. 复现 0723:两个假设都清掉了一半（2026-07-31）
+
+### 107.1 判据工具
+
+`tools/lio_static_attitude_drift.py`。静止时加速度计测的就是重力，
+它在机体系里的方向**就是**姿态；里程计报告自己的姿态。两者在静止段必须一致。
+
+用 **header 时间戳**而非到达时间戳 —— 0723 的 LIO bag 是按 0.5× 录的，
+到达时间轴被拉长两倍，header 是传感器自己的时间。
+
+三份录制，10 s 窗口：
+
+| | 窗口内路程 | 真实姿态变化(加速度计) | 里程计报告 | **差值** |
+|---|---|---|---|---|
+| 原始 0723 | 1.165 m | 1.46°（残余加速度上界 1.34°） | 8.24° | **6.79°** |
+| b22 | 0.925 m | 1.16°（上界 1.14°） | 1.61° | **0.45°** |
+
+**6.79° 是第 1 步的验收基准。**（此前口头说的 8.4° 是另一个窗口算的，以此为准。）
+
+### 107.2 H2 的第一个版本：用 b22 设置重跑 0723 —— 无效实验
+
+```
+8247 / 8253 个雷达帧被丢弃（"no IMU sample available before lidar end time"）
+38156 次 "imu loop back, clear buffer"
+33630 次 "No Effective Points!"
+回放本身 status=PASS，165062 IMU + 8253 雷达全部发出
+结果：10 s 窗口内路程 219,344,773 m，姿态摆动 358.78°
+```
+
+**rate 1.0 无流控喂不动 FAST_LIO。** 0723 是 200 Hz IMU + 10 Hz 雷达，
+实时投递就溢出，IMU 时间戳乱序，雷达帧几乎全丢。
+
+**所以原始那次的 0.5× + ack 流控不是随意选的，是必需的。**
+这反过来说明 0723 用的设置比 b22 **更严**，不是更松 ——
+H2「0723 用了更松的设置所以有假象」这个版本死了。
+
+### 107.3 H2 的第二个版本：`--min-subscriptions 1` —— 也是假的
+
+我从 scratch 目录的 `run_lio.sh` 读到 `--min-subscriptions 1`，
+据此推测"回放可能在 FAST_LIO 订阅完之前就开始发"。
+
+**去核 `raw_lio_replay_evidence.json`，生产那次用的是 `--min-subscriptions 2`。**
+我看到的 `1` 出自一个**重建的**脚本，不是产生数据的那个。
+
+**教训：产生数据的命令要从 evidence 记录里读，不要从事后写的脚本里读。**
+
+### 107.4 一个近失事件
+
+支持流控的回放工具（455 行，含 `--flow-control-lidar-topic`）
+**只存在于那 60 个未提交文件里**。当前分支和基线分支上都是 272 行的无流控版本。
+
+**如果清理 worktree 之前没先快照，产生 0723 基线数据的工具就没了，
+复现将永远不可能。**
+
+已取到工作分支并提交（CLI 是严格超集，旧参数一个不少，现有脚本不受影响）。
+
+### 107.5 现在在跑：完全不变量的精确复现
+
+用 evidence 记录里的原始参数（0.5× + min-sub 2 + 雷达 ack 流控 + 120 s 超时），
+不改任何变量。
+
+**目的是先证明能复现出 6.79°，才谈得上修。**
+
+唯一无法消除的差异：二进制里含已提交的 S1a（重力先验初始协方差从实测推导），
+而原始那次早于它。S1a 当时测下来是空操作 ——
+**若复现值接近 6.79°，该结论成立；若明显不同，说明 S1a 其实有影响。**
+
+### 107.6 流控这一跑是健康的
+
+```
+丢帧        0     （无流控那次 8247）
+imu loop back 0   （无流控那次 38156）
+```
+
+---
+
+## 108. 第 2 步的接入点找到了，而且它从来没实现过（2026-07-31）
+
+### 108.1 `vertical_observability_score` 不是「坏了」，是从未实现
+
+```cpp
+VerifiedLoop LoopClosureManager::applyEdgeModel(const VerifiedLoop& loop) const
+{
+    VerifiedLoop modeled = loop;
+    modeled.edge_mode = LoopEdgeMode::Full6Dof;      // 永远 6 自由度
+    modeled.vertical_downweighted = false;            // 永远不降权
+    modeled.vertical_observability_score = 1.0;       // 永远满分
+    return modeled;
+}
+```
+
+`applyEdgeModel` 本该是逐条闭环做边建模的地方 —— **三个决定全是硬编码常数。**
+
+它接进了整条调试管线（`loop_debug_logger.cpp:256` 写进 JSONL），
+名字承诺了一个测量，而 46 条闭环全读 1.000。
+**这不是饱和，是占位符被当成了数据。**
+
+（§95 我改的测试里有 `ApplyEdgeModelDoesNotDownweightVerticalAxes` ——
+那是把这个硬编码行为**锁死**的断言。所以这是某次有意的简化，不是疏漏。
+我当时更新它时也没意识到自己在给一个空壳背书。）
+
+### 108.2 需要的数据一直都在
+
+`src/point_cloud_matcher.cpp:256` — `copyInformation(rr.H, &result.information)`。
+`rr.H` 就是 small_gicp 配准结果的 Hessian，而且已按 (平移, 旋转) 顺序换好块。
+
+**真实 Hessian 一直在 `match_result.information` 里，是我用
+`loop_use_icp_information: false` 把它关掉的**（§97 修复时改成了配置推导的常数）。
+
+而 §100.3 我否掉 ICP 加权的理由是"46 条 fitness 都在 0.06–0.19，没区分度"——
+**fitness 是残差质量，Hessian 是可观测性，两者回答的不是同一个问题。**
+长走廊里 fitness 完美而纵向零可观测。
+
+### 108.3 第 2 步的设计
+
+**绝对尺度用配置，各轴之间的相对分配用 Hessian：**
+
+```
+Ω_axis = (1 / σ_config²) · clip(λ_axis / λ_median, 1/k, k)
+```
+
+- Hessian 的**绝对**量纲反映点数与代价函数单位，不是米 —— 不能直接当协方差；
+  §101.2 实测的 z 误差 0.407 m 是 Hessian 预测不出来的
+- Hessian 对"哪个方向被约束得好"是**相对**可信的
+- 所以：尺度由实测标定，分配由 Hessian 决定
+
+这就是把 §102 的 `loop_noise_position_z = 0.4`（一个全局常数）
+换成**逐条闭环**的版本，也正是 Ultra-Fusion 的 Factor-Wise Reliability Scheduling。
+
+**判据不变**：闭环 z 误差中位（现 0.376 m）与地板残差段间跨度（现 0.434 m），
+**两者必须同向改善**，否则按 §98 的规矩拒绝。
+
+`applyEdgeModel` 是天然的落点，但可观测性必须在
+`loop_verifier.cpp` 里算（点云和 Hessian 在那里），随 `VerifiedLoop` 带下来。
