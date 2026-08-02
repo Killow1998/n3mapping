@@ -68,7 +68,10 @@ LoopClosureManager::applyEdgeModel(const VerifiedLoop& loop) const
     VerifiedLoop modeled = loop;
     modeled.edge_mode = LoopEdgeMode::Full6Dof;
     modeled.vertical_downweighted = false;
-    modeled.vertical_observability_score = 1.0;
+    // Left as the verifier computed it. This used to be overwritten with 1.0
+    // here, which meant a field named for a measurement reported the same
+    // constant for every loop while being written into the debug stream as
+    // though it were data.
     return modeled;
 }
 

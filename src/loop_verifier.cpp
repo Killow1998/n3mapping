@@ -26,6 +26,33 @@ std::string loopRejectReason(bool fitness_ok, bool inlier_ok)
     return "";
 }
 
+// How each axis of one registration stood relative to the others, normalised so
+// the three factors multiply to one. Returns all-ones when the Hessian has
+// nothing usable to say, which leaves the configured noise untouched.
+Eigen::Vector3d axisWeights(const Eigen::Matrix<double, 6, 6>& information,
+                            int offset, double max_ratio)
+{
+    Eigen::Vector3d ones = Eigen::Vector3d::Ones();
+    Eigen::Vector3d diag;
+    for (int i = 0; i < 3; ++i) {
+        diag(i) = information(offset + i, offset + i);
+        if (!std::isfinite(diag(i)) || diag(i) <= 0.0) {
+            return ones;
+        }
+    }
+    const double geo = std::cbrt(diag(0) * diag(1) * diag(2));
+    if (!std::isfinite(geo) || geo <= 0.0) {
+        return ones;
+    }
+    const double lo = 1.0 / std::max(1.0, max_ratio);
+    const double hi = std::max(1.0, max_ratio);
+    Eigen::Vector3d weights;
+    for (int i = 0; i < 3; ++i) {
+        weights(i) = std::clamp(diag(i) / geo, lo, hi);
+    }
+    return weights;
+}
+
 double verticalInformationRatio(const Eigen::Matrix<double, 6, 6>& information)
 {
     const double x = information(0, 0);
@@ -103,12 +130,30 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
         const double sigma_z = config_.loop_noise_position_z > 0.0
                                    ? config_.loop_noise_position_z
                                    : config_.loop_noise_position;
-        loop.information = Eigen::Matrix<double, 6, 6>::Identity();
-        loop.information(0, 0) = 1.0 / (sigma_xy * sigma_xy);
-        loop.information(1, 1) = 1.0 / (sigma_xy * sigma_xy);
-        loop.information(2, 2) = 1.0 / (sigma_z * sigma_z);
-        loop.information.block<3, 3>(3, 3) *=
+        const double rot_info =
             1.0 / (config_.loop_noise_rotation * config_.loop_noise_rotation);
+        // The configured sigmas set how much a loop is trusted overall; the
+        // registration's own Hessian says which of its axes deserve more of
+        // that trust and which less. The weights multiply to one, so this moves
+        // stiffness between axes without adding or removing any.
+        Eigen::Vector3d w_pos = Eigen::Vector3d::Ones();
+        Eigen::Vector3d w_rot = Eigen::Vector3d::Ones();
+        if (config_.loop_axis_weighting_enable) {
+            w_pos = axisWeights(verification.match_result.information, 0,
+                                config_.loop_axis_weighting_max);
+            w_rot = axisWeights(verification.match_result.information, 3,
+                                config_.loop_axis_weighting_max);
+        }
+        loop.information = Eigen::Matrix<double, 6, 6>::Identity();
+        loop.information(0, 0) = w_pos(0) / (sigma_xy * sigma_xy);
+        loop.information(1, 1) = w_pos(1) / (sigma_xy * sigma_xy);
+        loop.information(2, 2) = w_pos(2) / (sigma_z * sigma_z);
+        loop.information(3, 3) = w_rot(0) * rot_info;
+        loop.information(4, 4) = w_rot(1) * rot_info;
+        loop.information(5, 5) = w_rot(2) * rot_info;
+        // Reported as an observability, so capped at one: an axis constrained
+        // better than its neighbours is not more than fully observable.
+        loop.vertical_observability_score = std::min(1.0, w_pos(2));
     }
     loop.vertical_information_ratio = verticalInformationRatio(verification.match_result.information);
 

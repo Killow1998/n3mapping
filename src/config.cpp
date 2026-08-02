@@ -74,6 +74,8 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(loop_noise_position);
     N3MAPPING_CONFIG_FIELD(loop_noise_rotation);
     N3MAPPING_CONFIG_FIELD(loop_noise_position_z);
+    N3MAPPING_CONFIG_FIELD(loop_axis_weighting_enable);
+    N3MAPPING_CONFIG_FIELD(loop_axis_weighting_max);
     N3MAPPING_CONFIG_FIELD(use_robust_kernel);
     N3MAPPING_CONFIG_FIELD(robust_kernel_type);
     N3MAPPING_CONFIG_FIELD(robust_kernel_delta);
@@ -311,6 +313,7 @@ bool Config::validate(std::string* error) const {
     if (!positive(odom_noise_position, "odom_noise_position")) return false;
     if (!positive(odom_noise_rotation, "odom_noise_rotation")) return false;
     if (!positive(loop_noise_position, "loop_noise_position")) return false;
+    if (!at_least(loop_axis_weighting_max, 1.0, "loop_axis_weighting_max")) return false;
     if (!positive(loop_noise_rotation, "loop_noise_rotation")) return false;
     if (!positive(gicp_downsampling_resolution, "gicp_downsampling_resolution")) return false;
     if (!positive(gicp_max_correspondence_distance, "gicp_max_correspondence_distance")) return false;

@@ -61,6 +61,16 @@ struct Config {
     // several directions. Non-positive means "use loop_noise_position", which
     // is the isotropic behaviour everything was measured against.
     double loop_noise_position_z = 0.4;
+    // Redistributes each loop edge's weight between axes according to its own
+    // registration Hessian, keeping the geometric mean where the configured
+    // noise puts it. Off leaves every loop with the configured sigmas, which is
+    // what everything before this was measured against.
+    bool loop_axis_weighting_enable = false;
+    // How far a single axis may depart from the configured stiffness. The
+    // measured vertical-to-horizontal ratio reaches 5.27, so 4 lets the extreme
+    // cases move by a factor of two in sigma without letting a degenerate
+    // Hessian dominate.
+    double loop_axis_weighting_max = 4.0;
     bool use_robust_kernel = true;
     std::string robust_kernel_type = "Cauchy";
     double robust_kernel_delta = 1.0;
