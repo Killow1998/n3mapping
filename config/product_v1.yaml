@@ -74,6 +74,15 @@ n3mapping_node:
     loop_min_id_interval: 20
     loop_max_range: 6.0
 
+    # 机器人真正动起来之前不建图。静止时估计器把 9.37 m 的漂移报成位移,
+    # 拿那些帧建的关键帧会把误差固化进里程计边。判运动用点云与开机第一帧的
+    # 体素重叠率,不能用里程计。见 docs 的 §115。
+    mapping_static_start_guard_enable: true
+    mapping_static_voxel_m: 0.3
+    mapping_static_moved_overlap: 0.6
+    mapping_static_moved_consecutive: 3
+    mapping_static_max_wait_s: 120.0
+
     output_cloud_voxel_size: 0.2
 
     map_save_path: ""

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "n3mapping/odometry_sanity.h"
+#include "n3mapping/static_start_guard.h"
 #include "n3mapping/config.h"
 #include "n3mapping/core/n3mapping_session.h"
 #include "n3mapping/core/types.h"
@@ -63,6 +64,7 @@ class N3MappingCore {
     bool saveMapSnapshot(std::string* error = nullptr);
     core::LioFrame::PointCloud::Ptr buildGlobalMap() const;
     bool mapLoaded() const;
+    const StaticStartGuard& staticStartGuard() const { return static_start_guard_; }
     const OdometrySanityVerdict& odometrySanity() const {
       return odometry_sanity_.verdict();
     }
@@ -118,6 +120,9 @@ class N3MappingCore {
     // How many keyframes contributed an absolute attitude observation. Reported
     // so a run that silently stops finding the floor is visible.
     OdometrySanity odometry_sanity_;
+    StaticStartGuard static_start_guard_;
+    bool static_start_guard_configured_ = false;
+    bool static_start_reported_ = false;
     bool odometry_sanity_configured_ = false;
     int floor_attitude_accepted_ = 0;
     int floor_attitude_rejected_ = 0;

@@ -83,6 +83,11 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_min_id_interval", config->loop_min_id_interval);
     get("loop_min_path_length_m", config->loop_min_path_length_m);
     get("loop_keep_all_verified", config->loop_keep_all_verified);
+    get("mapping_static_start_guard_enable", config->mapping_static_start_guard_enable);
+    get("mapping_static_voxel_m", config->mapping_static_voxel_m);
+    get("mapping_static_moved_overlap", config->mapping_static_moved_overlap);
+    get("mapping_static_moved_consecutive", config->mapping_static_moved_consecutive);
+    get("mapping_static_max_wait_s", config->mapping_static_max_wait_s);
     get("odom_sanity_enable", config->odom_sanity_enable);
     get("odom_sanity_max_speed_mps", config->odom_sanity_max_speed_mps);
     get("odom_sanity_max_angular_rate_dps", config->odom_sanity_max_angular_rate_dps);

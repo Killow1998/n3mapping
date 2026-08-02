@@ -50,6 +50,10 @@ Config makeCoreTestConfig()
     config.rhpd_submap_voxel_size = 0.0;
     config.sc_num_exclude_recent = 0;
     config.loop_kf_gap = 1;
+    // These fixtures feed a fixed synthetic scan, so the platform never appears
+    // to move and the static-start guard would suppress every keyframe. They
+    // are testing something else.
+    config.mapping_static_start_guard_enable = false;
     return config;
 }
 

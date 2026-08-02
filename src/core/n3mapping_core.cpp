@@ -19,6 +19,7 @@
 #include "n3mapping/loop_referee.h"
 #include "n3mapping/loop_segment_consistency.h"
 #include "n3mapping/floor_attitude.h"
+#include "n3mapping/static_start_guard.h"
 #include "n3mapping/loop_verifier.h"
 #include "n3mapping/pcl_compat.h"
 #include <pcl/common/transforms.h>
@@ -830,6 +831,25 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
       odometry_sanity_configured_ = true;
     }
     if (odometry_sanity_.check(timestamp, frame.T_world_lidar).diverged) {
+      return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+    }
+  }
+
+  // Nothing the estimator says while the platform is still is worth building
+  // on, and the scan is the only thing here that can tell -- the odometry
+  // reports 9.37 m of travel across a stationary opening it should report none
+  // of.
+  if (config_.mapping_static_start_guard_enable) {
+    if (!static_start_guard_configured_) {
+      StaticStartGuard::Options guard_options;
+      guard_options.voxel_m = config_.mapping_static_voxel_m;
+      guard_options.moved_overlap = config_.mapping_static_moved_overlap;
+      guard_options.moved_consecutive = config_.mapping_static_moved_consecutive;
+      guard_options.max_wait_s = config_.mapping_static_max_wait_s;
+      static_start_guard_ = StaticStartGuard(guard_options);
+      static_start_guard_configured_ = true;
+    }
+    if (!static_start_guard_.update(timestamp, *frame.undistorted_cloud)) {
       return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
     }
   }

@@ -96,6 +96,11 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(loop_min_id_interval);
     N3MAPPING_CONFIG_FIELD(loop_min_path_length_m);
     N3MAPPING_CONFIG_FIELD(loop_keep_all_verified);
+    N3MAPPING_CONFIG_FIELD(mapping_static_start_guard_enable);
+    N3MAPPING_CONFIG_FIELD(mapping_static_voxel_m);
+    N3MAPPING_CONFIG_FIELD(mapping_static_moved_overlap);
+    N3MAPPING_CONFIG_FIELD(mapping_static_moved_consecutive);
+    N3MAPPING_CONFIG_FIELD(mapping_static_max_wait_s);
     N3MAPPING_CONFIG_FIELD(odom_sanity_enable);
     N3MAPPING_CONFIG_FIELD(odom_sanity_max_speed_mps);
     N3MAPPING_CONFIG_FIELD(odom_sanity_max_angular_rate_dps);
@@ -345,6 +350,9 @@ bool Config::validate(std::string* error) const {
     if (!at_least(loop_min_path_length_m, 0.0, "loop_min_path_length_m")) return false;
     if (!positive(floor_attitude_noise_deg, "floor_attitude_noise_deg")) return false;
     if (!positive(odom_sanity_max_speed_mps, "odom_sanity_max_speed_mps")) return false;
+    if (!positive(mapping_static_voxel_m, "mapping_static_voxel_m")) return false;
+    if (!positive(mapping_static_moved_overlap, "mapping_static_moved_overlap")) return false;
+    if (!at_least(mapping_static_moved_consecutive, 1, "mapping_static_moved_consecutive")) return false;
     if (!positive(odom_sanity_max_angular_rate_dps, "odom_sanity_max_angular_rate_dps")) return false;
     if (!at_least(odom_sanity_max_consecutive, 1, "odom_sanity_max_consecutive")) return false;
     if (!positive(floor_attitude_max_radius_m, "floor_attitude_max_radius_m")) return false;
