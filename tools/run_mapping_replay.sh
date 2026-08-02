@@ -40,7 +40,7 @@ cp "$params" "$log_dir/params.effective.yaml"
   echo "bag=$lio_bag"
   echo "rate=${REPLAY_RATE:-1.0}"
   echo "params=$params"
-  grep -E "odom_noise_rotation|floor_attitude|loop_max_range|loop_keep_all_verified|loop_min_path_length_m|robust_kernel" "$params"
+  grep -E "odom_noise_rotation|floor_attitude|loop_max_range|loop_keep_all_verified|loop_min_path_length_m|robust_kernel|loop_noise|loop_axis|mapping_static|icp_refine_max" "$params"
 } | tee "$log_dir/provenance.txt"
 
 node_pid=""
