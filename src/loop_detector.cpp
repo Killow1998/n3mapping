@@ -1,4 +1,6 @@
 // LoopDetector: ScanContext descriptor generation, candidate search, and ICP verification.
+#include <map>
+
 #include "n3mapping/loop_detector.h"
 
 #include <algorithm>
@@ -328,15 +330,43 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
         return candidates;
     }
     const auto& query_pose = query_it->second->pose_optimized;
-    const int min_gap = std::max(1, config_.loop_spatial_candidate_min_id_gap);
     const double radius = std::max(1e-6, config_.loop_spatial_candidate_radius);
+    const double min_path = std::max(0.0, config_.loop_min_path_length_m);
+
+    // What makes a revisit worth registering is how far the platform walked
+    // between the two visits, not how many keyframes it laid down. Asking for
+    // fifty keyframes of index discarded the out-and-back at 95 to 104 m of
+    // path on 0723 -- nine keyframes apart, nine metres of travel, and the
+    // worst revisit disagreement in the map.
+    std::map<int64_t, double> path_at;
+    {
+        double travelled = 0.0;
+        const Eigen::Vector3d* previous = nullptr;
+        Eigen::Vector3d previous_store;
+        for (const auto& [id, keyframe] : keyframes) {
+            if (keyframe) {
+                const Eigen::Vector3d t = keyframe->pose_odom.translation();
+                if (previous) {
+                    travelled += (t - *previous).norm();
+                }
+                previous_store = t;
+                previous = &previous_store;
+            }
+            path_at[id] = travelled;
+        }
+    }
+    const auto query_path_it = path_at.find(query_id);
+    const double query_path =
+        query_path_it != path_at.end() ? query_path_it->second : 0.0;
 
     std::vector<std::pair<double, int64_t>> ranked;
     for (const auto& [match_id, keyframe] : keyframes) {
         if (!keyframe || match_id >= query_id) {
             continue;
         }
-        if (query_id - match_id < min_gap) {
+        const auto match_path_it = path_at.find(match_id);
+        if (match_path_it == path_at.end() ||
+            query_path - match_path_it->second < min_path) {
             continue;
         }
         const double squared_distance =

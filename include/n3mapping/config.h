@@ -90,6 +90,12 @@ struct Config {
     int loop_spatial_candidate_max_candidates = 5;
 
     int loop_kf_gap = 5;
+    // Unused. Both of these are read from the YAML, validated at startup and
+    // printed in the configuration summary, and nothing reads them: the only
+    // separation the detector applies is loop_min_path_length_m, plus
+    // loop_kf_gap throttling how often detection runs at all. Left in place
+    // rather than removed alongside a measured change; deleting them is its own
+    // cleanup.
     int loop_closest_id_th = 50;
     int loop_min_id_interval = 20;
     // Odometry path travelled between two keyframes, below which a loop is not
