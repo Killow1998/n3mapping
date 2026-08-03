@@ -45,7 +45,6 @@ struct Config {
     int sc_num_rings = 20;
     int sc_num_sectors = 60;
 
-    int kdtree_cache_size = 20;
 
     int optimization_iterations = 10;
     double prior_noise_position = 0.01;
@@ -86,7 +85,6 @@ struct Config {
     std::string loop_debug_path = "";
     bool loop_spatial_candidates_enable = true;
     double loop_spatial_candidate_radius = 15.0;
-    int loop_spatial_candidate_min_id_gap = 50;
     int loop_spatial_candidate_max_candidates = 5;
 
     int loop_kf_gap = 5;
@@ -96,8 +94,6 @@ struct Config {
     // loop_kf_gap throttling how often detection runs at all. Left in place
     // rather than removed alongside a measured change; deleting them is its own
     // cleanup.
-    int loop_closest_id_th = 50;
-    int loop_min_id_interval = 20;
     // Odometry path travelled between two keyframes, below which a loop is not
     // worth forming because the odometry chain already constrains the pair far
     // more tightly than registration could. Replaces the keyframe-count
@@ -156,7 +152,6 @@ struct Config {
     // the YAML was silently getting the aliasing one.
     double loop_max_range = 6.0;
 
-    double output_cloud_voxel_size = 0.1;
 
 #ifdef N3MAPPING_SOURCE_DIR
     std::string map_save_path = std::string(N3MAPPING_SOURCE_DIR) + "/map";

@@ -51,7 +51,6 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("sc_num_rings", config->sc_num_rings);
     get("sc_num_sectors", config->sc_num_sectors);
 
-    get("kdtree_cache_size", config->kdtree_cache_size);
 
     get("optimization_iterations", config->optimization_iterations);
     get("prior_noise_position", config->prior_noise_position);
@@ -78,11 +77,8 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     gets("loop_debug_path", config->loop_debug_path);
     get("loop_spatial_candidates_enable", config->loop_spatial_candidates_enable);
     get("loop_spatial_candidate_radius", config->loop_spatial_candidate_radius);
-    get("loop_spatial_candidate_min_id_gap", config->loop_spatial_candidate_min_id_gap);
     get("loop_spatial_candidate_max_candidates", config->loop_spatial_candidate_max_candidates);
     get("loop_kf_gap", config->loop_kf_gap);
-    get("loop_closest_id_th", config->loop_closest_id_th);
-    get("loop_min_id_interval", config->loop_min_id_interval);
     get("loop_min_path_length_m", config->loop_min_path_length_m);
     get("loop_keep_all_verified", config->loop_keep_all_verified);
     get("mapping_static_start_guard_enable", config->mapping_static_start_guard_enable);
@@ -100,7 +96,6 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("floor_attitude_min_points", config->floor_attitude_min_points);
     get("loop_max_range", config->loop_max_range);
 
-    get("output_cloud_voxel_size", config->output_cloud_voxel_size);
     gets("map_save_path", config->map_save_path);
     get("global_map_voxel_size", config->global_map_voxel_size);
     get("save_global_map_voxel_size", config->save_global_map_voxel_size);

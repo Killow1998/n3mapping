@@ -51,7 +51,6 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("sc_max_radius", config->sc_max_radius);
     get("sc_num_rings", config->sc_num_rings);
     get("sc_num_sectors", config->sc_num_sectors);
-    get("kdtree_cache_size", config->kdtree_cache_size);
     get("optimization_iterations", config->optimization_iterations);
     get("prior_noise_position", config->prior_noise_position);
     get("prior_noise_rotation", config->prior_noise_rotation);
@@ -74,13 +73,9 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     gets("loop_debug_path", config->loop_debug_path);
     get("loop_spatial_candidates_enable", config->loop_spatial_candidates_enable);
     get("loop_spatial_candidate_radius", config->loop_spatial_candidate_radius);
-    get("loop_spatial_candidate_min_id_gap", config->loop_spatial_candidate_min_id_gap);
     get("loop_spatial_candidate_max_candidates", config->loop_spatial_candidate_max_candidates);
     get("loop_kf_gap", config->loop_kf_gap);
-    get("loop_closest_id_th", config->loop_closest_id_th);
-    get("loop_min_id_interval", config->loop_min_id_interval);
     get("loop_max_range", config->loop_max_range);
-    get("output_cloud_voxel_size", config->output_cloud_voxel_size);
     gets("map_save_path", config->map_save_path);
     get("global_map_voxel_size", config->global_map_voxel_size);
     get("save_global_map_voxel_size", config->save_global_map_voxel_size);
@@ -144,6 +139,34 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("rhpd_enable_negative_space", config->rhpd_enable_negative_space);
     get("rhpd_enable_vertical_tokens", config->rhpd_enable_vertical_tokens);
     get("rhpd_enable_pca_confidence", config->rhpd_enable_pca_confidence);
+
+    // Reachable on the humble build but not here, which is how a
+    // mechanism ships and is silently unreachable on one of the two
+    // targets. Found by test_config_reaches_behaviour.py; most of
+    // these are recent additions of mine that I only wired to humble.
+    get("floor_attitude_enable", config->floor_attitude_enable);
+    get("floor_attitude_max_radius_m", config->floor_attitude_max_radius_m);
+    get("floor_attitude_min_points", config->floor_attitude_min_points);
+    get("floor_attitude_noise_deg", config->floor_attitude_noise_deg);
+    get("loop_axis_weighting_enable", config->loop_axis_weighting_enable);
+    get("loop_axis_weighting_max", config->loop_axis_weighting_max);
+    get("loop_keep_all_verified", config->loop_keep_all_verified);
+    get("loop_min_path_length_m", config->loop_min_path_length_m);
+    get("loop_noise_position_z", config->loop_noise_position_z);
+    get("mapping_static_max_wait_s", config->mapping_static_max_wait_s);
+    get("mapping_static_moved_consecutive", config->mapping_static_moved_consecutive);
+    get("mapping_static_moved_overlap", config->mapping_static_moved_overlap);
+    get("mapping_static_start_guard_enable", config->mapping_static_start_guard_enable);
+    get("mapping_static_voxel_m", config->mapping_static_voxel_m);
+    get("odom_sanity_enable", config->odom_sanity_enable);
+    get("odom_sanity_max_angular_rate_dps", config->odom_sanity_max_angular_rate_dps);
+    get("odom_sanity_max_consecutive", config->odom_sanity_max_consecutive);
+    get("odom_sanity_max_speed_mps", config->odom_sanity_max_speed_mps);
+    get("reloc_ambiguity_min_consistency_margin", config->reloc_ambiguity_min_consistency_margin);
+    get("reloc_visibility_occlusion_aware", config->reloc_visibility_occlusion_aware);
+    get("rhpd_aux_scale", config->rhpd_aux_scale);
+    get("rhpd_part_a_scale", config->rhpd_part_a_scale);
+
 }
 
 }  // namespace n3mapping

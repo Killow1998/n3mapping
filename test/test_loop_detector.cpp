@@ -680,11 +680,16 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisa
     EXPECT_TRUE(found);
 }
 
-TEST_F(LoopDetectorTest, DetectSpatialCandidatesUsesPoseRadiusAndAgeGap) {
+// Named for the index gap until 9c3a233 replaced it with a path-length gate.
+// The test kept passing throughout, because keyframe 90 is half a metre from the
+// query and so fails the path gate exactly as it used to fail the index gap --
+// green for a reason its name no longer described, while the line setting
+// loop_spatial_candidate_min_id_gap had stopped doing anything at all.
+TEST_F(LoopDetectorTest, DetectSpatialCandidatesUsesPoseRadiusAndPathLength) {
     Config cfg = config_;
     cfg.loop_spatial_candidates_enable = true;
     cfg.loop_spatial_candidate_radius = 5.0;
-    cfg.loop_spatial_candidate_min_id_gap = 50;
+    cfg.loop_min_path_length_m = 5.0;
     cfg.loop_spatial_candidate_max_candidates = 2;
     LoopDetector detector(cfg);
 
@@ -707,6 +712,20 @@ TEST_F(LoopDetectorTest, DetectSpatialCandidatesUsesPoseRadiusAndAgeGap) {
 
     EXPECT_EQ(candidates[0].match_id, 5);
     EXPECT_EQ(candidates[1].match_id, 10);
+    // Keyframe 90 sits 0.5 m from the query in space and 0.5 m from it along
+    // the path, so only the path gate can be what excludes it. Drop the gate
+    // and it has to come back, otherwise this test proves nothing about the
+    // gate it is named for.
+    for (const auto& candidate : candidates) {
+        EXPECT_NE(candidate.match_id, 90);
+    }
+    Config near_cfg = cfg;
+    near_cfg.loop_min_path_length_m = 0.0;
+    LoopDetector near_detector(near_cfg);
+    const auto near_candidates =
+        near_detector.detectSpatialCandidates(100, keyframes);
+    ASSERT_FALSE(near_candidates.empty());
+    EXPECT_EQ(near_candidates[0].match_id, 90);
     for (const auto& candidate : candidates) {
         EXPECT_EQ(candidate.query_id, 100);
         EXPECT_TRUE(candidate.fromSpatial());

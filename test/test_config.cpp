@@ -25,7 +25,6 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_EQ(config.loop_icp_max_points, 50000);
     EXPECT_TRUE(config.loop_spatial_candidates_enable);
     EXPECT_DOUBLE_EQ(config.loop_spatial_candidate_radius, 15.0);
-    EXPECT_EQ(config.loop_spatial_candidate_min_id_gap, 50);
     EXPECT_EQ(config.loop_spatial_candidate_max_candidates, 5);
     EXPECT_DOUBLE_EQ(config.save_global_map_voxel_size, 0.1);
     EXPECT_EQ(config.sync_queue_size, 100);
@@ -82,11 +81,6 @@ TEST(ConfigTest, RejectsZeroNoiseAndNegativeVoxelParameters) {
     config.loop_spatial_candidate_radius = 0.0;
     EXPECT_FALSE(config.validate(&error));
     EXPECT_NE(error.find("loop_spatial_candidate_radius"), std::string::npos);
-
-    config = Config{};
-    config.loop_spatial_candidate_min_id_gap = 0;
-    EXPECT_FALSE(config.validate(&error));
-    EXPECT_NE(error.find("loop_spatial_candidate_min_id_gap"), std::string::npos);
 
     config = Config{};
     config.loop_spatial_candidate_max_candidates = 0;

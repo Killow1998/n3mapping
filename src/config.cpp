@@ -19,7 +19,6 @@ Config makeProductLocalizationConfig(const std::string& map_path,
     config.loop_min_inlier_ratio = 0.7;
     config.loop_fitness_threshold = 0.2;
     config.loop_max_icp_translation = 2.0;
-    config.output_cloud_voxel_size = 0.2;
     config.save_global_map_on_shutdown = false;
     config.map_save_path.clear();
 
@@ -65,7 +64,6 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(sc_max_radius);
     N3MAPPING_CONFIG_FIELD(sc_num_rings);
     N3MAPPING_CONFIG_FIELD(sc_num_sectors);
-    N3MAPPING_CONFIG_FIELD(kdtree_cache_size);
     N3MAPPING_CONFIG_FIELD(optimization_iterations);
     N3MAPPING_CONFIG_FIELD(prior_noise_position);
     N3MAPPING_CONFIG_FIELD(prior_noise_rotation);
@@ -91,11 +89,8 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(loop_debug_path);
     N3MAPPING_CONFIG_FIELD(loop_spatial_candidates_enable);
     N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_radius);
-    N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_min_id_gap);
     N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_max_candidates);
     N3MAPPING_CONFIG_FIELD(loop_kf_gap);
-    N3MAPPING_CONFIG_FIELD(loop_closest_id_th);
-    N3MAPPING_CONFIG_FIELD(loop_min_id_interval);
     N3MAPPING_CONFIG_FIELD(loop_min_path_length_m);
     N3MAPPING_CONFIG_FIELD(loop_keep_all_verified);
     N3MAPPING_CONFIG_FIELD(mapping_static_start_guard_enable);
@@ -112,7 +107,6 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(floor_attitude_max_radius_m);
     N3MAPPING_CONFIG_FIELD(floor_attitude_min_points);
     N3MAPPING_CONFIG_FIELD(loop_max_range);
-    N3MAPPING_CONFIG_FIELD(output_cloud_voxel_size);
     N3MAPPING_CONFIG_FIELD(map_save_path);
     N3MAPPING_CONFIG_FIELD(global_map_voxel_size);
     N3MAPPING_CONFIG_FIELD(save_global_map_voxel_size);
@@ -218,13 +212,10 @@ std::string Config::toString() const {
     oss << "Loop candidate pipeline: descriptor + spatial proposals -> ICP consistency features -> LoopReferee -> graph commit\n";
     oss << "Loop spatial candidates: " << (loop_spatial_candidates_enable ? "ON" : "OFF")
         << " radius=" << loop_spatial_candidate_radius
-        << " min_id_gap=" << loop_spatial_candidate_min_id_gap
         << " max_candidates=" << loop_spatial_candidate_max_candidates << "\n";
     oss << "Loop prediction range gate: max_range=" << loop_max_range
         << " (pre-ICP candidate filter)\n";
     oss << "Loop timing: loop_kf_gap=" << loop_kf_gap << " (active)\n";
-    oss << "Legacy loop id params (inactive, compatibility/logging only): closest_id_th="
-        << loop_closest_id_th << ", min_id_interval=" << loop_min_id_interval << "\n";
     oss << "Reloc: candidates=" << reloc_num_candidates
         << ", sc_thr=" << reloc_sc_dist_threshold
         << ", min_conf=" << reloc_min_confidence << "\n";
@@ -339,7 +330,6 @@ bool Config::validate(std::string* error) const {
     if (!positive(sc_max_radius, "sc_max_radius")) return false;
     if (!at_least(sc_num_rings, 1, "sc_num_rings")) return false;
     if (!at_least(sc_num_sectors, 1, "sc_num_sectors")) return false;
-    if (!at_least(kdtree_cache_size, 1, "kdtree_cache_size")) return false;
     if (!at_least(optimization_iterations, 0, "optimization_iterations")) return false;
     if (!positive(robust_kernel_delta, "robust_kernel_delta")) return false;
     if (!non_negative(loop_min_inlier_ratio, "loop_min_inlier_ratio")) return false;
@@ -349,11 +339,8 @@ bool Config::validate(std::string* error) const {
     if (!non_negative(loop_icp_prefilter_voxel_size, "loop_icp_prefilter_voxel_size")) return false;
     if (!at_least(loop_icp_max_points, 0, "loop_icp_max_points")) return false;
     if (!positive(loop_spatial_candidate_radius, "loop_spatial_candidate_radius")) return false;
-    if (!at_least(loop_spatial_candidate_min_id_gap, 1, "loop_spatial_candidate_min_id_gap")) return false;
     if (!at_least(loop_spatial_candidate_max_candidates, 1, "loop_spatial_candidate_max_candidates")) return false;
     if (!at_least(loop_kf_gap, 0, "loop_kf_gap")) return false;
-    if (!at_least(loop_closest_id_th, 0, "loop_closest_id_th")) return false;
-    if (!at_least(loop_min_id_interval, 0, "loop_min_id_interval")) return false;
     if (!at_least(loop_min_path_length_m, 0.0, "loop_min_path_length_m")) return false;
     if (!positive(floor_attitude_noise_deg, "floor_attitude_noise_deg")) return false;
     if (!positive(odom_sanity_max_speed_mps, "odom_sanity_max_speed_mps")) return false;
@@ -365,7 +352,6 @@ bool Config::validate(std::string* error) const {
     if (!positive(floor_attitude_max_radius_m, "floor_attitude_max_radius_m")) return false;
     if (!at_least(floor_attitude_min_points, 1, "floor_attitude_min_points")) return false;
     if (!positive(loop_max_range, "loop_max_range")) return false;
-    if (!positive(output_cloud_voxel_size, "output_cloud_voxel_size")) return false;
     if (!non_negative(global_map_voxel_size, "global_map_voxel_size")) return false;
     if (!non_negative(save_global_map_voxel_size, "save_global_map_voxel_size")) return false;
     if (!positive(global_map_publish_hz, "global_map_publish_hz")) return false;

@@ -573,6 +573,15 @@ if(CATKIN_ENABLE_TESTING)
   endif()
 
   add_test(
+    NAME test_config_reaches_behaviour
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${PYTHON_EXECUTABLE} -B
+      ${N3MAPPING_ROOT}/test/test_config_reaches_behaviour.py
+  )
+  set_tests_properties(test_config_reaches_behaviour PROPERTIES TIMEOUT 60)
+
+  add_test(
     NAME test_n3mapping_data_contract_tools
     COMMAND ${CMAKE_COMMAND} -E env
       PYTHONDONTWRITEBYTECODE=1
