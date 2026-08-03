@@ -223,12 +223,22 @@ std::vector<FrameRecord> readManifest(const fs::path &path) {
     throw std::runtime_error("manifest is empty");
   if (!line.empty() && line.back() == '\r')
     line.pop_back();
-  const std::vector<std::string> expected_header = {
+  const std::vector<std::string> pose_header = {
       "episode_id", "frame_index", "stamp_ns", "pcd_path", "tx", "ty",
       "tz",         "qx",          "qy",       "qz",       "qw"};
-  if (splitCsv(line) != expected_header) {
+  // The v2 gravity extractor appends gx, gy, gz and gravity_valid. Those four
+  // are read by the pipeline that has gravity on LioFrame, which this branch
+  // does not; the eleven pose fields are what this evaluation uses, so a
+  // manifest that carries the extra columns is accepted and they are skipped.
+  const auto header = splitCsv(line);
+  const std::vector<std::string> gravity_header = {
+      "episode_id", "frame_index", "stamp_ns", "pcd_path", "tx",
+      "ty",         "tz",          "qx",       "qy",       "qz",
+      "qw",         "gx",          "gy",       "gz",       "gravity_valid"};
+  if (header != pose_header && header != gravity_header) {
     throw std::runtime_error("unexpected manifest header");
   }
+  const std::size_t expected_fields = header.size();
 
   std::vector<FrameRecord> records;
   const fs::path base = path.parent_path();
@@ -241,7 +251,7 @@ std::vector<FrameRecord> readManifest(const fs::path &path) {
     if (line.empty())
       continue;
     const auto fields = splitCsv(line);
-    if (fields.size() != expected_header.size()) {
+    if (fields.size() != expected_fields) {
       throw std::runtime_error("manifest row must have 11 fields");
     }
     FrameRecord record;
