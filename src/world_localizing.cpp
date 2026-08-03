@@ -1820,15 +1820,8 @@ VisibilityConsistencyResult WorldLocalizing::evaluatePoseVisibility(
     const Eigen::Isometry3d &T_map_lidar) const {
   if (!target_cloud || !query_cloud)
     return {};
-  VisibilityConsistencyOptions options;
-  options.range_min_m = 0.5;
-  options.range_max_m = std::max(1.0, config_.rhpd_max_range);
-  options.range_tolerance_m =
-      std::max(0.05, 3.0 * std::max(config_.global_map_voxel_size,
-                                    config_.gicp_downsampling_resolution));
-  options.occlusion_aware = config_.reloc_visibility_occlusion_aware;
   return evaluateVisibilityConsistency(*target_cloud, *query_cloud, T_map_lidar,
-                                       options);
+                                       visibilityOptionsFromConfig(config_));
 }
 
 void WorldLocalizing::rebuildFrameRHPDIndexIfNeeded() {

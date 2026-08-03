@@ -1,6 +1,8 @@
 // RHPDescriptor: Ring-Height + Planar descriptor with visibility-aware planar cues.
 #include "n3mapping/RHPDescriptor.h"
 
+#include "n3mapping/config.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -725,6 +727,21 @@ RHPDManager::VecD RHPDManager::makeCoarseKey(const VecD& descriptor) const {
 
     key(out) = descriptor(RHPD_DIM - 1);
     return key;
+}
+
+RHPDescriptor::Params rhpdParamsFromConfig(const Config& config) {
+  RHPDescriptor::Params params;
+  params.max_range = std::max(1.0, config.rhpd_max_range);
+  params.z_min = config.rhpd_z_min;
+  params.z_max = std::max(config.rhpd_z_max, config.rhpd_z_min + 1e-3);
+  params.v2_enable = config.rhpd_v2_enable;
+  params.v3_enable = config.rhpd_v3_enable;
+  params.enable_negative_space = config.rhpd_enable_negative_space;
+  params.enable_vertical_tokens = config.rhpd_enable_vertical_tokens;
+  params.enable_pca_confidence = config.rhpd_enable_pca_confidence;
+  params.part_a_scale = config.rhpd_part_a_scale;
+  params.aux_scale = config.rhpd_aux_scale;
+  return params;
 }
 
 } // namespace n3mapping

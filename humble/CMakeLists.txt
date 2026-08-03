@@ -651,6 +651,12 @@ if(BUILD_TESTING)
     ament_target_dependencies(test_relocalization_debug_logger rclcpp)
   endif()
 
+  ament_add_gtest(test_config_wiring ${N3MAPPING_ROOT}/test/test_config_wiring.cpp)
+  if(TARGET test_config_wiring)
+    target_link_libraries(test_config_wiring ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
+    ament_target_dependencies(test_config_wiring rclcpp)
+  endif()
+
   ament_add_gtest(test_visibility_consistency ${N3MAPPING_ROOT}/test/test_visibility_consistency.cpp)
   if(TARGET test_visibility_consistency)
     target_link_libraries(test_visibility_consistency ${PROJECT_NAME}_lib ${PCL_LIBRARIES})

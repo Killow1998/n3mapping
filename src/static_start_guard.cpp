@@ -1,6 +1,8 @@
 // static_start_guard.cpp
 #include "n3mapping/static_start_guard.h"
 
+#include "n3mapping/config.h"
+
 #include <cmath>
 
 namespace n3mapping {
@@ -91,6 +93,15 @@ bool StaticStartGuard::update(double timestamp,
         return true;
     }
     return false;
+}
+
+StaticStartGuard::Options staticStartGuardOptionsFromConfig(const Config& config) {
+  StaticStartGuard::Options options;
+  options.voxel_m = config.mapping_static_voxel_m;
+  options.moved_overlap = config.mapping_static_moved_overlap;
+  options.moved_consecutive = config.mapping_static_moved_consecutive;
+  options.max_wait_s = config.mapping_static_max_wait_s;
+  return options;
 }
 
 }  // namespace n3mapping

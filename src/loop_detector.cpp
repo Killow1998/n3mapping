@@ -47,25 +47,8 @@ void swapScanContextConfig(HybridSCManager& lhs, HybridSCManager& rhs) {
 
 namespace n3mapping {
 
-namespace {
-RHPDescriptor::Params makeRHPDParams(const Config& config) {
-    RHPDescriptor::Params rhpd_params;
-    rhpd_params.max_range = std::max(1.0, config.rhpd_max_range);
-    rhpd_params.z_min = config.rhpd_z_min;
-    rhpd_params.z_max = std::max(config.rhpd_z_max, config.rhpd_z_min + 1e-3);
-    rhpd_params.v2_enable = config.rhpd_v2_enable;
-    rhpd_params.v3_enable = config.rhpd_v3_enable;
-    rhpd_params.enable_negative_space = config.rhpd_enable_negative_space;
-    rhpd_params.enable_vertical_tokens = config.rhpd_enable_vertical_tokens;
-    rhpd_params.enable_pca_confidence = config.rhpd_enable_pca_confidence;
-    rhpd_params.part_a_scale = config.rhpd_part_a_scale;
-    rhpd_params.aux_scale = config.rhpd_aux_scale;
-    return rhpd_params;
-}
-}  // namespace
-
 LoopDetector::LoopDetector(const Config& config)
-    : config_(config), rhpd_manager_(makeRHPDParams(config)) {
+    : config_(config), rhpd_manager_(rhpdParamsFromConfig(config)) {
     sc_manager_.PC_NUM_RING = std::max(1, config_.sc_num_rings);
     sc_manager_.PC_NUM_SECTOR = std::max(4, config_.sc_num_sectors);
     sc_manager_.PC_MAX_RADIUS = std::max(config_.sc_max_radius, sc_manager_.PC_MIN_RADIUS + 1e-3);

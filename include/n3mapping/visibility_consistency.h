@@ -9,6 +9,8 @@
 
 namespace n3mapping {
 
+struct Config;
+
 struct VisibilityConsistencyOptions {
   double range_min_m = 0.5;
   double range_max_m = 30.0;
@@ -37,6 +39,11 @@ struct VisibilityConsistencyResult {
   double median_abs_range_error_m = std::numeric_limits<double>::quiet_NaN();
   double p90_abs_range_error_m = std::numeric_limits<double>::quiet_NaN();
 };
+
+// The options as configuration sets them. A function rather than a block inside
+// a private method, so a test can assert that each key arrives where it is
+// meant to.
+VisibilityConsistencyOptions visibilityOptionsFromConfig(const Config& config);
 
 VisibilityConsistencyResult evaluateVisibilityConsistency(
     const pcl::PointCloud<pcl::PointXYZI> &map_cloud,

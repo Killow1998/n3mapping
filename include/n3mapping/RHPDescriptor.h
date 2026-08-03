@@ -31,6 +31,8 @@
 
 namespace n3mapping {
 
+struct Config;
+
 // ----------- Descriptor parameters (compile-time constants) -----------
 constexpr int RHPD_PLANE_BINS  = 14;       // grid size for each planar projection
 constexpr int RHPD_PLANE_CHANS = 4;        // 4 channels per bin (semantics depend on V3 flag)
@@ -173,5 +175,10 @@ private:
     std::vector<VecD>    coarse_keys_;
     mutable std::mutex mutex_;
 };
+
+// The descriptor parameters as configuration sets them. It was already a
+// function, in an anonymous namespace inside loop_detector.cpp, which is
+// indistinguishable from inline for anything trying to test it.
+RHPDescriptor::Params rhpdParamsFromConfig(const Config& config);
 
 } // namespace n3mapping

@@ -9,6 +9,8 @@
 
 namespace n3mapping {
 
+struct Config;
+
 // The estimator is at its worst while the platform stands still: with no motion
 // there is nothing to separate a tilted body from a gravity vector pointing
 // elsewhere, and it slides along that direction. On the 0723 recording it spends
@@ -86,5 +88,10 @@ private:
     int consecutive_below_ = 0;
     std::unordered_set<VoxelKey> reference_;
 };
+
+// The guard's settings as configuration sets them. A function rather than a
+// block inside the mapping loop, so a test can assert that each key arrives
+// where it is meant to.
+StaticStartGuard::Options staticStartGuardOptionsFromConfig(const Config& config);
 
 }  // namespace n3mapping

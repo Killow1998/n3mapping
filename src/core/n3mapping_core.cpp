@@ -841,12 +841,8 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   // of.
   if (config_.mapping_static_start_guard_enable) {
     if (!static_start_guard_configured_) {
-      StaticStartGuard::Options guard_options;
-      guard_options.voxel_m = config_.mapping_static_voxel_m;
-      guard_options.moved_overlap = config_.mapping_static_moved_overlap;
-      guard_options.moved_consecutive = config_.mapping_static_moved_consecutive;
-      guard_options.max_wait_s = config_.mapping_static_max_wait_s;
-      static_start_guard_ = StaticStartGuard(guard_options);
+      static_start_guard_ =
+          StaticStartGuard(staticStartGuardOptionsFromConfig(config_));
       static_start_guard_configured_ = true;
     }
     if (!static_start_guard_.update(timestamp, *frame.undistorted_cloud)) {

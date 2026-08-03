@@ -515,6 +515,14 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(test_world_localizing n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
   endif()
 
+  catkin_add_gtest(test_config_wiring
+    ${N3MAPPING_ROOT}/test/test_config_wiring.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_config_wiring)
+    target_link_libraries(test_config_wiring n3mapping_core ${PCL_LIBRARIES})
+  endif()
+
   catkin_add_gtest(test_visibility_consistency
     ${N3MAPPING_ROOT}/test/test_visibility_consistency.cpp
     ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
