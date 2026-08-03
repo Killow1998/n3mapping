@@ -74,6 +74,13 @@ public:
         bool   enable_negative_space = true;
         bool   enable_vertical_tokens = true;
         bool   enable_pca_confidence = true;
+        // Scales on the plane and auxiliary blocks, applied on top of the
+        // weights already in distance(). One leaves the shipped behaviour
+        // untouched; zero drops the block. Only the ring-height block, which
+        // has no scale because it is the reference, was measured to separate
+        // same-place from elsewhere at all.
+        double part_a_scale = 1.0;
+        double aux_scale    = 1.0;
     };
 
     explicit RHPDescriptor(const Params& params);

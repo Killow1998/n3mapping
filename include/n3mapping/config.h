@@ -229,6 +229,9 @@ struct Config {
     bool rhpd_enable_negative_space = true;
     bool rhpd_enable_vertical_tokens = true;
     bool rhpd_enable_pca_confidence = true;
+    // See RHPDescriptor::Params. One reproduces the shipped distance exactly.
+    double rhpd_part_a_scale = 1.0;
+    double rhpd_aux_scale = 1.0;
 
     std::string toString() const;
     bool validate(std::string* error = nullptr) const;

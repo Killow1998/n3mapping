@@ -176,6 +176,8 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(rhpd_enable_negative_space);
     N3MAPPING_CONFIG_FIELD(rhpd_enable_vertical_tokens);
     N3MAPPING_CONFIG_FIELD(rhpd_enable_pca_confidence);
+    N3MAPPING_CONFIG_FIELD(rhpd_part_a_scale);
+    N3MAPPING_CONFIG_FIELD(rhpd_aux_scale);
 #undef N3MAPPING_CONFIG_FIELD
     return oss.str();
 }

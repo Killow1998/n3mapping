@@ -47,7 +47,7 @@ double percentile(std::vector<double> v, double q)
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        std::printf("usage: %s <map.pbstream> [xy_tol_m] [min_path_m] [top_k]\n", argv[0]);
+        std::printf("usage: %s <map.pbstream> [xy_tol_m] [min_path_m] [top_k] [part_a_scale] [aux_scale]\n", argv[0]);
         return 2;
     }
     const std::string path = argv[1];
@@ -86,6 +86,9 @@ int main(int argc, char** argv)
             (kfs[i]->pose_odom.translation() - kfs[i - 1]->pose_odom.translation()).norm();
     }
 
+    const double part_a_scale = argc > 5 ? std::atof(argv[5]) : 1.0;
+    const double aux_scale = argc > 6 ? std::atof(argv[6]) : 1.0;
+
     n3mapping::RHPDescriptor::Params params;
     params.max_range = config.rhpd_max_range;
     params.z_min = config.rhpd_z_min;
@@ -93,6 +96,8 @@ int main(int argc, char** argv)
     params.enable_negative_space = config.rhpd_enable_negative_space;
     params.enable_vertical_tokens = config.rhpd_enable_vertical_tokens;
     params.enable_pca_confidence = config.rhpd_enable_pca_confidence;
+    params.part_a_scale = part_a_scale;
+    params.aux_scale = aux_scale;
     n3mapping::RHPDescriptor descriptor(params);
 
     std::vector<double> fractional_rank;
@@ -138,6 +143,7 @@ int main(int argc, char** argv)
 
     std::printf("map              %s\n", path.c_str());
     std::printf("keyframes        %zu with descriptors\n", kfs.size());
+    std::printf("block scales     part_a %.2f   aux %.2f\n", part_a_scale, aux_scale);
     std::printf("revisit ground truth: xy<=%.2f m and path>=%.2f m apart\n", xy_tol, min_path);
     std::printf("                 %d pairs across %d queries\n\n", pairs, queries_with_truth);
 

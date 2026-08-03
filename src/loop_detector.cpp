@@ -58,6 +58,8 @@ RHPDescriptor::Params makeRHPDParams(const Config& config) {
     rhpd_params.enable_negative_space = config.rhpd_enable_negative_space;
     rhpd_params.enable_vertical_tokens = config.rhpd_enable_vertical_tokens;
     rhpd_params.enable_pca_confidence = config.rhpd_enable_pca_confidence;
+    rhpd_params.part_a_scale = config.rhpd_part_a_scale;
+    rhpd_params.aux_scale = config.rhpd_aux_scale;
     return rhpd_params;
 }
 }  // namespace

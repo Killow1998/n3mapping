@@ -549,7 +549,8 @@ double RHPDescriptor::distance(const VecD& a, const VecD& b) const {
                            rhs.segment(RHPD_PART_A_DIM, RHPD_PART_B_DIM)).squaredNorm();
         const double daux = (lhs.segment(RHPD_PART_A_DIM + RHPD_PART_B_DIM, RHPD_AUX_DIM) -
                              rhs.segment(RHPD_PART_A_DIM + RHPD_PART_B_DIM, RHPD_AUX_DIM)).squaredNorm();
-        return std::sqrt(part_a_weight * da + db + 0.5 * daux);
+        return std::sqrt(params_.part_a_scale * part_a_weight * da + db +
+                         params_.aux_scale * 0.5 * daux);
     };
 
     return std::min(weightedDistance(a, b), weightedDistance(a_flip, b));
