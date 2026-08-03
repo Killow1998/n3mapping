@@ -824,8 +824,15 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                 config_.reloc_ambiguity_min_consistency_margin
           : ((margin < config_.reloc_ambiguity_min_margin) &&
              (ratio < config_.reloc_ambiguity_min_ratio));
+  // top2 is already the first hypothesis that is not the same physical pose as
+  // top1, and that test counts a large rotation as different. Requiring
+  // translation separation on top of it lets a pair standing in one place
+  // facing two ways skip the gate entirely.
+  const bool competing_hypothesis =
+      config_.reloc_ambiguity_ignore_basin_separation ? (top2 != nullptr)
+                                                      : basin_separated;
   const bool ambiguous =
-      top2_viable && basin_separated && separation_too_small;
+      top2_viable && competing_hypothesis && separation_too_small;
   if (reloc_debug_enabled) {
     debug_event.temporal_hypothesis_score = top1_decision_score;
     debug_event.log_likelihood = top1_ll;

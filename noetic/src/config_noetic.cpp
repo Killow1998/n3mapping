@@ -163,6 +163,8 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("odom_sanity_max_consecutive", config->odom_sanity_max_consecutive);
     get("odom_sanity_max_speed_mps", config->odom_sanity_max_speed_mps);
     get("reloc_ambiguity_min_consistency_margin", config->reloc_ambiguity_min_consistency_margin);
+    get("reloc_ambiguity_ignore_basin_separation",
+        config->reloc_ambiguity_ignore_basin_separation);
     get("reloc_visibility_occlusion_aware", config->reloc_visibility_occlusion_aware);
     get("rhpd_aux_scale", config->rhpd_aux_scale);
     get("rhpd_part_a_scale", config->rhpd_part_a_scale);

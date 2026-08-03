@@ -146,6 +146,7 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_margin);
     N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_ratio);
     N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_consistency_margin);
+    N3MAPPING_CONFIG_FIELD(reloc_ambiguity_ignore_basin_separation);
     N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_basin_separation);
     N3MAPPING_CONFIG_FIELD(reloc_visibility_occlusion_aware);
     N3MAPPING_CONFIG_FIELD(reloc_debug_enable);
