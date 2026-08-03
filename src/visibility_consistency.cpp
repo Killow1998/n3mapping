@@ -28,6 +28,9 @@ struct SphericalDepthImage {
   int elevation_bins = 0;
   double resolution_deg = 1.0;
   std::vector<double> ranges;
+  // Populated only for the predicted image, and only when occlusion awareness
+  // is on: the accumulated return in each bearing closest to what was measured.
+  std::vector<double> match_ranges;
 };
 
 SphericalDepthImage makeDepthImage(double resolution_deg) {
@@ -45,7 +48,8 @@ SphericalDepthImage makeDepthImage(double resolution_deg) {
 
 void insertPoint(const Eigen::Vector3d &point,
                  const VisibilityConsistencyOptions &options,
-                 SphericalDepthImage *image) {
+                 SphericalDepthImage *image,
+                 const SphericalDepthImage *measured = nullptr) {
   if (!image || !point.array().isFinite().all())
     return;
   const double range = point.norm();
@@ -67,11 +71,28 @@ void insertPoint(const Eigen::Vector3d &point,
   const int elevation_index = std::clamp(
       static_cast<int>(std::floor(elevation_deg / image->resolution_deg)), 0,
       image->elevation_bins - 1);
-  double &stored =
-      image->ranges[static_cast<std::size_t>(elevation_index) *
-                        static_cast<std::size_t>(image->azimuth_bins) +
-                    static_cast<std::size_t>(azimuth_index)];
+  const std::size_t index =
+      static_cast<std::size_t>(elevation_index) *
+          static_cast<std::size_t>(image->azimuth_bins) +
+      static_cast<std::size_t>(azimuth_index);
+  double &stored = image->ranges[index];
   stored = std::min(stored, range);
+  // A spot the session drove through twice contributes twice the surface, and
+  // from any one vantage much of it is occluded yet still lands in this
+  // bearing. Keeping only the nearest return therefore shortens the prediction
+  // in proportion to how thick the map is there. Remember as well the return
+  // that best matches the measurement, so occlusion can be told apart from
+  // contradiction.
+  if (measured != nullptr && !image->match_ranges.empty()) {
+    const double measured_range = measured->ranges[index];
+    if (std::isfinite(measured_range)) {
+      double &best = image->match_ranges[index];
+      if (!std::isfinite(best) ||
+          std::abs(range - measured_range) < std::abs(best - measured_range)) {
+        best = range;
+      }
+    }
+  }
 }
 
 } // namespace
@@ -121,12 +142,17 @@ VisibilityConsistencyResult evaluateVisibilityConsistency(
       continue;
     insertPoint(Eigen::Vector3d(point.x, point.y, point.z), options, &observed);
   }
+  if (options.occlusion_aware) {
+    predicted.match_ranges.assign(predicted.ranges.size(),
+                                  std::numeric_limits<double>::infinity());
+  }
   const Eigen::Isometry3d T_lidar_map = T_map_lidar.inverse();
   for (const auto &point : map_cloud) {
     if (!pcl::isFinite(point))
       continue;
     insertPoint(T_lidar_map * Eigen::Vector3d(point.x, point.y, point.z),
-                options, &predicted);
+                options, &predicted,
+                options.occlusion_aware ? &observed : nullptr);
   }
 
   std::vector<double> residuals;
@@ -141,7 +167,15 @@ VisibilityConsistencyResult evaluateVisibilityConsistency(
     if (!has_observation || !has_prediction)
       continue;
     ++result.common_bins;
-    const double signed_error = predicted.ranges[i] - observed.ranges[i];
+    // With occlusion awareness the bearing is judged against the accumulated
+    // return that best explains the measurement; without it, against the
+    // nearest, which is the published behaviour.
+    const double predicted_range =
+        (options.occlusion_aware && !predicted.match_ranges.empty() &&
+         std::isfinite(predicted.match_ranges[i]))
+            ? predicted.match_ranges[i]
+            : predicted.ranges[i];
+    const double signed_error = predicted_range - observed.ranges[i];
     const double absolute_error = std::abs(signed_error);
     residuals.push_back(absolute_error);
     if (absolute_error <= options.range_tolerance_m)

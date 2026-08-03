@@ -55,6 +55,48 @@ TEST(VisibilityConsistencyTest,
   EXPECT_DOUBLE_EQ(result.median_abs_range_error_m, 3.0);
 }
 
+TEST(VisibilityConsistencyTest,
+     SurfaceInFrontOfAMatchingReturnIsOcclusionNotContradiction) {
+  // What a place mapped twice looks like: the map holds the wall the query
+  // measures, and also nearer returns the other pass saw from elsewhere.
+  const auto query = makeFourRayCloud(5.0);
+  auto doubled_map = makeFourRayCloud(5.0);
+  const auto nearer = makeFourRayCloud(2.0);
+  doubled_map += nearer;
+
+  const auto nearest_wins = evaluateVisibilityConsistency(
+      doubled_map, query, Eigen::Isometry3d::Identity());
+  ASSERT_TRUE(nearest_wins.valid);
+  EXPECT_DOUBLE_EQ(nearest_wins.consistency_ratio, 0.0);
+  EXPECT_DOUBLE_EQ(nearest_wins.foreground_conflict_ratio, 1.0);
+
+  VisibilityConsistencyOptions options;
+  options.occlusion_aware = true;
+  const auto occlusion_aware = evaluateVisibilityConsistency(
+      doubled_map, query, Eigen::Isometry3d::Identity(), options);
+  ASSERT_TRUE(occlusion_aware.valid);
+  EXPECT_DOUBLE_EQ(occlusion_aware.consistency_ratio, 1.0);
+  EXPECT_DOUBLE_EQ(occlusion_aware.foreground_conflict_ratio, 0.0);
+  EXPECT_GT(occlusion_aware.evidence_log_odds, nearest_wins.evidence_log_odds);
+}
+
+TEST(VisibilityConsistencyTest,
+     OcclusionAwarenessStillContradictsAWallThatIsNotThere) {
+  // Nothing at the measured range: every accumulated return falls short, so the
+  // bearing is a contradiction whichever return is scored against.
+  const auto query = makeFourRayCloud(5.0);
+  const auto foreground_map = makeFourRayCloud(2.0);
+
+  VisibilityConsistencyOptions options;
+  options.occlusion_aware = true;
+  const auto result = evaluateVisibilityConsistency(
+      foreground_map, query, Eigen::Isometry3d::Identity(), options);
+
+  ASSERT_TRUE(result.valid);
+  EXPECT_DOUBLE_EQ(result.consistency_ratio, 0.0);
+  EXPECT_DOUBLE_EQ(result.foreground_conflict_ratio, 1.0);
+}
+
 TEST(VisibilityConsistencyTest, SymmetricObservationProvidesEqualPoseEvidence) {
   const auto symmetric = makeFourRayCloud(5.0);
   Eigen::Isometry3d quarter_turn = Eigen::Isometry3d::Identity();

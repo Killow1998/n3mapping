@@ -204,6 +204,10 @@ struct Config {
     double reloc_ambiguity_min_margin = 0.35;
     double reloc_ambiguity_min_ratio = 1.05;
     double reloc_ambiguity_min_basin_separation = 3.0;
+    // See VisibilityConsistencyOptions::occlusion_aware. False reproduces the
+    // published evidence exactly; it decides every lock, so it stays off until
+    // the twenty-query evaluation says otherwise.
+    bool reloc_visibility_occlusion_aware = false;
     bool reloc_debug_enable = false;
     std::string reloc_debug_path = "";
     bool reloc_atlas_enable = false;

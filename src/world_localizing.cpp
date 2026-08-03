@@ -1807,6 +1807,7 @@ VisibilityConsistencyResult WorldLocalizing::evaluatePoseVisibility(
   options.range_tolerance_m =
       std::max(0.05, 3.0 * std::max(config_.global_map_voxel_size,
                                     config_.gicp_downsampling_resolution));
+  options.occlusion_aware = config_.reloc_visibility_occlusion_aware;
   return evaluateVisibilityConsistency(*target_cloud, *query_cloud, T_map_lidar,
                                        options);
 }
