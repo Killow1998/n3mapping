@@ -206,6 +206,15 @@ struct Config {
     // 0.085. It is a conversion of the existing threshold, not a new number to
     // tune.
     double reloc_ambiguity_min_consistency_margin = 0.0;
+    // The ambiguity gate currently only applies when the two leading
+    // hypotheses are far apart in translation. But the runner-up is already
+    // chosen as the first hypothesis that is not the same physical pose as the
+    // leader -- a test that counts a large rotation as different -- so
+    // re-deriving separation from translation alone exempts exactly the pair
+    // that sits in one place facing two ways. 11-58-53 locks 33 m from truth
+    // that way, with 2.08 m between the hypotheses and 42 degrees of yaw.
+    // True makes the gate apply whenever a competing hypothesis exists.
+    bool reloc_ambiguity_ignore_basin_separation = false;
     double reloc_ambiguity_min_basin_separation = 3.0;
     // See VisibilityConsistencyOptions::occlusion_aware. False reproduces the
     // published evidence exactly; it decides every lock, so it stays off until
