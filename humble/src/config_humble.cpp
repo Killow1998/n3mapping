@@ -140,6 +140,8 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("reloc_static_agg_voxel_size", config->reloc_static_agg_voxel_size);
     get("reloc_ambiguity_min_margin", config->reloc_ambiguity_min_margin);
     get("reloc_ambiguity_min_ratio", config->reloc_ambiguity_min_ratio);
+    get("reloc_ambiguity_min_consistency_margin",
+        config->reloc_ambiguity_min_consistency_margin);
     get("reloc_ambiguity_min_basin_separation", config->reloc_ambiguity_min_basin_separation);
     get("reloc_visibility_occlusion_aware",
         config->reloc_visibility_occlusion_aware);

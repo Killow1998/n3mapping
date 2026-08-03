@@ -203,6 +203,14 @@ struct Config {
     double reloc_static_agg_voxel_size = 0.12;
     double reloc_ambiguity_min_margin = 0.35;
     double reloc_ambiguity_min_ratio = 1.05;
+    // Ambiguity measured on the consistency ratio instead of on its logit, so
+    // the gate does not change meaning when the ratio's operating point moves.
+    // Zero keeps the log-odds gate above. 0.085 is the first-order equivalent
+    // of reloc_ambiguity_min_margin at the measured baseline operating point:
+    // d(logit)/dc is 1/(c(1-c)), which is 4.10 at c = 0.424, and 0.35 / 4.10 is
+    // 0.085. It is a conversion of the existing threshold, not a new number to
+    // tune.
+    double reloc_ambiguity_min_consistency_margin = 0.0;
     double reloc_ambiguity_min_basin_separation = 3.0;
     // See VisibilityConsistencyOptions::occlusion_aware. False reproduces the
     // published evidence exactly; it decides every lock, so it stays off until

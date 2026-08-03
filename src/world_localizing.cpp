@@ -606,6 +606,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                      static_cast<double>(hypothesis->visibility_updates)
                : std::numeric_limits<double>::quiet_NaN();
   };
+  // The same evidence before the logit, for a gate that has to mean the same
+  // thing wherever the ratio happens to sit.
+  const auto mean_visibility_consistency = [](const RelocHypothesis *hypothesis) {
+    return hypothesis && hypothesis->visibility_updates > 0
+               ? hypothesis->visibility_consistency_sum /
+                     static_cast<double>(hypothesis->visibility_updates)
+               : std::numeric_limits<double>::quiet_NaN();
+  };
   std::sort(
       ranked_hypotheses.begin(), ranked_hypotheses.end(),
       [&](const RelocHypothesis *a, const RelocHypothesis *b) {
@@ -804,9 +812,20 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     basin_separated =
         basin_separation >= config_.reloc_ambiguity_min_basin_separation;
   }
-  const bool ambiguous = top2_viable && basin_separated &&
-                         (margin < config_.reloc_ambiguity_min_margin) &&
-                         (ratio < config_.reloc_ambiguity_min_ratio);
+  const double top1_consistency = mean_visibility_consistency(top1);
+  const double top2_consistency = mean_visibility_consistency(top2);
+  const double consistency_margin = top1_consistency - top2_consistency;
+  const bool use_consistency_gate =
+      config_.reloc_ambiguity_min_consistency_margin > 0.0 &&
+      std::isfinite(consistency_margin);
+  const bool separation_too_small =
+      use_consistency_gate
+          ? consistency_margin <
+                config_.reloc_ambiguity_min_consistency_margin
+          : ((margin < config_.reloc_ambiguity_min_margin) &&
+             (ratio < config_.reloc_ambiguity_min_ratio));
+  const bool ambiguous =
+      top2_viable && basin_separated && separation_too_small;
   if (reloc_debug_enabled) {
     debug_event.temporal_hypothesis_score = top1_decision_score;
     debug_event.log_likelihood = top1_ll;

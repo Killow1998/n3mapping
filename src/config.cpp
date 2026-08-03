@@ -151,6 +151,7 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(reloc_static_agg_voxel_size);
     N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_margin);
     N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_ratio);
+    N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_consistency_margin);
     N3MAPPING_CONFIG_FIELD(reloc_ambiguity_min_basin_separation);
     N3MAPPING_CONFIG_FIELD(reloc_visibility_occlusion_aware);
     N3MAPPING_CONFIG_FIELD(reloc_debug_enable);
@@ -401,6 +402,7 @@ bool Config::validate(std::string* error) const {
     if (!non_negative(reloc_ambiguity_min_margin, "reloc_ambiguity_min_margin")) return false;
     if (!positive(reloc_ambiguity_min_ratio, "reloc_ambiguity_min_ratio")) return false;
     if (!non_negative(reloc_ambiguity_min_basin_separation, "reloc_ambiguity_min_basin_separation")) return false;
+    if (!non_negative(reloc_ambiguity_min_consistency_margin, "reloc_ambiguity_min_consistency_margin")) return false;
     if (!non_negative(rhpd_submap_voxel_size, "rhpd_submap_voxel_size")) return false;
     if (!positive(rhpd_max_range, "rhpd_max_range")) return false;
     if (!std::isfinite(rhpd_z_min) || !std::isfinite(rhpd_z_max) || rhpd_z_max <= rhpd_z_min) {
