@@ -181,6 +181,14 @@ target_link_libraries(n3mapping_localization_atlas_compile
   glog::glog
 )
 
+add_executable(n3mapping_rhpd_recall_eval
+  ${N3MAPPING_ROOT}/tools/rhpd_recall_eval.cpp
+)
+target_link_libraries(n3mapping_rhpd_recall_eval
+  n3mapping_core
+  ${PCL_LIBRARIES}
+)
+
 add_executable(n3mapping_filter_nav_pbstream
   ${N3MAPPING_ROOT}/tools/n3mapping_filter_nav_pbstream.cpp
 )
