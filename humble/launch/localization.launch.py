@@ -1,7 +1,14 @@
 """
 N3Mapping 重定位模式 Launch 文件
 
-Requirements: 10.3, 9.6
+Usage:
+    ros2 launch n3mapping localization.launch.py \
+        config_file:=<path-to-localization-config.yaml> \
+        rviz:=true
+
+The config file must set mode: "localization" and a non-empty map_path.
+`config_file` is required on purpose: silently defaulting to a mapping config
+would run the node in the wrong mode.
 """
 
 from launch import LaunchDescription
@@ -15,25 +22,27 @@ import os
 
 def generate_launch_description():
     pkg_dir = get_package_share_directory('n3mapping')
-    bundle_arg = DeclareLaunchArgument(
-        'bundle',
-        description='Verified Product Map Bundle V1 directory'
+
+    config_file_arg = DeclareLaunchArgument(
+        'config_file',
+        description='Path to the localization configuration file '
+                    '(must set mode: "localization" and map_path)'
     )
     rviz_arg = DeclareLaunchArgument(
-        'rviz', default_value='false',
+        'rviz', default_value='true',
         description='Whether to start RViz'
     )
-    
+
     rviz_config_path = os.path.join(pkg_dir, 'launch', 'n3.rviz')
-    
+
     n3mapping_node = Node(
         package='n3mapping',
-        executable='n3mapping_product_runtime.py',
+        executable='n3mapping_node',
         name='n3mapping_node',
         output='screen',
-        arguments=['--bundle', LaunchConfiguration('bundle')],
+        parameters=[LaunchConfiguration('config_file')],
     )
-    
+
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -42,9 +51,9 @@ def generate_launch_description():
         arguments=['-d', rviz_config_path],
         condition=IfCondition(LaunchConfiguration('rviz')),
     )
-    
+
     return LaunchDescription([
-        bundle_arg,
+        config_file_arg,
         rviz_arg,
         n3mapping_node,
         rviz_node,
