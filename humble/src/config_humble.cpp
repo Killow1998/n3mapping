@@ -147,6 +147,16 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("reloc_atlas_enable", config->reloc_atlas_enable);
     gets("reloc_atlas_path", config->reloc_atlas_path);
 
+    get("reloc_free_space_enable", config->reloc_free_space_enable);
+    gets("reloc_free_space_mode", config->reloc_free_space_mode);
+    get("reloc_free_space_resolution", config->reloc_free_space_resolution);
+    get("reloc_free_space_max_ray_length", config->reloc_free_space_max_ray_length);
+    get("reloc_free_space_occupied_min_points", config->reloc_free_space_occupied_min_points);
+    get("reloc_free_space_kill_sigmas", config->reloc_free_space_kill_sigmas);
+    gets("reloc_free_space_map_pcd", config->reloc_free_space_map_pcd);
+    get("reloc_persist_hypotheses", config->reloc_persist_hypotheses);
+    get("reloc_persist_max_frames", config->reloc_persist_max_frames);
+
     get("rhpd_enabled", config->rhpd_enabled);
     get("rhpd_v2_enable", config->rhpd_v2_enable);
     get("rhpd_v3_enable", config->rhpd_v3_enable);

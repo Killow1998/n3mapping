@@ -130,6 +130,15 @@ n3mapping_node:
     reloc_debug_path: ""
     reloc_atlas_enable: true
     reloc_atlas_path: ""
+    reloc_free_space_enable: true
+    reloc_free_space_mode: "veto"
+    reloc_free_space_resolution: 0.20
+    reloc_free_space_max_ray_length: 30.0
+    reloc_free_space_occupied_min_points: 2
+    reloc_free_space_kill_sigmas: 5.0
+    reloc_free_space_map_pcd: ""
+    reloc_persist_hypotheses: false
+    reloc_persist_max_frames: 300
 
     rhpd_enabled: true
     rhpd_v2_enable: true

@@ -142,5 +142,72 @@ TEST(ConfigTest, ProductFactoryFreezesLocalizationProfileAndPaths) {
     EXPECT_TRUE(product.validate(&error)) << error;
 }
 
+TEST(ConfigTest, FreeSpaceAndPersistenceDefaultsMatchEnvUnsetBehaviour) {
+    // These were process-environment switches read inside WorldLocalizing.
+    // The defaults must equal the env-unset behaviour exactly, or a default
+    // YAML run changes on this refactor.
+    const Config config;
+    EXPECT_TRUE(config.reloc_free_space_enable);
+    EXPECT_EQ(config.reloc_free_space_mode, "veto");
+    EXPECT_DOUBLE_EQ(config.reloc_free_space_resolution, 0.20);
+    EXPECT_DOUBLE_EQ(config.reloc_free_space_max_ray_length, 30.0);
+    EXPECT_EQ(config.reloc_free_space_occupied_min_points, 2);
+    EXPECT_DOUBLE_EQ(config.reloc_free_space_kill_sigmas, 5.0);
+    EXPECT_TRUE(config.reloc_free_space_map_pcd.empty());
+    EXPECT_FALSE(config.reloc_persist_hypotheses);
+    EXPECT_EQ(config.reloc_persist_max_frames, 300);
+
+    const Config product = makeProductLocalizationConfig("/m.pbstream", "/a.pb");
+    EXPECT_TRUE(product.reloc_free_space_enable);
+    EXPECT_EQ(product.reloc_free_space_mode, "veto");
+    EXPECT_EQ(product.reloc_persist_max_frames, 300);
+}
+
+TEST(ConfigTest, FreeSpaceAndPersistenceValidation) {
+    Config config;
+    std::string error;
+
+    EXPECT_TRUE(config.validate(&error)) << error;
+
+    config.reloc_free_space_mode = "kill";
+    EXPECT_TRUE(config.validate(&error)) << error;
+    config.reloc_free_space_mode = "veto";
+    EXPECT_TRUE(config.validate(&error)) << error;
+
+    config.reloc_free_space_mode = "banana";
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_free_space_mode"), std::string::npos);
+
+    config = Config{};
+    config.reloc_free_space_occupied_min_points = 0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_free_space_occupied_min_points"), std::string::npos);
+
+    config = Config{};
+    config.reloc_free_space_occupied_min_points = 256;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_free_space_occupied_min_points"), std::string::npos);
+
+    config = Config{};
+    config.reloc_free_space_resolution = 0.0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_free_space_resolution"), std::string::npos);
+
+    config = Config{};
+    config.reloc_free_space_max_ray_length = -1.0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_free_space_max_ray_length"), std::string::npos);
+
+    config = Config{};
+    config.reloc_free_space_kill_sigmas = -0.5;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_free_space_kill_sigmas"), std::string::npos);
+
+    config = Config{};
+    config.reloc_persist_max_frames = 0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_persist_max_frames"), std::string::npos);
+}
+
 }  // namespace test
 }  // namespace n3mapping

@@ -117,5 +117,32 @@ TEST(ConfigWiringTest, DescriptorBlockScalesDefaultToThePublishedDistance) {
     EXPECT_DOUBLE_EQ(params.aux_scale, 1.0);
 }
 
+TEST(ConfigWiringTest, CanonicalCarriesEveryFreeSpaceAndPersistenceKey) {
+    // The canonical serialization is what proves a ROS-loaded product_v1.yaml
+    // and makeProductLocalizationConfig() are equivalent. A field missing from
+    // it would silently exempt that key from the equivalence check.
+    Config config;
+    config.reloc_free_space_enable = false;
+    config.reloc_free_space_mode = "kill";
+    config.reloc_free_space_resolution = 0.31;
+    config.reloc_free_space_max_ray_length = 22.0;
+    config.reloc_free_space_occupied_min_points = 7;
+    config.reloc_free_space_kill_sigmas = 3.5;
+    config.reloc_free_space_map_pcd = "/tmp/grid.pcd";
+    config.reloc_persist_hypotheses = true;
+    config.reloc_persist_max_frames = 123;
+
+    const std::string canonical = runtimeConfigCanonical(config);
+    EXPECT_NE(canonical.find("reloc_free_space_enable=false"), std::string::npos);
+    EXPECT_NE(canonical.find("reloc_free_space_mode=kill"), std::string::npos);
+    EXPECT_NE(canonical.find("reloc_free_space_resolution=0.31"), std::string::npos);
+    EXPECT_NE(canonical.find("reloc_free_space_max_ray_length=22"), std::string::npos);
+    EXPECT_NE(canonical.find("reloc_free_space_occupied_min_points=7"), std::string::npos);
+    EXPECT_NE(canonical.find("reloc_free_space_kill_sigmas=3.5"), std::string::npos);
+    EXPECT_NE(canonical.find("reloc_free_space_map_pcd=/tmp/grid.pcd"), std::string::npos);
+    EXPECT_NE(canonical.find("reloc_persist_hypotheses=true"), std::string::npos);
+    EXPECT_NE(canonical.find("reloc_persist_max_frames=123"), std::string::npos);
+}
+
 }  // namespace
 }  // namespace n3mapping

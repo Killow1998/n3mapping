@@ -225,6 +225,21 @@ struct Config {
     bool reloc_atlas_enable = false;
     std::string reloc_atlas_path = "";
 
+    // Free-space evidence and hypothesis persistence. Until 2026-08 these were
+    // process-environment switches read inside WorldLocalizing
+    // (N3MAPPING_FREESPACE_*, N3MAPPING_RELOC_PERSIST). The defaults below are
+    // exactly the env-unset behaviour, so a default YAML run is unchanged;
+    // setting the old environment variables no longer has any effect.
+    bool reloc_free_space_enable = true;
+    std::string reloc_free_space_mode = "veto";  // veto | kill
+    double reloc_free_space_resolution = 0.20;
+    double reloc_free_space_max_ray_length = 30.0;
+    int reloc_free_space_occupied_min_points = 2;
+    double reloc_free_space_kill_sigmas = 5.0;
+    std::string reloc_free_space_map_pcd = "";
+    bool reloc_persist_hypotheses = false;
+    int reloc_persist_max_frames = 300;
+
     bool rhpd_enabled = true;
     bool rhpd_v2_enable = true;
     bool rhpd_v3_enable = false;

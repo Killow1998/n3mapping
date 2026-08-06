@@ -24,6 +24,17 @@ Config makeProductLocalizationConfig(const std::string& map_path,
 
     config.reloc_atlas_enable = true;
     config.reloc_atlas_path = atlas_path;
+
+    // Frozen free-space/persistence profile, mirrored in config/product_v1.yaml.
+    config.reloc_free_space_enable = true;
+    config.reloc_free_space_mode = "veto";
+    config.reloc_free_space_resolution = 0.20;
+    config.reloc_free_space_max_ray_length = 30.0;
+    config.reloc_free_space_occupied_min_points = 2;
+    config.reloc_free_space_kill_sigmas = 5.0;
+    config.reloc_free_space_map_pcd = "";
+    config.reloc_persist_hypotheses = false;
+    config.reloc_persist_max_frames = 300;
     return config;
 }
 
@@ -153,6 +164,15 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(reloc_debug_path);
     N3MAPPING_CONFIG_FIELD(reloc_atlas_enable);
     N3MAPPING_CONFIG_FIELD(reloc_atlas_path);
+    N3MAPPING_CONFIG_FIELD(reloc_free_space_enable);
+    N3MAPPING_CONFIG_FIELD(reloc_free_space_mode);
+    N3MAPPING_CONFIG_FIELD(reloc_free_space_resolution);
+    N3MAPPING_CONFIG_FIELD(reloc_free_space_max_ray_length);
+    N3MAPPING_CONFIG_FIELD(reloc_free_space_occupied_min_points);
+    N3MAPPING_CONFIG_FIELD(reloc_free_space_kill_sigmas);
+    N3MAPPING_CONFIG_FIELD(reloc_free_space_map_pcd);
+    N3MAPPING_CONFIG_FIELD(reloc_persist_hypotheses);
+    N3MAPPING_CONFIG_FIELD(reloc_persist_max_frames);
     N3MAPPING_CONFIG_FIELD(rhpd_enabled);
     N3MAPPING_CONFIG_FIELD(rhpd_v2_enable);
     N3MAPPING_CONFIG_FIELD(rhpd_v3_enable);
@@ -248,6 +268,16 @@ std::string Config::toString() const {
         << " path=" << (reloc_debug_path.empty() ? "<map_save_path>/relocalization_debug.jsonl" : reloc_debug_path) << "\n";
     oss << "Reloc localization atlas: " << (reloc_atlas_enable ? "ON" : "OFF")
         << " path=" << (reloc_atlas_path.empty() ? "<map_path>.localization_atlas.pb" : reloc_atlas_path) << "\n";
+    oss << "Reloc free-space: " << (reloc_free_space_enable ? "ON" : "OFF")
+        << " mode=" << reloc_free_space_mode
+        << " res=" << reloc_free_space_resolution
+        << " max_ray=" << reloc_free_space_max_ray_length
+        << " occ_min=" << reloc_free_space_occupied_min_points
+        << " kill_sigmas=" << reloc_free_space_kill_sigmas
+        << " map_pcd=" << (reloc_free_space_map_pcd.empty() ? "<auto>" : reloc_free_space_map_pcd) << "\n";
+    oss << "Reloc hypothesis persistence: "
+        << (reloc_persist_hypotheses ? "ON" : "OFF")
+        << " max_frames=" << reloc_persist_max_frames << "\n";
     oss << "RHPD: enabled=" << (rhpd_enabled ? "YES" : "NO")
         << ", v2=" << (rhpd_v2_enable ? "YES" : "NO")
         << ", v3=" << (rhpd_v3_enable ? "YES" : "NO")
@@ -403,6 +433,16 @@ bool Config::validate(std::string* error) const {
     if (!non_negative(sc_aux_weight, "sc_aux_weight")) return false;
     if (!positive(sc_aux_veto_threshold, "sc_aux_veto_threshold")) return false;
     if (!at_least(rhpd_yaw_hypotheses, 1, "rhpd_yaw_hypotheses")) return false;
+    if (reloc_free_space_mode != "veto" && reloc_free_space_mode != "kill") {
+        return fail("reloc_free_space_mode must be one of: veto, kill");
+    }
+    if (!positive(reloc_free_space_resolution, "reloc_free_space_resolution")) return false;
+    if (!positive(reloc_free_space_max_ray_length, "reloc_free_space_max_ray_length")) return false;
+    if (reloc_free_space_occupied_min_points < 1 || reloc_free_space_occupied_min_points > 255) {
+        return fail("reloc_free_space_occupied_min_points must be in [1,255]");
+    }
+    if (!non_negative(reloc_free_space_kill_sigmas, "reloc_free_space_kill_sigmas")) return false;
+    if (!at_least(reloc_persist_max_frames, 1, "reloc_persist_max_frames")) return false;
     return true;
 }
 
