@@ -85,6 +85,13 @@ struct ParsedEdgeProto {
     PbstreamEdgeConstraintMode constraint_mode = PbstreamEdgeConstraintMode::FULL_6DOF;
 };
 
+// Floor attitude constraint as parsed from a pbstream (map format 2.4.0).
+struct ParsedFloorAttitudeConstraint {
+    int64_t node_id = -1;
+    Eigen::Vector3d normal_body = Eigen::Vector3d::UnitZ();
+    double sigma_rad = 0.0;
+};
+
 constexpr uint32_t kMaxPbstreamPointsPerKeyframe = 5000000u;
 constexpr uint64_t kMaxPbstreamDescriptorValues = 1000000u;
 constexpr double kMinInformationEigenvalue = 1e-12;
@@ -142,5 +149,12 @@ bool parseEdgesFromProto(const N3Map& map_proto,
                          PbstreamLoadPolicy policy,
                          std::vector<ParsedEdgeProto>* edges,
                          std::string* error);
+
+bool parseFloorAttitudeFactorsFromProto(
+    const N3Map& map_proto,
+    const std::unordered_set<int64_t>& valid_keyframe_ids,
+    PbstreamLoadPolicy policy,
+    std::vector<ParsedFloorAttitudeConstraint>* floors,
+    std::string* error);
 
 }  // namespace n3mapping

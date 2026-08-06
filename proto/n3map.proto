@@ -72,6 +72,16 @@ message DenseTrajectoryPose {
     Pose3D pose_world_lidar = 3;
 }
 
+// Floor attitude constraint (map format 2.4.0): roll/pitch observation attached
+// to one keyframe, normal expressed in the sensor/body frame.
+message FloorAttitudeFactorProto {
+    int64 node_id = 1;
+    double nx = 2;
+    double ny = 3;
+    double nz = 4;
+    double sigma_rad = 5;
+}
+
 // 地图元数据
 message MapMetadata {
     string version = 1;
@@ -90,6 +100,7 @@ message MapMetadata {
     uint64 nav_filter_removed_points = 14;
     string dense_trajectory_source = 15;
     bool dense_trajectory_degraded = 16;
+    uint32 num_floor_attitude_factors = 17;
 }
 
 // 完整地图
@@ -98,4 +109,5 @@ message N3Map {
     repeated KeyframeProto keyframes = 2;
     repeated EdgeProto edges = 3;
     repeated DenseTrajectoryPose dense_optimized_trajectory = 4;
+    repeated FloorAttitudeFactorProto floor_attitude_factors = 5;
 }

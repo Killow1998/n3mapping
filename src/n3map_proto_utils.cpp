@@ -494,4 +494,51 @@ bool parseEdgesFromProto(const N3Map& map_proto,
     return true;
 }
 
+bool parseFloorAttitudeFactorsFromProto(
+    const N3Map& map_proto,
+    const std::unordered_set<int64_t>& valid_keyframe_ids,
+    PbstreamLoadPolicy policy,
+    std::vector<ParsedFloorAttitudeConstraint>* floors,
+    std::string* error) {
+    if (!floors) return setError(error, "null floor output");
+    const uint32_t declared =
+        static_cast<uint32_t>(map_proto.metadata().num_floor_attitude_factors());
+    if (static_cast<uint32_t>(map_proto.floor_attitude_factors_size()) != declared) {
+        if (policy == PbstreamLoadPolicy::STRICT) {
+            return setError(error, "floor attitude factor count mismatch");
+        }
+    }
+    floors->clear();
+    floors->reserve(map_proto.floor_attitude_factors_size());
+    for (int i = 0; i < map_proto.floor_attitude_factors_size(); ++i) {
+        const auto& proto = map_proto.floor_attitude_factors(i);
+        ParsedFloorAttitudeConstraint floor;
+        floor.node_id = proto.node_id();
+        floor.normal_body =
+            Eigen::Vector3d(proto.nx(), proto.ny(), proto.nz());
+        floor.sigma_rad = proto.sigma_rad();
+        std::string local_error;
+        if (valid_keyframe_ids.find(floor.node_id) ==
+            valid_keyframe_ids.end()) {
+            local_error = "floor constraint node not in map";
+        } else if (!floor.normal_body.allFinite() ||
+                   floor.normal_body.norm() < 1e-6) {
+            local_error = "floor constraint normal invalid";
+        } else if (!std::isfinite(floor.sigma_rad) ||
+                   floor.sigma_rad <= 0.0) {
+            local_error = "floor constraint sigma invalid";
+        }
+        if (!local_error.empty()) {
+            if (policy == PbstreamLoadPolicy::STRICT) {
+                return setError(error, local_error);
+            }
+            std::cerr << "[MapSerializer] Salvage: skipping bad floor factor at "
+                      << floor.node_id << ": " << local_error << '\n';
+            continue;
+        }
+        floors->push_back(floor);
+    }
+    return true;
+}
+
 }  // namespace n3mapping

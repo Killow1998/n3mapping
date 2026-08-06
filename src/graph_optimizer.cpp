@@ -135,13 +135,19 @@ void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
     new_factors_.add(gtsam::Pose3AttitudeFactor(
         key, gtsam::Unit3(0.0, 0.0, 1.0), noise,
         gtsam::Unit3(normal_body.normalized())));
-    ++floor_attitude_factor_count_;
-    if (floor_attitude_factor_count_ == 1 ||
-        floor_attitude_factor_count_ % 25 == 0) {
+    // Transactional: the constraint enters the pending set and only becomes
+    // committed (and counted) when commitPending() runs after a successful
+    // optimization. rollbackToLastState()/clearPending() drop it without
+    // touching committed state.
+    pending_floor_attitude_constraints_.push_back(
+        FloorAttitudeConstraint{id, normal_body, sigma});
+    const int total_factors = floor_attitude_factor_count_ +
+                              static_cast<int>(pending_floor_attitude_constraints_.size());
+    if (total_factors == 1 || total_factors % 25 == 0) {
         std::cout << "[OPTIMIZATION] floor_attitude kf=" << id
                   << " normal_body=" << normal_body.transpose()
                   << " sigma_deg=" << config_.floor_attitude_noise_deg
-                  << " total_factors=" << floor_attitude_factor_count_
+                  << " total_factors=" << total_factors
                   << std::endl;
     }
     needs_optimization_ = true;
@@ -362,6 +368,13 @@ bool GraphOptimizer::hasLoopClosure() const {
 bool GraphOptimizer::loadGraph(
     const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes,
     const std::vector<EdgeInfo>& edges) {
+    return loadGraph(nodes, edges, {});
+}
+
+bool GraphOptimizer::loadGraph(
+    const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes,
+    const std::vector<EdgeInfo>& edges,
+    const std::vector<FloorAttitudeConstraint>& floor_constraints) {
     GraphOptimizer temp(config_);
 
     if (nodes.empty()) {
@@ -417,7 +430,27 @@ bool GraphOptimizer::loadGraph(
         }
         temp.edges_.push_back(edge);
     }
-    
+
+    // Load committed floor attitude constraints (validated by the
+    // serializer; defensive checks keep a bad record from breaking the
+    // load). The node must exist and the normal/sigma must be sane.
+    for (const auto& fc : floor_constraints) {
+        if (!fc.normal_body.allFinite() || fc.normal_body.norm() < 1e-6 ||
+            !std::isfinite(fc.sigma_rad) || fc.sigma_rad <= 0.0) {
+            continue;
+        }
+        gtsam::Key key = gtsam::Symbol('x', fc.node_id);
+        if (!temp.initial_values_.exists(key)) {
+            continue;
+        }
+        auto noise = gtsam::noiseModel::Isotropic::Sigma(2, fc.sigma_rad);
+        temp.graph_.add(gtsam::Pose3AttitudeFactor(
+            key, gtsam::Unit3(0.0, 0.0, 1.0), noise,
+            gtsam::Unit3(fc.normal_body.normalized())));
+        temp.committed_floor_attitude_constraints_.push_back(fc);
+        ++temp.floor_attitude_factor_count_;
+    }
+
     // 执行优化
     if (!temp.graph_.empty() && !temp.initial_values_.empty()) {
         gtsam::Values optimized_estimate;
@@ -453,6 +486,11 @@ void GraphOptimizer::swapWith(GraphOptimizer& other) {
     swap(pending_node_ids_, other.pending_node_ids_);
     swap(has_loop_closure_, other.has_loop_closure_);
     swap(pending_has_loop_closure_, other.pending_has_loop_closure_);
+    swap(floor_attitude_factor_count_, other.floor_attitude_factor_count_);
+    swap(committed_floor_attitude_constraints_,
+         other.committed_floor_attitude_constraints_);
+    swap(pending_floor_attitude_constraints_,
+         other.pending_floor_attitude_constraints_);
     swap(needs_optimization_, other.needs_optimization_);
 }
 
@@ -473,6 +511,9 @@ void GraphOptimizer::clear() {
     pending_node_ids_.clear();
     has_loop_closure_ = false;
     pending_has_loop_closure_ = false;
+    floor_attitude_factor_count_ = 0;
+    committed_floor_attitude_constraints_.clear();
+    pending_floor_attitude_constraints_.clear();
     needs_optimization_ = false;
     isam2_ = createISAM2();
 }
@@ -518,6 +559,7 @@ void GraphOptimizer::clearPending() {
     pending_edges_.clear();
     pending_node_ids_.clear();
     pending_has_loop_closure_ = false;
+    pending_floor_attitude_constraints_.clear();
 }
 
 bool GraphOptimizer::hasAnyNode(int64_t id) const {
@@ -555,6 +597,12 @@ void GraphOptimizer::commitPending(const gtsam::Values& optimized_estimate,
         node_ids_.insert(id);
     }
     edges_.insert(edges_.end(), pending_edges_.begin(), pending_edges_.end());
+    committed_floor_attitude_constraints_.insert(
+        committed_floor_attitude_constraints_.end(),
+        pending_floor_attitude_constraints_.begin(),
+        pending_floor_attitude_constraints_.end());
+    floor_attitude_factor_count_ +=
+        static_cast<int>(pending_floor_attitude_constraints_.size());
     has_loop_closure_ = has_loop_closure_ || pending_has_loop_closure_;
     current_estimate_ = optimized_estimate;
     last_good_estimate_ = optimized_estimate;

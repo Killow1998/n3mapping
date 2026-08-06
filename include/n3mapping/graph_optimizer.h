@@ -71,6 +71,17 @@ struct EdgeInfo
     }
 };
 
+// A floor attitude constraint is a roll/pitch-only observation attached to one
+// keyframe: the floor normal as seen in the sensor frame, with the attitude
+// noise as a sigma. It is a first-class serializable part of the graph (map
+// format 2.4.0), with the same pending/committed lifecycle as edges.
+struct FloorAttitudeConstraint
+{
+    int64_t node_id = -1;
+    Eigen::Vector3d normal_body = Eigen::Vector3d::UnitZ();
+    double sigma_rad = 0.0;
+};
+
 /**
  * @brief 回环优化接口（用于测试与解耦）
  */
@@ -119,6 +130,9 @@ class GraphOptimizer : public LoopOptimizerInterface
     // keyframe's own sensor frame. Leaves yaw free.
     void addFloorAttitudeFactor(int64_t id, const Eigen::Vector3d& normal_body);
     int floorAttitudeFactorCount() const { return floor_attitude_factor_count_; }
+    const std::vector<FloorAttitudeConstraint>& floorAttitudeConstraints() const {
+        return committed_floor_attitude_constraints_;
+    }
 
     /**
      * @brief 添加里程计边
@@ -216,6 +230,11 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @param edges 边列表
      */
     bool loadGraph(const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes, const std::vector<EdgeInfo>& edges);
+    // Loads nodes, edges and floor attitude constraints together. The old
+    // overload delegates here with an empty constraint list.
+    bool loadGraph(const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes,
+                   const std::vector<EdgeInfo>& edges,
+                   const std::vector<FloorAttitudeConstraint>& floor_constraints);
     void swapWith(GraphOptimizer& other);
 
     /**
@@ -260,6 +279,8 @@ class GraphOptimizer : public LoopOptimizerInterface
     bool has_loop_closure_;                   ///< 是否有回环约束
     bool pending_has_loop_closure_;           ///< 待提交更新是否含回环约束
     int floor_attitude_factor_count_ = 0;
+    std::vector<FloorAttitudeConstraint> committed_floor_attitude_constraints_;
+    std::vector<FloorAttitudeConstraint> pending_floor_attitude_constraints_;
     bool needs_optimization_;                 ///< 是否需要优化
 
     /**

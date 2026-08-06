@@ -429,6 +429,76 @@ TEST_F(GraphOptimizerTest, PoseConsistency) {
     EXPECT_LT(distance, 0.1);
 }
 
+TEST_F(GraphOptimizerTest, FloorConstraintCommittedOnlyAfterOptimization) {
+    optimizer_->addPriorFactor(0, createPose(0, 0, 0));
+    optimizer_->addFloorAttitudeFactor(0, Eigen::Vector3d(0, 0, 1));
+    // Transactional: pending until a successful optimization commits it.
+    EXPECT_EQ(optimizer_->floorAttitudeFactorCount(), 0);
+    EXPECT_TRUE(optimizer_->floorAttitudeConstraints().empty());
+    optimizer_->incrementalOptimize();
+    EXPECT_EQ(optimizer_->floorAttitudeFactorCount(), 1);
+    ASSERT_EQ(optimizer_->floorAttitudeConstraints().size(), 1u);
+    EXPECT_EQ(optimizer_->floorAttitudeConstraints()[0].node_id, 0);
+}
+
+TEST_F(GraphOptimizerTest, FloorConstraintNotCommittedOnRollback) {
+    optimizer_->addPriorFactor(0, createPose(0, 0, 0));
+    optimizer_->incrementalOptimize();
+    optimizer_->addFloorAttitudeFactor(0, Eigen::Vector3d(0, 0, 1));
+    EXPECT_EQ(optimizer_->floorAttitudeFactorCount(), 0);
+    optimizer_->rollbackToLastState();
+    EXPECT_EQ(optimizer_->floorAttitudeFactorCount(), 0);
+    EXPECT_TRUE(optimizer_->floorAttitudeConstraints().empty());
+    // Re-add and commit: the rollback must not have poisoned anything.
+    optimizer_->addFloorAttitudeFactor(0, Eigen::Vector3d(0, 0, 1));
+    optimizer_->incrementalOptimize();
+    EXPECT_EQ(optimizer_->floorAttitudeFactorCount(), 1);
+}
+
+TEST_F(GraphOptimizerTest, FloorConstraintClearResetsEverything) {
+    optimizer_->addPriorFactor(0, createPose(0, 0, 0));
+    optimizer_->addFloorAttitudeFactor(0, Eigen::Vector3d(0, 0, 1));
+    optimizer_->incrementalOptimize();
+    EXPECT_EQ(optimizer_->floorAttitudeFactorCount(), 1);
+    optimizer_->clear();
+    EXPECT_EQ(optimizer_->floorAttitudeFactorCount(), 0);
+    EXPECT_TRUE(optimizer_->floorAttitudeConstraints().empty());
+}
+
+TEST_F(GraphOptimizerTest, FloorConstraintSwapWithCarriesState) {
+    GraphOptimizer other(config_);
+    optimizer_->addPriorFactor(0, createPose(0, 0, 0));
+    optimizer_->addFloorAttitudeFactor(0, Eigen::Vector3d(0, 0, 1));
+    optimizer_->incrementalOptimize();
+    optimizer_->swapWith(other);
+    EXPECT_EQ(optimizer_->floorAttitudeFactorCount(), 0);
+    EXPECT_TRUE(optimizer_->floorAttitudeConstraints().empty());
+    EXPECT_EQ(other.floorAttitudeFactorCount(), 1);
+    ASSERT_EQ(other.floorAttitudeConstraints().size(), 1u);
+    EXPECT_EQ(other.floorAttitudeConstraints()[0].node_id, 0);
+}
+
+TEST_F(GraphOptimizerTest, LoadGraphRestoresFloorConstraints) {
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
+    nodes.emplace_back(0, createPose(0, 0, 0));
+    nodes.emplace_back(1, createPose(1, 0, 0));
+    std::vector<FloorAttitudeConstraint> floors;
+    floors.push_back(FloorAttitudeConstraint{0, Eigen::Vector3d(0, 0, 1), 0.02});
+    floors.push_back(FloorAttitudeConstraint{1, Eigen::Vector3d(0, 0, 1), 0.03});
+    GraphOptimizer loaded(config_);
+    ASSERT_TRUE(loaded.loadGraph(nodes, {}, floors));
+    EXPECT_EQ(loaded.floorAttitudeFactorCount(), 2);
+    ASSERT_EQ(loaded.floorAttitudeConstraints().size(), 2u);
+    EXPECT_EQ(loaded.floorAttitudeConstraints()[0].node_id, 0);
+    EXPECT_DOUBLE_EQ(loaded.floorAttitudeConstraints()[0].sigma_rad, 0.02);
+    EXPECT_DOUBLE_EQ(loaded.floorAttitudeConstraints()[1].sigma_rad, 0.03);
+    // Old overload (empty floor list) stays compatible.
+    GraphOptimizer legacy(config_);
+    ASSERT_TRUE(legacy.loadGraph(nodes, {}));
+    EXPECT_EQ(legacy.floorAttitudeFactorCount(), 0);
+    EXPECT_TRUE(legacy.floorAttitudeConstraints().empty());
+}
+
 }  // namespace test
 }  // namespace n3mapping
 

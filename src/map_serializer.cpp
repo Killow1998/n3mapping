@@ -22,7 +22,7 @@
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.3.0";
+constexpr const char* MAP_VERSION = "2.4.0";
 
 struct SemVer {
     int major = 0;
@@ -283,6 +283,17 @@ bool MapSerializer::saveMap(const std::string& filepath,
         }
         meta->set_num_odometry_edges(n_odom);
         meta->set_num_loop_edges(n_loop);
+        const auto& floor_constraints = optimizer.floorAttitudeConstraints();
+        meta->set_num_floor_attitude_factors(
+            static_cast<uint32_t>(floor_constraints.size()));
+        for (const auto& fc : floor_constraints) {
+            auto* floor_proto = map_proto.add_floor_attitude_factors();
+            floor_proto->set_node_id(fc.node_id);
+            floor_proto->set_nx(fc.normal_body.x());
+            floor_proto->set_ny(fc.normal_body.y());
+            floor_proto->set_nz(fc.normal_body.z());
+            floor_proto->set_sigma_rad(fc.sigma_rad);
+        }
         return atomicWriteProto(filepath, map_proto);
     } catch (...) { return false; }
 }
@@ -420,6 +431,14 @@ bool MapSerializer::loadMap(const std::string& filepath,
             return false;
         }
 
+        std::vector<ParsedFloorAttitudeConstraint> parsed_floors;
+        if (!parseFloorAttitudeFactorsFromProto(map_proto, loaded_keyframe_ids,
+                                                options.policy, &parsed_floors,
+                                                &parse_error)) {
+            LOG(ERROR) << "[MapSerializer] Reject map: " << parse_error;
+            return false;
+        }
+
         KeyframeManager temp_keyframe_manager(config_);
         LoopDetector temp_loop_detector(config_);
         GraphOptimizer temp_optimizer(config_);
@@ -472,7 +491,13 @@ bool MapSerializer::loadMap(const std::string& filepath,
         for (const auto& parsed : parsed_edges) {
             edges.push_back(edgeFromParsedProto(parsed));
         }
-        if (!temp_optimizer.loadGraph(nodes, edges)) {
+        std::vector<FloorAttitudeConstraint> floor_constraints;
+        floor_constraints.reserve(parsed_floors.size());
+        for (const auto& parsed : parsed_floors) {
+            floor_constraints.push_back(FloorAttitudeConstraint{
+                parsed.node_id, parsed.normal_body, parsed.sigma_rad});
+        }
+        if (!temp_optimizer.loadGraph(nodes, edges, floor_constraints)) {
             LOG(ERROR) << "[MapSerializer] Reject map: graph optimizer failed to load graph.";
             return false;
         }

@@ -2091,6 +2091,148 @@ TEST_F(MapSerializerTest, SaveGlobalMap) {
     EXPECT_GT(file_size, 0);
 }
 
+TEST_F(MapSerializerTest, FloorConstraintSaveLoadRoundTrip) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    optimizer.addPriorFactor(0, pose);
+    for (int i = 0; i < 3; ++i) {
+        auto cloud = generateRandomPointCloud(500);
+        pose.translation().x() += 1.0;
+        int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
+        auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
+        kf_manager.updateDescriptor(kf_id, descriptor);
+        if (i > 0) {
+            EdgeInfo edge;
+            edge.from_id = i - 1;
+            edge.to_id = i;
+            edge.measurement = Eigen::Isometry3d::Identity();
+            edge.measurement.translation().x() = 1.0;
+            edge.information = Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
+            edge.type = EdgeType::ODOMETRY;
+            optimizer.addOdometryEdge(edge);
+        }
+    }
+    optimizer.addFloorAttitudeFactor(1, Eigen::Vector3d(0.1, 0.2, 0.975));
+    optimizer.addFloorAttitudeFactor(2, Eigen::Vector3d(-0.1, 0.05, 0.994));
+    optimizer.incrementalOptimize();
+    ASSERT_EQ(optimizer.floorAttitudeFactorCount(), 2);
+
+    std::string map_file = config_.map_save_path + "/floor_roundtrip.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    KeyframeManager kf_loaded(config_);
+    LoopDetector ld_loaded(config_);
+    GraphOptimizer opt_loaded(config_);
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_loaded, ld_loaded, opt_loaded));
+
+    EXPECT_EQ(kf_manager.size(), kf_loaded.size());
+    EXPECT_EQ(opt_loaded.floorAttitudeFactorCount(), 2);
+    ASSERT_EQ(opt_loaded.floorAttitudeConstraints().size(), 2u);
+    EXPECT_EQ(opt_loaded.floorAttitudeConstraints()[0].node_id, 1);
+    EXPECT_TRUE(opt_loaded.floorAttitudeConstraints()[0].normal_body.isApprox(
+        Eigen::Vector3d(0.1, 0.2, 0.975), 1e-6));
+    EXPECT_DOUBLE_EQ(opt_loaded.floorAttitudeConstraints()[1].sigma_rad,
+                     optimizer.floorAttitudeConstraints()[1].sigma_rad);
+}
+
+TEST_F(MapSerializerTest, MapWithoutFloorFieldsStillLoads) {
+    // 等价旧 2.3.0 语义：floor 列表为空仍可加载，不拒绝。
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    optimizer.addPriorFactor(0, pose);
+    for (int i = 0; i < 2; ++i) {
+        auto cloud = generateRandomPointCloud(300);
+        pose.translation().x() += 1.0;
+        int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
+        auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
+        kf_manager.updateDescriptor(kf_id, descriptor);
+    }
+    optimizer.incrementalOptimize();
+
+    std::string map_file = config_.map_save_path + "/no_floor.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    KeyframeManager kf_loaded(config_);
+    LoopDetector ld_loaded(config_);
+    GraphOptimizer opt_loaded(config_);
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_loaded, ld_loaded, opt_loaded));
+    EXPECT_EQ(opt_loaded.floorAttitudeFactorCount(), 0);
+    EXPECT_TRUE(opt_loaded.floorAttitudeConstraints().empty());
+}
+
+TEST_F(MapSerializerTest, StrictRejectsInvalidFloorFactor) {
+    n3mapping::N3Map map_proto;
+    auto* meta = map_proto.mutable_metadata();
+    meta->set_version("2.4.0");
+    addValidKeyframeProto(&map_proto, 0, 0.0);
+    auto* bad = map_proto.add_floor_attitude_factors();
+    bad->set_node_id(0);
+    bad->set_nx(0.0);
+    bad->set_ny(0.0);
+    bad->set_nz(0.0);  // zero normal: norm < 1e-6 -> invalid
+    bad->set_sigma_rad(0.02);
+    meta->set_num_floor_attitude_factors(1);
+
+    std::string map_file = config_.map_save_path + "/bad_floor_strict.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager kf_loaded(config_);
+    LoopDetector ld_loaded(config_);
+    GraphOptimizer opt_loaded(config_);
+    MapSerializer serializer(config_);
+    PbstreamLoadOptions options;
+    options.policy = PbstreamLoadPolicy::STRICT;
+    EXPECT_FALSE(serializer.loadMap(map_file, kf_loaded, ld_loaded, opt_loaded, options));
+}
+
+TEST_F(MapSerializerTest, SalvageSkipsBadFloorFactor) {
+    n3mapping::N3Map map_proto;
+    auto* meta = map_proto.mutable_metadata();
+    meta->set_version("2.4.0");
+    addValidKeyframeProto(&map_proto, 0, 0.0);
+    auto* good = map_proto.add_floor_attitude_factors();
+    good->set_node_id(0);
+    good->set_nx(0.0);
+    good->set_ny(0.0);
+    good->set_nz(1.0);
+    good->set_sigma_rad(0.02);
+    auto* bad = map_proto.add_floor_attitude_factors();
+    bad->set_node_id(0);
+    bad->set_nx(0.0);
+    bad->set_ny(0.0);
+    bad->set_nz(0.0);
+    bad->set_sigma_rad(0.02);
+    meta->set_num_floor_attitude_factors(2);
+
+    std::string map_file = config_.map_save_path + "/bad_floor_salvage.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager kf_loaded(config_);
+    LoopDetector ld_loaded(config_);
+    GraphOptimizer opt_loaded(config_);
+    MapSerializer serializer(config_);
+    PbstreamLoadOptions options;
+    options.policy = PbstreamLoadPolicy::SALVAGE;
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_loaded, ld_loaded, opt_loaded, options));
+    EXPECT_EQ(opt_loaded.floorAttitudeFactorCount(), 1);
+    ASSERT_EQ(opt_loaded.floorAttitudeConstraints().size(), 1u);
+    EXPECT_EQ(opt_loaded.floorAttitudeConstraints()[0].node_id, 0);
+}
+
 }  // namespace test
 }  // namespace n3mapping
 
