@@ -2,6 +2,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/pcl_compat.h"
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/localization_atlas.h"
 #include "n3mapping/world_localizing.h"
 #include <cmath>
 #include <filesystem>
@@ -523,6 +524,181 @@ TEST_F(WorldLocalizingTest, FreeSpaceDisabledKeepsLockPathUnchanged) {
   EXPECT_TRUE(result_on.pose_in_map.isApprox(result_off.pose_in_map, 1e-6));
   EXPECT_TRUE(reloc_on.isRelocalized());
   EXPECT_TRUE(reloc_off.isRelocalized());
+}
+
+TEST_F(WorldLocalizingTest, MapReplacementSameKeyframeCountDoesNotReuseOldIndex) {
+  // Map A along x in [0, 18]; the frame-RHPD index, reloc map cache and
+  // free-space grid are built by relocalizing inside it.
+  buildTestMap(10, 2.0, 0.0);
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+
+  Eigen::Isometry3d query_a = Eigen::Isometry3d::Identity();
+  query_a.translation().x() = 8.0;
+  auto cloud_a = generateCorridorCloud(query_a);
+  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+    reloc.relocalize(cloud_a, query_a);
+  }
+  WorldLocalizing::WorldLocalizingCacheDiagnostics diag =
+      reloc.cacheDiagnostics();
+  ASSERT_GT(diag.frame_rhpd_indexed_keyframes, 0u);
+  ASSERT_GT(diag.reloc_map_cached_keyframes, 0u);
+
+  // Replace with map B: the same keyframe count, shifted to x in [100, 118].
+  // Without notifyMapReplaced the count-based validity checks would reuse the
+  // old index built from map A's descriptors.
+  keyframe_manager_->clear();
+  loop_detector_->clear();
+  buildTestMap(10, 2.0, 100.0);
+  reloc.notifyMapReplaced();
+
+  diag = reloc.cacheDiagnostics();
+  EXPECT_EQ(diag.frame_rhpd_indexed_keyframes, 0u);
+  EXPECT_EQ(diag.reloc_map_cached_keyframes, 0u);
+  EXPECT_FALSE(diag.free_space_grid_valid);
+
+  // A query inside B must lock to B (x > 90); a leaked A index would answer
+  // with map A's geometry around x = 8.
+  Eigen::Isometry3d query_b = Eigen::Isometry3d::Identity();
+  query_b.translation().x() = 108.0;
+  auto cloud_b = generateCorridorCloud(query_b);
+  bool locked = false;
+  RelocResult result;
+  for (int i = 0; i < config_.reloc_temporal_window_size * 2; ++i) {
+    result = reloc.relocalize(cloud_b, query_b);
+    if (result.success) {
+      locked = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(locked) << "expected a lock on map B after notifyMapReplaced";
+  EXPECT_GT(result.pose_in_map.translation().x(), 90.0);
+}
+
+TEST_F(WorldLocalizingTest, FreeSpaceStateClearedOnMapReplacement) {
+  buildTestMap(10, 2.0, 0.0);
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+
+  Eigen::Isometry3d query_a = Eigen::Isometry3d::Identity();
+  query_a.translation().x() = 8.0;
+  auto cloud_a = generateCorridorCloud(query_a);
+  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+    reloc.relocalize(cloud_a, query_a);
+  }
+  ASSERT_TRUE(reloc.cacheDiagnostics().free_space_grid_valid);
+
+  keyframe_manager_->clear();
+  loop_detector_->clear();
+  buildTestMap(10, 2.0, 100.0);
+  reloc.notifyMapReplaced();
+
+  WorldLocalizing::WorldLocalizingCacheDiagnostics diag =
+      reloc.cacheDiagnostics();
+  EXPECT_FALSE(diag.free_space_grid_valid);
+  EXPECT_EQ(diag.free_space_grid_keyframes, 0u);
+  EXPECT_FALSE(diag.free_space_grid_failed);
+
+  // The new map must be able to rebuild the grid: neither the old keyframe
+  // count nor a latched failure state may survive the replacement.
+  Eigen::Isometry3d query_b = Eigen::Isometry3d::Identity();
+  query_b.translation().x() = 108.0;
+  auto cloud_b = generateCorridorCloud(query_b);
+  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+    reloc.relocalize(cloud_b, query_b);
+  }
+  diag = reloc.cacheDiagnostics();
+  EXPECT_TRUE(diag.free_space_grid_valid);
+  EXPECT_EQ(diag.free_space_grid_keyframes, 10u);
+}
+
+TEST_F(WorldLocalizingTest, AtlasClearedOnMapReplacement) {
+  // Build a real small atlas file so the load path is exercised.
+  buildTestMap(2, 2.0, 0.0);
+  const auto nonce =
+      std::chrono::steady_clock::now().time_since_epoch().count();
+  const std::filesystem::path dir =
+      std::filesystem::temp_directory_path() /
+      ("n3mapping_wl_atlas_" + std::to_string(nonce));
+  std::filesystem::create_directories(dir);
+  const std::filesystem::path map_file = dir / "map.pbstream";
+  const std::filesystem::path atlas_file = dir / "map.localization_atlas.pb";
+  {
+    std::ofstream stream(map_file, std::ios::binary | std::ios::trunc);
+    stream << "map-v1";
+  }
+  std::vector<Keyframe::Ptr> keyframes;
+  for (const auto &kf : keyframe_manager_->getAllKeyframes()) {
+    if (kf) {
+      keyframes.push_back(kf);
+    }
+  }
+  LocalizationAtlas compiled(config_, *matcher_);
+  LocalizationAtlasStats stats;
+  std::string error;
+  ASSERT_TRUE(compiled.compileAndSave(map_file.string(), keyframes,
+                                      atlas_file.string(), false, &stats,
+                                      &error))
+      << error;
+
+  config_.reloc_atlas_enable = true;
+  config_.reloc_atlas_path = atlas_file.string();
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  ASSERT_TRUE(reloc.loadLocalizationAtlas(map_file.string(), &error)) << error;
+  ASSERT_TRUE(reloc.localizationAtlasLoaded());
+
+  reloc.notifyMapReplaced();
+  EXPECT_FALSE(reloc.localizationAtlasLoaded());
+  EXPECT_FALSE(reloc.cacheDiagnostics().atlas_loaded);
+
+  ASSERT_TRUE(reloc.loadLocalizationAtlas(map_file.string(), &error)) << error;
+  EXPECT_TRUE(reloc.localizationAtlasLoaded());
+
+  std::error_code ec;
+  std::filesystem::remove_all(dir, ec);
+}
+
+TEST_F(WorldLocalizingTest, StateOnlyResetKeepsMapCache) {
+  config_.reloc_lock_min_margin = 0.1;
+  buildTestMap(10, 2.0, 0.0);
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+
+  Eigen::Isometry3d query_pose = Eigen::Isometry3d::Identity();
+  query_pose.translation().x() = 8.0;
+  auto cloud = generateCorridorCloud(query_pose);
+  RelocResult result;
+  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+    result = reloc.relocalize(cloud, query_pose);
+  }
+  ASSERT_TRUE(result.success);
+  ASSERT_TRUE(reloc.isRelocalized());
+  WorldLocalizing::WorldLocalizingCacheDiagnostics diag =
+      reloc.cacheDiagnostics();
+  ASSERT_GT(diag.reloc_map_cached_keyframes, 0u);
+  ASSERT_GT(diag.frame_rhpd_indexed_keyframes, 0u);
+
+  reloc.resetLocalizationState();
+  EXPECT_FALSE(reloc.isRelocalized());
+  EXPECT_EQ(reloc.getLastMatchedKeyframeId(), -1);
+  WorldLocalizing::WorldLocalizingCacheDiagnostics diag2 =
+      reloc.cacheDiagnostics();
+  EXPECT_EQ(diag2.reloc_map_cached_keyframes, diag.reloc_map_cached_keyframes);
+  EXPECT_EQ(diag2.frame_rhpd_indexed_keyframes,
+            diag.frame_rhpd_indexed_keyframes);
+  EXPECT_TRUE(diag2.free_space_grid_valid);
+
+  // The same map must still be localizable right after the state-only reset.
+  bool locked = false;
+  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+    result = reloc.relocalize(cloud, query_pose);
+    if (result.success) {
+      locked = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(locked);
 }
 
 } // namespace test

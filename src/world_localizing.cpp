@@ -1256,7 +1256,7 @@ Eigen::Isometry3d WorldLocalizing::getMapToOdomTransform() const {
   return T_map_odom_;
 }
 
-void WorldLocalizing::reset() {
+void WorldLocalizing::resetLocalizationState() {
   std::lock_guard<std::mutex> lock(mutex_);
   is_relocalized_ = false;
   T_map_odom_ = Eigen::Isometry3d::Identity();
@@ -1266,10 +1266,50 @@ void WorldLocalizing::reset() {
   consecutive_track_failures_ = 0;
   query_frame_buffer_.clear();
   clearRelocHypotheses();
-  // The cache may alias the immutable atlas map. Replace our view instead of
-  // mutating shared atlas storage during a localization reset.
+  hypothesis_persist_frames_ = 0;
+}
+
+void WorldLocalizing::notifyMapReplaced() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  is_relocalized_ = false;
+  T_map_odom_ = Eigen::Isometry3d::Identity();
+  last_matched_id_ = -1;
+  relocalization_seed_id_ = -1;
+  last_odom_pose_ = Eigen::Isometry3d::Identity();
+  consecutive_track_failures_ = 0;
+  query_frame_buffer_.clear();
+  clearRelocHypotheses();
+  hypothesis_persist_frames_ = 0;
+  // Map-derived state: none of it may survive into the next map. A map that
+  // happens to have the same keyframe count as the previous one must still
+  // rebuild its frame-RHPD index, reloc map cache, free-space grid and atlas.
+  frame_rhpd_manager_.clear();
+  frame_rhpd_indexed_keyframes_ = 0;
   reloc_map_cache_ = pcl::make_shared<PointCloudT>();
   reloc_map_cached_keyframes_ = 0;
+  free_space_grid_ = FreeSpaceGrid();
+  free_space_grid_keyframes_ = 0;
+  free_space_grid_failed_ = false;
+  if (localization_atlas_) {
+    localization_atlas_->clear();
+  }
+}
+
+void WorldLocalizing::reset() {
+  resetLocalizationState();
+}
+
+WorldLocalizing::WorldLocalizingCacheDiagnostics
+WorldLocalizing::cacheDiagnostics() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  WorldLocalizingCacheDiagnostics d;
+  d.atlas_loaded = localization_atlas_ && localization_atlas_->loaded();
+  d.frame_rhpd_indexed_keyframes = frame_rhpd_indexed_keyframes_;
+  d.reloc_map_cached_keyframes = reloc_map_cached_keyframes_;
+  d.free_space_grid_keyframes = free_space_grid_keyframes_;
+  d.free_space_grid_valid = free_space_grid_.valid();
+  d.free_space_grid_failed = free_space_grid_failed_;
+  return d;
 }
 
 void WorldLocalizing::setMapToOdomTransform(

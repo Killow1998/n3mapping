@@ -1567,7 +1567,7 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
   if (!session_->mappingResuming().initializeFromLoadedMap()) {
     return false;
   }
-  session_->worldLocalizing().reset();
+  session_->worldLocalizing().notifyMapReplaced();
   std::string atlas_error;
   if (!session_->worldLocalizing().loadLocalizationAtlas(map_path,
                                                          &atlas_error)) {
