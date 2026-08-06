@@ -489,5 +489,41 @@ TEST_F(WorldLocalizingTest, PoseTransformConsistency) {
   EXPECT_TRUE(expected_map_pose.isApprox(actual_map_pose, 1e-9));
 }
 
+TEST_F(WorldLocalizingTest, FreeSpaceDisabledKeepsLockPathUnchanged) {
+  // reloc_free_space_enable=false must skip the free-space evidence path
+  // entirely. On this corridor fixture the default veto does not fire anyway
+  // (the free-space best agrees with the ranked top1), so the observable
+  // contract is: disabling the switch reproduces the enabled lock exactly.
+  config_.reloc_lock_min_margin = 0.1;
+  buildTestMap(10, 2.0);
+
+  Config config_off = config_;
+  config_off.reloc_free_space_enable = false;
+
+  WorldLocalizing reloc_on(config_, *keyframe_manager_, *loop_detector_,
+                           *matcher_);
+  WorldLocalizing reloc_off(config_off, *keyframe_manager_, *loop_detector_,
+                            *matcher_);
+
+  Eigen::Isometry3d query_pose = Eigen::Isometry3d::Identity();
+  query_pose.translation().x() = 8.0;
+  auto cloud = generateCorridorCloud(query_pose);
+
+  RelocResult result_on;
+  RelocResult result_off;
+  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+    result_on = reloc_on.relocalize(cloud, query_pose);
+    result_off = reloc_off.relocalize(cloud, query_pose);
+  }
+
+  ASSERT_TRUE(result_on.success);
+  ASSERT_TRUE(result_off.success);
+  EXPECT_EQ(result_on.state, result_off.state);
+  EXPECT_EQ(result_on.matched_keyframe_id, result_off.matched_keyframe_id);
+  EXPECT_TRUE(result_on.pose_in_map.isApprox(result_off.pose_in_map, 1e-6));
+  EXPECT_TRUE(reloc_on.isRelocalized());
+  EXPECT_TRUE(reloc_off.isRelocalized());
+}
+
 } // namespace test
 } // namespace n3mapping

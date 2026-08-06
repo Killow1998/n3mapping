@@ -24,15 +24,6 @@
 
 namespace n3mapping {
 namespace {
-bool freeSpaceModeIsKill();
-bool relocPersistHypotheses();
-// A hypothesis set that never resolves must not wedge the episode. 300 frames
-// is 30 s at 10 Hz, far beyond any acquisition the contract allows; it is a
-// valve, not a tuned parameter.
-constexpr int kRelocPersistMaxFrames = 300;
-} // namespace
-
-namespace {
 constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
@@ -564,7 +555,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 
   const RelocHypothesis *free_space_best =
       freeSpaceBestHypothesis(query_cloud, odom_pose);
-  if (freeSpaceModeIsKill())
+  if (config_.reloc_free_space_mode == "kill")
     killFreeSpaceDominatedHypotheses(query_cloud, odom_pose);
 
   if (reloc_debug_enabled) {
@@ -858,7 +849,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   // kill variant, which let free space pick the winner outright, locked a
   // 32.9 m alias on 11-58-53 that the visibility ranking had got right.
   const bool pass_free_space =
-      freeSpaceModeIsKill() || !free_space_best || !top1 ||
+      config_.reloc_free_space_mode == "kill" || !free_space_best || !top1 ||
       free_space_best == top1 || same_physical_pose(free_space_best, top1);
   if (!pass_free_space) {
     VLOG(1) << "[Reloc/FreeSpace] veto: free-space best disagrees with ranked "
@@ -993,7 +984,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   // accumulated viewpoint baseline at 1-3 cm. Keep the set alive instead, so
   // hypothesis_window_start_odom_pose_ stays at the seed pose and the baseline
   // grows with the motion the robot is already making.
-  if (result.success || !relocPersistHypotheses()) {
+  if (result.success || !config_.reloc_persist_hypotheses) {
     clearRelocHypotheses();
     hypothesis_persist_frames_ = 0;
   } else {
@@ -1001,7 +992,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     const bool any_alive =
         std::any_of(pending_hypotheses_.begin(), pending_hypotheses_.end(),
                     [](const RelocHypothesis &h) { return h.alive; });
-    if (!any_alive || hypothesis_persist_frames_ > kRelocPersistMaxFrames) {
+    if (!any_alive || hypothesis_persist_frames_ > config_.reloc_persist_max_frames) {
       VLOG(1) << "[Reloc/Persist] reseeding: alive=" << any_alive
               << " persisted_frames=" << hypothesis_persist_frames_;
       clearRelocHypotheses();
@@ -1599,37 +1590,6 @@ WorldLocalizing::searchCandidates(const PointCloudT::Ptr &cloud) {
   return candidates;
 }
 
-namespace {
-// Reading the environment keeps the experiment switchable without rebuilding;
-// the defaults below are the values the offline validation on today20 used.
-bool freeSpaceSelectEnabled() {
-  const char *v = std::getenv("N3MAPPING_FREESPACE_SELECT");
-  return !(v && v[0] == 0x30);
-}
-// Card C/D, first cut. Measured worse than clearing on every rejected window
-// -- 8/2/10 with the veto and 9/3/8 without, against 12/2/6 for the veto alone
-// -- so it stays off unless asked for. The mechanism it was built for did
-// work: the accumulated baseline went from 1-3 cm to 3.34-4.89 m, and it fixed
-// the 2.46 deg attitude error on 11-54-55 that five separate hypotheses had
-// failed to explain. What it needs before it can be the default is a
-// free-space test that accumulates contradiction across independent
-// viewpoints, rather than comparing argmax identity every frame -- under
-// persistence that turns one disagreement into a permanent veto.
-bool relocPersistHypotheses() {
-  const char *v = std::getenv("N3MAPPING_RELOC_PERSIST");
-  return v && v[0] != 0x30 && v[0] != 0;
-}
-bool freeSpaceModeIsKill() {
-  const char *v = std::getenv("N3MAPPING_FREESPACE_MODE");
-  return v && std::string(v) == "kill";
-}
-double envDouble(const char *name, double fallback) {
-  const char *v = std::getenv(name);
-  if (!v || !*v)
-    return fallback;
-  return std::atof(v);
-}
-} // namespace
 
 void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
   if (free_space_grid_failed_)
@@ -1639,16 +1599,18 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
     return;
   rebuildRelocMapCacheIfNeeded();
   PointCloudT::Ptr grid_source = reloc_map_cache_;
-  const char *pcd_override = std::getenv("N3MAPPING_FREESPACE_MAP_PCD");
-  if (pcd_override && *pcd_override) {
+  if (!config_.reloc_free_space_map_pcd.empty()) {
     PointCloudT::Ptr dense(new PointCloudT);
-    if (pcl::io::loadPCDFile<pcl::PointXYZI>(pcd_override, *dense) == 0 &&
+    if (pcl::io::loadPCDFile<pcl::PointXYZI>(config_.reloc_free_space_map_pcd,
+                                             *dense) == 0 &&
         !dense->empty()) {
       grid_source = dense;
-      LOG(INFO) << "[Reloc/FreeSpace] grid source overridden by " << pcd_override
+      LOG(INFO) << "[Reloc/FreeSpace] grid source overridden by "
+                << config_.reloc_free_space_map_pcd
                 << " points=" << dense->size();
     } else {
-      LOG(WARNING) << "[Reloc/FreeSpace] failed to load " << pcd_override;
+      LOG(WARNING) << "[Reloc/FreeSpace] failed to load "
+                   << config_.reloc_free_space_map_pcd;
     }
   }
   if (!grid_source || grid_source->empty()) {
@@ -1667,9 +1629,9 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
     return;
   }
   const bool ok = free_space_grid_.build(
-      *grid_source, origins, envDouble("N3MAPPING_FREESPACE_RES", 0.20),
-      envDouble("N3MAPPING_FREESPACE_MAX_RAY", 30.0),
-      static_cast<int>(envDouble("N3MAPPING_FREESPACE_OCCMIN", 2.0)));
+      *grid_source, origins, config_.reloc_free_space_resolution,
+      config_.reloc_free_space_max_ray_length,
+      config_.reloc_free_space_occupied_min_points);
   if (!ok) {
     free_space_grid_failed_ = true;
     return;
@@ -1691,7 +1653,7 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
 const WorldLocalizing::RelocHypothesis *
 WorldLocalizing::freeSpaceBestHypothesis(
     const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose) {
-  if (!freeSpaceSelectEnabled() || !query_cloud || query_cloud->empty())
+  if (!config_.reloc_free_space_enable || !query_cloud || query_cloud->empty())
     return nullptr;
   rebuildFreeSpaceGridIfNeeded();
   if (!free_space_grid_.valid())
@@ -1726,7 +1688,7 @@ WorldLocalizing::freeSpaceBestHypothesis(
 
 void WorldLocalizing::killFreeSpaceDominatedHypotheses(
     const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose) {
-  if (!freeSpaceSelectEnabled() || !query_cloud || query_cloud->empty())
+  if (!config_.reloc_free_space_enable || !query_cloud || query_cloud->empty())
     return;
   size_t alive = 0;
   for (const auto &hyp : pending_hypotheses_)
@@ -1770,7 +1732,7 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
   // The separation test is the sampling noise itself, not a tuned threshold:
   // two hypotheses are only distinguishable when their scores differ by more
   // than the binomial deviation of the difference.
-  const double sigmas = envDouble("N3MAPPING_FREESPACE_SIGMAS", 5.0);
+  const double sigmas = config_.reloc_free_space_kill_sigmas;
   const auto &top = scores[static_cast<size_t>(best)];
   size_t killed = 0;
   for (size_t i = 0; i < pending_hypotheses_.size(); ++i) {
