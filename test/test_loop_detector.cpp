@@ -879,5 +879,141 @@ TEST_F(LoopDetectorTest, RebuildTree) {
     }
 }
 
+TEST_F(LoopDetectorTest, SpatialCandidateRadiusIsHardBound) {
+    Config cfg = config_;
+    cfg.loop_spatial_candidates_enable = true;
+    cfg.loop_spatial_candidate_radius = 5.0;
+    cfg.loop_min_path_length_m = 0.0;
+    cfg.loop_spatial_candidate_max_candidates = 100;
+    LoopDetector detector(cfg);
+
+    auto make_keyframe = [](int64_t id, const Eigen::Vector3d& position) {
+        Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+        pose.translation() = position;
+        return Keyframe::create(id, static_cast<double>(id), pose,
+                                pcl::make_shared<Keyframe::PointCloudT>());
+    };
+
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    keyframes[100] = make_keyframe(100, Eigen::Vector3d::Zero());
+    keyframes[1] = make_keyframe(1, Eigen::Vector3d(4.9, 0.0, 0.0));  // < radius: kept
+    keyframes[2] = make_keyframe(2, Eigen::Vector3d(5.0, 0.0, 0.0));  // == radius: kept
+    keyframes[3] = make_keyframe(3, Eigen::Vector3d(5.1, 0.0, 0.0));  // > radius: rejected
+    keyframes[4] = make_keyframe(4, Eigen::Vector3d(50.0, 0.0, 0.0)); // far: rejected
+
+    auto candidates = detector.detectSpatialCandidates(100, keyframes);
+    ASSERT_EQ(candidates.size(), 2u);
+    EXPECT_EQ(candidates[0].match_id, 1);
+    EXPECT_EQ(candidates[1].match_id, 2);
+    for (const auto& candidate : candidates) {
+        EXPECT_NE(candidate.match_id, 3);
+        EXPECT_NE(candidate.match_id, 4);
+        EXPECT_LE(candidate.fused_score, 1.0);
+    }
+}
+
+TEST_F(LoopDetectorTest, SpatialCandidateNonFinitePoseIsSkipped) {
+    Config cfg = config_;
+    cfg.loop_spatial_candidates_enable = true;
+    cfg.loop_spatial_candidate_radius = 5.0;
+    cfg.loop_min_path_length_m = 0.0;
+    cfg.loop_spatial_candidate_max_candidates = 100;
+    LoopDetector detector(cfg);
+
+    auto make_keyframe = [](int64_t id, const Eigen::Vector3d& position) {
+        Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+        pose.translation() = position;
+        return Keyframe::create(id, static_cast<double>(id), pose,
+                                pcl::make_shared<Keyframe::PointCloudT>());
+    };
+
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    keyframes[100] = make_keyframe(100, Eigen::Vector3d::Zero());
+    Eigen::Isometry3d nan_pose = Eigen::Isometry3d::Identity();
+    nan_pose.translation() = Eigen::Vector3d(
+        std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0);
+    keyframes[1] = Keyframe::create(
+        1, 1.0, nan_pose, pcl::make_shared<Keyframe::PointCloudT>());
+    keyframes[2] = make_keyframe(2, Eigen::Vector3d(2.0, 0.0, 0.0));
+
+    auto candidates = detector.detectSpatialCandidates(100, keyframes);
+    ASSERT_EQ(candidates.size(), 1u);
+    EXPECT_EQ(candidates[0].match_id, 2);
+}
+
+TEST_F(LoopDetectorTest, SpatialCandidateMaxCandidatesStillAppliesInsideRadius) {
+    Config cfg = config_;
+    cfg.loop_spatial_candidates_enable = true;
+    cfg.loop_spatial_candidate_radius = 5.0;
+    cfg.loop_min_path_length_m = 0.0;
+    cfg.loop_spatial_candidate_max_candidates = 2;
+    LoopDetector detector(cfg);
+
+    auto make_keyframe = [](int64_t id, const Eigen::Vector3d& position) {
+        Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+        pose.translation() = position;
+        return Keyframe::create(id, static_cast<double>(id), pose,
+                                pcl::make_shared<Keyframe::PointCloudT>());
+    };
+
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    keyframes[100] = make_keyframe(100, Eigen::Vector3d::Zero());
+    keyframes[1] = make_keyframe(1, Eigen::Vector3d(1.0, 0.0, 0.0));
+    keyframes[2] = make_keyframe(2, Eigen::Vector3d(2.0, 0.0, 0.0));
+    keyframes[3] = make_keyframe(3, Eigen::Vector3d(3.0, 0.0, 0.0));
+
+    auto candidates = detector.detectSpatialCandidates(100, keyframes);
+    ASSERT_EQ(candidates.size(), 2u);
+    EXPECT_EQ(candidates[0].match_id, 1);
+    EXPECT_EQ(candidates[1].match_id, 2);
+}
+
+TEST_F(LoopDetectorTest, DescriptorCandidatesUnaffectedBySpatialRadius) {
+    Config base = config_;
+    base.rhpd_enabled = true;
+    base.sc_aux_veto_enabled = false;
+    base.rhpd_dist_threshold = 100.0;
+    base.sc_num_exclude_recent = 10;
+    base.loop_min_path_length_m = 0.0;
+    base.loop_spatial_candidates_enable = true;
+
+    Config small = base;
+    small.loop_spatial_candidate_radius = 1.0;
+    Config large = base;
+    large.loop_spatial_candidate_radius = 1000.0;
+    LoopDetector small_detector(small);
+    LoopDetector large_detector(large);
+
+    for (int i = 0; i < 16; ++i) {
+        Keyframe::PointCloudT::Ptr cloud;
+        if (i == 0 || i == 15) {
+            cloud = createAsymmetricCloud();
+        } else {
+            cloud = createDoorwayCorridor(i % 2 == 0);
+            for (auto& pt : cloud->points) {
+                pt.x += static_cast<float>(i * 4.0);
+                pt.y += static_cast<float>(i * 1.5);
+            }
+        }
+        small_detector.addDescriptor(i, cloud);
+        small_detector.addRHPD(i, cloud);
+        large_detector.addDescriptor(i, cloud);
+        large_detector.addRHPD(i, cloud);
+    }
+
+    // KF0 与 KF15 相距 15 m（lineOfKeyframes 位置 x = i），远超 radius=1.0。
+    // 描述子通道（detectLoopCandidates）不经过空间 radius 门：两个 detector
+    // 必须给出相同的 match 集合。
+    const auto small_candidates =
+        small_detector.detectLoopCandidates(15, lineOfKeyframes(16));
+    const auto large_candidates =
+        large_detector.detectLoopCandidates(15, lineOfKeyframes(16));
+    ASSERT_FALSE(small_candidates.empty());
+    ASSERT_EQ(small_candidates.size(), large_candidates.size());
+    for (std::size_t i = 0; i < small_candidates.size(); ++i) {
+        EXPECT_EQ(small_candidates[i].match_id, large_candidates[i].match_id);
+    }
+}
+
 }  // namespace test
 }  // namespace n3mapping

@@ -345,6 +345,8 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
         query_path_it != path_at.end() ? query_path_it->second : 0.0;
 
     std::vector<std::pair<double, int64_t>> ranked;
+    std::size_t spatial_considered = 0;
+    std::size_t spatial_outside_radius = 0;
     for (const auto& [match_id, keyframe] : keyframes) {
         if (!keyframe || match_id >= query_id) {
             continue;
@@ -359,7 +361,16 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
         if (!std::isfinite(squared_distance)) {
             continue;
         }
-        ranked.emplace_back(std::sqrt(squared_distance), match_id);
+        const double distance = std::sqrt(squared_distance);
+        ++spatial_considered;
+        // The radius is a hard bound, not a score normalizer: a candidate
+        // farther than loop_spatial_candidate_radius must never enter the
+        // returned set, however few candidates remain. Equal stays in.
+        if (distance > radius) {
+            ++spatial_outside_radius;
+            continue;
+        }
+        ranked.emplace_back(distance, match_id);
     }
 
     std::sort(ranked.begin(), ranked.end(), [](const auto& a, const auto& b) {
@@ -381,6 +392,9 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
         candidate.fused_rank = i;
         candidates.push_back(candidate);
     }
+    VLOG(1) << "[Loop/SpatialCandidates] considered=" << spatial_considered
+            << " outside_radius=" << spatial_outside_radius
+            << " kept=" << candidates.size() << " radius=" << radius;
     return candidates;
 }
 
