@@ -499,6 +499,61 @@ TEST_F(GraphOptimizerTest, LoadGraphRestoresFloorConstraints) {
     EXPECT_TRUE(legacy.floorAttitudeConstraints().empty());
 }
 
+TEST_F(GraphOptimizerTest, SessionAnchorEdgeUsesRobustPathAndStaysSeparateFromLoop) {
+    optimizer_->addPriorFactor(0, createPose(0, 0, 0));
+    optimizer_->addPriorFactor(1, createPose(1, 0, 0));
+    optimizer_->incrementalOptimize();
+
+    EdgeInfo anchor;
+    anchor.from_id = 0;
+    anchor.to_id = 1;
+    anchor.measurement = Eigen::Isometry3d::Identity();
+    anchor.measurement.translation().x() = 1.0;
+    anchor.information = Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
+    anchor.type = EdgeType::SESSION_ANCHOR;
+    anchor.constraint_mode = EdgeConstraintMode::FULL_6DOF;
+    optimizer_->addSessionAnchorEdge(anchor);
+
+    // An anchor is a global constraint but must not be reported as a loop.
+    EXPECT_TRUE(optimizer_->hasGlobalConstraint());
+    EXPECT_FALSE(optimizer_->hasLoopClosure());
+
+    optimizer_->incrementalOptimize();
+    const auto& edges = optimizer_->getEdges();
+    bool found_anchor = false;
+    for (const auto& edge : edges) {
+        if (edge.type == EdgeType::SESSION_ANCHOR) {
+            found_anchor = true;
+        }
+    }
+    EXPECT_TRUE(found_anchor);
+}
+
+TEST_F(GraphOptimizerTest, LoadGraphRestoresSessionAnchorType) {
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
+    nodes.emplace_back(0, createPose(0, 0, 0));
+    nodes.emplace_back(1, createPose(1, 0, 0));
+
+    std::vector<EdgeInfo> edges;
+    EdgeInfo xy_yaw_anchor;
+    xy_yaw_anchor.from_id = 0;
+    xy_yaw_anchor.to_id = 1;
+    xy_yaw_anchor.measurement = Eigen::Isometry3d::Identity();
+    xy_yaw_anchor.measurement.translation().x() = 1.0;
+    xy_yaw_anchor.information = Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
+    xy_yaw_anchor.type = EdgeType::SESSION_ANCHOR;
+    xy_yaw_anchor.constraint_mode = EdgeConstraintMode::XY_YAW;
+    edges.push_back(xy_yaw_anchor);
+
+    GraphOptimizer loaded(config_);
+    ASSERT_TRUE(loaded.loadGraph(nodes, edges));
+    EXPECT_TRUE(loaded.hasGlobalConstraint());
+    EXPECT_FALSE(loaded.hasLoopClosure());
+    const auto& loaded_edges = loaded.getEdges();
+    ASSERT_EQ(loaded_edges.size(), 1u);
+    EXPECT_EQ(loaded_edges[0].type, EdgeType::SESSION_ANCHOR);
+}
+
 }  // namespace test
 }  // namespace n3mapping
 

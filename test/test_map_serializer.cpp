@@ -2233,6 +2233,102 @@ TEST_F(MapSerializerTest, SalvageSkipsBadFloorFactor) {
     EXPECT_EQ(opt_loaded.floorAttitudeConstraints()[0].node_id, 0);
 }
 
+TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    optimizer.addPriorFactor(0, pose);
+    for (int i = 0; i < 3; ++i) {
+        auto cloud = generateRandomPointCloud(500);
+        pose.translation().x() += 1.0;
+        int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
+        auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
+        kf_manager.updateDescriptor(kf_id, descriptor);
+        if (i > 0) {
+            EdgeInfo edge;
+            edge.from_id = i - 1;
+            edge.to_id = i;
+            edge.measurement = Eigen::Isometry3d::Identity();
+            edge.measurement.translation().x() = 1.0;
+            edge.information = Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
+            edge.type = EdgeType::ODOMETRY;
+            optimizer.addOdometryEdge(edge);
+        }
+    }
+    // One cross-session anchor (node 0 -> node 2), committed through optimization.
+    EdgeInfo anchor;
+    anchor.from_id = 0;
+    anchor.to_id = 2;
+    anchor.measurement = Eigen::Isometry3d::Identity();
+    anchor.measurement.translation().x() = 2.0;
+    anchor.information = Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
+    anchor.type = EdgeType::SESSION_ANCHOR;
+    anchor.constraint_mode = EdgeConstraintMode::FULL_6DOF;
+    optimizer.addSessionAnchorEdge(anchor);
+    optimizer.incrementalOptimize();
+    {
+        const auto& edges = optimizer.getEdges();
+        int anchors = 0;
+        for (const auto& e : edges) {
+            if (e.type == EdgeType::SESSION_ANCHOR) {
+                ++anchors;
+            }
+        }
+        ASSERT_EQ(anchors, 1);
+    }
+
+    std::string map_file = config_.map_save_path + "/anchor_roundtrip.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    KeyframeManager kf_loaded(config_);
+    LoopDetector ld_loaded(config_);
+    GraphOptimizer opt_loaded(config_);
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_loaded, ld_loaded, opt_loaded));
+
+    EXPECT_EQ(kf_manager.size(), kf_loaded.size());
+    EXPECT_TRUE(opt_loaded.hasGlobalConstraint());
+    EXPECT_FALSE(opt_loaded.hasLoopClosure());
+    const auto& loaded_edges = opt_loaded.getEdges();
+    int anchors = 0;
+    for (const auto& e : loaded_edges) {
+        if (e.type == EdgeType::SESSION_ANCHOR) {
+            ++anchors;
+        }
+    }
+    EXPECT_EQ(anchors, 1);
+}
+
+TEST_F(MapSerializerTest, MapWithoutSessionAnchorsStillLoads) {
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    optimizer.addPriorFactor(0, pose);
+    for (int i = 0; i < 2; ++i) {
+        auto cloud = generateRandomPointCloud(300);
+        pose.translation().x() += 1.0;
+        int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
+        auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
+        kf_manager.updateDescriptor(kf_id, descriptor);
+    }
+    optimizer.incrementalOptimize();
+
+    std::string map_file = config_.map_save_path + "/no_anchor.pbstream";
+    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    KeyframeManager kf_loaded(config_);
+    LoopDetector ld_loaded(config_);
+    GraphOptimizer opt_loaded(config_);
+    ASSERT_TRUE(serializer.loadMap(map_file, kf_loaded, ld_loaded, opt_loaded));
+    EXPECT_FALSE(opt_loaded.hasGlobalConstraint());
+    EXPECT_EQ(opt_loaded.getEdges().size(), 0u);
+}
+
 }  // namespace test
 }  // namespace n3mapping
 

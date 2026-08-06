@@ -485,7 +485,13 @@ bool parseEdgesFromProto(const N3Map& map_proto,
             continue;
         }
         edge.measurement = poseFromProto(proto.measurement());
-        edge.type = (proto.type() == EdgeProto::LOOP) ? PbstreamEdgeType::LOOP : PbstreamEdgeType::ODOMETRY;
+        PbstreamEdgeType edge_type = PbstreamEdgeType::ODOMETRY;
+        if (proto.type() == EdgeProto::LOOP) {
+            edge_type = PbstreamEdgeType::LOOP;
+        } else if (proto.type() == EdgeProto::SESSION_ANCHOR) {
+            edge_type = PbstreamEdgeType::SESSION_ANCHOR;
+        }
+        edge.type = edge_type;
         edge.constraint_mode = proto.constraint_mode() == EdgeProto::XY_YAW
             ? PbstreamEdgeConstraintMode::XY_YAW
             : PbstreamEdgeConstraintMode::FULL_6DOF;

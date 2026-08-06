@@ -57,6 +57,7 @@ message EdgeProto {
     enum EdgeType {
         ODOMETRY = 0;
         LOOP = 1;
+        SESSION_ANCHOR = 2;
     }
     EdgeType type = 5;
     enum ConstraintMode {
@@ -101,6 +102,7 @@ message MapMetadata {
     string dense_trajectory_source = 15;
     bool dense_trajectory_degraded = 16;
     uint32 num_floor_attitude_factors = 17;
+    uint32 num_session_anchor_edges = 18;
 }
 
 // 完整地图

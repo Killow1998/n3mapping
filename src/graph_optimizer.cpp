@@ -229,6 +229,39 @@ void GraphOptimizer::addLoopEdge(const EdgeInfo& edge) {
     needs_optimization_ = true;
 }
 
+void GraphOptimizer::addSessionAnchorEdge(const EdgeInfo& edge) {
+    gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
+    gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
+    gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
+
+    // Same robust-noise path as loop closures: a cross-session anchor is a
+    // global constraint, not an odometry chain link.
+    auto noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
+        ? createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
+        : createRobustNoiseModel(edge.information, config_.use_robust_kernel);
+
+    if (edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
+        new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
+    } else {
+        new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+    }
+
+    EdgeInfo anchor_edge = edge;
+    anchor_edge.type = EdgeType::SESSION_ANCHOR;
+    pending_edges_.push_back(anchor_edge);
+
+    pending_has_session_anchor_ = true;
+    needs_optimization_ = true;
+}
+
+bool GraphOptimizer::isRobustGlobalEdge(EdgeType type) {
+    return type == EdgeType::LOOP || type == EdgeType::SESSION_ANCHOR;
+}
+
+bool GraphOptimizer::hasGlobalConstraint() const {
+    return hasLoopClosure() || has_session_anchor_ || pending_has_session_anchor_;
+}
+
 // ==================== 优化 ====================
 
 void GraphOptimizer::optimize() {
@@ -408,14 +441,18 @@ bool GraphOptimizer::loadGraph(
         gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
         
         gtsam::noiseModel::Base::shared_ptr noise_model;
-        if (edge.type == EdgeType::LOOP) {
+        if (isRobustGlobalEdge(edge.type)) {
             noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
                 ? temp.createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
                 : temp.createRobustNoiseModel(edge.information, config_.use_robust_kernel);
             if (!noise_model) {
                 noise_model = temp.createLoopNoiseModel();
             }
-            temp.has_loop_closure_ = true;
+            if (edge.type == EdgeType::SESSION_ANCHOR) {
+                temp.has_session_anchor_ = true;
+            } else {
+                temp.has_loop_closure_ = true;
+            }
         } else {
             noise_model = createNoiseModel(edge.information);
             if (!noise_model) {
@@ -423,7 +460,7 @@ bool GraphOptimizer::loadGraph(
             }
         }
         
-        if (edge.type == EdgeType::LOOP && edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
+        if (isRobustGlobalEdge(edge.type) && edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
             temp.graph_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
         } else {
             temp.graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
@@ -486,6 +523,8 @@ void GraphOptimizer::swapWith(GraphOptimizer& other) {
     swap(pending_node_ids_, other.pending_node_ids_);
     swap(has_loop_closure_, other.has_loop_closure_);
     swap(pending_has_loop_closure_, other.pending_has_loop_closure_);
+    swap(has_session_anchor_, other.has_session_anchor_);
+    swap(pending_has_session_anchor_, other.pending_has_session_anchor_);
     swap(floor_attitude_factor_count_, other.floor_attitude_factor_count_);
     swap(committed_floor_attitude_constraints_,
          other.committed_floor_attitude_constraints_);
@@ -511,6 +550,8 @@ void GraphOptimizer::clear() {
     pending_node_ids_.clear();
     has_loop_closure_ = false;
     pending_has_loop_closure_ = false;
+    has_session_anchor_ = false;
+    pending_has_session_anchor_ = false;
     floor_attitude_factor_count_ = 0;
     committed_floor_attitude_constraints_.clear();
     pending_floor_attitude_constraints_.clear();
@@ -559,6 +600,7 @@ void GraphOptimizer::clearPending() {
     pending_edges_.clear();
     pending_node_ids_.clear();
     pending_has_loop_closure_ = false;
+    pending_has_session_anchor_ = false;
     pending_floor_attitude_constraints_.clear();
 }
 
@@ -604,6 +646,7 @@ void GraphOptimizer::commitPending(const gtsam::Values& optimized_estimate,
     floor_attitude_factor_count_ +=
         static_cast<int>(pending_floor_attitude_constraints_.size());
     has_loop_closure_ = has_loop_closure_ || pending_has_loop_closure_;
+    has_session_anchor_ = has_session_anchor_ || pending_has_session_anchor_;
     current_estimate_ = optimized_estimate;
     last_good_estimate_ = optimized_estimate;
     clearPending();

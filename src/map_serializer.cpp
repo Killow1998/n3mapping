@@ -129,7 +129,7 @@ EdgeInfo edgeFromParsedProto(const ParsedEdgeProto& parsed) {
     edge.to_id = parsed.to_id;
     edge.measurement = parsed.measurement;
     edge.information = parsed.information;
-    edge.type = (parsed.type == PbstreamEdgeType::LOOP) ? EdgeType::LOOP : EdgeType::ODOMETRY;
+    edge.type = (parsed.type == PbstreamEdgeType::LOOP) ? EdgeType::LOOP : (parsed.type == PbstreamEdgeType::SESSION_ANCHOR) ? EdgeType::SESSION_ANCHOR : EdgeType::ODOMETRY;
     edge.constraint_mode = parsed.constraint_mode == PbstreamEdgeConstraintMode::XY_YAW
         ? EdgeConstraintMode::XY_YAW
         : EdgeConstraintMode::FULL_6DOF;
@@ -259,7 +259,7 @@ bool MapSerializer::saveMap(const std::string& filepath,
             }
         }
         auto edges = optimizer.getEdges();
-        int n_odom = 0, n_loop = 0;
+        int n_odom = 0, n_loop = 0, n_anchor = 0;
         for (const auto& e : edges) {
             std::string information_error;
             if (!isFinitePose(e.measurement) ||
@@ -276,13 +276,20 @@ bool MapSerializer::saveMap(const std::string& filepath,
                 return false;
             }
             edgeToProto(e, map_proto.add_edges());
-            (e.type == EdgeType::ODOMETRY) ? ++n_odom : ++n_loop;
+            if (e.type == EdgeType::ODOMETRY) {
+                ++n_odom;
+            } else if (e.type == EdgeType::LOOP) {
+                ++n_loop;
+            } else {
+                ++n_anchor;
+            }
         }
         for (const auto& pose : dense_optimized_trajectory) {
             denseTrajectoryToProto(pose, map_proto.add_dense_optimized_trajectory());
         }
         meta->set_num_odometry_edges(n_odom);
         meta->set_num_loop_edges(n_loop);
+        meta->set_num_session_anchor_edges(n_anchor);
         const auto& floor_constraints = optimizer.floorAttitudeConstraints();
         meta->set_num_floor_attitude_factors(
             static_cast<uint32_t>(floor_constraints.size()));
@@ -548,7 +555,13 @@ void MapSerializer::edgeToProto(const EdgeInfo& edge, n3mapping::EdgeProto* prot
     proto->set_from_id(edge.from_id); proto->set_to_id(edge.to_id);
     poseToProto(edge.measurement, proto->mutable_measurement());
     informationToProto(edge.information, proto->mutable_information());
-    proto->set_type(edge.type == EdgeType::ODOMETRY ? n3mapping::EdgeProto::ODOMETRY : n3mapping::EdgeProto::LOOP);
+    n3mapping::EdgeProto::EdgeType proto_type = n3mapping::EdgeProto::ODOMETRY;
+    if (edge.type == EdgeType::LOOP) {
+        proto_type = n3mapping::EdgeProto::LOOP;
+    } else if (edge.type == EdgeType::SESSION_ANCHOR) {
+        proto_type = n3mapping::EdgeProto::SESSION_ANCHOR;
+    }
+    proto->set_type(proto_type);
     proto->set_constraint_mode(edge.constraint_mode == EdgeConstraintMode::XY_YAW
         ? n3mapping::EdgeProto::XY_YAW
         : n3mapping::EdgeProto::FULL_6DOF);

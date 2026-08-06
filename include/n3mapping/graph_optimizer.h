@@ -27,7 +27,8 @@ namespace n3mapping {
 enum class EdgeType
 {
     ODOMETRY, ///< 里程计约束
-    LOOP      ///< 回环约束
+    LOOP,     ///< 回环约束
+    SESSION_ANCHOR  ///< cross-session anchor constraint
 };
 
 enum class EdgeConstraintMode
@@ -153,6 +154,9 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @param edge 边信息
      */
     void addLoopEdge(const EdgeInfo& edge);
+    void addSessionAnchorEdge(const EdgeInfo& edge);
+    static bool isRobustGlobalEdge(EdgeType type);
+    bool hasGlobalConstraint() const;
 
     // ==================== 优化 ====================
 
@@ -278,6 +282,8 @@ class GraphOptimizer : public LoopOptimizerInterface
     std::set<int64_t> pending_node_ids_;      ///< 待提交节点 ID
     bool has_loop_closure_;                   ///< 是否有回环约束
     bool pending_has_loop_closure_;           ///< 待提交更新是否含回环约束
+    bool has_session_anchor_ = false;
+    bool pending_has_session_anchor_ = false;
     int floor_attitude_factor_count_ = 0;
     std::vector<FloorAttitudeConstraint> committed_floor_attitude_constraints_;
     std::vector<FloorAttitudeConstraint> pending_floor_attitude_constraints_;

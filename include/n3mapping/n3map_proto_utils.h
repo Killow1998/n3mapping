@@ -58,7 +58,8 @@ struct PbstreamMetadata {
 
 enum class PbstreamEdgeType {
     ODOMETRY,
-    LOOP
+    LOOP,
+    SESSION_ANCHOR
 };
 
 enum class PbstreamEdgeConstraintMode {
