@@ -177,6 +177,22 @@ TEST_F(KeyframeManagerTest, MultipleKeyframes) {
     EXPECT_EQ(latest->id, 4);
 }
 
+TEST_F(KeyframeManagerTest, RemoveLatestKeyframeIsStrictAndRestoresId) {
+    auto cloud = createTestCloud();
+    manager_->addKeyframe(0.0, createPose(0, 0, 0), cloud);
+    manager_->addKeyframe(0.1, createPose(1, 0, 0), cloud);
+
+    EXPECT_FALSE(manager_->removeLatestKeyframe(0));
+    EXPECT_EQ(manager_->size(), 2u);
+    EXPECT_EQ(manager_->getNextKeyframeId(), 2);
+
+    ASSERT_TRUE(manager_->removeLatestKeyframe(1));
+    ASSERT_NE(manager_->getLatestKeyframe(), nullptr);
+    EXPECT_EQ(manager_->getLatestKeyframe()->id, 0);
+    EXPECT_EQ(manager_->getNextKeyframeId(), 1);
+    EXPECT_EQ(manager_->addKeyframe(0.2, createPose(2, 0, 0), cloud), 1);
+}
+
 // 测试按 ID 获取关键帧 - Requirements 2.6
 TEST_F(KeyframeManagerTest, GetKeyframeById) {
     auto cloud = createTestCloud();

@@ -1058,7 +1058,6 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
       timestamp, frame.T_world_lidar, frame.undistorted_cloud);
   if (keyframe_id >= 0) {
     resuming.detectCrossLoops(keyframe_id);
-    session_->graphOptimizer().incrementalOptimize();
     refreshOptimizedPoses();
     if (session_->graphOptimizer().hasNode(keyframe_id)) {
       try {

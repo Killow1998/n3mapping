@@ -1,14 +1,40 @@
 // MappingResuming: map extension — load existing map, relocalize, add new keyframes, detect cross-loops.
 #include "n3mapping/mapping_resuming.h"
 
+#include <algorithm>
+#include <cmath>
+#include <exception>
 #include <map>
 
-#include <algorithm>
+#include <glog/logging.h>
 
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/loop_verifier.h"
 
 namespace n3mapping {
+namespace {
+
+bool isFiniteTransform(const Eigen::Isometry3d& pose) {
+    return pose.matrix().allFinite();
+}
+
+Eigen::Matrix<double, 6, 6> diagonalInformation(double position_sigma,
+                                                 double rotation_sigma) {
+    Eigen::Matrix<double, 6, 6> information =
+        Eigen::Matrix<double, 6, 6>::Identity();
+    information.block<3, 3>(0, 0) *=
+        1.0 / (position_sigma * position_sigma);
+    information.block<3, 3>(3, 3) *=
+        1.0 / (rotation_sigma * rotation_sigma);
+    return information;
+}
+
+bool validNoise(double position_sigma, double rotation_sigma) {
+    return std::isfinite(position_sigma) && position_sigma > 0.0 &&
+           std::isfinite(rotation_sigma) && rotation_sigma > 0.0;
+}
+
+}  // namespace
 
 MappingResuming::MappingResuming(const Config& config,
                                  KeyframeManager& keyframe_manager,
@@ -29,8 +55,10 @@ MappingResuming::MappingResuming(const Config& config,
     , original_keyframe_count_(0)
     , original_max_keyframe_id_(-1)
     , cross_loop_count_(0)
-    , last_keyframe_pose_(Eigen::Isometry3d::Identity())
-    , last_keyframe_id_(-1) {}
+    , relocalization_anchor_keyframe_id_(-1)
+    , previous_new_keyframe_id_(-1)
+    , previous_new_odom_pose_(Eigen::Isometry3d::Identity())
+    , first_new_keyframe_pending_(false) {}
 
 bool MappingResuming::loadExistingMap(const std::string& map_path) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -49,8 +77,10 @@ bool MappingResuming::initializeFromLoadedMapNoLock() {
     if (original_keyframe_count_ == 0) {
         state_ = MappingResumingState::NOT_INITIALIZED;
         original_max_keyframe_id_ = -1;
-        last_keyframe_pose_ = Eigen::Isometry3d::Identity();
-        last_keyframe_id_ = -1;
+        relocalization_anchor_keyframe_id_ = -1;
+        previous_new_keyframe_id_ = -1;
+        previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
+        first_new_keyframe_pending_ = false;
         return false;
     }
 
@@ -65,21 +95,38 @@ bool MappingResuming::initializeFromLoadedMapNoLock() {
     }
 
     state_ = MappingResumingState::MAP_LOADED;
+    relocalization_anchor_keyframe_id_ = -1;
+    previous_new_keyframe_id_ = -1;
+    previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
+    first_new_keyframe_pending_ = false;
     return true;
 }
 
 bool MappingResuming::performInitialRelocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (state_ != MappingResumingState::MAP_LOADED) return false;
+    if (state_ != MappingResumingState::MAP_LOADED || !cloud || cloud->empty() ||
+        !isFiniteTransform(odom_pose)) {
+        return false;
+    }
 
     RelocResult result = world_localizing_.relocalize(cloud, odom_pose);
     if (!result.success) return false;
 
+    auto anchor = keyframe_manager_.getKeyframe(result.matched_keyframe_id);
+    if (!anchor || !optimizer_.hasNode(result.matched_keyframe_id) ||
+        !isFiniteTransform(anchor->pose_optimized) ||
+        !isFiniteTransform(result.pose_in_map)) {
+        return false;
+    }
+
     Eigen::Isometry3d T_map_odom = result.pose_in_map * odom_pose.inverse();
+    if (!isFiniteTransform(T_map_odom)) return false;
     world_localizing_.setMapToOdomTransform(T_map_odom);
 
-    last_keyframe_pose_ = result.pose_in_map;
-    last_keyframe_id_ = result.matched_keyframe_id;
+    relocalization_anchor_keyframe_id_ = result.matched_keyframe_id;
+    previous_new_keyframe_id_ = -1;
+    previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
+    first_new_keyframe_pending_ = true;
 
     state_ = MappingResumingState::RELOCALIZED;
     return true;
@@ -88,65 +135,125 @@ bool MappingResuming::performInitialRelocalization(const PointCloudT::Ptr& cloud
 int64_t MappingResuming::processNewKeyframe(double timestamp, const Eigen::Isometry3d& odom_pose,
                                             const PointCloudT::Ptr& cloud) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (state_ != MappingResumingState::RELOCALIZED && state_ != MappingResumingState::EXTENDING)
+    if ((state_ != MappingResumingState::RELOCALIZED &&
+         state_ != MappingResumingState::EXTENDING) ||
+        !std::isfinite(timestamp) || !isFiniteTransform(odom_pose) ||
+        !cloud || cloud->empty()) {
         return -1;
+    }
 
     Eigen::Isometry3d T_map_odom = world_localizing_.getMapToOdomTransform();
     Eigen::Isometry3d pose_in_map = T_map_odom * odom_pose;
+    if (!isFiniteTransform(T_map_odom) || !isFiniteTransform(pose_in_map)) {
+        return -1;
+    }
 
     if (!keyframe_manager_.shouldAddKeyframe(pose_in_map)) return -1;
 
-    int64_t new_kf_id = keyframe_manager_.addKeyframe(timestamp, pose_in_map, cloud);
-    loop_detector_.addDescriptor(new_kf_id, cloud);
-    auto new_kf = keyframe_manager_.getKeyframe(new_kf_id);
-    if (new_kf) {
-        const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
-        PointCloudT::Ptr rhpd_cloud = cloud;
-        if (submap_radius > 0) {
-            rhpd_cloud = keyframe_manager_.buildCausalSubmapInRootFrame(new_kf_id, submap_radius, new_kf_id);
+    EdgeInfo edge;
+    edge.measurement = Eigen::Isometry3d::Identity();
+    bool is_first_new_keyframe = first_new_keyframe_pending_;
+    if (is_first_new_keyframe) {
+        auto anchor = keyframe_manager_.getKeyframe(
+            relocalization_anchor_keyframe_id_);
+        if (!anchor || !optimizer_.hasNode(relocalization_anchor_keyframe_id_) ||
+            !isFiniteTransform(anchor->pose_optimized) ||
+            !validNoise(config_.loop_noise_position,
+                        config_.loop_noise_rotation)) {
+            return -1;
         }
-        if (rhpd_cloud && !rhpd_cloud->empty() && config_.rhpd_submap_voxel_size > 1e-4) {
-            PointCloudT::Ptr filtered;
-            if (safeVoxelGridFilter<pcl::PointXYZI>(rhpd_cloud, config_.rhpd_submap_voxel_size, &filtered) &&
-                filtered && !filtered->empty()) {
-                rhpd_cloud = filtered;
-            }
-        }
-        new_kf->rhpd_descriptor = loop_detector_.addRHPD(new_kf_id, rhpd_cloud);
-    }
-
-    if (last_keyframe_id_ >= 0) {
-        auto last_kf = keyframe_manager_.getKeyframe(last_keyframe_id_);
-        if (last_kf) {
-            EdgeInfo edge;
-            edge.from_id = last_keyframe_id_;
-            edge.to_id = new_kf_id;
-            edge.measurement = last_kf->pose_optimized.inverse() * pose_in_map;
-            edge.information = Eigen::Matrix<double, 6, 6>::Identity();
-            edge.information.block<3, 3>(0, 0) *= 1.0 / (config_.odom_noise_position * config_.odom_noise_position);
-            edge.information.block<3, 3>(3, 3) *= 1.0 / (config_.odom_noise_rotation * config_.odom_noise_rotation);
-            edge.type = EdgeType::ODOMETRY;
-            optimizer_.addOdometryEdge(edge);
-        }
+        edge.from_id = relocalization_anchor_keyframe_id_;
+        edge.measurement = anchor->pose_optimized.inverse() * pose_in_map;
+        edge.information = diagonalInformation(
+            config_.loop_noise_position, config_.loop_noise_rotation);
+        edge.type = EdgeType::SESSION_ANCHOR;
     } else {
-        int64_t matched_id = world_localizing_.getLastMatchedKeyframeId();
-        if (matched_id >= 0) {
-            auto matched_kf = keyframe_manager_.getKeyframe(matched_id);
-            if (matched_kf) {
-                addRelocalizationConstraint(new_kf_id, matched_id, matched_kf->pose_optimized.inverse() * pose_in_map);
-            }
+        auto previous = keyframe_manager_.getKeyframe(previous_new_keyframe_id_);
+        if (!previous || !optimizer_.hasNode(previous_new_keyframe_id_) ||
+            !isFiniteTransform(previous_new_odom_pose_) ||
+            !validNoise(config_.odom_noise_position,
+                        config_.odom_noise_rotation)) {
+            return -1;
         }
+        edge.from_id = previous_new_keyframe_id_;
+        edge.measurement = previous_new_odom_pose_.inverse() * odom_pose;
+        edge.information = diagonalInformation(
+            config_.odom_noise_position, config_.odom_noise_rotation);
+        edge.type = EdgeType::ODOMETRY;
+    }
+    if (!isFiniteTransform(edge.measurement)) return -1;
+
+    const int64_t new_kf_id =
+        keyframe_manager_.addKeyframe(timestamp, pose_in_map, cloud);
+    edge.to_id = new_kf_id;
+
+    const bool edge_staged = is_first_new_keyframe
+        ? optimizer_.addSessionAnchorEdge(edge)
+        : (optimizer_.addOdometryEdge(edge), true);
+    if (!edge_staged || !optimizer_.incrementalOptimize()) {
+        if (!keyframe_manager_.removeLatestKeyframe(new_kf_id)) {
+            LOG(ERROR) << "[MappingResuming] Failed to roll back keyframe id="
+                       << new_kf_id;
+        }
+        return -1;
     }
 
-    last_keyframe_pose_ = pose_in_map;
-    last_keyframe_id_ = new_kf_id;
+    keyframe_manager_.updateOptimizedPoses(optimizer_.getOptimizedPoses());
+
+    // From this point the graph and keyframe are committed. Descriptor
+    // generation is best-effort and can be rebuilt from the stored cloud.
+    previous_new_keyframe_id_ = new_kf_id;
+    previous_new_odom_pose_ = odom_pose;
+    first_new_keyframe_pending_ = false;
     state_ = MappingResumingState::EXTENDING;
+
+    try {
+        const Eigen::MatrixXd descriptor =
+            loop_detector_.addDescriptor(new_kf_id, cloud);
+        if (descriptor.size() == 0) {
+            LOG(WARNING) << "[MappingResuming] ScanContext descriptor missing for accepted keyframe id="
+                         << new_kf_id;
+        }
+
+        auto new_kf = keyframe_manager_.getKeyframe(new_kf_id);
+        if (new_kf) {
+            const int submap_radius =
+                std::max(0, config_.rhpd_submap_kf_radius);
+            PointCloudT::Ptr rhpd_cloud = cloud;
+            if (submap_radius > 0) {
+                rhpd_cloud = keyframe_manager_.buildCausalSubmapInRootFrame(
+                    new_kf_id, submap_radius, new_kf_id);
+            }
+            if (rhpd_cloud && !rhpd_cloud->empty() &&
+                config_.rhpd_submap_voxel_size > 1e-4) {
+                PointCloudT::Ptr filtered;
+                if (safeVoxelGridFilter<pcl::PointXYZI>(
+                        rhpd_cloud, config_.rhpd_submap_voxel_size, &filtered) &&
+                    filtered && !filtered->empty()) {
+                    rhpd_cloud = filtered;
+                }
+            }
+            new_kf->rhpd_descriptor =
+                loop_detector_.addRHPD(new_kf_id, rhpd_cloud);
+        }
+    } catch (const std::exception& error) {
+        LOG(WARNING) << "[MappingResuming] Descriptor generation failed for accepted keyframe id="
+                     << new_kf_id << ": " << error.what();
+    } catch (...) {
+        LOG(WARNING) << "[MappingResuming] Descriptor generation failed for accepted keyframe id="
+                     << new_kf_id;
+    }
+
     return new_kf_id;
 }
 
 int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (state_ != MappingResumingState::EXTENDING) return 0;
+    if (state_ != MappingResumingState::EXTENDING ||
+        isFromOriginalMap(new_keyframe_id) ||
+        !optimizer_.hasNode(new_keyframe_id)) {
+        return 0;
+    }
 
     auto new_kf = keyframe_manager_.getKeyframe(new_keyframe_id);
     if (!new_kf || !new_kf->cloud) return 0;
@@ -206,7 +313,11 @@ size_t MappingResuming::getOriginalKeyframeCount() const {
 
 size_t MappingResuming::getNewKeyframeCount() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    return keyframe_manager_.size() - original_keyframe_count_;
+    if (state_ == MappingResumingState::NOT_INITIALIZED) return 0u;
+    const size_t total = keyframe_manager_.size();
+    return total >= original_keyframe_count_
+        ? total - original_keyframe_count_
+        : 0u;
 }
 
 size_t MappingResuming::getCrossLoopCount() const {
@@ -215,7 +326,7 @@ size_t MappingResuming::getCrossLoopCount() const {
 }
 
 bool MappingResuming::isFromOriginalMap(int64_t keyframe_id) const {
-    return keyframe_id <= original_max_keyframe_id_;
+    return keyframe_id >= 0 && keyframe_id <= original_max_keyframe_id_;
 }
 
 void MappingResuming::reset() {
@@ -224,22 +335,11 @@ void MappingResuming::reset() {
     original_keyframe_count_ = 0;
     original_max_keyframe_id_ = -1;
     cross_loop_count_ = 0;
-    last_keyframe_pose_ = Eigen::Isometry3d::Identity();
-    last_keyframe_id_ = -1;
+    relocalization_anchor_keyframe_id_ = -1;
+    previous_new_keyframe_id_ = -1;
+    previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
+    first_new_keyframe_pending_ = false;
     world_localizing_.reset();
-}
-
-void MappingResuming::addRelocalizationConstraint(int64_t new_keyframe_id, int64_t matched_keyframe_id,
-                                                  const Eigen::Isometry3d& T_match_new) {
-    EdgeInfo edge;
-    edge.from_id = matched_keyframe_id;
-    edge.to_id = new_keyframe_id;
-    edge.measurement = T_match_new;
-    edge.information = Eigen::Matrix<double, 6, 6>::Identity();
-    edge.information.block<3, 3>(0, 0) *= 1.0 / (config_.loop_noise_position * config_.loop_noise_position);
-    edge.information.block<3, 3>(3, 3) *= 1.0 / (config_.loop_noise_rotation * config_.loop_noise_rotation);
-    edge.type = EdgeType::LOOP;
-    optimizer_.addLoopEdge(edge);
 }
 
 } // namespace n3mapping

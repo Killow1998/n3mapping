@@ -18,6 +18,9 @@ public:
 
     bool shouldAddKeyframe(const Eigen::Isometry3d& current_pose) const;
     int64_t addKeyframe(double timestamp, const Eigen::Isometry3d& pose, const Keyframe::PointCloudT::Ptr& cloud);
+    // Transaction rollback for the just-added keyframe only. The expected id
+    // prevents callers from deleting an unrelated or already-followed frame.
+    bool removeLatestKeyframe(int64_t expected_id);
     Keyframe::Ptr getKeyframe(int64_t id) const;
     Keyframe::Ptr getLatestKeyframe() const;
     std::vector<Keyframe::Ptr> getAllKeyframes() const;

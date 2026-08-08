@@ -52,7 +52,6 @@ public:
 
 private:
     bool initializeFromLoadedMapNoLock();
-    void addRelocalizationConstraint(int64_t new_keyframe_id, int64_t matched_keyframe_id, const Eigen::Isometry3d& T_match_new);
 
     Config config_;
     KeyframeManager& keyframe_manager_;
@@ -67,8 +66,10 @@ private:
     size_t original_keyframe_count_;
     int64_t original_max_keyframe_id_;
     size_t cross_loop_count_;
-    Eigen::Isometry3d last_keyframe_pose_;
-    int64_t last_keyframe_id_;
+    int64_t relocalization_anchor_keyframe_id_;
+    int64_t previous_new_keyframe_id_;
+    Eigen::Isometry3d previous_new_odom_pose_;
+    bool first_new_keyframe_pending_;
     mutable std::mutex mutex_;
 };
 

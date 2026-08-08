@@ -5,6 +5,7 @@
 #include "n3mapping/mapping_resuming.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/world_localizing.h"
+#include <algorithm>
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <pcl/common/transforms.h>
@@ -134,6 +135,20 @@ class MappingResumingTest : public ::testing::Test
         serializer.saveMap(map_file, kf_manager, loop_detector, optimizer);
 
         return map_file;
+    }
+
+    void configureSingleFrameRelocalization()
+    {
+        config_.sc_num_exclude_recent = 0;
+        config_.rhpd_enabled = false;
+        config_.reloc_temporal_window_size = 1;
+        config_.reloc_lock_min_winner_streak = 1;
+        config_.reloc_lock_min_converged_updates = 1;
+        config_.reloc_lock_log_likelihood_threshold = -1e308;
+        config_.reloc_min_confidence = 0.0;
+        config_.reloc_min_inlier_ratio = 0.0;
+        config_.reloc_static_agg_enable = false;
+        config_.reloc_free_space_enable = false;
     }
 
     Config config_;
@@ -337,6 +352,136 @@ TEST_F(MappingResumingTest, SaveExtendedMap)
 
     ASSERT_TRUE(serializer.loadMap(extended_map_file, kf_manager2, loop_detector2, optimizer2));
     EXPECT_EQ(kf_manager2.size(), 3);
+}
+
+TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
+{
+    configureSingleFrameRelocalization();
+    config_.loop_noise_position = 0.2;
+    config_.loop_noise_rotation = 0.3;
+    config_.odom_noise_position = 0.1;
+    config_.odom_noise_rotation = 0.05;
+    const std::string map_file = createTestMap(1);
+
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    PointCloudMatcher matcher(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+    WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
+    MappingResuming extension(config_, kf_manager, loop_detector, matcher,
+                              optimizer, serializer, relocalization);
+
+    ASSERT_TRUE(extension.loadExistingMap(map_file));
+    auto anchor = kf_manager.getKeyframe(0);
+    ASSERT_NE(anchor, nullptr);
+    ASSERT_TRUE(extension.performInitialRelocalization(
+        anchor->cloud, Eigen::Isometry3d::Identity()));
+    ASSERT_EQ(relocalization.getLastMatchedKeyframeId(), 0);
+    const Eigen::Isometry3d anchor_pose_before = anchor->pose_optimized;
+
+    Eigen::Isometry3d first_odom = Eigen::Isometry3d::Identity();
+    first_odom.translation().x() = 2.0;
+    const Eigen::Isometry3d first_pose_in_map =
+        relocalization.getMapToOdomTransform() * first_odom;
+    const int64_t first_id = extension.processNewKeyframe(
+        10.0, first_odom, anchor->cloud);
+    ASSERT_EQ(first_id, 1);
+    EXPECT_EQ(extension.getState(), MappingResumingState::EXTENDING);
+    EXPECT_TRUE(optimizer.hasNode(first_id));
+
+    const auto& first_edges = optimizer.getEdges();
+    const auto anchor_edge = std::find_if(
+        first_edges.begin(), first_edges.end(), [first_id](const EdgeInfo& edge) {
+            return edge.type == EdgeType::SESSION_ANCHOR &&
+                   edge.from_id == 0 && edge.to_id == first_id;
+        });
+    ASSERT_NE(anchor_edge, first_edges.end());
+    EXPECT_TRUE(anchor_edge->measurement.isApprox(
+        anchor_pose_before.inverse() * first_pose_in_map, 1e-9));
+    EXPECT_NEAR(anchor_edge->information(0, 0), 25.0, 1e-9);
+    EXPECT_NEAR(anchor_edge->information(3, 3), 1.0 / 0.09, 1e-9);
+
+    // Deliberately perturb the stored optimized pose. The next base edge must
+    // still come from the two raw session odometry poses.
+    auto first_keyframe = kf_manager.getKeyframe(first_id);
+    ASSERT_NE(first_keyframe, nullptr);
+    first_keyframe->pose_optimized.translation().y() += 50.0;
+
+    Eigen::Isometry3d second_odom = first_odom;
+    second_odom.translation().x() = 4.0;
+    const int64_t second_id = extension.processNewKeyframe(
+        11.0, second_odom, anchor->cloud);
+    ASSERT_EQ(second_id, 2);
+
+    const auto& all_edges = optimizer.getEdges();
+    const auto odom_edge = std::find_if(
+        all_edges.begin(), all_edges.end(),
+        [first_id, second_id](const EdgeInfo& edge) {
+            return edge.type == EdgeType::ODOMETRY &&
+                   edge.from_id == first_id && edge.to_id == second_id;
+        });
+    ASSERT_NE(odom_edge, all_edges.end());
+    EXPECT_TRUE(odom_edge->measurement.isApprox(
+        first_odom.inverse() * second_odom, 1e-9));
+    EXPECT_NEAR(odom_edge->measurement.translation().y(), 0.0, 1e-9);
+}
+
+TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
+{
+    configureSingleFrameRelocalization();
+    const std::string map_file = createTestMap(1);
+
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    PointCloudMatcher matcher(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+    WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
+    MappingResuming extension(config_, kf_manager, loop_detector, matcher,
+                              optimizer, serializer, relocalization);
+
+    ASSERT_TRUE(extension.loadExistingMap(map_file));
+    auto anchor = kf_manager.getKeyframe(0);
+    ASSERT_NE(anchor, nullptr);
+    ASSERT_TRUE(extension.performInitialRelocalization(
+        anchor->cloud, Eigen::Isometry3d::Identity()));
+
+    const size_t keyframes_before = kf_manager.size();
+    const size_t sc_before = loop_detector.size();
+    const size_t rhpd_before = loop_detector.getRHPDManager().size();
+    const size_t edges_before = optimizer.getNumEdges();
+    const int64_t next_id_before = kf_manager.getNextKeyframeId();
+
+    // This pending factor deterministically makes the combined iSAM2 update
+    // fail; GraphOptimizer then clears every pending factor in that update.
+    EdgeInfo invalid_loop;
+    invalid_loop.from_id = 0;
+    invalid_loop.to_id = 999;
+    invalid_loop.measurement = Eigen::Isometry3d::Identity();
+    invalid_loop.information =
+        Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
+    invalid_loop.type = EdgeType::LOOP;
+    optimizer.addLoopEdge(invalid_loop);
+
+    Eigen::Isometry3d new_odom = Eigen::Isometry3d::Identity();
+    new_odom.translation().x() = 2.0;
+    EXPECT_EQ(extension.processNewKeyframe(10.0, new_odom, anchor->cloud), -1);
+    EXPECT_EQ(extension.getState(), MappingResumingState::RELOCALIZED);
+    EXPECT_EQ(extension.getNewKeyframeCount(), 0u);
+    EXPECT_EQ(kf_manager.size(), keyframes_before);
+    EXPECT_EQ(kf_manager.getNextKeyframeId(), next_id_before);
+    EXPECT_EQ(loop_detector.size(), sc_before);
+    EXPECT_EQ(loop_detector.getRHPDManager().size(), rhpd_before);
+    EXPECT_EQ(optimizer.getNumEdges(), edges_before);
+    EXPECT_FALSE(optimizer.hasNode(next_id_before));
+    EXPECT_FALSE(optimizer.hasGlobalConstraint());
+
+    // The first-frame state was not advanced, and rollback restored the id.
+    EXPECT_EQ(extension.processNewKeyframe(11.0, new_odom, anchor->cloud),
+              next_id_before);
+    EXPECT_EQ(extension.getState(), MappingResumingState::EXTENDING);
+    EXPECT_TRUE(optimizer.hasNode(next_id_before));
 }
 
 } // namespace test

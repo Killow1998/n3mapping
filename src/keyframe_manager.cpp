@@ -28,6 +28,21 @@ int64_t KeyframeManager::addKeyframe(double timestamp, const Eigen::Isometry3d& 
     return next_id_++;
 }
 
+bool KeyframeManager::removeLatestKeyframe(int64_t expected_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!last_keyframe_ || last_keyframe_->id != expected_id ||
+        next_id_ != expected_id + 1) {
+        return false;
+    }
+
+    const auto erased = keyframes_.erase(expected_id);
+    if (erased != 1u) return false;
+
+    next_id_ = expected_id;
+    last_keyframe_ = keyframes_.empty() ? nullptr : keyframes_.rbegin()->second;
+    return true;
+}
+
 Keyframe::Ptr KeyframeManager::getKeyframe(int64_t id) const {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = keyframes_.find(id);
