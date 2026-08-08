@@ -501,7 +501,6 @@ TEST_F(GraphOptimizerTest, LoadGraphRestoresFloorConstraints) {
 
 TEST_F(GraphOptimizerTest, SessionAnchorEdgeUsesRobustPathAndStaysSeparateFromLoop) {
     optimizer_->addPriorFactor(0, createPose(0, 0, 0));
-    optimizer_->addPriorFactor(1, createPose(1, 0, 0));
     optimizer_->incrementalOptimize();
 
     EdgeInfo anchor;
@@ -512,13 +511,18 @@ TEST_F(GraphOptimizerTest, SessionAnchorEdgeUsesRobustPathAndStaysSeparateFromLo
     anchor.information = Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
     anchor.type = EdgeType::SESSION_ANCHOR;
     anchor.constraint_mode = EdgeConstraintMode::FULL_6DOF;
-    optimizer_->addSessionAnchorEdge(anchor);
+    ASSERT_TRUE(optimizer_->addSessionAnchorEdge(anchor));
+
+    // The first anchor of a new session creates the target initial value.
+    ASSERT_TRUE(optimizer_->hasNode(1));
+    EXPECT_TRUE(posesNear(
+        createPose(1, 0, 0), optimizer_->getOptimizedPose(1), 1e-9, 1e-9));
 
     // An anchor is a global constraint but must not be reported as a loop.
     EXPECT_TRUE(optimizer_->hasGlobalConstraint());
     EXPECT_FALSE(optimizer_->hasLoopClosure());
 
-    optimizer_->incrementalOptimize();
+    ASSERT_TRUE(optimizer_->incrementalOptimize());
     const auto& edges = optimizer_->getEdges();
     bool found_anchor = false;
     for (const auto& edge : edges) {
@@ -527,6 +531,47 @@ TEST_F(GraphOptimizerTest, SessionAnchorEdgeUsesRobustPathAndStaysSeparateFromLo
         }
     }
     EXPECT_TRUE(found_anchor);
+}
+
+TEST_F(GraphOptimizerTest, SessionAnchorRejectsMissingSourceWithoutPendingState) {
+    EdgeInfo anchor;
+    anchor.from_id = 42;
+    anchor.to_id = 43;
+    anchor.measurement = createPose(1, 0, 0);
+    anchor.information = createInformationMatrix(100.0, 100.0);
+    anchor.type = EdgeType::SESSION_ANCHOR;
+
+    EXPECT_FALSE(optimizer_->addSessionAnchorEdge(anchor));
+    EXPECT_FALSE(optimizer_->hasNode(43));
+    EXPECT_EQ(optimizer_->getNumEdges(), 0u);
+    EXPECT_FALSE(optimizer_->hasGlobalConstraint());
+    EXPECT_TRUE(optimizer_->incrementalOptimize());
+}
+
+TEST_F(GraphOptimizerTest, FailedUpdateRollsBackPendingSessionAnchorNodeAndFlag) {
+    optimizer_->addPriorFactor(0, createPose(0, 0, 0));
+    ASSERT_TRUE(optimizer_->incrementalOptimize());
+
+    EdgeInfo anchor;
+    anchor.from_id = 0;
+    anchor.to_id = 1;
+    anchor.measurement = createPose(1, 0, 0);
+    anchor.information = createInformationMatrix(100.0, 100.0);
+    anchor.type = EdgeType::SESSION_ANCHOR;
+    ASSERT_TRUE(optimizer_->addSessionAnchorEdge(anchor));
+
+    EdgeInfo invalid_loop;
+    invalid_loop.from_id = 0;
+    invalid_loop.to_id = 999;
+    invalid_loop.measurement = Eigen::Isometry3d::Identity();
+    invalid_loop.information = createInformationMatrix(10.0, 10.0);
+    invalid_loop.type = EdgeType::LOOP;
+    optimizer_->addLoopEdge(invalid_loop);
+
+    EXPECT_FALSE(optimizer_->incrementalOptimize());
+    EXPECT_FALSE(optimizer_->hasNode(1));
+    EXPECT_EQ(optimizer_->getNumEdges(), 0u);
+    EXPECT_FALSE(optimizer_->hasGlobalConstraint());
 }
 
 TEST_F(GraphOptimizerTest, LoadGraphRestoresSessionAnchorType) {

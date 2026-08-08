@@ -4,6 +4,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
 
 #include <Eigen/Eigenvalues>
@@ -465,6 +466,9 @@ bool parseEdgesFromProto(const N3Map& map_proto,
     }
     edges->clear();
     edges->reserve(map_proto.edges_size());
+    uint32_t odometry_edges = 0;
+    uint32_t loop_edges = 0;
+    uint32_t session_anchor_edges = 0;
 
     for (int i = 0; i < map_proto.edges_size(); ++i) {
         const auto& proto = map_proto.edges(i);
@@ -485,17 +489,63 @@ bool parseEdgesFromProto(const N3Map& map_proto,
             continue;
         }
         edge.measurement = poseFromProto(proto.measurement());
-        PbstreamEdgeType edge_type = PbstreamEdgeType::ODOMETRY;
-        if (proto.type() == EdgeProto::LOOP) {
-            edge_type = PbstreamEdgeType::LOOP;
-        } else if (proto.type() == EdgeProto::SESSION_ANCHOR) {
-            edge_type = PbstreamEdgeType::SESSION_ANCHOR;
+        switch (proto.type()) {
+        case EdgeProto::ODOMETRY:
+            edge.type = PbstreamEdgeType::ODOMETRY;
+            ++odometry_edges;
+            break;
+        case EdgeProto::LOOP:
+            edge.type = PbstreamEdgeType::LOOP;
+            ++loop_edges;
+            break;
+        case EdgeProto::SESSION_ANCHOR:
+            edge.type = PbstreamEdgeType::SESSION_ANCHOR;
+            ++session_anchor_edges;
+            break;
+        default:
+            if (policy == PbstreamLoadPolicy::STRICT) {
+                return setError(error, "unknown edge type");
+            }
+            std::cerr << "[MapSerializer] Salvage: skipping unknown edge type "
+                      << static_cast<int>(proto.type()) << '\n';
+            continue;
         }
-        edge.type = edge_type;
-        edge.constraint_mode = proto.constraint_mode() == EdgeProto::XY_YAW
-            ? PbstreamEdgeConstraintMode::XY_YAW
-            : PbstreamEdgeConstraintMode::FULL_6DOF;
+        switch (proto.constraint_mode()) {
+        case EdgeProto::FULL_6DOF:
+            edge.constraint_mode = PbstreamEdgeConstraintMode::FULL_6DOF;
+            break;
+        case EdgeProto::XY_YAW:
+            edge.constraint_mode = PbstreamEdgeConstraintMode::XY_YAW;
+            break;
+        default:
+            if (policy == PbstreamLoadPolicy::STRICT) {
+                return setError(error, "unknown edge constraint mode");
+            }
+            std::cerr
+                << "[MapSerializer] Salvage: skipping unknown edge constraint mode "
+                << static_cast<int>(proto.constraint_mode()) << '\n';
+            if (edge.type == PbstreamEdgeType::ODOMETRY) {
+                --odometry_edges;
+            } else if (edge.type == PbstreamEdgeType::LOOP) {
+                --loop_edges;
+            } else {
+                --session_anchor_edges;
+            }
+            continue;
+        }
         edges->push_back(std::move(edge));
+    }
+
+    // Edge counts became a complete format contract in 2.5.0. Older maps are
+    // accepted because proto3 scalar fields cannot distinguish "absent" from
+    // an explicitly declared zero.
+    if (policy == PbstreamLoadPolicy::STRICT &&
+        map_proto.metadata().version() == "2.5.0" &&
+        (odometry_edges != map_proto.metadata().num_odometry_edges() ||
+         loop_edges != map_proto.metadata().num_loop_edges() ||
+         session_anchor_edges !=
+             map_proto.metadata().num_session_anchor_edges())) {
+        return setError(error, "edge metadata count mismatch");
     }
     return true;
 }

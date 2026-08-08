@@ -154,7 +154,10 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @param edge 边信息
      */
     void addLoopEdge(const EdgeInfo& edge);
-    void addSessionAnchorEdge(const EdgeInfo& edge);
+    // Adds a robust cross-session edge. If the target node is new, its
+    // initial pose is derived from the source pose and measurement.
+    // Returns false without staging anything when the source node is absent.
+    bool addSessionAnchorEdge(const EdgeInfo& edge);
     static bool isRobustGlobalEdge(EdgeType type);
     bool hasGlobalConstraint() const;
 
@@ -322,6 +325,13 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @brief 从已提交或待提交状态读取节点位姿
      */
     bool getAnyPose(gtsam::Key key, gtsam::Pose3* pose) const;
+
+    /**
+     * @brief Ensure an edge target has an initial value derived from its source
+     */
+    bool ensureTargetInitialValue(int64_t from_id,
+                                  int64_t to_id,
+                                  const Eigen::Isometry3d& measurement);
 
     /**
      * @brief 将已验证的待提交更新写入 committed graph 状态

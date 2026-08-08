@@ -115,6 +115,19 @@ protected:
         }
     }
 
+    n3mapping::EdgeProto* addValidEdgeProto(n3mapping::N3Map* map_proto,
+                                            int64_t from_id,
+                                            int64_t to_id) {
+        auto* edge = map_proto->add_edges();
+        edge->set_from_id(from_id);
+        edge->set_to_id(to_id);
+        edge->mutable_measurement()->set_qw(1.0);
+        addUpperTriangularInformation(edge->mutable_information());
+        edge->set_type(n3mapping::EdgeProto::ODOMETRY);
+        edge->set_constraint_mode(n3mapping::EdgeProto::FULL_6DOF);
+        return edge;
+    }
+
     Config config_;
 };
 
@@ -2267,8 +2280,8 @@ TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
     anchor.information = Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
     anchor.type = EdgeType::SESSION_ANCHOR;
     anchor.constraint_mode = EdgeConstraintMode::FULL_6DOF;
-    optimizer.addSessionAnchorEdge(anchor);
-    optimizer.incrementalOptimize();
+    ASSERT_TRUE(optimizer.addSessionAnchorEdge(anchor));
+    ASSERT_TRUE(optimizer.incrementalOptimize());
     {
         const auto& edges = optimizer.getEdges();
         int anchors = 0;
@@ -2282,6 +2295,14 @@ TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
 
     std::string map_file = config_.map_save_path + "/anchor_roundtrip.pbstream";
     ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
+
+    N3Map saved_proto;
+    {
+        std::ifstream ifs(map_file, std::ios::binary);
+        ASSERT_TRUE(saved_proto.ParseFromIstream(&ifs));
+    }
+    EXPECT_EQ(saved_proto.metadata().version(), "2.5.0");
+    EXPECT_EQ(saved_proto.metadata().num_session_anchor_edges(), 1u);
 
     KeyframeManager kf_loaded(config_);
     LoopDetector ld_loaded(config_);
@@ -2299,6 +2320,111 @@ TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
         }
     }
     EXPECT_EQ(anchors, 1);
+}
+
+TEST_F(MapSerializerTest, Legacy24MapStillLoadsAndFuturePatchIsRejected) {
+    MapSerializer serializer(config_);
+
+    N3Map legacy;
+    legacy.mutable_metadata()->set_version("2.4.0");
+    legacy.mutable_metadata()->set_num_keyframes(1);
+    addValidKeyframeProto(&legacy, 0);
+    const std::string legacy_file =
+        config_.map_save_path + "/legacy_24.pbstream";
+    {
+        std::ofstream ofs(legacy_file, std::ios::binary);
+        ASSERT_TRUE(legacy.SerializeToOstream(&ofs));
+    }
+    KeyframeManager legacy_kfs(config_);
+    LoopDetector legacy_loops(config_);
+    GraphOptimizer legacy_optimizer(config_);
+    EXPECT_TRUE(serializer.loadMap(
+        legacy_file, legacy_kfs, legacy_loops, legacy_optimizer));
+    EXPECT_EQ(legacy_kfs.size(), 1u);
+
+    N3Map future = legacy;
+    future.mutable_metadata()->set_version("2.5.1");
+    const std::string future_file =
+        config_.map_save_path + "/future_251.pbstream";
+    {
+        std::ofstream ofs(future_file, std::ios::binary);
+        ASSERT_TRUE(future.SerializeToOstream(&ofs));
+    }
+    KeyframeManager future_kfs(config_);
+    LoopDetector future_loops(config_);
+    GraphOptimizer future_optimizer(config_);
+    EXPECT_FALSE(serializer.loadMap(
+        future_file, future_kfs, future_loops, future_optimizer));
+    EXPECT_EQ(future_kfs.size(), 0u);
+}
+
+TEST_F(MapSerializerTest, UnknownEdgeEnumsStrictRejectAndSalvageSkip) {
+    MapSerializer serializer(config_);
+    const std::vector<std::string> fields = {"type", "constraint_mode"};
+
+    for (const auto& field_name : fields) {
+        SCOPED_TRACE(field_name);
+        N3Map map_proto;
+        auto* meta = map_proto.mutable_metadata();
+        meta->set_version("2.5.0");
+        meta->set_num_keyframes(1);
+        addValidKeyframeProto(&map_proto, 0);
+        auto* edge = addValidEdgeProto(&map_proto, 0, 0);
+        meta->set_num_odometry_edges(1);
+        const auto* field =
+            EdgeProto::descriptor()->FindFieldByName(field_name);
+        ASSERT_NE(field, nullptr);
+        edge->GetReflection()->SetEnumValue(edge, field, 99);
+
+        const std::string map_file = config_.map_save_path +
+            "/unknown_" + field_name + ".pbstream";
+        {
+            std::ofstream ofs(map_file, std::ios::binary);
+            ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+        }
+
+        KeyframeManager strict_kfs(config_);
+        LoopDetector strict_loops(config_);
+        GraphOptimizer strict_optimizer(config_);
+        EXPECT_FALSE(serializer.loadMap(
+            map_file, strict_kfs, strict_loops, strict_optimizer));
+
+        PbstreamLoadOptions salvage;
+        salvage.policy = PbstreamLoadPolicy::SALVAGE;
+        KeyframeManager salvage_kfs(config_);
+        LoopDetector salvage_loops(config_);
+        GraphOptimizer salvage_optimizer(config_);
+        EXPECT_TRUE(serializer.loadMap(
+            map_file, salvage_kfs, salvage_loops, salvage_optimizer,
+            salvage));
+        EXPECT_EQ(salvage_kfs.size(), 1u);
+        EXPECT_EQ(salvage_optimizer.getNumEdges(), 0u);
+    }
+}
+
+TEST_F(MapSerializerTest, StrictRejectsEdgeMetadataCountMismatch) {
+    N3Map map_proto;
+    auto* meta = map_proto.mutable_metadata();
+    meta->set_version("2.5.0");
+    meta->set_num_keyframes(1);
+    addValidKeyframeProto(&map_proto, 0);
+    addValidEdgeProto(&map_proto, 0, 0);
+    // num_odometry_edges intentionally remains zero.
+
+    const std::string map_file =
+        config_.map_save_path + "/bad_edge_count.pbstream";
+    {
+        std::ofstream ofs(map_file, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+    }
+
+    KeyframeManager loaded_kfs(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    MapSerializer serializer(config_);
+    EXPECT_FALSE(serializer.loadMap(
+        map_file, loaded_kfs, loaded_loops, loaded_optimizer));
+    EXPECT_EQ(loaded_kfs.size(), 0u);
 }
 
 TEST_F(MapSerializerTest, MapWithoutSessionAnchorsStillLoads) {

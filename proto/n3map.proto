@@ -73,7 +73,7 @@ message DenseTrajectoryPose {
     Pose3D pose_world_lidar = 3;
 }
 
-// Floor attitude constraint (map format 2.4.0): roll/pitch observation attached
+// Floor attitude constraint (introduced in map format 2.4.0): roll/pitch observation attached
 // to one keyframe, normal expressed in the sensor/body frame.
 message FloorAttitudeFactorProto {
     int64 node_id = 1;

@@ -187,15 +187,8 @@ void GraphOptimizer::addOdometryEdge(const EdgeInfo& edge) {
     new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
     
     // 如果目标节点不存在，尝试从 from 节点推导待提交初始值。
-    if (!hasAnyNode(edge.to_id)) {
-        // 使用里程计测量值计算初始位姿
-        gtsam::Pose3 pose_from;
-        if (getAnyPose(key_from, &pose_from)) {
-            gtsam::Pose3 pose_to = pose_from * measurement;
-            new_values_.insert(key_to, pose_to);
-            pending_node_ids_.insert(edge.to_id);
-        }
-    }
+    (void)ensureTargetInitialValue(
+        edge.from_id, edge.to_id, edge.measurement);
     
     // 存储待提交边信息
     pending_edges_.push_back(edge);
@@ -229,7 +222,13 @@ void GraphOptimizer::addLoopEdge(const EdgeInfo& edge) {
     needs_optimization_ = true;
 }
 
-void GraphOptimizer::addSessionAnchorEdge(const EdgeInfo& edge) {
+bool GraphOptimizer::addSessionAnchorEdge(const EdgeInfo& edge) {
+    if (edge.from_id < 0 || edge.to_id < 0 ||
+        !edge.measurement.matrix().allFinite() ||
+        !edge.information.allFinite()) {
+        return false;
+    }
+
     gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
     gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
     gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
@@ -239,6 +238,13 @@ void GraphOptimizer::addSessionAnchorEdge(const EdgeInfo& edge) {
     auto noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
         ? createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
         : createRobustNoiseModel(edge.information, config_.use_robust_kernel);
+
+    // Unlike a loop, the first cross-session anchor may introduce a new graph
+    // node. Reject a missing source before staging a factor or edge.
+    if (!ensureTargetInitialValue(
+            edge.from_id, edge.to_id, edge.measurement)) {
+        return false;
+    }
 
     if (edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
         new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
@@ -252,6 +258,7 @@ void GraphOptimizer::addSessionAnchorEdge(const EdgeInfo& edge) {
 
     pending_has_session_anchor_ = true;
     needs_optimization_ = true;
+    return true;
 }
 
 bool GraphOptimizer::isRobustGlobalEdge(EdgeType type) {
@@ -304,8 +311,9 @@ bool GraphOptimizer::incrementalOptimize() {
 
         trial_isam2->update(new_factors_, new_values_);
         
-        // 如果有回环约束，多执行几次优化迭代以确保收敛
-        if (has_loop_closure_ || pending_has_loop_closure_) {
+        // Robust global constraints (loop or session anchor) receive the same
+        // additional relinearization updates.
+        if (hasGlobalConstraint()) {
             for (int i = 0; i < config_.optimization_iterations; ++i) {
                 trial_isam2->update();
             }
@@ -624,6 +632,24 @@ bool GraphOptimizer::getAnyPose(gtsam::Key key, gtsam::Pose3* pose) const {
         return true;
     }
     return false;
+}
+
+bool GraphOptimizer::ensureTargetInitialValue(
+    int64_t from_id,
+    int64_t to_id,
+    const Eigen::Isometry3d& measurement) {
+    const gtsam::Key key_from = gtsam::Symbol('x', from_id);
+    const gtsam::Key key_to = gtsam::Symbol('x', to_id);
+    gtsam::Pose3 pose_from;
+    if (!getAnyPose(key_from, &pose_from)) {
+        return false;
+    }
+    if (hasAnyNode(to_id)) {
+        return true;
+    }
+    new_values_.insert(key_to, pose_from * eigenToGtsam(measurement));
+    pending_node_ids_.insert(to_id);
+    return true;
 }
 
 void GraphOptimizer::commitPending(const gtsam::Values& optimized_estimate,
