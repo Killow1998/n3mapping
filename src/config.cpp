@@ -20,7 +20,6 @@ Config makeProductLocalizationConfig(const std::string& map_path,
     config.loop_fitness_threshold = 0.2;
     config.loop_max_icp_translation = 2.0;
     config.save_global_map_on_shutdown = false;
-    config.map_save_path.clear();
 
     config.reloc_atlas_enable = true;
     config.reloc_atlas_path = atlas_path;

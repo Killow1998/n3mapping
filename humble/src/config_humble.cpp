@@ -96,7 +96,13 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("floor_attitude_min_points", config->floor_attitude_min_points);
     get("loop_max_range", config->loop_max_range);
 
+    // An empty YAML value means "use the built-in map directory" for this
+    // field only. Other string parameters may intentionally be empty.
+    const std::string default_map_save_path = config->map_save_path;
     gets("map_save_path", config->map_save_path);
+    if (config->map_save_path.empty()) {
+        config->map_save_path = default_map_save_path;
+    }
     get("global_map_voxel_size", config->global_map_voxel_size);
     get("save_global_map_voxel_size", config->save_global_map_voxel_size);
     get("global_map_publish_hz", config->global_map_publish_hz);
