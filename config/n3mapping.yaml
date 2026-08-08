@@ -80,6 +80,10 @@ n3mapping_node:
     mapping_static_moved_consecutive: 3
     mapping_static_max_wait_s: 120.0
 
+    # Safe default: floor attitude is experimental and caused z drift with the
+    # tilted-LiDAR dataset. mapping_stages/* opt in explicitly for research.
+    floor_attitude_enable: false
+
     output_cloud_voxel_size: 0.2
 
     map_save_path: ""

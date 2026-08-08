@@ -16,6 +16,8 @@ protected:
         config_.odom_noise_rotation = 0.1;
         config_.loop_noise_position = 0.1;
         config_.loop_noise_rotation = 0.1;
+        // Floor-factor lifecycle tests explicitly opt in to the experimental feature.
+        config_.floor_attitude_enable = true;
         
         optimizer_ = std::make_unique<GraphOptimizer>(config_);
     }

@@ -236,6 +236,9 @@ std::string Config::toString() const {
     oss << "Loop prediction range gate: max_range=" << loop_max_range
         << " (pre-ICP candidate filter)\n";
     oss << "Loop timing: loop_kf_gap=" << loop_kf_gap << " (active)\n";
+    oss << "Floor attitude (experimental): "
+        << (floor_attitude_enable ? "ON" : "OFF")
+        << " noise_deg=" << floor_attitude_noise_deg << "\n";
     oss << "Reloc: candidates=" << reloc_num_candidates
         << ", sc_thr=" << reloc_sc_dist_threshold
         << ", min_conf=" << reloc_min_confidence << "\n";

@@ -134,10 +134,11 @@ struct Config {
     double odom_sanity_max_angular_rate_dps = 720.0;
     int odom_sanity_max_consecutive = 5;
 
-    bool floor_attitude_enable = true;
-    // How level a building floor is, not how precisely the plane fits. The fit
-    // is sub-degree over several hundred points; the horizontality assumption is
-    // the looser of the two and is what belongs in the noise model.
+    // Experimental absolute roll/pitch observation. Disabled by default after
+    // floor-on runs with a tilted LiDAR produced systematic z drift; the
+    // implementation and serialization remain available for controlled study.
+    bool floor_attitude_enable = false;
+    // How level a building floor is, not how precisely the plane fits.
     double floor_attitude_noise_deg = 1.0;
     double floor_attitude_max_radius_m = 8.0;
     int floor_attitude_min_points = 400;

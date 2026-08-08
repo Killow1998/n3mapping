@@ -27,6 +27,7 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_TRUE(config.loop_spatial_candidates_enable);
     EXPECT_DOUBLE_EQ(config.loop_spatial_candidate_radius, 15.0);
     EXPECT_EQ(config.loop_spatial_candidate_max_candidates, 5);
+    EXPECT_FALSE(config.floor_attitude_enable);
     EXPECT_DOUBLE_EQ(config.save_global_map_voxel_size, 0.1);
     EXPECT_EQ(config.sync_queue_size, 100);
 }
@@ -44,6 +45,8 @@ TEST(ConfigTest, ToStringContainsKeyFields) {
     EXPECT_NE(summary.find("Map path: /tmp/test.pbstream"), std::string::npos);
     EXPECT_NE(summary.find("Loop candidate pipeline: descriptor + spatial proposals"), std::string::npos);
     EXPECT_NE(summary.find("Loop spatial candidates: ON"), std::string::npos);
+    EXPECT_NE(summary.find("Floor attitude (experimental): OFF"),
+              std::string::npos);
     EXPECT_NE(summary.find("RHPD primary retrieval: weight="), std::string::npos);
     EXPECT_NE(summary.find("Reloc temporal: window="), std::string::npos);
 }

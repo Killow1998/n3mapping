@@ -90,6 +90,10 @@ n3mapping_node:
     map_save_path: "/path/to/save_dir"
 ```
 
+`floor_attitude_enable` is disabled in the built-in, default, and product
+profiles. The floor factor is retained for research, and the files under
+`config/mapping_stages/` opt in explicitly; they are not safe product defaults.
+
 Use a custom config file only when needed.
 
 Humble:

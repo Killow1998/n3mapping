@@ -2105,6 +2105,8 @@ TEST_F(MapSerializerTest, SaveGlobalMap) {
 }
 
 TEST_F(MapSerializerTest, FloorConstraintSaveLoadRoundTrip) {
+    // This round-trip covers the opt-in experimental floor factor.
+    config_.floor_attitude_enable = true;
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
     GraphOptimizer optimizer(config_);
