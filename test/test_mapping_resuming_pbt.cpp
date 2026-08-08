@@ -129,6 +129,18 @@ class MappingResumingPBTTest : public ::testing::Test
         return { map_file, max_id };
     }
 
+    bool loadForExtensionTest(const std::string& map_file,
+                              KeyframeManager& keyframe_manager,
+                              LoopDetector& loop_detector,
+                              GraphOptimizer& optimizer,
+                              MapSerializer& serializer,
+                              MappingResuming& extension)
+    {
+        return serializer.loadMap(
+                   map_file, keyframe_manager, loop_detector, optimizer) &&
+               extension.initializeFromLoadedMap();
+    }
+
     Config config_;
     std::mt19937 rng_;
 };
@@ -159,7 +171,9 @@ TEST_F(MappingResumingPBTTest, Property9_KeyframeIdContinuity)
         MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
         // 加载地图
-        ASSERT_TRUE(extension.loadExistingMap(map_file)) << "Iteration " << iter << ": Failed to load map";
+        ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                         optimizer, serializer, extension))
+            << "Iteration " << iter << ": Failed to load map";
 
         // 验证原始地图关键帧 ID
         int64_t loaded_max_id = -1;
@@ -233,7 +247,8 @@ TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
 
         MappingResuming extension(config_, kf_manager2, loop_detector2, matcher2, optimizer2, serializer2, relocalization2);
 
-        ASSERT_TRUE(extension.loadExistingMap(map_file));
+        ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager2, loop_detector2,
+                                         optimizer2, serializer2, extension));
 
         // 添加一些新关键帧
         Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
@@ -290,7 +305,8 @@ TEST_F(MappingResumingPBTTest, IsFromOriginalMapCorrectness)
 
         MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
-        ASSERT_TRUE(extension.loadExistingMap(map_file));
+        ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                         optimizer, serializer, extension));
 
         // 验证所有原始 ID 返回 true
         for (int64_t id = 0; id <= original_max_id; ++id) {

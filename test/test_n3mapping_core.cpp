@@ -8,6 +8,7 @@
 #include "n3mapping/pcl_compat.h"
 
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/localization_atlas.h"
 #include "n3map.pb.h"
 
 namespace n3mapping {
@@ -448,6 +449,116 @@ TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseMarksMixedSource)
     }
     EXPECT_EQ(extended_map.metadata().dense_trajectory_source(), "mixed_keyframe_fallback_and_high_rate");
     EXPECT_TRUE(extended_map.metadata().dense_trajectory_degraded());
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(N3MappingCoreTest, SameCountMapReplacementCommitsMapAndDenseTogether)
+{
+    Config config = makeCoreTestConfig();
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() /
+        "n3mapping_core_same_count_transaction";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path map_a = dir / "a.pbstream";
+    const std::filesystem::path map_b = dir / "b.pbstream";
+
+    {
+        N3MappingCore producer(config);
+        ASSERT_TRUE(producer.processMappingFrame(
+            makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+        ASSERT_TRUE(producer.saveMap(map_a.string()));
+    }
+    {
+        N3MappingCore producer(config);
+        Eigen::Isometry3d pose_b = Eigen::Isometry3d::Identity();
+        pose_b.translation().x() = 5.0;
+        ASSERT_TRUE(producer.processMappingFrame(
+            makeFrame(3000000000, pose_b)).accepted_keyframe);
+        ASSERT_TRUE(producer.saveMap(map_b.string()));
+    }
+
+    N3MappingCore loaded(config);
+    ASSERT_TRUE(loaded.loadMap(map_a.string()));
+    ASSERT_EQ(loaded.getAllKeyframes().size(), 1u);
+    ASSERT_TRUE(loaded.loadMap(map_b.string()));
+    ASSERT_TRUE(loaded.mapLoaded());
+
+    const auto keyframes = loaded.getAllKeyframes();
+    ASSERT_EQ(keyframes.size(), 1u);
+    EXPECT_NEAR(keyframes.front()->pose_optimized.translation().x(), 5.0, 1e-9);
+    const auto dense = loaded.getDenseOptimizedTrajectory();
+    ASSERT_EQ(dense.size(), 1u);
+    EXPECT_DOUBLE_EQ(dense.front().timestamp, 3.0);
+    EXPECT_NEAR(dense.front().pose_world_lidar.translation().x(), 5.0, 1e-9);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(N3MappingCoreTest, AtlasFailurePreservesPreviouslyLoadedSession)
+{
+    Config config = makeCoreTestConfig();
+    config.reloc_atlas_enable = true;
+    config.reloc_atlas_path.clear();
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() /
+        "n3mapping_core_atlas_failure_transaction";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path map_a = dir / "a.pbstream";
+    const std::filesystem::path map_b = dir / "b.pbstream";
+
+    std::vector<Keyframe::Ptr> keyframes_a;
+    {
+        N3MappingCore producer(config);
+        ASSERT_TRUE(producer.processMappingFrame(
+            makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+        ASSERT_TRUE(producer.saveMap(map_a.string()));
+        keyframes_a = producer.getAllKeyframes();
+    }
+    {
+        N3MappingCore producer(config);
+        Eigen::Isometry3d pose_b = Eigen::Isometry3d::Identity();
+        pose_b.translation().x() = 9.0;
+        ASSERT_TRUE(producer.processMappingFrame(
+            makeFrame(2000000000, pose_b)).accepted_keyframe);
+        ASSERT_TRUE(producer.saveMap(map_b.string()));
+    }
+
+    PointCloudMatcher atlas_matcher(config);
+    LocalizationAtlas atlas(config, atlas_matcher);
+    std::string atlas_error;
+    ASSERT_TRUE(atlas.compileAndSave(
+        map_a.string(), keyframes_a,
+        LocalizationAtlas::defaultAtlasPath(map_a.string()), false, nullptr,
+        &atlas_error)) << atlas_error;
+
+    N3MappingCore loaded(config);
+    ASSERT_TRUE(loaded.loadMap(map_a.string()));
+    const auto keyframes_before = loaded.getAllKeyframes();
+    const auto dense_before = loaded.getDenseOptimizedTrajectory();
+    ASSERT_EQ(keyframes_before.size(), 1u);
+    ASSERT_NEAR(keyframes_before.front()->pose_optimized.translation().x(),
+                0.0, 1e-9);
+    ASSERT_EQ(dense_before.size(), 1u);
+    ASSERT_NEAR(dense_before.front().pose_world_lidar.translation().x(),
+                0.0, 1e-9);
+
+    // B has no sidecar. Its parser succeeds, then candidate Atlas preparation
+    // fails; the already-loaded A session must remain live.
+    EXPECT_FALSE(loaded.loadMap(map_b.string()));
+    EXPECT_TRUE(loaded.mapLoaded());
+    const auto keyframes_after = loaded.getAllKeyframes();
+    ASSERT_EQ(keyframes_after.size(), 1u);
+    EXPECT_NEAR(keyframes_after.front()->pose_optimized.translation().x(),
+                0.0, 1e-9);
+    const auto dense_after = loaded.getDenseOptimizedTrajectory();
+    ASSERT_EQ(dense_after.size(), dense_before.size());
+    EXPECT_DOUBLE_EQ(dense_after.front().timestamp,
+                     dense_before.front().timestamp);
+    EXPECT_TRUE(dense_after.front().pose_world_lidar.isApprox(
+        dense_before.front().pose_world_lidar, 1e-9));
 
     std::filesystem::remove_all(dir);
 }

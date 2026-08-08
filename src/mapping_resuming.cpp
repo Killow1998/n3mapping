@@ -60,13 +60,6 @@ MappingResuming::MappingResuming(const Config& config,
     , previous_new_odom_pose_(Eigen::Isometry3d::Identity())
     , first_new_keyframe_pending_(false) {}
 
-bool MappingResuming::loadExistingMap(const std::string& map_path) {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    if (!serializer_.loadMap(map_path, keyframe_manager_, loop_detector_, optimizer_)) return false;
-    return initializeFromLoadedMapNoLock();
-}
-
 bool MappingResuming::initializeFromLoadedMap() {
     std::lock_guard<std::mutex> lock(mutex_);
     return initializeFromLoadedMapNoLock();

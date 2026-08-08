@@ -37,7 +37,6 @@ public:
                     GraphOptimizer& optimizer, MapSerializer& serializer,
                     WorldLocalizing& world_localizing);
 
-    bool loadExistingMap(const std::string& map_path);
     bool initializeFromLoadedMap();
     bool performInitialRelocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
     int64_t processNewKeyframe(double timestamp, const Eigen::Isometry3d& odom_pose, const PointCloudT::Ptr& cloud);

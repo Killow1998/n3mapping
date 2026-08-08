@@ -99,7 +99,6 @@ class N3MappingCore {
     void appendDenseTrajectorySampleWithLatestAnchor(double timestamp,
                                                      const Eigen::Isometry3d& raw_pose,
                                                      bool use_bracketing_correction = true);
-    void initializeDenseSamplesFromOptimized(const std::vector<core::DenseTrajectoryPose>& dense_optimized);
     std::vector<core::DenseTrajectoryPose> buildDenseOptimizedTrajectory() const;
     Eigen::Isometry3d interpolateDenseCorrection(double timestamp) const;
     void addRhpdDescriptorForKeyframe(int64_t keyframe_id, const PointCloud::Ptr& fallback_cloud);

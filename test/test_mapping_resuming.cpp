@@ -151,6 +151,18 @@ class MappingResumingTest : public ::testing::Test
         config_.reloc_free_space_enable = false;
     }
 
+    bool loadForExtensionTest(const std::string& map_file,
+                              KeyframeManager& keyframe_manager,
+                              LoopDetector& loop_detector,
+                              GraphOptimizer& optimizer,
+                              MapSerializer& serializer,
+                              MappingResuming& extension)
+    {
+        return serializer.loadMap(
+                   map_file, keyframe_manager, loop_detector, optimizer) &&
+               extension.initializeFromLoadedMap();
+    }
+
     Config config_;
 };
 
@@ -178,7 +190,7 @@ TEST_F(MappingResumingTest, InitialState)
  * @brief 测试加载地图
  * Requirements: 12.1
  */
-TEST_F(MappingResumingTest, LoadExistingMap)
+TEST_F(MappingResumingTest, InitializeFromSerializedMap)
 {
     // 创建测试地图
     std::string map_file = createTestMap(5);
@@ -194,7 +206,8 @@ TEST_F(MappingResumingTest, LoadExistingMap)
     MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
     // 加载地图
-    ASSERT_TRUE(extension.loadExistingMap(map_file));
+    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                     optimizer, serializer, extension));
 
     EXPECT_EQ(extension.getState(), MappingResumingState::MAP_LOADED);
     EXPECT_EQ(extension.getOriginalKeyframeCount(), 5);
@@ -204,7 +217,7 @@ TEST_F(MappingResumingTest, LoadExistingMap)
 /**
  * @brief 测试加载不存在的地图
  */
-TEST_F(MappingResumingTest, LoadNonExistentMap)
+TEST_F(MappingResumingTest, SerializedLoadFailureKeepsUninitialized)
 {
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
@@ -215,7 +228,9 @@ TEST_F(MappingResumingTest, LoadNonExistentMap)
 
     MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
-    EXPECT_FALSE(extension.loadExistingMap("/non/existent/path.pbstream"));
+    EXPECT_FALSE(loadForExtensionTest("/non/existent/path.pbstream", kf_manager,
+                                      loop_detector, optimizer, serializer,
+                                      extension));
     EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
 }
 
@@ -239,7 +254,8 @@ TEST_F(MappingResumingTest, KeyframeIdContinuity)
     MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
     // 加载地图
-    ASSERT_TRUE(extension.loadExistingMap(map_file));
+    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                     optimizer, serializer, extension));
 
     // 获取原始地图最大 ID
     int64_t max_original_id = -1;
@@ -282,7 +298,8 @@ TEST_F(MappingResumingTest, Reset)
     MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
     // 加载地图
-    ASSERT_TRUE(extension.loadExistingMap(map_file));
+    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                     optimizer, serializer, extension));
     EXPECT_EQ(extension.getState(), MappingResumingState::MAP_LOADED);
 
     // 重置
@@ -309,7 +326,8 @@ TEST_F(MappingResumingTest, IsFromOriginalMap)
 
     MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
-    ASSERT_TRUE(extension.loadExistingMap(map_file));
+    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                     optimizer, serializer, extension));
 
     // 原始地图关键帧 ID 为 0-4
     EXPECT_TRUE(extension.isFromOriginalMap(0));
@@ -338,7 +356,8 @@ TEST_F(MappingResumingTest, SaveExtendedMap)
 
     MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
-    ASSERT_TRUE(extension.loadExistingMap(map_file));
+    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                     optimizer, serializer, extension));
 
     // 保存扩展地图
     std::string extended_map_file = config_.map_save_path + "/extended_map.pbstream";
@@ -372,7 +391,8 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     MappingResuming extension(config_, kf_manager, loop_detector, matcher,
                               optimizer, serializer, relocalization);
 
-    ASSERT_TRUE(extension.loadExistingMap(map_file));
+    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                     optimizer, serializer, extension));
     auto anchor = kf_manager.getKeyframe(0);
     ASSERT_NE(anchor, nullptr);
     ASSERT_TRUE(extension.performInitialRelocalization(
@@ -441,7 +461,8 @@ TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
     MappingResuming extension(config_, kf_manager, loop_detector, matcher,
                               optimizer, serializer, relocalization);
 
-    ASSERT_TRUE(extension.loadExistingMap(map_file));
+    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                     optimizer, serializer, extension));
     auto anchor = kf_manager.getKeyframe(0);
     ASSERT_NE(anchor, nullptr);
     ASSERT_TRUE(extension.performInitialRelocalization(
