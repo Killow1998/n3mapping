@@ -307,6 +307,48 @@ TEST(LoopVerificationPipelineTest,
 }
 
 TEST(LoopVerificationPipelineTest,
+     DescriptorSeedDoesNotDependOnDriftedGraphTranslation)
+{
+    Config config;
+    config.num_threads = 1;
+    config.loop_max_range = 0.5;
+    config.loop_fitness_threshold = 1.0;
+    config.loop_min_inlier_ratio = 0.0;
+    KeyframeManager keyframes(config);
+    const auto cloud = makeRegistrationCloud();
+    auto match = Keyframe::create(
+        0, 1.0, Eigen::Isometry3d::Identity(), cloud);
+    auto query = Keyframe::create(
+        10, 2.0, poseAt(10.0), cloud);
+    keyframes.loadKeyframes({match, query});
+    query->is_from_loaded_map = false;
+
+    PointCloudMatcher matcher(config);
+    GraphOptimizer optimizer(config);
+    LoopClosureManager loop_closure_manager(config);
+    LoopVerificationPipeline pipeline(
+        config, keyframes, matcher, optimizer, loop_closure_manager);
+
+    LoopCandidate candidate;
+    candidate.query_id = query->id;
+    candidate.match_id = match->id;
+    candidate.source_flags =
+        LoopCandidate::SOURCE_RHPD | LoopCandidate::SOURCE_SC;
+    candidate.sc_distance = 0.0;
+    candidate.yaw_diff_rad = 0.0f;
+    candidate.descriptor_score = 1.0;
+    const auto result = pipeline.evaluate(candidate, {true});
+
+    EXPECT_TRUE(result.registration_attempted);
+    EXPECT_TRUE(result.descriptor_seeded);
+    EXPECT_GT(result.registration_hypothesis_count, 1);
+    EXPECT_TRUE(result.loop.verified);
+    EXPECT_LT(result.verification.match_result.fitness_score, 1.0e-3);
+    EXPECT_TRUE(result.verification.T_measured_match_query.isApprox(
+        Eigen::Isometry3d::Identity(), 1.0e-2));
+}
+
+TEST(LoopVerificationPipelineTest,
      CrossSessionDefersConstraintWithoutNeighborConsensus)
 {
     Config config;

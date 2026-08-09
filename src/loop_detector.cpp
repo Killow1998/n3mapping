@@ -43,9 +43,46 @@ void swapScanContextConfig(HybridSCManager& lhs, HybridSCManager& rhs) {
     swap(lhs.W_OCCUPY_L3, rhs.W_OCCUPY_L3);
     swap(lhs.PC_UNIT_SECTORANGLE, rhs.PC_UNIT_SECTORANGLE);
 }
+
+double wrapYaw(double yaw) {
+    while (yaw >= M_PI) yaw -= 2.0 * M_PI;
+    while (yaw < -M_PI) yaw += 2.0 * M_PI;
+    return yaw;
+}
 } // anonymous namespace
 
 namespace n3mapping {
+
+std::vector<double> buildDescriptorYawHypotheses(
+    const LoopCandidate& candidate, const Config& config) {
+    std::vector<double> yaws;
+    const auto append_unique = [&](double yaw) {
+        const double wrapped = wrapYaw(yaw);
+        const bool duplicate = std::any_of(
+            yaws.begin(), yaws.end(), [&](double existing) {
+                return std::abs(wrapYaw(existing - wrapped)) < 1e-6;
+            });
+        if (!duplicate) yaws.push_back(wrapped);
+    };
+
+    if (config.rhpd_use_sc_yaw && candidate.fromSC() &&
+        std::isfinite(candidate.sc_distance)) {
+        const double sector_rad =
+            2.0 * M_PI / static_cast<double>(std::max(4, config.sc_num_sectors));
+        const double base_yaw = static_cast<double>(candidate.yaw_diff_rad);
+        append_unique(base_yaw);
+        append_unique(base_yaw - sector_rad);
+        append_unique(base_yaw + sector_rad);
+    }
+    if (candidate.fromRHPD() || yaws.empty()) {
+        const int count = std::max(1, config.rhpd_yaw_hypotheses);
+        for (int i = 0; i < count; ++i) {
+            append_unique(2.0 * M_PI * static_cast<double>(i) /
+                          static_cast<double>(count));
+        }
+    }
+    return yaws;
+}
 
 LoopDetector::LoopDetector(const Config& config)
     : config_(config), rhpd_manager_(rhpdParamsFromConfig(config)) {

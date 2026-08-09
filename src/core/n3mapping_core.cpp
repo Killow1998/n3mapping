@@ -1071,8 +1071,8 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
         make_rejected_event(candidate, pipeline_result.reject_reason);
         continue;
       }
-      const auto &source = pipeline_result.source_in_match_frame;
-      const auto &target = pipeline_result.target_in_match_frame;
+      const auto &source = pipeline_result.source_registration_cloud;
+      const auto &target = pipeline_result.target_registration_cloud;
       ZDistributionStats source_z_before;
       ZDistributionStats target_z;
       if (loop_debug_enabled) {

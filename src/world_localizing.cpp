@@ -28,45 +28,6 @@ constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
 
-double wrapYaw(double yaw) {
-  while (yaw >= M_PI)
-    yaw -= 2.0 * M_PI;
-  while (yaw < -M_PI)
-    yaw += 2.0 * M_PI;
-  return yaw;
-}
-
-std::vector<double> buildYawHypotheses(const LoopCandidate &candidate,
-                                       const Config &config,
-                                       double scan_context_sector_rad) {
-  std::vector<double> yaws;
-  auto append_unique = [&](double yaw) {
-    const double wrapped = wrapYaw(yaw);
-    const bool duplicate =
-        std::any_of(yaws.begin(), yaws.end(), [&](double existing) {
-          return std::abs(wrapYaw(existing - wrapped)) < 1e-6;
-        });
-    if (!duplicate)
-      yaws.push_back(wrapped);
-  };
-
-  if (config.rhpd_use_sc_yaw && candidate.fromSC() &&
-      std::isfinite(candidate.sc_distance)) {
-    const double base_yaw = static_cast<double>(candidate.yaw_diff_rad);
-    append_unique(base_yaw);
-    append_unique(base_yaw - scan_context_sector_rad);
-    append_unique(base_yaw + scan_context_sector_rad);
-  }
-  if (candidate.fromRHPD() || yaws.empty()) {
-    const int count = std::max(1, config.rhpd_yaw_hypotheses);
-    for (int i = 0; i < count; ++i) {
-      append_unique(2.0 * M_PI * static_cast<double>(i) /
-                    static_cast<double>(count));
-    }
-  }
-  return yaws;
-}
-
 double processingTimeSeconds() {
   using Clock = std::chrono::system_clock;
   return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
@@ -1435,9 +1396,8 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
     return result;
   }
 
-  const auto yaw_hypotheses = buildYawHypotheses(
-      candidate, config_,
-      loop_detector_.getScanContextSectorAngleDeg() * M_PI / 180.0);
+  const auto yaw_hypotheses =
+      buildDescriptorYawHypotheses(candidate, config_);
   for (const double yaw : yaw_hypotheses) {
     RegistrationSeedProbeAttempt attempt;
     attempt.seed_kind = "descriptor";
@@ -1948,9 +1908,8 @@ WorldLocalizing::evaluateCandidatePoses(
     registration_target = &local_prepared_target;
   }
 
-  const auto yaws_to_try = buildYawHypotheses(
-      candidate, config_,
-      loop_detector_.getScanContextSectorAngleDeg() * M_PI / 180.0);
+  const auto yaws_to_try =
+      buildDescriptorYawHypotheses(candidate, config_);
 
   for (double yaw : yaws_to_try) {
     Eigen::Isometry3d init_guess = match_kf->pose_optimized;

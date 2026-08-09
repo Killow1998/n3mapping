@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <utility>
 #include <vector>
 
 #include "n3mapping/cloud_utils.h"
@@ -186,6 +187,27 @@ void assignGraphTrialDiagnostics(
     loop->graph_trial_recommendation = diagnostics.recommendation;
 }
 
+bool betterRegistration(const LoopVerification& candidate,
+                        const LoopVerification& incumbent,
+                        bool has_incumbent) {
+    if (!has_incumbent) return true;
+    if (candidate.loop.verified != incumbent.loop.verified) {
+        return candidate.loop.verified;
+    }
+    const double candidate_fitness = candidate.match_result.fitness_score;
+    const double incumbent_fitness = incumbent.match_result.fitness_score;
+    if (std::isfinite(candidate_fitness) !=
+        std::isfinite(incumbent_fitness)) {
+        return std::isfinite(candidate_fitness);
+    }
+    if (std::isfinite(candidate_fitness) &&
+        std::abs(candidate_fitness - incumbent_fitness) > 1e-12) {
+        return candidate_fitness < incumbent_fitness;
+    }
+    return candidate.match_result.inlier_ratio >
+           incumbent.match_result.inlier_ratio;
+}
+
 }  // namespace
 
 LoopVerificationPipeline::LoopVerificationPipeline(
@@ -224,45 +246,73 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
 
     const Eigen::Isometry3d predicted =
         match->pose_optimized.inverse() * query->pose_optimized;
-    if (predicted.translation().norm() > config_.loop_max_range) {
+    result.descriptor_seeded =
+        context.cross_session && (candidate.fromRHPD() || candidate.fromSC());
+    if (!result.descriptor_seeded &&
+        predicted.translation().norm() > config_.loop_max_range) {
         result.reject_stage = "work_bound";
         result.reject_reason = "prediction_range_gate";
         return result;
     }
 
-    result.source_in_match_frame =
+    result.source_registration_cloud =
         keyframe_manager_.buildSubmapInRootFrame(
-            candidate.query_id, 0, candidate.match_id);
-    result.target_in_match_frame =
+            candidate.query_id, 0,
+            result.descriptor_seeded ? candidate.query_id
+                                     : candidate.match_id);
+    result.target_registration_cloud =
         keyframe_manager_.buildSubmapInRootFrame(
             candidate.match_id, config_.gicp_submap_size,
             candidate.match_id);
-    if (!result.source_in_match_frame ||
-        result.source_in_match_frame->empty() ||
-        !result.target_in_match_frame ||
-        result.target_in_match_frame->empty()) {
+    if (!result.source_registration_cloud ||
+        result.source_registration_cloud->empty() ||
+        !result.target_registration_cloud ||
+        result.target_registration_cloud->empty()) {
         result.reject_stage = "submap";
         result.reject_reason = "empty_submap";
         return result;
     }
 
-    result.source_in_match_frame =
-        prepareLoopIcpCloud(result.source_in_match_frame, config_);
-    result.target_in_match_frame =
-        prepareLoopIcpCloud(result.target_in_match_frame, config_);
-    if (!result.source_in_match_frame ||
-        result.source_in_match_frame->size() < 10 ||
-        !result.target_in_match_frame ||
-        result.target_in_match_frame->size() < 10) {
+    result.source_registration_cloud =
+        prepareLoopIcpCloud(result.source_registration_cloud, config_);
+    result.target_registration_cloud =
+        prepareLoopIcpCloud(result.target_registration_cloud, config_);
+    if (!result.source_registration_cloud ||
+        result.source_registration_cloud->size() < 10 ||
+        !result.target_registration_cloud ||
+        result.target_registration_cloud->size() < 10) {
         result.reject_stage = "prefilter";
         result.reject_reason = "empty_submap_after_prefilter";
         return result;
     }
 
     result.registration_attempted = true;
-    result.verification = loop_verifier_.verifyPreparedSubmaps(
-        candidate, query, match, result.source_in_match_frame,
-        result.target_in_match_frame, matcher_);
+    if (result.descriptor_seeded) {
+        const auto yaw_hypotheses =
+            buildDescriptorYawHypotheses(candidate, config_);
+        result.registration_hypothesis_count =
+            static_cast<int>(yaw_hypotheses.size());
+        bool has_verification = false;
+        for (double yaw : yaw_hypotheses) {
+            Eigen::Isometry3d initial = Eigen::Isometry3d::Identity();
+            initial.linear() = Eigen::AngleAxisd(
+                yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+            auto verification = loop_verifier_.verifyPreparedQueryToMatch(
+                candidate, query, match, result.source_registration_cloud,
+                result.target_registration_cloud, initial, matcher_);
+            if (betterRegistration(
+                    verification, result.verification, has_verification)) {
+                result.verification = std::move(verification);
+                result.selected_seed_yaw_rad = yaw;
+                has_verification = true;
+            }
+        }
+    } else {
+        result.registration_hypothesis_count = 1;
+        result.verification = loop_verifier_.verifyPreparedSubmaps(
+            candidate, query, match, result.source_registration_cloud,
+            result.target_registration_cloud, matcher_);
+    }
     result.loop = result.verification.loop;
     if (!result.loop.verified) {
         result.reject_stage = "registration";

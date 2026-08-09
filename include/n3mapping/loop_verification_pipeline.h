@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <string>
 
 #include "n3mapping/config.h"
@@ -20,9 +21,13 @@ struct LoopVerificationContext {
 struct LoopVerificationPipelineResult {
     LoopVerification verification;
     VerifiedLoop loop;
-    Keyframe::PointCloudT::Ptr source_in_match_frame;
-    Keyframe::PointCloudT::Ptr target_in_match_frame;
+    Keyframe::PointCloudT::Ptr source_registration_cloud;
+    Keyframe::PointCloudT::Ptr target_registration_cloud;
     bool registration_attempted = false;
+    bool descriptor_seeded = false;
+    int registration_hypothesis_count = 0;
+    double selected_seed_yaw_rad =
+        std::numeric_limits<double>::quiet_NaN();
     std::string reject_stage;
     std::string reject_reason;
 };

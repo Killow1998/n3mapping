@@ -331,9 +331,25 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
                     << " fitness="
                     << verification.verification.match_result.fitness_score
                     << " inlier="
-                    << verification.verification.match_result.inlier_ratio;
+                    << verification.verification.match_result.inlier_ratio
+                    << " descriptor_seeded="
+                    << verification.descriptor_seeded
+                    << " yaw_seed=" << verification.selected_seed_yaw_rad
+                    << " hypotheses="
+                    << verification.registration_hypothesis_count;
             continue;
         }
+        VLOG(1) << "[MappingResuming] Verified cross-session candidate query="
+                << candidate.query_id << " match=" << candidate.match_id
+                << " fitness="
+                << verification.verification.match_result.fitness_score
+                << " inlier="
+                << verification.verification.match_result.inlier_ratio
+                << " descriptor_seeded="
+                << verification.descriptor_seeded
+                << " yaw_seed=" << verification.selected_seed_yaw_rad
+                << " hypotheses="
+                << verification.registration_hypothesis_count;
         verified_loops.push_back(std::move(verification.loop));
     }
 

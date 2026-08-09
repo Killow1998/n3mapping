@@ -177,6 +177,12 @@ struct VerifiedLoop {
     bool isValid() const { return verified && query_id >= 0 && match_id >= 0; }
 };
 
+// Descriptor yaw seeds shared by global relocalization and drift-independent
+// cross-session loop registration. Keeping the hypotheses identical prevents
+// the two global matching paths from silently developing different basins.
+std::vector<double> buildDescriptorYawHypotheses(
+    const LoopCandidate& candidate, const Config& config);
+
 class LoopDetector {
 public:
     using Ptr = std::shared_ptr<LoopDetector>;

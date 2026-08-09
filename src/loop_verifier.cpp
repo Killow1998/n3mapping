@@ -161,25 +161,77 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
     const core::LioFrame::PointCloud::Ptr& target_in_match_frame,
     PointCloudMatcher& matcher) const
 {
-    LoopVerification verification;
-    verification.loop.query_id = candidate.query_id;
-    verification.loop.match_id = candidate.match_id;
-    verification.loop.candidate_yaw_diff_rad = static_cast<double>(candidate.yaw_diff_rad);
-
     if (!query_keyframe || !match_keyframe || !source_in_match_frame || source_in_match_frame->empty() ||
         !target_in_match_frame || target_in_match_frame->empty()) {
+        LoopVerification verification;
+        verification.loop.query_id = candidate.query_id;
+        verification.loop.match_id = candidate.match_id;
         verification.reject_reason = "missing_keyframe_or_cloud";
         return verification;
     }
 
-    verification.T_pred_match_query = match_keyframe->pose_optimized.inverse() * query_keyframe->pose_optimized;
-    verification.match_result = matcher.alignCloud(
+    const Eigen::Isometry3d predicted_match_query =
+        match_keyframe->pose_optimized.inverse() * query_keyframe->pose_optimized;
+    const MatchResult match_result = matcher.alignCloud(
         target_in_match_frame, source_in_match_frame, Eigen::Isometry3d::Identity());
-    verification.T_icp_correction_match = verification.match_result.T_target_source;
-    verification.T_measured_match_query =
-        verification.T_icp_correction_match * verification.T_pred_match_query;
-    verification.T_measurement_residual =
-        measurementResidual(verification.T_pred_match_query, verification.T_measured_match_query);
+    const Eigen::Isometry3d measured_match_query =
+        match_result.T_target_source * predicted_match_query;
+    return finalizePreparedRegistration(
+        candidate, query_keyframe, match_keyframe, source_in_match_frame,
+        target_in_match_frame, match_result, measured_match_query,
+        match_result.T_target_source);
+}
+
+LoopVerification LoopVerifier::verifyPreparedQueryToMatch(
+    const LoopCandidate& candidate,
+    const Keyframe::Ptr& query_keyframe,
+    const Keyframe::Ptr& match_keyframe,
+    const core::LioFrame::PointCloud::Ptr& source_in_query_frame,
+    const core::LioFrame::PointCloud::Ptr& target_in_match_frame,
+    const Eigen::Isometry3d& initial_match_query,
+    PointCloudMatcher& matcher) const
+{
+    if (!query_keyframe || !match_keyframe || !source_in_query_frame ||
+        source_in_query_frame->empty() || !target_in_match_frame ||
+        target_in_match_frame->empty()) {
+        LoopVerification verification;
+        verification.loop.query_id = candidate.query_id;
+        verification.loop.match_id = candidate.match_id;
+        verification.reject_reason = "missing_keyframe_or_cloud";
+        return verification;
+    }
+
+    const MatchResult match_result = matcher.alignCloud(
+        target_in_match_frame, source_in_query_frame, initial_match_query);
+    return finalizePreparedRegistration(
+        candidate, query_keyframe, match_keyframe, source_in_query_frame,
+        target_in_match_frame, match_result, match_result.T_target_source,
+        match_result.T_target_source);
+}
+
+LoopVerification LoopVerifier::finalizePreparedRegistration(
+    const LoopCandidate& candidate,
+    const Keyframe::Ptr& query_keyframe,
+    const Keyframe::Ptr& match_keyframe,
+    const core::LioFrame::PointCloud::Ptr& source_registration_cloud,
+    const core::LioFrame::PointCloud::Ptr& target_registration_cloud,
+    const MatchResult& match_result,
+    const Eigen::Isometry3d& measured_match_query,
+    const Eigen::Isometry3d& cloud_alignment) const
+{
+    LoopVerification verification;
+    verification.loop.query_id = candidate.query_id;
+    verification.loop.match_id = candidate.match_id;
+    verification.loop.candidate_yaw_diff_rad =
+        static_cast<double>(candidate.yaw_diff_rad);
+    verification.T_pred_match_query =
+        match_keyframe->pose_optimized.inverse() * query_keyframe->pose_optimized;
+    verification.match_result = match_result;
+    verification.T_measured_match_query = measured_match_query;
+    verification.T_icp_correction_match =
+        measured_match_query * verification.T_pred_match_query.inverse();
+    verification.T_measurement_residual = measurementResidual(
+        verification.T_pred_match_query, verification.T_measured_match_query);
 
     auto& loop = verification.loop;
     loop.T_pred_match_query = verification.T_pred_match_query;
@@ -194,7 +246,8 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
     // attached at all.
     if (verification.fitness_ok && verification.inlier_ok) {
         const auto heightmap = computeHeightmapConsistency(
-            target_in_match_frame, source_in_match_frame, verification.T_icp_correction_match);
+            target_registration_cloud, source_registration_cloud,
+            cloud_alignment);
         loop.heightmap_overlap_cell_count = heightmap.overlap_cell_count;
         loop.heightmap_overlap_ratio = heightmap.overlap_ratio;
         loop.heightmap_ground_dz_median = heightmap.ground_dz_median;

@@ -39,6 +39,15 @@ public:
                                            const core::LioFrame::PointCloud::Ptr& target_in_match_frame,
                                            PointCloudMatcher& matcher) const;
 
+    LoopVerification verifyPreparedQueryToMatch(
+        const LoopCandidate& candidate,
+        const Keyframe::Ptr& query_keyframe,
+        const Keyframe::Ptr& match_keyframe,
+        const core::LioFrame::PointCloud::Ptr& source_in_query_frame,
+        const core::LioFrame::PointCloud::Ptr& target_in_match_frame,
+        const Eigen::Isometry3d& initial_match_query,
+        PointCloudMatcher& matcher) const;
+
     // Compatibility test helper. Production loop paths use prepared submaps
     // through LoopVerificationPipeline so Mapping and Map Extension share the
     // same evidence and constraint gates.
@@ -56,6 +65,15 @@ private:
     // Keeping this in one place prevents Map Extension from silently bypassing
     // loop_use_icp_information and the product loop thresholds.
     void finalizeRegistrationEvidence(LoopVerification* verification) const;
+    LoopVerification finalizePreparedRegistration(
+        const LoopCandidate& candidate,
+        const Keyframe::Ptr& query_keyframe,
+        const Keyframe::Ptr& match_keyframe,
+        const core::LioFrame::PointCloud::Ptr& source_registration_cloud,
+        const core::LioFrame::PointCloud::Ptr& target_registration_cloud,
+        const MatchResult& match_result,
+        const Eigen::Isometry3d& measured_match_query,
+        const Eigen::Isometry3d& cloud_alignment) const;
 
     Config config_;
 };
