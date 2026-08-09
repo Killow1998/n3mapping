@@ -9,7 +9,7 @@
 #include <glog/logging.h>
 
 #include "n3mapping/cloud_utils.h"
-#include "n3mapping/loop_verifier.h"
+#include "n3mapping/loop_verification_pipeline.h"
 
 namespace n3mapping {
 namespace {
@@ -283,28 +283,55 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
             keyframe_map[keyframe->id] = keyframe;
         }
     }
-    auto candidates =
-        loop_detector_.detectLoopCandidates(new_keyframe_id, keyframe_map);
+    const auto accept_loaded_map = [&](int64_t match_id) {
+        const auto it = keyframe_map.find(match_id);
+        return it != keyframe_map.end() && it->second &&
+               it->second->is_from_loaded_map;
+    };
+    auto candidates = loop_detector_.detectLoopCandidates(
+        new_keyframe_id, keyframe_map, accept_loaded_map);
+    if (config_.loop_spatial_candidates_enable) {
+        auto spatial_candidates = loop_detector_.detectSpatialCandidates(
+            new_keyframe_id, keyframe_map, accept_loaded_map);
+        for (const auto& spatial : spatial_candidates) {
+            auto duplicate = std::find_if(
+                candidates.begin(), candidates.end(),
+                [&](const LoopCandidate& existing) {
+                    return existing.query_id == spatial.query_id &&
+                           existing.match_id == spatial.match_id;
+                });
+            if (duplicate == candidates.end()) {
+                candidates.push_back(spatial);
+            } else {
+                duplicate->source_flags |= spatial.source_flags;
+                duplicate->spatial_score =
+                    std::max(duplicate->spatial_score, spatial.spatial_score);
+            }
+        }
+    }
 
     std::vector<VerifiedLoop> verified_loops;
     verified_loops.reserve(candidates.size());
-    LoopVerifier verifier(config_);
+    LoopVerificationPipeline verification_pipeline(
+        config_, keyframe_manager_, matcher_, optimizer_,
+        loop_closure_manager_);
+    const LoopVerificationContext verification_context{true};
 
     for (const auto& candidate : candidates) {
-        if (!isFromOriginalMap(candidate.match_id)) continue;
+        if (!isFromOriginalMap(candidate.match_id) ||
+            !accept_loaded_map(candidate.match_id)) continue;
 
-        auto match_kf = keyframe_manager_.getKeyframe(candidate.match_id);
-        if (!match_kf || !match_kf->cloud) continue;
-
-        LoopVerification verification =
-            verifier.verifyKeyframesLegacy(candidate, new_kf, match_kf, matcher_);
-        if (verification.loop.verified && !verification.geometry_ok) {
-            LOG(WARNING) << "[MappingResuming] Reject cross-session loop query="
-                         << candidate.query_id << " match=" << candidate.match_id
-                         << " reason=session_anchor_disagreement"
-                         << " icp_translation="
-                         << verification.icp_translation_norm
-                         << " icp_rotation=" << verification.icp_rotation_norm;
+        auto verification = verification_pipeline.evaluate(
+            candidate, verification_context);
+        if (!verification.loop.verified) {
+            VLOG(1) << "[MappingResuming] Reject cross-session candidate query="
+                    << candidate.query_id << " match=" << candidate.match_id
+                    << " stage=" << verification.reject_stage
+                    << " reason=" << verification.reject_reason
+                    << " fitness="
+                    << verification.verification.match_result.fitness_score
+                    << " inlier="
+                    << verification.verification.match_result.inlier_ratio;
             continue;
         }
         verified_loops.push_back(std::move(verification.loop));
@@ -312,8 +339,23 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
 
     auto valid_loops = loop_closure_manager_.filterValidLoops(verified_loops);
     auto best_loops = loop_closure_manager_.selectBestPerQuery(valid_loops);
-    auto edges = loop_closure_manager_.buildLoopEdges(
-        best_loops, LoopEdgeDirection::MatchToQuery);
+    std::vector<EdgeInfo> edges;
+    edges.reserve(best_loops.size());
+    const LoopConstraintContext constraint_context{true};
+    for (const auto& loop : best_loops) {
+        auto constraint = verification_pipeline.evaluateConstraint(
+            loop, LoopEdgeDirection::MatchToQuery, constraint_context);
+        if (!constraint.accepted || !constraint.has_edge) {
+            VLOG(1) << "[MappingResuming] Defer cross-session constraint query="
+                    << loop.query_id << " match=" << loop.match_id
+                    << " stage=" << constraint.reject_stage
+                    << " reason=" << constraint.reject_reason
+                    << " consensus="
+                    << loopConsensusDecisionName(constraint.consensus.decision);
+            continue;
+        }
+        edges.push_back(constraint.edge);
+    }
     if (!edges.empty()) {
         if (!loop_closure_manager_.applyEdges(edges, optimizer_)) {
             return 0;
@@ -324,6 +366,29 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
 
         auto optimized_poses = optimizer_.getOptimizedPoses();
         keyframe_manager_.updateOptimizedPoses(optimized_poses);
+
+        // Map-to-odom is a live correction, not a once-per-session constant.
+        // Once a trusted old-map constraint moves the current query in the
+        // graph, carry that correction into every non-keyframe output and the
+        // initial value of the next keyframe while retaining raw odometry on
+        // the ODOMETRY edge itself.
+        const auto optimized_it = optimized_poses.find(new_keyframe_id);
+        if (optimized_it != optimized_poses.end() &&
+            previous_new_keyframe_id_ == new_keyframe_id &&
+            isFiniteTransform(previous_new_odom_pose_)) {
+            const Eigen::Isometry3d corrected_map_odom =
+                optimized_it->second * previous_new_odom_pose_.inverse();
+            if (isFiniteTransform(corrected_map_odom)) {
+                world_localizing_.setMapToOdomTransform(corrected_map_odom);
+                const Eigen::Vector3d corrected_rpy_deg =
+                    rotationRpyDegrees(corrected_map_odom);
+                LOG(INFO) << "[MappingResuming] Updated T_map_odom from "
+                             "cross-session graph query="
+                          << new_keyframe_id << " t="
+                          << corrected_map_odom.translation().transpose()
+                          << " rpy_deg=" << corrected_rpy_deg.transpose();
+            }
+        }
     }
 
     return static_cast<int>(edges.size());

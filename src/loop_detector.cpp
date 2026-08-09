@@ -107,7 +107,8 @@ void LoopDetector::addDescriptor(int64_t keyframe_id, const Eigen::MatrixXd& des
 }
 
 std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
-    int64_t query_id, const std::map<int64_t, Keyframe::Ptr>& keyframes) {
+    int64_t query_id, const std::map<int64_t, Keyframe::Ptr>& keyframes,
+    const MatchFilter& accept_match) {
     std::vector<LoopCandidate> candidates;
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -157,6 +158,8 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
             // Informative rather than merely old: the pair must be separated by
             // enough travel that the odometry no longer pins it down.
             auto accept_old_enough = [&](int64_t id) {
+                if (accept_match && !accept_match(id))
+                    return false;
                 const auto mit = id_to_index_.find(id);
                 if (mit == id_to_index_.end() || mit->second >= query_index)
                     return false;
@@ -230,15 +233,28 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
     if (search_end == 0) return candidates;
     const auto& query_ringkey_vec = sc_manager_.polarcontext_invkeys_mat_[query_index];
 
-    // 构建临时搜索集合（仅前 search_end 帧），避免匹配到最近帧
-    KeyMat search_keys(sc_manager_.polarcontext_invkeys_mat_.begin(),
-                       sc_manager_.polarcontext_invkeys_mat_.begin() + search_end);
+    // Build a temporary eligible search set. Cross-session callers must apply
+    // their loaded-map boundary before top-k selection; filtering the returned
+    // top-k afterwards lets new-session descriptors crowd out every candidate
+    // that is actually legal to commit.
+    KeyMat search_keys;
+    std::vector<size_t> search_indices;
+    search_keys.reserve(search_end);
+    search_indices.reserve(search_end);
+    for (size_t i = 0; i < search_end; ++i) {
+        if (accept_match && !accept_match(index_to_id_[i])) {
+            continue;
+        }
+        search_keys.push_back(sc_manager_.polarcontext_invkeys_mat_[i]);
+        search_indices.push_back(i);
+    }
+    if (search_keys.empty()) return candidates;
     int tree_dim = sc_manager_.totalRows();
     InvKeyTree search_tree(tree_dim, search_keys, 10 /* max leaf */);
 
     // KNN 搜索: 取 NUM_CANDIDATES_FROM_TREE 个初筛候选
     constexpr size_t NUM_CANDIDATES_FROM_TREE = 20;  // 比 sc_num_candidates 大，给精排留余量
-    size_t num_search = std::min(NUM_CANDIDATES_FROM_TREE, search_end);
+    size_t num_search = std::min(NUM_CANDIDATES_FROM_TREE, search_keys.size());
     std::vector<size_t> knn_indices(num_search);
     std::vector<float>  knn_dists(num_search);
     nanoflann::KNNResultSet<float> result_set(num_search);
@@ -249,7 +265,8 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
     if (num_search > 0) {
         VLOG(1) << "[SC] query=" << query_id
                 << " search_end=" << search_end
-                << " kd_top1_idx=" << index_to_id_[knn_indices[0]]
+                << " eligible=" << search_keys.size()
+                << " kd_top1_idx=" << index_to_id_[search_indices[knn_indices[0]]]
                 << " kd_top1_L2=" << knn_dists[0];
     }
 
@@ -258,8 +275,9 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
     refined_candidates.reserve(num_search);
 
     for (size_t k = 0; k < num_search; ++k) {
-        size_t match_index = knn_indices[k];
-        if (match_index >= search_end) continue;  // 安全检查
+        if (knn_indices[k] >= search_indices.size()) continue;
+        size_t match_index = search_indices[knn_indices[k]];
+        if (match_index >= search_end) continue;  // safety check
         auto [dist, yaw_shift] = computeDistance(query_desc, descriptors_[match_index]);
         refined_candidates.emplace_back(dist, yaw_shift, match_index);
     }
@@ -303,7 +321,8 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
 
 std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
     int64_t query_id,
-    const std::map<int64_t, Keyframe::Ptr>& keyframes) const {
+    const std::map<int64_t, Keyframe::Ptr>& keyframes,
+    const MatchFilter& accept_match) const {
     std::vector<LoopCandidate> candidates;
     if (!config_.loop_spatial_candidates_enable ||
         config_.loop_spatial_candidate_max_candidates <= 0) {
@@ -349,6 +368,9 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
     std::size_t spatial_outside_radius = 0;
     for (const auto& [match_id, keyframe] : keyframes) {
         if (!keyframe || match_id >= query_id) {
+            continue;
+        }
+        if (accept_match && !accept_match(match_id)) {
             continue;
         }
         const auto match_path_it = path_at.find(match_id);

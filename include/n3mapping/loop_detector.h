@@ -1,6 +1,7 @@
 // LoopDetector: ScanContext-based loop candidate detection and ICP verification.
 #pragma once
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -181,6 +182,7 @@ public:
     using Ptr = std::shared_ptr<LoopDetector>;
     using PointT = pcl::PointXYZI;
     using PointCloudT = pcl::PointCloud<PointT>;
+    using MatchFilter = std::function<bool(int64_t)>;
 
     explicit LoopDetector(const Config& config);
     ~LoopDetector() = default;
@@ -193,10 +195,12 @@ public:
     // pass the same map used for spatial candidates.
     std::vector<LoopCandidate> detectLoopCandidates(
         int64_t query_id,
-        const std::map<int64_t, Keyframe::Ptr>& keyframes);
+        const std::map<int64_t, Keyframe::Ptr>& keyframes,
+        const MatchFilter& accept_match = {});
     std::vector<LoopCandidate> detectSpatialCandidates(
         int64_t query_id,
-        const std::map<int64_t, Keyframe::Ptr>& keyframes) const;
+        const std::map<int64_t, Keyframe::Ptr>& keyframes,
+        const MatchFilter& accept_match = {}) const;
 
     void rebuildTree();
     std::vector<std::pair<int64_t, Eigen::MatrixXd>> getDescriptors() const;

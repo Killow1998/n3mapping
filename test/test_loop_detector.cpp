@@ -1015,5 +1015,74 @@ TEST_F(LoopDetectorTest, DescriptorCandidatesUnaffectedBySpatialRadius) {
     }
 }
 
+TEST_F(LoopDetectorTest, RhpdMatchFilterAppliesBeforeTopK) {
+    Config cfg = config_;
+    cfg.rhpd_enabled = true;
+    cfg.rhpd_num_candidates = 2;
+    cfg.rhpd_preselect_candidates = 20;
+    cfg.sc_aux_veto_enabled = false;
+    cfg.sc_num_exclude_recent = 0;
+    cfg.loop_min_path_length_m = 0.0;
+    LoopDetector detector(cfg);
+
+    const auto allowed = createDifferentStructureCloud();
+    const auto query = createAsymmetricCloud();
+    for (int id = 0; id <= 5; ++id) {
+        const auto cloud = id == 0 ? allowed : query;
+        detector.addDescriptor(id, cloud);
+        detector.addRHPD(id, cloud);
+    }
+
+    const auto candidates = detector.detectLoopCandidates(
+        5, lineOfKeyframes(6), [](int64_t id) { return id == 0; });
+    ASSERT_EQ(candidates.size(), 1u);
+    EXPECT_EQ(candidates.front().match_id, 0);
+}
+
+TEST_F(LoopDetectorTest, ScanContextMatchFilterAppliesBeforeKnn) {
+    Config cfg = config_;
+    cfg.rhpd_enabled = false;
+    cfg.sc_num_exclude_recent = 0;
+    cfg.loop_min_path_length_m = 0.0;
+    LoopDetector detector(cfg);
+
+    const auto allowed = createDifferentStructureCloud();
+    const auto query = createAsymmetricCloud();
+    for (int id = 0; id <= 5; ++id) {
+        detector.addDescriptor(id, id == 0 ? allowed : query);
+    }
+
+    const auto candidates = detector.detectLoopCandidates(
+        5, lineOfKeyframes(6), [](int64_t id) { return id == 0; });
+    ASSERT_EQ(candidates.size(), 1u);
+    EXPECT_EQ(candidates.front().match_id, 0);
+}
+
+TEST_F(LoopDetectorTest, SpatialMatchFilterAppliesBeforeCandidateLimit) {
+    Config cfg = config_;
+    cfg.loop_spatial_candidates_enable = true;
+    cfg.loop_spatial_candidate_radius = 10.0;
+    cfg.loop_spatial_candidate_max_candidates = 1;
+    cfg.loop_min_path_length_m = 0.0;
+    LoopDetector detector(cfg);
+
+    auto make_keyframe = [](int64_t id, double x) {
+        Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+        pose.translation().x() = x;
+        return Keyframe::create(id, static_cast<double>(id), pose,
+                                pcl::make_shared<Keyframe::PointCloudT>());
+    };
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    keyframes[0] = make_keyframe(0, 4.0);
+    keyframes[1] = make_keyframe(1, 1.0);
+    keyframes[2] = make_keyframe(2, 2.0);
+    keyframes[5] = make_keyframe(5, 0.0);
+
+    const auto candidates = detector.detectSpatialCandidates(
+        5, keyframes, [](int64_t id) { return id == 0; });
+    ASSERT_EQ(candidates.size(), 1u);
+    EXPECT_EQ(candidates.front().match_id, 0);
+}
+
 }  // namespace test
 }  // namespace n3mapping

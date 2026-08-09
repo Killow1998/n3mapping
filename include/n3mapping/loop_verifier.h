@@ -39,6 +39,9 @@ public:
                                            const core::LioFrame::PointCloud::Ptr& target_in_match_frame,
                                            PointCloudMatcher& matcher) const;
 
+    // Compatibility test helper. Production loop paths use prepared submaps
+    // through LoopVerificationPipeline so Mapping and Map Extension share the
+    // same evidence and constraint gates.
     LoopVerification verifyKeyframesLegacy(const LoopCandidate& candidate,
                                            const Keyframe::Ptr& query_keyframe,
                                            const Keyframe::Ptr& match_keyframe,

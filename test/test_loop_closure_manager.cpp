@@ -4,6 +4,7 @@
 #include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_referee.h"
 #include "n3mapping/loop_segment_consistency.h"
+#include "n3mapping/loop_verification_pipeline.h"
 #include "n3mapping/loop_verifier.h"
 
 namespace n3mapping {
@@ -271,6 +272,71 @@ TEST(LoopVerifierEvidenceTest, LegacyPathUsesConfiguredSerializableInformation)
             candidate, source, target, matcher);
     EXPECT_TRUE(icp_information.loop.information.isApprox(
         icp_information.loop.information.transpose(), 1e-12));
+}
+
+TEST(LoopVerificationPipelineTest,
+     CrossSessionRejectsNewSessionMatchBeforeRegistration)
+{
+    Config config;
+    KeyframeManager keyframes(config);
+    const auto cloud = makeRegistrationCloud();
+    auto match = Keyframe::create(
+        0, 1.0, Eigen::Isometry3d::Identity(), cloud);
+    auto query = Keyframe::create(
+        10, 2.0, Eigen::Isometry3d::Identity(), cloud);
+    keyframes.loadKeyframes({match, query});
+    match->is_from_loaded_map = false;
+    query->is_from_loaded_map = false;
+
+    PointCloudMatcher matcher(config);
+    GraphOptimizer optimizer(config);
+    LoopClosureManager loop_closure_manager(config);
+    LoopVerificationPipeline pipeline(
+        config, keyframes, matcher, optimizer, loop_closure_manager);
+
+    LoopCandidate candidate;
+    candidate.query_id = query->id;
+    candidate.match_id = match->id;
+    const auto result = pipeline.evaluate(candidate, {true});
+
+    EXPECT_FALSE(result.registration_attempted);
+    EXPECT_FALSE(result.loop.verified);
+    EXPECT_EQ(result.reject_stage, "session_boundary");
+    EXPECT_EQ(result.reject_reason,
+              "candidate_not_loaded_map_to_new_session");
+}
+
+TEST(LoopVerificationPipelineTest,
+     CrossSessionDefersConstraintWithoutNeighborConsensus)
+{
+    Config config;
+    KeyframeManager keyframes(config);
+    const auto cloud = makeTinyCloud();
+    auto match = Keyframe::create(
+        0, 1.0, Eigen::Isometry3d::Identity(), cloud);
+    auto query = Keyframe::create(
+        100, 2.0, Eigen::Isometry3d::Identity(), cloud);
+    keyframes.loadKeyframes({match, query});
+    query->is_from_loaded_map = false;
+
+    PointCloudMatcher matcher(config);
+    GraphOptimizer optimizer(config);
+    LoopClosureManager loop_closure_manager(config);
+    LoopVerificationPipeline pipeline(
+        config, keyframes, matcher, optimizer, loop_closure_manager);
+
+    VerifiedLoop loop;
+    loop.query_id = query->id;
+    loop.match_id = match->id;
+    loop.verified = true;
+    const auto result = pipeline.evaluateConstraint(
+        loop, LoopEdgeDirection::MatchToQuery, {true});
+
+    EXPECT_FALSE(result.accepted);
+    EXPECT_FALSE(result.has_edge);
+    EXPECT_EQ(result.consensus.decision, LoopConsensusDecision::Defer);
+    EXPECT_EQ(result.reject_stage, "consensus");
+    EXPECT_EQ(result.reject_reason, "session_merge_consensus_deferred");
 }
 
 TEST(PointCloudMatcherEvidenceTest, ClassifiesTermination)
