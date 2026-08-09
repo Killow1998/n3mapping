@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include "n3mapping/loop_heightmap_diagnostics.h"
+#include "n3mapping/n3map_proto_utils.h"
 
 namespace n3mapping {
 namespace {
@@ -76,6 +77,76 @@ LoopVerifier::LoopVerifier(const Config& config) : config_(config)
     }
 }
 
+void LoopVerifier::finalizeRegistrationEvidence(
+    LoopVerification* verification) const
+{
+    if (!verification) {
+        return;
+    }
+
+    auto& loop = verification->loop;
+    const auto& match = verification->match_result;
+    loop.fitness_score = match.fitness_score;
+    loop.inlier_ratio = match.inlier_ratio;
+
+    // An ICP Hessian is theoretically symmetric, but the numerical result is
+    // not guaranteed to be bit-for-bit symmetric. Canonicalize it before it can
+    // enter GTSAM or the serialized map. The default product path deliberately
+    // uses configured loop noise instead of this Hessian.
+    const Eigen::Matrix<double, 6, 6> symmetric_icp_information =
+        0.5 * (match.information + match.information.transpose());
+    std::string icp_information_error;
+    const bool icp_information_valid =
+        isValidInformationMatrix(symmetric_icp_information,
+                                 &icp_information_error);
+    const bool use_icp_information =
+        config_.loop_use_icp_information && icp_information_valid;
+    if (use_icp_information) {
+        loop.information = symmetric_icp_information;
+    } else {
+        const double sigma_xy = config_.loop_noise_position;
+        const double sigma_z = config_.loop_noise_position_z > 0.0
+                                   ? config_.loop_noise_position_z
+                                   : config_.loop_noise_position;
+        const double rot_info =
+            1.0 / (config_.loop_noise_rotation * config_.loop_noise_rotation);
+
+        Eigen::Vector3d w_pos = Eigen::Vector3d::Ones();
+        Eigen::Vector3d w_rot = Eigen::Vector3d::Ones();
+        if (config_.loop_axis_weighting_enable && icp_information_valid) {
+            w_pos = axisWeights(symmetric_icp_information, 0,
+                                config_.loop_axis_weighting_max);
+            w_rot = axisWeights(symmetric_icp_information, 3,
+                                config_.loop_axis_weighting_max);
+        }
+        loop.information = Eigen::Matrix<double, 6, 6>::Identity();
+        loop.information(0, 0) = w_pos(0) / (sigma_xy * sigma_xy);
+        loop.information(1, 1) = w_pos(1) / (sigma_xy * sigma_xy);
+        loop.information(2, 2) = w_pos(2) / (sigma_z * sigma_z);
+        loop.information(3, 3) = w_rot(0) * rot_info;
+        loop.information(4, 4) = w_rot(1) * rot_info;
+        loop.information(5, 5) = w_rot(2) * rot_info;
+        loop.vertical_observability_score = std::min(1.0, w_pos(2));
+    }
+    loop.vertical_information_ratio =
+        verticalInformationRatio(symmetric_icp_information);
+
+    verification->fitness_ok =
+        match.fitness_score < config_.loop_fitness_threshold;
+    verification->inlier_ok =
+        match.inlier_ratio >= config_.loop_min_inlier_ratio;
+    verification->icp_translation_norm =
+        verification->T_icp_correction_match.translation().norm();
+    verification->icp_rotation_norm = Eigen::AngleAxisd(
+        verification->T_icp_correction_match.rotation()).angle();
+    verification->geometry_ok =
+        verification->icp_translation_norm <= config_.loop_max_icp_translation &&
+        verification->icp_rotation_norm <= config_.loop_max_icp_rotation;
+    verification->reject_reason =
+        loopRejectReason(verification->fitness_ok, verification->inlier_ok);
+    loop.verified = verification->fitness_ok && verification->inlier_ok;
+}
+
 Eigen::Isometry3d LoopVerifier::measurementResidual(const Eigen::Isometry3d& predicted_match_query,
                                                     const Eigen::Isometry3d& measured_match_query)
 {
@@ -115,55 +186,7 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
     loop.T_icp_correction_match = verification.T_icp_correction_match;
     loop.T_measured_match_query = verification.T_measured_match_query;
     loop.T_measurement_residual = verification.T_measurement_residual;
-    loop.fitness_score = verification.match_result.fitness_score;
-    loop.inlier_ratio = verification.match_result.inlier_ratio;
-    // Identity is not "no information" -- it is a metre and a radian of sigma,
-    // and it silently displaces the configured fallback because every consumer
-    // downstream tests the matrix for zero, not for meaning. With ICP's own
-    // information switched off, the configured loop noise is what belongs here.
-    // Block order is (translation, rotation), matching addOdometryConstraint;
-    // createRobustNoiseModel swaps them for GTSAM.
-    if (config_.loop_use_icp_information) {
-        loop.information = verification.match_result.information;
-    } else {
-        const double sigma_xy = config_.loop_noise_position;
-        const double sigma_z = config_.loop_noise_position_z > 0.0
-                                   ? config_.loop_noise_position_z
-                                   : config_.loop_noise_position;
-        const double rot_info =
-            1.0 / (config_.loop_noise_rotation * config_.loop_noise_rotation);
-        // The configured sigmas set how much a loop is trusted overall; the
-        // registration's own Hessian says which of its axes deserve more of
-        // that trust and which less. The weights multiply to one, so this moves
-        // stiffness between axes without adding or removing any.
-        Eigen::Vector3d w_pos = Eigen::Vector3d::Ones();
-        Eigen::Vector3d w_rot = Eigen::Vector3d::Ones();
-        if (config_.loop_axis_weighting_enable) {
-            w_pos = axisWeights(verification.match_result.information, 0,
-                                config_.loop_axis_weighting_max);
-            w_rot = axisWeights(verification.match_result.information, 3,
-                                config_.loop_axis_weighting_max);
-        }
-        loop.information = Eigen::Matrix<double, 6, 6>::Identity();
-        loop.information(0, 0) = w_pos(0) / (sigma_xy * sigma_xy);
-        loop.information(1, 1) = w_pos(1) / (sigma_xy * sigma_xy);
-        loop.information(2, 2) = w_pos(2) / (sigma_z * sigma_z);
-        loop.information(3, 3) = w_rot(0) * rot_info;
-        loop.information(4, 4) = w_rot(1) * rot_info;
-        loop.information(5, 5) = w_rot(2) * rot_info;
-        // Reported as an observability, so capped at one: an axis constrained
-        // better than its neighbours is not more than fully observable.
-        loop.vertical_observability_score = std::min(1.0, w_pos(2));
-    }
-    loop.vertical_information_ratio = verticalInformationRatio(verification.match_result.information);
-
-    verification.fitness_ok = verification.match_result.fitness_score < config_.loop_fitness_threshold;
-    verification.inlier_ok = verification.match_result.inlier_ratio >= config_.loop_min_inlier_ratio;
-    verification.icp_translation_norm = verification.T_icp_correction_match.translation().norm();
-    verification.icp_rotation_norm = Eigen::AngleAxisd(verification.T_icp_correction_match.rotation()).angle();
-    verification.geometry_ok =
-        verification.icp_translation_norm <= config_.loop_max_icp_translation &&
-        verification.icp_rotation_norm <= config_.loop_max_icp_rotation;
+    finalizeRegistrationEvidence(&verification);
 
     // Computed for every candidate the registration quality admits, so the
     // referee downstream sees them. Previously this was gated on `converged`,
@@ -181,15 +204,11 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
         loop.heightmap_vertical_consistency_score = heightmap.vertical_consistency_score;
     }
 
-    verification.reject_reason =
-        loopRejectReason(verification.fitness_ok, verification.inlier_ok);
-
     // icp_translation_norm, icp_rotation_norm and match_result.converged stay
     // populated above and still reach the debug stream; they are evidence
     // about the loop, not grounds to refuse it. A loop that moves the prior by
     // five metres is not suspect -- on a map that has drifted by two and a
     // half, it is the correction.
-    loop.verified = verification.fitness_ok && verification.inlier_ok;
     if (loop.verified) {
         loop.T_match_query = verification.T_measured_match_query;
     }
@@ -222,16 +241,14 @@ LoopVerification LoopVerifier::verifyKeyframesLegacy(const LoopCandidate& candid
         measurementResidual(verification.T_pred_match_query, verification.T_measured_match_query);
 
     auto& loop = verification.loop;
-    loop.T_match_query = verification.T_measured_match_query;
     loop.T_pred_match_query = verification.T_pred_match_query;
     loop.T_icp_correction_match = verification.T_icp_correction_match;
     loop.T_measured_match_query = verification.T_measured_match_query;
     loop.T_measurement_residual = verification.T_measurement_residual;
-    loop.fitness_score = verification.match_result.fitness_score;
-    loop.inlier_ratio = verification.match_result.inlier_ratio;
-    loop.information = verification.match_result.information;
-    loop.verified = verification.match_result.success;
-    verification.reject_reason = loop.verified ? "" : "registration_invalid";
+    finalizeRegistrationEvidence(&verification);
+    if (loop.verified) {
+        loop.T_match_query = verification.T_measured_match_query;
+    }
     return verification;
 }
 

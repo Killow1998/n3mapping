@@ -48,6 +48,12 @@ public:
                                                  const Eigen::Isometry3d& measured_match_query);
 
 private:
+    // Both the prepared-submap path and the legacy keyframe path must attach
+    // identical quality evidence and information semantics to a registration.
+    // Keeping this in one place prevents Map Extension from silently bypassing
+    // loop_use_icp_information and the product loop thresholds.
+    void finalizeRegistrationEvidence(LoopVerification* verification) const;
+
     Config config_;
 };
 

@@ -34,6 +34,10 @@ bool validNoise(double position_sigma, double rotation_sigma) {
            std::isfinite(rotation_sigma) && rotation_sigma > 0.0;
 }
 
+Eigen::Vector3d rotationRpyDegrees(const Eigen::Isometry3d& pose) {
+    return pose.rotation().eulerAngles(0, 1, 2) * (180.0 / M_PI);
+}
+
 }  // namespace
 
 MappingResuming::MappingResuming(const Config& config,
@@ -116,6 +120,12 @@ bool MappingResuming::performInitialRelocalization(const PointCloudT::Ptr& cloud
     if (!isFiniteTransform(T_map_odom)) return false;
     world_localizing_.setMapToOdomTransform(T_map_odom);
 
+    const Eigen::Vector3d rpy_deg = rotationRpyDegrees(T_map_odom);
+    LOG(INFO) << "[MappingResuming] Relocalization anchor id="
+              << result.matched_keyframe_id
+              << " T_map_odom_t=" << T_map_odom.translation().transpose()
+              << " T_map_odom_rpy_deg=" << rpy_deg.transpose();
+
     relocalization_anchor_keyframe_id_ = result.matched_keyframe_id;
     previous_new_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
@@ -193,6 +203,15 @@ int64_t MappingResuming::processNewKeyframe(double timestamp, const Eigen::Isome
 
     keyframe_manager_.updateOptimizedPoses(optimizer_.getOptimizedPoses());
 
+    if (is_first_new_keyframe) {
+        const Eigen::Vector3d measurement_rpy_deg =
+            rotationRpyDegrees(edge.measurement);
+        LOG(INFO) << "[MappingResuming] Committed SESSION_ANCHOR from="
+                  << edge.from_id << " to=" << edge.to_id
+                  << " measurement_t=" << edge.measurement.translation().transpose()
+                  << " measurement_rpy_deg=" << measurement_rpy_deg.transpose();
+    }
+
     // From this point the graph and keyframe are committed. Descriptor
     // generation is best-effort and can be rebuilt from the stored cloud.
     previous_new_keyframe_id_ = new_kf_id;
@@ -251,6 +270,13 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     auto new_kf = keyframe_manager_.getKeyframe(new_keyframe_id);
     if (!new_kf || !new_kf->cloud) return 0;
 
+    // The first new keyframe is already tied to the loaded map by the explicit
+    // SESSION_ANCHOR. Re-registering that same frame immediately is redundant
+    // and, before this guard, allowed a raw ICP Hessian to overpower the anchor.
+    if (new_keyframe_id == original_max_keyframe_id_ + 1) {
+        return 0;
+    }
+
     std::map<int64_t, Keyframe::Ptr> keyframe_map;
     for (const auto& keyframe : keyframe_manager_.getAllKeyframes()) {
         if (keyframe) {
@@ -270,17 +296,31 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
         auto match_kf = keyframe_manager_.getKeyframe(candidate.match_id);
         if (!match_kf || !match_kf->cloud) continue;
 
-        VerifiedLoop verified = verifier.verifyKeyframesLegacy(candidate, new_kf, match_kf, matcher_).loop;
-        verified_loops.push_back(verified);
+        LoopVerification verification =
+            verifier.verifyKeyframesLegacy(candidate, new_kf, match_kf, matcher_);
+        if (verification.loop.verified && !verification.geometry_ok) {
+            LOG(WARNING) << "[MappingResuming] Reject cross-session loop query="
+                         << candidate.query_id << " match=" << candidate.match_id
+                         << " reason=session_anchor_disagreement"
+                         << " icp_translation="
+                         << verification.icp_translation_norm
+                         << " icp_rotation=" << verification.icp_rotation_norm;
+            continue;
+        }
+        verified_loops.push_back(std::move(verification.loop));
     }
 
     auto valid_loops = loop_closure_manager_.filterValidLoops(verified_loops);
-    auto edges = loop_closure_manager_.buildLoopEdges(valid_loops, LoopEdgeDirection::MatchToQuery);
+    auto best_loops = loop_closure_manager_.selectBestPerQuery(valid_loops);
+    auto edges = loop_closure_manager_.buildLoopEdges(
+        best_loops, LoopEdgeDirection::MatchToQuery);
     if (!edges.empty()) {
         if (!loop_closure_manager_.applyEdges(edges, optimizer_)) {
             return 0;
         }
         cross_loop_count_ += edges.size();
+        LOG(INFO) << "[MappingResuming] Committed cross-session loop query="
+                  << new_keyframe_id << " edge_count=" << edges.size();
 
         auto optimized_poses = optimizer_.getOptimizedPoses();
         keyframe_manager_.updateOptimizedPoses(optimized_poses);

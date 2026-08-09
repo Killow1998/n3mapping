@@ -422,6 +422,12 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     EXPECT_NEAR(anchor_edge->information(0, 0), 25.0, 1e-9);
     EXPECT_NEAR(anchor_edge->information(3, 3), 1.0 / 0.09, 1e-9);
 
+    // The explicit anchor is the only cross-session constraint on the first
+    // new keyframe. An immediate legacy loop would duplicate the same evidence
+    // and could overpower it with an ICP Hessian.
+    EXPECT_EQ(extension.detectCrossLoops(first_id), 0);
+    EXPECT_EQ(optimizer.getEdges().size(), 1u);
+
     // Deliberately perturb the stored optimized pose. The next base edge must
     // still come from the two raw session odometry poses.
     auto first_keyframe = kf_manager.getKeyframe(first_id);

@@ -21,6 +21,39 @@ Keyframe::PointCloudT::Ptr makeTinyCloud()
     return cloud;
 }
 
+Keyframe::PointCloudT::Ptr makeRegistrationCloud()
+{
+    auto cloud = std::make_shared<Keyframe::PointCloudT>();
+    for (int a = -5; a <= 5; ++a) {
+        for (int b = -5; b <= 5; ++b) {
+            pcl::PointXYZI floor;
+            floor.x = 0.2f * static_cast<float>(a);
+            floor.y = 0.2f * static_cast<float>(b);
+            floor.z = 0.03f * static_cast<float>((a + 2 * b) % 3);
+            floor.intensity = 1.0f;
+            cloud->push_back(floor);
+
+            pcl::PointXYZI wall_x;
+            wall_x.x = 1.5f;
+            wall_x.y = floor.x;
+            wall_x.z = 0.2f * static_cast<float>(b + 6);
+            wall_x.intensity = 2.0f;
+            cloud->push_back(wall_x);
+
+            pcl::PointXYZI wall_y;
+            wall_y.x = floor.x;
+            wall_y.y = -1.2f;
+            wall_y.z = 0.2f * static_cast<float>(b + 6);
+            wall_y.intensity = 3.0f;
+            cloud->push_back(wall_y);
+        }
+    }
+    cloud->width = cloud->size();
+    cloud->height = 1;
+    cloud->is_dense = true;
+    return cloud;
+}
+
 Eigen::Isometry3d poseAt(double x, double y = 0.0, double yaw = 0.0)
 {
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
@@ -189,6 +222,55 @@ TEST(LoopVerifierEvidenceTest, MeasurementResidualUsesPredictedAndMeasuredTransf
 
     EXPECT_TRUE(measured.isApprox(correction * predicted, 1e-12));
     EXPECT_TRUE(residual.isApprox(predicted.inverse() * measured, 1e-12));
+}
+
+TEST(LoopVerifierEvidenceTest, LegacyPathUsesConfiguredSerializableInformation)
+{
+    Config config;
+    config.num_threads = 1;
+    config.gicp_downsampling_resolution = 0.05;
+    config.gicp_max_correspondence_distance = 2.0;
+    config.gicp_fitness_threshold = 1.0;
+    config.reloc_min_inlier_ratio = 0.0;
+    config.loop_fitness_threshold = 1.0;
+    config.loop_min_inlier_ratio = 0.0;
+    config.loop_noise_position = 0.2;
+    config.loop_noise_position_z = 0.4;
+    config.loop_noise_rotation = 0.5;
+    config.loop_axis_weighting_enable = false;
+    config.loop_use_icp_information = false;
+
+    const auto cloud = makeRegistrationCloud();
+    const auto target = Keyframe::create(
+        3, 1.0, Eigen::Isometry3d::Identity(), cloud);
+    const auto source = Keyframe::create(
+        10, 2.0, Eigen::Isometry3d::Identity(), cloud);
+    LoopCandidate candidate;
+    candidate.query_id = source->id;
+    candidate.match_id = target->id;
+
+    PointCloudMatcher matcher(config);
+    const LoopVerification verification =
+        LoopVerifier(config).verifyKeyframesLegacy(
+            candidate, source, target, matcher);
+
+    ASSERT_TRUE(verification.loop.verified);
+    const auto& information = verification.loop.information;
+    EXPECT_NEAR(information(0, 0), 25.0, 1e-9);
+    EXPECT_NEAR(information(1, 1), 25.0, 1e-9);
+    EXPECT_NEAR(information(2, 2), 6.25, 1e-9);
+    EXPECT_NEAR(information(3, 3), 4.0, 1e-9);
+    EXPECT_NEAR(information(4, 4), 4.0, 1e-9);
+    EXPECT_NEAR(information(5, 5), 4.0, 1e-9);
+    EXPECT_TRUE(information.isApprox(
+        information.diagonal().asDiagonal().toDenseMatrix(), 1e-12));
+
+    config.loop_use_icp_information = true;
+    const LoopVerification icp_information =
+        LoopVerifier(config).verifyKeyframesLegacy(
+            candidate, source, target, matcher);
+    EXPECT_TRUE(icp_information.loop.information.isApprox(
+        icp_information.loop.information.transpose(), 1e-12));
 }
 
 TEST(PointCloudMatcherEvidenceTest, ClassifiesTermination)
