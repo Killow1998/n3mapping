@@ -53,6 +53,12 @@ struct Config {
     double odom_noise_rotation = 0.001;
     double loop_noise_position = 0.05;
     double loop_noise_rotation = 0.5;
+    // Continuous extension tracking is local, initialized from the preceding
+    // frame, and accepted only when immutable loaded-map geometry agrees. Its
+    // orientation constraint therefore needs a tighter model than a global
+    // descriptor loop, whose yaw can be ambiguous by design.
+    double loaded_map_tracking_noise_position = 0.05;
+    double loaded_map_tracking_noise_rotation = 0.01;
     // Height is the axis a loop registers worst. Measured against the floor on
     // 0723, a loop's z correction carries a median error of 0.407 m while the
     // same edge's horizontal agreement has no reason to be as poor: a floor is

@@ -164,6 +164,10 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("loop_keep_all_verified", config->loop_keep_all_verified);
     get("loop_min_path_length_m", config->loop_min_path_length_m);
     get("loop_noise_position_z", config->loop_noise_position_z);
+    get("loaded_map_tracking_noise_position",
+        config->loaded_map_tracking_noise_position);
+    get("loaded_map_tracking_noise_rotation",
+        config->loaded_map_tracking_noise_rotation);
     get("mapping_static_max_wait_s", config->mapping_static_max_wait_s);
     get("mapping_static_moved_consecutive", config->mapping_static_moved_consecutive);
     get("mapping_static_moved_overlap", config->mapping_static_moved_overlap);

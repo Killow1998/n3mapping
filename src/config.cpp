@@ -81,6 +81,8 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(odom_noise_rotation);
     N3MAPPING_CONFIG_FIELD(loop_noise_position);
     N3MAPPING_CONFIG_FIELD(loop_noise_rotation);
+    N3MAPPING_CONFIG_FIELD(loaded_map_tracking_noise_position);
+    N3MAPPING_CONFIG_FIELD(loaded_map_tracking_noise_rotation);
     N3MAPPING_CONFIG_FIELD(loop_noise_position_z);
     N3MAPPING_CONFIG_FIELD(loop_axis_weighting_enable);
     N3MAPPING_CONFIG_FIELD(loop_axis_weighting_max);
@@ -217,6 +219,10 @@ std::string Config::toString() const {
         << " rot=" << odom_noise_rotation
         << " | Loop noise: pos=" << loop_noise_position
         << " rot=" << loop_noise_rotation << "\n";
+    oss << "Loaded-map tracking noise: pos="
+        << loaded_map_tracking_noise_position
+        << " rot=" << loaded_map_tracking_noise_rotation
+        << " z=" << loop_noise_position_z << "\n";
     oss << "Robust kernel: " << (use_robust_kernel ? "ON" : "OFF")
         << " type=" << robust_kernel_type
         << " delta=" << robust_kernel_delta << "\n";
@@ -341,6 +347,10 @@ bool Config::validate(std::string* error) const {
     if (!positive(odom_noise_position, "odom_noise_position")) return false;
     if (!positive(odom_noise_rotation, "odom_noise_rotation")) return false;
     if (!positive(loop_noise_position, "loop_noise_position")) return false;
+    if (!positive(loaded_map_tracking_noise_position,
+                  "loaded_map_tracking_noise_position")) return false;
+    if (!positive(loaded_map_tracking_noise_rotation,
+                  "loaded_map_tracking_noise_rotation")) return false;
     if (!at_least(loop_axis_weighting_max, 1.0, "loop_axis_weighting_max")) return false;
     if (!positive(loop_noise_rotation, "loop_noise_rotation")) return false;
     if (!positive(gicp_downsampling_resolution, "gicp_downsampling_resolution")) return false;

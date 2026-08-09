@@ -59,6 +59,10 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("odom_noise_rotation", config->odom_noise_rotation);
     get("loop_noise_position", config->loop_noise_position);
     get("loop_noise_rotation", config->loop_noise_rotation);
+    get("loaded_map_tracking_noise_position",
+        config->loaded_map_tracking_noise_position);
+    get("loaded_map_tracking_noise_rotation",
+        config->loaded_map_tracking_noise_rotation);
     get("loop_noise_position_z", config->loop_noise_position_z);
     get("loop_axis_weighting_enable", config->loop_axis_weighting_enable);
     get("loop_axis_weighting_max", config->loop_axis_weighting_max);

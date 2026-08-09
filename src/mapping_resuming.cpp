@@ -31,7 +31,8 @@ Eigen::Matrix<double, 6, 6> diagonalInformation(double position_sigma,
 
 Eigen::Matrix<double, 6, 6> trackingInformation(const Config& config) {
     auto information = diagonalInformation(
-        config.loop_noise_position, config.loop_noise_rotation);
+        config.loaded_map_tracking_noise_position,
+        config.loaded_map_tracking_noise_rotation);
     const double z_sigma = config.loop_noise_position_z > 0.0
         ? config.loop_noise_position_z
         : config.loop_noise_position;
@@ -199,8 +200,7 @@ int64_t MappingResuming::processNewKeyframe(
         }
         edge.from_id = relocalization_anchor_keyframe_id_;
         edge.measurement = anchor->pose_optimized.inverse() * pose_in_map;
-        edge.information = diagonalInformation(
-            config_.loop_noise_position, config_.loop_noise_rotation);
+        edge.information = trackingInformation(config_);
         edge.type = EdgeType::SESSION_ANCHOR;
     } else {
         auto previous = keyframe_manager_.getKeyframe(previous_new_keyframe_id_);

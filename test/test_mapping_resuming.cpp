@@ -6,6 +6,7 @@
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/world_localizing.h"
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <pcl/common/transforms.h>
@@ -378,6 +379,8 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     configureSingleFrameRelocalization();
     config_.loop_noise_position = 0.2;
     config_.loop_noise_rotation = 0.3;
+    config_.loaded_map_tracking_noise_position = 0.2;
+    config_.loaded_map_tracking_noise_rotation = 0.3;
     config_.odom_noise_position = 0.1;
     config_.odom_noise_rotation = 0.05;
     const std::string map_file = createTestMap(1);
@@ -459,6 +462,12 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     config_.use_robust_kernel = true;
     config_.robust_kernel_type = "Cauchy";
     config_.robust_kernel_delta = 1.0;
+    config_.odom_noise_position = 0.01;
+    config_.odom_noise_rotation = 0.001;
+    config_.loop_noise_position = 0.05;
+    config_.loop_noise_rotation = 0.5;
+    config_.loaded_map_tracking_noise_position = 0.05;
+    config_.loaded_map_tracking_noise_rotation = 0.01;
     const std::string map_file = createTestMap(1);
 
     KeyframeManager kf_manager(config_);
@@ -487,6 +496,8 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
 
     Eigen::Isometry3d second_odom = first_odom;
     second_odom.translation().x() = 4.0;
+    second_odom.rotate(
+        Eigen::AngleAxisd(20.0 * M_PI / 180.0, Eigen::Vector3d::UnitZ()));
     Eigen::Isometry3d second_tracked = Eigen::Isometry3d::Identity();
     second_tracked.translation().x() = 10.0;
     ASSERT_EQ(extension.processNewKeyframe(
@@ -494,6 +505,9 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
               2);
 
     EXPECT_NEAR(optimizer.getOptimizedPose(2).translation().x(), 10.0, 0.2);
+    EXPECT_NEAR(Eigen::AngleAxisd(
+                    optimizer.getOptimizedPose(2).rotation()).angle(),
+                0.0, 1.0 * M_PI / 180.0);
     EXPECT_EQ(extension.getCrossLoopCount(), 1u);
     const auto edges = optimizer.getEdges();
     const auto odometry = std::find_if(
@@ -510,6 +524,7 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     ASSERT_NE(tracking_loop, edges.end());
     EXPECT_NEAR(odometry->measurement.translation().x(), 2.0, 1e-9);
     EXPECT_NEAR(tracking_loop->measurement.translation().x(), 10.0, 1e-9);
+    EXPECT_NEAR(tracking_loop->information(3, 3), 10000.0, 1e-9);
 }
 
 TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)

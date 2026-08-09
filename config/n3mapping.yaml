@@ -49,6 +49,8 @@ n3mapping_node:
     loop_noise_position: 0.05
     loop_noise_position_z: 0.4
     loop_noise_rotation: 0.5
+    loaded_map_tracking_noise_position: 0.05
+    loaded_map_tracking_noise_rotation: 0.01
     use_robust_kernel: true
     robust_kernel_type: "Cauchy"
     robust_kernel_delta: 1.0
