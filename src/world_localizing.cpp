@@ -969,6 +969,19 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 RelocResult
 WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
                                    const Eigen::Isometry3d &odom_pose) {
+  return trackLocalizationImpl(cloud, odom_pose, false);
+}
+
+RelocResult
+WorldLocalizing::trackLoadedMap(const PointCloudT::Ptr &cloud,
+                                const Eigen::Isometry3d &odom_pose) {
+  return trackLocalizationImpl(cloud, odom_pose, true);
+}
+
+RelocResult
+WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
+                                       const Eigen::Isometry3d &odom_pose,
+                                       bool strict_loaded_map) {
   RelocResult result;
   result.success = false;
   const bool reloc_debug_enabled = config_.reloc_debug_enable;
@@ -979,8 +992,11 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     debug_event.processing_time = processingTimeSeconds();
   }
   auto finish_tracking_debug = [&](const std::string &reject_reason) {
-    result.decision =
-        reject_reason.empty() ? "tracking_geometric" : reject_reason;
+    result.decision = reject_reason.empty()
+                          ? (strict_loaded_map
+                                 ? "loaded_map_tracking_geometric"
+                                 : "tracking_geometric")
+                          : reject_reason;
     if (!reloc_debug_enabled) {
       return;
     }
@@ -1022,7 +1038,9 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     return result;
   }
 
-  int64_t nearest_kf_id = findNearestKeyframe(predicted_pose);
+  int64_t nearest_kf_id = strict_loaded_map
+                              ? findNearestLoadedKeyframe(predicted_pose)
+                              : findNearestKeyframe(predicted_pose);
   debug_event.nearest_kf_id = nearest_kf_id;
   if (nearest_kf_id < 0) {
     consecutive_track_failures_++;
@@ -1032,7 +1050,7 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
       result.state = RelocalizationState::SEARCHING;
       result.pose_source = PoseSource::NONE;
     } else {
-      result.success = true;
+      result.success = !strict_loaded_map;
       result.state = RelocalizationState::DEGRADED_TRACKING;
       result.pose_source = PoseSource::ODOM_PREDICTED;
     }
@@ -1045,16 +1063,27 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     return result;
   }
 
-  // Build submap — use larger range when tracking is unstable
+  // Build submap — use larger range when tracking is unstable. Extension
+  // tracking must never use newly appended keyframes as its own reference.
   int submap_range = config_.gicp_submap_size;
   if (consecutive_track_failures_ > 0)
     submap_range =
         std::max(submap_range, config_.reloc_track_unstable_submap_size);
 
-  // Keep the established tracking target unchanged. The global visibility
-  // target is specific to global-hypothesis verification, not ordinary local
-  // odometry tracking.
-  auto submap = keyframe_manager_.buildLocalSubmap(nearest_kf_id, submap_range);
+  PointCloudT::Ptr submap;
+  if (strict_loaded_map) {
+    rebuildLoadedMapVisibilityCacheIfNeeded();
+    const auto nearest = keyframe_manager_.getKeyframe(nearest_kf_id);
+    if (nearest) {
+      submap = LocalizationAtlas::cropGlobalMap(
+          config_, loaded_map_visibility_cache_,
+          nearest->pose_optimized.translation());
+    }
+  } else {
+    // Keep the established ordinary-localization target unchanged. The
+    // loaded-map-only target is specific to map-extension safety.
+    submap = keyframe_manager_.buildLocalSubmap(nearest_kf_id, submap_range);
+  }
   debug_event.submap_size = submap ? submap->size() : 0;
   if (!submap || submap->empty()) {
     consecutive_track_failures_++;
@@ -1064,7 +1093,7 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
       result.state = RelocalizationState::SEARCHING;
       result.pose_source = PoseSource::NONE;
     } else {
-      result.success = true;
+      result.success = !strict_loaded_map;
       result.state = RelocalizationState::DEGRADED_TRACKING;
       result.pose_source = PoseSource::ODOM_PREDICTED;
     }
@@ -1119,39 +1148,72 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
       match_result.inlier_ratio >= config_.reloc_min_inlier_ratio;
 
   double delta_translation = std::numeric_limits<double>::infinity();
+  double delta_rotation = std::numeric_limits<double>::infinity();
+  VisibilityConsistencyResult visibility;
   if (hasValidRegistrationResult(match_result)) {
+    if (strict_loaded_map) {
+      const auto predicted_visibility =
+          evaluatePoseVisibility(submap, cloud, predicted_pose);
+      visibility = evaluatePoseVisibility(
+          submap, cloud, match_result.T_target_source);
+      if (predicted_visibility.valid &&
+          (!visibility.valid ||
+           predicted_visibility.consistency_ratio >
+               visibility.consistency_ratio + 1e-9)) {
+        // ICP is a local proposal, not authority to slide along a repeated
+        // surface. Retain the prediction when the immutable loaded map
+        // explains it better than the optimizer endpoint.
+        match_result.T_target_source = predicted_pose;
+        visibility = predicted_visibility;
+      }
+    }
     const Eigen::Isometry3d delta =
         predicted_pose.inverse() * match_result.T_target_source;
     delta_translation = delta.translation().norm();
+    delta_rotation = Eigen::AngleAxisd(delta.rotation()).angle();
   }
 
-  if (icp_ok) {
+  const bool strict_geometry_ok =
+      !strict_loaded_map ||
+      (delta_translation <= config_.reloc_track_max_translation &&
+       delta_rotation <= config_.reloc_track_max_rotation &&
+       visibility.valid && visibility.evidence_log_odds > 0.0);
+
+  const bool accepted_icp = icp_ok && strict_geometry_ok;
+
+  if (accepted_icp) {
     Eigen::Isometry3d T_map_odom_icp =
         match_result.T_target_source * odom_pose.inverse();
 
-    double alpha;
-    if (delta_translation <= 0.5) {
+    double alpha = 1.0;
+    if (!strict_loaded_map && delta_translation <= 0.5) {
       alpha = std::min(current_confidence * 0.3, 0.2);
-    } else if (delta_translation <= 2.0) {
+    } else if (!strict_loaded_map && delta_translation <= 2.0) {
       alpha = std::min(current_confidence * 0.15, 0.1);
-    } else {
+    } else if (!strict_loaded_map) {
       alpha = std::min(current_confidence * 0.08, 0.05);
     }
-    alpha = std::max(alpha, 0.01);
+    if (!strict_loaded_map) {
+      alpha = std::max(alpha, 0.01);
+    }
 
-    Eigen::Vector3d t_current = T_map_odom_.translation();
-    Eigen::Vector3d t_target = T_map_odom_icp.translation();
-    Eigen::Vector3d t_new = t_current + alpha * (t_target - t_current);
+    if (strict_loaded_map) {
+      T_map_odom_ = T_map_odom_icp;
+    } else {
+      Eigen::Vector3d t_current = T_map_odom_.translation();
+      Eigen::Vector3d t_target = T_map_odom_icp.translation();
+      Eigen::Vector3d t_new = t_current + alpha * (t_target - t_current);
 
-    double alpha_z = alpha * 0.3;
-    t_new.z() = t_current.z() + alpha_z * (t_target.z() - t_current.z());
+      double alpha_z = alpha * 0.3;
+      t_new.z() = t_current.z() + alpha_z * (t_target.z() - t_current.z());
 
-    Eigen::Quaterniond q_current(T_map_odom_.rotation());
-    Eigen::Quaterniond q_target(T_map_odom_icp.rotation());
-    Eigen::Quaterniond q_new = q_current.slerp(alpha, q_target);
+      Eigen::Quaterniond q_current(T_map_odom_.rotation());
+      Eigen::Quaterniond q_target(T_map_odom_icp.rotation());
+      Eigen::Quaterniond q_new = q_current.slerp(alpha, q_target);
 
-    T_map_odom_.translation() = t_new;
-    T_map_odom_.linear() = q_new.toRotationMatrix();
+      T_map_odom_.translation() = t_new;
+      T_map_odom_.linear() = q_new.toRotationMatrix();
+    }
 
     result.success = true;
     result.state = RelocalizationState::FULL_6DOF_LOCKED;
@@ -1166,9 +1228,13 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     last_odom_pose_ = odom_pose;
     consecutive_track_failures_ = 0;
 
-    VLOG(1) << "Tracking OK: fitness=" << match_result.fitness_score
+    VLOG(1) << (strict_loaded_map ? "Loaded-map tracking OK: fitness="
+                                        : "Tracking OK: fitness=")
+            << match_result.fitness_score
             << " conf=" << current_confidence << " alpha=" << alpha
-            << " delta_t=" << delta_translation;
+            << " delta_t=" << delta_translation
+            << " delta_r=" << delta_rotation
+            << " visibility_logodds=" << visibility.evidence_log_odds;
     finish_tracking_debug("");
   } else {
     consecutive_track_failures_++;
@@ -1193,7 +1259,7 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
       result.pose_source = PoseSource::NONE;
     } else {
       // Keep odometry-based continuity for transient dropouts.
-      result.success = true;
+      result.success = !strict_loaded_map;
       result.state = RelocalizationState::DEGRADED_TRACKING;
       result.pose_source = PoseSource::ODOM_PREDICTED;
     }
@@ -1203,7 +1269,10 @@ WorldLocalizing::trackLocalization(const PointCloudT::Ptr &cloud,
     result.pose_in_map = predicted_pose;
     result.confidence = 0.2;
     last_odom_pose_ = odom_pose;
-    finish_tracking_debug("icp_gate_failed");
+    finish_tracking_debug(
+        strict_loaded_map && icp_ok && !strict_geometry_ok
+            ? "loaded_map_tracking_geometry_gate_failed"
+            : "icp_gate_failed");
   }
 
   return result;
@@ -2281,6 +2350,25 @@ WorldLocalizing::findNearestKeyframe(const Eigen::Isometry3d &pose) const {
     }
   }
 
+  return nearest_id;
+}
+
+int64_t
+WorldLocalizing::findNearestLoadedKeyframe(
+    const Eigen::Isometry3d &pose) const {
+  int64_t nearest_id = -1;
+  double min_distance = std::numeric_limits<double>::max();
+
+  for (const auto &kf : keyframe_manager_.getAllKeyframes()) {
+    if (!kf || !kf->is_from_loaded_map)
+      continue;
+    const double distance =
+        (kf->pose_optimized.translation() - pose.translation()).norm();
+    if (distance < config_.reloc_search_radius && distance < min_distance) {
+      min_distance = distance;
+      nearest_id = kf->id;
+    }
+  }
   return nearest_id;
 }
 

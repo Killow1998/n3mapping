@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <stdexcept>
 #include <iostream>
 #include <utility>
@@ -193,6 +194,33 @@ void GraphOptimizer::addOdometryEdge(const EdgeInfo& edge) {
     // 存储待提交边信息
     pending_edges_.push_back(edge);
     needs_optimization_ = true;
+}
+
+bool GraphOptimizer::addSessionOdometryEdge(
+    const EdgeInfo& edge,
+    const Eigen::Isometry3d& target_initial_pose) {
+    if (edge.from_id < 0 || edge.to_id < 0 || edge.from_id == edge.to_id ||
+        !edge.measurement.matrix().allFinite() ||
+        !edge.information.allFinite() ||
+        !target_initial_pose.matrix().allFinite() ||
+        !hasAnyNode(edge.from_id) || hasAnyNode(edge.to_id)) {
+        return false;
+    }
+
+    const gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
+    const gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
+    auto noise_model = createRobustNoiseModel(
+        edge.information, config_.use_robust_kernel);
+    new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(
+        key_from, key_to, eigenToGtsam(edge.measurement), noise_model));
+    new_values_.insert(key_to, eigenToGtsam(target_initial_pose));
+    pending_node_ids_.insert(edge.to_id);
+
+    EdgeInfo odometry_edge = edge;
+    odometry_edge.type = EdgeType::ODOMETRY;
+    pending_edges_.push_back(odometry_edge);
+    needs_optimization_ = true;
+    return true;
 }
 
 
@@ -481,6 +509,14 @@ bool GraphOptimizer::loadGraph(
     auto prior_noise = temp.createPriorNoiseModel();
     temp.graph_.add(gtsam::PriorFactor<gtsam::Pose3>(first_key, first_pose, prior_noise));
     
+    int64_t first_session_node_id = std::numeric_limits<int64_t>::max();
+    for (const auto& edge : edges) {
+        if (edge.type == EdgeType::SESSION_ANCHOR) {
+            first_session_node_id =
+                std::min(first_session_node_id, edge.to_id);
+        }
+    }
+
     // 添加边
     for (const auto& edge : edges) {
         gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
@@ -488,7 +524,12 @@ bool GraphOptimizer::loadGraph(
         gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
         
         gtsam::noiseModel::Base::shared_ptr noise_model;
-        if (isRobustGlobalEdge(edge.type)) {
+        const bool robust_session_odometry =
+            edge.type == EdgeType::ODOMETRY &&
+            first_session_node_id != std::numeric_limits<int64_t>::max() &&
+            edge.from_id >= first_session_node_id &&
+            edge.to_id >= first_session_node_id;
+        if (isRobustGlobalEdge(edge.type) || robust_session_odometry) {
             noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
                 ? temp.createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
                 : temp.createRobustNoiseModel(edge.information, config_.use_robust_kernel);
@@ -497,7 +538,7 @@ bool GraphOptimizer::loadGraph(
             }
             if (edge.type == EdgeType::SESSION_ANCHOR) {
                 temp.has_session_anchor_ = true;
-            } else {
+            } else if (edge.type == EdgeType::LOOP) {
                 temp.has_loop_closure_ = true;
             }
         } else {

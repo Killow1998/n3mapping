@@ -81,6 +81,12 @@ public:
                          const Eigen::Isometry3d &odom_pose);
   RelocResult trackLocalization(const PointCloudT::Ptr &cloud,
                                 const Eigen::Isometry3d &odom_pose);
+  // Strict local tracking used while extending a loaded map. Registration
+  // targets and visibility evidence come only from immutable loaded-map
+  // keyframes; corrections are bounded and applied without lag. A frame with
+  // no geometric evidence fails closed instead of silently accepting odometry.
+  RelocResult trackLoadedMap(const PointCloudT::Ptr &cloud,
+                             const Eigen::Isometry3d &odom_pose);
   bool isRelocalized() const;
   Eigen::Isometry3d getMapToOdomTransform() const;
   void reset();
@@ -200,7 +206,11 @@ private:
   void appendRelocalizationDebug(const RelocalizationDebugEvent &event) const;
   void appendTrackingDebug(const RelocTrackingDebugEvent &event) const;
   void clearRelocHypotheses();
+  RelocResult trackLocalizationImpl(const PointCloudT::Ptr &cloud,
+                                    const Eigen::Isometry3d &odom_pose,
+                                    bool strict_loaded_map);
   int64_t findNearestKeyframe(const Eigen::Isometry3d &pose) const;
+  int64_t findNearestLoadedKeyframe(const Eigen::Isometry3d &pose) const;
 
   Config config_;
   KeyframeManager &keyframe_manager_;

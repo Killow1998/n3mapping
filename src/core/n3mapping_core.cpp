@@ -894,21 +894,54 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
   }
 
-  Eigen::Isometry3d pose_map =
-      localizer.getMapToOdomTransform() * frame.T_world_lidar;
+  // While old-map geometry is visible, extension must track that immutable
+  // geometry continuously. A constant relocalization transform only carries
+  // the session LIO's time-varying drift into the resumed map. This strict
+  // path never falls back to a new global search or to self-created frames.
+  const RelocResult tracking = localizer.trackLoadedMap(
+      frame.undistorted_cloud, frame.T_world_lidar);
+  if (!tracking.success ||
+      tracking.state != RelocalizationState::FULL_6DOF_LOCKED ||
+      tracking.pose_source != PoseSource::GEOMETRICALLY_CORRECTED ||
+      tracking.matched_keyframe_id < 0) {
+    auto output = makeOutput(
+        false, tracking.pose_in_map, frame.undistorted_cloud);
+    output.relocalization_state = tracking.state;
+    output.pose_source = tracking.pose_source;
+    output.relocalization_decision = tracking.decision;
+    output.relocalization_seed_keyframe_id = tracking.seed_keyframe_id;
+    output.relocalization_support_keyframe_id =
+        tracking.support_keyframe_id;
+    output.matched_keyframe_id = tracking.matched_keyframe_id;
+    return output;
+  }
+
+  Eigen::Isometry3d pose_map = tracking.pose_in_map;
   if (!session_->keyframeManager().shouldAddKeyframe(pose_map)) {
     if (!external_dense_trajectory_recording_enabled_) {
       const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
       appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_map, false);
     }
-    return makeOutput(true, pose_map, frame.undistorted_cloud);
+    auto output = makeOutput(true, pose_map, frame.undistorted_cloud);
+    output.relocalization_state = tracking.state;
+    output.pose_source = tracking.pose_source;
+    output.relocalization_decision = tracking.decision;
+    output.relocalization_seed_keyframe_id = tracking.seed_keyframe_id;
+    output.relocalization_support_keyframe_id =
+        tracking.support_keyframe_id;
+    output.matched_keyframe_id = tracking.matched_keyframe_id;
+    return output;
   }
 
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
   const int64_t keyframe_id = resuming.processNewKeyframe(
-      timestamp, frame.T_world_lidar, frame.undistorted_cloud);
+      timestamp, frame.T_world_lidar, frame.undistorted_cloud,
+      tracking.matched_keyframe_id, tracking.pose_in_map);
   if (keyframe_id >= 0) {
-    resuming.detectCrossLoops(keyframe_id);
+    // The strict tracker already supplied a loaded-map constraint for this
+    // keyframe (the first one is represented by SESSION_ANCHOR). Running the
+    // global descriptor pipeline again would be redundant and can only add a
+    // less local alias.
     refreshOptimizedPoses();
     if (session_->graphOptimizer().hasNode(keyframe_id)) {
       try {
@@ -922,6 +955,12 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   auto output = makeOutput(keyframe_id >= 0, pose_map, frame.undistorted_cloud);
   output.accepted_keyframe = keyframe_id >= 0;
   output.keyframe_id = keyframe_id;
+  output.relocalization_state = tracking.state;
+  output.pose_source = tracking.pose_source;
+  output.relocalization_decision = tracking.decision;
+  output.relocalization_seed_keyframe_id = tracking.seed_keyframe_id;
+  output.relocalization_support_keyframe_id = tracking.support_keyframe_id;
+  output.matched_keyframe_id = tracking.matched_keyframe_id;
   if (!external_dense_trajectory_recording_enabled_ && keyframe_id >= 0) {
     if (auto kf = session_->keyframeManager().getKeyframe(keyframe_id)) {
       appendDenseTrajectorySample(timestamp, kf->pose_odom, keyframe_id,

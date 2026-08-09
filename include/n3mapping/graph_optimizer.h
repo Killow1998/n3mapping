@@ -144,6 +144,14 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @param edge 边信息
      */
     void addOdometryEdge(const EdgeInfo& edge);
+    // Adds an odometry edge inside an extension session. The raw measurement
+    // is preserved, but the factor is robust because an independently
+    // verified loaded-map pose may legitimately expose large session-LIO
+    // drift. The explicit target pose keeps that geometric observation in the
+    // optimizer's initial basin. Both the node and edge remain pending until
+    // incrementalOptimize() succeeds.
+    bool addSessionOdometryEdge(const EdgeInfo& edge,
+                                const Eigen::Isometry3d& target_initial_pose);
 
     /**
      * @brief 添加回环边

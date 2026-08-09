@@ -432,6 +432,54 @@ TEST_F(WorldLocalizingTest, TrackLocalization) {
   EXPECT_EQ(track_result.decision, "tracking_geometric");
 }
 
+TEST_F(WorldLocalizingTest, LoadedMapTrackingIgnoresExtensionKeyframes) {
+  buildTestMap(5, 2.0);
+  for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
+    ASSERT_NE(keyframe, nullptr);
+    keyframe->is_from_loaded_map = true;
+  }
+
+  Eigen::Isometry3d extension_pose = Eigen::Isometry3d::Identity();
+  extension_pose.translation().x() = 40.0;
+  const auto extension_cloud = generateCorridorCloud(extension_pose);
+  const int64_t extension_id = keyframe_manager_->addKeyframe(
+      10.0, extension_pose, extension_cloud);
+  ASSERT_FALSE(keyframe_manager_->getKeyframe(extension_id)->is_from_loaded_map);
+
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+  const RelocResult result = reloc.trackLoadedMap(
+      extension_cloud, extension_pose);
+
+  EXPECT_FALSE(result.success);
+  EXPECT_EQ(result.decision, "nearest_keyframe_missing");
+  EXPECT_NE(result.matched_keyframe_id, extension_id);
+}
+
+TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
+  buildTestMap(6, 2.0);
+  for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
+    ASSERT_NE(keyframe, nullptr);
+    keyframe->is_from_loaded_map = true;
+  }
+
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation().x() = 8.0;
+  const RelocResult result = reloc.trackLoadedMap(
+      generateCorridorCloud(pose), pose);
+
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(result.state, RelocalizationState::FULL_6DOF_LOCKED);
+  EXPECT_EQ(result.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
+  EXPECT_EQ(result.decision, "loaded_map_tracking_geometric");
+  EXPECT_LT((result.pose_in_map.translation() - pose.translation()).norm(),
+            0.25);
+}
+
 TEST_F(WorldLocalizingTest, Reset) {
   buildTestMap(5, 2.0);
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,

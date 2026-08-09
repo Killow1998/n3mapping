@@ -453,6 +453,65 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     EXPECT_NEAR(odom_edge->measurement.translation().y(), 0.0, 1e-9);
 }
 
+TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
+{
+    configureSingleFrameRelocalization();
+    config_.use_robust_kernel = true;
+    config_.robust_kernel_type = "Cauchy";
+    config_.robust_kernel_delta = 1.0;
+    const std::string map_file = createTestMap(1);
+
+    KeyframeManager kf_manager(config_);
+    LoopDetector loop_detector(config_);
+    PointCloudMatcher matcher(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+    WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
+    MappingResuming extension(config_, kf_manager, loop_detector, matcher,
+                              optimizer, serializer, relocalization);
+
+    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
+                                     optimizer, serializer, extension));
+    auto loaded = kf_manager.getKeyframe(0);
+    ASSERT_NE(loaded, nullptr);
+    ASSERT_TRUE(extension.performInitialRelocalization(
+        loaded->cloud, Eigen::Isometry3d::Identity()));
+
+    Eigen::Isometry3d first_odom = Eigen::Isometry3d::Identity();
+    first_odom.translation().x() = 2.0;
+    Eigen::Isometry3d first_tracked = Eigen::Isometry3d::Identity();
+    first_tracked.translation().x() = 2.0;
+    ASSERT_EQ(extension.processNewKeyframe(
+                  10.0, first_odom, loaded->cloud, 0, first_tracked),
+              1);
+
+    Eigen::Isometry3d second_odom = first_odom;
+    second_odom.translation().x() = 4.0;
+    Eigen::Isometry3d second_tracked = Eigen::Isometry3d::Identity();
+    second_tracked.translation().x() = 10.0;
+    ASSERT_EQ(extension.processNewKeyframe(
+                  11.0, second_odom, loaded->cloud, 0, second_tracked),
+              2);
+
+    EXPECT_NEAR(optimizer.getOptimizedPose(2).translation().x(), 10.0, 0.2);
+    EXPECT_EQ(extension.getCrossLoopCount(), 1u);
+    const auto edges = optimizer.getEdges();
+    const auto odometry = std::find_if(
+        edges.begin(), edges.end(), [](const EdgeInfo& edge) {
+            return edge.type == EdgeType::ODOMETRY &&
+                   edge.from_id == 1 && edge.to_id == 2;
+        });
+    const auto tracking_loop = std::find_if(
+        edges.begin(), edges.end(), [](const EdgeInfo& edge) {
+            return edge.type == EdgeType::LOOP &&
+                   edge.from_id == 0 && edge.to_id == 2;
+        });
+    ASSERT_NE(odometry, edges.end());
+    ASSERT_NE(tracking_loop, edges.end());
+    EXPECT_NEAR(odometry->measurement.translation().x(), 2.0, 1e-9);
+    EXPECT_NEAR(tracking_loop->measurement.translation().x(), 10.0, 1e-9);
+}
+
 TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
 {
     configureSingleFrameRelocalization();

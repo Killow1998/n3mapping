@@ -29,6 +29,16 @@ Eigen::Matrix<double, 6, 6> diagonalInformation(double position_sigma,
     return information;
 }
 
+Eigen::Matrix<double, 6, 6> trackingInformation(const Config& config) {
+    auto information = diagonalInformation(
+        config.loop_noise_position, config.loop_noise_rotation);
+    const double z_sigma = config.loop_noise_position_z > 0.0
+        ? config.loop_noise_position_z
+        : config.loop_noise_position;
+    information(2, 2) = 1.0 / (z_sigma * z_sigma);
+    return information;
+}
+
 bool validNoise(double position_sigma, double rotation_sigma) {
     return std::isfinite(position_sigma) && position_sigma > 0.0 &&
            std::isfinite(rotation_sigma) && rotation_sigma > 0.0;
@@ -61,6 +71,7 @@ MappingResuming::MappingResuming(const Config& config,
     , cross_loop_count_(0)
     , relocalization_anchor_keyframe_id_(-1)
     , previous_new_keyframe_id_(-1)
+    , last_trusted_constraint_keyframe_id_(-1)
     , previous_new_odom_pose_(Eigen::Isometry3d::Identity())
     , first_new_keyframe_pending_(false) {}
 
@@ -76,6 +87,7 @@ bool MappingResuming::initializeFromLoadedMapNoLock() {
         original_max_keyframe_id_ = -1;
         relocalization_anchor_keyframe_id_ = -1;
         previous_new_keyframe_id_ = -1;
+        last_trusted_constraint_keyframe_id_ = -1;
         previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
         first_new_keyframe_pending_ = false;
         return false;
@@ -94,6 +106,7 @@ bool MappingResuming::initializeFromLoadedMapNoLock() {
     state_ = MappingResumingState::MAP_LOADED;
     relocalization_anchor_keyframe_id_ = -1;
     previous_new_keyframe_id_ = -1;
+    last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
     first_new_keyframe_pending_ = false;
     return true;
@@ -128,6 +141,7 @@ bool MappingResuming::performInitialRelocalization(const PointCloudT::Ptr& cloud
 
     relocalization_anchor_keyframe_id_ = result.matched_keyframe_id;
     previous_new_keyframe_id_ = -1;
+    last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
     first_new_keyframe_pending_ = true;
 
@@ -135,8 +149,10 @@ bool MappingResuming::performInitialRelocalization(const PointCloudT::Ptr& cloud
     return true;
 }
 
-int64_t MappingResuming::processNewKeyframe(double timestamp, const Eigen::Isometry3d& odom_pose,
-                                            const PointCloudT::Ptr& cloud) {
+int64_t MappingResuming::processNewKeyframe(
+    double timestamp, const Eigen::Isometry3d& odom_pose,
+    const PointCloudT::Ptr& cloud, int64_t loaded_tracking_match_id,
+    const Eigen::Isometry3d& tracked_pose_in_map) {
     std::lock_guard<std::mutex> lock(mutex_);
     if ((state_ != MappingResumingState::RELOCALIZED &&
          state_ != MappingResumingState::EXTENDING) ||
@@ -145,10 +161,26 @@ int64_t MappingResuming::processNewKeyframe(double timestamp, const Eigen::Isome
         return -1;
     }
 
+    const bool has_tracking_constraint = loaded_tracking_match_id >= 0;
     Eigen::Isometry3d T_map_odom = world_localizing_.getMapToOdomTransform();
-    Eigen::Isometry3d pose_in_map = T_map_odom * odom_pose;
+    Eigen::Isometry3d pose_in_map = has_tracking_constraint
+        ? tracked_pose_in_map
+        : T_map_odom * odom_pose;
     if (!isFiniteTransform(T_map_odom) || !isFiniteTransform(pose_in_map)) {
         return -1;
+    }
+
+    Keyframe::Ptr tracking_match;
+    if (has_tracking_constraint) {
+        tracking_match = keyframe_manager_.getKeyframe(
+            loaded_tracking_match_id);
+        if (!tracking_match || !tracking_match->is_from_loaded_map ||
+            !optimizer_.hasNode(loaded_tracking_match_id) ||
+            !isFiniteTransform(tracking_match->pose_optimized) ||
+            !validNoise(config_.loop_noise_position,
+                        config_.loop_noise_rotation)) {
+            return -1;
+        }
     }
 
     if (!keyframe_manager_.shouldAddKeyframe(pose_in_map)) return -1;
@@ -190,9 +222,23 @@ int64_t MappingResuming::processNewKeyframe(double timestamp, const Eigen::Isome
         keyframe_manager_.addKeyframe(timestamp, pose_in_map, cloud);
     edge.to_id = new_kf_id;
 
-    const bool edge_staged = is_first_new_keyframe
-        ? optimizer_.addSessionAnchorEdge(edge)
-        : (optimizer_.addOdometryEdge(edge), true);
+    bool edge_staged = false;
+    if (is_first_new_keyframe) {
+        edge_staged = optimizer_.addSessionAnchorEdge(edge);
+    } else {
+        edge_staged = optimizer_.addSessionOdometryEdge(edge, pose_in_map);
+        if (edge_staged && has_tracking_constraint) {
+            EdgeInfo tracking_edge;
+            tracking_edge.from_id = loaded_tracking_match_id;
+            tracking_edge.to_id = new_kf_id;
+            tracking_edge.measurement =
+                tracking_match->pose_optimized.inverse() * pose_in_map;
+            tracking_edge.information = trackingInformation(config_);
+            tracking_edge.type = EdgeType::LOOP;
+            tracking_edge.constraint_mode = EdgeConstraintMode::FULL_6DOF;
+            optimizer_.addLoopEdge(tracking_edge);
+        }
+    }
     if (!edge_staged || !optimizer_.incrementalOptimize()) {
         if (!keyframe_manager_.removeLatestKeyframe(new_kf_id)) {
             LOG(ERROR) << "[MappingResuming] Failed to roll back keyframe id="
@@ -210,6 +256,23 @@ int64_t MappingResuming::processNewKeyframe(double timestamp, const Eigen::Isome
                   << edge.from_id << " to=" << edge.to_id
                   << " measurement_t=" << edge.measurement.translation().transpose()
                   << " measurement_rpy_deg=" << measurement_rpy_deg.transpose();
+        last_trusted_constraint_keyframe_id_ = new_kf_id;
+    } else if (has_tracking_constraint) {
+        ++cross_loop_count_;
+        last_trusted_constraint_keyframe_id_ = new_kf_id;
+        LOG(INFO) << "[MappingResuming] Committed loaded-map tracking loop "
+                  << "match=" << loaded_tracking_match_id
+                  << " query=" << new_kf_id;
+    }
+
+    const auto optimized_poses = optimizer_.getOptimizedPoses();
+    const auto optimized_current = optimized_poses.find(new_kf_id);
+    if (optimized_current != optimized_poses.end()) {
+        const Eigen::Isometry3d corrected_map_odom =
+            optimized_current->second * odom_pose.inverse();
+        if (isFiniteTransform(corrected_map_odom)) {
+            world_localizing_.setMapToOdomTransform(corrected_map_odom);
+        }
     }
 
     // From this point the graph and keyframe are committed. Descriptor
@@ -453,8 +516,11 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
         const Eigen::Isometry3d rebase_correction =
             from_pose->second * edges.front().measurement *
             to_pose->second.inverse();
+        const int64_t first_unconstrained_node =
+            std::max(original_max_keyframe_id_ + 1,
+                     last_trusted_constraint_keyframe_id_ + 1);
         if (!optimizer_.rebaseSessionAndAddLoopEdge(
-                edges.front(), original_max_keyframe_id_ + 1)) {
+                edges.front(), first_unconstrained_node)) {
             LOG(WARNING) << "[MappingResuming] Cross-session graph rebase failed "
                          << "query=" << new_keyframe_id;
             return 0;
@@ -466,6 +532,7 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
                   << " correction_r="
                   << Eigen::AngleAxisd(rebase_correction.rotation()).angle();
         cross_loop_count_ += edges.size();
+        last_trusted_constraint_keyframe_id_ = new_keyframe_id;
         LOG(INFO) << "[MappingResuming] Committed cross-session loop query="
                   << new_keyframe_id << " edge_count=" << edges.size();
 
@@ -540,6 +607,7 @@ void MappingResuming::reset() {
     cross_loop_count_ = 0;
     relocalization_anchor_keyframe_id_ = -1;
     previous_new_keyframe_id_ = -1;
+    last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
     first_new_keyframe_pending_ = false;
     world_localizing_.reset();

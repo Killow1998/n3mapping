@@ -39,7 +39,11 @@ public:
 
     bool initializeFromLoadedMap();
     bool performInitialRelocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
-    int64_t processNewKeyframe(double timestamp, const Eigen::Isometry3d& odom_pose, const PointCloudT::Ptr& cloud);
+    int64_t processNewKeyframe(
+        double timestamp, const Eigen::Isometry3d& odom_pose,
+        const PointCloudT::Ptr& cloud, int64_t loaded_tracking_match_id = -1,
+        const Eigen::Isometry3d& tracked_pose_in_map =
+            Eigen::Isometry3d::Identity());
     int detectCrossLoops(int64_t new_keyframe_id);
     bool saveExtendedMap(const std::string& map_path);
     MappingResumingState getState() const;
@@ -67,6 +71,7 @@ private:
     size_t cross_loop_count_;
     int64_t relocalization_anchor_keyframe_id_;
     int64_t previous_new_keyframe_id_;
+    int64_t last_trusted_constraint_keyframe_id_;
     Eigen::Isometry3d previous_new_odom_pose_;
     bool first_new_keyframe_pending_;
     mutable std::mutex mutex_;
