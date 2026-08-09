@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <limits>
 #include <string>
 
@@ -11,11 +12,14 @@
 #include "n3mapping/loop_graph_trial_diagnostics.h"
 #include "n3mapping/loop_verifier.h"
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/visibility_consistency.h"
 
 namespace n3mapping {
 
 struct LoopVerificationContext {
     bool cross_session = false;
+    std::function<VisibilityConsistencyResult(const Eigen::Isometry3d&)>
+        pose_visibility_evaluator;
 };
 
 struct LoopVerificationPipelineResult {
@@ -28,6 +32,8 @@ struct LoopVerificationPipelineResult {
     int registration_hypothesis_count = 0;
     double selected_seed_yaw_rad =
         std::numeric_limits<double>::quiet_NaN();
+    bool pose_visibility_evaluated = false;
+    VisibilityConsistencyResult pose_visibility;
     std::string reject_stage;
     std::string reject_reason;
 };

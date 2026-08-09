@@ -315,7 +315,14 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     LoopVerificationPipeline verification_pipeline(
         config_, keyframe_manager_, matcher_, optimizer_,
         loop_closure_manager_);
-    const LoopVerificationContext verification_context{true};
+    LoopVerificationContext verification_context;
+    verification_context.cross_session = true;
+    verification_context.pose_visibility_evaluator =
+        [this, query_cloud = new_kf->cloud](
+            const Eigen::Isometry3d& T_map_query) {
+            return world_localizing_.evaluateLoadedMapPoseVisibility(
+                query_cloud, T_map_query);
+        };
 
     for (const auto& candidate : candidates) {
         if (!isFromOriginalMap(candidate.match_id) ||
@@ -336,7 +343,13 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
                     << verification.descriptor_seeded
                     << " yaw_seed=" << verification.selected_seed_yaw_rad
                     << " hypotheses="
-                    << verification.registration_hypothesis_count;
+                    << verification.registration_hypothesis_count
+                    << " visibility="
+                    << verification.pose_visibility.consistency_ratio
+                    << " visibility_logodds="
+                    << verification.pose_visibility.evidence_log_odds
+                    << " visibility_conflict="
+                    << verification.pose_visibility.foreground_conflict_ratio;
             continue;
         }
         VLOG(1) << "[MappingResuming] Verified cross-session candidate query="
@@ -349,7 +362,13 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
                 << verification.descriptor_seeded
                 << " yaw_seed=" << verification.selected_seed_yaw_rad
                 << " hypotheses="
-                << verification.registration_hypothesis_count;
+                << verification.registration_hypothesis_count
+                << " visibility="
+                << verification.pose_visibility.consistency_ratio
+                << " visibility_logodds="
+                << verification.pose_visibility.evidence_log_odds
+                << " visibility_conflict="
+                << verification.pose_visibility.foreground_conflict_ratio;
         verified_loops.push_back(std::move(verification.loop));
     }
 

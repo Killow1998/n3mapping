@@ -51,7 +51,9 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       frame_rhpd_manager_(loop_detector.getRHPDManager().getDescriptorParams()),
       frame_rhpd_indexed_keyframes_(0),
       reloc_map_cache_(pcl::make_shared<PointCloudT>()),
-      reloc_map_cached_keyframes_(0), is_relocalized_(false),
+      reloc_map_cached_keyframes_(0),
+      loaded_map_visibility_cache_(pcl::make_shared<PointCloudT>()),
+      is_relocalized_(false),
       T_map_odom_(Eigen::Isometry3d::Identity()), last_matched_id_(-1),
       relocalization_seed_id_(-1),
       last_odom_pose_(Eigen::Isometry3d::Identity()),
@@ -1248,6 +1250,8 @@ void WorldLocalizing::notifyMapReplaced() {
   frame_rhpd_indexed_keyframes_ = 0;
   reloc_map_cache_ = pcl::make_shared<PointCloudT>();
   reloc_map_cached_keyframes_ = 0;
+  loaded_map_visibility_cache_ = pcl::make_shared<PointCloudT>();
+  loaded_map_visibility_cached_keyframes_ = 0;
   free_space_grid_ = FreeSpaceGrid();
   free_space_grid_keyframes_ = 0;
   free_space_grid_failed_ = false;
@@ -1782,6 +1786,38 @@ WorldLocalizing::buildRelocTargetCloud(int64_t center_id) {
     return pcl::make_shared<PointCloudT>();
   return LocalizationAtlas::cropGlobalMap(
       config_, reloc_map_cache_, center_keyframe->pose_optimized.translation());
+}
+
+void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
+  std::vector<Keyframe::Ptr> loaded_keyframes;
+  for (const auto &keyframe : keyframe_manager_.getAllKeyframes()) {
+    if (keyframe && keyframe->is_from_loaded_map) {
+      loaded_keyframes.push_back(keyframe);
+    }
+  }
+  if (loaded_map_visibility_cache_ &&
+      !loaded_map_visibility_cache_->empty() &&
+      loaded_map_visibility_cached_keyframes_ == loaded_keyframes.size()) {
+    return;
+  }
+  loaded_map_visibility_cache_ =
+      LocalizationAtlas::buildGlobalMap(config_, loaded_keyframes);
+  loaded_map_visibility_cached_keyframes_ = loaded_keyframes.size();
+}
+
+VisibilityConsistencyResult
+WorldLocalizing::evaluateLoadedMapPoseVisibility(
+    const PointCloudT::Ptr &query_cloud,
+    const Eigen::Isometry3d &T_map_lidar) {
+  if (!query_cloud || query_cloud->empty() ||
+      !T_map_lidar.matrix().allFinite()) {
+    return {};
+  }
+  std::lock_guard<std::mutex> lock(mutex_);
+  rebuildLoadedMapVisibilityCacheIfNeeded();
+  auto target = LocalizationAtlas::cropGlobalMap(
+      config_, loaded_map_visibility_cache_, T_map_lidar.translation());
+  return evaluatePoseVisibility(target, query_cloud, T_map_lidar);
 }
 
 VisibilityConsistencyResult WorldLocalizing::evaluatePoseVisibility(

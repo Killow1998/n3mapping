@@ -297,7 +297,9 @@ TEST(LoopVerificationPipelineTest,
     LoopCandidate candidate;
     candidate.query_id = query->id;
     candidate.match_id = match->id;
-    const auto result = pipeline.evaluate(candidate, {true});
+    LoopVerificationContext context;
+    context.cross_session = true;
+    const auto result = pipeline.evaluate(candidate, context);
 
     EXPECT_FALSE(result.registration_attempted);
     EXPECT_FALSE(result.loop.verified);
@@ -337,7 +339,9 @@ TEST(LoopVerificationPipelineTest,
     candidate.sc_distance = 0.0;
     candidate.yaw_diff_rad = 0.0f;
     candidate.descriptor_score = 1.0;
-    const auto result = pipeline.evaluate(candidate, {true});
+    LoopVerificationContext context;
+    context.cross_session = true;
+    const auto result = pipeline.evaluate(candidate, context);
 
     EXPECT_TRUE(result.registration_attempted);
     EXPECT_TRUE(result.descriptor_seeded);
@@ -346,6 +350,23 @@ TEST(LoopVerificationPipelineTest,
     EXPECT_LT(result.verification.match_result.fitness_score, 1.0e-3);
     EXPECT_TRUE(result.verification.T_measured_match_query.isApprox(
         Eigen::Isometry3d::Identity(), 1.0e-2));
+
+    LoopVerificationContext guarded_context;
+    guarded_context.cross_session = true;
+    guarded_context.pose_visibility_evaluator =
+        [](const Eigen::Isometry3d&) {
+            VisibilityConsistencyResult visibility;
+            visibility.valid = true;
+            visibility.consistency_ratio = 0.4;
+            visibility.evidence_log_odds = -0.1;
+            return visibility;
+        };
+    const auto visibility_rejected =
+        pipeline.evaluate(candidate, guarded_context);
+    EXPECT_FALSE(visibility_rejected.loop.verified);
+    EXPECT_EQ(visibility_rejected.reject_stage, "visibility");
+    EXPECT_EQ(visibility_rejected.reject_reason,
+              "loaded_map_visibility_nonpositive");
 }
 
 TEST(LoopVerificationPipelineTest,

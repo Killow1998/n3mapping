@@ -111,6 +111,11 @@ public:
   probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
                          const Eigen::Isometry3d &odom_pose,
                          const Eigen::Isometry3d &oracle_pose);
+  // Cross-session constraints must explain the current scan in the immutable
+  // loaded map, not in keyframes added by the extension they are judging.
+  VisibilityConsistencyResult evaluateLoadedMapPoseVisibility(
+      const PointCloudT::Ptr &query_cloud,
+      const Eigen::Isometry3d &T_map_lidar);
 
 private:
   struct RelocHypothesis {
@@ -165,6 +170,7 @@ private:
       const PointCloudMatcher::PreparedSource &prepared_cloud,
       const LoopCandidate &candidate);
   void rebuildRelocMapCacheIfNeeded();
+  void rebuildLoadedMapVisibilityCacheIfNeeded();
   void rebuildFreeSpaceGridIfNeeded();
   void killFreeSpaceDominatedHypotheses(const PointCloudT::Ptr &query_cloud,
                                         const Eigen::Isometry3d &odom_pose);
@@ -205,6 +211,8 @@ private:
   size_t frame_rhpd_indexed_keyframes_;
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
+  PointCloudT::Ptr loaded_map_visibility_cache_;
+  size_t loaded_map_visibility_cached_keyframes_ = 0;
   // Frames the current hypothesis set has survived across rejected
   // windows. Only a valve: a set that never resolves must not wedge the
   // episode forever.

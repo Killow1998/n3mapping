@@ -187,12 +187,34 @@ void assignGraphTrialDiagnostics(
     loop->graph_trial_recommendation = diagnostics.recommendation;
 }
 
-bool betterRegistration(const LoopVerification& candidate,
-                        const LoopVerification& incumbent,
-                        bool has_incumbent) {
+bool betterRegistration(
+    const LoopVerification& candidate,
+    const VisibilityConsistencyResult& candidate_visibility,
+    const LoopVerification& incumbent,
+    const VisibilityConsistencyResult& incumbent_visibility,
+    bool prefer_visibility, bool has_incumbent) {
     if (!has_incumbent) return true;
     if (candidate.loop.verified != incumbent.loop.verified) {
         return candidate.loop.verified;
+    }
+    if (prefer_visibility) {
+        if (candidate_visibility.valid != incumbent_visibility.valid) {
+            return candidate_visibility.valid;
+        }
+        if (candidate_visibility.valid) {
+            const double candidate_evidence =
+                candidate_visibility.evidence_log_odds;
+            const double incumbent_evidence =
+                incumbent_visibility.evidence_log_odds;
+            if (std::isfinite(candidate_evidence) !=
+                std::isfinite(incumbent_evidence)) {
+                return std::isfinite(candidate_evidence);
+            }
+            if (std::isfinite(candidate_evidence) &&
+                std::abs(candidate_evidence - incumbent_evidence) > 1e-12) {
+                return candidate_evidence > incumbent_evidence;
+            }
+        }
     }
     const double candidate_fitness = candidate.match_result.fitness_score;
     const double incumbent_fitness = incumbent.match_result.fitness_score;
@@ -287,12 +309,23 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
     }
 
     result.registration_attempted = true;
+    const bool evaluate_visibility =
+        static_cast<bool>(context.pose_visibility_evaluator);
+    const auto pose_visibility = [&](const LoopVerification& verification) {
+        if (!evaluate_visibility || !verification.loop.verified) {
+            return VisibilityConsistencyResult{};
+        }
+        const Eigen::Isometry3d T_map_query =
+            match->pose_optimized * verification.T_measured_match_query;
+        return context.pose_visibility_evaluator(T_map_query);
+    };
     if (result.descriptor_seeded) {
         const auto yaw_hypotheses =
             buildDescriptorYawHypotheses(candidate, config_);
         result.registration_hypothesis_count =
             static_cast<int>(yaw_hypotheses.size());
         bool has_verification = false;
+        VisibilityConsistencyResult selected_visibility;
         for (double yaw : yaw_hypotheses) {
             Eigen::Isometry3d initial = Eigen::Isometry3d::Identity();
             initial.linear() = Eigen::AngleAxisd(
@@ -300,25 +333,41 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
             auto verification = loop_verifier_.verifyPreparedQueryToMatch(
                 candidate, query, match, result.source_registration_cloud,
                 result.target_registration_cloud, initial, matcher_);
+            const auto visibility = pose_visibility(verification);
             if (betterRegistration(
-                    verification, result.verification, has_verification)) {
+                    verification, visibility, result.verification,
+                    selected_visibility, evaluate_visibility,
+                    has_verification)) {
                 result.verification = std::move(verification);
+                selected_visibility = visibility;
                 result.selected_seed_yaw_rad = yaw;
                 has_verification = true;
             }
         }
+        result.pose_visibility = selected_visibility;
     } else {
         result.registration_hypothesis_count = 1;
         result.verification = loop_verifier_.verifyPreparedSubmaps(
             candidate, query, match, result.source_registration_cloud,
             result.target_registration_cloud, matcher_);
+        result.pose_visibility = pose_visibility(result.verification);
     }
+    result.pose_visibility_evaluated = evaluate_visibility;
     result.loop = result.verification.loop;
     if (!result.loop.verified) {
         result.reject_stage = "registration";
         result.reject_reason = result.verification.reject_reason.empty()
                                    ? "registration_quality"
                                    : result.verification.reject_reason;
+        return result;
+    }
+    if (evaluate_visibility &&
+        (!result.pose_visibility.valid ||
+         !std::isfinite(result.pose_visibility.evidence_log_odds) ||
+         result.pose_visibility.evidence_log_odds <= 0.0)) {
+        result.loop.verified = false;
+        result.reject_stage = "visibility";
+        result.reject_reason = "loaded_map_visibility_nonpositive";
         return result;
     }
 
