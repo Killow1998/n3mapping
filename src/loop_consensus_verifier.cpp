@@ -369,7 +369,8 @@ LoopConsensusResult LoopConsensusVerifier::summarizePairs(
 LoopConsensusResult LoopConsensusVerifier::evaluate(const KeyframeManager& keyframes,
                                                     PointCloudMatcher& matcher,
                                                     const VerifiedLoop& central_loop,
-                                                    int half_window) const
+                                                    int half_window,
+                                                    bool cross_session) const
 {
     std::vector<LoopConsensusPairEvidence> pairs;
     if (half_window < 1 || central_loop.query_id < 0 || central_loop.match_id < 0) {
@@ -397,6 +398,17 @@ LoopConsensusResult LoopConsensusVerifier::evaluate(const KeyframeManager& keyfr
             std::abs(evidence.query_neighbor_id - evidence.match_neighbor_id) <
                 config_.sc_num_exclude_recent) {
             evidence.reject_reason = "missing_or_recent_neighbor";
+            pairs.push_back(evidence);
+            continue;
+        }
+        // At the beginning of an extension session, query_id - offset can fall
+        // back into the loaded map even though the central query is new. Those
+        // old-map/old-map pairs only prove that the map agrees with itself and
+        // falsely supplied enough votes to commit the first cross-session loop.
+        if (cross_session &&
+            (query_neighbor->is_from_loaded_map ||
+             !match_neighbor->is_from_loaded_map)) {
+            evidence.reject_reason = "session_boundary_neighbor";
             pairs.push_back(evidence);
             continue;
         }

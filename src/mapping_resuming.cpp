@@ -345,6 +345,23 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     for (const auto& loop : best_loops) {
         auto constraint = verification_pipeline.evaluateConstraint(
             loop, LoopEdgeDirection::MatchToQuery, constraint_context);
+        VLOG(1) << "[MappingResuming] Cross-session consensus query="
+                << loop.query_id << " match=" << loop.match_id
+                << " decision="
+                << loopConsensusDecisionName(constraint.consensus.decision)
+                << " valid=" << constraint.consensus.valid_pair_count
+                << " left=" << constraint.consensus.left_support_count
+                << " right=" << constraint.consensus.right_support_count
+                << " contradictions="
+                << constraint.consensus.contradiction_count
+                << " median_t="
+                << constraint.consensus.median_translation_delta
+                << " median_r="
+                << constraint.consensus.median_rotation_delta
+                << " estimator="
+                << constraint.consensus.estimator_recommendation
+                << " estimator_pairs="
+                << constraint.consensus.estimator_pair_count;
         if (!constraint.accepted || !constraint.has_edge) {
             VLOG(1) << "[MappingResuming] Defer cross-session constraint query="
                     << loop.query_id << " match=" << loop.match_id

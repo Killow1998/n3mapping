@@ -45,6 +45,25 @@ Config consensusConfig()
     return config;
 }
 
+Keyframe::PointCloudT::Ptr registrationCloud()
+{
+    auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
+    for (int x = 0; x < 5; ++x) {
+        for (int y = 0; y < 5; ++y) {
+            pcl::PointXYZI point;
+            point.x = 0.2f * static_cast<float>(x);
+            point.y = 0.2f * static_cast<float>(y);
+            point.z = 0.05f * static_cast<float>((x + y) % 3);
+            point.intensity = 1.0f;
+            cloud->push_back(point);
+        }
+    }
+    cloud->width = static_cast<std::uint32_t>(cloud->size());
+    cloud->height = 1;
+    cloud->is_dense = true;
+    return cloud;
+}
+
 }  // namespace
 
 TEST(LoopConsensusVerifierTest, PredictsNeighborTransformFromCentralLoop)
@@ -141,6 +160,41 @@ TEST(LoopConsensusVerifierTest, EstimatesConsensusMeasurementFromNeighborPairs)
     EXPECT_EQ(result.estimator_recommendation, "stable_consensus_measurement");
     EXPECT_LT(result.estimator_measurement_delta_translation, 0.2);
     EXPECT_LT(result.estimator_measurement_delta_rotation, 0.1);
+}
+
+TEST(LoopConsensusVerifierTest,
+     CrossSessionDoesNotCountLoadedMapFramesAsQueryNeighbors)
+{
+    Config config = consensusConfig();
+    config.num_threads = 1;
+    config.gicp_fitness_threshold = 1.0;
+    config.reloc_min_inlier_ratio = 0.0;
+    KeyframeManager keyframes(config);
+    const auto cloud = registrationCloud();
+    std::vector<Keyframe::Ptr> frames;
+    frames.reserve(103);
+    for (int64_t id = 0; id <= 102; ++id) {
+        frames.push_back(Keyframe::create(
+            id, static_cast<double>(id), Eigen::Isometry3d::Identity(), cloud));
+    }
+    keyframes.loadKeyframes(frames);
+    keyframes.getKeyframe(101)->is_from_loaded_map = false;
+    keyframes.getKeyframe(102)->is_from_loaded_map = false;
+
+    VerifiedLoop loop;
+    loop.query_id = 102;
+    loop.match_id = 50;
+    loop.verified = true;
+    loop.T_measured_match_query = Eigen::Isometry3d::Identity();
+    PointCloudMatcher matcher(config);
+
+    const auto result = LoopConsensusVerifier(config).evaluate(
+        keyframes, matcher, loop, 5, true);
+
+    EXPECT_EQ(result.decision, LoopConsensusDecision::Defer);
+    EXPECT_EQ(result.valid_pair_count, 1);
+    EXPECT_EQ(result.left_support_count, 1);
+    EXPECT_EQ(result.pairs[1].reject_reason, "session_boundary_neighbor");
 }
 
 }  // namespace n3mapping

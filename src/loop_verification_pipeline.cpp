@@ -326,7 +326,7 @@ LoopConstraintPipelineResult LoopVerificationPipeline::evaluateConstraint(
 
     result.consensus = consensus_verifier_.evaluate(
         keyframe_manager_, matcher_, result.loop,
-        std::max(2, config_.gicp_submap_size));
+        std::max(2, config_.gicp_submap_size), context.cross_session);
     assignLoopConsensus(&result.loop, result.consensus);
     if (context.cross_session &&
         result.consensus.decision != LoopConsensusDecision::Commit) {

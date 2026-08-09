@@ -78,7 +78,8 @@ public:
     LoopConsensusResult evaluate(const KeyframeManager& keyframes,
                                  PointCloudMatcher& matcher,
                                  const VerifiedLoop& central_loop,
-                                 int half_window = 2) const;
+                                 int half_window = 2,
+                                 bool cross_session = false) const;
 
     static Eigen::Isometry3d predictNeighborTransform(const Eigen::Isometry3d& T_world_query,
                                                       const Eigen::Isometry3d& T_world_match,
