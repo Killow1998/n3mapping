@@ -338,11 +338,14 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     }
 
     auto valid_loops = loop_closure_manager_.filterValidLoops(verified_loops);
-    auto best_loops = loop_closure_manager_.selectBestPerQuery(valid_loops);
-    std::vector<EdgeInfo> edges;
-    edges.reserve(best_loops.size());
+    std::vector<LoopConstraintPipelineResult> accepted_constraints;
+    accepted_constraints.reserve(valid_loops.size());
     const LoopConstraintContext constraint_context{true};
-    for (const auto& loop : best_loops) {
+    // A good single-frame score is not enough to choose the cross-session
+    // correspondence. Gate every bounded candidate with independent neighbor
+    // evidence first; otherwise one attractive alias can be selected, fail
+    // consensus, and suppress a valid candidate from the same query.
+    for (const auto& loop : valid_loops) {
         auto constraint = verification_pipeline.evaluateConstraint(
             loop, LoopEdgeDirection::MatchToQuery, constraint_context);
         VLOG(1) << "[MappingResuming] Cross-session consensus query="
@@ -371,7 +374,28 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
                     << loopConsensusDecisionName(constraint.consensus.decision);
             continue;
         }
-        edges.push_back(constraint.edge);
+        accepted_constraints.push_back(std::move(constraint));
+    }
+
+    std::vector<VerifiedLoop> accepted_loops;
+    accepted_loops.reserve(accepted_constraints.size());
+    for (const auto& constraint : accepted_constraints) {
+        accepted_loops.push_back(constraint.loop);
+    }
+    const auto best_loops =
+        loop_closure_manager_.selectBestPerQuery(accepted_loops);
+    std::vector<EdgeInfo> edges;
+    edges.reserve(best_loops.size());
+    for (const auto& best : best_loops) {
+        const auto selected = std::find_if(
+            accepted_constraints.begin(), accepted_constraints.end(),
+            [&](const LoopConstraintPipelineResult& candidate) {
+                return candidate.loop.query_id == best.query_id &&
+                       candidate.loop.match_id == best.match_id;
+            });
+        if (selected != accepted_constraints.end()) {
+            edges.push_back(selected->edge);
+        }
     }
     if (!edges.empty()) {
         if (!loop_closure_manager_.applyEdges(edges, optimizer_)) {
