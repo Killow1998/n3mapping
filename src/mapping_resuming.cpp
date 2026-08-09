@@ -178,8 +178,8 @@ int64_t MappingResuming::processNewKeyframe(
         if (!tracking_match || !tracking_match->is_from_loaded_map ||
             !optimizer_.hasNode(loaded_tracking_match_id) ||
             !isFiniteTransform(tracking_match->pose_optimized) ||
-            !validNoise(config_.loop_noise_position,
-                        config_.loop_noise_rotation)) {
+            !validNoise(config_.loaded_map_tracking_noise_position,
+                        config_.loaded_map_tracking_noise_rotation)) {
             return -1;
         }
     }
@@ -194,8 +194,8 @@ int64_t MappingResuming::processNewKeyframe(
             relocalization_anchor_keyframe_id_);
         if (!anchor || !optimizer_.hasNode(relocalization_anchor_keyframe_id_) ||
             !isFiniteTransform(anchor->pose_optimized) ||
-            !validNoise(config_.loop_noise_position,
-                        config_.loop_noise_rotation)) {
+            !validNoise(config_.loaded_map_tracking_noise_position,
+                        config_.loaded_map_tracking_noise_rotation)) {
             return -1;
         }
         edge.from_id = relocalization_anchor_keyframe_id_;
