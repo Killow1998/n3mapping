@@ -243,6 +243,29 @@ std::string consensusReason(LoopConsensusDecision decision,
     return "weak_consensus";
 }
 
+Keyframe::Ptr findLoadedMapCorrespondence(
+    const std::vector<Keyframe::Ptr>& keyframes, int64_t central_match_id,
+    int local_id_radius, const Eigen::Isometry3d& expected_world_pose)
+{
+    Keyframe::Ptr best;
+    double best_score = std::numeric_limits<double>::infinity();
+    for (const auto& keyframe : keyframes) {
+        if (!keyframe || !keyframe->is_from_loaded_map ||
+            std::abs(keyframe->id - central_match_id) > local_id_radius) {
+            continue;
+        }
+        const Eigen::Isometry3d residual =
+            expected_world_pose.inverse() * keyframe->pose_optimized;
+        const double score = residual.translation().norm() +
+                             rotationAngle(residual);
+        if (score < best_score) {
+            best_score = score;
+            best = keyframe;
+        }
+    }
+    return best;
+}
+
 }  // namespace
 
 const char* loopConsensusDecisionName(LoopConsensusDecision decision)
@@ -383,6 +406,8 @@ LoopConsensusResult LoopConsensusVerifier::evaluate(const KeyframeManager& keyfr
         return summarizePairs(config_, pairs);
     }
 
+    const auto all_keyframes = keyframes.getAllKeyframes();
+    const int local_id_radius = std::max(12, 6 * half_window);
     for (int offset = -half_window; offset <= half_window; ++offset) {
         if (offset == 0) {
             continue;
@@ -390,24 +415,63 @@ LoopConsensusResult LoopConsensusVerifier::evaluate(const KeyframeManager& keyfr
         LoopConsensusPairEvidence evidence;
         evidence.offset = offset;
         evidence.query_neighbor_id = central_loop.query_id + offset;
-        evidence.match_neighbor_id = central_loop.match_id + offset;
 
         const auto query_neighbor = keyframes.getKeyframe(evidence.query_neighbor_id);
-        const auto match_neighbor = keyframes.getKeyframe(evidence.match_neighbor_id);
-        if (!query_neighbor || !match_neighbor ||
-            std::abs(evidence.query_neighbor_id - evidence.match_neighbor_id) <
-                config_.sc_num_exclude_recent) {
+        if (!query_neighbor) {
             evidence.reject_reason = "missing_or_recent_neighbor";
             pairs.push_back(evidence);
             continue;
         }
-        // At the beginning of an extension session, query_id - offset can fall
-        // back into the loaded map even though the central query is new. Those
-        // old-map/old-map pairs only prove that the map agrees with itself and
-        // falsely supplied enough votes to commit the first cross-session loop.
-        if (cross_session &&
-            (query_neighbor->is_from_loaded_map ||
-             !match_neighbor->is_from_loaded_map)) {
+
+        Keyframe::Ptr match_neighbor;
+        Eigen::Isometry3d predicted = Eigen::Isometry3d::Identity();
+        if (cross_session) {
+            // Different sessions do not create keyframes at the same rate.
+            // Project this query neighbor through the central measurement,
+            // then choose a loaded-map keyframe in the same local topological
+            // basin. This permits stationary/repeated query keyframes to map
+            // to one old frame instead of inventing an ID-offset contract.
+            if (query_neighbor->is_from_loaded_map) {
+                evidence.reject_reason = "session_boundary_neighbor";
+                pairs.push_back(evidence);
+                continue;
+            }
+            const Eigen::Isometry3d T_query_query_neighbor =
+                query->pose_optimized.inverse() *
+                query_neighbor->pose_optimized;
+            const Eigen::Isometry3d expected_world_pose =
+                match->pose_optimized * central_loop.T_measured_match_query *
+                T_query_query_neighbor;
+            match_neighbor = findLoadedMapCorrespondence(
+                all_keyframes, central_loop.match_id, local_id_radius,
+                expected_world_pose);
+            if (!match_neighbor) {
+                evidence.reject_reason = "missing_loaded_map_correspondence";
+                pairs.push_back(evidence);
+                continue;
+            }
+            evidence.match_neighbor_id = match_neighbor->id;
+            predicted = match_neighbor->pose_optimized.inverse() *
+                        expected_world_pose;
+        } else {
+            evidence.match_neighbor_id = central_loop.match_id + offset;
+            match_neighbor =
+                keyframes.getKeyframe(evidence.match_neighbor_id);
+            if (!match_neighbor ||
+                std::abs(evidence.query_neighbor_id -
+                         evidence.match_neighbor_id) <
+                    config_.sc_num_exclude_recent) {
+                evidence.reject_reason = "missing_or_recent_neighbor";
+                pairs.push_back(evidence);
+                continue;
+            }
+            predicted = predictNeighborTransform(
+                query->pose_optimized, match->pose_optimized,
+                query_neighbor->pose_optimized,
+                match_neighbor->pose_optimized,
+                central_loop.T_measured_match_query);
+        }
+        if (cross_session && !match_neighbor->is_from_loaded_map) {
             evidence.reject_reason = "session_boundary_neighbor";
             pairs.push_back(evidence);
             continue;
@@ -423,12 +487,6 @@ LoopConsensusResult LoopConsensusVerifier::evaluate(const KeyframeManager& keyfr
             continue;
         }
 
-        const Eigen::Isometry3d predicted = predictNeighborTransform(
-            query->pose_optimized,
-            match->pose_optimized,
-            query_neighbor->pose_optimized,
-            match_neighbor->pose_optimized,
-            central_loop.T_measured_match_query);
         const MatchResult match_result = matcher.alignCloud(target, source, predicted);
         evidence.valid = true;
         evidence.converged = match_result.converged;

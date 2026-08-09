@@ -601,6 +601,51 @@ TEST_F(GraphOptimizerTest, LoadGraphRestoresSessionAnchorType) {
     EXPECT_EQ(loaded_edges[0].type, EdgeType::SESSION_ANCHOR);
 }
 
+TEST_F(GraphOptimizerTest, TrustedSessionLoopRebasesOutsideCauchyBasin) {
+    config_.use_robust_kernel = true;
+    config_.robust_kernel_type = "Cauchy";
+    config_.robust_kernel_delta = 1.0;
+    GraphOptimizer optimizer(config_);
+
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
+    nodes.emplace_back(0, createPose(0, 0, 0));
+    for (int64_t id = 100; id <= 105; ++id) {
+        nodes.emplace_back(id, createPose(static_cast<double>(id - 100), 0, 0));
+    }
+
+    std::vector<EdgeInfo> edges;
+    EdgeInfo anchor;
+    anchor.from_id = 0;
+    anchor.to_id = 100;
+    anchor.measurement = Eigen::Isometry3d::Identity();
+    anchor.information = createInformationMatrix(100.0, 100.0);
+    anchor.type = EdgeType::SESSION_ANCHOR;
+    edges.push_back(anchor);
+    for (int64_t id = 100; id < 105; ++id) {
+        EdgeInfo odometry;
+        odometry.from_id = id;
+        odometry.to_id = id + 1;
+        odometry.measurement = createPose(1, 0, 0);
+        odometry.information = createInformationMatrix(10000.0, 10000.0);
+        odometry.type = EdgeType::ODOMETRY;
+        edges.push_back(odometry);
+    }
+    ASSERT_TRUE(optimizer.loadGraph(nodes, edges));
+
+    EdgeInfo loop;
+    loop.from_id = 0;
+    loop.to_id = 105;
+    loop.measurement = createPose(15, 0, 0);
+    loop.information = createInformationMatrix(400.0, 4.0);
+    loop.type = EdgeType::LOOP;
+    ASSERT_TRUE(optimizer.rebaseSessionAndAddLoopEdge(loop, 100));
+
+    EXPECT_NEAR(optimizer.getOptimizedPose(105).translation().x(), 15.0, 0.1);
+    ASSERT_EQ(optimizer.getEdges().size(), edges.size() + 1);
+    EXPECT_EQ(optimizer.getEdges().back().type, EdgeType::LOOP);
+    EXPECT_TRUE(optimizer.hasLoopClosure());
+}
+
 }  // namespace test
 }  // namespace n3mapping
 

@@ -433,9 +433,38 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
         }
     }
     if (!edges.empty()) {
-        if (!loop_closure_manager_.applyEdges(edges, optimizer_)) {
+        // A correct session-merge loop can be tens of metres from the raw
+        // odometry chain. With a redescending kernel it would enter as an
+        // outlier and barely move the graph. Seed the new-session component
+        // at the accepted measurement, preserving every raw odometry edge,
+        // then rebuild transactionally so the robust loop starts in-basin.
+        if (edges.size() != 1) {
+            LOG(ERROR) << "[MappingResuming] Expected one selected cross-session "
+                          "edge, got " << edges.size();
             return 0;
         }
+        const auto poses_before_rebase = optimizer_.getOptimizedPoses();
+        const auto from_pose = poses_before_rebase.find(edges.front().from_id);
+        const auto to_pose = poses_before_rebase.find(edges.front().to_id);
+        if (from_pose == poses_before_rebase.end() ||
+            to_pose == poses_before_rebase.end()) {
+            return 0;
+        }
+        const Eigen::Isometry3d rebase_correction =
+            from_pose->second * edges.front().measurement *
+            to_pose->second.inverse();
+        if (!optimizer_.rebaseSessionAndAddLoopEdge(
+                edges.front(), original_max_keyframe_id_ + 1)) {
+            LOG(WARNING) << "[MappingResuming] Cross-session graph rebase failed "
+                         << "query=" << new_keyframe_id;
+            return 0;
+        }
+        LOG(INFO) << "[MappingResuming] Rebased new session before loop commit "
+                  << "query=" << new_keyframe_id
+                  << " correction_t="
+                  << rebase_correction.translation().norm()
+                  << " correction_r="
+                  << Eigen::AngleAxisd(rebase_correction.rotation()).angle();
         cross_loop_count_ += edges.size();
         LOG(INFO) << "[MappingResuming] Committed cross-session loop query="
                   << new_keyframe_id << " edge_count=" << edges.size();

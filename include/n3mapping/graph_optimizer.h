@@ -154,6 +154,13 @@ class GraphOptimizer : public LoopOptimizerInterface
      * @param edge 边信息
      */
     void addLoopEdge(const EdgeInfo& edge);
+    // A trusted cross-session loop can begin far outside a redescending
+    // robust kernel's basin. Reinitialize only the new session by the loop's
+    // rigid correction, then transactionally rebuild with every original edge
+    // unchanged and the loop appended. This changes estimates, not odometry
+    // measurements or serialized edge semantics.
+    bool rebaseSessionAndAddLoopEdge(const EdgeInfo& edge,
+                                     int64_t first_session_node_id);
     // Adds a robust cross-session edge. If the target node is new, its
     // initial pose is derived from the source pose and measurement.
     // Returns false without staging anything when the source node is absent.

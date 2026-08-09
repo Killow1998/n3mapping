@@ -222,6 +222,45 @@ void GraphOptimizer::addLoopEdge(const EdgeInfo& edge) {
     needs_optimization_ = true;
 }
 
+bool GraphOptimizer::rebaseSessionAndAddLoopEdge(
+    const EdgeInfo& edge, int64_t first_session_node_id) {
+    if (needs_optimization_ || first_session_node_id < 0 ||
+        edge.from_id < 0 || edge.to_id < first_session_node_id ||
+        edge.from_id >= first_session_node_id ||
+        edge.constraint_mode != EdgeConstraintMode::FULL_6DOF ||
+        !edge.measurement.matrix().allFinite() ||
+        !edge.information.allFinite()) {
+        return false;
+    }
+
+    const auto poses = getOptimizedPoses();
+    const auto from = poses.find(edge.from_id);
+    const auto to = poses.find(edge.to_id);
+    if (from == poses.end() || to == poses.end()) {
+        return false;
+    }
+    const Eigen::Isometry3d desired_to =
+        from->second * edge.measurement;
+    const Eigen::Isometry3d correction =
+        desired_to * to->second.inverse();
+    if (!correction.matrix().allFinite()) {
+        return false;
+    }
+
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> rebased_nodes;
+    rebased_nodes.reserve(poses.size());
+    for (const auto& [id, pose] : poses) {
+        rebased_nodes.emplace_back(
+            id, id >= first_session_node_id ? correction * pose : pose);
+    }
+    auto rebuilt_edges = edges_;
+    EdgeInfo loop_edge = edge;
+    loop_edge.type = EdgeType::LOOP;
+    rebuilt_edges.push_back(loop_edge);
+    return loadGraph(rebased_nodes, rebuilt_edges,
+                     committed_floor_attitude_constraints_);
+}
+
 bool GraphOptimizer::addSessionAnchorEdge(const EdgeInfo& edge) {
     if (edge.from_id < 0 || edge.to_id < 0 ||
         !edge.measurement.matrix().allFinite() ||

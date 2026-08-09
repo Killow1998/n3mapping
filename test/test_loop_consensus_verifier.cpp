@@ -197,4 +197,50 @@ TEST(LoopConsensusVerifierTest,
     EXPECT_EQ(result.pairs[1].reject_reason, "session_boundary_neighbor");
 }
 
+TEST(LoopConsensusVerifierTest,
+     CrossSessionAllowsDifferentKeyframeSamplingRates)
+{
+    Config config = consensusConfig();
+    config.num_threads = 1;
+    config.gicp_fitness_threshold = 1.0;
+    config.reloc_min_inlier_ratio = 0.0;
+    KeyframeManager keyframes(config);
+    const auto cloud = registrationCloud();
+    std::vector<Keyframe::Ptr> frames;
+    for (int64_t id = 0; id <= 10; ++id) {
+        const Eigen::Isometry3d loaded_pose =
+            id == 5 ? Eigen::Isometry3d::Identity()
+                    : pose(100.0 + static_cast<double>(id), 0.0, 0.0);
+        frames.push_back(Keyframe::create(
+            id, static_cast<double>(id), loaded_pose, cloud));
+    }
+    for (int64_t id = 100; id <= 104; ++id) {
+        auto query = Keyframe::create(
+            id, static_cast<double>(id), Eigen::Isometry3d::Identity(), cloud);
+        frames.push_back(query);
+    }
+    keyframes.loadKeyframes(frames);
+    for (int64_t id = 100; id <= 104; ++id) {
+        keyframes.getKeyframe(id)->is_from_loaded_map = false;
+    }
+
+    VerifiedLoop loop;
+    loop.query_id = 104;
+    loop.match_id = 5;
+    loop.verified = true;
+    loop.T_measured_match_query = Eigen::Isometry3d::Identity();
+    PointCloudMatcher matcher(config);
+
+    const auto result = LoopConsensusVerifier(config).evaluate(
+        keyframes, matcher, loop, 5, true);
+
+    EXPECT_EQ(result.decision, LoopConsensusDecision::Commit);
+    EXPECT_EQ(result.valid_pair_count, 4);
+    for (const auto& pair : result.pairs) {
+        if (pair.valid) {
+            EXPECT_EQ(pair.match_neighbor_id, 5);
+        }
+    }
+}
+
 }  // namespace n3mapping
