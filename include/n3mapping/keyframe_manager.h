@@ -34,7 +34,14 @@ public:
     explicit KeyframeManager(const Config& config);
 
     bool shouldAddKeyframe(const Eigen::Isometry3d& current_pose) const;
+    bool shouldAddKeyframeInSession(
+        MapSessionId session_id,
+        const Eigen::Isometry3d& current_pose_in_session) const;
     int64_t addKeyframe(double timestamp, const Eigen::Isometry3d& pose, const Keyframe::PointCloudT::Ptr& cloud);
+    int64_t addKeyframe(
+        double timestamp, const Eigen::Isometry3d& pose_in_session,
+        const Eigen::Isometry3d& initial_pose_in_map,
+        const Keyframe::PointCloudT::Ptr& cloud, MapSessionId session_id);
     // Transaction rollback for the just-added keyframe only. The expected id
     // prevents callers from deleting an unrelated or already-followed frame.
     bool removeLatestKeyframe(int64_t expected_id);
@@ -45,13 +52,21 @@ public:
     bool empty() const;
     KeyframeMapRevision revision() const;
     void updateOptimizedPoses(const std::map<int64_t, Eigen::Isometry3d>& poses);
-    void loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes);
+    bool loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes);
+    bool loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes,
+                       const std::vector<MapSessionInfo>& sessions);
     void swapWith(KeyframeManager& other);
     int64_t getNextKeyframeId() const;
     void clear();
     Keyframe::Ptr findNearestByTimestamp(double timestamp) const;
     Keyframe::Ptr findNearestByPosition(const Eigen::Vector3d& position) const;
     bool updateDescriptor(int64_t id, const Eigen::MatrixXd& descriptor);
+
+    bool addSession(const MapSessionInfo& session);
+    bool removeSessionIfEmpty(MapSessionId session_id);
+    bool hasSession(MapSessionId session_id) const;
+    std::vector<MapSessionInfo> getSessions() const;
+    MapSessionId getNextSessionId() const;
 
     Keyframe::PointCloudT::Ptr buildLocalSubmap(int64_t center_id, int submap_size) const;
 
@@ -61,6 +76,7 @@ public:
 private:
     Config config_;
     std::map<int64_t, Keyframe::Ptr> keyframes_;
+    std::map<MapSessionId, MapSessionInfo> sessions_;
     int64_t next_id_;
     Keyframe::Ptr last_keyframe_;
     KeyframeMapRevision revision_;

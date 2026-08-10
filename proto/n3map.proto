@@ -46,6 +46,16 @@ message KeyframeProto {
     PointCloudData cloud = 5;
     ScanContextDescriptor sc_descriptor = 6;
     RHPDDescriptor rhpd_descriptor = 7;
+    uint64 session_id = 8;
+}
+
+message MapSessionProto {
+    uint64 id = 1;
+    string source_frame_id = 2;
+    double start_timestamp = 3;
+    Pose3D T_map_session_initial = 4;
+    // Persistent provenance, not current-process loaded-map membership.
+    bool loaded = 5;
 }
 
 // 约束边
@@ -112,4 +122,5 @@ message N3Map {
     repeated EdgeProto edges = 3;
     repeated DenseTrajectoryPose dense_optimized_trajectory = 4;
     repeated FloorAttitudeFactorProto floor_attitude_factors = 5;
+    repeated MapSessionProto sessions = 6;
 }

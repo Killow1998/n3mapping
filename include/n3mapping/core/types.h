@@ -43,6 +43,8 @@ struct LioFrame {
   using PointCloud = pcl::PointCloud<pcl::PointXYZI>;
 
   TimeStamp stamp;
+  // Frame in which T_world_lidar is expressed by the upstream LIO source.
+  std::string source_frame_id;
   Eigen::Isometry3d T_world_lidar = Eigen::Isometry3d::Identity();
   PointCloud::Ptr undistorted_cloud;
   Eigen::Matrix<double, 6, 6> covariance =

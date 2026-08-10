@@ -22,13 +22,15 @@
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.5.0";
+constexpr const char* MAP_VERSION = "2.6.0";
 
 struct SemVer {
     int major = 0;
     int minor = 0;
     int patch = 0;
 };
+
+constexpr SemVer kRhpdPersistenceVersion{2, 5, 0};
 
 bool parseSemVer(const std::string& version, SemVer* out) {
     if (!out) return false;
@@ -114,6 +116,7 @@ Keyframe::Ptr keyframeFromParsedProto(const ParsedKeyframeProto& parsed) {
     auto keyframe = std::make_shared<Keyframe>();
     keyframe->id = parsed.id;
     keyframe->timestamp = parsed.timestamp;
+    keyframe->session_id = parsed.session_id;
     keyframe->pose_odom = parsed.pose_odom;
     keyframe->pose_optimized = parsed.pose_optimized;
     keyframe->cloud = parsed.cloud;
@@ -181,6 +184,30 @@ bool MapSerializer::saveMap(const std::string& filepath,
         }
         std::unordered_set<int64_t> saved_keyframe_ids;
         saved_keyframe_ids.reserve(keyframes.size());
+        const auto sessions = keyframe_manager.getSessions();
+        if (sessions.empty()) {
+            LOG(ERROR) << "[MapSerializer] Refuse to save map with no sessions.";
+            return false;
+        }
+        std::unordered_set<MapSessionId> saved_session_ids;
+        saved_session_ids.reserve(sessions.size());
+        for (const auto& session : sessions) {
+            if (session.id == kInvalidMapSessionId ||
+                !std::isfinite(session.start_timestamp) ||
+                !isFinitePose(session.T_map_session_initial) ||
+                !saved_session_ids.insert(session.id).second) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save invalid or duplicate session id="
+                           << session.id;
+                return false;
+            }
+            auto* session_proto = map_proto.add_sessions();
+            session_proto->set_id(session.id);
+            session_proto->set_source_frame_id(session.source_frame_id);
+            session_proto->set_start_timestamp(session.start_timestamp);
+            poseToProto(session.T_map_session_initial,
+                        session_proto->mutable_t_map_session_initial());
+            session_proto->set_loaded(session.loaded);
+        }
         for (const auto& kf : keyframes) {
             if (!kf || !kf->cloud || kf->cloud->empty()) {
                 LOG(ERROR) << "[MapSerializer] Refuse to save keyframe with missing or empty cloud.";
@@ -195,6 +222,13 @@ bool MapSerializer::saveMap(const std::string& filepath,
                 !isFinitePose(kf->pose_optimized)) {
                 LOG(ERROR) << "[MapSerializer] Refuse to save keyframe id=" << kf->id
                            << " with non-finite timestamp or pose.";
+                return false;
+            }
+            if (saved_session_ids.find(kf->session_id) ==
+                saved_session_ids.end()) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save keyframe id="
+                           << kf->id << " with missing session id="
+                           << kf->session_id;
                 return false;
             }
             if (kf->cloud->size() > kMaxPbstreamPointsPerKeyframe) {
@@ -382,9 +416,14 @@ bool MapSerializer::loadMap(const std::string& filepath,
                 return false;
             }
             if (version_cmp < 0) {
-                force_rebuild_rhpd = true;
-                LOG(INFO) << "[MapSerializer] Map version " << file_version
-                          << " is older than " << MAP_VERSION << ", RHPD will be rebuilt.";
+                if (compareSemVer(file_semver, kRhpdPersistenceVersion) < 0) {
+                    force_rebuild_rhpd = true;
+                    LOG(INFO) << "[MapSerializer] Map version " << file_version
+                              << " predates persisted RHPD, rebuilding descriptors.";
+                } else {
+                    LOG(INFO) << "[MapSerializer] Loading compatible older map version "
+                              << file_version << " with current " << MAP_VERSION;
+                }
             }
         } else {
             force_rebuild_rhpd = true;
@@ -432,6 +471,56 @@ bool MapSerializer::loadMap(const std::string& filepath,
             keyframes.push_back(keyframeFromParsedProto(parsed));
         }
 
+        std::vector<MapSessionInfo> sessions;
+        if (map_proto.sessions_size() == 0) {
+            MapSessionInfo legacy;
+            legacy.source_frame_id = "legacy";
+            legacy.loaded = true;
+            legacy.start_timestamp = parsed_keyframes.front().timestamp;
+            for (const auto& keyframe : parsed_keyframes) {
+                legacy.start_timestamp =
+                    std::min(legacy.start_timestamp, keyframe.timestamp);
+            }
+            sessions.push_back(std::move(legacy));
+        } else {
+            if (map_proto.sessions_size() >
+                static_cast<int>(defaultPbstreamResourceLimits().max_keyframes)) {
+                LOG(ERROR) << "[MapSerializer] Reject map: too many sessions.";
+                return false;
+            }
+            std::unordered_set<MapSessionId> session_ids;
+            session_ids.reserve(map_proto.sessions_size());
+            sessions.reserve(map_proto.sessions_size());
+            for (const auto& session_proto : map_proto.sessions()) {
+                if (session_proto.id() == kInvalidMapSessionId ||
+                    !session_ids.insert(session_proto.id()).second ||
+                    !std::isfinite(session_proto.start_timestamp()) ||
+                    !session_proto.has_t_map_session_initial() ||
+                    !isFinitePoseProto(
+                        session_proto.t_map_session_initial())) {
+                    LOG(ERROR) << "[MapSerializer] Reject map: invalid or duplicate session id="
+                               << session_proto.id();
+                    return false;
+                }
+                MapSessionInfo session;
+                session.id = session_proto.id();
+                session.source_frame_id = session_proto.source_frame_id();
+                session.start_timestamp = session_proto.start_timestamp();
+                session.T_map_session_initial = poseFromProto(
+                    session_proto.t_map_session_initial());
+                session.loaded = session_proto.loaded();
+                sessions.push_back(std::move(session));
+            }
+            for (const auto& keyframe : parsed_keyframes) {
+                if (session_ids.find(keyframe.session_id) == session_ids.end()) {
+                    LOG(ERROR) << "[MapSerializer] Reject map: keyframe id="
+                               << keyframe.id << " references missing session id="
+                               << keyframe.session_id;
+                    return false;
+                }
+            }
+        }
+
         std::vector<ParsedEdgeProto> parsed_edges;
         if (!parseEdgesFromProto(map_proto, loaded_keyframe_ids, options.policy, &parsed_edges, &parse_error)) {
             LOG(ERROR) << "[MapSerializer] Reject map: " << parse_error;
@@ -449,7 +538,10 @@ bool MapSerializer::loadMap(const std::string& filepath,
         KeyframeManager temp_keyframe_manager(config_);
         LoopDetector temp_loop_detector(config_);
         GraphOptimizer temp_optimizer(config_);
-        temp_keyframe_manager.loadKeyframes(keyframes);
+        if (!temp_keyframe_manager.loadKeyframes(keyframes, sessions)) {
+            LOG(ERROR) << "[MapSerializer] Reject map: invalid session registry.";
+            return false;
+        }
         std::vector<std::pair<int64_t, Eigen::MatrixXd>> descriptors;
         for (const auto& kf : keyframes)
             if (kf->sc_descriptor.size() > 0) descriptors.emplace_back(kf->id, kf->sc_descriptor);
@@ -545,6 +637,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::buildGlobalMap(const Keyfram
 
 void MapSerializer::keyframeToProto(const Keyframe::Ptr& kf, n3mapping::KeyframeProto* proto) {
     proto->set_id(kf->id); proto->set_timestamp(kf->timestamp);
+    proto->set_session_id(kf->session_id);
     poseToProto(kf->pose_odom, proto->mutable_pose_odom());
     poseToProto(kf->pose_optimized, proto->mutable_pose_optimized());
     if (kf->cloud && !kf->cloud->empty()) pointCloudToProto(kf->cloud, proto->mutable_cloud());

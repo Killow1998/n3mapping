@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <sstream>
 
 #include <Eigen/Eigenvalues>
 #include <google/protobuf/io/coded_stream.h>
@@ -19,6 +20,17 @@ namespace {
 bool setError(std::string* error, const std::string& message) {
     if (error) *error = message;
     return false;
+}
+
+bool hasCompleteEdgeCountContract(const std::string& version) {
+    std::stringstream stream(version);
+    int major = 0;
+    int minor = 0;
+    char first_dot = '\0';
+    if (!(stream >> major >> first_dot >> minor) || first_dot != '.') {
+        return false;
+    }
+    return major > 2 || (major == 2 && minor >= 5);
 }
 
 bool validateKeyframeProto(const KeyframeProto& proto, std::string* error) {
@@ -371,6 +383,7 @@ bool parseKeyframesFromProto(const N3Map& map_proto,
 
         ParsedKeyframeProto parsed;
         parsed.id = proto.id();
+        parsed.session_id = proto.session_id();
         parsed.timestamp = proto.timestamp();
         parsed.pose_odom = poseFromProto(proto.pose_odom());
         parsed.pose_optimized = poseFromProto(proto.pose_optimized());
@@ -540,7 +553,7 @@ bool parseEdgesFromProto(const N3Map& map_proto,
     // accepted because proto3 scalar fields cannot distinguish "absent" from
     // an explicitly declared zero.
     if (policy == PbstreamLoadPolicy::STRICT &&
-        map_proto.metadata().version() == "2.5.0" &&
+        hasCompleteEdgeCountContract(map_proto.metadata().version()) &&
         (odometry_edges != map_proto.metadata().num_odometry_edges() ||
          loop_edges != map_proto.metadata().num_loop_edges() ||
          session_anchor_edges !=

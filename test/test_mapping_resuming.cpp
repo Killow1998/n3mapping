@@ -185,6 +185,7 @@ TEST_F(MappingResumingTest, InitialState)
     EXPECT_EQ(extension.getOriginalKeyframeCount(), 0);
     EXPECT_EQ(extension.getNewKeyframeCount(), 0);
     EXPECT_EQ(extension.getCrossLoopCount(), 0);
+    EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
 }
 
 /**
@@ -309,6 +310,7 @@ TEST_F(MappingResumingTest, Reset)
     EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
     EXPECT_EQ(extension.getOriginalKeyframeCount(), 0);
     EXPECT_EQ(extension.getCrossLoopCount(), 0);
+    EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
 }
 
 /**
@@ -399,8 +401,9 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     auto anchor = kf_manager.getKeyframe(0);
     ASSERT_NE(anchor, nullptr);
     ASSERT_TRUE(extension.performInitialRelocalization(
-        anchor->cloud, Eigen::Isometry3d::Identity()));
+        anchor->cloud, Eigen::Isometry3d::Identity(), "lio_odom"));
     ASSERT_EQ(relocalization.getLastMatchedKeyframeId(), 0);
+    EXPECT_EQ(extension.getCurrentSessionId(), 1u);
     const Eigen::Isometry3d anchor_pose_before = anchor->pose_optimized;
 
     Eigen::Isometry3d first_odom = Eigen::Isometry3d::Identity();
@@ -412,6 +415,18 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     ASSERT_EQ(first_id, 1);
     EXPECT_EQ(extension.getState(), MappingResumingState::EXTENDING);
     EXPECT_TRUE(optimizer.hasNode(first_id));
+    auto first_keyframe = kf_manager.getKeyframe(first_id);
+    ASSERT_NE(first_keyframe, nullptr);
+    EXPECT_EQ(first_keyframe->session_id, 1u);
+    EXPECT_TRUE(first_keyframe->pose_odom.isApprox(first_odom, 1e-9));
+    EXPECT_TRUE(first_keyframe->pose_optimized.isApprox(
+        optimizer.getOptimizedPose(first_id), 1e-9));
+    const auto sessions = kf_manager.getSessions();
+    ASSERT_EQ(sessions.size(), 2u);
+    EXPECT_EQ(sessions[1].id, 1u);
+    EXPECT_EQ(sessions[1].source_frame_id, "lio_odom");
+    EXPECT_DOUBLE_EQ(sessions[1].start_timestamp, 10.0);
+    EXPECT_FALSE(sessions[1].loaded);
 
     const auto& first_edges = optimizer.getEdges();
     const auto anchor_edge = std::find_if(
@@ -433,8 +448,6 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
 
     // Deliberately perturb the stored optimized pose. The next base edge must
     // still come from the two raw session odometry poses.
-    auto first_keyframe = kf_manager.getKeyframe(first_id);
-    ASSERT_NE(first_keyframe, nullptr);
     first_keyframe->pose_optimized.translation().y() += 50.0;
 
     Eigen::Isometry3d second_odom = first_odom;
@@ -442,6 +455,10 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     const int64_t second_id = extension.processNewKeyframe(
         11.0, second_odom, anchor->cloud);
     ASSERT_EQ(second_id, 2);
+    const auto second_keyframe = kf_manager.getKeyframe(second_id);
+    ASSERT_NE(second_keyframe, nullptr);
+    EXPECT_EQ(second_keyframe->session_id, 1u);
+    EXPECT_TRUE(second_keyframe->pose_odom.isApprox(second_odom, 1e-9));
 
     const auto& all_edges = optimizer.getEdges();
     const auto odom_edge = std::find_if(
@@ -577,12 +594,14 @@ TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
     EXPECT_EQ(optimizer.getNumEdges(), edges_before);
     EXPECT_FALSE(optimizer.hasNode(next_id_before));
     EXPECT_FALSE(optimizer.hasGlobalConstraint());
+    EXPECT_EQ(kf_manager.getSessions().size(), 1u);
 
     // The first-frame state was not advanced, and rollback restored the id.
     EXPECT_EQ(extension.processNewKeyframe(11.0, new_odom, anchor->cloud),
               next_id_before);
     EXPECT_EQ(extension.getState(), MappingResumingState::EXTENDING);
     EXPECT_TRUE(optimizer.hasNode(next_id_before));
+    EXPECT_EQ(kf_manager.getSessions().size(), 2u);
 }
 
 } // namespace test

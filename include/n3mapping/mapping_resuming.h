@@ -38,7 +38,12 @@ public:
                     WorldLocalizing& world_localizing);
 
     bool initializeFromLoadedMap();
-    bool performInitialRelocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose);
+    bool performInitialRelocalization(
+        const PointCloudT::Ptr& cloud,
+        const Eigen::Isometry3d& odom_pose,
+        const std::string& source_frame_id = {});
+    bool shouldAddKeyframe(
+        const Eigen::Isometry3d& pose_in_session) const;
     int64_t processNewKeyframe(
         double timestamp, const Eigen::Isometry3d& odom_pose,
         const PointCloudT::Ptr& cloud, int64_t loaded_tracking_match_id = -1,
@@ -51,6 +56,7 @@ public:
     size_t getNewKeyframeCount() const;
     size_t getCrossLoopCount() const;
     bool isFromOriginalMap(int64_t keyframe_id) const;
+    MapSessionId getCurrentSessionId() const;
     void reset();
 
 private:
@@ -73,6 +79,9 @@ private:
     int64_t previous_new_keyframe_id_;
     int64_t last_trusted_constraint_keyframe_id_;
     Eigen::Isometry3d previous_new_odom_pose_;
+    MapSessionId current_session_id_;
+    std::string current_session_source_frame_id_;
+    Eigen::Isometry3d T_map_session_initial_;
     bool first_new_keyframe_pending_;
     mutable std::mutex mutex_;
 };

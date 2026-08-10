@@ -7,6 +7,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
+#include "n3mapping/map_session.h"
+
 namespace n3mapping {
 
 struct Keyframe {
@@ -17,6 +19,7 @@ struct Keyframe {
     double timestamp = 0.0;
     Eigen::Isometry3d pose_odom = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d pose_optimized = Eigen::Isometry3d::Identity();
+    MapSessionId session_id = 0;
     PointCloudT::Ptr cloud = nullptr;
     Eigen::MatrixXd sc_descriptor;
     Eigen::VectorXd rhpd_descriptor;   // RHPD descriptor for relocalization
@@ -27,8 +30,26 @@ struct Keyframe {
     Keyframe(int64_t id, double timestamp, const Eigen::Isometry3d& pose, const PointCloudT::Ptr& cloud)
         : id(id), timestamp(timestamp), pose_odom(pose), pose_optimized(pose), cloud(cloud) {}
 
+    Keyframe(int64_t id, double timestamp,
+             const Eigen::Isometry3d& pose_in_session,
+             const Eigen::Isometry3d& initial_pose_in_map,
+             const PointCloudT::Ptr& cloud, MapSessionId session_id)
+        : id(id), timestamp(timestamp), pose_odom(pose_in_session),
+          pose_optimized(initial_pose_in_map), session_id(session_id),
+          cloud(cloud) {}
+
     static Ptr create(int64_t id, double ts, const Eigen::Isometry3d& pose, const PointCloudT::Ptr& cloud) {
         return std::make_shared<Keyframe>(id, ts, pose, cloud);
+    }
+
+    static Ptr create(int64_t id, double ts,
+                      const Eigen::Isometry3d& pose_in_session,
+                      const Eigen::Isometry3d& initial_pose_in_map,
+                      const PointCloudT::Ptr& cloud,
+                      MapSessionId session_id) {
+        return std::make_shared<Keyframe>(id, ts, pose_in_session,
+                                          initial_pose_in_map, cloud,
+                                          session_id);
     }
 
     bool isValid() const { return id >= 0 && cloud && !cloud->empty(); }

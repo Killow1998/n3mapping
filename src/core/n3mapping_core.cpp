@@ -862,7 +862,8 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
 
   if (state == MappingResumingState::MAP_LOADED) {
     const bool locked = resuming.performInitialRelocalization(
-        frame.undistorted_cloud, frame.T_world_lidar);
+        frame.undistorted_cloud, frame.T_world_lidar,
+        frame.source_frame_id);
     auto output = makeOutput(
         locked, localizer.getMapToOdomTransform() * frame.T_world_lidar,
         frame.undistorted_cloud);
@@ -917,10 +918,11 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   }
 
   Eigen::Isometry3d pose_map = tracking.pose_in_map;
-  if (!session_->keyframeManager().shouldAddKeyframe(pose_map)) {
+  if (!resuming.shouldAddKeyframe(frame.T_world_lidar)) {
     if (!external_dense_trajectory_recording_enabled_) {
       const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
-      appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_map, false);
+      appendDenseTrajectorySampleWithLatestAnchor(
+          timestamp, frame.T_world_lidar, false);
     }
     auto output = makeOutput(true, pose_map, frame.undistorted_cloud);
     output.relocalization_state = tracking.state;

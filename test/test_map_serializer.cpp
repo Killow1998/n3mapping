@@ -2303,7 +2303,7 @@ TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
         std::ifstream ifs(map_file, std::ios::binary);
         ASSERT_TRUE(saved_proto.ParseFromIstream(&ifs));
     }
-    EXPECT_EQ(saved_proto.metadata().version(), "2.5.0");
+    EXPECT_EQ(saved_proto.metadata().version(), "2.6.0");
     EXPECT_EQ(saved_proto.metadata().num_session_anchor_edges(), 1u);
 
     KeyframeManager kf_loaded(config_);
@@ -2343,11 +2343,14 @@ TEST_F(MapSerializerTest, Legacy24MapStillLoadsAndFuturePatchIsRejected) {
     EXPECT_TRUE(serializer.loadMap(
         legacy_file, legacy_kfs, legacy_loops, legacy_optimizer));
     EXPECT_EQ(legacy_kfs.size(), 1u);
+    ASSERT_EQ(legacy_kfs.getSessions().size(), 1u);
+    EXPECT_EQ(legacy_kfs.getSessions()[0].id, 0u);
+    EXPECT_TRUE(legacy_kfs.getSessions()[0].loaded);
 
     N3Map future = legacy;
-    future.mutable_metadata()->set_version("2.5.1");
+    future.mutable_metadata()->set_version("2.6.1");
     const std::string future_file =
-        config_.map_save_path + "/future_251.pbstream";
+        config_.map_save_path + "/future_261.pbstream";
     {
         std::ofstream ofs(future_file, std::ios::binary);
         ASSERT_TRUE(future.SerializeToOstream(&ofs));
@@ -2358,6 +2361,120 @@ TEST_F(MapSerializerTest, Legacy24MapStillLoadsAndFuturePatchIsRejected) {
     EXPECT_FALSE(serializer.loadMap(
         future_file, future_kfs, future_loops, future_optimizer));
     EXPECT_EQ(future_kfs.size(), 0u);
+}
+
+TEST_F(MapSerializerTest, MultipleSessionsAndPoseDomainsRoundTrip) {
+    KeyframeManager keyframes(config_);
+    LoopDetector loops(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+
+    const Eigen::Isometry3d pose0 = Eigen::Isometry3d::Identity();
+    ASSERT_EQ(keyframes.addKeyframe(
+                  1.0, pose0, generateRandomPointCloud(32)),
+              0);
+
+    MapSessionInfo session1;
+    session1.id = 1;
+    session1.source_frame_id = "lio_a";
+    session1.start_timestamp = 10.0;
+    session1.T_map_session_initial = Eigen::Isometry3d::Identity();
+    session1.T_map_session_initial.translation().x() = 100.0;
+    ASSERT_TRUE(keyframes.addSession(session1));
+
+    MapSessionInfo session2;
+    session2.id = 2;
+    session2.source_frame_id = "lio_b";
+    session2.start_timestamp = 20.0;
+    session2.T_map_session_initial = Eigen::Isometry3d::Identity();
+    session2.T_map_session_initial.translation().y() = -50.0;
+    ASSERT_TRUE(keyframes.addSession(session2));
+
+    Eigen::Isometry3d raw1 = Eigen::Isometry3d::Identity();
+    raw1.translation().x() = 2.0;
+    const Eigen::Isometry3d map1 =
+        session1.T_map_session_initial * raw1;
+    ASSERT_EQ(keyframes.addKeyframe(
+                  10.0, raw1, map1, generateRandomPointCloud(32), 1),
+              1);
+
+    Eigen::Isometry3d raw2 = Eigen::Isometry3d::Identity();
+    raw2.translation().y() = 3.0;
+    const Eigen::Isometry3d map2 =
+        session2.T_map_session_initial * raw2;
+    ASSERT_EQ(keyframes.addKeyframe(
+                  20.0, raw2, map2, generateRandomPointCloud(32), 2),
+              2);
+
+    optimizer.addPriorFactor(0, pose0);
+    for (const auto& target :
+         std::vector<std::pair<int64_t, Eigen::Isometry3d>>{{1, map1},
+                                                            {2, map2}}) {
+        EdgeInfo edge;
+        edge.from_id = 0;
+        edge.to_id = target.first;
+        edge.measurement = target.second;
+        edge.information =
+            Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
+        edge.type = EdgeType::SESSION_ANCHOR;
+        ASSERT_TRUE(optimizer.addSessionAnchorEdge(edge));
+    }
+    ASSERT_TRUE(optimizer.incrementalOptimize());
+
+    const std::string path =
+        config_.map_save_path + "/multi_session.pbstream";
+    ASSERT_TRUE(serializer.saveMap(path, keyframes, loops, optimizer));
+
+    KeyframeManager loaded_keyframes(config_);
+    LoopDetector loaded_loops(config_);
+    GraphOptimizer loaded_optimizer(config_);
+    ASSERT_TRUE(serializer.loadMap(
+        path, loaded_keyframes, loaded_loops, loaded_optimizer));
+
+    const auto sessions = loaded_keyframes.getSessions();
+    ASSERT_EQ(sessions.size(), 3u);
+    EXPECT_EQ(sessions[1].source_frame_id, "lio_a");
+    EXPECT_EQ(sessions[2].source_frame_id, "lio_b");
+    EXPECT_TRUE(sessions[1].T_map_session_initial.isApprox(
+        session1.T_map_session_initial, 1e-12));
+    EXPECT_TRUE(sessions[2].T_map_session_initial.isApprox(
+        session2.T_map_session_initial, 1e-12));
+    const auto loaded1 = loaded_keyframes.getKeyframe(1);
+    const auto loaded2 = loaded_keyframes.getKeyframe(2);
+    ASSERT_NE(loaded1, nullptr);
+    ASSERT_NE(loaded2, nullptr);
+    EXPECT_EQ(loaded1->session_id, 1u);
+    EXPECT_EQ(loaded2->session_id, 2u);
+    EXPECT_TRUE(loaded1->pose_odom.isApprox(raw1, 1e-12));
+    EXPECT_TRUE(loaded2->pose_odom.isApprox(raw2, 1e-12));
+    EXPECT_TRUE(loaded1->pose_optimized.isApprox(map1, 1e-6));
+    EXPECT_TRUE(loaded2->pose_optimized.isApprox(map2, 1e-6));
+}
+
+TEST_F(MapSerializerTest, DuplicateSessionIdIsRejected) {
+    N3Map map_proto;
+    map_proto.mutable_metadata()->set_version("2.6.0");
+    map_proto.mutable_metadata()->set_num_keyframes(1);
+    addValidKeyframeProto(&map_proto, 0);
+    for (int i = 0; i < 2; ++i) {
+        auto* session = map_proto.add_sessions();
+        session->set_id(0);
+        session->set_start_timestamp(0.0);
+        session->mutable_t_map_session_initial()->set_qw(1.0);
+    }
+
+    const std::string path =
+        config_.map_save_path + "/duplicate_session.pbstream";
+    {
+        std::ofstream output(path, std::ios::binary);
+        ASSERT_TRUE(map_proto.SerializeToOstream(&output));
+    }
+    KeyframeManager keyframes(config_);
+    LoopDetector loops(config_);
+    GraphOptimizer optimizer(config_);
+    MapSerializer serializer(config_);
+    EXPECT_FALSE(serializer.loadMap(path, keyframes, loops, optimizer));
+    EXPECT_TRUE(keyframes.empty());
 }
 
 TEST_F(MapSerializerTest, UnknownEdgeEnumsStrictRejectAndSalvageSkip) {

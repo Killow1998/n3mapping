@@ -36,6 +36,7 @@ core::LioFrame toCoreLioFrame(const sensor_msgs::msg::PointCloud2& cloud_msg,
 
     core::LioFrame frame;
     frame.stamp = toCoreTimeStamp(cloud_msg.header.stamp);
+    frame.source_frame_id = odom_msg.header.frame_id;
     frame.pose_valid = tryMakeRigidOdometryPose(
         odom_msg.pose.pose.position.x,
         odom_msg.pose.pose.position.y,

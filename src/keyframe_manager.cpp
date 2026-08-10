@@ -2,6 +2,7 @@
 #include "n3mapping/keyframe_manager.h"
 
 #include <atomic>
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -14,6 +15,12 @@ namespace {
 std::uint64_t nextMapGeneration() {
     static std::atomic<std::uint64_t> generation{0};
     return generation.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
+bool validSessionInfo(const MapSessionInfo& session) {
+    return session.id != kInvalidMapSessionId &&
+           std::isfinite(session.start_timestamp) &&
+           session.T_map_session_initial.matrix().allFinite();
 }
 
 }  // namespace
@@ -31,9 +38,46 @@ bool KeyframeManager::shouldAddKeyframe(const Eigen::Isometry3d& current_pose) c
     return distance >= config_.keyframe_distance_threshold || angle >= config_.keyframe_angle_threshold;
 }
 
+bool KeyframeManager::shouldAddKeyframeInSession(
+    MapSessionId session_id,
+    const Eigen::Isometry3d& current_pose_in_session) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto it = keyframes_.rbegin(); it != keyframes_.rend(); ++it) {
+        const auto& keyframe = it->second;
+        if (!keyframe || keyframe->session_id != session_id) continue;
+        const double distance = computeTranslationDistance(
+            current_pose_in_session, keyframe->pose_odom);
+        const double angle = computeRotationAngle(
+            current_pose_in_session, keyframe->pose_odom);
+        return distance >= config_.keyframe_distance_threshold ||
+               angle >= config_.keyframe_angle_threshold;
+    }
+    return true;
+}
+
 int64_t KeyframeManager::addKeyframe(double timestamp, const Eigen::Isometry3d& pose, const Keyframe::PointCloudT::Ptr& cloud) {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (sessions_.find(0) == sessions_.end()) {
+        MapSessionInfo session;
+        session.start_timestamp = timestamp;
+        sessions_.emplace(0, std::move(session));
+    }
     auto keyframe = Keyframe::create(next_id_, timestamp, pose, cloud);
+    keyframes_[next_id_] = keyframe;
+    last_keyframe_ = keyframe;
+    ++revision_.structure_revision;
+    return next_id_++;
+}
+
+int64_t KeyframeManager::addKeyframe(
+    double timestamp, const Eigen::Isometry3d& pose_in_session,
+    const Eigen::Isometry3d& initial_pose_in_map,
+    const Keyframe::PointCloudT::Ptr& cloud, MapSessionId session_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (sessions_.find(session_id) == sessions_.end()) return -1;
+    auto keyframe = Keyframe::create(
+        next_id_, timestamp, pose_in_session, initial_pose_in_map, cloud,
+        session_id);
     keyframes_[next_id_] = keyframe;
     last_keyframe_ = keyframe;
     ++revision_.structure_revision;
@@ -107,21 +151,60 @@ void KeyframeManager::updateOptimizedPoses(const std::map<int64_t, Eigen::Isomet
     }
 }
 
-void KeyframeManager::loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    keyframes_.clear();
-    last_keyframe_ = nullptr;
-    next_id_ = 0;
+bool KeyframeManager::loadKeyframes(
+    const std::vector<Keyframe::Ptr>& keyframes) {
+    MapSessionInfo legacy;
+    legacy.source_frame_id = "legacy";
+    legacy.loaded = true;
+    bool have_timestamp = false;
+    for (const auto& keyframe : keyframes) {
+        if (!keyframe) continue;
+        keyframe->session_id = 0;
+        if (!have_timestamp || keyframe->timestamp < legacy.start_timestamp) {
+            legacy.start_timestamp = keyframe->timestamp;
+            have_timestamp = true;
+        }
+    }
+    return loadKeyframes(keyframes, {legacy});
+}
+
+bool KeyframeManager::loadKeyframes(
+    const std::vector<Keyframe::Ptr>& keyframes,
+    const std::vector<MapSessionInfo>& sessions) {
+    std::map<MapSessionId, MapSessionInfo> next_sessions;
+    for (const auto& session : sessions) {
+        if (!validSessionInfo(session) ||
+            !next_sessions.emplace(session.id, session).second) {
+            return false;
+        }
+    }
+    if (next_sessions.empty() && !keyframes.empty()) return false;
+
+    std::map<int64_t, Keyframe::Ptr> next_keyframes;
+    Keyframe::Ptr next_last_keyframe;
+    int64_t next_id = 0;
     for (const auto& kf : keyframes) {
         if (!kf) continue;
+        if (next_sessions.find(kf->session_id) == next_sessions.end()) {
+            return false;
+        }
         kf->is_from_loaded_map = true;
-        keyframes_[kf->id] = kf;
-        if (kf->id >= next_id_) next_id_ = kf->id + 1;
-        if (!last_keyframe_ || kf->id > last_keyframe_->id) last_keyframe_ = kf;
+        next_keyframes[kf->id] = kf;
+        if (kf->id >= next_id) next_id = kf->id + 1;
+        if (!next_last_keyframe || kf->id > next_last_keyframe->id) {
+            next_last_keyframe = kf;
+        }
     }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    keyframes_ = std::move(next_keyframes);
+    sessions_ = std::move(next_sessions);
+    last_keyframe_ = std::move(next_last_keyframe);
+    next_id_ = next_id;
     revision_.generation = nextMapGeneration();
     ++revision_.structure_revision;
     ++revision_.pose_revision;
+    return true;
 }
 
 void KeyframeManager::swapWith(KeyframeManager& other) {
@@ -131,6 +214,7 @@ void KeyframeManager::swapWith(KeyframeManager& other) {
     std::lock_guard<std::mutex> lock_other(other.mutex_, std::adopt_lock);
     std::swap(config_, other.config_);
     std::swap(keyframes_, other.keyframes_);
+    std::swap(sessions_, other.sessions_);
     std::swap(next_id_, other.next_id_);
     std::swap(last_keyframe_, other.last_keyframe_);
     revision_.generation = nextMapGeneration();
@@ -149,6 +233,7 @@ int64_t KeyframeManager::getNextKeyframeId() const {
 void KeyframeManager::clear() {
     std::lock_guard<std::mutex> lock(mutex_);
     keyframes_.clear();
+    sessions_.clear();
     last_keyframe_ = nullptr;
     next_id_ = 0;
     revision_.generation = nextMapGeneration();
@@ -184,6 +269,42 @@ bool KeyframeManager::updateDescriptor(int64_t id, const Eigen::MatrixXd& descri
     if (it == keyframes_.end()) return false;
     it->second->sc_descriptor = descriptor;
     return true;
+}
+
+bool KeyframeManager::addSession(const MapSessionInfo& session) {
+    if (!validSessionInfo(session)) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    return sessions_.emplace(session.id, session).second;
+}
+
+bool KeyframeManager::removeSessionIfEmpty(MapSessionId session_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (const auto& item : keyframes_) {
+        if (item.second && item.second->session_id == session_id) return false;
+    }
+    return sessions_.erase(session_id) == 1u;
+}
+
+bool KeyframeManager::hasSession(MapSessionId session_id) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return sessions_.find(session_id) != sessions_.end();
+}
+
+std::vector<MapSessionInfo> KeyframeManager::getSessions() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<MapSessionInfo> result;
+    result.reserve(sessions_.size());
+    for (const auto& item : sessions_) result.push_back(item.second);
+    return result;
+}
+
+MapSessionId KeyframeManager::getNextSessionId() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (sessions_.empty()) return 0;
+    if (sessions_.rbegin()->first == kInvalidMapSessionId - 1u) {
+        return kInvalidMapSessionId;
+    }
+    return sessions_.rbegin()->first + 1u;
 }
 
 double KeyframeManager::computeTranslationDistance(const Eigen::Isometry3d& pose1, const Eigen::Isometry3d& pose2) {

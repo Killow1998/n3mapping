@@ -74,6 +74,8 @@ MappingResuming::MappingResuming(const Config& config,
     , previous_new_keyframe_id_(-1)
     , last_trusted_constraint_keyframe_id_(-1)
     , previous_new_odom_pose_(Eigen::Isometry3d::Identity())
+    , current_session_id_(kInvalidMapSessionId)
+    , T_map_session_initial_(Eigen::Isometry3d::Identity())
     , first_new_keyframe_pending_(false) {}
 
 bool MappingResuming::initializeFromLoadedMap() {
@@ -90,6 +92,9 @@ bool MappingResuming::initializeFromLoadedMapNoLock() {
         previous_new_keyframe_id_ = -1;
         last_trusted_constraint_keyframe_id_ = -1;
         previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
+        current_session_id_ = kInvalidMapSessionId;
+        current_session_source_frame_id_.clear();
+        T_map_session_initial_ = Eigen::Isometry3d::Identity();
         first_new_keyframe_pending_ = false;
         return false;
     }
@@ -109,11 +114,16 @@ bool MappingResuming::initializeFromLoadedMapNoLock() {
     previous_new_keyframe_id_ = -1;
     last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
+    current_session_id_ = kInvalidMapSessionId;
+    current_session_source_frame_id_.clear();
+    T_map_session_initial_ = Eigen::Isometry3d::Identity();
     first_new_keyframe_pending_ = false;
     return true;
 }
 
-bool MappingResuming::performInitialRelocalization(const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose) {
+bool MappingResuming::performInitialRelocalization(
+    const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose,
+    const std::string& source_frame_id) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (state_ != MappingResumingState::MAP_LOADED || !cloud || cloud->empty() ||
         !isFiniteTransform(odom_pose)) {
@@ -132,6 +142,9 @@ bool MappingResuming::performInitialRelocalization(const PointCloudT::Ptr& cloud
 
     Eigen::Isometry3d T_map_odom = result.pose_in_map * odom_pose.inverse();
     if (!isFiniteTransform(T_map_odom)) return false;
+    const MapSessionId next_session_id =
+        keyframe_manager_.getNextSessionId();
+    if (next_session_id == kInvalidMapSessionId) return false;
     world_localizing_.setMapToOdomTransform(T_map_odom);
 
     const Eigen::Vector3d rpy_deg = rotationRpyDegrees(T_map_odom);
@@ -144,10 +157,27 @@ bool MappingResuming::performInitialRelocalization(const PointCloudT::Ptr& cloud
     previous_new_keyframe_id_ = -1;
     last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
+    current_session_id_ = next_session_id;
+    current_session_source_frame_id_ = source_frame_id;
+    T_map_session_initial_ = T_map_odom;
     first_new_keyframe_pending_ = true;
 
     state_ = MappingResumingState::RELOCALIZED;
     return true;
+}
+
+bool MappingResuming::shouldAddKeyframe(
+    const Eigen::Isometry3d& pose_in_session) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if ((state_ != MappingResumingState::RELOCALIZED &&
+         state_ != MappingResumingState::EXTENDING) ||
+        current_session_id_ == kInvalidMapSessionId ||
+        !isFiniteTransform(pose_in_session)) {
+        return false;
+    }
+    if (first_new_keyframe_pending_) return true;
+    return keyframe_manager_.shouldAddKeyframeInSession(
+        current_session_id_, pose_in_session);
 }
 
 int64_t MappingResuming::processNewKeyframe(
@@ -184,11 +214,20 @@ int64_t MappingResuming::processNewKeyframe(
         }
     }
 
-    if (!keyframe_manager_.shouldAddKeyframe(pose_in_map)) return -1;
+    if (current_session_id_ == kInvalidMapSessionId) return -1;
+    const bool is_first_new_keyframe = first_new_keyframe_pending_;
+    if (!is_first_new_keyframe &&
+        !keyframe_manager_.hasSession(current_session_id_)) {
+        return -1;
+    }
+    if (!is_first_new_keyframe &&
+        !keyframe_manager_.shouldAddKeyframeInSession(
+            current_session_id_, odom_pose)) {
+        return -1;
+    }
 
     EdgeInfo edge;
     edge.measurement = Eigen::Isometry3d::Identity();
-    bool is_first_new_keyframe = first_new_keyframe_pending_;
     if (is_first_new_keyframe) {
         auto anchor = keyframe_manager_.getKeyframe(
             relocalization_anchor_keyframe_id_);
@@ -218,8 +257,25 @@ int64_t MappingResuming::processNewKeyframe(
     }
     if (!isFiniteTransform(edge.measurement)) return -1;
 
-    const int64_t new_kf_id =
-        keyframe_manager_.addKeyframe(timestamp, pose_in_map, cloud);
+    bool registered_session_now = false;
+    if (is_first_new_keyframe) {
+        MapSessionInfo session;
+        session.id = current_session_id_;
+        session.source_frame_id = current_session_source_frame_id_;
+        session.start_timestamp = timestamp;
+        session.T_map_session_initial = T_map_session_initial_;
+        if (!keyframe_manager_.addSession(session)) return -1;
+        registered_session_now = true;
+    }
+
+    const int64_t new_kf_id = keyframe_manager_.addKeyframe(
+        timestamp, odom_pose, pose_in_map, cloud, current_session_id_);
+    if (new_kf_id < 0) {
+        if (registered_session_now) {
+            keyframe_manager_.removeSessionIfEmpty(current_session_id_);
+        }
+        return -1;
+    }
     edge.to_id = new_kf_id;
 
     bool edge_staged = false;
@@ -244,6 +300,11 @@ int64_t MappingResuming::processNewKeyframe(
             LOG(ERROR) << "[MappingResuming] Failed to roll back keyframe id="
                        << new_kf_id;
         }
+        if (registered_session_now &&
+            !keyframe_manager_.removeSessionIfEmpty(current_session_id_)) {
+            LOG(ERROR) << "[MappingResuming] Failed to roll back session id="
+                       << current_session_id_;
+        }
         return -1;
     }
 
@@ -254,6 +315,7 @@ int64_t MappingResuming::processNewKeyframe(
             rotationRpyDegrees(edge.measurement);
         LOG(INFO) << "[MappingResuming] Committed SESSION_ANCHOR from="
                   << edge.from_id << " to=" << edge.to_id
+                  << " session=" << current_session_id_
                   << " measurement_t=" << edge.measurement.translation().transpose()
                   << " measurement_rpy_deg=" << measurement_rpy_deg.transpose();
         last_trusted_constraint_keyframe_id_ = new_kf_id;
@@ -599,6 +661,11 @@ bool MappingResuming::isFromOriginalMap(int64_t keyframe_id) const {
     return keyframe_id >= 0 && keyframe_id <= original_max_keyframe_id_;
 }
 
+MapSessionId MappingResuming::getCurrentSessionId() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return current_session_id_;
+}
+
 void MappingResuming::reset() {
     std::lock_guard<std::mutex> lock(mutex_);
     state_ = MappingResumingState::NOT_INITIALIZED;
@@ -609,6 +676,9 @@ void MappingResuming::reset() {
     previous_new_keyframe_id_ = -1;
     last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
+    current_session_id_ = kInvalidMapSessionId;
+    current_session_source_frame_id_.clear();
+    T_map_session_initial_ = Eigen::Isometry3d::Identity();
     first_new_keyframe_pending_ = false;
     world_localizing_.reset();
 }

@@ -91,6 +91,33 @@ TEST_F(KeyframeManagerTest, AddFirstKeyframe) {
     EXPECT_EQ(after.pose_revision, before.pose_revision);
 }
 
+TEST_F(KeyframeManagerTest, SessionAwareAddPreservesBothPoseDomains) {
+    MapSessionInfo session;
+    session.id = 7;
+    session.source_frame_id = "lio_odom";
+    session.start_timestamp = 10.0;
+    session.T_map_session_initial = createPose(100.0, -20.0, 0.0);
+    ASSERT_TRUE(manager_->addSession(session));
+    EXPECT_FALSE(manager_->addSession(session));
+
+    const auto pose_in_session = createPose(2.0, 0.0, 0.0);
+    const auto pose_in_map = createPose(102.0, -20.0, 0.0);
+    const int64_t id = manager_->addKeyframe(
+        10.0, pose_in_session, pose_in_map, createTestCloud(), session.id);
+    ASSERT_EQ(id, 0);
+
+    const auto keyframe = manager_->getKeyframe(id);
+    ASSERT_NE(keyframe, nullptr);
+    EXPECT_EQ(keyframe->session_id, session.id);
+    EXPECT_TRUE(keyframe->pose_odom.isApprox(pose_in_session, 1e-12));
+    EXPECT_TRUE(keyframe->pose_optimized.isApprox(pose_in_map, 1e-12));
+    EXPECT_FALSE(manager_->shouldAddKeyframeInSession(
+        session.id, createPose(2.5, 0.0, 0.0)));
+    EXPECT_TRUE(manager_->shouldAddKeyframeInSession(
+        session.id, createPose(3.0, 0.0, 0.0)));
+    EXPECT_EQ(manager_->getNextSessionId(), 8u);
+}
+
 // 测试距离阈值判断 - Requirements 2.2
 TEST_F(KeyframeManagerTest, DistanceThreshold) {
     auto pose1 = createPose(0, 0, 0);

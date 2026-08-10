@@ -55,6 +55,7 @@ TEST(CoreTypesTest, DefaultValuesAreRosFreeAndStable) {
 
   core::LioFrame lio_frame;
   EXPECT_EQ(lio_frame.stamp.nsec, 0);
+  EXPECT_TRUE(lio_frame.source_frame_id.empty());
   EXPECT_TRUE(lio_frame.T_world_lidar.isApprox(Eigen::Isometry3d::Identity()));
   EXPECT_EQ(lio_frame.undistorted_cloud, nullptr);
   EXPECT_TRUE(

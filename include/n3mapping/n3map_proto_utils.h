@@ -12,6 +12,7 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/core/types.h"
+#include "n3mapping/map_session.h"
 #include "n3map.pb.h"
 
 namespace n3mapping {
@@ -69,6 +70,7 @@ enum class PbstreamEdgeConstraintMode {
 
 struct ParsedKeyframeProto {
     int64_t id = -1;
+    MapSessionId session_id = 0;
     double timestamp = 0.0;
     Eigen::Isometry3d pose_odom = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d pose_optimized = Eigen::Isometry3d::Identity();
