@@ -1,5 +1,8 @@
 #include "n3mapping/relocalization_target_provider.h"
 
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <future>
 #include <vector>
 
@@ -66,6 +69,50 @@ TEST(RelocTargetProviderTest, LegacyWithoutAtlasUsesFreshLocalTarget) {
   EXPECT_FALSE(target.metrics.cache_hit);
   EXPECT_FALSE(target.metrics.cache_miss);
   EXPECT_EQ(fixture.provider->diagnostics().cache_entries, 0u);
+}
+
+TEST(RelocTargetProviderTest, LegacyUsesLoadedGlobalAtlasForRegistration) {
+  Config config;
+  config.reloc_target_mode = "legacy_global_atlas";
+  ProviderFixture fixture(config);
+  const auto cloud = makeTargetCloud();
+  std::vector<Keyframe::Ptr> keyframes = {
+      Keyframe::create(0, 1.0, Eigen::Isometry3d::Identity(), cloud)};
+
+  const auto nonce =
+      std::chrono::steady_clock::now().time_since_epoch().count();
+  const std::filesystem::path directory =
+      std::filesystem::temp_directory_path() /
+      ("n3mapping_target_provider_atlas_" + std::to_string(nonce));
+  std::filesystem::create_directories(directory);
+  const std::filesystem::path map_path = directory / "map.pbstream";
+  const std::filesystem::path atlas_path = directory / "map.atlas.pb";
+  {
+    std::ofstream map_file(map_path, std::ios::binary | std::ios::trunc);
+    map_file << "target-provider-test-map";
+  }
+
+  LocalizationAtlasStats stats;
+  std::string error;
+  ASSERT_TRUE(fixture.atlas.compileAndSave(
+      map_path.string(), keyframes, atlas_path.string(), false, &stats, &error))
+      << error;
+  ASSERT_TRUE(fixture.atlas.load(map_path.string(), atlas_path.string(), &stats,
+                                 &error))
+      << error;
+
+  const PreparedRelocTarget target =
+      fixture.provider->getTarget(makeRequest(0, cloud));
+
+  ASSERT_TRUE(target.valid());
+  EXPECT_EQ(target.visibility_target, cloud);
+  EXPECT_EQ(target.metrics.registration_source, "legacy_global_atlas");
+  EXPECT_EQ(target.metrics.target_points, fixture.atlas.globalMap()->size());
+  EXPECT_FALSE(target.metrics.cache_hit);
+  EXPECT_FALSE(target.metrics.cache_miss);
+
+  std::error_code cleanup_error;
+  std::filesystem::remove_all(directory, cleanup_error);
 }
 
 TEST(RelocTargetProviderTest, LocalLruHitsAndMapRevisionInvalidates) {
