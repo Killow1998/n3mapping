@@ -13,7 +13,6 @@
 #include <Eigen/Geometry>
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cmath>
 #include <future>
 #include <glog/logging.h>
@@ -26,11 +25,6 @@ namespace {
 constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
-
-double processingTimeSeconds() {
-  using Clock = std::chrono::system_clock;
-  return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
-}
 
 bool hasValidRegistrationResult(const MatchResult &match) {
   return match.converged && std::isfinite(match.fitness_score) &&
@@ -71,7 +65,7 @@ WorldLocalizing::WorldLocalizing(const Config &config,
           std::make_unique<LocalizationAtlas>(config_, matcher_)),
       candidate_evaluator_(config_, keyframe_manager_, matcher_,
                            *localization_atlas_),
-      decision_policy_(config_),
+      decision_policy_(config_), debug_emitter_(config_),
       reloc_map_cache_(pcl::make_shared<PointCloudT>()),
       reloc_map_cached_keyframes_(0),
       loaded_map_visibility_cache_(pcl::make_shared<PointCloudT>()),
@@ -79,51 +73,23 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       T_map_odom_(Eigen::Isometry3d::Identity()), last_matched_id_(-1),
       relocalization_seed_id_(-1),
       last_odom_pose_(Eigen::Isometry3d::Identity()),
-      consecutive_track_failures_(0), relocalize_debug_query_index_(0),
-      track_debug_query_index_(0) {}
-
-void WorldLocalizing::appendRelocalizationDebug(
-    const RelocalizationDebugEvent &event) const {
-  if (!config_.reloc_debug_enable) {
-    return;
-  }
-  std::lock_guard<std::mutex> lock(debug_mutex_);
-  RelocalizationDebugLogger::appendRelocalization(
-      RelocalizationDebugLogger::resolvePath(config_), event);
-}
-
-void WorldLocalizing::appendTrackingDebug(
-    const RelocTrackingDebugEvent &event) const {
-  if (!config_.reloc_debug_enable) {
-    return;
-  }
-  std::lock_guard<std::mutex> lock(debug_mutex_);
-  RelocalizationDebugLogger::appendTracking(
-      RelocalizationDebugLogger::resolvePath(config_), event);
-}
+      consecutive_track_failures_(0) {}
 
 RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                                         const Eigen::Isometry3d &odom_pose) {
   RelocResult result;
   result.success = false;
-  const bool reloc_debug_enabled = config_.reloc_debug_enable;
-  RelocalizationDebugEvent debug_event;
-  if (reloc_debug_enabled) {
-    std::lock_guard<std::mutex> debug_lock(debug_mutex_);
-    debug_event.query_index = ++relocalize_debug_query_index_;
-    debug_event.processing_time = processingTimeSeconds();
-  }
+  const bool reloc_debug_enabled = debug_emitter_.enabled();
+  RelocalizationDebugEvent debug_event =
+      debug_emitter_.beginRelocalization();
   auto finish_debug = [&](const std::string &lock_result,
                           const std::string &reject_reason) {
     result.decision = reject_reason.empty() ? lock_result : reject_reason;
     if (!reloc_debug_enabled) {
       return;
     }
-    debug_event.processing_time = processingTimeSeconds();
-    debug_event.lock_result = lock_result;
-    debug_event.lock_accepted = (lock_result == "accepted");
-    debug_event.reject_reason = reject_reason;
-    appendRelocalizationDebug(debug_event);
+    debug_emitter_.finishRelocalization(debug_event, lock_result,
+                                        reject_reason);
   };
 
   if (!cloud || cloud->empty()) {
@@ -850,13 +816,8 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                                        bool strict_loaded_map) {
   RelocResult result;
   result.success = false;
-  const bool reloc_debug_enabled = config_.reloc_debug_enable;
-  RelocTrackingDebugEvent debug_event;
-  if (reloc_debug_enabled) {
-    std::lock_guard<std::mutex> debug_lock(debug_mutex_);
-    debug_event.query_index = ++track_debug_query_index_;
-    debug_event.processing_time = processingTimeSeconds();
-  }
+  const bool reloc_debug_enabled = debug_emitter_.enabled();
+  RelocTrackingDebugEvent debug_event = debug_emitter_.beginTracking();
   auto finish_tracking_debug = [&](const std::string &reject_reason) {
     result.decision = reject_reason.empty()
                           ? (strict_loaded_map
@@ -866,11 +827,8 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     if (!reloc_debug_enabled) {
       return;
     }
-    debug_event.processing_time = processingTimeSeconds();
-    debug_event.result_success = result.success;
-    debug_event.consecutive_track_failures = consecutive_track_failures_;
-    debug_event.reject_reason = reject_reason;
-    appendTrackingDebug(debug_event);
+    debug_emitter_.finishTracking(debug_event, result.success,
+                                  consecutive_track_failures_, reject_reason);
   };
 
   if (!cloud || cloud->empty()) {

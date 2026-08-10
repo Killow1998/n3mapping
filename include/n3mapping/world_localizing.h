@@ -21,7 +21,7 @@
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_candidate_evaluator.h"
 #include "n3mapping/relocalization_decision_policy.h"
-#include "n3mapping/relocalization_debug_logger.h"
+#include "n3mapping/relocalization_debug_emitter.h"
 #include "n3mapping/relocalization_hypothesis_manager.h"
 #include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/relocalization_query_builder.h"
@@ -157,8 +157,6 @@ private:
   double
   computeTrackLogLikelihood(const MatchResult &match_result,
                             const Eigen::Isometry3d &predicted_pose) const;
-  void appendRelocalizationDebug(const RelocalizationDebugEvent &event) const;
-  void appendTrackingDebug(const RelocTrackingDebugEvent &event) const;
   RelocResult trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                                     const Eigen::Isometry3d &odom_pose,
                                     bool strict_loaded_map);
@@ -175,6 +173,7 @@ private:
   RelocalizationCandidateEvaluator candidate_evaluator_;
   RelocalizationHypothesisManager hypothesis_manager_;
   RelocalizationDecisionPolicy decision_policy_;
+  RelocalizationDebugEmitter debug_emitter_;
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
   KeyframeMapRevision reloc_map_revision_;
@@ -192,9 +191,6 @@ private:
   int64_t relocalization_seed_id_;
   Eigen::Isometry3d last_odom_pose_;
   int consecutive_track_failures_;
-  uint64_t relocalize_debug_query_index_;
-  uint64_t track_debug_query_index_;
-  mutable std::mutex debug_mutex_;
   mutable std::mutex mutex_;
 };
 
