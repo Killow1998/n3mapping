@@ -341,6 +341,70 @@ TEST_F(GraphOptimizerTest, LoadGraph) {
     EXPECT_EQ(loaded_edges.size(), 3u);
 }
 
+TEST_F(GraphOptimizerTest, LoadGraphRestoresLargeCrossLinkedMapDeterministically) {
+    constexpr int64_t kLastOldNode = 216;
+    constexpr int64_t kFirstSessionNode = 217;
+    constexpr int64_t kLastNode = 424;
+
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
+    nodes.reserve(kLastNode + 1);
+    for (int64_t id = 0; id <= kLastNode; ++id) {
+        nodes.emplace_back(id, createPose(0.1 * static_cast<double>(id), 0, 0));
+    }
+
+    std::vector<EdgeInfo> edges;
+    edges.reserve(631);
+    for (int64_t id = 0; id < kLastOldNode; ++id) {
+        EdgeInfo odometry;
+        odometry.from_id = id;
+        odometry.to_id = id + 1;
+        odometry.measurement = createPose(0.1, 0, 0);
+        odometry.information = createInformationMatrix(10000.0, 10000.0);
+        odometry.type = EdgeType::ODOMETRY;
+        edges.push_back(odometry);
+    }
+
+    EdgeInfo anchor;
+    anchor.from_id = 6;
+    anchor.to_id = kFirstSessionNode;
+    anchor.measurement = createPose(21.1, 0, 0);
+    anchor.information = createInformationMatrix(400.0, 10000.0);
+    anchor.type = EdgeType::SESSION_ANCHOR;
+    edges.push_back(anchor);
+
+    for (int64_t id = kFirstSessionNode; id < kLastNode; ++id) {
+        EdgeInfo odometry;
+        odometry.from_id = id;
+        odometry.to_id = id + 1;
+        odometry.measurement = createPose(0.1, 0, 0);
+        odometry.information = createInformationMatrix(10000.0, 1000000.0);
+        odometry.type = EdgeType::ODOMETRY;
+        edges.push_back(odometry);
+    }
+
+    for (int64_t query = kFirstSessionNode + 1; query <= kLastNode; ++query) {
+        const int64_t match = (query * 37) % (kLastOldNode + 1);
+        EdgeInfo tracked;
+        tracked.from_id = match;
+        tracked.to_id = query;
+        tracked.measurement = createPose(
+            0.1 * static_cast<double>(query - match), 0, 0);
+        tracked.information = createInformationMatrix(400.0, 10000.0);
+        tracked.type = EdgeType::LOOP;
+        edges.push_back(tracked);
+    }
+    ASSERT_EQ(edges.size(), 631u);
+
+    // Repeat to protect against the former intermittent TBB Bayes-tree race,
+    // while keeping this focused regression well below a second.
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        GraphOptimizer loaded(config_);
+        ASSERT_TRUE(loaded.loadGraph(nodes, edges)) << "attempt=" << attempt;
+        EXPECT_EQ(loaded.getNumNodes(), nodes.size());
+        EXPECT_EQ(loaded.getNumEdges(), edges.size());
+    }
+}
+
 TEST_F(GraphOptimizerTest, LoadGraphFailureDoesNotPolluteExistingState) {
     std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes = {
         {0, createPose(0, 0, 0)},

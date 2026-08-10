@@ -10,6 +10,7 @@
 #include <utility>
 #include <gtsam/linear/NoiseModel.h>
 #include <gtsam/nonlinear/DoglegOptimizer.h>
+#include <tbb/global_control.h>
 
 namespace n3mapping {
 namespace {
@@ -579,6 +580,14 @@ bool GraphOptimizer::loadGraph(
     // 执行优化
     if (!temp.graph_.empty() && !temp.initial_values_.empty()) {
         gtsam::Values optimized_estimate;
+        // The installed GTSAM uses TBB for Bayes-tree back-substitution. On
+        // large cross-linked saved graphs its parallel traversal can race a
+        // child clique against publication of its parent's result and throw
+        // std::out_of_range ("map::at"). Keep only this one-shot bulk reload
+        // solve serial; online incremental optimization and point-cloud work
+        // retain their configured parallelism.
+        tbb::global_control serial_reload_solve(
+            tbb::global_control::max_allowed_parallelism, 1);
         if (!temp.optimizeCandidate(temp.graph_, temp.initial_values_, &optimized_estimate)) {
             std::cerr << "GraphOptimizer::loadGraph() failed; existing graph left unchanged" << std::endl;
             return false;
