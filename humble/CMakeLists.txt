@@ -117,6 +117,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
   ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
+  ${N3MAPPING_ROOT}/src/local_map_selector.cpp
   ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
@@ -663,6 +664,12 @@ if(BUILD_TESTING)
   if(TARGET test_relocalization_target_provider)
     target_link_libraries(test_relocalization_target_provider ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
     ament_target_dependencies(test_relocalization_target_provider rclcpp)
+  endif()
+
+  ament_add_gtest(test_local_map_selector ${N3MAPPING_ROOT}/test/test_local_map_selector.cpp)
+  if(TARGET test_local_map_selector)
+    target_link_libraries(test_local_map_selector ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
+    ament_target_dependencies(test_local_map_selector rclcpp)
   endif()
 
   ament_add_gtest(test_config_wiring ${N3MAPPING_ROOT}/test/test_config_wiring.cpp)
