@@ -12,22 +12,22 @@ namespace n3mapping {
 
 RelocalizationCandidateEvaluator::RelocalizationCandidateEvaluator(
     const Config &config, KeyframeManager &keyframe_manager,
-    PointCloudMatcher &matcher, LocalizationAtlas &localization_atlas)
+    PointCloudMatcher &matcher, RelocTargetProvider &target_provider)
     : config_(config), keyframe_manager_(keyframe_manager), matcher_(matcher),
-      localization_atlas_(localization_atlas) {}
+      target_provider_(target_provider) {}
 
 std::vector<RelocalizationCandidateEvaluation>
 RelocalizationCandidateEvaluator::evaluate(
     const PointCloudT::Ptr &query_cloud,
     const PointCloudMatcher::PreparedSource &prepared_query,
-    const LoopCandidate &candidate, const PointCloudT::Ptr &candidate_target) {
+    const LoopCandidate &candidate, RelocTargetRequest target_request) {
   std::vector<RelocalizationCandidateEvaluation> evaluations;
   auto match_keyframe = keyframe_manager_.getKeyframe(candidate.match_id);
   if (!match_keyframe) {
     return evaluations;
   }
 
-  PointCloudT::Ptr target = candidate_target;
+  PointCloudT::Ptr target = target_request.local_target;
   if (!target || target->empty()) {
     if (!match_keyframe->cloud || match_keyframe->cloud->empty()) {
       return evaluations;
@@ -38,14 +38,13 @@ RelocalizationCandidateEvaluator::evaluate(
     pcl::transformPointCloud(*match_keyframe->cloud, *target, transform);
   }
 
-  PointCloudMatcher::PreparedTarget local_prepared_target;
-  const PointCloudMatcher::PreparedTarget *registration_target = nullptr;
-  if (localization_atlas_.loaded()) {
-    registration_target = &localization_atlas_.preparedTarget();
-  } else {
-    local_prepared_target = matcher_.prepareTargetCloud(target);
-    registration_target = &local_prepared_target;
+  target_request.local_target = target;
+  const PreparedRelocTarget prepared_target =
+      target_provider_.getTarget(target_request);
+  if (!prepared_target.valid()) {
+    return evaluations;
   }
+  target = prepared_target.visibility_target;
 
   const auto yaw_hypotheses = buildDescriptorYawHypotheses(candidate, config_);
   for (const double yaw : yaw_hypotheses) {
@@ -56,8 +55,8 @@ RelocalizationCandidateEvaluator::evaluate(
     const auto initial_visibility =
         evaluateVisibility(target, query_cloud, initial_pose);
 
-    MatchResult match = matcher_.alignPrepared(*registration_target,
-                                               prepared_query, initial_pose);
+    MatchResult match = matcher_.alignPrepared(
+        *prepared_target.registration_target, prepared_query, initial_pose);
     const bool production_quality =
         isFiniteRigidPose(match.T_target_source) && match.converged &&
         std::isfinite(match.fitness_score) &&

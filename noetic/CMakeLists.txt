@@ -139,6 +139,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/relocalization_hypothesis_manager.cpp
   ${N3MAPPING_ROOT}/src/relocalization_place_index.cpp
   ${N3MAPPING_ROOT}/src/relocalization_query_builder.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_target_provider.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
   ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
   ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
@@ -544,6 +545,14 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_relocalization_debug_logger)
     target_link_libraries(test_relocalization_debug_logger n3mapping_core)
+  endif()
+
+  catkin_add_gtest(test_relocalization_target_provider
+    ${N3MAPPING_ROOT}/test/test_relocalization_target_provider.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_relocalization_target_provider)
+    target_link_libraries(test_relocalization_target_provider n3mapping_core ${PCL_LIBRARIES})
   endif()
 
   if(N3MAPPING_BUILD_RESEARCH_TOOLS)

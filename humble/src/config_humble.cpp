@@ -156,6 +156,11 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     gets("reloc_debug_path", config->reloc_debug_path);
     get("reloc_atlas_enable", config->reloc_atlas_enable);
     gets("reloc_atlas_path", config->reloc_atlas_path);
+    gets("reloc_target_mode", config->reloc_target_mode);
+    get("reloc_target_cache_max_bytes",
+        config->reloc_target_cache_max_bytes);
+    get("reloc_target_cache_max_entries",
+        config->reloc_target_cache_max_entries);
 
     get("reloc_free_space_enable", config->reloc_free_space_enable);
     gets("reloc_free_space_mode", config->reloc_free_space_mode);

@@ -10,9 +10,9 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/keyframe_manager.h"
-#include "n3mapping/localization_atlas.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/relocalization_target_provider.h"
 #include "n3mapping/visibility_consistency.h"
 
 namespace n3mapping {
@@ -44,13 +44,12 @@ public:
   RelocalizationCandidateEvaluator(const Config &config,
                                    KeyframeManager &keyframe_manager,
                                    PointCloudMatcher &matcher,
-                                   LocalizationAtlas &localization_atlas);
+                                   RelocTargetProvider &target_provider);
 
   std::vector<RelocalizationCandidateEvaluation>
   evaluate(const PointCloudT::Ptr &query_cloud,
            const PointCloudMatcher::PreparedSource &prepared_query,
-           const LoopCandidate &candidate,
-           const PointCloudT::Ptr &candidate_target);
+           const LoopCandidate &candidate, RelocTargetRequest target_request);
 
 private:
   VisibilityConsistencyResult
@@ -61,7 +60,7 @@ private:
   Config config_;
   KeyframeManager &keyframe_manager_;
   PointCloudMatcher &matcher_;
-  LocalizationAtlas &localization_atlas_;
+  RelocTargetProvider &target_provider_;
 };
 
 } // namespace n3mapping

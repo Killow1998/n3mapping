@@ -13,6 +13,7 @@
 #include <Eigen/Geometry>
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <future>
 #include <glog/logging.h>
@@ -63,8 +64,10 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       place_index_(config_, keyframe_manager_, loop_detector_),
       localization_atlas_(
           std::make_unique<LocalizationAtlas>(config_, matcher_)),
+      target_provider_(makeRelocTargetProvider(config_, matcher_,
+                                               *localization_atlas_)),
       candidate_evaluator_(config_, keyframe_manager_, matcher_,
-                           *localization_atlas_),
+                           *target_provider_),
       decision_policy_(config_), debug_emitter_(config_),
       reloc_map_cache_(pcl::make_shared<PointCloudT>()),
       reloc_map_cached_keyframes_(0),
@@ -260,9 +263,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           break;
         ++verified;
 
-        const auto candidate_target = buildRelocTargetCloud(candidate.match_id);
+        RelocTargetRequest target_request =
+            makeRelocTargetRequest(candidate.match_id);
         for (const auto &evaluation : candidate_evaluator_.evaluate(
-                 query_cloud, prepared_query, candidate, candidate_target)) {
+                 query_cloud, prepared_query, candidate,
+                 std::move(target_request))) {
           const MatchResult selected_match =
               evaluation.registration.selectedMatch();
           const auto quality = evaluateRelocMatchQuality(selected_match);
@@ -421,7 +426,9 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         continue;
       }
 
-      auto submap = buildRelocTargetCloud(nearest_kf_id);
+      RelocTargetRequest target_request =
+          makeRelocTargetRequest(nearest_kf_id);
+      auto submap = target_request.local_target;
       if (!submap || submap->empty()) {
         hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
         continue;
@@ -433,16 +440,13 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       // pose onto a remote dense surface.
       const auto predicted_visibility =
           evaluatePoseVisibility(submap, query_cloud, predicted_pose);
-      PointCloudMatcher::PreparedTarget local_prepared_target;
-      const PointCloudMatcher::PreparedTarget *prepared_target = nullptr;
-      if (localization_atlas_ && localization_atlas_->loaded()) {
-        prepared_target = &localization_atlas_->preparedTarget();
-      } else {
-        local_prepared_target = matcher_.prepareTargetCloud(submap);
-        prepared_target = &local_prepared_target;
+      const PreparedRelocTarget prepared_target =
+          target_provider_->getTarget(target_request);
+      MatchResult mr;
+      if (prepared_target.valid()) {
+        mr = matcher_.alignPrepared(*prepared_target.registration_target,
+                                    prepared_query, predicted_pose);
       }
-      MatchResult mr = matcher_.alignPrepared(*prepared_target, prepared_query,
-                                              predicted_pose);
       hyp.cumulative_log_likelihood +=
           computeTrackLogLikelihood(mr, predicted_pose);
       hyp.num_updates += 1;
@@ -1151,6 +1155,9 @@ void WorldLocalizing::notifyMapReplaced() {
   if (localization_atlas_) {
     localization_atlas_->clear();
   }
+  if (target_provider_) {
+    target_provider_->clear();
+  }
 }
 
 void WorldLocalizing::reset() {
@@ -1167,6 +1174,13 @@ WorldLocalizing::cacheDiagnostics() const {
   d.free_space_grid_keyframes = free_space_grid_keyframes_;
   d.free_space_grid_valid = free_space_grid_.valid();
   d.free_space_grid_failed = free_space_grid_failed_;
+  if (target_provider_) {
+    const auto target_diag = target_provider_->diagnostics();
+    d.reloc_target_cache_hits = target_diag.cache_hits;
+    d.reloc_target_cache_misses = target_diag.cache_misses;
+    d.reloc_target_cache_bytes = target_diag.cache_total_bytes;
+    d.reloc_target_cache_entries = target_diag.cache_entries;
+  }
   return d;
 }
 
@@ -1193,6 +1207,9 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
     return false;
   }
   localization_atlas_->clear();
+  if (target_provider_) {
+    target_provider_->clear();
+  }
   if (!config_.reloc_atlas_enable)
     return true;
   const std::string atlas_path =
@@ -1535,6 +1552,23 @@ WorldLocalizing::buildRelocTargetCloud(int64_t center_id) {
     return pcl::make_shared<PointCloudT>();
   return LocalizationAtlas::cropGlobalMap(
       config_, reloc_map_cache_, center_keyframe->pose_optimized.translation());
+}
+
+RelocTargetRequest
+WorldLocalizing::makeRelocTargetRequest(int64_t center_id) {
+  using Clock = std::chrono::steady_clock;
+  const auto start = Clock::now();
+
+  RelocTargetRequest request;
+  request.anchor_id = center_id;
+  request.local_target = buildRelocTargetCloud(center_id);
+  request.target_build_ms =
+      std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+  request.map_revision = keyframe_manager_.revision();
+  if (const auto center_keyframe = keyframe_manager_.getKeyframe(center_id)) {
+    request.crop_center = center_keyframe->pose_optimized.translation();
+  }
+  return request;
 }
 
 void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {

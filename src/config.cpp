@@ -165,6 +165,9 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(reloc_debug_path);
     N3MAPPING_CONFIG_FIELD(reloc_atlas_enable);
     N3MAPPING_CONFIG_FIELD(reloc_atlas_path);
+    N3MAPPING_CONFIG_FIELD(reloc_target_mode);
+    N3MAPPING_CONFIG_FIELD(reloc_target_cache_max_bytes);
+    N3MAPPING_CONFIG_FIELD(reloc_target_cache_max_entries);
     N3MAPPING_CONFIG_FIELD(reloc_free_space_enable);
     N3MAPPING_CONFIG_FIELD(reloc_free_space_mode);
     N3MAPPING_CONFIG_FIELD(reloc_free_space_resolution);
@@ -276,6 +279,9 @@ std::string Config::toString() const {
         << " path=" << (reloc_debug_path.empty() ? "<map_save_path>/relocalization_debug.jsonl" : reloc_debug_path) << "\n";
     oss << "Reloc localization atlas: " << (reloc_atlas_enable ? "ON" : "OFF")
         << " path=" << (reloc_atlas_path.empty() ? "<map_path>.localization_atlas.pb" : reloc_atlas_path) << "\n";
+    oss << "Reloc target provider: mode=" << reloc_target_mode
+        << " cache_bytes=" << reloc_target_cache_max_bytes
+        << " cache_entries=" << reloc_target_cache_max_entries << "\n";
     oss << "Reloc free-space: " << (reloc_free_space_enable ? "ON" : "OFF")
         << " mode=" << reloc_free_space_mode
         << " res=" << reloc_free_space_resolution
@@ -432,6 +438,16 @@ bool Config::validate(std::string* error) const {
     if (!positive(reloc_ambiguity_min_ratio, "reloc_ambiguity_min_ratio")) return false;
     if (!non_negative(reloc_ambiguity_min_basin_separation, "reloc_ambiguity_min_basin_separation")) return false;
     if (!non_negative(reloc_ambiguity_min_consistency_margin, "reloc_ambiguity_min_consistency_margin")) return false;
+    if (reloc_target_mode != "legacy_global_atlas" &&
+        reloc_target_mode != "local_no_cache" &&
+        reloc_target_mode != "local_lru" &&
+        reloc_target_mode != "shadow_local_lru") {
+        return fail("reloc_target_mode must be one of: legacy_global_atlas, local_no_cache, local_lru, shadow_local_lru");
+    }
+    if (!at_least(reloc_target_cache_max_bytes, 0,
+                  "reloc_target_cache_max_bytes")) return false;
+    if (!at_least(reloc_target_cache_max_entries, 0,
+                  "reloc_target_cache_max_entries")) return false;
     if (!non_negative(rhpd_submap_voxel_size, "rhpd_submap_voxel_size")) return false;
     if (!positive(rhpd_max_range, "rhpd_max_range")) return false;
     if (!std::isfinite(rhpd_z_min) || !std::isfinite(rhpd_z_max) || rhpd_z_max <= rhpd_z_min) {

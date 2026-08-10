@@ -135,6 +135,9 @@ n3mapping_node:
     reloc_debug_path: ""
     reloc_atlas_enable: true
     reloc_atlas_path: ""
+    reloc_target_mode: "legacy_global_atlas"
+    reloc_target_cache_max_bytes: 0
+    reloc_target_cache_max_entries: 0
     reloc_free_space_enable: true
     reloc_free_space_mode: "veto"
     reloc_free_space_resolution: 0.20

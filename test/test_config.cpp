@@ -22,6 +22,9 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_TRUE(config.reloc_debug_path.empty());
     EXPECT_FALSE(config.reloc_atlas_enable);
     EXPECT_TRUE(config.reloc_atlas_path.empty());
+    EXPECT_EQ(config.reloc_target_mode, "legacy_global_atlas");
+    EXPECT_EQ(config.reloc_target_cache_max_bytes, 0);
+    EXPECT_EQ(config.reloc_target_cache_max_entries, 0);
     EXPECT_DOUBLE_EQ(config.loop_icp_prefilter_voxel_size, 0.2);
     EXPECT_EQ(config.loop_icp_max_points, 50000);
     EXPECT_TRUE(config.loop_spatial_candidates_enable);
@@ -130,6 +133,31 @@ TEST(ConfigTest, LoadedMapModesRequireExplicitMapPath) {
 
     config.map_path = "/deployment/map.pbstream";
     EXPECT_TRUE(config.validate(&error)) << error;
+}
+
+TEST(ConfigTest, RelocTargetProviderValidation) {
+    Config config;
+    std::string error;
+
+    for (const char* mode : {"legacy_global_atlas", "local_no_cache",
+                             "local_lru", "shadow_local_lru"}) {
+        config.reloc_target_mode = mode;
+        EXPECT_TRUE(config.validate(&error)) << mode << ": " << error;
+    }
+
+    config.reloc_target_mode = "implicit_magic_cache";
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_target_mode"), std::string::npos);
+
+    config = Config{};
+    config.reloc_target_cache_max_bytes = -1;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_target_cache_max_bytes"), std::string::npos);
+
+    config = Config{};
+    config.reloc_target_cache_max_entries = -1;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("reloc_target_cache_max_entries"), std::string::npos);
 }
 
 TEST(ConfigTest, ProductFactoryFreezesLocalizationProfileAndPaths) {

@@ -26,6 +26,7 @@
 #include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/relocalization_state.h"
+#include "n3mapping/relocalization_target_provider.h"
 #include "n3mapping/visibility_consistency.h"
 
 namespace n3mapping {
@@ -110,6 +111,10 @@ public:
     std::size_t free_space_grid_keyframes = 0;
     bool free_space_grid_valid = false;
     bool free_space_grid_failed = false;
+    std::size_t reloc_target_cache_hits = 0;
+    std::size_t reloc_target_cache_misses = 0;
+    std::size_t reloc_target_cache_bytes = 0;
+    std::size_t reloc_target_cache_entries = 0;
   };
   WorldLocalizingCacheDiagnostics cacheDiagnostics() const;
   void setMapToOdomTransform(const Eigen::Isometry3d &T_map_odom);
@@ -148,6 +153,7 @@ private:
   const RelocHypothesis *freeSpaceBestHypothesis(
       const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose);
   PointCloudT::Ptr buildRelocTargetCloud(int64_t center_id);
+  RelocTargetRequest makeRelocTargetRequest(int64_t center_id);
   VisibilityConsistencyResult
   evaluatePoseVisibility(const PointCloudT::Ptr &target_cloud,
                          const PointCloudT::Ptr &query_cloud,
@@ -170,6 +176,7 @@ private:
   RelocalizationQueryBuilder query_builder_;
   RelocalizationPlaceIndex place_index_;
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
+  std::unique_ptr<RelocTargetProvider> target_provider_;
   RelocalizationCandidateEvaluator candidate_evaluator_;
   RelocalizationHypothesisManager hypothesis_manager_;
   RelocalizationDecisionPolicy decision_policy_;

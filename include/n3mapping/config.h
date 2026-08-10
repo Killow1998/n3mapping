@@ -1,6 +1,7 @@
 #ifndef N3MAPPING_CONFIG_H
 #define N3MAPPING_CONFIG_H
 
+#include <cstdint>
 #include <string>
 
 namespace n3mapping {
@@ -231,6 +232,15 @@ struct Config {
     std::string reloc_debug_path = "";
     bool reloc_atlas_enable = false;
     std::string reloc_atlas_path = "";
+    // Registration target selection is explicit so Atlas presence cannot
+    // silently change semantics during later cache work. The legacy mode
+    // exactly reproduces current behavior: global Atlas when loaded, otherwise
+    // a freshly prepared local crop.
+    std::string reloc_target_mode = "legacy_global_atlas";
+    // Zero disables retention. A local LRU must be given both an explicit byte
+    // and entry budget before it keeps prepared targets.
+    int reloc_target_cache_max_bytes = 0;
+    int reloc_target_cache_max_entries = 0;
 
     // Free-space evidence and hypothesis persistence. Until 2026-08 these were
     // process-environment switches read inside WorldLocalizing

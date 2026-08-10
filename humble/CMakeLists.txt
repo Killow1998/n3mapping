@@ -138,6 +138,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/relocalization_hypothesis_manager.cpp
   ${N3MAPPING_ROOT}/src/relocalization_place_index.cpp
   ${N3MAPPING_ROOT}/src/relocalization_query_builder.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_target_provider.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
   ${N3MAPPING_ROOT}/src/free_space_grid.cpp
   ${N3MAPPING_ROOT}/src/floor_attitude.cpp
@@ -656,6 +657,12 @@ if(BUILD_TESTING)
   if(TARGET test_relocalization_debug_logger)
     target_link_libraries(test_relocalization_debug_logger ${PROJECT_NAME}_lib)
     ament_target_dependencies(test_relocalization_debug_logger rclcpp)
+  endif()
+
+  ament_add_gtest(test_relocalization_target_provider ${N3MAPPING_ROOT}/test/test_relocalization_target_provider.cpp)
+  if(TARGET test_relocalization_target_provider)
+    target_link_libraries(test_relocalization_target_provider ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
+    ament_target_dependencies(test_relocalization_target_provider rclcpp)
   endif()
 
   ament_add_gtest(test_config_wiring ${N3MAPPING_ROOT}/test/test_config_wiring.cpp)
