@@ -683,11 +683,12 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
         std::vector<Keyframe::Ptr> keyframes;
+        KeyframeMapRevision map_revision;
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            keyframes = snapshotKeyframesForGlobalMapLocked();
+            keyframes = snapshotKeyframesForGlobalMapLocked(&map_revision);
         }
-        publishGlobalMap(keyframes);
+        publishGlobalMap(keyframes, map_revision);
     }
 
     /**
@@ -1070,10 +1071,14 @@ class N3MappingNode : public rclcpp::Node
         return nullptr;
     }
 
-    std::vector<Keyframe::Ptr> snapshotKeyframesForGlobalMapLocked() const
+    std::vector<Keyframe::Ptr> snapshotKeyframesForGlobalMapLocked(
+        KeyframeMapRevision* map_revision = nullptr) const
     {
         std::vector<Keyframe::Ptr> snapshots;
         const auto keyframes = getKeyframesForPublishing();
+        if (map_revision && n3mapping_core_) {
+            *map_revision = n3mapping_core_->mapRevision();
+        }
         snapshots.reserve(keyframes.size());
         for (const auto& keyframe : keyframes) {
             if (!keyframe) {
@@ -1108,6 +1113,7 @@ class N3MappingNode : public rclcpp::Node
     }
 
     bool refreshGlobalMapMessage(const std::vector<Keyframe::Ptr>& keyframes,
+                                 const KeyframeMapRevision& map_revision,
                                  sensor_msgs::msg::PointCloud2* out_msg)
     {
         if (!out_msg) {
@@ -1115,7 +1121,7 @@ class N3MappingNode : public rclcpp::Node
         }
 
         std::lock_guard<std::mutex> lock(global_map_mutex_);
-        const auto cloud = global_map_cache_.update(keyframes);
+        const auto cloud = global_map_cache_.update(keyframes, map_revision);
         if (!cloud || cloud->empty()) {
             return false;
         }
@@ -1168,20 +1174,22 @@ class N3MappingNode : public rclcpp::Node
     void publishGlobalMap()
     {
         std::vector<Keyframe::Ptr> keyframes;
+        KeyframeMapRevision map_revision;
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            keyframes = snapshotKeyframesForGlobalMapLocked();
+            keyframes = snapshotKeyframesForGlobalMapLocked(&map_revision);
         }
-        publishGlobalMap(keyframes);
+        publishGlobalMap(keyframes, map_revision);
     }
 
-    void publishGlobalMap(const std::vector<Keyframe::Ptr>& keyframes)
+    void publishGlobalMap(const std::vector<Keyframe::Ptr>& keyframes,
+                          const KeyframeMapRevision& map_revision)
     {
         if (!n3mapping_core_) {
             return;
         }
         sensor_msgs::msg::PointCloud2 msg;
-        if (!refreshGlobalMapMessage(keyframes, &msg)) {
+        if (!refreshGlobalMapMessage(keyframes, map_revision, &msg)) {
             return;
         }
         global_map_pub_->publish(msg);
@@ -1195,13 +1203,16 @@ class N3MappingNode : public rclcpp::Node
         std::string error;
         std::string warning;
         std::vector<Keyframe::Ptr> global_map_keyframes;
+        KeyframeMapRevision global_map_revision;
         bool saved = false;
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            saved = saveMapPbstreamAndSnapshotLocked(&error, &global_map_keyframes);
+            saved = saveMapPbstreamAndSnapshotLocked(
+                &error, &global_map_keyframes, &global_map_revision);
         }
         if (saved && config_.save_global_map_on_shutdown) {
-            saveDebugGlobalMap(global_map_keyframes, &warning);
+            saveDebugGlobalMap(
+                global_map_keyframes, global_map_revision, &warning);
         }
         if (saved) {
             RCLCPP_INFO(this->get_logger(), "Map snapshot saved under: %s", config_.map_save_path.c_str());
@@ -1219,6 +1230,7 @@ class N3MappingNode : public rclcpp::Node
         std::string error;
         std::string warning;
         std::vector<Keyframe::Ptr> global_map_keyframes;
+        KeyframeMapRevision global_map_revision;
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
             if (!coreRunModeSavesMap(run_mode_)) {
@@ -1227,10 +1239,12 @@ class N3MappingNode : public rclcpp::Node
                 RCLCPP_WARN(this->get_logger(), "save_map service rejected: %s", response->message.c_str());
                 return;
             }
-            response->success = saveMapPbstreamAndSnapshotLocked(&error, &global_map_keyframes);
+            response->success = saveMapPbstreamAndSnapshotLocked(
+                &error, &global_map_keyframes, &global_map_revision);
         }
         if (response->success && config_.save_global_map_on_shutdown) {
-            saveDebugGlobalMap(global_map_keyframes, &warning);
+            saveDebugGlobalMap(
+                global_map_keyframes, global_map_revision, &warning);
         }
         response->message = response->success ? ("saved:" + config_.map_save_path) : (error.empty() ? "save_failed" : error);
         if (response->success && !warning.empty()) {
@@ -1244,7 +1258,8 @@ class N3MappingNode : public rclcpp::Node
     }
 
     bool saveMapPbstreamAndSnapshotLocked(std::string* error,
-                                          std::vector<Keyframe::Ptr>* global_map_keyframes)
+                                          std::vector<Keyframe::Ptr>* global_map_keyframes,
+                                          KeyframeMapRevision* map_revision)
     {
         if (!n3mapping_core_) {
             if (error) *error = "core_unavailable";
@@ -1270,12 +1285,15 @@ class N3MappingNode : public rclcpp::Node
         RCLCPP_INFO(this->get_logger(), "Map pbstream saved: %s", map_file.c_str());
 
         if (config_.save_global_map_on_shutdown && global_map_keyframes) {
-            *global_map_keyframes = snapshotKeyframesForGlobalMapLocked();
+            *global_map_keyframes =
+                snapshotKeyframesForGlobalMapLocked(map_revision);
         }
         return true;
     }
 
-    void saveDebugGlobalMap(const std::vector<Keyframe::Ptr>& keyframes, std::string* warning)
+    void saveDebugGlobalMap(const std::vector<Keyframe::Ptr>& keyframes,
+                            const KeyframeMapRevision& map_revision,
+                            std::string* warning)
     {
         if (warning) {
             warning->clear();
@@ -1285,7 +1303,7 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
         std::lock_guard<std::mutex> global_map_lock(global_map_mutex_);
-        const auto cloud = global_map_cache_.update(keyframes);
+        const auto cloud = global_map_cache_.update(keyframes, map_revision);
         if (!cloud || cloud->empty()) {
             if (warning) *warning = "save_global_map_empty";
             return;

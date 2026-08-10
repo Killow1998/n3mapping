@@ -535,7 +535,8 @@ bool MapSerializer::saveGlobalMap(const std::string& filepath, const KeyframeMan
 pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::buildGlobalMap(const KeyframeManager& keyframe_manager,
                                                                    double voxel_size) const {
     GlobalMapCache cache(voxel_size);
-    auto cloud = cache.update(keyframe_manager.getAllKeyframes());
+    auto cloud = cache.update(
+        keyframe_manager.getAllKeyframes(), keyframe_manager.revision());
     if (!cloud) {
         return pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
     }

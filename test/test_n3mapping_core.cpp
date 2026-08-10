@@ -482,8 +482,11 @@ TEST(N3MappingCoreTest, SameCountMapReplacementCommitsMapAndDenseTogether)
     N3MappingCore loaded(config);
     ASSERT_TRUE(loaded.loadMap(map_a.string()));
     ASSERT_EQ(loaded.getAllKeyframes().size(), 1u);
+    const auto revision_a = loaded.mapRevision();
     ASSERT_TRUE(loaded.loadMap(map_b.string()));
     ASSERT_TRUE(loaded.mapLoaded());
+    const auto revision_b = loaded.mapRevision();
+    EXPECT_NE(revision_b.generation, revision_a.generation);
 
     const auto keyframes = loaded.getAllKeyframes();
     ASSERT_EQ(keyframes.size(), 1u);
@@ -538,6 +541,7 @@ TEST(N3MappingCoreTest, AtlasFailurePreservesPreviouslyLoadedSession)
     ASSERT_TRUE(loaded.loadMap(map_a.string()));
     const auto keyframes_before = loaded.getAllKeyframes();
     const auto dense_before = loaded.getDenseOptimizedTrajectory();
+    const auto revision_before = loaded.mapRevision();
     ASSERT_EQ(keyframes_before.size(), 1u);
     ASSERT_NEAR(keyframes_before.front()->pose_optimized.translation().x(),
                 0.0, 1e-9);
@@ -549,6 +553,7 @@ TEST(N3MappingCoreTest, AtlasFailurePreservesPreviouslyLoadedSession)
     // fails; the already-loaded A session must remain live.
     EXPECT_FALSE(loaded.loadMap(map_b.string()));
     EXPECT_TRUE(loaded.mapLoaded());
+    EXPECT_EQ(loaded.mapRevision(), revision_before);
     const auto keyframes_after = loaded.getAllKeyframes();
     ASSERT_EQ(keyframes_after.size(), 1u);
     EXPECT_NEAR(keyframes_after.front()->pose_optimized.translation().x(),

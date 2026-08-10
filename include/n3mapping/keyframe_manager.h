@@ -1,6 +1,7 @@
 // KeyframeManager: keyframe selection, storage, retrieval, and local submap construction.
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <vector>
@@ -9,6 +10,22 @@
 #include "n3mapping/keyframe.h"
 
 namespace n3mapping {
+
+struct KeyframeMapRevision {
+    std::uint64_t generation = 0;
+    std::uint64_t structure_revision = 0;
+    std::uint64_t pose_revision = 0;
+
+    bool operator==(const KeyframeMapRevision& other) const {
+        return generation == other.generation &&
+               structure_revision == other.structure_revision &&
+               pose_revision == other.pose_revision;
+    }
+
+    bool operator!=(const KeyframeMapRevision& other) const {
+        return !(*this == other);
+    }
+};
 
 class KeyframeManager {
 public:
@@ -26,6 +43,7 @@ public:
     std::vector<Keyframe::Ptr> getAllKeyframes() const;
     size_t size() const;
     bool empty() const;
+    KeyframeMapRevision revision() const;
     void updateOptimizedPoses(const std::map<int64_t, Eigen::Isometry3d>& poses);
     void loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes);
     void swapWith(KeyframeManager& other);
@@ -45,6 +63,7 @@ private:
     std::map<int64_t, Keyframe::Ptr> keyframes_;
     int64_t next_id_;
     Keyframe::Ptr last_keyframe_;
+    KeyframeMapRevision revision_;
     mutable std::mutex mutex_;
 
     static double computeTranslationDistance(const Eigen::Isometry3d& pose1, const Eigen::Isometry3d& pose2);

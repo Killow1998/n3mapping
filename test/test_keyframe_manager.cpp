@@ -59,6 +59,10 @@ TEST_F(KeyframeManagerTest, InitialState) {
     EXPECT_EQ(manager_->size(), 0u);
     EXPECT_EQ(manager_->getNextKeyframeId(), 0);
     EXPECT_EQ(manager_->getLatestKeyframe(), nullptr);
+    const auto revision = manager_->revision();
+    EXPECT_GT(revision.generation, 0u);
+    EXPECT_EQ(revision.structure_revision, 0u);
+    EXPECT_EQ(revision.pose_revision, 0u);
 }
 
 // 测试添加第一个关键帧
@@ -69,6 +73,7 @@ TEST_F(KeyframeManagerTest, AddFirstKeyframe) {
     // 第一帧应该总是被添加
     EXPECT_TRUE(manager_->shouldAddKeyframe(pose));
     
+    const auto before = manager_->revision();
     int64_t id = manager_->addKeyframe(0.0, pose, cloud);
     
     EXPECT_EQ(id, 0);
@@ -80,6 +85,10 @@ TEST_F(KeyframeManagerTest, AddFirstKeyframe) {
     ASSERT_NE(kf, nullptr);
     EXPECT_EQ(kf->id, 0);
     EXPECT_DOUBLE_EQ(kf->timestamp, 0.0);
+    const auto after = manager_->revision();
+    EXPECT_EQ(after.generation, before.generation);
+    EXPECT_EQ(after.structure_revision, before.structure_revision + 1);
+    EXPECT_EQ(after.pose_revision, before.pose_revision);
 }
 
 // 测试距离阈值判断 - Requirements 2.2
@@ -186,10 +195,13 @@ TEST_F(KeyframeManagerTest, RemoveLatestKeyframeIsStrictAndRestoresId) {
     EXPECT_EQ(manager_->size(), 2u);
     EXPECT_EQ(manager_->getNextKeyframeId(), 2);
 
+    const auto before_remove = manager_->revision();
     ASSERT_TRUE(manager_->removeLatestKeyframe(1));
     ASSERT_NE(manager_->getLatestKeyframe(), nullptr);
     EXPECT_EQ(manager_->getLatestKeyframe()->id, 0);
     EXPECT_EQ(manager_->getNextKeyframeId(), 1);
+    EXPECT_EQ(manager_->revision().structure_revision,
+              before_remove.structure_revision + 1);
     EXPECT_EQ(manager_->addKeyframe(0.2, createPose(2, 0, 0), cloud), 1);
 }
 
@@ -241,6 +253,7 @@ TEST_F(KeyframeManagerTest, UpdateOptimizedPoses) {
     optimized_poses[0] = createPose(0.1, 0.1, 0);
     optimized_poses[1] = createPose(1.1, 0.1, 0);
     
+    const auto before = manager_->revision();
     manager_->updateOptimizedPoses(optimized_poses);
     
     auto kf0 = manager_->getKeyframe(0);
@@ -248,6 +261,12 @@ TEST_F(KeyframeManagerTest, UpdateOptimizedPoses) {
     
     EXPECT_NEAR(kf0->pose_optimized.translation().x(), 0.1, 1e-9);
     EXPECT_NEAR(kf1->pose_optimized.translation().x(), 1.1, 1e-9);
+    const auto after = manager_->revision();
+    EXPECT_EQ(after.structure_revision, before.structure_revision);
+    EXPECT_EQ(after.pose_revision, before.pose_revision + 1);
+
+    manager_->updateOptimizedPoses(optimized_poses);
+    EXPECT_EQ(manager_->revision(), after);
 }
 
 // 测试加载关键帧
@@ -261,6 +280,7 @@ TEST_F(KeyframeManagerTest, LoadKeyframes) {
         keyframes.push_back(kf);
     }
     
+    const auto before = manager_->revision();
     manager_->loadKeyframes(keyframes);
     
     EXPECT_EQ(manager_->size(), 3u);
@@ -270,6 +290,10 @@ TEST_F(KeyframeManagerTest, LoadKeyframes) {
     auto kf = manager_->getKeyframe(10);
     ASSERT_NE(kf, nullptr);
     EXPECT_TRUE(kf->is_from_loaded_map);
+    const auto after = manager_->revision();
+    EXPECT_NE(after.generation, before.generation);
+    EXPECT_EQ(after.structure_revision, before.structure_revision + 1);
+    EXPECT_EQ(after.pose_revision, before.pose_revision + 1);
 }
 
 // 测试清空
@@ -281,12 +305,17 @@ TEST_F(KeyframeManagerTest, Clear) {
     
     EXPECT_EQ(manager_->size(), 2u);
     
+    const auto before = manager_->revision();
     manager_->clear();
     
     EXPECT_TRUE(manager_->empty());
     EXPECT_EQ(manager_->size(), 0u);
     EXPECT_EQ(manager_->getNextKeyframeId(), 0);
     EXPECT_EQ(manager_->getLatestKeyframe(), nullptr);
+    const auto after = manager_->revision();
+    EXPECT_NE(after.generation, before.generation);
+    EXPECT_EQ(after.structure_revision, before.structure_revision + 1);
+    EXPECT_EQ(after.pose_revision, before.pose_revision + 1);
 }
 
 // 测试按时间戳查找

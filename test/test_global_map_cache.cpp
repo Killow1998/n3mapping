@@ -11,6 +11,13 @@ namespace {
 
 using Cloud = pcl::PointCloud<pcl::PointXYZI>;
 
+KeyframeMapRevision mapRevision(std::uint64_t generation,
+                                std::uint64_t structure,
+                                std::uint64_t pose)
+{
+    return {generation, structure, pose};
+}
+
 Cloud::Ptr makeCloud(const std::vector<Eigen::Vector3f>& points)
 {
     auto cloud = pcl::make_shared<Cloud>();
@@ -43,7 +50,8 @@ TEST(GlobalMapCacheTest, RepeatedUpdateWithoutNewKeyframesKeepsRevision)
     GlobalMapCache cache(0.0);
     auto keyframe = makeKeyframe(0, Eigen::Vector3d(1.0, 2.0, 3.0), makeCloud({Eigen::Vector3f(0.0f, 0.0f, 0.0f)}));
 
-    auto cloud = cache.update({keyframe});
+    const auto input_revision = mapRevision(1, 1, 0);
+    auto cloud = cache.update({keyframe}, input_revision);
     ASSERT_NE(cloud, nullptr);
     ASSERT_EQ(cloud->size(), 1u);
     EXPECT_FLOAT_EQ(cloud->points.front().x, 1.0f);
@@ -51,7 +59,7 @@ TEST(GlobalMapCacheTest, RepeatedUpdateWithoutNewKeyframesKeepsRevision)
     EXPECT_FLOAT_EQ(cloud->points.front().z, 3.0f);
     const auto revision = cache.revision();
 
-    cloud = cache.update({keyframe});
+    cloud = cache.update({keyframe}, input_revision);
     ASSERT_NE(cloud, nullptr);
     EXPECT_EQ(cloud->size(), 1u);
     EXPECT_EQ(cache.revision(), revision);
@@ -63,12 +71,12 @@ TEST(GlobalMapCacheTest, NewKeyframeAppendsIncrementally)
     auto kf0 = makeKeyframe(0, Eigen::Vector3d(0.0, 0.0, 0.0), makeCloud({Eigen::Vector3f(0.0f, 0.0f, 0.0f)}));
     auto kf1 = makeKeyframe(1, Eigen::Vector3d(10.0, 0.0, 0.0), makeCloud({Eigen::Vector3f(1.0f, 0.0f, 0.0f)}));
 
-    auto cloud = cache.update({kf0});
+    auto cloud = cache.update({kf0}, mapRevision(1, 1, 0));
     ASSERT_NE(cloud, nullptr);
     ASSERT_EQ(cloud->size(), 1u);
     const auto revision0 = cache.revision();
 
-    cloud = cache.update({kf0, kf1});
+    cloud = cache.update({kf0, kf1}, mapRevision(1, 2, 0));
     ASSERT_NE(cloud, nullptr);
     EXPECT_EQ(cloud->size(), 2u);
     EXPECT_GT(cache.revision(), revision0);
@@ -80,24 +88,38 @@ TEST(GlobalMapCacheTest, FullRebuildUsesUpdatedOptimizedPoses)
     GlobalMapCache cache(0.0);
     auto keyframe = makeKeyframe(0, Eigen::Vector3d(0.0, 0.0, 0.0), makeCloud({Eigen::Vector3f(1.0f, 0.0f, 0.0f)}));
 
-    auto cloud = cache.update({keyframe});
+    auto cloud = cache.update({keyframe}, mapRevision(1, 1, 0));
     ASSERT_NE(cloud, nullptr);
     ASSERT_EQ(cloud->size(), 1u);
     EXPECT_FLOAT_EQ(cloud->points.front().x, 1.0f);
     const auto revision0 = cache.revision();
 
     keyframe->pose_optimized.translation() = Eigen::Vector3d(5.0, 0.0, 0.0);
-    cloud = cache.update({keyframe});
-    ASSERT_NE(cloud, nullptr);
-    EXPECT_FLOAT_EQ(cloud->points.front().x, 1.0f);
-    EXPECT_EQ(cache.revision(), revision0);
-
-    cache.markFullRebuildRequired();
-    cloud = cache.update({keyframe});
+    cloud = cache.update({keyframe}, mapRevision(1, 1, 1));
     ASSERT_NE(cloud, nullptr);
     ASSERT_EQ(cloud->size(), 1u);
     EXPECT_FLOAT_EQ(cloud->points.front().x, 6.0f);
     EXPECT_GT(cache.revision(), revision0);
+}
+
+TEST(GlobalMapCacheTest, SameCountReplacementGenerationForcesRebuild)
+{
+    GlobalMapCache cache(0.0);
+    auto map_a = makeKeyframe(
+        0, Eigen::Vector3d::Zero(),
+        makeCloud({Eigen::Vector3f(1.0f, 0.0f, 0.0f)}));
+    auto cloud = cache.update({map_a}, mapRevision(1, 1, 0));
+    ASSERT_NE(cloud, nullptr);
+    ASSERT_EQ(cloud->size(), 1u);
+    EXPECT_FLOAT_EQ(cloud->points.front().x, 1.0f);
+
+    auto map_b = makeKeyframe(
+        0, Eigen::Vector3d(100.0, 0.0, 0.0),
+        makeCloud({Eigen::Vector3f(2.0f, 0.0f, 0.0f)}));
+    cloud = cache.update({map_b}, mapRevision(2, 1, 0));
+    ASSERT_NE(cloud, nullptr);
+    ASSERT_EQ(cloud->size(), 1u);
+    EXPECT_FLOAT_EQ(cloud->points.front().x, 102.0f);
 }
 
 TEST(GlobalMapCacheTest, VoxelModeMergesPointsInSameVoxel)
@@ -108,7 +130,7 @@ TEST(GlobalMapCacheTest, VoxelModeMergesPointsInSameVoxel)
         Eigen::Vector3d::Zero(),
         makeCloud({Eigen::Vector3f(0.1f, 0.1f, 0.1f), Eigen::Vector3f(0.2f, 0.2f, 0.2f)}));
 
-    auto cloud = cache.update({keyframe});
+    auto cloud = cache.update({keyframe}, mapRevision(1, 1, 0));
     ASSERT_NE(cloud, nullptr);
     ASSERT_EQ(cloud->size(), 1u);
     EXPECT_NEAR(cloud->points.front().x, 0.15f, 1e-5f);

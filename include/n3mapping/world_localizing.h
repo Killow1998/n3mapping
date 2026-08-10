@@ -219,16 +219,20 @@ private:
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
   RHPDManager frame_rhpd_manager_;
   size_t frame_rhpd_indexed_keyframes_;
+  KeyframeMapRevision frame_rhpd_revision_;
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
+  KeyframeMapRevision reloc_map_revision_;
   PointCloudT::Ptr loaded_map_visibility_cache_;
   size_t loaded_map_visibility_cached_keyframes_ = 0;
+  KeyframeMapRevision loaded_map_visibility_revision_;
   // Frames the current hypothesis set has survived across rejected
   // windows. Only a valve: a set that never resolves must not wedge the
   // episode forever.
   int hypothesis_persist_frames_ = 0;
   FreeSpaceGrid free_space_grid_;
   size_t free_space_grid_keyframes_ = 0;
+  KeyframeMapRevision free_space_grid_revision_;
   bool free_space_grid_failed_ = false;
 
   bool is_relocalized_;

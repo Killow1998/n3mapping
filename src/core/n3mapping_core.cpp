@@ -1456,6 +1456,10 @@ std::vector<Keyframe::Ptr> N3MappingCore::getAllKeyframes() const {
   return session_->keyframeManager().getAllKeyframes();
 }
 
+KeyframeMapRevision N3MappingCore::mapRevision() const {
+  return session_->keyframeManager().revision();
+}
+
 std::map<int64_t, Eigen::Isometry3d> N3MappingCore::getOptimizedPoses() const {
   return session_->graphOptimizer().getOptimizedPoses();
 }

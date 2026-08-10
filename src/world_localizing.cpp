@@ -38,6 +38,18 @@ bool hasValidRegistrationResult(const MatchResult &match) {
          std::isfinite(match.inlier_ratio) &&
          isFiniteRigidPose(match.T_target_source);
 }
+
+bool sameGenerationAndStructure(const KeyframeMapRevision &lhs,
+                                const KeyframeMapRevision &rhs) {
+  return lhs.generation == rhs.generation &&
+         lhs.structure_revision == rhs.structure_revision;
+}
+
+bool sameGenerationAndPose(const KeyframeMapRevision &lhs,
+                           const KeyframeMapRevision &rhs) {
+  return lhs.generation == rhs.generation &&
+         lhs.pose_revision == rhs.pose_revision;
+}
 } // namespace
 
 WorldLocalizing::WorldLocalizing(const Config &config,
@@ -1317,12 +1329,16 @@ void WorldLocalizing::notifyMapReplaced() {
   // rebuild its frame-RHPD index, reloc map cache, free-space grid and atlas.
   frame_rhpd_manager_.clear();
   frame_rhpd_indexed_keyframes_ = 0;
+  frame_rhpd_revision_ = {};
   reloc_map_cache_ = pcl::make_shared<PointCloudT>();
   reloc_map_cached_keyframes_ = 0;
+  reloc_map_revision_ = {};
   loaded_map_visibility_cache_ = pcl::make_shared<PointCloudT>();
   loaded_map_visibility_cached_keyframes_ = 0;
+  loaded_map_visibility_revision_ = {};
   free_space_grid_ = FreeSpaceGrid();
   free_space_grid_keyframes_ = 0;
+  free_space_grid_revision_ = {};
   free_space_grid_failed_ = false;
   if (localization_atlas_) {
     localization_atlas_->clear();
@@ -1665,10 +1681,17 @@ WorldLocalizing::searchCandidates(const PointCloudT::Ptr &cloud) {
 
 
 void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
+  const KeyframeMapRevision current_revision = keyframe_manager_.revision();
+  if (free_space_grid_revision_ != current_revision) {
+    free_space_grid_ = FreeSpaceGrid();
+    free_space_grid_keyframes_ = 0;
+    free_space_grid_failed_ = false;
+    free_space_grid_revision_ = current_revision;
+  }
   if (free_space_grid_failed_)
     return;
   const size_t current_size = keyframe_manager_.size();
-  if (free_space_grid_.valid() && free_space_grid_keyframes_ == current_size)
+  if (free_space_grid_.valid())
     return;
   rebuildRelocMapCacheIfNeeded();
   PointCloudT::Ptr grid_source = reloc_map_cache_;
@@ -1828,23 +1851,25 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
 }
 
 void WorldLocalizing::rebuildRelocMapCacheIfNeeded() {
+  const KeyframeMapRevision current_revision = keyframe_manager_.revision();
   if (localization_atlas_ && localization_atlas_->loaded()) {
     const auto &atlas_map = localization_atlas_->globalMap();
     if (reloc_map_cache_ != atlas_map) {
       reloc_map_cache_ = atlas_map;
       reloc_map_cached_keyframes_ = keyframe_manager_.size();
     }
+    reloc_map_revision_ = current_revision;
     return;
   }
   const std::size_t current_size = keyframe_manager_.size();
-  if (reloc_map_cache_ && !reloc_map_cache_->empty() &&
-      reloc_map_cached_keyframes_ == current_size) {
+  if (reloc_map_revision_ == current_revision) {
     return;
   }
 
   reloc_map_cache_ = LocalizationAtlas::buildGlobalMap(
       config_, keyframe_manager_.getAllKeyframes());
   reloc_map_cached_keyframes_ = current_size;
+  reloc_map_revision_ = current_revision;
 }
 
 WorldLocalizing::PointCloudT::Ptr
@@ -1858,6 +1883,7 @@ WorldLocalizing::buildRelocTargetCloud(int64_t center_id) {
 }
 
 void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
+  const KeyframeMapRevision current_revision = keyframe_manager_.revision();
   std::vector<Keyframe::Ptr> loaded_keyframes;
   for (const auto &keyframe : keyframe_manager_.getAllKeyframes()) {
     if (keyframe && keyframe->is_from_loaded_map) {
@@ -1866,12 +1892,15 @@ void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
   }
   if (loaded_map_visibility_cache_ &&
       !loaded_map_visibility_cache_->empty() &&
+      sameGenerationAndPose(loaded_map_visibility_revision_,
+                            current_revision) &&
       loaded_map_visibility_cached_keyframes_ == loaded_keyframes.size()) {
     return;
   }
   loaded_map_visibility_cache_ =
       LocalizationAtlas::buildGlobalMap(config_, loaded_keyframes);
   loaded_map_visibility_cached_keyframes_ = loaded_keyframes.size();
+  loaded_map_visibility_revision_ = current_revision;
 }
 
 VisibilityConsistencyResult
@@ -1899,8 +1928,9 @@ VisibilityConsistencyResult WorldLocalizing::evaluatePoseVisibility(
 }
 
 void WorldLocalizing::rebuildFrameRHPDIndexIfNeeded() {
+  const KeyframeMapRevision current_revision = keyframe_manager_.revision();
   const size_t current_size = keyframe_manager_.size();
-  if (frame_rhpd_indexed_keyframes_ == current_size) {
+  if (sameGenerationAndStructure(frame_rhpd_revision_, current_revision)) {
     return;
   }
 
@@ -1916,6 +1946,7 @@ void WorldLocalizing::rebuildFrameRHPDIndexIfNeeded() {
     ++indexed;
   }
   frame_rhpd_indexed_keyframes_ = current_size;
+  frame_rhpd_revision_ = current_revision;
   VLOG(1) << "[Reloc/RHPDFrame] rebuilt frame-level index: indexed=" << indexed
           << " keyframes=" << current_size;
 }

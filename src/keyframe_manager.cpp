@@ -1,6 +1,7 @@
 // KeyframeManager: keyframe CRUD, submap building (world frame and virtual root frame).
 #include "n3mapping/keyframe_manager.h"
 
+#include <atomic>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -8,9 +9,19 @@
 #include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
+namespace {
+
+std::uint64_t nextMapGeneration() {
+    static std::atomic<std::uint64_t> generation{0};
+    return generation.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
+}  // namespace
 
 KeyframeManager::KeyframeManager(const Config& config)
-    : config_(config), next_id_(0), last_keyframe_(nullptr) {}
+    : config_(config), next_id_(0), last_keyframe_(nullptr) {
+    revision_.generation = nextMapGeneration();
+}
 
 bool KeyframeManager::shouldAddKeyframe(const Eigen::Isometry3d& current_pose) const {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -25,6 +36,7 @@ int64_t KeyframeManager::addKeyframe(double timestamp, const Eigen::Isometry3d& 
     auto keyframe = Keyframe::create(next_id_, timestamp, pose, cloud);
     keyframes_[next_id_] = keyframe;
     last_keyframe_ = keyframe;
+    ++revision_.structure_revision;
     return next_id_++;
 }
 
@@ -40,6 +52,7 @@ bool KeyframeManager::removeLatestKeyframe(int64_t expected_id) {
 
     next_id_ = expected_id;
     last_keyframe_ = keyframes_.empty() ? nullptr : keyframes_.rbegin()->second;
+    ++revision_.structure_revision;
     return true;
 }
 
@@ -72,11 +85,25 @@ bool KeyframeManager::empty() const {
     return keyframes_.empty();
 }
 
+KeyframeMapRevision KeyframeManager::revision() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return revision_;
+}
+
 void KeyframeManager::updateOptimizedPoses(const std::map<int64_t, Eigen::Isometry3d>& poses) {
     std::lock_guard<std::mutex> lock(mutex_);
+    bool changed = false;
     for (const auto& pair : poses) {
         auto it = keyframes_.find(pair.first);
-        if (it != keyframes_.end()) it->second->pose_optimized = pair.second;
+        if (it != keyframes_.end() &&
+            !it->second->pose_optimized.matrix().isApprox(
+                pair.second.matrix(), 1e-12)) {
+            it->second->pose_optimized = pair.second;
+            changed = true;
+        }
+    }
+    if (changed) {
+        ++revision_.pose_revision;
     }
 }
 
@@ -92,6 +119,9 @@ void KeyframeManager::loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes)
         if (kf->id >= next_id_) next_id_ = kf->id + 1;
         if (!last_keyframe_ || kf->id > last_keyframe_->id) last_keyframe_ = kf;
     }
+    revision_.generation = nextMapGeneration();
+    ++revision_.structure_revision;
+    ++revision_.pose_revision;
 }
 
 void KeyframeManager::swapWith(KeyframeManager& other) {
@@ -103,6 +133,12 @@ void KeyframeManager::swapWith(KeyframeManager& other) {
     std::swap(keyframes_, other.keyframes_);
     std::swap(next_id_, other.next_id_);
     std::swap(last_keyframe_, other.last_keyframe_);
+    revision_.generation = nextMapGeneration();
+    other.revision_.generation = nextMapGeneration();
+    ++revision_.structure_revision;
+    ++revision_.pose_revision;
+    ++other.revision_.structure_revision;
+    ++other.revision_.pose_revision;
 }
 
 int64_t KeyframeManager::getNextKeyframeId() const {
@@ -115,6 +151,9 @@ void KeyframeManager::clear() {
     keyframes_.clear();
     last_keyframe_ = nullptr;
     next_id_ = 0;
+    revision_.generation = nextMapGeneration();
+    ++revision_.structure_revision;
+    ++revision_.pose_revision;
 }
 
 Keyframe::Ptr KeyframeManager::findNearestByTimestamp(double timestamp) const {

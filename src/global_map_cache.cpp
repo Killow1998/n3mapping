@@ -55,6 +55,8 @@ void GlobalMapCache::setVoxelSize(double voxel_size)
 void GlobalMapCache::clear()
 {
     resetStorage();
+    cached_map_revision_.reset();
+    cached_input_keyframe_count_ = 0;
     full_rebuild_required_ = true;
     ++revision_;
 }
@@ -64,12 +66,10 @@ void GlobalMapCache::markFullRebuildRequired()
     full_rebuild_required_ = true;
 }
 
-GlobalMapCache::PointCloudConstPtr GlobalMapCache::update(const std::vector<Keyframe::Ptr>& keyframes)
+GlobalMapCache::PointCloudConstPtr GlobalMapCache::update(
+    const std::vector<Keyframe::Ptr>& keyframes,
+    const KeyframeMapRevision& map_revision)
 {
-    if (full_rebuild_required_) {
-        resetStorage();
-    }
-
     std::vector<Keyframe::Ptr> ordered;
     ordered.reserve(keyframes.size());
     for (const auto& keyframe : keyframes) {
@@ -80,6 +80,44 @@ GlobalMapCache::PointCloudConstPtr GlobalMapCache::update(const std::vector<Keyf
     std::sort(ordered.begin(), ordered.end(), [](const Keyframe::Ptr& lhs, const Keyframe::Ptr& rhs) {
         return lhs->id < rhs->id;
     });
+
+    bool rebuild = full_rebuild_required_ || !cached_map_revision_ ||
+                   cached_map_revision_->generation != map_revision.generation ||
+                   cached_map_revision_->pose_revision !=
+                       map_revision.pose_revision;
+    if (!rebuild && cached_map_revision_->structure_revision !=
+                        map_revision.structure_revision) {
+        const bool monotonic_structure =
+            map_revision.structure_revision >=
+            cached_map_revision_->structure_revision;
+        const std::uint64_t structure_delta =
+            monotonic_structure
+                ? map_revision.structure_revision -
+                      cached_map_revision_->structure_revision
+                : 0;
+        const std::size_t keyframe_delta =
+            ordered.size() >= cached_input_keyframe_count_
+                ? ordered.size() - cached_input_keyframe_count_
+                : 0;
+        bool cached_ids_still_present =
+            ordered.size() >= cached_input_keyframe_count_;
+        for (int64_t cached_id : cached_keyframe_ids_) {
+            cached_ids_still_present =
+                cached_ids_still_present &&
+                std::any_of(
+                    ordered.begin(), ordered.end(),
+                    [cached_id](const Keyframe::Ptr& keyframe) {
+                        return keyframe->id == cached_id;
+                    });
+        }
+        // Incremental append is safe only when every structure mutation was a
+        // net addition. A rollback/remove followed by id reuse must rebuild.
+        rebuild = !monotonic_structure || !cached_ids_still_present ||
+                  structure_delta != keyframe_delta;
+    }
+    if (rebuild) {
+        resetStorage();
+    }
 
     bool changed = false;
     for (const auto& keyframe : ordered) {
@@ -98,9 +136,11 @@ GlobalMapCache::PointCloudConstPtr GlobalMapCache::update(const std::vector<Keyf
         finalizeRawCloud();
     }
 
-    if (changed || full_rebuild_required_) {
+    if (changed || rebuild) {
         ++revision_;
     }
+    cached_map_revision_ = map_revision;
+    cached_input_keyframe_count_ = ordered.size();
     full_rebuild_required_ = false;
     return cloud_;
 }

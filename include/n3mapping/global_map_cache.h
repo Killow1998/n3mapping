@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -10,7 +11,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include "n3mapping/keyframe.h"
+#include "n3mapping/keyframe_manager.h"
 
 namespace n3mapping {
 
@@ -28,7 +29,9 @@ public:
     void clear();
     void markFullRebuildRequired();
 
-    PointCloudConstPtr update(const std::vector<Keyframe::Ptr>& keyframes);
+    PointCloudConstPtr update(
+        const std::vector<Keyframe::Ptr>& keyframes,
+        const KeyframeMapRevision& map_revision);
     PointCloudConstPtr cloud() const { return cloud_; }
 
     std::uint64_t revision() const { return revision_; }
@@ -69,6 +72,8 @@ private:
     double voxel_size_ = 0.0;
     bool full_rebuild_required_ = true;
     std::uint64_t revision_ = 0;
+    std::optional<KeyframeMapRevision> cached_map_revision_;
+    std::size_t cached_input_keyframe_count_ = 0;
     PointCloudPtr cloud_;
     std::unordered_set<int64_t> cached_keyframe_ids_;
     std::unordered_map<VoxelKey, VoxelAccum, VoxelKeyHash> voxel_cache_;

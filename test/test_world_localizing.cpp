@@ -592,18 +592,17 @@ TEST_F(WorldLocalizingTest, MapReplacementSameKeyframeCountDoesNotReuseOldIndex)
   ASSERT_GT(diag.frame_rhpd_indexed_keyframes, 0u);
   ASSERT_GT(diag.reloc_map_cached_keyframes, 0u);
 
-  // Replace with map B: the same keyframe count, shifted to x in [100, 118].
-  // Without notifyMapReplaced the count-based validity checks would reuse the
-  // old index built from map A's descriptors.
+  // Reset only runtime state, deliberately retaining map-derived caches. Then
+  // replace with map B at the same keyframe count. Revision-keyed lazy rebuild
+  // must supersede the old count-based behavior without a manual cache notice.
+  reloc.resetLocalizationState();
   keyframe_manager_->clear();
   loop_detector_->clear();
   buildTestMap(10, 2.0, 100.0);
-  reloc.notifyMapReplaced();
 
   diag = reloc.cacheDiagnostics();
-  EXPECT_EQ(diag.frame_rhpd_indexed_keyframes, 0u);
-  EXPECT_EQ(diag.reloc_map_cached_keyframes, 0u);
-  EXPECT_FALSE(diag.free_space_grid_valid);
+  EXPECT_GT(diag.frame_rhpd_indexed_keyframes, 0u);
+  EXPECT_GT(diag.reloc_map_cached_keyframes, 0u);
 
   // A query inside B must lock to B (x > 90); a leaked A index would answer
   // with map A's geometry around x = 8.
@@ -619,7 +618,7 @@ TEST_F(WorldLocalizingTest, MapReplacementSameKeyframeCountDoesNotReuseOldIndex)
       break;
     }
   }
-  ASSERT_TRUE(locked) << "expected a lock on map B after notifyMapReplaced";
+  ASSERT_TRUE(locked) << "expected revision-keyed caches to rebuild on map B";
   EXPECT_GT(result.pose_in_map.translation().x(), 90.0);
 }
 

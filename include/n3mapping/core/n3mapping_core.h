@@ -76,6 +76,7 @@ class N3MappingCore {
 
     Keyframe::Ptr getKeyframe(int64_t id) const;
     std::vector<Keyframe::Ptr> getAllKeyframes() const;
+    KeyframeMapRevision mapRevision() const;
     std::map<int64_t, Eigen::Isometry3d> getOptimizedPoses() const;
     std::vector<core::DenseTrajectoryPose> getDenseOptimizedTrajectory() const;
     void setExternalDenseTrajectoryRecordingEnabled(bool enabled);
