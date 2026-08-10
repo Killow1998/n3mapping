@@ -16,6 +16,7 @@
 #include "n3mapping/config.h"
 #include "n3mapping/free_space_grid.h"
 #include "n3mapping/keyframe_manager.h"
+#include "n3mapping/local_map_selector.h"
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
@@ -173,6 +174,7 @@ private:
   KeyframeManager &keyframe_manager_;
   LoopDetector &loop_detector_;
   PointCloudMatcher &matcher_;
+  LocalMapSelector local_map_selector_;
   RelocalizationQueryBuilder query_builder_;
   RelocalizationPlaceIndex place_index_;
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
