@@ -20,6 +20,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_candidate_evaluator.h"
+#include "n3mapping/relocalization_decision_policy.h"
 #include "n3mapping/relocalization_debug_logger.h"
 #include "n3mapping/relocalization_hypothesis_manager.h"
 #include "n3mapping/relocalization_place_index.h"
@@ -173,6 +174,7 @@ private:
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
   RelocalizationCandidateEvaluator candidate_evaluator_;
   RelocalizationHypothesisManager hypothesis_manager_;
+  RelocalizationDecisionPolicy decision_policy_;
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
   KeyframeMapRevision reloc_map_revision_;

@@ -134,6 +134,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp
   ${N3MAPPING_ROOT}/src/relocalization_candidate_evaluator.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_decision_policy.cpp
   ${N3MAPPING_ROOT}/src/relocalization_hypothesis_manager.cpp
   ${N3MAPPING_ROOT}/src/relocalization_place_index.cpp
   ${N3MAPPING_ROOT}/src/relocalization_query_builder.cpp

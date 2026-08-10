@@ -71,6 +71,7 @@ WorldLocalizing::WorldLocalizing(const Config &config,
           std::make_unique<LocalizationAtlas>(config_, matcher_)),
       candidate_evaluator_(config_, keyframe_manager_, matcher_,
                            *localization_atlas_),
+      decision_policy_(config_),
       reloc_map_cache_(pcl::make_shared<PointCloudT>()),
       reloc_map_cached_keyframes_(0),
       loaded_map_visibility_cache_(pcl::make_shared<PointCloudT>()),
@@ -573,89 +574,18 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     }
   }
 
-  std::vector<const RelocHypothesis *> ranked_hypotheses;
-  ranked_hypotheses.reserve(hypothesis_manager_.size());
-  for (const auto &hyp : hypothesis_manager_.hypotheses()) {
-    if (hyp.alive)
-      ranked_hypotheses.push_back(&hyp);
-  }
-  const auto mean_visibility_evidence = [](const RelocHypothesis *hypothesis) {
-    return hypothesis && hypothesis->visibility_updates > 0
-               ? hypothesis->visibility_evidence_sum /
-                     static_cast<double>(hypothesis->visibility_updates)
-               : std::numeric_limits<double>::quiet_NaN();
-  };
-  // The same evidence before the logit, for a gate that has to mean the same
-  // thing wherever the ratio happens to sit.
-  const auto mean_visibility_consistency = [](const RelocHypothesis *hypothesis) {
-    return hypothesis && hypothesis->visibility_updates > 0
-               ? hypothesis->visibility_consistency_sum /
-                     static_cast<double>(hypothesis->visibility_updates)
-               : std::numeric_limits<double>::quiet_NaN();
-  };
-  std::sort(
-      ranked_hypotheses.begin(), ranked_hypotheses.end(),
-      [&](const RelocHypothesis *a, const RelocHypothesis *b) {
-        const double a_visibility = mean_visibility_evidence(a);
-        const double b_visibility = mean_visibility_evidence(b);
-        const bool a_has_visibility = std::isfinite(a_visibility);
-        const bool b_has_visibility = std::isfinite(b_visibility);
-        if (a_has_visibility != b_has_visibility)
-          return a_has_visibility;
-        if (a_has_visibility && std::abs(a_visibility - b_visibility) > 1e-9) {
-          return a_visibility > b_visibility;
-        }
-        return a->cumulative_log_likelihood > b->cumulative_log_likelihood;
-      });
-
-  const RelocHypothesis *top1 =
-      ranked_hypotheses.empty() ? nullptr : ranked_hypotheses[0];
-  const auto same_physical_pose = [&](const RelocHypothesis *a,
-                                      const RelocHypothesis *b) {
-    if (!a || !b)
-      return false;
-    const Eigen::Isometry3d a_pose = a->T_map_odom * odom_pose;
-    const Eigen::Isometry3d b_pose = b->T_map_odom * odom_pose;
-    const double translation =
-        (a_pose.translation() - b_pose.translation()).norm();
-    const double rotation =
-        Eigen::AngleAxisd(a_pose.rotation().transpose() * b_pose.rotation())
-            .angle();
-    return translation < config_.reloc_ambiguity_min_basin_separation &&
-           rotation < config_.reloc_track_max_rotation;
-  };
-  const RelocHypothesis *top2 = nullptr;
-  for (std::size_t i = 1; top1 && i < ranked_hypotheses.size(); ++i) {
-    if (!same_physical_pose(top1, ranked_hypotheses[i])) {
-      top2 = ranked_hypotheses[i];
-      break;
-    }
-  }
-
-  const double top1_ll = top1 ? top1->cumulative_log_likelihood
-                              : -std::numeric_limits<double>::infinity();
-  const double top2_ll = top2 ? top2->cumulative_log_likelihood
-                              : -std::numeric_limits<double>::infinity();
-  const double top1_visibility = mean_visibility_evidence(top1);
-  const double top2_visibility = mean_visibility_evidence(top2);
-  const bool use_visibility_evidence = std::isfinite(top1_visibility);
-  const double top1_decision_score =
-      use_visibility_evidence ? top1_visibility : top1_ll;
-  const double top2_decision_score =
-      top2 ? (use_visibility_evidence && std::isfinite(top2_visibility)
-                  ? top2_visibility
-                  : (use_visibility_evidence
-                         ? -std::numeric_limits<double>::infinity()
-                         : top2_ll))
-           : -std::numeric_limits<double>::infinity();
-  const double margin = top2 ? top1_decision_score - top2_decision_score
-                             : std::numeric_limits<double>::infinity();
-  const double ratio = use_visibility_evidence
-                           ? (top2 ? std::exp(std::clamp(margin, -700.0, 700.0))
-                                   : std::numeric_limits<double>::infinity())
-                           : (top2 && top2_decision_score > 1e-6
-                                  ? top1_decision_score / top2_decision_score
-                                  : std::numeric_limits<double>::infinity());
+  const RelocalizationRanking ranking = decision_policy_.rank(
+      hypothesis_manager_.hypotheses(), odom_pose);
+  const RelocHypothesis *top1 = ranking.top1;
+  const RelocHypothesis *top2 = ranking.top2;
+  const double top1_ll = ranking.top1_log_likelihood;
+  const double top2_ll = ranking.top2_log_likelihood;
+  const double top1_visibility = ranking.top1_visibility;
+  const double top2_visibility = ranking.top2_visibility;
+  const bool use_visibility_evidence = ranking.uses_visibility_evidence;
+  const double top1_decision_score = ranking.top1_decision_score;
+  const double margin = ranking.margin;
+  const double ratio = ranking.ratio;
 
   if (top1) {
     result.state = RelocalizationState::REGION_HYPOTHESIS;
@@ -707,9 +637,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             << "m," << winner_stability.rotation_delta << "rad)";
   }
 
-  const int effective_temporal_window =
-      std::max(1, config_.reloc_temporal_window_size);
-  if (hypothesis_manager_.windowCount() < effective_temporal_window) {
+  const HypothesisMotionBaseline motion_baseline =
+      hypothesis_manager_.motionBaseline(odom_pose);
+  const RelocalizationDecision decision = decision_policy_.evaluate(
+      ranking, hypothesis_manager_.windowCount(),
+      hypothesis_manager_.winnerStreak(), motion_baseline, free_space_best,
+      odom_pose);
+  const int effective_temporal_window = decision.effective_temporal_window;
+  if (decision.temporal_window_pending) {
     VLOG(1) << "Relocalization pending: window "
             << hypothesis_manager_.windowCount()
             << "/" << effective_temporal_window
@@ -719,24 +654,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   }
 
   const int effective_min_winner_streak =
-      std::min(std::max(1, config_.reloc_lock_min_winner_streak),
-               effective_temporal_window);
+      decision.effective_min_winner_streak;
   const int effective_min_converged_updates =
-      std::min(std::max(1, config_.reloc_lock_min_converged_updates),
-               effective_temporal_window);
-  const double effective_min_margin =
-      std::max(0.0, config_.reloc_lock_min_margin);
-
-  const bool pass_loglik =
-      top1 && (top1_ll >= config_.reloc_lock_log_likelihood_threshold);
-  const bool pass_margin = top1 && (margin >= effective_min_margin);
-  const bool pass_winner_streak =
-      top1 &&
-      (hypothesis_manager_.winnerStreak() >= effective_min_winner_streak);
-  const bool pass_converged_updates =
-      top1 && (top1->converged_updates >= effective_min_converged_updates);
-  const HypothesisMotionBaseline motion_baseline =
-      hypothesis_manager_.motionBaseline(odom_pose);
+      decision.effective_min_converged_updates;
+  const double effective_min_margin = decision.effective_min_margin;
+  const bool pass_loglik = decision.pass_log_likelihood;
+  const bool pass_margin = decision.pass_margin;
+  const bool pass_winner_streak = decision.pass_winner_streak;
+  const bool pass_converged_updates = decision.pass_converged_updates;
   const double evidence_motion_translation = motion_baseline.translation;
   const double evidence_motion_rotation = motion_baseline.rotation;
   // Repeated scans from one stationary viewpoint are not independent ray
@@ -751,45 +676,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           << " motion_rotation_deg="
           << evidence_motion_rotation * 180.0 / M_PI;
   const bool moving_visibility_required =
-      evidence_motion_translation > config_.reloc_static_agg_max_translation ||
-      evidence_motion_rotation > config_.reloc_static_agg_max_rotation;
-  const bool pass_moving_visibility =
-      top1 && (!moving_visibility_required || !use_visibility_evidence ||
-               top1_visibility >= 0.0);
-  const bool top2_viable =
-      top2 && (top2_ll >= config_.reloc_lock_log_likelihood_threshold) &&
-      (top2->converged_updates >= effective_min_converged_updates);
-  double basin_separation = 0.0;
-  bool basin_separated = false;
-  if (top1 && top2) {
-    const Eigen::Isometry3d top1_pose = top1->T_map_odom * odom_pose;
-    const Eigen::Isometry3d top2_pose = top2->T_map_odom * odom_pose;
-    basin_separation =
-        (top1_pose.translation() - top2_pose.translation()).norm();
-    basin_separated =
-        basin_separation >= config_.reloc_ambiguity_min_basin_separation;
-  }
-  const double top1_consistency = mean_visibility_consistency(top1);
-  const double top2_consistency = mean_visibility_consistency(top2);
-  const double consistency_margin = top1_consistency - top2_consistency;
-  const bool use_consistency_gate =
-      config_.reloc_ambiguity_min_consistency_margin > 0.0 &&
-      std::isfinite(consistency_margin);
-  const bool separation_too_small =
-      use_consistency_gate
-          ? consistency_margin <
-                config_.reloc_ambiguity_min_consistency_margin
-          : ((margin < config_.reloc_ambiguity_min_margin) &&
-             (ratio < config_.reloc_ambiguity_min_ratio));
-  // top2 is already the first hypothesis that is not the same physical pose as
-  // top1, and that test counts a large rotation as different. Requiring
-  // translation separation on top of it lets a pair standing in one place
-  // facing two ways skip the gate entirely.
-  const bool competing_hypothesis =
-      config_.reloc_ambiguity_ignore_basin_separation ? (top2 != nullptr)
-                                                      : basin_separated;
-  const bool ambiguous =
-      top2_viable && competing_hypothesis && separation_too_small;
+      decision.moving_visibility_required;
+  const bool pass_moving_visibility = decision.pass_moving_visibility;
+  const bool top2_viable = decision.top2_viable;
+  const double basin_separation = ranking.basin_separation;
+  const bool ambiguous = decision.ambiguous;
   if (reloc_debug_enabled) {
     debug_event.temporal_hypothesis_score = top1_decision_score;
     debug_event.log_likelihood = top1_ll;
@@ -814,16 +705,13 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   // create one, which is the only form in which this evidence is safe: the
   // kill variant, which let free space pick the winner outright, locked a
   // 32.9 m alias on 11-58-53 that the visibility ranking had got right.
-  const bool pass_free_space =
-      config_.reloc_free_space_mode == "kill" || !free_space_best || !top1 ||
-      free_space_best == top1 || same_physical_pose(free_space_best, top1);
+  const bool pass_free_space = decision.pass_free_space;
   if (!pass_free_space) {
     VLOG(1) << "[Reloc/FreeSpace] veto: free-space best disagrees with ranked "
                "top1";
   }
 
-  if (!ambiguous && pass_loglik && pass_margin && pass_winner_streak &&
-      pass_converged_updates && pass_moving_visibility && pass_free_space) {
+  if (decision.accepted) {
     const RelocHypothesis &best = *top1;
     T_map_odom_ = best.T_map_odom;
     is_relocalized_ = true;
@@ -884,9 +772,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
               << ", basin_separation=" << basin_separation;
     finish_debug("accepted", "");
   } else {
-    std::string reject_reason;
+    const std::string &reject_reason = decision.reject_reason;
     if (ambiguous) {
-      reject_reason = "ambiguous";
       LOG(WARNING) << "AMBIGUOUS_REJECT relocalization lock: top1_seed="
                    << (top1 ? top1->seed_match_id : -1)
                    << " top1_kf=" << (top1 ? top1->last_match_id : -1)
@@ -902,23 +789,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                    << ", basin_sep>="
                    << config_.reloc_ambiguity_min_basin_separation << ")";
     } else {
-      if (!top1) {
-        reject_reason = "no_active_hypothesis";
-      } else if (!pass_loglik) {
-        reject_reason = "log_likelihood";
-      } else if (!pass_moving_visibility) {
-        reject_reason = "moving_visibility_disagreement";
-      } else if (!pass_margin) {
-        reject_reason = "margin";
-      } else if (!pass_winner_streak) {
-        reject_reason = "winner_streak";
-      } else if (!pass_converged_updates) {
-        reject_reason = "converged_updates";
-      } else if (!pass_free_space) {
-        reject_reason = "free_space_veto";
-      } else {
-        reject_reason = "stability_guard";
-      }
       LOG(WARNING)
           << "Relocalization rejected after temporal window by stability guard."
           << " top1_seed=" << (top1 ? top1->seed_match_id : -1)
