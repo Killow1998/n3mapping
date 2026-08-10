@@ -19,6 +19,7 @@
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/relocalization_candidate_evaluator.h"
 #include "n3mapping/relocalization_debug_logger.h"
 #include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/relocalization_query_builder.h"
@@ -160,16 +161,6 @@ private:
 
   RelocMatchQuality evaluateRelocMatchQuality(const MatchResult &match) const;
 
-  struct CandidatePoseEvaluation {
-    MatchResult match;
-    int64_t matched_kf_id = -1;
-    VisibilityConsistencyResult visibility;
-  };
-
-  std::vector<CandidatePoseEvaluation> evaluateCandidatePoses(
-      const PointCloudT::Ptr &cloud,
-      const PointCloudMatcher::PreparedSource &prepared_cloud,
-      const LoopCandidate &candidate);
   void rebuildRelocMapCacheIfNeeded();
   void rebuildLoadedMapVisibilityCacheIfNeeded();
   void rebuildFreeSpaceGridIfNeeded();
@@ -203,6 +194,7 @@ private:
   RelocalizationQueryBuilder query_builder_;
   RelocalizationPlaceIndex place_index_;
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
+  RelocalizationCandidateEvaluator candidate_evaluator_;
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
   KeyframeMapRevision reloc_map_revision_;

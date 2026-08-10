@@ -20,7 +20,6 @@
 #include <limits>
 #include <memory>
 #include <pcl/common/point_tests.h>
-#include <pcl/common/transforms.h>
 
 namespace n3mapping {
 namespace {
@@ -70,6 +69,8 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       place_index_(config_, keyframe_manager_, loop_detector_),
       localization_atlas_(
           std::make_unique<LocalizationAtlas>(config_, matcher_)),
+      candidate_evaluator_(config_, keyframe_manager_, matcher_,
+                           *localization_atlas_),
       reloc_map_cache_(pcl::make_shared<PointCloudT>()),
       reloc_map_cached_keyframes_(0),
       loaded_map_visibility_cache_(pcl::make_shared<PointCloudT>()),
@@ -296,23 +297,26 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           break;
         ++verified;
 
-        for (const auto &evaluation :
-             evaluateCandidatePoses(query_cloud, prepared_query, candidate)) {
-          const auto quality = evaluateRelocMatchQuality(evaluation.match);
+        const auto candidate_target = buildRelocTargetCloud(candidate.match_id);
+        for (const auto &evaluation : candidate_evaluator_.evaluate(
+                 query_cloud, prepared_query, candidate, candidate_target)) {
+          const MatchResult selected_match =
+              evaluation.registration.selectedMatch();
+          const auto quality = evaluateRelocMatchQuality(selected_match);
           if (!quality.accepted)
             continue;
 
           BasinBest mode;
           mode.basin_center_id = basin.center_match_id;
-          mode.matched_kf_id = evaluation.matched_kf_id;
+          mode.matched_kf_id = evaluation.matched_keyframe_id;
           mode.candidate = candidate;
-          mode.match = evaluation.match;
+          mode.match = selected_match;
           mode.visibility = evaluation.visibility;
           const double descriptor_score = std::isfinite(candidate.fused_score)
                                               ? candidate.fused_score
                                               : 1.0;
           mode.selection_score =
-              evaluation.match.fitness_score + descriptor_score;
+              selected_match.fitness_score + descriptor_score;
 
           auto duplicate = std::find_if(
               basin_modes.begin(), basin_modes.end(),
@@ -1781,104 +1785,6 @@ VisibilityConsistencyResult WorldLocalizing::evaluatePoseVisibility(
     return {};
   return evaluateVisibilityConsistency(*target_cloud, *query_cloud, T_map_lidar,
                                        visibilityOptionsFromConfig(config_));
-}
-
-std::vector<WorldLocalizing::CandidatePoseEvaluation>
-WorldLocalizing::evaluateCandidatePoses(
-    const PointCloudT::Ptr &cloud,
-    const PointCloudMatcher::PreparedSource &prepared_cloud,
-    const LoopCandidate &candidate) {
-  std::vector<CandidatePoseEvaluation> evaluations;
-  auto match_kf = keyframe_manager_.getKeyframe(candidate.match_id);
-  if (!match_kf)
-    return evaluations;
-
-  auto submap = buildRelocTargetCloud(candidate.match_id);
-  if (!submap || submap->empty()) {
-    if (!match_kf->cloud || match_kf->cloud->empty())
-      return evaluations;
-    submap = pcl::make_shared<PointCloudT>();
-    Eigen::Matrix4f transform = match_kf->pose_optimized.matrix().cast<float>();
-    pcl::transformPointCloud(*match_kf->cloud, *submap, transform);
-  }
-  PointCloudMatcher::PreparedTarget local_prepared_target;
-  const PointCloudMatcher::PreparedTarget *registration_target = nullptr;
-  if (localization_atlas_ && localization_atlas_->loaded()) {
-    registration_target = &localization_atlas_->preparedTarget();
-  } else {
-    local_prepared_target = matcher_.prepareTargetCloud(submap);
-    registration_target = &local_prepared_target;
-  }
-
-  const auto yaws_to_try =
-      buildDescriptorYawHypotheses(candidate, config_);
-
-  for (double yaw : yaws_to_try) {
-    Eigen::Isometry3d init_guess = match_kf->pose_optimized;
-    init_guess.linear() =
-        match_kf->pose_optimized.linear() *
-        Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
-    const auto initial_visibility =
-        evaluatePoseVisibility(submap, cloud, init_guess);
-    MatchResult mr = matcher_.alignPrepared(*registration_target,
-                                            prepared_cloud, init_guess);
-    const bool quality_passed =
-        hasValidRegistrationResult(mr) &&
-        mr.fitness_score < config_.gicp_fitness_threshold &&
-        mr.inlier_ratio >= config_.reloc_min_inlier_ratio;
-    if (!quality_passed)
-      continue;
-    auto pose_visibility =
-        evaluatePoseVisibility(submap, cloud, mr.T_target_source);
-    if (initial_visibility.valid &&
-        (!pose_visibility.valid ||
-         initial_visibility.consistency_ratio >
-             pose_visibility.consistency_ratio + 1e-9)) {
-      // ICP is only a local pose proposal. Keep the descriptor pose when it
-      // explains the measured first-return geometry better than the optimizer's
-      // endpoint.
-      mr.T_target_source = init_guess;
-      pose_visibility = initial_visibility;
-    }
-    CandidatePoseEvaluation evaluation;
-    evaluation.match = mr;
-    evaluation.matched_kf_id = candidate.match_id;
-    evaluation.visibility = pose_visibility;
-    evaluations.push_back(std::move(evaluation));
-  }
-
-  std::sort(evaluations.begin(), evaluations.end(),
-            [](const auto &a, const auto &b) {
-              if (a.visibility.valid != b.visibility.valid)
-                return a.visibility.valid;
-              if (a.visibility.valid &&
-                  std::abs(a.visibility.consistency_ratio -
-                           b.visibility.consistency_ratio) > 1e-9) {
-                return a.visibility.consistency_ratio >
-                       b.visibility.consistency_ratio;
-              }
-              return a.match.fitness_score < b.match.fitness_score;
-            });
-
-  // Different yaw seeds often converge onto the same physical solution. Keep
-  // one representative per mode, but retain genuinely different orientations so
-  // the temporal ambiguity logic can see (and reject) unobservable symmetries.
-  std::vector<CandidatePoseEvaluation> distinct;
-  distinct.reserve(evaluations.size());
-  for (const auto &evaluation : evaluations) {
-    const bool duplicate =
-        std::any_of(distinct.begin(), distinct.end(), [&](const auto &kept) {
-          const Eigen::Isometry3d delta = kept.match.T_target_source.inverse() *
-                                          evaluation.match.T_target_source;
-          return delta.translation().norm() <
-                     config_.reloc_ambiguity_min_basin_separation &&
-                 Eigen::AngleAxisd(delta.rotation()).angle() <
-                     config_.reloc_track_max_rotation;
-        });
-    if (!duplicate)
-      distinct.push_back(evaluation);
-  }
-  return distinct;
 }
 
 double WorldLocalizing::computeRelocLogLikelihood(
