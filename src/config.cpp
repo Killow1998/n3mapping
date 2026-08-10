@@ -53,6 +53,9 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(body_frame);
     N3MAPPING_CONFIG_FIELD(keyframe_distance_threshold);
     N3MAPPING_CONFIG_FIELD(keyframe_angle_threshold);
+    N3MAPPING_CONFIG_FIELD(submap_shadow_enable);
+    N3MAPPING_CONFIG_FIELD(submap_max_keyframes);
+    N3MAPPING_CONFIG_FIELD(submap_cloud_max_bytes);
     N3MAPPING_CONFIG_FIELD(gicp_downsampling_resolution);
     N3MAPPING_CONFIG_FIELD(gicp_max_correspondence_distance);
     N3MAPPING_CONFIG_FIELD(gicp_max_iterations);
@@ -210,6 +213,10 @@ std::string Config::toString() const {
     oss << "Frames: world=" << world_frame << " body=" << body_frame << "\n";
     oss << "Keyframe: dist=" << keyframe_distance_threshold
         << " m, angle=" << keyframe_angle_threshold << " rad\n";
+    oss << "Submap scaffold: "
+        << (submap_shadow_enable ? "SHADOW" : "OFF")
+        << " max_keyframes=" << submap_max_keyframes
+        << " cloud_max_bytes=" << submap_cloud_max_bytes << "\n";
     oss << "GICP: res=" << gicp_downsampling_resolution
         << ", corr=" << gicp_max_correspondence_distance
         << ", iter=" << gicp_max_iterations
@@ -348,6 +355,12 @@ bool Config::validate(std::string* error) const {
     }
     if (!positive(keyframe_distance_threshold, "keyframe_distance_threshold")) return false;
     if (!positive(keyframe_angle_threshold, "keyframe_angle_threshold")) return false;
+    if (!at_least(submap_max_keyframes, 1,
+                  "submap_max_keyframes")) return false;
+    // PCL PointXYZI is 16-byte aligned and occupies 32 bytes in the supported
+    // builds; reject budgets that cannot hold even one point.
+    if (!at_least(submap_cloud_max_bytes, 32,
+                  "submap_cloud_max_bytes")) return false;
     if (!positive(prior_noise_position, "prior_noise_position")) return false;
     if (!positive(prior_noise_rotation, "prior_noise_rotation")) return false;
     if (!positive(odom_noise_position, "odom_noise_position")) return false;

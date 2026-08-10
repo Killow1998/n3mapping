@@ -742,6 +742,14 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   session_->graphOptimizer().incrementalOptimize();
   refreshOptimizedPoses();
 
+  if (session_->submapBuilder().enabled()) {
+    const auto committed_keyframe = keyframes.getKeyframe(keyframe_id);
+    if (!session_->submapBuilder().appendKeyframe(committed_keyframe)) {
+      std::cerr << "Shadow submap append failed for committed keyframe id="
+                << keyframe_id << '\n';
+    }
+  }
+
   Eigen::Isometry3d optimized_pose = frame.T_world_lidar;
   if (session_->graphOptimizer().hasNode(keyframe_id)) {
     try {
@@ -1357,7 +1365,7 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
     if (!candidate->mapSerializer().loadMap(
             map_path, candidate->keyframeManager(), candidate->loopDetector(),
             candidate->graphOptimizer(), &loaded_dense_optimized,
-            &loaded_dense_metadata)) {
+            &loaded_dense_metadata, &candidate->submapBuilder())) {
       return false;
     }
     if (!candidate->mappingResuming().initializeFromLoadedMap()) {
@@ -1407,7 +1415,8 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
   }
   return session_->mapSerializer().saveMap(
       map_path, session_->keyframeManager(), session_->loopDetector(),
-      session_->graphOptimizer(), dense_optimized_trajectory, metadata);
+      session_->graphOptimizer(), dense_optimized_trajectory, metadata,
+      &session_->submapBuilder());
 }
 
 bool N3MappingCore::saveGlobalMap(const std::string &pcd_path) {

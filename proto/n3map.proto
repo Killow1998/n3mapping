@@ -58,6 +58,22 @@ message MapSessionProto {
     bool loaded = 5;
 }
 
+// Shadow-only grouping metadata. Point data remains owned by keyframes and is
+// rebuilt on demand, avoiding a second serialized cloud copy.
+message SubmapProto {
+    uint64 id = 1;
+    uint64 session_id = 2;
+    repeated int64 keyframe_ids = 3;
+    Pose3D T_session_submap = 4;
+    Pose3D T_map_submap = 5;
+    int64 descriptor_keyframe_id = 6;
+    uint64 cloud_byte_budget = 7;
+    uint64 cloud_point_count = 8;
+    bool cloud_truncated = 9;
+    bool closed = 10;
+    uint64 content_revision = 11;
+}
+
 // 约束边
 message EdgeProto {
     int64 from_id = 1;
@@ -123,4 +139,5 @@ message N3Map {
     repeated DenseTrajectoryPose dense_optimized_trajectory = 4;
     repeated FloorAttitudeFactorProto floor_attitude_factors = 5;
     repeated MapSessionProto sessions = 6;
+    repeated SubmapProto submaps = 7;
 }

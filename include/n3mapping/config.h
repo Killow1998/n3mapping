@@ -23,6 +23,12 @@ struct Config {
     double keyframe_distance_threshold = 1.0;
     double keyframe_angle_threshold = 0.5;
 
+    // Shadow-only submap scaffold. Disabled by default and never consumed by
+    // localization, loop closure, or the pose graph.
+    bool submap_shadow_enable = false;
+    int submap_max_keyframes = 20;
+    int submap_cloud_max_bytes = 16 * 1024 * 1024;
+
     double gicp_downsampling_resolution = 0.1;
     double gicp_max_correspondence_distance = 2.0;
     int gicp_max_iterations = 30;

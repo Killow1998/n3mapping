@@ -2303,7 +2303,7 @@ TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
         std::ifstream ifs(map_file, std::ios::binary);
         ASSERT_TRUE(saved_proto.ParseFromIstream(&ifs));
     }
-    EXPECT_EQ(saved_proto.metadata().version(), "2.6.0");
+    EXPECT_EQ(saved_proto.metadata().version(), "2.7.0");
     EXPECT_EQ(saved_proto.metadata().num_session_anchor_edges(), 1u);
 
     KeyframeManager kf_loaded(config_);
@@ -2348,9 +2348,9 @@ TEST_F(MapSerializerTest, Legacy24MapStillLoadsAndFuturePatchIsRejected) {
     EXPECT_TRUE(legacy_kfs.getSessions()[0].loaded);
 
     N3Map future = legacy;
-    future.mutable_metadata()->set_version("2.6.1");
+    future.mutable_metadata()->set_version("2.7.1");
     const std::string future_file =
-        config_.map_save_path + "/future_261.pbstream";
+        config_.map_save_path + "/future_271.pbstream";
     {
         std::ofstream ofs(future_file, std::ios::binary);
         ASSERT_TRUE(future.SerializeToOstream(&ofs));
@@ -2449,6 +2449,82 @@ TEST_F(MapSerializerTest, MultipleSessionsAndPoseDomainsRoundTrip) {
     EXPECT_TRUE(loaded2->pose_odom.isApprox(raw2, 1e-12));
     EXPECT_TRUE(loaded1->pose_optimized.isApprox(map1, 1e-6));
     EXPECT_TRUE(loaded2->pose_optimized.isApprox(map2, 1e-6));
+}
+
+TEST_F(MapSerializerTest, ShadowSubmapMetadataRoundTripsWithoutCloudCopy) {
+    Config shadow_config = config_;
+    shadow_config.submap_shadow_enable = true;
+    shadow_config.submap_max_keyframes = 2;
+    shadow_config.submap_cloud_max_bytes =
+        64 * static_cast<int>(sizeof(pcl::PointXYZI));
+    KeyframeManager keyframes(shadow_config);
+    LoopDetector loops(shadow_config);
+    GraphOptimizer optimizer(shadow_config);
+    MapSerializer serializer(shadow_config);
+    SubmapBuilder submaps(shadow_config);
+
+    Eigen::Isometry3d pose0 = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d pose1 = Eigen::Isometry3d::Identity();
+    pose1.translation().x() = 1.0;
+    ASSERT_EQ(keyframes.addKeyframe(
+                  1.0, pose0, generateRandomPointCloud(16)),
+              0);
+    ASSERT_EQ(keyframes.addKeyframe(
+                  2.0, pose1, generateRandomPointCloud(16)),
+              1);
+    ASSERT_TRUE(submaps.appendKeyframe(keyframes.getKeyframe(0)));
+    ASSERT_TRUE(submaps.appendKeyframe(keyframes.getKeyframe(1)));
+    optimizer.addPriorFactor(0, pose0);
+    ASSERT_TRUE(optimizer.incrementalOptimize());
+
+    const std::string path =
+        shadow_config.map_save_path + "/submaps.pbstream";
+    ASSERT_TRUE(serializer.saveMap(
+        path, keyframes, loops, optimizer, &submaps));
+
+    N3Map persisted;
+    {
+        std::ifstream input(path, std::ios::binary);
+        ASSERT_TRUE(persisted.ParseFromIstream(&input));
+    }
+    ASSERT_EQ(persisted.submaps_size(), 1);
+    EXPECT_EQ(persisted.submaps(0).keyframe_ids_size(), 2);
+    EXPECT_EQ(persisted.submaps(0).cloud_point_count(), 32u);
+    EXPECT_TRUE(persisted.submaps(0).closed());
+
+    KeyframeManager loaded_keyframes(shadow_config);
+    LoopDetector loaded_loops(shadow_config);
+    GraphOptimizer loaded_optimizer(shadow_config);
+    SubmapBuilder loaded_submaps(shadow_config);
+    ASSERT_TRUE(serializer.loadMap(
+        path, loaded_keyframes, loaded_loops, loaded_optimizer,
+        nullptr, nullptr, &loaded_submaps));
+    const auto round_trip = loaded_submaps.getSubmaps();
+    ASSERT_EQ(round_trip.size(), 1u);
+    EXPECT_EQ(round_trip[0].keyframe_ids,
+              (std::vector<int64_t>{0, 1}));
+    EXPECT_EQ(round_trip[0].cloud_point_count, 32u);
+    EXPECT_EQ(round_trip[0].registration_cloud,
+              round_trip[0].visualization_cloud);
+    EXPECT_EQ(round_trip[0].materializedCloudBytes(),
+              32u * sizeof(pcl::PointXYZI));
+
+    const std::string no_submap_path =
+        shadow_config.map_save_path + "/no_submaps.pbstream";
+    ASSERT_TRUE(serializer.saveMap(
+        no_submap_path, keyframes, loops, optimizer));
+    KeyframeManager rebuilt_keyframes(shadow_config);
+    LoopDetector rebuilt_loops(shadow_config);
+    GraphOptimizer rebuilt_optimizer(shadow_config);
+    SubmapBuilder rebuilt_submaps(shadow_config);
+    ASSERT_TRUE(serializer.loadMap(
+        no_submap_path, rebuilt_keyframes, rebuilt_loops,
+        rebuilt_optimizer, nullptr, nullptr, &rebuilt_submaps));
+    const auto rebuilt = rebuilt_submaps.getSubmaps();
+    ASSERT_EQ(rebuilt.size(), 1u);
+    EXPECT_EQ(rebuilt[0].keyframe_ids,
+              (std::vector<int64_t>{0, 1}));
+    EXPECT_TRUE(rebuilt[0].closed);
 }
 
 TEST_F(MapSerializerTest, DuplicateSessionIdIsRejected) {

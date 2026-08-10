@@ -119,6 +119,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
   ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
   ${N3MAPPING_ROOT}/src/local_map_selector.cpp
+  ${N3MAPPING_ROOT}/src/submap_builder.cpp
   ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
@@ -562,6 +563,14 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_local_map_selector)
     target_link_libraries(test_local_map_selector n3mapping_core ${PCL_LIBRARIES})
+  endif()
+
+  catkin_add_gtest(test_submap_builder
+    ${N3MAPPING_ROOT}/test/test_submap_builder.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_submap_builder)
+    target_link_libraries(test_submap_builder n3mapping_core ${PCL_LIBRARIES})
   endif()
 
   if(N3MAPPING_BUILD_RESEARCH_TOOLS)

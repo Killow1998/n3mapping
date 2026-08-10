@@ -11,6 +11,7 @@ N3MappingSession::N3MappingSession(const Config& config)
   , loop_closure_manager_(config_)
   , graph_optimizer_(config_)
   , map_serializer_(config_)
+  , submap_builder_(config_)
   , world_localizing_(config_, keyframe_manager_, loop_detector_, point_cloud_matcher_)
   , mapping_resuming_(config_,
                       keyframe_manager_,
@@ -18,7 +19,8 @@ N3MappingSession::N3MappingSession(const Config& config)
                       point_cloud_matcher_,
                       graph_optimizer_,
                       map_serializer_,
-                      world_localizing_)
+                      world_localizing_,
+                      &submap_builder_)
 {
 }
 

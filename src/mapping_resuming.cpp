@@ -57,7 +57,8 @@ MappingResuming::MappingResuming(const Config& config,
                                  PointCloudMatcher& matcher,
                                  GraphOptimizer& optimizer,
                                  MapSerializer& serializer,
-                                 WorldLocalizing& world_localizing)
+                                 WorldLocalizing& world_localizing,
+                                 SubmapBuilder* submap_builder)
     : config_(config)
     , keyframe_manager_(keyframe_manager)
     , loop_detector_(loop_detector)
@@ -66,6 +67,7 @@ MappingResuming::MappingResuming(const Config& config,
     , loop_closure_manager_(config)
     , serializer_(serializer)
     , world_localizing_(world_localizing)
+    , submap_builder_(submap_builder)
     , state_(MappingResumingState::NOT_INITIALIZED)
     , original_keyframe_count_(0)
     , original_max_keyframe_id_(-1)
@@ -343,6 +345,15 @@ int64_t MappingResuming::processNewKeyframe(
     previous_new_odom_pose_ = odom_pose;
     first_new_keyframe_pending_ = false;
     state_ = MappingResumingState::EXTENDING;
+
+    if (submap_builder_ && submap_builder_->enabled()) {
+        const auto committed_keyframe =
+            keyframe_manager_.getKeyframe(new_kf_id);
+        if (!submap_builder_->appendKeyframe(committed_keyframe)) {
+            LOG(WARNING) << "[MappingResuming] Shadow submap append failed for committed keyframe id="
+                         << new_kf_id;
+        }
+    }
 
     try {
         const Eigen::MatrixXd descriptor =
@@ -630,7 +641,8 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
 
 bool MappingResuming::saveExtendedMap(const std::string& map_path) {
     std::lock_guard<std::mutex> lock(mutex_);
-    return serializer_.saveMap(map_path, keyframe_manager_, loop_detector_, optimizer_);
+    return serializer_.saveMap(map_path, keyframe_manager_, loop_detector_,
+                               optimizer_, submap_builder_);
 }
 
 MappingResumingState MappingResuming::getState() const {
@@ -668,6 +680,9 @@ MapSessionId MappingResuming::getCurrentSessionId() const {
 
 void MappingResuming::reset() {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (submap_builder_) {
+        submap_builder_->closeActiveSubmap();
+    }
     state_ = MappingResumingState::NOT_INITIALIZED;
     original_keyframe_count_ = 0;
     original_max_keyframe_id_ = -1;

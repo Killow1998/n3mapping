@@ -13,6 +13,7 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_FALSE(config.map_save_path.empty());
     EXPECT_EQ(config.cloud_topic, "/cloud_registered_body");
     EXPECT_EQ(config.odom_topic, "/Odometry");
+    EXPECT_FALSE(config.submap_shadow_enable);
     EXPECT_TRUE(config.rhpd_enabled);
     EXPECT_DOUBLE_EQ(config.rhpd_primary_weight, 1.0);
     EXPECT_DOUBLE_EQ(config.sc_aux_weight, 0.15);

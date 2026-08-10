@@ -27,6 +27,9 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
 
     get("keyframe_distance_threshold", config->keyframe_distance_threshold);
     get("keyframe_angle_threshold", config->keyframe_angle_threshold);
+    get("submap_shadow_enable", config->submap_shadow_enable);
+    get("submap_max_keyframes", config->submap_max_keyframes);
+    get("submap_cloud_max_bytes", config->submap_cloud_max_bytes);
 
     get("gicp_downsampling_resolution", config->gicp_downsampling_resolution);
     get("gicp_max_correspondence_distance", config->gicp_max_correspondence_distance);

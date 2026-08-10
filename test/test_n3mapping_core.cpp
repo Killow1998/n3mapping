@@ -111,6 +111,40 @@ TEST(N3MappingCoreTest, ProcessMappingFrameAcceptsFirstKeyframe)
     EXPECT_NE(optimized.find(0), optimized.end());
 }
 
+TEST(N3MappingCoreTest, EnabledShadowSubmapIsPersistedFromMappingPath)
+{
+    Config config = makeCoreTestConfig();
+    config.submap_shadow_enable = true;
+    config.submap_max_keyframes = 2;
+    config.submap_cloud_max_bytes =
+        512 * static_cast<int>(sizeof(pcl::PointXYZI));
+    const std::filesystem::path map_path =
+        std::filesystem::temp_directory_path() /
+        "n3mapping_core_shadow_submap.pbstream";
+
+    N3MappingCore core(config);
+    ASSERT_TRUE(core.processMappingFrame(
+        makeFrame(1000000000, Eigen::Isometry3d::Identity()))
+                    .accepted_keyframe);
+    Eigen::Isometry3d second_pose = Eigen::Isometry3d::Identity();
+    second_pose.translation().x() = 1.0;
+    ASSERT_TRUE(core.processMappingFrame(
+        makeFrame(2000000000, second_pose)).accepted_keyframe);
+    ASSERT_TRUE(core.saveMap(map_path.string()));
+
+    N3Map persisted;
+    {
+        std::ifstream input(map_path, std::ios::binary);
+        ASSERT_TRUE(persisted.ParseFromIstream(&input));
+    }
+    ASSERT_EQ(persisted.submaps_size(), 1);
+    EXPECT_EQ(persisted.submaps(0).keyframe_ids_size(), 2);
+    EXPECT_TRUE(persisted.submaps(0).closed());
+    EXPECT_EQ(persisted.submaps(0).cloud_point_count(), 240u);
+
+    std::filesystem::remove(map_path);
+}
+
 TEST(N3MappingCoreTest, MappingFrameBelowKeyframeThresholdStillProducesPoseOutput)
 {
     N3MappingCore core(makeCoreTestConfig());

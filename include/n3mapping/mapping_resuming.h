@@ -17,6 +17,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/map_serializer.h"
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/submap_builder.h"
 #include "n3mapping/world_localizing.h"
 
 namespace n3mapping {
@@ -35,7 +36,8 @@ public:
     MappingResuming(const Config& config, KeyframeManager& keyframe_manager,
                     LoopDetector& loop_detector, PointCloudMatcher& matcher,
                     GraphOptimizer& optimizer, MapSerializer& serializer,
-                    WorldLocalizing& world_localizing);
+                    WorldLocalizing& world_localizing,
+                    SubmapBuilder* submap_builder = nullptr);
 
     bool initializeFromLoadedMap();
     bool performInitialRelocalization(
@@ -70,6 +72,7 @@ private:
     LoopClosureManager loop_closure_manager_;
     MapSerializer& serializer_;
     WorldLocalizing& world_localizing_;
+    SubmapBuilder* submap_builder_;
 
     MappingResumingState state_;
     size_t original_keyframe_count_;

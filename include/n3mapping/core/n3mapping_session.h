@@ -9,6 +9,7 @@
 #include "n3mapping/map_serializer.h"
 #include "n3mapping/mapping_resuming.h"
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/submap_builder.h"
 #include "n3mapping/world_localizing.h"
 
 namespace n3mapping {
@@ -28,6 +29,8 @@ class N3MappingSession {
     GraphOptimizer& graphOptimizer() { return graph_optimizer_; }
     const GraphOptimizer& graphOptimizer() const { return graph_optimizer_; }
     MapSerializer& mapSerializer() { return map_serializer_; }
+    SubmapBuilder& submapBuilder() { return submap_builder_; }
+    const SubmapBuilder& submapBuilder() const { return submap_builder_; }
     WorldLocalizing& worldLocalizing() { return world_localizing_; }
     MappingResuming& mappingResuming() { return mapping_resuming_; }
 
@@ -39,6 +42,7 @@ class N3MappingSession {
     LoopClosureManager loop_closure_manager_;
     GraphOptimizer graph_optimizer_;
     MapSerializer map_serializer_;
+    SubmapBuilder submap_builder_;
     WorldLocalizing world_localizing_;
     MappingResuming mapping_resuming_;
 };

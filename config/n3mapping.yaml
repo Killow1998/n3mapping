@@ -15,6 +15,9 @@ n3mapping_node:
 
     keyframe_distance_threshold: 1.0
     keyframe_angle_threshold: 0.5
+    submap_shadow_enable: false
+    submap_max_keyframes: 20
+    submap_cloud_max_bytes: 16777216
 
     gicp_downsampling_resolution: 0.1
     gicp_max_correspondence_distance: 2.0

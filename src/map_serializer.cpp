@@ -9,6 +9,7 @@
 #include <limits>
 #include <memory>
 #include <sstream>
+#include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
 
@@ -22,7 +23,7 @@
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.6.0";
+constexpr const char* MAP_VERSION = "2.7.0";
 
 struct SemVer {
     int major = 0;
@@ -148,7 +149,19 @@ bool MapSerializer::saveMap(const std::string& filepath,
                             const GraphOptimizer& optimizer) {
     static const std::vector<core::DenseTrajectoryPose> kEmptyDenseTrajectory;
     const core::DenseTrajectoryMetadata metadata;
-    return saveMap(filepath, keyframe_manager, loop_detector, optimizer, kEmptyDenseTrajectory, metadata);
+    return saveMap(filepath, keyframe_manager, loop_detector, optimizer,
+                   kEmptyDenseTrajectory, metadata, nullptr);
+}
+
+bool MapSerializer::saveMap(const std::string& filepath,
+                            const KeyframeManager& keyframe_manager,
+                            const LoopDetector& loop_detector,
+                            const GraphOptimizer& optimizer,
+                            const SubmapBuilder* submap_builder) {
+    static const std::vector<core::DenseTrajectoryPose> kEmptyDenseTrajectory;
+    const core::DenseTrajectoryMetadata metadata;
+    return saveMap(filepath, keyframe_manager, loop_detector, optimizer,
+                   kEmptyDenseTrajectory, metadata, submap_builder);
 }
 
 bool MapSerializer::saveMap(const std::string& filepath,
@@ -159,7 +172,8 @@ bool MapSerializer::saveMap(const std::string& filepath,
     core::DenseTrajectoryMetadata metadata;
     metadata.source = dense_optimized_trajectory.empty() ? "none" : "native";
     metadata.degraded = dense_optimized_trajectory.empty();
-    return saveMap(filepath, keyframe_manager, loop_detector, optimizer, dense_optimized_trajectory, metadata);
+    return saveMap(filepath, keyframe_manager, loop_detector, optimizer,
+                   dense_optimized_trajectory, metadata, nullptr);
 }
 
 bool MapSerializer::saveMap(const std::string& filepath,
@@ -168,6 +182,18 @@ bool MapSerializer::saveMap(const std::string& filepath,
                             const GraphOptimizer& optimizer,
                             const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
                             const core::DenseTrajectoryMetadata& dense_trajectory_metadata) {
+    return saveMap(filepath, keyframe_manager, loop_detector, optimizer,
+                   dense_optimized_trajectory, dense_trajectory_metadata,
+                   nullptr);
+}
+
+bool MapSerializer::saveMap(const std::string& filepath,
+                            const KeyframeManager& keyframe_manager,
+                            const LoopDetector& loop_detector,
+                            const GraphOptimizer& optimizer,
+                            const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
+                            const core::DenseTrajectoryMetadata& dense_trajectory_metadata,
+                            const SubmapBuilder* submap_builder) {
     try {
         std::filesystem::path fp(filepath);
         if (fp.has_parent_path()) std::filesystem::create_directories(fp.parent_path());
@@ -184,6 +210,8 @@ bool MapSerializer::saveMap(const std::string& filepath,
         }
         std::unordered_set<int64_t> saved_keyframe_ids;
         saved_keyframe_ids.reserve(keyframes.size());
+        std::unordered_map<int64_t, MapSessionId> keyframe_sessions;
+        keyframe_sessions.reserve(keyframes.size());
         const auto sessions = keyframe_manager.getSessions();
         if (sessions.empty()) {
             LOG(ERROR) << "[MapSerializer] Refuse to save map with no sessions.";
@@ -243,6 +271,102 @@ bool MapSerializer::saveMap(const std::string& filepath,
                 return false;
             }
             saved_keyframe_ids.insert(kf->id);
+            keyframe_sessions.emplace(kf->id, kf->session_id);
+        }
+
+        const std::vector<Submap> submaps = submap_builder
+            ? submap_builder->getSubmaps()
+            : std::vector<Submap>{};
+        if (submaps.size() > keyframes.size()) {
+            LOG(ERROR) << "[MapSerializer] Refuse to save more submaps than keyframes.";
+            return false;
+        }
+        std::unordered_set<SubmapId> saved_submap_ids;
+        std::unordered_set<int64_t> assigned_submap_keyframes;
+        SubmapId previous_submap_id = 0;
+        bool have_previous_submap = false;
+        bool saw_open_submap = false;
+        for (std::size_t index = 0; index < submaps.size(); ++index) {
+            const auto& submap = submaps[index];
+            if (submap.id == kInvalidSubmapId ||
+                !saved_submap_ids.insert(submap.id).second ||
+                (have_previous_submap && submap.id <= previous_submap_id) ||
+                saved_session_ids.find(submap.session_id) ==
+                    saved_session_ids.end() ||
+                submap.keyframe_ids.empty() ||
+                !isFinitePose(submap.T_session_submap) ||
+                !isFinitePose(submap.T_map_submap) ||
+                submap.cloud_byte_budget < sizeof(pcl::PointXYZI) ||
+                submap.cloud_point_count >
+                    submap.cloud_byte_budget / sizeof(pcl::PointXYZI) ||
+                submap.content_revision == 0) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save invalid submap id="
+                           << submap.id;
+                return false;
+            }
+            if (!submap.closed) {
+                if (saw_open_submap || index + 1 != submaps.size()) {
+                    LOG(ERROR) << "[MapSerializer] Refuse to save non-final open submap id="
+                               << submap.id;
+                    return false;
+                }
+                saw_open_submap = true;
+            }
+            for (const int64_t keyframe_id : submap.keyframe_ids) {
+                const auto keyframe_session = keyframe_sessions.find(keyframe_id);
+                if (keyframe_session == keyframe_sessions.end() ||
+                    keyframe_session->second != submap.session_id ||
+                    !assigned_submap_keyframes.insert(keyframe_id).second) {
+                    LOG(ERROR) << "[MapSerializer] Refuse to save submap id="
+                               << submap.id << " with invalid keyframe reference="
+                               << keyframe_id;
+                    return false;
+                }
+            }
+            if (submap.descriptor_keyframe_id >= 0 &&
+                std::find(submap.keyframe_ids.begin(),
+                          submap.keyframe_ids.end(),
+                          submap.descriptor_keyframe_id) ==
+                    submap.keyframe_ids.end()) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save submap id="
+                           << submap.id << " with invalid descriptor keyframe.";
+                return false;
+            }
+            if (submap.registration_cloud) {
+                if (submap.visualization_cloud != submap.registration_cloud ||
+                    submap.cloud_point_count !=
+                        submap.registration_cloud->size() ||
+                    submap.materializedCloudBytes() >
+                        submap.cloud_byte_budget) {
+                    LOG(ERROR) << "[MapSerializer] Refuse to save inconsistent materialized submap id="
+                               << submap.id;
+                    return false;
+                }
+            } else if (submap.visualization_cloud) {
+                LOG(ERROR) << "[MapSerializer] Refuse to save half-materialized submap id="
+                           << submap.id;
+                return false;
+            }
+
+            auto* proto = map_proto.add_submaps();
+            proto->set_id(submap.id);
+            proto->set_session_id(submap.session_id);
+            for (const int64_t keyframe_id : submap.keyframe_ids) {
+                proto->add_keyframe_ids(keyframe_id);
+            }
+            poseToProto(submap.T_session_submap,
+                        proto->mutable_t_session_submap());
+            poseToProto(submap.T_map_submap,
+                        proto->mutable_t_map_submap());
+            proto->set_descriptor_keyframe_id(
+                submap.descriptor_keyframe_id);
+            proto->set_cloud_byte_budget(submap.cloud_byte_budget);
+            proto->set_cloud_point_count(submap.cloud_point_count);
+            proto->set_cloud_truncated(submap.cloud_truncated);
+            proto->set_closed(submap.closed);
+            proto->set_content_revision(submap.content_revision);
+            previous_submap_id = submap.id;
+            have_previous_submap = true;
         }
         for (const auto& pose : dense_optimized_trajectory) {
             if (!std::isfinite(pose.timestamp) || !isFinitePose(pose.pose_world_lidar)) {
@@ -394,6 +518,34 @@ bool MapSerializer::loadMap(const std::string& filepath,
                             std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
                             core::DenseTrajectoryMetadata* dense_trajectory_metadata,
                             const PbstreamLoadOptions& options) {
+    return loadMap(filepath, keyframe_manager, loop_detector, optimizer,
+                   dense_optimized_trajectory, dense_trajectory_metadata,
+                   options, nullptr);
+}
+
+bool MapSerializer::loadMap(const std::string& filepath,
+                            KeyframeManager& keyframe_manager,
+                            LoopDetector& loop_detector,
+                            GraphOptimizer& optimizer,
+                            std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
+                            core::DenseTrajectoryMetadata* dense_trajectory_metadata,
+                            SubmapBuilder* submap_builder) {
+    PbstreamLoadOptions options;
+    options.allow_keyframe_fallback_dense =
+        dense_optimized_trajectory != nullptr;
+    return loadMap(filepath, keyframe_manager, loop_detector, optimizer,
+                   dense_optimized_trajectory, dense_trajectory_metadata,
+                   options, submap_builder);
+}
+
+bool MapSerializer::loadMap(const std::string& filepath,
+                            KeyframeManager& keyframe_manager,
+                            LoopDetector& loop_detector,
+                            GraphOptimizer& optimizer,
+                            std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
+                            core::DenseTrajectoryMetadata* dense_trajectory_metadata,
+                            const PbstreamLoadOptions& options,
+                            SubmapBuilder* submap_builder) {
     try {
         n3mapping::N3Map map_proto;
         std::string read_error;
@@ -521,6 +673,40 @@ bool MapSerializer::loadMap(const std::string& filepath,
             }
         }
 
+        if (map_proto.submaps_size() >
+            static_cast<int>(defaultPbstreamResourceLimits().max_keyframes)) {
+            LOG(ERROR) << "[MapSerializer] Reject map: too many submaps.";
+            return false;
+        }
+        std::vector<Submap> submaps;
+        submaps.reserve(map_proto.submaps_size());
+        for (const auto& proto : map_proto.submaps()) {
+            if (!proto.has_t_session_submap() ||
+                !proto.has_t_map_submap() ||
+                !isFinitePoseProto(proto.t_session_submap()) ||
+                !isFinitePoseProto(proto.t_map_submap())) {
+                LOG(ERROR) << "[MapSerializer] Reject map: invalid submap pose id="
+                           << proto.id();
+                return false;
+            }
+            Submap submap;
+            submap.id = proto.id();
+            submap.session_id = proto.session_id();
+            submap.keyframe_ids.assign(proto.keyframe_ids().begin(),
+                                       proto.keyframe_ids().end());
+            submap.T_session_submap =
+                poseFromProto(proto.t_session_submap());
+            submap.T_map_submap = poseFromProto(proto.t_map_submap());
+            submap.descriptor_keyframe_id =
+                proto.descriptor_keyframe_id();
+            submap.cloud_byte_budget = proto.cloud_byte_budget();
+            submap.cloud_point_count = proto.cloud_point_count();
+            submap.cloud_truncated = proto.cloud_truncated();
+            submap.closed = proto.closed();
+            submap.content_revision = proto.content_revision();
+            submaps.push_back(std::move(submap));
+        }
+
         std::vector<ParsedEdgeProto> parsed_edges;
         if (!parseEdgesFromProto(map_proto, loaded_keyframe_ids, options.policy, &parsed_edges, &parse_error)) {
             LOG(ERROR) << "[MapSerializer] Reject map: " << parse_error;
@@ -538,8 +724,29 @@ bool MapSerializer::loadMap(const std::string& filepath,
         KeyframeManager temp_keyframe_manager(config_);
         LoopDetector temp_loop_detector(config_);
         GraphOptimizer temp_optimizer(config_);
+        Config submap_config = config_;
+        submap_config.submap_shadow_enable =
+            submap_builder != nullptr && config_.submap_shadow_enable;
+        SubmapBuilder temp_submap_builder(submap_config);
         if (!temp_keyframe_manager.loadKeyframes(keyframes, sessions)) {
             LOG(ERROR) << "[MapSerializer] Reject map: invalid session registry.";
+            return false;
+        }
+        if (submaps.empty() && submap_config.submap_shadow_enable) {
+            for (const auto& keyframe :
+                 temp_keyframe_manager.getAllKeyframes()) {
+                if (!temp_submap_builder.appendKeyframe(keyframe)) {
+                    LOG(ERROR) << "[MapSerializer] Reject map: failed to rebuild shadow submaps.";
+                    return false;
+                }
+            }
+            // A loaded snapshot is immutable history. Any future extension
+            // starts a new session/submap instead of appending to this tail.
+            temp_submap_builder.closeActiveSubmap();
+            LOG(INFO) << "[MapSerializer] Rebuilt shadow submaps for legacy map metadata.";
+        } else if (!temp_submap_builder.loadSubmaps(
+                       submaps, keyframes, sessions)) {
+            LOG(ERROR) << "[MapSerializer] Reject map: invalid submap registry.";
             return false;
         }
         std::vector<std::pair<int64_t, Eigen::MatrixXd>> descriptors;
@@ -604,6 +811,9 @@ bool MapSerializer::loadMap(const std::string& filepath,
         keyframe_manager.swapWith(temp_keyframe_manager);
         loop_detector.swapWith(temp_loop_detector);
         optimizer.swapWith(temp_optimizer);
+        if (submap_builder) {
+            submap_builder->swapWith(temp_submap_builder);
+        }
         if (dense_trajectory_metadata) {
             *dense_trajectory_metadata = loaded_dense_metadata;
         }

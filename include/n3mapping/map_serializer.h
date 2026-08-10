@@ -15,6 +15,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/n3map_proto_utils.h"
+#include "n3mapping/submap_builder.h"
 #include "n3map.pb.h"
 
 namespace n3mapping {
@@ -32,6 +33,11 @@ public:
                  const KeyframeManager& keyframe_manager,
                  const LoopDetector& loop_detector,
                  const GraphOptimizer& optimizer,
+                 const SubmapBuilder* submap_builder);
+    bool saveMap(const std::string& filepath,
+                 const KeyframeManager& keyframe_manager,
+                 const LoopDetector& loop_detector,
+                 const GraphOptimizer& optimizer,
                  const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory);
     bool saveMap(const std::string& filepath,
                  const KeyframeManager& keyframe_manager,
@@ -39,6 +45,13 @@ public:
                  const GraphOptimizer& optimizer,
                  const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
                  const core::DenseTrajectoryMetadata& dense_trajectory_metadata);
+    bool saveMap(const std::string& filepath,
+                 const KeyframeManager& keyframe_manager,
+                 const LoopDetector& loop_detector,
+                 const GraphOptimizer& optimizer,
+                 const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
+                 const core::DenseTrajectoryMetadata& dense_trajectory_metadata,
+                 const SubmapBuilder* submap_builder);
 
     bool loadMap(const std::string& filepath,
                  KeyframeManager& keyframe_manager,
@@ -73,6 +86,21 @@ public:
                  std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
                  core::DenseTrajectoryMetadata* dense_trajectory_metadata,
                  const PbstreamLoadOptions& options);
+    bool loadMap(const std::string& filepath,
+                 KeyframeManager& keyframe_manager,
+                 LoopDetector& loop_detector,
+                 GraphOptimizer& optimizer,
+                 std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
+                 core::DenseTrajectoryMetadata* dense_trajectory_metadata,
+                 SubmapBuilder* submap_builder);
+    bool loadMap(const std::string& filepath,
+                 KeyframeManager& keyframe_manager,
+                 LoopDetector& loop_detector,
+                 GraphOptimizer& optimizer,
+                 std::vector<core::DenseTrajectoryPose>* dense_optimized_trajectory,
+                 core::DenseTrajectoryMetadata* dense_trajectory_metadata,
+                 const PbstreamLoadOptions& options,
+                 SubmapBuilder* submap_builder);
 
     bool saveGlobalMap(const std::string& filepath,
                        const KeyframeManager& keyframe_manager,
