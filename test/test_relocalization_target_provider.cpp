@@ -64,6 +64,7 @@ TEST(RelocTargetProviderTest, LegacyWithoutAtlasUsesFreshLocalTarget) {
   ASSERT_TRUE(target.valid());
   EXPECT_EQ(target.visibility_target, cloud);
   EXPECT_EQ(target.metrics.registration_source, "legacy_local_no_cache");
+  EXPECT_EQ(target.metrics.anchor_id, 3);
   EXPECT_EQ(target.metrics.target_points, cloud->size());
   EXPECT_DOUBLE_EQ(target.metrics.target_build_ms, 1.25);
   EXPECT_FALSE(target.metrics.cache_hit);

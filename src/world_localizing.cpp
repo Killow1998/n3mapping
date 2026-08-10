@@ -80,6 +80,7 @@ WorldLocalizing::WorldLocalizing(const Config &config,
 
 RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                                         const Eigen::Isometry3d &odom_pose) {
+  const auto reloc_started = std::chrono::steady_clock::now();
   RelocResult result;
   result.success = false;
   const bool reloc_debug_enabled = debug_emitter_.enabled();
@@ -88,6 +89,13 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   auto finish_debug = [&](const std::string &lock_result,
                           const std::string &reject_reason) {
     result.decision = reject_reason.empty() ? lock_result : reject_reason;
+    const double total_ms =
+        std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - reloc_started)
+            .count();
+    VLOG(1) << "[RelocTiming] total_ms=" << total_ms
+            << " outcome=" << lock_result
+            << " reason=" << (reject_reason.empty() ? "none" : reject_reason);
     if (!reloc_debug_enabled) {
       return;
     }

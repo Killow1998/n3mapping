@@ -106,6 +106,7 @@ public:
     PreparedRelocTarget result;
     result.visibility_target = request.local_target;
     result.metrics.mode = relocTargetModeName(mode_);
+    result.metrics.anchor_id = request.anchor_id;
     result.metrics.target_build_ms = request.target_build_ms;
     result.metrics.crop_center = request.crop_center;
     result.metrics.map_revision = request.map_revision;
@@ -293,6 +294,7 @@ private:
   void logMetrics(const RelocTargetMetrics &metrics) const {
     VLOG(1) << "[RelocTarget] mode=" << metrics.mode
             << " registration_source=" << metrics.registration_source
+            << " anchor_id=" << metrics.anchor_id
             << " target_build_ms=" << metrics.target_build_ms
             << " target_prepare_ms=" << metrics.target_prepare_ms
             << " target_points=" << metrics.target_points

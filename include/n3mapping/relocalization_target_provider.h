@@ -36,6 +36,7 @@ struct RelocTargetRequest {
 struct RelocTargetMetrics {
   std::string mode;
   std::string registration_source;
+  int64_t anchor_id = -1;
   double target_build_ms = 0.0;
   double target_prepare_ms = 0.0;
   std::size_t target_points = 0;
