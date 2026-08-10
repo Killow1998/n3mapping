@@ -78,11 +78,7 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       T_map_odom_(Eigen::Isometry3d::Identity()), last_matched_id_(-1),
       relocalization_seed_id_(-1),
       last_odom_pose_(Eigen::Isometry3d::Identity()),
-      consecutive_track_failures_(0), hypothesis_window_count_(0),
-      hypothesis_window_start_odom_pose_(Eigen::Isometry3d::Identity()),
-      has_last_window_winner_transform_(false),
-      last_window_winner_map_odom_(Eigen::Isometry3d::Identity()),
-      winner_streak_(0), relocalize_debug_query_index_(0),
+      consecutive_track_failures_(0), relocalize_debug_query_index_(0),
       track_debug_query_index_(0) {}
 
 void WorldLocalizing::appendRelocalizationDebug(
@@ -195,7 +191,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         return false;
       };
 
-  if (pending_hypotheses_.empty()) {
+  if (hypothesis_manager_.empty()) {
     auto candidates = place_index_.search(query_cloud);
     if (reloc_debug_enabled) {
       debug_event.query_cloud.candidate_count = candidates.size();
@@ -407,6 +403,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             << candidates.size() << " basins=" << basins.size()
             << " retained_pose_modes=" << basin_best_results.size();
 
+    std::vector<RelocHypothesis> seeded_hypotheses;
+    seeded_hypotheses.reserve(basin_best_results.size());
     for (const auto &bb : basin_best_results) {
       RelocHypothesis hyp;
       hyp.seed_match_id = bb.basin_center_id;
@@ -422,12 +420,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         hyp.visibility_updates = 1;
       }
       hyp.alive = true;
-      pending_hypotheses_.push_back(hyp);
+      seeded_hypotheses.push_back(hyp);
     }
-    hypothesis_window_start_odom_pose_ = odom_pose;
-    hypothesis_window_count_ = 1;
+    hypothesis_manager_.start(std::move(seeded_hypotheses), odom_pose);
 
-    if (pending_hypotheses_.empty()) {
+    if (hypothesis_manager_.empty()) {
       LOG(WARNING) << "Relocalization init failed: no valid ICP hypothesis.";
       finish_debug("rejected", "no_valid_icp_hypothesis");
       return result;
@@ -440,8 +437,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       debug_event.candidate_count = current_candidates.size();
       debug_event.top_candidates = current_candidates;
     }
-    hypothesis_window_count_++;
-    for (auto &hyp : pending_hypotheses_) {
+    hypothesis_manager_.advanceWindow();
+    for (auto &hyp : hypothesis_manager_.hypotheses()) {
       if (!hyp.alive)
         continue;
 
@@ -551,8 +548,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 
   if (reloc_debug_enabled) {
     debug_event.hypotheses.clear();
-    debug_event.hypotheses.reserve(pending_hypotheses_.size());
-    for (const auto &hyp : pending_hypotheses_) {
+    debug_event.hypotheses.reserve(hypothesis_manager_.size());
+    for (const auto &hyp : hypothesis_manager_.hypotheses()) {
       RelocDebugHypothesisSummary summary;
       summary.seed_match_id = hyp.seed_match_id;
       summary.last_match_id = hyp.last_match_id;
@@ -577,8 +574,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   }
 
   std::vector<const RelocHypothesis *> ranked_hypotheses;
-  ranked_hypotheses.reserve(pending_hypotheses_.size());
-  for (const auto &hyp : pending_hypotheses_) {
+  ranked_hypotheses.reserve(hypothesis_manager_.size());
+  for (const auto &hyp : hypothesis_manager_.hypotheses()) {
     if (hyp.alive)
       ranked_hypotheses.push_back(&hyp);
   }
@@ -681,38 +678,18 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     // coordinate can look like a multi-meter translation. Apply both the
     // previous and current transforms to the current odom pose, then compare
     // the two physical LiDAR poses at the same instant.
-    double winner_pose_translation_delta =
-        std::numeric_limits<double>::quiet_NaN();
-    double winner_pose_rotation_delta =
-        std::numeric_limits<double>::quiet_NaN();
-    bool same_winner_pose = false;
-    if (has_last_window_winner_transform_) {
-      const Eigen::Isometry3d previous_pose =
-          last_window_winner_map_odom_ * odom_pose;
-      const Eigen::Isometry3d current_pose = top1->T_map_odom * odom_pose;
-      const Eigen::Isometry3d winner_pose_delta =
-          previous_pose.inverse() * current_pose;
-      winner_pose_translation_delta = winner_pose_delta.translation().norm();
-      winner_pose_rotation_delta =
-          Eigen::AngleAxisd(winner_pose_delta.rotation()).angle();
-      same_winner_pose =
-          winner_pose_translation_delta < config_.reloc_track_max_translation &&
-          winner_pose_rotation_delta < config_.reloc_track_max_rotation;
-    }
-    if (same_winner_pose) {
-      winner_streak_ += 1;
-    } else {
-      winner_streak_ = 1;
-    }
-    last_window_winner_map_odom_ = top1->T_map_odom;
-    has_last_window_winner_transform_ = true;
+    const WinnerStability winner_stability = hypothesis_manager_.observeWinner(
+        top1->T_map_odom, odom_pose, config_.reloc_track_max_translation,
+        config_.reloc_track_max_rotation);
     if (reloc_debug_enabled) {
-      debug_event.winner_streak = winner_streak_;
-      debug_event.winner_pose_translation_delta = winner_pose_translation_delta;
-      debug_event.winner_pose_rotation_delta = winner_pose_rotation_delta;
+      debug_event.winner_streak = winner_stability.streak;
+      debug_event.winner_pose_translation_delta =
+          winner_stability.translation_delta;
+      debug_event.winner_pose_rotation_delta = winner_stability.rotation_delta;
     }
 
-    VLOG(1) << "[Reloc/Stability] window=" << hypothesis_window_count_ << "/"
+    VLOG(1) << "[Reloc/Stability] window="
+            << hypothesis_manager_.windowCount() << "/"
             << config_.reloc_temporal_window_size
             << " top1(seed=" << top1->seed_match_id
             << ",last_kf=" << top1->last_match_id << ",ll=" << top1_ll
@@ -725,17 +702,18 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             << ",visibility=" << top2_visibility << ")"
             << " margin=" << margin << " evidence="
             << (use_visibility_evidence ? "visibility" : "legacy_loglik")
-            << " winner_streak=" << winner_streak_ << " winner_pose_delta=("
-            << winner_pose_translation_delta << "m,"
-            << winner_pose_rotation_delta << "rad)";
+            << " winner_streak=" << winner_stability.streak
+            << " winner_pose_delta=(" << winner_stability.translation_delta
+            << "m," << winner_stability.rotation_delta << "rad)";
   }
 
   const int effective_temporal_window =
       std::max(1, config_.reloc_temporal_window_size);
-  if (hypothesis_window_count_ < effective_temporal_window) {
-    VLOG(1) << "Relocalization pending: window " << hypothesis_window_count_
+  if (hypothesis_manager_.windowCount() < effective_temporal_window) {
+    VLOG(1) << "Relocalization pending: window "
+            << hypothesis_manager_.windowCount()
             << "/" << effective_temporal_window
-            << ", active hypotheses=" << pending_hypotheses_.size();
+            << ", active hypotheses=" << hypothesis_manager_.size();
     finish_debug("pending", "temporal_window_pending");
     return result;
   }
@@ -753,25 +731,22 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       top1 && (top1_ll >= config_.reloc_lock_log_likelihood_threshold);
   const bool pass_margin = top1 && (margin >= effective_min_margin);
   const bool pass_winner_streak =
-      top1 && (winner_streak_ >= effective_min_winner_streak);
+      top1 &&
+      (hypothesis_manager_.winnerStreak() >= effective_min_winner_streak);
   const bool pass_converged_updates =
       top1 && (top1->converged_updates >= effective_min_converged_updates);
-  double evidence_motion_translation = 0.0;
-  double evidence_motion_rotation = 0.0;
-  if (hypothesis_window_count_ >= 2) {
-    const Eigen::Isometry3d evidence_motion =
-        odom_pose.inverse() * hypothesis_window_start_odom_pose_;
-    evidence_motion_translation = evidence_motion.translation().norm();
-    evidence_motion_rotation =
-        Eigen::AngleAxisd(evidence_motion.rotation()).angle();
-  }
+  const HypothesisMotionBaseline motion_baseline =
+      hypothesis_manager_.motionBaseline(odom_pose);
+  const double evidence_motion_translation = motion_baseline.translation;
+  const double evidence_motion_rotation = motion_baseline.rotation;
   // Repeated scans from one stationary viewpoint are not independent ray
   // evidence, so descriptor/registration evidence remains authoritative there.
   // Once the sensor has moved beyond the existing static-aggregation contract,
   // the new viewpoints must not cumulatively disconfirm the pose. Zero log odds
   // is the model's semantic support/opposition boundary, not a tuned score.
-  VLOG(1) << "[Reloc/Baseline] window=" << hypothesis_window_count_
-          << " persisted=" << hypothesis_persist_frames_
+  VLOG(1) << "[Reloc/Baseline] window="
+          << hypothesis_manager_.windowCount()
+          << " persisted=" << hypothesis_manager_.persistedFrames()
           << " motion_translation_m=" << evidence_motion_translation
           << " motion_rotation_deg="
           << evidence_motion_rotation * 180.0 / M_PI;
@@ -818,7 +793,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (reloc_debug_enabled) {
     debug_event.temporal_hypothesis_score = top1_decision_score;
     debug_event.log_likelihood = top1_ll;
-    debug_event.winner_streak = winner_streak_;
+    debug_event.winner_streak = hypothesis_manager_.winnerStreak();
     debug_event.evidence_motion_translation = evidence_motion_translation;
     debug_event.evidence_motion_rotation = evidence_motion_rotation;
     debug_event.moving_visibility_required = moving_visibility_required;
@@ -902,7 +877,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
               << ", moving_visibility=" << pass_moving_visibility
               << ", ambiguous=" << ambiguous << ")"
               << ", margin_value=" << margin
-              << ", winner_streak_value=" << winner_streak_
+              << ", winner_streak_value="
+              << hypothesis_manager_.winnerStreak()
               << ", converged_updates_value=" << best.converged_updates
               << ", ratio_value=" << ratio
               << ", basin_separation=" << basin_separation;
@@ -951,7 +927,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           << " top2_seed=" << (top2 ? top2->seed_match_id : -1)
           << " top2_ll=" << top2_ll << " margin=" << margin
           << " ratio=" << ratio << " basin_separation=" << basin_separation
-          << " winner_streak=" << winner_streak_
+          << " winner_streak=" << hypothesis_manager_.winnerStreak()
           << " top1_converged_updates=" << (top1 ? top1->converged_updates : 0)
           << " evidence_motion=(" << evidence_motion_translation << "m,"
           << evidence_motion_rotation << "rad)"
@@ -971,24 +947,16 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     finish_debug("rejected", reject_reason);
   }
 
-  // Card C/D: clearing here after every rejected window is what capped the
-  // accumulated viewpoint baseline at 1-3 cm. Keep the set alive instead, so
-  // hypothesis_window_start_odom_pose_ stays at the seed pose and the baseline
-  // grows with the motion the robot is already making.
-  if (result.success || !config_.reloc_persist_hypotheses) {
-    clearRelocHypotheses();
-    hypothesis_persist_frames_ = 0;
-  } else {
-    ++hypothesis_persist_frames_;
-    const bool any_alive =
-        std::any_of(pending_hypotheses_.begin(), pending_hypotheses_.end(),
-                    [](const RelocHypothesis &h) { return h.alive; });
-    if (!any_alive || hypothesis_persist_frames_ > config_.reloc_persist_max_frames) {
-      VLOG(1) << "[Reloc/Persist] reseeding: alive=" << any_alive
-              << " persisted_frames=" << hypothesis_persist_frames_;
-      clearRelocHypotheses();
-      hypothesis_persist_frames_ = 0;
-    }
+  // Card C/D: clearing after every rejected window capped the accumulated
+  // viewpoint baseline at 1-3 cm. The manager keeps the seed pose across
+  // rejected windows, so the baseline grows with the robot's motion.
+  const HypothesisPersistenceResult persistence =
+      hypothesis_manager_.finishWindow(
+          result.success, config_.reloc_persist_hypotheses,
+          config_.reloc_persist_max_frames);
+  if (persistence.reseeded) {
+    VLOG(1) << "[Reloc/Persist] reseeding: alive=" << persistence.any_alive
+            << " persisted_frames=" << persistence.persisted_frames;
   }
 
   return result;
@@ -1325,8 +1293,7 @@ void WorldLocalizing::resetLocalizationState() {
   last_odom_pose_ = Eigen::Isometry3d::Identity();
   consecutive_track_failures_ = 0;
   query_builder_.reset();
-  clearRelocHypotheses();
-  hypothesis_persist_frames_ = 0;
+  hypothesis_manager_.reset();
 }
 
 void WorldLocalizing::notifyMapReplaced() {
@@ -1338,8 +1305,7 @@ void WorldLocalizing::notifyMapReplaced() {
   last_odom_pose_ = Eigen::Isometry3d::Identity();
   consecutive_track_failures_ = 0;
   query_builder_.reset();
-  clearRelocHypotheses();
-  hypothesis_persist_frames_ = 0;
+  hypothesis_manager_.reset();
   // Map-derived state: none of it may survive into the next map. A map that
   // happens to have the same keyframe count as the previous one must still
   // rebuild its frame-RHPD index, reloc map cache, free-space grid and atlas.
@@ -1383,7 +1349,7 @@ void WorldLocalizing::setMapToOdomTransform(
   is_relocalized_ = true;
   relocalization_seed_id_ = -1;
   query_builder_.reset();
-  clearRelocHypotheses();
+  hypothesis_manager_.reset();
 }
 
 int64_t WorldLocalizing::getLastMatchedKeyframeId() const {
@@ -1623,7 +1589,7 @@ WorldLocalizing::freeSpaceBestHypothesis(
     return nullptr;
   const RelocHypothesis *best = nullptr;
   double best_value = 0.0;
-  for (const auto &hyp : pending_hypotheses_) {
+  for (const auto &hyp : hypothesis_manager_.hypotheses()) {
     if (!hyp.alive)
       continue;
     const auto s = free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
@@ -1646,8 +1612,9 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
     const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose) {
   if (!config_.reloc_free_space_enable || !query_cloud || query_cloud->empty())
     return;
+  auto &hypotheses = hypothesis_manager_.hypotheses();
   size_t alive = 0;
-  for (const auto &hyp : pending_hypotheses_)
+  for (const auto &hyp : hypotheses)
     if (hyp.alive)
       ++alive;
   if (alive < 2)
@@ -1656,10 +1623,10 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
   if (!free_space_grid_.valid())
     return;
 
-  std::vector<FreeSpaceGrid::Score> scores(pending_hypotheses_.size());
+  std::vector<FreeSpaceGrid::Score> scores(hypotheses.size());
   int best = -1;
-  for (size_t i = 0; i < pending_hypotheses_.size(); ++i) {
-    const auto &hyp = pending_hypotheses_[i];
+  for (size_t i = 0; i < hypotheses.size(); ++i) {
+    const auto &hyp = hypotheses[i];
     if (!hyp.alive)
       continue;
     scores[i] =
@@ -1672,13 +1639,13 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
   if (best < 0)
     return;
 
-  for (size_t i = 0; i < pending_hypotheses_.size(); ++i) {
-    if (!pending_hypotheses_[i].alive)
+  for (size_t i = 0; i < hypotheses.size(); ++i) {
+    if (!hypotheses[i].alive)
       continue;
-    const Eigen::Isometry3d hp = pending_hypotheses_[i].T_map_odom * odom_pose;
+    const Eigen::Isometry3d hp = hypotheses[i].T_map_odom * odom_pose;
     VLOG(1) << "[Reloc/FreeSpaceDump] i=" << i
-            << " seed=" << pending_hypotheses_[i].seed_match_id
-            << " conv=" << pending_hypotheses_[i].converged_updates
+            << " seed=" << hypotheses[i].seed_match_id
+            << " conv=" << hypotheses[i].converged_updates
             << " value=" << scores[i].value << " occ=" << scores[i].occupied_fraction
             << " free=" << scores[i].free_fraction << " n=" << scores[i].scored_points
             << " sd=" << scores[i].stddev << " xyz=" << hp.translation().x() << ","
@@ -1691,8 +1658,8 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
   const double sigmas = config_.reloc_free_space_kill_sigmas;
   const auto &top = scores[static_cast<size_t>(best)];
   size_t killed = 0;
-  for (size_t i = 0; i < pending_hypotheses_.size(); ++i) {
-    auto &hyp = pending_hypotheses_[i];
+  for (size_t i = 0; i < hypotheses.size(); ++i) {
+    auto &hyp = hypotheses[i];
     if (!hyp.alive || static_cast<int>(i) == best || !scores[i].valid)
       continue;
     const double noise = std::sqrt(top.stddev * top.stddev +
@@ -1821,15 +1788,6 @@ double WorldLocalizing::computeTrackLogLikelihood(
   const double motion_term = -config_.reloc_track_motion_weight * delta_t;
 
   return fitness_term + inlier_term + motion_term;
-}
-
-void WorldLocalizing::clearRelocHypotheses() {
-  pending_hypotheses_.clear();
-  hypothesis_window_count_ = 0;
-  hypothesis_window_start_odom_pose_ = Eigen::Isometry3d::Identity();
-  has_last_window_winner_transform_ = false;
-  last_window_winner_map_odom_ = Eigen::Isometry3d::Identity();
-  winner_streak_ = 0;
 }
 
 int64_t

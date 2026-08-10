@@ -21,6 +21,7 @@
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_candidate_evaluator.h"
 #include "n3mapping/relocalization_debug_logger.h"
+#include "n3mapping/relocalization_hypothesis_manager.h"
 #include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/relocalization_state.h"
@@ -126,30 +127,7 @@ public:
       const Eigen::Isometry3d &T_map_lidar);
 
 private:
-  struct RelocHypothesis {
-    int64_t seed_match_id = -1;
-    int64_t last_match_id = -1;
-    Eigen::Isometry3d T_map_odom = Eigen::Isometry3d::Identity();
-    double cumulative_log_likelihood = 0.0;
-    int num_updates = 0;
-    int converged_updates = 0;
-    double visibility_consistency_sum = 0.0;
-    double visibility_evidence_sum = 0.0;
-    int visibility_updates = 0;
-    bool alive = true;
-    double last_rot_info_min = 0.0;
-    double last_trans_info_min = 0.0;
-    int last_iterations = 0;
-    // Diagnostics only: which pose the recorded registration numbers
-    // describe, and whether that registration would have passed the gate
-    // used when a hypothesis is first created.
-    bool last_pose_is_refined = false;
-    bool last_production_quality = false;
-    double last_rot_info_marginal_min = 0.0;
-    int last_termination = 0;
-    double last_inlier_ratio = 0.0;
-    double last_fitness = 0.0;
-  };
+  using RelocHypothesis = RelocalizationHypothesis;
 
   struct RelocMatchQuality {
     bool fitness_pass = false;
@@ -180,7 +158,6 @@ private:
                             const Eigen::Isometry3d &predicted_pose) const;
   void appendRelocalizationDebug(const RelocalizationDebugEvent &event) const;
   void appendTrackingDebug(const RelocTrackingDebugEvent &event) const;
-  void clearRelocHypotheses();
   RelocResult trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                                     const Eigen::Isometry3d &odom_pose,
                                     bool strict_loaded_map);
@@ -195,16 +172,13 @@ private:
   RelocalizationPlaceIndex place_index_;
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
   RelocalizationCandidateEvaluator candidate_evaluator_;
+  RelocalizationHypothesisManager hypothesis_manager_;
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
   KeyframeMapRevision reloc_map_revision_;
   PointCloudT::Ptr loaded_map_visibility_cache_;
   size_t loaded_map_visibility_cached_keyframes_ = 0;
   KeyframeMapRevision loaded_map_visibility_revision_;
-  // Frames the current hypothesis set has survived across rejected
-  // windows. Only a valve: a set that never resolves must not wedge the
-  // episode forever.
-  int hypothesis_persist_frames_ = 0;
   FreeSpaceGrid free_space_grid_;
   size_t free_space_grid_keyframes_ = 0;
   KeyframeMapRevision free_space_grid_revision_;
@@ -216,12 +190,6 @@ private:
   int64_t relocalization_seed_id_;
   Eigen::Isometry3d last_odom_pose_;
   int consecutive_track_failures_;
-  std::vector<RelocHypothesis> pending_hypotheses_;
-  int hypothesis_window_count_;
-  Eigen::Isometry3d hypothesis_window_start_odom_pose_;
-  bool has_last_window_winner_transform_;
-  Eigen::Isometry3d last_window_winner_map_odom_;
-  int winner_streak_;
   uint64_t relocalize_debug_query_index_;
   uint64_t track_debug_query_index_;
   mutable std::mutex debug_mutex_;

@@ -4,6 +4,7 @@
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/relocalization_query_builder.h"
+#include "n3mapping/relocalization_hypothesis_manager.h"
 #include "n3mapping/world_localizing.h"
 #include <cmath>
 #include <filesystem>
@@ -217,6 +218,47 @@ TEST_F(WorldLocalizingTest, QueryBuilderSeparatesPrimaryAndMotionScales) {
   EXPECT_EQ(after_reset.support_begin, 0);
   EXPECT_EQ(after_reset.support_end, 0);
   EXPECT_EQ(after_reset.frame_count, 1);
+}
+
+TEST(RelocalizationHypothesisManagerTest,
+     PreservesBaselineAndResetsAtPersistenceLimit) {
+  RelocalizationHypothesisManager manager;
+  RelocalizationHypothesis hypothesis;
+  hypothesis.seed_match_id = 7;
+
+  const Eigen::Isometry3d start_odom = Eigen::Isometry3d::Identity();
+  manager.start({hypothesis}, start_odom);
+  ASSERT_EQ(manager.windowCount(), 1);
+  ASSERT_EQ(manager.size(), 1u);
+
+  Eigen::Isometry3d current_odom = Eigen::Isometry3d::Identity();
+  current_odom.translation().x() = 1.25;
+  manager.advanceWindow();
+  const HypothesisMotionBaseline baseline =
+      manager.motionBaseline(current_odom);
+  EXPECT_NEAR(baseline.translation, 1.25, 1e-12);
+  EXPECT_NEAR(baseline.rotation, 0.0, 1e-12);
+
+  const WinnerStability first = manager.observeWinner(
+      Eigen::Isometry3d::Identity(), current_odom, 0.2, 0.2);
+  const WinnerStability second = manager.observeWinner(
+      Eigen::Isometry3d::Identity(), current_odom, 0.2, 0.2);
+  EXPECT_EQ(first.streak, 1);
+  EXPECT_EQ(second.streak, 2);
+  EXPECT_TRUE(second.same_physical_pose);
+
+  const HypothesisPersistenceResult retained =
+      manager.finishWindow(false, true, 1);
+  EXPECT_FALSE(retained.reseeded);
+  EXPECT_FALSE(manager.empty());
+  EXPECT_EQ(manager.persistedFrames(), 1);
+
+  const HypothesisPersistenceResult reseeded =
+      manager.finishWindow(false, true, 1);
+  EXPECT_TRUE(reseeded.reseeded);
+  EXPECT_TRUE(manager.empty());
+  EXPECT_EQ(manager.windowCount(), 0);
+  EXPECT_EQ(manager.winnerStreak(), 0);
 }
 
 TEST_F(WorldLocalizingTest, BasicConstruction) {
