@@ -50,6 +50,21 @@ bool sameGenerationAndPose(const KeyframeMapRevision &lhs,
   return lhs.generation == rhs.generation &&
          lhs.pose_revision == rhs.pose_revision;
 }
+
+void fillQueryCloudDebugSummary(const PlaceObservation &observation,
+                                RelocQueryCloudDebugSummary *summary) {
+  if (!summary) {
+    return;
+  }
+  summary->mode = observation.scale == ObservationScale::MOTION_SUBMAP
+                      ? "motion_submap"
+                      : "stationary";
+  summary->frame_count = observation.frame_count;
+  summary->motion_translation_m = observation.motion_translation;
+  summary->motion_rotation_rad = observation.motion_rotation;
+  summary->raw_points = observation.raw_points;
+  summary->downsampled_points = observation.downsampled_points;
+}
 } // namespace
 
 WorldLocalizing::WorldLocalizing(const Config &config,
@@ -57,7 +72,7 @@ WorldLocalizing::WorldLocalizing(const Config &config,
                                  LoopDetector &loop_detector,
                                  PointCloudMatcher &matcher)
     : config_(config), keyframe_manager_(keyframe_manager),
-      loop_detector_(loop_detector), matcher_(matcher),
+      loop_detector_(loop_detector), matcher_(matcher), query_builder_(config_),
       localization_atlas_(
           std::make_unique<LocalizationAtlas>(config_, matcher_)),
       frame_rhpd_manager_(loop_detector.getRHPDManager().getDescriptorParams()),
@@ -134,19 +149,23 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     return result;
   }
 
-  RelocQueryCloudDebugSummary query_cloud_debug;
-  PointCloudT::Ptr query_cloud = buildRelocQueryCloud(
-      cloud, odom_pose, reloc_debug_enabled ? &query_cloud_debug : nullptr);
+  const PlaceObservation query_observation =
+      query_builder_.buildStationary(cloud, odom_pose);
+  PointCloudT::Ptr query_cloud = query_observation.cloud;
   if (!query_cloud || query_cloud->empty()) {
     LOG(WARNING) << "Relocalization query cloud is empty after aggregation.";
     finish_debug("rejected", "empty_query_cloud");
     return result;
   }
   if (reloc_debug_enabled) {
+    RelocQueryCloudDebugSummary query_cloud_debug;
+    fillQueryCloudDebugSummary(query_observation, &query_cloud_debug);
     debug_event.query_cloud = query_cloud_debug;
-    debug_event.motion_query_cloud.mode = "motion_submap";
-    auto motion_query_cloud = buildRelocMotionQueryCloudForDebug(
-        odom_pose, &debug_event.motion_query_cloud);
+    const PlaceObservation motion_observation =
+        query_builder_.buildMotionSubmap(odom_pose);
+    fillQueryCloudDebugSummary(motion_observation,
+                               &debug_event.motion_query_cloud);
+    auto motion_query_cloud = motion_observation.cloud;
     if (motion_query_cloud && !motion_query_cloud->empty()) {
       auto motion_candidates = searchCandidates(motion_query_cloud);
       debug_event.motion_query_cloud.candidate_count = motion_candidates.size();
@@ -1308,7 +1327,7 @@ void WorldLocalizing::resetLocalizationState() {
   relocalization_seed_id_ = -1;
   last_odom_pose_ = Eigen::Isometry3d::Identity();
   consecutive_track_failures_ = 0;
-  query_frame_buffer_.clear();
+  query_builder_.reset();
   clearRelocHypotheses();
   hypothesis_persist_frames_ = 0;
 }
@@ -1321,7 +1340,7 @@ void WorldLocalizing::notifyMapReplaced() {
   relocalization_seed_id_ = -1;
   last_odom_pose_ = Eigen::Isometry3d::Identity();
   consecutive_track_failures_ = 0;
-  query_frame_buffer_.clear();
+  query_builder_.reset();
   clearRelocHypotheses();
   hypothesis_persist_frames_ = 0;
   // Map-derived state: none of it may survive into the next map. A map that
@@ -1368,7 +1387,7 @@ void WorldLocalizing::setMapToOdomTransform(
   T_map_odom_ = T_map_odom;
   is_relocalized_ = true;
   relocalization_seed_id_ = -1;
-  query_frame_buffer_.clear();
+  query_builder_.reset();
   clearRelocHypotheses();
 }
 
@@ -1427,7 +1446,7 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
     return result;
   }
 
-  auto query_cloud = buildRelocQueryCloud(cloud, odom_pose, nullptr);
+  auto query_cloud = query_builder_.buildStationary(cloud, odom_pose).cloud;
   if (!query_cloud || query_cloud->empty()) {
     result.error = "empty_query_cloud";
     return result;
@@ -2113,211 +2132,6 @@ WorldLocalizing::evaluateCandidatePoses(
       distinct.push_back(evaluation);
   }
   return distinct;
-}
-
-WorldLocalizing::PointCloudT::Ptr WorldLocalizing::buildRelocQueryCloud(
-    const PointCloudT::Ptr &cloud, const Eigen::Isometry3d &odom_pose,
-    RelocQueryCloudDebugSummary *debug_summary) {
-  auto current_cloud = pcl::make_shared<PointCloudT>(*cloud);
-
-  QueryFrame frame;
-  frame.cloud = current_cloud;
-  frame.odom_pose = odom_pose;
-  query_frame_buffer_.push_back(std::move(frame));
-
-  const int max_frames = std::max(1, config_.reloc_static_agg_max_frames);
-  while (static_cast<int>(query_frame_buffer_.size()) > max_frames) {
-    query_frame_buffer_.pop_front();
-  }
-
-  auto fill_current_summary = [&]() {
-    if (!debug_summary)
-      return;
-    debug_summary->mode = "stationary";
-    debug_summary->frame_count = 1;
-    debug_summary->motion_translation_m = 0.0;
-    debug_summary->motion_rotation_rad = 0.0;
-    debug_summary->raw_points = current_cloud->size();
-    debug_summary->downsampled_points = current_cloud->size();
-  };
-
-  if (!config_.reloc_static_agg_enable || max_frames <= 1) {
-    fill_current_summary();
-    return current_cloud;
-  }
-
-  std::vector<const QueryFrame *> selected;
-  selected.reserve(max_frames);
-  for (auto it = query_frame_buffer_.rbegin();
-       it != query_frame_buffer_.rend() &&
-       static_cast<int>(selected.size()) < max_frames;
-       ++it) {
-    const Eigen::Isometry3d delta = odom_pose.inverse() * it->odom_pose;
-    const double delta_t = delta.translation().norm();
-    const double delta_r = Eigen::AngleAxisd(delta.rotation()).angle();
-    if (delta_t <= config_.reloc_static_agg_max_translation &&
-        delta_r <= config_.reloc_static_agg_max_rotation) {
-      selected.push_back(&(*it));
-    } else {
-      break;
-    }
-  }
-
-  if (static_cast<int>(selected.size()) <
-      std::max(1, config_.reloc_static_agg_min_frames)) {
-    fill_current_summary();
-    return current_cloud;
-  }
-
-  {
-    double max_dr = 0.0, max_dt = 0.0;
-    for (const QueryFrame *src : selected) {
-      const Eigen::Isometry3d d = odom_pose.inverse() * src->odom_pose;
-      max_dt = std::max(max_dt, d.translation().norm());
-      max_dr = std::max(max_dr, Eigen::AngleAxisd(d.rotation()).angle());
-    }
-    VLOG(1) << "[Reloc/QueryAgg] frames=" << selected.size()
-            << " max_dt_m=" << max_dt
-            << " max_dr_deg=" << max_dr * 180.0 / M_PI;
-  }
-
-  auto merged = pcl::make_shared<PointCloudT>();
-  size_t raw_points = 0;
-  for (auto it = selected.rbegin(); it != selected.rend(); ++it) {
-    const QueryFrame *src = *it;
-    raw_points += src->cloud->size();
-    const Eigen::Matrix4f T_curr_from_src =
-        (odom_pose.inverse() * src->odom_pose).matrix().cast<float>();
-    PointCloudT transformed;
-    pcl::transformPointCloud(*src->cloud, transformed, T_curr_from_src);
-    *merged += transformed;
-  }
-
-  if (config_.reloc_static_agg_voxel_size > 1e-4 && !merged->empty()) {
-    PointCloudT::Ptr downsampled;
-    if (safeVoxelGridFilter<pcl::PointXYZI>(
-            merged, config_.reloc_static_agg_voxel_size, &downsampled) &&
-        downsampled) {
-      *merged = *downsampled;
-    }
-  }
-
-  if (debug_summary) {
-    debug_summary->mode = "stationary";
-    debug_summary->frame_count = static_cast<int>(selected.size());
-    debug_summary->raw_points = raw_points;
-    debug_summary->downsampled_points =
-        merged->empty() ? current_cloud->size() : merged->size();
-    const QueryFrame *oldest = selected.empty() ? nullptr : selected.back();
-    if (oldest) {
-      const Eigen::Isometry3d delta = odom_pose.inverse() * oldest->odom_pose;
-      debug_summary->motion_translation_m = delta.translation().norm();
-      debug_summary->motion_rotation_rad =
-          Eigen::AngleAxisd(delta.rotation()).angle();
-    } else {
-      debug_summary->motion_translation_m = 0.0;
-      debug_summary->motion_rotation_rad = 0.0;
-    }
-  }
-
-  VLOG(1) << "[Reloc/Aggregation] static_frames=" << selected.size()
-          << " raw_points=" << raw_points
-          << " aggregated_points=" << merged->size()
-          << " motion_gate(t<=" << config_.reloc_static_agg_max_translation
-          << ", r<=" << config_.reloc_static_agg_max_rotation << ")";
-  return merged->empty() ? current_cloud : merged;
-}
-
-WorldLocalizing::PointCloudT::Ptr
-WorldLocalizing::buildRelocMotionQueryCloudForDebug(
-    const Eigen::Isometry3d &odom_pose,
-    RelocQueryCloudDebugSummary *debug_summary) const {
-  if (debug_summary) {
-    debug_summary->mode = "motion_submap";
-    debug_summary->frame_count = 0;
-    debug_summary->motion_translation_m =
-        std::numeric_limits<double>::quiet_NaN();
-    debug_summary->motion_rotation_rad =
-        std::numeric_limits<double>::quiet_NaN();
-    debug_summary->raw_points = 0;
-    debug_summary->downsampled_points = 0;
-    debug_summary->candidate_count = 0;
-    debug_summary->top_candidates.clear();
-  }
-
-  if (query_frame_buffer_.empty()) {
-    return pcl::make_shared<PointCloudT>();
-  }
-
-  const int max_frames = std::max(1, config_.reloc_static_agg_max_frames);
-  std::vector<const QueryFrame *> selected;
-  selected.reserve(max_frames);
-  for (auto it = query_frame_buffer_.rbegin();
-       it != query_frame_buffer_.rend() &&
-       static_cast<int>(selected.size()) < max_frames;
-       ++it) {
-    selected.push_back(&(*it));
-  }
-
-  auto merged = pcl::make_shared<PointCloudT>();
-  size_t raw_points = 0;
-  for (auto it = selected.rbegin(); it != selected.rend(); ++it) {
-    const QueryFrame *src = *it;
-    if (!src || !src->cloud)
-      continue;
-    raw_points += src->cloud->size();
-    const Eigen::Matrix4f T_curr_from_src =
-        (odom_pose.inverse() * src->odom_pose).matrix().cast<float>();
-    PointCloudT transformed;
-    pcl::transformPointCloud(*src->cloud, transformed, T_curr_from_src);
-    *merged += transformed;
-  }
-
-  if (config_.reloc_static_agg_voxel_size > 1e-4 && !merged->empty()) {
-    PointCloudT::Ptr downsampled;
-    if (safeVoxelGridFilter<pcl::PointXYZI>(
-            merged, config_.reloc_static_agg_voxel_size, &downsampled) &&
-        downsampled) {
-      *merged = *downsampled;
-    }
-  }
-
-  // A wider temporal footprint should add geometry, not multiply optimizer
-  // work. Keep the authoritative/shadow motion query within the information
-  // budget of the current scan by increasing only its spatial sampling pitch.
-  const std::size_t point_budget =
-      query_frame_buffer_.back().cloud
-          ? std::max<std::size_t>(1, query_frame_buffer_.back().cloud->size())
-          : merged->size();
-  double adaptive_voxel = std::max(1e-3, config_.reloc_static_agg_voxel_size);
-  for (int iteration = 0; iteration < 6 && merged->size() > point_budget;
-       ++iteration) {
-    const double ratio =
-        static_cast<double>(merged->size()) / static_cast<double>(point_budget);
-    adaptive_voxel *= std::max(1.1, 1.05 * std::cbrt(ratio));
-    PointCloudT::Ptr downsampled;
-    if (!safeVoxelGridFilter<pcl::PointXYZI>(merged, adaptive_voxel,
-                                             &downsampled) ||
-        !downsampled || downsampled->size() >= merged->size()) {
-      break;
-    }
-    *merged = *downsampled;
-  }
-
-  if (debug_summary) {
-    debug_summary->frame_count = static_cast<int>(selected.size());
-    debug_summary->raw_points = raw_points;
-    debug_summary->downsampled_points = merged->size();
-    const QueryFrame *oldest = selected.empty() ? nullptr : selected.back();
-    if (oldest) {
-      const Eigen::Isometry3d delta = odom_pose.inverse() * oldest->odom_pose;
-      debug_summary->motion_translation_m = delta.translation().norm();
-      debug_summary->motion_rotation_rad =
-          Eigen::AngleAxisd(delta.rotation()).angle();
-    }
-  }
-
-  return merged;
 }
 
 double WorldLocalizing::computeRelocLogLikelihood(

@@ -3,7 +3,6 @@
 #pragma once
 
 #include <cstdint>
-#include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -21,6 +20,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_debug_logger.h"
+#include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/relocalization_state.h"
 #include "n3mapping/visibility_consistency.h"
 
@@ -149,11 +149,6 @@ private:
     double last_fitness = 0.0;
   };
 
-  struct QueryFrame {
-    PointCloudT::Ptr cloud;
-    Eigen::Isometry3d odom_pose = Eigen::Isometry3d::Identity();
-  };
-
   struct RelocMatchQuality {
     bool fitness_pass = false;
     bool inlier_pass = false;
@@ -196,13 +191,6 @@ private:
   double
   computeTrackLogLikelihood(const MatchResult &match_result,
                             const Eigen::Isometry3d &predicted_pose) const;
-  PointCloudT::Ptr
-  buildRelocQueryCloud(const PointCloudT::Ptr &cloud,
-                       const Eigen::Isometry3d &odom_pose,
-                       RelocQueryCloudDebugSummary *debug_summary = nullptr);
-  PointCloudT::Ptr buildRelocMotionQueryCloudForDebug(
-      const Eigen::Isometry3d &odom_pose,
-      RelocQueryCloudDebugSummary *debug_summary) const;
   void appendRelocalizationDebug(const RelocalizationDebugEvent &event) const;
   void appendTrackingDebug(const RelocTrackingDebugEvent &event) const;
   void clearRelocHypotheses();
@@ -216,6 +204,7 @@ private:
   KeyframeManager &keyframe_manager_;
   LoopDetector &loop_detector_;
   PointCloudMatcher &matcher_;
+  RelocalizationQueryBuilder query_builder_;
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
   RHPDManager frame_rhpd_manager_;
   size_t frame_rhpd_indexed_keyframes_;
@@ -242,7 +231,6 @@ private:
   Eigen::Isometry3d last_odom_pose_;
   int consecutive_track_failures_;
   std::vector<RelocHypothesis> pending_hypotheses_;
-  std::deque<QueryFrame> query_frame_buffer_;
   int hypothesis_window_count_;
   Eigen::Isometry3d hypothesis_window_start_odom_pose_;
   bool has_last_window_winner_transform_;

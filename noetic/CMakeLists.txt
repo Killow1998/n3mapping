@@ -133,6 +133,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_query_builder.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
   ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
   ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp

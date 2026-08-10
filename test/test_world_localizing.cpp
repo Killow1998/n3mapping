@@ -3,6 +3,7 @@
 #include "n3mapping/pcl_compat.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/localization_atlas.h"
+#include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/world_localizing.h"
 #include <cmath>
 #include <filesystem>
@@ -142,6 +143,80 @@ std::vector<std::string> readDebugLines(const std::filesystem::path &path) {
     lines.push_back(line);
   }
   return lines;
+}
+
+TEST_F(WorldLocalizingTest, QueryBuilderReturnsBoundedStationaryObservation) {
+  config_.reloc_static_agg_enable = true;
+  config_.reloc_static_agg_max_frames = 3;
+  config_.reloc_static_agg_min_frames = 2;
+  config_.reloc_static_agg_max_translation = 0.25;
+  config_.reloc_static_agg_max_rotation = 0.2;
+  config_.reloc_static_agg_voxel_size = 0.12;
+  RelocalizationQueryBuilder builder(config_);
+
+  const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  const auto cloud = generateCorridorCloud(pose);
+  const auto first = builder.buildStationary(cloud, pose);
+  EXPECT_EQ(first.scale, ObservationScale::SINGLE_SCAN);
+  EXPECT_EQ(first.support_begin, 0);
+  EXPECT_EQ(first.support_end, 0);
+  EXPECT_EQ(first.frame_count, 1);
+  EXPECT_EQ(first.raw_points, cloud->size());
+  ASSERT_NE(first.cloud, nullptr);
+  EXPECT_EQ(first.cloud->size(), cloud->size());
+
+  const auto second = builder.buildStationary(cloud, pose);
+  EXPECT_EQ(second.scale, ObservationScale::STATIONARY_AGGREGATE);
+  EXPECT_EQ(second.support_begin, 0);
+  EXPECT_EQ(second.support_end, 1);
+  EXPECT_EQ(second.frame_count, 2);
+  EXPECT_EQ(second.raw_points, 2 * cloud->size());
+  ASSERT_NE(second.cloud, nullptr);
+  EXPECT_FALSE(second.cloud->empty());
+  EXPECT_LE(second.downsampled_points, second.raw_points);
+  EXPECT_DOUBLE_EQ(second.motion_translation, 0.0);
+  EXPECT_DOUBLE_EQ(second.motion_rotation, 0.0);
+}
+
+TEST_F(WorldLocalizingTest, QueryBuilderSeparatesPrimaryAndMotionScales) {
+  config_.reloc_static_agg_enable = true;
+  config_.reloc_static_agg_max_frames = 3;
+  config_.reloc_static_agg_min_frames = 2;
+  config_.reloc_static_agg_max_translation = 0.1;
+  config_.reloc_static_agg_max_rotation = 0.1;
+  config_.reloc_static_agg_voxel_size = 0.12;
+  RelocalizationQueryBuilder builder(config_);
+
+  const Eigen::Isometry3d first_pose = Eigen::Isometry3d::Identity();
+  const auto first_cloud = generateCorridorCloud(first_pose);
+  (void)builder.buildStationary(first_cloud, first_pose);
+
+  Eigen::Isometry3d moved_pose = first_pose;
+  moved_pose.translation().x() = 0.5;
+  const auto moved_cloud = generateCorridorCloud(moved_pose);
+  const auto primary = builder.buildStationary(moved_cloud, moved_pose);
+  EXPECT_EQ(primary.scale, ObservationScale::SINGLE_SCAN);
+  EXPECT_EQ(primary.support_begin, 1);
+  EXPECT_EQ(primary.support_end, 1);
+  EXPECT_EQ(primary.frame_count, 1);
+
+  const auto motion = builder.buildMotionSubmap(moved_pose);
+  EXPECT_EQ(motion.scale, ObservationScale::MOTION_SUBMAP);
+  EXPECT_EQ(motion.support_begin, 0);
+  EXPECT_EQ(motion.support_end, 1);
+  EXPECT_EQ(motion.frame_count, 2);
+  EXPECT_EQ(motion.raw_points, first_cloud->size() + moved_cloud->size());
+  ASSERT_NE(motion.cloud, nullptr);
+  EXPECT_FALSE(motion.cloud->empty());
+  EXPECT_NEAR(motion.motion_translation, 0.5, 1e-12);
+  EXPECT_NEAR(motion.motion_rotation, 0.0, 1e-12);
+
+  builder.reset();
+  const auto after_reset = builder.buildStationary(moved_cloud, moved_pose);
+  EXPECT_EQ(after_reset.scale, ObservationScale::SINGLE_SCAN);
+  EXPECT_EQ(after_reset.support_begin, 0);
+  EXPECT_EQ(after_reset.support_end, 0);
+  EXPECT_EQ(after_reset.frame_count, 1);
 }
 
 TEST_F(WorldLocalizingTest, BasicConstruction) {
