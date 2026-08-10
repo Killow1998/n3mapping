@@ -20,6 +20,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_debug_logger.h"
+#include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/relocalization_state.h"
 #include "n3mapping/visibility_consistency.h"
@@ -165,7 +166,6 @@ private:
     VisibilityConsistencyResult visibility;
   };
 
-  std::vector<LoopCandidate> searchCandidates(const PointCloudT::Ptr &cloud);
   std::vector<CandidatePoseEvaluation> evaluateCandidatePoses(
       const PointCloudT::Ptr &cloud,
       const PointCloudMatcher::PreparedSource &prepared_cloud,
@@ -182,10 +182,6 @@ private:
   evaluatePoseVisibility(const PointCloudT::Ptr &target_cloud,
                          const PointCloudT::Ptr &query_cloud,
                          const Eigen::Isometry3d &T_map_lidar) const;
-  void rebuildFrameRHPDIndexIfNeeded();
-  void appendFrameRHPDCandidates(const Eigen::VectorXd &query_rhpd,
-                                 const Eigen::MatrixXd &query_sc,
-                                 std::vector<LoopCandidate> &candidates);
   double computeRelocLogLikelihood(const LoopCandidate &candidate,
                                    const MatchResult &match_result) const;
   double
@@ -205,10 +201,8 @@ private:
   LoopDetector &loop_detector_;
   PointCloudMatcher &matcher_;
   RelocalizationQueryBuilder query_builder_;
+  RelocalizationPlaceIndex place_index_;
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
-  RHPDManager frame_rhpd_manager_;
-  size_t frame_rhpd_indexed_keyframes_;
-  KeyframeMapRevision frame_rhpd_revision_;
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
   KeyframeMapRevision reloc_map_revision_;

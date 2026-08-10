@@ -39,12 +39,6 @@ bool hasValidRegistrationResult(const MatchResult &match) {
          isFiniteRigidPose(match.T_target_source);
 }
 
-bool sameGenerationAndStructure(const KeyframeMapRevision &lhs,
-                                const KeyframeMapRevision &rhs) {
-  return lhs.generation == rhs.generation &&
-         lhs.structure_revision == rhs.structure_revision;
-}
-
 bool sameGenerationAndPose(const KeyframeMapRevision &lhs,
                            const KeyframeMapRevision &rhs) {
   return lhs.generation == rhs.generation &&
@@ -73,10 +67,9 @@ WorldLocalizing::WorldLocalizing(const Config &config,
                                  PointCloudMatcher &matcher)
     : config_(config), keyframe_manager_(keyframe_manager),
       loop_detector_(loop_detector), matcher_(matcher), query_builder_(config_),
+      place_index_(config_, keyframe_manager_, loop_detector_),
       localization_atlas_(
           std::make_unique<LocalizationAtlas>(config_, matcher_)),
-      frame_rhpd_manager_(loop_detector.getRHPDManager().getDescriptorParams()),
-      frame_rhpd_indexed_keyframes_(0),
       reloc_map_cache_(pcl::make_shared<PointCloudT>()),
       reloc_map_cached_keyframes_(0),
       loaded_map_visibility_cache_(pcl::make_shared<PointCloudT>()),
@@ -167,7 +160,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                                &debug_event.motion_query_cloud);
     auto motion_query_cloud = motion_observation.cloud;
     if (motion_query_cloud && !motion_query_cloud->empty()) {
-      auto motion_candidates = searchCandidates(motion_query_cloud);
+      auto motion_candidates = place_index_.search(motion_query_cloud);
       debug_event.motion_query_cloud.candidate_count = motion_candidates.size();
       debug_event.motion_query_cloud.top_candidates =
           std::move(motion_candidates);
@@ -202,7 +195,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       };
 
   if (pending_hypotheses_.empty()) {
-    auto candidates = searchCandidates(query_cloud);
+    auto candidates = place_index_.search(query_cloud);
     if (reloc_debug_enabled) {
       debug_event.query_cloud.candidate_count = candidates.size();
       debug_event.query_cloud.top_candidates = candidates;
@@ -436,7 +429,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       return result;
     }
   } else {
-    const auto current_candidates = searchCandidates(query_cloud);
+    const auto current_candidates = place_index_.search(query_cloud);
     if (reloc_debug_enabled) {
       debug_event.query_cloud.candidate_count = current_candidates.size();
       debug_event.query_cloud.top_candidates = current_candidates;
@@ -1346,9 +1339,7 @@ void WorldLocalizing::notifyMapReplaced() {
   // Map-derived state: none of it may survive into the next map. A map that
   // happens to have the same keyframe count as the previous one must still
   // rebuild its frame-RHPD index, reloc map cache, free-space grid and atlas.
-  frame_rhpd_manager_.clear();
-  frame_rhpd_indexed_keyframes_ = 0;
-  frame_rhpd_revision_ = {};
+  place_index_.resetMapDerivedState();
   reloc_map_cache_ = pcl::make_shared<PointCloudT>();
   reloc_map_cached_keyframes_ = 0;
   reloc_map_revision_ = {};
@@ -1373,7 +1364,7 @@ WorldLocalizing::cacheDiagnostics() const {
   std::lock_guard<std::mutex> lock(mutex_);
   WorldLocalizingCacheDiagnostics d;
   d.atlas_loaded = localization_atlas_ && localization_atlas_->loaded();
-  d.frame_rhpd_indexed_keyframes = frame_rhpd_indexed_keyframes_;
+  d.frame_rhpd_indexed_keyframes = place_index_.indexedKeyframes();
   d.reloc_map_cached_keyframes = reloc_map_cached_keyframes_;
   d.free_space_grid_keyframes = free_space_grid_keyframes_;
   d.free_space_grid_valid = free_space_grid_.valid();
@@ -1489,7 +1480,7 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
   finish_attempt(&oracle_attempt);
   result.attempts.push_back(std::move(oracle_attempt));
 
-  const auto candidates = searchCandidates(query_cloud);
+  const auto candidates = place_index_.search(query_cloud);
   if (candidates.empty()) {
     result.error = "no_descriptor_candidates";
     result.valid = true;
@@ -1544,160 +1535,6 @@ WorldLocalizing::evaluateRelocMatchQuality(const MatchResult &match) const {
                      quality.inlier_pass && quality.confidence_pass;
   return quality;
 }
-
-std::vector<LoopCandidate>
-WorldLocalizing::searchCandidates(const PointCloudT::Ptr &cloud) {
-  std::vector<LoopCandidate> candidates;
-  if (!cloud || cloud->empty())
-    return candidates;
-
-  const auto &rhpd_mgr = loop_detector_.getRHPDManager();
-  Eigen::VectorXd query_rhpd;
-  Eigen::MatrixXd query_sc;
-  if (config_.rhpd_use_sc_yaw || !config_.rhpd_enabled ||
-      rhpd_mgr.size() == 0) {
-    query_sc = loop_detector_.makeScanContext(cloud);
-  }
-
-  if (config_.rhpd_enabled && rhpd_mgr.size() > 0) {
-    query_rhpd = loop_detector_.computeRHPD(cloud);
-    if (query_rhpd.size() != RHPD_DIM || query_rhpd.isZero()) {
-      LOG(WARNING) << "[Reloc/RHPD] query descriptor is zero.";
-    } else {
-      const int preselect = std::max(config_.rhpd_num_candidates * 3,
-                                     config_.reloc_num_candidates * 3);
-      auto top_k = rhpd_mgr.search(query_rhpd, std::max(1, preselect),
-                                   config_.rhpd_preselect_candidates);
-      std::vector<LoopCandidate> ranked;
-      ranked.reserve(top_k.size());
-
-      for (int i = 0; i < static_cast<int>(top_k.size()); ++i) {
-        const auto &item = top_k[i];
-        if (item.second > config_.rhpd_dist_threshold)
-          continue;
-
-        LoopCandidate c;
-        c.query_id = -1;
-        c.match_id = item.first;
-        c.rhpd_distance = item.second;
-        c.source_flags = LoopCandidate::SOURCE_RHPD;
-        c.candidate_source = LoopCandidate::Source::RhpdPrimary;
-        c.rhpd_rank = i;
-
-        Eigen::MatrixXd match_sc = loop_detector_.getDescriptor(item.first);
-        if (config_.rhpd_use_sc_yaw && query_sc.size() > 0 &&
-            match_sc.size() > 0) {
-          auto [sc_dist, yaw_shift] =
-              loop_detector_.computeDistance(query_sc, match_sc);
-          c.sc_distance = sc_dist;
-          c.yaw_diff_rad = static_cast<float>(yaw_shift) *
-                           static_cast<float>(
-                               loop_detector_.getScanContextSectorAngleDeg()) *
-                           static_cast<float>(M_PI / 180.0);
-          c.source_flags |= LoopCandidate::SOURCE_SC;
-          if (config_.sc_aux_veto_enabled &&
-              sc_dist > config_.sc_aux_veto_threshold) {
-            continue;
-          }
-        }
-
-        const double rhpd_norm =
-            c.rhpd_distance / std::max(1e-6, config_.rhpd_dist_threshold);
-        const double sc_norm =
-            std::isfinite(c.sc_distance)
-                ? c.sc_distance / std::max(1e-6, config_.sc_aux_veto_threshold)
-                : 1.0;
-        c.fused_score = config_.rhpd_primary_weight * rhpd_norm +
-                        config_.sc_aux_weight * sc_norm;
-        ranked.push_back(c);
-      }
-
-      std::sort(ranked.begin(), ranked.end(),
-                [](const LoopCandidate &a, const LoopCandidate &b) {
-                  if (a.fused_score != b.fused_score)
-                    return a.fused_score < b.fused_score;
-                  return a.rhpd_distance < b.rhpd_distance;
-                });
-
-      const int keep = std::min(config_.reloc_num_candidates,
-                                static_cast<int>(ranked.size()));
-      candidates.reserve(keep);
-      for (int i = 0; i < keep; ++i) {
-        ranked[i].fused_rank = i;
-        candidates.push_back(ranked[i]);
-      }
-
-      appendFrameRHPDCandidates(query_rhpd, query_sc, candidates);
-      std::sort(candidates.begin(), candidates.end(),
-                [](const LoopCandidate &a, const LoopCandidate &b) {
-                  if (a.fused_score != b.fused_score)
-                    return a.fused_score < b.fused_score;
-                  return a.rhpd_distance < b.rhpd_distance;
-                });
-      if (static_cast<int>(candidates.size()) > config_.reloc_num_candidates) {
-        candidates.resize(std::max(1, config_.reloc_num_candidates));
-      }
-      for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
-        candidates[i].fused_rank = i;
-      }
-    }
-
-    VLOG(1) << "[Reloc/RHPDPrimary] kept=" << candidates.size()
-            << " dist_thr=" << config_.rhpd_dist_threshold;
-    for (size_t i = 0; i < std::min<size_t>(candidates.size(), 5); ++i) {
-      const auto &c = candidates[i];
-      VLOG(1) << "  [rhpd " << i << "] kf=" << c.match_id
-              << " rhpd=" << c.rhpd_distance << " sc=" << c.sc_distance
-              << " yaw=" << c.yaw_diff_rad << " score=" << c.fused_score;
-    }
-    if (!candidates.empty())
-      return candidates;
-  }
-
-  if (query_sc.size() == 0)
-    return candidates;
-
-  std::vector<LoopCandidate> sc_ranked;
-  auto descriptors = loop_detector_.getDescriptors();
-  sc_ranked.reserve(descriptors.size());
-  for (int i = 0; i < static_cast<int>(descriptors.size()); ++i) {
-    const auto &[kf_id, desc] = descriptors[i];
-    if (desc.size() == 0)
-      continue;
-    auto [sc_dist, yaw_shift] = loop_detector_.computeDistance(query_sc, desc);
-    if (sc_dist > config_.reloc_sc_dist_threshold)
-      continue;
-    LoopCandidate c;
-    c.query_id = -1;
-    c.match_id = kf_id;
-    c.sc_distance = sc_dist;
-    c.yaw_diff_rad =
-        static_cast<float>(yaw_shift) *
-        static_cast<float>(loop_detector_.getScanContextSectorAngleDeg()) *
-        static_cast<float>(M_PI / 180.0);
-    c.source_flags = LoopCandidate::SOURCE_SC;
-    c.candidate_source = LoopCandidate::Source::ScanContextFallback;
-    c.sc_rank = i;
-    c.fused_score = sc_dist;
-    sc_ranked.push_back(c);
-  }
-  std::sort(sc_ranked.begin(), sc_ranked.end(),
-            [](const LoopCandidate &a, const LoopCandidate &b) {
-              return a.sc_distance < b.sc_distance;
-            });
-  const int keep = std::min(config_.reloc_num_candidates,
-                            static_cast<int>(sc_ranked.size()));
-  for (int i = 0; i < keep; ++i) {
-    sc_ranked[i].fused_rank = i;
-    candidates.push_back(sc_ranked[i]);
-  }
-  VLOG(1) << "[Reloc/SCFallback] kept=" << candidates.size()
-          << " rhpd_enabled=" << config_.rhpd_enabled
-          << " rhpd_db=" << rhpd_mgr.size();
-
-  return candidates;
-}
-
 
 void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
   const KeyframeMapRevision current_revision = keyframe_manager_.revision();
@@ -1944,96 +1781,6 @@ VisibilityConsistencyResult WorldLocalizing::evaluatePoseVisibility(
     return {};
   return evaluateVisibilityConsistency(*target_cloud, *query_cloud, T_map_lidar,
                                        visibilityOptionsFromConfig(config_));
-}
-
-void WorldLocalizing::rebuildFrameRHPDIndexIfNeeded() {
-  const KeyframeMapRevision current_revision = keyframe_manager_.revision();
-  const size_t current_size = keyframe_manager_.size();
-  if (sameGenerationAndStructure(frame_rhpd_revision_, current_revision)) {
-    return;
-  }
-
-  frame_rhpd_manager_.clear();
-  size_t indexed = 0;
-  for (const auto &kf : keyframe_manager_.getAllKeyframes()) {
-    if (!kf || !kf->cloud || kf->cloud->empty())
-      continue;
-    Eigen::VectorXd desc = loop_detector_.computeRHPD(kf->cloud);
-    if (desc.size() != RHPD_DIM || desc.isZero())
-      continue;
-    frame_rhpd_manager_.add(kf->id, desc);
-    ++indexed;
-  }
-  frame_rhpd_indexed_keyframes_ = current_size;
-  frame_rhpd_revision_ = current_revision;
-  VLOG(1) << "[Reloc/RHPDFrame] rebuilt frame-level index: indexed=" << indexed
-          << " keyframes=" << current_size;
-}
-
-void WorldLocalizing::appendFrameRHPDCandidates(
-    const Eigen::VectorXd &query_rhpd, const Eigen::MatrixXd &query_sc,
-    std::vector<LoopCandidate> &candidates) {
-  if (query_rhpd.size() != RHPD_DIM || query_rhpd.isZero())
-    return;
-
-  rebuildFrameRHPDIndexIfNeeded();
-  if (frame_rhpd_manager_.size() == 0)
-    return;
-
-  const int top_k = std::max(config_.reloc_num_candidates * 2,
-                             config_.rhpd_num_candidates * 2);
-  const int preselect = std::max(config_.rhpd_preselect_candidates, top_k * 5);
-  auto frame_top =
-      frame_rhpd_manager_.search(query_rhpd, std::max(1, top_k), preselect);
-  for (int i = 0; i < static_cast<int>(frame_top.size()); ++i) {
-    const auto &item = frame_top[i];
-    if (item.second > config_.rhpd_dist_threshold)
-      continue;
-
-    LoopCandidate c;
-    c.query_id = -1;
-    c.match_id = item.first;
-    c.rhpd_distance = item.second;
-    c.source_flags = LoopCandidate::SOURCE_RHPD;
-    c.candidate_source = LoopCandidate::Source::RhpdFrame;
-    c.rhpd_rank = i;
-
-    Eigen::MatrixXd match_sc = loop_detector_.getDescriptor(item.first);
-    if (config_.rhpd_use_sc_yaw && query_sc.size() > 0 && match_sc.size() > 0) {
-      auto [sc_dist, yaw_shift] =
-          loop_detector_.computeDistance(query_sc, match_sc);
-      c.sc_distance = sc_dist;
-      c.yaw_diff_rad =
-          static_cast<float>(yaw_shift) *
-          static_cast<float>(loop_detector_.getScanContextSectorAngleDeg()) *
-          static_cast<float>(M_PI / 180.0);
-      c.source_flags |= LoopCandidate::SOURCE_SC;
-      if (config_.sc_aux_veto_enabled &&
-          sc_dist > config_.sc_aux_veto_threshold) {
-        continue;
-      }
-    }
-
-    const double rhpd_norm =
-        c.rhpd_distance / std::max(1e-6, config_.rhpd_dist_threshold);
-    const double sc_norm =
-        std::isfinite(c.sc_distance)
-            ? c.sc_distance / std::max(1e-6, config_.sc_aux_veto_threshold)
-            : 1.0;
-    c.fused_score = config_.rhpd_primary_weight * rhpd_norm +
-                    config_.sc_aux_weight * sc_norm;
-
-    auto existing = std::find_if(
-        candidates.begin(), candidates.end(),
-        [&](const LoopCandidate &old) { return old.match_id == c.match_id; });
-    if (existing == candidates.end()) {
-      candidates.push_back(c);
-    } else if (c.fused_score < existing->fused_score ||
-               (c.fused_score == existing->fused_score &&
-                c.rhpd_distance < existing->rhpd_distance)) {
-      *existing = c;
-    }
-  }
 }
 
 std::vector<WorldLocalizing::CandidatePoseEvaluation>
