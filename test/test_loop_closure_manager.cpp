@@ -225,7 +225,7 @@ TEST(LoopVerifierEvidenceTest, MeasurementResidualUsesPredictedAndMeasuredTransf
     EXPECT_TRUE(residual.isApprox(predicted.inverse() * measured, 1e-12));
 }
 
-TEST(LoopVerifierEvidenceTest, LegacyPathUsesConfiguredSerializableInformation)
+TEST(LoopVerifierEvidenceTest, PreparedPathUsesConfiguredSerializableInformation)
 {
     Config config;
     config.num_threads = 1;
@@ -252,8 +252,9 @@ TEST(LoopVerifierEvidenceTest, LegacyPathUsesConfiguredSerializableInformation)
 
     PointCloudMatcher matcher(config);
     const LoopVerification verification =
-        LoopVerifier(config).verifyKeyframesLegacy(
-            candidate, source, target, matcher);
+        LoopVerifier(config).verifyPreparedQueryToMatch(
+            candidate, source, target, source->cloud, target->cloud,
+            Eigen::Isometry3d::Identity(), matcher);
 
     ASSERT_TRUE(verification.loop.verified);
     const auto& information = verification.loop.information;
@@ -268,8 +269,9 @@ TEST(LoopVerifierEvidenceTest, LegacyPathUsesConfiguredSerializableInformation)
 
     config.loop_use_icp_information = true;
     const LoopVerification icp_information =
-        LoopVerifier(config).verifyKeyframesLegacy(
-            candidate, source, target, matcher);
+        LoopVerifier(config).verifyPreparedQueryToMatch(
+            candidate, source, target, source->cloud, target->cloud,
+            Eigen::Isometry3d::Identity(), matcher);
     EXPECT_TRUE(icp_information.loop.information.isApprox(
         icp_information.loop.information.transpose(), 1e-12));
 }

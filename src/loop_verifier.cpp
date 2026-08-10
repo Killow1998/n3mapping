@@ -268,41 +268,4 @@ LoopVerification LoopVerifier::finalizePreparedRegistration(
     return verification;
 }
 
-LoopVerification LoopVerifier::verifyKeyframesLegacy(const LoopCandidate& candidate,
-                                                     const Keyframe::Ptr& query_keyframe,
-                                                     const Keyframe::Ptr& match_keyframe,
-                                                     PointCloudMatcher& matcher) const
-{
-    LoopVerification verification;
-    verification.loop.query_id = candidate.query_id;
-    verification.loop.match_id = candidate.match_id;
-    verification.loop.candidate_yaw_diff_rad = static_cast<double>(candidate.yaw_diff_rad);
-    if (!query_keyframe || !match_keyframe) {
-        verification.reject_reason = "missing_keyframe_or_cloud";
-        return verification;
-    }
-
-    verification.T_pred_match_query = match_keyframe->pose_optimized.inverse() * query_keyframe->pose_optimized;
-    Eigen::Isometry3d init_guess = verification.T_pred_match_query;
-    Eigen::AngleAxisd yaw_correction(candidate.yaw_diff_rad, Eigen::Vector3d::UnitZ());
-    init_guess.linear() = init_guess.linear() * yaw_correction.toRotationMatrix();
-    verification.match_result = matcher.align(match_keyframe, query_keyframe, init_guess);
-    verification.T_measured_match_query = verification.match_result.T_target_source;
-    verification.T_icp_correction_match =
-        verification.T_measured_match_query * verification.T_pred_match_query.inverse();
-    verification.T_measurement_residual =
-        measurementResidual(verification.T_pred_match_query, verification.T_measured_match_query);
-
-    auto& loop = verification.loop;
-    loop.T_pred_match_query = verification.T_pred_match_query;
-    loop.T_icp_correction_match = verification.T_icp_correction_match;
-    loop.T_measured_match_query = verification.T_measured_match_query;
-    loop.T_measurement_residual = verification.T_measurement_residual;
-    finalizeRegistrationEvidence(&verification);
-    if (loop.verified) {
-        loop.T_match_query = verification.T_measured_match_query;
-    }
-    return verification;
-}
-
 }  // namespace n3mapping

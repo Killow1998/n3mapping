@@ -48,22 +48,14 @@ public:
         const Eigen::Isometry3d& initial_match_query,
         PointCloudMatcher& matcher) const;
 
-    // Compatibility test helper. Production loop paths use prepared submaps
-    // through LoopVerificationPipeline so Mapping and Map Extension share the
-    // same evidence and constraint gates.
-    LoopVerification verifyKeyframesLegacy(const LoopCandidate& candidate,
-                                           const Keyframe::Ptr& query_keyframe,
-                                           const Keyframe::Ptr& match_keyframe,
-                                           PointCloudMatcher& matcher) const;
-
     static Eigen::Isometry3d measurementResidual(const Eigen::Isometry3d& predicted_match_query,
                                                  const Eigen::Isometry3d& measured_match_query);
 
 private:
-    // Both the prepared-submap path and the legacy keyframe path must attach
-    // identical quality evidence and information semantics to a registration.
-    // Keeping this in one place prevents Map Extension from silently bypassing
-    // loop_use_icp_information and the product loop thresholds.
+    // Both prepared registration paths attach identical quality evidence and
+    // information semantics. Keeping this in one place prevents either Mapping
+    // or Map Extension from bypassing loop_use_icp_information and the product
+    // loop thresholds.
     void finalizeRegistrationEvidence(LoopVerification* verification) const;
     LoopVerification finalizePreparedRegistration(
         const LoopCandidate& candidate,
