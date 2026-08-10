@@ -197,6 +197,19 @@ void appendBasinBest(std::ostream &os, bool *first,
                  results[i].visibility_foreground_conflict_ratio);
     appendNumber(os, &item_first, "visibility_evidence_log_odds",
                  results[i].visibility_evidence_log_odds);
+    appendSize(os, &item_first, "visibility_known_bins",
+               results[i].visibility_known_bins);
+    appendSize(os, &item_first, "visibility_unknown_bins",
+               results[i].visibility_unknown_bins);
+    appendNumber(os, &item_first, "visibility_known_fraction",
+                 results[i].visibility_known_fraction);
+    appendNumber(os, &item_first, "visibility_consistent_given_known",
+                 results[i].visibility_consistent_given_known);
+    appendNumber(os, &item_first,
+                 "visibility_foreground_conflict_given_known",
+                 results[i].visibility_foreground_conflict_given_known);
+    appendNumber(os, &item_first, "visibility_evidence_log_odds_given_known",
+                 results[i].visibility_evidence_log_odds_given_known);
     os << '}';
   }
   os << ']';

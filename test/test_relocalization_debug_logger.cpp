@@ -85,6 +85,12 @@ TEST(RelocalizationDebugLoggerTest,
   basin_best.pose_in_map.translation() = Eigen::Vector3d(1.0, 2.0, 3.0);
   basin_best.visibility_consistency_ratio = 0.8;
   basin_best.visibility_evidence_log_odds = 1.5;
+  basin_best.visibility_known_bins = 8;
+  basin_best.visibility_unknown_bins = 2;
+  basin_best.visibility_known_fraction = 0.8;
+  basin_best.visibility_consistent_given_known = 0.75;
+  basin_best.visibility_foreground_conflict_given_known = 0.125;
+  basin_best.visibility_evidence_log_odds_given_known = 1.25;
   event.basin_best_results.push_back(basin_best);
   RelocDebugHypothesisSummary hypothesis;
   hypothesis.seed_match_id = 7;
@@ -131,6 +137,20 @@ TEST(RelocalizationDebugLoggerTest,
             std::string::npos);
   EXPECT_NE(lines[0].find("\"candidate_count\":1"), std::string::npos);
   EXPECT_NE(lines[0].find("\"visibility_evidence_log_odds\":1.5"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_known_bins\":8"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_unknown_bins\":2"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_known_fraction\":0.8"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_consistent_given_known\":0.75"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find(
+                "\"visibility_foreground_conflict_given_known\":0.125"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find(
+                "\"visibility_evidence_log_odds_given_known\":1.25"),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"mean_visibility_evidence\":1.5"),
             std::string::npos);

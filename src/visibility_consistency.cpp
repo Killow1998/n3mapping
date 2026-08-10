@@ -186,6 +186,28 @@ VisibilityConsistencyResult evaluateVisibilityConsistency(
       ++result.foreground_conflict_bins;
   }
 
+  result.known_bins = result.common_bins;
+  result.unknown_bins = result.observed_bins - result.common_bins;
+  if (result.observed_bins > 0) {
+    result.known_fraction =
+        static_cast<double>(result.known_bins) /
+        static_cast<double>(result.observed_bins);
+  }
+  constexpr double kJeffreysPrior = 0.5;
+  if (result.known_bins > 0) {
+    const double known_denominator =
+        static_cast<double>(result.known_bins);
+    result.consistent_given_known =
+        static_cast<double>(result.consistent_bins) / known_denominator;
+    result.foreground_conflict_given_known =
+        static_cast<double>(result.foreground_conflict_bins) /
+        known_denominator;
+    result.evidence_log_odds_given_known = std::log(
+        (static_cast<double>(result.consistent_bins) + kJeffreysPrior) /
+        (static_cast<double>(result.known_bins - result.consistent_bins) +
+         kJeffreysPrior));
+  }
+
   if (result.observed_bins == 0 || result.predicted_bins == 0)
     return result;
   const double observed_denominator = static_cast<double>(result.observed_bins);
@@ -201,7 +223,6 @@ VisibilityConsistencyResult evaluateVisibilityConsistency(
   // Jeffreys-prior smoothing keeps exact agreement/disagreement finite without
   // a tuned clamp. The score is the per-observation log odds that the pose
   // explains a measured first return rather than contradicting it.
-  constexpr double kJeffreysPrior = 0.5;
   result.evidence_log_odds = std::log(
       (static_cast<double>(result.consistent_bins) + kJeffreysPrior) /
       (static_cast<double>(result.observed_bins - result.consistent_bins) +

@@ -31,11 +31,22 @@ struct VisibilityConsistencyResult {
   std::size_t common_bins = 0;
   std::size_t consistent_bins = 0;
   std::size_t foreground_conflict_bins = 0;
+  // Shadow diagnostics: common observed/predicted bearings are the bins for
+  // which the map has an opinion. Keeping them separate from uncovered query
+  // bearings distinguishes contradiction from missing map coverage.
+  std::size_t known_bins = 0;
+  std::size_t unknown_bins = 0;
   double angular_resolution_deg = std::numeric_limits<double>::quiet_NaN();
   double observed_coverage = 0.0;
   double consistency_ratio = 0.0;
   double foreground_conflict_ratio = 0.0;
   double evidence_log_odds = std::numeric_limits<double>::quiet_NaN();
+  double known_fraction = std::numeric_limits<double>::quiet_NaN();
+  double consistent_given_known = std::numeric_limits<double>::quiet_NaN();
+  double foreground_conflict_given_known =
+      std::numeric_limits<double>::quiet_NaN();
+  double evidence_log_odds_given_known =
+      std::numeric_limits<double>::quiet_NaN();
   double median_abs_range_error_m = std::numeric_limits<double>::quiet_NaN();
   double p90_abs_range_error_m = std::numeric_limits<double>::quiet_NaN();
 };

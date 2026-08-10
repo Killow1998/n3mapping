@@ -34,9 +34,15 @@ TEST(VisibilityConsistencyTest, ExactPredictionExplainsEveryObservedRay) {
   ASSERT_TRUE(result.valid);
   EXPECT_EQ(result.observed_bins, 4u);
   EXPECT_EQ(result.consistent_bins, 4u);
+  EXPECT_EQ(result.known_bins, 4u);
+  EXPECT_EQ(result.unknown_bins, 0u);
   EXPECT_DOUBLE_EQ(result.consistency_ratio, 1.0);
   EXPECT_DOUBLE_EQ(result.foreground_conflict_ratio, 0.0);
   EXPECT_NEAR(result.evidence_log_odds, std::log(9.0), 1e-12);
+  EXPECT_DOUBLE_EQ(result.known_fraction, 1.0);
+  EXPECT_DOUBLE_EQ(result.consistent_given_known, 1.0);
+  EXPECT_DOUBLE_EQ(result.foreground_conflict_given_known, 0.0);
+  EXPECT_NEAR(result.evidence_log_odds_given_known, std::log(9.0), 1e-12);
   EXPECT_DOUBLE_EQ(result.median_abs_range_error_m, 0.0);
 }
 
@@ -49,10 +55,56 @@ TEST(VisibilityConsistencyTest,
 
   ASSERT_TRUE(result.valid);
   EXPECT_EQ(result.common_bins, 4u);
+  EXPECT_EQ(result.known_bins, 4u);
+  EXPECT_EQ(result.unknown_bins, 0u);
   EXPECT_DOUBLE_EQ(result.consistency_ratio, 0.0);
   EXPECT_DOUBLE_EQ(result.foreground_conflict_ratio, 1.0);
   EXPECT_NEAR(result.evidence_log_odds, -std::log(9.0), 1e-12);
+  EXPECT_DOUBLE_EQ(result.known_fraction, 1.0);
+  EXPECT_DOUBLE_EQ(result.consistent_given_known, 0.0);
+  EXPECT_DOUBLE_EQ(result.foreground_conflict_given_known, 1.0);
+  EXPECT_NEAR(result.evidence_log_odds_given_known, -std::log(9.0), 1e-12);
   EXPECT_DOUBLE_EQ(result.median_abs_range_error_m, 3.0);
+}
+
+TEST(VisibilityConsistencyTest,
+     KnownNormalizationSeparatesAgreementFromMissingCoverage) {
+  const auto query = makeFourRayCloud(5.0);
+  auto partial_map = makeFourRayCloud(5.0);
+  partial_map.erase(partial_map.begin() + 2, partial_map.end());
+
+  const auto result = evaluateVisibilityConsistency(
+      partial_map, query, Eigen::Isometry3d::Identity());
+
+  ASSERT_TRUE(result.valid);
+  EXPECT_EQ(result.observed_bins, 4u);
+  EXPECT_EQ(result.known_bins, 2u);
+  EXPECT_EQ(result.unknown_bins, 2u);
+  EXPECT_DOUBLE_EQ(result.known_fraction, 0.5);
+  EXPECT_DOUBLE_EQ(result.consistency_ratio, 0.5);
+  EXPECT_DOUBLE_EQ(result.consistent_given_known, 1.0);
+  EXPECT_DOUBLE_EQ(result.foreground_conflict_given_known, 0.0);
+  EXPECT_NEAR(result.evidence_log_odds, 0.0, 1e-12);
+  EXPECT_NEAR(result.evidence_log_odds_given_known, std::log(5.0), 1e-12);
+}
+
+TEST(VisibilityConsistencyTest, NoKnownBinsRemainUndefinedShadowEvidence) {
+  const auto query = makeFourRayCloud(5.0);
+  pcl::PointCloud<pcl::PointXYZI> map;
+  pcl::PointXYZI outside_range;
+  outside_range.x = 100.0f;
+  map.push_back(outside_range);
+
+  const auto result = evaluateVisibilityConsistency(
+      map, query, Eigen::Isometry3d::Identity());
+
+  EXPECT_FALSE(result.valid);
+  EXPECT_EQ(result.known_bins, 0u);
+  EXPECT_EQ(result.unknown_bins, 4u);
+  EXPECT_DOUBLE_EQ(result.known_fraction, 0.0);
+  EXPECT_TRUE(std::isnan(result.consistent_given_known));
+  EXPECT_TRUE(std::isnan(result.foreground_conflict_given_known));
+  EXPECT_TRUE(std::isnan(result.evidence_log_odds_given_known));
 }
 
 TEST(VisibilityConsistencyTest,

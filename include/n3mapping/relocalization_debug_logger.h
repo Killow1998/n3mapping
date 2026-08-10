@@ -36,6 +36,16 @@ struct RelocDebugBasinBestSummary {
       std::numeric_limits<double>::quiet_NaN();
   double visibility_evidence_log_odds =
       std::numeric_limits<double>::quiet_NaN();
+  std::size_t visibility_known_bins = 0;
+  std::size_t visibility_unknown_bins = 0;
+  double visibility_known_fraction =
+      std::numeric_limits<double>::quiet_NaN();
+  double visibility_consistent_given_known =
+      std::numeric_limits<double>::quiet_NaN();
+  double visibility_foreground_conflict_given_known =
+      std::numeric_limits<double>::quiet_NaN();
+  double visibility_evidence_log_odds_given_known =
+      std::numeric_limits<double>::quiet_NaN();
 };
 
 struct RelocDebugHypothesisSummary {

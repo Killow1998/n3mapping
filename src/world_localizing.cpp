@@ -377,6 +377,15 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         summary.visibility_evidence_log_odds =
             best.visibility.valid ? best.visibility.evidence_log_odds
                                   : std::numeric_limits<double>::quiet_NaN();
+        summary.visibility_known_bins = best.visibility.known_bins;
+        summary.visibility_unknown_bins = best.visibility.unknown_bins;
+        summary.visibility_known_fraction = best.visibility.known_fraction;
+        summary.visibility_consistent_given_known =
+            best.visibility.consistent_given_known;
+        summary.visibility_foreground_conflict_given_known =
+            best.visibility.foreground_conflict_given_known;
+        summary.visibility_evidence_log_odds_given_known =
+            best.visibility.evidence_log_odds_given_known;
         debug_event.basin_best_results.push_back(std::move(summary));
       }
     }
