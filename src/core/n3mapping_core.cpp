@@ -22,6 +22,7 @@
 #include "n3mapping/floor_attitude.h"
 #include "n3mapping/submap_graph_projection.h"
 #include "n3mapping/submap_graph_factor.h"
+#include "n3mapping/submap_graph_trial_runtime.h"
 #include "n3mapping/static_start_guard.h"
 #include "n3mapping/pcl_compat.h"
 #include <pcl/common/transforms.h>
@@ -1323,7 +1324,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
     flush_debug_events(accepted_debug_pairs, "not_selected");
 
     loop_count_ += edges.size();
-    refreshOptimizedPoses();
+    refreshOptimizedPoses("loop_commit");
     const auto poses_after = session_->graphOptimizer().getOptimizedPoses();
     const auto residual_after = meanLoopResidual(edges, poses_after);
     const auto residual_axes_after = meanLoopResidualAxes(edges, poses_after);
@@ -1720,10 +1721,10 @@ bool N3MappingCore::addOdometryConstraint(int64_t keyframe_id,
   return true;
 }
 
-void N3MappingCore::refreshOptimizedPoses() {
+void N3MappingCore::refreshOptimizedPoses(const char* context) {
   session_->keyframeManager().updateOptimizedPoses(
       session_->graphOptimizer().getOptimizedPoses());
-  refreshSubmapPoses("graph_update");
+  refreshSubmapPoses(context);
 }
 
 bool N3MappingCore::refreshSubmapPoses(const char* context) {
@@ -1831,6 +1832,37 @@ bool N3MappingCore::refreshSubmapPoses(const char* context) {
               << " max_floor_residual_error="
               << factors.max_floor_residual_error_norm;
     }
+  }
+
+  const std::string context_name = context ? context : "unknown";
+  const auto trial = runSubmapGraphTrialCheckpoint(
+      graph_snapshot, config_, "core", context_name);
+  if (trial.checkpoint) {
+    if (!trial.persisted) {
+      LOG(WARNING) << "[SubmapGraphShadow] trial evidence write failed context="
+                   << context_name << " path=" << trial.output_path;
+    }
+    LOG(INFO) << "[SubmapGraphShadow] trial checkpoint context="
+              << context_name
+              << " valid=" << trial.diagnostics.valid
+              << " attempted=" << trial.diagnostics.attempted
+              << " solved=" << trial.diagnostics.solved
+              << " nodes=" << trial.diagnostics.node_count
+              << " active_factors="
+              << trial.diagnostics.active_edge_factor_count
+              << " initial_error="
+              << trial.diagnostics.initial_nonlinear_error
+              << " final_error="
+              << trial.diagnostics.final_nonlinear_error
+              << " max_translation_delta_m="
+              << trial.diagnostics.max_translation_delta_m
+              << " max_rotation_delta_rad="
+              << trial.diagnostics.max_rotation_delta_rad
+              << " persisted=" << trial.persisted
+              << " failure_reason="
+              << (trial.diagnostics.failure_reason.empty()
+                      ? "none"
+                      : trial.diagnostics.failure_reason);
   }
   return true;
 }

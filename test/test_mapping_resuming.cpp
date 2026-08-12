@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <pcl/common/transforms.h>
 #include <random>
@@ -348,6 +349,7 @@ TEST_F(MappingResumingTest, IsFromOriginalMap)
  */
 TEST_F(MappingResumingTest, SaveExtendedMap)
 {
+    config_.submap_shadow_enable = true;
     std::string map_file = createTestMap(3);
 
     KeyframeManager kf_manager(config_);
@@ -355,12 +357,18 @@ TEST_F(MappingResumingTest, SaveExtendedMap)
     PointCloudMatcher matcher(config_);
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
+    SubmapBuilder submap_builder(config_);
     WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
 
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
+    MappingResuming extension(config_, kf_manager, loop_detector, matcher,
+                              optimizer, serializer, relocalization,
+                              &submap_builder);
 
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                      optimizer, serializer, extension));
+    for (const auto& keyframe : kf_manager.getAllKeyframes()) {
+        ASSERT_TRUE(submap_builder.appendKeyframe(keyframe));
+    }
 
     // 保存扩展地图
     std::string extended_map_file = config_.map_save_path + "/extended_map.pbstream";
@@ -374,6 +382,19 @@ TEST_F(MappingResumingTest, SaveExtendedMap)
 
     ASSERT_TRUE(serializer.loadMap(extended_map_file, kf_manager2, loop_detector2, optimizer2));
     EXPECT_EQ(kf_manager2.size(), 3);
+
+    std::ifstream trial_input(
+        config_.map_save_path + "/submap_graph_trial.jsonl");
+    ASSERT_TRUE(trial_input.is_open());
+    std::string trial_record;
+    ASSERT_TRUE(static_cast<bool>(std::getline(trial_input, trial_record)));
+    EXPECT_NE(trial_record.find(
+                  "\"runtime_source\":\"mapping_resuming\""),
+              std::string::npos);
+    EXPECT_NE(trial_record.find("\"context\":\"save_extended_map\""),
+              std::string::npos);
+    EXPECT_NE(trial_record.find("\"valid\":true"), std::string::npos);
+    EXPECT_NE(trial_record.find("\"solved\":true"), std::string::npos);
 }
 
 TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)

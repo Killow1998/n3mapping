@@ -118,9 +118,14 @@ TEST(N3MappingCoreTest, EnabledShadowSubmapIsPersistedFromMappingPath)
     config.submap_max_keyframes = 2;
     config.submap_cloud_max_bytes =
         512 * static_cast<int>(sizeof(pcl::PointXYZI));
-    const std::filesystem::path map_path =
+    const std::filesystem::path output_directory =
         std::filesystem::temp_directory_path() /
-        "n3mapping_core_shadow_submap.pbstream";
+        "n3mapping_core_shadow_submap";
+    std::filesystem::remove_all(output_directory);
+    std::filesystem::create_directories(output_directory);
+    config.map_save_path = output_directory.string();
+    const std::filesystem::path map_path =
+        output_directory / "map.pbstream";
 
     N3MappingCore core(config);
     ASSERT_TRUE(core.processMappingFrame(
@@ -152,7 +157,21 @@ TEST(N3MappingCoreTest, EnabledShadowSubmapIsPersistedFromMappingPath)
     EXPECT_NEAR(persisted.submaps(0).t_map_submap().ty(), 3.0, 1e-9);
     EXPECT_NEAR(persisted.keyframes(0).pose_optimized().ty(), 3.0, 1e-9);
 
-    std::filesystem::remove(map_path);
+    const auto trial_path = output_directory / "submap_graph_trial.jsonl";
+    std::ifstream trial_input(trial_path);
+    ASSERT_TRUE(trial_input.is_open());
+    std::string trial_record;
+    ASSERT_TRUE(static_cast<bool>(std::getline(trial_input, trial_record)));
+    EXPECT_NE(trial_record.find("\"context\":\"save_map\""),
+              std::string::npos);
+    EXPECT_NE(trial_record.find("\"no_writeback\":true"),
+              std::string::npos);
+    EXPECT_NE(trial_record.find("\"valid\":true"),
+              std::string::npos);
+    EXPECT_NE(trial_record.find("\"solved\":true"),
+              std::string::npos);
+
+    std::filesystem::remove_all(output_directory);
 }
 
 TEST(N3MappingCoreTest, MappingFrameBelowKeyframeThresholdStillProducesPoseOutput)
