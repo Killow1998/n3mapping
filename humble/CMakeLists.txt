@@ -320,6 +320,7 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_deterministic_ros2_replay.py
   ${N3MAPPING_ROOT}/tools/n3mapping_raw_lio_replay_evidence.py
   ${N3MAPPING_ROOT}/tools/n3mapping_ros1_raw_bag_slice.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_submap_graph_trial_qualify.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -480,6 +481,15 @@ if(BUILD_TESTING)
       ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_data_contract_tools.py
   )
   set_tests_properties(test_n3mapping_data_contract_tools PROPERTIES TIMEOUT 30)
+
+  add_test(
+    NAME test_n3mapping_submap_graph_trial_qualify
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B
+      ${N3MAPPING_ROOT}/test/test_n3mapping_submap_graph_trial_qualify.py
+  )
+  set_tests_properties(test_n3mapping_submap_graph_trial_qualify PROPERTIES TIMEOUT 30)
 
   if(N3MAPPING_BUILD_RESEARCH_TOOLS)
     add_test(
