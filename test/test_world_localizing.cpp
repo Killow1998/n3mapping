@@ -386,12 +386,13 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesQueryCloudDiagnostics) {
   Eigen::Isometry3d moved_pose = pose;
   moved_pose.translation().x() += 0.5;
   auto moved_cloud = generateCorridorCloud(moved_pose);
-  (void)reloc.relocalize(moved_cloud, moved_pose);
+  (void)reloc.relocalize(moved_cloud, moved_pose, 234.5);
 
   const auto lines = readDebugLines(debug_path);
   ASSERT_GE(lines.size(), 2u);
   const std::string &latest = lines.back();
   EXPECT_NE(latest.find("\"record_type\":\"relocalize\""), std::string::npos);
+  EXPECT_NE(latest.find("\"query_timestamp\":234.5"), std::string::npos);
   EXPECT_NE(latest.find("\"query_mode\":\"stationary\""), std::string::npos);
   EXPECT_NE(latest.find("\"query_frame_count\":1"), std::string::npos);
   EXPECT_NE(latest.find("\"motion_query_mode\":\"motion_submap\""),
@@ -400,6 +401,19 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesQueryCloudDiagnostics) {
   EXPECT_NE(latest.find("\"motion_query_candidate_count\":"),
             std::string::npos);
   EXPECT_EQ(latest.find("\"query_candidate_count\":0"), std::string::npos);
+  EXPECT_NE(latest.find("\"winner_seed_match_id\":"), std::string::npos);
+  EXPECT_NE(latest.find("\"winner_last_match_id\":"), std::string::npos);
+  EXPECT_NE(latest.find("\"runner_up_seed_match_id\":"),
+            std::string::npos);
+  EXPECT_NE(latest.find("\"runner_up_last_match_id\":"),
+            std::string::npos);
+  EXPECT_NE(latest.find("\"registration_observability\":{"),
+            std::string::npos);
+  EXPECT_NE(latest.find("\"full_information\":[["), std::string::npos);
+  EXPECT_NE(latest.find("\"full_eigenvalues_ascending\":["),
+            std::string::npos);
+  EXPECT_NE(latest.find("\"rotational_marginal_information\":[["),
+            std::string::npos);
 
   std::filesystem::remove_all(dir);
 }

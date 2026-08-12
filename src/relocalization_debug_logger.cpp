@@ -94,6 +94,111 @@ void appendSize(std::ostream &os, bool *first, const char *key,
   os << '"' << key << "\":" << value;
 }
 
+template <typename Derived>
+void appendVector(std::ostream &os, bool *first, const char *key,
+                  const Eigen::MatrixBase<Derived> &values) {
+  appendComma(os, first);
+  os << '"' << key << "\":[";
+  for (Eigen::Index i = 0; i < values.size(); ++i) {
+    if (i > 0) {
+      os << ',';
+    }
+    appendNumberValue(os, values(i));
+  }
+  os << ']';
+}
+
+template <typename Derived>
+void appendMatrix(std::ostream &os, bool *first, const char *key,
+                  const Eigen::MatrixBase<Derived> &matrix) {
+  appendComma(os, first);
+  os << '"' << key << "\":[";
+  for (Eigen::Index row = 0; row < matrix.rows(); ++row) {
+    if (row > 0) {
+      os << ',';
+    }
+    os << '[';
+    for (Eigen::Index col = 0; col < matrix.cols(); ++col) {
+      if (col > 0) {
+        os << ',';
+      }
+      appendNumberValue(os, matrix(row, col));
+    }
+    os << ']';
+  }
+  os << ']';
+}
+
+void appendRegistrationObservability(
+    std::ostream &os, bool *first,
+    const RegistrationObservability &observability) {
+  appendComma(os, first);
+  os << "\"registration_observability\":";
+  if (!observability.available) {
+    os << "null";
+    return;
+  }
+
+  bool item_first = true;
+  os << '{';
+  appendString(os, &item_first, "information_layout",
+               "translation_xyz_rotation_xyz");
+  appendString(os, &item_first, "selected_pose_source",
+               observability.selected_pose_source);
+  appendBool(os, &item_first, "information_at_selected_pose",
+             observability.information_at_selected_pose);
+  appendBool(os, &item_first, "success", observability.success);
+  appendBool(os, &item_first, "converged", observability.converged);
+  appendBool(os, &item_first, "production_quality",
+             observability.production_quality);
+  appendString(os, &item_first, "termination",
+               matchTerminationName(observability.termination));
+  appendSize(os, &item_first, "iterations", observability.iterations);
+  appendNumber(os, &item_first, "optimizer_error",
+               observability.optimizer_error);
+  appendNumber(os, &item_first, "residual_scale",
+               observability.residual_scale);
+  appendNumber(os, &item_first, "fitness_score",
+               observability.fitness_score);
+  appendSize(os, &item_first, "num_inliers", observability.num_inliers);
+  appendNumber(os, &item_first, "inlier_ratio", observability.inlier_ratio);
+  appendBool(os, &item_first, "information_finite",
+             observability.information_finite);
+  appendNumber(os, &item_first, "symmetry_max_abs",
+               observability.symmetry_max_abs);
+  appendBool(os, &item_first, "spectrum_valid",
+             observability.spectrum_valid);
+  appendBool(os, &item_first, "positive_definite",
+             observability.positive_definite);
+  appendInteger(os, &item_first, "observable_dofs_numerical",
+                observability.numerical_rank);
+  appendNumber(os, &item_first, "numerical_rank_tolerance",
+               observability.numerical_rank_tolerance);
+  appendNumber(os, &item_first, "condition_number",
+               observability.condition_number);
+  appendMatrix(os, &item_first, "full_information",
+               observability.information);
+  appendVector(os, &item_first, "full_eigenvalues_ascending",
+               observability.information_eigenvalues);
+  appendMatrix(os, &item_first, "full_eigenvectors_columns",
+               observability.information_eigenvectors);
+  appendVector(os, &item_first, "translation_block_eigenvalues_ascending",
+               observability.translation_block_eigenvalues);
+  appendVector(os, &item_first, "rotation_block_eigenvalues_ascending",
+               observability.rotation_block_eigenvalues);
+  appendBool(os, &item_first, "rotational_marginal_valid",
+             observability.rotational_marginal_valid);
+  appendMatrix(os, &item_first, "rotational_marginal_information",
+               observability.rotational_marginal_information);
+  appendVector(os, &item_first,
+               "rotational_marginal_eigenvalues_ascending",
+               observability.rotational_marginal_eigenvalues);
+  appendMatrix(os, &item_first,
+               "rotational_marginal_eigenvectors_columns",
+               observability.rotational_marginal_eigenvectors);
+  os << '}';
+}
+
 const char *candidateSourceName(LoopCandidate::Source source) {
   switch (source) {
   case LoopCandidate::Source::RhpdPrimary:
@@ -210,6 +315,8 @@ void appendBasinBest(std::ostream &os, bool *first,
                  results[i].visibility_foreground_conflict_given_known);
     appendNumber(os, &item_first, "visibility_evidence_log_odds_given_known",
                  results[i].visibility_evidence_log_odds_given_known);
+    appendRegistrationObservability(
+        os, &item_first, results[i].registration_observability);
     os << '}';
   }
   os << ']';
@@ -242,6 +349,8 @@ void appendHypotheses(
                  hypotheses[i].mean_visibility_consistency);
     appendNumber(os, &item_first, "mean_visibility_evidence",
                  hypotheses[i].mean_visibility_evidence);
+    appendRegistrationObservability(
+        os, &item_first, hypotheses[i].registration_observability);
     appendBool(os, &item_first, "alive", hypotheses[i].alive);
     os << '}';
   }
@@ -322,6 +431,7 @@ bool RelocalizationDebugLogger::appendRelocalization(
   os << '{';
   appendString(os, &first, "record_type", "relocalize");
   appendNumber(os, &first, "processing_time", event.processing_time);
+  appendNumber(os, &first, "query_timestamp", event.query_timestamp);
   appendSize(os, &first, "query_index", event.query_index);
   appendQueryCloudSummary(os, &first, "query", event.query_cloud);
   appendQueryCloudSummary(os, &first, "motion_query", event.motion_query_cloud);
@@ -330,6 +440,14 @@ bool RelocalizationDebugLogger::appendRelocalization(
   appendBasins(os, &first, event.basins);
   appendBasinBest(os, &first, event.basin_best_results);
   appendHypotheses(os, &first, event.hypotheses);
+  appendInteger(os, &first, "winner_seed_match_id",
+                event.winner_seed_match_id);
+  appendInteger(os, &first, "winner_last_match_id",
+                event.winner_last_match_id);
+  appendInteger(os, &first, "runner_up_seed_match_id",
+                event.runner_up_seed_match_id);
+  appendInteger(os, &first, "runner_up_last_match_id",
+                event.runner_up_last_match_id);
   appendNumber(os, &first, "temporal_hypothesis_score",
                event.temporal_hypothesis_score);
   appendNumber(os, &first, "log_likelihood", event.log_likelihood);

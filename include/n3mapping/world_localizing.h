@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -84,7 +85,9 @@ public:
                   LoopDetector &loop_detector, PointCloudMatcher &matcher);
 
   RelocResult relocalize(const PointCloudT::Ptr &cloud,
-                         const Eigen::Isometry3d &odom_pose);
+                         const Eigen::Isometry3d &odom_pose,
+                         double query_timestamp =
+                             std::numeric_limits<double>::quiet_NaN());
   RelocResult trackLocalization(const PointCloudT::Ptr &cloud,
                                 const Eigen::Isometry3d &odom_pose);
   // Strict local tracking used while extending a loaded map. Registration

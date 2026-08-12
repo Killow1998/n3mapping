@@ -815,8 +815,10 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   }
 
   if (!localizer.isRelocalized() || !success) {
-    auto result =
-        localizer.relocalize(frame.undistorted_cloud, frame.T_world_lidar);
+    const double query_timestamp =
+        static_cast<double>(frame.stamp.nsec) * 1e-9;
+    auto result = localizer.relocalize(
+        frame.undistorted_cloud, frame.T_world_lidar, query_timestamp);
     relocalization_decision = result.decision;
     relocalization_state = result.state;
     pose_source = result.pose_source;

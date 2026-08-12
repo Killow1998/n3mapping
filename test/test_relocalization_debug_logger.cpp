@@ -1,8 +1,10 @@
 #include "n3mapping/relocalization_debug_logger.h"
+#include "n3mapping/registration_observability.h"
 
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -39,6 +41,88 @@ LoopCandidate makeCandidate() {
   return candidate;
 }
 
+MatchResult makeObservableMatch() {
+  MatchResult match;
+  match.success = true;
+  match.converged = true;
+  match.information.setZero();
+  match.information.diagonal() << 4.0, 9.0, 16.0, 25.0, 36.0, 49.0;
+  match.optimizer_error = 36.0;
+  match.num_inliers = 9;
+  match.fitness_score = 4.0;
+  match.inlier_ratio = 0.75;
+  match.iterations = 7;
+  match.termination = MatchTermination::Converged;
+  return match;
+}
+
+TEST(RegistrationObservabilityTest, SummarizesExistingInformationWithoutGate) {
+  const RegistrationObservability observability =
+      analyzeRegistrationObservability(makeObservableMatch(),
+                                       "registration_endpoint", true, true);
+
+  EXPECT_TRUE(observability.available);
+  EXPECT_TRUE(observability.information_finite);
+  EXPECT_TRUE(observability.spectrum_valid);
+  EXPECT_TRUE(observability.positive_definite);
+  EXPECT_EQ(observability.numerical_rank, 6);
+  EXPECT_NEAR(observability.condition_number, 49.0 / 4.0, 1e-12);
+  EXPECT_NEAR(observability.residual_scale, 2.0, 1e-12);
+  EXPECT_EQ(observability.selected_pose_source, "registration_endpoint");
+  EXPECT_TRUE(observability.information_at_selected_pose);
+  EXPECT_TRUE(observability.production_quality);
+  RegistrationObservability::Vector6d expected_eigenvalues;
+  expected_eigenvalues << 4.0, 9.0, 16.0, 25.0, 36.0, 49.0;
+  EXPECT_TRUE(observability.information_eigenvalues.isApprox(
+      expected_eigenvalues, 1e-12));
+  EXPECT_TRUE(observability.rotational_marginal_eigenvalues.isApprox(
+      Eigen::Vector3d(25.0, 36.0, 49.0), 1e-12));
+}
+
+TEST(RegistrationObservabilityTest, UsesSchurRotationalMarginal) {
+  MatchResult match = makeObservableMatch();
+  match.information.setZero();
+  match.information.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() * 4.0;
+  match.information.block<3, 3>(3, 3) =
+      Eigen::Vector3d(10.0, 11.0, 12.0).asDiagonal();
+  match.information.block<3, 3>(3, 0) = Eigen::Matrix3d::Identity() * 2.0;
+  match.information.block<3, 3>(0, 3) = Eigen::Matrix3d::Identity() * 2.0;
+
+  const RegistrationObservability observability =
+      analyzeRegistrationObservability(match, "motion_prediction", false,
+                                       true);
+
+  ASSERT_TRUE(observability.rotational_marginal_valid);
+  const Eigen::Matrix3d expected_marginal =
+      Eigen::Vector3d(9.0, 10.0, 11.0).asDiagonal();
+  EXPECT_TRUE(observability.rotational_marginal_information.isApprox(
+      expected_marginal, 1e-12));
+  EXPECT_TRUE(observability.rotational_marginal_eigenvalues.isApprox(
+      Eigen::Vector3d(9.0, 10.0, 11.0), 1e-12));
+  EXPECT_EQ(observability.selected_pose_source, "motion_prediction");
+  EXPECT_FALSE(observability.information_at_selected_pose);
+}
+
+TEST(RegistrationObservabilityTest, ExposesRankDeficiencyAndInvalidInput) {
+  MatchResult rank_deficient = makeObservableMatch();
+  rank_deficient.information.setZero();
+  rank_deficient.information.diagonal() << 1.0, 2.0, 3.0, 0.0, 0.0, 0.0;
+  const RegistrationObservability ranked = analyzeRegistrationObservability(
+      rank_deficient, "descriptor_initial", false, true);
+  ASSERT_TRUE(ranked.spectrum_valid);
+  EXPECT_FALSE(ranked.positive_definite);
+  EXPECT_EQ(ranked.numerical_rank, 3);
+  EXPECT_TRUE(std::isinf(ranked.condition_number));
+
+  MatchResult invalid = makeObservableMatch();
+  invalid.information(0, 0) = std::numeric_limits<double>::quiet_NaN();
+  const RegistrationObservability rejected = analyzeRegistrationObservability(
+      invalid, "registration_endpoint", true, false);
+  EXPECT_TRUE(rejected.available);
+  EXPECT_FALSE(rejected.information_finite);
+  EXPECT_FALSE(rejected.spectrum_valid);
+}
+
 TEST(RelocalizationDebugLoggerTest,
      ResolvePathUsesMapSavePathWhenDebugPathEmpty) {
   Config config;
@@ -61,6 +145,7 @@ TEST(RelocalizationDebugLoggerTest,
 
   RelocalizationDebugEvent event;
   event.processing_time = 1.0;
+  event.query_timestamp = 123.456;
   event.query_index = 4;
   event.query_cloud.mode = "stationary";
   event.query_cloud.frame_count = 1;
@@ -91,6 +176,8 @@ TEST(RelocalizationDebugLoggerTest,
   basin_best.visibility_consistent_given_known = 0.75;
   basin_best.visibility_foreground_conflict_given_known = 0.125;
   basin_best.visibility_evidence_log_odds_given_known = 1.25;
+  basin_best.registration_observability = analyzeRegistrationObservability(
+      makeObservableMatch(), "descriptor_initial", false, true);
   event.basin_best_results.push_back(basin_best);
   RelocDebugHypothesisSummary hypothesis;
   hypothesis.seed_match_id = 7;
@@ -98,7 +185,13 @@ TEST(RelocalizationDebugLoggerTest,
   hypothesis.visibility_updates = 3;
   hypothesis.mean_visibility_consistency = 0.8;
   hypothesis.mean_visibility_evidence = 1.5;
+  hypothesis.registration_observability = analyzeRegistrationObservability(
+      makeObservableMatch(), "registration_endpoint", true, true);
   event.hypotheses.push_back(hypothesis);
+  event.winner_seed_match_id = 7;
+  event.winner_last_match_id = 8;
+  event.runner_up_seed_match_id = 9;
+  event.runner_up_last_match_id = 10;
   event.visibility_margin = 1.2;
   event.visibility_ratio = 3.3;
   event.winner_pose_translation_delta = 0.12;
@@ -118,6 +211,8 @@ TEST(RelocalizationDebugLoggerTest,
   EXPECT_EQ(lines[0].front(), '{');
   EXPECT_EQ(lines[0].back(), '}');
   EXPECT_NE(lines[0].find("\"record_type\":\"relocalize\""), std::string::npos);
+  EXPECT_NE(lines[0].find("\"query_timestamp\":123.456"),
+            std::string::npos);
   EXPECT_NE(lines[0].find("\"query_mode\":\"stationary\""), std::string::npos);
   EXPECT_NE(lines[0].find("\"query_frame_count\":1"), std::string::npos);
   EXPECT_NE(lines[0].find("\"motion_query_mode\":\"motion_submap\""),
@@ -153,6 +248,31 @@ TEST(RelocalizationDebugLoggerTest,
                 "\"visibility_evidence_log_odds_given_known\":1.25"),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"mean_visibility_evidence\":1.5"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"winner_seed_match_id\":7"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"winner_last_match_id\":8"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"runner_up_seed_match_id\":9"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"runner_up_last_match_id\":10"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find(
+                "\"information_layout\":\"translation_xyz_rotation_xyz\""),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"selected_pose_source\":\"descriptor_initial\""),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"information_at_selected_pose\":false"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"observable_dofs_numerical\":6"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"residual_scale\":2"), std::string::npos);
+  EXPECT_NE(lines[0].find("\"full_information\":[[4,0,0,0,0,0]"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"full_eigenvalues_ascending\":["),
+            std::string::npos);
+  EXPECT_NE(lines[0].find(
+                "\"rotational_marginal_eigenvalues_ascending\":["),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"visibility_margin\":1.2"), std::string::npos);
   EXPECT_NE(lines[0].find("\"lock_result\":\"rejected\""), std::string::npos);

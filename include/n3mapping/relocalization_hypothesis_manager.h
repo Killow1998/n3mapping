@@ -8,6 +8,8 @@
 
 #include <Eigen/Geometry>
 
+#include "n3mapping/registration_observability.h"
+
 namespace n3mapping {
 
 struct RelocalizationHypothesis {
@@ -32,6 +34,7 @@ struct RelocalizationHypothesis {
   int last_termination = 0;
   double last_inlier_ratio = 0.0;
   double last_fitness = 0.0;
+  RegistrationObservability last_registration_observability;
 };
 
 struct WinnerStability {

@@ -81,13 +81,15 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       consecutive_track_failures_(0) {}
 
 RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
-                                        const Eigen::Isometry3d &odom_pose) {
+                                        const Eigen::Isometry3d &odom_pose,
+                                        double query_timestamp) {
   const auto reloc_started = std::chrono::steady_clock::now();
   RelocResult result;
   result.success = false;
   const bool reloc_debug_enabled = debug_emitter_.enabled();
   RelocalizationDebugEvent debug_event =
       debug_emitter_.beginRelocalization();
+  debug_event.query_timestamp = query_timestamp;
   auto finish_debug = [&](const std::string &lock_result,
                           const std::string &reject_reason) {
     result.decision = reject_reason.empty() ? lock_result : reject_reason;
@@ -246,6 +248,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       LoopCandidate candidate;
       MatchResult match;
       VisibilityConsistencyResult visibility;
+      RegistrationObservability registration_observability;
       double selection_score = std::numeric_limits<double>::max();
     };
     std::vector<BasinBest> basin_best_results;
@@ -290,6 +293,19 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           mode.candidate = candidate;
           mode.match = selected_match;
           mode.visibility = evaluation.visibility;
+          if (reloc_debug_enabled) {
+            const bool selected_refined =
+                evaluation.registration.selected_refined;
+            const bool information_at_selected_pose =
+                evaluation.registration.selected_pose.isApprox(
+                    evaluation.registration.match.T_target_source);
+            mode.registration_observability = analyzeRegistrationObservability(
+                evaluation.registration.match,
+                selected_refined ? "registration_endpoint"
+                                 : "descriptor_initial",
+                information_at_selected_pose,
+                evaluation.registration.production_quality);
+          }
           const double descriptor_score = std::isfinite(candidate.fused_score)
                                               ? candidate.fused_score
                                               : 1.0;
@@ -386,6 +402,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             best.visibility.foreground_conflict_given_known;
         summary.visibility_evidence_log_odds_given_known =
             best.visibility.evidence_log_odds_given_known;
+        summary.registration_observability =
+            best.registration_observability;
         debug_event.basin_best_results.push_back(std::move(summary));
       }
     }
@@ -410,6 +428,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         hyp.visibility_evidence_sum = bb.visibility.evidence_log_odds;
         hyp.visibility_updates = 1;
       }
+      hyp.last_registration_observability = bb.registration_observability;
       hyp.alive = true;
       seeded_hypotheses.push_back(hyp);
     }
@@ -432,6 +451,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     for (auto &hyp : hypothesis_manager_.hypotheses()) {
       if (!hyp.alive)
         continue;
+      if (reloc_debug_enabled) {
+        // This field describes a registration produced by this query only.
+        // A miss must be null instead of silently reusing the prior query's H.
+        hyp.last_registration_observability = {};
+      }
 
       Eigen::Isometry3d predicted_pose = hyp.T_map_odom * odom_pose;
       int64_t nearest_kf_id = findNearestKeyframe(predicted_pose);
@@ -471,6 +495,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       hyp.num_updates += 1;
       VisibilityConsistencyResult selected_visibility = predicted_visibility;
       Eigen::Isometry3d selected_pose = predicted_pose;
+      bool selected_registration_endpoint = false;
       if (hasValidRegistrationResult(mr)) {
         const auto refined_visibility =
             evaluatePoseVisibility(submap, query_cloud, mr.T_target_source);
@@ -480,6 +505,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                  selected_visibility.consistency_ratio + 1e-9)) {
           selected_visibility = refined_visibility;
           selected_pose = mr.T_target_source;
+          selected_registration_endpoint = true;
         }
         hyp.T_map_odom = selected_pose * odom_pose.inverse();
         hyp.last_match_id = nearest_kf_id;
@@ -487,7 +513,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 
         // Recorded here, not at alignment, so the numbers describe the pose
         // this hypothesis actually carries.
-        const bool pose_is_refined = selected_pose.isApprox(mr.T_target_source);
+        const bool information_at_selected_pose =
+            selected_pose.isApprox(mr.T_target_source);
         const Eigen::Matrix3d trans_info = mr.information.block<3, 3>(0, 0);
         const Eigen::Matrix3d rot_info = mr.information.block<3, 3>(3, 3);
         const Eigen::Matrix3d cross_info = mr.information.block<3, 3>(3, 0);
@@ -511,10 +538,19 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         hyp.last_termination = static_cast<int>(mr.termination);
         hyp.last_inlier_ratio = mr.inlier_ratio;
         hyp.last_fitness = mr.fitness_score;
-        hyp.last_pose_is_refined = pose_is_refined;
+        hyp.last_pose_is_refined = selected_registration_endpoint;
         hyp.last_production_quality = production_quality;
+        if (reloc_debug_enabled) {
+          hyp.last_registration_observability =
+              analyzeRegistrationObservability(
+                  mr, selected_registration_endpoint
+                          ? "registration_endpoint"
+                          : "motion_prediction",
+                  information_at_selected_pose, production_quality);
+        }
         VLOG(1) << "[Reloc/Info] seed=" << hyp.seed_match_id
-                << " pose=" << (pose_is_refined ? "refined" : "predicted")
+                << " pose="
+                << (selected_registration_endpoint ? "refined" : "predicted")
                 << " prod_quality=" << production_quality
                 << " rot_eig=" << re(0) << "," << re(1) << "," << re(2)
                 << " rot_marg_eig=" << rm(0) << "," << rm(1) << "," << rm(2)
@@ -558,6 +594,12 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
               ? hyp.visibility_evidence_sum /
                     static_cast<double>(hyp.visibility_updates)
               : std::numeric_limits<double>::quiet_NaN();
+      // Initial hypotheses duplicate the basin-best registrations emitted in
+      // the same event. Keep one complete copy to bound shadow logging cost.
+      if (debug_event.basin_best_results.empty()) {
+        summary.registration_observability =
+            hyp.last_registration_observability;
+      }
       summary.alive = hyp.alive;
       debug_event.hypotheses.push_back(std::move(summary));
     }
@@ -580,6 +622,12 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     result.state = RelocalizationState::REGION_HYPOTHESIS;
     result.pose_source = PoseSource::NONE;
     if (reloc_debug_enabled) {
+      debug_event.winner_seed_match_id = top1->seed_match_id;
+      debug_event.winner_last_match_id = top1->last_match_id;
+      if (top2) {
+        debug_event.runner_up_seed_match_id = top2->seed_match_id;
+        debug_event.runner_up_last_match_id = top2->last_match_id;
+      }
       debug_event.temporal_hypothesis_score = top1_decision_score;
       debug_event.log_likelihood = top1_ll;
       debug_event.margin = margin;

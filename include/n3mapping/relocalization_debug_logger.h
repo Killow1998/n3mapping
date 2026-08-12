@@ -11,6 +11,7 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/loop_detector.h"
+#include "n3mapping/registration_observability.h"
 
 namespace n3mapping {
 
@@ -46,6 +47,7 @@ struct RelocDebugBasinBestSummary {
       std::numeric_limits<double>::quiet_NaN();
   double visibility_evidence_log_odds_given_known =
       std::numeric_limits<double>::quiet_NaN();
+  RegistrationObservability registration_observability;
 };
 
 struct RelocDebugHypothesisSummary {
@@ -58,6 +60,7 @@ struct RelocDebugHypothesisSummary {
   int visibility_updates = 0;
   double mean_visibility_consistency = std::numeric_limits<double>::quiet_NaN();
   double mean_visibility_evidence = std::numeric_limits<double>::quiet_NaN();
+  RegistrationObservability registration_observability;
   bool alive = false;
 };
 
@@ -74,6 +77,7 @@ struct RelocQueryCloudDebugSummary {
 
 struct RelocalizationDebugEvent {
   double processing_time = 0.0;
+  double query_timestamp = std::numeric_limits<double>::quiet_NaN();
   uint64_t query_index = 0;
   RelocQueryCloudDebugSummary query_cloud;
   RelocQueryCloudDebugSummary motion_query_cloud;
@@ -82,6 +86,10 @@ struct RelocalizationDebugEvent {
   std::vector<RelocDebugBasinSummary> basins;
   std::vector<RelocDebugBasinBestSummary> basin_best_results;
   std::vector<RelocDebugHypothesisSummary> hypotheses;
+  int64_t winner_seed_match_id = -1;
+  int64_t winner_last_match_id = -1;
+  int64_t runner_up_seed_match_id = -1;
+  int64_t runner_up_last_match_id = -1;
   double temporal_hypothesis_score = std::numeric_limits<double>::quiet_NaN();
   double log_likelihood = std::numeric_limits<double>::quiet_NaN();
   int winner_streak = 0;
