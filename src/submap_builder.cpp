@@ -4,6 +4,7 @@
 #include <cmath>
 #include <map>
 #include <set>
+#include <string>
 #include <utility>
 
 #include <glog/logging.h>
@@ -32,6 +33,169 @@ bool finiteKeyframe(const Keyframe::Ptr& keyframe) {
 bool containsKeyframe(const Submap& submap, int64_t keyframe_id) {
     return std::find(submap.keyframe_ids.begin(), submap.keyframe_ids.end(),
                      keyframe_id) != submap.keyframe_ids.end();
+}
+
+struct KeyframePoseSnapshot {
+    MapSessionId session_id = kInvalidMapSessionId;
+    Eigen::Isometry3d pose_odom = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d pose_optimized = Eigen::Isometry3d::Identity();
+};
+
+bool finiteRigidPose(const Eigen::Isometry3d& pose,
+                     double tolerance = 1e-6) {
+    if (!pose.matrix().allFinite()) return false;
+    const Eigen::Matrix3d rotation = pose.linear();
+    return (rotation.transpose() * rotation)
+               .isApprox(Eigen::Matrix3d::Identity(), tolerance) &&
+           std::abs(rotation.determinant() - 1.0) <= tolerance &&
+           pose.matrix().row(3).isApprox(
+               Eigen::RowVector4d(0.0, 0.0, 0.0, 1.0), tolerance);
+}
+
+bool snapshotKeyframePoses(
+    const std::vector<Keyframe::Ptr>& keyframes,
+    std::map<int64_t, KeyframePoseSnapshot>* snapshots,
+    std::string* failure_reason) {
+    if (!snapshots || !failure_reason) return false;
+    snapshots->clear();
+    for (const auto& keyframe : keyframes) {
+        if (!keyframe || keyframe->id < 0 ||
+            keyframe->session_id == kInvalidMapSessionId ||
+            !finiteRigidPose(keyframe->pose_odom) ||
+            !finiteRigidPose(keyframe->pose_optimized)) {
+            *failure_reason = "invalid_keyframe_pose";
+            return false;
+        }
+        KeyframePoseSnapshot snapshot;
+        snapshot.session_id = keyframe->session_id;
+        snapshot.pose_odom = keyframe->pose_odom;
+        snapshot.pose_optimized = keyframe->pose_optimized;
+        if (!snapshots->emplace(keyframe->id, std::move(snapshot)).second) {
+            *failure_reason = "duplicate_keyframe_id";
+            return false;
+        }
+    }
+    return true;
+}
+
+SubmapPoseProjectionDiagnostics computePoseProjection(
+    const std::vector<Submap>& submaps,
+    const std::map<int64_t, KeyframePoseSnapshot>& keyframes,
+    bool reanchor,
+    std::vector<Eigen::Isometry3d>* refreshed_origins) {
+    SubmapPoseProjectionDiagnostics diagnostics;
+    diagnostics.submap_count = submaps.size();
+    if (reanchor && !refreshed_origins) {
+        diagnostics.failure_reason = "missing_refresh_output";
+        return diagnostics;
+    }
+    if (refreshed_origins) {
+        refreshed_origins->clear();
+        refreshed_origins->reserve(submaps.size());
+    }
+
+    std::set<int64_t> assigned_keyframes;
+    double translation_sum = 0.0;
+    double rotation_sum = 0.0;
+    for (const auto& submap : submaps) {
+        if (submap.id == kInvalidSubmapId ||
+            submap.session_id == kInvalidMapSessionId ||
+            submap.keyframe_ids.empty() ||
+            !finiteRigidPose(submap.T_session_submap) ||
+            !finiteRigidPose(submap.T_map_submap)) {
+            diagnostics.failure_reason = "invalid_submap_pose";
+            return diagnostics;
+        }
+
+        const int64_t anchor_id = submap.descriptor_keyframe_id >= 0
+            ? submap.descriptor_keyframe_id
+            : submap.keyframe_ids.front();
+        if (!containsKeyframe(submap, anchor_id)) {
+            diagnostics.failure_reason = "invalid_submap_anchor";
+            return diagnostics;
+        }
+        const auto anchor = keyframes.find(anchor_id);
+        if (anchor == keyframes.end() ||
+            anchor->second.session_id != submap.session_id) {
+            diagnostics.failure_reason = "missing_submap_anchor";
+            return diagnostics;
+        }
+
+        Eigen::Isometry3d T_map_submap = submap.T_map_submap;
+        if (reanchor) {
+            const Eigen::Isometry3d T_submap_anchor =
+                submap.T_session_submap.inverse() *
+                anchor->second.pose_odom;
+            T_map_submap = anchor->second.pose_optimized *
+                           T_submap_anchor.inverse();
+            if (!finiteRigidPose(T_map_submap)) {
+                diagnostics.failure_reason = "invalid_refreshed_origin";
+                return diagnostics;
+            }
+            refreshed_origins->push_back(T_map_submap);
+            if (!T_map_submap.matrix().isApprox(
+                    submap.T_map_submap.matrix(), 1e-12)) {
+                ++diagnostics.refreshed_submap_count;
+            }
+        }
+
+        for (const int64_t keyframe_id : submap.keyframe_ids) {
+            const auto keyframe = keyframes.find(keyframe_id);
+            if (keyframe == keyframes.end() ||
+                keyframe->second.session_id != submap.session_id) {
+                diagnostics.failure_reason = "missing_submap_keyframe";
+                return diagnostics;
+            }
+            if (!assigned_keyframes.insert(keyframe_id).second) {
+                diagnostics.failure_reason = "duplicate_submap_membership";
+                return diagnostics;
+            }
+
+            const Eigen::Isometry3d T_submap_keyframe =
+                submap.T_session_submap.inverse() *
+                keyframe->second.pose_odom;
+            const Eigen::Isometry3d projected_pose =
+                T_map_submap * T_submap_keyframe;
+            const Eigen::Isometry3d residual =
+                keyframe->second.pose_optimized.inverse() * projected_pose;
+            if (!finiteRigidPose(T_submap_keyframe) ||
+                !finiteRigidPose(projected_pose) ||
+                !finiteRigidPose(residual)) {
+                diagnostics.failure_reason = "invalid_projected_pose";
+                return diagnostics;
+            }
+            const double translation_residual =
+                residual.translation().norm();
+            const double rotation_residual = std::abs(
+                Eigen::AngleAxisd(residual.rotation()).angle());
+            if (!std::isfinite(translation_residual) ||
+                !std::isfinite(rotation_residual)) {
+                diagnostics.failure_reason = "nonfinite_projection_residual";
+                return diagnostics;
+            }
+            translation_sum += translation_residual;
+            rotation_sum += rotation_residual;
+            diagnostics.max_translation_residual_m = std::max(
+                diagnostics.max_translation_residual_m,
+                translation_residual);
+            diagnostics.max_rotation_residual_rad = std::max(
+                diagnostics.max_rotation_residual_rad,
+                rotation_residual);
+            ++diagnostics.projected_keyframe_count;
+        }
+    }
+
+    diagnostics.unassigned_keyframe_count =
+        keyframes.size() - assigned_keyframes.size();
+    if (diagnostics.projected_keyframe_count > 0) {
+        const double denominator = static_cast<double>(
+            diagnostics.projected_keyframe_count);
+        diagnostics.mean_translation_residual_m =
+            translation_sum / denominator;
+        diagnostics.mean_rotation_residual_rad = rotation_sum / denominator;
+    }
+    diagnostics.valid = true;
+    return diagnostics;
 }
 
 }  // namespace
@@ -212,6 +376,24 @@ bool SubmapBuilder::loadSubmaps(
     // Build and validate the replacement off to the side. A failed load must
     // leave the currently active builder untouched.
     std::vector<Submap> loaded = submaps;
+    if (options_.enable) {
+        std::map<int64_t, KeyframePoseSnapshot> pose_snapshots;
+        std::string failure_reason;
+        if (!snapshotKeyframePoses(
+                keyframes, &pose_snapshots, &failure_reason)) {
+            return false;
+        }
+        std::vector<Eigen::Isometry3d> refreshed_origins;
+        const auto diagnostics = computePoseProjection(
+            loaded, pose_snapshots, true, &refreshed_origins);
+        if (!diagnostics.valid ||
+            refreshed_origins.size() != loaded.size()) {
+            return false;
+        }
+        for (std::size_t index = 0; index < loaded.size(); ++index) {
+            loaded[index].T_map_submap = refreshed_origins[index];
+        }
+    }
     for (auto& submap : loaded) {
         submap.registration_cloud.reset();
         submap.visualization_cloud.reset();
@@ -273,6 +455,42 @@ bool SubmapBuilder::materializeNoLock(
     }
     *submap = std::move(materialized);
     return true;
+}
+
+SubmapPoseProjectionDiagnostics SubmapBuilder::refreshMapPoses(
+    const std::vector<Keyframe::Ptr>& keyframes) {
+    std::map<int64_t, KeyframePoseSnapshot> pose_snapshots;
+    SubmapPoseProjectionDiagnostics diagnostics;
+    if (!snapshotKeyframePoses(
+            keyframes, &pose_snapshots, &diagnostics.failure_reason)) {
+        return diagnostics;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<Eigen::Isometry3d> refreshed_origins;
+    diagnostics = computePoseProjection(
+        submaps_, pose_snapshots, true, &refreshed_origins);
+    if (!diagnostics.valid ||
+        refreshed_origins.size() != submaps_.size()) {
+        return diagnostics;
+    }
+    for (std::size_t index = 0; index < submaps_.size(); ++index) {
+        submaps_[index].T_map_submap = refreshed_origins[index];
+    }
+    return diagnostics;
+}
+
+SubmapPoseProjectionDiagnostics SubmapBuilder::evaluatePoseProjection(
+    const std::vector<Keyframe::Ptr>& keyframes) const {
+    std::map<int64_t, KeyframePoseSnapshot> pose_snapshots;
+    SubmapPoseProjectionDiagnostics diagnostics;
+    if (!snapshotKeyframePoses(
+            keyframes, &pose_snapshots, &diagnostics.failure_reason)) {
+        return diagnostics;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    return computePoseProjection(submaps_, pose_snapshots, false, nullptr);
 }
 
 std::vector<Submap> SubmapBuilder::getSubmaps() const {

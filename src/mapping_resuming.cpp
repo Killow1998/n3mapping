@@ -311,6 +311,7 @@ int64_t MappingResuming::processNewKeyframe(
     }
 
     keyframe_manager_.updateOptimizedPoses(optimizer_.getOptimizedPoses());
+    refreshSubmapPosesNoLock("keyframe_commit");
 
     if (is_first_new_keyframe) {
         const Eigen::Vector3d measurement_rpy_deg =
@@ -611,6 +612,7 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
 
         auto optimized_poses = optimizer_.getOptimizedPoses();
         keyframe_manager_.updateOptimizedPoses(optimized_poses);
+        refreshSubmapPosesNoLock("cross_session_loop");
 
         // Map-to-odom is a live correction, not a once-per-session constant.
         // Once a trusted old-map constraint moves the current query in the
@@ -641,8 +643,39 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
 
 bool MappingResuming::saveExtendedMap(const std::string& map_path) {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (!refreshSubmapPosesNoLock("save_extended_map")) {
+        return false;
+    }
     return serializer_.saveMap(map_path, keyframe_manager_, loop_detector_,
                                optimizer_, submap_builder_);
+}
+
+bool MappingResuming::refreshSubmapPosesNoLock(const char* context) {
+    if (!submap_builder_ || !submap_builder_->enabled()) {
+        return true;
+    }
+    const auto diagnostics = submap_builder_->refreshMapPoses(
+        keyframe_manager_.getAllKeyframes());
+    if (!diagnostics.valid) {
+        LOG(WARNING) << "[MappingResuming][SubmapShadow] pose projection refresh failed context="
+                     << (context ? context : "unknown")
+                     << " reason=" << diagnostics.failure_reason;
+        return false;
+    }
+    VLOG(1) << "[MappingResuming][SubmapShadow] pose projection context="
+            << (context ? context : "unknown")
+            << " submaps=" << diagnostics.submap_count
+            << " projected_keyframes="
+            << diagnostics.projected_keyframe_count
+            << " unassigned_keyframes="
+            << diagnostics.unassigned_keyframe_count
+            << " refreshed_submaps="
+            << diagnostics.refreshed_submap_count
+            << " max_translation_residual_m="
+            << diagnostics.max_translation_residual_m
+            << " max_rotation_residual_rad="
+            << diagnostics.max_rotation_residual_rad;
+    return true;
 }
 
 MappingResumingState MappingResuming::getState() const {

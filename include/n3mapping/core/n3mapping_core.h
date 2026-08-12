@@ -105,6 +105,7 @@ class N3MappingCore {
     void addRhpdDescriptorForKeyframe(int64_t keyframe_id, const PointCloud::Ptr& fallback_cloud);
     bool addOdometryConstraint(int64_t keyframe_id, const Eigen::Isometry3d& pose);
     void refreshOptimizedPoses();
+    bool refreshSubmapPoses(const char* context);
     void appendLoopDebugCandidate(const LoopDebugCandidateEvent& event) const;
     void appendLoopDebugOptimization(const LoopDebugOptimizationEvent& event) const;
 

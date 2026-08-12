@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include <glog/logging.h>
+
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/loop_consensus_verifier.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
@@ -1408,6 +1410,9 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
 }
 
 bool N3MappingCore::saveMap(const std::string &map_path) {
+  if (!refreshSubmapPoses("save_map")) {
+    return false;
+  }
   const auto dense_optimized_trajectory = buildDenseOptimizedTrajectory();
   core::DenseTrajectoryMetadata metadata = dense_trajectory_metadata_;
   if (!dense_optimized_trajectory.empty() &&
@@ -1711,6 +1716,40 @@ bool N3MappingCore::addOdometryConstraint(int64_t keyframe_id,
 void N3MappingCore::refreshOptimizedPoses() {
   session_->keyframeManager().updateOptimizedPoses(
       session_->graphOptimizer().getOptimizedPoses());
+  refreshSubmapPoses("graph_update");
+}
+
+bool N3MappingCore::refreshSubmapPoses(const char* context) {
+  auto& submaps = session_->submapBuilder();
+  if (!submaps.enabled()) {
+    return true;
+  }
+  const auto diagnostics = submaps.refreshMapPoses(
+      session_->keyframeManager().getAllKeyframes());
+  if (!diagnostics.valid) {
+    LOG(WARNING) << "[SubmapShadow] pose projection refresh failed context="
+                 << (context ? context : "unknown")
+                 << " reason=" << diagnostics.failure_reason;
+    return false;
+  }
+  VLOG(1) << "[SubmapShadow] pose projection context="
+          << (context ? context : "unknown")
+          << " submaps=" << diagnostics.submap_count
+          << " projected_keyframes="
+          << diagnostics.projected_keyframe_count
+          << " unassigned_keyframes="
+          << diagnostics.unassigned_keyframe_count
+          << " refreshed_submaps="
+          << diagnostics.refreshed_submap_count
+          << " mean_translation_residual_m="
+          << diagnostics.mean_translation_residual_m
+          << " max_translation_residual_m="
+          << diagnostics.max_translation_residual_m
+          << " mean_rotation_residual_rad="
+          << diagnostics.mean_rotation_residual_rad
+          << " max_rotation_residual_rad="
+          << diagnostics.max_rotation_residual_rad;
+  return true;
 }
 
 } // namespace n3mapping

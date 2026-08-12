@@ -476,6 +476,8 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
 TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
 {
     configureSingleFrameRelocalization();
+    config_.submap_shadow_enable = true;
+    config_.submap_max_keyframes = 2;
     config_.use_robust_kernel = true;
     config_.robust_kernel_type = "Cauchy";
     config_.robust_kernel_delta = 1.0;
@@ -492,9 +494,11 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     PointCloudMatcher matcher(config_);
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
+    SubmapBuilder submap_builder(config_);
     WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
     MappingResuming extension(config_, kf_manager, loop_detector, matcher,
-                              optimizer, serializer, relocalization);
+                              optimizer, serializer, relocalization,
+                              &submap_builder);
 
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                      optimizer, serializer, extension));
@@ -510,6 +514,10 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     ASSERT_EQ(extension.processNewKeyframe(
                   10.0, first_odom, loaded->cloud, 0, first_tracked),
               1);
+    const auto submaps_after_first = submap_builder.getSubmaps();
+    ASSERT_EQ(submaps_after_first.size(), 1u);
+    const Eigen::Isometry3d first_origin_before_tracking =
+        submaps_after_first.front().T_map_submap;
 
     Eigen::Isometry3d second_odom = first_odom;
     second_odom.translation().x() = 4.0;
@@ -542,6 +550,24 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     EXPECT_NEAR(odometry->measurement.translation().x(), 2.0, 1e-9);
     EXPECT_NEAR(tracking_loop->measurement.translation().x(), 10.0, 1e-9);
     EXPECT_NEAR(tracking_loop->information(3, 3), 10000.0, 1e-9);
+
+    const auto first_keyframe = kf_manager.getKeyframe(1);
+    ASSERT_NE(first_keyframe, nullptr);
+    const auto refreshed_submaps = submap_builder.getSubmaps();
+    ASSERT_EQ(refreshed_submaps.size(), 1u);
+    EXPECT_EQ(refreshed_submaps.front().keyframe_ids,
+              (std::vector<int64_t>{1, 2}));
+    EXPECT_TRUE(refreshed_submaps.front().closed);
+    EXPECT_GT((refreshed_submaps.front().T_map_submap.translation() -
+               first_origin_before_tracking.translation()).norm(),
+              1e-5);
+    EXPECT_TRUE(refreshed_submaps.front().T_map_submap.isApprox(
+        first_keyframe->pose_optimized, 1e-9));
+    const auto projection = submap_builder.evaluatePoseProjection(
+        kf_manager.getAllKeyframes());
+    ASSERT_TRUE(projection.valid) << projection.failure_reason;
+    EXPECT_EQ(projection.projected_keyframe_count, 2u);
+    EXPECT_EQ(projection.unassigned_keyframe_count, 1u);
 }
 
 TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)

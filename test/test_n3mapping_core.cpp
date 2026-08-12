@@ -130,6 +130,14 @@ TEST(N3MappingCoreTest, EnabledShadowSubmapIsPersistedFromMappingPath)
     second_pose.translation().x() = 1.0;
     ASSERT_TRUE(core.processMappingFrame(
         makeFrame(2000000000, second_pose)).accepted_keyframe);
+    // Simulate a rigid graph correction already copied into the keyframe
+    // manager. The save boundary must not persist the scaffold's stale origin.
+    const auto keyframes = core.getAllKeyframes();
+    ASSERT_EQ(keyframes.size(), 2u);
+    for (const auto& keyframe : keyframes) {
+        ASSERT_NE(keyframe, nullptr);
+        keyframe->pose_optimized.translation().y() += 3.0;
+    }
     ASSERT_TRUE(core.saveMap(map_path.string()));
 
     N3Map persisted;
@@ -141,6 +149,8 @@ TEST(N3MappingCoreTest, EnabledShadowSubmapIsPersistedFromMappingPath)
     EXPECT_EQ(persisted.submaps(0).keyframe_ids_size(), 2);
     EXPECT_TRUE(persisted.submaps(0).closed());
     EXPECT_EQ(persisted.submaps(0).cloud_point_count(), 240u);
+    EXPECT_NEAR(persisted.submaps(0).t_map_submap().ty(), 3.0, 1e-9);
+    EXPECT_NEAR(persisted.keyframes(0).pose_optimized().ty(), 3.0, 1e-9);
 
     std::filesystem::remove(map_path);
 }

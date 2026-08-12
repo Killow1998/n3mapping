@@ -63,6 +63,7 @@ public:
 
 private:
     bool initializeFromLoadedMapNoLock();
+    bool refreshSubmapPosesNoLock(const char* context);
 
     Config config_;
     KeyframeManager& keyframe_manager_;

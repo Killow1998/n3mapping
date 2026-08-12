@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <limits>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include <Eigen/Geometry>
@@ -45,6 +46,22 @@ struct SubmapBuilderOptions {
     std::uint64_t cloud_max_bytes = 16ull * 1024ull * 1024ull;
 };
 
+// Shadow comparison between the current keyframe graph and the rigid
+// submap-origin decomposition. Residuals are observations only: they never
+// update keyframe poses or graph constraints.
+struct SubmapPoseProjectionDiagnostics {
+    bool valid = false;
+    std::string failure_reason;
+    std::size_t submap_count = 0;
+    std::size_t projected_keyframe_count = 0;
+    std::size_t unassigned_keyframe_count = 0;
+    std::size_t refreshed_submap_count = 0;
+    double mean_translation_residual_m = 0.0;
+    double max_translation_residual_m = 0.0;
+    double mean_rotation_residual_rad = 0.0;
+    double max_rotation_residual_rad = 0.0;
+};
+
 class SubmapBuilder {
 public:
     explicit SubmapBuilder(const Config& config);
@@ -57,6 +74,13 @@ public:
                      const std::vector<MapSessionInfo>& sessions);
     bool materialize(SubmapId id,
                      const std::vector<Keyframe::Ptr>& keyframes);
+    // Re-anchor every T_map_submap from its descriptor keyframe (or the first
+    // member for legacy metadata), then report how well one rigid submap pose
+    // projects all member keyframes. The update is all-or-nothing.
+    SubmapPoseProjectionDiagnostics refreshMapPoses(
+        const std::vector<Keyframe::Ptr>& keyframes);
+    SubmapPoseProjectionDiagnostics evaluatePoseProjection(
+        const std::vector<Keyframe::Ptr>& keyframes) const;
     std::vector<Submap> getSubmaps() const;
     void swapWith(SubmapBuilder& other);
     void clear();
