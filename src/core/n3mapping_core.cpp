@@ -750,6 +750,11 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
     if (!session_->submapBuilder().appendKeyframe(committed_keyframe)) {
       std::cerr << "Shadow submap append failed for committed keyframe id="
                 << keyframe_id << '\n';
+    } else {
+      // graph_update necessarily runs before the just-committed keyframe can
+      // join a shadow submap. Refresh once more so topology diagnostics see
+      // complete ownership rather than remaining one keyframe behind.
+      refreshSubmapPoses("submap_append");
     }
   }
 
@@ -1777,6 +1782,27 @@ bool N3MappingCore::refreshSubmapPoses(const char* context) {
             << graph_snapshot.max_cross_edge_translation_residual_m
             << " max_cross_rotation_residual_rad="
             << graph_snapshot.max_cross_edge_rotation_residual_rad;
+    const auto topology = evaluateSubmapGraphTopology(graph_snapshot);
+    if (!topology.valid) {
+      LOG(WARNING) << "[SubmapGraphShadow] topology failed context="
+                   << (context ? context : "unknown")
+                   << " reason=" << topology.failure_reason;
+    } else {
+      VLOG(1) << "[SubmapGraphShadow] topology context="
+              << (context ? context : "unknown")
+              << " nodes=" << topology.node_count
+              << " components=" << topology.component_count
+              << " isolated_submaps=" << topology.isolated_submap_count
+              << " cross_edges=" << topology.cross_edge_count
+              << " cross_session_edges="
+              << topology.cross_session_edge_count
+              << " keyframe_ownership_complete="
+              << topology.keyframe_ownership_complete
+              << " constraint_coverage_complete="
+              << topology.constraint_coverage_complete
+              << " connected=" << topology.connected
+              << " shadow_graph_ready=" << topology.shadow_graph_ready;
+    }
   }
   return true;
 }

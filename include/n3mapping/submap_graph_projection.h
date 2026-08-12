@@ -90,10 +90,43 @@ struct SubmapGraphSnapshot {
     double max_cross_edge_rotation_residual_rad = 0.0;
 };
 
+struct SubmapGraphTopologyComponent {
+    std::size_t component_index = 0;
+    SubmapId anchor_submap_id = kInvalidSubmapId;
+    std::vector<SubmapId> submap_ids;
+    std::vector<MapSessionId> session_ids;
+    // Indices into SubmapGraphSnapshot::edge_projections. Parallel source
+    // constraints remain separate entries and are never fused here.
+    std::vector<std::size_t> cross_edge_projection_indices;
+};
+
+// Structural qualification for a future shadow optimizer. shadow_graph_ready
+// is necessary, not sufficient: it says nothing about gauge handling,
+// information transport, numerical observability, or integration authority.
+struct SubmapGraphTopologyDiagnostics {
+    bool valid = false;
+    std::string failure_reason;
+    bool keyframe_ownership_complete = false;
+    bool constraint_coverage_complete = false;
+    bool connected = false;
+    bool shadow_graph_ready = false;
+    std::size_t node_count = 0;
+    std::size_t cross_edge_count = 0;
+    std::size_t component_count = 0;
+    std::size_t isolated_submap_count = 0;
+    std::size_t cross_session_edge_count = 0;
+    std::vector<SubmapId> isolated_submap_ids;
+    std::map<SubmapId, std::size_t> component_by_submap;
+    std::vector<SubmapGraphTopologyComponent> components;
+};
+
 SubmapGraphSnapshot buildSubmapGraphSnapshot(
     const std::vector<Submap>& submaps,
     const std::vector<Keyframe::Ptr>& keyframes,
     const std::vector<EdgeInfo>& edges,
     const std::vector<FloorAttitudeConstraint>& floor_constraints = {});
+
+SubmapGraphTopologyDiagnostics evaluateSubmapGraphTopology(
+    const SubmapGraphSnapshot& snapshot);
 
 }  // namespace n3mapping

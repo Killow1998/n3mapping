@@ -354,6 +354,10 @@ int64_t MappingResuming::processNewKeyframe(
         if (!submap_builder_->appendKeyframe(committed_keyframe)) {
             LOG(WARNING) << "[MappingResuming] Shadow submap append failed for committed keyframe id="
                          << new_kf_id;
+        } else {
+            // The keyframe graph is committed before shadow membership. A
+            // post-append refresh keeps the structural diagnostics current.
+            refreshSubmapPosesNoLock("submap_append");
         }
     }
 
@@ -704,6 +708,29 @@ bool MappingResuming::refreshSubmapPosesNoLock(const char* context) {
                 << graph_snapshot.max_cross_edge_translation_residual_m
                 << " max_cross_rotation_residual_rad="
                 << graph_snapshot.max_cross_edge_rotation_residual_rad;
+        const auto topology = evaluateSubmapGraphTopology(graph_snapshot);
+        if (!topology.valid) {
+            LOG(WARNING) << "[MappingResuming][SubmapGraphShadow] topology failed context="
+                         << (context ? context : "unknown")
+                         << " reason=" << topology.failure_reason;
+        } else {
+            VLOG(1) << "[MappingResuming][SubmapGraphShadow] topology context="
+                    << (context ? context : "unknown")
+                    << " nodes=" << topology.node_count
+                    << " components=" << topology.component_count
+                    << " isolated_submaps="
+                    << topology.isolated_submap_count
+                    << " cross_edges=" << topology.cross_edge_count
+                    << " cross_session_edges="
+                    << topology.cross_session_edge_count
+                    << " keyframe_ownership_complete="
+                    << topology.keyframe_ownership_complete
+                    << " constraint_coverage_complete="
+                    << topology.constraint_coverage_complete
+                    << " connected=" << topology.connected
+                    << " shadow_graph_ready="
+                    << topology.shadow_graph_ready;
+        }
     }
     return true;
 }

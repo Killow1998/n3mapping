@@ -430,6 +430,19 @@ TEST(SubmapGraphProjectionTest,
       T_a_a1, 1e-12));
   EXPECT_FALSE(snapshot.floor_projections[1].assigned);
 
+  const auto topology = evaluateSubmapGraphTopology(snapshot);
+  ASSERT_TRUE(topology.valid) << topology.failure_reason;
+  EXPECT_TRUE(topology.connected);
+  EXPECT_FALSE(topology.keyframe_ownership_complete);
+  EXPECT_FALSE(topology.constraint_coverage_complete);
+  EXPECT_FALSE(topology.shadow_graph_ready);
+  EXPECT_EQ(topology.component_count, 1u);
+  EXPECT_EQ(topology.cross_edge_count, 2u);
+  EXPECT_EQ(topology.cross_session_edge_count, 0u);
+  ASSERT_EQ(topology.components.size(), 1u);
+  EXPECT_EQ(topology.components[0].cross_edge_projection_indices,
+            (std::vector<std::size_t>{1, 2}));
+
   const auto submaps_after = builder.getSubmaps();
   ASSERT_EQ(submaps_after.size(), submaps_before.size());
   for (std::size_t index = 0; index < submaps_after.size(); ++index) {
@@ -438,6 +451,151 @@ TEST(SubmapGraphProjectionTest,
     EXPECT_EQ(submaps_after[index].content_revision,
               submaps_before[index].content_revision);
   }
+}
+
+TEST(SubmapGraphTopologyTest,
+     ConnectedMultiSessionGraphPreservesParallelConstraints) {
+  SubmapBuilderOptions options;
+  options.enable = true;
+  options.max_keyframes = 1;
+  options.cloud_max_bytes = 8 * sizeof(pcl::PointXYZI);
+  SubmapBuilder builder(options);
+  auto first = makeKeyframe(0, 0, 0.0);
+  auto second = makeKeyframe(1, 1, 0.0);
+  second->pose_optimized.translation().x() = 5.0;
+  ASSERT_TRUE(builder.appendKeyframe(first));
+  ASSERT_TRUE(builder.appendKeyframe(second));
+
+  EdgeInfo anchor;
+  anchor.from_id = 0;
+  anchor.to_id = 1;
+  anchor.measurement =
+      first->pose_optimized.inverse() * second->pose_optimized;
+  anchor.information = Eigen::Matrix<double, 6, 6>::Identity() * 4.0;
+  anchor.type = EdgeType::SESSION_ANCHOR;
+  EdgeInfo loop = anchor;
+  loop.information = Eigen::Matrix<double, 6, 6>::Identity() * 9.0;
+  loop.type = EdgeType::LOOP;
+
+  const auto snapshot = buildSubmapGraphSnapshot(
+      builder.getSubmaps(), {first, second}, {anchor, loop});
+  ASSERT_TRUE(snapshot.valid) << snapshot.failure_reason;
+  const auto topology = evaluateSubmapGraphTopology(snapshot);
+  ASSERT_TRUE(topology.valid) << topology.failure_reason;
+  EXPECT_TRUE(topology.keyframe_ownership_complete);
+  EXPECT_TRUE(topology.constraint_coverage_complete);
+  EXPECT_TRUE(topology.connected);
+  EXPECT_TRUE(topology.shadow_graph_ready);
+  EXPECT_EQ(topology.node_count, 2u);
+  EXPECT_EQ(topology.component_count, 1u);
+  EXPECT_EQ(topology.isolated_submap_count, 0u);
+  EXPECT_EQ(topology.cross_edge_count, 2u);
+  EXPECT_EQ(topology.cross_session_edge_count, 2u);
+  ASSERT_EQ(topology.components.size(), 1u);
+  EXPECT_EQ(topology.components[0].anchor_submap_id, 0u);
+  EXPECT_EQ(topology.components[0].submap_ids,
+            (std::vector<SubmapId>{0, 1}));
+  EXPECT_EQ(topology.components[0].session_ids,
+            (std::vector<MapSessionId>{0, 1}));
+  EXPECT_EQ(topology.components[0].cross_edge_projection_indices,
+            (std::vector<std::size_t>{0, 1}));
+}
+
+TEST(SubmapGraphTopologyTest,
+     DisconnectedGraphReportsDeterministicComponentsAndIsolation) {
+  SubmapBuilderOptions options;
+  options.enable = true;
+  options.max_keyframes = 1;
+  options.cloud_max_bytes = 8 * sizeof(pcl::PointXYZI);
+  SubmapBuilder builder(options);
+  auto first = makeKeyframe(0, 0, 0.0);
+  auto second = makeKeyframe(1, 0, 1.0);
+  auto isolated = makeKeyframe(2, 0, 2.0);
+  ASSERT_TRUE(builder.appendKeyframe(first));
+  ASSERT_TRUE(builder.appendKeyframe(second));
+  ASSERT_TRUE(builder.appendKeyframe(isolated));
+
+  EdgeInfo edge;
+  edge.from_id = 0;
+  edge.to_id = 1;
+  edge.measurement =
+      first->pose_optimized.inverse() * second->pose_optimized;
+  edge.information = Eigen::Matrix<double, 6, 6>::Identity();
+  edge.type = EdgeType::ODOMETRY;
+  const auto snapshot = buildSubmapGraphSnapshot(
+      builder.getSubmaps(), {first, second, isolated}, {edge});
+  ASSERT_TRUE(snapshot.valid) << snapshot.failure_reason;
+
+  const auto topology = evaluateSubmapGraphTopology(snapshot);
+  ASSERT_TRUE(topology.valid) << topology.failure_reason;
+  EXPECT_TRUE(topology.keyframe_ownership_complete);
+  EXPECT_TRUE(topology.constraint_coverage_complete);
+  EXPECT_FALSE(topology.connected);
+  EXPECT_FALSE(topology.shadow_graph_ready);
+  EXPECT_EQ(topology.component_count, 2u);
+  EXPECT_EQ(topology.isolated_submap_ids,
+            (std::vector<SubmapId>{2}));
+  ASSERT_EQ(topology.components.size(), 2u);
+  EXPECT_EQ(topology.components[0].anchor_submap_id, 0u);
+  EXPECT_EQ(topology.components[0].submap_ids,
+            (std::vector<SubmapId>{0, 1}));
+  EXPECT_EQ(topology.components[0].cross_edge_projection_indices,
+            (std::vector<std::size_t>{0}));
+  EXPECT_EQ(topology.components[1].anchor_submap_id, 2u);
+  EXPECT_EQ(topology.components[1].submap_ids,
+            (std::vector<SubmapId>{2}));
+  EXPECT_TRUE(topology.components[1].cross_edge_projection_indices.empty());
+}
+
+TEST(SubmapGraphTopologyTest, CompleteSingleNodeGraphIsStructurallyReady) {
+  SubmapBuilderOptions options;
+  options.enable = true;
+  options.max_keyframes = 2;
+  options.cloud_max_bytes = 8 * sizeof(pcl::PointXYZI);
+  SubmapBuilder builder(options);
+  auto keyframe = makeKeyframe(0, 0, 0.0);
+  ASSERT_TRUE(builder.appendKeyframe(keyframe));
+  const auto snapshot = buildSubmapGraphSnapshot(
+      builder.getSubmaps(), {keyframe}, {});
+  ASSERT_TRUE(snapshot.valid) << snapshot.failure_reason;
+
+  const auto topology = evaluateSubmapGraphTopology(snapshot);
+  ASSERT_TRUE(topology.valid) << topology.failure_reason;
+  EXPECT_TRUE(topology.connected);
+  EXPECT_TRUE(topology.shadow_graph_ready);
+  EXPECT_EQ(topology.component_count, 1u);
+  EXPECT_EQ(topology.isolated_submap_ids,
+            (std::vector<SubmapId>{0}));
+}
+
+TEST(SubmapGraphTopologyTest, MalformedSnapshotReturnsNoPartialTopology) {
+  SubmapBuilderOptions options;
+  options.enable = true;
+  options.max_keyframes = 1;
+  options.cloud_max_bytes = 8 * sizeof(pcl::PointXYZI);
+  SubmapBuilder builder(options);
+  auto first = makeKeyframe(0, 0, 0.0);
+  auto second = makeKeyframe(1, 0, 1.0);
+  ASSERT_TRUE(builder.appendKeyframe(first));
+  ASSERT_TRUE(builder.appendKeyframe(second));
+  EdgeInfo edge;
+  edge.from_id = 0;
+  edge.to_id = 1;
+  edge.measurement =
+      first->pose_optimized.inverse() * second->pose_optimized;
+  edge.information = Eigen::Matrix<double, 6, 6>::Identity();
+  edge.type = EdgeType::ODOMETRY;
+  auto snapshot = buildSubmapGraphSnapshot(
+      builder.getSubmaps(), {first, second}, {edge});
+  ASSERT_TRUE(snapshot.valid) << snapshot.failure_reason;
+  snapshot.edge_projections[0].to_submap_id = 99;
+
+  const auto topology = evaluateSubmapGraphTopology(snapshot);
+  EXPECT_FALSE(topology.valid);
+  EXPECT_EQ(topology.failure_reason, "invalid_cross_submap_projection");
+  EXPECT_TRUE(topology.components.empty());
+  EXPECT_TRUE(topology.component_by_submap.empty());
+  EXPECT_TRUE(topology.isolated_submap_ids.empty());
 }
 
 TEST(SubmapGraphProjectionTest, InvalidInputsReturnNoPartialSnapshot) {
