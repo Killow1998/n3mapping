@@ -247,6 +247,26 @@ class SubmapGraphTrialQualificationTest(unittest.TestCase):
         self.assertEqual(report["classification"], TOOL.INSUFFICIENT)
         self.assertEqual(report["complete_final_multi_submap_record_count"], 1)
 
+    def test_map_extension_accepts_shared_session_runtime_handoff(self) -> None:
+        cross_session = solved_record()
+        cross_session.update(
+            {
+                "mode": "map_extension",
+                "runtime_source": "mapping_resuming",
+                "context": "cross_session_loop",
+            }
+        )
+        final_save = solved_record()
+        final_save.update({"mode": "map_extension", "context": "save_map"})
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "trial.jsonl"
+            write_jsonl(source, [cross_session, final_save])
+            report = TOOL.qualify(source, COMMIT)
+
+        self.assertEqual(report["classification"], TOOL.QUALIFIED)
+        self.assertEqual(report["contexts"]["cross_session_loop"], 1)
+        self.assertEqual(report["selected_record"]["line"], 2)
+
     def test_lineage_and_recomputed_metrics_fail_closed(self) -> None:
         wrong_commit = solved_record()
         wrong_commit["product_commit"] = "c" * 40

@@ -26,12 +26,17 @@ INSUFFICIENT = "INSUFFICIENT_EVIDENCE"
 INVALID = "INVALID_EVIDENCE"
 EXIT_CODES = {QUALIFIED: 0, INSUFFICIENT: 2, INVALID: 3}
 FINAL_CONTEXTS = {"save_map", "save_extended_map"}
-CONTEXTS = {
-    "mapping": ("core", {"loop_commit", "save_map"}),
-    "map_extension": (
-        "mapping_resuming",
-        {"cross_session_loop", "save_extended_map"},
-    ),
+RUNTIME_CONTEXTS = {
+    "mapping": {
+        ("core", "loop_commit"),
+        ("core", "save_map"),
+    },
+    "map_extension": {
+        ("mapping_resuming", "cross_session_loop"),
+        ("mapping_resuming", "save_extended_map"),
+        # The ROS wrappers save the shared resumed session through N3MappingCore.
+        ("core", "save_map"),
+    },
 }
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -512,12 +517,10 @@ def validate_record(
     if record["schema"] != INPUT_SCHEMA or record["record_type"] != "checkpoint":
         issues.add("schema_mismatch", "unexpected schema or record_type", line)
     mode = record["mode"]
-    if mode not in CONTEXTS:
+    if mode not in RUNTIME_CONTEXTS:
         issues.add("invalid_mode", f"unsupported mode {mode!r}", line)
-    else:
-        source, contexts = CONTEXTS[mode]
-        if record["runtime_source"] != source or record["context"] not in contexts:
-            issues.add("runtime_context_mismatch", "mode/source/context do not match", line)
+    elif (record["runtime_source"], record["context"]) not in RUNTIME_CONTEXTS[mode]:
+        issues.add("runtime_context_mismatch", "mode/source/context do not match", line)
     commit = record["product_commit"]
     if not COMMIT_RE.fullmatch(commit) or commit != expected_commit:
         issues.add(
@@ -659,17 +662,10 @@ def qualify(
             if isinstance(record.get("mode"), str)
         }
     )
-    sources = sorted(
-        {
-            record.get("runtime_source")
-            for record in mappings
-            if isinstance(record.get("runtime_source"), str)
-        }
-    )
     if len(profiles) > 1:
         issues.add("mixed_profile_lineage", "JSONL contains multiple product profiles")
-    if len(modes) > 1 or len(sources) > 1:
-        issues.add("mixed_runtime_lineage", "JSONL contains multiple runtime lineages")
+    if len(modes) > 1:
+        issues.add("mixed_runtime_lineage", "JSONL contains multiple runtime modes")
 
     latest = summaries[-1] if summaries else None
     if issues.count:
