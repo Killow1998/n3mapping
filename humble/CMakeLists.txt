@@ -121,6 +121,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/submap_builder.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_projection.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_factor.cpp
+  ${N3MAPPING_ROOT}/src/submap_graph_trial.cpp
   ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
@@ -132,6 +133,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/loop_segment_consistency.cpp
   ${N3MAPPING_ROOT}/src/loop_consensus_verifier.cpp
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
+  ${N3MAPPING_ROOT}/src/graph_factor_noise.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
@@ -680,6 +682,13 @@ if(BUILD_TESTING)
   if(TARGET test_submap_builder)
     target_link_libraries(test_submap_builder ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
     ament_target_dependencies(test_submap_builder rclcpp)
+  endif()
+
+  ament_add_gtest(test_submap_graph_trial
+    ${N3MAPPING_ROOT}/test/test_submap_graph_trial.cpp)
+  if(TARGET test_submap_graph_trial)
+    target_link_libraries(test_submap_graph_trial ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
+    ament_target_dependencies(test_submap_graph_trial rclcpp)
   endif()
 
   ament_add_gtest(test_config_wiring ${N3MAPPING_ROOT}/test/test_config_wiring.cpp)

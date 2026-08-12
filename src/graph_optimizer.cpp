@@ -1,4 +1,5 @@
 #include "n3mapping/graph_optimizer.h"
+#include "n3mapping/graph_factor_noise.h"
 
 #include <gtsam/navigation/AttitudeFactor.h>
 
@@ -841,26 +842,7 @@ Eigen::Isometry3d GraphOptimizer::gtsamToEigen(const gtsam::Pose3& pose) {
 
 gtsam::noiseModel::Gaussian::shared_ptr GraphOptimizer::createNoiseModel(
     const Eigen::Matrix<double, 6, 6>& info) {
-    
-    // 检查信息矩阵是否有效
-    if (info.isZero(1e-10)) {
-        return nullptr;
-    }
-    
-    // 信息矩阵是协方差矩阵的逆
-    // GTSAM 使用 (rotation, translation) 顺序，而我们的信息矩阵是 (translation, rotation)
-    // 需要重新排列
-    Eigen::Matrix<double, 6, 6> gtsam_info;
-    gtsam_info.block<3, 3>(0, 0) = info.block<3, 3>(3, 3);  // rotation
-    gtsam_info.block<3, 3>(0, 3) = info.block<3, 3>(3, 0);  // rotation-translation
-    gtsam_info.block<3, 3>(3, 0) = info.block<3, 3>(0, 3);  // translation-rotation
-    gtsam_info.block<3, 3>(3, 3) = info.block<3, 3>(0, 0);  // translation
-    
-    try {
-        return gtsam::noiseModel::Gaussian::Information(gtsam_info);
-    } catch (...) {
-        return nullptr;
-    }
+    return makeExplicitFullGraphFactorNoise(info);
 }
 
 gtsam::noiseModel::Diagonal::shared_ptr GraphOptimizer::createOdomNoiseModel() const {
@@ -890,80 +872,17 @@ gtsam::noiseModel::Diagonal::shared_ptr GraphOptimizer::createPriorNoiseModel() 
 gtsam::noiseModel::Base::shared_ptr GraphOptimizer::createRobustNoiseModel(
     const Eigen::Matrix<double, 6, 6>& information,
     bool use_robust) const {
-    
-    // 首先创建基础噪声模型
-    gtsam::noiseModel::Gaussian::shared_ptr base_noise;
-    
-    if (!information.isZero(1e-10)) {
-        // 使用提供的信息矩阵
-        // GTSAM 使用 (rotation, translation) 顺序，需要重新排列
-        Eigen::Matrix<double, 6, 6> gtsam_info;
-        gtsam_info.block<3, 3>(0, 0) = information.block<3, 3>(3, 3);  // rotation
-        gtsam_info.block<3, 3>(0, 3) = information.block<3, 3>(3, 0);  // rotation-translation
-        gtsam_info.block<3, 3>(3, 0) = information.block<3, 3>(0, 3);  // translation-rotation
-        gtsam_info.block<3, 3>(3, 3) = information.block<3, 3>(0, 0);  // translation
-        
-        try {
-            base_noise = gtsam::noiseModel::Gaussian::Information(gtsam_info);
-        } catch (...) {
-            base_noise = gtsam::noiseModel::Diagonal::Sigmas(
-                (gtsam::Vector(6) << config_.loop_noise_rotation, config_.loop_noise_rotation, config_.loop_noise_rotation,
-                                      config_.loop_noise_position, config_.loop_noise_position, config_.loop_noise_position).finished()
-            );
-        }
-    } else {
-        // 使用默认回环噪声模型
-        gtsam::Vector6 sigmas;
-        sigmas << config_.loop_noise_rotation, config_.loop_noise_rotation, config_.loop_noise_rotation,
-                  config_.loop_noise_position, config_.loop_noise_position, config_.loop_noise_position;
-        base_noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
-    }
-    
-    // 如果启用鲁棒核函数，包装基础噪声模型
-    if (use_robust && config_.use_robust_kernel) {
-        // GTSAM 4.0+ 使用 Robust::Create
-        if (config_.robust_kernel_type == "Huber") {
-            auto huber = gtsam::noiseModel::mEstimator::Huber::Create(config_.robust_kernel_delta);
-            return gtsam::noiseModel::Robust::Create(huber, base_noise);
-        } else if (config_.robust_kernel_type == "Cauchy") {
-            auto cauchy = gtsam::noiseModel::mEstimator::Cauchy::Create(config_.robust_kernel_delta);
-            return gtsam::noiseModel::Robust::Create(cauchy, base_noise);
-        } else if (config_.robust_kernel_type == "DCS") {
-            auto dcs = gtsam::noiseModel::mEstimator::DCS::Create(config_.robust_kernel_delta);
-            return gtsam::noiseModel::Robust::Create(dcs, base_noise);
-        }
-    }
-    
-    return base_noise;
+    return makeFullGraphFactorNoise(
+        information, config_,
+        GraphFactorNoiseRole::ROBUST_GLOBAL_OR_SESSION_ODOMETRY,
+        use_robust).model;
 }
 
 gtsam::noiseModel::Base::shared_ptr GraphOptimizer::createXYYawLoopNoiseModel(
     const Eigen::Matrix<double, 6, 6>& information,
     bool use_robust) const {
-
-    auto sigmaFromInfo = [](double info, double fallback) {
-        return std::isfinite(info) && info > 1e-12 ? 1.0 / std::sqrt(info) : fallback;
-    };
-
-    gtsam::Vector3 sigmas;
-    sigmas << sigmaFromInfo(information(0, 0), config_.loop_noise_position),
-              sigmaFromInfo(information(1, 1), config_.loop_noise_position),
-              sigmaFromInfo(information(5, 5), config_.loop_noise_rotation);
-    auto base_noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
-
-    if (use_robust && config_.use_robust_kernel) {
-        if (config_.robust_kernel_type == "Huber") {
-            auto huber = gtsam::noiseModel::mEstimator::Huber::Create(config_.robust_kernel_delta);
-            return gtsam::noiseModel::Robust::Create(huber, base_noise);
-        } else if (config_.robust_kernel_type == "Cauchy") {
-            auto cauchy = gtsam::noiseModel::mEstimator::Cauchy::Create(config_.robust_kernel_delta);
-            return gtsam::noiseModel::Robust::Create(cauchy, base_noise);
-        } else if (config_.robust_kernel_type == "DCS") {
-            auto dcs = gtsam::noiseModel::mEstimator::DCS::Create(config_.robust_kernel_delta);
-            return gtsam::noiseModel::Robust::Create(dcs, base_noise);
-        }
-    }
-    return base_noise;
+    return makeXYYawGraphFactorNoise(
+        information, config_, use_robust).model;
 }
 
 }  // namespace n3mapping

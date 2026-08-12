@@ -122,6 +122,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/submap_builder.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_projection.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_factor.cpp
+  ${N3MAPPING_ROOT}/src/submap_graph_trial.cpp
   ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
@@ -133,6 +134,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/loop_segment_consistency.cpp
   ${N3MAPPING_ROOT}/src/loop_consensus_verifier.cpp
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
+  ${N3MAPPING_ROOT}/src/graph_factor_noise.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
@@ -574,6 +576,14 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_submap_builder)
     target_link_libraries(test_submap_builder n3mapping_core ${PCL_LIBRARIES})
+  endif()
+
+  catkin_add_gtest(test_submap_graph_trial
+    ${N3MAPPING_ROOT}/test/test_submap_graph_trial.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_submap_graph_trial)
+    target_link_libraries(test_submap_graph_trial n3mapping_core ${PCL_LIBRARIES})
   endif()
 
   if(N3MAPPING_BUILD_RESEARCH_TOOLS)
