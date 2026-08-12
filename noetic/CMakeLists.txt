@@ -121,6 +121,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/local_map_selector.cpp
   ${N3MAPPING_ROOT}/src/submap_builder.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_projection.cpp
+  ${N3MAPPING_ROOT}/src/submap_graph_factor.cpp
   ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp

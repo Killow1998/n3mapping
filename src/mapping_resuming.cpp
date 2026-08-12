@@ -11,6 +11,7 @@
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/loop_verification_pipeline.h"
 #include "n3mapping/submap_graph_projection.h"
+#include "n3mapping/submap_graph_factor.h"
 
 namespace n3mapping {
 namespace {
@@ -730,6 +731,33 @@ bool MappingResuming::refreshSubmapPosesNoLock(const char* context) {
                     << " connected=" << topology.connected
                     << " shadow_graph_ready="
                     << topology.shadow_graph_ready;
+        }
+        const auto factors = evaluateSubmapGraphFactors(graph_snapshot);
+        if (!factors.valid) {
+            LOG(WARNING) << "[MappingResuming][SubmapGraphShadow] factor semantics failed context="
+                         << (context ? context : "unknown")
+                         << " reason=" << factors.failure_reason;
+        } else {
+            VLOG(1) << "[MappingResuming][SubmapGraphShadow] factor semantics context="
+                    << (context ? context : "unknown")
+                    << " cross_edges=" << factors.cross_edge_count
+                    << " full_6d_edges=" << factors.full_6d_edge_count
+                    << " xy_yaw_lifted_only="
+                    << factors.xy_yaw_exact_lifted_only_count
+                    << " direct_between_residual_equivalent="
+                    << factors.direct_between_residual_equivalent_count
+                    << " information_transportable="
+                    << factors.direct_between_information_transportable_count
+                    << " information_fallback_required="
+                    << factors.information_fallback_required_count
+                    << " assigned_floor_factors="
+                    << factors.assigned_floor_factor_count
+                    << " max_residual_transport_error="
+                    << factors.max_residual_transport_error_norm
+                    << " max_mahalanobis_squared_delta="
+                    << factors.max_mahalanobis_squared_delta
+                    << " max_floor_residual_error="
+                    << factors.max_floor_residual_error_norm;
         }
     }
     return true;
