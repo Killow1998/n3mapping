@@ -1,4 +1,5 @@
 #include "n3mapping/submap_builder.h"
+#include "n3mapping/submap_graph_projection.h"
 
 #include <gtest/gtest.h>
 
@@ -32,6 +33,13 @@ std::vector<MapSessionInfo> makeSessions() {
   MapSessionInfo session1;
   session1.id = 1;
   return {session0, session1};
+}
+
+Eigen::Isometry3d makePose(double x, double y, double yaw) {
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation() = Eigen::Vector3d(x, y, 0.0);
+  pose.rotate(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()));
+  return pose;
 }
 
 TEST(SubmapBuilderTest, DisabledBuilderDoesNotChangeState) {
@@ -266,6 +274,213 @@ TEST(SubmapBuilderTest, EnabledLoadReanchorsLegacyDescriptorFallback) {
   EXPECT_EQ(diagnostics.unassigned_keyframe_count, 0u);
   EXPECT_NEAR(diagnostics.max_translation_residual_m, 0.0, 1e-9);
   EXPECT_NEAR(diagnostics.max_rotation_residual_rad, 0.0, 1e-9);
+}
+
+TEST(SubmapGraphProjectionTest,
+     ProjectsEverySourceConstraintWithExplicitOwnership) {
+  SubmapBuilderOptions options;
+  options.enable = true;
+  options.max_keyframes = 2;
+  options.cloud_max_bytes = 32 * sizeof(pcl::PointXYZI);
+  SubmapBuilder builder(options);
+
+  const Eigen::Isometry3d T_map_a = makePose(10.0, 5.0, 0.3);
+  const Eigen::Isometry3d T_a_a1 = makePose(1.0, 0.2, 0.15);
+  const Eigen::Isometry3d T_session_b = makePose(4.0, -1.0, 0.4);
+  const Eigen::Isometry3d T_map_b = makePose(14.0, 8.0, -0.2);
+  const Eigen::Isometry3d T_b_b1 = makePose(0.5, -0.3, -0.1);
+
+  auto a0 = makeKeyframe(0, 0, 0.0);
+  auto a1 = makeKeyframe(1, 0, 0.0);
+  auto b0 = makeKeyframe(2, 0, 0.0);
+  auto b1 = makeKeyframe(3, 0, 0.0);
+  auto unassigned = makeKeyframe(4, 0, 0.0);
+  a0->pose_odom = Eigen::Isometry3d::Identity();
+  a0->pose_optimized = T_map_a;
+  a1->pose_odom = T_a_a1;
+  a1->pose_optimized = T_map_a * T_a_a1;
+  b0->pose_odom = T_session_b;
+  b0->pose_optimized = T_map_b;
+  b1->pose_odom = T_session_b * T_b_b1;
+  b1->pose_optimized = T_map_b * T_b_b1;
+  unassigned->pose_odom = makePose(8.0, 1.0, 0.2);
+  unassigned->pose_optimized = makePose(18.0, 9.0, -0.1);
+
+  ASSERT_TRUE(builder.appendKeyframe(a0));
+  ASSERT_TRUE(builder.appendKeyframe(a1));
+  ASSERT_TRUE(builder.appendKeyframe(b0));
+  ASSERT_TRUE(builder.appendKeyframe(b1));
+  const auto submaps_before = builder.getSubmaps();
+  ASSERT_EQ(submaps_before.size(), 2u);
+
+  Eigen::Matrix<double, 6, 6> loop_information =
+      Eigen::Matrix<double, 6, 6>::Identity() * 7.0;
+  loop_information(1, 5) = 0.25;
+  loop_information(5, 1) = 0.25;
+
+  EdgeInfo intra;
+  intra.from_id = 0;
+  intra.to_id = 1;
+  intra.measurement = a0->pose_optimized.inverse() * a1->pose_optimized;
+  intra.information = Eigen::Matrix<double, 6, 6>::Identity() * 2.0;
+  intra.type = EdgeType::ODOMETRY;
+
+  EdgeInfo cross_odom;
+  cross_odom.from_id = 1;
+  cross_odom.to_id = 2;
+  cross_odom.measurement =
+      a1->pose_optimized.inverse() * b0->pose_optimized;
+  cross_odom.information =
+      Eigen::Matrix<double, 6, 6>::Identity() * 3.0;
+  cross_odom.type = EdgeType::ODOMETRY;
+
+  EdgeInfo cross_loop;
+  cross_loop.from_id = 0;
+  cross_loop.to_id = 3;
+  cross_loop.measurement =
+      a0->pose_optimized.inverse() * b1->pose_optimized;
+  cross_loop.information = loop_information;
+  cross_loop.type = EdgeType::LOOP;
+  cross_loop.constraint_mode = EdgeConstraintMode::XY_YAW;
+
+  EdgeInfo unassigned_edge;
+  unassigned_edge.from_id = 3;
+  unassigned_edge.to_id = 4;
+  unassigned_edge.measurement =
+      b1->pose_optimized.inverse() * unassigned->pose_optimized;
+  unassigned_edge.information =
+      Eigen::Matrix<double, 6, 6>::Identity() * 5.0;
+  unassigned_edge.type = EdgeType::SESSION_ANCHOR;
+
+  FloorAttitudeConstraint assigned_floor;
+  assigned_floor.node_id = 1;
+  assigned_floor.normal_body = Eigen::Vector3d(0.1, 0.0, 0.995);
+  assigned_floor.sigma_rad = 0.02;
+  FloorAttitudeConstraint unassigned_floor;
+  unassigned_floor.node_id = 4;
+  unassigned_floor.normal_body = Eigen::Vector3d::UnitZ();
+  unassigned_floor.sigma_rad = 0.03;
+
+  const auto snapshot = buildSubmapGraphSnapshot(
+      submaps_before, {a0, a1, b0, b1, unassigned},
+      {intra, cross_odom, cross_loop, unassigned_edge},
+      {assigned_floor, unassigned_floor});
+  ASSERT_TRUE(snapshot.valid) << snapshot.failure_reason;
+  ASSERT_EQ(snapshot.nodes.size(), 2u);
+  EXPECT_EQ(snapshot.nodes[0].submap_id, 0u);
+  EXPECT_EQ(snapshot.nodes[1].submap_id, 1u);
+  EXPECT_TRUE(snapshot.nodes[0].T_map_submap.isApprox(T_map_a, 1e-12));
+  EXPECT_TRUE(snapshot.nodes[1].T_map_submap.isApprox(T_map_b, 1e-12));
+  EXPECT_EQ(snapshot.keyframe_ownership.size(), 4u);
+  EXPECT_EQ(snapshot.keyframe_ownership.at(0), 0u);
+  EXPECT_EQ(snapshot.keyframe_ownership.at(3), 1u);
+  EXPECT_EQ(snapshot.unassigned_keyframe_ids,
+            (std::vector<int64_t>{4}));
+
+  ASSERT_EQ(snapshot.edge_projections.size(), 4u);
+  EXPECT_EQ(snapshot.source_edge_count, 4u);
+  EXPECT_EQ(snapshot.intra_submap_edge_count, 1u);
+  EXPECT_EQ(snapshot.cross_submap_edge_count, 2u);
+  EXPECT_EQ(snapshot.unassigned_endpoint_edge_count, 1u);
+  EXPECT_EQ(snapshot.cross_submap_odometry_edge_count, 1u);
+  EXPECT_EQ(snapshot.cross_submap_loop_edge_count, 1u);
+  EXPECT_EQ(snapshot.cross_submap_session_anchor_edge_count, 0u);
+  EXPECT_EQ(snapshot.edge_projections[0].classification,
+            SubmapGraphEdgeClass::INTRA_SUBMAP);
+  EXPECT_FALSE(snapshot.edge_projections[0].has_projected_measurement);
+  EXPECT_EQ(snapshot.edge_projections[1].classification,
+            SubmapGraphEdgeClass::CROSS_SUBMAP);
+  EXPECT_EQ(snapshot.edge_projections[2].classification,
+            SubmapGraphEdgeClass::CROSS_SUBMAP);
+  EXPECT_EQ(snapshot.edge_projections[3].classification,
+            SubmapGraphEdgeClass::UNASSIGNED_ENDPOINT);
+  EXPECT_EQ(snapshot.edge_projections[3].from_submap_id, 1u);
+  EXPECT_EQ(snapshot.edge_projections[3].to_submap_id,
+            kInvalidSubmapId);
+
+  const Eigen::Isometry3d expected_submap_measurement =
+      T_map_a.inverse() * T_map_b;
+  EXPECT_TRUE(snapshot.edge_projections[1]
+                  .T_from_submap_from_keyframe.isApprox(T_a_a1, 1e-12));
+  EXPECT_TRUE(snapshot.edge_projections[1]
+                  .T_to_submap_to_keyframe.isApprox(
+                      Eigen::Isometry3d::Identity(), 1e-12));
+  EXPECT_TRUE(snapshot.edge_projections[1]
+                  .T_from_submap_to_submap_measurement.isApprox(
+                      expected_submap_measurement, 1e-12));
+  EXPECT_TRUE(snapshot.edge_projections[2]
+                  .T_to_submap_to_keyframe.isApprox(T_b_b1, 1e-12));
+  EXPECT_TRUE(snapshot.edge_projections[2]
+                  .T_from_submap_to_submap_measurement.isApprox(
+                      expected_submap_measurement, 1e-12));
+  EXPECT_TRUE(snapshot.edge_projections[2]
+                  .source_edge.information.isApprox(loop_information, 0.0));
+  EXPECT_EQ(snapshot.edge_projections[2].source_edge.constraint_mode,
+            EdgeConstraintMode::XY_YAW);
+  EXPECT_LT(snapshot.max_cross_edge_translation_residual_m, 1e-9);
+  EXPECT_LT(snapshot.max_cross_edge_rotation_residual_rad, 1e-9);
+
+  ASSERT_EQ(snapshot.floor_projections.size(), 2u);
+  EXPECT_EQ(snapshot.source_floor_constraint_count, 2u);
+  EXPECT_EQ(snapshot.assigned_floor_constraint_count, 1u);
+  EXPECT_EQ(snapshot.unassigned_floor_constraint_count, 1u);
+  EXPECT_TRUE(snapshot.floor_projections[0].assigned);
+  EXPECT_EQ(snapshot.floor_projections[0].submap_id, 0u);
+  EXPECT_TRUE(snapshot.floor_projections[0].T_submap_keyframe.isApprox(
+      T_a_a1, 1e-12));
+  EXPECT_FALSE(snapshot.floor_projections[1].assigned);
+
+  const auto submaps_after = builder.getSubmaps();
+  ASSERT_EQ(submaps_after.size(), submaps_before.size());
+  for (std::size_t index = 0; index < submaps_after.size(); ++index) {
+    EXPECT_TRUE(submaps_after[index].T_map_submap.isApprox(
+        submaps_before[index].T_map_submap, 1e-12));
+    EXPECT_EQ(submaps_after[index].content_revision,
+              submaps_before[index].content_revision);
+  }
+}
+
+TEST(SubmapGraphProjectionTest, InvalidInputsReturnNoPartialSnapshot) {
+  SubmapBuilderOptions options;
+  options.enable = true;
+  options.max_keyframes = 1;
+  options.cloud_max_bytes = 8 * sizeof(pcl::PointXYZI);
+  SubmapBuilder builder(options);
+  auto first = makeKeyframe(0, 0, 0.0);
+  auto second = makeKeyframe(1, 0, 1.0);
+  ASSERT_TRUE(builder.appendKeyframe(first));
+  ASSERT_TRUE(builder.appendKeyframe(second));
+
+  EdgeInfo edge;
+  edge.from_id = 0;
+  edge.to_id = 99;
+  edge.measurement = Eigen::Isometry3d::Identity();
+  edge.information = Eigen::Matrix<double, 6, 6>::Identity();
+  edge.type = EdgeType::ODOMETRY;
+  const auto missing_edge_keyframe = buildSubmapGraphSnapshot(
+      builder.getSubmaps(), {first, second}, {edge});
+  EXPECT_FALSE(missing_edge_keyframe.valid);
+  EXPECT_EQ(missing_edge_keyframe.failure_reason,
+            "missing_edge_keyframe");
+  EXPECT_TRUE(missing_edge_keyframe.nodes.empty());
+  EXPECT_TRUE(missing_edge_keyframe.keyframe_ownership.empty());
+  EXPECT_TRUE(missing_edge_keyframe.edge_projections.empty());
+
+  edge.to_id = 1;
+  edge.measurement =
+      first->pose_optimized.inverse() * second->pose_optimized;
+  FloorAttitudeConstraint missing_floor;
+  missing_floor.node_id = 99;
+  missing_floor.normal_body = Eigen::Vector3d::UnitZ();
+  missing_floor.sigma_rad = 0.02;
+  const auto missing_floor_keyframe = buildSubmapGraphSnapshot(
+      builder.getSubmaps(), {first, second}, {edge}, {missing_floor});
+  EXPECT_FALSE(missing_floor_keyframe.valid);
+  EXPECT_EQ(missing_floor_keyframe.failure_reason,
+            "missing_floor_keyframe");
+  EXPECT_TRUE(missing_floor_keyframe.nodes.empty());
+  EXPECT_TRUE(missing_floor_keyframe.edge_projections.empty());
+  EXPECT_TRUE(missing_floor_keyframe.floor_projections.empty());
 }
 
 }  // namespace

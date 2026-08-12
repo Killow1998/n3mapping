@@ -20,6 +20,7 @@
 #include "n3mapping/loop_heightmap_diagnostics.h"
 #include "n3mapping/loop_verification_pipeline.h"
 #include "n3mapping/floor_attitude.h"
+#include "n3mapping/submap_graph_projection.h"
 #include "n3mapping/static_start_guard.h"
 #include "n3mapping/pcl_compat.h"
 #include <pcl/common/transforms.h>
@@ -1724,8 +1725,8 @@ bool N3MappingCore::refreshSubmapPoses(const char* context) {
   if (!submaps.enabled()) {
     return true;
   }
-  const auto diagnostics = submaps.refreshMapPoses(
-      session_->keyframeManager().getAllKeyframes());
+  const auto keyframes = session_->keyframeManager().getAllKeyframes();
+  const auto diagnostics = submaps.refreshMapPoses(keyframes);
   if (!diagnostics.valid) {
     LOG(WARNING) << "[SubmapShadow] pose projection refresh failed context="
                  << (context ? context : "unknown")
@@ -1749,6 +1750,34 @@ bool N3MappingCore::refreshSubmapPoses(const char* context) {
           << diagnostics.mean_rotation_residual_rad
           << " max_rotation_residual_rad="
           << diagnostics.max_rotation_residual_rad;
+
+  const auto graph_snapshot = buildSubmapGraphSnapshot(
+      submaps.getSubmaps(), keyframes, session_->graphOptimizer().getEdges(),
+      session_->graphOptimizer().floorAttitudeConstraints());
+  if (!graph_snapshot.valid) {
+    // SG-02 remains observational: an invalid shadow snapshot is visible but
+    // cannot change the reference keyframe-graph lifecycle.
+    LOG(WARNING) << "[SubmapGraphShadow] snapshot failed context="
+                 << (context ? context : "unknown")
+                 << " reason=" << graph_snapshot.failure_reason;
+  } else {
+    VLOG(1) << "[SubmapGraphShadow] snapshot context="
+            << (context ? context : "unknown")
+            << " nodes=" << graph_snapshot.nodes.size()
+            << " source_edges=" << graph_snapshot.source_edge_count
+            << " intra_edges=" << graph_snapshot.intra_submap_edge_count
+            << " cross_edges=" << graph_snapshot.cross_submap_edge_count
+            << " unassigned_edges="
+            << graph_snapshot.unassigned_endpoint_edge_count
+            << " floor_assigned="
+            << graph_snapshot.assigned_floor_constraint_count
+            << " floor_unassigned="
+            << graph_snapshot.unassigned_floor_constraint_count
+            << " max_cross_translation_residual_m="
+            << graph_snapshot.max_cross_edge_translation_residual_m
+            << " max_cross_rotation_residual_rad="
+            << graph_snapshot.max_cross_edge_rotation_residual_rad;
+  }
   return true;
 }
 
