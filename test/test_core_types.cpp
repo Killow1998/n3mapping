@@ -160,13 +160,16 @@ TEST(CoreTypesTest, BackendOutputCarriesCoreResults) {
 
 TEST(CoreTypesTest, RelocalizationPoseAuthorityIsFailClosed) {
   EXPECT_EQ(static_cast<std::uint8_t>(RelocalizationState::SEARCHING), 0U);
-  EXPECT_EQ(static_cast<std::uint8_t>(RelocalizationState::REGION_HYPOTHESIS),
+  EXPECT_EQ(static_cast<std::uint8_t>(RelocalizationState::PROVISIONAL),
             1U);
   EXPECT_EQ(static_cast<std::uint8_t>(
                 RelocalizationState::FULL_6DOF_LOCKED),
             2U);
+  EXPECT_EQ(static_cast<std::uint8_t>(RelocalizationState::RECENTLY_LOST),
+            3U);
   EXPECT_EQ(
-      static_cast<std::uint8_t>(RelocalizationState::DEGRADED_TRACKING), 3U);
+      static_cast<std::uint8_t>(RelocalizationState::DEGRADED_TRACKING), 4U);
+  EXPECT_EQ(static_cast<std::uint8_t>(RelocalizationState::LOST), 5U);
   EXPECT_EQ(static_cast<std::uint8_t>(PoseSource::NONE), 0U);
   EXPECT_EQ(static_cast<std::uint8_t>(PoseSource::ODOM_PREDICTED), 1U);
   EXPECT_EQ(
@@ -175,7 +178,7 @@ TEST(CoreTypesTest, RelocalizationPoseAuthorityIsFailClosed) {
   EXPECT_FALSE(hasUsableGlobalRelocalizationPose(
       RelocalizationState::SEARCHING, PoseSource::NONE));
   EXPECT_FALSE(hasUsableGlobalRelocalizationPose(
-      RelocalizationState::REGION_HYPOTHESIS, PoseSource::NONE));
+      RelocalizationState::PROVISIONAL, PoseSource::NONE));
 
   EXPECT_TRUE(hasUsableGlobalRelocalizationPose(
       RelocalizationState::FULL_6DOF_LOCKED,
@@ -185,15 +188,17 @@ TEST(CoreTypesTest, RelocalizationPoseAuthorityIsFailClosed) {
       PoseSource::GEOMETRICALLY_CORRECTED));
 
   EXPECT_TRUE(hasUsableGlobalRelocalizationPose(
-      RelocalizationState::DEGRADED_TRACKING, PoseSource::ODOM_PREDICTED));
+      RelocalizationState::RECENTLY_LOST, PoseSource::ODOM_PREDICTED));
   EXPECT_FALSE(hasAuthoritativeRelocalizationInitializationPose(
-      RelocalizationState::DEGRADED_TRACKING, PoseSource::ODOM_PREDICTED));
+      RelocalizationState::RECENTLY_LOST, PoseSource::ODOM_PREDICTED));
 
   EXPECT_FALSE(hasUsableGlobalRelocalizationPose(
       RelocalizationState::FULL_6DOF_LOCKED, PoseSource::ODOM_PREDICTED));
   EXPECT_FALSE(hasUsableGlobalRelocalizationPose(
       RelocalizationState::DEGRADED_TRACKING,
-      PoseSource::GEOMETRICALLY_CORRECTED));
+      PoseSource::ODOM_PREDICTED));
+  EXPECT_FALSE(hasUsableGlobalRelocalizationPose(
+      RelocalizationState::LOST, PoseSource::NONE));
   EXPECT_FALSE(hasAuthoritativeRelocalizationInitializationPose(
       RelocalizationState::SEARCHING,
       PoseSource::GEOMETRICALLY_CORRECTED));
@@ -224,15 +229,15 @@ TEST(CoreTypesTest, StatefulOutputAuthorityUsesLocalizationStateEdges) {
   EXPECT_FALSE(searching.publish_legacy_lock);
   EXPECT_EQ(searching.lock_epoch, 0U);
 
-  output.relocalization_state = RelocalizationState::REGION_HYPOTHESIS;
-  auto region =
+  output.relocalization_state = RelocalizationState::PROVISIONAL;
+  auto provisional =
       authority.process(RelocalizationOutputMode::LOCALIZATION, output);
-  EXPECT_TRUE(region.publish_status);
-  EXPECT_FALSE(region.publish_global_pose);
-  EXPECT_FALSE(region.publish_world_cloud);
-  EXPECT_FALSE(region.publish_authoritative_pose);
-  EXPECT_FALSE(region.publish_legacy_lock);
-  EXPECT_EQ(region.lock_epoch, 0U);
+  EXPECT_TRUE(provisional.publish_status);
+  EXPECT_FALSE(provisional.publish_global_pose);
+  EXPECT_FALSE(provisional.publish_world_cloud);
+  EXPECT_FALSE(provisional.publish_authoritative_pose);
+  EXPECT_FALSE(provisional.publish_legacy_lock);
+  EXPECT_EQ(provisional.lock_epoch, 0U);
 
   output.success = true;
   output.relocalization_locked = true;
@@ -257,19 +262,31 @@ TEST(CoreTypesTest, StatefulOutputAuthorityUsesLocalizationStateEdges) {
   EXPECT_FALSE(continued_full.publish_legacy_lock);
   EXPECT_EQ(continued_full.lock_epoch, 1U);
 
-  output.relocalization_state = RelocalizationState::DEGRADED_TRACKING;
+  output.relocalization_state = RelocalizationState::RECENTLY_LOST;
   output.pose_source = PoseSource::ODOM_PREDICTED;
-  auto degraded =
+  auto recently_lost =
       authority.process(RelocalizationOutputMode::LOCALIZATION, output);
-  EXPECT_TRUE(degraded.publish_status);
-  EXPECT_TRUE(degraded.publish_global_pose);
-  EXPECT_TRUE(degraded.publish_world_cloud);
-  EXPECT_FALSE(degraded.publish_authoritative_pose);
-  EXPECT_FALSE(degraded.publish_legacy_lock);
-  EXPECT_EQ(degraded.lock_epoch, 1U);
+  EXPECT_TRUE(recently_lost.publish_status);
+  EXPECT_TRUE(recently_lost.publish_global_pose);
+  EXPECT_TRUE(recently_lost.publish_world_cloud);
+  EXPECT_FALSE(recently_lost.publish_authoritative_pose);
+  EXPECT_FALSE(recently_lost.publish_legacy_lock);
+  EXPECT_EQ(recently_lost.lock_epoch, 1U);
+
+  output.success = false;
+  output.relocalization_state = RelocalizationState::LOST;
+  output.pose_source = PoseSource::NONE;
+  auto lost = authority.process(RelocalizationOutputMode::LOCALIZATION, output);
+  EXPECT_TRUE(lost.publish_status);
+  EXPECT_FALSE(lost.publish_global_pose);
+  EXPECT_FALSE(lost.publish_world_cloud);
+  EXPECT_FALSE(lost.publish_authoritative_pose);
+  EXPECT_FALSE(lost.publish_legacy_lock);
+  EXPECT_EQ(lost.lock_epoch, 1U);
 
   output.relocalization_state = RelocalizationState::FULL_6DOF_LOCKED;
   output.pose_source = PoseSource::GEOMETRICALLY_CORRECTED;
+  output.success = true;
   ASSERT_FALSE(output.relocalization_locked);
   auto recovered_full =
       authority.process(RelocalizationOutputMode::LOCALIZATION, output);

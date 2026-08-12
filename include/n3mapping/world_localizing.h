@@ -198,6 +198,9 @@ private:
   bool free_space_grid_failed_ = false;
 
   bool is_relocalized_;
+  // Distinguishes initial SEARCHING from a previously authoritative session
+  // that has exhausted its RECENTLY_LOST grace period.
+  bool has_ever_relocalized_;
   Eigen::Isometry3d T_map_odom_;
   int64_t last_matched_id_;
   int64_t relocalization_seed_id_;

@@ -201,14 +201,18 @@ class ProductGateTest(unittest.TestCase):
                     full = index == lock_frame
                 else:
                     full = history_locked and index >= lock_frame
-                state = "FULL_6DOF_LOCKED" if full else "REGION_HYPOTHESIS"
+                state = "FULL_6DOF_LOCKED" if full else "PROVISIONAL"
                 source = "GEOMETRICALLY_CORRECTED" if full else "NONE"
-                if scenario.get("degraded_first_frame") and index == 0:
-                    state = "DEGRADED_TRACKING"
+                if scenario.get("recently_lost_frame") == index:
+                    state = "RECENTLY_LOST"
                     source = "ODOM_PREDICTED"
                 if scenario.get("illegal_state_source") and index == 0:
                     source = "GEOMETRICALLY_CORRECTED"
-                edge = full and index == lock_frame
+                authoritative_full = state == "FULL_6DOF_LOCKED"
+                usable_global_pose = (
+                    authoritative_full or state == "RECENTLY_LOST"
+                )
+                edge = authoritative_full and index == lock_frame
                 if scenario.get("missing_first_lock_edge") and index == lock_frame:
                     edge = False
                 preprocessing = strict[index] * 0.4
@@ -217,9 +221,9 @@ class ProductGateTest(unittest.TestCase):
                     {
                         "frame_index": index,
                         "stamp_ns": int(frame["stamp_ns"]),
-                        "success": int(full),
+                        "success": int(usable_global_pose),
                         "relocalization_lock_edge": int(edge),
-                        "authoritative_full": int(full),
+                        "authoritative_full": int(authoritative_full),
                         "seed_keyframe_id": seed_id if full else -1,
                         "support_keyframe_id": support_id if full else -1,
                         "matched_keyframe_id": support_id if full else -1,
@@ -677,7 +681,7 @@ class ProductGateTest(unittest.TestCase):
         authority_preflight_sha256: str | None = None,
         expected_dataset_sha256: str | None = None,
         authority_schema: str = (
-            "n3mapping_product_active_runtime_authority_preflight_v1"
+            "n3mapping_product_active_runtime_authority_preflight_v2"
         ),
     ) -> subprocess.CompletedProcess[str]:
         map_artifacts: dict[str, object] = {}
@@ -774,6 +778,7 @@ class ProductGateTest(unittest.TestCase):
             json.dumps(
                 {
                     "schema": authority_schema,
+                    "schema_version": 2,
                     "evidence_kind": "active_runtime",
                     "status": "PASS",
                     "candidate_commit": CANDIDATE_COMMIT,
@@ -1393,7 +1398,7 @@ class ProductGateTest(unittest.TestCase):
                 first["semantic_failure_reasons"],
             )
 
-    def test_degraded_tracking_does_not_inherit_legacy_success_authority(
+    def test_recently_lost_does_not_inherit_legacy_success_authority(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1405,7 +1410,7 @@ class ProductGateTest(unittest.TestCase):
                     {
                         "id": FLOOR7_IDS[0],
                         "locked": True,
-                        "degraded_first_frame": True,
+                        "recently_lost_frame": 3,
                     }
                 )
                 + "\n",

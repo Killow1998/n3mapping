@@ -347,7 +347,7 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesTrackingFailurePath) {
   RelocResult result = reloc.trackLocalization(cloud, pose);
 
   EXPECT_TRUE(result.success);
-  EXPECT_EQ(result.state, RelocalizationState::DEGRADED_TRACKING);
+  EXPECT_EQ(result.state, RelocalizationState::RECENTLY_LOST);
   EXPECT_EQ(result.pose_source, PoseSource::ODOM_PREDICTED);
   EXPECT_EQ(result.decision, "nearest_keyframe_missing");
   const auto lines = readDebugLines(debug_path);
@@ -358,6 +358,43 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesTrackingFailurePath) {
             std::string::npos);
 
   std::filesystem::remove_all(dir);
+}
+
+TEST_F(WorldLocalizingTest,
+       ExhaustedTrackingDistinguishesRecentlyLostFromInitialSearching) {
+  config_.reloc_search_radius = 1.0;
+  config_.reloc_max_track_failures = 1;
+  buildTestMap(3, 2.0);
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+
+  Eigen::Isometry3d far_pose = Eigen::Isometry3d::Identity();
+  far_pose.translation().x() = 100.0;
+  const auto far_cloud = generateCorridorCloud(far_pose);
+
+  const RelocResult transient = reloc.trackLocalization(far_cloud, far_pose);
+  EXPECT_TRUE(transient.success);
+  EXPECT_EQ(transient.state, RelocalizationState::RECENTLY_LOST);
+  EXPECT_EQ(transient.pose_source, PoseSource::ODOM_PREDICTED);
+  EXPECT_TRUE(reloc.isRelocalized());
+
+  const RelocResult exhausted = reloc.trackLocalization(far_cloud, far_pose);
+  EXPECT_FALSE(exhausted.success);
+  EXPECT_EQ(exhausted.state, RelocalizationState::LOST);
+  EXPECT_EQ(exhausted.pose_source, PoseSource::NONE);
+  EXPECT_FALSE(reloc.isRelocalized());
+
+  keyframe_manager_->clear();
+  const RelocResult recovery_attempt = reloc.relocalize(far_cloud, far_pose);
+  EXPECT_FALSE(recovery_attempt.success);
+  EXPECT_EQ(recovery_attempt.state, RelocalizationState::LOST);
+  EXPECT_EQ(recovery_attempt.decision, "missing_keyframes");
+
+  reloc.resetLocalizationState();
+  const RelocResult fresh_attempt = reloc.relocalize(far_cloud, far_pose);
+  EXPECT_FALSE(fresh_attempt.success);
+  EXPECT_EQ(fresh_attempt.state, RelocalizationState::SEARCHING);
 }
 
 TEST_F(WorldLocalizingTest, RelocalizationDebugWritesQueryCloudDiagnostics) {
@@ -433,7 +470,7 @@ TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess) {
     result = reloc.relocalize(cloud, query_pose);
     if (i + 1 < config_.reloc_temporal_window_size) {
       EXPECT_FALSE(result.success);
-      EXPECT_EQ(result.state, RelocalizationState::REGION_HYPOTHESIS);
+      EXPECT_EQ(result.state, RelocalizationState::PROVISIONAL);
       EXPECT_EQ(result.pose_source, PoseSource::NONE);
     }
   }

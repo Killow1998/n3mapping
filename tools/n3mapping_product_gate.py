@@ -39,8 +39,9 @@ CANDIDATE_RUN_SCHEMA = "n3mapping_product_gate_candidate_run_v1"
 EVALUATOR_RESULT_SCHEMA = "n3mapping_product_gate_case_result_v1"
 GATE_RESULT_SCHEMA = "n3mapping_product_gate_result_v1"
 ACTIVE_RUNTIME_AUTHORITY_SCHEMA = (
-    "n3mapping_product_active_runtime_authority_preflight_v1"
+    "n3mapping_product_active_runtime_authority_preflight_v2"
 )
+ACTIVE_RUNTIME_AUTHORITY_SCHEMA_VERSION = 2
 
 STRICT_P95_LIMIT_MS = 1000.0
 ACQUISITION_TO_LOCK_LIMIT_S = 5.0
@@ -146,9 +147,11 @@ FRAME_STATUS_REQUIRED_HEADERS = {
 }
 STATE_POSE_SOURCE = {
     "SEARCHING": "NONE",
-    "REGION_HYPOTHESIS": "NONE",
+    "PROVISIONAL": "NONE",
     "FULL_6DOF_LOCKED": "GEOMETRICALLY_CORRECTED",
-    "DEGRADED_TRACKING": "ODOM_PREDICTED",
+    "RECENTLY_LOST": "ODOM_PREDICTED",
+    "DEGRADED_TRACKING": "NONE",
+    "LOST": "NONE",
 }
 SHANGHAI_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
 FORBIDDEN_INPUT_KEY_FRAGMENTS = (
@@ -1230,11 +1233,19 @@ def parse_frame_history(
                     f"{label} has an illegal state/pose_source combination"
                 )
             success = csv_boolean(raw.get("success"), f"{label}.success")
-            if state == "FULL_6DOF_LOCKED" and not success:
+            if (
+                state in {"FULL_6DOF_LOCKED", "RECENTLY_LOST"}
+                and not success
+            ):
                 raise GateError(
                     f"{label}.success disagrees with state/pose_source"
                 )
-            if state in {"SEARCHING", "REGION_HYPOTHESIS"} and success:
+            if state in {
+                "SEARCHING",
+                "PROVISIONAL",
+                "DEGRADED_TRACKING",
+                "LOST",
+            } and success:
                 raise GateError(
                     f"{label}.success disagrees with state/pose_source"
                 )
@@ -1421,9 +1432,11 @@ def validate_evaluator_result(
         raise GateError("evaluator exit code disagrees with algorithm_lock")
     if not isinstance(result["final_state"], str) or result["final_state"] not in {
         "SEARCHING",
-        "REGION_HYPOTHESIS",
+        "PROVISIONAL",
         "FULL_6DOF_LOCKED",
+        "RECENTLY_LOST",
         "DEGRADED_TRACKING",
+        "LOST",
     }:
         raise GateError("result.final_state is invalid")
     if (
@@ -3013,6 +3026,8 @@ def verify_product_preflights(
         not isinstance(authority, dict)
         or authority.get("schema")
         != ACTIVE_RUNTIME_AUTHORITY_SCHEMA
+        or authority.get("schema_version")
+        != ACTIVE_RUNTIME_AUTHORITY_SCHEMA_VERSION
         or authority.get("evidence_kind") != "active_runtime"
         or authority.get("status") != "PASS"
         or authority.get("candidate_commit") != identity["candidate_commit"]

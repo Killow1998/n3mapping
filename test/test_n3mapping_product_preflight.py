@@ -277,12 +277,12 @@ class ProductPreflightTest(unittest.TestCase):
 
         first_pose = pose(100, 1.0)
         steady_pose = pose(200, 1.1)
-        degraded_pose = pose(300, 1.2)
-        recovered_pose = pose(400, 1.3)
-        extension_pose = pose(500, 2.0)
+        recently_lost_pose = pose(300, 1.2)
+        recovered_pose = pose(500, 1.3)
+        extension_pose = pose(600, 2.0)
         observation: dict[str, object] = {
-            "schema": "n3mapping_authority_observation_v1",
-            "schema_version": 1,
+            "schema": "n3mapping_authority_observation_v2",
+            "schema_version": 2,
             "distro": distro,
             "candidate_commit": COMMIT,
             "product_profile_sha256": PROFILE_SHA256,
@@ -321,12 +321,12 @@ class ProductPreflightTest(unittest.TestCase):
                             world_cloud_count=0,
                         ),
                         event(
-                            "region_hypothesis",
-                            backend_state="REGION_HYPOTHESIS",
+                            "provisional",
+                            backend_state="PROVISIONAL",
                             backend_source="NONE",
                             backend_valid=True,
                             backend_lock=False,
-                            status_state="REGION_HYPOTHESIS",
+                            status_state="PROVISIONAL",
                             status_source="NONE",
                             epoch=0,
                             authority=[],
@@ -363,18 +363,32 @@ class ProductPreflightTest(unittest.TestCase):
                             world_cloud_count=1,
                         ),
                         event(
-                            "degraded_tracking",
-                            backend_state="DEGRADED_TRACKING",
+                            "recently_lost",
+                            backend_state="RECENTLY_LOST",
                             backend_source="ODOM_PREDICTED",
                             backend_valid=True,
                             backend_lock=False,
-                            status_state="DEGRADED_TRACKING",
+                            status_state="RECENTLY_LOST",
                             status_source="ODOM_PREDICTED",
                             epoch=1,
                             authority=[],
                             legacy=[],
-                            global_poses=[degraded_pose],
+                            global_poses=[recently_lost_pose],
                             world_cloud_count=1,
+                        ),
+                        event(
+                            "lost",
+                            backend_state="LOST",
+                            backend_source="NONE",
+                            backend_valid=True,
+                            backend_lock=False,
+                            status_state="LOST",
+                            status_source="NONE",
+                            epoch=1,
+                            authority=[],
+                            legacy=[],
+                            global_poses=[],
+                            world_cloud_count=0,
                         ),
                         event(
                             "recovered_full_lock",

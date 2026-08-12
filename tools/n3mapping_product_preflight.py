@@ -26,11 +26,12 @@ from typing import Any
 BUILD_IDENTITY_SCHEMA = "n3mapping_product_build_identity_v2"
 BUNDLE_SCHEMA = "n3mapping_product_map_bundle_v1"
 RUNTIME_SCHEMA = "n3mapping_product_runtime_preflight_v1"
-AUTHORITY_OBSERVATION_SCHEMA = "n3mapping_authority_observation_v1"
+AUTHORITY_OBSERVATION_SCHEMA = "n3mapping_authority_observation_v2"
 ACTIVE_RUNTIME_AUTHORITY_SCHEMA = (
-    "n3mapping_product_active_runtime_authority_preflight_v1"
+    "n3mapping_product_active_runtime_authority_preflight_v2"
 )
 SCHEMA_VERSION = 1
+AUTHORITY_SCHEMA_VERSION = 2
 
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -1105,8 +1106,8 @@ def _expect_localization_event(
 
 
 def validate_localization_sequence(events: Any, location: str) -> None:
-    if not isinstance(events, list) or len(events) != 6:
-        raise PreflightError(f"{location} must contain six ordered events")
+    if not isinstance(events, list) or len(events) != 7:
+        raise PreflightError(f"{location} must contain seven ordered events")
     parsed = [
         validate_event_shape(event, f"{location}[{index}]")
         for index, event in enumerate(events)
@@ -1127,12 +1128,12 @@ def validate_localization_sequence(events: Any, location: str) -> None:
             world_cloud_count=0,
         ),
         dict(
-            label="region_hypothesis",
-            backend_state="REGION_HYPOTHESIS",
+            label="provisional",
+            backend_state="PROVISIONAL",
             backend_source="NONE",
             backend_valid=True,
             backend_lock=False,
-            status_state="REGION_HYPOTHESIS",
+            status_state="PROVISIONAL",
             status_source="NONE",
             epoch=0,
             authority_count=0,
@@ -1169,18 +1170,32 @@ def validate_localization_sequence(events: Any, location: str) -> None:
             world_cloud_count=1,
         ),
         dict(
-            label="degraded_tracking",
-            backend_state="DEGRADED_TRACKING",
+            label="recently_lost",
+            backend_state="RECENTLY_LOST",
             backend_source="ODOM_PREDICTED",
             backend_valid=True,
             backend_lock=False,
-            status_state="DEGRADED_TRACKING",
+            status_state="RECENTLY_LOST",
             status_source="ODOM_PREDICTED",
             epoch=1,
             authority_count=0,
             legacy_epochs=[],
             global_count=1,
             world_cloud_count=1,
+        ),
+        dict(
+            label="lost",
+            backend_state="LOST",
+            backend_source="NONE",
+            backend_valid=True,
+            backend_lock=False,
+            status_state="LOST",
+            status_source="NONE",
+            epoch=1,
+            authority_count=0,
+            legacy_epochs=[],
+            global_count=0,
+            world_cloud_count=0,
         ),
         dict(
             label="recovered_full_lock",
@@ -1306,7 +1321,7 @@ def _validate_future_runner_observation(
     )
     if (
         observation["schema"] != AUTHORITY_OBSERVATION_SCHEMA
-        or observation["schema_version"] != 1
+        or observation["schema_version"] != AUTHORITY_SCHEMA_VERSION
     ):
         raise PreflightError("authority raw observation schema mismatch")
     distro = observation["distro"]
@@ -1402,10 +1417,11 @@ def _validate_future_runner_observation(
         "runtime_node_identity": node,
         "checks": [
             "topic_qos_contract",
-            "searching_and_region_fail_closed",
+            "searching_and_provisional_fail_closed",
             "first_full_single_authority_edge",
             "steady_full_no_duplicate_edge",
-            "degraded_odom_predicted_no_init_edge",
+            "recently_lost_odom_predicted_no_init_edge",
+            "lost_suppresses_global_output",
             "recovery_full_new_authority_edge",
             "invalid_pose_no_authority",
             "map_extension_legacy_only",
@@ -1416,7 +1432,7 @@ def _validate_future_runner_observation(
 def authority_artifact(evidence: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema": ACTIVE_RUNTIME_AUTHORITY_SCHEMA,
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": AUTHORITY_SCHEMA_VERSION,
         "created_at": created_at_utc8(),
         "status": "PASS",
         "evidence_kind": "active_runtime",
@@ -1456,7 +1472,7 @@ def validate_authority_artifact_shape(value: Any) -> dict[str, Any]:
     )
     if (
         artifact["schema"] != ACTIVE_RUNTIME_AUTHORITY_SCHEMA
-        or artifact["schema_version"] != 1
+        or artifact["schema_version"] != AUTHORITY_SCHEMA_VERSION
     ):
         raise PreflightError("authority preflight artifact schema mismatch")
     if (

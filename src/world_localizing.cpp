@@ -75,6 +75,7 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       reloc_map_cached_keyframes_(0),
       loaded_map_visibility_cache_(pcl::make_shared<PointCloudT>()),
       is_relocalized_(false),
+      has_ever_relocalized_(false),
       T_map_odom_(Eigen::Isometry3d::Identity()), last_matched_id_(-1),
       relocalization_seed_id_(-1),
       last_odom_pose_(Eigen::Isometry3d::Identity()),
@@ -114,6 +115,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
+  result.state = has_ever_relocalized_ ? RelocalizationState::LOST
+                                       : RelocalizationState::SEARCHING;
 
   if (keyframe_manager_.size() == 0) {
     LOG(WARNING) << "No keyframes available for relocalization.";
@@ -619,7 +622,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   const double ratio = ranking.ratio;
 
   if (top1) {
-    result.state = RelocalizationState::REGION_HYPOTHESIS;
+    result.state = RelocalizationState::PROVISIONAL;
     result.pose_source = PoseSource::NONE;
     if (reloc_debug_enabled) {
       debug_event.winner_seed_match_id = top1->seed_match_id;
@@ -752,6 +755,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     const RelocHypothesis &best = *top1;
     T_map_odom_ = best.T_map_odom;
     is_relocalized_ = true;
+    has_ever_relocalized_ = true;
     last_matched_id_ = best.last_match_id;
     relocalization_seed_id_ = best.seed_match_id;
     last_odom_pose_ = odom_pose;
@@ -904,8 +908,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
   if (!cloud || cloud->empty()) {
     std::lock_guard<std::mutex> lock(mutex_);
-    result.state = is_relocalized_ ? RelocalizationState::DEGRADED_TRACKING
-                                   : RelocalizationState::SEARCHING;
+    result.state =
+        is_relocalized_
+            ? RelocalizationState::RECENTLY_LOST
+            : (has_ever_relocalized_ ? RelocalizationState::LOST
+                                     : RelocalizationState::SEARCHING);
     result.pose_source =
         is_relocalized_ ? PoseSource::ODOM_PREDICTED : PoseSource::NONE;
     result.seed_keyframe_id = relocalization_seed_id_;
@@ -927,7 +934,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
   if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
     is_relocalized_ = false;
-    result.state = RelocalizationState::SEARCHING;
+    result.state = RelocalizationState::LOST;
     result.pose_source = PoseSource::NONE;
     finish_tracking_debug("max_track_failures");
     return result;
@@ -942,11 +949,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
       is_relocalized_ = false;
       result.success = false;
-      result.state = RelocalizationState::SEARCHING;
+      result.state = RelocalizationState::LOST;
       result.pose_source = PoseSource::NONE;
     } else {
       result.success = !strict_loaded_map;
-      result.state = RelocalizationState::DEGRADED_TRACKING;
+      result.state = RelocalizationState::RECENTLY_LOST;
       result.pose_source = PoseSource::ODOM_PREDICTED;
     }
     result.matched_keyframe_id = last_matched_id_;
@@ -1045,11 +1052,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
       is_relocalized_ = false;
       result.success = false;
-      result.state = RelocalizationState::SEARCHING;
+      result.state = RelocalizationState::LOST;
       result.pose_source = PoseSource::NONE;
     } else {
       result.success = !strict_loaded_map;
-      result.state = RelocalizationState::DEGRADED_TRACKING;
+      result.state = RelocalizationState::RECENTLY_LOST;
       result.pose_source = PoseSource::ODOM_PREDICTED;
     }
     result.matched_keyframe_id = last_matched_id_;
@@ -1181,6 +1188,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
     last_matched_id_ = nearest_kf_id;
     last_odom_pose_ = odom_pose;
+    has_ever_relocalized_ = true;
     consecutive_track_failures_ = 0;
 
     VLOG(1) << (strict_loaded_map ? "Loaded-map tracking OK: fitness="
@@ -1210,12 +1218,12 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
       is_relocalized_ = false;
       result.success = false;
-      result.state = RelocalizationState::SEARCHING;
+      result.state = RelocalizationState::LOST;
       result.pose_source = PoseSource::NONE;
     } else {
       // Keep odometry-based continuity for transient dropouts.
       result.success = !strict_loaded_map;
-      result.state = RelocalizationState::DEGRADED_TRACKING;
+      result.state = RelocalizationState::RECENTLY_LOST;
       result.pose_source = PoseSource::ODOM_PREDICTED;
     }
 
@@ -1246,6 +1254,7 @@ Eigen::Isometry3d WorldLocalizing::getMapToOdomTransform() const {
 void WorldLocalizing::resetLocalizationState() {
   std::lock_guard<std::mutex> lock(mutex_);
   is_relocalized_ = false;
+  has_ever_relocalized_ = false;
   T_map_odom_ = Eigen::Isometry3d::Identity();
   last_matched_id_ = -1;
   relocalization_seed_id_ = -1;
@@ -1258,6 +1267,7 @@ void WorldLocalizing::resetLocalizationState() {
 void WorldLocalizing::notifyMapReplaced() {
   std::lock_guard<std::mutex> lock(mutex_);
   is_relocalized_ = false;
+  has_ever_relocalized_ = false;
   T_map_odom_ = Eigen::Isometry3d::Identity();
   last_matched_id_ = -1;
   relocalization_seed_id_ = -1;
@@ -1316,6 +1326,7 @@ void WorldLocalizing::setMapToOdomTransform(
   std::lock_guard<std::mutex> lock(mutex_);
   T_map_odom_ = T_map_odom;
   is_relocalized_ = true;
+  has_ever_relocalized_ = true;
   relocalization_seed_id_ = -1;
   query_builder_.reset();
   hypothesis_manager_.reset();

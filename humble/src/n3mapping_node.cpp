@@ -246,9 +246,9 @@ class N3MappingNode : public rclcpp::Node
           Eigen::AngleAxisd(
             0.1 * event_index, Eigen::Vector3d::UnitZ()).toRotationMatrix();
 
-        if (label == "region_hypothesis") {
+        if (label == "provisional") {
             output.relocalization_state =
-              RelocalizationState::REGION_HYPOTHESIS;
+              RelocalizationState::PROVISIONAL;
         } else if (label == "first_full_lock" ||
                    label == "steady_full_lock" ||
                    label == "recovered_full_lock" ||
@@ -260,11 +260,13 @@ class N3MappingNode : public rclcpp::Node
             output.pose_source = PoseSource::GEOMETRICALLY_CORRECTED;
             output.relocalization_locked =
               label != "steady_full_lock";
-        } else if (label == "degraded_tracking") {
+        } else if (label == "recently_lost") {
             output.success = true;
             output.relocalization_state =
-              RelocalizationState::DEGRADED_TRACKING;
+              RelocalizationState::RECENTLY_LOST;
             output.pose_source = PoseSource::ODOM_PREDICTED;
+        } else if (label == "lost") {
+            output.relocalization_state = RelocalizationState::LOST;
         }
 
         if (label == "invalid_full_pose") {
@@ -297,10 +299,11 @@ class N3MappingNode : public rclcpp::Node
             "localization_authority_sequence") {
             labels = {
               "searching",
-              "region_hypothesis",
+              "provisional",
               "first_full_lock",
               "steady_full_lock",
-              "degraded_tracking",
+              "recently_lost",
+              "lost",
               "recovered_full_lock",
             };
         } else if (

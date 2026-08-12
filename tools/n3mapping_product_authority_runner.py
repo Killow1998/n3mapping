@@ -16,17 +16,18 @@ import time
 from typing import Any
 
 
-OBSERVATION_SCHEMA = "n3mapping_authority_observation_v1"
+OBSERVATION_SCHEMA = "n3mapping_authority_observation_v2"
 SCENARIOS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     (
         "localization_authority_sequence",
         "LOCALIZATION",
         (
             "searching",
-            "region_hypothesis",
+            "provisional",
             "first_full_lock",
             "steady_full_lock",
-            "degraded_tracking",
+            "recently_lost",
+            "lost",
             "recovered_full_lock",
         ),
     ),
@@ -43,9 +44,11 @@ SCENARIOS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )
 STATE_NAMES = {
     0: "SEARCHING",
-    1: "REGION_HYPOTHESIS",
+    1: "PROVISIONAL",
     2: "FULL_6DOF_LOCKED",
-    3: "DEGRADED_TRACKING",
+    3: "RECENTLY_LOST",
+    4: "DEGRADED_TRACKING",
+    5: "LOST",
 }
 POSE_SOURCE_NAMES = {
     0: "NONE",
@@ -126,8 +129,8 @@ def backend_contract(label: str, event_index: int) -> dict[str, Any]:
     state = "SEARCHING"
     pose_source = "NONE"
     lock_event = False
-    if label == "region_hypothesis":
-        state = "REGION_HYPOTHESIS"
+    if label == "provisional":
+        state = "PROVISIONAL"
     elif label in {
         "first_full_lock",
         "steady_full_lock",
@@ -138,9 +141,11 @@ def backend_contract(label: str, event_index: int) -> dict[str, Any]:
         state = "FULL_6DOF_LOCKED"
         pose_source = "GEOMETRICALLY_CORRECTED"
         lock_event = label != "steady_full_lock"
-    elif label == "degraded_tracking":
-        state = "DEGRADED_TRACKING"
+    elif label == "recently_lost":
+        state = "RECENTLY_LOST"
         pose_source = "ODOM_PREDICTED"
+    elif label == "lost":
+        state = "LOST"
     return {
         "state": state,
         "pose_source": pose_source,
@@ -631,7 +636,7 @@ def main() -> int:
 
     observation = {
         "schema": OBSERVATION_SCHEMA,
-        "schema_version": 1,
+        "schema_version": 2,
         "distro": "humble",
         "candidate_commit": identity["commit"],
         "product_profile_sha256": identity["product_profile_sha256"],

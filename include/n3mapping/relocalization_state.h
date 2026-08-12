@@ -11,9 +11,14 @@ namespace n3mapping {
 
 enum class RelocalizationState : std::uint8_t {
   SEARCHING = 0,
-  REGION_HYPOTHESIS = 1,
+  // Preserve the old wire-level meaning of value 1 while giving the state an
+  // explicit non-authoritative contract.
+  PROVISIONAL = 1,
   FULL_6DOF_LOCKED = 2,
-  DEGRADED_TRACKING = 3,
+  // Preserve the old wire-level odom-predicted meaning of value 3.
+  RECENTLY_LOST = 3,
+  DEGRADED_TRACKING = 4,
+  LOST = 5,
 };
 
 enum class PoseSource : std::uint8_t {
@@ -26,12 +31,16 @@ inline const char *relocalizationStateName(RelocalizationState state) {
   switch (state) {
   case RelocalizationState::SEARCHING:
     return "SEARCHING";
-  case RelocalizationState::REGION_HYPOTHESIS:
-    return "REGION_HYPOTHESIS";
+  case RelocalizationState::PROVISIONAL:
+    return "PROVISIONAL";
   case RelocalizationState::FULL_6DOF_LOCKED:
     return "FULL_6DOF_LOCKED";
+  case RelocalizationState::RECENTLY_LOST:
+    return "RECENTLY_LOST";
   case RelocalizationState::DEGRADED_TRACKING:
     return "DEGRADED_TRACKING";
+  case RelocalizationState::LOST:
+    return "LOST";
   }
   return "SEARCHING";
 }
@@ -52,7 +61,7 @@ inline bool hasUsableGlobalRelocalizationPose(RelocalizationState state,
                                               PoseSource source) {
   return (state == RelocalizationState::FULL_6DOF_LOCKED &&
           source == PoseSource::GEOMETRICALLY_CORRECTED) ||
-         (state == RelocalizationState::DEGRADED_TRACKING &&
+         (state == RelocalizationState::RECENTLY_LOST &&
           source == PoseSource::ODOM_PREDICTED);
 }
 
