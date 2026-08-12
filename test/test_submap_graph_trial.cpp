@@ -49,6 +49,35 @@ SubmapGraphNodeProjection makeNode(SubmapId id,
     return node;
 }
 
+void addOwnedKeyframe(
+    SubmapGraphSnapshot* snapshot,
+    int64_t keyframe_id,
+    SubmapId submap_id,
+    MapSessionId session_id,
+    const Eigen::Isometry3d& T_submap_keyframe,
+    const Eigen::Isometry3d& reference_pose) {
+    ASSERT_NE(snapshot, nullptr);
+    ASSERT_TRUE(snapshot->keyframe_ownership
+                    .emplace(keyframe_id, submap_id).second);
+    SubmapGraphKeyframeProjection projection;
+    projection.keyframe_id = keyframe_id;
+    projection.submap_id = submap_id;
+    projection.session_id = session_id;
+    projection.T_submap_keyframe = T_submap_keyframe;
+    projection.T_map_keyframe_reference = reference_pose;
+    snapshot->keyframe_projections.push_back(projection);
+}
+
+Eigen::Isometry3d defaultFromInternalPose() {
+    return makePose(Eigen::Vector3d(0.7, -0.2, 0.1),
+                    0.03, -0.04, 0.2);
+}
+
+Eigen::Isometry3d defaultToInternalPose() {
+    return makePose(Eigen::Vector3d(-0.4, 0.3, -0.1),
+                    -0.02, 0.06, -0.15);
+}
+
 SubmapGraphEdgeProjection makeCrossEdge(
     std::size_t source_index,
     int64_t from_keyframe,
@@ -86,10 +115,8 @@ SubmapGraphEdgeProjection makeCrossEdge(
 SubmapGraphSnapshot makeTwoNodeFullSnapshot(
     const Eigen::Isometry3d& initial_to_pose,
     const Eigen::Isometry3d& true_to_pose) {
-    const Eigen::Isometry3d from_internal = makePose(
-        Eigen::Vector3d(0.7, -0.2, 0.1), 0.03, -0.04, 0.2);
-    const Eigen::Isometry3d to_internal = makePose(
-        Eigen::Vector3d(-0.4, 0.3, -0.1), -0.02, 0.06, -0.15);
+    const Eigen::Isometry3d from_internal = defaultFromInternalPose();
+    const Eigen::Isometry3d to_internal = defaultToInternalPose();
     const Eigen::Isometry3d source_measurement =
         from_internal.inverse() * true_to_pose * to_internal;
 
@@ -98,8 +125,10 @@ SubmapGraphSnapshot makeTwoNodeFullSnapshot(
     snapshot.nodes.push_back(makeNode(
         0, 0, 10, Eigen::Isometry3d::Identity()));
     snapshot.nodes.push_back(makeNode(1, 0, 20, initial_to_pose));
-    snapshot.keyframe_ownership.emplace(10, 0);
-    snapshot.keyframe_ownership.emplace(20, 1);
+    addOwnedKeyframe(&snapshot, 10, 0, 0, from_internal,
+                     from_internal);
+    addOwnedKeyframe(&snapshot, 20, 1, 0, to_internal,
+                     true_to_pose * to_internal);
     snapshot.edge_projections.push_back(makeCrossEdge(
         0, 10, 20, 0, 1, from_internal, to_internal,
         source_measurement, EdgeType::ODOMETRY,
@@ -156,6 +185,21 @@ TEST(SubmapGraphTrialTest,
         Eigen::Isometry3d::Identity().matrix(), 1e-12));
     EXPECT_TRUE(optimized->optimized_pose.matrix().isApprox(
         true_to_pose.matrix(), 1e-6));
+    ASSERT_EQ(trial.keyframes.size(), 2u);
+    EXPECT_EQ(trial.initial_keyframe_comparison.count, 2u);
+    EXPECT_EQ(trial.optimized_keyframe_comparison.count, 2u);
+    EXPECT_GT(trial.initial_keyframe_comparison.max_translation_error_m,
+              0.1);
+    EXPECT_GT(trial.initial_keyframe_comparison.max_rotation_error_rad,
+              0.05);
+    EXPECT_LT(trial.optimized_keyframe_comparison.max_translation_error_m,
+              1e-6);
+    EXPECT_LT(trial.optimized_keyframe_comparison.max_rotation_error_rad,
+              1e-6);
+    EXPECT_NEAR(trial.initial_keyframe_comparison.p95_translation_error_m,
+                0.95 *
+                    trial.initial_keyframe_comparison.max_translation_error_m,
+                1e-9);
     ASSERT_EQ(snapshot.nodes.size(), before.size());
     for (std::size_t index = 0; index < before.size(); ++index) {
         EXPECT_TRUE(snapshot.nodes[index].T_map_submap.matrix().isApprox(
@@ -171,10 +215,8 @@ TEST(SubmapGraphTrialTest,
         true_to_pose * makePose(Eigen::Vector3d(0.2, -0.1, 0.05),
                                 0.02, -0.01, 0.08),
         true_to_pose);
-    const Eigen::Isometry3d from_internal = makePose(
-        Eigen::Vector3d(-0.2, 0.4, 0.1), 0.05, 0.02, -0.3);
-    const Eigen::Isometry3d to_internal = makePose(
-        Eigen::Vector3d(0.6, -0.3, -0.2), -0.04, 0.03, 0.25);
+    const Eigen::Isometry3d from_internal = defaultFromInternalPose();
+    const Eigen::Isometry3d to_internal = defaultToInternalPose();
     const Eigen::Isometry3d source_measurement =
         from_internal.inverse() * true_to_pose * to_internal;
     snapshot.edge_projections.push_back(makeCrossEdge(
@@ -224,9 +266,15 @@ TEST(SubmapGraphTrialTest,
         1, 1, 100, makePose(Eigen::Vector3d(10.0, 0.0, 0.0))));
     snapshot.nodes.push_back(makeNode(
         2, 1, 101, makePose(Eigen::Vector3d(11.0, 0.0, 0.0))));
-    snapshot.keyframe_ownership.emplace(0, 0);
-    snapshot.keyframe_ownership.emplace(100, 1);
-    snapshot.keyframe_ownership.emplace(101, 2);
+    addOwnedKeyframe(&snapshot, 0, 0, 0,
+                     Eigen::Isometry3d::Identity(),
+                     Eigen::Isometry3d::Identity());
+    addOwnedKeyframe(&snapshot, 100, 1, 1,
+                     Eigen::Isometry3d::Identity(),
+                     makePose(Eigen::Vector3d(10.0, 0.0, 0.0)));
+    addOwnedKeyframe(&snapshot, 101, 2, 1,
+                     Eigen::Isometry3d::Identity(),
+                     makePose(Eigen::Vector3d(11.0, 0.0, 0.0)));
     snapshot.edge_projections.push_back(makeCrossEdge(
         0, 0, 100, 0, 1, Eigen::Isometry3d::Identity(),
         Eigen::Isometry3d::Identity(),
@@ -319,15 +367,21 @@ TEST(SubmapGraphTrialTest,
         7, 3, 70, makePose(Eigen::Vector3d(2.0, -1.0, 0.3),
                             0.02, -0.03, 0.4)));
     snapshot.nodes.front().keyframe_count = 2;
-    snapshot.keyframe_ownership.emplace(70, 7);
-    snapshot.keyframe_ownership.emplace(71, 7);
+    const Eigen::Isometry3d internal_71 =
+        makePose(Eigen::Vector3d(0.5, 0.0, 0.0));
+    addOwnedKeyframe(&snapshot, 70, 7, 3,
+                     Eigen::Isometry3d::Identity(),
+                     snapshot.nodes.front().T_map_submap);
+    addOwnedKeyframe(&snapshot, 71, 7, 3, internal_71,
+                     snapshot.nodes.front().T_map_submap * internal_71);
 
     SubmapGraphEdgeProjection intra;
     intra.source_edge_index = 0;
     intra.source_edge.from_id = 70;
     intra.source_edge.to_id = 71;
-    intra.source_edge.measurement =
-        makePose(Eigen::Vector3d(0.5, 0.0, 0.0));
+    intra.source_edge.measurement = internal_71;
+    intra.T_from_submap_from_keyframe = Eigen::Isometry3d::Identity();
+    intra.T_to_submap_to_keyframe = internal_71;
     intra.source_edge.information = information(10.0, 10.0);
     intra.source_edge.type = EdgeType::ODOMETRY;
     intra.source_edge.constraint_mode = EdgeConstraintMode::FULL_6DOF;
@@ -349,11 +403,38 @@ TEST(SubmapGraphTrialTest,
     EXPECT_EQ(trial.active_edge_factor_count, 0u);
     EXPECT_EQ(trial.intra_submap_constant_edge_count, 1u);
     ASSERT_EQ(trial.nodes.size(), 1u);
+    ASSERT_EQ(trial.keyframes.size(), 2u);
     EXPECT_TRUE(trial.nodes.front().gauge_anchor);
     EXPECT_TRUE(trial.nodes.front().optimized_pose.matrix().isApprox(
         snapshot.nodes.front().T_map_submap.matrix(), 1e-12));
     EXPECT_NEAR(trial.initial_nonlinear_error, 0.0, 1e-12);
     EXPECT_NEAR(trial.final_nonlinear_error, 0.0, 1e-12);
+    EXPECT_NEAR(
+        trial.initial_keyframe_comparison.max_translation_error_m,
+        0.0, 1e-12);
+    EXPECT_NEAR(
+        trial.optimized_keyframe_comparison.max_translation_error_m,
+        0.0, 1e-12);
+}
+
+TEST(SubmapGraphTrialTest,
+     InconsistentEdgeAndKeyframeProjectionFailsBeforeOptimization) {
+    const Eigen::Isometry3d true_to_pose = makePose(
+        Eigen::Vector3d(3.0, 1.0, 0.2), 0.02, -0.01, 0.15);
+    SubmapGraphSnapshot snapshot = makeTwoNodeFullSnapshot(
+        true_to_pose, true_to_pose);
+    ASSERT_EQ(snapshot.keyframe_projections.size(), 2u);
+    snapshot.keyframe_projections[1].T_submap_keyframe.translation().x() +=
+        0.1;
+
+    Config config;
+    const auto trial = evaluateSubmapGraphOptimizationTrial(
+        snapshot, config);
+
+    EXPECT_FALSE(trial.valid);
+    EXPECT_FALSE(trial.attempted);
+    EXPECT_EQ(trial.failure_reason,
+              "invalid_topology:inconsistent_edge_keyframe_projection");
 }
 
 TEST(SubmapGraphTrialTest,
@@ -364,8 +445,12 @@ TEST(SubmapGraphTrialTest,
         5, 0, 50, Eigen::Isometry3d::Identity()));
     snapshot.nodes.push_back(makeNode(
         8, 0, 80, makePose(Eigen::Vector3d(2.0, 0.0, 0.0))));
-    snapshot.keyframe_ownership.emplace(50, 5);
-    snapshot.keyframe_ownership.emplace(80, 8);
+    addOwnedKeyframe(&snapshot, 50, 5, 0,
+                     Eigen::Isometry3d::Identity(),
+                     Eigen::Isometry3d::Identity());
+    addOwnedKeyframe(&snapshot, 80, 8, 0,
+                     Eigen::Isometry3d::Identity(),
+                     makePose(Eigen::Vector3d(2.0, 0.0, 0.0)));
 
     Config config;
     const auto first = evaluateSubmapGraphOptimizationTrial(snapshot, config);
@@ -395,6 +480,7 @@ TEST(SubmapGraphTrialTest, RepeatedIsolatedSolveIsDeterministic) {
     ASSERT_TRUE(first.valid) << first.failure_reason;
     ASSERT_TRUE(second.valid) << second.failure_reason;
     ASSERT_EQ(first.nodes.size(), second.nodes.size());
+    ASSERT_EQ(first.keyframes.size(), second.keyframes.size());
     EXPECT_NEAR(first.initial_nonlinear_error,
                 second.initial_nonlinear_error, 1e-12);
     EXPECT_NEAR(first.final_nonlinear_error,
@@ -402,6 +488,19 @@ TEST(SubmapGraphTrialTest, RepeatedIsolatedSolveIsDeterministic) {
     for (std::size_t index = 0; index < first.nodes.size(); ++index) {
         EXPECT_TRUE(first.nodes[index].optimized_pose.matrix().isApprox(
             second.nodes[index].optimized_pose.matrix(), 1e-12));
+    }
+    EXPECT_NEAR(
+        first.optimized_keyframe_comparison.p95_translation_error_m,
+        second.optimized_keyframe_comparison.p95_translation_error_m,
+        1e-12);
+    for (std::size_t index = 0; index < first.keyframes.size(); ++index) {
+        EXPECT_EQ(first.keyframes[index].keyframe_id,
+                  second.keyframes[index].keyframe_id);
+        EXPECT_TRUE(first.keyframes[index].optimized_shadow_pose.matrix()
+                        .isApprox(
+                            second.keyframes[index]
+                                .optimized_shadow_pose.matrix(),
+                            1e-12));
     }
 }
 

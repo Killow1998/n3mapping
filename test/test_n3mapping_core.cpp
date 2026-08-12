@@ -170,6 +170,11 @@ TEST(N3MappingCoreTest, EnabledShadowSubmapIsPersistedFromMappingPath)
               std::string::npos);
     EXPECT_NE(trial_record.find("\"solved\":true"),
               std::string::npos);
+    EXPECT_NE(trial_record.find(
+                  "\"optimized_keyframe_reference_count\":2"),
+              std::string::npos);
+    EXPECT_NE(trial_record.find("\"keyframes\":[{"),
+              std::string::npos);
 
     std::filesystem::remove_all(output_directory);
 }

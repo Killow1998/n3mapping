@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <string>
 #include <vector>
@@ -20,6 +21,28 @@ struct SubmapGraphTrialNodeResult {
     Eigen::Isometry3d optimized_pose = Eigen::Isometry3d::Identity();
     double translation_delta_m = 0.0;
     double rotation_delta_rad = 0.0;
+};
+
+struct SubmapGraphTrialPoseComparisonStats {
+    std::size_t count = 0;
+    double mean_translation_error_m = 0.0;
+    double p95_translation_error_m = 0.0;
+    double max_translation_error_m = 0.0;
+    double mean_rotation_error_rad = 0.0;
+    double p95_rotation_error_rad = 0.0;
+    double max_rotation_error_rad = 0.0;
+};
+
+struct SubmapGraphTrialKeyframeResult {
+    int64_t keyframe_id = -1;
+    SubmapId submap_id = kInvalidSubmapId;
+    Eigen::Isometry3d reference_pose = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d initial_shadow_pose = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d optimized_shadow_pose = Eigen::Isometry3d::Identity();
+    double initial_translation_error_m = 0.0;
+    double initial_rotation_error_rad = 0.0;
+    double optimized_translation_error_m = 0.0;
+    double optimized_rotation_error_rad = 0.0;
 };
 
 // A successful result is still diagnostic only. It carries no authority to
@@ -48,7 +71,10 @@ struct SubmapGraphTrialDiagnostics {
         std::numeric_limits<double>::quiet_NaN();
     double max_translation_delta_m = 0.0;
     double max_rotation_delta_rad = 0.0;
+    SubmapGraphTrialPoseComparisonStats initial_keyframe_comparison;
+    SubmapGraphTrialPoseComparisonStats optimized_keyframe_comparison;
     std::vector<SubmapGraphTrialNodeResult> nodes;
+    std::vector<SubmapGraphTrialKeyframeResult> keyframes;
 };
 
 // Builds and solves a temporary batch graph from an immutable SG-02 snapshot.

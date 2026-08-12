@@ -30,6 +30,18 @@ struct SubmapGraphNodeProjection {
     Eigen::Isometry3d T_map_submap = Eigen::Isometry3d::Identity();
 };
 
+struct SubmapGraphKeyframeProjection {
+    int64_t keyframe_id = -1;
+    SubmapId submap_id = kInvalidSubmapId;
+    MapSessionId session_id = kInvalidMapSessionId;
+    // Fixed during a shadow trial: this is derived from session odometry, not
+    // from the reference optimized pose being compared.
+    Eigen::Isometry3d T_submap_keyframe = Eigen::Isometry3d::Identity();
+    // Immutable reference keyframe-graph pose at snapshot time.
+    Eigen::Isometry3d T_map_keyframe_reference =
+        Eigen::Isometry3d::Identity();
+};
+
 struct SubmapGraphEdgeProjection {
     std::size_t source_edge_index = 0;
     // This is the exact reference keyframe edge. In particular, information
@@ -67,6 +79,7 @@ struct SubmapGraphSnapshot {
     bool valid = false;
     std::string failure_reason;
     std::vector<SubmapGraphNodeProjection> nodes;
+    std::vector<SubmapGraphKeyframeProjection> keyframe_projections;
     std::map<int64_t, SubmapId> keyframe_ownership;
     std::vector<int64_t> unassigned_keyframe_ids;
     std::vector<SubmapGraphEdgeProjection> edge_projections;

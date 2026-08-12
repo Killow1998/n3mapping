@@ -46,6 +46,13 @@ SubmapGraphSnapshot makeReadySingleNodeSnapshot() {
     node.T_map_submap.translation() = Eigen::Vector3d(1.0, -2.0, 0.5);
     snapshot.nodes.push_back(node);
     snapshot.keyframe_ownership.emplace(40, 4);
+    SubmapGraphKeyframeProjection projection;
+    projection.keyframe_id = 40;
+    projection.submap_id = 4;
+    projection.session_id = 2;
+    projection.T_submap_keyframe = Eigen::Isometry3d::Identity();
+    projection.T_map_keyframe_reference = node.T_map_submap;
+    snapshot.keyframe_projections.push_back(projection);
     return snapshot;
 }
 
@@ -57,6 +64,13 @@ SubmapGraphSnapshot makeDisconnectedSnapshot() {
     second.T_map_submap.translation().x() = 8.0;
     snapshot.nodes.push_back(second);
     snapshot.keyframe_ownership.emplace(90, 9);
+    SubmapGraphKeyframeProjection projection;
+    projection.keyframe_id = 90;
+    projection.submap_id = 9;
+    projection.session_id = second.session_id;
+    projection.T_submap_keyframe = Eigen::Isometry3d::Identity();
+    projection.T_map_keyframe_reference = second.T_map_submap;
+    snapshot.keyframe_projections.push_back(projection);
     return snapshot;
 }
 
@@ -153,6 +167,18 @@ TEST(SubmapGraphTrialRuntimeTest,
     EXPECT_NE(lines.front().find("\"submap_id\":4"),
               std::string::npos);
     EXPECT_NE(lines.front().find("\"gauge_anchor\":true"),
+              std::string::npos);
+    EXPECT_NE(lines.front().find(
+                  "\"optimized_keyframe_reference_count\":1"),
+              std::string::npos);
+    EXPECT_NE(lines.front().find(
+                  "\"optimized_keyframe_reference_max_translation_error_m\":0"),
+              std::string::npos);
+    EXPECT_NE(lines.front().find("\"keyframes\":[{"),
+              std::string::npos);
+    EXPECT_NE(lines.front().find("\"keyframe_id\":40"),
+              std::string::npos);
+    EXPECT_NE(lines.front().find("\"optimized_shadow_pose\":{"),
               std::string::npos);
 }
 

@@ -12,6 +12,7 @@ namespace {
 struct KeyframePoseSnapshot {
     MapSessionId session_id = kInvalidMapSessionId;
     Eigen::Isometry3d pose_odom = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d pose_optimized = Eigen::Isometry3d::Identity();
 };
 
 bool finiteRigidPose(const Eigen::Isometry3d& pose,
@@ -74,6 +75,7 @@ SubmapGraphSnapshot buildSubmapGraphSnapshot(
         KeyframePoseSnapshot pose;
         pose.session_id = keyframe->session_id;
         pose.pose_odom = keyframe->pose_odom;
+        pose.pose_optimized = keyframe->pose_optimized;
         if (!keyframe_by_id.emplace(keyframe->id, std::move(pose)).second) {
             return invalidSnapshot("duplicate_keyframe_id");
         }
@@ -82,6 +84,8 @@ SubmapGraphSnapshot buildSubmapGraphSnapshot(
     SubmapGraphSnapshot snapshot;
     std::map<SubmapId, SubmapGraphNodeProjection> node_by_id;
     std::map<int64_t, Eigen::Isometry3d> T_submap_keyframe_by_id;
+    std::map<int64_t, SubmapGraphKeyframeProjection>
+        keyframe_projection_by_id;
     for (const auto& submap : submaps) {
         if (submap.id == kInvalidSubmapId ||
             submap.session_id == kInvalidMapSessionId ||
@@ -135,6 +139,17 @@ SubmapGraphSnapshot buildSubmapGraphSnapshot(
             }
             T_submap_keyframe_by_id.emplace(
                 keyframe_id, T_submap_keyframe);
+            SubmapGraphKeyframeProjection projection;
+            projection.keyframe_id = keyframe_id;
+            projection.submap_id = submap.id;
+            projection.session_id = submap.session_id;
+            projection.T_submap_keyframe = T_submap_keyframe;
+            projection.T_map_keyframe_reference =
+                keyframe->second.pose_optimized;
+            if (!keyframe_projection_by_id
+                     .emplace(keyframe_id, std::move(projection)).second) {
+                return invalidSnapshot("duplicate_keyframe_projection");
+            }
         }
     }
 
@@ -145,9 +160,11 @@ SubmapGraphSnapshot buildSubmapGraphSnapshot(
     }
     for (const auto& [keyframe_id, pose] : keyframe_by_id) {
         (void)pose;
-        if (snapshot.keyframe_ownership.find(keyframe_id) ==
-            snapshot.keyframe_ownership.end()) {
+        const auto projection = keyframe_projection_by_id.find(keyframe_id);
+        if (projection == keyframe_projection_by_id.end()) {
             snapshot.unassigned_keyframe_ids.push_back(keyframe_id);
+        } else {
+            snapshot.keyframe_projections.push_back(projection->second);
         }
     }
 
@@ -311,7 +328,8 @@ SubmapGraphTopologyDiagnostics evaluateSubmapGraphTopology(
         adjacency.emplace(node.submap_id, std::set<SubmapId>{});
         expected_owned_keyframes += node.keyframe_count;
     }
-    if (expected_owned_keyframes != snapshot.keyframe_ownership.size()) {
+    if (expected_owned_keyframes != snapshot.keyframe_ownership.size() ||
+        expected_owned_keyframes != snapshot.keyframe_projections.size()) {
         return invalidTopology("inconsistent_keyframe_ownership_count");
     }
     for (const auto& node : snapshot.nodes) {
@@ -328,6 +346,28 @@ SubmapGraphTopologyDiagnostics evaluateSubmapGraphTopology(
             session_by_submap.find(submap_id) == session_by_submap.end()) {
             return invalidTopology("invalid_topology_keyframe_ownership");
         }
+    }
+    int64_t previous_projection_id = -1;
+    std::map<int64_t, const SubmapGraphKeyframeProjection*>
+        projection_by_keyframe;
+    for (const auto& projection : snapshot.keyframe_projections) {
+        const auto owner = snapshot.keyframe_ownership.find(
+            projection.keyframe_id);
+        const auto session = session_by_submap.find(projection.submap_id);
+        if (projection.keyframe_id < 0 ||
+            projection.keyframe_id <= previous_projection_id ||
+            projection.submap_id == kInvalidSubmapId ||
+            projection.session_id == kInvalidMapSessionId ||
+            owner == snapshot.keyframe_ownership.end() ||
+            owner->second != projection.submap_id ||
+            session == session_by_submap.end() ||
+            session->second != projection.session_id ||
+            !finiteRigidPose(projection.T_submap_keyframe) ||
+            !finiteRigidPose(projection.T_map_keyframe_reference)) {
+            return invalidTopology("invalid_keyframe_projection");
+        }
+        projection_by_keyframe.emplace(projection.keyframe_id, &projection);
+        previous_projection_id = projection.keyframe_id;
     }
 
     std::set<int64_t> unassigned_keyframes;
@@ -363,6 +403,22 @@ SubmapGraphTopologyDiagnostics evaluateSubmapGraphTopology(
             from_owner != snapshot.keyframe_ownership.end();
         const bool to_assigned =
             to_owner != snapshot.keyframe_ownership.end();
+        if ((from_assigned &&
+             (!finiteRigidPose(
+                  projection.T_from_submap_from_keyframe) ||
+              !projection.T_from_submap_from_keyframe.matrix().isApprox(
+                  projection_by_keyframe.at(edge.from_id)
+                      ->T_submap_keyframe.matrix(),
+                  1e-12))) ||
+            (to_assigned &&
+             (!finiteRigidPose(
+                  projection.T_to_submap_to_keyframe) ||
+              !projection.T_to_submap_to_keyframe.matrix().isApprox(
+                  projection_by_keyframe.at(edge.to_id)
+                      ->T_submap_keyframe.matrix(),
+                  1e-12)))) {
+            return invalidTopology("inconsistent_edge_keyframe_projection");
+        }
 
         switch (projection.classification) {
             case SubmapGraphEdgeClass::INTRA_SUBMAP:
@@ -456,7 +512,12 @@ SubmapGraphTopologyDiagnostics evaluateSubmapGraphTopology(
             if (owner == snapshot.keyframe_ownership.end() ||
                 projection.submap_id != owner->second ||
                 session_by_submap.find(projection.submap_id) ==
-                    session_by_submap.end()) {
+                    session_by_submap.end() ||
+                !finiteRigidPose(projection.T_submap_keyframe) ||
+                !projection.T_submap_keyframe.matrix().isApprox(
+                    projection_by_keyframe.at(constraint.node_id)
+                        ->T_submap_keyframe.matrix(),
+                    1e-12)) {
                 return invalidTopology("invalid_assigned_floor_projection");
             }
             ++assigned_floor_count;

@@ -55,6 +55,43 @@ double rotationAngle(const Eigen::Matrix3d& rotation) {
     return Eigen::AngleAxisd(rotation).angle();
 }
 
+double percentile95(std::vector<double> values) {
+    if (values.empty()) return 0.0;
+    std::sort(values.begin(), values.end());
+    const double position = 0.95 * static_cast<double>(values.size() - 1);
+    const std::size_t lower = static_cast<std::size_t>(std::floor(position));
+    const std::size_t upper = static_cast<std::size_t>(std::ceil(position));
+    const double fraction = position - static_cast<double>(lower);
+    return values[lower] * (1.0 - fraction) + values[upper] * fraction;
+}
+
+SubmapGraphTrialPoseComparisonStats comparisonStats(
+    const std::vector<double>& translation_errors,
+    const std::vector<double>& rotation_errors) {
+    SubmapGraphTrialPoseComparisonStats stats;
+    if (translation_errors.empty() ||
+        translation_errors.size() != rotation_errors.size()) {
+        return stats;
+    }
+    stats.count = translation_errors.size();
+    double translation_sum = 0.0;
+    double rotation_sum = 0.0;
+    for (std::size_t index = 0; index < translation_errors.size(); ++index) {
+        translation_sum += translation_errors[index];
+        rotation_sum += rotation_errors[index];
+        stats.max_translation_error_m = std::max(
+            stats.max_translation_error_m, translation_errors[index]);
+        stats.max_rotation_error_rad = std::max(
+            stats.max_rotation_error_rad, rotation_errors[index]);
+    }
+    const double denominator = static_cast<double>(stats.count);
+    stats.mean_translation_error_m = translation_sum / denominator;
+    stats.mean_rotation_error_rad = rotation_sum / denominator;
+    stats.p95_translation_error_m = percentile95(translation_errors);
+    stats.p95_rotation_error_rad = percentile95(rotation_errors);
+    return stats;
+}
+
 class ExactLiftedSubmapEdgeFactor final
     : public gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3> {
   public:
@@ -343,6 +380,9 @@ SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
             diagnostics.initial_nonlinear_error -
             diagnostics.final_nonlinear_error;
         diagnostics.nodes.reserve(snapshot.nodes.size());
+        std::map<SubmapId, std::pair<Eigen::Isometry3d,
+                                    Eigen::Isometry3d>>
+            comparison_poses_by_submap;
         for (const auto& node : snapshot.nodes) {
             const gtsam::Key key = key_by_submap.at(node.submap_id);
             if (!optimized.exists(key)) {
@@ -372,7 +412,88 @@ SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
             diagnostics.max_rotation_delta_rad = std::max(
                 diagnostics.max_rotation_delta_rad,
                 result.rotation_delta_rad);
+            comparison_poses_by_submap.emplace(
+                result.submap_id,
+                std::make_pair(result.initial_pose,
+                               result.optimized_pose));
             diagnostics.nodes.push_back(std::move(result));
+        }
+
+        std::vector<double> initial_translation_errors;
+        std::vector<double> initial_rotation_errors;
+        std::vector<double> optimized_translation_errors;
+        std::vector<double> optimized_rotation_errors;
+        diagnostics.keyframes.reserve(snapshot.keyframe_projections.size());
+        initial_translation_errors.reserve(
+            snapshot.keyframe_projections.size());
+        initial_rotation_errors.reserve(snapshot.keyframe_projections.size());
+        optimized_translation_errors.reserve(
+            snapshot.keyframe_projections.size());
+        optimized_rotation_errors.reserve(
+            snapshot.keyframe_projections.size());
+        for (const auto& projection : snapshot.keyframe_projections) {
+            const auto submap = comparison_poses_by_submap.find(
+                projection.submap_id);
+            if (submap == comparison_poses_by_submap.end()) {
+                return invalidTrial("missing_keyframe_comparison_submap", true);
+            }
+            SubmapGraphTrialKeyframeResult result;
+            result.keyframe_id = projection.keyframe_id;
+            result.submap_id = projection.submap_id;
+            result.reference_pose = projection.T_map_keyframe_reference;
+            result.initial_shadow_pose = submap->second.first *
+                projection.T_submap_keyframe;
+            result.optimized_shadow_pose = submap->second.second *
+                projection.T_submap_keyframe;
+            if (!finiteRigidPose(result.reference_pose) ||
+                !finiteRigidPose(result.initial_shadow_pose) ||
+                !finiteRigidPose(result.optimized_shadow_pose)) {
+                return invalidTrial("invalid_keyframe_comparison_pose", true);
+            }
+            const Eigen::Isometry3d initial_error =
+                result.reference_pose.inverse() *
+                result.initial_shadow_pose;
+            const Eigen::Isometry3d optimized_error =
+                result.reference_pose.inverse() *
+                result.optimized_shadow_pose;
+            result.initial_translation_error_m =
+                initial_error.translation().norm();
+            result.initial_rotation_error_rad =
+                rotationAngle(initial_error.rotation());
+            result.optimized_translation_error_m =
+                optimized_error.translation().norm();
+            result.optimized_rotation_error_rad =
+                rotationAngle(optimized_error.rotation());
+            if (!std::isfinite(result.initial_translation_error_m) ||
+                !std::isfinite(result.initial_rotation_error_rad) ||
+                !std::isfinite(result.optimized_translation_error_m) ||
+                !std::isfinite(result.optimized_rotation_error_rad)) {
+                return invalidTrial("nonfinite_keyframe_comparison", true);
+            }
+            initial_translation_errors.push_back(
+                result.initial_translation_error_m);
+            initial_rotation_errors.push_back(
+                result.initial_rotation_error_rad);
+            optimized_translation_errors.push_back(
+                result.optimized_translation_error_m);
+            optimized_rotation_errors.push_back(
+                result.optimized_rotation_error_rad);
+            diagnostics.keyframes.push_back(std::move(result));
+        }
+        if (diagnostics.keyframes.size() !=
+                snapshot.keyframe_ownership.size() ||
+            diagnostics.keyframes.empty()) {
+            return invalidTrial("inconsistent_keyframe_comparison_count", true);
+        }
+        diagnostics.initial_keyframe_comparison = comparisonStats(
+            initial_translation_errors, initial_rotation_errors);
+        diagnostics.optimized_keyframe_comparison = comparisonStats(
+            optimized_translation_errors, optimized_rotation_errors);
+        if (diagnostics.initial_keyframe_comparison.count !=
+                diagnostics.keyframes.size() ||
+            diagnostics.optimized_keyframe_comparison.count !=
+                diagnostics.keyframes.size()) {
+            return invalidTrial("invalid_keyframe_comparison_stats", true);
         }
     } catch (const std::exception& error) {
         return invalidTrial("trial_optimization_exception:" +

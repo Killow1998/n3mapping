@@ -404,6 +404,21 @@ TEST(SubmapGraphProjectionTest,
   EXPECT_EQ(snapshot.keyframe_ownership.at(3), 1u);
   EXPECT_EQ(snapshot.unassigned_keyframe_ids,
             (std::vector<int64_t>{4}));
+  ASSERT_EQ(snapshot.keyframe_projections.size(), 4u);
+  EXPECT_EQ(snapshot.keyframe_projections[0].keyframe_id, 0);
+  EXPECT_EQ(snapshot.keyframe_projections[1].keyframe_id, 1);
+  EXPECT_EQ(snapshot.keyframe_projections[2].keyframe_id, 2);
+  EXPECT_EQ(snapshot.keyframe_projections[3].keyframe_id, 3);
+  EXPECT_TRUE(snapshot.keyframe_projections[1].T_submap_keyframe.isApprox(
+      T_a_a1, 1e-12));
+  EXPECT_TRUE(snapshot.keyframe_projections[1]
+                  .T_map_keyframe_reference.isApprox(
+                      a1->pose_optimized, 1e-12));
+  EXPECT_TRUE(snapshot.keyframe_projections[3].T_submap_keyframe.isApprox(
+      T_b_b1, 1e-12));
+  EXPECT_TRUE(snapshot.keyframe_projections[3]
+                  .T_map_keyframe_reference.isApprox(
+                      b1->pose_optimized, 1e-12));
 
   ASSERT_EQ(snapshot.edge_projections.size(), 4u);
   EXPECT_EQ(snapshot.source_edge_count, 4u);

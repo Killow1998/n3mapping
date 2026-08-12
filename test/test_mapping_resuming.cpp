@@ -395,6 +395,9 @@ TEST_F(MappingResumingTest, SaveExtendedMap)
               std::string::npos);
     EXPECT_NE(trial_record.find("\"valid\":true"), std::string::npos);
     EXPECT_NE(trial_record.find("\"solved\":true"), std::string::npos);
+    EXPECT_NE(trial_record.find(
+                  "\"optimized_keyframe_reference_count\":3"),
+              std::string::npos);
 }
 
 TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)

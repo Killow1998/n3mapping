@@ -109,6 +109,27 @@ void appendPose(std::ostream& output, const char* key,
     output << "]}";
 }
 
+void appendComparisonStats(
+    std::ostream& output,
+    bool* first,
+    const char* prefix,
+    const SubmapGraphTrialPoseComparisonStats& stats) {
+    const std::string base(prefix);
+    appendSize(output, first, (base + "_count").c_str(), stats.count);
+    appendNumber(output, first, (base + "_mean_translation_error_m").c_str(),
+                 stats.mean_translation_error_m);
+    appendNumber(output, first, (base + "_p95_translation_error_m").c_str(),
+                 stats.p95_translation_error_m);
+    appendNumber(output, first, (base + "_max_translation_error_m").c_str(),
+                 stats.max_translation_error_m);
+    appendNumber(output, first, (base + "_mean_rotation_error_rad").c_str(),
+                 stats.mean_rotation_error_rad);
+    appendNumber(output, first, (base + "_p95_rotation_error_rad").c_str(),
+                 stats.p95_rotation_error_rad);
+    appendNumber(output, first, (base + "_max_rotation_error_rad").c_str(),
+                 stats.max_rotation_error_rad);
+}
+
 std::string serializeRecord(
     const SubmapGraphSnapshot& snapshot,
     const Config& config,
@@ -139,6 +160,8 @@ std::string serializeRecord(
     appendString(output, &first, "snapshot_failure_reason",
                  snapshot.failure_reason);
     appendSize(output, &first, "snapshot_node_count", snapshot.nodes.size());
+    appendSize(output, &first, "snapshot_owned_keyframe_count",
+               snapshot.keyframe_projections.size());
     appendSize(output, &first, "snapshot_source_edge_count",
                snapshot.source_edge_count);
     appendSize(output, &first, "snapshot_intra_edge_count",
@@ -198,6 +221,10 @@ std::string serializeRecord(
                  trial.max_translation_delta_m);
     appendNumber(output, &first, "max_rotation_delta_rad",
                  trial.max_rotation_delta_rad);
+    appendComparisonStats(output, &first, "initial_keyframe_reference",
+                          trial.initial_keyframe_comparison);
+    appendComparisonStats(output, &first, "optimized_keyframe_reference",
+                          trial.optimized_keyframe_comparison);
 
     comma(output, &first);
     output << "\"nodes\":[";
@@ -214,6 +241,29 @@ std::string serializeRecord(
         appendFiniteNumber(output, node.translation_delta_m);
         output << ",\"rotation_delta_rad\":";
         appendFiniteNumber(output, node.rotation_delta_rad);
+        output << '}';
+    }
+    output << "],\"keyframes\":[";
+    for (std::size_t index = 0; index < trial.keyframes.size(); ++index) {
+        if (index > 0) output << ',';
+        const auto& keyframe = trial.keyframes[index];
+        output << "{\"keyframe_id\":" << keyframe.keyframe_id
+               << ",\"submap_id\":" << keyframe.submap_id << ',';
+        appendPose(output, "reference_pose", keyframe.reference_pose);
+        output << ',';
+        appendPose(output, "initial_shadow_pose",
+                   keyframe.initial_shadow_pose);
+        output << ',';
+        appendPose(output, "optimized_shadow_pose",
+                   keyframe.optimized_shadow_pose);
+        output << ",\"initial_translation_error_m\":";
+        appendFiniteNumber(output, keyframe.initial_translation_error_m);
+        output << ",\"initial_rotation_error_rad\":";
+        appendFiniteNumber(output, keyframe.initial_rotation_error_rad);
+        output << ",\"optimized_translation_error_m\":";
+        appendFiniteNumber(output, keyframe.optimized_translation_error_m);
+        output << ",\"optimized_rotation_error_rad\":";
+        appendFiniteNumber(output, keyframe.optimized_rotation_error_rad);
         output << '}';
     }
     output << "]}";

@@ -1858,6 +1858,15 @@ bool N3MappingCore::refreshSubmapPoses(const char* context) {
               << trial.diagnostics.max_translation_delta_m
               << " max_rotation_delta_rad="
               << trial.diagnostics.max_rotation_delta_rad
+              << " optimized_keyframe_p95_translation_error_m="
+              << trial.diagnostics.optimized_keyframe_comparison
+                     .p95_translation_error_m
+              << " optimized_keyframe_max_translation_error_m="
+              << trial.diagnostics.optimized_keyframe_comparison
+                     .max_translation_error_m
+              << " optimized_keyframe_p95_rotation_error_rad="
+              << trial.diagnostics.optimized_keyframe_comparison
+                     .p95_rotation_error_rad
               << " persisted=" << trial.persisted
               << " failure_reason="
               << (trial.diagnostics.failure_reason.empty()
