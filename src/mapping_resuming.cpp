@@ -2,6 +2,7 @@
 #include "n3mapping/mapping_resuming.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <exception>
 #include <map>
@@ -51,6 +52,24 @@ bool validNoise(double position_sigma, double rotation_sigma) {
 Eigen::Vector3d rotationRpyDegrees(const Eigen::Isometry3d& pose) {
     return pose.rotation().eulerAngles(0, 1, 2) * (180.0 / M_PI);
 }
+
+class ScopedElapsedMilliseconds {
+public:
+    explicit ScopedElapsedMilliseconds(double* output)
+        : output_(output), started_(output ? Clock::now() : Clock::time_point{}) {}
+
+    ~ScopedElapsedMilliseconds() {
+        if (output_) {
+            *output_ = std::chrono::duration<double, std::milli>(
+                Clock::now() - started_).count();
+        }
+    }
+
+private:
+    using Clock = std::chrono::steady_clock;
+    double* output_;
+    Clock::time_point started_;
+};
 
 }  // namespace
 
@@ -188,7 +207,9 @@ bool MappingResuming::shouldAddKeyframe(
 int64_t MappingResuming::processNewKeyframe(
     double timestamp, const Eigen::Isometry3d& odom_pose,
     const PointCloudT::Ptr& cloud, int64_t loaded_tracking_match_id,
-    const Eigen::Isometry3d& tracked_pose_in_map) {
+    const Eigen::Isometry3d& tracked_pose_in_map,
+    MappingResumingTiming* timing) {
+    ScopedElapsedMilliseconds total_timer(timing ? &timing->total_ms : nullptr);
     std::lock_guard<std::mutex> lock(mutex_);
     if ((state_ != MappingResumingState::RELOCALIZED &&
          state_ != MappingResumingState::EXTENDING) ||
@@ -260,109 +281,112 @@ int64_t MappingResuming::processNewKeyframe(
             config_.odom_noise_position, config_.odom_noise_rotation);
         edge.type = EdgeType::ODOMETRY;
     }
-    if (!isFiniteTransform(edge.measurement)) return -1;
-
-    bool registered_session_now = false;
-    if (is_first_new_keyframe) {
-        MapSessionInfo session;
-        session.id = current_session_id_;
-        session.source_frame_id = current_session_source_frame_id_;
-        session.start_timestamp = timestamp;
-        session.T_map_session_initial = T_map_session_initial_;
-        if (!keyframe_manager_.addSession(session)) return -1;
-        registered_session_now = true;
-    }
-
-    const int64_t new_kf_id = keyframe_manager_.addKeyframe(
-        timestamp, odom_pose, pose_in_map, cloud, current_session_id_);
-    if (new_kf_id < 0) {
-        if (registered_session_now) {
-            keyframe_manager_.removeSessionIfEmpty(current_session_id_);
-        }
+    if (!isFiniteTransform(edge.measurement))
         return -1;
-    }
-    edge.to_id = new_kf_id;
 
-    bool edge_staged = false;
-    if (is_first_new_keyframe) {
-        edge_staged = optimizer_.addSessionAnchorEdge(edge);
-    } else {
-        edge_staged = optimizer_.addSessionOdometryEdge(edge, pose_in_map);
-        if (edge_staged && has_tracking_constraint) {
-            EdgeInfo tracking_edge;
-            tracking_edge.from_id = loaded_tracking_match_id;
-            tracking_edge.to_id = new_kf_id;
-            tracking_edge.measurement =
-                tracking_match->pose_optimized.inverse() * pose_in_map;
-            tracking_edge.information = trackingInformation(config_);
-            tracking_edge.type = EdgeType::LOOP;
-            tracking_edge.constraint_mode = EdgeConstraintMode::FULL_6DOF;
-            optimizer_.addLoopEdge(tracking_edge);
+    int64_t new_kf_id = -1;
+    {
+        ScopedElapsedMilliseconds graph_timer(timing ? &timing->graph_update_ms : nullptr);
+        bool registered_session_now = false;
+        if (is_first_new_keyframe) {
+            MapSessionInfo session;
+            session.id = current_session_id_;
+            session.source_frame_id = current_session_source_frame_id_;
+            session.start_timestamp = timestamp;
+            session.T_map_session_initial = T_map_session_initial_;
+            if (!keyframe_manager_.addSession(session))
+                return -1;
+            registered_session_now = true;
         }
-    }
-    if (!edge_staged || !optimizer_.incrementalOptimize()) {
-        if (!keyframe_manager_.removeLatestKeyframe(new_kf_id)) {
-            LOG(ERROR) << "[MappingResuming] Failed to roll back keyframe id="
-                       << new_kf_id;
+
+        new_kf_id = keyframe_manager_.addKeyframe(timestamp, odom_pose, pose_in_map, cloud,
+                                                  current_session_id_);
+        if (new_kf_id < 0) {
+            if (registered_session_now) {
+                keyframe_manager_.removeSessionIfEmpty(current_session_id_);
+            }
+            return -1;
         }
-        if (registered_session_now &&
-            !keyframe_manager_.removeSessionIfEmpty(current_session_id_)) {
-            LOG(ERROR) << "[MappingResuming] Failed to roll back session id="
-                       << current_session_id_;
-        }
-        return -1;
-    }
+        edge.to_id = new_kf_id;
 
-    keyframe_manager_.updateOptimizedPoses(optimizer_.getOptimizedPoses());
-    refreshSubmapPosesNoLock("keyframe_commit");
-
-    if (is_first_new_keyframe) {
-        const Eigen::Vector3d measurement_rpy_deg =
-            rotationRpyDegrees(edge.measurement);
-        LOG(INFO) << "[MappingResuming] Committed SESSION_ANCHOR from="
-                  << edge.from_id << " to=" << edge.to_id
-                  << " session=" << current_session_id_
-                  << " measurement_t=" << edge.measurement.translation().transpose()
-                  << " measurement_rpy_deg=" << measurement_rpy_deg.transpose();
-        last_trusted_constraint_keyframe_id_ = new_kf_id;
-    } else if (has_tracking_constraint) {
-        ++cross_loop_count_;
-        last_trusted_constraint_keyframe_id_ = new_kf_id;
-        LOG(INFO) << "[MappingResuming] Committed loaded-map tracking loop "
-                  << "match=" << loaded_tracking_match_id
-                  << " query=" << new_kf_id;
-    }
-
-    const auto optimized_poses = optimizer_.getOptimizedPoses();
-    const auto optimized_current = optimized_poses.find(new_kf_id);
-    if (optimized_current != optimized_poses.end()) {
-        const Eigen::Isometry3d corrected_map_odom =
-            optimized_current->second * odom_pose.inverse();
-        if (isFiniteTransform(corrected_map_odom)) {
-            world_localizing_.setMapToOdomTransform(corrected_map_odom);
-        }
-    }
-
-    // From this point the graph and keyframe are committed. Descriptor
-    // generation is best-effort and can be rebuilt from the stored cloud.
-    previous_new_keyframe_id_ = new_kf_id;
-    previous_new_odom_pose_ = odom_pose;
-    first_new_keyframe_pending_ = false;
-    state_ = MappingResumingState::EXTENDING;
-
-    if (submap_builder_ && submap_builder_->enabled()) {
-        const auto committed_keyframe =
-            keyframe_manager_.getKeyframe(new_kf_id);
-        if (!submap_builder_->appendKeyframe(committed_keyframe)) {
-            LOG(WARNING) << "[MappingResuming] Shadow submap append failed for committed keyframe id="
-                         << new_kf_id;
+        bool edge_staged = false;
+        if (is_first_new_keyframe) {
+            edge_staged = optimizer_.addSessionAnchorEdge(edge);
         } else {
-            // The keyframe graph is committed before shadow membership. A
-            // post-append refresh keeps the structural diagnostics current.
-            refreshSubmapPosesNoLock("submap_append");
+            edge_staged = optimizer_.addSessionOdometryEdge(edge, pose_in_map);
+            if (edge_staged && has_tracking_constraint) {
+                EdgeInfo tracking_edge;
+                tracking_edge.from_id = loaded_tracking_match_id;
+                tracking_edge.to_id = new_kf_id;
+                tracking_edge.measurement = tracking_match->pose_optimized.inverse() * pose_in_map;
+                tracking_edge.information = trackingInformation(config_);
+                tracking_edge.type = EdgeType::LOOP;
+                tracking_edge.constraint_mode = EdgeConstraintMode::FULL_6DOF;
+                optimizer_.addLoopEdge(tracking_edge);
+            }
+        }
+        if (!edge_staged || !optimizer_.incrementalOptimize()) {
+            if (!keyframe_manager_.removeLatestKeyframe(new_kf_id)) {
+                LOG(ERROR) << "[MappingResuming] Failed to roll back keyframe id=" << new_kf_id;
+            }
+            if (registered_session_now &&
+                !keyframe_manager_.removeSessionIfEmpty(current_session_id_)) {
+                LOG(ERROR) << "[MappingResuming] Failed to roll back session id="
+                           << current_session_id_;
+            }
+            return -1;
+        }
+
+        keyframe_manager_.updateOptimizedPoses(optimizer_.getOptimizedPoses());
+        refreshSubmapPosesNoLock("keyframe_commit");
+
+        if (is_first_new_keyframe) {
+            const Eigen::Vector3d measurement_rpy_deg = rotationRpyDegrees(edge.measurement);
+            LOG(INFO) << "[MappingResuming] Committed SESSION_ANCHOR from=" << edge.from_id
+                      << " to=" << edge.to_id << " session=" << current_session_id_
+                      << " measurement_t=" << edge.measurement.translation().transpose()
+                      << " measurement_rpy_deg=" << measurement_rpy_deg.transpose();
+            last_trusted_constraint_keyframe_id_ = new_kf_id;
+        } else if (has_tracking_constraint) {
+            ++cross_loop_count_;
+            last_trusted_constraint_keyframe_id_ = new_kf_id;
+            LOG(INFO) << "[MappingResuming] Committed loaded-map tracking loop "
+                      << "match=" << loaded_tracking_match_id << " query=" << new_kf_id;
+        }
+
+        const auto optimized_poses = optimizer_.getOptimizedPoses();
+        const auto optimized_current = optimized_poses.find(new_kf_id);
+        if (optimized_current != optimized_poses.end()) {
+            const Eigen::Isometry3d corrected_map_odom =
+                optimized_current->second * odom_pose.inverse();
+            if (isFiniteTransform(corrected_map_odom)) {
+                world_localizing_.setMapToOdomTransform(corrected_map_odom);
+            }
+        }
+
+        // From this point the graph and keyframe are committed. Descriptor
+        // generation is best-effort and can be rebuilt from the stored cloud.
+        previous_new_keyframe_id_ = new_kf_id;
+        previous_new_odom_pose_ = odom_pose;
+        first_new_keyframe_pending_ = false;
+        state_ = MappingResumingState::EXTENDING;
+
+        if (submap_builder_ && submap_builder_->enabled()) {
+            const auto committed_keyframe = keyframe_manager_.getKeyframe(new_kf_id);
+            if (!submap_builder_->appendKeyframe(committed_keyframe)) {
+                LOG(WARNING)
+                    << "[MappingResuming] Shadow submap append failed for committed keyframe id="
+                    << new_kf_id;
+            } else {
+                // The keyframe graph is committed before shadow membership. A
+                // post-append refresh keeps the structural diagnostics current.
+                refreshSubmapPosesNoLock("submap_append");
+            }
         }
     }
 
+    ScopedElapsedMilliseconds descriptor_timer(
+        timing ? &timing->descriptor_update_ms : nullptr);
     try {
         const Eigen::MatrixXd descriptor =
             loop_detector_.addDescriptor(new_kf_id, cloud);

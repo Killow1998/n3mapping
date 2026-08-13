@@ -1,6 +1,7 @@
 // MappingResuming: map extension — load existing map, relocalize, add new keyframes, detect cross-loops.
 #pragma once
 
+#include <limits>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -29,6 +30,14 @@ enum class MappingResumingState {
     EXTENDING
 };
 
+struct MappingResumingTiming {
+    double total_ms = std::numeric_limits<double>::quiet_NaN();
+    // Includes keyframe/edge staging, incremental optimization, optimized-pose
+    // propagation, and any enabled shadow-submap pose refresh.
+    double graph_update_ms = std::numeric_limits<double>::quiet_NaN();
+    double descriptor_update_ms = std::numeric_limits<double>::quiet_NaN();
+};
+
 class MappingResuming {
 public:
     using PointCloudT = pcl::PointCloud<pcl::PointXYZI>;
@@ -50,7 +59,8 @@ public:
         double timestamp, const Eigen::Isometry3d& odom_pose,
         const PointCloudT::Ptr& cloud, int64_t loaded_tracking_match_id = -1,
         const Eigen::Isometry3d& tracked_pose_in_map =
-            Eigen::Isometry3d::Identity());
+            Eigen::Isometry3d::Identity(),
+        MappingResumingTiming* timing = nullptr);
     int detectCrossLoops(int64_t new_keyframe_id);
     bool saveExtendedMap(const std::string& map_path);
     MappingResumingState getState() const;

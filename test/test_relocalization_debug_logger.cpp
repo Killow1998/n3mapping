@@ -1,5 +1,6 @@
 #include "n3mapping/relocalization_debug_logger.h"
 #include "n3mapping/registration_observability.h"
+#include "n3mapping/runtime_performance_debug_logger.h"
 
 #include <cmath>
 #include <filesystem>
@@ -135,6 +136,86 @@ TEST(RelocalizationDebugLoggerTest,
   config.reloc_debug_path = "/tmp/custom_relocalization_debug.jsonl";
   EXPECT_EQ(RelocalizationDebugLogger::resolvePath(config),
             "/tmp/custom_relocalization_debug.jsonl");
+}
+
+TEST(RuntimePerformanceDebugLoggerTest,
+     UsesSeparateSiblingPathAndHonorsDebugSwitch) {
+  Config config;
+  config.map_save_path = "/tmp/n3mapping_map";
+  EXPECT_EQ(RuntimePerformanceDebugLogger::resolvePath(config),
+            "/tmp/n3mapping_map/runtime_performance_debug.jsonl");
+
+  config.reloc_debug_path = "/tmp/custom/relocalization.jsonl";
+  EXPECT_EQ(RuntimePerformanceDebugLogger::resolvePath(config),
+            "/tmp/custom/runtime_performance_debug.jsonl");
+
+  RuntimePerformanceDebugLogger disabled(config);
+  EXPECT_FALSE(disabled.enabled());
+  EXPECT_FALSE(disabled.ready());
+}
+
+TEST(RuntimePerformanceDebugLoggerTest, AppendsMapExtensionFrame) {
+  const auto temp_dir = makeTempDir() / "runtime_performance";
+  std::filesystem::remove_all(temp_dir);
+  Config config;
+  config.reloc_debug_enable = true;
+  config.reloc_debug_path =
+      (temp_dir / "relocalization_debug.jsonl").string();
+  {
+    RuntimePerformanceDebugLogger logger(config);
+    ASSERT_TRUE(logger.enabled());
+    ASSERT_TRUE(logger.ready());
+
+    RuntimePerformanceDebugEvent event;
+    event.processing_time = 10.0;
+    event.frame_index = 7;
+    event.sensor_timestamp = 123.0;
+    event.sensor_delta_ms = 100.0;
+    event.callback_interarrival_ms = 105.0;
+    event.input_points = 4096;
+    event.core_success = true;
+    event.accepted_keyframe = true;
+    event.keyframe_id = 218;
+    event.matched_keyframe_id = 53;
+    event.relocalization_state = "FULL_6DOF_LOCKED";
+    event.pose_source = "GEOMETRICALLY_CORRECTED";
+    event.relocalization_decision = "loaded_map_tracking_geometric";
+    event.published_global_pose = true;
+    event.published_body_cloud = true;
+    event.published_world_cloud = true;
+    event.callback_lock_wait_ms = 0.5;
+    event.ros_conversion_ms = 1.0;
+    event.core_frame_ms = 20.0;
+    event.loaded_map_tracking_ms = 12.0;
+    event.keyframe_gate_ms = 0.1;
+    event.keyframe_commit_ms = 4.0;
+    event.graph_update_ms = 2.5;
+    event.descriptor_update_ms = 1.0;
+    event.post_commit_refresh_ms = 0.25;
+    event.authority_publish_ms = 0.2;
+    event.odometry_path_publish_ms = 0.3;
+    event.callback_locked_ms = 22.0;
+    event.cloud_publish_ms = 3.0;
+    event.callback_total_ms = 25.5;
+    ASSERT_TRUE(logger.append(event));
+  }
+
+  const auto lines = readLines(temp_dir / "runtime_performance_debug.jsonl");
+  ASSERT_EQ(lines.size(), 1u);
+  EXPECT_NE(lines[0].find(
+                "\"schema\":\"n3mapping_runtime_performance_v1\""),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"record_type\":\"map_extension_frame\""),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"frame_index\":7"), std::string::npos);
+  EXPECT_NE(lines[0].find("\"graph_update_ms\":2.5"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"initial_relocalization_ms\":null"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"callback_total_ms\":25.5"),
+            std::string::npos);
+
+  std::filesystem::remove_all(temp_dir);
 }
 
 TEST(RelocalizationDebugLoggerTest,

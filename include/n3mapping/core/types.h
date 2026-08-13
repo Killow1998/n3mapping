@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -53,6 +54,20 @@ struct LioFrame {
   bool pose_valid = false;
 };
 
+struct BackendPerformanceTiming {
+  bool enabled = false;
+  double initial_relocalization_ms =
+      std::numeric_limits<double>::quiet_NaN();
+  double loaded_map_tracking_ms =
+      std::numeric_limits<double>::quiet_NaN();
+  double keyframe_gate_ms = std::numeric_limits<double>::quiet_NaN();
+  double keyframe_commit_ms = std::numeric_limits<double>::quiet_NaN();
+  double graph_update_ms = std::numeric_limits<double>::quiet_NaN();
+  double descriptor_update_ms = std::numeric_limits<double>::quiet_NaN();
+  double post_commit_refresh_ms =
+      std::numeric_limits<double>::quiet_NaN();
+};
+
 struct BackendOutput {
   bool success = false;
   bool accepted_keyframe = false;
@@ -70,6 +85,7 @@ struct BackendOutput {
   Eigen::Isometry3d T_world_lidar = Eigen::Isometry3d::Identity();
   LioFrame::PointCloud::Ptr cloud_body;
   LioFrame::PointCloud::Ptr cloud_world;
+  BackendPerformanceTiming performance;
 };
 
 struct DenseTrajectoryPose {

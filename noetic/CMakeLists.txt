@@ -151,6 +151,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
   ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
   ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
+  ${N3MAPPING_ROOT}/src/runtime_performance_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
   ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
   ${N3MAPPING_ROOT}/include/Scancontext/Scancontext.cpp

@@ -434,9 +434,16 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     first_odom.translation().x() = 2.0;
     const Eigen::Isometry3d first_pose_in_map =
         relocalization.getMapToOdomTransform() * first_odom;
+    MappingResumingTiming first_timing;
     const int64_t first_id = extension.processNewKeyframe(
-        10.0, first_odom, anchor->cloud);
+        10.0, first_odom, anchor->cloud, -1,
+        Eigen::Isometry3d::Identity(), &first_timing);
     ASSERT_EQ(first_id, 1);
+    EXPECT_TRUE(std::isfinite(first_timing.total_ms));
+    EXPECT_TRUE(std::isfinite(first_timing.graph_update_ms));
+    EXPECT_TRUE(std::isfinite(first_timing.descriptor_update_ms));
+    EXPECT_GE(first_timing.total_ms, first_timing.graph_update_ms);
+    EXPECT_GE(first_timing.total_ms, first_timing.descriptor_update_ms);
     EXPECT_EQ(extension.getState(), MappingResumingState::EXTENDING);
     EXPECT_TRUE(optimizer.hasNode(first_id));
     auto first_keyframe = kf_manager.getKeyframe(first_id);

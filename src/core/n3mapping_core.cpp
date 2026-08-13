@@ -871,9 +871,30 @@ RegistrationSeedProbeResult N3MappingCore::probeLocalizationRegistration(
 
 core::BackendOutput
 N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
+  using PerformanceClock = std::chrono::steady_clock;
+  core::BackendPerformanceTiming performance;
+  performance.enabled = config_.reloc_debug_enable;
+  const auto timingStarted = [&]() {
+    return performance.enabled ? PerformanceClock::now()
+                               : PerformanceClock::time_point{};
+  };
+  const auto elapsedMilliseconds = [&](PerformanceClock::time_point started) {
+    return std::chrono::duration<double, std::milli>(PerformanceClock::now() -
+                                                     started)
+        .count();
+  };
+  const auto make_output = [&](bool success, const Eigen::Isometry3d &pose,
+                               const PointCloud::Ptr &cloud) {
+    auto output = makeOutput(success, pose, cloud);
+    if (performance.enabled) {
+      output.performance = performance;
+    }
+    return output;
+  };
+
   if (!frame.pose_valid || !frame.undistorted_cloud ||
       frame.undistorted_cloud->empty() || !map_loaded_) {
-    return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+    return make_output(false, frame.T_world_lidar, frame.undistorted_cloud);
   }
 
   auto &resuming = session_->mappingResuming();
@@ -881,10 +902,15 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   const auto state = resuming.getState();
 
   if (state == MappingResumingState::MAP_LOADED) {
+    const auto relocalization_started = timingStarted();
     const bool locked = resuming.performInitialRelocalization(
         frame.undistorted_cloud, frame.T_world_lidar,
         frame.source_frame_id);
-    auto output = makeOutput(
+    if (performance.enabled) {
+      performance.initial_relocalization_ms =
+          elapsedMilliseconds(relocalization_started);
+    }
+    auto output = make_output(
         locked, localizer.getMapToOdomTransform() * frame.T_world_lidar,
         frame.undistorted_cloud);
     output.relocalization_locked = locked;
@@ -912,20 +938,25 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
 
   if (state != MappingResumingState::RELOCALIZED &&
       state != MappingResumingState::EXTENDING) {
-    return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+    return make_output(false, frame.T_world_lidar, frame.undistorted_cloud);
   }
 
   // While old-map geometry is visible, extension must track that immutable
   // geometry continuously. A constant relocalization transform only carries
   // the session LIO's time-varying drift into the resumed map. This strict
   // path never falls back to a new global search or to self-created frames.
+  const auto tracking_started = timingStarted();
   const RelocResult tracking = localizer.trackLoadedMap(
       frame.undistorted_cloud, frame.T_world_lidar);
+  if (performance.enabled) {
+    performance.loaded_map_tracking_ms =
+        elapsedMilliseconds(tracking_started);
+  }
   if (!tracking.success ||
       tracking.state != RelocalizationState::FULL_6DOF_LOCKED ||
       tracking.pose_source != PoseSource::GEOMETRICALLY_CORRECTED ||
       tracking.matched_keyframe_id < 0) {
-    auto output = makeOutput(
+    auto output = make_output(
         false, tracking.pose_in_map, frame.undistorted_cloud);
     output.relocalization_state = tracking.state;
     output.pose_source = tracking.pose_source;
@@ -938,13 +969,20 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   }
 
   Eigen::Isometry3d pose_map = tracking.pose_in_map;
-  if (!resuming.shouldAddKeyframe(frame.T_world_lidar)) {
+  const auto keyframe_gate_started = timingStarted();
+  const bool should_add_keyframe =
+      resuming.shouldAddKeyframe(frame.T_world_lidar);
+  if (performance.enabled) {
+    performance.keyframe_gate_ms =
+        elapsedMilliseconds(keyframe_gate_started);
+  }
+  if (!should_add_keyframe) {
     if (!external_dense_trajectory_recording_enabled_) {
       const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
       appendDenseTrajectorySampleWithLatestAnchor(
           timestamp, frame.T_world_lidar, false);
     }
-    auto output = makeOutput(true, pose_map, frame.undistorted_cloud);
+    auto output = make_output(true, pose_map, frame.undistorted_cloud);
     output.relocalization_state = tracking.state;
     output.pose_source = tracking.pose_source;
     output.relocalization_decision = tracking.decision;
@@ -956,15 +994,27 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   }
 
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
+  MappingResumingTiming resuming_timing;
   const int64_t keyframe_id = resuming.processNewKeyframe(
       timestamp, frame.T_world_lidar, frame.undistorted_cloud,
-      tracking.matched_keyframe_id, tracking.pose_in_map);
+      tracking.matched_keyframe_id, tracking.pose_in_map,
+      performance.enabled ? &resuming_timing : nullptr);
+  if (performance.enabled) {
+    performance.keyframe_commit_ms = resuming_timing.total_ms;
+    performance.graph_update_ms = resuming_timing.graph_update_ms;
+    performance.descriptor_update_ms = resuming_timing.descriptor_update_ms;
+  }
   if (keyframe_id >= 0) {
     // The strict tracker already supplied a loaded-map constraint for this
     // keyframe (the first one is represented by SESSION_ANCHOR). Running the
     // global descriptor pipeline again would be redundant and can only add a
     // less local alias.
+    const auto refresh_started = timingStarted();
     refreshOptimizedPoses();
+    if (performance.enabled) {
+      performance.post_commit_refresh_ms =
+          elapsedMilliseconds(refresh_started);
+    }
     if (session_->graphOptimizer().hasNode(keyframe_id)) {
       try {
         pose_map = session_->graphOptimizer().getOptimizedPose(keyframe_id);
@@ -974,7 +1024,8 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     }
   }
 
-  auto output = makeOutput(keyframe_id >= 0, pose_map, frame.undistorted_cloud);
+  auto output = make_output(keyframe_id >= 0, pose_map,
+                            frame.undistorted_cloud);
   output.accepted_keyframe = keyframe_id >= 0;
   output.keyframe_id = keyframe_id;
   output.relocalization_state = tracking.state;

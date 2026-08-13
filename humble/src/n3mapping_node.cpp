@@ -54,6 +54,7 @@
 #include "n3mapping/msg/relocalization_status.hpp"
 #include "n3mapping/product_build_identity.h"
 #include "n3mapping/relocalization_output_authority.h"
+#include "n3mapping/runtime_performance_debug_logger.h"
 
 namespace n3mapping {
 
@@ -355,6 +356,21 @@ class N3MappingNode : public rclcpp::Node
         n3mapping_core_ = std::make_unique<N3MappingCore>(config_);
         n3mapping_core_->setExternalDenseTrajectoryRecordingEnabled(true);
         global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
+        if (run_mode_ == CoreRunMode::MAP_EXTENSION &&
+            config_.reloc_debug_enable) {
+            performance_debug_logger_ =
+              std::make_unique<RuntimePerformanceDebugLogger>(config_);
+            if (performance_debug_logger_->ready()) {
+                RCLCPP_INFO(
+                  this->get_logger(), "Runtime performance JSONL: %s",
+                  performance_debug_logger_->path().c_str());
+            } else {
+                RCLCPP_WARN(
+                  this->get_logger(),
+                  "Failed to open runtime performance JSONL: %s",
+                  performance_debug_logger_->path().c_str());
+            }
+        }
     }
 
     /**
@@ -520,16 +536,100 @@ class N3MappingNode : public rclcpp::Node
      */
     void syncCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg, const nav_msgs::msg::Odometry::ConstSharedPtr& odom_msg)
     {
+        using PerformanceClock = std::chrono::steady_clock;
+        const bool performance_enabled =
+          performance_debug_logger_ && performance_debug_logger_->ready();
+        const auto callback_started = performance_enabled
+          ? PerformanceClock::now()
+          : PerformanceClock::time_point{};
+        const auto elapsed_ms = [&](PerformanceClock::time_point started) {
+            return std::chrono::duration<double, std::milli>(
+              PerformanceClock::now() - started).count();
+        };
+
+        RuntimePerformanceDebugEvent performance_event;
+        if (performance_enabled) {
+            performance_event.processing_time =
+              std::chrono::duration<double>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            performance_event.sensor_timestamp =
+              rclcpp::Time(cloud_msg->header.stamp).seconds();
+            performance_event.input_points =
+              static_cast<std::size_t>(cloud_msg->width) * cloud_msg->height;
+        }
+
         core::BackendOutput output_for_clouds;
         std_msgs::msg::Header cloud_header;
         bool publish_clouds = false;
 
         {
-            std::lock_guard<std::mutex> lock(data_mutex_);
+            std::unique_lock<std::mutex> lock(data_mutex_);
+            const auto locked_started = performance_enabled
+              ? PerformanceClock::now()
+              : PerformanceClock::time_point{};
+            if (performance_enabled) {
+                performance_event.callback_lock_wait_ms =
+                  std::chrono::duration<double, std::milli>(
+                    locked_started - callback_started).count();
+                performance_event.frame_index = ++performance_frame_index_;
+                if (last_performance_callback_started_) {
+                    performance_event.callback_interarrival_ms =
+                      std::chrono::duration<double, std::milli>(
+                        callback_started - *last_performance_callback_started_)
+                        .count();
+                }
+                last_performance_callback_started_ = callback_started;
+                if (last_performance_sensor_timestamp_) {
+                    performance_event.sensor_delta_ms =
+                      (performance_event.sensor_timestamp -
+                       *last_performance_sensor_timestamp_) * 1000.0;
+                }
+                last_performance_sensor_timestamp_ =
+                  performance_event.sensor_timestamp;
+            }
 
+            const auto conversion_started = performance_enabled
+              ? PerformanceClock::now()
+              : PerformanceClock::time_point{};
             auto frame = toCoreLioFrame(*cloud_msg, *odom_msg);
+            if (performance_enabled) {
+                performance_event.ros_conversion_ms =
+                  elapsed_ms(conversion_started);
+            }
             const double timestamp = rclcpp::Time(cloud_msg->header.stamp).seconds();
+            const auto core_started = performance_enabled
+              ? PerformanceClock::now()
+              : PerformanceClock::time_point{};
             auto output = n3mapping_core_->processFrame(run_mode_, frame);
+            if (performance_enabled) {
+                performance_event.core_frame_ms = elapsed_ms(core_started);
+                performance_event.core_success = output.success;
+                performance_event.accepted_keyframe =
+                  output.accepted_keyframe;
+                performance_event.keyframe_id = output.keyframe_id;
+                performance_event.matched_keyframe_id =
+                  output.matched_keyframe_id;
+                performance_event.relocalization_state =
+                  relocalizationStateName(output.relocalization_state);
+                performance_event.pose_source =
+                  poseSourceName(output.pose_source);
+                performance_event.relocalization_decision =
+                  output.relocalization_decision;
+                performance_event.initial_relocalization_ms =
+                  output.performance.initial_relocalization_ms;
+                performance_event.loaded_map_tracking_ms =
+                  output.performance.loaded_map_tracking_ms;
+                performance_event.keyframe_gate_ms =
+                  output.performance.keyframe_gate_ms;
+                performance_event.keyframe_commit_ms =
+                  output.performance.keyframe_commit_ms;
+                performance_event.graph_update_ms =
+                  output.performance.graph_update_ms;
+                performance_event.descriptor_update_ms =
+                  output.performance.descriptor_update_ms;
+                performance_event.post_commit_refresh_ms =
+                  output.performance.post_commit_refresh_ms;
+            }
             // Core cannot log, so the one thing that must not pass unnoticed is
             // said here: the front end has run away and everything from this
             // point on is being discarded.
@@ -544,35 +644,81 @@ class N3MappingNode : public rclcpp::Node
                     sanity.consecutive);
             }
             const auto& header = cloud_msg->header;
+            const auto authority_started = performance_enabled
+              ? PerformanceClock::now()
+              : PerformanceClock::time_point{};
             const auto publication =
               publishRelocalizationOutput(header, output);
+            if (performance_enabled) {
+                performance_event.authority_publish_ms =
+                  elapsed_ms(authority_started);
+                performance_event.published_global_pose =
+                  publication.publish_global_pose;
+            }
             if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
                 ++frame_count_;
-                return;
-            }
+                performance_event.callback_skipped = true;
+            } else {
+                if (publication.publish_global_pose) {
+                    const auto pose_publish_started = performance_enabled
+                      ? PerformanceClock::now()
+                      : PerformanceClock::time_point{};
+                    publishOdometry(output.T_world_lidar, header);
+                    publishPath(header, &output.T_world_lidar);
+                    if (performance_enabled) {
+                        performance_event.odometry_path_publish_ms =
+                          elapsed_ms(pose_publish_started);
+                    }
+                }
 
-            if (publication.publish_global_pose) {
-                publishOdometry(output.T_world_lidar, header);
-                publishPath(header, &output.T_world_lidar);
-            }
+                if (output.accepted_keyframe && (run_mode_ == CoreRunMode::MAPPING || run_mode_ == CoreRunMode::MAP_EXTENSION)) {
+                    ++keyframe_count_;
+                    const char* context = run_mode_ == CoreRunMode::MAP_EXTENSION ? "map_extension_incremental" : "mapping_incremental";
+                    logOptimizationResult(context, timestamp, &output.T_world_lidar);
+                }
 
-            if (output.accepted_keyframe && (run_mode_ == CoreRunMode::MAPPING || run_mode_ == CoreRunMode::MAP_EXTENSION)) {
-                ++keyframe_count_;
-                const char* context = run_mode_ == CoreRunMode::MAP_EXTENSION ? "map_extension_incremental" : "mapping_incremental";
-                logOptimizationResult(context, timestamp, &output.T_world_lidar);
+                ++frame_count_;
+                output_for_clouds = output;
+                if (!publication.publish_world_cloud) {
+                    output_for_clouds.cloud_world.reset();
+                }
+                cloud_header = header;
+                publish_clouds = true;
+                if (performance_enabled) {
+                    performance_event.published_body_cloud =
+                      output_for_clouds.cloud_body &&
+                      !output_for_clouds.cloud_body->empty();
+                    performance_event.published_world_cloud =
+                      output_for_clouds.cloud_world &&
+                      !output_for_clouds.cloud_world->empty();
+                }
             }
-
-            ++frame_count_;
-            output_for_clouds = output;
-            if (!publication.publish_world_cloud) {
-                output_for_clouds.cloud_world.reset();
+            if (performance_enabled) {
+                performance_event.callback_locked_ms =
+                  elapsed_ms(locked_started);
             }
-            cloud_header = header;
-            publish_clouds = true;
         }
 
         if (publish_clouds) {
+            const auto cloud_publish_started = performance_enabled
+              ? PerformanceClock::now()
+              : PerformanceClock::time_point{};
             publishPointClouds(output_for_clouds, cloud_header);
+            if (performance_enabled) {
+                performance_event.cloud_publish_ms =
+                  elapsed_ms(cloud_publish_started);
+            }
+        }
+        if (performance_enabled) {
+            performance_event.callback_total_ms =
+              elapsed_ms(callback_started);
+            if (!performance_debug_logger_->append(performance_event) &&
+                !performance_log_failure_reported_.exchange(true)) {
+                RCLCPP_WARN(
+                  this->get_logger(),
+                  "Runtime performance JSONL write failed: %s",
+                  performance_debug_logger_->path().c_str());
+            }
         }
     }
 
@@ -1340,6 +1486,8 @@ class N3MappingNode : public rclcpp::Node
 
     // 核心组件
     std::unique_ptr<N3MappingCore> n3mapping_core_;
+    std::unique_ptr<RuntimePerformanceDebugLogger>
+      performance_debug_logger_;
 
     // ROS 接口
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloud_sub_;
@@ -1389,6 +1537,11 @@ class N3MappingNode : public rclcpp::Node
 
     // 统计
     bool odometry_divergence_reported_ = false;
+    std::atomic<bool> performance_log_failure_reported_{false};
+    uint64_t performance_frame_index_ = 0;
+    std::optional<std::chrono::steady_clock::time_point>
+      last_performance_callback_started_;
+    std::optional<double> last_performance_sensor_timestamp_;
     size_t frame_count_ = 0;
     size_t keyframe_count_ = 0;
     size_t loop_count_ = 0;
