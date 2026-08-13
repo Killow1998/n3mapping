@@ -120,7 +120,7 @@ def resource_record(index: int) -> dict[str, object]:
     return {
         "schema": "n3mapping_process_resource_v1",
         "sample_index": index,
-        "processing_time": 1000.0 + index,
+        "processing_time": 1000.5 + index,
         "monotonic_time": 2000.0 + index,
         "pid": 123,
         "process_start_ticks": 456,
@@ -175,7 +175,10 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             self.assertEqual(report["counts"]["strict_tracking_failure"], 0)
             self.assertEqual(report["counts"]["accepted_keyframes"], 1)
             self.assertEqual(report["counts"]["callback_over_sensor_budget"], 1)
-            self.assertEqual(report["counts"]["resource_samples"], 2)
+            self.assertEqual(report["counts"]["resource_samples_total"], 2)
+            self.assertEqual(
+                report["counts"]["resource_samples_in_runtime_window"], 2
+            )
             self.assertEqual(
                 report["process_resources"]["process_cpu_percent"]["p50"],
                 301.5,
@@ -187,6 +190,73 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             self.assertEqual(
                 report["accepted_keyframe_timing_ms"]["graph_update_ms"]["p95"],
                 5.0,
+            )
+
+    def test_resource_statistics_exclude_samples_outside_callback_window(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            runtime_path = directory / "runtime_performance_debug.jsonl"
+            tracking_path = directory / "relocalization_debug.jsonl"
+            resource_path = directory / "process_resource.jsonl"
+            write_jsonl(
+                runtime_path,
+                [
+                    runtime_record(
+                        1, 10.0, loaded_tracking_ms=85.0, callback_total_ms=100.0
+                    )
+                ],
+            )
+            write_jsonl(tracking_path, [tracking_record(1)])
+            before = resource_record(1)
+            before["processing_time"] = 900.0
+            during = resource_record(2)
+            during["processing_time"] = 1001.05
+            write_jsonl(resource_path, [before, during])
+
+            report, exit_code = TOOL.analyze(
+                runtime_path, tracking_path, resource_path
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(report["counts"]["resource_samples_total"], 2)
+            self.assertEqual(
+                report["counts"]["resource_samples_in_runtime_window"], 1
+            )
+            self.assertEqual(
+                report["counts"]["resource_samples_outside_runtime_window"], 1
+            )
+            self.assertEqual(
+                report["process_resources"]["process_cpu_percent"]["p50"],
+                during["process_cpu_percent"],
+            )
+
+    def test_resource_samples_outside_callback_window_are_insufficient(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            runtime_path = directory / "runtime_performance_debug.jsonl"
+            tracking_path = directory / "relocalization_debug.jsonl"
+            resource_path = directory / "process_resource.jsonl"
+            write_jsonl(
+                runtime_path,
+                [
+                    runtime_record(
+                        1, 10.0, loaded_tracking_ms=85.0, callback_total_ms=100.0
+                    )
+                ],
+            )
+            write_jsonl(tracking_path, [tracking_record(1)])
+            outside = resource_record(1)
+            outside["processing_time"] = 900.0
+            write_jsonl(resource_path, [outside])
+
+            report, exit_code = TOOL.analyze(
+                runtime_path, tracking_path, resource_path
+            )
+
+            self.assertEqual(exit_code, 2)
+            self.assertEqual(report["status"], "INSUFFICIENT_EVIDENCE")
+            self.assertEqual(
+                report["counts"]["resource_samples_in_runtime_window"], 0
             )
 
     def test_count_mismatch_is_invalid(self) -> None:

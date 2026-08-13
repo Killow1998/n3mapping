@@ -307,6 +307,31 @@ def dominant_stage(summary: dict[str, dict[str, Any]], fields: Iterable[str]) ->
     return max(candidates)[1] if candidates else None
 
 
+def select_runtime_resources(
+    runtime: list[dict[str, Any]], resources: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], float | None, float | None]:
+    if not runtime:
+        return [], None, None
+    runtime_start = min(float(row["processing_time"]) for row in runtime)
+    runtime_end = max(
+        float(row["processing_time"])
+        + (
+            float(row["callback_total_ms"]) / 1000.0
+            if finite(row.get("callback_total_ms"))
+            else 0.0
+        )
+        for row in runtime
+    )
+    selected = [
+        row
+        for row in resources
+        if float(row["processing_time"]) > runtime_start
+        and float(row["processing_time"]) - float(row["interval_s"])
+        < runtime_end
+    ]
+    return selected, runtime_start, runtime_end
+
+
 def analyze(
     runtime_path: Path,
     tracking_path: Path,
@@ -332,6 +357,14 @@ def analyze(
     if resources:
         errors.extend(validate_resources(resources))
 
+    runtime_resources: list[dict[str, Any]] = []
+    runtime_start: float | None = None
+    runtime_end: float | None = None
+    if runtime and resources and not errors:
+        runtime_resources, runtime_start, runtime_end = select_runtime_resources(
+            runtime, resources
+        )
+
     loaded_runtime = [row for row in runtime if finite(row.get("loaded_map_tracking_ms"))]
     if runtime and strict_tracking and len(loaded_runtime) != len(strict_tracking):
         errors.append(
@@ -341,7 +374,7 @@ def analyze(
 
     if errors:
         status = INVALID
-    elif not runtime or not strict_tracking or not resources:
+    elif not runtime or not strict_tracking or not runtime_resources:
         status = INSUFFICIENT
     else:
         status = PROFILE_READY
@@ -371,12 +404,12 @@ def analyze(
     accepted = [row for row in runtime if row.get("accepted_keyframe") is True]
     cpu_cores = [
         float(row["process_cpu_percent"]) / 100.0
-        for row in resources
+        for row in runtime_resources
         if finite(row.get("process_cpu_percent"))
     ]
     host_capacity = [
         float(row["process_cpu_percent"]) / float(row["host_logical_cpus"])
-        for row in resources
+        for row in runtime_resources
         if finite(row.get("process_cpu_percent"))
         and isinstance(row.get("host_logical_cpus"), int)
         and row["host_logical_cpus"] > 0
@@ -407,14 +440,21 @@ def analyze(
             "callback_interarrival_slower_than_sensor": sum(
                 value > 0.0 for value in schedule_lag
             ),
-            "resource_samples": len(resources),
+            "resource_samples_total": len(resources),
+            "resource_samples_in_runtime_window": len(runtime_resources),
+            "resource_samples_outside_runtime_window": (
+                len(resources) - len(runtime_resources)
+            ),
         },
         "runtime_timing_ms": runtime_stats,
         "tracking_timing_ms": tracking_stats,
         "callback_budget_overrun_ms": stats(budget_overrun, len(runtime)),
         "callback_schedule_lag_ms": stats(schedule_lag, len(runtime)),
         "process_resources": {
-            field: stats((row.get(field) for row in resources), len(resources))
+            field: stats(
+                (row.get(field) for row in runtime_resources),
+                len(runtime_resources),
+            )
             for field in (
                 "process_cpu_percent",
                 "rss_mib",
@@ -422,8 +462,15 @@ def analyze(
                 "thread_count",
             )
         },
-        "process_cpu_cores": stats(cpu_cores, len(resources)),
-        "process_host_capacity_percent": stats(host_capacity, len(resources)),
+        "process_cpu_cores": stats(cpu_cores, len(runtime_resources)),
+        "process_host_capacity_percent": stats(
+            host_capacity, len(runtime_resources)
+        ),
+        "resource_runtime_window": {
+            "start_processing_time": runtime_start,
+            "end_processing_time": runtime_end,
+            "selection": "sample_interval_overlaps_callback_window",
+        },
         "accepted_keyframe_timing_ms": {
             field: stats((row.get(field) for row in accepted), len(accepted))
             for field in (
