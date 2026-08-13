@@ -353,6 +353,14 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesTrackingFailurePath) {
   const auto lines = readDebugLines(debug_path);
   ASSERT_EQ(lines.size(), 1u);
   EXPECT_NE(lines[0].find("\"record_type\":\"tracking\""), std::string::npos);
+  EXPECT_NE(lines[0].find("\"strict_loaded_map\":false"),
+            std::string::npos);
+  EXPECT_EQ(lines[0].find("\"tracking_total_ms\":null"),
+            std::string::npos);
+  EXPECT_EQ(lines[0].find("\"nearest_keyframe_ms\":null"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"target_prepare_ms\":null"),
+            std::string::npos);
   EXPECT_NE(lines[0].find("\"nearest_kf_id\":-1"), std::string::npos);
   EXPECT_NE(lines[0].find("\"reject_reason\":\"nearest_keyframe_missing\""),
             std::string::npos);
@@ -626,6 +634,13 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingIgnoresExtensionKeyframes) {
 }
 
 TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
+  const std::filesystem::path dir = std::filesystem::temp_directory_path() /
+                                    "n3mapping_loaded_map_perf_debug";
+  std::filesystem::remove_all(dir);
+  std::filesystem::create_directories(dir);
+  const std::filesystem::path debug_path = dir / "relocalization_debug.jsonl";
+  config_.reloc_debug_enable = true;
+  config_.reloc_debug_path = debug_path.string();
   buildTestMap(6, 2.0);
   for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
     ASSERT_NE(keyframe, nullptr);
@@ -646,6 +661,20 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   EXPECT_EQ(result.decision, "loaded_map_tracking_geometric");
   EXPECT_LT((result.pose_in_map.translation() - pose.translation()).norm(),
             0.25);
+
+  const auto lines = readDebugLines(debug_path);
+  ASSERT_EQ(lines.size(), 1u);
+  EXPECT_NE(lines[0].find("\"strict_loaded_map\":true"), std::string::npos);
+  for (const char *field : {"tracking_total_ms", "nearest_keyframe_ms",
+                            "loaded_map_cache_ms", "submap_build_ms",
+                            "target_prepare_ms", "source_prepare_ms",
+                            "registration_ms", "visibility_ms"}) {
+    EXPECT_EQ(lines[0].find(std::string("\"") + field + "\":null"),
+              std::string::npos)
+        << field;
+  }
+
+  std::filesystem::remove_all(dir);
 }
 
 TEST_F(WorldLocalizingTest, Reset) {

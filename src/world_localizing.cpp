@@ -889,10 +889,24 @@ RelocResult
 WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                                        const Eigen::Isometry3d &odom_pose,
                                        bool strict_loaded_map) {
+  using TrackingClock = std::chrono::steady_clock;
   RelocResult result;
   result.success = false;
   const bool reloc_debug_enabled = debug_emitter_.enabled();
+  const auto tracking_started = reloc_debug_enabled
+                                    ? TrackingClock::now()
+                                    : TrackingClock::time_point{};
   RelocTrackingDebugEvent debug_event = debug_emitter_.beginTracking();
+  debug_event.strict_loaded_map = strict_loaded_map;
+  const auto timing_started = [&]() {
+    return reloc_debug_enabled ? TrackingClock::now()
+                               : TrackingClock::time_point{};
+  };
+  const auto elapsed_ms = [&](const TrackingClock::time_point &started) {
+    return std::chrono::duration<double, std::milli>(TrackingClock::now() -
+                                                     started)
+        .count();
+  };
   auto finish_tracking_debug = [&](const std::string &reject_reason) {
     result.decision = reject_reason.empty()
                           ? (strict_loaded_map
@@ -902,6 +916,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     if (!reloc_debug_enabled) {
       return;
     }
+    debug_event.tracking_total_ms = elapsed_ms(tracking_started);
     debug_emitter_.finishTracking(debug_event, result.success,
                                   consecutive_track_failures_, reject_reason);
   };
@@ -940,9 +955,13 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     return result;
   }
 
+  const auto nearest_keyframe_started = timing_started();
   int64_t nearest_kf_id = strict_loaded_map
                               ? findNearestLoadedKeyframe(predicted_pose)
                               : findNearestKeyframe(predicted_pose);
+  if (reloc_debug_enabled) {
+    debug_event.nearest_keyframe_ms = elapsed_ms(nearest_keyframe_started);
+  }
   debug_event.nearest_kf_id = nearest_kf_id;
   if (nearest_kf_id < 0) {
     consecutive_track_failures_++;
@@ -974,17 +993,29 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
   PointCloudT::Ptr submap;
   if (strict_loaded_map) {
+    const auto cache_started = timing_started();
     rebuildLoadedMapVisibilityCacheIfNeeded();
+    if (reloc_debug_enabled) {
+      debug_event.loaded_map_cache_ms = elapsed_ms(cache_started);
+    }
+    const auto submap_started = timing_started();
     const auto nearest = keyframe_manager_.getKeyframe(nearest_kf_id);
     if (nearest) {
       submap = LocalizationAtlas::cropGlobalMap(
           config_, loaded_map_visibility_cache_,
           nearest->pose_optimized.translation());
     }
+    if (reloc_debug_enabled) {
+      debug_event.submap_build_ms = elapsed_ms(submap_started);
+    }
   } else {
     // Keep the established ordinary-localization target unchanged. The
     // loaded-map-only target is specific to map-extension safety.
+    const auto submap_started = timing_started();
     submap = keyframe_manager_.buildLocalSubmap(nearest_kf_id, submap_range);
+    if (reloc_debug_enabled) {
+      debug_event.submap_build_ms = elapsed_ms(submap_started);
+    }
     if (VLOG_IS_ON(1)) {
       LocalMapSelectionRequest shadow_request;
       shadow_request.predicted_pose = predicted_pose;
@@ -1068,10 +1099,22 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     return result;
   }
 
+  const auto target_prepare_started = timing_started();
   const auto prepared_target = matcher_.prepareTargetCloud(submap);
+  if (reloc_debug_enabled) {
+    debug_event.target_prepare_ms = elapsed_ms(target_prepare_started);
+  }
+  const auto source_prepare_started = timing_started();
   const auto prepared_source = matcher_.prepareSourceCloud(cloud);
+  if (reloc_debug_enabled) {
+    debug_event.source_prepare_ms = elapsed_ms(source_prepare_started);
+  }
+  const auto registration_started = timing_started();
   MatchResult match_result =
       matcher_.alignPrepared(prepared_target, prepared_source, predicted_pose);
+  if (reloc_debug_enabled) {
+    debug_event.registration_ms = elapsed_ms(registration_started);
+  }
   bool retry_used = false;
 
   // If ICP failed with standard params and we have recent failures, retry with
@@ -1087,8 +1130,12 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     wide.max_correspondence_distance = saved.max_correspondence_distance *
                                        config_.reloc_track_retry_corr_scale;
     wide.max_iterations = config_.reloc_track_retry_max_iterations;
+    const auto retry_started = timing_started();
     auto retry = matcher_.alignPrepared(prepared_target, prepared_source,
                                         predicted_pose, wide);
+    if (reloc_debug_enabled) {
+      debug_event.retry_registration_ms = elapsed_ms(retry_started);
+    }
     retry_used = true;
     if (hasValidRegistrationResult(retry) &&
         (!hasValidRegistrationResult(match_result) ||
@@ -1114,6 +1161,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   VisibilityConsistencyResult visibility;
   if (hasValidRegistrationResult(match_result)) {
     if (strict_loaded_map) {
+      const auto visibility_started = timing_started();
       const auto predicted_visibility =
           evaluatePoseVisibility(submap, cloud, predicted_pose);
       visibility = evaluatePoseVisibility(
@@ -1127,6 +1175,9 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         // explains it better than the optimizer endpoint.
         match_result.T_target_source = predicted_pose;
         visibility = predicted_visibility;
+      }
+      if (reloc_debug_enabled) {
+        debug_event.visibility_ms = elapsed_ms(visibility_started);
       }
     }
     const Eigen::Isometry3d delta =

@@ -290,9 +290,18 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   RelocTrackingDebugEvent event;
   event.processing_time = 2.0;
   event.query_index = 8;
+  event.strict_loaded_map = true;
   event.predicted_pose.translation() = Eigen::Vector3d(1.0, 2.0, 3.0);
   event.nearest_kf_id = -1;
   event.submap_size = 0;
+  event.tracking_total_ms = 12.5;
+  event.nearest_keyframe_ms = 0.25;
+  event.loaded_map_cache_ms = 1.5;
+  event.submap_build_ms = 2.5;
+  event.target_prepare_ms = 3.5;
+  event.source_prepare_ms = 0.75;
+  event.registration_ms = 4.0;
+  event.visibility_ms = 0.5;
   event.icp_converged = false;
   event.retry_used = true;
   event.consecutive_track_failures = 2;
@@ -304,7 +313,14 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   const auto lines = readLines(path);
   ASSERT_EQ(lines.size(), 1u);
   EXPECT_NE(lines[0].find("\"record_type\":\"tracking\""), std::string::npos);
+  EXPECT_NE(lines[0].find("\"strict_loaded_map\":true"), std::string::npos);
   EXPECT_NE(lines[0].find("\"nearest_kf_id\":-1"), std::string::npos);
+  EXPECT_NE(lines[0].find("\"tracking_total_ms\":12.5"), std::string::npos);
+  EXPECT_NE(lines[0].find("\"nearest_keyframe_ms\":0.25"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"retry_registration_ms\":null"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_ms\":0.5"), std::string::npos);
   EXPECT_NE(lines[0].find("\"retry_used\":true"), std::string::npos);
   EXPECT_NE(lines[0].find("\"reject_reason\":\"nearest_keyframe_missing\""),
             std::string::npos);

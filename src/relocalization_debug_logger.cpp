@@ -484,9 +484,22 @@ bool RelocalizationDebugLogger::appendTracking(
   appendString(os, &first, "record_type", "tracking");
   appendNumber(os, &first, "processing_time", event.processing_time);
   appendSize(os, &first, "query_index", event.query_index);
+  appendBool(os, &first, "strict_loaded_map", event.strict_loaded_map);
   appendPose(os, &first, "predicted_pose", event.predicted_pose);
   appendInteger(os, &first, "nearest_kf_id", event.nearest_kf_id);
   appendSize(os, &first, "submap_size", event.submap_size);
+  appendNumber(os, &first, "tracking_total_ms", event.tracking_total_ms);
+  appendNumber(os, &first, "nearest_keyframe_ms",
+               event.nearest_keyframe_ms);
+  appendNumber(os, &first, "loaded_map_cache_ms",
+               event.loaded_map_cache_ms);
+  appendNumber(os, &first, "submap_build_ms", event.submap_build_ms);
+  appendNumber(os, &first, "target_prepare_ms", event.target_prepare_ms);
+  appendNumber(os, &first, "source_prepare_ms", event.source_prepare_ms);
+  appendNumber(os, &first, "registration_ms", event.registration_ms);
+  appendNumber(os, &first, "retry_registration_ms",
+               event.retry_registration_ms);
+  appendNumber(os, &first, "visibility_ms", event.visibility_ms);
   appendBool(os, &first, "icp_converged", event.icp_converged);
   appendNumber(os, &first, "fitness_score", event.fitness_score);
   appendNumber(os, &first, "inlier_ratio", event.inlier_ratio);
