@@ -652,8 +652,8 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
   Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
   pose.translation().x() = 8.0;
-  const RelocResult result = reloc.trackLoadedMap(
-      generateCorridorCloud(pose), pose);
+  const auto cloud = generateCorridorCloud(pose);
+  const RelocResult result = reloc.trackLoadedMap(cloud, pose);
 
   EXPECT_TRUE(result.success);
   EXPECT_EQ(result.state, RelocalizationState::FULL_6DOF_LOCKED);
@@ -662,8 +662,22 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   EXPECT_LT((result.pose_in_map.translation() - pose.translation()).norm(),
             0.25);
 
+  auto cache_diag = reloc.cacheDiagnostics();
+  EXPECT_EQ(cache_diag.loaded_map_target_cache_hits, 0u);
+  EXPECT_EQ(cache_diag.loaded_map_target_cache_misses, 1u);
+  EXPECT_EQ(cache_diag.loaded_map_target_cache_entries, 1u);
+
+  const RelocResult cached_result = reloc.trackLoadedMap(cloud, pose);
+  EXPECT_TRUE(cached_result.success);
+  EXPECT_EQ(cached_result.decision, result.decision);
+  EXPECT_TRUE(cached_result.pose_in_map.isApprox(result.pose_in_map, 1e-4));
+  cache_diag = reloc.cacheDiagnostics();
+  EXPECT_EQ(cache_diag.loaded_map_target_cache_hits, 1u);
+  EXPECT_EQ(cache_diag.loaded_map_target_cache_misses, 1u);
+  EXPECT_EQ(cache_diag.loaded_map_target_cache_entries, 1u);
+
   const auto lines = readDebugLines(debug_path);
-  ASSERT_EQ(lines.size(), 1u);
+  ASSERT_EQ(lines.size(), 2u);
   EXPECT_NE(lines[0].find("\"strict_loaded_map\":true"), std::string::npos);
   for (const char *field : {"tracking_total_ms", "nearest_keyframe_ms",
                             "loaded_map_cache_ms", "submap_build_ms",
@@ -673,8 +687,75 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
               std::string::npos)
         << field;
   }
+  EXPECT_NE(lines[0].find("\"loaded_map_target_cache_hit\":false"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"loaded_map_target_cache_miss\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[1].find("\"loaded_map_target_cache_hit\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[1].find("\"loaded_map_target_cache_miss\":false"),
+            std::string::npos);
 
   std::filesystem::remove_all(dir);
+}
+
+TEST_F(WorldLocalizingTest,
+       LoadedMapPreparedTargetCacheFollowsMapLifecycle) {
+  buildTestMap(6, 2.0);
+  for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
+    ASSERT_NE(keyframe, nullptr);
+    keyframe->is_from_loaded_map = true;
+  }
+
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation().x() = 8.0;
+  const auto cloud = generateCorridorCloud(pose);
+
+  ASSERT_TRUE(reloc.trackLoadedMap(cloud, pose).success);
+  ASSERT_TRUE(reloc.trackLoadedMap(cloud, pose).success);
+  auto diag = reloc.cacheDiagnostics();
+  EXPECT_EQ(diag.loaded_map_target_cache_hits, 1u);
+  EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
+  EXPECT_EQ(diag.loaded_map_target_cache_entries, 1u);
+
+  Eigen::Isometry3d extension_pose = Eigen::Isometry3d::Identity();
+  extension_pose.translation().x() = 40.0;
+  ASSERT_GE(keyframe_manager_->addKeyframe(
+                10.0, extension_pose, generateCorridorCloud(extension_pose)),
+            0);
+  ASSERT_TRUE(reloc.trackLoadedMap(cloud, pose).success);
+  diag = reloc.cacheDiagnostics();
+  EXPECT_EQ(diag.loaded_map_target_cache_hits, 2u);
+  EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
+  EXPECT_EQ(diag.loaded_map_target_cache_entries, 1u);
+
+  const auto keyframe = keyframe_manager_->getKeyframe(0);
+  ASSERT_NE(keyframe, nullptr);
+  Eigen::Isometry3d shifted_pose = keyframe->pose_optimized;
+  shifted_pose.translation().x() += 1e-3;
+  keyframe_manager_->updateOptimizedPoses({{keyframe->id, shifted_pose}});
+  ASSERT_TRUE(reloc.trackLoadedMap(cloud, pose).success);
+  diag = reloc.cacheDiagnostics();
+  EXPECT_EQ(diag.loaded_map_target_cache_hits, 2u);
+  EXPECT_EQ(diag.loaded_map_target_cache_misses, 2u);
+  EXPECT_EQ(diag.loaded_map_target_cache_entries, 1u);
+
+  reloc.resetLocalizationState();
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+  ASSERT_TRUE(reloc.trackLoadedMap(cloud, pose).success);
+  diag = reloc.cacheDiagnostics();
+  EXPECT_EQ(diag.loaded_map_target_cache_hits, 3u);
+  EXPECT_EQ(diag.loaded_map_target_cache_misses, 2u);
+  EXPECT_EQ(diag.loaded_map_target_cache_entries, 1u);
+
+  reloc.notifyMapReplaced();
+  diag = reloc.cacheDiagnostics();
+  EXPECT_EQ(diag.loaded_map_target_cache_hits, 0u);
+  EXPECT_EQ(diag.loaded_map_target_cache_misses, 0u);
+  EXPECT_EQ(diag.loaded_map_target_cache_entries, 0u);
 }
 
 TEST_F(WorldLocalizingTest, Reset) {

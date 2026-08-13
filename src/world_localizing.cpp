@@ -40,6 +40,18 @@ bool sameGenerationAndPose(const KeyframeMapRevision &lhs,
          lhs.pose_revision == rhs.pose_revision;
 }
 
+bool hasUsablePreparedTarget(
+    const PointCloudMatcher::PreparedTarget &prepared) {
+  if (prepared.plane_levels.size() < 2) {
+    return false;
+  }
+  return std::all_of(
+      prepared.plane_levels.begin(), prepared.plane_levels.end(),
+      [](const PointCloudMatcher::PreparedTargetLevel &level) {
+        return level.cloud && level.kdtree && level.cloud->size() >= 10;
+      });
+}
+
 void fillQueryCloudDebugSummary(const PlaceObservation &observation,
                                 RelocQueryCloudDebugSummary *summary) {
   if (!summary) {
@@ -1100,7 +1112,13 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   }
 
   const auto target_prepare_started = timing_started();
-  const auto prepared_target = matcher_.prepareTargetCloud(submap);
+  const auto prepared_target =
+      strict_loaded_map
+          ? prepareLoadedMapTrackingTarget(
+                nearest_kf_id, submap,
+                &debug_event.loaded_map_target_cache_hit,
+                &debug_event.loaded_map_target_cache_miss)
+          : matcher_.prepareTargetCloud(submap);
   if (reloc_debug_enabled) {
     debug_event.target_prepare_ms = elapsed_ms(target_prepare_started);
   }
@@ -1336,6 +1354,9 @@ void WorldLocalizing::notifyMapReplaced() {
   loaded_map_visibility_cache_ = pcl::make_shared<PointCloudT>();
   loaded_map_visibility_cached_keyframes_ = 0;
   loaded_map_visibility_revision_ = {};
+  invalidateLoadedMapTrackingTargetCache();
+  loaded_map_tracking_target_cache_hits_ = 0;
+  loaded_map_tracking_target_cache_misses_ = 0;
   free_space_grid_ = FreeSpaceGrid();
   free_space_grid_keyframes_ = 0;
   free_space_grid_revision_ = {};
@@ -1369,6 +1390,10 @@ WorldLocalizing::cacheDiagnostics() const {
     d.reloc_target_cache_bytes = target_diag.cache_total_bytes;
     d.reloc_target_cache_entries = target_diag.cache_entries;
   }
+  d.loaded_map_target_cache_hits = loaded_map_tracking_target_cache_hits_;
+  d.loaded_map_target_cache_misses = loaded_map_tracking_target_cache_misses_;
+  d.loaded_map_target_cache_entries =
+      loaded_map_tracking_target_cache_valid_ ? 1u : 0u;
   return d;
 }
 
@@ -1775,10 +1800,66 @@ void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
       loaded_map_visibility_cached_keyframes_ == loaded_keyframes.size()) {
     return;
   }
+  invalidateLoadedMapTrackingTargetCache();
   loaded_map_visibility_cache_ =
       LocalizationAtlas::buildGlobalMap(config_, loaded_keyframes);
   loaded_map_visibility_cached_keyframes_ = loaded_keyframes.size();
   loaded_map_visibility_revision_ = current_revision;
+}
+
+void WorldLocalizing::invalidateLoadedMapTrackingTargetCache() {
+  loaded_map_tracking_target_cache_ = {};
+  loaded_map_tracking_target_cache_valid_ = false;
+  loaded_map_tracking_target_anchor_id_ = -1;
+  loaded_map_tracking_target_cached_keyframes_ = 0;
+  loaded_map_tracking_target_revision_ = {};
+}
+
+PointCloudMatcher::PreparedTarget
+WorldLocalizing::prepareLoadedMapTrackingTarget(
+    int64_t anchor_id, const PointCloudT::Ptr &submap, bool *cache_hit,
+    bool *cache_miss) {
+  if (cache_hit) {
+    *cache_hit = false;
+  }
+  if (cache_miss) {
+    *cache_miss = false;
+  }
+
+  const KeyframeMapRevision current_revision = keyframe_manager_.revision();
+  const bool reusable =
+      loaded_map_tracking_target_cache_valid_ &&
+      loaded_map_tracking_target_anchor_id_ == anchor_id &&
+      sameGenerationAndPose(loaded_map_tracking_target_revision_,
+                            current_revision) &&
+      loaded_map_tracking_target_cached_keyframes_ ==
+          loaded_map_visibility_cached_keyframes_;
+  if (reusable) {
+    ++loaded_map_tracking_target_cache_hits_;
+    if (cache_hit) {
+      *cache_hit = true;
+    }
+    return loaded_map_tracking_target_cache_;
+  }
+
+  ++loaded_map_tracking_target_cache_misses_;
+  if (cache_miss) {
+    *cache_miss = true;
+  }
+  // Drop the previous entry before allocating the replacement so resident
+  // memory is bounded to one loaded-map target plus the in-progress build.
+  invalidateLoadedMapTrackingTargetCache();
+  PointCloudMatcher::PreparedTarget prepared =
+      matcher_.prepareTargetCloud(submap);
+  if (hasUsablePreparedTarget(prepared)) {
+    loaded_map_tracking_target_cache_ = prepared;
+    loaded_map_tracking_target_cache_valid_ = true;
+    loaded_map_tracking_target_anchor_id_ = anchor_id;
+    loaded_map_tracking_target_cached_keyframes_ =
+        loaded_map_visibility_cached_keyframes_;
+    loaded_map_tracking_target_revision_ = loaded_map_visibility_revision_;
+  }
+  return prepared;
 }
 
 VisibilityConsistencyResult

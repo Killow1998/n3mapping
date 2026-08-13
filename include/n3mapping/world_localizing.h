@@ -119,6 +119,9 @@ public:
     std::size_t reloc_target_cache_misses = 0;
     std::size_t reloc_target_cache_bytes = 0;
     std::size_t reloc_target_cache_entries = 0;
+    std::size_t loaded_map_target_cache_hits = 0;
+    std::size_t loaded_map_target_cache_misses = 0;
+    std::size_t loaded_map_target_cache_entries = 0;
   };
   WorldLocalizingCacheDiagnostics cacheDiagnostics() const;
   void setMapToOdomTransform(const Eigen::Isometry3d &T_map_odom);
@@ -151,6 +154,10 @@ private:
 
   void rebuildRelocMapCacheIfNeeded();
   void rebuildLoadedMapVisibilityCacheIfNeeded();
+  void invalidateLoadedMapTrackingTargetCache();
+  PointCloudMatcher::PreparedTarget prepareLoadedMapTrackingTarget(
+      int64_t anchor_id, const PointCloudT::Ptr &submap, bool *cache_hit,
+      bool *cache_miss);
   void rebuildFreeSpaceGridIfNeeded();
   void killFreeSpaceDominatedHypotheses(const PointCloudT::Ptr &query_cloud,
                                         const Eigen::Isometry3d &odom_pose);
@@ -192,6 +199,13 @@ private:
   PointCloudT::Ptr loaded_map_visibility_cache_;
   size_t loaded_map_visibility_cached_keyframes_ = 0;
   KeyframeMapRevision loaded_map_visibility_revision_;
+  PointCloudMatcher::PreparedTarget loaded_map_tracking_target_cache_;
+  bool loaded_map_tracking_target_cache_valid_ = false;
+  int64_t loaded_map_tracking_target_anchor_id_ = -1;
+  size_t loaded_map_tracking_target_cached_keyframes_ = 0;
+  KeyframeMapRevision loaded_map_tracking_target_revision_;
+  size_t loaded_map_tracking_target_cache_hits_ = 0;
+  size_t loaded_map_tracking_target_cache_misses_ = 0;
   FreeSpaceGrid free_space_grid_;
   size_t free_space_grid_keyframes_ = 0;
   KeyframeMapRevision free_space_grid_revision_;

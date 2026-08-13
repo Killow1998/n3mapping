@@ -80,7 +80,7 @@ def runtime_record(
     }
 
 
-def tracking_record(index: int) -> dict[str, object]:
+def tracking_record(index: int, *, cache_hit: bool = False) -> dict[str, object]:
     return {
         "record_type": "tracking",
         "processing_time": 1000.0 + index,
@@ -102,6 +102,8 @@ def tracking_record(index: int) -> dict[str, object]:
         "loaded_map_cache_ms": 2.0,
         "submap_build_ms": 3.0,
         "target_prepare_ms": 20.0,
+        "loaded_map_target_cache_hit": cache_hit,
+        "loaded_map_target_cache_miss": not cache_hit,
         "source_prepare_ms": 5.0,
         "registration_ms": 50.0,
         "retry_registration_ms": None,
@@ -161,7 +163,10 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
                     runtime_record(3, 10.2, loaded_tracking_ms=85.0, callback_total_ms=80.0),
                 ],
             )
-            write_jsonl(tracking_path, [tracking_record(1), tracking_record(2)])
+            write_jsonl(
+                tracking_path,
+                [tracking_record(1), tracking_record(2, cache_hit=True)],
+            )
             write_jsonl(resource_path, [resource_record(1), resource_record(2)])
 
             report, exit_code = TOOL.analyze(
@@ -173,6 +178,11 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             self.assertEqual(report["counts"]["runtime_frames"], 3)
             self.assertEqual(report["counts"]["strict_tracking_success"], 2)
             self.assertEqual(report["counts"]["strict_tracking_failure"], 0)
+            self.assertEqual(
+                report["counts"]["loaded_map_target_cache_observed"], 2
+            )
+            self.assertEqual(report["counts"]["loaded_map_target_cache_hit"], 1)
+            self.assertEqual(report["counts"]["loaded_map_target_cache_miss"], 1)
             self.assertEqual(report["counts"]["accepted_keyframes"], 1)
             self.assertEqual(report["counts"]["callback_over_sensor_budget"], 1)
             self.assertEqual(report["counts"]["resource_samples_total"], 2)
@@ -298,6 +308,39 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
 
             self.assertEqual(exit_code, 2)
             self.assertEqual(report["status"], "INSUFFICIENT_EVIDENCE")
+
+    def test_legacy_tracking_without_cache_outcome_remains_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            runtime_path = directory / "runtime_performance_debug.jsonl"
+            tracking_path = directory / "relocalization_debug.jsonl"
+            resource_path = directory / "process_resource.jsonl"
+            write_jsonl(
+                runtime_path,
+                [
+                    runtime_record(
+                        1,
+                        10.0,
+                        loaded_tracking_ms=85.0,
+                        callback_total_ms=100.0,
+                    )
+                ],
+            )
+            legacy_tracking = tracking_record(1)
+            legacy_tracking.pop("loaded_map_target_cache_hit")
+            legacy_tracking.pop("loaded_map_target_cache_miss")
+            write_jsonl(tracking_path, [legacy_tracking])
+            write_jsonl(resource_path, [resource_record(1)])
+
+            report, exit_code = TOOL.analyze(
+                runtime_path, tracking_path, resource_path
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(report["status"], "PROFILE_READY")
+            self.assertEqual(
+                report["counts"]["loaded_map_target_cache_observed"], 0
+            )
 
     def test_cli_writes_report_and_rejects_duplicate_keys(self) -> None:
         with tempfile.TemporaryDirectory() as raw_dir:

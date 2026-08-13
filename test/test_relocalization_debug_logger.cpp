@@ -380,6 +380,7 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   event.loaded_map_cache_ms = 1.5;
   event.submap_build_ms = 2.5;
   event.target_prepare_ms = 3.5;
+  event.loaded_map_target_cache_miss = true;
   event.source_prepare_ms = 0.75;
   event.registration_ms = 4.0;
   event.visibility_ms = 0.5;
@@ -398,6 +399,10 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   EXPECT_NE(lines[0].find("\"nearest_kf_id\":-1"), std::string::npos);
   EXPECT_NE(lines[0].find("\"tracking_total_ms\":12.5"), std::string::npos);
   EXPECT_NE(lines[0].find("\"nearest_keyframe_ms\":0.25"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"loaded_map_target_cache_hit\":false"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"loaded_map_target_cache_miss\":true"),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"retry_registration_ms\":null"),
             std::string::npos);

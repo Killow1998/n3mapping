@@ -128,6 +128,8 @@ struct RelocTrackingDebugEvent {
   double loaded_map_cache_ms = std::numeric_limits<double>::quiet_NaN();
   double submap_build_ms = std::numeric_limits<double>::quiet_NaN();
   double target_prepare_ms = std::numeric_limits<double>::quiet_NaN();
+  bool loaded_map_target_cache_hit = false;
+  bool loaded_map_target_cache_miss = false;
   double source_prepare_ms = std::numeric_limits<double>::quiet_NaN();
   double registration_ms = std::numeric_limits<double>::quiet_NaN();
   double retry_registration_ms = std::numeric_limits<double>::quiet_NaN();

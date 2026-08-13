@@ -495,6 +495,10 @@ bool RelocalizationDebugLogger::appendTracking(
                event.loaded_map_cache_ms);
   appendNumber(os, &first, "submap_build_ms", event.submap_build_ms);
   appendNumber(os, &first, "target_prepare_ms", event.target_prepare_ms);
+  appendBool(os, &first, "loaded_map_target_cache_hit",
+             event.loaded_map_target_cache_hit);
+  appendBool(os, &first, "loaded_map_target_cache_miss",
+             event.loaded_map_target_cache_miss);
   appendNumber(os, &first, "source_prepare_ms", event.source_prepare_ms);
   appendNumber(os, &first, "registration_ms", event.registration_ms);
   appendNumber(os, &first, "retry_registration_ms",

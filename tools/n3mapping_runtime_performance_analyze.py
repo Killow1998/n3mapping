@@ -48,6 +48,10 @@ TRACKING_TIMINGS = (
     "retry_registration_ms",
     "visibility_ms",
 )
+TRACKING_TARGET_CACHE_FIELDS = (
+    "loaded_map_target_cache_hit",
+    "loaded_map_target_cache_miss",
+)
 RUNTIME_REQUIRED = {
     "schema",
     "record_type",
@@ -236,6 +240,34 @@ def validate_tracking(records: list[dict[str, Any]]) -> list[str]:
         for field in ("strict_loaded_map", "retry_used", "result_success"):
             if not isinstance(record[field], bool):
                 errors.append(f"tracking record {line}: {field} must be bool")
+        cache_fields_present = [
+            field in record for field in TRACKING_TARGET_CACHE_FIELDS
+        ]
+        if any(cache_fields_present) and not all(cache_fields_present):
+            errors.append(
+                f"tracking record {line}: incomplete loaded-map target cache outcome"
+            )
+        elif all(cache_fields_present):
+            cache_hit = record["loaded_map_target_cache_hit"]
+            cache_miss = record["loaded_map_target_cache_miss"]
+            if not isinstance(cache_hit, bool) or not isinstance(cache_miss, bool):
+                errors.append(
+                    f"tracking record {line}: target cache outcomes must be bool"
+                )
+            elif cache_hit and cache_miss:
+                errors.append(
+                    f"tracking record {line}: target cache hit and miss both true"
+                )
+            elif finite(record["target_prepare_ms"]) and cache_hit == cache_miss:
+                errors.append(
+                    f"tracking record {line}: prepared target lacks one cache outcome"
+                )
+            elif (cache_hit or cache_miss) and not finite(
+                record["target_prepare_ms"]
+            ):
+                errors.append(
+                    f"tracking record {line}: cache outcome lacks target timing"
+                )
         if record["result_success"]:
             for field in (
                 "tracking_total_ms",
@@ -433,6 +465,19 @@ def analyze(
                 row.get("result_success") is False for row in strict_tracking
             ),
             "tracking_retry": sum(row.get("retry_used") is True for row in strict_tracking),
+            "loaded_map_target_cache_observed": sum(
+                row.get("loaded_map_target_cache_hit") is True
+                or row.get("loaded_map_target_cache_miss") is True
+                for row in strict_tracking
+            ),
+            "loaded_map_target_cache_hit": sum(
+                row.get("loaded_map_target_cache_hit") is True
+                for row in strict_tracking
+            ),
+            "loaded_map_target_cache_miss": sum(
+                row.get("loaded_map_target_cache_miss") is True
+                for row in strict_tracking
+            ),
             "core_failure": sum(row.get("core_success") is False for row in runtime),
             "callback_skipped": sum(row.get("callback_skipped") is True for row in runtime),
             "accepted_keyframes": len(accepted),
