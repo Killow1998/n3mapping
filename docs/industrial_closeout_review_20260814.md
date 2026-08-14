@@ -28,7 +28,7 @@ questions were answered. It does not make every answer a product PASS.
 | --- | --- | --- |
 | Architecture boundaries | ROS-free backend, thin Humble/Noetic wrappers, external LIO contract, explicit session pose domains, transactional graph/map paths, bounded caches | PASS |
 | Architecture roadmap | WP-00 through WP-C4, SG-01 through SG-09, and PERF-ME-01 have terminal PASS/NO-GO decisions; rejected behavior remains default-off | COMPLETE |
-| Final local Humble Product build | Fresh isolated Release build at `f408013`, research tools OFF, verified build identity; 53/53 CTest targets | PASS |
+| Final local Humble Product build | Fresh isolated Release build of source snapshot `a26dc48`, research tools OFF, verified build identity; 53/53 CTest targets | PASS |
 | Closeout research build | Fresh isolated Release build with research tools; 57/57 CTest targets after evaluator-contract fixes | PASS |
 | Static analysis | Project `missingReturn`, boolean bitwise, signedness, and avoidable copy warnings removed; remaining findings are vendored nanoflann/KD adaptor warnings plus an Eigen comma-initializer false positive | PASS WITH VENDOR FINDINGS |
 | floor7 real workflow | Mapping, raw-bag localization, map extension, C1/C2/C3/SG evidence and owner visual checks have auditable terminal results | CONDITIONAL PASS for the qualified workflow |
@@ -38,8 +38,8 @@ questions were answered. It does not make every answer a product PASS.
 | M2DGR gate_02 | Same-session held-out half, measured quaternion: 1/5 correct locks, 4/5 no-lock, 0 false locks | FAIL recall target |
 | M2DGR hall_05 | Same-session held-out half, trajectory-derived yaw: 0/3 locks, 0 false locks at 0.5 m input voxel | Diagnostic only; FAIL recall target |
 | Atlas scale | 100 KITTI keyframes at 0.2 m produced 1,218,130,685 bytes, exceeding the 1 GiB load contract | RELEASE BLOCKER |
-| Noetic | No local installation on this Jammy host; clean Noetic/Focal container build and tests passed remotely at `2d4225f` | PASS in remote matrix |
-| Remote CI | Recovery commit `2d4225f`, [run 31805997273](https://github.com/Killow1998/n3mapping/actions/runs/31805997273): Humble/Jammy and Noetic/Focal both build/test PASS | PASS |
+| Noetic | No local installation on this Jammy host; clean Noetic/Focal container build and tests passed remotely for source snapshot `a26dc48` | PASS in remote matrix |
+| Remote CI | Recovery source snapshot `a26dc48`, [run 31807075721](https://github.com/Killow1998/n3mapping/actions/runs/31807075721): Humble/Jammy and Noetic/Focal both build/test PASS, with no check annotations | PASS |
 | Release governance | `main` is unprotected; no release artifact exists; package version remains 1.0.0 | NOT INDUSTRIALIZED |
 
 ## Dataset evidence contract
