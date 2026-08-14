@@ -22,17 +22,10 @@ float deg2rad(float degrees)
 
 float xy2theta( const float & _x, const float & _y )
 {
-    if ( _x >= 0 & _y >= 0) 
-        return (180/M_PI) * atan(_y / _x);
-
-    if ( _x < 0 & _y >= 0) 
-        return 180 - ( (180/M_PI) * atan(_y / (-_x)) );
-
-    if ( _x < 0 & _y < 0) 
-        return 180 + ( (180/M_PI) * atan(_y / _x) );
-
-    if ( _x >= 0 & _y < 0)
-        return 360 - ( (180/M_PI) * atan((-_y) / _x) );
+    float angle = rad2deg(std::atan2(_y, _x));
+    if (angle < 0.0F)
+        angle += 360.0F;
+    return angle;
 } // xy2theta
 
 
@@ -75,7 +68,7 @@ double SCManager::distDirectSC ( MatrixXd &_sc1, MatrixXd &_sc2 )
         VectorXd col_sc1 = _sc1.col(col_idx);
         VectorXd col_sc2 = _sc2.col(col_idx);
         
-        if( col_sc1.norm() == 0 | col_sc2.norm() == 0 )
+        if( col_sc1.norm() == 0 || col_sc2.norm() == 0 )
             continue; // don't count this sector pair. 
 
         double sector_similarity = col_sc1.dot(col_sc2) / (col_sc1.norm() * col_sc2.norm());
@@ -254,7 +247,8 @@ std::pair<int, float> SCManager::detectLoopClosureID ( void )
     /* 
      * step 1: candidates from ringkey tree_
      */
-    if( polarcontext_invkeys_mat_.size() < NUM_EXCLUDE_RECENT + 1)
+    if( polarcontext_invkeys_mat_.size() <
+        static_cast<std::size_t>(NUM_EXCLUDE_RECENT + 1))
     {
         std::pair<int, float> result {loop_id, 0.0};
         return result; // Early return 

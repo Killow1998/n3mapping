@@ -816,6 +816,8 @@ void writeJsonDoubleOrNull(std::ostream& out, double value)
 void writeAlignmentMetricsJson(std::ostream& out, const AlignmentStats& alignment)
 {
     out << "  \"odom_source\": \"gt\",\n"
+        << "  \"backend_input_contract\": \"gt_pose_plus_lidar\",\n"
+        << "  \"real_lio_safety_filters_applied\": false,\n"
         << "  \"gt_position_frame\": \"" << alignment.gt_position_frame
         << "\",\n"
         << "  \"alignment_input_lidar_count\": " << alignment.input_lidar_count << ",\n"
@@ -998,6 +1000,11 @@ Config makeEvalConfig(const Options& options)
     config.reloc_debug_path = (options.output_dir / "relocalization_debug.jsonl").string();
     config.reloc_atlas_enable = !options.atlas_path.empty();
     config.reloc_atlas_path = options.atlas_path.string();
+    // Dataset replay supplies oracle ground-truth poses. Keep it a backend
+    // diagnostic: real-LIO startup and divergence guards are validated by bag
+    // replay and would otherwise conflate frontend safety with backend quality.
+    config.mapping_static_start_guard_enable = false;
+    config.odom_sanity_enable = false;
     return config;
 }
 

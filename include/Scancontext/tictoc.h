@@ -28,7 +28,7 @@ public:
         start = std::chrono::system_clock::now();
     }
 
-    void toc( std::string _about_task )
+    void toc( const std::string& _about_task )
     {
         end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;

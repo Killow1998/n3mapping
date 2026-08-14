@@ -170,6 +170,10 @@ TEST(N3MappingM2DGREvalTest, MappingLoopWritesMatrixCompatibleArtifacts)
     EXPECT_NE(metrics.find("\"mode\": \"mapping_loop\""), std::string::npos);
     EXPECT_NE(metrics.find("\"frames_processed\": 5"), std::string::npos);
     EXPECT_NE(metrics.find("\"odom_source\": \"gt\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"backend_input_contract\": \"gt_pose_plus_lidar\""),
+              std::string::npos);
+    EXPECT_NE(metrics.find("\"real_lio_safety_filters_applied\": false"),
+              std::string::npos);
     EXPECT_NE(metrics.find("\"alignment_input_lidar_count\": 6"), std::string::npos);
     EXPECT_NE(metrics.find("\"alignment_input_gt_count\": 6"), std::string::npos);
     EXPECT_NE(metrics.find("\"alignment_matched_count\": 6"), std::string::npos);

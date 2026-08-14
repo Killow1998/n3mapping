@@ -338,6 +338,18 @@ bool LocalizationAtlas::compileAndSave(
         local_stats.prepared_point_count += prepared_target_.refine_level.cloud->size();
     }
 
+    // Loading deliberately rejects sidecars larger than 1 GiB. Refuse the
+    // exact serialized message before opening a temporary file, so compilation
+    // cannot publish an artifact that the same binary is guaranteed to reject.
+    const auto serialized_bytes =
+        static_cast<std::uintmax_t>(data.ByteSizeLong());
+    if (serialized_bytes == 0 || serialized_bytes > kMaxAtlasBytes) {
+        setError(error,
+                 "compiled atlas exceeds the 1 GiB load limit; use a smaller "
+                 "or more strongly downsampled map");
+        return false;
+    }
+
     start = Clock::now();
     const std::filesystem::path output(atlas_path);
     if (!output.parent_path().empty()) {

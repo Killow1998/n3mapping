@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 project(n3mapping)
 
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW)
+endif()
+
 set(N3MAPPING_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 get_filename_component(N3MAPPING_ROOT "${N3MAPPING_ROOT}" ABSOLUTE)
 
@@ -453,6 +457,15 @@ if(BUILD_TESTING)
       ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_product_preflight.py
   )
   set_tests_properties(test_n3mapping_product_preflight PROPERTIES TIMEOUT 60)
+
+  add_test(
+    NAME test_n3mapping_source_tree_guard
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B
+      ${N3MAPPING_ROOT}/test/test_n3mapping_source_tree_guard.py
+  )
+  set_tests_properties(test_n3mapping_source_tree_guard PROPERTIES TIMEOUT 30)
 
   add_test(
     NAME test_n3mapping_raw_lio_replay_evidence

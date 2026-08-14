@@ -235,8 +235,6 @@ TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
         ASSERT_TRUE(serializer1.loadMap(map_file, kf_manager1, loop_detector1, optimizer1));
 
         size_t original_count = kf_manager1.size();
-        size_t original_edges = optimizer1.getNumEdges();
-
         // 第二次加载并添加新关键帧
         KeyframeManager kf_manager2(config_);
         LoopDetector loop_detector2(config_);

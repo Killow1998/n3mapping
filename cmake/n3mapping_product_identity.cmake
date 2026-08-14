@@ -1,3 +1,37 @@
+# A build tree inside the source tree makes the repository dirty and defeats
+# the clean-source requirement used by verified Product builds. Check both
+# resolved and literal paths: the former catches a real nested build tree,
+# while the latter also catches a symlink placed inside the repository.
+function(_n3mapping_path_is_within out_var candidate root)
+  set(_prefix "${root}/")
+  string(LENGTH "${_prefix}" _prefix_length)
+  string(LENGTH "${candidate}" _candidate_length)
+  set(_result 0)
+  if("${candidate}" STREQUAL "${root}")
+    set(_result 1)
+  elseif(NOT _candidate_length LESS _prefix_length)
+    string(SUBSTRING "${candidate}" 0 ${_prefix_length} _head)
+    if("${_head}" STREQUAL "${_prefix}")
+      set(_result 1)
+    endif()
+  endif()
+  set(${out_var} ${_result} PARENT_SCOPE)
+endfunction()
+
+get_filename_component(_n3mapping_real_source "${N3MAPPING_ROOT}" REALPATH)
+get_filename_component(_n3mapping_real_binary "${CMAKE_BINARY_DIR}" REALPATH)
+_n3mapping_path_is_within(_n3mapping_in_source_resolved
+  "${_n3mapping_real_binary}" "${_n3mapping_real_source}")
+_n3mapping_path_is_within(_n3mapping_in_source_literal
+  "${CMAKE_BINARY_DIR}" "${N3MAPPING_ROOT}")
+if(_n3mapping_in_source_resolved OR _n3mapping_in_source_literal)
+  message(FATAL_ERROR
+    "Refusing to build inside the n3mapping source tree.\n"
+    "  source tree: ${_n3mapping_real_source}\n"
+    "  build tree:  ${_n3mapping_real_binary}\n"
+    "Use build, install, and log directories outside the repository.")
+endif()
+
 # A production identity is only emitted when CMake is given the exact clean
 # Git commit being built. Development builds remain usable but identify
 # themselves as UNVERIFIED and are rejected by Product Bundle/runtime/Gate.
