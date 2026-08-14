@@ -1664,7 +1664,7 @@ void N3MappingCore::appendMapExtensionDenseTrajectorySample(
   }
 
   appendDenseTrajectorySample(timestamp, pose_odom, latest->id,
-                              latest->pose_odom, false);
+                              latest->pose_odom, true);
 }
 
 std::vector<core::DenseTrajectoryPose>

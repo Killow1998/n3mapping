@@ -575,6 +575,41 @@ TEST(N3MappingCoreTest,
     EXPECT_NEAR(internal_appended->pose_world_lidar.translation().y(), 10.0,
                 1e-4);
 
+    extension_core.setExternalDenseTrajectoryRecordingEnabled(true);
+    Eigen::Isometry3d bracketed_dense_odom = moved_odom;
+    bracketed_dense_odom.translation().x() = 1.5;
+    extension_core.recordDenseTrajectoryPose(
+        CoreRunMode::MAP_EXTENSION, 4.5, bracketed_dense_odom);
+
+    Eigen::Isometry3d next_keyframe_odom = moved_odom;
+    next_keyframe_odom.translation().x() = 2.0;
+    const auto next_extension = extension_core.processMapExtensionFrame(
+        makeFrame(5000000000, next_keyframe_odom));
+    ASSERT_TRUE(next_extension.success);
+    ASSERT_TRUE(next_extension.accepted_keyframe);
+    auto next_extension_anchor =
+        extension_core.getKeyframe(next_extension.keyframe_id);
+    ASSERT_NE(next_extension_anchor, nullptr);
+    ASSERT_FALSE(next_extension_anchor->is_from_loaded_map);
+
+    extension_anchor->pose_optimized = extension_anchor->pose_odom;
+    extension_anchor->pose_optimized.translation().y() = 10.0;
+    next_extension_anchor->pose_optimized = next_extension_anchor->pose_odom;
+    next_extension_anchor->pose_optimized.translation().y() = 12.0;
+
+    const auto dense_with_bracketing =
+        extension_core.getDenseOptimizedTrajectory();
+    const auto bracketed_appended = std::find_if(
+        dense_with_bracketing.begin(), dense_with_bracketing.end(),
+        [](const core::DenseTrajectoryPose& pose) {
+            return std::abs(pose.timestamp - 4.5) < 1e-9;
+        });
+    ASSERT_NE(bracketed_appended, dense_with_bracketing.end());
+    EXPECT_NEAR(bracketed_appended->pose_world_lidar.translation().x(), 1.5,
+                1e-4);
+    EXPECT_NEAR(bracketed_appended->pose_world_lidar.translation().y(), 11.5,
+                1e-4);
+
     std::filesystem::remove_all(dir);
 }
 
