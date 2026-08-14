@@ -51,6 +51,7 @@ find_package(OpenCV REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(TBB REQUIRED)
 find_package(small_gicp REQUIRED)
 include(${N3MAPPING_ROOT}/cmake/n3mapping_dependency_abi.cmake)
 n3mapping_verify_dependency_abi()
@@ -115,52 +116,6 @@ add_definitions(${PCL_DEFINITIONS})
 
 include(${N3MAPPING_ROOT}/cmake/n3mapping_core.cmake)
 include(${N3MAPPING_ROOT}/cmake/n3mapping_nav_resource_reader.cmake)
-
-set(N3MAPPING_CORE_SOURCES
-  ${PROTO_SRCS}
-  ${N3MAPPING_ROOT}/src/config.cpp
-  ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
-  ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
-  ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
-  ${N3MAPPING_ROOT}/src/local_map_selector.cpp
-  ${N3MAPPING_ROOT}/src/submap_builder.cpp
-  ${N3MAPPING_ROOT}/src/submap_graph_projection.cpp
-  ${N3MAPPING_ROOT}/src/submap_graph_factor.cpp
-  ${N3MAPPING_ROOT}/src/submap_graph_trial.cpp
-  ${N3MAPPING_ROOT}/src/submap_graph_trial_runtime.cpp
-  ${N3MAPPING_ROOT}/src/global_map_cache.cpp
-  ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
-  ${N3MAPPING_ROOT}/src/loop_detector.cpp
-  ${N3MAPPING_ROOT}/src/loop_verifier.cpp
-  ${N3MAPPING_ROOT}/src/loop_verification_pipeline.cpp
-  ${N3MAPPING_ROOT}/src/loop_debug_logger.cpp
-  ${N3MAPPING_ROOT}/src/loop_heightmap_diagnostics.cpp
-  ${N3MAPPING_ROOT}/src/loop_graph_trial_diagnostics.cpp
-  ${N3MAPPING_ROOT}/src/loop_segment_consistency.cpp
-  ${N3MAPPING_ROOT}/src/loop_consensus_verifier.cpp
-  ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
-  ${N3MAPPING_ROOT}/src/graph_factor_noise.cpp
-  ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
-  ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
-  ${N3MAPPING_ROOT}/src/map_serializer.cpp
-  ${N3MAPPING_ROOT}/src/localization_atlas.cpp
-  ${N3MAPPING_ROOT}/src/registration_observability.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_candidate_evaluator.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_decision_policy.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_debug_emitter.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_hypothesis_manager.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_place_index.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_query_builder.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_target_provider.cpp
-  ${N3MAPPING_ROOT}/src/world_localizing.cpp
-  ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
-  ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
-  ${N3MAPPING_ROOT}/src/runtime_performance_debug_logger.cpp
-  ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
-  ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
-  ${N3MAPPING_ROOT}/include/Scancontext/Scancontext.cpp
-  ${N3MAPPING_ROOT}/include/Scancontext/HybridScancontext.cpp
-)
 
 add_library(n3mapping_core SHARED
   ${N3MAPPING_CORE_SOURCES}
@@ -499,6 +454,22 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_config)
     target_link_libraries(test_config n3mapping_core)
+  endif()
+
+  catkin_add_gtest(test_static_start_guard
+    ${N3MAPPING_ROOT}/test/test_static_start_guard.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_static_start_guard)
+    target_link_libraries(test_static_start_guard n3mapping_core ${PCL_LIBRARIES})
+  endif()
+
+  catkin_add_gtest(test_odometry_sanity
+    ${N3MAPPING_ROOT}/test/test_odometry_sanity.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_odometry_sanity)
+    target_link_libraries(test_odometry_sanity n3mapping_core)
   endif()
 
   catkin_add_gtest(test_core_types
