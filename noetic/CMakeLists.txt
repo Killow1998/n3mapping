@@ -355,6 +355,7 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_raw_lio_replay_evidence.py
   ${N3MAPPING_ROOT}/tools/n3mapping_ros1_raw_bag_slice.py
   ${N3MAPPING_ROOT}/tools/n3mapping_submap_graph_trial_qualify.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_submap_graph_trial_compare.py
   ${N3MAPPING_ROOT}/tools/n3mapping_runtime_performance_analyze.py
   ${N3MAPPING_ROOT}/tools/n3mapping_process_resource_sample.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -666,6 +667,15 @@ if(CATKIN_ENABLE_TESTING)
       ${N3MAPPING_ROOT}/test/test_n3mapping_submap_graph_trial_qualify.py
   )
   set_tests_properties(test_n3mapping_submap_graph_trial_qualify PROPERTIES TIMEOUT 30)
+
+  add_test(
+    NAME test_n3mapping_submap_graph_trial_compare
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${PYTHON_EXECUTABLE} -B
+      ${N3MAPPING_ROOT}/test/test_n3mapping_submap_graph_trial_compare.py
+  )
+  set_tests_properties(test_n3mapping_submap_graph_trial_compare PROPERTIES TIMEOUT 30)
 
   add_test(
     NAME test_n3mapping_runtime_performance_analyze
