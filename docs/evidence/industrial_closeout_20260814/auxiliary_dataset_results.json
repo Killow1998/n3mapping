@@ -1,0 +1,127 @@
+{
+  "schema": "n3mapping_auxiliary_dataset_closeout_v1",
+  "recorded_timezone": "PDT (UTC-07:00)",
+  "formal_gate_ready": false,
+  "backend_input_contract": "gt_pose_plus_lidar",
+  "real_lio_safety_filters_applied": false,
+  "executable_identity": "UNVERIFIED research build",
+  "code_lineage_note": "The evaluated source changes were subsequently committed as 7c0e36f; these runs are auxiliary diagnostics, not Product-build evidence.",
+  "gate_blockers": [
+    "no recorded LIO odometry is bound to the public-dataset episodes",
+    "M2DGR LiDAR-to-IMU and frontend configuration are not frozen",
+    "GT distance overlap does not prove visible-surface overlap",
+    "positive recall is below the historical 80 percent working target"
+  ],
+  "atlas_scale_observation": {
+    "dataset": "KITTI-360",
+    "map_sequence": "2013_05_28_drive_0005_sync",
+    "map_frame_count": 100,
+    "input_voxel_size_m": 0.2,
+    "serialized_bytes": 1218130685,
+    "loader_limit_bytes": 1073741824,
+    "classification": "atlas_generation_exceeds_loader_contract",
+    "counted_as_localization_run": false
+  },
+  "runs": [
+    {
+      "id": "kitti_0005_map_0006_query_lock",
+      "dataset": "KITTI-360",
+      "evidence_class": "oracle_gt_cross_drive",
+      "map_sequence": "2013_05_28_drive_0005_sync",
+      "query_sequence": "2013_05_28_drive_0006_sync",
+      "expected_behavior": "lock",
+      "input_voxel_size_m": 0.2,
+      "map_frame_count": 41,
+      "attempt_count": 5,
+      "correct_lock_count": 3,
+      "false_lock_count": 0,
+      "no_lock_count": 2,
+      "contract_pass_rate": 0.6,
+      "translation_error_at_lock_p95_m": 0.5540662,
+      "yaw_error_at_lock_p95_deg": 0.4342544,
+      "summary_sha256": "fc025304315000fa54d8c8c5cb20853bfea791eb98da36beded4971c25b75d16",
+      "artifact_checksums_sha256": "c07bee7cf5a019f1d4a6f08c11a88b9baa4a13faf5615c3d14402c94279058db",
+      "episodes": [
+        {"id": "query_000", "outcome": "correct_lock", "first_lock_frame": 4, "pose_error_m": 0.521654, "yaw_error_deg": 0.184899},
+        {"id": "query_001", "outcome": "correct_lock", "first_lock_frame": 4, "pose_error_m": 0.533503, "yaw_error_deg": 0.438288},
+        {"id": "query_002", "outcome": "correct_lock", "first_lock_frame": 4, "pose_error_m": 0.556351, "yaw_error_deg": 0.397952},
+        {"id": "query_003", "outcome": "no_lock", "first_lock_frame": null, "pose_error_m": null, "yaw_error_deg": null},
+        {"id": "query_004", "outcome": "no_lock", "first_lock_frame": null, "pose_error_m": null, "yaw_error_deg": null}
+      ]
+    },
+    {
+      "id": "kitti_0005_map_0009_query_abstain_100_voxel05",
+      "dataset": "KITTI-360",
+      "evidence_class": "oracle_gt_cross_drive",
+      "map_sequence": "2013_05_28_drive_0005_sync",
+      "query_sequence": "2013_05_28_drive_0009_sync",
+      "expected_behavior": "abstain",
+      "input_voxel_size_m": 0.5,
+      "map_frame_count": 100,
+      "attempt_count": 5,
+      "correct_lock_count": 0,
+      "false_lock_count": 0,
+      "no_lock_count": 5,
+      "contract_pass_rate": 1.0,
+      "summary_sha256": "8df458fd3905b2e4d3469bf30c1043acbd2cffadc680a34c09ba193a57adff7d",
+      "artifact_checksums_sha256": "00d6e3fb03590931eb4eef148e0f1c15a6e71646b1664612289254a352831ee8",
+      "episodes": [
+        {"id": "query_000", "outcome": "no_lock"},
+        {"id": "query_001", "outcome": "no_lock"},
+        {"id": "query_002", "outcome": "no_lock"},
+        {"id": "query_003", "outcome": "no_lock"},
+        {"id": "query_004", "outcome": "no_lock"}
+      ]
+    },
+    {
+      "id": "m2dgr_gate02_lock",
+      "dataset": "M2DGR",
+      "evidence_class": "oracle_gt_same_session",
+      "map_sequence": "gate_02",
+      "query_sequence": "gate_02",
+      "expected_behavior": "lock",
+      "attitude_source": "measured quaternion",
+      "input_voxel_size_m": 0.2,
+      "map_frame_count": 93,
+      "attempt_count": 5,
+      "correct_lock_count": 1,
+      "false_lock_count": 0,
+      "no_lock_count": 4,
+      "contract_pass_rate": 0.2,
+      "translation_error_at_lock_p95_m": 0.05277054,
+      "yaw_error_at_lock_p95_deg": 0.06931224,
+      "summary_sha256": "b7914c3a78f001a3be1c27e6897d139067e8debcfdd3f1dfebaa7df873659826",
+      "artifact_checksums_sha256": "c41b3070fbbfcb3d45e9342c92c1a791858858eb668abcd8f1b49ffcde3a479f",
+      "episodes": [
+        {"id": "query_000", "outcome": "correct_lock", "first_lock_frame": 4, "pose_error_m": 0.0527705, "yaw_error_deg": 0.0693122},
+        {"id": "query_001", "outcome": "no_lock"},
+        {"id": "query_002", "outcome": "no_lock"},
+        {"id": "query_003", "outcome": "no_lock"},
+        {"id": "query_004", "outcome": "no_lock"}
+      ]
+    },
+    {
+      "id": "m2dgr_hall05_lock_3x100_voxel05",
+      "dataset": "M2DGR",
+      "evidence_class": "oracle_gt_same_session",
+      "map_sequence": "hall_05",
+      "query_sequence": "hall_05",
+      "expected_behavior": "lock",
+      "attitude_source": "trajectory-derived yaw",
+      "input_voxel_size_m": 0.5,
+      "map_frame_count": 89,
+      "attempt_count": 3,
+      "correct_lock_count": 0,
+      "false_lock_count": 0,
+      "no_lock_count": 3,
+      "contract_pass_rate": 0.0,
+      "summary_sha256": "d31aa899c9c4264c1bbc132cd908c8a49a7ed30dea5d0700ffeb02dafee7a991",
+      "artifact_checksums_sha256": "0da718dcb5d719d852c61b030d840f4e2868be6e0fe43218b50d17e5a54ca368",
+      "episodes": [
+        {"id": "query_000", "outcome": "no_lock"},
+        {"id": "query_001", "outcome": "no_lock"},
+        {"id": "query_002", "outcome": "no_lock"}
+      ]
+    }
+  ]
+}

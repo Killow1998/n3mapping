@@ -18,9 +18,9 @@ The only permanent archive tags are:
 - `archive/humble` -> `6327519ee3347a15016f4ebd6e9942c5f26b7d40`
 - `archive/noetic` -> `32a3b131914b085624add24d79be84a54b9a0784`
 
-All `archive/retired-20260814/*` tags were temporary, recoverable review refs.
-Their peeled targets and decisions are recorded below so the tags can be
-removed from both local and remote ref lists after this ledger is pushed.
+All `archive/retired-20260814/*` tags were temporary review refs. Their peeled
+targets and decisions are recorded below; after this ledger was pushed, the
+tags were removed from both local and remote ref lists.
 
 ## Reviewed temporary refs
 
