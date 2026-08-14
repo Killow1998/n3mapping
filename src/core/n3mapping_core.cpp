@@ -979,8 +979,8 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   if (!should_add_keyframe) {
     if (!external_dense_trajectory_recording_enabled_) {
       const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
-      appendDenseTrajectorySampleWithLatestAnchor(
-          timestamp, frame.T_world_lidar, false);
+      appendMapExtensionDenseTrajectorySample(
+          timestamp, frame.T_world_lidar, pose_map);
     }
     auto output = make_output(true, pose_map, frame.undistorted_cloud);
     output.relocalization_state = tracking.state;
@@ -1581,7 +1581,8 @@ void N3MappingCore::recordDenseTrajectoryPose(
   if (!isFinitePose(pose_map)) {
     return;
   }
-  appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_map, false);
+  appendMapExtensionDenseTrajectorySample(timestamp, pose_world_lidar,
+                                          pose_map);
 }
 
 core::BackendOutput
@@ -1644,6 +1645,26 @@ void N3MappingCore::appendDenseTrajectorySampleWithLatestAnchor(
       latest->is_from_loaded_map ? latest->pose_optimized : latest->pose_odom;
   appendDenseTrajectorySample(timestamp, raw_pose, latest->id, anchor_raw_pose,
                               use_bracketing_correction);
+}
+
+void N3MappingCore::appendMapExtensionDenseTrajectorySample(
+    double timestamp, const Eigen::Isometry3d &pose_odom,
+    const Eigen::Isometry3d &pose_map) {
+  auto latest = session_->keyframeManager().getLatestKeyframe();
+  if (!latest) {
+    appendDenseTrajectorySample(timestamp, pose_map, -1,
+                                Eigen::Isometry3d::Identity(), false);
+    return;
+  }
+
+  if (latest->is_from_loaded_map) {
+    appendDenseTrajectorySample(timestamp, pose_map, latest->id,
+                                latest->pose_optimized, false);
+    return;
+  }
+
+  appendDenseTrajectorySample(timestamp, pose_odom, latest->id,
+                              latest->pose_odom, false);
 }
 
 std::vector<core::DenseTrajectoryPose>
