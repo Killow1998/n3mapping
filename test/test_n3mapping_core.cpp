@@ -596,6 +596,15 @@ TEST(N3MappingCoreTest,
     extension_anchor->pose_optimized.translation().y() = 10.0;
     next_extension_anchor->pose_optimized = next_extension_anchor->pose_odom;
     next_extension_anchor->pose_optimized.translation().y() = 12.0;
+    auto overlapping_loaded_anchor = extension_core.getKeyframe(0);
+    ASSERT_NE(overlapping_loaded_anchor, nullptr);
+    ASSERT_TRUE(overlapping_loaded_anchor->is_from_loaded_map);
+    ASSERT_NE(overlapping_loaded_anchor->session_id,
+              extension_anchor->session_id);
+    overlapping_loaded_anchor->timestamp = 4.5;
+    overlapping_loaded_anchor->pose_odom = Eigen::Isometry3d::Identity();
+    overlapping_loaded_anchor->pose_optimized = Eigen::Isometry3d::Identity();
+    overlapping_loaded_anchor->pose_optimized.translation().y() = 100.0;
 
     const auto dense_with_bracketing =
         extension_core.getDenseOptimizedTrajectory();

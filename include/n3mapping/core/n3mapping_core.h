@@ -105,7 +105,8 @@ class N3MappingCore {
         const Eigen::Isometry3d& pose_odom,
         const Eigen::Isometry3d& pose_map);
     std::vector<core::DenseTrajectoryPose> buildDenseOptimizedTrajectory() const;
-    Eigen::Isometry3d interpolateDenseCorrection(double timestamp) const;
+    Eigen::Isometry3d interpolateDenseCorrection(
+        double timestamp, int64_t anchor_keyframe_id) const;
     void addRhpdDescriptorForKeyframe(int64_t keyframe_id, const PointCloud::Ptr& fallback_cloud);
     bool addOdometryConstraint(int64_t keyframe_id, const Eigen::Isometry3d& pose);
     void refreshOptimizedPoses(const char* context = "graph_update");
