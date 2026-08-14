@@ -354,7 +354,8 @@ class N3MappingNode : public rclcpp::Node
     void initializeComponents()
     {
         n3mapping_core_ = std::make_unique<N3MappingCore>(config_);
-        n3mapping_core_->setExternalDenseTrajectoryRecordingEnabled(true);
+        n3mapping_core_->setExternalDenseTrajectoryRecordingEnabled(
+          run_mode_ == CoreRunMode::MAPPING);
         global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
         if (run_mode_ == CoreRunMode::MAP_EXTENSION &&
             config_.reloc_debug_enable) {
@@ -388,10 +389,15 @@ class N3MappingNode : public rclcpp::Node
         // 订阅者
         cloud_sub_.subscribe(this, config_.cloud_topic, sync_qos);
         odom_sub_.subscribe(this, config_.odom_topic, sync_qos);
-        dense_odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-          config_.odom_topic,
-          rclcpp::QoS(static_cast<std::size_t>(sync_queue_size)),
-          std::bind(&N3MappingNode::denseOdomCallback, this, std::placeholders::_1));
+        if (run_mode_ == CoreRunMode::MAPPING) {
+            dense_odom_sub_ =
+              this->create_subscription<nav_msgs::msg::Odometry>(
+                config_.odom_topic,
+                rclcpp::QoS(static_cast<std::size_t>(sync_queue_size)),
+                std::bind(
+                  &N3MappingNode::denseOdomCallback, this,
+                  std::placeholders::_1));
+        }
 
         if (product_profile_v1_) {
             ExactSyncPolicy sync_policy(static_cast<uint32_t>(sync_queue_size));
@@ -771,7 +777,7 @@ class N3MappingNode : public rclcpp::Node
 
     void denseOdomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr odom_msg)
     {
-        if (!n3mapping_core_ || !coreRunModeSavesMap(run_mode_)) {
+        if (!n3mapping_core_ || run_mode_ != CoreRunMode::MAPPING) {
             return;
         }
 

@@ -466,7 +466,7 @@ TEST(N3MappingCoreTest, MapExtensionDenseSampleDoesNotDoubleApplyLoadedMapCorrec
 }
 
 TEST(N3MappingCoreTest,
-     MapExtensionDenseSamplesRespectLoadedAndCurrentAnchorFrames)
+     MapExtensionDenseSamplesUseAuthoritativeTrackedPoses)
 {
     Config config = makeCoreTestConfig();
     config.reloc_temporal_window_size = 1;
@@ -497,30 +497,21 @@ TEST(N3MappingCoreTest,
     }
 
     N3MappingCore extension_core(config);
-    extension_core.setExternalDenseTrajectoryRecordingEnabled(true);
     ASSERT_TRUE(extension_core.loadMap(map_path.string()));
     const auto lock = extension_core.processMapExtensionFrame(
         makeFrame(2000000000, Eigen::Isometry3d::Identity()));
     ASSERT_TRUE(lock.success);
     ASSERT_TRUE(lock.relocalization_locked);
 
-    Eigen::Isometry3d loaded_anchor_dense_odom =
-        Eigen::Isometry3d::Identity();
-    loaded_anchor_dense_odom.translation().x() = 0.1;
-    const Eigen::Isometry3d expected_loaded_anchor_dense =
-        lock.T_world_lidar * loaded_anchor_dense_odom;
-    extension_core.recordDenseTrajectoryPose(
-        CoreRunMode::MAP_EXTENSION, 2.1, loaded_anchor_dense_odom);
-    const auto loaded_anchor_dense =
-        extension_core.getDenseOptimizedTrajectory();
-    const auto loaded_anchor_appended = std::find_if(
-        loaded_anchor_dense.begin(), loaded_anchor_dense.end(),
+    const auto dense_after_lock = extension_core.getDenseOptimizedTrajectory();
+    const auto lock_sample = std::find_if(
+        dense_after_lock.begin(), dense_after_lock.end(),
         [](const core::DenseTrajectoryPose& pose) {
-            return std::abs(pose.timestamp - 2.1) < 1e-9;
+            return std::abs(pose.timestamp - 2.0) < 1e-9;
         });
-    ASSERT_NE(loaded_anchor_appended, loaded_anchor_dense.end());
-    EXPECT_TRUE(loaded_anchor_appended->pose_world_lidar.matrix().isApprox(
-        expected_loaded_anchor_dense.matrix(), 1e-4));
+    ASSERT_NE(lock_sample, dense_after_lock.end());
+    EXPECT_TRUE(lock_sample->pose_world_lidar.matrix().isApprox(
+        lock.T_world_lidar.matrix(), 1e-4));
 
     Eigen::Isometry3d moved_odom = Eigen::Isometry3d::Identity();
     moved_odom.translation().x() = 1.0;
@@ -528,35 +519,19 @@ TEST(N3MappingCoreTest,
         makeFrame(3000000000, moved_odom));
     ASSERT_TRUE(extension.success);
     ASSERT_TRUE(extension.accepted_keyframe);
-    auto extension_anchor =
-        extension_core.getKeyframe(extension.keyframe_id);
-    ASSERT_NE(extension_anchor, nullptr);
-    ASSERT_FALSE(extension_anchor->is_from_loaded_map);
-
-    Eigen::Isometry3d dense_odom = moved_odom;
-    dense_odom.translation().x() = 1.1;
-    const Eigen::Isometry3d expected_dense =
-        extension_anchor->pose_optimized * extension_anchor->pose_odom.inverse() *
-        dense_odom;
-    extension_core.recordDenseTrajectoryPose(
-        CoreRunMode::MAP_EXTENSION, 3.1, dense_odom);
-
-    const auto dense = extension_core.getDenseOptimizedTrajectory();
-    const auto appended = std::find_if(
-        dense.begin(), dense.end(), [](const core::DenseTrajectoryPose& pose) {
-            return std::abs(pose.timestamp - 3.1) < 1e-9;
+    const auto dense_after_keyframe =
+        extension_core.getDenseOptimizedTrajectory();
+    const auto keyframe_sample = std::find_if(
+        dense_after_keyframe.begin(), dense_after_keyframe.end(),
+        [](const core::DenseTrajectoryPose& pose) {
+            return std::abs(pose.timestamp - 3.0) < 1e-9;
         });
-    ASSERT_NE(appended, dense.end());
-    EXPECT_TRUE(appended->pose_world_lidar.matrix().isApprox(
-        expected_dense.matrix(), 1e-4));
-    EXPECT_NEAR(appended->pose_world_lidar.translation().y(), 10.0, 1e-4);
+    ASSERT_NE(keyframe_sample, dense_after_keyframe.end());
+    EXPECT_TRUE(keyframe_sample->pose_world_lidar.matrix().isApprox(
+        extension.T_world_lidar.matrix(), 1e-4));
 
-    extension_core.setExternalDenseTrajectoryRecordingEnabled(false);
     Eigen::Isometry3d internal_dense_odom = moved_odom;
     internal_dense_odom.translation().x() = 1.2;
-    const Eigen::Isometry3d expected_internal_dense =
-        extension_anchor->pose_optimized * extension_anchor->pose_odom.inverse() *
-        internal_dense_odom;
     const auto internal = extension_core.processMapExtensionFrame(
         makeFrame(4000000000, internal_dense_odom));
     ASSERT_TRUE(internal.success);
@@ -571,53 +546,13 @@ TEST(N3MappingCoreTest,
         });
     ASSERT_NE(internal_appended, dense_with_internal.end());
     EXPECT_TRUE(internal_appended->pose_world_lidar.matrix().isApprox(
-        expected_internal_dense.matrix(), 1e-4));
-    EXPECT_NEAR(internal_appended->pose_world_lidar.translation().y(), 10.0,
-                1e-4);
+        internal.T_world_lidar.matrix(), 1e-4));
 
+    const auto dense_count = dense_with_internal.size();
     extension_core.setExternalDenseTrajectoryRecordingEnabled(true);
-    Eigen::Isometry3d bracketed_dense_odom = moved_odom;
-    bracketed_dense_odom.translation().x() = 1.5;
     extension_core.recordDenseTrajectoryPose(
-        CoreRunMode::MAP_EXTENSION, 4.5, bracketed_dense_odom);
-
-    Eigen::Isometry3d next_keyframe_odom = moved_odom;
-    next_keyframe_odom.translation().x() = 2.0;
-    const auto next_extension = extension_core.processMapExtensionFrame(
-        makeFrame(5000000000, next_keyframe_odom));
-    ASSERT_TRUE(next_extension.success);
-    ASSERT_TRUE(next_extension.accepted_keyframe);
-    auto next_extension_anchor =
-        extension_core.getKeyframe(next_extension.keyframe_id);
-    ASSERT_NE(next_extension_anchor, nullptr);
-    ASSERT_FALSE(next_extension_anchor->is_from_loaded_map);
-
-    extension_anchor->pose_optimized = extension_anchor->pose_odom;
-    extension_anchor->pose_optimized.translation().y() = 10.0;
-    next_extension_anchor->pose_optimized = next_extension_anchor->pose_odom;
-    next_extension_anchor->pose_optimized.translation().y() = 12.0;
-    auto overlapping_loaded_anchor = extension_core.getKeyframe(0);
-    ASSERT_NE(overlapping_loaded_anchor, nullptr);
-    ASSERT_TRUE(overlapping_loaded_anchor->is_from_loaded_map);
-    ASSERT_NE(overlapping_loaded_anchor->session_id,
-              extension_anchor->session_id);
-    overlapping_loaded_anchor->timestamp = 4.5;
-    overlapping_loaded_anchor->pose_odom = Eigen::Isometry3d::Identity();
-    overlapping_loaded_anchor->pose_optimized = Eigen::Isometry3d::Identity();
-    overlapping_loaded_anchor->pose_optimized.translation().y() = 100.0;
-
-    const auto dense_with_bracketing =
-        extension_core.getDenseOptimizedTrajectory();
-    const auto bracketed_appended = std::find_if(
-        dense_with_bracketing.begin(), dense_with_bracketing.end(),
-        [](const core::DenseTrajectoryPose& pose) {
-            return std::abs(pose.timestamp - 4.5) < 1e-9;
-        });
-    ASSERT_NE(bracketed_appended, dense_with_bracketing.end());
-    EXPECT_NEAR(bracketed_appended->pose_world_lidar.translation().x(), 1.5,
-                1e-4);
-    EXPECT_NEAR(bracketed_appended->pose_world_lidar.translation().y(), 11.5,
-                1e-4);
+        CoreRunMode::MAP_EXTENSION, 4.1, internal_dense_odom);
+    EXPECT_EQ(extension_core.getDenseOptimizedTrajectory().size(), dense_count);
 
     std::filesystem::remove_all(dir);
 }

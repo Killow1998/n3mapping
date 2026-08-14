@@ -979,8 +979,12 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   if (!should_add_keyframe) {
     if (!external_dense_trajectory_recording_enabled_) {
       const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
-      appendMapExtensionDenseTrajectorySample(
-          timestamp, frame.T_world_lidar, pose_map);
+      auto matched_kf = session_->keyframeManager().getKeyframe(
+          tracking.matched_keyframe_id);
+      if (matched_kf && matched_kf->is_from_loaded_map) {
+        appendDenseTrajectorySample(timestamp, pose_map, matched_kf->id,
+                                    matched_kf->pose_optimized, false);
+      }
     }
     auto output = make_output(true, pose_map, frame.undistorted_cloud);
     output.relocalization_state = tracking.state;
@@ -1553,36 +1557,13 @@ void N3MappingCore::setExternalDenseTrajectoryRecordingEnabled(bool enabled) {
 void N3MappingCore::recordDenseTrajectoryPose(
     CoreRunMode mode, double timestamp,
     const Eigen::Isometry3d &pose_world_lidar) {
-  if (!coreRunModeSavesMap(mode) || !std::isfinite(timestamp) ||
+  if (!external_dense_trajectory_recording_enabled_ ||
+      mode != CoreRunMode::MAPPING || !std::isfinite(timestamp) ||
       !isFinitePose(pose_world_lidar)) {
     return;
   }
 
-  if (mode == CoreRunMode::MAPPING) {
-    appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_world_lidar);
-    return;
-  }
-
-  if (mode != CoreRunMode::MAP_EXTENSION || !map_loaded_) {
-    return;
-  }
-
-  const auto state = session_->mappingResuming().getState();
-  if (state != MappingResumingState::RELOCALIZED &&
-      state != MappingResumingState::EXTENDING) {
-    return;
-  }
-  if (!session_->worldLocalizing().isRelocalized()) {
-    return;
-  }
-
-  const Eigen::Isometry3d pose_map =
-      session_->worldLocalizing().getMapToOdomTransform() * pose_world_lidar;
-  if (!isFinitePose(pose_map)) {
-    return;
-  }
-  appendMapExtensionDenseTrajectorySample(timestamp, pose_world_lidar,
-                                          pose_map);
+  appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_world_lidar);
 }
 
 core::BackendOutput
@@ -1647,26 +1628,6 @@ void N3MappingCore::appendDenseTrajectorySampleWithLatestAnchor(
                               use_bracketing_correction);
 }
 
-void N3MappingCore::appendMapExtensionDenseTrajectorySample(
-    double timestamp, const Eigen::Isometry3d &pose_odom,
-    const Eigen::Isometry3d &pose_map) {
-  auto latest = session_->keyframeManager().getLatestKeyframe();
-  if (!latest) {
-    appendDenseTrajectorySample(timestamp, pose_map, -1,
-                                Eigen::Isometry3d::Identity(), false);
-    return;
-  }
-
-  if (latest->is_from_loaded_map) {
-    appendDenseTrajectorySample(timestamp, pose_map, latest->id,
-                                latest->pose_optimized, false);
-    return;
-  }
-
-  appendDenseTrajectorySample(timestamp, pose_odom, latest->id,
-                              latest->pose_odom, true);
-}
-
 std::vector<core::DenseTrajectoryPose>
 N3MappingCore::buildDenseOptimizedTrajectory() const {
   std::vector<core::DenseTrajectoryPose> dense_optimized;
@@ -1677,10 +1638,8 @@ N3MappingCore::buildDenseOptimizedTrajectory() const {
     pose.timestamp = sample.timestamp;
     pose.pose_world_lidar = sample.pose_world_lidar_raw;
     if (sample.use_bracketing_correction) {
-      pose.pose_world_lidar =
-          interpolateDenseCorrection(sample.timestamp,
-                                     sample.anchor_keyframe_id) *
-          sample.pose_world_lidar_raw;
+      pose.pose_world_lidar = interpolateDenseCorrection(sample.timestamp) *
+                              sample.pose_world_lidar_raw;
     } else if (sample.has_anchor) {
       auto anchor =
           session_->keyframeManager().getKeyframe(sample.anchor_keyframe_id);
@@ -1696,20 +1655,13 @@ N3MappingCore::buildDenseOptimizedTrajectory() const {
 }
 
 Eigen::Isometry3d
-N3MappingCore::interpolateDenseCorrection(
-    double timestamp, int64_t anchor_keyframe_id) const {
+N3MappingCore::interpolateDenseCorrection(double timestamp) const {
   const auto keyframes = session_->keyframeManager().getAllKeyframes();
-  const auto anchor = anchor_keyframe_id >= 0
-                          ? session_->keyframeManager().getKeyframe(
-                                anchor_keyframe_id)
-                          : nullptr;
-  // Loaded and resumed sessions can overlap in sensor time. Corrections are
-  // only meaningful in the raw odometry frame of the sample's own session.
   Keyframe::Ptr before;
   Keyframe::Ptr after;
 
   for (const auto &kf : keyframes) {
-    if (!kf || (anchor && kf->session_id != anchor->session_id)) {
+    if (!kf) {
       continue;
     }
     if (kf->timestamp <= timestamp &&

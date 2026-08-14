@@ -71,7 +71,8 @@ class N3MappingNoeticNode {
 
         run_mode_ = parseCoreRunMode(config_.mode);
         core_ = std::make_unique<N3MappingCore>(config_);
-        core_->setExternalDenseTrajectoryRecordingEnabled(true);
+        core_->setExternalDenseTrajectoryRecordingEnabled(
+            run_mode_ == CoreRunMode::MAPPING);
         if (coreRunModeSavesMap(run_mode_)) {
             initializeOptimizationLogging();
         }
@@ -123,8 +124,11 @@ class N3MappingNoeticNode {
             approx_sync_->registerCallback(boost::bind(
                 &N3MappingNoeticNode::syncCallback, this, _1, _2));
         }
-        dense_odom_sub_ = nh_.subscribe(
-            config_.odom_topic, static_cast<uint32_t>(sync_queue_size), &N3MappingNoeticNode::denseOdomCallback, this);
+        if (run_mode_ == CoreRunMode::MAPPING) {
+            dense_odom_sub_ = nh_.subscribe(
+                config_.odom_topic, static_cast<uint32_t>(sync_queue_size),
+                &N3MappingNoeticNode::denseOdomCallback, this);
+        }
 
         odom_pub_ = nh_.advertise<nav_msgs::Odometry>(config_.output_odom_topic, 10);
         path_pub_ = nh_.advertise<nav_msgs::Path>(config_.output_path_topic, 10);
@@ -240,7 +244,7 @@ class N3MappingNoeticNode {
 
     void denseOdomCallback(const nav_msgs::OdometryConstPtr& odom_msg)
     {
-        if (!core_ || !coreRunModeSavesMap(run_mode_)) {
+        if (!core_ || run_mode_ != CoreRunMode::MAPPING) {
             return;
         }
 
