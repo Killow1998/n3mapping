@@ -60,14 +60,16 @@ function(n3mapping_configure_core_target target_name)
   )
 
   target_link_libraries(${target_name}
+    PUBLIC
     ${PCL_LIBRARIES}
     ${OpenCV_LIBRARIES}
     ${PROTOBUF_LIBRARIES}
     gtsam
-    TBB::tbb
     OpenMP::OpenMP_CXX
     small_gicp::small_gicp
     glog::glog
     OpenSSL::Crypto
+    PRIVATE
+    TBB::tbb
   )
 endfunction()
