@@ -65,8 +65,8 @@ jobs:
       PACKAGE_DIR: ${{ matrix.package_dir }}
       GTSAM_VERSION: 4.1.1
       SMALL_GICP_REF: 78f2e7a221720625eb95271ad9da21a04fb77f86
-      DEPS_ROOT: ${{ runner.temp }}/n3mapping-deps/${{ matrix.ros_distro }}
-      ROS_WS: ${{ runner.temp }}/n3mapping-ws/${{ matrix.ros_distro }}
+      DEPS_ROOT: /tmp/n3mapping-deps/${{ matrix.ros_distro }}
+      ROS_WS: /tmp/n3mapping-ws/${{ matrix.ros_distro }}
 
     steps:
       - name: Install baseline tools
@@ -89,7 +89,7 @@ jobs:
       - name: Restore source dependency cache
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/n3mapping-deps/${{ matrix.ros_distro }}
+          path: /tmp/n3mapping-deps/${{ matrix.ros_distro }}
           key: ${{ runner.os }}-${{ matrix.ros_distro }}-gtsam-${{ env.GTSAM_VERSION }}-small-gicp-${{ env.SMALL_GICP_REF }}-v1
 
       - name: Install ROS and system dependencies
