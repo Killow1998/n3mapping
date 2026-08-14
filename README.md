@@ -282,8 +282,8 @@ ros2 run n3mapping n3mapping_kitti360_reader \
 ```
 
 This is an offline evaluation input reader only; it does not run mapping or
-relocalization and does not replace real robot bags. See
-[docs/kitti360_reader.md](docs/kitti360_reader.md).
+relocalization and does not replace real robot bags. See the
+[dataset evidence contract](docs/industrial_closeout_review_20260814.md#dataset-evidence-contract).
 
 KITTI360 offline mapping-loop smoke:
 
@@ -316,8 +316,8 @@ ros2 run n3mapping n3mapping_eval_matrix.py \
   --output /tmp/n3mapping_eval_matrix
 ```
 
-Benchmark target and indoor dataset shortlist:
-[docs/eval_benchmark_plan.md](docs/eval_benchmark_plan.md).
+Benchmark interpretation and current acceptance limits are recorded in the
+[industrial closeout review](docs/industrial_closeout_review_20260814.md).
 
 M2DGR extracted-cloud offline eval:
 
@@ -331,7 +331,8 @@ ros2 run n3mapping n3mapping_m2dgr_eval \
   --output /tmp/n3mapping_m2dgr_hall03_mapping
 ```
 
-Details: [docs/m2dgr_eval.md](docs/m2dgr_eval.md).
+Details and evidence limitations are in the
+[dataset evidence contract](docs/industrial_closeout_review_20260814.md#dataset-evidence-contract).
 
 </details>
 
@@ -479,8 +480,8 @@ rosrun n3mapping n3mapping_kitti360_reader \
 ```
 
 This is an offline evaluation input reader only; it does not run mapping or
-relocalization and does not replace real robot bags. See
-[docs/kitti360_reader.md](docs/kitti360_reader.md).
+relocalization and does not replace real robot bags. See the
+[dataset evidence contract](docs/industrial_closeout_review_20260814.md#dataset-evidence-contract).
 
 KITTI360 offline mapping-loop smoke:
 
