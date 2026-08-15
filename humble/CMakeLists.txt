@@ -317,6 +317,9 @@ if(N3MAPPING_BUILD_RESEARCH_TOOLS)
     ${N3MAPPING_ROOT}/tools/n3mapping_eval_validate.py
     ${N3MAPPING_ROOT}/tools/n3mapping_eval_compare.py
     ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_eval_gate.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_fa02_freeze.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_fa02_gate.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_fa02_run.py
     DESTINATION lib/${PROJECT_NAME}
   )
 
@@ -506,6 +509,14 @@ if(BUILD_TESTING)
         ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_eval_tools.py
     )
     set_tests_properties(test_n3mapping_eval_tools PROPERTIES TIMEOUT 60)
+
+    add_test(
+      NAME test_n3mapping_fa02_tools
+      COMMAND ${CMAKE_COMMAND} -E env
+        PYTHONDONTWRITEBYTECODE=1
+        ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_fa02_tools.py
+    )
+    set_tests_properties(test_n3mapping_fa02_tools PROPERTIES TIMEOUT 60)
   endif()
 
   ament_add_gtest(test_keyframe_manager ${N3MAPPING_ROOT}/test/test_keyframe_manager.cpp)

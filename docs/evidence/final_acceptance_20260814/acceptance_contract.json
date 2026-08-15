@@ -62,6 +62,7 @@
   "fa02": {
     "scope": "backend_loop_closure_gt_pose_plus_lidar",
     "manual_review_required": false,
+    "coordinate_contract_revision": "Before the first formal FA-02 run, the evaluator was corrected to transform M2DGR Xsens/Leica ground truth into the LiDAR frame and to score the final post-loop dense trajectory.",
     "dataset_roots": {
       "kitti360": "/home/user/DUALoc/KITTI360",
       "m2dgr": "/home/user/dataset/M2DGR"
@@ -101,6 +102,9 @@
         "max_time_diff_s": 0.05,
         "normalize_gt_origin": true,
         "input_voxel_size_m": 0.5,
+        "gt_file": "gate_02.txt",
+        "gt_sensor_frame": "xsens",
+        "calibration_file": "config/eval/m2dgr_fa02_calibration.txt",
         "attitude_authoritative": true,
         "expected_role": "positive_revisit"
       },
@@ -114,6 +118,9 @@
         "max_time_diff_s": 0.05,
         "normalize_gt_origin": true,
         "input_voxel_size_m": 0.5,
+        "gt_file": "groundtruth_yaw_fallback.txt",
+        "gt_sensor_frame": "leica",
+        "calibration_file": "config/eval/m2dgr_fa02_calibration.txt",
         "attitude_authoritative": false,
         "expected_role": "positive_revisit_position_only"
       }
@@ -152,6 +159,8 @@
       "full_selected_cloud_sha256": true,
       "gt_sha256": true,
       "official_kitti360_calibration_sha256": true,
+      "official_m2dgr_calibration_sha256": true,
+      "final_post_loop_trajectory": true,
       "complete_marker": true,
       "checksums_manifest": true
     }
