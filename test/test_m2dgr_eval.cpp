@@ -116,6 +116,28 @@ std::filesystem::path makeMiniM2DGRFixture(const std::string& sequence)
     return root;
 }
 
+std::filesystem::path writeMiniM2DGRCalibration(
+    const std::filesystem::path& root)
+{
+    const auto path = root / "calibration_results.txt";
+    std::ofstream calibration(path);
+    if (!calibration.is_open()) {
+        throw std::runtime_error("failed to write synthetic M2DGR calibration");
+    }
+    calibration
+        << "%% Xsens IMU\n"
+        << "% Extrinsic [to LIDAR]\n"
+        << "data: [1, 0, 0, 0.15905,\n"
+        << "       0, 1, 0, 0.00067,\n"
+        << "       0, 0, 1, -0.16824]\n"
+        << "%% leica\n"
+        << "% Extrinsic [to LIDAR]\n"
+        << "data: [1, 0, 0, -0.21374,\n"
+        << "       0, 1, 0, 0.00146,\n"
+        << "       0, 0, 1, 0.68356]\n";
+    return path;
+}
+
 void writeRotatedEcefLikeGroundTruth(const std::filesystem::path& root,
                                      const std::string& sequence)
 {
@@ -160,6 +182,7 @@ TEST(N3MappingM2DGREvalTest, MappingLoopWritesMatrixCompatibleArtifacts)
 
     EXPECT_TRUE(std::filesystem::exists(output / "metrics.json"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_est.txt"));
+    EXPECT_TRUE(std::filesystem::exists(output / "trajectory_optimized.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_gt.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "keyframes_gt.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "accepted_loops.csv"));
@@ -179,6 +202,8 @@ TEST(N3MappingM2DGREvalTest, MappingLoopWritesMatrixCompatibleArtifacts)
     EXPECT_NE(metrics.find("\"alignment_matched_count\": 6"), std::string::npos);
     EXPECT_NE(metrics.find("\"alignment_selected_count\": 5"), std::string::npos);
     EXPECT_NE(metrics.find("\"alignment_time_diff_max_s\": 0"), std::string::npos);
+    EXPECT_NE(metrics.find("\"trajectory_optimized_semantics\": \"final_dense_after_all_loop_updates\""),
+              std::string::npos);
     const std::string loops = readTextFile(output / "accepted_loops.csv");
     EXPECT_NE(loops.find("vertical_hypothesis_count,best_z_offset_m,best_z_offset_fitness,zero_z_fitness,fitness_gap_zero_vs_best,z_hypothesis_spread_m,vertical_ambiguity_score,vertical_hypothesis_edge_recommendation,heightmap_overlap_cell_count"), std::string::npos);
     EXPECT_NE(loops.find("graph_trial_success,graph_trial_residual_x_after"), std::string::npos);
@@ -253,11 +278,48 @@ TEST(N3MappingM2DGREvalTest, NormalizeGtOriginUsesFullFirstPoseFrame)
     EXPECT_NEAR(qz, 0.0, 1e-6);
     EXPECT_NEAR(qw, 1.0, 1e-6);
     ASSERT_TRUE(trajectory >> stamp >> x >> y >> z >> qx >> qy >> qz >> qw);
-    EXPECT_NEAR(x, 0.0, 1e-6);
-    EXPECT_NEAR(y, -1.0, 1e-6);
+    const double longitude = std::atan2(4667400.61047, -2853538.25608);
+    EXPECT_NEAR(x, std::cos(longitude), 1e-5);
+    EXPECT_NEAR(y, std::sin(longitude), 1e-5);
     EXPECT_NEAR(z, 0.0, 1e-6);
     const std::string metrics = readTextFile(output / "metrics.json");
     EXPECT_NE(metrics.find("\"gt_position_frame\": \"ecef_to_enu_first_pose\""),
+              std::string::npos);
+}
+
+TEST(N3MappingM2DGREvalTest, AppliesPinnedGroundTruthSensorToLidarCalibration)
+{
+    const auto tool = findM2DGREvalTool();
+    ASSERT_FALSE(tool.empty()) << "n3mapping_m2dgr_eval executable not found";
+    const std::string sequence = "gate_02";
+    const auto root = makeMiniM2DGRFixture(sequence);
+    const auto calibration = writeMiniM2DGRCalibration(root);
+    const auto output = makeTempDir("n3mapping_m2dgr_calibrated_output");
+
+    const std::string command = shellQuote(tool) +
+        " --m2dgr_root " + shellQuote(root) +
+        " --sequence " + sequence +
+        " --mode mapping_loop"
+        " --max_frames 1"
+        " --max_time_diff 0.001"
+        " --gt_sensor_frame xsens"
+        " --calibration_file " + shellQuote(calibration) +
+        " --output " + shellQuote(output);
+    ASSERT_EQ(std::system(command.c_str()), 0);
+
+    std::ifstream trajectory(output / "trajectory_gt.txt");
+    ASSERT_TRUE(trajectory.is_open());
+    double stamp = 0.0, x = 0.0, y = 0.0, z = 0.0;
+    double qx = 0.0, qy = 0.0, qz = 0.0, qw = 0.0;
+    ASSERT_TRUE(trajectory >> stamp >> x >> y >> z >> qx >> qy >> qz >> qw);
+    EXPECT_NEAR(x, -0.15905, 1e-6);
+    EXPECT_NEAR(y, -0.00067, 1e-6);
+    EXPECT_NEAR(z, 0.16824, 1e-6);
+    const std::string metrics = readTextFile(output / "metrics.json");
+    EXPECT_NE(metrics.find("\"gt_sensor_frame\": \"xsens\""), std::string::npos);
+    EXPECT_NE(metrics.find("\"gt_to_lidar_calibration_applied\": true"),
+              std::string::npos);
+    EXPECT_NE(metrics.find("\"gt_to_lidar_calibration_sha256\": \""),
               std::string::npos);
 }
 

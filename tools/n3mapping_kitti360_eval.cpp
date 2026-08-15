@@ -790,6 +790,38 @@ void writeTrajectoryLine(std::ofstream& out, int64_t frame_id, const Eigen::Isom
         << q.x() << ' ' << q.y() << ' ' << q.z() << ' ' << q.w() << '\n';
 }
 
+void writeFinalOptimizedTrajectory(
+    const fs::path& path,
+    const std::vector<core::DenseTrajectoryPose>& dense,
+    const std::vector<KittiFrame>& frames)
+{
+    if (dense.size() != frames.size()) {
+        throw std::runtime_error(
+            "final dense trajectory count does not match selected KITTI-360 frames");
+    }
+    std::ofstream output(path);
+    if (!output.is_open()) {
+        throw std::runtime_error("failed to open final optimized trajectory: " + path.string());
+    }
+    for (std::size_t index = 0; index < dense.size(); ++index) {
+        const auto& pose = dense[index];
+        const double expected_timestamp =
+            static_cast<double>(frames[index].frame_id) * 0.1;
+        if (pose.seq != index ||
+            std::abs(pose.timestamp - expected_timestamp) > 5e-7 ||
+            !pose.pose_world_lidar.matrix().allFinite()) {
+            throw std::runtime_error(
+                "final dense trajectory is not an exact ordered KITTI-360 frame join");
+        }
+        writeTrajectoryLine(output, frames[index].frame_id, pose.pose_world_lidar);
+    }
+    output.flush();
+    if (!output.good()) {
+        throw std::runtime_error(
+            "failed while writing final optimized trajectory: " + path.string());
+    }
+}
+
 void writeJsonDoubleOrNull(std::ostream& out, double value)
 {
     if (std::isfinite(value)) {
@@ -1146,6 +1178,9 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
         throw std::runtime_error("failed to save KITTI360 mapping map: " + saved_map_path.string());
     }
     const auto dense = core.getDenseOptimizedTrajectory();
+    const fs::path optimized_trajectory_path =
+        options.output_dir / "trajectory_optimized.txt";
+    writeFinalOptimizedTrajectory(optimized_trajectory_path, dense, frames);
     std::ofstream metrics(options.output_dir / "metrics.json");
     metrics << "{\n"
             << "  \"mode\": \"mapping_loop\",\n"
@@ -1157,6 +1192,10 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
             << "  \"graph_edge_count\": " << stats.graph_edges << ",\n"
             << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
             << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
+            << "  \"trajectory_est_semantics\": \"online_before_future_loop_updates\",\n"
+            << "  \"trajectory_optimized_semantics\": \"final_dense_after_all_loop_updates\",\n"
+            << "  \"trajectory_optimized_path\": \""
+            << jsonEscape(optimized_trajectory_path.string()) << "\",\n"
             << "  \"map_path\": \"" << jsonEscape(saved_map_path.string()) << "\",\n"
             << "  \"frame_manifest\": \"" << jsonEscape(options.frame_manifest.string()) << "\",\n"
             << "  \"episode_id\": \"" << jsonEscape(options.episode_id) << "\",\n"

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cerrno>
 #include <cmath>
@@ -22,6 +23,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <glog/logging.h>
+#include <openssl/evp.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -43,6 +45,8 @@ struct Options {
     std::string sequence;
     fs::path lidar_dir;
     fs::path gt_path;
+    fs::path calibration_file;
+    std::string gt_sensor_frame = "lidar";
     std::string mode;
     fs::path output_dir;
     fs::path map_path;
@@ -92,6 +96,11 @@ struct AlignmentStats {
     size_t dropped_lidar_count = 0;
     size_t dropped_gt_count = 0;
     std::string gt_position_frame = "source";
+    std::string gt_sensor_frame = "lidar";
+    fs::path calibration_file;
+    std::string calibration_sha256;
+    bool calibration_applied = false;
+    Eigen::Isometry3d T_lidar_gt_sensor = Eigen::Isometry3d::Identity();
     std::vector<double> time_diffs_s;
 };
 
@@ -137,9 +146,11 @@ std::string normalizeGroundTruthToFirstPose(std::vector<PoseRecord>* poses)
     if (ecef_position) {
         const Eigen::Matrix3d R_enu_ecef = ecefToEnuRotation(source_origin);
         for (auto& pose : *poses) {
-            pose.T_world_lidar.translation() =
-                R_enu_ecef *
-                (pose.T_world_lidar.translation() - source_origin);
+            Eigen::Isometry3d T_enu_lidar = Eigen::Isometry3d::Identity();
+            T_enu_lidar.linear() = R_enu_ecef * pose.T_world_lidar.rotation();
+            T_enu_lidar.translation() =
+                R_enu_ecef * (pose.T_world_lidar.translation() - source_origin);
+            pose.T_world_lidar = T_enu_lidar;
         }
     }
     const Eigen::Isometry3d T_local_world =
@@ -258,6 +269,8 @@ void printUsage(std::ostream& os)
        << "Options:\n"
        << "  --lidar_dir <dir>                Explicit extracted lidar cloud directory.\n"
        << "  --gt <path>                      Explicit TUM ground-truth trajectory file.\n"
+       << "  --gt_sensor_frame <FRAME>        GT body frame: lidar, xsens, or leica. Default: lidar.\n"
+       << "  --calibration_file <path>        Official M2DGR calibration_results.txt; required unless GT is lidar-frame.\n"
        << "  --max_frames <N>                 Maximum aligned frames.\n"
        << "  --start_index <N>                Skip first N stride-selected frames. Default: 0.\n"
        << "  --stride <N>                     Use every Nth aligned frame. Default: 1.\n"
@@ -322,6 +335,10 @@ Options parseArgs(int argc, char** argv)
             options.lidar_dir = requireValue(arg);
         } else if (arg == "--gt") {
             options.gt_path = requireValue(arg);
+        } else if (arg == "--gt_sensor_frame") {
+            options.gt_sensor_frame = requireValue(arg);
+        } else if (arg == "--calibration_file") {
+            options.calibration_file = requireValue(arg);
         } else if (arg == "--mode") {
             options.mode = requireValue(arg);
         } else if (arg == "--output") {
@@ -410,6 +427,20 @@ Options parseArgs(int argc, char** argv)
     if (options.input_voxel_size_m < 0.0) {
         throw std::runtime_error("--input_voxel_size must be non-negative");
     }
+    if (options.gt_sensor_frame != "lidar" &&
+        options.gt_sensor_frame != "xsens" &&
+        options.gt_sensor_frame != "leica") {
+        throw std::runtime_error("--gt_sensor_frame must be lidar, xsens, or leica");
+    }
+    if (options.gt_sensor_frame != "lidar" && options.calibration_file.empty()) {
+        throw std::runtime_error(
+            "--calibration_file is required when --gt_sensor_frame is not lidar");
+    }
+    if (!options.calibration_file.empty() &&
+        !fs::is_regular_file(options.calibration_file)) {
+        throw std::runtime_error(
+            "calibration file does not exist: " + options.calibration_file.string());
+    }
     if (options.frame_manifest.empty() != options.episode_id.empty()) {
         throw std::runtime_error("--frame_manifest and --episode_id must be provided together");
     }
@@ -428,6 +459,130 @@ Options parseArgs(int argc, char** argv)
         throw std::runtime_error("registration_probe requires an explicit --atlas");
     }
     return options;
+}
+
+std::string sha256File(const fs::path& path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input.is_open()) {
+        throw std::runtime_error("failed to open calibration for SHA-256: " + path.string());
+    }
+    EVP_MD_CTX* context = EVP_MD_CTX_new();
+    if (!context) throw std::runtime_error("failed to allocate SHA-256 context");
+    bool ok = EVP_DigestInit_ex(context, EVP_sha256(), nullptr) == 1;
+    std::array<char, 1024 * 1024> buffer{};
+    while (ok && input.good()) {
+        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const auto count = input.gcount();
+        if (count > 0) {
+            ok = EVP_DigestUpdate(
+                     context, buffer.data(), static_cast<std::size_t>(count)) == 1;
+        }
+    }
+    if (!input.eof()) ok = false;
+    std::array<unsigned char, EVP_MAX_MD_SIZE> digest{};
+    unsigned int digest_size = 0;
+    if (ok) ok = EVP_DigestFinal_ex(context, digest.data(), &digest_size) == 1;
+    EVP_MD_CTX_free(context);
+    if (!ok) {
+        throw std::runtime_error("failed to compute calibration SHA-256: " + path.string());
+    }
+    std::ostringstream output;
+    output << std::hex << std::setfill('0');
+    for (unsigned int index = 0; index < digest_size; ++index) {
+        output << std::setw(2) << static_cast<unsigned int>(digest[index]);
+    }
+    return output.str();
+}
+
+std::vector<double> extractDoubles(const std::string& text)
+{
+    std::vector<double> values;
+    const char* cursor = text.c_str();
+    while (*cursor != '\0') {
+        char* end = nullptr;
+        errno = 0;
+        const double value = std::strtod(cursor, &end);
+        if (end != cursor) {
+            if (errno != 0 || !std::isfinite(value)) {
+                throw std::runtime_error("non-finite calibration value");
+            }
+            values.push_back(value);
+            cursor = end;
+        } else {
+            ++cursor;
+        }
+    }
+    return values;
+}
+
+Eigen::Isometry3d readLidarFromGroundTruthSensor(
+    const fs::path& path, const std::string& sensor_frame)
+{
+    const std::string marker = sensor_frame == "xsens" ? "%% Xsens IMU" : "%% leica";
+    std::ifstream input(path);
+    if (!input.is_open()) {
+        throw std::runtime_error("failed to open M2DGR calibration: " + path.string());
+    }
+    bool in_section = false;
+    bool in_data = false;
+    std::vector<double> values;
+    std::string line;
+    while (std::getline(input, line)) {
+        if (!in_section) {
+            in_section = line.find(marker) != std::string::npos;
+            continue;
+        }
+        if (line.rfind("%%", 0) == 0) break;
+        if (!in_data) {
+            const auto data_pos = line.find("data:");
+            if (data_pos == std::string::npos) continue;
+            in_data = true;
+            line = line.substr(data_pos + 5);
+        }
+        const auto row_values = extractDoubles(line);
+        values.insert(values.end(), row_values.begin(), row_values.end());
+        if (values.size() >= 12U) break;
+    }
+    if (values.size() != 12U) {
+        throw std::runtime_error(
+            "M2DGR calibration section " + marker + " does not contain a 3x4 transform");
+    }
+    Eigen::Isometry3d T_lidar_sensor = Eigen::Isometry3d::Identity();
+    for (int row = 0; row < 3; ++row) {
+        for (int column = 0; column < 3; ++column) {
+            T_lidar_sensor.matrix()(row, column) =
+                values[static_cast<std::size_t>(row * 4 + column)];
+        }
+        T_lidar_sensor.matrix()(row, 3) =
+            values[static_cast<std::size_t>(row * 4 + 3)];
+    }
+    if (!T_lidar_sensor.matrix().allFinite() ||
+        std::abs(T_lidar_sensor.rotation().determinant() - 1.0) > 1e-6) {
+        throw std::runtime_error("invalid M2DGR GT-to-LiDAR calibration transform");
+    }
+    return T_lidar_sensor;
+}
+
+void applyGroundTruthCalibration(const Options& options,
+                                 std::vector<PoseRecord>* poses,
+                                 AlignmentStats* alignment)
+{
+    if (!poses || !alignment) {
+        throw std::runtime_error("null M2DGR ground-truth calibration target");
+    }
+    alignment->gt_sensor_frame = options.gt_sensor_frame;
+    if (options.gt_sensor_frame == "lidar") return;
+    alignment->calibration_file = fs::absolute(options.calibration_file);
+    alignment->calibration_sha256 = sha256File(options.calibration_file);
+    alignment->T_lidar_gt_sensor = readLidarFromGroundTruthSensor(
+        options.calibration_file, options.gt_sensor_frame);
+    const Eigen::Isometry3d T_gt_sensor_lidar =
+        alignment->T_lidar_gt_sensor.inverse();
+    for (auto& pose : *poses) {
+        pose.T_world_lidar = pose.T_world_lidar * T_gt_sensor_lidar;
+    }
+    alignment->calibration_applied = true;
 }
 
 bool isCloudFile(const fs::path& path)
@@ -813,11 +968,35 @@ void writeJsonDoubleOrNull(std::ostream& out, double value)
     }
 }
 
+void writeTransform3x4Json(std::ostream& out, const Eigen::Isometry3d& transform)
+{
+    out << '[';
+    bool first = true;
+    for (int row = 0; row < 3; ++row) {
+        for (int column = 0; column < 4; ++column) {
+            if (!first) out << ',';
+            first = false;
+            out << transform.matrix()(row, column);
+        }
+    }
+    out << ']';
+}
+
 void writeAlignmentMetricsJson(std::ostream& out, const AlignmentStats& alignment)
 {
     out << "  \"odom_source\": \"gt\",\n"
         << "  \"backend_input_contract\": \"gt_pose_plus_lidar\",\n"
         << "  \"real_lio_safety_filters_applied\": false,\n"
+        << "  \"gt_sensor_frame\": \"" << alignment.gt_sensor_frame << "\",\n"
+        << "  \"gt_to_lidar_calibration_applied\": "
+        << (alignment.calibration_applied ? "true" : "false") << ",\n"
+        << "  \"gt_to_lidar_calibration_file\": \""
+        << jsonEscape(alignment.calibration_file.string()) << "\",\n"
+        << "  \"gt_to_lidar_calibration_sha256\": \""
+        << alignment.calibration_sha256 << "\",\n"
+        << "  \"T_lidar_gt_sensor_3x4\": ";
+    writeTransform3x4Json(out, alignment.T_lidar_gt_sensor);
+    out << ",\n"
         << "  \"gt_position_frame\": \"" << alignment.gt_position_frame
         << "\",\n"
         << "  \"alignment_input_lidar_count\": " << alignment.input_lidar_count << ",\n"
@@ -848,6 +1027,36 @@ void writeTrajectoryLine(std::ofstream& out, double timestamp, const Eigen::Isom
         << pose.translation().y() << ' '
         << pose.translation().z() << ' '
         << q.x() << ' ' << q.y() << ' ' << q.z() << ' ' << q.w() << '\n';
+}
+
+void writeFinalOptimizedTrajectory(
+    const fs::path& path,
+    const std::vector<core::DenseTrajectoryPose>& dense,
+    const std::vector<M2DGRFrame>& frames)
+{
+    if (dense.size() != frames.size()) {
+        throw std::runtime_error(
+            "final dense trajectory count does not match selected M2DGR frames");
+    }
+    std::ofstream output(path);
+    if (!output.is_open()) {
+        throw std::runtime_error("failed to open final optimized trajectory: " + path.string());
+    }
+    for (std::size_t index = 0; index < dense.size(); ++index) {
+        const auto& pose = dense[index];
+        if (pose.seq != index ||
+            std::abs(pose.timestamp - frames[index].lidar_stamp) > 5e-7 ||
+            !pose.pose_world_lidar.matrix().allFinite()) {
+            throw std::runtime_error(
+                "final dense trajectory is not an exact ordered M2DGR frame join");
+        }
+        writeTrajectoryLine(output, frames[index].lidar_stamp, pose.pose_world_lidar);
+    }
+    output.flush();
+    if (!output.good()) {
+        throw std::runtime_error(
+            "failed while writing final optimized trajectory: " + path.string());
+    }
 }
 
 void writeKeyframesGtHeader(std::ofstream& out)
@@ -1156,6 +1365,9 @@ int runMappingLoop(const Options& options,
         throw std::runtime_error("failed to save M2DGR mapping map: " + saved_map_path.string());
     }
     const auto dense = core.getDenseOptimizedTrajectory();
+    const fs::path optimized_trajectory_path =
+        options.output_dir / "trajectory_optimized.txt";
+    writeFinalOptimizedTrajectory(optimized_trajectory_path, dense, frames);
     std::ofstream metrics(options.output_dir / "metrics.json");
     metrics << "{\n"
             << "  \"mode\": \"mapping_loop\",\n"
@@ -1168,6 +1380,10 @@ int runMappingLoop(const Options& options,
             << "  \"graph_edge_count\": " << stats.graph_edges << ",\n"
             << "  \"accepted_loop_count\": " << stats.accepted_loops << ",\n"
             << "  \"dense_trajectory_count\": " << dense.size() << ",\n"
+            << "  \"trajectory_est_semantics\": \"online_before_future_loop_updates\",\n"
+            << "  \"trajectory_optimized_semantics\": \"final_dense_after_all_loop_updates\",\n"
+            << "  \"trajectory_optimized_path\": \""
+            << jsonEscape(optimized_trajectory_path.string()) << "\",\n"
             << "  \"map_path\": \"" << jsonEscape(saved_map_path.string()) << "\",\n"
             << "  \"frame_manifest\": \"" << jsonEscape(options.frame_manifest.string()) << "\",\n"
             << "  \"episode_id\": \"" << jsonEscape(options.episode_id) << "\",\n"
@@ -1420,11 +1636,12 @@ int run(const Options& options)
     const auto gt_path = resolveGtPath(options);
     const auto lidar = listLidarRecords(lidar_dir);
     auto poses = readTumGroundTruth(gt_path);
+    AlignmentStats alignment;
+    applyGroundTruthCalibration(options, &poses, &alignment);
     std::string gt_position_frame = "source";
     if (options.normalize_gt_origin && !poses.empty()) {
         gt_position_frame = normalizeGroundTruthToFirstPose(&poses);
     }
-    AlignmentStats alignment;
     alignment.gt_position_frame = gt_position_frame;
     const auto frames = alignFrames(lidar, poses, options, &alignment);
     if (options.mode == "mapping_loop") {

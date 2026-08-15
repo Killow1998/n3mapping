@@ -173,6 +173,7 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
 
     EXPECT_TRUE(std::filesystem::exists(output / "metrics.json"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_est.txt"));
+    EXPECT_TRUE(std::filesystem::exists(output / "trajectory_optimized.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_gt.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "keyframes_gt.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "accepted_loops.csv"));
@@ -196,6 +197,8 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_NE(metrics.find("\"calib_mode_requested\": \"auto\""), std::string::npos);
     EXPECT_NE(metrics.find("\"calib_mode_used\": \"official\""), std::string::npos);
     EXPECT_NE(metrics.find("\"cam_to_pose_loaded\": true"), std::string::npos);
+    EXPECT_NE(metrics.find("\"trajectory_optimized_semantics\": \"final_dense_after_all_loop_updates\""),
+              std::string::npos);
     const std::string loops = readTextFile(output / "accepted_loops.csv");
     EXPECT_NE(loops.find("query_id,match_id,fitness_score,inlier_ratio,verified,edge_mode,vertical_observability_score,vertical_downweighted,source_z_span,target_z_span,z_overlap_ratio_before,z_overlap_ratio_after,source_z_robust_span,target_z_robust_span,z_robust_overlap_ratio_before,z_robust_overlap_ratio_after,source_target_z_centroid_delta_before,source_target_z_centroid_delta_after,vertical_information_ratio"), std::string::npos);
     EXPECT_NE(loops.find("vertical_hypothesis_count,best_z_offset_m,best_z_offset_fitness,zero_z_fitness,fitness_gap_zero_vs_best,z_hypothesis_spread_m,vertical_ambiguity_score,vertical_hypothesis_edge_recommendation,heightmap_overlap_cell_count"), std::string::npos);

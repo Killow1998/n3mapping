@@ -217,6 +217,7 @@ if(N3MAPPING_BUILD_RESEARCH_TOOLS)
     n3mapping_core
     ${PCL_LIBRARIES}
     glog::glog
+    OpenSSL::Crypto
   )
 
   add_executable(n3mapping_synthetic_relocalization_publisher

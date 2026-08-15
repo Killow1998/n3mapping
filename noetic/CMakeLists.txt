@@ -251,6 +251,7 @@ if(N3MAPPING_BUILD_RESEARCH_TOOLS)
     n3mapping_core
     ${PCL_LIBRARIES}
     glog::glog
+    OpenSSL::Crypto
   )
   set_target_properties(n3mapping_m2dgr_eval PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
