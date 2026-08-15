@@ -1,0 +1,204 @@
+{
+  "schema": "n3mapping_fa01_localization_target_cache_result_v1",
+  "status": "PASS",
+  "recorded_at": "2026-08-15T07:43:06-07:00",
+  "recorded_timezone": "America/Los_Angeles",
+  "scope": {
+    "mode": "localization",
+    "claim": "Same-input ordinary-localization performance improvement with frame-level decision and pose non-regression.",
+    "not_claimed": [
+      "A new three-mode FA-01 acceptance run",
+      "A deployment-hardware resource contract",
+      "A universal CPU or memory result for unrelated maps, bags, or configurations"
+    ]
+  },
+  "source": {
+    "baseline_commit": "2d9b3594b6e1be7a49142b050aca5ae1712cebbf",
+    "candidate_commit": "182bed90b587ae69da5b5e493fea131b66caaf10",
+    "product_profile_sha256": "f9f1d9f00e23d4d27535e0444d875cee2f426e165723281b8211efa169411289",
+    "build_identity": {
+      "build_type": "Release",
+      "research_tools": "OFF",
+      "verified": true
+    }
+  },
+  "root_cause": {
+    "classification": "ordinary_localization_prepared_target_rebuild",
+    "description": "Ordinary localization rebuilt the same multi-level small_gicp PreparedTarget on every frame even though only 14 local-map anchors appeared in the 616-frame frozen slice and one anchor served 425 frames.",
+    "measured_baseline_target_prepare_ms": {
+      "mean": 23.136994425324676,
+      "p95": 25.14382025
+    }
+  },
+  "implementation": {
+    "cache": "Synchronous deterministic LRU keyed by anchor id, submap range, and complete KeyframeMapRevision.",
+    "bounds": {
+      "max_bytes": 134217728,
+      "max_entries": 8,
+      "oversized_entry_policy": "prepare for the current frame but never retain"
+    },
+    "lifecycle": "Cache survives localization-state reset, is revision-scoped, and is cleared on map replacement.",
+    "defaults": "C++ fallback remains disabled; maintained n3mapping and product_v1 YAML profiles opt in.",
+    "decision_path": "ICP inputs, matching settings, ranking, lock, retry, and tracking acceptance math are unchanged.",
+    "memory_accounting": "The relocalization and ordinary-localization caches share one saturating conservative PreparedTarget byte estimator."
+  },
+  "verification": {
+    "colcon_build_release_research_tools_off": "PASS",
+    "targeted_tests": "PASS",
+    "ctest": {
+      "passed": 55,
+      "total": 55,
+      "last_test_log_sha256": "fce34fbaba2498b43492e9fe63477c83ad1c20b13d7bf1042ab7a9eb204fa4d3"
+    },
+    "regression_tests": [
+      "OrdinaryLocalizationPreparedTargetCacheIsBoundedAndMapScoped",
+      "OrdinaryLocalizationOversizedTargetIsNeverRetained"
+    ]
+  },
+  "evidence": {
+    "baseline_directory": "/tmp/n3mapping_fa01_localization_2d9b359_20260815_011847",
+    "candidate_directory": "/tmp/n3mapping_fa01_localization_cache_182bed9_20260815_073824",
+    "candidate_status": "COMPLETE_PROFILE_READY",
+    "candidate_process_return_codes": {
+      "analyzer": 0,
+      "bag": 0,
+      "node": 0,
+      "sampler": 0
+    },
+    "input_lineage": {
+      "bag_metadata_sha256": "f8a6b02e4b4a8f89716470514505b20082c1248c61c04e92daf069844f69782a",
+      "map_sha256": "8f2aa036ffd826f21937b03fd08b9e49bbfe68074f91eab8efd967d3962d778a",
+      "start_offset_s": 100.0,
+      "rate": 1.0,
+      "target_runtime_frames": 620
+    },
+    "candidate_hashes": {
+      "run_manifest_sha256": "74791601a6f8bd3a5e65acb5b6c1ed70f45899e3b186ec3aecf7ac418e3ed1c3",
+      "performance_summary_sha256": "5e1dd254474db7bf6d94c298280e353601f2531a00c96870df67ae7259689ca8",
+      "relocalization_debug_sha256": "f29356913cca89e091b5342a3fd794fc71da90a17427982106cfaee25fe510ed"
+    },
+    "baseline_hashes": {
+      "performance_summary_sha256": "518f53e59642e42c01da91851a7a09018c05742b8714ff3b750d98511b048785",
+      "relocalization_debug_sha256": "c6046614194515914f2404ce4b3de8e65138fd26dc1195f4dd0a3a71bc71535b"
+    },
+    "runtime_event_parity": {
+      "baseline_node_tracking_failed_log_lines": 3,
+      "candidate_node_tracking_failed_log_lines": 3,
+      "candidate_fatal": 0,
+      "candidate_message_filter_drop": 0,
+      "candidate_nonfinite": 0,
+      "candidate_oom": 0,
+      "candidate_queue_overflow": 0
+    }
+  },
+  "same_input_comparison": {
+    "runtime_frames": {
+      "baseline": 621,
+      "candidate": 621
+    },
+    "tracking": {
+      "frames": 616,
+      "baseline_success": 616,
+      "candidate_success": 616,
+      "baseline_retry": 12,
+      "candidate_retry": 12,
+      "candidate_failure": 0
+    },
+    "cache": {
+      "observed": 616,
+      "hits": 598,
+      "misses": 18,
+      "hit_rate": 0.9707792207792207,
+      "peak_bytes": 123249280,
+      "peak_mib": 117.5396728515625,
+      "peak_entries": 8,
+      "within_configured_bounds": true
+    },
+    "target_prepare_ms": {
+      "baseline_mean": 23.136994425324676,
+      "candidate_mean": 0.7542907110389611,
+      "mean_reduction_percent": 96.73989327579493,
+      "baseline_p95": 25.14382025,
+      "candidate_p95": 0.0032765,
+      "p95_reduction_percent": 99.98696896506807
+    },
+    "tracking_total_ms": {
+      "baseline_mean": 34.96828150324675,
+      "candidate_mean": 13.196915405844155,
+      "mean_reduction_percent": 62.26032610547693,
+      "baseline_p95": 59.62795825,
+      "candidate_p95": 44.901968000000004,
+      "p95_reduction_percent": 24.696452272034648
+    },
+    "steady_state_callback_total_ms": {
+      "baseline_mean": 35.228500935064936,
+      "candidate_mean": 13.444050056818183,
+      "mean_reduction_percent": 61.83757554260121,
+      "baseline_p95": 59.908342,
+      "candidate_p95": 45.18040525,
+      "p95_reduction_percent": 24.58411676624267
+    },
+    "steady_state_process_cpu_cores": {
+      "baseline_mean": 0.8889872513913638,
+      "candidate_mean": 0.4344754234615157,
+      "mean_reduction_percent": 51.126923048501155,
+      "baseline_p95": 1.533231644104065,
+      "candidate_p95": 1.0806194741357928,
+      "p95_reduction_percent": 29.520142746124538
+    },
+    "steady_state_rss_mib": {
+      "baseline_p95": 300.0546875,
+      "candidate_p95": 430.85546875,
+      "p95_increase_mib": 130.80078125,
+      "tradeoff": "Expected retained-target memory increase; bounded by the explicit cache policy and measured below its conservative byte budget plus allocator overhead."
+    },
+    "steady_state_over_sensor_budget": {
+      "sensor_period_ms": 100,
+      "baseline_count": 5,
+      "candidate_count": 3,
+      "candidate_max_consecutive": 2
+    }
+  },
+  "quality_non_regression": {
+    "initial_relocalization_records": 5,
+    "lock_frame_index": 5,
+    "lock_winner_seed_match_id": 6,
+    "lock_winner_last_match_id": 6,
+    "relocalization_decision_projection_equal": true,
+    "tracking_categorical_projection": {
+      "compared_frames": 616,
+      "fields": [
+        "query_index",
+        "strict_loaded_map",
+        "nearest_kf_id",
+        "submap_size",
+        "icp_converged",
+        "retry_used",
+        "consecutive_track_failures",
+        "result_success",
+        "reject_reason"
+      ],
+      "mismatches": 0
+    },
+    "max_predicted_pose_delta": {
+      "translation_m": 8.379058453350832e-15,
+      "rotation_rad": 4.2146848510894035e-08
+    },
+    "max_tracking_metric_delta": {
+      "fitness_score": 1.2212453270876722e-15,
+      "inlier_ratio": 0.0
+    }
+  },
+  "discarded_operational_attempt": {
+    "directory": "/tmp/n3mapping_fa01_localization_cache_182bed9_20260815_073800",
+    "classification": "PRECHECK_ENVIRONMENT_FAILURE",
+    "reason": "The non-interactive shell lacked the workspace AMENT_PREFIX_PATH, so ros2 pkg prefix n3mapping failed before node or bag launch. The successful run used a fresh output namespace."
+  },
+  "decision": {
+    "ordinary_localization_target_cache_atomic_wp": "PASS",
+    "quality_non_regression": "PASS",
+    "performance_improvement": "PASS",
+    "memory_tradeoff": "ACCEPT_WITH_EXPLICIT_128_MIB_BOUND",
+    "next": "Proceed to visibility fast/slow-path shadow equivalence before any authoritative behavior change."
+  }
+}
