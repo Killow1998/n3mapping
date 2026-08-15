@@ -1,156 +1,182 @@
-# n3mapping Industrial Closeout Review — 2026-08-14
+# n3mapping Final Industrial Closeout Review — 2026-08-15
 
-Recorded in Pacific daylight time (PDT, UTC-07:00).
+Recorded in Pacific daylight time (PDT, UTC-07:00). This supersedes the
+interim 2026-08-14 verdict in the previous revision of this file.
 
-## Verdict
+## Executive verdict
 
-The architecture-hardening roadmap is complete, but n3mapping does **not** yet
-meet an industrial release acceptance standard.
+- **Final product closeout and single development line: PASS.**
+- **Maintenance freeze for the qualified floor7 workflow: GO.**
+- **General industrial release: NO-GO until the operational release gates
+  below are closed.**
+- **Further open-ended algorithm development is not recommended.**
 
-The correct closeout state is:
+The distinction is deliberate. The architecture roadmap, performance gate,
+dataset-backed loop gate, build matrix, and branch integration are complete.
+That is enough to stop feature development and maintain one canonical product
+line. It is not evidence that every deployment computer, map scale, sensor
+frontend, failure mode, or environment has been certified.
 
-- **Engineering roadmap: COMPLETE.** Every architecture-hardening work package
-  has an evidence-backed PASS or an explicit NO-GO/default-off terminal state.
-- **Current backend: suitable for a maintenance freeze and controlled field
-  use on the qualified floor7 workflow.** Existing product defaults and
-  fail-closed behavior should remain frozen.
-- **General industrial release: NO-GO.** Cross-session positive recall is below
-  the historical 80% working target, end-to-end recorded-LIO public-dataset
-  evidence is absent, large Atlas generation exceeds its own load limit, and
-  release governance/artifacts are not established.
+## What is now accepted
 
-This distinction is important: completing a roadmap means the planned
-questions were answered. It does not make every answer a product PASS.
-
-## Evidence reviewed
-
-| Surface | Confirmed result | Classification |
+| Acceptance surface | Result | Scope |
 | --- | --- | --- |
-| Architecture boundaries | ROS-free backend, thin Humble/Noetic wrappers, external LIO contract, explicit session pose domains, transactional graph/map paths, bounded caches | PASS |
-| Architecture roadmap | WP-00 through WP-C4, SG-01 through SG-09, and PERF-ME-01 have terminal PASS/NO-GO decisions; rejected behavior remains default-off | COMPLETE |
-| Final local Humble Product build | Fresh isolated Release build of source snapshot `a26dc48`, research tools OFF, verified build identity; 53/53 CTest targets | PASS |
-| Closeout research build | Fresh isolated Release build with research tools; 57/57 CTest targets after evaluator-contract fixes | PASS |
-| Static analysis | Project `missingReturn`, boolean bitwise, signedness, and avoidable copy warnings removed; remaining findings are vendored nanoflann/KD adaptor warnings plus an Eigen comma-initializer false positive | PASS WITH VENDOR FINDINGS |
-| floor7 real workflow | Mapping, raw-bag localization, map extension, C1/C2/C3/SG evidence and owner visual checks have auditable terminal results | CONDITIONAL PASS for the qualified workflow |
-| Loaded-map tracking performance | Target-cache hit rate 93.51%; callback median fell from 211.734 ms to 20.208 ms on the frozen replay, with no tracking or saved-map regression | PASS for that replay only |
-| KITTI-360 positive cross-drive | `0005 map -> 0006 query`: 3/5 correct locks, 2/5 no-lock, 0/5 false locks; lock p95 0.554 m and 0.434 deg | FAIL recall target; fail-closed behavior preserved |
-| KITTI-360 wrong-map | `0005 map -> 0009 query`: 5/5 no-lock, 0 unexpected locks at symmetric 0.5 m input voxel | PASS for this negative slice |
-| M2DGR gate_02 | Same-session held-out half, measured quaternion: 1/5 correct locks, 4/5 no-lock, 0 false locks | FAIL recall target |
-| M2DGR hall_05 | Same-session held-out half, trajectory-derived yaw: 0/3 locks, 0 false locks at 0.5 m input voxel | Diagnostic only; FAIL recall target |
-| Atlas scale | 100 KITTI keyframes at 0.2 m produced 1,218,130,685 bytes, exceeding the 1 GiB load contract | RELEASE BLOCKER |
-| Noetic | No local installation on this Jammy host; clean Noetic/Focal container build and tests passed remotely for source snapshot `a26dc48` | PASS in remote matrix |
-| Remote CI | Recovery source snapshot `a26dc48`, [run 31807075721](https://github.com/Killow1998/n3mapping/actions/runs/31807075721): Humble/Jammy and Noetic/Focal both build/test PASS, with no check annotations | PASS |
-| Release governance | `main` is unprotected; no release artifact exists; package version remains 1.0.0 | NOT INDUSTRIALIZED |
+| Architecture-hardening roadmap | COMPLETE | Every work package has an evidence-backed PASS or an explicit NO-GO/default-off terminal decision. |
+| FA-01 tri-mode performance | PASS | Same commit, bag, configuration, replay rate, and target host for mapping, localization, and map extension. |
+| FA-02 dataset-GT loop closure | PASS | Automated backend loop-closure gate over KITTI-360 and M2DGR; no RViz or manual truth labeling. |
+| Product build | PASS | Release, research tools OFF, verified identity for 8f11ea22e4df506519dbeca6d833a29870f0c8b9; 55/55 CTest targets and 494 assertions, no error/failure/skip. |
+| Research build | PASS | Fresh isolated Release build, research tools ON; 60/60 CTest targets and 490 assertions, no error/failure/skip. It correctly identifies itself as non-product. |
+| Remote pre-release CI | PASS | [Run 31878531142](https://github.com/Killow1998/n3mapping/actions/runs/31878531142): Humble/Jammy and Noetic/Focal build/test passed. |
+| Canonical-main CI | PASS | [Run 31878902744](https://github.com/Killow1998/n3mapping/actions/runs/31878902744): Humble/Jammy and Noetic/Focal build/test passed after the fast-forward to unified main. |
+| Branch semantics | PASS | Every main/realtime-only commit was reviewed; rejected and superseded code was not imported. Both histories are reachable from canonical main. |
 
-## Dataset evidence contract
+The Product and Research builds intentionally have different identity
+semantics. Research tools are required to run dataset evaluation but are not
+eligible for a production bundle.
 
-The KITTI-360 and M2DGR tools are backend diagnostics. They supply
-`gt_pose_plus_lidar`, not recorded LIO odometry. Their metrics now state both
-that contract and `real_lio_safety_filters_applied=false`; real-LIO static-start
-and divergence behavior belongs to raw-bag qualification.
+## FA-01: where the runtime cost actually is
 
-The frozen manifests hash every selected cloud, both GT files, and official
-KITTI-360 calibration. Benchmark outputs are finalized with `checksums.sha256`
-and `COMPLETE`. Even so, the runs remain `formal_gate_ready=false` because:
+The table is the n3mapping process only. FAST_LIO is an external frontend and
+is not included in these CPU/RSS figures. Resource metrics remain report-only
+until a deployment-hardware contract is declared.
 
-- no recorded LIO trajectory is bound to the public-dataset episodes;
-- KITTI-360 same-session or cross-drive oracle replay is not end-to-end SLAM;
-- M2DGR LiDAR-to-IMU/frontend configuration is not frozen;
-- `hall_05` has trajectory-derived yaw rather than measured full attitude;
-- a GT distance overlap label does not prove visible-surface overlap by itself.
+| Mode | Callback p95 | Over 100 ms | Max consecutive over budget | CPU p95 | RSS p95 | Processed input |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Mapping | 0.337 ms | 0.000% | 0 | 0.020 cores | 82.6 MiB | 100% |
+| Localization | 59.908 ms | 0.812% | 2 | 1.533 cores | 300.1 MiB | 100% |
+| Map extension / resuming | 44.669 ms | 4.708% | 2 | 8.251 cores | 1305.4 MiB | 100% |
 
-Closeout artifacts:
+Confirmed conclusions:
 
-The compact, machine-readable results are retained in
-[`evidence/industrial_closeout_20260814/auxiliary_dataset_results.json`](evidence/industrial_closeout_20260814/auxiliary_dataset_results.json).
-The multi-hundred-megabyte maps, Atlases, clouds, and raw datasets are not
-duplicated into Git. Paths below record the original execution locations; the
-compact JSON is the durable closeout evidence.
+- Map extension is the highest-cost mode by a large margin in CPU and memory.
+- Localization is materially lighter than map extension on the same replay.
+- All three modes pass the declared 100 ms callback p95, backlog/drop, fatal,
+  OOM, non-finite pose, and quality gates.
+- This is a same-host non-regression result, not a universal hardware sizing
+  claim. In particular, map extension reached 1396.8 MiB maximum RSS and needs
+  an explicit target-computer budget before a general release.
 
-| Run | Summary SHA-256 | Result |
-| --- | --- | --- |
-| `/tmp/n3mapping_closeout_benchmarks_20260814/kitti_0005_map_0006_query_lock` | `fc025304315000fa54d8c8c5cb20853bfea791eb98da36beded4971c25b75d16` | 3 correct / 0 false / 2 no-lock |
-| `/tmp/n3mapping_closeout_benchmarks_20260814/kitti_0005_map_0009_query_abstain_100_voxel05` | `8df458fd3905b2e4d3469bf30c1043acbd2cffadc680a34c09ba193a57adff7d` | 5/5 expected abstain |
-| `/tmp/n3mapping_closeout_benchmarks_20260814/m2dgr_gate02_lock` | `b7914c3a78f001a3be1c27e6897d139067e8debcfdd3f1dfebaa7df873659826` | 1 correct / 0 false / 4 no-lock |
-| `/tmp/n3mapping_closeout_benchmarks_20260814/m2dgr_hall05_lock_3x100_voxel05` | `d31aa899c9c4264c1bbc132cd908c8a49a7ed30dea5d0700ffeb02dafee7a991` | 0 correct / 0 false / 3 no-lock |
+The durable result is
+[FA-01 result](evidence/final_acceptance_20260814/fa01_verdict_2d9b359.json).
+The formal runtime directories are:
 
-The failed 0.2 m negative-map attempt was observed at
-`/tmp/n3mapping_closeout_benchmarks_20260814/kitti_0005_map_0009_query_abstain_100`.
-It failed during Atlas verification and is not counted as a localization run.
+- /tmp/n3mapping_fa01_mapping_2d9b359_20260815_011612
+- /tmp/n3mapping_fa01_localization_2d9b359_20260815_011847
+- /tmp/n3mapping_fa01_map_extension_2d9b359_20260815_011214
 
-## What the closeout fixes change
+## FA-02: what KITTI-360 and M2DGR prove
 
-- Refuse CMake build directories inside the source repository, including an
-  in-tree symlink to an external directory. This protects clean Product
-  identity and is covered by three regression cases.
-- Make oracle-dataset evaluator behavior explicit and stop applying real-LIO
-  safety filters to GT input. This repaired previously hidden research-test
-  drift without changing runtime product defaults.
-- Refuse an Atlas whose exact protobuf size exceeds the loader's 1 GiB limit
-  before publishing it. This makes oversize generation atomic and fail-closed;
-  it does not solve the scale limit.
-- Remove compiler/static-analysis warnings in legacy ScanContext and tests,
-  without changing current HybridScanContext authority.
-- Set CMake CMP0074 explicitly so dependency discovery is deterministic and
-  warning-free on current CMake.
-- Keep CI build/install trees outside the checkout, share one backend source
-  list across Humble and Noetic, and link the core's direct TBB dependency
-  explicitly. This closed a real Noetic source-list/linker drift exposed by
-  the first recovery-branch matrix run.
-- Pin the official Node 24 GitHub checkout/cache actions to immutable release
-  commits instead of retaining deprecated Node 20 action majors.
+FA-02 supplies ground-truth poses plus LiDAR clouds to the backend evaluator.
+Ground truth is used only by the offline oracle; it is not consumed by product
+runtime behavior.
 
-## Industrial release blockers
+Aggregate result:
 
-### P0 — must close before a general release
+- 118 accepted loop closures;
+- 21/21 authoritative SE(3) measurements correct, precision 1.000;
+- 94/97 position-only M2DGR hall loops place-consistent, diagnostic precision
+  0.969;
+- 0 catastrophic false loops;
+- 3/3 positive revisit segments hit, recall 1.000;
+- KITTI-360 drive 0003 and M2DGR gate_02 low-overlap controls accepted no
+  loops;
+- no optimizer error, non-finite trajectory, or graph-structure regression.
 
-1. **Atlas scalability:** shard/stream/compress the prepared target or define a
-   tested map-size budget. Raising the 1 GiB limit is not an acceptable fix;
-   parse memory and protobuf limits remain.
-2. **End-to-end dataset contract:** freeze sensor timestamps, LiDAR/IMU
-   extrinsics, frontend configuration, recorded LIO output, cloud payloads, and
-   independent map/query sessions. Re-run positive and negative episodes
-   without GT pose as runtime odometry.
-3. **Acceptance performance:** demonstrate the predeclared positive recall and
-   false-lock budget on more than one environment. Current positive results of
-   60%, 20%, and 0% fail that bar.
-4. **Release governance:** protect the release branch, identify required CI,
-   update the package/release version, and publish a reproducible binary/config
-   bundle with its commit and profile hashes.
+For KITTI-360 drive 0005, final translation ATE RMSE is 0.331 m and p95 is
+0.689 m; rotation RMSE is 0.067 degrees.
 
-### P1 — required for sustained industrial operation
+This closes the automated **backend loop-closure** gate. It does not certify:
 
-- long-duration mapping/localization/map-extension regression on target
-  hardware, including restart and resource exhaustion;
-- compatibility corpus for older production `pbstream` files;
-- crash/power-loss and disk-full tests for map and sidecar publication;
-- latency/RSS budgets on each supported computer, not one replay/host;
-- sanitizer/fuzz coverage for protobuf and map loading boundaries;
-- documented sensor/front-end integration and an operator rollback procedure.
+- LiDAR/IMU frontend quality or time synchronization;
+- end-to-end public-dataset mapping/localization when runtime odometry comes
+  from a real LIO;
+- cross-session relocalization of arbitrary maps;
+- the correctness of an autonomous multi-session map federation service.
 
-## Recommended stop strategy
+Older KITTI-360/M2DGR relocalization diagnostics that had low lock recall asked
+a different question and remain useful fail-closed evidence. They do not
+contradict the now-passing backend loop-closure gate.
 
-Do not resume C1/C2/C3/SG threshold development, builtin-LIO integration,
-shadow graph writeback, or cross-session automatic merge. The existing
-evidence rejected those promotions or left them unqualified.
+The durable result is
+[FA-02 result](evidence/final_acceptance_20260814/fa02_result_ac54ed2.json).
+The checksummed formal directory is
+/tmp/n3mapping_fa02_ac54ed2_20260815_023901.
 
-Choose one of two honest endpoints:
+## FA-03: one development line without importing obsolete code
 
-1. **Maintenance freeze now:** keep the recovery branch as the qualified
-   floor7 line, retain all NO-GO/default-off boundaries, fix only reproducible
-   correctness/security/build defects, and stop feature development.
-2. **Industrial release later:** open a new, tightly scoped release project
-   containing only the four P0 gates above. Dataset failure must change the
-   release verdict, not trigger another unbounded algorithm roadmap.
+The recovery code tree was selected as the product tree. Main and realtime
+histories were connected with audited ours merges, preserving ancestry
+without changing the selected tree.
 
-The first option is the recommended closeout for the stated goal of ending
-n3mapping development.
+Key semantic decisions:
 
-## Ref cleanup result
+- reject the old main runtime-baseline revert;
+- reject transformed odometry twist because the upstream FAST_LIO message
+  mixes world-frame linear velocity and body-frame angular velocity under one
+  child frame, so one rigid rotation cannot make both fields correct;
+- keep the evolved bounded PreparedTarget/cache/prefetch implementation already
+  present in recovery; realtime cache commits are superseded;
+- keep the typed Humble/Noetic RelocalizationStatus and
+  RelocalizationOutputAuthority; reject the unconsumed Noetic-only JSON
+  heartbeat;
+- reject acceptance of non-converged GICP tracking matches and preserve
+  fail-closed behavior.
 
-The review and exact retired targets are recorded in
-[`branch_retirement_review_20260814.md`](branch_retirement_review_20260814.md).
-The ledger is present on the remote recovery branch and all temporary
-`archive/retired-20260814/*` tags have been deleted locally and remotely. The
-durable refs are three remote branches (`main`, recovery, realtime) and two
-tags (`archive/humble`, `archive/noetic`).
+The complete decision ledger is
+[FA-03 semantic audit](evidence/final_acceptance_20260814/fa03_semantic_integration.json).
+
+## Industrial acceptance boundary
+
+| Product question | Final classification |
+| --- | --- |
+| Can development stop on one maintained branch? | **YES** |
+| Is the qualified floor7 mapping/localization/map-extension workflow suitable for controlled use? | **YES, within the frozen profile and evidence boundary** |
+| Is backend loop closure dataset-tested without manual RViz review? | **YES** |
+| Is arbitrary cross-session automatic merge/federation certified? | **NO; out of the frozen product scope** |
+| Are CPU/RSS budgets certified on every deployment computer? | **NO** |
+| Are large maps beyond the current 1 GiB prepared-Atlas/load contract solved? | **NO** |
+| Are restart, disk-full, power-loss, long-duration, and resource-exhaustion cases certified? | **NO** |
+| Is there a protected release branch, versioned release artifact, and rollback bundle? | **NO** |
+
+The remaining NO answers are release/operations projects, not a reason to
+restart the architecture-hardening algorithm roadmap.
+
+## Maintenance-freeze policy
+
+After ref cleanup, retain:
+
+- one development branch: main;
+- two permanent historical tags: archive/humble and archive/noetic.
+
+Allow only:
+
+- reproducible correctness, security, compatibility, and build fixes;
+- release packaging and operator documentation;
+- a bounded acceptance task with predeclared falsifiers.
+
+Do not reopen by default:
+
+- C1/C2/C3 threshold promotion or persistence authority;
+- non-converged tracking acceptance;
+- builtin-LIO duplication;
+- shadow graph writeback;
+- arbitrary automatic cross-session map federation;
+- another unbounded performance or relocalization roadmap.
+
+## If a general industrial release is later required
+
+Open a separate release project containing only these gates:
+
+1. **Deployment hardware contract:** declare supported computers and enforce
+   per-mode CPU, RSS, latency, backlog, and thermal budgets.
+2. **Automated end-to-end datasets:** run LiDAR/IMU through the selected frozen
+   frontend and n3mapping; use KITTI-360/M2DGR ground truth only in the
+   evaluator, never as runtime odometry. No routine manual RViz gate is needed.
+3. **Operational fault matrix:** long-duration restart, power-loss, disk-full,
+   corrupt-map, old-pbstream compatibility, and resource-exhaustion tests.
+4. **Release governance:** protect main or a release branch, require the
+   Humble/Noetic checks, update the package version, and publish a reproducible
+   binary/config/rollback bundle with commit and profile hashes.
+
+Until those four gates are requested and funded, the honest endpoint is a
+maintenance freeze, not more feature development.

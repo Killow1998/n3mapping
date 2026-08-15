@@ -1,0 +1,147 @@
+{
+  "schema": "n3mapping_final_closeout_result_v1",
+  "recorded_at": "2026-08-15T03:25:29-07:00",
+  "status": "READY_FOR_FINAL_DOC_CI_AND_REF_CLEANUP",
+  "validated_source": {
+    "commit": "8f11ea22e4df506519dbeca6d833a29870f0c8b9",
+    "tree": "2d50e025adee521a57f26b35539563b43015da0f",
+    "canonical_remote_branch": "main"
+  },
+  "local_product_verification": {
+    "build": "PASS",
+    "profile": "Release",
+    "research_tools": false,
+    "identity_verified": true,
+    "identity_commit": "8f11ea22e4df506519dbeca6d833a29870f0c8b9",
+    "ctest_targets_total": 55,
+    "ctest_targets_passed": 55,
+    "assertions": 494,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "last_test_log": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/Testing/Temporary/LastTest.log"
+  },
+  "local_research_verification": {
+    "build": "PASS",
+    "profile": "Release",
+    "research_tools": true,
+    "identity_verified": false,
+    "identity_policy": "Research profile is intentionally ineligible for Product bundles.",
+    "ctest_targets_total": 60,
+    "ctest_targets_passed": 60,
+    "assertions": 490,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "evidence_root": "/tmp/n3mapping_final_research_8f11ea2"
+  },
+  "fa01": {
+    "status": "PASS",
+    "source_commit": "2d9b3594b6e1be7a49142b050aca5ae1712cebbf",
+    "record": "fa01_verdict_2d9b359.json",
+    "issue_count": 0,
+    "modes": {
+      "mapping": {
+        "callback_p95_ms": 0.336568,
+        "over_sensor_budget_rate": 0.0,
+        "cpu_p95_cores": 0.019980038194234263,
+        "rss_p95_mib": 82.58984375,
+        "processed_input_rate": 1.0
+      },
+      "localization": {
+        "callback_p95_ms": 59.908342,
+        "over_sensor_budget_rate": 0.008116883116883116,
+        "cpu_p95_cores": 1.533231644104065,
+        "rss_p95_mib": 300.0546875,
+        "processed_input_rate": 1.0
+      },
+      "map_extension": {
+        "callback_p95_ms": 44.66880825,
+        "over_sensor_budget_rate": 0.04707792207792208,
+        "cpu_p95_cores": 8.251334937380774,
+        "rss_p95_mib": 1305.3874999999996,
+        "rss_max_mib": 1396.7734375,
+        "processed_input_rate": 1.0
+      }
+    },
+    "resource_gate": "REPORT_ONLY_UNTIL_DEPLOYMENT_HARDWARE_CONTRACT"
+  },
+  "fa02": {
+    "status": "PASS",
+    "scope": "BACKEND_LOOP_CLOSURE_GT_POSE_PLUS_LIDAR",
+    "source_commit": "ac54ed2986786ed6d4ced23898b7fefce3221f63",
+    "record": "fa02_result_ac54ed2.json",
+    "evidence_root": "/tmp/n3mapping_fa02_ac54ed2_20260815_023901",
+    "accepted_loops": 118,
+    "authoritative_measurement_precision": 1.0,
+    "position_only_place_precision": 0.9690721649484536,
+    "catastrophic_false_loops": 0,
+    "positive_revisit_segment_recall": 1.0,
+    "manual_review_required": false
+  },
+  "fa03": {
+    "status": "PASS",
+    "semantic_audit": "fa03_semantic_integration.json",
+    "history_result": "fa03_history_integration_result.json",
+    "main_history_merge": "98ace70ac69c96d19083257ce526ccf311b6c367",
+    "realtime_history_merge": "de8988dee92aec17363f9862833dd1e3219553b6",
+    "all_recorded_tips_reachable_from_main": true
+  },
+  "remote_ci": [
+    {
+      "purpose": "pre_release_on_unified_recovery_ref",
+      "run_id": 31878531142,
+      "url": "https://github.com/Killow1998/n3mapping/actions/runs/31878531142",
+      "commit": "8f11ea22e4df506519dbeca6d833a29870f0c8b9",
+      "humble_jammy": "PASS",
+      "noetic_focal": "PASS"
+    },
+    {
+      "purpose": "canonical_main_push",
+      "run_id": 31878902744,
+      "url": "https://github.com/Killow1998/n3mapping/actions/runs/31878902744",
+      "commit": "8f11ea22e4df506519dbeca6d833a29870f0c8b9",
+      "humble_jammy": "PASS",
+      "noetic_focal": "PASS"
+    }
+  ],
+  "release_decisions": {
+    "single_development_line": "PASS",
+    "maintenance_freeze": "GO",
+    "qualified_floor7_controlled_use": "GO_WITH_FROZEN_PROFILE",
+    "general_industrial_release": "NO_GO_OPEN_OPERATIONAL_GATES"
+  },
+  "open_general_release_gates": [
+    "deployment_hardware_cpu_rss_latency_and_thermal_contract",
+    "end_to_end_lidar_imu_frontend_plus_n3mapping_dataset_gate_with_gt_only_as_oracle",
+    "long_duration_restart_power_loss_disk_full_corrupt_map_and_resource_exhaustion_matrix",
+    "large_map_scalability_beyond_current_1_gib_atlas_load_contract",
+    "protected_release_branch_required_checks_versioned_artifact_and_rollback_bundle"
+  ],
+  "repository_governance_at_record": {
+    "main_protected": false,
+    "published_release_count": 0,
+    "humble_package_version": "1.0.0",
+    "noetic_package_version": "1.0.0"
+  },
+  "remote_recovery": {
+    "pre_unification_main": "784d8c1ca25f92e69f680cc6a4ec411bf054e586",
+    "realtime": "7b814f6e8f0cb850d8381ab4bcc622b965dfb67a",
+    "recovery_pre_acceptance": "13c3aff4558cc10af64548b17acd1b0d587e79c3",
+    "unified_accepted": "8f11ea22e4df506519dbeca6d833a29870f0c8b9",
+    "commands_recorded_in": "../../branch_retirement_review_20260814.md"
+  },
+  "final_ref_policy": {
+    "branches": [
+      "main"
+    ],
+    "permanent_tags": [
+      "archive/humble",
+      "archive/noetic"
+    ],
+    "delete_after_final_doc_ci": [
+      "deepseek/n3m-architecture-hardening-recovery",
+      "dev/n3mapping-realtime-pipeline"
+    ]
+  }
+}
