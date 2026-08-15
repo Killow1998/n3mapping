@@ -210,15 +210,22 @@ def evaluator_frame_token(dataset: str, path: Path) -> str:
     return path.stem
 
 
-def freeze(contract_path: Path, output: Path, source_repo: Path) -> dict[str, Any]:
+def freeze(
+    contract_path: Path,
+    output: Path,
+    source_repo: Path,
+    *,
+    contract_schema: str = CONTRACT_SCHEMA,
+    section: str = "fa02",
+) -> dict[str, Any]:
     contract_path = contract_path.resolve(strict=True)
     source_repo = source_repo.resolve(strict=True)
     contract = load_json(contract_path)
-    if contract.get("schema") != CONTRACT_SCHEMA:
+    if contract.get("schema") != contract_schema:
         raise ValueError("acceptance contract schema mismatch")
-    fa02 = contract.get("fa02")
+    fa02 = contract.get(section)
     if not isinstance(fa02, dict):
-        raise ValueError("acceptance contract has no FA-02 section")
+        raise ValueError(f"acceptance contract has no {section} section")
     status = git_output(source_repo, "status", "--porcelain")
     if status:
         raise ValueError("source repository must be clean before freezing FA-02 inputs")

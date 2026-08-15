@@ -184,6 +184,7 @@ TEST(N3MappingM2DGREvalTest, MappingLoopWritesMatrixCompatibleArtifacts)
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_est.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_optimized.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_gt.txt"));
+    EXPECT_TRUE(std::filesystem::exists(output / "trajectory_odom.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "keyframes_gt.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "accepted_loops.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "loop_debug.jsonl"));
@@ -197,6 +198,9 @@ TEST(N3MappingM2DGREvalTest, MappingLoopWritesMatrixCompatibleArtifacts)
               std::string::npos);
     EXPECT_NE(metrics.find("\"real_lio_safety_filters_applied\": false"),
               std::string::npos);
+    EXPECT_NE(metrics.find("\"loop_closure_enabled\": true"), std::string::npos);
+    EXPECT_EQ(readTextFile(output / "trajectory_gt.txt"),
+              readTextFile(output / "trajectory_odom.txt"));
     EXPECT_NE(metrics.find("\"alignment_input_lidar_count\": 6"), std::string::npos);
     EXPECT_NE(metrics.find("\"alignment_input_gt_count\": 6"), std::string::npos);
     EXPECT_NE(metrics.find("\"alignment_matched_count\": 6"), std::string::npos);
@@ -207,6 +211,41 @@ TEST(N3MappingM2DGREvalTest, MappingLoopWritesMatrixCompatibleArtifacts)
     const std::string loops = readTextFile(output / "accepted_loops.csv");
     EXPECT_NE(loops.find("vertical_hypothesis_count,best_z_offset_m,best_z_offset_fitness,zero_z_fitness,fitness_gap_zero_vs_best,z_hypothesis_spread_m,vertical_ambiguity_score,vertical_hypothesis_edge_recommendation,heightmap_overlap_cell_count"), std::string::npos);
     EXPECT_NE(loops.find("graph_trial_success,graph_trial_residual_x_after"), std::string::npos);
+}
+
+TEST(N3MappingM2DGREvalTest, CorrelatedOdomFeedsMappingLoopAndSupportsLoopOff)
+{
+    const auto tool = findM2DGREvalTool();
+    ASSERT_FALSE(tool.empty()) << "n3mapping_m2dgr_eval executable not found";
+    const std::string sequence = "hall_03";
+    const auto root = makeMiniM2DGRFixture(sequence);
+    const auto output = makeTempDir("n3mapping_m2dgr_drift_output");
+
+    const std::string command = shellQuote(tool) +
+        " --m2dgr_root " + shellQuote(root) +
+        " --sequence " + sequence +
+        " --mode mapping_loop"
+        " --max_frames 5"
+        " --max_time_diff 0.001"
+        " --disable_loop_closure"
+        " --enable_correlated_odom_drift"
+        " --odom_drift_seed 17"
+        " --odom_translation_scale_error 0.02"
+        " --odom_yaw_bias_deg_per_meter 0.1"
+        " --odom_translation_rw_std_m_per_sqrt_meter 0.01"
+        " --odom_rotation_rw_std_deg_per_sqrt_meter 0.05"
+        " --output " + shellQuote(output);
+    ASSERT_EQ(std::system(command.c_str()), 0);
+
+    EXPECT_NE(readTextFile(output / "trajectory_odom.txt"),
+              readTextFile(output / "trajectory_gt.txt"));
+    const std::string metrics = readTextFile(output / "metrics.json");
+    EXPECT_NE(metrics.find("\"odom_source\": \"correlated_gt_derived\""),
+              std::string::npos);
+    EXPECT_NE(metrics.find("\"loop_closure_enabled\": false"), std::string::npos);
+    EXPECT_NE(metrics.find("\"accepted_loop_count\": 0"), std::string::npos);
+    EXPECT_NE(metrics.find("\"seed\": 17"), std::string::npos);
+    EXPECT_NE(metrics.find("\"increment_count\": 4"), std::string::npos);
 }
 
 TEST(N3MappingM2DGREvalTest, EpisodeManifestSelectsExactMappingFrames)

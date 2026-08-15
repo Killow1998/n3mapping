@@ -175,6 +175,7 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_est.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_optimized.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "trajectory_gt.txt"));
+    EXPECT_TRUE(std::filesystem::exists(output / "trajectory_odom.txt"));
     EXPECT_TRUE(std::filesystem::exists(output / "keyframes_gt.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "accepted_loops.csv"));
     EXPECT_TRUE(std::filesystem::exists(output / "loop_debug.jsonl"));
@@ -188,6 +189,9 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
               std::string::npos);
     EXPECT_NE(metrics.find("\"real_lio_safety_filters_applied\": false"),
               std::string::npos);
+    EXPECT_NE(metrics.find("\"loop_closure_enabled\": true"), std::string::npos);
+    EXPECT_EQ(readTextFile(output / "trajectory_gt.txt"),
+              readTextFile(output / "trajectory_odom.txt"));
     EXPECT_NE(metrics.find("\"alignment_input_lidar_count\": 6"), std::string::npos);
     EXPECT_NE(metrics.find("\"alignment_input_gt_count\": 6"), std::string::npos);
     EXPECT_NE(metrics.find("\"alignment_matched_count\": 6"), std::string::npos);
@@ -206,6 +210,45 @@ TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
     EXPECT_NE(loops.find("segment_pair_count,segment_valid_pair_count,segment_consensus_inlier_count"), std::string::npos);
     const std::string keyframes_gt = readTextFile(output / "keyframes_gt.csv");
     EXPECT_NE(keyframes_gt.find("keyframe_id,frame_id,x,y,z,qx,qy,qz,qw"), std::string::npos);
+}
+
+TEST(N3MappingKitti360EvalTest, CorrelatedOdomIsDeterministicAndSupportsLoopOff)
+{
+    const auto tool = findKittiEvalTool();
+    ASSERT_FALSE(tool.empty()) << "n3mapping_kitti360_eval executable not found";
+    const std::string sequence = "2013_05_28_drive_0003_sync";
+    const auto root = makeMiniKitti360Fixture(sequence);
+    const auto output_a = makeTempDir("n3mapping_kitti360_drift_a");
+    const auto output_b = makeTempDir("n3mapping_kitti360_drift_b");
+
+    const std::string common = shellQuote(tool) +
+        " --kitti_root " + shellQuote(root) +
+        " --sequence " + sequence +
+        " --mode mapping_loop"
+        " --max_frames 5"
+        " --disable_loop_closure"
+        " --enable_correlated_odom_drift"
+        " --odom_drift_seed 42"
+        " --odom_translation_scale_error 0.02"
+        " --odom_yaw_bias_deg_per_meter 0.1"
+        " --odom_translation_rw_std_m_per_sqrt_meter 0.01"
+        " --odom_rotation_rw_std_deg_per_sqrt_meter 0.05";
+    ASSERT_EQ(std::system((common + " --output " + shellQuote(output_a)).c_str()), 0);
+    ASSERT_EQ(std::system((common + " --output " + shellQuote(output_b)).c_str()), 0);
+
+    const std::string odom_a = readTextFile(output_a / "trajectory_odom.txt");
+    EXPECT_EQ(odom_a, readTextFile(output_b / "trajectory_odom.txt"));
+    EXPECT_NE(odom_a, readTextFile(output_a / "trajectory_gt.txt"));
+    const std::string metrics = readTextFile(output_a / "metrics.json");
+    EXPECT_NE(metrics.find("\"odom_source\": \"correlated_gt_derived\""),
+              std::string::npos);
+    EXPECT_NE(metrics.find(
+                  "\"backend_input_contract\": \"correlated_gt_derived_odom_plus_lidar\""),
+              std::string::npos);
+    EXPECT_NE(metrics.find("\"loop_closure_enabled\": false"), std::string::npos);
+    EXPECT_NE(metrics.find("\"accepted_loop_count\": 0"), std::string::npos);
+    EXPECT_NE(metrics.find("\"seed\": 42"), std::string::npos);
+    EXPECT_NE(metrics.find("\"increment_count\": 4"), std::string::npos);
 }
 
 TEST(N3MappingKitti360EvalTest, EpisodeManifestSelectsExactMappingFrames)

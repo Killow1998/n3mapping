@@ -1,0 +1,116 @@
+{
+  "schema": "n3mapping_fa02b_acceptance_contract_v1",
+  "recorded_timezone": "America/Los_Angeles",
+  "scope": "backend_correlated_gt_derived_odometry_plus_lidar_loop_correction",
+  "manual_review_required": false,
+  "methodology": {
+    "odometry_model": "Integrate perturbed consecutive GT SE(3) increments; translation scale and yaw bias are systematic, translation and rotation increments are deterministic random walks scaled by sqrt(traveled distance).",
+    "paired_control": "For each case, loop_off and loop_on must have byte-identical GT, odometry, and keyframe-GT streams and the same evaluator fingerprint.",
+    "ground_truth_use": "GT creates the synthetic odometry input and independently scores final trajectories and accepted loop measurements; it is never passed to the loop detector as an oracle.",
+    "frontend_exclusion": "This isolates backend loop correction and does not model FAST_LIO scan matching, timing, deskew, or sensor failure.",
+    "threshold_preregistration": "Thresholds were frozen after one non-formal seed-17 drive0005 diagnostic and before any formal FA-02B run. The diagnostic exposed one catastrophic loop, so the zero-catastrophic threshold intentionally does not make the starting implementation green.",
+    "m2dgr_pilot_note": "The same per-meter profile produced only 0.052 m translation ATE on the short hall_05 selection and was therefore excluded from the correction gate as an underpowered perturbation. M2DGR remains in the independent clean-odometry FA-02 matrix."
+  },
+  "fa02b": {
+    "dataset_roots": {
+      "kitti360": "/home/user/DUALoc/KITTI360"
+    },
+    "episodes": [
+      {
+        "id": "kitti360_drive0005_positive",
+        "dataset": "kitti360",
+        "sequence": "2013_05_28_drive_0005_sync",
+        "start_index": 0,
+        "stride": 5,
+        "max_frames": 900,
+        "input_voxel_size_m": 0.5,
+        "calibration_mode": "official",
+        "attitude_authoritative": true,
+        "expected_role": "positive_revisit"
+      },
+      {
+        "id": "kitti360_drive0003_control",
+        "dataset": "kitti360",
+        "sequence": "2013_05_28_drive_0003_sync",
+        "start_index": 0,
+        "stride": 1,
+        "max_frames": 900,
+        "input_voxel_size_m": 0.5,
+        "calibration_mode": "official",
+        "attitude_authoritative": true,
+        "expected_role": "low_overlap_control"
+      }
+    ],
+    "drift_profiles": [
+      {
+        "id": "moderate_integrated",
+        "translation_scale_error_fraction": 0.005,
+        "yaw_bias_deg_per_meter": 0.002,
+        "translation_rw_std_m_per_sqrt_meter": 0.002,
+        "rotation_rw_std_deg_per_sqrt_meter": 0.004
+      }
+    ],
+    "cases": [
+      {
+        "id": "drive0005_moderate_seed17",
+        "episode_id": "kitti360_drive0005_positive",
+        "profile_id": "moderate_integrated",
+        "seed": 17,
+        "expected_role": "positive_correction"
+      },
+      {
+        "id": "drive0005_moderate_seed73",
+        "episode_id": "kitti360_drive0005_positive",
+        "profile_id": "moderate_integrated",
+        "seed": 73,
+        "expected_role": "positive_correction"
+      },
+      {
+        "id": "drive0005_moderate_seed211",
+        "episode_id": "kitti360_drive0005_positive",
+        "profile_id": "moderate_integrated",
+        "seed": 211,
+        "expected_role": "positive_correction"
+      },
+      {
+        "id": "drive0003_moderate_seed17_control",
+        "episode_id": "kitti360_drive0003_control",
+        "profile_id": "moderate_integrated",
+        "seed": 17,
+        "expected_role": "no_loop_control"
+      }
+    ],
+    "oracle": {
+      "place_translation_threshold_m": 5.0,
+      "correct_measurement_translation_error_m_max": 1.0,
+      "correct_measurement_rotation_error_deg_max": 10.0,
+      "catastrophic_place_distance_m_min": 10.0,
+      "catastrophic_measurement_translation_error_m_min": 2.0,
+      "catastrophic_measurement_rotation_error_deg_min": 30.0
+    },
+    "thresholds": {
+      "minimum_injected_odom_ate_translation_rmse_m": 0.5,
+      "catastrophic_false_loop_count_max": 0,
+      "minimum_correct_accepted_loops_per_positive_case": 1,
+      "accepted_loop_count_max_per_control_case": 0,
+      "ate_translation_improvement_ratio_min": 0.25,
+      "rpe_translation_regression_ratio_max": 1.05,
+      "rpe_rotation_regression_ratio_max": 1.05,
+      "optimizer_error_count_max": 0,
+      "positive_case_pass_rate_min": 1.0
+    },
+    "evidence_requirements": {
+      "exact_frame_manifest": true,
+      "full_selected_cloud_sha256": true,
+      "gt_sha256": true,
+      "official_calibration_sha256": true,
+      "copied_evaluator_sha256": true,
+      "paired_trajectory_odom_sha256": true,
+      "paired_trajectory_gt_sha256": true,
+      "paired_keyframes_gt_sha256": true,
+      "final_post_loop_trajectory": true,
+      "complete_marker": true,
+      "checksums_manifest": true
+    }
+  }
+}

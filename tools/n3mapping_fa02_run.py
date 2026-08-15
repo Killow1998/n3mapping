@@ -50,6 +50,7 @@ def episode_command(
     episode: dict[str, Any], frozen: dict[str, Any], contract: dict[str, Any],
     frames: Path, output: Path, source_repo: Path,
     kitti_evaluator: Path, m2dgr_evaluator: Path,
+    *, section: str = "fa02",
 ) -> tuple[Path, list[str]]:
     common = [
         "--sequence", str(episode["sequence"]),
@@ -59,7 +60,7 @@ def episode_command(
         "--input_voxel_size", str(episode["input_voxel_size_m"]),
         "--output", str(output),
     ]
-    root = Path(contract["fa02"]["dataset_roots"][episode["dataset"]]).resolve()
+    root = Path(contract[section]["dataset_roots"][episode["dataset"]]).resolve()
     if episode["dataset"] == "kitti360":
         return kitti_evaluator, [
             str(kitti_evaluator), "--kitti_root", str(root),

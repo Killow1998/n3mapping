@@ -27,6 +27,7 @@
 
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/cloud_utils.h"
+#include "eval_correlated_odom.h"
 #include "eval_episode_manifest.h"
 #include "eval_registration_probe.h"
 
@@ -59,6 +60,8 @@ struct Options {
     double pose_translation_threshold_m = 1.0;
     double pose_yaw_threshold_deg = 10.0;
     double input_voxel_size_m = 0.0;
+    bool loop_closure_enabled = true;
+    eval::CorrelatedOdomConfig odom_drift;
 };
 
 struct PoseRecord {
@@ -241,6 +244,13 @@ void printUsage(std::ostream& os)
        << "  --pose_translation_threshold <M> Pose success translation threshold. Default: 1.\n"
        << "  --pose_yaw_threshold_deg <DEG>   Pose success yaw threshold. Default: 10.\n"
        << "  --input_voxel_size <M>           Symmetric map/query input voxel; 0 disables.\n"
+       << "  --disable_loop_closure           Do not consume loop candidates in mapping_loop.\n"
+       << "  --enable_correlated_odom_drift   Integrate deterministic drift into GT increments.\n"
+       << "  --odom_drift_seed <N>            RNG seed for correlated odometry drift.\n"
+       << "  --odom_translation_scale_error <F> Relative translation scale error fraction.\n"
+       << "  --odom_yaw_bias_deg_per_meter <D> Systematic local-yaw bias per traveled meter.\n"
+       << "  --odom_translation_rw_std_m_per_sqrt_meter <M> Translation RW increment std.\n"
+       << "  --odom_rotation_rw_std_deg_per_sqrt_meter <D> Rotation RW increment std.\n"
        << "  --help                           Show this help.\n";
 }
 
@@ -264,6 +274,20 @@ double parseDouble(const std::string& value, const std::string& name)
         throw std::runtime_error("invalid " + name + ": " + value);
     }
     return parsed;
+}
+
+uint64_t parseUint64(const std::string& value, const std::string& name)
+{
+    if (value.empty() || value.front() == '-') {
+        throw std::runtime_error("invalid " + name + ": " + value);
+    }
+    char* end = nullptr;
+    errno = 0;
+    const unsigned long long parsed = std::strtoull(value.c_str(), &end, 10);
+    if (errno != 0 || end == value.c_str() || *end != '\0') {
+        throw std::runtime_error("invalid " + name + ": " + value);
+    }
+    return static_cast<uint64_t>(parsed);
 }
 
 Options parseArgs(int argc, char** argv)
@@ -320,6 +344,24 @@ Options parseArgs(int argc, char** argv)
             options.pose_yaw_threshold_deg = std::max(0.0, parseDouble(requireValue(arg), arg));
         } else if (arg == "--input_voxel_size") {
             options.input_voxel_size_m = std::max(0.0, parseDouble(requireValue(arg), arg));
+        } else if (arg == "--disable_loop_closure") {
+            options.loop_closure_enabled = false;
+        } else if (arg == "--enable_correlated_odom_drift") {
+            options.odom_drift.enabled = true;
+        } else if (arg == "--odom_drift_seed") {
+            options.odom_drift.seed = parseUint64(requireValue(arg), arg);
+        } else if (arg == "--odom_translation_scale_error") {
+            options.odom_drift.translation_scale_error_fraction =
+                parseDouble(requireValue(arg), arg);
+        } else if (arg == "--odom_yaw_bias_deg_per_meter") {
+            options.odom_drift.yaw_bias_deg_per_meter =
+                parseDouble(requireValue(arg), arg);
+        } else if (arg == "--odom_translation_rw_std_m_per_sqrt_meter") {
+            options.odom_drift.translation_rw_std_m_per_sqrt_meter =
+                parseDouble(requireValue(arg), arg);
+        } else if (arg == "--odom_rotation_rw_std_deg_per_sqrt_meter") {
+            options.odom_drift.rotation_rw_std_deg_per_sqrt_meter =
+                parseDouble(requireValue(arg), arg);
         } else if (arg == "--help" || arg == "-h") {
             printUsage(std::cout);
             std::exit(0);
@@ -363,6 +405,12 @@ Options parseArgs(int argc, char** argv)
          options.mode == "registration_probe_motion") &&
         options.atlas_path.empty()) {
         throw std::runtime_error("registration_probe requires an explicit --atlas");
+    }
+    eval::validateCorrelatedOdomConfig(options.odom_drift);
+    if (options.mode != "mapping_loop" &&
+        (!options.loop_closure_enabled || options.odom_drift.enabled)) {
+        throw std::runtime_error(
+            "loop control and correlated odometry drift are mapping_loop-only options");
     }
     return options;
 }
@@ -888,11 +936,57 @@ void writeCalibrationJson(std::ostream& out, const CalibrationDiagnostics& calib
     out << "\n  }";
 }
 
-void writeAlignmentMetricsJson(std::ostream& out, const AlignmentStats& alignment)
+void writeAlignmentMetricsJson(
+    std::ostream& out,
+    const AlignmentStats& alignment,
+    const Options& options,
+    const eval::CorrelatedOdomStats* odom_stats = nullptr)
 {
-    out << "  \"odom_source\": \"gt\",\n"
-        << "  \"backend_input_contract\": \"gt_pose_plus_lidar\",\n"
+    const bool drift_enabled = options.odom_drift.enabled;
+    const double increment_count =
+        odom_stats ? static_cast<double>(odom_stats->increment_count) : 0.0;
+    const double translation_rms =
+        odom_stats && increment_count > 0.0
+            ? std::sqrt(odom_stats->translation_perturbation_squared_sum_m2 /
+                        increment_count)
+            : 0.0;
+    const double rotation_rms =
+        odom_stats && increment_count > 0.0
+            ? std::sqrt(odom_stats->rotation_perturbation_squared_sum_deg2 /
+                        increment_count)
+            : 0.0;
+    out << "  \"odom_source\": \""
+        << (drift_enabled ? "correlated_gt_derived" : "gt") << "\",\n"
+        << "  \"backend_input_contract\": \""
+        << (drift_enabled ? "correlated_gt_derived_odom_plus_lidar"
+                          : "gt_pose_plus_lidar")
+        << "\",\n"
         << "  \"real_lio_safety_filters_applied\": false,\n"
+        << "  \"loop_closure_enabled\": "
+        << (options.loop_closure_enabled ? "true" : "false") << ",\n"
+        << "  \"correlated_odom_drift\": {\n"
+        << "    \"enabled\": " << (drift_enabled ? "true" : "false") << ",\n"
+        << "    \"seed\": " << options.odom_drift.seed << ",\n"
+        << "    \"translation_scale_error_fraction\": "
+        << options.odom_drift.translation_scale_error_fraction << ",\n"
+        << "    \"yaw_bias_deg_per_meter\": "
+        << options.odom_drift.yaw_bias_deg_per_meter << ",\n"
+        << "    \"translation_rw_std_m_per_sqrt_meter\": "
+        << options.odom_drift.translation_rw_std_m_per_sqrt_meter << ",\n"
+        << "    \"rotation_rw_std_deg_per_sqrt_meter\": "
+        << options.odom_drift.rotation_rw_std_deg_per_sqrt_meter << ",\n"
+        << "    \"pose_count\": " << (odom_stats ? odom_stats->pose_count : 0) << ",\n"
+        << "    \"increment_count\": "
+        << (odom_stats ? odom_stats->increment_count : 0) << ",\n"
+        << "    \"traveled_distance_m\": "
+        << (odom_stats ? odom_stats->traveled_distance_m : 0.0) << ",\n"
+        << "    \"translation_perturbation_rms_m\": " << translation_rms << ",\n"
+        << "    \"rotation_perturbation_rms_deg\": " << rotation_rms << ",\n"
+        << "    \"final_translation_drift_m\": "
+        << (odom_stats ? odom_stats->final_translation_drift_m : 0.0) << ",\n"
+        << "    \"final_rotation_drift_deg\": "
+        << (odom_stats ? odom_stats->final_rotation_drift_deg : 0.0) << "\n"
+        << "  },\n"
         << "  \"alignment_input_lidar_count\": " << alignment.input_lidar_count << ",\n"
         << "  \"alignment_input_gt_count\": " << alignment.input_gt_count << ",\n"
         << "  \"alignment_matched_count\": " << alignment.matched_count << ",\n"
@@ -1082,9 +1176,11 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
     EvalProgressLog progress(options.output_dir / "eval_progress.csv");
     std::ofstream trajectory_est(options.output_dir / "trajectory_est.txt");
     std::ofstream trajectory_gt(options.output_dir / "trajectory_gt.txt");
+    std::ofstream trajectory_odom(options.output_dir / "trajectory_odom.txt");
     std::ofstream keyframes_gt(options.output_dir / "keyframes_gt.csv");
     std::ofstream accepted_loops(options.output_dir / "accepted_loops.csv");
     if (!trajectory_est.is_open() || !trajectory_gt.is_open() ||
+        !trajectory_odom.is_open() ||
         !keyframes_gt.is_open() || !accepted_loops.is_open()) {
         throw std::runtime_error("failed to open mapping_loop output files");
     }
@@ -1093,6 +1189,7 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
 
     Config config = makeEvalConfig(options);
     N3MappingCore core(config);
+    eval::CorrelatedOdomGenerator odom_generator(options.odom_drift);
     MappingStats stats;
     const auto& frames = aligned.frames;
     for (size_t frame_index = 0; frame_index < frames.size(); ++frame_index) {
@@ -1101,7 +1198,9 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
         auto cloud = readEvalCloud(frame.lidar_bin, options.input_voxel_size_m);
         progress.write(frame_index, frame.frame_id, "read_cloud_done");
         progress.write(frame_index, frame.frame_id, "process_mapping_start");
-        auto output = core.processMappingFrame(makeFrame(frame, frame.T_world_lidar, cloud));
+        const Eigen::Isometry3d odom_pose =
+            odom_generator.next(frame.T_world_lidar);
+        auto output = core.processMappingFrame(makeFrame(frame, odom_pose, cloud));
         progress.write(frame_index,
                        frame.frame_id,
                        "process_mapping_done",
@@ -1118,11 +1217,13 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
                        output.accepted_keyframe,
                        output.success);
         writeTrajectoryLine(trajectory_gt, frame.frame_id, frame.T_world_lidar);
+        writeTrajectoryLine(trajectory_odom, frame.frame_id, odom_pose);
         writeTrajectoryLine(trajectory_est, frame.frame_id, output.T_world_lidar);
         if (output.accepted_keyframe && output.keyframe_id >= 0) {
             writeKeyframeGt(keyframes_gt, output.keyframe_id, frame);
         }
         trajectory_gt.flush();
+        trajectory_odom.flush();
         trajectory_est.flush();
         keyframes_gt.flush();
         progress.write(frame_index,
@@ -1132,46 +1233,59 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
                        output.accepted_keyframe,
                        output.success);
 
-        progress.write(frame_index,
-                       frame.frame_id,
-                       "process_loops_start",
-                       output.keyframe_id,
-                       output.accepted_keyframe,
-                       output.success);
-        const auto loop_result = core.processPendingLoopClosures();
-        stats.place_candidates += loop_result.place_candidate_count;
-        stats.graph_edges += loop_result.graph_edge_count;
-        stats.accepted_loops += loop_result.accepted_loops.size();
-        for (const auto& loop : loop_result.accepted_loops) {
+        if (options.loop_closure_enabled) {
+            progress.write(frame_index,
+                           frame.frame_id,
+                           "process_loops_start",
+                           output.keyframe_id,
+                           output.accepted_keyframe,
+                           output.success);
+            const auto loop_result = core.processPendingLoopClosures();
+            stats.place_candidates += loop_result.place_candidate_count;
+            stats.graph_edges += loop_result.graph_edge_count;
+            stats.accepted_loops += loop_result.accepted_loops.size();
+            for (const auto& loop : loop_result.accepted_loops) {
+                writeAcceptedLoop(accepted_loops, loop);
+            }
+            accepted_loops.flush();
+            progress.write(frame_index,
+                           frame.frame_id,
+                           "process_loops_done",
+                           output.keyframe_id,
+                           output.accepted_keyframe,
+                           output.success,
+                           static_cast<size_t>(loop_result.edge_count),
+                           loop_result.accepted_loops.size());
+        } else {
+            progress.write(frame_index,
+                           frame.frame_id,
+                           "process_loops_disabled",
+                           output.keyframe_id,
+                           output.accepted_keyframe,
+                           output.success);
+        }
+    }
+    if (options.loop_closure_enabled) {
+        progress.write(frames.size(), -1, "final_process_loops_start");
+        const auto final_loop_result = core.processPendingLoopClosures();
+        stats.place_candidates += final_loop_result.place_candidate_count;
+        stats.graph_edges += final_loop_result.graph_edge_count;
+        stats.accepted_loops += final_loop_result.accepted_loops.size();
+        for (const auto& loop : final_loop_result.accepted_loops) {
             writeAcceptedLoop(accepted_loops, loop);
         }
         accepted_loops.flush();
-        progress.write(frame_index,
-                       frame.frame_id,
-                       "process_loops_done",
-                       output.keyframe_id,
-                       output.accepted_keyframe,
-                       output.success,
-                       static_cast<size_t>(loop_result.edge_count),
-                       loop_result.accepted_loops.size());
+        progress.write(frames.size(),
+                       -1,
+                       "final_process_loops_done",
+                       -1,
+                       false,
+                       true,
+                       static_cast<size_t>(final_loop_result.edge_count),
+                       final_loop_result.accepted_loops.size());
+    } else {
+        progress.write(frames.size(), -1, "final_process_loops_disabled");
     }
-    progress.write(frames.size(), -1, "final_process_loops_start");
-    const auto final_loop_result = core.processPendingLoopClosures();
-    stats.place_candidates += final_loop_result.place_candidate_count;
-    stats.graph_edges += final_loop_result.graph_edge_count;
-    stats.accepted_loops += final_loop_result.accepted_loops.size();
-    for (const auto& loop : final_loop_result.accepted_loops) {
-        writeAcceptedLoop(accepted_loops, loop);
-    }
-    accepted_loops.flush();
-    progress.write(frames.size(),
-                   -1,
-                   "final_process_loops_done",
-                   -1,
-                   false,
-                   true,
-                   static_cast<size_t>(final_loop_result.edge_count),
-                   final_loop_result.accepted_loops.size());
 
     const fs::path saved_map_path = options.output_dir / "n3map.pbstream";
     if (!core.saveMap(saved_map_path.string())) {
@@ -1202,7 +1316,8 @@ int runMappingLoop(const Options& options, const AlignedFrames& aligned)
             << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n"
             << "  \"stride\": " << options.stride << ",\n";
     metrics << "  \"start_index\": " << options.start_index << ",\n";
-    writeAlignmentMetricsJson(metrics, aligned.alignment);
+    writeAlignmentMetricsJson(
+        metrics, aligned.alignment, options, &odom_generator.stats());
     writeCalibrationJson(metrics, aligned.calibration);
     metrics << "\n"
             << "}\n";
@@ -1403,7 +1518,7 @@ int runRelocalization(const Options& options, const AlignedFrames& aligned)
             << "  \"episode_id\": \"" << jsonEscape(options.episode_id) << "\",\n";
     metrics << "  \"atlas_path\": \"" << jsonEscape(options.atlas_path.string()) << "\",\n";
     metrics << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n";
-    writeAlignmentMetricsJson(metrics, aligned.alignment);
+    writeAlignmentMetricsJson(metrics, aligned.alignment, options);
     writeCalibrationJson(metrics, aligned.calibration);
     metrics << "\n"
             << "}\n";

@@ -588,7 +588,12 @@ def evaluate_episode(
 
 
 def verify_inputs(
-    contract_path: Path, contract: dict[str, Any], root: Path, issues: Issues
+    contract_path: Path,
+    contract: dict[str, Any],
+    root: Path,
+    issues: Issues,
+    *,
+    section: str = "fa02",
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     manifest = load_json(root / "input_manifest.json")
     if manifest.get("schema") != INPUT_SCHEMA:
@@ -599,7 +604,7 @@ def verify_inputs(
     if manifest.get("episode_frames", {}).get("sha256") != sha256_file(frames_path):
         issues.add("evidence", "frame_manifest_hash", "episode frame manifest SHA-256 mismatch")
     by_id = {str(episode["id"]): episode for episode in manifest.get("episodes", [])}
-    for episode in contract["fa02"]["episodes"]:
+    for episode in contract[section]["episodes"]:
         episode_id = str(episode["id"])
         frozen = by_id.get(episode_id)
         if frozen is None:

@@ -352,6 +352,8 @@ if(N3MAPPING_BUILD_RESEARCH_TOOLS)
     ${N3MAPPING_ROOT}/tools/n3mapping_fa02_freeze.py
     ${N3MAPPING_ROOT}/tools/n3mapping_fa02_gate.py
     ${N3MAPPING_ROOT}/tools/n3mapping_fa02_run.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_fa02b_gate.py
+    ${N3MAPPING_ROOT}/tools/n3mapping_fa02b_run.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   )
 endif()
@@ -619,6 +621,14 @@ if(CATKIN_ENABLE_TESTING)
         ${PYTHON_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_fa02_tools.py
     )
     set_tests_properties(test_n3mapping_fa02_tools PROPERTIES TIMEOUT 60)
+
+    add_test(
+      NAME test_n3mapping_fa02b_tools
+      COMMAND ${CMAKE_COMMAND} -E env
+        PYTHONDONTWRITEBYTECODE=1
+        ${PYTHON_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_fa02b_tools.py
+    )
+    set_tests_properties(test_n3mapping_fa02b_tools PROPERTIES TIMEOUT 60)
   endif()
 
   catkin_add_gtest(test_synthetic_relocalization
