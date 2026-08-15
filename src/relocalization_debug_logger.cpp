@@ -516,6 +516,30 @@ bool RelocalizationDebugLogger::appendTracking(
   appendNumber(os, &first, "retry_registration_ms",
                event.retry_registration_ms);
   appendNumber(os, &first, "visibility_ms", event.visibility_ms);
+  appendNumber(os, &first, "visibility_prediction_ms",
+               event.visibility_prediction_ms);
+  appendNumber(os, &first, "visibility_registration_ms",
+               event.visibility_registration_ms);
+  appendBool(os, &first, "visibility_prediction_valid",
+             event.visibility_prediction_valid);
+  appendNumber(os, &first, "visibility_prediction_consistency_ratio",
+               event.visibility_prediction_consistency_ratio);
+  appendNumber(os, &first, "visibility_prediction_evidence_log_odds",
+               event.visibility_prediction_evidence_log_odds);
+  appendBool(os, &first, "visibility_registration_valid",
+             event.visibility_registration_valid);
+  appendNumber(os, &first, "visibility_registration_consistency_ratio",
+               event.visibility_registration_consistency_ratio);
+  appendNumber(os, &first, "visibility_registration_evidence_log_odds",
+               event.visibility_registration_evidence_log_odds);
+  appendString(os, &first, "visibility_selected_pose_source",
+               event.visibility_selected_pose_source);
+  appendNumber(os, &first, "visibility_registration_delta_translation_m",
+               event.visibility_registration_delta_translation_m);
+  appendNumber(os, &first, "visibility_registration_delta_rotation_rad",
+               event.visibility_registration_delta_rotation_rad);
+  appendBool(os, &first, "visibility_registration_would_accept",
+             event.visibility_registration_would_accept);
   appendBool(os, &first, "icp_converged", event.icp_converged);
   appendNumber(os, &first, "fitness_score", event.fitness_score);
   appendNumber(os, &first, "inlier_ratio", event.inlier_ratio);

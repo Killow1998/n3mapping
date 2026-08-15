@@ -140,6 +140,29 @@ struct RelocTrackingDebugEvent {
   double registration_ms = std::numeric_limits<double>::quiet_NaN();
   double retry_registration_ms = std::numeric_limits<double>::quiet_NaN();
   double visibility_ms = std::numeric_limits<double>::quiet_NaN();
+  // Shadow-only decomposition for a future endpoint-fast / prediction-slow
+  // visibility cascade. These fields describe the existing two-pose decision;
+  // they do not select a different pose or bypass a production gate.
+  double visibility_prediction_ms =
+      std::numeric_limits<double>::quiet_NaN();
+  double visibility_registration_ms =
+      std::numeric_limits<double>::quiet_NaN();
+  bool visibility_prediction_valid = false;
+  double visibility_prediction_consistency_ratio =
+      std::numeric_limits<double>::quiet_NaN();
+  double visibility_prediction_evidence_log_odds =
+      std::numeric_limits<double>::quiet_NaN();
+  bool visibility_registration_valid = false;
+  double visibility_registration_consistency_ratio =
+      std::numeric_limits<double>::quiet_NaN();
+  double visibility_registration_evidence_log_odds =
+      std::numeric_limits<double>::quiet_NaN();
+  std::string visibility_selected_pose_source = "not_evaluated";
+  double visibility_registration_delta_translation_m =
+      std::numeric_limits<double>::quiet_NaN();
+  double visibility_registration_delta_rotation_rad =
+      std::numeric_limits<double>::quiet_NaN();
+  bool visibility_registration_would_accept = false;
   bool icp_converged = false;
   double fitness_score = std::numeric_limits<double>::quiet_NaN();
   double inlier_ratio = std::numeric_limits<double>::quiet_NaN();

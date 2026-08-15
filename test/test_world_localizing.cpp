@@ -677,7 +677,10 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   for (const char *field :
        {"tracking_total_ms", "nearest_keyframe_ms", "loaded_map_cache_ms",
         "submap_build_ms", "target_prepare_ms", "source_prepare_ms",
-        "registration_ms", "visibility_ms"}) {
+        "registration_ms", "visibility_ms", "visibility_prediction_ms",
+        "visibility_registration_ms",
+        "visibility_registration_delta_translation_m",
+        "visibility_registration_delta_rotation_rad"}) {
     EXPECT_EQ(lines[0].find(std::string("\"") + field + "\":null"),
               std::string::npos)
         << field;
@@ -689,6 +692,11 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   EXPECT_NE(lines[1].find("\"loaded_map_target_cache_hit\":true"),
             std::string::npos);
   EXPECT_NE(lines[1].find("\"loaded_map_target_cache_miss\":false"),
+            std::string::npos);
+  EXPECT_EQ(lines[0].find(
+                "\"visibility_selected_pose_source\":\"not_evaluated\""),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_registration_would_accept\":"),
             std::string::npos);
 
   std::filesystem::remove_all(dir);

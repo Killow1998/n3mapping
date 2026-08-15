@@ -63,6 +63,20 @@ TRACKING_LOCALIZATION_TARGET_CACHE_FIELDS = (
     "localization_target_cache_total_bytes",
     "localization_target_cache_entries",
 )
+TRACKING_VISIBILITY_SHADOW_FIELDS = (
+    "visibility_prediction_ms",
+    "visibility_registration_ms",
+    "visibility_prediction_valid",
+    "visibility_prediction_consistency_ratio",
+    "visibility_prediction_evidence_log_odds",
+    "visibility_registration_valid",
+    "visibility_registration_consistency_ratio",
+    "visibility_registration_evidence_log_odds",
+    "visibility_selected_pose_source",
+    "visibility_registration_delta_translation_m",
+    "visibility_registration_delta_rotation_rad",
+    "visibility_registration_would_accept",
+)
 RUNTIME_REQUIRED = {
     "schema",
     "record_type",
@@ -441,6 +455,77 @@ def validate_tracking(records: list[dict[str, Any]], mode: str) -> list[str]:
                 errors.append(
                     f"tracking record {line}: localization cache hit lacks a retained entry"
                 )
+
+        visibility_shadow_fields_present = [
+            field in record for field in TRACKING_VISIBILITY_SHADOW_FIELDS
+        ]
+        if any(visibility_shadow_fields_present) and not all(
+            visibility_shadow_fields_present
+        ):
+            errors.append(
+                f"tracking record {line}: incomplete visibility shadow metrics"
+            )
+        elif all(visibility_shadow_fields_present):
+            prediction_valid = record["visibility_prediction_valid"]
+            registration_valid = record["visibility_registration_valid"]
+            endpoint_accept = record["visibility_registration_would_accept"]
+            if not all(
+                isinstance(value, bool)
+                for value in (prediction_valid, registration_valid, endpoint_accept)
+            ):
+                errors.append(
+                    f"tracking record {line}: visibility shadow outcomes must be bool"
+                )
+            for field in (
+                "visibility_prediction_ms",
+                "visibility_registration_ms",
+                "visibility_registration_delta_translation_m",
+                "visibility_registration_delta_rotation_rad",
+            ):
+                if record[field] is not None and (
+                    not finite(record[field]) or float(record[field]) < 0.0
+                ):
+                    errors.append(
+                        f"tracking record {line}: invalid visibility shadow {field}"
+                    )
+            for prefix, valid in (
+                ("prediction", prediction_valid),
+                ("registration", registration_valid),
+            ):
+                for suffix in ("consistency_ratio", "evidence_log_odds"):
+                    field = f"visibility_{prefix}_{suffix}"
+                    if record[field] is not None and not finite(record[field]):
+                        errors.append(
+                            f"tracking record {line}: invalid visibility shadow {field}"
+                        )
+                    elif valid is True and not finite(record[field]):
+                        errors.append(
+                            f"tracking record {line}: valid visibility lacks {field}"
+                        )
+            source = record["visibility_selected_pose_source"]
+            if source not in {
+                "not_evaluated",
+                "registration_endpoint",
+                "motion_prediction",
+            }:
+                errors.append(
+                    f"tracking record {line}: invalid visibility selected pose source"
+                )
+            elif source != "not_evaluated":
+                if not strict_expected:
+                    errors.append(
+                        f"tracking record {line}: ordinary tracking evaluated strict visibility"
+                    )
+                for field in (
+                    "visibility_prediction_ms",
+                    "visibility_registration_ms",
+                    "visibility_registration_delta_translation_m",
+                    "visibility_registration_delta_rotation_rad",
+                ):
+                    if not finite(record[field]):
+                        errors.append(
+                            f"tracking record {line}: evaluated visibility lacks {field}"
+                        )
 
         geometric_success = (
             record["result_success"] is True and record["reject_reason"] == ""
@@ -839,6 +924,18 @@ def analyze(
         ),
         default=0,
     )
+    visibility_shadow = [
+        row
+        for row in tracking
+        if row.get("visibility_selected_pose_source")
+        in {"registration_endpoint", "motion_prediction"}
+    ]
+    visibility_shadow_stats = {
+        field: stats(
+            (row.get(field) for row in visibility_shadow), len(visibility_shadow)
+        )
+        for field in ("visibility_prediction_ms", "visibility_registration_ms")
+    }
 
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA,
@@ -897,6 +994,25 @@ def analyze(
             ),
             "localization_target_cache_peak_bytes": localization_cache_peak_bytes,
             "localization_target_cache_peak_entries": localization_cache_peak_entries,
+            "visibility_shadow_observed": len(visibility_shadow),
+            "visibility_registration_selected": sum(
+                row.get("visibility_selected_pose_source")
+                == "registration_endpoint"
+                for row in visibility_shadow
+            ),
+            "visibility_prediction_selected": sum(
+                row.get("visibility_selected_pose_source") == "motion_prediction"
+                for row in visibility_shadow
+            ),
+            "visibility_registration_would_accept": sum(
+                row.get("visibility_registration_would_accept") is True
+                for row in visibility_shadow
+            ),
+            "visibility_registration_decision_mismatch": sum(
+                row.get("visibility_registration_would_accept")
+                != row.get("result_success")
+                for row in visibility_shadow
+            ),
             "core_failure": sum(row.get("core_success") is False for row in runtime),
             "callback_skipped": sum(row.get("callback_skipped") is True for row in runtime),
             "accepted_keyframes": len(accepted),
@@ -932,6 +1048,7 @@ def analyze(
         "runtime_timing_ms": runtime_stats,
         "steady_state_runtime_timing_ms": steady_runtime_stats,
         "tracking_timing_ms": tracking_stats,
+        "visibility_shadow_timing_ms": visibility_shadow_stats,
         "loop_cycle_timing_ms": loop_stats,
         "loop_work_cycle_timing_ms": work_loop_stats,
         "callback_budget_overrun_ms": stats(budget_overrun, len(runtime)),

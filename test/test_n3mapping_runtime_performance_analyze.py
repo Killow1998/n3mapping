@@ -120,6 +120,20 @@ def tracking_record(
         "registration_ms": 50.0,
         "retry_registration_ms": None,
         "visibility_ms": 4.0 if strict else None,
+        "visibility_prediction_ms": 2.0 if strict else None,
+        "visibility_registration_ms": 2.0 if strict else None,
+        "visibility_prediction_valid": strict,
+        "visibility_prediction_consistency_ratio": 0.8 if strict else None,
+        "visibility_prediction_evidence_log_odds": 1.0 if strict else None,
+        "visibility_registration_valid": strict,
+        "visibility_registration_consistency_ratio": 0.9 if strict else None,
+        "visibility_registration_evidence_log_odds": 1.2 if strict else None,
+        "visibility_selected_pose_source": (
+            "registration_endpoint" if strict else "not_evaluated"
+        ),
+        "visibility_registration_delta_translation_m": 0.1 if strict else None,
+        "visibility_registration_delta_rotation_rad": 0.01 if strict else None,
+        "visibility_registration_would_accept": strict,
         "icp_converged": True,
         "fitness_score": 0.01,
         "inlier_ratio": 0.9,
@@ -367,6 +381,22 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             )
             self.assertEqual(report["counts"]["loaded_map_target_cache_hit"], 1)
             self.assertEqual(report["counts"]["loaded_map_target_cache_miss"], 1)
+            self.assertEqual(report["counts"]["visibility_shadow_observed"], 2)
+            self.assertEqual(
+                report["counts"]["visibility_registration_selected"], 2
+            )
+            self.assertEqual(
+                report["counts"]["visibility_prediction_selected"], 0
+            )
+            self.assertEqual(
+                report["counts"]["visibility_registration_decision_mismatch"],
+                0,
+            )
+            self.assertEqual(
+                report["visibility_shadow_timing_ms"]
+                ["visibility_registration_ms"]["p95"],
+                2.0,
+            )
             self.assertEqual(report["counts"]["accepted_keyframes"], 1)
             self.assertEqual(report["counts"]["callback_over_sensor_budget"], 1)
             self.assertEqual(report["counts"]["resource_samples_total"], 2)
@@ -513,6 +543,8 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             legacy_tracking = tracking_record(1)
             legacy_tracking.pop("loaded_map_target_cache_hit")
             legacy_tracking.pop("loaded_map_target_cache_miss")
+            for field in TOOL.TRACKING_VISIBILITY_SHADOW_FIELDS:
+                legacy_tracking.pop(field)
             write_jsonl(tracking_path, [legacy_tracking])
             write_jsonl(resource_path, [resource_record(1)])
 

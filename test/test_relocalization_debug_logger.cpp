@@ -413,6 +413,18 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   event.source_prepare_ms = 0.75;
   event.registration_ms = 4.0;
   event.visibility_ms = 0.5;
+  event.visibility_prediction_ms = 0.25;
+  event.visibility_registration_ms = 0.5;
+  event.visibility_prediction_valid = true;
+  event.visibility_prediction_consistency_ratio = 0.8;
+  event.visibility_prediction_evidence_log_odds = 1.1;
+  event.visibility_registration_valid = true;
+  event.visibility_registration_consistency_ratio = 0.7;
+  event.visibility_registration_evidence_log_odds = 0.9;
+  event.visibility_selected_pose_source = "motion_prediction";
+  event.visibility_registration_delta_translation_m = 0.2;
+  event.visibility_registration_delta_rotation_rad = 0.02;
+  event.visibility_registration_would_accept = true;
   event.icp_converged = false;
   event.retry_used = true;
   event.consecutive_track_failures = 2;
@@ -440,6 +452,16 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   EXPECT_NE(lines[0].find("\"retry_registration_ms\":null"),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"visibility_ms\":0.5"), std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_prediction_ms\":0.25"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_registration_ms\":0.5"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find(
+                "\"visibility_selected_pose_source\":\"motion_prediction\""),
+            std::string::npos);
+  EXPECT_NE(lines[0].find(
+                "\"visibility_registration_would_accept\":true"),
+            std::string::npos);
   EXPECT_NE(lines[0].find("\"retry_used\":true"), std::string::npos);
   EXPECT_NE(lines[0].find("\"reject_reason\":\"nearest_keyframe_missing\""),
             std::string::npos);

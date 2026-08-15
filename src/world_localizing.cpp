@@ -1228,14 +1228,50 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
   double delta_translation = std::numeric_limits<double>::infinity();
   double delta_rotation = std::numeric_limits<double>::infinity();
+  double registration_delta_translation =
+      std::numeric_limits<double>::infinity();
+  double registration_delta_rotation = std::numeric_limits<double>::infinity();
   VisibilityConsistencyResult visibility;
+  VisibilityConsistencyResult registration_visibility;
   if (hasValidRegistrationResult(match_result)) {
+    const Eigen::Isometry3d registration_delta =
+        predicted_pose.inverse() * match_result.T_target_source;
+    registration_delta_translation = registration_delta.translation().norm();
+    registration_delta_rotation =
+        Eigen::AngleAxisd(registration_delta.rotation()).angle();
     if (strict_loaded_map) {
       const auto visibility_started = timing_started();
+      const auto prediction_visibility_started = timing_started();
       const auto predicted_visibility =
           evaluatePoseVisibility(submap, cloud, predicted_pose);
-      visibility =
+      if (reloc_debug_enabled) {
+        debug_event.visibility_prediction_ms =
+            elapsed_ms(prediction_visibility_started);
+      }
+      const auto registration_visibility_started = timing_started();
+      registration_visibility =
           evaluatePoseVisibility(submap, cloud, match_result.T_target_source);
+      if (reloc_debug_enabled) {
+        debug_event.visibility_registration_ms =
+            elapsed_ms(registration_visibility_started);
+        debug_event.visibility_prediction_valid = predicted_visibility.valid;
+        debug_event.visibility_prediction_consistency_ratio =
+            predicted_visibility.consistency_ratio;
+        debug_event.visibility_prediction_evidence_log_odds =
+            predicted_visibility.evidence_log_odds;
+        debug_event.visibility_registration_valid =
+            registration_visibility.valid;
+        debug_event.visibility_registration_consistency_ratio =
+            registration_visibility.consistency_ratio;
+        debug_event.visibility_registration_evidence_log_odds =
+            registration_visibility.evidence_log_odds;
+        debug_event.visibility_registration_delta_translation_m =
+            registration_delta_translation;
+        debug_event.visibility_registration_delta_rotation_rad =
+            registration_delta_rotation;
+      }
+      visibility = registration_visibility;
+      debug_event.visibility_selected_pose_source = "registration_endpoint";
       if (predicted_visibility.valid &&
           (!visibility.valid || predicted_visibility.consistency_ratio >
                                     visibility.consistency_ratio + 1e-9)) {
@@ -1244,6 +1280,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         // explains it better than the optimizer endpoint.
         match_result.T_target_source = predicted_pose;
         visibility = predicted_visibility;
+        debug_event.visibility_selected_pose_source = "motion_prediction";
       }
       if (reloc_debug_enabled) {
         debug_event.visibility_ms = elapsed_ms(visibility_started);
@@ -1254,6 +1291,13 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     delta_translation = delta.translation().norm();
     delta_rotation = Eigen::AngleAxisd(delta.rotation()).angle();
   }
+
+  debug_event.visibility_registration_would_accept =
+      strict_loaded_map && icp_ok &&
+      registration_delta_translation <= config_.reloc_track_max_translation &&
+      registration_delta_rotation <= config_.reloc_track_max_rotation &&
+      registration_visibility.valid &&
+      registration_visibility.evidence_log_odds > 0.0;
 
   const bool strict_geometry_ok =
       !strict_loaded_map ||
