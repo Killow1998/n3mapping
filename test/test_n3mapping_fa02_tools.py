@@ -147,6 +147,15 @@ class FA02ToolsTest(unittest.TestCase):
             self.assertEqual([path.stem for path in selected], ["0000000002", "0000000004", "0000000006"])
             self.assertEqual(evidence["alignment_common_count"], 8)
 
+    def test_frame_manifest_uses_evaluator_compatible_lf_header(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "episode_frames.csv"
+            freeze_tool.write_frame_manifest(
+                path, [{"episode_id": "e", "role": "map", "frame_token": "1"}]
+            )
+            self.assertTrue(path.read_bytes().startswith(b"episode_id,role,frame_token\n"))
+            self.assertNotIn(b"\r", path.read_bytes())
+
     def test_m2dgr_selection_matches_cpp_nearest_alignment(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "M2DGR"

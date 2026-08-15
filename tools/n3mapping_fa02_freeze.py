@@ -193,6 +193,17 @@ def aggregate_cloud_digest(clouds: list[dict[str, Any]]) -> str:
     return digest.hexdigest()
 
 
+def write_frame_manifest(path: Path, rows: list[dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(
+            stream,
+            fieldnames=["episode_id", "role", "frame_token"],
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def freeze(contract_path: Path, output: Path, source_repo: Path) -> dict[str, Any]:
     contract_path = contract_path.resolve(strict=True)
     source_repo = source_repo.resolve(strict=True)
@@ -263,12 +274,7 @@ def freeze(contract_path: Path, output: Path, source_repo: Path) -> dict[str, An
         )
 
     frames_path = output / "episode_frames.csv"
-    with frames_path.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.DictWriter(
-            stream, fieldnames=["episode_id", "role", "frame_token"]
-        )
-        writer.writeheader()
-        writer.writerows(episode_rows)
+    write_frame_manifest(frames_path, episode_rows)
     timezone = ZoneInfo(str(contract.get("recorded_timezone", "America/Los_Angeles")))
     manifest = {
         "schema": MANIFEST_SCHEMA,
