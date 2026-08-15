@@ -2021,6 +2021,34 @@ void WorldLocalizing::loadedMapTrackingTargetPrefetchLoop() {
   }
 }
 
+void WorldLocalizing::warmLoadedMapTrackingTargets(
+    int64_t anchor_id, const Eigen::Vector3d &query_position) {
+  if (anchor_id < 0 || !query_position.allFinite()) {
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  rebuildLoadedMapVisibilityCacheIfNeeded();
+  const auto anchor = keyframe_manager_.getKeyframe(anchor_id);
+  if (!anchor || !anchor->is_from_loaded_map ||
+      !anchor->pose_optimized.translation().allFinite() ||
+      !loaded_map_visibility_cache_ ||
+      loaded_map_visibility_cache_->empty()) {
+    return;
+  }
+
+  // Queue spatial alternatives first so the worker prepares one while this
+  // thread synchronously restores the authoritative current anchor.
+  requestLoadedMapTrackingTargetPrefetch(query_position, anchor_id);
+  const auto submap = LocalizationAtlas::cropGlobalMap(
+      config_, loaded_map_visibility_cache_,
+      anchor->pose_optimized.translation());
+  if (!submap || submap->empty()) {
+    return;
+  }
+  prepareLoadedMapTrackingTarget(anchor_id, submap, nullptr, nullptr);
+}
+
 VisibilityConsistencyResult WorldLocalizing::evaluateLoadedMapPoseVisibility(
     const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &T_map_lidar) {
   if (!query_cloud || query_cloud->empty() ||

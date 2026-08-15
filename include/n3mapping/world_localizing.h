@@ -143,6 +143,11 @@ public:
   VisibilityConsistencyResult
   evaluateLoadedMapPoseVisibility(const PointCloudT::Ptr &query_cloud,
                                   const Eigen::Isometry3d &T_map_lidar);
+  // Rebuild the exact current-revision target for the loaded-map anchor after
+  // a committed extension graph update. Nearby targets are only prefetched;
+  // a later tracking callback still builds synchronously on any cache miss.
+  void warmLoadedMapTrackingTargets(int64_t anchor_id,
+                                    const Eigen::Vector3d &query_position);
 
 private:
   using RelocHypothesis = RelocalizationHypothesis;

@@ -356,12 +356,23 @@ int64_t MappingResuming::processNewKeyframe(
 
         const auto optimized_poses = optimizer_.getOptimizedPoses();
         const auto optimized_current = optimized_poses.find(new_kf_id);
+        Eigen::Isometry3d committed_pose_in_map = pose_in_map;
         if (optimized_current != optimized_poses.end()) {
+            committed_pose_in_map = optimized_current->second;
             const Eigen::Isometry3d corrected_map_odom =
                 optimized_current->second * odom_pose.inverse();
             if (isFiniteTransform(corrected_map_odom)) {
                 world_localizing_.setMapToOdomTransform(corrected_map_odom);
             }
+        }
+
+        const int64_t loaded_reference_id =
+            is_first_new_keyframe ? relocalization_anchor_keyframe_id_
+                                  : loaded_tracking_match_id;
+        if (loaded_reference_id >= 0 &&
+            isFiniteTransform(committed_pose_in_map)) {
+            world_localizing_.warmLoadedMapTrackingTargets(
+                loaded_reference_id, committed_pose_in_map.translation());
         }
 
         // From this point the graph and keyframe are committed. Descriptor
