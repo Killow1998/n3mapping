@@ -246,6 +246,10 @@ def make_node_command(args: argparse.Namespace, node: Path) -> list[str]:
     ]
     if args.mode != "mapping":
         command.extend(["-p", f"map_path:={args.map.resolve()}"])
+    if args.loaded_map_visibility_endpoint_fast:
+        command.extend(
+            ["-p", "loaded_map_visibility_endpoint_fast_enable:=true"]
+        )
     return command
 
 
@@ -557,6 +561,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--node-ready-timeout-s", type=float, default=60.0)
     parser.add_argument("--run-timeout-s", type=float, default=600.0)
     parser.add_argument("--drain-s", type=float, default=3.0)
+    parser.add_argument(
+        "--loaded-map-visibility-endpoint-fast",
+        action="store_true",
+        help="Enable the default-off endpoint-first loaded-map visibility trial.",
+    )
     args = parser.parse_args(argv)
     if args.mode != "mapping" and args.map is None:
         parser.error("--map is required for localization and map_extension")

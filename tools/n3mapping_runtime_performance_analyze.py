@@ -77,6 +77,10 @@ TRACKING_VISIBILITY_SHADOW_FIELDS = (
     "visibility_registration_delta_rotation_rad",
     "visibility_registration_would_accept",
 )
+TRACKING_VISIBILITY_FAST_FIELDS = (
+    "visibility_endpoint_fast_enabled",
+    "visibility_endpoint_fast_taken",
+)
 RUNTIME_REQUIRED = {
     "schema",
     "record_type",
@@ -503,6 +507,31 @@ def validate_tracking(records: list[dict[str, Any]], mode: str) -> list[str]:
                             f"tracking record {line}: valid visibility lacks {field}"
                         )
             source = record["visibility_selected_pose_source"]
+            visibility_fast_fields_present = [
+                field in record for field in TRACKING_VISIBILITY_FAST_FIELDS
+            ]
+            if any(visibility_fast_fields_present) and not all(
+                visibility_fast_fields_present
+            ):
+                errors.append(
+                    f"tracking record {line}: incomplete visibility fast-path metrics"
+                )
+            fast_enabled = record.get("visibility_endpoint_fast_enabled", False)
+            fast_taken = record.get("visibility_endpoint_fast_taken", False)
+            if not isinstance(fast_enabled, bool) or not isinstance(
+                fast_taken, bool
+            ):
+                errors.append(
+                    f"tracking record {line}: visibility fast-path outcomes must be bool"
+                )
+            elif fast_taken and not fast_enabled:
+                errors.append(
+                    f"tracking record {line}: disabled visibility fast path was taken"
+                )
+            elif fast_taken and endpoint_accept is not True:
+                errors.append(
+                    f"tracking record {line}: visibility fast path bypassed endpoint acceptance"
+                )
             if source not in {
                 "not_evaluated",
                 "registration_endpoint",
@@ -516,16 +545,31 @@ def validate_tracking(records: list[dict[str, Any]], mode: str) -> list[str]:
                     errors.append(
                         f"tracking record {line}: ordinary tracking evaluated strict visibility"
                     )
-                for field in (
-                    "visibility_prediction_ms",
+                required_fields = [
                     "visibility_registration_ms",
                     "visibility_registration_delta_translation_m",
                     "visibility_registration_delta_rotation_rad",
-                ):
+                ]
+                if not fast_taken:
+                    required_fields.append("visibility_prediction_ms")
+                for field in required_fields:
                     if not finite(record[field]):
                         errors.append(
                             f"tracking record {line}: evaluated visibility lacks {field}"
                         )
+                if fast_taken and source != "registration_endpoint":
+                    errors.append(
+                        f"tracking record {line}: visibility fast path selected a non-endpoint pose"
+                    )
+                if fast_taken and (
+                    record["visibility_prediction_ms"] is not None
+                    or prediction_valid is True
+                    or record["visibility_prediction_consistency_ratio"] is not None
+                    or record["visibility_prediction_evidence_log_odds"] is not None
+                ):
+                    errors.append(
+                        f"tracking record {line}: visibility fast path did not skip prediction"
+                    )
 
         geometric_success = (
             record["result_success"] is True and record["reject_reason"] == ""
@@ -1011,6 +1055,14 @@ def analyze(
             "visibility_registration_decision_mismatch": sum(
                 row.get("visibility_registration_would_accept")
                 != row.get("result_success")
+                for row in visibility_shadow
+            ),
+            "visibility_endpoint_fast_enabled": sum(
+                row.get("visibility_endpoint_fast_enabled") is True
+                for row in visibility_shadow
+            ),
+            "visibility_endpoint_fast_taken": sum(
+                row.get("visibility_endpoint_fast_taken") is True
                 for row in visibility_shadow
             ),
             "core_failure": sum(row.get("core_success") is False for row in runtime),

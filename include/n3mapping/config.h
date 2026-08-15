@@ -241,6 +241,12 @@ struct Config {
     // published evidence exactly; it decides every lock, so it stays off until
     // the twenty-query evaluation says otherwise.
     bool reloc_visibility_occlusion_aware = false;
+    // Experimental loaded-map tracking cascade. When enabled, a registration
+    // endpoint that already passes every current strict geometry/visibility
+    // gate is accepted without evaluating motion-prediction visibility. The
+    // maintained product profiles keep this false until same-input trajectory
+    // and map-quality evidence supports integration.
+    bool loaded_map_visibility_endpoint_fast_enable = false;
     bool reloc_debug_enable = false;
     std::string reloc_debug_path = "";
     bool reloc_atlas_enable = false;

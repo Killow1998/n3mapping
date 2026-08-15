@@ -197,6 +197,8 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("reloc_ambiguity_ignore_basin_separation",
         config->reloc_ambiguity_ignore_basin_separation);
     get("reloc_visibility_occlusion_aware", config->reloc_visibility_occlusion_aware);
+    get("loaded_map_visibility_endpoint_fast_enable",
+        config->loaded_map_visibility_endpoint_fast_enable);
     get("rhpd_aux_scale", config->rhpd_aux_scale);
     get("rhpd_part_a_scale", config->rhpd_part_a_scale);
 

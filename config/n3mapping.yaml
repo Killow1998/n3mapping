@@ -141,6 +141,9 @@ n3mapping_node:
     reloc_target_cache_max_entries: 0
     localization_tracking_target_cache_max_bytes: 134217728
     localization_tracking_target_cache_max_entries: 8
+    # Experimental only. Product behavior retains the two-pose visibility
+    # comparison until endpoint-first trajectory quality is independently gated.
+    loaded_map_visibility_endpoint_fast_enable: false
     reloc_free_space_enable: true
     reloc_free_space_mode: "veto"
     reloc_free_space_resolution: 0.20

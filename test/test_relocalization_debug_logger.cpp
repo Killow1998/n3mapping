@@ -425,6 +425,8 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   event.visibility_registration_delta_translation_m = 0.2;
   event.visibility_registration_delta_rotation_rad = 0.02;
   event.visibility_registration_would_accept = true;
+  event.visibility_endpoint_fast_enabled = true;
+  event.visibility_endpoint_fast_taken = false;
   event.icp_converged = false;
   event.retry_used = true;
   event.consecutive_track_failures = 2;
@@ -461,6 +463,10 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
             std::string::npos);
   EXPECT_NE(lines[0].find(
                 "\"visibility_registration_would_accept\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_endpoint_fast_enabled\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_endpoint_fast_taken\":false"),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"retry_used\":true"), std::string::npos);
   EXPECT_NE(lines[0].find("\"reject_reason\":\"nearest_keyframe_missing\""),

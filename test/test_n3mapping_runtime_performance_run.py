@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +20,21 @@ SPEC.loader.exec_module(TOOL)
 
 
 class RuntimePerformanceRunTest(unittest.TestCase):
+    def test_node_command_records_endpoint_fast_trial_override(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            args = SimpleNamespace(
+                config=directory / "config.yaml",
+                mode="map_extension",
+                output_dir=directory / "output",
+                map=directory / "map.pbstream",
+                loaded_map_visibility_endpoint_fast=True,
+            )
+            command = TOOL.make_node_command(args, directory / "n3mapping_node")
+            self.assertIn(
+                "loaded_map_visibility_endpoint_fast_enable:=true", command
+            )
+
     def test_counts_only_requested_jsonl_record_type(self) -> None:
         with tempfile.TemporaryDirectory() as raw_dir:
             path = Path(raw_dir) / "runtime.jsonl"

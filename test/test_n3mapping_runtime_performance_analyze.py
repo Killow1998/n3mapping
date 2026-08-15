@@ -134,6 +134,8 @@ def tracking_record(
         "visibility_registration_delta_translation_m": 0.1 if strict else None,
         "visibility_registration_delta_rotation_rad": 0.01 if strict else None,
         "visibility_registration_would_accept": strict,
+        "visibility_endpoint_fast_enabled": False,
+        "visibility_endpoint_fast_taken": False,
         "icp_converged": True,
         "fitness_score": 0.01,
         "inlier_ratio": 0.9,
@@ -393,6 +395,9 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
                 0,
             )
             self.assertEqual(
+                report["counts"]["visibility_endpoint_fast_taken"], 0
+            )
+            self.assertEqual(
                 report["visibility_shadow_timing_ms"]
                 ["visibility_registration_ms"]["p95"],
                 2.0,
@@ -414,6 +419,60 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             self.assertEqual(
                 report["accepted_keyframe_timing_ms"]["graph_update_ms"]["p95"],
                 5.0,
+            )
+
+    def test_endpoint_fast_records_allow_missing_prediction_evaluation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            runtime_path = directory / "runtime_performance_debug.jsonl"
+            tracking_path = directory / "relocalization_debug.jsonl"
+            resource_path = directory / "process_resource.jsonl"
+            write_jsonl(
+                runtime_path,
+                [
+                    runtime_record(
+                        1, 10.0, loaded_tracking_ms=None, callback_total_ms=20.0
+                    ),
+                    runtime_record(
+                        2, 10.1, loaded_tracking_ms=50.0, callback_total_ms=60.0
+                    ),
+                    runtime_record(
+                        3, 10.2, loaded_tracking_ms=50.0, callback_total_ms=60.0
+                    ),
+                ],
+            )
+            tracking = [tracking_record(1), tracking_record(2, cache_hit=True)]
+            for record in tracking:
+                record["visibility_endpoint_fast_enabled"] = True
+                record["visibility_endpoint_fast_taken"] = True
+                record["visibility_prediction_ms"] = None
+                record["visibility_prediction_valid"] = False
+                record["visibility_prediction_consistency_ratio"] = None
+                record["visibility_prediction_evidence_log_odds"] = None
+            write_jsonl(tracking_path, tracking)
+            write_jsonl(resource_path, [resource_record(1), resource_record(2)])
+
+            report, exit_code = TOOL.analyze(
+                runtime_path, tracking_path, resource_path
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(report["status"], "PROFILE_READY")
+            self.assertEqual(
+                report["counts"]["visibility_endpoint_fast_enabled"], 2
+            )
+            self.assertEqual(
+                report["counts"]["visibility_endpoint_fast_taken"], 2
+            )
+            self.assertEqual(
+                report["visibility_shadow_timing_ms"]
+                ["visibility_prediction_ms"]["count"],
+                0,
+            )
+            self.assertEqual(
+                report["visibility_shadow_timing_ms"]
+                ["visibility_prediction_ms"]["missing"],
+                2,
             )
 
     def test_resource_statistics_exclude_samples_outside_callback_window(self) -> None:

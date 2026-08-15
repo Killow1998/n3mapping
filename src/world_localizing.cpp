@@ -1241,24 +1241,40 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         Eigen::AngleAxisd(registration_delta.rotation()).angle();
     if (strict_loaded_map) {
       const auto visibility_started = timing_started();
-      const auto prediction_visibility_started = timing_started();
-      const auto predicted_visibility =
-          evaluatePoseVisibility(submap, cloud, predicted_pose);
-      if (reloc_debug_enabled) {
-        debug_event.visibility_prediction_ms =
-            elapsed_ms(prediction_visibility_started);
+      const bool endpoint_fast_enabled =
+          config_.loaded_map_visibility_endpoint_fast_enable;
+      debug_event.visibility_endpoint_fast_enabled = endpoint_fast_enabled;
+      VisibilityConsistencyResult predicted_visibility;
+      bool prediction_visibility_evaluated = false;
+      const auto evaluate_prediction_visibility = [&]() {
+        const auto prediction_visibility_started = timing_started();
+        predicted_visibility =
+            evaluatePoseVisibility(submap, cloud, predicted_pose);
+        prediction_visibility_evaluated = true;
+        if (reloc_debug_enabled) {
+          debug_event.visibility_prediction_ms =
+              elapsed_ms(prediction_visibility_started);
+          debug_event.visibility_prediction_valid = predicted_visibility.valid;
+          debug_event.visibility_prediction_consistency_ratio =
+              predicted_visibility.consistency_ratio;
+          debug_event.visibility_prediction_evidence_log_odds =
+              predicted_visibility.evidence_log_odds;
+        }
+      };
+
+      // Preserve the exact legacy evaluation order while the experiment is
+      // disabled. Enabled runs evaluate the endpoint first so a fully accepted
+      // endpoint can terminate the cascade.
+      if (!endpoint_fast_enabled) {
+        evaluate_prediction_visibility();
       }
+
       const auto registration_visibility_started = timing_started();
       registration_visibility =
           evaluatePoseVisibility(submap, cloud, match_result.T_target_source);
       if (reloc_debug_enabled) {
         debug_event.visibility_registration_ms =
             elapsed_ms(registration_visibility_started);
-        debug_event.visibility_prediction_valid = predicted_visibility.valid;
-        debug_event.visibility_prediction_consistency_ratio =
-            predicted_visibility.consistency_ratio;
-        debug_event.visibility_prediction_evidence_log_odds =
-            predicted_visibility.evidence_log_odds;
         debug_event.visibility_registration_valid =
             registration_visibility.valid;
         debug_event.visibility_registration_consistency_ratio =
@@ -1270,9 +1286,22 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         debug_event.visibility_registration_delta_rotation_rad =
             registration_delta_rotation;
       }
+
+      const bool endpoint_fast_taken =
+          endpoint_fast_enabled && icp_ok && !retry_used &&
+          registration_delta_translation <=
+              config_.reloc_track_max_translation &&
+          registration_delta_rotation <= config_.reloc_track_max_rotation &&
+          registration_visibility.valid &&
+          registration_visibility.evidence_log_odds > 0.0;
+      debug_event.visibility_endpoint_fast_taken = endpoint_fast_taken;
+      if (endpoint_fast_enabled && !endpoint_fast_taken) {
+        evaluate_prediction_visibility();
+      }
+
       visibility = registration_visibility;
       debug_event.visibility_selected_pose_source = "registration_endpoint";
-      if (predicted_visibility.valid &&
+      if (prediction_visibility_evaluated && predicted_visibility.valid &&
           (!visibility.valid || predicted_visibility.consistency_ratio >
                                     visibility.consistency_ratio + 1e-9)) {
         // ICP is a local proposal, not authority to slide along a repeated

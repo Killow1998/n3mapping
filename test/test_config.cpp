@@ -28,6 +28,7 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_EQ(config.reloc_target_cache_max_entries, 0);
     EXPECT_EQ(config.localization_tracking_target_cache_max_bytes, 0);
     EXPECT_EQ(config.localization_tracking_target_cache_max_entries, 0);
+    EXPECT_FALSE(config.loaded_map_visibility_endpoint_fast_enable);
     EXPECT_DOUBLE_EQ(config.loop_icp_prefilter_voxel_size, 0.2);
     EXPECT_EQ(config.loop_icp_max_points, 50000);
     EXPECT_TRUE(config.loop_spatial_candidates_enable);
@@ -203,6 +204,7 @@ TEST(ConfigTest, ProductFactoryFreezesLocalizationProfileAndPaths) {
     EXPECT_EQ(product.localization_tracking_target_cache_max_bytes,
               128 * 1024 * 1024);
     EXPECT_EQ(product.localization_tracking_target_cache_max_entries, 8);
+    EXPECT_FALSE(product.loaded_map_visibility_endpoint_fast_enable);
     EXPECT_FALSE(product.save_global_map_on_shutdown);
     std::string error;
     EXPECT_TRUE(product.validate(&error)) << error;

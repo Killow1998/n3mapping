@@ -698,6 +698,53 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
             std::string::npos);
   EXPECT_NE(lines[0].find("\"visibility_registration_would_accept\":"),
             std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_endpoint_fast_enabled\":false"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_endpoint_fast_taken\":false"),
+            std::string::npos);
+
+  std::filesystem::remove_all(dir);
+}
+
+TEST_F(WorldLocalizingTest,
+       LoadedMapEndpointFastTrialSkipsPredictionOnlyAfterEndpointPasses) {
+  const std::filesystem::path dir = std::filesystem::temp_directory_path() /
+                                    "n3mapping_visibility_endpoint_fast";
+  std::filesystem::remove_all(dir);
+  std::filesystem::create_directories(dir);
+  const std::filesystem::path debug_path = dir / "relocalization_debug.jsonl";
+  config_.reloc_debug_enable = true;
+  config_.reloc_debug_path = debug_path.string();
+  config_.loaded_map_visibility_endpoint_fast_enable = true;
+  buildTestMap(6, 2.0);
+  for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
+    ASSERT_NE(keyframe, nullptr);
+    keyframe->is_from_loaded_map = true;
+  }
+
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation().x() = 8.0;
+  const RelocResult result =
+      reloc.trackLoadedMap(generateCorridorCloud(pose), pose);
+
+  ASSERT_TRUE(result.success);
+  EXPECT_EQ(result.decision, "loaded_map_tracking_geometric");
+  const auto lines = readDebugLines(debug_path);
+  ASSERT_EQ(lines.size(), 1u);
+  EXPECT_NE(lines[0].find("\"visibility_endpoint_fast_enabled\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_endpoint_fast_taken\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_prediction_ms\":null"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"visibility_prediction_valid\":false"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find(
+                "\"visibility_selected_pose_source\":\"registration_endpoint\""),
+            std::string::npos);
 
   std::filesystem::remove_all(dir);
 }

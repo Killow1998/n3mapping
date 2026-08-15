@@ -143,6 +143,8 @@ n3mapping_node:
     reloc_target_cache_max_entries: 0
     localization_tracking_target_cache_max_bytes: 134217728
     localization_tracking_target_cache_max_entries: 8
+    # Experimental only; frozen false pending endpoint-first quality evidence.
+    loaded_map_visibility_endpoint_fast_enable: false
     reloc_free_space_enable: true
     reloc_free_space_mode: "veto"
     reloc_free_space_resolution: 0.20

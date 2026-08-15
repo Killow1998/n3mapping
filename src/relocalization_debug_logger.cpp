@@ -540,6 +540,10 @@ bool RelocalizationDebugLogger::appendTracking(
                event.visibility_registration_delta_rotation_rad);
   appendBool(os, &first, "visibility_registration_would_accept",
              event.visibility_registration_would_accept);
+  appendBool(os, &first, "visibility_endpoint_fast_enabled",
+             event.visibility_endpoint_fast_enabled);
+  appendBool(os, &first, "visibility_endpoint_fast_taken",
+             event.visibility_endpoint_fast_taken);
   appendBool(os, &first, "icp_converged", event.icp_converged);
   appendNumber(os, &first, "fitness_score", event.fitness_score);
   appendNumber(os, &first, "inlier_ratio", event.inlier_ratio);

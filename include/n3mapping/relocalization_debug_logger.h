@@ -163,6 +163,8 @@ struct RelocTrackingDebugEvent {
   double visibility_registration_delta_rotation_rad =
       std::numeric_limits<double>::quiet_NaN();
   bool visibility_registration_would_accept = false;
+  bool visibility_endpoint_fast_enabled = false;
+  bool visibility_endpoint_fast_taken = false;
   bool icp_converged = false;
   double fitness_score = std::numeric_limits<double>::quiet_NaN();
   double inlier_ratio = std::numeric_limits<double>::quiet_NaN();

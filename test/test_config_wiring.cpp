@@ -148,6 +148,7 @@ TEST(ConfigWiringTest, CanonicalCarriesLocalizationTrackingCacheBudgets) {
     Config config;
     config.localization_tracking_target_cache_max_bytes = 1234567;
     config.localization_tracking_target_cache_max_entries = 9;
+    config.loaded_map_visibility_endpoint_fast_enable = true;
 
     const std::string canonical = runtimeConfigCanonical(config);
     EXPECT_NE(canonical.find(
@@ -155,6 +156,9 @@ TEST(ConfigWiringTest, CanonicalCarriesLocalizationTrackingCacheBudgets) {
               std::string::npos);
     EXPECT_NE(canonical.find(
                   "localization_tracking_target_cache_max_entries=9"),
+              std::string::npos);
+    EXPECT_NE(canonical.find(
+                  "loaded_map_visibility_endpoint_fast_enable=true"),
               std::string::npos);
 }
 
