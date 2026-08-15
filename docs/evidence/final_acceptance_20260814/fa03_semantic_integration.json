@@ -1,0 +1,128 @@
+{
+  "schema": "n3mapping_fa03_semantic_integration_v1",
+  "recorded_at": "2026-08-15T02:52:21-07:00",
+  "status": "SEMANTIC_AUDIT_COMPLETE",
+  "source_refs": {
+    "target_branch": "deepseek/n3m-architecture-hardening-recovery",
+    "target_head": "aba559edb43bac8755fe90e50af1ddb5eabe46a3",
+    "target_tree": "aa85c154bd2ee1060296df1d7d7ca46ea44423e8",
+    "origin_main": "784d8c1ca25f92e69f680cc6a4ec411bf054e586",
+    "origin_realtime": "7b814f6e8f0cb850d8381ab4bcc622b965dfb67a",
+    "origin_recovery": "13c3aff4558cc10af64548b17acd1b0d587e79c3",
+    "common_merge_base": "c5bc745f12abb5a92435c714ebe14066f3e20850"
+  },
+  "target_policy": {
+    "canonical_branch": "main",
+    "target_code_tree": "recovery",
+    "merge_strategy": "Record every unique change semantically, then use non-fast-forward ours merges to retain main and realtime ancestry without importing rejected or superseded tree content.",
+    "tree_identity_required_after_each_history_merge": true
+  },
+  "main_unique_commits": [
+    {
+      "commit": "540e01abaca64251675cbf94b81769b82bd5af18",
+      "subject": "Revert main to stable runtime baseline",
+      "decision": "REJECT_TARGET_TREE_CONTENT",
+      "reason": "The commit removes the architecture-hardening product tree and is not the selected final product baseline."
+    },
+    {
+      "commit": "784d8c1ca25f92e69f680cc6a4ec411bf054e586",
+      "subject": "Publish transformed odometry twist",
+      "decision": "REJECT_CONTRACT_VIOLATION",
+      "reason": "nav_msgs/Odometry requires twist in child_frame_id, while the upstream FAST_LIO message publishes world-frame state velocity and body-frame IMU angular velocity under one body child_frame_id. Applying one map-from-odom rotation to both fields cannot make the mixed input contract correct. Publishing unknown zero twist is safer than publishing a plausible but falsely framed velocity.",
+      "evidence": [
+        "/opt/ros/humble/share/nav_msgs/msg/Odometry.msg",
+        "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/src/laserMapping.cpp:621",
+        "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/src/laserMapping.cpp:630",
+        "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/src/laserMapping.cpp:640"
+      ]
+    }
+  ],
+  "realtime_unique_commits": [
+    {
+      "commit": "f88b87bf6c15c2abe0eea0c9a5fae3401302f401",
+      "subject": "Optimize n3mapping realtime tracking cache",
+      "decision": "SUPERSEDED",
+      "reason": "Recovery has the evolved multi-level PreparedTarget and bounded target-provider/tracking caches."
+    },
+    {
+      "commit": "2ace4b8340533c751cb56d57935a42caed398159",
+      "subject": "Move n3mapping target builds to background",
+      "decision": "SUPERSEDED",
+      "reason": "Recovery has bounded asynchronous loaded-map target prefetch, map-revision invalidation, and transition coverage; FA-01 passed on the selected tree."
+    },
+    {
+      "commit": "5484f611b3f84583a5472bc397ca90ea679c0843",
+      "subject": "Scale n3mapping target cache with map size",
+      "decision": "SUPERSEDED",
+      "reason": "Recovery uses explicit bounded cache budgets rather than an unbounded map-size-derived policy; FA-01 passed."
+    },
+    {
+      "commit": "b0913dae0037d039c69ccf79329cdf1e94fb825f",
+      "subject": "Stop odometry output before localization lock",
+      "decision": "SUPERSEDED",
+      "reason": "Recovery uses RelocalizationOutputAuthority to suppress global pose until the typed state and pose source make it usable."
+    },
+    {
+      "commit": "9298af08df0a33a0b7b2efe28a455b18ffef632b",
+      "subject": "Remove realtime odometry shadow output",
+      "decision": "SUPERSEDED_ABSENT",
+      "reason": "The realtime shadow output is already absent from the recovery target tree."
+    },
+    {
+      "commit": "57f69df0e8117bf52162d8a91cf5c085586b77f0",
+      "subject": "Relax tracking acceptance for stable GICP matches",
+      "decision": "REJECT_FAIL_CLOSED_VIOLATION",
+      "reason": "It accepts a non-converged registration from fitness, inlier, and motion gates. Recovery requires converged, finite, rigid registration before tracking acceptance."
+    },
+    {
+      "commit": "7b814f6e8f0cb850d8381ab4bcc622b965dfb67a",
+      "subject": "Publish N3Mapping localization status",
+      "decision": "REJECT_DUPLICATE_INTERFACE",
+      "reason": "No active workspace consumer of /n3mapping/status was found. Recovery publishes the typed, reliable, transient-local RelocalizationStatus interface in both Humble and Noetic and derives pose publication from the same output authority. The Noetic-only JSON heartbeat would duplicate state without a compatibility consumer."
+    }
+  ],
+  "selected_tree_evidence": {
+    "fa01": {
+      "status": "PASS",
+      "source_commit": "2d9b359",
+      "record": "fa01_verdict_2d9b359.json"
+    },
+    "fa02": {
+      "status": "PASS",
+      "source_commit": "ac54ed2986786ed6d4ced23898b7fefce3221f63",
+      "record": "fa02_result_ac54ed2.json"
+    },
+    "typed_status": {
+      "message": "msg/RelocalizationStatus.msg",
+      "implementations": [
+        "humble/src/n3mapping_node.cpp",
+        "noetic/src/n3mapping_noetic_node.cpp"
+      ]
+    },
+    "output_authority": {
+      "implementation": "include/n3mapping/relocalization_output_authority.h",
+      "tests": "test/test_core_types.cpp"
+    },
+    "prepared_target_and_prefetch": {
+      "implementations": [
+        "include/n3mapping/point_cloud_matcher.h",
+        "include/n3mapping/relocalization_target_provider.h",
+        "src/relocalization_target_provider.cpp",
+        "src/world_localizing.cpp"
+      ],
+      "tests": [
+        "test/test_relocalization_target_provider.cpp",
+        "test/test_world_localizing.cpp"
+      ]
+    }
+  },
+  "remaining_preconditions": [
+    "ours_merge_main_history_with_tree_identity",
+    "ours_merge_realtime_history_with_tree_identity",
+    "full_local_build_and_tests",
+    "required_remote_ci",
+    "canonical_main_fast_forward",
+    "remote_history_reachability_proof",
+    "obsolete_branch_cleanup"
+  ]
+}

@@ -198,13 +198,13 @@
     "canonical_final_branch": "main",
     "semantic_decisions": {
       "main_stable_runtime_revert": "reject_target_tree_content",
-      "noetic_transformed_odometry_twist": "keep_after_contract_test",
+      "noetic_transformed_odometry_twist": "reject_contract_violation_and_ambiguous_upstream_twist_frames",
       "realtime_prepared_target_api": "superseded",
-      "realtime_background_localization_target_cache": "defer_until_fa01_failure_attribution",
-      "stop_localization_output_before_lock": "superseded_verify_current_authority",
+      "realtime_background_localization_target_cache": "superseded_after_fa01_pass",
+      "stop_localization_output_before_lock": "superseded_by_typed_output_authority",
       "realtime_odometry_shadow_output": "superseded_absent",
       "accept_unconverged_tracking_match": "reject_fail_closed_violation",
-      "periodic_noetic_json_status": "pending_consumer_and_compatibility_audit"
+      "periodic_noetic_json_status": "reject_no_consumer_and_superseded_by_typed_cross_ros_status"
     },
     "remote_cleanup_preconditions": [
       "all_three_tip_oids_recorded",
