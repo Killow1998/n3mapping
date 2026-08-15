@@ -536,6 +536,19 @@ def max_consecutive_over_budget(
     return maximum
 
 
+def infer_expected_frames(
+    runtime: list[dict[str, Any]], sensor_period_ms: float
+) -> int | None:
+    if len(runtime) < 2:
+        return len(runtime) if runtime else None
+    first = runtime[0].get("sensor_timestamp")
+    last = runtime[-1].get("sensor_timestamp")
+    if not finite(first) or not finite(last) or float(last) < float(first):
+        return None
+    duration_ms = (float(last) - float(first)) * 1000.0
+    return max(1, int(round(duration_ms / sensor_period_ms)) + 1)
+
+
 def resource_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         field: stats((row.get(field) for row in records), len(records))
@@ -725,9 +738,21 @@ def analyze(
     accepted = [row for row in runtime if row.get("accepted_keyframe") is True]
     cpu_cores, host_capacity = cpu_summaries(runtime_resources)
     steady_cpu_cores, steady_host_capacity = cpu_summaries(steady_resources)
+    inferred_expected_frames = infer_expected_frames(runtime, sensor_period_ms)
+    effective_expected_frames = (
+        expected_frames if expected_frames is not None else inferred_expected_frames
+    )
+    expected_frame_source = (
+        "explicit"
+        if expected_frames is not None
+        else "observed_sensor_timestamp_span"
+        if inferred_expected_frames is not None
+        else None
+    )
     processed_input_rate = (
-        len(runtime) / expected_frames
-        if isinstance(expected_frames, int) and expected_frames > 0
+        len(runtime) / effective_expected_frames
+        if isinstance(effective_expected_frames, int)
+        and effective_expected_frames > 0
         else None
     )
     cache_observed = sum(
@@ -753,7 +778,8 @@ def analyze(
         "counts": {
             "runtime_frames": len(runtime),
             "steady_state_runtime_frames": len(steady_runtime),
-            "expected_frame_count": expected_frames,
+            "expected_frame_count": effective_expected_frames,
+            "expected_frame_count_source": expected_frame_source,
             "processed_input_rate": processed_input_rate,
             "loaded_map_tracking_frames": len(loaded_runtime),
             "tracking_records": len(tracking),

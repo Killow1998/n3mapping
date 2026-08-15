@@ -234,6 +234,7 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             self.assertEqual(report["counts"]["loop_work_cycles"], 1)
             self.assertEqual(report["counts"]["loop_detected_candidates"], 2)
             self.assertEqual(report["counts"]["processed_input_rate"], 1.0)
+            self.assertEqual(report["counts"]["expected_frame_count_source"], "explicit")
             self.assertEqual(report["loop_work_cycle_timing_ms"]["total_ms"]["p95"], 45.0)
 
     def test_v2_localization_uses_only_post_lock_tracking_window(self) -> None:
@@ -291,6 +292,11 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             self.assertEqual(
                 report["steady_state_runtime_timing_ms"]["callback_total_ms"]["p50"],
                 125.0,
+            )
+            self.assertEqual(report["counts"]["expected_frame_count"], 3)
+            self.assertEqual(
+                report["counts"]["expected_frame_count_source"],
+                "observed_sensor_timestamp_span",
             )
 
     def test_profile_ready_summarizes_stages_and_invariants(self) -> None:

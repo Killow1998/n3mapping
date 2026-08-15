@@ -280,6 +280,7 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_submap_graph_trial_compare.py
   ${N3MAPPING_ROOT}/tools/n3mapping_runtime_performance_analyze.py
   ${N3MAPPING_ROOT}/tools/n3mapping_process_resource_sample.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_runtime_performance_run.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -476,6 +477,15 @@ if(BUILD_TESTING)
       ${N3MAPPING_ROOT}/test/test_n3mapping_runtime_performance_analyze.py
   )
   set_tests_properties(test_n3mapping_runtime_performance_analyze PROPERTIES TIMEOUT 30)
+
+  add_test(
+    NAME test_n3mapping_runtime_performance_run
+    COMMAND ${CMAKE_COMMAND} -E env
+      PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B
+      ${N3MAPPING_ROOT}/test/test_n3mapping_runtime_performance_run.py
+  )
+  set_tests_properties(test_n3mapping_runtime_performance_run PROPERTIES TIMEOUT 30)
 
   if(N3MAPPING_BUILD_RESEARCH_TOOLS)
     add_test(
