@@ -499,6 +499,18 @@ bool RelocalizationDebugLogger::appendTracking(
              event.loaded_map_target_cache_hit);
   appendBool(os, &first, "loaded_map_target_cache_miss",
              event.loaded_map_target_cache_miss);
+  appendBool(os, &first, "localization_target_cache_enabled",
+             event.localization_target_cache_enabled);
+  appendBool(os, &first, "localization_target_cache_hit",
+             event.localization_target_cache_hit);
+  appendBool(os, &first, "localization_target_cache_miss",
+             event.localization_target_cache_miss);
+  appendSize(os, &first, "localization_target_cache_entry_bytes",
+             event.localization_target_cache_entry_bytes);
+  appendSize(os, &first, "localization_target_cache_total_bytes",
+             event.localization_target_cache_total_bytes);
+  appendSize(os, &first, "localization_target_cache_entries",
+             event.localization_target_cache_entries);
   appendNumber(os, &first, "source_prepare_ms", event.source_prepare_ms);
   appendNumber(os, &first, "registration_ms", event.registration_ms);
   appendNumber(os, &first, "retry_registration_ms",

@@ -81,7 +81,11 @@ def runtime_record(
 
 
 def tracking_record(
-    index: int, *, cache_hit: bool = False, strict: bool = True
+    index: int,
+    *,
+    cache_hit: bool = False,
+    strict: bool = True,
+    localization_cache_hit: bool = False,
 ) -> dict[str, object]:
     record: dict[str, object] = {
         "record_type": "tracking",
@@ -106,6 +110,12 @@ def tracking_record(
         "target_prepare_ms": 20.0,
         "loaded_map_target_cache_hit": cache_hit if strict else False,
         "loaded_map_target_cache_miss": (not cache_hit) if strict else False,
+        "localization_target_cache_enabled": not strict,
+        "localization_target_cache_hit": localization_cache_hit if not strict else False,
+        "localization_target_cache_miss": (not localization_cache_hit) if not strict else False,
+        "localization_target_cache_entry_bytes": 1024 if not strict else 0,
+        "localization_target_cache_total_bytes": 4096 if not strict else 0,
+        "localization_target_cache_entries": 4 if not strict else 0,
         "source_prepare_ms": 5.0,
         "registration_ms": 50.0,
         "retry_registration_ms": None,
@@ -271,7 +281,12 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             )
             write_jsonl(
                 tracking_path,
-                [tracking_record(1, strict=False), tracking_record(2, strict=False)],
+                [
+                    tracking_record(1, strict=False),
+                    tracking_record(
+                        2, strict=False, localization_cache_hit=True
+                    ),
+                ],
             )
             write_jsonl(resource_path, [resource_record(1), resource_record(2)])
 
@@ -285,6 +300,19 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             self.assertEqual(report["counts"]["runtime_frames"], 3)
             self.assertEqual(report["counts"]["steady_state_runtime_frames"], 2)
             self.assertEqual(report["counts"]["ordinary_tracking_records"], 2)
+            self.assertEqual(
+                report["counts"]["localization_target_cache_observed"], 2
+            )
+            self.assertEqual(
+                report["counts"]["localization_target_cache_hit"], 1
+            )
+            self.assertEqual(
+                report["counts"]["localization_target_cache_miss"], 1
+            )
+            self.assertEqual(
+                report["counts"]["localization_target_cache_peak_bytes"],
+                4096,
+            )
             self.assertEqual(
                 report["counts"]["steady_state_max_consecutive_over_sensor_budget"],
                 2,

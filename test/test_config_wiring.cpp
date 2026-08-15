@@ -144,5 +144,19 @@ TEST(ConfigWiringTest, CanonicalCarriesEveryFreeSpaceAndPersistenceKey) {
     EXPECT_NE(canonical.find("reloc_persist_max_frames=123"), std::string::npos);
 }
 
+TEST(ConfigWiringTest, CanonicalCarriesLocalizationTrackingCacheBudgets) {
+    Config config;
+    config.localization_tracking_target_cache_max_bytes = 1234567;
+    config.localization_tracking_target_cache_max_entries = 9;
+
+    const std::string canonical = runtimeConfigCanonical(config);
+    EXPECT_NE(canonical.find(
+                  "localization_tracking_target_cache_max_bytes=1234567"),
+              std::string::npos);
+    EXPECT_NE(canonical.find(
+                  "localization_tracking_target_cache_max_entries=9"),
+              std::string::npos);
+}
+
 }  // namespace
 }  // namespace n3mapping

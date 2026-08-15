@@ -1,6 +1,7 @@
 // PointCloudMatcher: small_gicp-based point cloud registration with multi-scale PLANE_ICP and optional GICP refinement.
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -140,5 +141,13 @@ private:
     Config config_;
     small_gicp::RegistrationSetting setting_;
 };
+
+// Conservative retained-memory estimate for a prepared target. small_gicp
+// does not expose KD-tree heap usage, so the estimate includes the exact
+// point/normal/covariance payload plus a per-point tree/index allowance. The
+// arithmetic saturates instead of wrapping, preserving byte-budget safety for
+// unexpectedly large targets.
+std::size_t estimatePreparedTargetMemoryBytes(
+    const PointCloudMatcher::PreparedTarget& target);
 
 } // namespace n3mapping

@@ -55,6 +55,14 @@ TRACKING_TARGET_CACHE_FIELDS = (
     "loaded_map_target_cache_hit",
     "loaded_map_target_cache_miss",
 )
+TRACKING_LOCALIZATION_TARGET_CACHE_FIELDS = (
+    "localization_target_cache_enabled",
+    "localization_target_cache_hit",
+    "localization_target_cache_miss",
+    "localization_target_cache_entry_bytes",
+    "localization_target_cache_total_bytes",
+    "localization_target_cache_entries",
+)
 RUNTIME_REQUIRED = {
     "schema",
     "record_type",
@@ -385,6 +393,54 @@ def validate_tracking(records: list[dict[str, Any]], mode: str) -> list[str]:
                     errors.append(
                         f"tracking record {line}: cache outcome lacks target timing"
                     )
+
+        localization_cache_fields_present = [
+            field in record for field in TRACKING_LOCALIZATION_TARGET_CACHE_FIELDS
+        ]
+        if any(localization_cache_fields_present) and not all(
+            localization_cache_fields_present
+        ):
+            errors.append(
+                f"tracking record {line}: incomplete localization target cache metrics"
+            )
+        elif all(localization_cache_fields_present):
+            enabled = record["localization_target_cache_enabled"]
+            hit = record["localization_target_cache_hit"]
+            miss = record["localization_target_cache_miss"]
+            if not all(isinstance(value, bool) for value in (enabled, hit, miss)):
+                errors.append(
+                    f"tracking record {line}: localization cache outcomes must be bool"
+                )
+            sizes = [
+                record["localization_target_cache_entry_bytes"],
+                record["localization_target_cache_total_bytes"],
+                record["localization_target_cache_entries"],
+            ]
+            if any(
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or value < 0
+                for value in sizes
+            ):
+                errors.append(
+                    f"tracking record {line}: invalid localization cache size metrics"
+                )
+            if enabled is True and strict_expected:
+                errors.append(
+                    f"tracking record {line}: strict tracking used ordinary localization cache"
+                )
+            elif enabled is True and finite(record["target_prepare_ms"]) and hit == miss:
+                errors.append(
+                    f"tracking record {line}: enabled localization cache lacks one outcome"
+                )
+            elif enabled is not True and (hit is True or miss is True):
+                errors.append(
+                    f"tracking record {line}: disabled localization cache has an outcome"
+                )
+            elif hit is True and (sizes[0] == 0 or sizes[2] == 0):
+                errors.append(
+                    f"tracking record {line}: localization cache hit lacks a retained entry"
+                )
 
         geometric_success = (
             record["result_success"] is True and record["reject_reason"] == ""
@@ -760,6 +816,29 @@ def analyze(
         or row.get("loaded_map_target_cache_miss") is True
         for row in tracking
     )
+    localization_cache_observed = sum(
+        row.get("localization_target_cache_enabled") is True for row in tracking
+    )
+    localization_cache_peak_bytes = max(
+        (
+            row.get("localization_target_cache_total_bytes", 0)
+            for row in tracking
+            if isinstance(row.get("localization_target_cache_total_bytes"), int)
+            and not isinstance(
+                row.get("localization_target_cache_total_bytes"), bool
+            )
+        ),
+        default=0,
+    )
+    localization_cache_peak_entries = max(
+        (
+            row.get("localization_target_cache_entries", 0)
+            for row in tracking
+            if isinstance(row.get("localization_target_cache_entries"), int)
+            and not isinstance(row.get("localization_target_cache_entries"), bool)
+        ),
+        default=0,
+    )
 
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA,
@@ -809,6 +888,15 @@ def analyze(
             "loaded_map_target_cache_miss": sum(
                 row.get("loaded_map_target_cache_miss") is True for row in tracking
             ),
+            "localization_target_cache_observed": localization_cache_observed,
+            "localization_target_cache_hit": sum(
+                row.get("localization_target_cache_hit") is True for row in tracking
+            ),
+            "localization_target_cache_miss": sum(
+                row.get("localization_target_cache_miss") is True for row in tracking
+            ),
+            "localization_target_cache_peak_bytes": localization_cache_peak_bytes,
+            "localization_target_cache_peak_entries": localization_cache_peak_entries,
             "core_failure": sum(row.get("core_success") is False for row in runtime),
             "callback_skipped": sum(row.get("callback_skipped") is True for row in runtime),
             "accepted_keyframes": len(accepted),

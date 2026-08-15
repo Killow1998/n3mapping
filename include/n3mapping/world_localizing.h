@@ -124,6 +124,10 @@ public:
     std::size_t reloc_target_cache_misses = 0;
     std::size_t reloc_target_cache_bytes = 0;
     std::size_t reloc_target_cache_entries = 0;
+    std::size_t localization_target_cache_hits = 0;
+    std::size_t localization_target_cache_misses = 0;
+    std::size_t localization_target_cache_bytes = 0;
+    std::size_t localization_target_cache_entries = 0;
     std::size_t loaded_map_target_cache_hits = 0;
     std::size_t loaded_map_target_cache_misses = 0;
     std::size_t loaded_map_target_cache_entries = 0;
@@ -173,6 +177,24 @@ private:
     PointCloudMatcher::PreparedTarget target;
   };
 
+  struct LocalizationTrackingTargetCacheEntry {
+    int64_t anchor_id = -1;
+    int submap_range = 0;
+    KeyframeMapRevision map_revision;
+    std::shared_ptr<const PointCloudMatcher::PreparedTarget> target;
+    std::size_t bytes = 0;
+  };
+
+  struct LocalizationTrackingTargetCacheResult {
+    std::shared_ptr<const PointCloudMatcher::PreparedTarget> target;
+    bool enabled = false;
+    bool hit = false;
+    bool miss = false;
+    std::size_t entry_bytes = 0;
+    std::size_t total_bytes = 0;
+    std::size_t entries = 0;
+  };
+
   struct LoadedMapTrackingTargetPrefetchRequest {
     int64_t anchor_id = -1;
     Eigen::Vector3d crop_center = Eigen::Vector3d::Zero();
@@ -189,6 +211,10 @@ private:
 
   void rebuildRelocMapCacheIfNeeded();
   void rebuildLoadedMapVisibilityCacheIfNeeded();
+  LocalizationTrackingTargetCacheResult
+  prepareLocalizationTrackingTarget(int64_t anchor_id, int submap_range,
+                                    const PointCloudT::Ptr &submap);
+  void clearLocalizationTrackingTargetCache(bool reset_statistics);
   void invalidateLoadedMapTrackingTargetCache();
   PointCloudMatcher::PreparedTarget
   prepareLoadedMapTrackingTarget(int64_t anchor_id,
@@ -248,6 +274,13 @@ private:
   PointCloudT::Ptr loaded_map_visibility_cache_;
   size_t loaded_map_visibility_cached_keyframes_ = 0;
   KeyframeMapRevision loaded_map_visibility_revision_;
+  std::deque<LocalizationTrackingTargetCacheEntry>
+      localization_tracking_target_cache_;
+  KeyframeMapRevision localization_tracking_target_cache_revision_;
+  bool have_localization_tracking_target_cache_revision_ = false;
+  std::size_t localization_tracking_target_cache_bytes_ = 0;
+  std::size_t localization_tracking_target_cache_hits_ = 0;
+  std::size_t localization_tracking_target_cache_misses_ = 0;
   std::deque<LoadedMapTrackingTargetCacheEntry>
       loaded_map_tracking_target_cache_;
   std::deque<LoadedMapTrackingTargetPrefetchRequest>

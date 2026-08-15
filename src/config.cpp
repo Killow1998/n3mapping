@@ -23,6 +23,8 @@ Config makeProductLocalizationConfig(const std::string& map_path,
 
     config.reloc_atlas_enable = true;
     config.reloc_atlas_path = atlas_path;
+    config.localization_tracking_target_cache_max_bytes = 128 * 1024 * 1024;
+    config.localization_tracking_target_cache_max_entries = 8;
 
     // Frozen free-space/persistence profile, mirrored in config/product_v1.yaml.
     config.reloc_free_space_enable = true;
@@ -173,6 +175,8 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(reloc_target_mode);
     N3MAPPING_CONFIG_FIELD(reloc_target_cache_max_bytes);
     N3MAPPING_CONFIG_FIELD(reloc_target_cache_max_entries);
+    N3MAPPING_CONFIG_FIELD(localization_tracking_target_cache_max_bytes);
+    N3MAPPING_CONFIG_FIELD(localization_tracking_target_cache_max_entries);
     N3MAPPING_CONFIG_FIELD(reloc_free_space_enable);
     N3MAPPING_CONFIG_FIELD(reloc_free_space_mode);
     N3MAPPING_CONFIG_FIELD(reloc_free_space_resolution);
@@ -295,6 +299,10 @@ std::string Config::toString() const {
     oss << "Reloc target provider: mode=" << reloc_target_mode
         << " cache_bytes=" << reloc_target_cache_max_bytes
         << " cache_entries=" << reloc_target_cache_max_entries << "\n";
+    oss << "Localization tracking target cache: bytes="
+        << localization_tracking_target_cache_max_bytes
+        << " entries=" << localization_tracking_target_cache_max_entries
+        << "\n";
     oss << "Reloc free-space: " << (reloc_free_space_enable ? "ON" : "OFF")
         << " mode=" << reloc_free_space_mode
         << " res=" << reloc_free_space_resolution
@@ -471,6 +479,10 @@ bool Config::validate(std::string* error) const {
                   "reloc_target_cache_max_bytes")) return false;
     if (!at_least(reloc_target_cache_max_entries, 0,
                   "reloc_target_cache_max_entries")) return false;
+    if (!at_least(localization_tracking_target_cache_max_bytes, 0,
+                  "localization_tracking_target_cache_max_bytes")) return false;
+    if (!at_least(localization_tracking_target_cache_max_entries, 0,
+                  "localization_tracking_target_cache_max_entries")) return false;
     if (!non_negative(rhpd_submap_voxel_size, "rhpd_submap_voxel_size")) return false;
     if (!positive(rhpd_max_range, "rhpd_max_range")) return false;
     if (!std::isfinite(rhpd_z_min) || !std::isfinite(rhpd_z_max) || rhpd_z_max <= rhpd_z_min) {

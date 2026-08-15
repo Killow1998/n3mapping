@@ -1139,12 +1139,29 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   }
 
   const auto target_prepare_started = timing_started();
-  const auto prepared_target =
-      strict_loaded_map
-          ? prepareLoadedMapTrackingTarget(
-                nearest_kf_id, submap, &debug_event.loaded_map_target_cache_hit,
-                &debug_event.loaded_map_target_cache_miss)
-          : matcher_.prepareTargetCloud(submap);
+  PointCloudMatcher::PreparedTarget loaded_map_prepared_target;
+  std::shared_ptr<const PointCloudMatcher::PreparedTarget>
+      localization_prepared_target;
+  const PointCloudMatcher::PreparedTarget *prepared_target = nullptr;
+  if (strict_loaded_map) {
+    loaded_map_prepared_target = prepareLoadedMapTrackingTarget(
+        nearest_kf_id, submap, &debug_event.loaded_map_target_cache_hit,
+        &debug_event.loaded_map_target_cache_miss);
+    prepared_target = &loaded_map_prepared_target;
+  } else {
+    const LocalizationTrackingTargetCacheResult cache_result =
+        prepareLocalizationTrackingTarget(nearest_kf_id, submap_range, submap);
+    localization_prepared_target = cache_result.target;
+    prepared_target = localization_prepared_target.get();
+    debug_event.localization_target_cache_enabled = cache_result.enabled;
+    debug_event.localization_target_cache_hit = cache_result.hit;
+    debug_event.localization_target_cache_miss = cache_result.miss;
+    debug_event.localization_target_cache_entry_bytes =
+        cache_result.entry_bytes;
+    debug_event.localization_target_cache_total_bytes =
+        cache_result.total_bytes;
+    debug_event.localization_target_cache_entries = cache_result.entries;
+  }
   if (strict_loaded_map) {
     requestLoadedMapTrackingTargetPrefetch(predicted_pose.translation(),
                                            nearest_kf_id);
@@ -1158,8 +1175,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     debug_event.source_prepare_ms = elapsed_ms(source_prepare_started);
   }
   const auto registration_started = timing_started();
-  MatchResult match_result =
-      matcher_.alignPrepared(prepared_target, prepared_source, predicted_pose);
+  MatchResult match_result;
+  if (prepared_target) {
+    match_result =
+        matcher_.alignPrepared(*prepared_target, prepared_source, predicted_pose);
+  }
   if (reloc_debug_enabled) {
     debug_event.registration_ms = elapsed_ms(registration_started);
   }
@@ -1179,8 +1199,10 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                                        config_.reloc_track_retry_corr_scale;
     wide.max_iterations = config_.reloc_track_retry_max_iterations;
     const auto retry_started = timing_started();
-    auto retry = matcher_.alignPrepared(prepared_target, prepared_source,
-                                        predicted_pose, wide);
+    auto retry = prepared_target
+                     ? matcher_.alignPrepared(*prepared_target, prepared_source,
+                                              predicted_pose, wide)
+                     : MatchResult{};
     if (reloc_debug_enabled) {
       debug_event.retry_registration_ms = elapsed_ms(retry_started);
     }
@@ -1381,6 +1403,7 @@ void WorldLocalizing::notifyMapReplaced() {
   loaded_map_visibility_cache_ = pcl::make_shared<PointCloudT>();
   loaded_map_visibility_cached_keyframes_ = 0;
   loaded_map_visibility_revision_ = {};
+  clearLocalizationTrackingTargetCache(true);
   invalidateLoadedMapTrackingTargetCache();
   {
     std::lock_guard<std::mutex> cache_lock(
@@ -1420,6 +1443,14 @@ WorldLocalizing::cacheDiagnostics() const {
     d.reloc_target_cache_bytes = target_diag.cache_total_bytes;
     d.reloc_target_cache_entries = target_diag.cache_entries;
   }
+  d.localization_target_cache_hits =
+      localization_tracking_target_cache_hits_;
+  d.localization_target_cache_misses =
+      localization_tracking_target_cache_misses_;
+  d.localization_target_cache_bytes =
+      localization_tracking_target_cache_bytes_;
+  d.localization_target_cache_entries =
+      localization_tracking_target_cache_.size();
   {
     std::lock_guard<std::mutex> cache_lock(
         loaded_map_tracking_target_cache_mutex_);
@@ -1848,6 +1879,95 @@ void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
       LocalizationAtlas::buildGlobalMap(config_, loaded_keyframes);
   loaded_map_visibility_cached_keyframes_ = loaded_keyframes.size();
   loaded_map_visibility_revision_ = current_revision;
+}
+
+WorldLocalizing::LocalizationTrackingTargetCacheResult
+WorldLocalizing::prepareLocalizationTrackingTarget(
+    int64_t anchor_id, int submap_range, const PointCloudT::Ptr &submap) {
+  LocalizationTrackingTargetCacheResult result;
+  const std::size_t max_bytes = static_cast<std::size_t>(std::max(
+      0, config_.localization_tracking_target_cache_max_bytes));
+  const std::size_t max_entries = static_cast<std::size_t>(std::max(
+      0, config_.localization_tracking_target_cache_max_entries));
+  result.enabled = max_bytes > 0 && max_entries > 0;
+
+  const KeyframeMapRevision current_revision = keyframe_manager_.revision();
+  if (result.enabled) {
+    if (!have_localization_tracking_target_cache_revision_ ||
+        localization_tracking_target_cache_revision_ != current_revision) {
+      clearLocalizationTrackingTargetCache(false);
+      localization_tracking_target_cache_revision_ = current_revision;
+      have_localization_tracking_target_cache_revision_ = true;
+    }
+    const auto found = std::find_if(
+        localization_tracking_target_cache_.begin(),
+        localization_tracking_target_cache_.end(),
+        [&](const LocalizationTrackingTargetCacheEntry &entry) {
+          return entry.anchor_id == anchor_id &&
+                 entry.submap_range == submap_range &&
+                 entry.map_revision == current_revision && entry.target &&
+                 hasUsablePreparedTarget(*entry.target);
+        });
+    if (found != localization_tracking_target_cache_.end()) {
+      result.hit = true;
+      ++localization_tracking_target_cache_hits_;
+      if (found != localization_tracking_target_cache_.begin()) {
+        auto entry = std::move(*found);
+        localization_tracking_target_cache_.erase(found);
+        localization_tracking_target_cache_.push_front(std::move(entry));
+      }
+      result.target = localization_tracking_target_cache_.front().target;
+      result.entry_bytes = localization_tracking_target_cache_.front().bytes;
+      result.total_bytes = localization_tracking_target_cache_bytes_;
+      result.entries = localization_tracking_target_cache_.size();
+      return result;
+    }
+    result.miss = true;
+    ++localization_tracking_target_cache_misses_;
+  }
+
+  auto prepared = std::make_shared<const PointCloudMatcher::PreparedTarget>(
+      matcher_.prepareTargetCloud(submap));
+  result.target = prepared;
+  result.entry_bytes = estimatePreparedTargetMemoryBytes(*prepared);
+  if (!result.enabled || !hasUsablePreparedTarget(*prepared) ||
+      result.entry_bytes > max_bytes) {
+    result.total_bytes = localization_tracking_target_cache_bytes_;
+    result.entries = localization_tracking_target_cache_.size();
+    return result;
+  }
+
+  while (!localization_tracking_target_cache_.empty() &&
+         (localization_tracking_target_cache_.size() >= max_entries ||
+          localization_tracking_target_cache_bytes_ >
+              max_bytes - result.entry_bytes)) {
+    localization_tracking_target_cache_bytes_ -=
+        localization_tracking_target_cache_.back().bytes;
+    localization_tracking_target_cache_.pop_back();
+  }
+  LocalizationTrackingTargetCacheEntry entry;
+  entry.anchor_id = anchor_id;
+  entry.submap_range = submap_range;
+  entry.map_revision = current_revision;
+  entry.target = prepared;
+  entry.bytes = result.entry_bytes;
+  localization_tracking_target_cache_.push_front(std::move(entry));
+  localization_tracking_target_cache_bytes_ += result.entry_bytes;
+  result.total_bytes = localization_tracking_target_cache_bytes_;
+  result.entries = localization_tracking_target_cache_.size();
+  return result;
+}
+
+void WorldLocalizing::clearLocalizationTrackingTargetCache(
+    bool reset_statistics) {
+  localization_tracking_target_cache_.clear();
+  localization_tracking_target_cache_bytes_ = 0;
+  localization_tracking_target_cache_revision_ = {};
+  have_localization_tracking_target_cache_revision_ = false;
+  if (reset_statistics) {
+    localization_tracking_target_cache_hits_ = 0;
+    localization_tracking_target_cache_misses_ = 0;
+  }
 }
 
 void WorldLocalizing::invalidateLoadedMapTrackingTargetCache() {

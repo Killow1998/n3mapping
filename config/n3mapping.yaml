@@ -139,6 +139,8 @@ n3mapping_node:
     reloc_target_mode: "legacy_global_atlas"
     reloc_target_cache_max_bytes: 0
     reloc_target_cache_max_entries: 0
+    localization_tracking_target_cache_max_bytes: 134217728
+    localization_tracking_target_cache_max_entries: 8
     reloc_free_space_enable: true
     reloc_free_space_mode: "veto"
     reloc_free_space_resolution: 0.20

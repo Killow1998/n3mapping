@@ -131,6 +131,10 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
         config->reloc_target_cache_max_bytes);
     get("reloc_target_cache_max_entries",
         config->reloc_target_cache_max_entries);
+    get("localization_tracking_target_cache_max_bytes",
+        config->localization_tracking_target_cache_max_bytes);
+    get("localization_tracking_target_cache_max_entries",
+        config->localization_tracking_target_cache_max_entries);
 
     get("reloc_free_space_enable", config->reloc_free_space_enable);
     gets("reloc_free_space_mode", config->reloc_free_space_mode);

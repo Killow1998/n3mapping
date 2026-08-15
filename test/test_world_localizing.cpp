@@ -694,6 +694,98 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   std::filesystem::remove_all(dir);
 }
 
+TEST_F(WorldLocalizingTest,
+       OrdinaryLocalizationPreparedTargetCacheIsBoundedAndMapScoped) {
+  const std::filesystem::path dir = std::filesystem::temp_directory_path() /
+                                    "n3mapping_localization_target_cache";
+  std::filesystem::remove_all(dir);
+  std::filesystem::create_directories(dir);
+  const std::filesystem::path debug_path = dir / "relocalization_debug.jsonl";
+  config_.reloc_debug_enable = true;
+  config_.reloc_debug_path = debug_path.string();
+  config_.localization_tracking_target_cache_max_bytes = 64 * 1024 * 1024;
+  config_.localization_tracking_target_cache_max_entries = 2;
+  buildTestMap(6, 2.0);
+
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation().x() = 8.0;
+  const auto cloud = generateCorridorCloud(pose);
+
+  const RelocResult first = reloc.trackLocalization(cloud, pose);
+  const RelocResult second = reloc.trackLocalization(cloud, pose);
+  ASSERT_TRUE(first.success);
+  ASSERT_TRUE(second.success);
+  EXPECT_TRUE(second.pose_in_map.isApprox(first.pose_in_map, 1e-4));
+  auto diagnostics = reloc.cacheDiagnostics();
+  EXPECT_EQ(diagnostics.localization_target_cache_hits, 1u);
+  EXPECT_EQ(diagnostics.localization_target_cache_misses, 1u);
+  EXPECT_EQ(diagnostics.localization_target_cache_entries, 1u);
+  EXPECT_GT(diagnostics.localization_target_cache_bytes, 0u);
+  EXPECT_LE(diagnostics.localization_target_cache_bytes,
+            static_cast<std::size_t>(
+                config_.localization_tracking_target_cache_max_bytes));
+
+  reloc.resetLocalizationState();
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+  ASSERT_TRUE(reloc.trackLocalization(cloud, pose).success);
+  diagnostics = reloc.cacheDiagnostics();
+  EXPECT_EQ(diagnostics.localization_target_cache_hits, 2u);
+  EXPECT_EQ(diagnostics.localization_target_cache_misses, 1u);
+
+  const auto keyframe = keyframe_manager_->getKeyframe(0);
+  ASSERT_NE(keyframe, nullptr);
+  Eigen::Isometry3d shifted_pose = keyframe->pose_optimized;
+  shifted_pose.translation().x() += 1e-3;
+  keyframe_manager_->updateOptimizedPoses({{keyframe->id, shifted_pose}});
+  ASSERT_TRUE(reloc.trackLocalization(cloud, pose).success);
+  diagnostics = reloc.cacheDiagnostics();
+  EXPECT_EQ(diagnostics.localization_target_cache_hits, 2u);
+  EXPECT_EQ(diagnostics.localization_target_cache_misses, 2u);
+  EXPECT_EQ(diagnostics.localization_target_cache_entries, 1u);
+
+  const auto lines = readDebugLines(debug_path);
+  ASSERT_EQ(lines.size(), 4u);
+  EXPECT_NE(lines[0].find("\"localization_target_cache_enabled\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"localization_target_cache_miss\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[1].find("\"localization_target_cache_hit\":true"),
+            std::string::npos);
+
+  reloc.notifyMapReplaced();
+  diagnostics = reloc.cacheDiagnostics();
+  EXPECT_EQ(diagnostics.localization_target_cache_hits, 0u);
+  EXPECT_EQ(diagnostics.localization_target_cache_misses, 0u);
+  EXPECT_EQ(diagnostics.localization_target_cache_bytes, 0u);
+  EXPECT_EQ(diagnostics.localization_target_cache_entries, 0u);
+  std::filesystem::remove_all(dir);
+}
+
+TEST_F(WorldLocalizingTest,
+       OrdinaryLocalizationOversizedTargetIsNeverRetained) {
+  config_.localization_tracking_target_cache_max_bytes = 1;
+  config_.localization_tracking_target_cache_max_entries = 2;
+  buildTestMap(6, 2.0);
+
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation().x() = 8.0;
+  const auto cloud = generateCorridorCloud(pose);
+
+  ASSERT_TRUE(reloc.trackLocalization(cloud, pose).success);
+  ASSERT_TRUE(reloc.trackLocalization(cloud, pose).success);
+  const auto diagnostics = reloc.cacheDiagnostics();
+  EXPECT_EQ(diagnostics.localization_target_cache_hits, 0u);
+  EXPECT_EQ(diagnostics.localization_target_cache_misses, 2u);
+  EXPECT_EQ(diagnostics.localization_target_cache_bytes, 0u);
+  EXPECT_EQ(diagnostics.localization_target_cache_entries, 0u);
+}
+
 TEST_F(WorldLocalizingTest, LoadedMapPreparedTargetCacheFollowsMapLifecycle) {
   buildTestMap(6, 2.0);
   for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {

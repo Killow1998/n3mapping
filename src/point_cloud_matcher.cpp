@@ -14,6 +14,29 @@
 namespace n3mapping {
 namespace {
 
+std::size_t saturatedAdd(std::size_t lhs, std::size_t rhs) {
+    const std::size_t maximum = std::numeric_limits<std::size_t>::max();
+    return rhs > maximum - lhs ? maximum : lhs + rhs;
+}
+
+std::size_t saturatedMultiply(std::size_t lhs, std::size_t rhs) {
+    const std::size_t maximum = std::numeric_limits<std::size_t>::max();
+    if (lhs == 0 || rhs == 0) return 0;
+    return lhs > maximum / rhs ? maximum : lhs * rhs;
+}
+
+std::size_t preparedLevelMemoryBytes(
+    const PointCloudMatcher::PreparedTargetLevel& level) {
+    if (!level.cloud) return 0;
+    constexpr std::size_t kTreeBytesPerPoint = sizeof(std::size_t) * 8;
+    constexpr std::size_t kPayloadBytesPerPoint =
+        sizeof(Eigen::Vector4d) * 2 + sizeof(Eigen::Matrix4d);
+    return saturatedAdd(
+        sizeof(level),
+        saturatedMultiply(level.cloud->size(),
+                          kPayloadBytesPerPoint + kTreeBytesPerPoint));
+}
+
 bool isSmallGicpVoxelCoordSafe(const pcl::PointXYZI& pt, double leaf_size) {
     if (!std::isfinite(static_cast<double>(pt.x)) ||
         !std::isfinite(static_cast<double>(pt.y)) ||
@@ -112,6 +135,22 @@ void copyStageToMatch(const MatchStageResult& stage, MatchResult* result)
 }
 
 }  // namespace
+
+std::size_t estimatePreparedTargetMemoryBytes(
+    const PointCloudMatcher::PreparedTarget& target) {
+    std::size_t bytes = saturatedAdd(
+        sizeof(target),
+        saturatedMultiply(target.plane_levels.capacity(),
+                          sizeof(PointCloudMatcher::PreparedTargetLevel)));
+    for (const auto& level : target.plane_levels) {
+        bytes = saturatedAdd(bytes, preparedLevelMemoryBytes(level));
+    }
+    if (target.has_refine_level) {
+        bytes = saturatedAdd(bytes,
+                             preparedLevelMemoryBytes(target.refine_level));
+    }
+    return bytes;
+}
 
 PointCloudMatcher::PointCloudMatcher(const Config& config) : config_(config) {
     std::string config_error;

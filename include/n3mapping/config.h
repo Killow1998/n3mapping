@@ -254,6 +254,12 @@ struct Config {
     // and entry budget before it keeps prepared targets.
     int reloc_target_cache_max_bytes = 0;
     int reloc_target_cache_max_entries = 0;
+    // Ordinary localization repeatedly revisits the same local-map anchor.
+    // Its prepared registration targets have a separate, explicit LRU budget
+    // so target reuse cannot grow without a memory bound. Zero disables it;
+    // maintained YAML profiles opt in with measured limits.
+    int localization_tracking_target_cache_max_bytes = 0;
+    int localization_tracking_target_cache_max_entries = 0;
 
     // Free-space evidence and hypothesis persistence. Until 2026-08 these were
     // process-environment switches read inside WorldLocalizing

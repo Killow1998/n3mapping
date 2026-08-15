@@ -130,6 +130,12 @@ struct RelocTrackingDebugEvent {
   double target_prepare_ms = std::numeric_limits<double>::quiet_NaN();
   bool loaded_map_target_cache_hit = false;
   bool loaded_map_target_cache_miss = false;
+  bool localization_target_cache_enabled = false;
+  bool localization_target_cache_hit = false;
+  bool localization_target_cache_miss = false;
+  std::size_t localization_target_cache_entry_bytes = 0;
+  std::size_t localization_target_cache_total_bytes = 0;
+  std::size_t localization_target_cache_entries = 0;
   double source_prepare_ms = std::numeric_limits<double>::quiet_NaN();
   double registration_ms = std::numeric_limits<double>::quiet_NaN();
   double retry_registration_ms = std::numeric_limits<double>::quiet_NaN();

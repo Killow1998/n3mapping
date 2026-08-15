@@ -35,36 +35,6 @@ RelocTargetMode parseMode(const std::string &mode) {
   throw std::invalid_argument("Unknown relocalization target mode: " + mode);
 }
 
-std::size_t
-preparedLevelBytes(const PointCloudMatcher::PreparedTargetLevel &level) {
-  if (!level.cloud) {
-    return 0;
-  }
-  // small_gicp does not expose KD-tree allocation size. Count the exact point,
-  // normal, and covariance payload plus a conservative per-point tree/index
-  // allowance. This intentionally overestimates rather than permitting the LRU
-  // to exceed its byte budget.
-  constexpr std::size_t kTreeBytesPerPoint = sizeof(std::size_t) * 8;
-  constexpr std::size_t kPayloadBytesPerPoint =
-      sizeof(Eigen::Vector4d) * 2 + sizeof(Eigen::Matrix4d);
-  return sizeof(level) +
-         level.cloud->size() * (kPayloadBytesPerPoint + kTreeBytesPerPoint);
-}
-
-std::size_t
-preparedTargetBytes(const PointCloudMatcher::PreparedTarget &target) {
-  std::size_t bytes =
-      sizeof(target) + target.plane_levels.capacity() *
-                           sizeof(PointCloudMatcher::PreparedTargetLevel);
-  for (const auto &level : target.plane_levels) {
-    bytes += preparedLevelBytes(level);
-  }
-  if (target.has_refine_level) {
-    bytes += preparedLevelBytes(target.refine_level);
-  }
-  return bytes;
-}
-
 struct CacheKey {
   int64_t anchor_id = -1;
   KeyframeMapRevision map_revision;
@@ -231,7 +201,8 @@ private:
         matcher_.prepareTargetCloud(request.local_target));
     metrics->target_prepare_ms = elapsedMs(start);
     metrics->target_points = request.local_target->size();
-    const std::size_t entry_bytes = preparedTargetBytes(*prepared);
+    const std::size_t entry_bytes =
+        estimatePreparedTargetMemoryBytes(*prepared);
     metrics->cache_entry_bytes = entry_bytes;
 
     std::lock_guard<std::mutex> lock(mutex_);

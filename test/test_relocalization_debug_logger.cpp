@@ -409,6 +409,7 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   event.submap_build_ms = 2.5;
   event.target_prepare_ms = 3.5;
   event.loaded_map_target_cache_miss = true;
+  event.localization_target_cache_enabled = false;
   event.source_prepare_ms = 0.75;
   event.registration_ms = 4.0;
   event.visibility_ms = 0.5;
@@ -431,6 +432,10 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   EXPECT_NE(lines[0].find("\"loaded_map_target_cache_hit\":false"),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"loaded_map_target_cache_miss\":true"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"localization_target_cache_enabled\":false"),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"localization_target_cache_entry_bytes\":0"),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"retry_registration_ms\":null"),
             std::string::npos);

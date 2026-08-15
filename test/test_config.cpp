@@ -26,6 +26,8 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_EQ(config.reloc_target_mode, "legacy_global_atlas");
     EXPECT_EQ(config.reloc_target_cache_max_bytes, 0);
     EXPECT_EQ(config.reloc_target_cache_max_entries, 0);
+    EXPECT_EQ(config.localization_tracking_target_cache_max_bytes, 0);
+    EXPECT_EQ(config.localization_tracking_target_cache_max_entries, 0);
     EXPECT_DOUBLE_EQ(config.loop_icp_prefilter_voxel_size, 0.2);
     EXPECT_EQ(config.loop_icp_max_points, 50000);
     EXPECT_TRUE(config.loop_spatial_candidates_enable);
@@ -175,6 +177,18 @@ TEST(ConfigTest, RelocTargetProviderValidation) {
     config.reloc_target_cache_max_entries = -1;
     EXPECT_FALSE(config.validate(&error));
     EXPECT_NE(error.find("reloc_target_cache_max_entries"), std::string::npos);
+
+    config = Config{};
+    config.localization_tracking_target_cache_max_bytes = -1;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("localization_tracking_target_cache_max_bytes"),
+              std::string::npos);
+
+    config = Config{};
+    config.localization_tracking_target_cache_max_entries = -1;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("localization_tracking_target_cache_max_entries"),
+              std::string::npos);
 }
 
 TEST(ConfigTest, ProductFactoryFreezesLocalizationProfileAndPaths) {
@@ -186,6 +200,9 @@ TEST(ConfigTest, ProductFactoryFreezesLocalizationProfileAndPaths) {
     EXPECT_TRUE(product.reloc_atlas_enable);
     EXPECT_EQ(product.reloc_atlas_path,
               "/deployment/map.pbstream.localization_atlas.pb");
+    EXPECT_EQ(product.localization_tracking_target_cache_max_bytes,
+              128 * 1024 * 1024);
+    EXPECT_EQ(product.localization_tracking_target_cache_max_entries, 8);
     EXPECT_FALSE(product.save_global_map_on_shutdown);
     std::string error;
     EXPECT_TRUE(product.validate(&error)) << error;
