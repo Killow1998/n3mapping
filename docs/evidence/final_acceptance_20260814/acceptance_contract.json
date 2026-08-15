@@ -63,6 +63,34 @@
     "scope": "backend_loop_closure_gt_pose_plus_lidar",
     "manual_review_required": false,
     "coordinate_contract_revision": "Before the first formal FA-02 run, the evaluator was corrected to transform M2DGR Xsens/Leica ground truth into the LiDAR frame and to score the final post-loop dense trajectory.",
+    "oracle_contract_revision": {
+      "revision": 2,
+      "preregistered_before_next_formal_run": true,
+      "threshold_values_changed": false,
+      "prior_formal_source_commit": "df89bf25ac55f2c71aa469ea6a519fbcd2ca31a1",
+      "prior_formal_verdict_sha256": "c7776b7794dbbed34b58d92473ba65ef620510555953aae0c67bd744f317eb7b",
+      "reason": "The first complete formal run exposed invalid labels: keyframe-center proximity is an opportunity proxy rather than loop-measurement correctness, and position-only Leica GT cannot grade a local-frame SE(3) measurement. M2DGR gate_02 also produced only low-overlap registration support and is retained as a fail-closed control.",
+      "semantics": {
+        "authoritative_measurement_precision": "SE(3) measurement translation and rotation error only",
+        "position_only_precision": "GT place consistency only and excluded from SE(3) measurement precision",
+        "authoritative_revisit_opportunity": "GT place threshold plus same-heading yaw threshold",
+        "position_only_revisit_opportunity": "GT place threshold",
+        "catastrophic_authoritative": "SE(3) measurement error threshold",
+        "catastrophic_position_only": "GT place-distance threshold"
+      },
+      "m2dgr_gate02_low_overlap_qualification": {
+        "actionable_query_keyframe_id": 150,
+        "same_heading_match_keyframe_id": 62,
+        "gt_place_distance_m": 4.161187192414602,
+        "gt_yaw_difference_deg": 44.4,
+        "gt_aligned_query_to_target_submap_coverage": 0.24341911919056217,
+        "coverage_voxel_size_m": 0.2,
+        "coverage_neighbor_radius_m": 0.3,
+        "target_submap_keyframe_radius": 5,
+        "evaluator_loop_min_inlier_ratio": 0.5,
+        "product_profile_loop_min_inlier_ratio": 0.7
+      }
+    },
     "dataset_roots": {
       "kitti360": "/home/user/DUALoc/KITTI360",
       "m2dgr": "/home/user/dataset/M2DGR"
@@ -93,7 +121,7 @@
         "expected_role": "low_overlap_control"
       },
       {
-        "id": "m2dgr_gate02_positive",
+        "id": "m2dgr_gate02_low_overlap_control",
         "dataset": "m2dgr",
         "sequence": "gate_02",
         "start_index": 0,
@@ -106,7 +134,7 @@
         "gt_sensor_frame": "xsens",
         "calibration_file": "config/eval/m2dgr_fa02_calibration.txt",
         "attitude_authoritative": true,
-        "expected_role": "positive_revisit"
+        "expected_role": "low_overlap_control"
       },
       {
         "id": "m2dgr_hall05_positive_position",

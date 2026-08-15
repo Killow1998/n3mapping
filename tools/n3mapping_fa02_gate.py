@@ -162,6 +162,14 @@ def rotation_angle_deg(rotation: tuple[float, ...]) -> float:
     return math.degrees(math.acos(cosine))
 
 
+def yaw_difference_deg(lhs: dict[str, Any], rhs: dict[str, Any]) -> float:
+    lhs_yaw = math.atan2(lhs["rotation"][3], lhs["rotation"][0])
+    rhs_yaw = math.atan2(rhs["rotation"][3], rhs["rotation"][0])
+    return abs(math.degrees(math.atan2(
+        math.sin(lhs_yaw - rhs_yaw), math.cos(lhs_yaw - rhs_yaw)
+    )))
+
+
 def pose_error(reference: dict[str, Any], candidate: dict[str, Any]) -> tuple[float, float]:
     error = pose_compose(pose_inverse(reference), candidate)
     return translation_norm(error["translation"]), rotation_angle_deg(error["rotation"])
@@ -257,7 +265,8 @@ def measurement_pose(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def opportunity_segments(
-    poses: dict[int, dict[str, Any]], minimum_gap: int, radius: float, cluster_gap: int
+    poses: dict[int, dict[str, Any]], minimum_gap: int, radius: float,
+    cluster_gap: int, maximum_yaw_difference_deg: float | None = None,
 ) -> list[list[int]]:
     ids = sorted(poses)
     queries: list[int] = []
@@ -268,7 +277,12 @@ def opportunity_segments(
             distance = translation_norm(
                 tuple(a - b for a, b in zip(poses[query_id]["translation"], poses[match_id]["translation"]))
             )
-            if distance <= radius:
+            heading_eligible = (
+                maximum_yaw_difference_deg is None
+                or yaw_difference_deg(poses[query_id], poses[match_id])
+                <= maximum_yaw_difference_deg
+            )
+            if distance <= radius and heading_eligible:
                 queries.append(query_id)
                 break
     segments: list[list[int]] = []
@@ -430,24 +444,30 @@ def evaluate_episode(
                 )
             )
         )
-        correct = (
-            place_distance <= float(oracle["place_translation_threshold_m"])
-            and measurement_translation_error
+        measurement_correct = (
+            measurement_translation_error
             <= float(oracle["correct_measurement_translation_error_m_max"])
-            and (
-                not attitude_authoritative
-                or measurement_rotation_error
-                <= float(oracle["correct_measurement_rotation_error_deg_max"])
-            )
+            and measurement_rotation_error
+            <= float(oracle["correct_measurement_rotation_error_deg_max"])
         )
+        position_consistent = (
+            place_distance <= float(oracle["place_translation_threshold_m"])
+        )
+        correct = measurement_correct if attitude_authoritative else position_consistent
         catastrophic = (
-            place_distance > float(oracle["catastrophic_place_distance_m_min"])
-            or measurement_translation_error
-            > float(oracle["catastrophic_measurement_translation_error_m_min"])
-            or (
+            (
                 attitude_authoritative
-                and measurement_rotation_error
-                > float(oracle["catastrophic_measurement_rotation_error_deg_min"])
+                and (
+                    measurement_translation_error
+                    > float(oracle["catastrophic_measurement_translation_error_m_min"])
+                    or measurement_rotation_error
+                    > float(oracle["catastrophic_measurement_rotation_error_deg_min"])
+                )
+            )
+            or (
+                not attitude_authoritative
+                and place_distance
+                > float(oracle["catastrophic_place_distance_m_min"])
             )
         )
         if correct:
@@ -461,6 +481,9 @@ def evaluate_episode(
                 "place_distance_m": place_distance,
                 "measurement_translation_error_m": measurement_translation_error,
                 "measurement_rotation_error_deg": measurement_rotation_error,
+                "measurement_correct": measurement_correct if attitude_authoritative else None,
+                "position_consistent": position_consistent,
+                "correct_basis": "se3_measurement" if attitude_authoritative else "position_only",
                 "correct": correct,
                 "catastrophic": catastrophic,
             }
@@ -471,6 +494,8 @@ def evaluate_episode(
         int(oracle["minimum_keyframe_id_gap"]),
         float(oracle["place_translation_threshold_m"]),
         int(oracle["revisit_segment_max_query_id_gap"]),
+        float(oracle["same_heading_yaw_threshold_deg"])
+        if attitude_authoritative else None,
     )
     correct_queries = {query_id for query_id, _ in correct_pairs}
     hit_segments = sum(any(query_id in correct_queries for query_id in segment) for segment in segments)
@@ -537,6 +562,20 @@ def evaluate_episode(
         "keyframe_count": len(keyframes),
         "accepted_loop_count": len(accepted),
         "correct_accepted_loop_count": len(correct_pairs),
+        "measurement_authoritative_accepted_loop_count": (
+            len(accepted_details) if attitude_authoritative else 0
+        ),
+        "measurement_correct_accepted_loop_count": (
+            sum(bool(detail["measurement_correct"]) for detail in accepted_details)
+            if attitude_authoritative else 0
+        ),
+        "position_only_accepted_loop_count": (
+            len(accepted_details) if not attitude_authoritative else 0
+        ),
+        "position_consistent_accepted_loop_count": (
+            sum(bool(detail["position_consistent"]) for detail in accepted_details)
+            if not attitude_authoritative else 0
+        ),
         "catastrophic_false_loop_count": catastrophic_count,
         "revisit_segment_count": len(segments),
         "revisit_segment_hit_count": hit_segments,
@@ -618,6 +657,20 @@ def evaluate(contract_path: Path, root: Path, proto_path: Path) -> dict[str, Any
 
     total_accepted = sum(report["accepted_loop_count"] for report in episode_reports)
     total_correct = sum(report["correct_accepted_loop_count"] for report in episode_reports)
+    measurement_accepted = sum(
+        report["measurement_authoritative_accepted_loop_count"]
+        for report in episode_reports
+    )
+    measurement_correct = sum(
+        report["measurement_correct_accepted_loop_count"]
+        for report in episode_reports
+    )
+    position_only_accepted = sum(
+        report["position_only_accepted_loop_count"] for report in episode_reports
+    )
+    position_consistent = sum(
+        report["position_consistent_accepted_loop_count"] for report in episode_reports
+    )
     total_catastrophic = sum(report["catastrophic_false_loop_count"] for report in episode_reports)
     positive_reports = [
         report for report in episode_reports
@@ -625,7 +678,10 @@ def evaluate(contract_path: Path, root: Path, proto_path: Path) -> dict[str, Any
     ]
     total_segments = sum(report["revisit_segment_count"] for report in positive_reports)
     hit_segments = sum(report["revisit_segment_hit_count"] for report in positive_reports)
-    precision = total_correct / total_accepted if total_accepted else None
+    precision = measurement_correct / measurement_accepted if measurement_accepted else None
+    position_precision = (
+        position_consistent / position_only_accepted if position_only_accepted else None
+    )
     segment_recall = hit_segments / total_segments if total_segments else None
     thresholds = fa02["thresholds"]
     if total_catastrophic > int(thresholds["catastrophic_false_loop_count_max"]):
@@ -643,8 +699,13 @@ def evaluate(contract_path: Path, root: Path, proto_path: Path) -> dict[str, Any
         "aggregate": {
             "accepted_loop_count": total_accepted,
             "correct_accepted_loop_count": total_correct,
+            "measurement_authoritative_accepted_loop_count": measurement_accepted,
+            "measurement_correct_accepted_loop_count": measurement_correct,
             "catastrophic_false_loop_count": total_catastrophic,
             "accepted_measurement_precision": precision,
+            "position_only_accepted_loop_count": position_only_accepted,
+            "position_consistent_accepted_loop_count": position_consistent,
+            "accepted_position_precision": position_precision,
             "positive_revisit_segment_count": total_segments,
             "positive_revisit_segment_hit_count": hit_segments,
             "revisit_segment_recall": segment_recall,

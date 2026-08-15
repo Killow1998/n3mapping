@@ -21,6 +21,7 @@ import n3mapping_fa02_run as run_tool  # noqa: E402
 ORACLE = {
     "minimum_keyframe_id_gap": 20,
     "place_translation_threshold_m": 5.0,
+    "same_heading_yaw_threshold_deg": 45.0,
     "correct_measurement_translation_error_m_max": 1.0,
     "correct_measurement_rotation_error_deg_max": 10.0,
     "catastrophic_place_distance_m_min": 10.0,
@@ -254,6 +255,70 @@ class FA02ToolsTest(unittest.TestCase):
             self.assertEqual(report["correct_accepted_loop_count"], 0)
             self.assertEqual(report["catastrophic_false_loop_count"], 1)
             self.assertTrue(any(issue["code"] == "positive_loop_miss" for issue in issues.items))
+
+    def test_authoritative_measurement_correctness_is_not_place_proximity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "episode"
+            write_episode(directory, measurement_x=6.0)
+            with (directory / "keyframes_gt.csv").open(encoding="utf-8") as stream:
+                rows = list(csv.DictReader(stream))
+            rows[20]["x"] = "6.0"
+            with (directory / "keyframes_gt.csv").open("w", newline="", encoding="utf-8") as stream:
+                writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+            issues = gate_tool.Issues()
+            report = gate_tool.evaluate_episode(
+                {
+                    "id": "control",
+                    "dataset": "kitti360",
+                    "expected_role": "low_overlap_control",
+                    "attitude_authoritative": True,
+                    "max_frames": 2,
+                },
+                directory, ORACLE, THRESHOLDS, FakeMapHelpers, object(), issues,
+            )
+            self.assertEqual(report["correct_accepted_loop_count"], 1)
+            self.assertFalse(report["accepted_loops"][0]["position_consistent"])
+            self.assertEqual(report["accepted_loops"][0]["correct_basis"], "se3_measurement")
+
+    def test_position_only_episode_does_not_grade_local_frame_measurement(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "episode"
+            write_episode(directory, measurement_x=100.0)
+            issues = gate_tool.Issues()
+            report = gate_tool.evaluate_episode(
+                {
+                    "id": "positive",
+                    "dataset": "kitti360",
+                    "expected_role": "positive_revisit_position_only",
+                    "attitude_authoritative": False,
+                    "max_frames": 2,
+                },
+                directory, ORACLE, THRESHOLDS, FakeMapHelpers, object(), issues,
+            )
+            self.assertEqual(report["correct_accepted_loop_count"], 1)
+            self.assertEqual(report["catastrophic_false_loop_count"], 0)
+            self.assertEqual(report["measurement_authoritative_accepted_loop_count"], 0)
+            self.assertEqual(report["position_consistent_accepted_loop_count"], 1)
+
+    def test_authoritative_opportunity_requires_same_heading(self) -> None:
+        poses = {
+            keyframe_id: {
+                "translation": (100.0 + keyframe_id, 0.0, 0.0),
+                "rotation": gate_tool.rpy_matrix(0.0, 0.0, 0.0),
+            }
+            for keyframe_id in range(21)
+        }
+        poses[0]["translation"] = (0.0, 0.0, 0.0)
+        poses[20] = {
+            "translation": (0.5, 0.0, 0.0),
+            "rotation": gate_tool.rpy_matrix(0.0, 0.0, 0.5 * 3.141592653589793),
+        }
+        self.assertEqual(gate_tool.opportunity_segments(poses, 20, 5.0, 5), [[20]])
+        self.assertEqual(
+            gate_tool.opportunity_segments(poses, 20, 5.0, 5, 45.0), []
+        )
 
     def test_episode_gate_rejects_provenance_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
