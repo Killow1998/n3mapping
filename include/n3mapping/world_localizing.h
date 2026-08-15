@@ -250,7 +250,7 @@ private:
       loaded_map_tracking_target_prefetch_pending_;
   mutable std::mutex loaded_map_tracking_target_cache_mutex_;
   std::condition_variable loaded_map_tracking_target_prefetch_cv_;
-  std::thread loaded_map_tracking_target_prefetch_thread_;
+  std::vector<std::thread> loaded_map_tracking_target_prefetch_threads_;
   bool loaded_map_tracking_target_prefetch_stop_ = false;
   std::uint64_t loaded_map_tracking_target_cache_epoch_ = 0;
   size_t loaded_map_tracking_target_cache_hits_ = 0;

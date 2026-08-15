@@ -27,7 +27,11 @@ namespace {
 constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
-constexpr std::size_t kLoadedMapTrackingTargetCacheEntries = 3;
+// Keep the authoritative anchor plus the three nearest alternatives. Two
+// workers can prepare those alternatives within the normal transition window
+// without changing the exact-revision, fail-closed foreground path.
+constexpr std::size_t kLoadedMapTrackingTargetCacheEntries = 4;
+constexpr std::size_t kLoadedMapTrackingTargetPrefetchWorkers = 2;
 constexpr std::size_t kLoadedMapTrackingTargetPrefetchQueueEntries =
     kLoadedMapTrackingTargetCacheEntries * 2;
 
@@ -94,8 +98,13 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       relocalization_seed_id_(-1),
       last_odom_pose_(Eigen::Isometry3d::Identity()),
       consecutive_track_failures_(0) {
-  loaded_map_tracking_target_prefetch_thread_ =
-      std::thread(&WorldLocalizing::loadedMapTrackingTargetPrefetchLoop, this);
+  loaded_map_tracking_target_prefetch_threads_.reserve(
+      kLoadedMapTrackingTargetPrefetchWorkers);
+  for (std::size_t index = 0;
+       index < kLoadedMapTrackingTargetPrefetchWorkers; ++index) {
+    loaded_map_tracking_target_prefetch_threads_.emplace_back(
+        &WorldLocalizing::loadedMapTrackingTargetPrefetchLoop, this);
+  }
 }
 
 WorldLocalizing::~WorldLocalizing() {
@@ -104,8 +113,10 @@ WorldLocalizing::~WorldLocalizing() {
     loaded_map_tracking_target_prefetch_stop_ = true;
   }
   loaded_map_tracking_target_prefetch_cv_.notify_all();
-  if (loaded_map_tracking_target_prefetch_thread_.joinable()) {
-    loaded_map_tracking_target_prefetch_thread_.join();
+  for (auto &thread : loaded_map_tracking_target_prefetch_threads_) {
+    if (thread.joinable()) {
+      thread.join();
+    }
   }
 }
 
@@ -1868,18 +1879,38 @@ WorldLocalizing::prepareLoadedMapTrackingTarget(int64_t anchor_id,
       matcher_.prepareTargetCloud(submap);
   if (hasUsablePreparedTarget(prepared)) {
     std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);
-    if (build_epoch == loaded_map_tracking_target_cache_epoch_ &&
-        !hasLoadedMapTrackingTargetLocked(anchor_id, current_revision,
-                                          loaded_keyframe_count)) {
-      LoadedMapTrackingTargetCacheEntry entry;
-      entry.anchor_id = anchor_id;
-      entry.loaded_keyframe_count = loaded_keyframe_count;
-      entry.map_revision = current_revision;
-      entry.target = prepared;
-      loaded_map_tracking_target_cache_.push_front(std::move(entry));
-      while (loaded_map_tracking_target_cache_.size() >
-             kLoadedMapTrackingTargetCacheEntries) {
-        loaded_map_tracking_target_cache_.pop_back();
+    if (build_epoch == loaded_map_tracking_target_cache_epoch_) {
+      auto existing = std::find_if(
+          loaded_map_tracking_target_cache_.begin(),
+          loaded_map_tracking_target_cache_.end(),
+          [&](const LoadedMapTrackingTargetCacheEntry &entry) {
+            return entry.anchor_id == anchor_id &&
+                   sameGenerationAndPose(entry.map_revision,
+                                         current_revision) &&
+                   entry.loaded_keyframe_count == loaded_keyframe_count &&
+                   hasUsablePreparedTarget(entry.target);
+          });
+      if (existing != loaded_map_tracking_target_cache_.end()) {
+        // A worker can finish the same key while the foreground is preparing
+        // its fail-closed fallback. The foreground use makes that entry MRU;
+        // leaving the worker insertion at the LRU tail can evict it before the
+        // immediately following frame.
+        if (existing != loaded_map_tracking_target_cache_.begin()) {
+          auto entry = std::move(*existing);
+          loaded_map_tracking_target_cache_.erase(existing);
+          loaded_map_tracking_target_cache_.push_front(std::move(entry));
+        }
+      } else {
+        LoadedMapTrackingTargetCacheEntry entry;
+        entry.anchor_id = anchor_id;
+        entry.loaded_keyframe_count = loaded_keyframe_count;
+        entry.map_revision = current_revision;
+        entry.target = prepared;
+        loaded_map_tracking_target_cache_.push_front(std::move(entry));
+        while (loaded_map_tracking_target_cache_.size() >
+               kLoadedMapTrackingTargetCacheEntries) {
+          loaded_map_tracking_target_cache_.pop_back();
+        }
       }
     }
   }
