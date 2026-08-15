@@ -1,0 +1,245 @@
+{
+  "schema": "n3mapping_fa01_visibility_endpoint_fast_result_v1",
+  "status": "TRIAL_PASS_INTEGRATION_NO_GO",
+  "recorded_at": "2026-08-15T08:35:25-07:00",
+  "recorded_timezone": "America/Los_Angeles",
+  "scope": {
+    "mode": "map_extension",
+    "claim": "Same-commit off/on performance and frozen same-route quality trial for the default-off loaded-map visibility endpoint fast path.",
+    "not_claimed": [
+      "Selected-pose equivalence with the existing two-pose visibility policy",
+      "Independent-session or wrong-lock safety coverage",
+      "Authorization to enable the fast path in the maintained product profile"
+    ]
+  },
+  "source": {
+    "commit": "5169cb1acf2cfa94b09bdd39d7a4b7cf4ac63d58",
+    "product_profile_sha256": "e9523a4e8e5439f37a49d2e03f3cc25ccbdb82d19af165a0de2b1ce6cce7aa4e",
+    "build_identity": {
+      "build_type": "Release",
+      "research_tools": "OFF",
+      "verified": true
+    },
+    "implementation_default": false,
+    "trial_override": "loaded_map_visibility_endpoint_fast_enable:=true"
+  },
+  "verification": {
+    "colcon_build_release_research_tools_off": "PASS",
+    "ctest": {
+      "passed": 55,
+      "total": 55,
+      "last_test_log_sha256": "305b72d1cbe5fa4d5ece069cacc082c408783804ad4a7e5ecd012f074ee7b50e"
+    },
+    "unit_contracts": [
+      "default path retains both visibility evaluations",
+      "qualified endpoint fast path skips prediction evaluation",
+      "analyzer accepts explicit skipped-prediction records and rejects inconsistent fast-path records",
+      "runner records the trial override in the manifest"
+    ]
+  },
+  "input": {
+    "bag": "/home/user/Desktop/n3mapping_cleanup_pending_delete_20260817/workspace_cache/files/n3mapping_v1_closeout/repro_0723_exact/lio_ros2",
+    "start_offset_s": 100.0,
+    "rate": 1.0,
+    "map": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/n3map.pbstream",
+    "map_sha256": "8f2aa036ffd826f21937b03fd08b9e49bbfe68074f91eab8efd967d3962d778a",
+    "config": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/config/n3mapping.yaml",
+    "same_route_reference": "the original map dense trajectory; an internal same-route regression oracle, not independent physical ground truth"
+  },
+  "runs": {
+    "off": {
+      "directory": "/tmp/n3mapping_fa01_visibility_fast_off_5169cb1_20260815_082738",
+      "status": "COMPLETE_PROFILE_READY",
+      "run_manifest_sha256": "c2e69ebf38836e82a3e82a7a6e60f4189af77fa6253d47da3e396fa08d45a82a",
+      "performance_summary_sha256": "a59933a030ff85d235524876c15bbf3dd7d66fb63e0240653d3ed952749b7fa8",
+      "n3map_pbstream_sha256": "fb4a1c7e6ceb6e84111c718421c5edb5944674ad782b8fabed19487d79d14d8e"
+    },
+    "on": {
+      "directory": "/tmp/n3mapping_fa01_visibility_fast_on_5169cb1_20260815_083019",
+      "status": "COMPLETE_PROFILE_READY",
+      "run_manifest_sha256": "3b5a6a95b4203daeb2bccf90d0691615c191cbe33f9c765ca9e8f029feae8cca",
+      "performance_summary_sha256": "751b578f699bd2ee2b28d594137ef145f8eef8fe8e419f35b8aa1351ad1ad53b",
+      "n3map_pbstream_sha256": "25fef0f78d8f183e7c9864c0e19cfabbeb22e481bac8f9bc831c0e11f98d94e0"
+    },
+    "common_outcomes": {
+      "runtime_frames": 621,
+      "strict_tracking_success": 616,
+      "strict_tracking_failure": 0,
+      "tracking_retry": 0,
+      "accepted_keyframes": 24,
+      "fatal": 0,
+      "oom": 0,
+      "nonfinite": 0,
+      "queue_overflow": 0,
+      "message_filter_drop": 0
+    }
+  },
+  "fast_path_coverage": {
+    "enabled_frames": 616,
+    "taken_frames": 616,
+    "fallback_frames": 0,
+    "registration_endpoint_selected": 616,
+    "motion_prediction_selected": 0,
+    "endpoint_would_accept": 616,
+    "endpoint_decision_mismatches": 0
+  },
+  "paired_performance": {
+    "visibility_ms": {
+      "mean": {
+        "off": 14.342128376623377,
+        "on": 7.442772975649351,
+        "reduction_percent": 48.10551976524957
+      },
+      "p95": {
+        "off": 16.5318045,
+        "on": 11.41165775,
+        "reduction_percent": 30.971493462797724
+      }
+    },
+    "loaded_map_tracking_ms": {
+      "mean": {
+        "off": 24.360925441558443,
+        "on": 17.803646949675326,
+        "reduction_percent": 26.917197819984086
+      },
+      "p95": {
+        "off": 27.50780675,
+        "on": 20.98091825,
+        "reduction_percent": 23.727404221348916
+      }
+    },
+    "callback_total_ms": {
+      "mean": {
+        "off": 36.83933950811688,
+        "on": 29.233608849025977,
+        "reduction_percent": 20.64567595576766
+      },
+      "p95": {
+        "off": 35.71075825,
+        "on": 25.52000425,
+        "reduction_percent": 28.53692976401586
+      }
+    },
+    "process_cpu_cores": {
+      "mean": {
+        "off": 1.1908677103536238,
+        "on": 1.1431446620459158,
+        "reduction_percent": 4.0074181114153165
+      },
+      "p95": {
+        "off": 4.166821685803991,
+        "on": 4.1359209300257085,
+        "reduction_percent": 0.7415905481042976
+      }
+    },
+    "steady_state_callbacks_over_100_ms": {
+      "off": 30,
+      "on": 30,
+      "off_max_consecutive": 2,
+      "on_max_consecutive": 2
+    },
+    "rss_p95_mib": {
+      "off": 1069.37734375,
+      "on": 1102.0732421875
+    }
+  },
+  "quality_non_regression": {
+    "runtime_categorical_projection": {
+      "compared_frames": 621,
+      "mismatches": 1,
+      "detail": {
+        "frame_index": 599,
+        "field": "matched_keyframe_id",
+        "off": 211,
+        "on": 17
+      },
+      "all_other_compared_fields_equal": true
+    },
+    "output_map": {
+      "structure_equal": true,
+      "version": "2.7.0",
+      "keyframes": 241,
+      "edges": 263,
+      "odometry": 239,
+      "loop": 23,
+      "session_anchor": 1,
+      "dense_trajectory": 8867,
+      "metadata_match": true,
+      "duplicate_keyframes": 0,
+      "dangling_edges": 0,
+      "session_anchors": [
+        [
+          6,
+          217
+        ]
+      ]
+    },
+    "loaded_pose_delta_on": {
+      "compared_keyframes": 217,
+      "translation_m": {
+        "p95": 0.06051346780886393,
+        "max": 0.06494907213659738,
+        "limit": 0.065
+      },
+      "rotation_rad": {
+        "p95": 0.0019151806626481888,
+        "max": 0.0019173899031699963,
+        "limit": 0.002
+      }
+    },
+    "new_keyframes_on_vs_off": {
+      "count": 24,
+      "translation_m_max": 1.3917874574148693e-13,
+      "rotation_deg_max": 2.4148365394514667e-06,
+      "timestamp_ms_max": 0.0
+    },
+    "appended_dense_on_vs_off": {
+      "count": 617,
+      "different_pose_count": 242,
+      "translation_m": {
+        "p95": 0.01649352334614095,
+        "max": 0.0532237088362741
+      },
+      "rotation_deg": {
+        "p95": 0.7400381498070805,
+        "max": 1.4197339784881942
+      }
+    },
+    "on_appended_dense_vs_original_reference": {
+      "count": 617,
+      "translation_m": {
+        "p95": 0.17680226610887642,
+        "max": 0.2449779868381841
+      },
+      "rotation_deg": {
+        "p95": 0.5264105630221172,
+        "max": 1.3106073742330957
+      },
+      "timestamp_ms_max": 0.3216266632080078,
+      "frozen_thresholds_pass": true
+    },
+    "on_keyframes_vs_original_reference": {
+      "count": 24,
+      "translation_m": {
+        "p95": 0.21862863364313906,
+        "max": 0.22072655964801882
+      },
+      "rotation_deg": {
+        "p95": 0.6172750459726614,
+        "max": 0.6325080918877801
+      },
+      "timestamp_ms_max": 0.019788742065429688,
+      "frozen_thresholds_pass": true
+    }
+  },
+  "decision": {
+    "implementation_and_measurement": "PASS",
+    "same_route_performance": "PASS",
+    "same_route_quality": "PASS",
+    "selected_pose_equivalence": "FAIL",
+    "product_default_integration": "NO_GO",
+    "retained_state": "Keep the implementation and analyzer as an explicit default-off experiment; both maintained YAML profiles remain false.",
+    "reason": "The trial materially reduces per-frame visibility and tracking time, and its saved map passes the frozen same-route oracle. However, it changes 242 of 617 appended dense poses and one loaded-map anchor selection, while every real replay frame took the fast path, leaving the slow fallback and independent-session/wrong-lock safety surfaces unexercised.",
+    "next": "Proceed to exact incremental graph-update optimization; do not spend additional same-route replays trying to promote this heuristic without independent qualified data."
+  }
+}
