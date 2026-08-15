@@ -1,0 +1,190 @@
+{
+  "schema": "n3mapping_fa01_visibility_shadow_result_v1",
+  "status": "SHADOW_PASS_INTEGRATION_NO_GO",
+  "recorded_at": "2026-08-15T08:09:52-07:00",
+  "recorded_timezone": "America/Los_Angeles",
+  "scope": {
+    "mode": "map_extension",
+    "claim": "Same-input shadow characterization of the two loaded-map visibility evaluations, including frozen FA-01 quality non-regression.",
+    "not_claimed": [
+      "That registration-endpoint visibility selects the same pose as the existing two-pose policy",
+      "That either visibility evaluation can be removed from the product default",
+      "That this same-route replay is independent physical ground truth"
+    ]
+  },
+  "source": {
+    "commit": "a59308c3b2b1b6c3532bbdd4beb2996599cdcb3e",
+    "comparison_commit": "73f1f50384199a07f0fef562a4a7565ca6bf9ecb",
+    "product_profile_sha256": "f9f1d9f00e23d4d27535e0444d875cee2f426e165723281b8211efa169411289",
+    "build_identity": {
+      "build_type": "Release",
+      "research_tools": "OFF",
+      "verified": true
+    }
+  },
+  "implementation": {
+    "behavior_change": false,
+    "instrumented_evaluations": [
+      "motion_prediction",
+      "registration_endpoint"
+    ],
+    "recorded_fields": [
+      "per-evaluation duration",
+      "validity and evidence",
+      "selected pose source",
+      "registration correction magnitude",
+      "endpoint-only acceptance projection"
+    ]
+  },
+  "verification": {
+    "colcon_build_release_research_tools_off": "PASS",
+    "targeted_tests": "PASS",
+    "ctest": {
+      "passed": 55,
+      "total": 55,
+      "last_test_log_sha256": "e7356e7214d5136a227d41459a04bc5661aada9224b5705af78892cc9f810de5"
+    },
+    "legacy_analyzer_compatibility": "PASS"
+  },
+  "evidence": {
+    "directory": "/tmp/n3mapping_fa01_visibility_shadow_a59308c_20260815_080110",
+    "status": "COMPLETE_PROFILE_READY",
+    "process_return_codes": {
+      "analyzer": 0,
+      "bag": 0,
+      "node": 0,
+      "sampler": 0
+    },
+    "hashes": {
+      "run_manifest_sha256": "3c6770042529c4039c44474fc46b8b18625910c4db13a9ad25f0aeaa4e0aeae0",
+      "performance_summary_sha256": "6070cb13e432a4339c6cb2276e0e5e8f35437140c43b063448291be5ac0ddcb5",
+      "n3map_pbstream_sha256": "777a75ac29c0a73dcfc32f2c9135f67d435409c60b07ee643fb12e4aa664ffed",
+      "runtime_performance_debug_sha256": "8f887de9273d229d57ec42a0e5f23e3014d10618ee066dd1fad08426568cd7e8",
+      "relocalization_debug_sha256": "931c01b5bf6950ce5798f1ff50de33b51049fc5f0495f0ea13ad4a9264daa506"
+    },
+    "runtime_event_counts": {
+      "fatal": 0,
+      "message_filter_drop": 0,
+      "nonfinite": 0,
+      "oom": 0,
+      "queue_overflow": 0,
+      "tracking_failed": 0
+    }
+  },
+  "same_input_non_regression": {
+    "comparison_directory": "/tmp/n3mapping_fa01_prefetch_wait_73f1f50_20260815_070719",
+    "runtime_frames": 621,
+    "strict_tracking": {
+      "records": 616,
+      "success": 616,
+      "failure": 0,
+      "retry": 0
+    },
+    "accepted_keyframes": 24,
+    "runtime_categorical_projection_fields": [
+      "sensor_timestamp",
+      "input_points",
+      "core_success",
+      "accepted_keyframe",
+      "keyframe_id",
+      "matched_keyframe_id",
+      "relocalization_state",
+      "pose_source",
+      "relocalization_decision",
+      "relocalization_locked",
+      "tracking_attempted",
+      "callback_skipped"
+    ],
+    "runtime_categorical_mismatches": 0,
+    "frozen_reference": "docs/evidence/final_acceptance_20260814/fa01_quality_reference.json",
+    "reference_map_sha256": "8f2aa036ffd826f21937b03fd08b9e49bbfe68074f91eab8efd967d3962d778a",
+    "output_map": {
+      "version": "2.7.0",
+      "keyframes": 241,
+      "edges": 263,
+      "odometry": 239,
+      "loop": 23,
+      "session_anchor": 1,
+      "unknown_edges": 0,
+      "dense_trajectory": 8867,
+      "metadata_match": true,
+      "duplicate_keyframes": 0,
+      "dangling_edges": 0,
+      "session_anchors": [
+        [
+          6,
+          217
+        ]
+      ]
+    },
+    "loaded_pose_delta": {
+      "compared_keyframes": 217,
+      "missing_keyframe_ids": [],
+      "translation_m": {
+        "p50": 0.008932888350270073,
+        "p95": 0.06051346780890971,
+        "max": 0.06494907213665486,
+        "limit": 0.065
+      },
+      "rotation_rad": {
+        "p50": 0.0006997184017560863,
+        "p95": 0.0019151806622771596,
+        "max": 0.0019173899031699963,
+        "limit": 0.002
+      }
+    }
+  },
+  "shadow_result": {
+    "observed_frames": 616,
+    "endpoint_only_acceptance": {
+      "would_accept": 616,
+      "decision_mismatches": 0
+    },
+    "existing_selected_pose_source": {
+      "registration_endpoint": 476,
+      "motion_prediction": 140
+    },
+    "motion_prediction_selected_registration_delta": {
+      "translation_m": {
+        "min": 0.0017094406442503746,
+        "p50": 0.010161831399210824,
+        "p95": 0.030414483483360486,
+        "max": 0.053223708836283114
+      },
+      "rotation_rad": {
+        "min": 0.0012516680316125225,
+        "p50": 0.008023483603200026,
+        "p95": 0.016571543741980898,
+        "max": 0.024789464719362636
+      },
+      "endpoint_evidence_log_odds": {
+        "min": 0.3162383019701219,
+        "p50": 0.7301417988700888,
+        "p95": 0.8507538562043439,
+        "max": 0.9821285571388312
+      }
+    },
+    "timing_ms": {
+      "motion_prediction": {
+        "mean": 7.167367826298702,
+        "p95": 9.07067
+      },
+      "registration_endpoint": {
+        "mean": 6.96628235551948,
+        "p95": 8.191315
+      },
+      "combined": {
+        "mean": 14.13435015422078,
+        "p95": 16.59861725
+      }
+    }
+  },
+  "decision": {
+    "shadow_instrumentation": "PASS",
+    "binary_endpoint_acceptance_equivalence_on_frozen_input": "PASS",
+    "selected_pose_equivalence": "FAIL",
+    "direct_product_fast_path": "NO_GO",
+    "reason": "The endpoint-only projection preserves accept/reject on this input, but changes the selected pose on 140 of 616 successful frames; those differences occur at small corrections, so a correction-threshold heuristic cannot reproduce the current selection.",
+    "next": "Evaluate an explicit default-off endpoint-first fast path against the same-route external trajectory and frozen map-quality oracle; retain product default off unless independent safety evidence supports integration."
+  }
+}
