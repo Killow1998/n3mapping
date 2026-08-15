@@ -1,0 +1,84 @@
+{
+  "schema": "n3mapping_fa02b_baseline_result_v1",
+  "status": "FAIL_FA02B_QUALITY",
+  "source_commit": "ac0554cdcdd861296a79b35c6fd0325de27f39e4",
+  "evidence_root": "/tmp/n3mapping_fa02b_ac0554c_20260815_054255",
+  "recorded_timezone": "America/Los_Angeles",
+  "checksums_verified": true,
+  "hashes": {
+    "checksums_sha256": "b1d796caf61ec4e8db812bd762449a5293837f30213593708868996039aa427b",
+    "complete_sha256": "f2541486cf7b80dfcffe42c4b354d2042f6090568a45a93c821b1dfd6e1eff3e",
+    "fa02b_verdict_json_sha256": "5149034b2832b0e094df76819891a7a5ad67fec870f76504e885992cf687eba6",
+    "input_manifest_json_sha256": "8c5ee23ec811259d760410aa8cdc37a0250d0246212ece21dcec27b0d15b3521",
+    "run_summary_json_sha256": "c36be98e2296be79bea88c40ccef1ef69f7ea26183c560a0033f46a0cc33f0c5"
+  },
+  "aggregate": {
+    "case_count": 4,
+    "positive_case_count": 3,
+    "positive_case_passed": 2,
+    "positive_case_pass_rate": 0.6666666666666666,
+    "accepted_loop_count": 82,
+    "correct_accepted_loop_count": 81,
+    "catastrophic_false_loop_count": 1
+  },
+  "cases": {
+    "drive0005_moderate_seed17": {
+      "status": "FAIL",
+      "odom_ate_translation_rmse_m": 23.676710240343546,
+      "loop_off_ate_translation_rmse_m": 23.676710240342608,
+      "loop_on_ate_translation_rmse_m": 11.525737632693632,
+      "ate_translation_improvement_ratio": 0.5132035863219293,
+      "accepted_loops": 23,
+      "correct_loops": 22,
+      "catastrophic_false_loops": 1
+    },
+    "drive0005_moderate_seed73": {
+      "status": "PASS",
+      "odom_ate_translation_rmse_m": 24.620447952591917,
+      "loop_on_ate_translation_rmse_m": 13.676515611256605,
+      "ate_translation_improvement_ratio": 0.4445058173762034,
+      "accepted_loops": 27,
+      "correct_loops": 27,
+      "catastrophic_false_loops": 0
+    },
+    "drive0005_moderate_seed211": {
+      "status": "PASS",
+      "odom_ate_translation_rmse_m": 24.101373773863624,
+      "loop_on_ate_translation_rmse_m": 11.125242083781956,
+      "ate_translation_improvement_ratio": 0.5383980104965405,
+      "accepted_loops": 32,
+      "correct_loops": 32,
+      "catastrophic_false_loops": 0
+    },
+    "drive0003_moderate_seed17_control": {
+      "status": "PASS",
+      "odom_ate_translation_rmse_m": 9.709265356252123,
+      "loop_on_ate_translation_rmse_m": 9.709265356252123,
+      "accepted_loops": 0,
+      "catastrophic_false_loops": 0
+    }
+  },
+  "failure_localization": {
+    "case_id": "drive0005_moderate_seed17",
+    "query_id": 284,
+    "match_id": 1,
+    "measurement_translation_error_m": 3.180743669379062,
+    "measurement_rotation_error_deg": 0.845138085353496,
+    "place_distance_m": 5.819274926746698,
+    "runtime_evidence": {
+      "icp_converged": false,
+      "icp_termination": "max_iterations",
+      "fitness_score": 0.048200442475216404,
+      "inlier_ratio": 0.9570302568014238,
+      "segment_recommendation": "inconsistent",
+      "segment_valid_pair_count": 2,
+      "segment_consensus_ratio": 0.5,
+      "consensus_estimator_valid": false,
+      "consensus_estimator_recommendation": "insufficient_estimator_support",
+      "loop_referee_recommendation": "accept",
+      "loop_referee_reason": "descriptor_geometry_consistent"
+    },
+    "inference": "A descriptor-backed candidate can currently override contradictory or insufficient neighborhood evidence. The next work package must reject the outlier without suppressing the consistent correction cluster; merely requiring ICP converged would also discard valid corrections and is not an acceptable fix."
+  },
+  "scope_note": "This baseline establishes a reproducible backend robustness failure under correlated GT-derived odometry. It does not evaluate the FAST_LIO frontend or deployment runtime performance."
+}
