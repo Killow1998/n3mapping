@@ -1,0 +1,189 @@
+{
+  "schema": "n3mapping_fa01_loaded_map_prefetch_result_v1",
+  "status": "PASS",
+  "recorded_at": "2026-08-15T07:14:27-07:00",
+  "recorded_timezone": "America/Los_Angeles",
+  "scope": {
+    "mode": "map_extension",
+    "claim": "Same-input loaded-map tracking performance improvement with frozen FA-01 quality non-regression.",
+    "not_claimed": [
+      "A new three-mode FA-01 acceptance run",
+      "A deployment-hardware resource contract",
+      "A universal CPU result for unrelated maps, bags, or configurations"
+    ]
+  },
+  "source": {
+    "baseline_commit": "2d9b3594b6e1be7a49142b050aca5ae1712cebbf",
+    "candidate_commit": "73f1f50384199a07f0fef562a4a7565ca6bf9ecb",
+    "implementation_commits": [
+      "97078032133dab4ef732a46cf1a40789425e6321",
+      "73f1f50384199a07f0fef562a4a7565ca6bf9ecb"
+    ],
+    "product_profile_sha256": "c88546356a0f0370774006f17170b8bed5edb9b817331952c3fb6b70450a8e88",
+    "build_identity": {
+      "build_type": "Release",
+      "research_tools": "OFF",
+      "verified": true
+    }
+  },
+  "root_cause": {
+    "classification": "loaded_map_target_prefetch_cache_thrash",
+    "description": "The old prefetch scan did not count already-cached or already-pending nearest alternatives toward its three-entry frontier. Each callback could therefore enqueue farther targets, evict useful near targets, and make foreground tracking rebuild them on later frames.",
+    "secondary_amplifier": "Two background workers each used the foreground matcher thread count, multiplying the configured matching thread budget."
+  },
+  "implementation": {
+    "prefetch_frontier": "Exactly the three nearest alternatives are considered; cached and pending entries consume frontier slots.",
+    "thread_budget": "Background workers own fixed-configuration matchers and their aggregate thread budget does not exceed the configured matcher thread count.",
+    "initial_lock_warmup": "Only initial map-extension relocalization waits for the bounded three-neighbor prefetch queue to drain; later keyframe-triggered warmups remain nonblocking.",
+    "default_localization_behavior": "Unchanged outside the loaded-map tracking target cache and prefetch path."
+  },
+  "verification": {
+    "colcon_build_release_research_tools_off": "PASS",
+    "targeted_tests": "PASS",
+    "ctest": {
+      "passed": 55,
+      "total": 55,
+      "last_test_log_sha256": "f4acef0e40d73211b091097960f019af13f1b506365e7b7bdec879248cf479c0"
+    },
+    "regression_test": "LoadedMapPrefetchStopsAfterCachedNearestAlternatives"
+  },
+  "evidence": {
+    "baseline_directory": "/tmp/n3mapping_fa01_map_extension_2d9b359_20260815_011214",
+    "candidate_directory": "/tmp/n3mapping_fa01_prefetch_wait_73f1f50_20260815_070719",
+    "candidate_status": "COMPLETE_PROFILE_READY",
+    "candidate_process_return_codes": {
+      "analyzer": 0,
+      "bag": 0,
+      "node": 0,
+      "sampler": 0
+    },
+    "candidate_hashes": {
+      "run_manifest_sha256": "d8e257a93075c66018e8f061586ceaf5c01c157373f0e785ff19a563c03f7ea5",
+      "performance_summary_sha256": "7c57ae8e756fef80ee5e387e1cfb5f9ba2cbc55d395d5d14de3e0aa889299fbe",
+      "n3map_pbstream_sha256": "ed4f7106f2dd8fffc0139d22dabc77cf190d475cfc520ae0a77660856fb359ba"
+    },
+    "runtime_event_counts": {
+      "fatal": 0,
+      "message_filter_drop": 0,
+      "nonfinite": 0,
+      "oom": 0,
+      "queue_overflow": 0,
+      "tracking_failed": 0
+    }
+  },
+  "same_input_comparison": {
+    "runtime_frames": {
+      "baseline": 621,
+      "candidate": 621
+    },
+    "steady_state_tracking": {
+      "frames": 616,
+      "baseline_success": 616,
+      "candidate_success": 616,
+      "candidate_failure": 0,
+      "candidate_retry": 0
+    },
+    "accepted_keyframes": {
+      "baseline": 24,
+      "candidate": 24
+    },
+    "cache": {
+      "baseline_hits": 609,
+      "baseline_misses": 7,
+      "candidate_hits": 610,
+      "candidate_misses": 6
+    },
+    "callback_total_ms": {
+      "baseline_mean": 49.252349011363634,
+      "candidate_mean": 37.150232459415584,
+      "mean_reduction_percent": 24.571653524902572,
+      "baseline_p95": 44.66880825,
+      "candidate_p95": 38.5273115,
+      "p95_reduction_percent": 13.748960383334145,
+      "candidate_max": 406.366743
+    },
+    "over_sensor_budget": {
+      "sensor_period_ms": 100,
+      "baseline_count": 29,
+      "candidate_count": 29,
+      "candidate_rate": 0.04707792207792208,
+      "contract_rate_max": 0.05,
+      "candidate_max_consecutive": 2,
+      "contract_max_consecutive": 5
+    },
+    "process_cpu_cores_runtime_window": {
+      "baseline_mean": 7.205510190244318,
+      "candidate_mean": 1.342970515987917,
+      "mean_reduction_percent": 81.36189554202296,
+      "baseline_p95": 8.239334870044171,
+      "candidate_p95": 4.111509239400284,
+      "p95_reduction_percent": 50.09901522089437
+    },
+    "rss_mib_runtime_window": {
+      "baseline_p95": 1295.909375,
+      "candidate_p95": 1083.8359375,
+      "p95_reduction_percent": 16.364835504025887
+    },
+    "thread_count_runtime_window": {
+      "baseline_p95": 41,
+      "candidate_p95": 37
+    }
+  },
+  "quality_non_regression": {
+    "frozen_reference": "docs/evidence/final_acceptance_20260814/fa01_quality_reference.json",
+    "reference_map_sha256": "8f2aa036ffd826f21937b03fd08b9e49bbfe68074f91eab8efd967d3962d778a",
+    "lock_frame_index": 5,
+    "lost_frames": 0,
+    "recently_lost_frames": 0,
+    "strict_tracking_failures": 0,
+    "output_map": {
+      "version": "2.7.0",
+      "keyframes": 241,
+      "edges": 263,
+      "odometry": 239,
+      "loop": 23,
+      "session_anchor": 1,
+      "unknown_edges": 0,
+      "dense_trajectory": 8867,
+      "metadata_match": true,
+      "duplicate_keyframes": 0,
+      "dangling_edges": 0,
+      "session_anchors": [
+        [
+          6,
+          217
+        ]
+      ]
+    },
+    "loaded_pose_delta": {
+      "compared_keyframes": 217,
+      "missing_keyframe_ids": [],
+      "translation_m": {
+        "p50": 0.008932888350257063,
+        "p95": 0.06051346780887938,
+        "max": 0.06494907213661814,
+        "limit": 0.065
+      },
+      "rotation_rad": {
+        "p50": 0.0006997184017560863,
+        "p95": 0.0019151806626481888,
+        "max": 0.0019173899024751621,
+        "limit": 0.002
+      }
+    }
+  },
+  "retained_negative_iteration": {
+    "commit": "97078032133dab4ef732a46cf1a40789425e6321",
+    "directory": "/tmp/n3mapping_fa01_prefetch_9707803_20260815_065655",
+    "classification": "PERFORMANCE_GATE_FAIL",
+    "reason": "31 of 616 steady-state callbacks exceeded 100 ms, rate 0.05032467532467533, narrowly above the preregistered 0.05 maximum.",
+    "run_manifest_sha256": "3d476dda6c23d29997cc0a63b6a4590088eaae21e0c303c3dc10d400837e5fec",
+    "performance_summary_sha256": "36903b4550a0aa454e8aeb17cedde5ce2d7c4fd27db9a3b833191605fa92ce6a"
+  },
+  "decision": {
+    "loaded_map_prefetch_atomic_wp": "PASS",
+    "quality_non_regression": "PASS",
+    "performance_contract_slice": "PASS",
+    "next": "Proceed to byte-bounded PreparedTarget LRU for ordinary localization."
+  }
+}
