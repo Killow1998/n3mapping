@@ -139,13 +139,31 @@ def wait_for_text(
     raise RunError(f"node readiness timeout after {timeout_s:.1f}s")
 
 
-def run_checked(command: list[str], *, timeout_s: float = 30.0) -> str:
+def build_environment(output: Path) -> dict[str, str]:
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "ROS_LOG_DIR": str(output / "ros_log"),
+            "GLOG_v": "0",
+            "PYTHONDONTWRITEBYTECODE": "1",
+        }
+    )
+    return environment
+
+
+def run_checked(
+    command: list[str],
+    *,
+    timeout_s: float = 30.0,
+    environment: dict[str, str] | None = None,
+) -> str:
     completed = subprocess.run(
         command,
         check=False,
         capture_output=True,
         text=True,
         timeout=timeout_s,
+        env=environment,
     )
     if completed.returncode != 0:
         raise RunError(
@@ -155,17 +173,26 @@ def run_checked(command: list[str], *, timeout_s: float = 30.0) -> str:
     return completed.stdout
 
 
-def locate_node() -> Path:
-    prefix = Path(run_checked(["ros2", "pkg", "prefix", "n3mapping"]).strip())
+def locate_node(environment: dict[str, str]) -> Path:
+    prefix = Path(
+        run_checked(
+            ["ros2", "pkg", "prefix", "n3mapping"], environment=environment
+        ).strip()
+    )
     node = prefix / "lib" / "n3mapping" / "n3mapping_node"
     if not node.is_file() or not os.access(node, os.X_OK):
         raise RunError(f"installed node missing or not executable: {node}")
     return node.resolve()
 
 
-def ensure_node_absent() -> None:
+def ensure_node_absent(environment: dict[str, str]) -> None:
     completed = subprocess.run(
-        ["ros2", "node", "list"], check=False, capture_output=True, text=True, timeout=15
+        ["ros2", "node", "list"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        env=environment,
     )
     if completed.returncode == 0 and any(
         name.strip() == "/n3mapping_node" for name in completed.stdout.splitlines()
@@ -173,9 +200,15 @@ def ensure_node_absent() -> None:
         raise RunError("/n3mapping_node already exists; refusing competing profile")
 
 
-def parse_identity(node: Path, expected_commit: str) -> dict[str, Any]:
+def parse_identity(
+    node: Path, expected_commit: str, environment: dict[str, str]
+) -> dict[str, Any]:
     try:
-        identity = json.loads(run_checked([str(node), "--build-identity-json"]))
+        identity = json.loads(
+            run_checked(
+                [str(node), "--build-identity-json"], environment=environment
+            )
+        )
     except (json.JSONDecodeError, ValueError) as error:
         raise RunError(f"invalid node build identity: {error}") from error
     if not isinstance(identity, dict):
@@ -243,6 +276,7 @@ def run_profile(args: argparse.Namespace) -> int:
         raise RunError(f"output directory already exists: {output}")
     output.mkdir(parents=True)
     (output / "ros_log").mkdir()
+    environment = build_environment(output)
     manifest_path = output / "run_manifest.json"
     manifest: dict[str, Any] = {
         "schema": SCHEMA,
@@ -267,9 +301,9 @@ def run_profile(args: argparse.Namespace) -> int:
             raise RunError(f"config missing: {args.config}")
         if args.mode != "mapping" and not args.map.is_file():
             raise RunError(f"map missing: {args.map}")
-        ensure_node_absent()
-        node = locate_node()
-        identity = parse_identity(node, args.expected_commit)
+        ensure_node_absent(environment)
+        node = locate_node(environment)
+        identity = parse_identity(node, args.expected_commit, environment)
         sampler = Path(__file__).resolve().with_name(
             "n3mapping_process_resource_sample.py"
         )
@@ -300,14 +334,6 @@ def run_profile(args: argparse.Namespace) -> int:
         )
         write_json(manifest_path, manifest)
 
-        environment = os.environ.copy()
-        environment.update(
-            {
-                "ROS_LOG_DIR": str(output / "ros_log"),
-                "GLOG_v": "0",
-                "PYTHONDONTWRITEBYTECODE": "1",
-            }
-        )
         node_log = (output / "n3mapping.log").open("w", encoding="utf-8")
         handles.append(node_log)
         node_process = subprocess.Popen(
@@ -410,6 +436,7 @@ def run_profile(args: argparse.Namespace) -> int:
                     "{}",
                 ],
                 timeout_s=120.0,
+                environment=environment,
             )
             (output / "save_map.log").write_text(save_output, encoding="utf-8")
             if "success=True" not in save_output:

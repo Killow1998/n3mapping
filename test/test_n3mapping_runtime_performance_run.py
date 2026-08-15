@@ -54,6 +54,18 @@ class RuntimePerformanceRunTest(unittest.TestCase):
             self.assertEqual(result["message_filter_drop"], 1)
             json.dumps(result, allow_nan=False)
 
+    def test_child_environment_routes_all_ros_logs_to_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            output = Path(raw_dir)
+            environment = TOOL.build_environment(output)
+            self.assertEqual(environment["ROS_LOG_DIR"], str(output / "ros_log"))
+            self.assertEqual(environment["GLOG_v"], "0")
+            self.assertEqual(environment["PYTHONDONTWRITEBYTECODE"], "1")
+            observed = TOOL.run_checked(
+                ["/usr/bin/printenv", "ROS_LOG_DIR"], environment=environment
+            )
+            self.assertEqual(observed.strip(), str(output / "ros_log"))
+
 
 if __name__ == "__main__":
     unittest.main()
