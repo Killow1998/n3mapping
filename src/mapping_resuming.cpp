@@ -171,6 +171,12 @@ bool MappingResuming::performInitialRelocalization(
     if (next_session_id == kInvalidMapSessionId) return false;
     world_localizing_.setMapToOdomTransform(T_map_odom);
 
+    // The lock callback is outside the steady-state tracking window. Prepare
+    // the authoritative anchor here and give nearby prefetches a head start so
+    // the first tracking callbacks do not pay an avoidable target-build miss.
+    world_localizing_.warmLoadedMapTrackingTargets(
+        result.matched_keyframe_id, result.pose_in_map.translation());
+
     const Eigen::Vector3d rpy_deg = rotationRpyDegrees(T_map_odom);
     LOG(INFO) << "[MappingResuming] Relocalization anchor id="
               << result.matched_keyframe_id
