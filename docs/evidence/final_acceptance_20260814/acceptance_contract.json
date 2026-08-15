@@ -1,0 +1,175 @@
+{
+  "schema": "n3mapping_final_acceptance_contract_v1",
+  "recorded_timezone": "America/Los_Angeles",
+  "preregistered_source": {
+    "branch": "deepseek/n3m-architecture-hardening-recovery",
+    "head": "13c3aff4558cc10af64548b17acd1b0d587e79c3",
+    "main": "784d8c1ca25f92e69f680cc6a4ec411bf054e586",
+    "realtime": "7b814f6e8f0cb850d8381ab4bcc622b965dfb67a",
+    "merge_base": "c5bc745f12abb5a92435c714ebe14066f3e20850"
+  },
+  "fa01": {
+    "scope": "humble_jammy_target_host_runtime",
+    "modes": [
+      "mapping",
+      "localization",
+      "map_extension"
+    ],
+    "inputs": {
+      "derived_lio_bag": "/home/user/Desktop/n3mapping_cleanup_pending_delete_20260817/workspace_cache/files/n3mapping_v1_closeout/repro_0723_exact/lio_ros2",
+      "map": "map/n3map.pbstream",
+      "sensor_period_ms": 100.0,
+      "replay_rate": 1.0,
+      "headless": true
+    },
+    "required_metrics": [
+      "callback_total_ms",
+      "core_frame_ms",
+      "callback_budget_overrun_ms",
+      "callback_schedule_lag_ms",
+      "loop_cycle_total_ms",
+      "process_cpu_cores",
+      "process_host_capacity_percent",
+      "rss_mib",
+      "vm_hwm_mib",
+      "thread_count",
+      "expected_frame_count",
+      "processed_frame_count",
+      "max_consecutive_over_budget"
+    ],
+    "steady_state_thresholds": {
+      "minimum_runtime_frames": 500,
+      "minimum_processed_input_rate": 0.99,
+      "callback_total_p95_ms_max": 100.0,
+      "callback_over_sensor_budget_rate_max": 0.05,
+      "max_consecutive_over_sensor_budget": 5,
+      "loop_cycle_p95_ms_max": 100.0,
+      "loop_cycle_max_ms_max": 500.0,
+      "queue_overflow_count_max": 0,
+      "fatal_count_max": 0,
+      "oom_count_max": 0,
+      "unexpected_tracking_loss_count_max": 0,
+      "nonfinite_pose_count_max": 0
+    },
+    "resource_gate": "report_only_until_deployment_hardware_contract",
+    "quality_policy": "frozen_reference_non_regression"
+  },
+  "fa02": {
+    "scope": "backend_loop_closure_gt_pose_plus_lidar",
+    "manual_review_required": false,
+    "dataset_roots": {
+      "kitti360": "/home/user/DUALoc/KITTI360",
+      "m2dgr": "/home/user/dataset/M2DGR"
+    },
+    "episodes": [
+      {
+        "id": "kitti360_drive0005_positive",
+        "dataset": "kitti360",
+        "sequence": "2013_05_28_drive_0005_sync",
+        "start_index": 0,
+        "stride": 5,
+        "max_frames": 900,
+        "input_voxel_size_m": 0.5,
+        "calibration_mode": "official",
+        "attitude_authoritative": true,
+        "expected_role": "positive_revisit"
+      },
+      {
+        "id": "kitti360_drive0003_control",
+        "dataset": "kitti360",
+        "sequence": "2013_05_28_drive_0003_sync",
+        "start_index": 0,
+        "stride": 1,
+        "max_frames": 900,
+        "input_voxel_size_m": 0.5,
+        "calibration_mode": "official",
+        "attitude_authoritative": true,
+        "expected_role": "low_overlap_control"
+      },
+      {
+        "id": "m2dgr_gate02_positive",
+        "dataset": "m2dgr",
+        "sequence": "gate_02",
+        "start_index": 0,
+        "stride": 5,
+        "max_frames": 600,
+        "max_time_diff_s": 0.05,
+        "normalize_gt_origin": true,
+        "input_voxel_size_m": 0.5,
+        "attitude_authoritative": true,
+        "expected_role": "positive_revisit"
+      },
+      {
+        "id": "m2dgr_hall05_positive_position",
+        "dataset": "m2dgr",
+        "sequence": "hall_05",
+        "start_index": 0,
+        "stride": 5,
+        "max_frames": 500,
+        "max_time_diff_s": 0.05,
+        "normalize_gt_origin": true,
+        "input_voxel_size_m": 0.5,
+        "attitude_authoritative": false,
+        "expected_role": "positive_revisit_position_only"
+      }
+    ],
+    "oracle": {
+      "minimum_keyframe_id_gap": 20,
+      "place_translation_threshold_m": 5.0,
+      "same_heading_yaw_threshold_deg": 45.0,
+      "correct_measurement_translation_error_m_max": 1.0,
+      "correct_measurement_rotation_error_deg_max": 10.0,
+      "catastrophic_place_distance_m_min": 10.0,
+      "catastrophic_measurement_translation_error_m_min": 2.0,
+      "catastrophic_measurement_rotation_error_deg_min": 30.0,
+      "revisit_segment_max_query_id_gap": 5
+    },
+    "thresholds": {
+      "catastrophic_false_loop_count_max": 0,
+      "accepted_measurement_precision_min": 0.95,
+      "minimum_correct_accepted_loops_per_positive_episode": 1,
+      "revisit_segment_recall_min": 0.8,
+      "optimizer_error_count_max": 0,
+      "nonfinite_pose_count_max": 0,
+      "ate_translation_rmse_m_max": 0.5,
+      "ate_translation_p95_m_max": 1.0,
+      "ate_rotation_rmse_deg_max": 5.0,
+      "rpe_translation_rmse_m_max": 0.2,
+      "rpe_rotation_rmse_deg_max": 2.0
+    },
+    "diagnostic_only_metrics": [
+      "same_heading_pose_precision",
+      "gt_pair_coverage",
+      "candidate_retrieval_miss_estimate"
+    ],
+    "evidence_requirements": {
+      "exact_frame_manifest": true,
+      "full_selected_cloud_sha256": true,
+      "gt_sha256": true,
+      "official_kitti360_calibration_sha256": true,
+      "complete_marker": true,
+      "checksums_manifest": true
+    }
+  },
+  "fa03": {
+    "target_tree": "recovery",
+    "canonical_final_branch": "main",
+    "semantic_decisions": {
+      "main_stable_runtime_revert": "reject_target_tree_content",
+      "noetic_transformed_odometry_twist": "keep_after_contract_test",
+      "realtime_prepared_target_api": "superseded",
+      "realtime_background_localization_target_cache": "defer_until_fa01_failure_attribution",
+      "stop_localization_output_before_lock": "superseded_verify_current_authority",
+      "realtime_odometry_shadow_output": "superseded_absent",
+      "accept_unconverged_tracking_match": "reject_fail_closed_violation",
+      "periodic_noetic_json_status": "pending_consumer_and_compatibility_audit"
+    },
+    "remote_cleanup_preconditions": [
+      "all_three_tip_oids_recorded",
+      "all_three_histories_reachable_from_canonical_main",
+      "full_local_build_and_tests_pass",
+      "required_remote_ci_pass",
+      "remote_recovery_commands_recorded"
+    ]
+  }
+}
