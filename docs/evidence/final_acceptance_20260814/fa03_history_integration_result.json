@@ -1,0 +1,37 @@
+{
+  "schema": "n3mapping_fa03_history_integration_result_v1",
+  "recorded_at": "2026-08-15T02:54:15-07:00",
+  "status": "HISTORY_INTEGRATED_LOCAL",
+  "semantic_audit_commit": "10aaf5ccd6739bccf47680de5a5b3af3c6619a48",
+  "audited_tree": "8905d965ee1e3d6c1e5f7857f2c618513014045c",
+  "history_merges": [
+    {
+      "source": "origin/main",
+      "source_tip": "784d8c1ca25f92e69f680cc6a4ec411bf054e586",
+      "merge_commit": "98ace70ac69c96d19083257ce526ccf311b6c367",
+      "strategy": "ours",
+      "result_tree": "8905d965ee1e3d6c1e5f7857f2c618513014045c",
+      "tree_matches_audited_tree": true
+    },
+    {
+      "source": "origin/dev/n3mapping-realtime-pipeline",
+      "source_tip": "7b814f6e8f0cb850d8381ab4bcc622b965dfb67a",
+      "merge_commit": "de8988dee92aec17363f9862833dd1e3219553b6",
+      "strategy": "ours",
+      "result_tree": "8905d965ee1e3d6c1e5f7857f2c618513014045c",
+      "tree_matches_audited_tree": true
+    }
+  ],
+  "ancestry_checks": {
+    "origin_main_is_ancestor": true,
+    "origin_realtime_is_ancestor": true,
+    "origin_recovery_is_ancestor": true
+  },
+  "remaining_preconditions": [
+    "full_local_build_and_tests",
+    "required_remote_ci",
+    "canonical_main_fast_forward",
+    "remote_history_reachability_proof",
+    "obsolete_branch_cleanup"
+  ]
+}
