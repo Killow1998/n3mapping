@@ -1,0 +1,72 @@
+{
+  "schema": "n3mapping_fa02_result_record_v1",
+  "status": "PASS",
+  "source_commit": "ac54ed2986786ed6d4ced23898b7fefce3221f63",
+  "evidence_root": "/tmp/n3mapping_fa02_ac54ed2_20260815_023901",
+  "recorded_timezone": "America/Los_Angeles",
+  "checksums_verified": true,
+  "hashes": {
+    "checksums_sha256": "a393a2a39fa5157bd613eeddce0fc7a4c0c2b2fbb161bf48c0c3d84c5c3eec42",
+    "fa02_verdict_json_sha256": "c7df6fc330747466195069b718f5cb62f5a1d30631b6ac66fc75b0faa3e7a7f8",
+    "input_manifest_json_sha256": "95ee87feb4251858f9c7e48249aac7d0f2eff05244155748da54092ae51a52ba",
+    "run_summary_json_sha256": "ab99568735beb21b79b14ea0befa6a352696c86006c61d6ff4ca5104073f4cae"
+  },
+  "aggregate": {
+    "accepted_loop_count": 118,
+    "measurement_authoritative_accepted_loop_count": 21,
+    "measurement_correct_accepted_loop_count": 21,
+    "accepted_measurement_precision": 1.0,
+    "position_only_accepted_loop_count": 97,
+    "position_consistent_accepted_loop_count": 94,
+    "accepted_position_precision": 0.9690721649484536,
+    "catastrophic_false_loop_count": 0,
+    "positive_revisit_segment_count": 3,
+    "positive_revisit_segment_hit_count": 3,
+    "revisit_segment_recall": 1.0
+  },
+  "episodes": {
+    "kitti360_drive0005_positive": {
+      "frames": 900,
+      "keyframes": 897,
+      "accepted_loops": 21,
+      "correct_loops": 21,
+      "catastrophic_false_loops": 0,
+      "revisit_segments": 1,
+      "revisit_segment_hits": 1,
+      "ate_translation_rmse_m": 0.3314781201556158,
+      "ate_translation_p95_m": 0.6887806194570851,
+      "ate_rotation_rmse_deg": 0.0674002288218701
+    },
+    "kitti360_drive0003_control": {
+      "frames": 900,
+      "keyframes": 768,
+      "accepted_loops": 0,
+      "catastrophic_false_loops": 0
+    },
+    "m2dgr_gate02_low_overlap_control": {
+      "frames": 600,
+      "keyframes": 194,
+      "accepted_loops": 0,
+      "catastrophic_false_loops": 0
+    },
+    "m2dgr_hall05_positive_position": {
+      "frames": 500,
+      "keyframes": 220,
+      "accepted_loops": 97,
+      "position_consistent_loops": 94,
+      "catastrophic_false_loops": 0,
+      "revisit_segments": 2,
+      "revisit_segment_hits": 2,
+      "ate_translation_rmse_m": 0.23630801596647805,
+      "ate_translation_p95_m": 0.4166177261628737
+    }
+  },
+  "prior_superseded_formal_run": {
+    "source_commit": "df89bf25ac55f2c71aa469ea6a519fbcd2ca31a1",
+    "evidence_root": "/tmp/n3mapping_fa02_df89bf2_20260815_021828",
+    "verdict": "FAIL_FA02_QUALITY",
+    "verdict_sha256": "c7776b7794dbbed34b58d92473ba65ef620510555953aae0c67bd744f317eb7b",
+    "superseded_reason": "Oracle revision 2 corrected GT-authority and low-overlap episode labels before this formal rerun; threshold values were unchanged."
+  },
+  "scope_note": "PASS applies to the frozen backend GT-pose-plus-LiDAR matrix. It does not establish frontend LIO accuracy, deployment-hardware resource limits, or broad cross-dataset industrial release readiness."
+}
