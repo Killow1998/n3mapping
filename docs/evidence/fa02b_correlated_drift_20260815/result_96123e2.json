@@ -1,0 +1,156 @@
+{
+  "schema": "n3mapping_fa02b_fix_result_v1",
+  "status": "PASS",
+  "source_commit": "96123e2ff44f16aae3ada47bf479676725639375",
+  "recorded_timezone": "America/Los_Angeles",
+  "implementation": {
+    "policy": "After every individual loop constraint passes the existing verification pipeline, derive the global query pose implied by each same-query match and measurement. Keep a strict-majority consensus set; preserve a single candidate; and fall back to the historical best-per-query ordering when no strict majority exists.",
+    "translation_consensus_m": 1.0,
+    "rotation_consensus_rad": 0.17453292519943295,
+    "threshold_lineage": "The candidate-to-candidate bounds equal the FA-02B pre-registered 1 m and 10 degree correctness envelope. They were not tuned after the failing baseline.",
+    "runtime_ground_truth_used": false,
+    "scope": "Normal mapping loop selection only. Cross-session MappingResuming merge policy is unchanged."
+  },
+  "build_and_tests": {
+    "release_research_tools": "OFF",
+    "colcon_build_install": "PASS",
+    "ctest_targets_passed": 55,
+    "ctest_targets_total": 55,
+    "targeted_loop_closure_manager_tests_passed": 33,
+    "targeted_n3mapping_core_tests_passed": 20,
+    "diff_check": "PASS"
+  },
+  "fa02b": {
+    "status": "PASS",
+    "evidence_root": "/tmp/n3mapping_fa02b_96123e2_20260815_061808",
+    "checksums_verified": true,
+    "hashes": {
+      "checksums_sha256": "979b00732752432e8ac4f84fa7d6f4eefaaa6de31feb6c2f1d313f56bb43639d",
+      "complete_sha256": "bb6d0589d9a7a5d01b7274aa2a048667c0e0e93af62b2b815538ec57ce3325d8",
+      "fa02b_verdict_json_sha256": "4133ee34b6bd437c375a43f7440034b1f92d51d899aacafe117fd70d555a675c",
+      "input_manifest_json_sha256": "a18167eff95844a7fe77a6e29eb0d56698cacd46be6bb3e924cb6b80d8d8dd89",
+      "run_summary_json_sha256": "64750708bf087133a7a02c55eeed68b35d61853c73ee285472708d28e77d0484"
+    },
+    "aggregate": {
+      "case_count": 4,
+      "positive_case_count": 3,
+      "positive_case_passed": 3,
+      "positive_case_pass_rate": 1.0,
+      "accepted_loop_count": 80,
+      "correct_accepted_loop_count": 80,
+      "catastrophic_false_loop_count": 0
+    },
+    "cases": {
+      "drive0005_moderate_seed17": {
+        "status": "PASS",
+        "loop_off_ate_translation_rmse_m": 23.676710240342608,
+        "loop_on_ate_translation_rmse_m": 8.886363428814109,
+        "ate_translation_improvement_ratio": 0.6246791324213324,
+        "accepted_loops": 21,
+        "correct_loops": 21,
+        "catastrophic_false_loops": 0
+      },
+      "drive0005_moderate_seed73": {
+        "status": "PASS",
+        "loop_off_ate_translation_rmse_m": 24.620447952591615,
+        "loop_on_ate_translation_rmse_m": 13.67651561108022,
+        "ate_translation_improvement_ratio": 0.4445058173833676,
+        "accepted_loops": 27,
+        "correct_loops": 27,
+        "catastrophic_false_loops": 0
+      },
+      "drive0005_moderate_seed211": {
+        "status": "PASS",
+        "loop_off_ate_translation_rmse_m": 24.10137377386363,
+        "loop_on_ate_translation_rmse_m": 11.125242083489914,
+        "ate_translation_improvement_ratio": 0.5383980105086577,
+        "accepted_loops": 32,
+        "correct_loops": 32,
+        "catastrophic_false_loops": 0
+      },
+      "drive0003_moderate_seed17_control": {
+        "status": "PASS",
+        "loop_off_ate_translation_rmse_m": 9.709265356252123,
+        "loop_on_ate_translation_rmse_m": 9.709265356252123,
+        "accepted_loops": 0,
+        "catastrophic_false_loops": 0
+      }
+    },
+    "baseline_comparison": {
+      "baseline_commit": "ac0554cdcdd861296a79b35c6fd0325de27f39e4",
+      "catastrophic_false_loops_before": 1,
+      "catastrophic_false_loops_after": 0,
+      "seed17_loop_on_ate_before_m": 11.525737632693632,
+      "seed17_loop_on_ate_after_m": 8.886363428814109,
+      "rejected_regression_pair": {
+        "query_id": 284,
+        "match_id": 1,
+        "reject_reason": "same_query_consensus_outlier"
+      }
+    },
+    "finalization_note": "All eight condition runs completed with rc=0 and no missing artifacts. The initial automatic gate invocation then failed because the operator passed generated n3map.pb.cc instead of proto/n3map.proto. The same immutable condition artifacts were subsequently evaluated with the correct proto source; the gate revalidated run manifests, evaluator fingerprints, input hashes, paired inputs, graph structure, and metrics before checksums and COMPLETE were generated."
+  },
+  "clean_odometry_fa02_non_regression": {
+    "status": "PASS",
+    "evidence_root": "/tmp/n3mapping_fa02_96123e2_20260815_062847",
+    "checksums_verified": true,
+    "hashes": {
+      "checksums_sha256": "e61c76af48e1f0af736a22f733f4d7843e3656a8c183e279767a2a78dfd91ea3",
+      "complete_sha256": "489e7186ae1b5c90c499a5d08956e8c5ffcf3bd1a84f8dda60edece45bd9714e",
+      "fa02_verdict_json_sha256": "74297df08d58ebafdce47c133ef4db2dc5d019e5691879d7ef6be4022e72e967",
+      "input_manifest_json_sha256": "ebbe51981cc889172bbef91ac1c9559b1b6ab5e2e2de4ba1ea6225b8dad50d26",
+      "run_summary_json_sha256": "de0a18e94765b8c05a0cfe661631a3abe080e16c4778dba81404fa0c060bed1c"
+    },
+    "aggregate": {
+      "accepted_loop_count": 96,
+      "measurement_authoritative_accepted_loop_count": 23,
+      "measurement_correct_accepted_loop_count": 23,
+      "accepted_measurement_precision": 1.0,
+      "position_only_accepted_loop_count": 73,
+      "position_consistent_accepted_loop_count": 71,
+      "accepted_position_precision": 0.9726027397260274,
+      "catastrophic_false_loop_count": 0,
+      "positive_revisit_segment_count": 3,
+      "positive_revisit_segment_hit_count": 3,
+      "revisit_segment_recall": 1.0
+    },
+    "episodes": {
+      "kitti360_drive0005_positive": {
+        "frames": 900,
+        "keyframes": 897,
+        "accepted_loops": 23,
+        "correct_loops": 23,
+        "catastrophic_false_loops": 0,
+        "revisit_segments": 1,
+        "revisit_segment_hits": 1,
+        "ate_translation_rmse_m": 0.27760833066354296,
+        "ate_translation_p95_m": 0.6449069585071336,
+        "ate_rotation_rmse_deg": 0.06224667954396612
+      },
+      "kitti360_drive0003_control": {
+        "frames": 900,
+        "keyframes": 768,
+        "accepted_loops": 0,
+        "catastrophic_false_loops": 0
+      },
+      "m2dgr_gate02_low_overlap_control": {
+        "frames": 600,
+        "keyframes": 194,
+        "accepted_loops": 0,
+        "catastrophic_false_loops": 0
+      },
+      "m2dgr_hall05_positive_position": {
+        "frames": 500,
+        "keyframes": 220,
+        "accepted_loops": 73,
+        "position_consistent_loops": 71,
+        "catastrophic_false_loops": 0,
+        "revisit_segments": 2,
+        "revisit_segment_hits": 2,
+        "ate_translation_rmse_m": 0.10594165588296776,
+        "ate_translation_p95_m": 0.1868871101375705
+      }
+    }
+  },
+  "scope_note": "FA-02B PASS establishes deterministic backend correction under the frozen correlated GT-derived odometry model. Clean FA-02 PASS establishes non-regression on the frozen KITTI-360 and M2DGR backend matrix. Neither result establishes FAST_LIO frontend accuracy, loaded-map runtime performance, cross-session merge correctness, or broad industrial release readiness."
+}
