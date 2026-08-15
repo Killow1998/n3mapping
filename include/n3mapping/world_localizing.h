@@ -2,11 +2,16 @@
 // localization with T_map_odom.
 #pragma once
 
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
+#include <thread>
+#include <tuple>
 #include <vector>
 
 #include <Eigen/Core>
@@ -22,8 +27,8 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_candidate_evaluator.h"
-#include "n3mapping/relocalization_decision_policy.h"
 #include "n3mapping/relocalization_debug_emitter.h"
+#include "n3mapping/relocalization_decision_policy.h"
 #include "n3mapping/relocalization_hypothesis_manager.h"
 #include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/relocalization_query_builder.h"
@@ -83,11 +88,11 @@ public:
 
   WorldLocalizing(const Config &config, KeyframeManager &keyframe_manager,
                   LoopDetector &loop_detector, PointCloudMatcher &matcher);
+  ~WorldLocalizing();
 
-  RelocResult relocalize(const PointCloudT::Ptr &cloud,
-                         const Eigen::Isometry3d &odom_pose,
-                         double query_timestamp =
-                             std::numeric_limits<double>::quiet_NaN());
+  RelocResult
+  relocalize(const PointCloudT::Ptr &cloud, const Eigen::Isometry3d &odom_pose,
+             double query_timestamp = std::numeric_limits<double>::quiet_NaN());
   RelocResult trackLocalization(const PointCloudT::Ptr &cloud,
                                 const Eigen::Isometry3d &odom_pose);
   // Strict local tracking used while extending a loaded map. Registration
@@ -135,9 +140,9 @@ public:
                          const Eigen::Isometry3d &oracle_pose);
   // Cross-session constraints must explain the current scan in the immutable
   // loaded map, not in keyframes added by the extension they are judging.
-  VisibilityConsistencyResult evaluateLoadedMapPoseVisibility(
-      const PointCloudT::Ptr &query_cloud,
-      const Eigen::Isometry3d &T_map_lidar);
+  VisibilityConsistencyResult
+  evaluateLoadedMapPoseVisibility(const PointCloudT::Ptr &query_cloud,
+                                  const Eigen::Isometry3d &T_map_lidar);
 
 private:
   using RelocHypothesis = RelocalizationHypothesis;
@@ -150,19 +155,52 @@ private:
     bool accepted = false;
   };
 
+  struct LoadedMapTrackingTargetCacheEntry {
+    int64_t anchor_id = -1;
+    std::size_t loaded_keyframe_count = 0;
+    KeyframeMapRevision map_revision;
+    PointCloudMatcher::PreparedTarget target;
+  };
+
+  struct LoadedMapTrackingTargetPrefetchRequest {
+    int64_t anchor_id = -1;
+    Eigen::Vector3d crop_center = Eigen::Vector3d::Zero();
+    PointCloudT::Ptr loaded_map;
+    std::size_t loaded_keyframe_count = 0;
+    KeyframeMapRevision map_revision;
+    std::uint64_t cache_epoch = 0;
+  };
+
+  using LoadedMapTrackingTargetRequestKey =
+      std::tuple<int64_t, std::uint64_t, std::uint64_t, std::size_t>;
+
   RelocMatchQuality evaluateRelocMatchQuality(const MatchResult &match) const;
 
   void rebuildRelocMapCacheIfNeeded();
   void rebuildLoadedMapVisibilityCacheIfNeeded();
   void invalidateLoadedMapTrackingTargetCache();
-  PointCloudMatcher::PreparedTarget prepareLoadedMapTrackingTarget(
-      int64_t anchor_id, const PointCloudT::Ptr &submap, bool *cache_hit,
-      bool *cache_miss);
+  PointCloudMatcher::PreparedTarget
+  prepareLoadedMapTrackingTarget(int64_t anchor_id,
+                                 const PointCloudT::Ptr &submap,
+                                 bool *cache_hit, bool *cache_miss);
+  void
+  requestLoadedMapTrackingTargetPrefetch(const Eigen::Vector3d &query_position,
+                                         int64_t current_anchor_id);
+  void loadedMapTrackingTargetPrefetchLoop();
+  bool
+  hasLoadedMapTrackingTargetLocked(int64_t anchor_id,
+                                   const KeyframeMapRevision &map_revision,
+                                   std::size_t loaded_keyframe_count) const;
+  static LoadedMapTrackingTargetRequestKey
+  loadedMapTrackingTargetRequestKey(int64_t anchor_id,
+                                    const KeyframeMapRevision &map_revision,
+                                    std::size_t loaded_keyframe_count);
   void rebuildFreeSpaceGridIfNeeded();
   void killFreeSpaceDominatedHypotheses(const PointCloudT::Ptr &query_cloud,
                                         const Eigen::Isometry3d &odom_pose);
-  const RelocHypothesis *freeSpaceBestHypothesis(
-      const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose);
+  const RelocHypothesis *
+  freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
+                          const Eigen::Isometry3d &odom_pose);
   PointCloudT::Ptr buildRelocTargetCloud(int64_t center_id);
   RelocTargetRequest makeRelocTargetRequest(int64_t center_id);
   VisibilityConsistencyResult
@@ -199,11 +237,17 @@ private:
   PointCloudT::Ptr loaded_map_visibility_cache_;
   size_t loaded_map_visibility_cached_keyframes_ = 0;
   KeyframeMapRevision loaded_map_visibility_revision_;
-  PointCloudMatcher::PreparedTarget loaded_map_tracking_target_cache_;
-  bool loaded_map_tracking_target_cache_valid_ = false;
-  int64_t loaded_map_tracking_target_anchor_id_ = -1;
-  size_t loaded_map_tracking_target_cached_keyframes_ = 0;
-  KeyframeMapRevision loaded_map_tracking_target_revision_;
+  std::deque<LoadedMapTrackingTargetCacheEntry>
+      loaded_map_tracking_target_cache_;
+  std::deque<LoadedMapTrackingTargetPrefetchRequest>
+      loaded_map_tracking_target_prefetch_queue_;
+  std::set<LoadedMapTrackingTargetRequestKey>
+      loaded_map_tracking_target_prefetch_pending_;
+  mutable std::mutex loaded_map_tracking_target_cache_mutex_;
+  std::condition_variable loaded_map_tracking_target_prefetch_cv_;
+  std::thread loaded_map_tracking_target_prefetch_thread_;
+  bool loaded_map_tracking_target_prefetch_stop_ = false;
+  std::uint64_t loaded_map_tracking_target_cache_epoch_ = 0;
   size_t loaded_map_tracking_target_cache_hits_ = 0;
   size_t loaded_map_tracking_target_cache_misses_ = 0;
   FreeSpaceGrid free_space_grid_;

@@ -27,6 +27,9 @@ namespace {
 constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
+constexpr std::size_t kLoadedMapTrackingTargetCacheEntries = 3;
+constexpr std::size_t kLoadedMapTrackingTargetPrefetchQueueEntries =
+    kLoadedMapTrackingTargetCacheEntries * 2;
 
 bool hasValidRegistrationResult(const MatchResult &match) {
   return match.converged && std::isfinite(match.fitness_score) &&
@@ -45,11 +48,11 @@ bool hasUsablePreparedTarget(
   if (prepared.plane_levels.size() < 2) {
     return false;
   }
-  return std::all_of(
-      prepared.plane_levels.begin(), prepared.plane_levels.end(),
-      [](const PointCloudMatcher::PreparedTargetLevel &level) {
-        return level.cloud && level.kdtree && level.cloud->size() >= 10;
-      });
+  return std::all_of(prepared.plane_levels.begin(), prepared.plane_levels.end(),
+                     [](const PointCloudMatcher::PreparedTargetLevel &level) {
+                       return level.cloud && level.kdtree &&
+                              level.cloud->size() >= 10;
+                     });
 }
 
 void fillQueryCloudDebugSummary(const PlaceObservation &observation,
@@ -78,20 +81,33 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       place_index_(config_, keyframe_manager_, loop_detector_),
       localization_atlas_(
           std::make_unique<LocalizationAtlas>(config_, matcher_)),
-      target_provider_(makeRelocTargetProvider(config_, matcher_,
-                                               *localization_atlas_)),
+      target_provider_(
+          makeRelocTargetProvider(config_, matcher_, *localization_atlas_)),
       candidate_evaluator_(config_, keyframe_manager_, matcher_,
                            *target_provider_),
       decision_policy_(config_), debug_emitter_(config_),
       reloc_map_cache_(pcl::make_shared<PointCloudT>()),
       reloc_map_cached_keyframes_(0),
       loaded_map_visibility_cache_(pcl::make_shared<PointCloudT>()),
-      is_relocalized_(false),
-      has_ever_relocalized_(false),
+      is_relocalized_(false), has_ever_relocalized_(false),
       T_map_odom_(Eigen::Isometry3d::Identity()), last_matched_id_(-1),
       relocalization_seed_id_(-1),
       last_odom_pose_(Eigen::Isometry3d::Identity()),
-      consecutive_track_failures_(0) {}
+      consecutive_track_failures_(0) {
+  loaded_map_tracking_target_prefetch_thread_ =
+      std::thread(&WorldLocalizing::loadedMapTrackingTargetPrefetchLoop, this);
+}
+
+WorldLocalizing::~WorldLocalizing() {
+  {
+    std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);
+    loaded_map_tracking_target_prefetch_stop_ = true;
+  }
+  loaded_map_tracking_target_prefetch_cv_.notify_all();
+  if (loaded_map_tracking_target_prefetch_thread_.joinable()) {
+    loaded_map_tracking_target_prefetch_thread_.join();
+  }
+}
 
 RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                                         const Eigen::Isometry3d &odom_pose,
@@ -100,8 +116,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   RelocResult result;
   result.success = false;
   const bool reloc_debug_enabled = debug_emitter_.enabled();
-  RelocalizationDebugEvent debug_event =
-      debug_emitter_.beginRelocalization();
+  RelocalizationDebugEvent debug_event = debug_emitter_.beginRelocalization();
   debug_event.query_timestamp = query_timestamp;
   auto finish_debug = [&](const std::string &lock_result,
                           const std::string &reject_reason) {
@@ -417,8 +432,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             best.visibility.foreground_conflict_given_known;
         summary.visibility_evidence_log_odds_given_known =
             best.visibility.evidence_log_odds_given_known;
-        summary.registration_observability =
-            best.registration_observability;
+        summary.registration_observability = best.registration_observability;
         debug_event.basin_best_results.push_back(std::move(summary));
       }
     }
@@ -484,8 +498,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         continue;
       }
 
-      RelocTargetRequest target_request =
-          makeRelocTargetRequest(nearest_kf_id);
+      RelocTargetRequest target_request = makeRelocTargetRequest(nearest_kf_id);
       auto submap = target_request.local_target;
       if (!submap || submap->empty()) {
         hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
@@ -535,14 +548,18 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         const Eigen::Matrix3d cross_info = mr.information.block<3, 3>(3, 0);
         const Eigen::Matrix3d rot_marginal =
             rot_info -
-            cross_info * trans_info.completeOrthogonalDecomposition().pseudoInverse() *
+            cross_info *
+                trans_info.completeOrthogonalDecomposition().pseudoInverse() *
                 cross_info.transpose();
         const Eigen::Vector3d re =
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_info).eigenvalues();
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_info)
+                .eigenvalues();
         const Eigen::Vector3d rm =
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_marginal).eigenvalues();
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_marginal)
+                .eigenvalues();
         const Eigen::Vector3d te =
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(trans_info).eigenvalues();
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(trans_info)
+                .eigenvalues();
         const bool production_quality =
             mr.success && mr.fitness_score <= config_.gicp_fitness_threshold &&
             mr.inlier_ratio >= config_.reloc_min_inlier_ratio;
@@ -558,13 +575,12 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         if (reloc_debug_enabled) {
           hyp.last_registration_observability =
               analyzeRegistrationObservability(
-                  mr, selected_registration_endpoint
-                          ? "registration_endpoint"
-                          : "motion_prediction",
+                  mr,
+                  selected_registration_endpoint ? "registration_endpoint"
+                                                 : "motion_prediction",
                   information_at_selected_pose, production_quality);
         }
-        VLOG(1) << "[Reloc/Info] seed=" << hyp.seed_match_id
-                << " pose="
+        VLOG(1) << "[Reloc/Info] seed=" << hyp.seed_match_id << " pose="
                 << (selected_registration_endpoint ? "refined" : "predicted")
                 << " prod_quality=" << production_quality
                 << " rot_eig=" << re(0) << "," << re(1) << "," << re(2)
@@ -620,8 +636,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     }
   }
 
-  const RelocalizationRanking ranking = decision_policy_.rank(
-      hypothesis_manager_.hypotheses(), odom_pose);
+  const RelocalizationRanking ranking =
+      decision_policy_.rank(hypothesis_manager_.hypotheses(), odom_pose);
   const RelocHypothesis *top1 = ranking.top1;
   const RelocHypothesis *top2 = ranking.top2;
   const double top1_ll = ranking.top1_log_likelihood;
@@ -670,9 +686,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       debug_event.winner_pose_rotation_delta = winner_stability.rotation_delta;
     }
 
-    VLOG(1) << "[Reloc/Stability] window="
-            << hypothesis_manager_.windowCount() << "/"
-            << config_.reloc_temporal_window_size
+    VLOG(1) << "[Reloc/Stability] window=" << hypothesis_manager_.windowCount()
+            << "/" << config_.reloc_temporal_window_size
             << " top1(seed=" << top1->seed_match_id
             << ",last_kf=" << top1->last_match_id << ",ll=" << top1_ll
             << ",conv_updates=" << top1->converged_updates
@@ -691,22 +706,21 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 
   const HypothesisMotionBaseline motion_baseline =
       hypothesis_manager_.motionBaseline(odom_pose);
-  const RelocalizationDecision decision = decision_policy_.evaluate(
-      ranking, hypothesis_manager_.windowCount(),
-      hypothesis_manager_.winnerStreak(), motion_baseline, free_space_best,
-      odom_pose);
+  const RelocalizationDecision decision =
+      decision_policy_.evaluate(ranking, hypothesis_manager_.windowCount(),
+                                hypothesis_manager_.winnerStreak(),
+                                motion_baseline, free_space_best, odom_pose);
   const int effective_temporal_window = decision.effective_temporal_window;
   if (decision.temporal_window_pending) {
     VLOG(1) << "Relocalization pending: window "
-            << hypothesis_manager_.windowCount()
-            << "/" << effective_temporal_window
+            << hypothesis_manager_.windowCount() << "/"
+            << effective_temporal_window
             << ", active hypotheses=" << hypothesis_manager_.size();
     finish_debug("pending", "temporal_window_pending");
     return result;
   }
 
-  const int effective_min_winner_streak =
-      decision.effective_min_winner_streak;
+  const int effective_min_winner_streak = decision.effective_min_winner_streak;
   const int effective_min_converged_updates =
       decision.effective_min_converged_updates;
   const double effective_min_margin = decision.effective_min_margin;
@@ -721,14 +735,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   // Once the sensor has moved beyond the existing static-aggregation contract,
   // the new viewpoints must not cumulatively disconfirm the pose. Zero log odds
   // is the model's semantic support/opposition boundary, not a tuned score.
-  VLOG(1) << "[Reloc/Baseline] window="
-          << hypothesis_manager_.windowCount()
+  VLOG(1) << "[Reloc/Baseline] window=" << hypothesis_manager_.windowCount()
           << " persisted=" << hypothesis_manager_.persistedFrames()
           << " motion_translation_m=" << evidence_motion_translation
-          << " motion_rotation_deg="
-          << evidence_motion_rotation * 180.0 / M_PI;
-  const bool moving_visibility_required =
-      decision.moving_visibility_required;
+          << " motion_rotation_deg=" << evidence_motion_rotation * 180.0 / M_PI;
+  const bool moving_visibility_required = decision.moving_visibility_required;
   const bool pass_moving_visibility = decision.pass_moving_visibility;
   const bool top2_viable = decision.top2_viable;
   const double basin_separation = ranking.basin_separation;
@@ -788,17 +799,17 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       const Eigen::Quaterniond kq(skf->pose_optimized.rotation());
       const Eigen::Vector3d kt = skf->pose_optimized.translation();
       LOG(INFO) << std::fixed << std::setprecision(9)
-                << "[Reloc/LockKF] id=" << skf->id << " stamp=" << skf->timestamp
-                << " t=" << kt.x() << "," << kt.y() << "," << kt.z()
-                << " q=" << kq.x() << "," << kq.y() << "," << kq.z() << ","
-                << kq.w();
+                << "[Reloc/LockKF] id=" << skf->id
+                << " stamp=" << skf->timestamp << " t=" << kt.x() << ","
+                << kt.y() << "," << kt.z() << " q=" << kq.x() << "," << kq.y()
+                << "," << kq.z() << "," << kq.w();
     }
     LOG(INFO) << "[Reloc/LockPose] pose="
               << (best.last_pose_is_refined ? "refined" : "predicted")
               << " prod_quality=" << best.last_production_quality
               << " rot_info_marginal_min=" << best.last_rot_info_marginal_min;
-    LOG(INFO) << "[Reloc/LockTerm] iters=" << best.last_iterations
-              << " term=" << matchTerminationName(
+    LOG(INFO) << "[Reloc/LockTerm] iters=" << best.last_iterations << " term="
+              << matchTerminationName(
                      static_cast<MatchTermination>(best.last_termination))
               << " inlier_ratio=" << best.last_inlier_ratio
               << " fitness=" << best.last_fitness;
@@ -818,8 +829,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
               << ", moving_visibility=" << pass_moving_visibility
               << ", ambiguous=" << ambiguous << ")"
               << ", margin_value=" << margin
-              << ", winner_streak_value="
-              << hypothesis_manager_.winnerStreak()
+              << ", winner_streak_value=" << hypothesis_manager_.winnerStreak()
               << ", converged_updates_value=" << best.converged_updates
               << ", ratio_value=" << ratio
               << ", basin_separation=" << basin_separation;
@@ -874,9 +884,9 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   // viewpoint baseline at 1-3 cm. The manager keeps the seed pose across
   // rejected windows, so the baseline grows with the robot's motion.
   const HypothesisPersistenceResult persistence =
-      hypothesis_manager_.finishWindow(
-          result.success, config_.reloc_persist_hypotheses,
-          config_.reloc_persist_max_frames);
+      hypothesis_manager_.finishWindow(result.success,
+                                       config_.reloc_persist_hypotheses,
+                                       config_.reloc_persist_max_frames);
   if (persistence.reseeded) {
     VLOG(1) << "[Reloc/Persist] reseeding: alive=" << persistence.any_alive
             << " persisted_frames=" << persistence.persisted_frames;
@@ -905,9 +915,8 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   RelocResult result;
   result.success = false;
   const bool reloc_debug_enabled = debug_emitter_.enabled();
-  const auto tracking_started = reloc_debug_enabled
-                                    ? TrackingClock::now()
-                                    : TrackingClock::time_point{};
+  const auto tracking_started =
+      reloc_debug_enabled ? TrackingClock::now() : TrackingClock::time_point{};
   RelocTrackingDebugEvent debug_event = debug_emitter_.beginTracking();
   debug_event.strict_loaded_map = strict_loaded_map;
   const auto timing_started = [&]() {
@@ -921,9 +930,8 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   };
   auto finish_tracking_debug = [&](const std::string &reject_reason) {
     result.decision = reject_reason.empty()
-                          ? (strict_loaded_map
-                                 ? "loaded_map_tracking_geometric"
-                                 : "tracking_geometric")
+                          ? (strict_loaded_map ? "loaded_map_tracking_geometric"
+                                               : "tracking_geometric")
                           : reject_reason;
     if (!reloc_debug_enabled) {
       return;
@@ -935,11 +943,10 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
   if (!cloud || cloud->empty()) {
     std::lock_guard<std::mutex> lock(mutex_);
-    result.state =
-        is_relocalized_
-            ? RelocalizationState::RECENTLY_LOST
-            : (has_ever_relocalized_ ? RelocalizationState::LOST
-                                     : RelocalizationState::SEARCHING);
+    result.state = is_relocalized_ ? RelocalizationState::RECENTLY_LOST
+                                   : (has_ever_relocalized_
+                                          ? RelocalizationState::LOST
+                                          : RelocalizationState::SEARCHING);
     result.pose_source =
         is_relocalized_ ? PoseSource::ODOM_PREDICTED : PoseSource::NONE;
     result.seed_keyframe_id = relocalization_seed_id_;
@@ -1032,10 +1039,10 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
       LocalMapSelectionRequest shadow_request;
       shadow_request.predicted_pose = predicted_pose;
       shadow_request.anchor_id = nearest_kf_id;
-      shadow_request.spatial_radius = std::max(
-          config_.keyframe_distance_threshold,
-          static_cast<double>(submap_range) *
-              config_.keyframe_distance_threshold);
+      shadow_request.spatial_radius =
+          std::max(config_.keyframe_distance_threshold,
+                   static_cast<double>(submap_range) *
+                       config_.keyframe_distance_threshold);
       shadow_request.max_spatial_keyframes = 2 * submap_range + 1;
       // A frozen localization map has no active-session tail. Adding the
       // highest map ids would mix an unrelated map endpoint into the target;
@@ -1052,20 +1059,18 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
           legacy_ids.insert(id);
         }
       }
-      const std::set<int64_t> spatial_ids(
-          shadow_selection.keyframe_ids.begin(),
-          shadow_selection.keyframe_ids.end());
+      const std::set<int64_t> spatial_ids(shadow_selection.keyframe_ids.begin(),
+                                          shadow_selection.keyframe_ids.end());
       std::size_t intersection_size = 0;
       for (const int64_t id : legacy_ids) {
         intersection_size += spatial_ids.count(id);
       }
       const std::size_t union_size =
           legacy_ids.size() + spatial_ids.size() - intersection_size;
-      const double jaccard =
-          union_size > 0
-              ? static_cast<double>(intersection_size) /
-                    static_cast<double>(union_size)
-              : 1.0;
+      const double jaccard = union_size > 0
+                                 ? static_cast<double>(intersection_size) /
+                                       static_cast<double>(union_size)
+                                 : 1.0;
       VLOG(1) << "[LocalMapShadow] path=tracking anchor_id=" << nearest_kf_id
               << " radius=" << shadow_request.spatial_radius
               << " max_spatial=" << shadow_request.max_spatial_keyframes
@@ -1076,16 +1081,14 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
               << " spatial_points=" << shadow_selection.selected_points
               << " index_rebuilt=" << shadow_selection.index_rebuilt
               << " index_build_ms=" << shadow_selection.index_build_ms
-              << " query_ms=" << shadow_selection.query_ms
-              << " revision_match="
+              << " query_ms=" << shadow_selection.query_ms << " revision_match="
               << shadow_selection.requested_revision_matched
               << " loaded=" << shadow_selection.loaded_keyframes
               << " current=" << shadow_selection.current_keyframes
               << " mixed_loaded_state="
               << (shadow_selection.loaded_keyframes > 0 &&
                   shadow_selection.current_keyframes > 0)
-              << " z_span="
-              << (shadow_selection.z_max - shadow_selection.z_min)
+              << " z_span=" << (shadow_selection.z_max - shadow_selection.z_min)
               << " floor_labels=unavailable";
     }
   }
@@ -1115,10 +1118,13 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   const auto prepared_target =
       strict_loaded_map
           ? prepareLoadedMapTrackingTarget(
-                nearest_kf_id, submap,
-                &debug_event.loaded_map_target_cache_hit,
+                nearest_kf_id, submap, &debug_event.loaded_map_target_cache_hit,
                 &debug_event.loaded_map_target_cache_miss)
           : matcher_.prepareTargetCloud(submap);
+  if (strict_loaded_map) {
+    requestLoadedMapTrackingTargetPrefetch(predicted_pose.translation(),
+                                           nearest_kf_id);
+  }
   if (reloc_debug_enabled) {
     debug_event.target_prepare_ms = elapsed_ms(target_prepare_started);
   }
@@ -1182,12 +1188,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
       const auto visibility_started = timing_started();
       const auto predicted_visibility =
           evaluatePoseVisibility(submap, cloud, predicted_pose);
-      visibility = evaluatePoseVisibility(
-          submap, cloud, match_result.T_target_source);
+      visibility =
+          evaluatePoseVisibility(submap, cloud, match_result.T_target_source);
       if (predicted_visibility.valid &&
-          (!visibility.valid ||
-           predicted_visibility.consistency_ratio >
-               visibility.consistency_ratio + 1e-9)) {
+          (!visibility.valid || predicted_visibility.consistency_ratio >
+                                    visibility.consistency_ratio + 1e-9)) {
         // ICP is a local proposal, not authority to slide along a repeated
         // surface. Retain the prediction when the immutable loaded map
         // explains it better than the optimizer endpoint.
@@ -1207,8 +1212,8 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   const bool strict_geometry_ok =
       !strict_loaded_map ||
       (delta_translation <= config_.reloc_track_max_translation &&
-       delta_rotation <= config_.reloc_track_max_rotation &&
-       visibility.valid && visibility.evidence_log_odds > 0.0);
+       delta_rotation <= config_.reloc_track_max_rotation && visibility.valid &&
+       visibility.evidence_log_odds > 0.0);
 
   const bool accepted_icp = icp_ok && strict_geometry_ok;
 
@@ -1261,10 +1266,9 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     consecutive_track_failures_ = 0;
 
     VLOG(1) << (strict_loaded_map ? "Loaded-map tracking OK: fitness="
-                                        : "Tracking OK: fitness=")
-            << match_result.fitness_score
-            << " conf=" << current_confidence << " alpha=" << alpha
-            << " delta_t=" << delta_translation
+                                  : "Tracking OK: fitness=")
+            << match_result.fitness_score << " conf=" << current_confidence
+            << " alpha=" << alpha << " delta_t=" << delta_translation
             << " delta_r=" << delta_rotation
             << " visibility_logodds=" << visibility.evidence_log_odds;
     finish_tracking_debug("");
@@ -1301,10 +1305,9 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     result.pose_in_map = predicted_pose;
     result.confidence = 0.2;
     last_odom_pose_ = odom_pose;
-    finish_tracking_debug(
-        strict_loaded_map && icp_ok && !strict_geometry_ok
-            ? "loaded_map_tracking_geometry_gate_failed"
-            : "icp_gate_failed");
+    finish_tracking_debug(strict_loaded_map && icp_ok && !strict_geometry_ok
+                              ? "loaded_map_tracking_geometry_gate_failed"
+                              : "icp_gate_failed");
   }
 
   return result;
@@ -1369,9 +1372,7 @@ void WorldLocalizing::notifyMapReplaced() {
   }
 }
 
-void WorldLocalizing::reset() {
-  resetLocalizationState();
-}
+void WorldLocalizing::reset() { resetLocalizationState(); }
 
 WorldLocalizing::WorldLocalizingCacheDiagnostics
 WorldLocalizing::cacheDiagnostics() const {
@@ -1390,10 +1391,14 @@ WorldLocalizing::cacheDiagnostics() const {
     d.reloc_target_cache_bytes = target_diag.cache_total_bytes;
     d.reloc_target_cache_entries = target_diag.cache_entries;
   }
-  d.loaded_map_target_cache_hits = loaded_map_tracking_target_cache_hits_;
-  d.loaded_map_target_cache_misses = loaded_map_tracking_target_cache_misses_;
-  d.loaded_map_target_cache_entries =
-      loaded_map_tracking_target_cache_valid_ ? 1u : 0u;
+  {
+    std::lock_guard<std::mutex> cache_lock(
+        loaded_map_tracking_target_cache_mutex_);
+    d.loaded_map_target_cache_hits = loaded_map_tracking_target_cache_hits_;
+    d.loaded_map_target_cache_misses = loaded_map_tracking_target_cache_misses_;
+    d.loaded_map_target_cache_entries =
+        loaded_map_tracking_target_cache_.size();
+  }
   return d;
 }
 
@@ -1524,8 +1529,7 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
     return result;
   }
 
-  const auto yaw_hypotheses =
-      buildDescriptorYawHypotheses(candidate, config_);
+  const auto yaw_hypotheses = buildDescriptorYawHypotheses(candidate, config_);
   for (const double yaw : yaw_hypotheses) {
     RegistrationSeedProbeAttempt attempt;
     attempt.seed_kind = "descriptor";
@@ -1550,18 +1554,16 @@ WorldLocalizing::evaluateRelocMatchQuality(const MatchResult &match) const {
   const bool finite_metrics =
       std::isfinite(match.fitness_score) && std::isfinite(match.inlier_ratio);
   quality.fitness_pass =
-      finite_metrics &&
-      match.fitness_score < config_.gicp_fitness_threshold;
+      finite_metrics && match.fitness_score < config_.gicp_fitness_threshold;
   quality.inlier_pass =
-      finite_metrics &&
-      match.inlier_ratio >= config_.reloc_min_inlier_ratio;
+      finite_metrics && match.inlier_ratio >= config_.reloc_min_inlier_ratio;
   const double scale = std::max(1e-6, config_.gicp_fitness_threshold * 0.5);
   quality.confidence = std::exp(-match.fitness_score / scale);
   quality.confidence = std::clamp(quality.confidence, 0.0, 1.0);
   quality.confidence_pass = quality.confidence >= config_.reloc_min_confidence;
   quality.accepted = hasValidRegistrationResult(match) &&
-                     quality.fitness_pass &&
-                     quality.inlier_pass && quality.confidence_pass;
+                     quality.fitness_pass && quality.inlier_pass &&
+                     quality.confidence_pass;
   return quality;
 }
 
@@ -1632,8 +1634,8 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
 // ranking no longer orders, and the gate stops working. Here the existing
 // visibility ranking and the existing gate run unchanged, on survivors.
 const WorldLocalizing::RelocHypothesis *
-WorldLocalizing::freeSpaceBestHypothesis(
-    const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &odom_pose) {
+WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
+                                         const Eigen::Isometry3d &odom_pose) {
   if (!config_.reloc_free_space_enable || !query_cloud || query_cloud->empty())
     return nullptr;
   rebuildFreeSpaceGridIfNeeded();
@@ -1651,14 +1653,15 @@ WorldLocalizing::freeSpaceBestHypothesis(
   for (const auto &hyp : hypothesis_manager_.hypotheses()) {
     if (!hyp.alive)
       continue;
-    const auto s = free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
+    const auto s =
+        free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
     if (!s.valid)
       continue;
     VLOG(1) << "[Reloc/FreeSpaceCov] seed=" << hyp.seed_match_id
             << " value=" << s.value << " known_frac=" << s.known_fraction
             << " occ|known=" << s.occupied_given_known
-            << " free|known=" << s.free_given_known
-            << " n=" << s.scored_points << " known=" << s.known_points;
+            << " free|known=" << s.free_given_known << " n=" << s.scored_points
+            << " known=" << s.known_points;
     if (!best || s.value > best_value) {
       best = &hyp;
       best_value = s.value;
@@ -1705,10 +1708,12 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
     VLOG(1) << "[Reloc/FreeSpaceDump] i=" << i
             << " seed=" << hypotheses[i].seed_match_id
             << " conv=" << hypotheses[i].converged_updates
-            << " value=" << scores[i].value << " occ=" << scores[i].occupied_fraction
-            << " free=" << scores[i].free_fraction << " n=" << scores[i].scored_points
-            << " sd=" << scores[i].stddev << " xyz=" << hp.translation().x() << ","
-            << hp.translation().y() << "," << hp.translation().z();
+            << " value=" << scores[i].value
+            << " occ=" << scores[i].occupied_fraction
+            << " free=" << scores[i].free_fraction
+            << " n=" << scores[i].scored_points << " sd=" << scores[i].stddev
+            << " xyz=" << hp.translation().x() << "," << hp.translation().y()
+            << "," << hp.translation().z();
   }
 
   // The separation test is the sampling noise itself, not a tuned threshold:
@@ -1731,8 +1736,8 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
   if (killed > 0) {
     VLOG(1) << "[Reloc/FreeSpace] killed " << killed << " of " << alive
             << " hypotheses, best value=" << top.value
-            << " occ=" << top.occupied_fraction
-            << " free=" << top.free_fraction << " n=" << top.scored_points;
+            << " occ=" << top.occupied_fraction << " free=" << top.free_fraction
+            << " n=" << top.scored_points;
   }
 }
 
@@ -1768,8 +1773,7 @@ WorldLocalizing::buildRelocTargetCloud(int64_t center_id) {
       config_, reloc_map_cache_, center_keyframe->pose_optimized.translation());
 }
 
-RelocTargetRequest
-WorldLocalizing::makeRelocTargetRequest(int64_t center_id) {
+RelocTargetRequest WorldLocalizing::makeRelocTargetRequest(int64_t center_id) {
   using Clock = std::chrono::steady_clock;
   const auto start = Clock::now();
 
@@ -1793,8 +1797,7 @@ void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
       loaded_keyframes.push_back(keyframe);
     }
   }
-  if (loaded_map_visibility_cache_ &&
-      !loaded_map_visibility_cache_->empty() &&
+  if (loaded_map_visibility_cache_ && !loaded_map_visibility_cache_->empty() &&
       sameGenerationAndPose(loaded_map_visibility_revision_,
                             current_revision) &&
       loaded_map_visibility_cached_keyframes_ == loaded_keyframes.size()) {
@@ -1808,17 +1811,18 @@ void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
 }
 
 void WorldLocalizing::invalidateLoadedMapTrackingTargetCache() {
-  loaded_map_tracking_target_cache_ = {};
-  loaded_map_tracking_target_cache_valid_ = false;
-  loaded_map_tracking_target_anchor_id_ = -1;
-  loaded_map_tracking_target_cached_keyframes_ = 0;
-  loaded_map_tracking_target_revision_ = {};
+  std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);
+  loaded_map_tracking_target_cache_.clear();
+  loaded_map_tracking_target_prefetch_queue_.clear();
+  loaded_map_tracking_target_prefetch_pending_.clear();
+  ++loaded_map_tracking_target_cache_epoch_;
 }
 
 PointCloudMatcher::PreparedTarget
-WorldLocalizing::prepareLoadedMapTrackingTarget(
-    int64_t anchor_id, const PointCloudT::Ptr &submap, bool *cache_hit,
-    bool *cache_miss) {
+WorldLocalizing::prepareLoadedMapTrackingTarget(int64_t anchor_id,
+                                                const PointCloudT::Ptr &submap,
+                                                bool *cache_hit,
+                                                bool *cache_miss) {
   if (cache_hit) {
     *cache_hit = false;
   }
@@ -1826,46 +1830,199 @@ WorldLocalizing::prepareLoadedMapTrackingTarget(
     *cache_miss = false;
   }
 
-  const KeyframeMapRevision current_revision = keyframe_manager_.revision();
-  const bool reusable =
-      loaded_map_tracking_target_cache_valid_ &&
-      loaded_map_tracking_target_anchor_id_ == anchor_id &&
-      sameGenerationAndPose(loaded_map_tracking_target_revision_,
-                            current_revision) &&
-      loaded_map_tracking_target_cached_keyframes_ ==
-          loaded_map_visibility_cached_keyframes_;
-  if (reusable) {
-    ++loaded_map_tracking_target_cache_hits_;
-    if (cache_hit) {
-      *cache_hit = true;
+  const KeyframeMapRevision current_revision = loaded_map_visibility_revision_;
+  const std::size_t loaded_keyframe_count =
+      loaded_map_visibility_cached_keyframes_;
+  std::uint64_t build_epoch = 0;
+  {
+    std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);
+    for (auto it = loaded_map_tracking_target_cache_.begin();
+         it != loaded_map_tracking_target_cache_.end(); ++it) {
+      const bool reusable =
+          it->anchor_id == anchor_id &&
+          sameGenerationAndPose(it->map_revision, current_revision) &&
+          it->loaded_keyframe_count == loaded_keyframe_count &&
+          hasUsablePreparedTarget(it->target);
+      if (!reusable) {
+        continue;
+      }
+      ++loaded_map_tracking_target_cache_hits_;
+      if (cache_hit) {
+        *cache_hit = true;
+      }
+      if (it != loaded_map_tracking_target_cache_.begin()) {
+        auto entry = std::move(*it);
+        loaded_map_tracking_target_cache_.erase(it);
+        loaded_map_tracking_target_cache_.push_front(std::move(entry));
+      }
+      return loaded_map_tracking_target_cache_.front().target;
     }
-    return loaded_map_tracking_target_cache_;
+    ++loaded_map_tracking_target_cache_misses_;
+    build_epoch = loaded_map_tracking_target_cache_epoch_;
   }
 
-  ++loaded_map_tracking_target_cache_misses_;
   if (cache_miss) {
     *cache_miss = true;
   }
-  // Drop the previous entry before allocating the replacement so resident
-  // memory is bounded to one loaded-map target plus the in-progress build.
-  invalidateLoadedMapTrackingTargetCache();
   PointCloudMatcher::PreparedTarget prepared =
       matcher_.prepareTargetCloud(submap);
   if (hasUsablePreparedTarget(prepared)) {
-    loaded_map_tracking_target_cache_ = prepared;
-    loaded_map_tracking_target_cache_valid_ = true;
-    loaded_map_tracking_target_anchor_id_ = anchor_id;
-    loaded_map_tracking_target_cached_keyframes_ =
-        loaded_map_visibility_cached_keyframes_;
-    loaded_map_tracking_target_revision_ = loaded_map_visibility_revision_;
+    std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);
+    if (build_epoch == loaded_map_tracking_target_cache_epoch_ &&
+        !hasLoadedMapTrackingTargetLocked(anchor_id, current_revision,
+                                          loaded_keyframe_count)) {
+      LoadedMapTrackingTargetCacheEntry entry;
+      entry.anchor_id = anchor_id;
+      entry.loaded_keyframe_count = loaded_keyframe_count;
+      entry.map_revision = current_revision;
+      entry.target = prepared;
+      loaded_map_tracking_target_cache_.push_front(std::move(entry));
+      while (loaded_map_tracking_target_cache_.size() >
+             kLoadedMapTrackingTargetCacheEntries) {
+        loaded_map_tracking_target_cache_.pop_back();
+      }
+    }
   }
   return prepared;
 }
 
-VisibilityConsistencyResult
-WorldLocalizing::evaluateLoadedMapPoseVisibility(
-    const PointCloudT::Ptr &query_cloud,
-    const Eigen::Isometry3d &T_map_lidar) {
+WorldLocalizing::LoadedMapTrackingTargetRequestKey
+WorldLocalizing::loadedMapTrackingTargetRequestKey(
+    int64_t anchor_id, const KeyframeMapRevision &map_revision,
+    std::size_t loaded_keyframe_count) {
+  return {anchor_id, map_revision.generation, map_revision.pose_revision,
+          loaded_keyframe_count};
+}
+
+bool WorldLocalizing::hasLoadedMapTrackingTargetLocked(
+    int64_t anchor_id, const KeyframeMapRevision &map_revision,
+    std::size_t loaded_keyframe_count) const {
+  return std::any_of(
+      loaded_map_tracking_target_cache_.begin(),
+      loaded_map_tracking_target_cache_.end(),
+      [&](const LoadedMapTrackingTargetCacheEntry &entry) {
+        return entry.anchor_id == anchor_id &&
+               sameGenerationAndPose(entry.map_revision, map_revision) &&
+               entry.loaded_keyframe_count == loaded_keyframe_count &&
+               hasUsablePreparedTarget(entry.target);
+      });
+}
+
+void WorldLocalizing::requestLoadedMapTrackingTargetPrefetch(
+    const Eigen::Vector3d &query_position, int64_t current_anchor_id) {
+  if (!query_position.allFinite() || !loaded_map_visibility_cache_ ||
+      loaded_map_visibility_cache_->empty()) {
+    return;
+  }
+
+  std::vector<Keyframe::Ptr> nearest;
+  for (const auto &keyframe : keyframe_manager_.getAllKeyframes()) {
+    if (keyframe && keyframe->is_from_loaded_map &&
+        keyframe->pose_optimized.translation().allFinite()) {
+      nearest.push_back(keyframe);
+    }
+  }
+  std::sort(nearest.begin(), nearest.end(),
+            [&](const Keyframe::Ptr &lhs, const Keyframe::Ptr &rhs) {
+              return (lhs->pose_optimized.translation() - query_position)
+                         .squaredNorm() <
+                     (rhs->pose_optimized.translation() - query_position)
+                         .squaredNorm();
+            });
+
+  std::size_t requested = 0;
+  for (const auto &keyframe : nearest) {
+    if (keyframe->id == current_anchor_id) {
+      continue;
+    }
+    LoadedMapTrackingTargetPrefetchRequest request;
+    request.anchor_id = keyframe->id;
+    request.crop_center = keyframe->pose_optimized.translation();
+    request.loaded_map = loaded_map_visibility_cache_;
+    request.loaded_keyframe_count = loaded_map_visibility_cached_keyframes_;
+    request.map_revision = loaded_map_visibility_revision_;
+
+    {
+      std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);
+      const auto key = loadedMapTrackingTargetRequestKey(
+          request.anchor_id, request.map_revision,
+          request.loaded_keyframe_count);
+      if (hasLoadedMapTrackingTargetLocked(request.anchor_id,
+                                           request.map_revision,
+                                           request.loaded_keyframe_count) ||
+          loaded_map_tracking_target_prefetch_pending_.count(key) != 0u) {
+        continue;
+      }
+      request.cache_epoch = loaded_map_tracking_target_cache_epoch_;
+      while (loaded_map_tracking_target_prefetch_queue_.size() >=
+             kLoadedMapTrackingTargetPrefetchQueueEntries) {
+        const auto &dropped = loaded_map_tracking_target_prefetch_queue_.back();
+        loaded_map_tracking_target_prefetch_pending_.erase(
+            loadedMapTrackingTargetRequestKey(dropped.anchor_id,
+                                              dropped.map_revision,
+                                              dropped.loaded_keyframe_count));
+        loaded_map_tracking_target_prefetch_queue_.pop_back();
+      }
+      loaded_map_tracking_target_prefetch_queue_.push_back(request);
+      loaded_map_tracking_target_prefetch_pending_.insert(key);
+    }
+    loaded_map_tracking_target_prefetch_cv_.notify_one();
+    if (++requested >= kLoadedMapTrackingTargetCacheEntries - 1u) {
+      break;
+    }
+  }
+}
+
+void WorldLocalizing::loadedMapTrackingTargetPrefetchLoop() {
+  while (true) {
+    LoadedMapTrackingTargetPrefetchRequest request;
+    {
+      std::unique_lock<std::mutex> lock(
+          loaded_map_tracking_target_cache_mutex_);
+      loaded_map_tracking_target_prefetch_cv_.wait(lock, [this] {
+        return loaded_map_tracking_target_prefetch_stop_ ||
+               !loaded_map_tracking_target_prefetch_queue_.empty();
+      });
+      if (loaded_map_tracking_target_prefetch_stop_) {
+        return;
+      }
+      request = loaded_map_tracking_target_prefetch_queue_.front();
+      loaded_map_tracking_target_prefetch_queue_.pop_front();
+    }
+
+    PointCloudMatcher::PreparedTarget prepared;
+    const auto submap = LocalizationAtlas::cropGlobalMap(
+        config_, request.loaded_map, request.crop_center);
+    if (submap && !submap->empty()) {
+      prepared = matcher_.prepareTargetCloud(submap);
+    }
+
+    std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);
+    const auto key = loadedMapTrackingTargetRequestKey(
+        request.anchor_id, request.map_revision, request.loaded_keyframe_count);
+    loaded_map_tracking_target_prefetch_pending_.erase(key);
+    if (request.cache_epoch != loaded_map_tracking_target_cache_epoch_ ||
+        !hasUsablePreparedTarget(prepared) ||
+        hasLoadedMapTrackingTargetLocked(request.anchor_id,
+                                         request.map_revision,
+                                         request.loaded_keyframe_count)) {
+      continue;
+    }
+    LoadedMapTrackingTargetCacheEntry entry;
+    entry.anchor_id = request.anchor_id;
+    entry.loaded_keyframe_count = request.loaded_keyframe_count;
+    entry.map_revision = request.map_revision;
+    entry.target = std::move(prepared);
+    while (loaded_map_tracking_target_cache_.size() >=
+           kLoadedMapTrackingTargetCacheEntries) {
+      loaded_map_tracking_target_cache_.pop_back();
+    }
+    loaded_map_tracking_target_cache_.push_back(std::move(entry));
+  }
+}
+
+VisibilityConsistencyResult WorldLocalizing::evaluateLoadedMapPoseVisibility(
+    const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &T_map_lidar) {
   if (!query_cloud || query_cloud->empty() ||
       !T_map_lidar.matrix().allFinite()) {
     return {};
@@ -1941,8 +2098,7 @@ WorldLocalizing::findNearestKeyframe(const Eigen::Isometry3d &pose) const {
   return nearest_id;
 }
 
-int64_t
-WorldLocalizing::findNearestLoadedKeyframe(
+int64_t WorldLocalizing::findNearestLoadedKeyframe(
     const Eigen::Isometry3d &pose) const {
   int64_t nearest_id = -1;
   double min_distance = std::numeric_limits<double>::max();

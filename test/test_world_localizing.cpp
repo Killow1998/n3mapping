@@ -1,10 +1,10 @@
 #include "n3mapping/keyframe_manager.h"
+#include "n3mapping/localization_atlas.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/pcl_compat.h"
 #include "n3mapping/point_cloud_matcher.h"
-#include "n3mapping/localization_atlas.h"
-#include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/relocalization_hypothesis_manager.h"
+#include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/world_localizing.h"
 #include <cmath>
 #include <filesystem>
@@ -353,14 +353,10 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesTrackingFailurePath) {
   const auto lines = readDebugLines(debug_path);
   ASSERT_EQ(lines.size(), 1u);
   EXPECT_NE(lines[0].find("\"record_type\":\"tracking\""), std::string::npos);
-  EXPECT_NE(lines[0].find("\"strict_loaded_map\":false"),
-            std::string::npos);
-  EXPECT_EQ(lines[0].find("\"tracking_total_ms\":null"),
-            std::string::npos);
-  EXPECT_EQ(lines[0].find("\"nearest_keyframe_ms\":null"),
-            std::string::npos);
-  EXPECT_NE(lines[0].find("\"target_prepare_ms\":null"),
-            std::string::npos);
+  EXPECT_NE(lines[0].find("\"strict_loaded_map\":false"), std::string::npos);
+  EXPECT_EQ(lines[0].find("\"tracking_total_ms\":null"), std::string::npos);
+  EXPECT_EQ(lines[0].find("\"nearest_keyframe_ms\":null"), std::string::npos);
+  EXPECT_NE(lines[0].find("\"target_prepare_ms\":null"), std::string::npos);
   EXPECT_NE(lines[0].find("\"nearest_kf_id\":-1"), std::string::npos);
   EXPECT_NE(lines[0].find("\"reject_reason\":\"nearest_keyframe_missing\""),
             std::string::npos);
@@ -448,15 +444,11 @@ TEST_F(WorldLocalizingTest, RelocalizationDebugWritesQueryCloudDiagnostics) {
   EXPECT_EQ(latest.find("\"query_candidate_count\":0"), std::string::npos);
   EXPECT_NE(latest.find("\"winner_seed_match_id\":"), std::string::npos);
   EXPECT_NE(latest.find("\"winner_last_match_id\":"), std::string::npos);
-  EXPECT_NE(latest.find("\"runner_up_seed_match_id\":"),
-            std::string::npos);
-  EXPECT_NE(latest.find("\"runner_up_last_match_id\":"),
-            std::string::npos);
-  EXPECT_NE(latest.find("\"registration_observability\":{"),
-            std::string::npos);
+  EXPECT_NE(latest.find("\"runner_up_seed_match_id\":"), std::string::npos);
+  EXPECT_NE(latest.find("\"runner_up_last_match_id\":"), std::string::npos);
+  EXPECT_NE(latest.find("\"registration_observability\":{"), std::string::npos);
   EXPECT_NE(latest.find("\"full_information\":[["), std::string::npos);
-  EXPECT_NE(latest.find("\"full_eigenvalues_ascending\":["),
-            std::string::npos);
+  EXPECT_NE(latest.find("\"full_eigenvalues_ascending\":["), std::string::npos);
   EXPECT_NE(latest.find("\"rotational_marginal_information\":[["),
             std::string::npos);
 
@@ -618,15 +610,16 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingIgnoresExtensionKeyframes) {
   Eigen::Isometry3d extension_pose = Eigen::Isometry3d::Identity();
   extension_pose.translation().x() = 40.0;
   const auto extension_cloud = generateCorridorCloud(extension_pose);
-  const int64_t extension_id = keyframe_manager_->addKeyframe(
-      10.0, extension_pose, extension_cloud);
-  ASSERT_FALSE(keyframe_manager_->getKeyframe(extension_id)->is_from_loaded_map);
+  const int64_t extension_id =
+      keyframe_manager_->addKeyframe(10.0, extension_pose, extension_cloud);
+  ASSERT_FALSE(
+      keyframe_manager_->getKeyframe(extension_id)->is_from_loaded_map);
 
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);
   reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
-  const RelocResult result = reloc.trackLoadedMap(
-      extension_cloud, extension_pose);
+  const RelocResult result =
+      reloc.trackLoadedMap(extension_cloud, extension_pose);
 
   EXPECT_FALSE(result.success);
   EXPECT_EQ(result.decision, "nearest_keyframe_missing");
@@ -665,7 +658,8 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   auto cache_diag = reloc.cacheDiagnostics();
   EXPECT_EQ(cache_diag.loaded_map_target_cache_hits, 0u);
   EXPECT_EQ(cache_diag.loaded_map_target_cache_misses, 1u);
-  EXPECT_EQ(cache_diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_GE(cache_diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_LE(cache_diag.loaded_map_target_cache_entries, 3u);
 
   const RelocResult cached_result = reloc.trackLoadedMap(cloud, pose);
   EXPECT_TRUE(cached_result.success);
@@ -674,15 +668,16 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   cache_diag = reloc.cacheDiagnostics();
   EXPECT_EQ(cache_diag.loaded_map_target_cache_hits, 1u);
   EXPECT_EQ(cache_diag.loaded_map_target_cache_misses, 1u);
-  EXPECT_EQ(cache_diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_GE(cache_diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_LE(cache_diag.loaded_map_target_cache_entries, 3u);
 
   const auto lines = readDebugLines(debug_path);
   ASSERT_EQ(lines.size(), 2u);
   EXPECT_NE(lines[0].find("\"strict_loaded_map\":true"), std::string::npos);
-  for (const char *field : {"tracking_total_ms", "nearest_keyframe_ms",
-                            "loaded_map_cache_ms", "submap_build_ms",
-                            "target_prepare_ms", "source_prepare_ms",
-                            "registration_ms", "visibility_ms"}) {
+  for (const char *field :
+       {"tracking_total_ms", "nearest_keyframe_ms", "loaded_map_cache_ms",
+        "submap_build_ms", "target_prepare_ms", "source_prepare_ms",
+        "registration_ms", "visibility_ms"}) {
     EXPECT_EQ(lines[0].find(std::string("\"") + field + "\":null"),
               std::string::npos)
         << field;
@@ -699,8 +694,7 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   std::filesystem::remove_all(dir);
 }
 
-TEST_F(WorldLocalizingTest,
-       LoadedMapPreparedTargetCacheFollowsMapLifecycle) {
+TEST_F(WorldLocalizingTest, LoadedMapPreparedTargetCacheFollowsMapLifecycle) {
   buildTestMap(6, 2.0);
   for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
     ASSERT_NE(keyframe, nullptr);
@@ -719,7 +713,8 @@ TEST_F(WorldLocalizingTest,
   auto diag = reloc.cacheDiagnostics();
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 1u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
-  EXPECT_EQ(diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
 
   Eigen::Isometry3d extension_pose = Eigen::Isometry3d::Identity();
   extension_pose.translation().x() = 40.0;
@@ -730,7 +725,8 @@ TEST_F(WorldLocalizingTest,
   diag = reloc.cacheDiagnostics();
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 2u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
-  EXPECT_EQ(diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
 
   const auto keyframe = keyframe_manager_->getKeyframe(0);
   ASSERT_NE(keyframe, nullptr);
@@ -741,7 +737,8 @@ TEST_F(WorldLocalizingTest,
   diag = reloc.cacheDiagnostics();
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 2u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 2u);
-  EXPECT_EQ(diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
 
   reloc.resetLocalizationState();
   reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
@@ -749,7 +746,8 @@ TEST_F(WorldLocalizingTest,
   diag = reloc.cacheDiagnostics();
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 3u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 2u);
-  EXPECT_EQ(diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
+  EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
 
   reloc.notifyMapReplaced();
   diag = reloc.cacheDiagnostics();
@@ -852,7 +850,8 @@ TEST_F(WorldLocalizingTest, FreeSpaceDisabledKeepsLockPathUnchanged) {
   EXPECT_TRUE(reloc_off.isRelocalized());
 }
 
-TEST_F(WorldLocalizingTest, MapReplacementSameKeyframeCountDoesNotReuseOldIndex) {
+TEST_F(WorldLocalizingTest,
+       MapReplacementSameKeyframeCountDoesNotReuseOldIndex) {
   // Map A along x in [0, 18]; the frame-RHPD index, reloc map cache and
   // free-space grid are built by relocalizing inside it.
   buildTestMap(10, 2.0, 0.0);
@@ -961,9 +960,8 @@ TEST_F(WorldLocalizingTest, AtlasClearedOnMapReplacement) {
   LocalizationAtlas compiled(config_, *matcher_);
   LocalizationAtlasStats stats;
   std::string error;
-  ASSERT_TRUE(compiled.compileAndSave(map_file.string(), keyframes,
-                                      atlas_file.string(), false, &stats,
-                                      &error))
+  ASSERT_TRUE(compiled.compileAndSave(
+      map_file.string(), keyframes, atlas_file.string(), false, &stats, &error))
       << error;
 
   config_.reloc_atlas_enable = true;
