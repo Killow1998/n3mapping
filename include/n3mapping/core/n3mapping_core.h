@@ -32,6 +32,8 @@ bool coreRunModeProcessesLoopClosures(CoreRunMode mode);
 
 struct CoreLoopClosureResult {
     bool optimized = false;
+    std::size_t queued_keyframe_count = 0;
+    std::size_t detected_candidate_count = 0;
     std::size_t place_candidate_count = 0;
     std::size_t edge_count = 0;
     std::size_t graph_edge_count = 0;

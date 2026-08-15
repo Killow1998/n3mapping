@@ -56,6 +56,7 @@ struct LioFrame {
 
 struct BackendPerformanceTiming {
   bool enabled = false;
+  bool tracking_attempted = false;
   double initial_relocalization_ms =
       std::numeric_limits<double>::quiet_NaN();
   double loaded_map_tracking_ms =

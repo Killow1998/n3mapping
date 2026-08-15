@@ -807,9 +807,11 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   int64_t seed_keyframe_id = -1;
   int64_t support_keyframe_id = -1;
   int64_t matched_keyframe_id = -1;
+  bool tracking_attempted = false;
   auto &localizer = session_->worldLocalizing();
 
   if (localizer.isRelocalized()) {
+    tracking_attempted = true;
     auto result = localizer.trackLocalization(frame.undistorted_cloud,
                                               frame.T_world_lidar);
     relocalization_state = result.state;
@@ -854,6 +856,10 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   output.relocalization_seed_keyframe_id = seed_keyframe_id;
   output.relocalization_support_keyframe_id = support_keyframe_id;
   output.matched_keyframe_id = matched_keyframe_id;
+  if (config_.reloc_debug_enable) {
+    output.performance.enabled = true;
+    output.performance.tracking_attempted = tracking_attempted;
+  }
   return output;
 }
 
@@ -945,6 +951,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   // geometry continuously. A constant relocalization transform only carries
   // the session LIO's time-varying drift into the resumed map. This strict
   // path never falls back to a new global search or to self-created frames.
+  performance.tracking_attempted = true;
   const auto tracking_started = timingStarted();
   const RelocResult tracking = localizer.trackLoadedMap(
       frame.undistorted_cloud, frame.T_world_lidar);
@@ -1054,6 +1061,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
     std::lock_guard<std::mutex> lock(loop_queue_mutex_);
     keyframes_to_check.swap(loop_detection_queue_);
   }
+  result.queued_keyframe_count = keyframes_to_check.size();
 
   LoopVerificationPipeline verification_pipeline(
       config_, session_->keyframeManager(), session_->pointCloudMatcher(),
@@ -1097,6 +1105,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
         }
       }
     }
+    result.detected_candidate_count += candidates.size();
     if (candidates.empty()) {
       continue;
     }

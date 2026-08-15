@@ -357,8 +357,7 @@ class N3MappingNode : public rclcpp::Node
         n3mapping_core_->setExternalDenseTrajectoryRecordingEnabled(
           run_mode_ == CoreRunMode::MAPPING);
         global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
-        if (run_mode_ == CoreRunMode::MAP_EXTENSION &&
-            config_.reloc_debug_enable) {
+        if (config_.reloc_debug_enable) {
             performance_debug_logger_ =
               std::make_unique<RuntimePerformanceDebugLogger>(config_);
             if (performance_debug_logger_->ready()) {
@@ -555,6 +554,7 @@ class N3MappingNode : public rclcpp::Node
 
         RuntimePerformanceDebugEvent performance_event;
         if (performance_enabled) {
+            performance_event.mode = coreRunModeName(run_mode_);
             performance_event.processing_time =
               std::chrono::duration<double>(
                 std::chrono::system_clock::now().time_since_epoch()).count();
@@ -621,6 +621,10 @@ class N3MappingNode : public rclcpp::Node
                   poseSourceName(output.pose_source);
                 performance_event.relocalization_decision =
                   output.relocalization_decision;
+                performance_event.relocalization_locked =
+                  output.relocalization_locked;
+                performance_event.tracking_attempted =
+                  output.performance.tracking_attempted;
                 performance_event.initial_relocalization_ms =
                   output.performance.initial_relocalization_ms;
                 performance_event.loaded_map_tracking_ms =
@@ -796,10 +800,51 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
 
+        using PerformanceClock = std::chrono::steady_clock;
+        const bool performance_enabled =
+          performance_debug_logger_ && performance_debug_logger_->ready();
+        const auto callback_started = performance_enabled
+          ? PerformanceClock::now()
+          : PerformanceClock::time_point{};
+        const auto elapsed_ms = [&](PerformanceClock::time_point started) {
+            return std::chrono::duration<double, std::milli>(
+              PerformanceClock::now() - started).count();
+        };
+        RuntimePerformanceLoopEvent performance_event;
+        if (performance_enabled) {
+            performance_event.mode = coreRunModeName(run_mode_);
+            performance_event.processing_time =
+              std::chrono::duration<double>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            performance_event.cycle_index = ++performance_loop_cycle_index_;
+        }
+
         bool needs_global_map_rebuild = false;
         {
-            std::lock_guard<std::mutex> lock(data_mutex_);
+            std::unique_lock<std::mutex> lock(data_mutex_);
+            if (performance_enabled) {
+                performance_event.lock_wait_ms = elapsed_ms(callback_started);
+            }
+            const auto core_started = performance_enabled
+              ? PerformanceClock::now()
+              : PerformanceClock::time_point{};
             const auto result = n3mapping_core_->processPendingLoopClosures();
+            if (performance_enabled) {
+                performance_event.core_ms = elapsed_ms(core_started);
+                performance_event.queued_keyframe_count =
+                  result.queued_keyframe_count;
+                performance_event.detected_candidate_count =
+                  result.detected_candidate_count;
+                performance_event.place_candidate_count =
+                  result.place_candidate_count;
+                performance_event.accepted_loop_count =
+                  result.accepted_loops.size();
+                performance_event.edge_count = result.edge_count;
+                performance_event.optimized = result.optimized;
+            }
+            const auto publish_started = performance_enabled
+              ? PerformanceClock::now()
+              : PerformanceClock::time_point{};
             if (!result.accepted_loops.empty()) {
                 publishLoopMarkers(result.accepted_loops);
             }
@@ -826,9 +871,22 @@ class N3MappingNode : public rclcpp::Node
                 publishPath(header, nullptr);
                 needs_global_map_rebuild = true;
             }
+            if (performance_enabled) {
+                performance_event.publish_ms = elapsed_ms(publish_started);
+            }
         }
         if (needs_global_map_rebuild) {
             markGlobalMapFullRebuildRequired();
+        }
+        if (performance_enabled) {
+            performance_event.total_ms = elapsed_ms(callback_started);
+            if (!performance_debug_logger_->append(performance_event) &&
+                !performance_log_failure_reported_.exchange(true)) {
+                RCLCPP_WARN(
+                  this->get_logger(),
+                  "Runtime performance JSONL write failed: %s",
+                  performance_debug_logger_->path().c_str());
+            }
         }
     }
 
@@ -1545,6 +1603,7 @@ class N3MappingNode : public rclcpp::Node
     bool odometry_divergence_reported_ = false;
     std::atomic<bool> performance_log_failure_reported_{false};
     uint64_t performance_frame_index_ = 0;
+    uint64_t performance_loop_cycle_index_ = 0;
     std::optional<std::chrono::steady_clock::time_point>
       last_performance_callback_started_;
     std::optional<double> last_performance_sensor_timestamp_;

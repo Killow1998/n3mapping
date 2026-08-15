@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize PERF-ME-01 map-extension timing evidence without judging quality."""
+"""Summarize tri-mode n3mapping runtime evidence without changing behavior."""
 
 from __future__ import annotations
 
@@ -12,13 +12,15 @@ import sys
 from typing import Any, Iterable
 
 
-RUNTIME_SCHEMA = "n3mapping_runtime_performance_v1"
+RUNTIME_SCHEMA_V1 = "n3mapping_runtime_performance_v1"
+RUNTIME_SCHEMA_V2 = "n3mapping_runtime_performance_v2"
 RESOURCE_SCHEMA = "n3mapping_process_resource_v1"
-REPORT_SCHEMA = "n3mapping_runtime_performance_summary_v1"
+REPORT_SCHEMA = "n3mapping_runtime_performance_summary_v2"
 PROFILE_READY = "PROFILE_READY"
 INSUFFICIENT = "INSUFFICIENT_EVIDENCE"
 INVALID = "INVALID_EVIDENCE"
 EXIT_CODES = {PROFILE_READY: 0, INSUFFICIENT: 2, INVALID: 3}
+MODES = {"mapping", "localization", "map_extension"}
 
 RUNTIME_TIMINGS = (
     "callback_lock_wait_ms",
@@ -37,6 +39,7 @@ RUNTIME_TIMINGS = (
     "cloud_publish_ms",
     "callback_total_ms",
 )
+LOOP_TIMINGS = ("lock_wait_ms", "core_ms", "publish_ms", "total_ms")
 TRACKING_TIMINGS = (
     "tracking_total_ms",
     "nearest_keyframe_ms",
@@ -73,6 +76,21 @@ RUNTIME_REQUIRED = {
     "published_body_cloud",
     "published_world_cloud",
     *RUNTIME_TIMINGS,
+}
+RUNTIME_V2_REQUIRED = {"mode", "relocalization_locked", "tracking_attempted"}
+LOOP_REQUIRED = {
+    "schema",
+    "record_type",
+    "mode",
+    "processing_time",
+    "cycle_index",
+    "queued_keyframe_count",
+    "detected_candidate_count",
+    "place_candidate_count",
+    "accepted_loop_count",
+    "edge_count",
+    "optimized",
+    *LOOP_TIMINGS,
 }
 TRACKING_REQUIRED = {
     "record_type",
@@ -123,6 +141,10 @@ def finite(value: Any) -> bool:
         and not isinstance(value, bool)
         and math.isfinite(float(value))
     )
+
+
+def nonnegative_integer(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
 def percentile(values: list[float], fraction: float) -> float:
@@ -179,23 +201,68 @@ def read_jsonl(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
     return records, errors
 
 
+def runtime_mode(record: dict[str, Any]) -> str | None:
+    if (
+        record.get("schema") == RUNTIME_SCHEMA_V1
+        and record.get("record_type") == "map_extension_frame"
+    ):
+        return "map_extension"
+    mode = record.get("mode")
+    return mode if isinstance(mode, str) else None
+
+
+def split_runtime_records(
+    records: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+    frames: list[dict[str, Any]] = []
+    loops: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for line, record in enumerate(records, 1):
+        record_type = record.get("record_type")
+        if record_type in ("map_extension_frame", "runtime_frame"):
+            frames.append(record)
+        elif record_type == "loop_cycle":
+            loops.append(record)
+        else:
+            errors.append(f"runtime stream record {line}: unexpected record_type")
+    return frames, loops, errors
+
+
 def validate_runtime(records: list[dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     previous_index = 0
     for line, record in enumerate(records, 1):
         missing = sorted(RUNTIME_REQUIRED - record.keys())
+        if record.get("schema") == RUNTIME_SCHEMA_V2:
+            missing.extend(sorted(RUNTIME_V2_REQUIRED - record.keys()))
         if missing:
             errors.append(f"runtime record {line}: missing {','.join(missing)}")
             continue
-        if record["schema"] != RUNTIME_SCHEMA:
+        schema = record["schema"]
+        if schema == RUNTIME_SCHEMA_V1:
+            if record["record_type"] != "map_extension_frame":
+                errors.append(f"runtime record {line}: invalid v1 record_type")
+        elif schema == RUNTIME_SCHEMA_V2:
+            if record["record_type"] != "runtime_frame":
+                errors.append(f"runtime record {line}: invalid v2 record_type")
+            if record["mode"] not in MODES:
+                errors.append(f"runtime record {line}: invalid mode")
+            for field in ("relocalization_locked", "tracking_attempted"):
+                if not isinstance(record[field], bool):
+                    errors.append(f"runtime record {line}: {field} must be bool")
+        else:
             errors.append(f"runtime record {line}: unexpected schema")
-        if record["record_type"] != "map_extension_frame":
-            errors.append(f"runtime record {line}: unexpected record_type")
         index = record["frame_index"]
-        if not isinstance(index, int) or isinstance(index, bool) or index != previous_index + 1:
+        if (
+            not isinstance(index, int)
+            or isinstance(index, bool)
+            or index != previous_index + 1
+        ):
             errors.append(f"runtime record {line}: frame_index is not contiguous")
         else:
             previous_index = index
+        if not nonnegative_integer(record["input_points"]) or record["input_points"] == 0:
+            errors.append(f"runtime record {line}: input_points must be positive")
         for field in ("processing_time", "sensor_timestamp", "callback_total_ms"):
             if not finite(record[field]):
                 errors.append(f"runtime record {line}: {field} must be finite")
@@ -217,18 +284,66 @@ def validate_runtime(records: list[dict[str, Any]]) -> list[str]:
     return errors
 
 
-def validate_tracking(records: list[dict[str, Any]]) -> list[str]:
+def validate_loops(records: list[dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     previous_index = 0
+    for line, record in enumerate(records, 1):
+        missing = sorted(LOOP_REQUIRED - record.keys())
+        if missing:
+            errors.append(f"loop record {line}: missing {','.join(missing)}")
+            continue
+        if record["schema"] != RUNTIME_SCHEMA_V2:
+            errors.append(f"loop record {line}: unexpected schema")
+        if record["record_type"] != "loop_cycle" or record["mode"] != "mapping":
+            errors.append(f"loop record {line}: invalid type or mode")
+        index = record["cycle_index"]
+        if (
+            not isinstance(index, int)
+            or isinstance(index, bool)
+            or index != previous_index + 1
+        ):
+            errors.append(f"loop record {line}: cycle_index is not contiguous")
+        else:
+            previous_index = index
+        for field in (
+            "queued_keyframe_count",
+            "detected_candidate_count",
+            "place_candidate_count",
+            "accepted_loop_count",
+            "edge_count",
+        ):
+            if not nonnegative_integer(record[field]):
+                errors.append(f"loop record {line}: invalid {field}")
+        if not isinstance(record["optimized"], bool):
+            errors.append(f"loop record {line}: optimized must be bool")
+        if not finite(record["processing_time"]):
+            errors.append(f"loop record {line}: processing_time must be finite")
+        for field in LOOP_TIMINGS:
+            if not finite(record[field]) or float(record[field]) < 0.0:
+                errors.append(f"loop record {line}: invalid {field}")
+    return errors
+
+
+def validate_tracking(records: list[dict[str, Any]], mode: str) -> list[str]:
+    errors: list[str] = []
+    previous_index = 0
+    strict_expected = mode == "map_extension"
     for line, record in enumerate(records, 1):
         missing = sorted(TRACKING_REQUIRED - record.keys())
         if missing:
             errors.append(f"tracking record {line}: missing {','.join(missing)}")
             continue
-        if record["record_type"] != "tracking" or record["strict_loaded_map"] is not True:
-            errors.append(f"tracking record {line}: not strict loaded-map tracking")
+        if (
+            record["record_type"] != "tracking"
+            or record["strict_loaded_map"] is not strict_expected
+        ):
+            errors.append(f"tracking record {line}: mode mismatch")
         index = record["query_index"]
-        if not isinstance(index, int) or isinstance(index, bool) or index <= previous_index:
+        if (
+            not isinstance(index, int)
+            or isinstance(index, bool)
+            or index <= previous_index
+        ):
             errors.append(f"tracking record {line}: query_index is not increasing")
         else:
             previous_index = index
@@ -240,45 +355,52 @@ def validate_tracking(records: list[dict[str, Any]]) -> list[str]:
         for field in ("strict_loaded_map", "retry_used", "result_success"):
             if not isinstance(record[field], bool):
                 errors.append(f"tracking record {line}: {field} must be bool")
-        cache_fields_present = [
-            field in record for field in TRACKING_TARGET_CACHE_FIELDS
-        ]
-        if any(cache_fields_present) and not all(cache_fields_present):
-            errors.append(
-                f"tracking record {line}: incomplete loaded-map target cache outcome"
-            )
-        elif all(cache_fields_present):
-            cache_hit = record["loaded_map_target_cache_hit"]
-            cache_miss = record["loaded_map_target_cache_miss"]
-            if not isinstance(cache_hit, bool) or not isinstance(cache_miss, bool):
+
+        if strict_expected:
+            cache_fields_present = [
+                field in record for field in TRACKING_TARGET_CACHE_FIELDS
+            ]
+            if any(cache_fields_present) and not all(cache_fields_present):
                 errors.append(
-                    f"tracking record {line}: target cache outcomes must be bool"
+                    f"tracking record {line}: incomplete loaded-map target cache outcome"
                 )
-            elif cache_hit and cache_miss:
-                errors.append(
-                    f"tracking record {line}: target cache hit and miss both true"
-                )
-            elif finite(record["target_prepare_ms"]) and cache_hit == cache_miss:
-                errors.append(
-                    f"tracking record {line}: prepared target lacks one cache outcome"
-                )
-            elif (cache_hit or cache_miss) and not finite(
-                record["target_prepare_ms"]
-            ):
-                errors.append(
-                    f"tracking record {line}: cache outcome lacks target timing"
-                )
-        if record["result_success"]:
-            for field in (
+            elif all(cache_fields_present):
+                cache_hit = record["loaded_map_target_cache_hit"]
+                cache_miss = record["loaded_map_target_cache_miss"]
+                if not isinstance(cache_hit, bool) or not isinstance(cache_miss, bool):
+                    errors.append(
+                        f"tracking record {line}: target cache outcomes must be bool"
+                    )
+                elif cache_hit and cache_miss:
+                    errors.append(
+                        f"tracking record {line}: target cache hit and miss both true"
+                    )
+                elif finite(record["target_prepare_ms"]) and cache_hit == cache_miss:
+                    errors.append(
+                        f"tracking record {line}: prepared target lacks one cache outcome"
+                    )
+                elif (cache_hit or cache_miss) and not finite(
+                    record["target_prepare_ms"]
+                ):
+                    errors.append(
+                        f"tracking record {line}: cache outcome lacks target timing"
+                    )
+
+        geometric_success = (
+            record["result_success"] is True and record["reject_reason"] == ""
+        )
+        if geometric_success:
+            required_success = [
                 "tracking_total_ms",
                 "nearest_keyframe_ms",
-                "loaded_map_cache_ms",
                 "submap_build_ms",
                 "target_prepare_ms",
                 "source_prepare_ms",
                 "registration_ms",
-                "visibility_ms",
-            ):
+            ]
+            if strict_expected:
+                required_success.extend(["loaded_map_cache_ms", "visibility_ms"])
+            for field in required_success:
                 if not finite(record[field]):
                     errors.append(f"tracking record {line}: success missing {field}")
     return errors
@@ -296,7 +418,11 @@ def validate_resources(records: list[dict[str, Any]]) -> list[str]:
         if record["schema"] != RESOURCE_SCHEMA:
             errors.append(f"resource record {line}: unexpected schema")
         index = record["sample_index"]
-        if not isinstance(index, int) or isinstance(index, bool) or index != previous_index + 1:
+        if (
+            not isinstance(index, int)
+            or isinstance(index, bool)
+            or index != previous_index + 1
+        ):
             errors.append(f"resource record {line}: sample_index is not contiguous")
         else:
             previous_index = index
@@ -358,73 +484,229 @@ def select_runtime_resources(
         row
         for row in resources
         if float(row["processing_time"]) > runtime_start
-        and float(row["processing_time"]) - float(row["interval_s"])
-        < runtime_end
+        and float(row["processing_time"]) - float(row["interval_s"]) < runtime_end
     ]
     return selected, runtime_start, runtime_end
+
+
+def steady_state_runtime(
+    runtime: list[dict[str, Any]], mode: str
+) -> tuple[list[dict[str, Any]], int | None, str]:
+    if mode == "mapping":
+        return runtime, None, "all_valid_synchronized_frame_callbacks"
+    if runtime and runtime[0].get("schema") == RUNTIME_SCHEMA_V1:
+        return runtime, None, "legacy_v1_all_recorded_frames"
+    lock_position = next(
+        (
+            position
+            for position, row in enumerate(runtime)
+            if row.get("relocalization_locked") is True
+            and row.get("relocalization_state") == "FULL_6DOF_LOCKED"
+        ),
+        None,
+    )
+    if lock_position is None:
+        return [], None, "missing_FULL_6DOF_LOCKED_transition"
+    selected = [
+        row
+        for row in runtime[lock_position + 1 :]
+        if row.get("tracking_attempted") is True
+    ]
+    return (
+        selected,
+        int(runtime[lock_position]["frame_index"]),
+        "tracking_callbacks_after_first_FULL_6DOF_LOCKED_no_additional_warmup",
+    )
+
+
+def max_consecutive_over_budget(
+    runtime: list[dict[str, Any]], sensor_period_ms: float
+) -> int:
+    maximum = 0
+    current = 0
+    for row in runtime:
+        if (
+            finite(row.get("callback_total_ms"))
+            and float(row["callback_total_ms"]) > sensor_period_ms
+        ):
+            current += 1
+            maximum = max(maximum, current)
+        else:
+            current = 0
+    return maximum
+
+
+def resource_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        field: stats((row.get(field) for row in records), len(records))
+        for field in (
+            "process_cpu_percent",
+            "rss_mib",
+            "vm_hwm_mib",
+            "thread_count",
+        )
+    }
+
+
+def cpu_summaries(records: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+    cpu_cores = [
+        float(row["process_cpu_percent"]) / 100.0
+        for row in records
+        if finite(row.get("process_cpu_percent"))
+    ]
+    host_capacity = [
+        float(row["process_cpu_percent"]) / float(row["host_logical_cpus"])
+        for row in records
+        if finite(row.get("process_cpu_percent"))
+        and isinstance(row.get("host_logical_cpus"), int)
+        and row["host_logical_cpus"] > 0
+    ]
+    return stats(cpu_cores, len(records)), stats(host_capacity, len(records))
 
 
 def analyze(
     runtime_path: Path,
     tracking_path: Path,
     resource_path: Path | None = None,
+    *,
+    expected_frames: int | None = None,
+    sensor_period_ms: float = 100.0,
 ) -> tuple[dict[str, Any], int]:
-    runtime, runtime_read_errors = read_jsonl(runtime_path)
-    all_reloc, tracking_read_errors = read_jsonl(tracking_path)
+    runtime_stream, runtime_read_errors = read_jsonl(runtime_path)
+    runtime, loop_cycles, split_errors = split_runtime_records(runtime_stream)
+    modes = {runtime_mode(record) for record in runtime}
+    modes.update(runtime_mode(record) for record in loop_cycles)
+    modes.discard(None)
+    mode = next(iter(modes)) if len(modes) == 1 else None
+
+    if tracking_path.is_file():
+        all_reloc, tracking_read_errors = read_jsonl(tracking_path)
+    elif mode == "mapping":
+        all_reloc, tracking_read_errors = [], []
+    else:
+        all_reloc, tracking_read_errors = read_jsonl(tracking_path)
     if resource_path is not None and resource_path.is_file():
         resources, resource_read_errors = read_jsonl(resource_path)
     else:
         resources, resource_read_errors = [], []
-    strict_tracking = [
-        record
-        for record in all_reloc
-        if record.get("record_type") == "tracking"
-        and record.get("strict_loaded_map") is True
+
+    all_tracking = [
+        record for record in all_reloc if record.get("record_type") == "tracking"
     ]
-    errors = runtime_read_errors + tracking_read_errors + resource_read_errors
+    if mode == "map_extension":
+        tracking = [row for row in all_tracking if row.get("strict_loaded_map") is True]
+    elif mode == "localization":
+        tracking = [row for row in all_tracking if row.get("strict_loaded_map") is False]
+    else:
+        tracking = []
+
+    errors = (
+        runtime_read_errors
+        + split_errors
+        + tracking_read_errors
+        + resource_read_errors
+    )
+    if len(modes) > 1:
+        errors.append(f"runtime stream contains multiple modes: {sorted(modes)}")
+    elif runtime and mode not in MODES:
+        errors.append("runtime mode is missing or invalid")
     if runtime:
         errors.extend(validate_runtime(runtime))
-    if strict_tracking:
-        errors.extend(validate_tracking(strict_tracking))
+    if loop_cycles:
+        errors.extend(validate_loops(loop_cycles))
+    if mode in ("localization", "map_extension"):
+        if len(tracking) != len(all_tracking):
+            errors.append("tracking stream contains records for another runtime mode")
+        if tracking:
+            errors.extend(validate_tracking(tracking, mode))
+    elif mode == "mapping" and all_tracking:
+        errors.append("mapping evidence unexpectedly contains tracking records")
     if resources:
         errors.extend(validate_resources(resources))
 
+    steady_runtime, lock_frame_index, steady_selection = steady_state_runtime(
+        runtime, mode or ""
+    )
     runtime_resources: list[dict[str, Any]] = []
     runtime_start: float | None = None
     runtime_end: float | None = None
+    steady_resources: list[dict[str, Any]] = []
+    steady_start: float | None = None
+    steady_end: float | None = None
     if runtime and resources and not errors:
         runtime_resources, runtime_start, runtime_end = select_runtime_resources(
             runtime, resources
         )
-
-    loaded_runtime = [row for row in runtime if finite(row.get("loaded_map_tracking_ms"))]
-    if runtime and strict_tracking and len(loaded_runtime) != len(strict_tracking):
-        errors.append(
-            "loaded-map tracking count mismatch: "
-            f"runtime={len(loaded_runtime)} tracking={len(strict_tracking)}"
+        steady_resources, steady_start, steady_end = select_runtime_resources(
+            steady_runtime, resources
         )
 
+    loaded_runtime = [
+        row for row in runtime if finite(row.get("loaded_map_tracking_ms"))
+    ]
+    if mode == "map_extension" and runtime and tracking:
+        comparable_runtime = (
+            loaded_runtime
+            if runtime[0].get("schema") == RUNTIME_SCHEMA_V1
+            else steady_runtime
+        )
+        if len(comparable_runtime) != len(tracking):
+            errors.append(
+                "loaded-map tracking count mismatch: "
+                f"runtime={len(comparable_runtime)} tracking={len(tracking)}"
+            )
+    if mode == "localization" and runtime and tracking:
+        if len(steady_runtime) != len(tracking):
+            errors.append(
+                "ordinary tracking count mismatch: "
+                f"runtime={len(steady_runtime)} tracking={len(tracking)}"
+            )
+
+    work_loop_cycles = [
+        row for row in loop_cycles if row.get("queued_keyframe_count", 0) > 0
+    ]
     if errors:
         status = INVALID
-    elif not runtime or not strict_tracking or not runtime_resources:
-        status = INSUFFICIENT
     else:
-        status = PROFILE_READY
+        ready = bool(runtime and steady_runtime and steady_resources)
+        if mode in ("localization", "map_extension"):
+            legacy_v1 = runtime[0].get("schema") == RUNTIME_SCHEMA_V1
+            ready = ready and bool(tracking) and (
+                legacy_v1 or lock_frame_index is not None
+            )
+        if mode == "mapping":
+            ready = ready and bool(loop_cycles) and bool(work_loop_cycles)
+        status = PROFILE_READY if ready else INSUFFICIENT
 
     runtime_stats = {
         field: stats((row.get(field) for row in runtime), len(runtime))
         for field in RUNTIME_TIMINGS
     }
+    steady_runtime_stats = {
+        field: stats((row.get(field) for row in steady_runtime), len(steady_runtime))
+        for field in RUNTIME_TIMINGS
+    }
     tracking_stats = {
-        field: stats((row.get(field) for row in strict_tracking), len(strict_tracking))
+        field: stats((row.get(field) for row in tracking), len(tracking))
         for field in TRACKING_TIMINGS
     }
+    loop_stats = {
+        field: stats((row.get(field) for row in loop_cycles), len(loop_cycles))
+        for field in LOOP_TIMINGS
+    }
+    work_loop_stats = {
+        field: stats((row.get(field) for row in work_loop_cycles), len(work_loop_cycles))
+        for field in LOOP_TIMINGS
+    }
     budget_overrun = [
-        float(row["callback_total_ms"]) - float(row["sensor_delta_ms"])
+        float(row["callback_total_ms"]) - sensor_period_ms
         for row in runtime
         if finite(row.get("callback_total_ms"))
-        and finite(row.get("sensor_delta_ms"))
-        and float(row["sensor_delta_ms"]) > 0.0
+    ]
+    steady_budget_overrun = [
+        float(row["callback_total_ms"]) - sensor_period_ms
+        for row in steady_runtime
+        if finite(row.get("callback_total_ms"))
     ]
     schedule_lag = [
         float(row["callback_interarrival_ms"]) - float(row["sensor_delta_ms"])
@@ -433,88 +715,134 @@ def analyze(
         and finite(row.get("sensor_delta_ms"))
         and float(row["sensor_delta_ms"]) > 0.0
     ]
+    steady_schedule_lag = [
+        float(row["callback_interarrival_ms"]) - float(row["sensor_delta_ms"])
+        for row in steady_runtime
+        if finite(row.get("callback_interarrival_ms"))
+        and finite(row.get("sensor_delta_ms"))
+        and float(row["sensor_delta_ms"]) > 0.0
+    ]
     accepted = [row for row in runtime if row.get("accepted_keyframe") is True]
-    cpu_cores = [
-        float(row["process_cpu_percent"]) / 100.0
-        for row in runtime_resources
-        if finite(row.get("process_cpu_percent"))
-    ]
-    host_capacity = [
-        float(row["process_cpu_percent"]) / float(row["host_logical_cpus"])
-        for row in runtime_resources
-        if finite(row.get("process_cpu_percent"))
-        and isinstance(row.get("host_logical_cpus"), int)
-        and row["host_logical_cpus"] > 0
-    ]
+    cpu_cores, host_capacity = cpu_summaries(runtime_resources)
+    steady_cpu_cores, steady_host_capacity = cpu_summaries(steady_resources)
+    processed_input_rate = (
+        len(runtime) / expected_frames
+        if isinstance(expected_frames, int) and expected_frames > 0
+        else None
+    )
+    cache_observed = sum(
+        row.get("loaded_map_target_cache_hit") is True
+        or row.get("loaded_map_target_cache_miss") is True
+        for row in tracking
+    )
+
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA,
         "status": status,
         "scope": "measurement_only_no_optimization_or_quality_verdict",
+        "mode": mode,
         "runtime_jsonl": str(runtime_path),
         "tracking_jsonl": str(tracking_path),
         "resource_jsonl": str(resource_path) if resource_path is not None else None,
         "errors": errors,
+        "steady_state": {
+            "selection": steady_selection,
+            "lock_frame_index": lock_frame_index,
+            "sensor_period_ms": sensor_period_ms,
+        },
         "counts": {
             "runtime_frames": len(runtime),
+            "steady_state_runtime_frames": len(steady_runtime),
+            "expected_frame_count": expected_frames,
+            "processed_input_rate": processed_input_rate,
             "loaded_map_tracking_frames": len(loaded_runtime),
-            "strict_tracking_records": len(strict_tracking),
+            "tracking_records": len(tracking),
+            "tracking_success": sum(row.get("result_success") is True for row in tracking),
+            "tracking_failure": sum(row.get("result_success") is False for row in tracking),
+            "strict_tracking_records": sum(
+                row.get("strict_loaded_map") is True for row in tracking
+            ),
             "strict_tracking_success": sum(
-                row.get("result_success") is True for row in strict_tracking
+                row.get("strict_loaded_map") is True
+                and row.get("result_success") is True
+                for row in tracking
             ),
             "strict_tracking_failure": sum(
-                row.get("result_success") is False for row in strict_tracking
+                row.get("strict_loaded_map") is True
+                and row.get("result_success") is False
+                for row in tracking
             ),
-            "tracking_retry": sum(row.get("retry_used") is True for row in strict_tracking),
-            "loaded_map_target_cache_observed": sum(
-                row.get("loaded_map_target_cache_hit") is True
-                or row.get("loaded_map_target_cache_miss") is True
-                for row in strict_tracking
+            "ordinary_tracking_records": sum(
+                row.get("strict_loaded_map") is False for row in tracking
             ),
+            "tracking_retry": sum(row.get("retry_used") is True for row in tracking),
+            "loaded_map_target_cache_observed": cache_observed,
             "loaded_map_target_cache_hit": sum(
-                row.get("loaded_map_target_cache_hit") is True
-                for row in strict_tracking
+                row.get("loaded_map_target_cache_hit") is True for row in tracking
             ),
             "loaded_map_target_cache_miss": sum(
-                row.get("loaded_map_target_cache_miss") is True
-                for row in strict_tracking
+                row.get("loaded_map_target_cache_miss") is True for row in tracking
             ),
             "core_failure": sum(row.get("core_success") is False for row in runtime),
             "callback_skipped": sum(row.get("callback_skipped") is True for row in runtime),
             "accepted_keyframes": len(accepted),
             "callback_over_sensor_budget": sum(value > 0.0 for value in budget_overrun),
+            "steady_state_callback_over_sensor_budget": sum(
+                value > 0.0 for value in steady_budget_overrun
+            ),
+            "max_consecutive_over_sensor_budget": max_consecutive_over_budget(
+                runtime, sensor_period_ms
+            ),
+            "steady_state_max_consecutive_over_sensor_budget": max_consecutive_over_budget(
+                steady_runtime, sensor_period_ms
+            ),
             "callback_interarrival_slower_than_sensor": sum(
                 value > 0.0 for value in schedule_lag
             ),
+            "loop_cycles": len(loop_cycles),
+            "loop_work_cycles": len(work_loop_cycles),
+            "loop_queued_keyframes": sum(
+                row.get("queued_keyframe_count", 0) for row in loop_cycles
+            ),
+            "loop_detected_candidates": sum(
+                row.get("detected_candidate_count", 0) for row in loop_cycles
+            ),
+            "loop_accepted": sum(
+                row.get("accepted_loop_count", 0) for row in loop_cycles
+            ),
             "resource_samples_total": len(resources),
             "resource_samples_in_runtime_window": len(runtime_resources),
-            "resource_samples_outside_runtime_window": (
-                len(resources) - len(runtime_resources)
-            ),
+            "resource_samples_in_steady_state_window": len(steady_resources),
+            "resource_samples_outside_runtime_window": len(resources) - len(runtime_resources),
         },
         "runtime_timing_ms": runtime_stats,
+        "steady_state_runtime_timing_ms": steady_runtime_stats,
         "tracking_timing_ms": tracking_stats,
+        "loop_cycle_timing_ms": loop_stats,
+        "loop_work_cycle_timing_ms": work_loop_stats,
         "callback_budget_overrun_ms": stats(budget_overrun, len(runtime)),
-        "callback_schedule_lag_ms": stats(schedule_lag, len(runtime)),
-        "process_resources": {
-            field: stats(
-                (row.get(field) for row in runtime_resources),
-                len(runtime_resources),
-            )
-            for field in (
-                "process_cpu_percent",
-                "rss_mib",
-                "vm_hwm_mib",
-                "thread_count",
-            )
-        },
-        "process_cpu_cores": stats(cpu_cores, len(runtime_resources)),
-        "process_host_capacity_percent": stats(
-            host_capacity, len(runtime_resources)
+        "steady_state_callback_budget_overrun_ms": stats(
+            steady_budget_overrun, len(steady_runtime)
         ),
+        "callback_schedule_lag_ms": stats(schedule_lag, len(runtime)),
+        "steady_state_callback_schedule_lag_ms": stats(
+            steady_schedule_lag, len(steady_runtime)
+        ),
+        "process_resources": resource_summary(runtime_resources),
+        "steady_state_process_resources": resource_summary(steady_resources),
+        "process_cpu_cores": cpu_cores,
+        "process_host_capacity_percent": host_capacity,
+        "steady_state_process_cpu_cores": steady_cpu_cores,
+        "steady_state_process_host_capacity_percent": steady_host_capacity,
         "resource_runtime_window": {
             "start_processing_time": runtime_start,
             "end_processing_time": runtime_end,
             "selection": "sample_interval_overlaps_callback_window",
+        },
+        "resource_steady_state_window": {
+            "start_processing_time": steady_start,
+            "end_processing_time": steady_end,
+            "selection": "sample_interval_overlaps_steady_callback_window",
         },
         "accepted_keyframe_timing_ms": {
             field: stats((row.get(field) for row in accepted), len(accepted))
@@ -527,7 +855,7 @@ def analyze(
         },
         "dominant_p95_stage": {
             "callback_direct": dominant_stage(
-                runtime_stats,
+                steady_runtime_stats,
                 (
                     "callback_lock_wait_ms",
                     "ros_conversion_ms",
@@ -535,6 +863,19 @@ def analyze(
                     "authority_publish_ms",
                     "odometry_path_publish_ms",
                     "cloud_publish_ms",
+                ),
+            ),
+            "tracking": dominant_stage(
+                tracking_stats,
+                (
+                    "nearest_keyframe_ms",
+                    "loaded_map_cache_ms",
+                    "submap_build_ms",
+                    "target_prepare_ms",
+                    "source_prepare_ms",
+                    "registration_ms",
+                    "retry_registration_ms",
+                    "visibility_ms",
                 ),
             ),
             "loaded_map_tracking": dominant_stage(
@@ -549,7 +890,14 @@ def analyze(
                     "retry_registration_ms",
                     "visibility_ms",
                 ),
-            ),
+            )
+            if mode == "map_extension"
+            else None,
+            "mapping_loop_work": dominant_stage(
+                work_loop_stats, ("lock_wait_ms", "core_ms", "publish_ms")
+            )
+            if mode == "mapping"
+            else None,
         },
     }
     return report, EXIT_CODES[status]
@@ -561,6 +909,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--runtime-jsonl", type=Path)
     parser.add_argument("--tracking-jsonl", type=Path)
     parser.add_argument("--resource-jsonl", type=Path)
+    parser.add_argument("--expected-frames", type=int)
+    parser.add_argument("--sensor-period-ms", type=float, default=100.0)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     if args.input_dir is not None:
@@ -573,15 +923,27 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         args.resource_jsonl = args.resource_jsonl or (
             args.input_dir / "process_resource.jsonl"
         )
-    if args.runtime_jsonl is None or args.tracking_jsonl is None:
-        parser.error("provide --input-dir or both JSONL paths")
+    if args.runtime_jsonl is None:
+        parser.error("provide --input-dir or --runtime-jsonl")
+    if args.tracking_jsonl is None:
+        args.tracking_jsonl = args.runtime_jsonl.with_name(
+            "relocalization_debug.jsonl"
+        )
+    if args.expected_frames is not None and args.expected_frames <= 0:
+        parser.error("--expected-frames must be positive")
+    if not finite(args.sensor_period_ms) or args.sensor_period_ms <= 0.0:
+        parser.error("--sensor-period-ms must be positive and finite")
     return args
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     report, exit_code = analyze(
-        args.runtime_jsonl, args.tracking_jsonl, args.resource_jsonl
+        args.runtime_jsonl,
+        args.tracking_jsonl,
+        args.resource_jsonl,
+        expected_frames=args.expected_frames,
+        sensor_period_ms=args.sensor_period_ms,
     )
     rendered = json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n"
     if args.output is not None:

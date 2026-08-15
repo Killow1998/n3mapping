@@ -16,6 +16,7 @@ namespace n3mapping {
 // consumers never see a new record type. The logger is enabled by the existing
 // reloc_debug_enable switch and does not participate in runtime decisions.
 struct RuntimePerformanceDebugEvent {
+  std::string mode;
   double processing_time = 0.0;
   uint64_t frame_index = 0;
   double sensor_timestamp = std::numeric_limits<double>::quiet_NaN();
@@ -30,6 +31,8 @@ struct RuntimePerformanceDebugEvent {
   std::string relocalization_state;
   std::string pose_source;
   std::string relocalization_decision;
+  bool relocalization_locked = false;
+  bool tracking_attempted = false;
   bool callback_skipped = false;
   bool published_global_pose = false;
   bool published_body_cloud = false;
@@ -57,6 +60,25 @@ struct RuntimePerformanceDebugEvent {
   double callback_total_ms = std::numeric_limits<double>::quiet_NaN();
 };
 
+// One record per mapping loop-timer callback. Empty cycles are retained so
+// timer scheduling and lock contention remain observable; analyzers grade
+// actual loop work separately from idle polling.
+struct RuntimePerformanceLoopEvent {
+  std::string mode;
+  double processing_time = 0.0;
+  uint64_t cycle_index = 0;
+  std::size_t queued_keyframe_count = 0;
+  std::size_t detected_candidate_count = 0;
+  std::size_t place_candidate_count = 0;
+  std::size_t accepted_loop_count = 0;
+  std::size_t edge_count = 0;
+  bool optimized = false;
+  double lock_wait_ms = std::numeric_limits<double>::quiet_NaN();
+  double core_ms = std::numeric_limits<double>::quiet_NaN();
+  double publish_ms = std::numeric_limits<double>::quiet_NaN();
+  double total_ms = std::numeric_limits<double>::quiet_NaN();
+};
+
 class RuntimePerformanceDebugLogger {
 public:
   explicit RuntimePerformanceDebugLogger(const Config &config);
@@ -66,6 +88,7 @@ public:
   bool ready() const noexcept { return ready_; }
   const std::string &path() const noexcept { return path_; }
   bool append(const RuntimePerformanceDebugEvent &event);
+  bool append(const RuntimePerformanceLoopEvent &event);
 
 private:
   bool enabled_ = false;

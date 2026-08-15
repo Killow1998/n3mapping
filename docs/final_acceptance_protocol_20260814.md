@@ -62,13 +62,17 @@ publication surface. Each run gets a fresh output directory and records:
 - mode-specific quality invariants from the frozen reference evidence.
 
 Initial map load and initial relocalization are reported separately from the
-steady-state window. A mode cannot substitute another input or omit its slow
-path and remain comparable.
+steady-state window. The steady-state boundary is frozen as follows: mapping
+uses every valid synchronized frame callback; localization and map extension
+start with the first ordinary or strict tracking callback *after* the first
+`FULL_6DOF_LOCKED` transition. There is no additional warm-up exclusion. A
+mode cannot substitute another input or omit its slow path and remain
+comparable.
 
 ### Throughput gate
 
-The replay has a 100 ms sensor period. For each mode, after the frozen warm-up
-or initial-lock boundary:
+The replay has a 100 ms sensor period. For each mode, inside the frozen
+steady-state window:
 
 - at least 500 steady-state frame records are required;
 - at least 99 percent of expected synchronized frames must be processed;

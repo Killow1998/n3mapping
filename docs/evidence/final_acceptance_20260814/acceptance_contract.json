@@ -37,6 +37,11 @@
       "processed_frame_count",
       "max_consecutive_over_budget"
     ],
+    "steady_state_windows": {
+      "mapping": "all_valid_synchronized_frame_callbacks",
+      "localization": "first_ordinary_tracking_callback_after_first_FULL_6DOF_LOCKED_transition_no_additional_warmup",
+      "map_extension": "first_strict_tracking_callback_after_first_FULL_6DOF_LOCKED_transition_no_additional_warmup"
+    },
     "steady_state_thresholds": {
       "minimum_runtime_frames": 500,
       "minimum_processed_input_rate": 0.99,

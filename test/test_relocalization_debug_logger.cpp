@@ -154,7 +154,7 @@ TEST(RuntimePerformanceDebugLoggerTest,
   EXPECT_FALSE(disabled.ready());
 }
 
-TEST(RuntimePerformanceDebugLoggerTest, AppendsMapExtensionFrame) {
+TEST(RuntimePerformanceDebugLoggerTest, AppendsVersionedFrameAndLoopCycle) {
   const auto temp_dir = makeTempDir() / "runtime_performance";
   std::filesystem::remove_all(temp_dir);
   Config config;
@@ -167,6 +167,7 @@ TEST(RuntimePerformanceDebugLoggerTest, AppendsMapExtensionFrame) {
     ASSERT_TRUE(logger.ready());
 
     RuntimePerformanceDebugEvent event;
+    event.mode = "map_extension";
     event.processing_time = 10.0;
     event.frame_index = 7;
     event.sensor_timestamp = 123.0;
@@ -180,6 +181,8 @@ TEST(RuntimePerformanceDebugLoggerTest, AppendsMapExtensionFrame) {
     event.relocalization_state = "FULL_6DOF_LOCKED";
     event.pose_source = "GEOMETRICALLY_CORRECTED";
     event.relocalization_decision = "loaded_map_tracking_geometric";
+    event.relocalization_locked = false;
+    event.tracking_attempted = true;
     event.published_global_pose = true;
     event.published_body_cloud = true;
     event.published_world_cloud = true;
@@ -198,14 +201,34 @@ TEST(RuntimePerformanceDebugLoggerTest, AppendsMapExtensionFrame) {
     event.cloud_publish_ms = 3.0;
     event.callback_total_ms = 25.5;
     ASSERT_TRUE(logger.append(event));
+
+    RuntimePerformanceLoopEvent loop_event;
+    loop_event.mode = "mapping";
+    loop_event.processing_time = 11.0;
+    loop_event.cycle_index = 3;
+    loop_event.queued_keyframe_count = 1;
+    loop_event.detected_candidate_count = 4;
+    loop_event.place_candidate_count = 1;
+    loop_event.accepted_loop_count = 1;
+    loop_event.edge_count = 1;
+    loop_event.optimized = true;
+    loop_event.lock_wait_ms = 0.5;
+    loop_event.core_ms = 40.0;
+    loop_event.publish_ms = 2.0;
+    loop_event.total_ms = 43.0;
+    ASSERT_TRUE(logger.append(loop_event));
   }
 
   const auto lines = readLines(temp_dir / "runtime_performance_debug.jsonl");
-  ASSERT_EQ(lines.size(), 1u);
+  ASSERT_EQ(lines.size(), 2u);
   EXPECT_NE(lines[0].find(
-                "\"schema\":\"n3mapping_runtime_performance_v1\""),
+                "\"schema\":\"n3mapping_runtime_performance_v2\""),
             std::string::npos);
-  EXPECT_NE(lines[0].find("\"record_type\":\"map_extension_frame\""),
+  EXPECT_NE(lines[0].find("\"record_type\":\"runtime_frame\""),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"mode\":\"map_extension\""),
+            std::string::npos);
+  EXPECT_NE(lines[0].find("\"tracking_attempted\":true"),
             std::string::npos);
   EXPECT_NE(lines[0].find("\"frame_index\":7"), std::string::npos);
   EXPECT_NE(lines[0].find("\"graph_update_ms\":2.5"),
@@ -214,6 +237,11 @@ TEST(RuntimePerformanceDebugLoggerTest, AppendsMapExtensionFrame) {
             std::string::npos);
   EXPECT_NE(lines[0].find("\"callback_total_ms\":25.5"),
             std::string::npos);
+  EXPECT_NE(lines[1].find("\"record_type\":\"loop_cycle\""),
+            std::string::npos);
+  EXPECT_NE(lines[1].find("\"detected_candidate_count\":4"),
+            std::string::npos);
+  EXPECT_NE(lines[1].find("\"total_ms\":43"), std::string::npos);
 
   std::filesystem::remove_all(temp_dir);
 }

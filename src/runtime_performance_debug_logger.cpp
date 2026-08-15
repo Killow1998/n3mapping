@@ -122,8 +122,9 @@ bool RuntimePerformanceDebugLogger::append(
   std::ostringstream record;
   bool first = true;
   record << '{';
-  appendString(record, &first, "schema", "n3mapping_runtime_performance_v1");
-  appendString(record, &first, "record_type", "map_extension_frame");
+  appendString(record, &first, "schema", "n3mapping_runtime_performance_v2");
+  appendString(record, &first, "record_type", "runtime_frame");
+  appendString(record, &first, "mode", event.mode);
   appendNumber(record, &first, "processing_time", event.processing_time);
   appendSize(record, &first, "frame_index", event.frame_index);
   appendNumber(record, &first, "sensor_timestamp", event.sensor_timestamp);
@@ -141,6 +142,9 @@ bool RuntimePerformanceDebugLogger::append(
   appendString(record, &first, "pose_source", event.pose_source);
   appendString(record, &first, "relocalization_decision",
                event.relocalization_decision);
+  appendBool(record, &first, "relocalization_locked",
+             event.relocalization_locked);
+  appendBool(record, &first, "tracking_attempted", event.tracking_attempted);
   appendBool(record, &first, "callback_skipped", event.callback_skipped);
   appendBool(record, &first, "published_global_pose",
              event.published_global_pose);
@@ -172,6 +176,41 @@ bool RuntimePerformanceDebugLogger::append(
                event.callback_locked_ms);
   appendNumber(record, &first, "cloud_publish_ms", event.cloud_publish_ms);
   appendNumber(record, &first, "callback_total_ms", event.callback_total_ms);
+  record << '}';
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  stream_ << record.str() << '\n';
+  return stream_.good();
+}
+
+bool RuntimePerformanceDebugLogger::append(
+    const RuntimePerformanceLoopEvent &event) {
+  if (!enabled_ || !ready_) {
+    return false;
+  }
+
+  std::ostringstream record;
+  bool first = true;
+  record << '{';
+  appendString(record, &first, "schema", "n3mapping_runtime_performance_v2");
+  appendString(record, &first, "record_type", "loop_cycle");
+  appendString(record, &first, "mode", event.mode);
+  appendNumber(record, &first, "processing_time", event.processing_time);
+  appendSize(record, &first, "cycle_index", event.cycle_index);
+  appendSize(record, &first, "queued_keyframe_count",
+             event.queued_keyframe_count);
+  appendSize(record, &first, "detected_candidate_count",
+             event.detected_candidate_count);
+  appendSize(record, &first, "place_candidate_count",
+             event.place_candidate_count);
+  appendSize(record, &first, "accepted_loop_count",
+             event.accepted_loop_count);
+  appendSize(record, &first, "edge_count", event.edge_count);
+  appendBool(record, &first, "optimized", event.optimized);
+  appendNumber(record, &first, "lock_wait_ms", event.lock_wait_ms);
+  appendNumber(record, &first, "core_ms", event.core_ms);
+  appendNumber(record, &first, "publish_ms", event.publish_ms);
+  appendNumber(record, &first, "total_ms", event.total_ms);
   record << '}';
 
   std::lock_guard<std::mutex> lock(mutex_);

@@ -80,12 +80,14 @@ def runtime_record(
     }
 
 
-def tracking_record(index: int, *, cache_hit: bool = False) -> dict[str, object]:
-    return {
+def tracking_record(
+    index: int, *, cache_hit: bool = False, strict: bool = True
+) -> dict[str, object]:
+    record: dict[str, object] = {
         "record_type": "tracking",
         "processing_time": 1000.0 + index,
         "query_index": index,
-        "strict_loaded_map": True,
+        "strict_loaded_map": strict,
         "predicted_pose": {
             "x": 0.0,
             "y": 0.0,
@@ -99,15 +101,15 @@ def tracking_record(index: int, *, cache_hit: bool = False) -> dict[str, object]
         "submap_size": 200000,
         "tracking_total_ms": 85.0,
         "nearest_keyframe_ms": 1.0,
-        "loaded_map_cache_ms": 2.0,
+        "loaded_map_cache_ms": 2.0 if strict else None,
         "submap_build_ms": 3.0,
         "target_prepare_ms": 20.0,
-        "loaded_map_target_cache_hit": cache_hit,
-        "loaded_map_target_cache_miss": not cache_hit,
+        "loaded_map_target_cache_hit": cache_hit if strict else False,
+        "loaded_map_target_cache_miss": (not cache_hit) if strict else False,
         "source_prepare_ms": 5.0,
         "registration_ms": 50.0,
         "retry_registration_ms": None,
-        "visibility_ms": 4.0,
+        "visibility_ms": 4.0 if strict else None,
         "icp_converged": True,
         "fitness_score": 0.01,
         "inlier_ratio": 0.9,
@@ -115,6 +117,60 @@ def tracking_record(index: int, *, cache_hit: bool = False) -> dict[str, object]
         "consecutive_track_failures": 0,
         "result_success": True,
         "reject_reason": "",
+    }
+    return record
+
+
+def runtime_record_v2(
+    index: int,
+    sensor_timestamp: float,
+    *,
+    mode: str,
+    callback_total_ms: float,
+    relocalization_locked: bool = False,
+    tracking_attempted: bool = False,
+    loaded_tracking_ms: float | None = None,
+) -> dict[str, object]:
+    record = runtime_record(
+        index,
+        sensor_timestamp,
+        loaded_tracking_ms=loaded_tracking_ms,
+        callback_total_ms=callback_total_ms,
+    )
+    record.update(
+        {
+            "schema": "n3mapping_runtime_performance_v2",
+            "record_type": "runtime_frame",
+            "mode": mode,
+            "relocalization_locked": relocalization_locked,
+            "tracking_attempted": tracking_attempted,
+        }
+    )
+    if relocalization_locked:
+        record["relocalization_state"] = "FULL_6DOF_LOCKED"
+        record["core_success"] = True
+    return record
+
+
+def loop_record(
+    index: int, *, queued: int, total_ms: float = 10.0
+) -> dict[str, object]:
+    return {
+        "schema": "n3mapping_runtime_performance_v2",
+        "record_type": "loop_cycle",
+        "mode": "mapping",
+        "processing_time": 1000.25 + index,
+        "cycle_index": index,
+        "queued_keyframe_count": queued,
+        "detected_candidate_count": 2 if queued else 0,
+        "place_candidate_count": 1 if queued else 0,
+        "accepted_loop_count": 1 if queued else 0,
+        "edge_count": 1 if queued else 0,
+        "optimized": queued > 0,
+        "lock_wait_ms": 1.0,
+        "core_ms": total_ms - 2.0,
+        "publish_ms": 1.0,
+        "total_ms": total_ms,
     }
 
 
@@ -143,6 +199,100 @@ def write_jsonl(path: Path, records: list[dict[str, object]]) -> None:
 
 
 class RuntimePerformanceAnalyzeTest(unittest.TestCase):
+    def test_v2_mapping_requires_and_summarizes_loop_work(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            runtime_path = directory / "runtime_performance_debug.jsonl"
+            tracking_path = directory / "relocalization_debug.jsonl"
+            resource_path = directory / "process_resource.jsonl"
+            write_jsonl(
+                runtime_path,
+                [
+                    runtime_record_v2(
+                        1, 10.0, mode="mapping", callback_total_ms=80.0
+                    ),
+                    loop_record(1, queued=0),
+                    runtime_record_v2(
+                        2, 10.1, mode="mapping", callback_total_ms=120.0
+                    ),
+                    loop_record(2, queued=1, total_ms=45.0),
+                ],
+            )
+            write_jsonl(resource_path, [resource_record(1), resource_record(2)])
+
+            report, exit_code = TOOL.analyze(
+                runtime_path,
+                tracking_path,
+                resource_path,
+                expected_frames=2,
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(report["status"], "PROFILE_READY")
+            self.assertEqual(report["mode"], "mapping")
+            self.assertEqual(report["counts"]["steady_state_runtime_frames"], 2)
+            self.assertEqual(report["counts"]["loop_work_cycles"], 1)
+            self.assertEqual(report["counts"]["loop_detected_candidates"], 2)
+            self.assertEqual(report["counts"]["processed_input_rate"], 1.0)
+            self.assertEqual(report["loop_work_cycle_timing_ms"]["total_ms"]["p95"], 45.0)
+
+    def test_v2_localization_uses_only_post_lock_tracking_window(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            runtime_path = directory / "runtime_performance_debug.jsonl"
+            tracking_path = directory / "relocalization_debug.jsonl"
+            resource_path = directory / "process_resource.jsonl"
+            write_jsonl(
+                runtime_path,
+                [
+                    runtime_record_v2(
+                        1,
+                        10.0,
+                        mode="localization",
+                        callback_total_ms=400.0,
+                        relocalization_locked=True,
+                    ),
+                    runtime_record_v2(
+                        2,
+                        10.1,
+                        mode="localization",
+                        callback_total_ms=120.0,
+                        tracking_attempted=True,
+                    ),
+                    runtime_record_v2(
+                        3,
+                        10.2,
+                        mode="localization",
+                        callback_total_ms=130.0,
+                        tracking_attempted=True,
+                    ),
+                ],
+            )
+            write_jsonl(
+                tracking_path,
+                [tracking_record(1, strict=False), tracking_record(2, strict=False)],
+            )
+            write_jsonl(resource_path, [resource_record(1), resource_record(2)])
+
+            report, exit_code = TOOL.analyze(
+                runtime_path, tracking_path, resource_path
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(report["mode"], "localization")
+            self.assertEqual(report["steady_state"]["lock_frame_index"], 1)
+            self.assertEqual(report["counts"]["runtime_frames"], 3)
+            self.assertEqual(report["counts"]["steady_state_runtime_frames"], 2)
+            self.assertEqual(report["counts"]["ordinary_tracking_records"], 2)
+            self.assertEqual(
+                report["counts"]["steady_state_max_consecutive_over_sensor_budget"],
+                2,
+            )
+            self.assertEqual(
+                report["steady_state_runtime_timing_ms"]["callback_total_ms"]["p50"],
+                125.0,
+            )
+
     def test_profile_ready_summarizes_stages_and_invariants(self) -> None:
         with tempfile.TemporaryDirectory() as raw_dir:
             directory = Path(raw_dir)
