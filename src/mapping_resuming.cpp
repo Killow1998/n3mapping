@@ -175,7 +175,7 @@ bool MappingResuming::performInitialRelocalization(
     // the authoritative anchor here and give nearby prefetches a head start so
     // the first tracking callbacks do not pay an avoidable target-build miss.
     world_localizing_.warmLoadedMapTrackingTargets(
-        result.matched_keyframe_id, result.pose_in_map.translation());
+        result.matched_keyframe_id, result.pose_in_map.translation(), true);
 
     const Eigen::Vector3d rpy_deg = rotationRpyDegrees(T_map_odom);
     LOG(INFO) << "[MappingResuming] Relocalization anchor id="

@@ -1851,11 +1851,14 @@ void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
 }
 
 void WorldLocalizing::invalidateLoadedMapTrackingTargetCache() {
-  std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);
-  loaded_map_tracking_target_cache_.clear();
-  loaded_map_tracking_target_prefetch_queue_.clear();
-  loaded_map_tracking_target_prefetch_pending_.clear();
-  ++loaded_map_tracking_target_cache_epoch_;
+  {
+    std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);
+    loaded_map_tracking_target_cache_.clear();
+    loaded_map_tracking_target_prefetch_queue_.clear();
+    loaded_map_tracking_target_prefetch_pending_.clear();
+    ++loaded_map_tracking_target_cache_epoch_;
+  }
+  loaded_map_tracking_target_prefetch_cv_.notify_all();
 }
 
 PointCloudMatcher::PreparedTarget
@@ -2075,6 +2078,7 @@ void WorldLocalizing::loadedMapTrackingTargetPrefetchLoop(
     const auto key = loadedMapTrackingTargetRequestKey(
         request.anchor_id, request.map_revision, request.loaded_keyframe_count);
     loaded_map_tracking_target_prefetch_pending_.erase(key);
+    loaded_map_tracking_target_prefetch_cv_.notify_all();
     if (request.cache_epoch != loaded_map_tracking_target_cache_epoch_ ||
         !hasUsablePreparedTarget(prepared) ||
         hasLoadedMapTrackingTargetLocked(request.anchor_id,
@@ -2096,7 +2100,8 @@ void WorldLocalizing::loadedMapTrackingTargetPrefetchLoop(
 }
 
 void WorldLocalizing::warmLoadedMapTrackingTargets(
-    int64_t anchor_id, const Eigen::Vector3d &query_position) {
+    int64_t anchor_id, const Eigen::Vector3d &query_position,
+    bool wait_for_prefetch) {
   if (anchor_id < 0 || !query_position.allFinite()) {
     return;
   }
@@ -2121,6 +2126,18 @@ void WorldLocalizing::warmLoadedMapTrackingTargets(
     return;
   }
   prepareLoadedMapTrackingTarget(anchor_id, submap, nullptr, nullptr);
+  if (wait_for_prefetch) {
+    // Initial lock is outside the steady-state tracking window. Finish the
+    // bounded three-neighbor warmup here so the first rapid anchor transitions
+    // do not fall back to a synchronous 200+ ms target build. Post-commit calls
+    // keep the default non-blocking behavior.
+    std::unique_lock<std::mutex> cache_lock(
+        loaded_map_tracking_target_cache_mutex_);
+    loaded_map_tracking_target_prefetch_cv_.wait(cache_lock, [this] {
+      return loaded_map_tracking_target_prefetch_stop_ ||
+             loaded_map_tracking_target_prefetch_pending_.empty();
+    });
+  }
 }
 
 VisibilityConsistencyResult WorldLocalizing::evaluateLoadedMapPoseVisibility(

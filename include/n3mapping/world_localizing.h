@@ -152,7 +152,8 @@ public:
   // a committed extension graph update. Nearby targets are only prefetched;
   // a later tracking callback still builds synchronously on any cache miss.
   void warmLoadedMapTrackingTargets(int64_t anchor_id,
-                                    const Eigen::Vector3d &query_position);
+                                    const Eigen::Vector3d &query_position,
+                                    bool wait_for_prefetch = false);
 
 private:
   using RelocHypothesis = RelocalizationHypothesis;

@@ -6,7 +6,6 @@
 #include "n3mapping/relocalization_hypothesis_manager.h"
 #include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/world_localizing.h"
-#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -14,7 +13,6 @@
 #include <pcl/common/transforms.h>
 #include <random>
 #include <string>
-#include <thread>
 #include <vector>
 
 namespace n3mapping {
@@ -769,19 +767,10 @@ TEST_F(WorldLocalizingTest,
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);
   Eigen::Vector3d query_position(8.0, 0.0, 0.0);
-  reloc.warmLoadedMapTrackingTargets(4, query_position);
+  reloc.warmLoadedMapTrackingTargets(4, query_position, true);
 
-  const auto deadline = std::chrono::steady_clock::now() +
-                        std::chrono::seconds(5);
-  WorldLocalizing::WorldLocalizingCacheDiagnostics diag;
-  do {
-    diag = reloc.cacheDiagnostics();
-    if (diag.loaded_map_target_prefetch_pending == 0u &&
-        diag.loaded_map_target_prefetch_queue_entries == 0u) {
-      break;
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
-  } while (std::chrono::steady_clock::now() < deadline);
+  WorldLocalizing::WorldLocalizingCacheDiagnostics diag =
+      reloc.cacheDiagnostics();
 
   ASSERT_EQ(diag.loaded_map_target_prefetch_pending, 0u);
   ASSERT_EQ(diag.loaded_map_target_prefetch_queue_entries, 0u);
