@@ -27,11 +27,11 @@ namespace {
 constexpr int kRelocMaxBasinCount = 3;
 constexpr int kRelocPerBasinVerifyCount = 3;
 constexpr double kRelocBasinAssignRadiusXY = 4.0;
-// Keep the authoritative anchor plus the three nearest alternatives. Two
-// workers can prepare those alternatives within the normal transition window
-// without changing the exact-revision, fail-closed foreground path.
+// Keep the authoritative anchor plus the three nearest alternatives. At most
+// two workers prepare those alternatives, but together they share one
+// config_.num_threads background budget instead of multiplying it per worker.
 constexpr std::size_t kLoadedMapTrackingTargetCacheEntries = 4;
-constexpr std::size_t kLoadedMapTrackingTargetPrefetchWorkers = 2;
+constexpr std::size_t kLoadedMapTrackingTargetPrefetchMaxWorkers = 2;
 constexpr std::size_t kLoadedMapTrackingTargetPrefetchQueueEntries =
     kLoadedMapTrackingTargetCacheEntries * 2;
 
@@ -98,12 +98,25 @@ WorldLocalizing::WorldLocalizing(const Config &config,
       relocalization_seed_id_(-1),
       last_odom_pose_(Eigen::Isometry3d::Identity()),
       consecutive_track_failures_(0) {
+  loaded_map_tracking_target_prefetch_worker_count_ =
+      std::min(kLoadedMapTrackingTargetPrefetchMaxWorkers,
+               static_cast<std::size_t>(std::max(1, config_.num_threads)));
+  loaded_map_tracking_target_prefetch_threads_per_worker_ = std::max(
+      1, config_.num_threads /
+             static_cast<int>(loaded_map_tracking_target_prefetch_worker_count_));
+  loaded_map_tracking_target_prefetch_matchers_.reserve(
+      loaded_map_tracking_target_prefetch_worker_count_);
   loaded_map_tracking_target_prefetch_threads_.reserve(
-      kLoadedMapTrackingTargetPrefetchWorkers);
+      loaded_map_tracking_target_prefetch_worker_count_);
   for (std::size_t index = 0;
-       index < kLoadedMapTrackingTargetPrefetchWorkers; ++index) {
+       index < loaded_map_tracking_target_prefetch_worker_count_; ++index) {
+    Config prefetch_config = config_;
+    prefetch_config.num_threads =
+        loaded_map_tracking_target_prefetch_threads_per_worker_;
+    loaded_map_tracking_target_prefetch_matchers_.push_back(
+        std::make_unique<PointCloudMatcher>(prefetch_config));
     loaded_map_tracking_target_prefetch_threads_.emplace_back(
-        &WorldLocalizing::loadedMapTrackingTargetPrefetchLoop, this);
+        &WorldLocalizing::loadedMapTrackingTargetPrefetchLoop, this, index);
   }
 }
 
@@ -1369,8 +1382,13 @@ void WorldLocalizing::notifyMapReplaced() {
   loaded_map_visibility_cached_keyframes_ = 0;
   loaded_map_visibility_revision_ = {};
   invalidateLoadedMapTrackingTargetCache();
-  loaded_map_tracking_target_cache_hits_ = 0;
-  loaded_map_tracking_target_cache_misses_ = 0;
+  {
+    std::lock_guard<std::mutex> cache_lock(
+        loaded_map_tracking_target_cache_mutex_);
+    loaded_map_tracking_target_cache_hits_ = 0;
+    loaded_map_tracking_target_cache_misses_ = 0;
+    loaded_map_tracking_target_prefetch_requests_ = 0;
+  }
   free_space_grid_ = FreeSpaceGrid();
   free_space_grid_keyframes_ = 0;
   free_space_grid_revision_ = {};
@@ -1409,6 +1427,17 @@ WorldLocalizing::cacheDiagnostics() const {
     d.loaded_map_target_cache_misses = loaded_map_tracking_target_cache_misses_;
     d.loaded_map_target_cache_entries =
         loaded_map_tracking_target_cache_.size();
+    d.loaded_map_target_prefetch_requests =
+        loaded_map_tracking_target_prefetch_requests_;
+    d.loaded_map_target_prefetch_pending =
+        loaded_map_tracking_target_prefetch_pending_.size();
+    d.loaded_map_target_prefetch_queue_entries =
+        loaded_map_tracking_target_prefetch_queue_.size();
+    d.loaded_map_target_prefetch_workers =
+        loaded_map_tracking_target_prefetch_worker_count_;
+    d.loaded_map_target_prefetch_threads_per_worker =
+        static_cast<std::size_t>(
+            loaded_map_tracking_target_prefetch_threads_per_worker_);
   }
   return d;
 }
@@ -1961,11 +1990,20 @@ void WorldLocalizing::requestLoadedMapTrackingTargetPrefetch(
                          .squaredNorm();
             });
 
-  std::size_t requested = 0;
+  std::size_t alternatives_considered = 0;
   for (const auto &keyframe : nearest) {
     if (keyframe->id == current_anchor_id) {
       continue;
     }
+    // The cache working set is the current anchor plus exactly the three
+    // nearest alternatives. Cached/pending alternatives still consume a slot.
+    // Counting only newly queued work makes every callback walk farther down
+    // the list and continuously evict/rebuild the real nearest neighbors.
+    if (alternatives_considered >=
+        kLoadedMapTrackingTargetCacheEntries - 1u) {
+      break;
+    }
+    ++alternatives_considered;
     LoadedMapTrackingTargetPrefetchRequest request;
     request.anchor_id = keyframe->id;
     request.crop_center = keyframe->pose_optimized.translation();
@@ -1996,15 +2034,20 @@ void WorldLocalizing::requestLoadedMapTrackingTargetPrefetch(
       }
       loaded_map_tracking_target_prefetch_queue_.push_back(request);
       loaded_map_tracking_target_prefetch_pending_.insert(key);
+      ++loaded_map_tracking_target_prefetch_requests_;
     }
     loaded_map_tracking_target_prefetch_cv_.notify_one();
-    if (++requested >= kLoadedMapTrackingTargetCacheEntries - 1u) {
-      break;
-    }
   }
 }
 
-void WorldLocalizing::loadedMapTrackingTargetPrefetchLoop() {
+void WorldLocalizing::loadedMapTrackingTargetPrefetchLoop(
+    std::size_t worker_index) {
+  if (worker_index >= loaded_map_tracking_target_prefetch_matchers_.size() ||
+      !loaded_map_tracking_target_prefetch_matchers_[worker_index]) {
+    return;
+  }
+  PointCloudMatcher &prefetch_matcher =
+      *loaded_map_tracking_target_prefetch_matchers_[worker_index];
   while (true) {
     LoadedMapTrackingTargetPrefetchRequest request;
     {
@@ -2025,7 +2068,7 @@ void WorldLocalizing::loadedMapTrackingTargetPrefetchLoop() {
     const auto submap = LocalizationAtlas::cropGlobalMap(
         config_, request.loaded_map, request.crop_center);
     if (submap && !submap->empty()) {
-      prepared = matcher_.prepareTargetCloud(submap);
+      prepared = prefetch_matcher.prepareTargetCloud(submap);
     }
 
     std::lock_guard<std::mutex> lock(loaded_map_tracking_target_cache_mutex_);

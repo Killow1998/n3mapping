@@ -127,6 +127,11 @@ public:
     std::size_t loaded_map_target_cache_hits = 0;
     std::size_t loaded_map_target_cache_misses = 0;
     std::size_t loaded_map_target_cache_entries = 0;
+    std::size_t loaded_map_target_prefetch_requests = 0;
+    std::size_t loaded_map_target_prefetch_pending = 0;
+    std::size_t loaded_map_target_prefetch_queue_entries = 0;
+    std::size_t loaded_map_target_prefetch_workers = 0;
+    std::size_t loaded_map_target_prefetch_threads_per_worker = 0;
   };
   WorldLocalizingCacheDiagnostics cacheDiagnostics() const;
   void setMapToOdomTransform(const Eigen::Isometry3d &T_map_odom);
@@ -191,7 +196,7 @@ private:
   void
   requestLoadedMapTrackingTargetPrefetch(const Eigen::Vector3d &query_position,
                                          int64_t current_anchor_id);
-  void loadedMapTrackingTargetPrefetchLoop();
+  void loadedMapTrackingTargetPrefetchLoop(std::size_t worker_index);
   bool
   hasLoadedMapTrackingTargetLocked(int64_t anchor_id,
                                    const KeyframeMapRevision &map_revision,
@@ -250,11 +255,16 @@ private:
       loaded_map_tracking_target_prefetch_pending_;
   mutable std::mutex loaded_map_tracking_target_cache_mutex_;
   std::condition_variable loaded_map_tracking_target_prefetch_cv_;
+  std::vector<std::unique_ptr<PointCloudMatcher>>
+      loaded_map_tracking_target_prefetch_matchers_;
   std::vector<std::thread> loaded_map_tracking_target_prefetch_threads_;
+  std::size_t loaded_map_tracking_target_prefetch_worker_count_ = 0;
+  int loaded_map_tracking_target_prefetch_threads_per_worker_ = 1;
   bool loaded_map_tracking_target_prefetch_stop_ = false;
   std::uint64_t loaded_map_tracking_target_cache_epoch_ = 0;
   size_t loaded_map_tracking_target_cache_hits_ = 0;
   size_t loaded_map_tracking_target_cache_misses_ = 0;
+  size_t loaded_map_tracking_target_prefetch_requests_ = 0;
   FreeSpaceGrid free_space_grid_;
   size_t free_space_grid_keyframes_ = 0;
   KeyframeMapRevision free_space_grid_revision_;

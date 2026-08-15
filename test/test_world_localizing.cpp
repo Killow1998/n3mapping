@@ -6,6 +6,7 @@
 #include "n3mapping/relocalization_hypothesis_manager.h"
 #include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/world_localizing.h"
+#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -13,6 +14,7 @@
 #include <pcl/common/transforms.h>
 #include <random>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace n3mapping {
@@ -754,6 +756,51 @@ TEST_F(WorldLocalizingTest, LoadedMapPreparedTargetCacheFollowsMapLifecycle) {
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 0u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 0u);
   EXPECT_EQ(diag.loaded_map_target_cache_entries, 0u);
+}
+
+TEST_F(WorldLocalizingTest,
+       LoadedMapPrefetchStopsAfterCachedNearestAlternatives) {
+  buildTestMap(8, 2.0);
+  for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
+    ASSERT_NE(keyframe, nullptr);
+    keyframe->is_from_loaded_map = true;
+  }
+
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
+                        *matcher_);
+  Eigen::Vector3d query_position(8.0, 0.0, 0.0);
+  reloc.warmLoadedMapTrackingTargets(4, query_position);
+
+  const auto deadline = std::chrono::steady_clock::now() +
+                        std::chrono::seconds(5);
+  WorldLocalizing::WorldLocalizingCacheDiagnostics diag;
+  do {
+    diag = reloc.cacheDiagnostics();
+    if (diag.loaded_map_target_prefetch_pending == 0u &&
+        diag.loaded_map_target_prefetch_queue_entries == 0u) {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  } while (std::chrono::steady_clock::now() < deadline);
+
+  ASSERT_EQ(diag.loaded_map_target_prefetch_pending, 0u);
+  ASSERT_EQ(diag.loaded_map_target_prefetch_queue_entries, 0u);
+  ASSERT_EQ(diag.loaded_map_target_prefetch_requests, 3u);
+  EXPECT_EQ(diag.loaded_map_target_cache_entries, 4u);
+  ASSERT_GE(diag.loaded_map_target_prefetch_workers, 1u);
+  EXPECT_LE(diag.loaded_map_target_prefetch_workers, 2u);
+  EXPECT_LE(diag.loaded_map_target_prefetch_workers *
+                diag.loaded_map_target_prefetch_threads_per_worker,
+            static_cast<std::size_t>(config_.num_threads));
+
+  // A repeated request at the same pose must find the entire three-neighbor
+  // frontier cached. The historical bug skipped those cached slots, walked on
+  // to three farther anchors, and restarted an endless eviction cycle.
+  reloc.warmLoadedMapTrackingTargets(4, query_position);
+  diag = reloc.cacheDiagnostics();
+  EXPECT_EQ(diag.loaded_map_target_prefetch_requests, 3u);
+  EXPECT_EQ(diag.loaded_map_target_prefetch_pending, 0u);
+  EXPECT_EQ(diag.loaded_map_target_prefetch_queue_entries, 0u);
 }
 
 TEST_F(WorldLocalizingTest, Reset) {
