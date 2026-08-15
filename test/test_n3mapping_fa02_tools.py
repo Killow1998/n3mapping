@@ -156,6 +156,16 @@ class FA02ToolsTest(unittest.TestCase):
             self.assertTrue(path.read_bytes().startswith(b"episode_id,role,frame_token\n"))
             self.assertNotIn(b"\r", path.read_bytes())
 
+    def test_evaluator_frame_token_matches_dataset_reader_contract(self) -> None:
+        self.assertEqual(
+            freeze_tool.evaluator_frame_token("kitti360", Path("0000000039.bin")),
+            "39",
+        )
+        self.assertEqual(
+            freeze_tool.evaluator_frame_token("m2dgr", Path("1000.200000000.bin")),
+            "1000.200000000",
+        )
+
     def test_m2dgr_selection_matches_cpp_nearest_alignment(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "M2DGR"

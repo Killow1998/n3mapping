@@ -204,6 +204,12 @@ def write_frame_manifest(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
+def evaluator_frame_token(dataset: str, path: Path) -> str:
+    if dataset == "kitti360":
+        return str(int(path.stem))
+    return path.stem
+
+
 def freeze(contract_path: Path, output: Path, source_repo: Path) -> dict[str, Any]:
     contract_path = contract_path.resolve(strict=True)
     source_repo = source_repo.resolve(strict=True)
@@ -243,15 +249,16 @@ def freeze(contract_path: Path, output: Path, source_repo: Path) -> dict[str, An
         clouds: list[dict[str, Any]] = []
         for ordinal, path in enumerate(paths):
             evidence = file_evidence(path)
+            frame_token = evaluator_frame_token(dataset, path)
             evidence.update(
                 {
                     "ordinal": ordinal,
-                    "frame_token": path.stem,
+                    "frame_token": frame_token,
                 }
             )
             clouds.append(evidence)
             episode_rows.append(
-                {"episode_id": episode_id, "role": "map", "frame_token": path.stem}
+                {"episode_id": episode_id, "role": "map", "frame_token": frame_token}
             )
         episode_manifests.append(
             {
