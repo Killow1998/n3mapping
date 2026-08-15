@@ -108,6 +108,8 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(loop_kf_gap);
     N3MAPPING_CONFIG_FIELD(loop_min_path_length_m);
     N3MAPPING_CONFIG_FIELD(loop_keep_all_verified);
+    N3MAPPING_CONFIG_FIELD(loop_same_query_consensus_translation_m);
+    N3MAPPING_CONFIG_FIELD(loop_same_query_consensus_rotation_rad);
     N3MAPPING_CONFIG_FIELD(mapping_static_start_guard_enable);
     N3MAPPING_CONFIG_FIELD(mapping_static_voxel_m);
     N3MAPPING_CONFIG_FIELD(mapping_static_moved_overlap);
@@ -252,6 +254,10 @@ std::string Config::toString() const {
     oss << "Loop prediction range gate: max_range=" << loop_max_range
         << " (pre-ICP candidate filter)\n";
     oss << "Loop timing: loop_kf_gap=" << loop_kf_gap << " (active)\n";
+    oss << "Loop same-query consensus: translation="
+        << loop_same_query_consensus_translation_m
+        << " m, rotation=" << loop_same_query_consensus_rotation_rad
+        << " rad\n";
     oss << "Floor attitude (experimental): "
         << (floor_attitude_enable ? "ON" : "OFF")
         << " noise_deg=" << floor_attitude_noise_deg << "\n";
@@ -404,6 +410,10 @@ bool Config::validate(std::string* error) const {
     if (!at_least(loop_spatial_candidate_max_candidates, 1, "loop_spatial_candidate_max_candidates")) return false;
     if (!at_least(loop_kf_gap, 0, "loop_kf_gap")) return false;
     if (!at_least(loop_min_path_length_m, 0.0, "loop_min_path_length_m")) return false;
+    if (!positive(loop_same_query_consensus_translation_m,
+                  "loop_same_query_consensus_translation_m")) return false;
+    if (!positive(loop_same_query_consensus_rotation_rad,
+                  "loop_same_query_consensus_rotation_rad")) return false;
     if (!positive(floor_attitude_noise_deg, "floor_attitude_noise_deg")) return false;
     if (!positive(odom_sanity_max_speed_mps, "odom_sanity_max_speed_mps")) return false;
     if (!positive(mapping_static_voxel_m, "mapping_static_voxel_m")) return false;

@@ -1,6 +1,8 @@
 #pragma once
 
-#include <unordered_map>
+#include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "n3mapping/config.h"
@@ -16,6 +18,12 @@ enum class LoopEdgeDirection
 {
     QueryToMatch,
     MatchToQuery
+};
+
+struct SameQueryLoopSelection
+{
+    std::vector<VerifiedLoop> selected;
+    std::map<std::pair<int64_t, int64_t>, std::string> rejected;
 };
 
 /**
@@ -37,6 +45,16 @@ class LoopClosureManager
      * @brief 每个 query 仅保留 fitness 最优的回环
      */
     std::vector<VerifiedLoop> selectBestPerQuery(const std::vector<VerifiedLoop>& loops) const;
+
+    /**
+     * @brief 保留同一 query 推导位姿的严格多数一致集
+     *
+     * 单候选保持不变；没有严格多数时回退到 selectBestPerQuery 的排序，
+     * 避免在两个互相矛盾的小簇之间猜测。
+     */
+    SameQueryLoopSelection selectSameQueryConsensus(
+        const std::vector<VerifiedLoop>& loops,
+        const std::map<int64_t, Keyframe::Ptr>& keyframes) const;
 
     /**
      * @brief 构建回环边

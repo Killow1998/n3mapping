@@ -641,6 +641,137 @@ TEST(LoopClosureManagerTest, SelectBestPerQueryKeepsClearlyBetterFitness)
     EXPECT_EQ(best.front().match_id, 10);
 }
 
+TEST(LoopClosureManagerTest, SameQueryConsensusRejectsOnePoseOutlier)
+{
+    Config config;
+    config.loop_same_query_consensus_translation_m = 1.0;
+    config.loop_same_query_consensus_rotation_rad = 0.2;
+    LoopClosureManager manager(config);
+
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    keyframes[100] = Keyframe::create(100, 0.0, poseAt(9.8), makeTinyCloud());
+    std::vector<VerifiedLoop> loops;
+    for (int match_id = 0; match_id < 6; ++match_id) {
+        const auto match_pose = poseAt(static_cast<double>(match_id));
+        keyframes[match_id] =
+            Keyframe::create(match_id, 0.0, match_pose, makeTinyCloud());
+        VerifiedLoop loop;
+        loop.query_id = 100;
+        loop.match_id = match_id;
+        loop.verified = true;
+        loop.fitness_score = 0.1 + 0.01 * match_id;
+        const double implied_x = match_id == 1
+                                     ? 13.2
+                                     : 10.0 + 0.02 * match_id;
+        loop.T_match_query = match_pose.inverse() * poseAt(implied_x);
+        loops.push_back(loop);
+    }
+    // Make the geometric outlier look best to the historical scalar ranking.
+    loops[1].fitness_score = 0.001;
+
+    const auto selection =
+        manager.selectSameQueryConsensus(loops, keyframes);
+    ASSERT_EQ(selection.selected.size(), 5u);
+    EXPECT_TRUE(std::none_of(selection.selected.begin(),
+                             selection.selected.end(),
+                             [](const VerifiedLoop& loop) {
+                                 return loop.match_id == 1;
+                             }));
+    const auto rejected = selection.rejected.find({100, 1});
+    ASSERT_NE(rejected, selection.rejected.end());
+    EXPECT_EQ(rejected->second, "same_query_consensus_outlier");
+}
+
+TEST(LoopClosureManagerTest, SameQueryConsensusFallsBackWhenNoCandidateAgrees)
+{
+    Config config;
+    config.loop_same_query_consensus_translation_m = 1.0;
+    config.loop_same_query_consensus_rotation_rad = 0.2;
+    LoopClosureManager manager(config);
+
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    keyframes[100] = Keyframe::create(100, 0.0, poseAt(10.0), makeTinyCloud());
+    keyframes[0] = Keyframe::create(0, 0.0, poseAt(0.0), makeTinyCloud());
+    keyframes[1] = Keyframe::create(1, 0.0, poseAt(1.0), makeTinyCloud());
+
+    VerifiedLoop worse;
+    worse.query_id = 100;
+    worse.match_id = 0;
+    worse.verified = true;
+    worse.fitness_score = 0.2;
+    worse.T_match_query = poseAt(10.0);
+
+    VerifiedLoop better = worse;
+    better.match_id = 1;
+    better.fitness_score = 0.1;
+    better.T_match_query = poseAt(19.0);
+
+    const auto selection =
+        manager.selectSameQueryConsensus({worse, better}, keyframes);
+    ASSERT_EQ(selection.selected.size(), 1u);
+    EXPECT_EQ(selection.selected.front().match_id, 1);
+    EXPECT_EQ(selection.rejected.at({100, 0}),
+              "same_query_consensus_no_support");
+}
+
+TEST(LoopClosureManagerTest, SameQueryConsensusDoesNotChooseBetweenTiedClusters)
+{
+    Config config;
+    config.loop_same_query_consensus_translation_m = 1.0;
+    config.loop_same_query_consensus_rotation_rad = 0.2;
+    LoopClosureManager manager(config);
+
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    keyframes[100] = Keyframe::create(100, 0.0, poseAt(10.0), makeTinyCloud());
+    std::vector<VerifiedLoop> loops;
+    for (int match_id = 0; match_id < 4; ++match_id) {
+        const auto match_pose = poseAt(static_cast<double>(match_id));
+        keyframes[match_id] =
+            Keyframe::create(match_id, 0.0, match_pose, makeTinyCloud());
+        VerifiedLoop loop;
+        loop.query_id = 100;
+        loop.match_id = match_id;
+        loop.verified = true;
+        loop.fitness_score = match_id == 3 ? 0.01 : 0.2 + match_id;
+        const double implied_x = match_id < 2
+                                     ? 10.0 + 0.1 * match_id
+                                     : 20.0 + 0.1 * (match_id - 2);
+        loop.T_match_query = match_pose.inverse() * poseAt(implied_x);
+        loops.push_back(loop);
+    }
+
+    const auto selection =
+        manager.selectSameQueryConsensus(loops, keyframes);
+    ASSERT_EQ(selection.selected.size(), 1u);
+    EXPECT_EQ(selection.selected.front().match_id, 3);
+    EXPECT_EQ(selection.rejected.at({100, 0}),
+              "same_query_consensus_ambiguous");
+    EXPECT_EQ(selection.rejected.at({100, 1}),
+              "same_query_consensus_ambiguous");
+    EXPECT_EQ(selection.rejected.at({100, 2}),
+              "same_query_consensus_ambiguous");
+}
+
+TEST(LoopClosureManagerTest, SameQueryConsensusFailsClosedWithoutMatchPose)
+{
+    Config config;
+    LoopClosureManager manager(config);
+
+    std::map<int64_t, Keyframe::Ptr> keyframes;
+    keyframes[100] = Keyframe::create(100, 0.0, poseAt(10.0), makeTinyCloud());
+
+    VerifiedLoop loop;
+    loop.query_id = 100;
+    loop.match_id = 7;
+    loop.verified = true;
+
+    const auto selection =
+        manager.selectSameQueryConsensus({loop}, keyframes);
+    EXPECT_TRUE(selection.selected.empty());
+    EXPECT_EQ(selection.rejected.at({100, 7}),
+              "same_query_consensus_missing_match_pose");
+}
+
 TEST(LoopClosureManagerTest, BuildLoopEdgesRespectsDirection)
 {
     Config config;

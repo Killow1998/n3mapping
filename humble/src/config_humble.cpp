@@ -88,6 +88,10 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_kf_gap", config->loop_kf_gap);
     get("loop_min_path_length_m", config->loop_min_path_length_m);
     get("loop_keep_all_verified", config->loop_keep_all_verified);
+    get("loop_same_query_consensus_translation_m",
+        config->loop_same_query_consensus_translation_m);
+    get("loop_same_query_consensus_rotation_rad",
+        config->loop_same_query_consensus_rotation_rad);
     get("mapping_static_start_guard_enable", config->mapping_static_start_guard_enable);
     get("mapping_static_voxel_m", config->mapping_static_voxel_m);
     get("mapping_static_moved_overlap", config->mapping_static_moved_overlap);

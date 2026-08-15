@@ -78,6 +78,10 @@ void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config) {
     get("loop_spatial_candidate_radius", config->loop_spatial_candidate_radius);
     get("loop_spatial_candidate_max_candidates", config->loop_spatial_candidate_max_candidates);
     get("loop_kf_gap", config->loop_kf_gap);
+    get("loop_same_query_consensus_translation_m",
+        config->loop_same_query_consensus_translation_m);
+    get("loop_same_query_consensus_rotation_rad",
+        config->loop_same_query_consensus_rotation_rad);
     get("loop_max_range", config->loop_max_range);
     gets("map_save_path", config->map_save_path);
     get("global_map_voxel_size", config->global_map_voxel_size);

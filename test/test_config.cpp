@@ -31,6 +31,10 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_TRUE(config.loop_spatial_candidates_enable);
     EXPECT_DOUBLE_EQ(config.loop_spatial_candidate_radius, 15.0);
     EXPECT_EQ(config.loop_spatial_candidate_max_candidates, 5);
+    EXPECT_TRUE(config.loop_keep_all_verified);
+    EXPECT_DOUBLE_EQ(config.loop_same_query_consensus_translation_m, 1.0);
+    EXPECT_DOUBLE_EQ(config.loop_same_query_consensus_rotation_rad,
+                     0.17453292519943295);
     EXPECT_FALSE(config.floor_attitude_enable);
     EXPECT_DOUBLE_EQ(config.save_global_map_voxel_size, 0.1);
     EXPECT_EQ(config.sync_queue_size, 100);
@@ -94,6 +98,18 @@ TEST(ConfigTest, RejectsZeroNoiseAndNegativeVoxelParameters) {
     config.loop_spatial_candidate_max_candidates = 0;
     EXPECT_FALSE(config.validate(&error));
     EXPECT_NE(error.find("loop_spatial_candidate_max_candidates"), std::string::npos);
+
+    config = Config{};
+    config.loop_same_query_consensus_translation_m = 0.0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("loop_same_query_consensus_translation_m"),
+              std::string::npos);
+
+    config = Config{};
+    config.loop_same_query_consensus_rotation_rad = 0.0;
+    EXPECT_FALSE(config.validate(&error));
+    EXPECT_NE(error.find("loop_same_query_consensus_rotation_rad"),
+              std::string::npos);
 
     config = Config{};
     config.num_threads = 0;

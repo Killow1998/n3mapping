@@ -1322,25 +1322,25 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
 
     auto valid_loops =
         session_->loopClosureManager().filterValidLoops(verified_loops);
-    // Every verified loop, not the single best-scoring one per query. The
-    // bounded window is what keeps aliases out now; ranking by fitness only
-    // discarded informative loops in favour of near neighbours.
-    auto best_loops =
+    // Run every individual constraint gate before same-query consensus so a
+    // candidate that is already rejected cannot manufacture or break a
+    // majority. The legacy single-best mode retains its historical pre-gate
+    // selection order.
+    auto candidate_loops =
         config_.loop_keep_all_verified
             ? valid_loops
             : session_->loopClosureManager().selectBestPerQuery(valid_loops);
-    if (best_loops.empty()) {
+    if (candidate_loops.empty()) {
       flush_debug_events({}, "not_selected");
       continue;
     }
 
     const auto poses_before = session_->graphOptimizer().getOptimizedPoses();
-    std::vector<EdgeInfo> edges;
-    std::vector<VerifiedLoop> gated_best_loops;
-    edges.reserve(best_loops.size());
-    gated_best_loops.reserve(best_loops.size());
+    std::map<std::pair<int64_t, int64_t>, EdgeInfo> edge_by_pair;
+    std::vector<VerifiedLoop> gated_loops;
+    gated_loops.reserve(candidate_loops.size());
 
-    for (const auto &loop : best_loops) {
+    for (const auto &loop : candidate_loops) {
       auto gate = verification_pipeline.evaluateConstraint(
           loop, LoopEdgeDirection::MatchToQuery);
       const auto key = std::make_pair(loop.query_id, loop.match_id);
@@ -1361,13 +1361,47 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
                                         : gate.reject_reason;
         continue;
       }
-      edges.push_back(gate.edge);
-      gated_best_loops.push_back(gate.loop);
+      edge_by_pair[key] = gate.edge;
+      gated_loops.push_back(gate.loop);
     }
 
-    best_loops.swap(gated_best_loops);
-    if (edges.empty()) {
+    if (gated_loops.empty()) {
       flush_debug_events({}, "verification_pipeline_rejected");
+      continue;
+    }
+
+    // Preserve all measurements in the strict-majority same-query consensus
+    // set. This retains redundant constraints without committing an isolated
+    // corridor alias beside several agreeing measurements. Ambiguous sets
+    // fall back to the historical best-per-query policy.
+    std::vector<VerifiedLoop> best_loops;
+    if (config_.loop_keep_all_verified) {
+      auto selection = session_->loopClosureManager().selectSameQueryConsensus(
+          gated_loops, keyframe_map);
+      best_loops = std::move(selection.selected);
+      graph_reject_by_pair.insert(selection.rejected.begin(),
+                                  selection.rejected.end());
+    } else {
+      best_loops = std::move(gated_loops);
+    }
+
+    std::vector<EdgeInfo> edges;
+    std::vector<VerifiedLoop> loops_with_edges;
+    edges.reserve(best_loops.size());
+    loops_with_edges.reserve(best_loops.size());
+    for (const auto &loop : best_loops) {
+      const auto key = std::make_pair(loop.query_id, loop.match_id);
+      const auto edge_it = edge_by_pair.find(key);
+      if (edge_it == edge_by_pair.end()) {
+        graph_reject_by_pair[key] = "same_query_consensus_missing_edge";
+        continue;
+      }
+      edges.push_back(edge_it->second);
+      loops_with_edges.push_back(loop);
+    }
+    best_loops.swap(loops_with_edges);
+    if (edges.empty()) {
+      flush_debug_events({}, "same_query_consensus_rejected");
       continue;
     }
     result.place_candidate_count += best_loops.size();

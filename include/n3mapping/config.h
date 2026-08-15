@@ -119,11 +119,18 @@ struct Config {
     // graph has no observation of gravity at all: every edge is relative, so a
     // world frame that tilts while running is invisible and the height error it
     // causes cannot be recovered.
-    // Commit every loop that passed verification rather than one per query.
-    // Selecting one made sense when the search window was wide enough to admit
-    // corridor aliases; with the window sized to the drift it only throws away
+    // Preserve every loop in a same-query consensus set rather than one per
+    // query. Selecting one made sense when the search window was wide enough
+    // to admit corridor aliases; within an agreeing set it only throws away
     // constraints, and it ranks by a fitness that favours near neighbours.
     bool loop_keep_all_verified = true;
+    // When several verified candidates belong to the same query, compare the
+    // global query poses implied by each match and measurement.  Keep the
+    // strict-majority consensus set instead of allowing one corridor alias to
+    // enter the graph alongside several agreeing measurements.  These bounds
+    // are candidate-to-candidate checks; no ground truth is used at runtime.
+    double loop_same_query_consensus_translation_m = 1.0;
+    double loop_same_query_consensus_rotation_rad = 0.17453292519943295;
 
     // Stops mapping once the front end's pose has run away. FAST_LIO emits no
     // divergence signal, so without this a stairwell that breaks scan matching
