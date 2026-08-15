@@ -1,0 +1,77 @@
+{
+  "schema": "n3mapping_fa01_quality_reference_v1",
+  "reference_map_sha256": "8f2aa036ffd826f21937b03fd08b9e49bbfe68074f91eab8efd967d3962d778a",
+  "source_evidence": {
+    "mapping": {
+      "commit": "27ed778b0211f30d095b615072b3930e8f34f4d3",
+      "run_manifest_sha256": "37f56e10454540b632bc398f6b1671dd4cf01bff10dc788fa457f8704e2337b2",
+      "performance_summary_sha256": "343ca7e3eb11ba2da6d5940e044b969f71c089ed84e7a1bc64473e6b0c3a4c9d",
+      "output_map_sha256": "2cbff771ce3fceca6a44f0ce953e076b89845769ed6878ad4827a6a8b44e32a7"
+    },
+    "localization": {
+      "commit": "27ed778b0211f30d095b615072b3930e8f34f4d3",
+      "run_manifest_sha256": "dee487e47bb537d8b3d415eb324895acd0418c3fa8f7442ddda6d37de21540f3",
+      "performance_summary_sha256": "8b27a6631a7adba27d825e8b5ba11455581648701a309488f4d74bdfebf052a0"
+    },
+    "map_extension": {
+      "commit": "52d1263ed07499ed26cc418b3ccda1f1eb5a747d",
+      "run_manifest_sha256": "6451833be59ec26b8ea5a6b208bbfab48b7c6b2102dff253dc8b8acc91c186d6",
+      "performance_summary_sha256": "071e544e5eab5b96ef1784b447142e32252226590edf5998bb421d1c300820db",
+      "output_map_sha256": "654a69334f8d8a4b62dc373bd01d811ad0c7494ef9a64c1dc61d15f41bc50350"
+    }
+  },
+  "mapping": {
+    "accepted_keyframes": 23,
+    "accepted_loops": 4,
+    "output_map": {
+      "version": "2.7.0",
+      "keyframes": 23,
+      "edges": 26,
+      "odometry": 22,
+      "loop": 4,
+      "session_anchor": 0,
+      "unknown_edges": 0,
+      "dense_trajectory": 621,
+      "metadata_match": true,
+      "duplicate_keyframes": 0,
+      "dangling_edges": 0,
+      "session_anchors": []
+    }
+  },
+  "localization": {
+    "lock_frame_index": 5,
+    "lost_frames_max": 0,
+    "recently_lost_frames_max": 3,
+    "tracking_failure_max": 0
+  },
+  "map_extension": {
+    "lock_frame_index": 5,
+    "accepted_keyframes": 24,
+    "lost_frames_max": 0,
+    "recently_lost_frames_max": 0,
+    "strict_tracking_failure_max": 0,
+    "output_map": {
+      "version": "2.7.0",
+      "keyframes": 241,
+      "edges": 263,
+      "odometry": 239,
+      "loop": 23,
+      "session_anchor": 1,
+      "unknown_edges": 0,
+      "dense_trajectory": 8867,
+      "metadata_match": true,
+      "duplicate_keyframes": 0,
+      "dangling_edges": 0,
+      "session_anchors": [
+        [
+          6,
+          217
+        ]
+      ]
+    },
+    "loaded_pose_delta_max": {
+      "translation_m": 0.065,
+      "rotation_rad": 0.002
+    }
+  }
+}
