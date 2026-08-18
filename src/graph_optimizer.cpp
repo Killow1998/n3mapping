@@ -371,30 +371,24 @@ bool GraphOptimizer::incrementalOptimize() {
     }
 
     try {
-        // ISAM2/BayesTree copy construction deep-clones the committed Bayes
-        // tree. Update that transactional clone with only the pending delta;
-        // replaying graph_ and every committed value here made every nominal
-        // incremental update O(total graph) and discarded iSAM2's accumulated
-        // linearization state. The original isam2_ remains untouched until
-        // commitPending() swaps in the successful clone.
-        auto trial_isam2 = std::make_unique<gtsam::ISAM2>(*isam2_);
-
-        trial_isam2->update(new_factors_, new_values_);
+        // Keep the nominal path genuinely incremental. If GTSAM mutates the
+        // optimizer before a failed update throws, rollbackToLastState()
+        // reconstructs it from the untouched committed graph and estimate.
+        isam2_->update(new_factors_, new_values_);
         
-        // Only a global constraint in this pending delta needs the additional
-        // relinearization passes. A previously committed loop or session
-        // anchor must not make every later odometry-only update repeat them.
-        if (pending_has_loop_closure_ || pending_has_session_anchor_) {
+        // Robust global constraints (loop or session anchor) receive the same
+        // additional relinearization updates.
+        if (hasGlobalConstraint()) {
             for (int i = 0; i < config_.optimization_iterations; ++i) {
-                trial_isam2->update();
+                isam2_->update();
             }
         } else {
             // 普通情况下也执行一次额外更新以确保收敛
-            trial_isam2->update();
+            isam2_->update();
         }
         
         // 获取当前估计
-        gtsam::Values optimized_estimate = trial_isam2->calculateEstimate();
+        gtsam::Values optimized_estimate = isam2_->calculateEstimate();
         
         // 检查优化健康度
         if (optimized_estimate.empty()) {
@@ -403,7 +397,7 @@ bool GraphOptimizer::incrementalOptimize() {
             return false;
         }
 
-        commitPending(optimized_estimate, std::move(trial_isam2));
+        commitPending(optimized_estimate, std::move(isam2_));
         return true;
 
     } catch (const std::exception& e) {

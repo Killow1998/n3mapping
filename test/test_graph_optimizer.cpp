@@ -638,6 +638,14 @@ TEST_F(GraphOptimizerTest, FailedUpdateRollsBackPendingSessionAnchorNodeAndFlag)
     EXPECT_FALSE(optimizer_->hasNode(1));
     EXPECT_EQ(optimizer_->getNumEdges(), 0u);
     EXPECT_FALSE(optimizer_->hasGlobalConstraint());
+
+    // The failed in-place iSAM2 update must have rebuilt the committed state,
+    // so a later valid transaction can still succeed.
+    ASSERT_TRUE(optimizer_->addSessionAnchorEdge(anchor));
+    ASSERT_TRUE(optimizer_->incrementalOptimize());
+    EXPECT_TRUE(optimizer_->hasNode(1));
+    EXPECT_EQ(optimizer_->getNumEdges(), 1u);
+    EXPECT_TRUE(optimizer_->hasGlobalConstraint());
 }
 
 TEST_F(GraphOptimizerTest, LoadGraphRestoresSessionAnchorType) {
