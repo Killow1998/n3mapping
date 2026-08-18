@@ -371,12 +371,13 @@ bool GraphOptimizer::incrementalOptimize() {
     }
 
     try {
-        auto trial_isam2 = createISAM2();
-
-        if (!graph_.empty()) {
-            const gtsam::Values& committed_values = !current_estimate_.empty() ? current_estimate_ : initial_values_;
-            trial_isam2->update(graph_, committed_values);
-        }
+        // ISAM2/BayesTree copy construction deep-clones the committed Bayes
+        // tree. Update that transactional clone with only the pending delta;
+        // replaying graph_ and every committed value here made every nominal
+        // incremental update O(total graph) and discarded iSAM2's accumulated
+        // linearization state. The original isam2_ remains untouched until
+        // commitPending() swaps in the successful clone.
+        auto trial_isam2 = std::make_unique<gtsam::ISAM2>(*isam2_);
 
         trial_isam2->update(new_factors_, new_values_);
         
