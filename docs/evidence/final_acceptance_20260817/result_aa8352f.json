@@ -1,0 +1,166 @@
+{
+  "schema": "n3mapping_industrial_closeout_result_v2",
+  "recorded_at": "2026-08-17T19:23:19-07:00",
+  "recorded_timezone": "America/Los_Angeles",
+  "status": "PASS_WITH_GENERAL_RELEASE_GATES",
+  "validated_source": {
+    "commit": "aa8352fda003eb72efb75399a043cbd62ca898ca",
+    "branch": "main",
+    "origin_main": "43aa502b4f9adbe5732611142a2ebf5ab7e3682e",
+    "ahead_of_origin_main": 21,
+    "worktree_before_report": "clean",
+    "long_lived_branches": ["main"],
+    "permanent_tags": ["archive/humble", "archive/noetic"]
+  },
+  "product_verification": {
+    "full_workspace_colcon_build": "PASS",
+    "build_type": "Release",
+    "research_tools": false,
+    "identity_verified": true,
+    "identity_commit": "aa8352fda003eb72efb75399a043cbd62ca898ca",
+    "ctest_targets_passed": 55,
+    "ctest_targets_total": 55,
+    "last_test_log_sha256": "16a5a550bee8533953b509eb9ac1ce1a6b01b7fb4ae8422a5b9341577e2faf84"
+  },
+  "fa01": {
+    "status": "PASS",
+    "verdict": "fa01_verdict_aa8352f.json",
+    "verdict_sha256": "f5cc8e3aaba6721d62b4e4aeb2be67278cb334cc8562b3760b7bf56440e07f08",
+    "issue_counts": {
+      "evidence": 0,
+      "performance": 0,
+      "quality": 0,
+      "total": 0
+    },
+    "common_input": {
+      "runtime_frames_per_mode": 621,
+      "steady_state_tracking_frames": 616,
+      "start_offset_s": 100.0,
+      "replay_rate": 1.0,
+      "sensor_period_ms": 100.0
+    },
+    "modes": {
+      "mapping": {
+        "callback_p95_ms": 0.329799,
+        "over_sensor_budget_rate": 0.0,
+        "cpu_p95_cores": 0.019984426626441076,
+        "rss_p95_mib": 82.53515625,
+        "accepted_keyframes": 23,
+        "accepted_loops": 3
+      },
+      "localization": {
+        "callback_p95_ms": 45.61678225,
+        "over_sensor_budget_rate": 0.00487012987012987,
+        "max_consecutive_over_budget": 2,
+        "cpu_p95_cores": 1.0888713663239367,
+        "rss_p95_mib": 430.18359375,
+        "tracking_success": 616,
+        "tracking_failure": 0,
+        "tracking_retry": 12,
+        "target_cache_hits": 598,
+        "target_cache_misses": 18,
+        "target_cache_peak_bytes": 123249280,
+        "target_cache_peak_entries": 8
+      },
+      "map_extension": {
+        "callback_p95_ms": 31.000585,
+        "over_sensor_budget_rate": 0.016233766233766232,
+        "max_consecutive_over_budget": 1,
+        "cpu_p95_cores": 3.5653055600871673,
+        "rss_p95_mib": 1415.13671875,
+        "strict_tracking_success": 616,
+        "strict_tracking_failure": 0,
+        "target_cache_hits": 606,
+        "target_cache_misses": 10,
+        "accepted_keyframes": 24,
+        "loaded_pose_delta_max_translation_m": 0.029907142137314924,
+        "loaded_pose_delta_max_rotation_rad": 0.0009096344573652863
+      }
+    },
+    "map_structure": {
+      "mapping": {
+        "keyframes": 23,
+        "edges": 25,
+        "odometry": 22,
+        "loop": 3,
+        "dense_trajectory": 621,
+        "duplicate_keyframes": 0,
+        "dangling_edges": 0
+      },
+      "map_extension": {
+        "keyframes": 241,
+        "edges": 263,
+        "odometry": 239,
+        "loop": 23,
+        "session_anchor": 1,
+        "dense_trajectory": 8867,
+        "duplicate_keyframes": 0,
+        "dangling_edges": 0
+      }
+    },
+    "resource_policy": "REPORT_ONLY_UNTIL_DEPLOYMENT_HARDWARE_CONTRACT"
+  },
+  "loop_closure": {
+    "fa02b_correlated_odometry": {
+      "status": "PASS",
+      "record": "../fa02b_correlated_drift_20260815/result_96123e2.json",
+      "positive_cases_passed": 3,
+      "positive_cases_total": 3,
+      "accepted_loops": 80,
+      "correct_accepted_loops": 80,
+      "catastrophic_false_loops": 0
+    },
+    "clean_dataset_non_regression_on_same_safety_change": {
+      "status": "PASS",
+      "accepted_loops": 96,
+      "authoritative_measurement_correct": 23,
+      "authoritative_measurement_total": 23,
+      "position_consistent": 71,
+      "position_only_total": 73,
+      "catastrophic_false_loops": 0,
+      "positive_revisit_segments_hit": 3,
+      "positive_revisit_segments_total": 3
+    },
+    "fa01_reference_revision": {
+      "status": "PASS",
+      "record": "../fa01_quality_reference_revision_20260817/result_bf60e2f.json",
+      "old_loop_count": 4,
+      "new_loop_count": 3,
+      "rejected_conflicting_pair": [7, 0],
+      "implied_pose_disagreement_translation_m": 2.0429920161329593,
+      "implied_pose_disagreement_rotation_rad": 0.4235210691861534
+    }
+  },
+  "dataset_acceptance_boundary": {
+    "backend_gt_pose_plus_lidar": "PASS",
+    "frontend_lidar_imu_plus_real_lio_odometry": "NOT_ESTABLISHED",
+    "public_dataset_relocalization_auxiliary_runs": "NOT_FORMAL_GATE_READY",
+    "ground_truth_runtime_use": false,
+    "manual_rviz_required_for_backend_gate": false
+  },
+  "architecture_decisions": {
+    "canonical_product_line": "main",
+    "external_lio_frontend": "RETAIN",
+    "ordinary_localization_prepared_target_lru": "RETAIN_BOUNDED",
+    "loaded_map_prefetch": "RETAIN_BOUNDED",
+    "immutable_loaded_map_tracking_reference": "RETAIN",
+    "visibility_endpoint_fast_path": "DEFAULT_OFF",
+    "independent_view_persistence": "NO_GO_DEFAULT_OFF",
+    "observability_action": "NO_GO_SHADOW_ONLY",
+    "global_submap_graph_writeback": "NO_GO_SHADOW_ONLY",
+    "cross_session_automatic_federation": "OUT_OF_SCOPE"
+  },
+  "release_decisions": {
+    "architecture_hardening": "COMPLETE",
+    "qualified_floor7_controlled_use": "GO_WITH_FROZEN_PROFILE",
+    "maintenance_freeze": "GO",
+    "general_industrial_release": "NO_GO_OPEN_OPERATIONAL_GATES"
+  },
+  "open_general_release_gates": [
+    "deployment_hardware_cpu_rss_latency_and_thermal_contract",
+    "end_to_end_lidar_imu_frontend_plus_n3mapping_dataset_gate",
+    "long_duration_restart_power_loss_disk_full_corrupt_map_and_resource_exhaustion_matrix",
+    "large_map_scalability_beyond_current_1_gib_load_contract",
+    "protected_remote_release_and_reproducible_artifact_with_rollback"
+  ]
+}
