@@ -376,9 +376,10 @@ bool GraphOptimizer::incrementalOptimize() {
         // reconstructs it from the untouched committed graph and estimate.
         isam2_->update(new_factors_, new_values_);
         
-        // Robust global constraints (loop or session anchor) receive the same
-        // additional relinearization updates.
-        if (hasGlobalConstraint()) {
+        // Only a global constraint in this pending delta needs the additional
+        // relinearization passes. Normal incremental updates already perform
+        // their own relinearization even when the committed graph has loops.
+        if (pending_has_loop_closure_ || pending_has_session_anchor_) {
             for (int i = 0; i < config_.optimization_iterations; ++i) {
                 isam2_->update();
             }
