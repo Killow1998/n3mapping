@@ -1,12 +1,18 @@
 {
   "schema": "n3mapping_fa01_quality_reference_v1",
+  "revision": {
+    "recorded_timezone": "America/Los_Angeles",
+    "reason": "The original four-loop mapping reference predated same-query consensus. Candidate-level replay showed that the fourth edge was one of two unsupported, mutually inconsistent constraints for query 7; retaining both would contradict the subsequently accepted FA-02B safety policy.",
+    "superseded_reference_sha256": "bdd238650f5165a1c431ebeb404a65115987d8d7378df853adb611e00d046412",
+    "evidence": "docs/evidence/fa01_quality_reference_revision_20260817/result_bf60e2f.json"
+  },
   "reference_map_sha256": "8f2aa036ffd826f21937b03fd08b9e49bbfe68074f91eab8efd967d3962d778a",
   "source_evidence": {
     "mapping": {
-      "commit": "27ed778b0211f30d095b615072b3930e8f34f4d3",
-      "run_manifest_sha256": "37f56e10454540b632bc398f6b1671dd4cf01bff10dc788fa457f8704e2337b2",
-      "performance_summary_sha256": "343ca7e3eb11ba2da6d5940e044b969f71c089ed84e7a1bc64473e6b0c3a4c9d",
-      "output_map_sha256": "2cbff771ce3fceca6a44f0ce953e076b89845769ed6878ad4827a6a8b44e32a7"
+      "commit": "bf60e2f991ddd678548bb15bb322908c904f6b54",
+      "run_manifest_sha256": "c99737e3d2d09e327d67e4f292211e6e8e38d18b52b0e317b69242e642f46e59",
+      "performance_summary_sha256": "dfcecd72f24079f3504fa0b3644b695ca8dda7ff12da9cf41ed0ff3dbb0d1a62",
+      "output_map_sha256": "1bd5b41e8c6a0da0c8df1c671b25b2f9c656b989fed1374d01e6c836c87e16ac"
     },
     "localization": {
       "commit": "27ed778b0211f30d095b615072b3930e8f34f4d3",
@@ -22,13 +28,13 @@
   },
   "mapping": {
     "accepted_keyframes": 23,
-    "accepted_loops": 4,
+    "accepted_loops": 3,
     "output_map": {
       "version": "2.7.0",
       "keyframes": 23,
-      "edges": 26,
+      "edges": 25,
       "odometry": 22,
-      "loop": 4,
+      "loop": 3,
       "session_anchor": 0,
       "unknown_edges": 0,
       "dense_trajectory": 621,

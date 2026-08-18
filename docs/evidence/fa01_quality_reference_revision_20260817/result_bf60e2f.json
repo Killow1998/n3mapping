@@ -1,0 +1,95 @@
+{
+  "schema": "n3mapping_fa01_quality_reference_revision_v1",
+  "status": "PASS",
+  "source_commit": "bf60e2f991ddd678548bb15bb322908c904f6b54",
+  "recorded_timezone": "America/Los_Angeles",
+  "decision": {
+    "classification": "STALE_REFERENCE_REVISED",
+    "old_expected_mapping_loops": 4,
+    "new_expected_mapping_loops": 3,
+    "old_expected_mapping_edges": 26,
+    "new_expected_mapping_edges": 25,
+    "runtime_policy_changed": false,
+    "threshold_changed": false
+  },
+  "post_revision_validation": {
+    "classification": "PASS",
+    "source_commit": "79b2692505a71da0a8417807611900cf63cf81f5",
+    "verdict_path": "/tmp/n3mapping_fa01_reference_revision_79b2692_verdict.json",
+    "verdict_sha256": "2047f2db1c1152d28f045dfa3feae9c189348f82b1777f32a35f0f307a87133e",
+    "evidence_issues": 0,
+    "performance_issues": 0,
+    "quality_issues": 0
+  },
+  "confirmed_facts": {
+    "formal_mapping": {
+      "evidence_root": "/tmp/n3mapping_fa01_final_bf60e2f_20260817_185713_mapping",
+      "status": "COMPLETE",
+      "runtime_frames": 621,
+      "accepted_keyframes": 23,
+      "detected_loop_candidates": 31,
+      "accepted_loops": 3,
+      "map_structure": {
+        "keyframes": 23,
+        "edges": 25,
+        "odometry": 22,
+        "loop": 3,
+        "session_anchor": 0,
+        "unknown_edges": 0,
+        "dense_trajectory": 621,
+        "metadata_match": true,
+        "duplicate_keyframes": 0,
+        "dangling_edges": 0
+      },
+      "run_manifest_sha256": "c99737e3d2d09e327d67e4f292211e6e8e38d18b52b0e317b69242e642f46e59",
+      "performance_summary_sha256": "dfcecd72f24079f3504fa0b3644b695ca8dda7ff12da9cf41ed0ff3dbb0d1a62",
+      "output_map_sha256": "1bd5b41e8c6a0da0c8df1c671b25b2f9c656b989fed1374d01e6c836c87e16ac"
+    },
+    "candidate_debug_replay": {
+      "evidence_root": "/tmp/n3mapping_fa01_loop_debug_bf60e2f_20260817_retry",
+      "status": "COMPLETE",
+      "runtime_frames": 621,
+      "accepted_pairs": [
+        [7, 1],
+        [12, 7],
+        [22, 17]
+      ],
+      "query_7_candidates": [
+        {
+          "pair": [7, 0],
+          "gate_result": "rejected",
+          "reject_reason": "same_query_consensus_no_support"
+        },
+        {
+          "pair": [7, 1],
+          "gate_result": "accepted",
+          "reject_reason": ""
+        }
+      ],
+      "query_7_implied_pose_delta": {
+        "translation_m": 2.0429920161329593,
+        "rotation_rad": 0.4235210691861534,
+        "translation_threshold_m": 1.0,
+        "rotation_threshold_rad": 0.17453292519943295,
+        "compatible": false
+      },
+      "loop_debug_sha256": "d324693955c78d73ddbcdba50f1492670778dd9e5364fd4c9cdb510f2d2b8e6b"
+    },
+    "fa02b_policy_evidence": {
+      "path": "docs/evidence/fa02b_correlated_drift_20260815/result_96123e2.json",
+      "sha256": "7dae16d07561c35bc7c99f4e045a720413f96f41e6e18752c9a4e5b9de5bd7a6",
+      "status": "PASS",
+      "correlated_drift_correct_loops": 80,
+      "correlated_drift_accepted_loops": 80,
+      "catastrophic_false_loops": 0,
+      "clean_odometry_measurement_precision": 1.0,
+      "clean_odometry_catastrophic_false_loops": 0
+    }
+  },
+  "inference": {
+    "statement": "The old fourth mapping edge was query 7 to match 0.",
+    "basis": "The pre-96123e2 implementation committed every individually gated same-query loop when loop_keep_all_verified was true. Current candidate replay has exactly four individually gated candidates before consensus: the three accepted pairs plus query 7 to match 0. The original reference recorded exactly four loop edges.",
+    "confidence": "high"
+  },
+  "scope": "This revision corrects the deterministic same-input mapping oracle after a separately validated loop-safety change. It does not claim broader frontend accuracy, cross-session correctness, or deployment-hardware resource acceptance."
+}
