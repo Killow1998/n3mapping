@@ -371,25 +371,28 @@ bool GraphOptimizer::incrementalOptimize() {
     }
 
     try {
-        // Keep the nominal path genuinely incremental. If GTSAM mutates the
-        // optimizer before a failed update throws, rollbackToLastState()
-        // reconstructs it from the untouched committed graph and estimate.
-        isam2_->update(new_factors_, new_values_);
+        auto trial_isam2 = createISAM2();
+
+        if (!graph_.empty()) {
+            const gtsam::Values& committed_values = !current_estimate_.empty() ? current_estimate_ : initial_values_;
+            trial_isam2->update(graph_, committed_values);
+        }
+
+        trial_isam2->update(new_factors_, new_values_);
         
-        // Only a global constraint in this pending delta needs the additional
-        // relinearization passes. Normal incremental updates already perform
-        // their own relinearization even when the committed graph has loops.
-        if (pending_has_loop_closure_ || pending_has_session_anchor_) {
+        // Robust global constraints (loop or session anchor) receive the same
+        // additional relinearization updates.
+        if (hasGlobalConstraint()) {
             for (int i = 0; i < config_.optimization_iterations; ++i) {
-                isam2_->update();
+                trial_isam2->update();
             }
         } else {
             // 普通情况下也执行一次额外更新以确保收敛
-            isam2_->update();
+            trial_isam2->update();
         }
         
         // 获取当前估计
-        gtsam::Values optimized_estimate = isam2_->calculateEstimate();
+        gtsam::Values optimized_estimate = trial_isam2->calculateEstimate();
         
         // 检查优化健康度
         if (optimized_estimate.empty()) {
@@ -398,7 +401,7 @@ bool GraphOptimizer::incrementalOptimize() {
             return false;
         }
 
-        commitPending(optimized_estimate, std::move(isam2_));
+        commitPending(optimized_estimate, std::move(trial_isam2));
         return true;
 
     } catch (const std::exception& e) {
