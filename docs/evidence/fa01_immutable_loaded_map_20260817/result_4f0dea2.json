@@ -1,0 +1,271 @@
+{
+  "schema": "n3mapping_fa01_immutable_loaded_map_result_v1",
+  "status": "PASS_WITH_REPORT_ONLY_RESOURCE_TRADEOFF",
+  "recorded_at": "2026-08-17T18:34:38-07:00",
+  "recorded_timezone": "America/Los_Angeles",
+  "scope": {
+    "mode": "map_extension",
+    "claim": "Same-input loaded-map tracking latency and frozen same-route quality non-regression after keeping the loaded generation immutable across extension graph updates.",
+    "not_claimed": [
+      "A deployment-hardware CPU or memory contract",
+      "A new independent-session relocalization qualification",
+      "Completion of the FA-01 three-mode acceptance rerun",
+      "A general performance result for unrelated maps, bags, or configurations"
+    ]
+  },
+  "source": {
+    "baseline_commit": "7ca6569d8260fe01951bf5d804453885c3da136f",
+    "candidate_commit": "4f0dea22f38bb7a14ea9f94fdccb7dca9afb5ae2",
+    "candidate_product_profile_sha256": "e9523a4e8e5439f37a49d2e03f3cc25ccbdb82d19af165a0de2b1ce6cce7aa4e",
+    "candidate_build_identity": {
+      "build_type": "Release",
+      "research_tools": "OFF",
+      "verified": true
+    }
+  },
+  "root_cause": {
+    "classification": "mutable_loaded_reference_rebuild",
+    "description": "Every accepted extension keyframe advanced the mutable graph pose revision. Strict loaded-map tracking rebuilt the complete 217-keyframe loaded cloud and invalidated all prepared targets even though cross-session tracking is defined against the immutable map loaded for that generation.",
+    "timer_caveat": "The historical graph_update_ms timer also covered optimized-pose propagation, submap refresh, loaded-map cache rebuild, and tracking-target warmup; it was not an isolated iSAM2 timer.",
+    "diagnostic_experiments": [
+      {
+        "commit": "7922e7b669a6a376c7b18a8b785f4a1f199f5d65",
+        "change": "Clone committed iSAM2 state instead of reconstructing it from graph history.",
+        "graph_update_mean_ms": 276.427,
+        "conclusion": "No decisive end-to-end reduction."
+      },
+      {
+        "commit": "7ca6569d8260fe01951bf5d804453885c3da136f",
+        "change": "Update persistent iSAM2 state in place and avoid repeated extra passes on odometry-only pending updates.",
+        "graph_update_mean_ms": 298.039,
+        "conclusion": "The broad timer remained near 300 ms, excluding iSAM2 replay and extra passes as the dominant cause."
+      },
+      {
+        "binary_commit": "7ca6569d8260fe01951bf5d804453885c3da136f",
+        "temporary_override": "optimization_iterations:=0",
+        "graph_update_mean_ms": 297.148,
+        "conclusion": "Extra optimizer iterations were not the dominant cause."
+      }
+    ]
+  },
+  "implementation": {
+    "loaded_reference": "Reuse the loaded global cloud and its prepared-target cache while the map generation and loaded-keyframe count are unchanged.",
+    "invalidation": "A map replacement or a changed loaded-keyframe population still rebuilds the loaded snapshot and invalidates prepared targets.",
+    "decision_path": "Registration, visibility policy, ranking, lock, tracking acceptance, graph constraints, and maintained YAML defaults are unchanged.",
+    "regression_test": "LoadedMapPreparedTargetCacheKeepsLoadedGenerationImmutable"
+  },
+  "verification": {
+    "colcon_build_release_research_tools_off": "PASS",
+    "ctest": {
+      "passed": 55,
+      "total": 55,
+      "last_test_log_sha256": "8f642766d3c44e9ee4b6703291eebc86ca321fee3f32531cc4e89f501c6329ad"
+    }
+  },
+  "input": {
+    "bag": "/home/user/Desktop/n3mapping_cleanup_pending_delete_20260817/workspace_cache/files/n3mapping_v1_closeout/repro_0723_exact/lio_ros2",
+    "bag_metadata_sha256": "f8a6b02e4b4a8f89716470514505b20082c1248c61c04e92daf069844f69782a",
+    "start_offset_s": 100.0,
+    "rate": 1.0,
+    "target_runtime_frames": 620,
+    "map": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/n3map.pbstream",
+    "map_sha256": "8f2aa036ffd826f21937b03fd08b9e49bbfe68074f91eab8efd967d3962d778a",
+    "config": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/config/n3mapping.yaml",
+    "config_sha256": "4702c41bb7f62fd92c8964e78556597546cd64f3762c23a537408ee52c336b3c",
+    "same_route_reference": "The original map dense trajectory; an internal same-route regression oracle, not independent physical ground truth."
+  },
+  "runs": {
+    "baseline": {
+      "directory": "/tmp/n3mapping_fa01_combined_isam_7ca6569_20260817_180658",
+      "status": "COMPLETE_PROFILE_READY",
+      "run_manifest_sha256": "c086399f5e51a3a2be8d03775d0603707861e0ae82ac3dff1ab7784738f32755",
+      "performance_summary_sha256": "f885ac7640d63cc6980d96c867baad66b2ac19c32887ab1808f33622cdf8b7fc",
+      "n3map_pbstream_sha256": "0180033e26bca5df93e60afb769491a351d0627386c5e8bbb352dbc873a6c1e7"
+    },
+    "candidate": {
+      "directory": "/tmp/n3mapping_fa01_immutable_loaded_cache_4f0dea2_20260817_182233",
+      "status": "COMPLETE_PROFILE_READY",
+      "run_manifest_sha256": "828a170376b17c4e5bfa59205d95245ae332457b85263db09719c995fc0b2764",
+      "performance_summary_sha256": "2e37545e128ba45a662c79d3d00a6998b48d13629eb66421f841edc785bc13a9",
+      "n3map_pbstream_sha256": "6e14f99033d6611cf35dc306191eeeb7f54b9ef84ea959605ad877a40166160c",
+      "process_return_codes": {
+        "analyzer": 0,
+        "bag": 0,
+        "node": 0,
+        "sampler": 0
+      }
+    },
+    "common_outcomes": {
+      "runtime_frames": 621,
+      "strict_tracking_records": 616,
+      "strict_tracking_success": 616,
+      "strict_tracking_failure": 0,
+      "tracking_retry": 0,
+      "accepted_keyframes": 24,
+      "fatal": 0,
+      "oom": 0,
+      "nonfinite": 0,
+      "queue_overflow": 0,
+      "message_filter_drop": 0
+    }
+  },
+  "same_input_performance": {
+    "graph_update_ms": {
+      "mean": {
+        "baseline": 298.039,
+        "candidate": 1.5626,
+        "reduction_percent": 99.4757
+      },
+      "p95": {
+        "baseline": 340.228,
+        "candidate": 3.2308,
+        "reduction_percent": 99.0504
+      },
+      "max": {
+        "baseline": 344.363,
+        "candidate": 3.541
+      }
+    },
+    "steady_state_callback_total_ms": {
+      "mean": {
+        "baseline": 35.7115,
+        "candidate": 26.1212,
+        "reduction_percent": 26.8557
+      },
+      "p95": {
+        "baseline": 36.5542,
+        "candidate": 30.4713,
+        "reduction_percent": 16.6408
+      }
+    },
+    "steady_state_over_sensor_budget": {
+      "sensor_period_ms": 100,
+      "baseline_count": 30,
+      "candidate_count": 12,
+      "baseline_max_consecutive": 2,
+      "candidate_max_consecutive": 1
+    },
+    "loaded_map_tracking_ms": {
+      "mean": {
+        "baseline": 23.666,
+        "candidate": 25.611
+      },
+      "p95": {
+        "baseline": 28.731,
+        "candidate": 29.681
+      },
+      "interpretation": "Per-frame registration was not accelerated; the improvement removes repeated post-keyframe loaded-reference reconstruction."
+    }
+  },
+  "resource_report": {
+    "contract_policy": "report_only_until_deployment_hardware_contract",
+    "host_logical_cpus": 20,
+    "steady_state_process_cpu_cores": {
+      "baseline": {
+        "mean": 1.1954923592085083,
+        "p50": 0.33972147289581656,
+        "p95": 4.271648287228381,
+        "max": 6.425759788907202
+      },
+      "candidate": {
+        "mean": 2.05522076659719,
+        "p50": 1.8876834839079828,
+        "p95": 3.4199807066631953,
+        "max": 6.413506606755601
+      }
+    },
+    "steady_state_rss_mib": {
+      "baseline": {
+        "mean": 1023.452156784188,
+        "p95": 1067.29140625,
+        "max": 1217.28125
+      },
+      "candidate": {
+        "mean": 1218.6697716346155,
+        "p95": 1294.4171875,
+        "max": 1455.625
+      }
+    },
+    "thread_count": {
+      "baseline": 37,
+      "candidate": 37
+    },
+    "confirmed_interpretation": "The candidate trades persistent loaded-cloud and prepared-target memory plus sustained background work for lower callback latency; CPU p95 fell while CPU mean and RSS increased.",
+    "inference": "The sustained CPU pattern is consistent with nearby-target prefetch remaining productive while the moving query advances through loaded keyframes. Existing artifacts do not expose a direct prefetch-work counter, so this attribution is not claimed as independently measured.",
+    "decision": "ACCEPT_FOR_CURRENT_FA01_REPORT_ONLY_CONTRACT; require a deployment hardware budget before making a universal resource-efficiency claim."
+  },
+  "quality_non_regression": {
+    "runtime_categorical_projection": {
+      "compared_frames": 621,
+      "matched_keyframe_id_differences": 20,
+      "all_other_compared_fields_equal": true,
+      "differing_loaded_keyframes": [
+        16,
+        17,
+        211,
+        212
+      ],
+      "loaded_keyframe_pair_distance_m_range": [
+        0.318,
+        1.192
+      ]
+    },
+    "output_map": {
+      "structure_equal": true,
+      "keyframes": 241,
+      "edges": 263,
+      "odometry": 239,
+      "loop": 23,
+      "session_anchor": 1,
+      "dense_trajectory": 8867,
+      "metadata_match": true,
+      "duplicate_keyframes": 0,
+      "dangling_edges": 0
+    },
+    "candidate_loaded_pose_delta_vs_original": {
+      "compared_keyframes": 217,
+      "translation_m": {
+        "p95": 0.04007,
+        "max": 0.043051,
+        "limit": 0.065
+      },
+      "rotation_rad": {
+        "p95": 0.001305,
+        "max": 0.001312,
+        "limit": 0.002
+      }
+    },
+    "candidate_new_keyframes_vs_original_reference": {
+      "count": 24,
+      "translation_m": {
+        "p95": 0.16694424420314352,
+        "max": 0.19388167223603814
+      },
+      "rotation_deg": {
+        "p95": 0.6862907888173089,
+        "max": 0.7846758436931275
+      },
+      "timestamp_ms_max": 0.019788742065429688
+    },
+    "candidate_appended_dense_vs_original_reference": {
+      "count": 617,
+      "translation_m": {
+        "p95": 0.08364808511725291,
+        "max": 0.1978657893385213
+      },
+      "rotation_deg": {
+        "p95": 0.8965038561616617,
+        "max": 1.5568732240401086
+      },
+      "timestamp_ms_max": 0.3216266632080078
+    }
+  },
+  "decision": {
+    "immutable_loaded_reference_atomic_wp": "PASS",
+    "latency": "PASS",
+    "same_route_quality": "PASS",
+    "fa01_hard_thresholds": "PASS",
+    "deployment_resource_efficiency": "UNVERIFIED_WITHOUT_HARDWARE_CONTRACT",
+    "next": "Run the exact HEAD through the preregistered mapping, localization, and map_extension FA-01 gate before broader loop and map-quality closeout."
+  }
+}
