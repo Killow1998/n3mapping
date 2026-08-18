@@ -1942,9 +1942,13 @@ void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
     }
   }
   if (loaded_map_visibility_cache_ && !loaded_map_visibility_cache_->empty() &&
-      sameGenerationAndPose(loaded_map_visibility_revision_,
-                            current_revision) &&
+      loaded_map_visibility_revision_.generation == current_revision.generation &&
       loaded_map_visibility_cached_keyframes_ == loaded_keyframes.size()) {
+    // Strict extension tracking is defined against the immutable map that was
+    // loaded for this generation. Graph optimization may refine the mutable
+    // keyframe poses, but rebuilding all loaded clouds from those refinements
+    // would move the reference under the tracker and invalidate every prepared
+    // target after each committed extension keyframe.
     return;
   }
   invalidateLoadedMapTrackingTargetCache();

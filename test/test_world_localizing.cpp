@@ -841,7 +841,8 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diagnostics.localization_target_cache_entries, 0u);
 }
 
-TEST_F(WorldLocalizingTest, LoadedMapPreparedTargetCacheFollowsMapLifecycle) {
+TEST_F(WorldLocalizingTest,
+       LoadedMapPreparedTargetCacheKeepsLoadedGenerationImmutable) {
   buildTestMap(6, 2.0);
   for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
     ASSERT_NE(keyframe, nullptr);
@@ -882,8 +883,8 @@ TEST_F(WorldLocalizingTest, LoadedMapPreparedTargetCacheFollowsMapLifecycle) {
   keyframe_manager_->updateOptimizedPoses({{keyframe->id, shifted_pose}});
   ASSERT_TRUE(reloc.trackLoadedMap(cloud, pose).success);
   diag = reloc.cacheDiagnostics();
-  EXPECT_EQ(diag.loaded_map_target_cache_hits, 2u);
-  EXPECT_EQ(diag.loaded_map_target_cache_misses, 2u);
+  EXPECT_EQ(diag.loaded_map_target_cache_hits, 3u);
+  EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
   EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
   EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
 
@@ -891,8 +892,8 @@ TEST_F(WorldLocalizingTest, LoadedMapPreparedTargetCacheFollowsMapLifecycle) {
   reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
   ASSERT_TRUE(reloc.trackLoadedMap(cloud, pose).success);
   diag = reloc.cacheDiagnostics();
-  EXPECT_EQ(diag.loaded_map_target_cache_hits, 3u);
-  EXPECT_EQ(diag.loaded_map_target_cache_misses, 2u);
+  EXPECT_EQ(diag.loaded_map_target_cache_hits, 4u);
+  EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
   EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
   EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
 
