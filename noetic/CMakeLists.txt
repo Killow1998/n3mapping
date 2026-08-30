@@ -307,6 +307,7 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_ros1_raw_bag_inventory.py
   ${N3MAPPING_ROOT}/tools/n3mapping_same_frame_reference_join.py
   ${N3MAPPING_ROOT}/tools/n3mapping_product_bundle.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_support_bundle.py
   ${N3MAPPING_ROOT}/tools/n3mapping_product_gate.py
   ${N3MAPPING_ROOT}/tools/n3mapping_product_identity.py
   ${N3MAPPING_ROOT}/tools/n3mapping_product_preflight.py
@@ -392,6 +393,12 @@ if(CATKIN_ENABLE_TESTING)
   include(${N3MAPPING_ROOT}/cmake/n3mapping_checks.cmake)
   n3mapping_add_static_checks()
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+  add_test(
+    NAME test_n3mapping_support_bundle
+    COMMAND ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_support_bundle.py
+  )
+  set_tests_properties(test_n3mapping_support_bundle PROPERTIES TIMEOUT 30)
 
   add_test(
     NAME test_n3mapping_product_bundle

@@ -137,6 +137,11 @@ Mapping and map extension save:
 
 Terminal output is intentionally lightweight. It keeps warnings, errors, map loading, save-map results, shutdown map-save results, and relocalization-lock events.
 
+For real-device update/build commands, per-run log capture, and local support ZIP
+export, see [实机测试与问题反馈](docs/field_testing_zh.md). The support tool
+does not launch frontends, upload logs, or include maps/bags. Detailed JSONL
+logging is opt-in; default matching and locking behavior is unchanged.
+
 ### 2.6 Build, Run, And Test Commands
 
 <details>
