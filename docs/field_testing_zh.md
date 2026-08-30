@@ -36,7 +36,7 @@ source /opt/ros/humble/setup.bash
 cd ~/ros_ws
 src/n3mapping/scripts/select_distro_wrapper.sh humble
 CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build --executor sequential \
-  --cmake-args -DCMAKE_BUILD_TYPE=Release \
+  --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
   -DN3MAPPING_BUILD_RESEARCH_TOOLS=OFF \
   -DN3MAPPING_PRODUCT_COMMIT="$N3M_COMMIT"
 ```
@@ -45,7 +45,8 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build --executor sequential \
 
 ```bash
 source ~/ros_ws/install/setup.bash
-ctest --test-dir ~/ros_ws/build/n3mapping --output-on-failure
+ROS_LOG_DIR="$HOME/ros_ws/log/n3mapping_ctest" \
+  ctest --test-dir ~/ros_ws/build/n3mapping --output-on-failure
 ros2 run n3mapping n3mapping_node --build-identity-json
 ```
 
@@ -79,7 +80,7 @@ echo "RUN=$RUN"
 使用普通节点配置；不要与锁定参数的 `n3mapping_product_runtime.py` 混用。
 
 `--diagnostics` 显式开启已有的重定位、回环和逐帧性能 JSONL，适合短时故障复现。
-这会增加日志 IO 和少量计算开销，不应把带诊断的资源数字当作默认配置性能。
+这会增加日志 IO 和计算开销，不应把带诊断的资源数字当作默认配置性能。
 正常长期运行可省略该选项；工具不覆盖原配置中的 enable 值。
 运行中的日志不自动轮转，短时复现结束后及时停止；打包上限不能限制运行日志占用。
 
