@@ -70,8 +70,6 @@ RelocalizationCandidateEvaluator::evaluate(
 
     auto selected_visibility =
         evaluateVisibility(target, query_cloud, match.T_target_source);
-    Eigen::Isometry3d selected_pose = match.T_target_source;
-    bool selected_refined = true;
     if (initial_visibility.valid &&
         (!selected_visibility.valid ||
          initial_visibility.consistency_ratio >
@@ -79,22 +77,14 @@ RelocalizationCandidateEvaluator::evaluate(
       // ICP is only a local pose proposal. Keep the descriptor pose when it
       // explains the measured first-return geometry better than the optimizer's
       // endpoint.
-      selected_pose = initial_pose;
+      match = matcher_.evaluatePreparedPose(
+          *prepared_target.registration_target, prepared_query, initial_pose,
+          match.metric);
       selected_visibility = initial_visibility;
-      selected_refined = false;
     }
 
     RelocalizationCandidateEvaluation evaluation;
-    if (!selected_refined) {
-      evaluation.registration.initial_pose_match = matcher_.evaluatePreparedPose(
-          *prepared_target.registration_target, prepared_query, selected_pose,
-          match.metric_setting);
-    }
-    evaluation.registration.match = std::move(match);
-    evaluation.registration.production_quality = production_quality;
-    evaluation.registration.initial_pose = initial_pose;
-    evaluation.registration.selected_pose = selected_pose;
-    evaluation.registration.selected_refined = selected_refined;
+    evaluation.match = std::move(match);
     evaluation.matched_keyframe_id = candidate.match_id;
     evaluation.visibility = selected_visibility;
     evaluations.push_back(std::move(evaluation));
@@ -111,13 +101,12 @@ RelocalizationCandidateEvaluator::evaluate(
                 if (order != 0) return order < 0;
               }
               const int quality_order = compareRelocalizationScore(
-                  -lhs.registration.selectedMatch().fitness_score,
-                  -rhs.registration.selectedMatch().fitness_score);
+                  -lhs.match.fitness_score, -rhs.match.fitness_score);
               if (quality_order != 0) return quality_order < 0;
               if (lhs.matched_keyframe_id != rhs.matched_keyframe_id)
                 return lhs.matched_keyframe_id < rhs.matched_keyframe_id;
-              return relocalizationPoseLess(lhs.registration.selected_pose,
-                                            rhs.registration.selected_pose);
+              return relocalizationPoseLess(lhs.match.T_target_source,
+                                            rhs.match.T_target_source);
             });
 
   // Different yaw seeds often converge onto the same physical solution. Keep
@@ -129,8 +118,7 @@ RelocalizationCandidateEvaluator::evaluate(
     const bool duplicate =
         std::any_of(distinct.begin(), distinct.end(), [&](const auto &kept) {
           const Eigen::Isometry3d delta =
-              kept.registration.selected_pose.inverse() *
-              evaluation.registration.selected_pose;
+              kept.match.T_target_source.inverse() * evaluation.match.T_target_source;
           return delta.translation().norm() <
                      config_.reloc_ambiguity_min_basin_separation &&
                  Eigen::AngleAxisd(delta.rotation()).angle() <

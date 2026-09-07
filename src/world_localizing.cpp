@@ -345,8 +345,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         for (const auto &evaluation : candidate_evaluator_.evaluate(
                  query_cloud, prepared_query, candidate,
                  std::move(target_request))) {
-          const MatchResult selected_match =
-              evaluation.registration.selectedMatch();
+          const auto& selected_match = evaluation.match;
           const auto quality = evaluateRelocMatchQuality(selected_match);
           if (!quality.accepted)
             continue;
@@ -358,12 +357,10 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           mode.match = selected_match;
           mode.visibility = evaluation.visibility;
           if (reloc_debug_enabled) {
-            const bool selected_refined =
-                evaluation.registration.selected_refined;
             mode.registration_observability = analyzeRegistrationObservability(
                 selected_match,
-                selected_refined ? "registration_endpoint"
-                                 : "descriptor_initial",
+                selected_match.converged ? "registration_endpoint"
+                                         : "descriptor_initial",
                 true, quality.accepted);
           }
           const double descriptor_score = std::isfinite(candidate.fused_score)
@@ -565,7 +562,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         if (!selected_registration_endpoint) {
           mr = matcher_.evaluatePreparedPose(*prepared_target.registration_target,
                                              prepared_query, selected_pose,
-                                             mr.metric_setting);
+                                             mr.metric);
         }
       }
       hyp.cumulative_log_likelihood +=
@@ -1322,7 +1319,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         // explains it better than the optimizer endpoint.
         match_result = matcher_.evaluatePreparedPose(
             *prepared_target, prepared_source, predicted_pose,
-            match_result.metric_setting);
+            match_result.metric);
         visibility = predicted_visibility;
         debug_event.visibility_selected_pose_source = "motion_prediction";
       }

@@ -17,21 +17,10 @@
 
 namespace n3mapping {
 
-struct RegistrationEvidence {
-  MatchResult match;
-  MatchResult initial_pose_match;
-  bool production_quality = false;
-  Eigen::Isometry3d initial_pose = Eigen::Isometry3d::Identity();
-  Eigen::Isometry3d selected_pose = Eigen::Isometry3d::Identity();
-  bool selected_refined = false;
-
-  const MatchResult& selectedMatch() const {
-    return selected_refined ? match : initial_pose_match;
-  }
-};
-
 struct RelocalizationCandidateEvaluation {
-  RegistrationEvidence registration;
+  // The selected pose and its own metrics. A fallback is a fixed-pose
+  // evaluation, not a second optimizer result or a separately stored pose.
+  MatchResult match;
   int64_t matched_keyframe_id = -1;
   VisibilityConsistencyResult visibility;
 };

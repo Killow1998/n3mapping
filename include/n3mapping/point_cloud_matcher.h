@@ -48,6 +48,12 @@ struct MatchStageResult {
     MatchTermination termination = MatchTermination::Invalid;
 };
 
+struct MatchMetric {
+    small_gicp::RegistrationSetting::RegistrationType type = small_gicp::RegistrationSetting::PLANE_ICP;
+    double resolution = std::numeric_limits<double>::quiet_NaN();
+    double max_correspondence_distance = 0.0;
+};
+
 struct MatchResult {
     bool success = false;
     bool converged = false;
@@ -62,7 +68,7 @@ struct MatchResult {
     std::vector<MatchStageResult> stages;
     // Objective, resolution and correspondence gate of the selected optimizer
     // stage. Fixed-pose evaluation must use these same metric semantics.
-    small_gicp::RegistrationSetting metric_setting;
+    MatchMetric metric;
 };
 
 class PointCloudMatcher {
@@ -129,7 +135,7 @@ public:
     MatchResult evaluatePreparedPose(const PreparedTarget& target,
                                     const PreparedSource& source,
                                     const Eigen::Isometry3d& pose,
-                                    const small_gicp::RegistrationSetting& metric_setting) const;
+                                    const MatchMetric& metric) const;
 
     std::pair<SmallGicpCloud::Ptr, std::shared_ptr<SmallGicpKdTree>> preprocessPointCloud(const PointCloudT::Ptr& cloud);
     const small_gicp::RegistrationSetting& getSettings() const { return setting_; }

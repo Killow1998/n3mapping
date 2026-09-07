@@ -146,11 +146,11 @@ void evaluateFixedPoseFactors(
     const PointCloudMatcher::PreparedTargetLevel& target,
     const PointCloudMatcher::SmallGicpCloud& source,
     const Eigen::Isometry3d& pose,
-    const small_gicp::RegistrationSetting& setting,
+    const MatchMetric& metric,
     int num_threads, MatchResult* result) {
     small_gicp::DistanceRejector rejector;
-    rejector.max_dist_sq = setting.max_correspondence_distance *
-                           setting.max_correspondence_distance;
+    rejector.max_dist_sq = metric.max_correspondence_distance *
+                           metric.max_correspondence_distance;
     std::vector<Factor> factors(source.size());
     small_gicp::ParallelReductionOMP reduction;
     reduction.num_threads = num_threads;
@@ -325,7 +325,7 @@ MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe
                                            rr, sp->size(), ls.max_iterations);
         result.stages.push_back(stage);
         result.T_target_source = rr.T_target_source;
-        result.metric_setting = ls;
+        result.metric = {ls.type, ls.downsampling_resolution, ls.max_correspondence_distance};
         copyStageToMatch(stage, &result);
         copyInformation(rr.H, &result.information);
         const bool quality_passed =
@@ -391,25 +391,25 @@ MatchResult PointCloudMatcher::alignPrepared(
 MatchResult PointCloudMatcher::evaluatePreparedPose(
     const PreparedTarget& target, const PreparedSource& source,
     const Eigen::Isometry3d& pose,
-    const small_gicp::RegistrationSetting& metric_setting) const {
+    const MatchMetric& metric) const {
     MatchResult result;
     result.T_target_source = pose;
-    result.metric_setting = metric_setting;
+    result.metric = metric;
     result.information.setZero();
     if (!isFiniteRigidPose(pose) ||
-        !std::isfinite(metric_setting.max_correspondence_distance) ||
-        metric_setting.max_correspondence_distance <= 0.0)
+        !std::isfinite(metric.max_correspondence_distance) ||
+        metric.max_correspondence_distance <= 0.0)
         return result;
 
     const PreparedTargetLevel* target_level = nullptr;
     const SmallGicpCloud* source_cloud = nullptr;
-    const double resolution = metric_setting.downsampling_resolution;
-    if (metric_setting.type == small_gicp::RegistrationSetting::GICP &&
+    const double resolution = metric.resolution;
+    if (metric.type == small_gicp::RegistrationSetting::GICP &&
         target.has_refine_level && source.has_refine_cloud &&
         std::abs(target.refine_level.resolution - resolution) <= 1e-9) {
         target_level = &target.refine_level;
         source_cloud = source.refine_cloud.get();
-    } else if (metric_setting.type == small_gicp::RegistrationSetting::PLANE_ICP) {
+    } else if (metric.type == small_gicp::RegistrationSetting::PLANE_ICP) {
         for (const auto& level : target.plane_levels)
             if (std::abs(level.resolution - resolution) <= 1e-9) target_level = &level;
         for (const auto& level : source.plane_levels)
@@ -419,12 +419,12 @@ MatchResult PointCloudMatcher::evaluatePreparedPose(
         !source_cloud || target_level->cloud->size() < 10 || source_cloud->size() < 10)
         return result;
 
-    if (metric_setting.type == small_gicp::RegistrationSetting::PLANE_ICP) {
+    if (metric.type == small_gicp::RegistrationSetting::PLANE_ICP) {
         evaluateFixedPoseFactors<small_gicp::PointToPlaneICPFactor>(
-            *target_level, *source_cloud, pose, metric_setting, config_.num_threads, &result);
-    } else if (metric_setting.type == small_gicp::RegistrationSetting::GICP) {
+            *target_level, *source_cloud, pose, metric, config_.num_threads, &result);
+    } else if (metric.type == small_gicp::RegistrationSetting::GICP) {
         evaluateFixedPoseFactors<small_gicp::GICPFactor>(
-            *target_level, *source_cloud, pose, metric_setting, config_.num_threads, &result);
+            *target_level, *source_cloud, pose, metric, config_.num_threads, &result);
     }
     result.success = result.termination == MatchTermination::FixedPoseEvaluation &&
                      result.fitness_score < config_.gicp_fitness_threshold &&
@@ -483,8 +483,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
             const auto stage = makeStageResult(
                 res > base_res * 1.01 ? "coarse_plane_icp" : "fine_plane_icp",
                 res, rr, source_level->cloud->size(), ls.max_iterations);
-            result.metric_setting = ls;
-            result.metric_setting.downsampling_resolution = res;
+            result.metric = {ls.type, res, ls.max_correspondence_distance};
             result.stages.push_back(stage);
             coarse_converged = stage.converged;
             coarse_inliers = stage.num_inliers;
@@ -531,7 +530,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
                     double rf = stage.fitness_score;
                     if (rr.converged && rf < config_.gicp_fitness_threshold) {
                         result.T_target_source = rr.T_target_source;
-                        result.metric_setting = rs;
+                        result.metric = {rs.type, rs.downsampling_resolution, rs.max_correspondence_distance};
                         copyStageToMatch(stage, &result);
                         copyInformation(rr.H, &result.information);
                         result.success = true;
