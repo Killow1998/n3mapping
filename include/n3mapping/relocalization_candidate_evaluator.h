@@ -19,15 +19,14 @@ namespace n3mapping {
 
 struct RegistrationEvidence {
   MatchResult match;
+  MatchResult initial_pose_match;
   bool production_quality = false;
   Eigen::Isometry3d initial_pose = Eigen::Isometry3d::Identity();
   Eigen::Isometry3d selected_pose = Eigen::Isometry3d::Identity();
   bool selected_refined = false;
 
-  MatchResult selectedMatch() const {
-    MatchResult selected = match;
-    selected.T_target_source = selected_pose;
-    return selected;
+  const MatchResult& selectedMatch() const {
+    return selected_refined ? match : initial_pose_match;
   }
 };
 

@@ -706,8 +706,16 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
     }
   }
 
-  auto output = makeOutput(true, frame.T_world_lidar, frame.undistorted_cloud);
   auto &keyframes = session_->keyframeManager();
+  Eigen::Isometry3d pose_map = frame.T_world_lidar;
+  if (const auto latest = keyframes.getLatestKeyframe()) {
+    // The latest optimized anchor defines map<-odom for every current frame,
+    // including frames that do not add a graph node. Re-read after each graph
+    // update; never write this correction back into the raw odometry.
+    pose_map = latest->pose_optimized * latest->pose_odom.inverse() *
+               frame.T_world_lidar;
+  }
+  auto output = makeOutput(true, pose_map, frame.undistorted_cloud);
   if (!keyframes.shouldAddKeyframe(frame.T_world_lidar)) {
     if (!external_dense_trajectory_recording_enabled_) {
       appendDenseTrajectorySampleWithLatestAnchor(timestamp,
@@ -1675,13 +1683,27 @@ std::vector<core::DenseTrajectoryPose>
 N3MappingCore::buildDenseOptimizedTrajectory() const {
   std::vector<core::DenseTrajectoryPose> dense_optimized;
   dense_optimized.reserve(dense_trajectory_samples_.size());
+  std::vector<Keyframe::Ptr> time_index;
+  if (std::any_of(dense_trajectory_samples_.begin(), dense_trajectory_samples_.end(),
+                  [](const auto& sample) { return sample.use_bracketing_correction; })) {
+    time_index = session_->keyframeManager().getAllKeyframes();
+    time_index.erase(std::remove_if(time_index.begin(), time_index.end(),
+        [](const auto& kf) { return !kf || std::isnan(kf->timestamp); }), time_index.end());
+    std::stable_sort(time_index.begin(), time_index.end(),
+        [](const auto& lhs, const auto& rhs) { return lhs->timestamp < rhs->timestamp; });
+    // The scan-based implementation retained the first keyframe at each time.
+    // Preserve that rule, including legacy overlapping session timestamps.
+    time_index.erase(std::unique(time_index.begin(), time_index.end(),
+        [](const auto& lhs, const auto& rhs) { return lhs->timestamp == rhs->timestamp; }),
+        time_index.end());
+  }
   for (const auto &sample : dense_trajectory_samples_) {
     core::DenseTrajectoryPose pose;
     pose.seq = sample.seq;
     pose.timestamp = sample.timestamp;
     pose.pose_world_lidar = sample.pose_world_lidar_raw;
     if (sample.use_bracketing_correction) {
-      pose.pose_world_lidar = interpolateDenseCorrection(sample.timestamp) *
+      pose.pose_world_lidar = interpolateDenseCorrection(sample.timestamp, time_index) *
                               sample.pose_world_lidar_raw;
     } else if (sample.has_anchor) {
       auto anchor =
@@ -1698,34 +1720,16 @@ N3MappingCore::buildDenseOptimizedTrajectory() const {
 }
 
 Eigen::Isometry3d
-N3MappingCore::interpolateDenseCorrection(double timestamp) const {
-  const auto keyframes = session_->keyframeManager().getAllKeyframes();
-  Keyframe::Ptr before;
-  Keyframe::Ptr after;
-
-  for (const auto &kf : keyframes) {
-    if (!kf) {
-      continue;
-    }
-    if (kf->timestamp <= timestamp &&
-        (!before || kf->timestamp > before->timestamp)) {
-      before = kf;
-    }
-    if (kf->timestamp >= timestamp &&
-        (!after || kf->timestamp < after->timestamp)) {
-      after = kf;
-    }
-  }
-
-  if (!before && !after) {
+N3MappingCore::interpolateDenseCorrection(
+    double timestamp, const std::vector<Keyframe::Ptr>& time_index) const {
+  if (time_index.empty() || std::isnan(timestamp)) {
     return Eigen::Isometry3d::Identity();
   }
-  if (!before) {
-    before = after;
-  }
-  if (!after) {
-    after = before;
-  }
+  const auto next = std::lower_bound(time_index.begin(), time_index.end(), timestamp,
+      [](const auto& kf, double time) { return kf->timestamp < time; });
+  const auto after = next == time_index.end() ? time_index.back() : *next;
+  const auto before = next == time_index.begin() || after->timestamp == timestamp
+                          ? after : *std::prev(next);
 
   const Eigen::Isometry3d correction_before =
       before->pose_optimized * before->pose_odom.inverse();

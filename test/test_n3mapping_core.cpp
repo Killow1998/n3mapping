@@ -198,6 +198,84 @@ TEST(N3MappingCoreTest, MappingFrameBelowKeyframeThresholdStillProducesPoseOutpu
     EXPECT_NEAR(dense.back().pose_world_lidar.translation().x(), 0.1, 1e-9);
 }
 
+TEST(N3MappingCoreTest, IntermediateMappingFramesUseLatestMapCorrection)
+{
+    N3MappingCore core(makeCoreTestConfig());
+    Eigen::Isometry3d anchor = Eigen::Isometry3d::Identity();
+    anchor.translation() = Eigen::Vector3d(1.0, 2.0, 0.0);
+    const auto first = core.processMappingFrame(makeFrame(1000000000, anchor));
+    ASSERT_TRUE(first.accepted_keyframe);
+    const auto keyframe = core.getKeyframe(first.keyframe_id);
+    ASSERT_NE(keyframe, nullptr);
+
+    Eigen::Isometry3d correction = Eigen::Isometry3d::Identity();
+    correction.linear() = Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    correction.translation() = Eigen::Vector3d(2.0, -1.0, 0.5);
+    // Inject the graph result at the keyframe-manager boundary, as in the
+    // snapshot tests. No loop detector or ROS transport is involved.
+    keyframe->pose_optimized = correction * anchor;
+    for (int i = 1; i <= 2; ++i) {
+        Eigen::Isometry3d raw_pose = anchor;
+        raw_pose.translation().x() += 0.1 * i;
+        const auto frame = makeFrame(1000000000 + i * 100000000, raw_pose);
+        const auto output = core.processMappingFrame(frame);
+        ASSERT_TRUE(output.success);
+        ASSERT_FALSE(output.accepted_keyframe);
+        const Eigen::Isometry3d expected = correction * raw_pose;
+        EXPECT_TRUE(output.T_world_lidar.isApprox(expected, 1e-9));
+        ASSERT_TRUE(output.cloud_world);
+        const Eigen::Vector3d expected_point = expected *
+            frame.undistorted_cloud->front().getVector3fMap().cast<double>();
+        EXPECT_TRUE(output.cloud_world->front().getVector3fMap().cast<double>().isApprox(expected_point, 1e-6));
+        EXPECT_TRUE(core.getDenseOptimizedTrajectory().back().pose_world_lidar.isApprox(expected, 1e-9));
+        EXPECT_TRUE(keyframe->pose_odom.isApprox(anchor, 1e-9));
+        // A later graph update must take effect without a new keyframe.
+        correction.translation().y() += 1.0;
+        keyframe->pose_optimized = correction * anchor;
+    }
+}
+
+TEST(N3MappingCoreTest, DenseCorrectionPreservesDuplicateTimesAndEndpointRules)
+{
+    N3MappingCore core(makeCoreTestConfig());
+    core.setExternalDenseTrajectoryRecordingEnabled(true);
+    for (int i = 0; i < 3; ++i) {
+        Eigen::Isometry3d raw = Eigen::Isometry3d::Identity();
+        raw.translation().x() = i;
+        ASSERT_TRUE(core.processMappingFrame(makeFrame(
+            static_cast<int64_t>(i + 1) * 1000000000, raw)).accepted_keyframe);
+    }
+    const auto keyframes = core.getAllKeyframes();
+    ASSERT_EQ(keyframes.size(), 3u);
+    for (int i = 0; i < 3; ++i) {
+        const double correction_y = i == 1 ? 9.0 : i + 1.0;
+        Eigen::Isometry3d correction = Eigen::Isometry3d::Identity();
+        correction.translation().y() = correction_y;
+        correction.linear() = Eigen::AngleAxisd(
+            correction_y * 0.1, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+        keyframes[i]->pose_optimized = correction * keyframes[i]->pose_odom;
+    }
+    // Legacy interpolation picks the first keyframe at a duplicate time.
+    keyframes[1]->timestamp = 1.0;
+    const std::vector<double> times = {0.0, 1.0, 2.0, 3.0, 4.0, 2.0};
+    const std::vector<double> expected_y = {1.0, 1.0, 2.0, 3.0, 3.0, 2.0};
+    Eigen::Isometry3d raw = Eigen::Isometry3d::Identity();
+    raw.translation().x() = 0.25;
+    for (const double time : times)
+        core.recordDenseTrajectoryPose(CoreRunMode::MAPPING, time, raw);
+    const auto trajectory = core.getDenseOptimizedTrajectory();
+    ASSERT_EQ(trajectory.size(), times.size());
+    for (std::size_t i = 0; i < times.size(); ++i) {
+        Eigen::Isometry3d correction = Eigen::Isometry3d::Identity();
+        correction.translation().y() = expected_y[i];
+        correction.linear() = Eigen::AngleAxisd(
+            expected_y[i] * 0.1, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+        EXPECT_EQ(trajectory[i].seq, i);
+        EXPECT_DOUBLE_EQ(trajectory[i].timestamp, times[i]);
+        EXPECT_TRUE(trajectory[i].pose_world_lidar.isApprox(correction * raw, 1e-9));
+    }
+}
+
 TEST(N3MappingCoreTest, ExternalDenseTrajectoryRecordingUsesOdomSamples)
 {
     N3MappingCore core(makeCoreTestConfig());

@@ -83,6 +83,8 @@ struct BackendOutput {
   int64_t relocalization_support_keyframe_id = -1;
   // Legacy alias for relocalization_support_keyframe_id.
   int64_t matched_keyframe_id = -1;
+  // Successful mapping outputs use the latest backend map correction for
+  // both keyframes and intermediate frames. cloud_world uses this same pose.
   Eigen::Isometry3d T_world_lidar = Eigen::Isometry3d::Identity();
   LioFrame::PointCloud::Ptr cloud_body;
   LioFrame::PointCloud::Ptr cloud_world;

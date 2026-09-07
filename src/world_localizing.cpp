@@ -1,6 +1,7 @@
 // WorldLocalizing: global relocalization via RHPD + ICP, and tracking
 // localization with T_map_odom.
 #include "n3mapping/world_localizing.h"
+#include "n3mapping/relocalization_order.h"
 
 #include <cstdlib>
 #include <iomanip>
@@ -36,7 +37,9 @@ constexpr std::size_t kLoadedMapTrackingTargetPrefetchQueueEntries =
     kLoadedMapTrackingTargetCacheEntries * 2;
 
 bool hasValidRegistrationResult(const MatchResult &match) {
-  return match.converged && std::isfinite(match.fitness_score) &&
+  return (match.converged ||
+          match.termination == MatchTermination::FixedPoseEvaluation) &&
+         std::isfinite(match.fitness_score) &&
          std::isfinite(match.inlier_ratio) &&
          isFiniteRigidPose(match.T_target_source);
 }
@@ -312,13 +315,20 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       if (candidate.visibility.valid != incumbent.visibility.valid) {
         return candidate.visibility.valid;
       }
-      if (candidate.visibility.valid &&
-          std::abs(candidate.visibility.consistency_ratio -
-                   incumbent.visibility.consistency_ratio) > 1e-9) {
-        return candidate.visibility.consistency_ratio >
-               incumbent.visibility.consistency_ratio;
+      if (candidate.visibility.valid) {
+        const int order = compareRelocalizationScore(
+            candidate.visibility.consistency_ratio, incumbent.visibility.consistency_ratio);
+        if (order != 0) return order < 0;
       }
-      return candidate.selection_score < incumbent.selection_score;
+      const int quality_order = compareRelocalizationScore(
+          -candidate.selection_score, -incumbent.selection_score);
+      if (quality_order != 0) return quality_order < 0;
+      if (candidate.matched_kf_id != incumbent.matched_kf_id)
+        return candidate.matched_kf_id < incumbent.matched_kf_id;
+      if (candidate.basin_center_id != incumbent.basin_center_id)
+        return candidate.basin_center_id < incumbent.basin_center_id;
+      return relocalizationPoseLess(candidate.match.T_target_source,
+                                    incumbent.match.T_target_source);
     };
 
     const auto evaluate_basin = [&](const BasinGroup &basin) {
@@ -350,15 +360,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           if (reloc_debug_enabled) {
             const bool selected_refined =
                 evaluation.registration.selected_refined;
-            const bool information_at_selected_pose =
-                evaluation.registration.selected_pose.isApprox(
-                    evaluation.registration.match.T_target_source);
             mode.registration_observability = analyzeRegistrationObservability(
-                evaluation.registration.match,
+                selected_match,
                 selected_refined ? "registration_endpoint"
                                  : "descriptor_initial",
-                information_at_selected_pose,
-                evaluation.registration.production_quality);
+                true, quality.accepted);
           }
           const double descriptor_score = std::isfinite(candidate.fused_score)
                                               ? candidate.fused_score
@@ -542,9 +548,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         mr = matcher_.alignPrepared(*prepared_target.registration_target,
                                     prepared_query, predicted_pose);
       }
-      hyp.cumulative_log_likelihood +=
-          computeTrackLogLikelihood(mr, predicted_pose);
-      hyp.num_updates += 1;
       VisibilityConsistencyResult selected_visibility = predicted_visibility;
       Eigen::Isometry3d selected_pose = predicted_pose;
       bool selected_registration_endpoint = false;
@@ -559,6 +562,16 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           selected_pose = mr.T_target_source;
           selected_registration_endpoint = true;
         }
+        if (!selected_registration_endpoint) {
+          mr = matcher_.evaluatePreparedPose(*prepared_target.registration_target,
+                                             prepared_query, selected_pose,
+                                             mr.metric_setting);
+        }
+      }
+      hyp.cumulative_log_likelihood +=
+          computeTrackLogLikelihood(mr, predicted_pose);
+      hyp.num_updates += 1;
+      if (hasValidRegistrationResult(mr)) {
         hyp.T_map_odom = selected_pose * odom_pose.inverse();
         hyp.last_match_id = nearest_kf_id;
         hyp.converged_updates += 1;
@@ -1307,7 +1320,9 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         // ICP is a local proposal, not authority to slide along a repeated
         // surface. Retain the prediction when the immutable loaded map
         // explains it better than the optimizer endpoint.
-        match_result.T_target_source = predicted_pose;
+        match_result = matcher_.evaluatePreparedPose(
+            *prepared_target, prepared_source, predicted_pose,
+            match_result.metric_setting);
         visibility = predicted_visibility;
         debug_event.visibility_selected_pose_source = "motion_prediction";
       }
@@ -1334,7 +1349,16 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
        delta_rotation <= config_.reloc_track_max_rotation && visibility.valid &&
        visibility.evidence_log_odds > 0.0);
 
-  const bool accepted_icp = icp_ok && strict_geometry_ok;
+  // The proposal's convergence remains necessary, but its quality cannot
+  // certify a different selected pose. Recompute confidence from that pose.
+  const bool selected_quality_ok =
+      hasValidRegistrationResult(match_result) &&
+      match_result.fitness_score < config_.gicp_fitness_threshold &&
+      match_result.inlier_ratio >= config_.reloc_min_inlier_ratio;
+  current_confidence = std::clamp(std::exp(-match_result.fitness_score / scale), 0.0, 1.0);
+  debug_event.fitness_score = match_result.fitness_score;
+  debug_event.inlier_ratio = match_result.inlier_ratio;
+  const bool accepted_icp = icp_ok && selected_quality_ok && strict_geometry_ok;
 
   if (accepted_icp) {
     Eigen::Isometry3d T_map_odom_icp =

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "n3mapping/relocalization_order.h"
 
 #include <limits>
 
@@ -33,6 +34,28 @@ pcl::PointXYZI makePointXYZI(float x, float y, float z, float intensity) {
   point.z = z;
   point.intensity = intensity;
   return point;
+}
+
+TEST(CoreTypesTest, RelocalizationScoreOrderingIsStrict) {
+  const std::vector<double> values = {
+      0.0, 0.75e-9, 1.5e-9, -1.0, 1.0,
+      std::numeric_limits<double>::quiet_NaN(),
+      std::numeric_limits<double>::infinity(),
+      -std::numeric_limits<double>::infinity()};
+  for (const double a : values) {
+    EXPECT_EQ(compareRelocalizationScore(a, a), 0);
+    for (const double b : values) {
+      EXPECT_EQ(compareRelocalizationScore(a, b), -compareRelocalizationScore(b, a));
+      for (const double c : values) {
+        if (compareRelocalizationScore(a, b) < 0 && compareRelocalizationScore(b, c) < 0) {
+          EXPECT_LT(compareRelocalizationScore(a, c), 0);
+        }
+        if (compareRelocalizationScore(a, b) == 0 && compareRelocalizationScore(b, c) == 0) {
+          EXPECT_EQ(compareRelocalizationScore(a, c), 0);
+        }
+      }
+    }
+  }
 }
 
 TEST(CoreTypesTest, DefaultValuesAreRosFreeAndStable) {

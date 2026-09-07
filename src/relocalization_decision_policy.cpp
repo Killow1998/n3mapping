@@ -1,4 +1,5 @@
 #include "n3mapping/relocalization_decision_policy.h"
+#include "n3mapping/relocalization_order.h"
 
 #include <algorithm>
 #include <cmath>
@@ -26,17 +27,17 @@ RelocalizationRanking RelocalizationDecisionPolicy::rank(
                const RelocalizationHypothesis *rhs) {
               const double lhs_visibility = meanVisibilityEvidence(lhs);
               const double rhs_visibility = meanVisibilityEvidence(rhs);
-              const bool lhs_has_visibility = std::isfinite(lhs_visibility);
-              const bool rhs_has_visibility = std::isfinite(rhs_visibility);
-              if (lhs_has_visibility != rhs_has_visibility) {
-                return lhs_has_visibility;
-              }
-              if (lhs_has_visibility &&
-                  std::abs(lhs_visibility - rhs_visibility) > 1e-9) {
-                return lhs_visibility > rhs_visibility;
-              }
-              return lhs->cumulative_log_likelihood >
-                     rhs->cumulative_log_likelihood;
+              const int visibility_order =
+                  compareRelocalizationScore(lhs_visibility, rhs_visibility);
+              if (visibility_order != 0) return visibility_order < 0;
+              const int quality_order = compareRelocalizationScore(
+                  lhs->cumulative_log_likelihood, rhs->cumulative_log_likelihood);
+              if (quality_order != 0) return quality_order < 0;
+              if (lhs->seed_match_id != rhs->seed_match_id)
+                return lhs->seed_match_id < rhs->seed_match_id;
+              if (lhs->last_match_id != rhs->last_match_id)
+                return lhs->last_match_id < rhs->last_match_id;
+              return relocalizationPoseLess(lhs->T_map_odom, rhs->T_map_odom);
             });
 
   ranking.top1 =

@@ -7,6 +7,7 @@
 #include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/world_localizing.h"
 #include <cmath>
+#include "n3mapping/relocalization_decision_policy.h"
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -17,6 +18,44 @@
 
 namespace n3mapping {
 namespace test {
+
+TEST(RelocalizationRankingTest, NearVisibilityScoresRemainOrdered)
+{
+  Config config;
+  RelocalizationDecisionPolicy policy(config);
+  std::vector<RelocalizationHypothesis> hypotheses(2);
+  hypotheses[0].seed_match_id = 1;
+  hypotheses[0].visibility_updates = 1;
+  hypotheses[0].visibility_evidence_sum = 0.0;
+  hypotheses[0].cumulative_log_likelihood = 3.0;
+  hypotheses[1].seed_match_id = 2;
+  hypotheses[1].visibility_updates = 1;
+  hypotheses[1].visibility_evidence_sum = 0.75e-9;
+  hypotheses[1].cumulative_log_likelihood = 2.0;
+  for (int order = 0; order < 2; ++order) {
+    const auto ranking = policy.rank(hypotheses, Eigen::Isometry3d::Identity());
+    ASSERT_NE(ranking.top1, nullptr);
+    EXPECT_EQ(ranking.top1->seed_match_id, 2);
+    std::reverse(hypotheses.begin(), hypotheses.end());
+  }
+}
+
+TEST(RelocalizationRankingTest, EqualAndInvalidScoresHaveStableIdentityTies)
+{
+  Config config;
+  RelocalizationDecisionPolicy policy(config);
+  std::vector<RelocalizationHypothesis> hypotheses(3);
+  for (int i = 0; i < 3; ++i) {
+    hypotheses[i].seed_match_id = i + 1;
+    hypotheses[i].cumulative_log_likelihood = std::numeric_limits<double>::quiet_NaN();
+  }
+  do {
+    const auto ranking = policy.rank(hypotheses, Eigen::Isometry3d::Identity());
+    ASSERT_NE(ranking.top1, nullptr);
+    EXPECT_EQ(ranking.top1->seed_match_id, 1);
+  } while (std::next_permutation(hypotheses.begin(), hypotheses.end(),
+      [](const auto& lhs, const auto& rhs) { return lhs.seed_match_id < rhs.seed_match_id; }));
+}
 
 class WorldLocalizingTest : public ::testing::Test {
 protected:

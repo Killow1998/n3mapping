@@ -25,7 +25,9 @@ enum class MatchTermination {
     Invalid,
     Converged,
     MaxIterations,
-    Stalled
+    Stalled,
+    // Residuals/correspondences evaluated without running an optimizer.
+    FixedPoseEvaluation
 };
 
 const char* matchTerminationName(MatchTermination termination);
@@ -58,6 +60,9 @@ struct MatchResult {
     double inlier_ratio = 0.0;
     Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
     std::vector<MatchStageResult> stages;
+    // Objective, resolution and correspondence gate of the selected optimizer
+    // stage. Fixed-pose evaluation must use these same metric semantics.
+    small_gicp::RegistrationSetting metric_setting;
 };
 
 class PointCloudMatcher {
@@ -119,6 +124,12 @@ public:
                               const PreparedSource& source,
                               const Eigen::Isometry3d& init_guess,
                               const small_gicp::RegistrationSetting& setting);
+    // Does not change pose or claim optimizer convergence. The result has
+    // FixedPoseEvaluation termination only when usable residuals were measured.
+    MatchResult evaluatePreparedPose(const PreparedTarget& target,
+                                    const PreparedSource& source,
+                                    const Eigen::Isometry3d& pose,
+                                    const small_gicp::RegistrationSetting& metric_setting) const;
 
     std::pair<SmallGicpCloud::Ptr, std::shared_ptr<SmallGicpKdTree>> preprocessPointCloud(const PointCloudT::Ptr& cloud);
     const small_gicp::RegistrationSetting& getSettings() const { return setting_; }

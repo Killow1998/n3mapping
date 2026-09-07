@@ -1,4 +1,5 @@
 #include "n3mapping/relocalization_candidate_evaluator.h"
+#include "n3mapping/relocalization_order.h"
 
 #include <algorithm>
 #include <cmath>
@@ -84,6 +85,11 @@ RelocalizationCandidateEvaluator::evaluate(
     }
 
     RelocalizationCandidateEvaluation evaluation;
+    if (!selected_refined) {
+      evaluation.registration.initial_pose_match = matcher_.evaluatePreparedPose(
+          *prepared_target.registration_target, prepared_query, selected_pose,
+          match.metric_setting);
+    }
     evaluation.registration.match = std::move(match);
     evaluation.registration.production_quality = production_quality;
     evaluation.registration.initial_pose = initial_pose;
@@ -99,14 +105,19 @@ RelocalizationCandidateEvaluator::evaluate(
               if (lhs.visibility.valid != rhs.visibility.valid) {
                 return lhs.visibility.valid;
               }
-              if (lhs.visibility.valid &&
-                  std::abs(lhs.visibility.consistency_ratio -
-                           rhs.visibility.consistency_ratio) > 1e-9) {
-                return lhs.visibility.consistency_ratio >
-                       rhs.visibility.consistency_ratio;
+              if (lhs.visibility.valid) {
+                const int order = compareRelocalizationScore(
+                    lhs.visibility.consistency_ratio, rhs.visibility.consistency_ratio);
+                if (order != 0) return order < 0;
               }
-              return lhs.registration.match.fitness_score <
-                     rhs.registration.match.fitness_score;
+              const int quality_order = compareRelocalizationScore(
+                  -lhs.registration.selectedMatch().fitness_score,
+                  -rhs.registration.selectedMatch().fitness_score);
+              if (quality_order != 0) return quality_order < 0;
+              if (lhs.matched_keyframe_id != rhs.matched_keyframe_id)
+                return lhs.matched_keyframe_id < rhs.matched_keyframe_id;
+              return relocalizationPoseLess(lhs.registration.selected_pose,
+                                            rhs.registration.selected_pose);
             });
 
   // Different yaw seeds often converge onto the same physical solution. Keep

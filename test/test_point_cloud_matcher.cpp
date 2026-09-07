@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/relocalization_candidate_evaluator.h"
 
 namespace n3mapping {
 namespace test {
@@ -421,6 +422,123 @@ TEST_F(PointCloudMatcherTest, PreparedCloudsMatchRawPathAcrossInitialGuesses) {
     const auto prepared_wide = matcher_->alignPrepared(
         prepared_target, prepared_source, guesses[1], wide);
     expect_equivalent(raw_wide, prepared_wide);
+}
+
+TEST_F(PointCloudMatcherTest, FixedPoseEvaluationMeasuresSelectedPoseWithoutOptimizing) {
+    config_.icp_refine_use_gicp = false;
+    matcher_ = std::make_unique<PointCloudMatcher>(config_);
+    const auto cloud = createPlaneCloud(2000, 10.0, 0.0);
+    const auto target = matcher_->prepareTargetCloud(cloud);
+    const auto source = matcher_->prepareSourceCloud(cloud);
+    const auto endpoint = matcher_->alignPrepared(target, source, Eigen::Isometry3d::Identity());
+    ASSERT_TRUE(endpoint.converged);
+    ASSERT_LT(endpoint.fitness_score, 1e-9);
+
+    Eigen::Isometry3d selected_pose = Eigen::Isometry3d::Identity();
+    selected_pose.translation().z() = 0.5;
+    const auto evaluated = matcher_->evaluatePreparedPose(
+        target, source, selected_pose, endpoint.metric_setting);
+    EXPECT_EQ(evaluated.termination, MatchTermination::FixedPoseEvaluation);
+    EXPECT_FALSE(evaluated.converged);
+    EXPECT_EQ(evaluated.iterations, 0u);
+    EXPECT_TRUE(evaluated.stages.empty());
+    EXPECT_TRUE(evaluated.T_target_source.isApprox(selected_pose, 1e-12));
+    EXPECT_NEAR(evaluated.fitness_score, 0.125, 1e-8);
+    EXPECT_NEAR(evaluated.inlier_ratio, 1.0, 1e-12);
+    EXPECT_NEAR(evaluated.optimizer_error, evaluated.num_inliers * 0.125, 1e-6);
+    EXPECT_TRUE(evaluated.information.allFinite());
+    EXPECT_GT(evaluated.information(2, 2), 0.0);
+
+    RegistrationEvidence evidence;
+    evidence.match = endpoint;
+    evidence.selected_pose = selected_pose;
+    evidence.initial_pose_match = evaluated;
+    evidence.selected_refined = false;
+    EXPECT_NEAR(evidence.selectedMatch().fitness_score, 0.125, 1e-8);
+    EXPECT_TRUE(evidence.selectedMatch().T_target_source.isApprox(selected_pose));
+    EXPECT_FALSE(evidence.selectedMatch().converged);
+    evidence.selected_refined = true;
+    EXPECT_DOUBLE_EQ(evidence.selectedMatch().fitness_score, endpoint.fitness_score);
+}
+
+TEST_F(PointCloudMatcherTest, CandidateVisibilityFallbackCarriesItsOwnQuality) {
+    config_.icp_refine_use_gicp = false;
+    matcher_ = std::make_unique<PointCloudMatcher>(config_);
+    auto query = createPlaneCloud(2000, 10.0, 0.0);
+    for (auto& point : *query) point.z = 3.0f;
+    Eigen::Isometry3d offset = Eigen::Isometry3d::Identity();
+    offset.translation().z() = 0.6;
+    const auto registration_cloud = transformCloud(query, offset);
+
+    // Supply distinct prepared and visibility surfaces to force the real
+    // evaluator's fallback branch; registration itself is not mocked.
+    struct TargetProvider : RelocTargetProvider {
+        PreparedRelocTarget target;
+        PreparedRelocTarget getTarget(const RelocTargetRequest&) override { return target; }
+        void clear() override {}
+        RelocTargetProviderDiagnostics diagnostics() const override { return {}; }
+    } provider;
+    provider.target.visibility_target = query;
+    provider.target.registration_target = std::make_shared<PointCloudMatcher::PreparedTarget>(
+        matcher_->prepareTargetCloud(registration_cloud));
+    KeyframeManager keyframes(config_);
+    LoopCandidate candidate;
+    candidate.match_id = keyframes.addKeyframe(1.0, Eigen::Isometry3d::Identity(), query);
+    RelocalizationCandidateEvaluator evaluator(config_, keyframes, *matcher_, provider);
+    const auto evaluations = evaluator.evaluate(
+        query, matcher_->prepareSourceCloud(query), candidate, {});
+    ASSERT_FALSE(evaluations.empty());
+    bool saw_fallback = false;
+    for (const auto& evaluation : evaluations) {
+        const auto& evidence = evaluation.registration;
+        if (evidence.selected_refined) continue;
+        saw_fallback = true;
+        EXPECT_NEAR(evidence.match.T_target_source.translation().z(), 0.6, 1e-5);
+        EXPECT_NEAR(evidence.selectedMatch().T_target_source.translation().z(), 0.0, 1e-12);
+        EXPECT_EQ(evidence.selectedMatch().termination, MatchTermination::FixedPoseEvaluation);
+        EXPECT_NEAR(evidence.selectedMatch().fitness_score, 0.18, 1e-5);
+        EXPECT_LT(evidence.match.fitness_score, 1e-6);
+    }
+    EXPECT_TRUE(saw_fallback);
+}
+
+TEST_F(PointCloudMatcherTest, FixedPoseEvaluationUsesObjectiveAndCorrespondenceGate) {
+    const auto cloud = createPlaneCloud(2000, 10.0, 0.0);
+    const auto target = matcher_->prepareTargetCloud(cloud);
+    const auto source = matcher_->prepareSourceCloud(cloud);
+    auto setting = matcher_->getSettings();
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation().z() = 0.5;
+    setting.type = small_gicp::RegistrationSetting::GICP;
+    setting.downsampling_resolution = config_.icp_refine_downsampling_resolution;
+    const auto gicp = matcher_->evaluatePreparedPose(target, source, pose, setting);
+    ASSERT_EQ(gicp.termination, MatchTermination::FixedPoseEvaluation);
+    EXPECT_GT(gicp.fitness_score, 0.125);
+    EXPECT_TRUE(gicp.T_target_source.isApprox(pose));
+
+    setting.max_correspondence_distance = 0.25;
+    const auto rejected = matcher_->evaluatePreparedPose(target, source, pose, setting);
+    EXPECT_FALSE(rejected.success);
+    EXPECT_EQ(rejected.num_inliers, 0u);
+    EXPECT_EQ(rejected.termination, MatchTermination::Invalid);
+    EXPECT_TRUE(rejected.information.isZero());
+    pose.translation().x() = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_EQ(matcher_->evaluatePreparedPose(target, source, pose, setting).termination,
+              MatchTermination::Invalid);
+    EXPECT_EQ(matcher_->evaluatePreparedPose({}, source, Eigen::Isometry3d::Identity(), setting).termination,
+              MatchTermination::Invalid);
+}
+
+TEST(RegistrationEvidenceTest, UnevaluatedFallbackDoesNotBorrowEndpointQuality) {
+    RegistrationEvidence evidence;
+    evidence.match.success = true;
+    evidence.match.converged = true;
+    evidence.match.fitness_score = 0.001;
+    evidence.selected_pose.translation().x() = 10.0;
+    evidence.selected_refined = false;
+    EXPECT_FALSE(evidence.selectedMatch().success);
+    EXPECT_FALSE(evidence.selectedMatch().converged);
+    EXPECT_EQ(evidence.selectedMatch().termination, MatchTermination::Invalid);
 }
 
 // 测试信息矩阵输出
