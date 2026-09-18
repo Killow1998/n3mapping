@@ -39,19 +39,27 @@ StaticStartGuard::voxelize(const pcl::PointCloud<pcl::PointXYZI>& cloud) const
 }
 
 bool StaticStartGuard::update(double timestamp,
-                              const pcl::PointCloud<pcl::PointXYZI>& cloud)
+                              const pcl::PointCloud<pcl::PointXYZI>& cloud,
+                              const Eigen::Isometry3d& odom_pose)
 {
-    if (moved_) {
+    if (released_) {
         return true;
     }
     if (options_.max_wait_s <= 0.0) {
-        moved_ = true;
+        released_ = true;
         release_timestamp_ = timestamp;
         return true;
     }
-    if (static_cast<int>(cloud.size()) < options_.min_points) {
+    if (!std::isfinite(timestamp) || !odom_pose.matrix().allFinite() ||
+        static_cast<int>(cloud.size()) < options_.min_points) {
+        stable_since_ = -1.0;
         return false;
     }
+
+    const bool continuous = previous_timestamp_ >= 0.0 &&
+        timestamp > previous_timestamp_ && timestamp - previous_timestamp_ <= 0.5;
+    previous_timestamp_ = timestamp;
+    if (!continuous) stable_since_ = -1.0;
 
     if (!has_reference_) {
         reference_ = voxelize(cloud);
@@ -60,6 +68,8 @@ bool StaticStartGuard::update(double timestamp,
         }
         has_reference_ = true;
         first_timestamp_ = timestamp;
+        stable_since_ = timestamp;
+        stable_pose_ = odom_pose;
         return false;
     }
 
@@ -73,6 +83,22 @@ bool StaticStartGuard::update(double timestamp,
     last_overlap_ = static_cast<double>(shared) /
                     static_cast<double>(reference_.size());
 
+    // Three seconds within 2 cm / 0.01 rad accepts settled stationary input,
+    // not the metres of false motion that motivated the original guard.
+    const auto delta = stable_pose_.inverse() * odom_pose;
+    const bool stable_view = last_overlap_ >= options_.moved_overlap;
+    if (!stable_view) {
+        stable_since_ = -1.0;
+    } else if (stable_since_ < 0.0 || delta.translation().norm() > 0.02 ||
+               Eigen::AngleAxisd(delta.rotation()).angle() > 0.01) {
+        stable_since_ = timestamp;
+        stable_pose_ = odom_pose;
+    } else if (continuous && timestamp - stable_since_ >= 3.0) {
+        released_ = true;
+        release_timestamp_ = timestamp;
+        return true;
+    }
+
     if (last_overlap_ < options_.moved_overlap) {
         ++consecutive_below_;
     } else {
@@ -80,14 +106,14 @@ bool StaticStartGuard::update(double timestamp,
     }
 
     if (consecutive_below_ >= options_.moved_consecutive) {
-        moved_ = true;
+        released_ = true;
         release_timestamp_ = timestamp;
         return true;
     }
     // The wait is bounded so a test that fails to notice motion cannot suppress
     // the map for the whole session.
     if (timestamp - first_timestamp_ >= options_.max_wait_s) {
-        moved_ = true;
+        released_ = true;
         released_by_timeout_ = true;
         release_timestamp_ = timestamp;
         return true;

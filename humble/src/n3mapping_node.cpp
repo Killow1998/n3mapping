@@ -40,6 +40,7 @@
 #include <stdexcept>
 #include <string_view>
 #include <std_msgs/msg/u_int32.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <thread>
@@ -54,6 +55,7 @@
 #include "n3mapping/msg/relocalization_status.hpp"
 #include "n3mapping/product_build_identity.h"
 #include "n3mapping/relocalization_output_authority.h"
+#include "n3mapping/ros_output_contract.h"
 #include "n3mapping/runtime_performance_debug_logger.h"
 
 namespace n3mapping {
@@ -80,6 +82,10 @@ class N3MappingNode : public rclcpp::Node
       : Node("n3mapping_node"),
         authority_probe_scenario_(std::move(authority_probe_scenario))
     {
+        input_linear_velocity_frame_ = parseInputLinearVelocityFrame(
+            this->declare_parameter<std::string>("input_linear_velocity_frame", "child"));
+        localization_status_pub_ = this->create_publisher<std_msgs::msg::String>(
+            this->declare_parameter<std::string>("output_status_topic", "/localization/status"), 1);
         if (authority_probe_scenario_) {
             initializeAuthorityProbe();
             return;
@@ -340,7 +346,10 @@ class N3MappingNode : public rclcpp::Node
         const auto publication =
           publishRelocalizationOutput(header, output);
         if (publication.publish_global_pose) {
-            publishOdometry(output.T_world_lidar, header);
+            nav_msgs::msg::Odometry stationary_probe;
+            stationary_probe.child_frame_id = config_.body_frame;
+            stationary_probe.pose.pose.orientation.w = 1.0;
+            publishOdometry(output.T_world_lidar, header, stationary_probe);
             publishPath(header, &output.T_world_lidar);
         }
         if (publication.publish_world_cloud) {
@@ -673,7 +682,7 @@ class N3MappingNode : public rclcpp::Node
                     const auto pose_publish_started = performance_enabled
                       ? PerformanceClock::now()
                       : PerformanceClock::time_point{};
-                    publishOdometry(output.T_world_lidar, header);
+                    publishOdometry(output.T_world_lidar, header, *odom_msg);
                     publishPath(header, &output.T_world_lidar);
                     if (performance_enabled) {
                         performance_event.odometry_path_publish_ms =
@@ -745,6 +754,10 @@ class N3MappingNode : public rclcpp::Node
                  : RelocalizationOutputMode::OTHER);
         const auto publication =
           relocalization_output_authority_.process(output_mode, output);
+        std_msgs::msg::String status;
+        status.data = localizationStatusJson(
+            run_mode_, output, rclcpp::Time(header.stamp).seconds(), config_.world_frame);
+        localization_status_pub_->publish(status);
 
         if (run_mode_ == CoreRunMode::MAP_EXTENSION &&
             output.relocalization_locked && !output.accepted_keyframe) {
@@ -921,7 +934,8 @@ class N3MappingNode : public rclcpp::Node
         return out;
     }
 
-    void publishOdometry(const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header)
+    void publishOdometry(const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header,
+                         const nav_msgs::msg::Odometry& input)
     {
         nav_msgs::msg::Odometry odom_msg;
         odom_msg.header = header;
@@ -938,6 +952,11 @@ class N3MappingNode : public rclcpp::Node
         odom_msg.pose.pose.orientation.y = q.y();
         odom_msg.pose.pose.orientation.z = q.z();
 
+        if (!forwardOdometryTwist(input, input_linear_velocity_frame_, &odom_msg)) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                "Odometry suppressed: invalid twist or mismatched body frame");
+            return;
+        }
         odom_pub_->publish(odom_msg);
 
         rclcpp::Time tf_stamp(odom_msg.header.stamp);
@@ -1545,6 +1564,8 @@ class N3MappingNode : public rclcpp::Node
   private:
     // 配置
     Config config_;
+    InputLinearVelocityFrame input_linear_velocity_frame_ = InputLinearVelocityFrame::CHILD;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr localization_status_pub_;
     CoreRunMode run_mode_ = CoreRunMode::MAPPING;
     bool product_profile_v1_ = false;
 

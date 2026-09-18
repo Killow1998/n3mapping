@@ -3,6 +3,7 @@
   <arg name="rviz" default="true" />
 
   <node pkg="n3mapping" type="n3mapping_node" name="n3mapping_node" output="screen">
+    <env name="OMP_WAIT_POLICY" value="$(optenv OMP_WAIT_POLICY PASSIVE)" />
     <rosparam file="$(arg config_file)" command="load" />
     <param name="mode" value="mapping" />
   </node>

@@ -12,6 +12,7 @@
 #include "n3mapping/config.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/registration_observability.h"
+#include "n3mapping/relocalization_performance.h"
 
 namespace n3mapping {
 
@@ -113,33 +114,12 @@ struct RelocalizationDebugEvent {
   std::string reject_reason;
 };
 
-struct RelocTrackingDebugEvent {
+struct RelocTrackingDebugEvent : TrackingPerformance {
   double processing_time = 0.0;
   uint64_t query_index = 0;
-  bool strict_loaded_map = false;
   Eigen::Isometry3d predicted_pose = Eigen::Isometry3d::Identity();
   int64_t nearest_kf_id = -1;
   std::size_t submap_size = 0;
-  // PERF-ME-01A: append-only, diagnostic-only stage timings. Missing stages
-  // remain NaN and are serialized as JSON null, so an early return cannot be
-  // mistaken for a zero-cost stage.
-  double tracking_total_ms = std::numeric_limits<double>::quiet_NaN();
-  double nearest_keyframe_ms = std::numeric_limits<double>::quiet_NaN();
-  double loaded_map_cache_ms = std::numeric_limits<double>::quiet_NaN();
-  double submap_build_ms = std::numeric_limits<double>::quiet_NaN();
-  double target_prepare_ms = std::numeric_limits<double>::quiet_NaN();
-  bool loaded_map_target_cache_hit = false;
-  bool loaded_map_target_cache_miss = false;
-  bool localization_target_cache_enabled = false;
-  bool localization_target_cache_hit = false;
-  bool localization_target_cache_miss = false;
-  std::size_t localization_target_cache_entry_bytes = 0;
-  std::size_t localization_target_cache_total_bytes = 0;
-  std::size_t localization_target_cache_entries = 0;
-  double source_prepare_ms = std::numeric_limits<double>::quiet_NaN();
-  double registration_ms = std::numeric_limits<double>::quiet_NaN();
-  double retry_registration_ms = std::numeric_limits<double>::quiet_NaN();
-  double visibility_ms = std::numeric_limits<double>::quiet_NaN();
   // Shadow-only decomposition for a future endpoint-fast / prediction-slow
   // visibility cascade. These fields describe the existing two-pose decision;
   // they do not select a different pose or bypass a production gate.

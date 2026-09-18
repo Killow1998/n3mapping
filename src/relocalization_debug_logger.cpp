@@ -494,6 +494,7 @@ bool RelocalizationDebugLogger::appendTracking(
   appendNumber(os, &first, "loaded_map_cache_ms",
                event.loaded_map_cache_ms);
   appendNumber(os, &first, "submap_build_ms", event.submap_build_ms);
+  appendNumber(os, &first, "lock_wait_ms", event.lock_wait_ms);
   appendNumber(os, &first, "target_prepare_ms", event.target_prepare_ms);
   appendBool(os, &first, "loaded_map_target_cache_hit",
              event.loaded_map_target_cache_hit);

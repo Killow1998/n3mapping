@@ -126,7 +126,6 @@ class N3MappingCore {
     OdometrySanity odometry_sanity_;
     StaticStartGuard static_start_guard_;
     bool static_start_guard_configured_ = false;
-    bool static_start_reported_ = false;
     bool odometry_sanity_configured_ = false;
     int floor_attitude_accepted_ = 0;
     int floor_attitude_rejected_ = 0;

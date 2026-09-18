@@ -64,6 +64,14 @@ src/n3mapping/scripts/select_distro_wrapper.sh clear
 
 Launch resources are wrapper-local. Humble uses `*.launch.py`; Noetic uses `*.launch`. After selecting a wrapper, use the launch commands for that ROS distribution only.
 
+The mapping, localization, and map-extension launch entries (including Noetic
+`development_runtime.launch`) default the N3 process to `OMP_WAIT_POLICY=PASSIVE`
+to reduce OpenMP waiting overhead when sharing CPU cores with the frontend and
+navigation. An explicit inherited `OMP_WAIT_POLICY` takes precedence. This does
+not change thread counts or registration settings;
+an external `GOMP_SPINCOUNT` can affect the waiting behavior. Direct `rosrun` or
+executable invocation bypasses these launch defaults.
+
 ### 2.3 Configuration
 
 Default config:
@@ -114,7 +122,8 @@ When `map_path` is left empty in `config/n3mapping.yaml`, N3Mapping uses `N3MAPP
 
 | Name | Kind | Type | Meaning |
 | --- | --- | --- | --- |
-| `/n3mapping/odometry` | topic | `nav_msgs/Odometry` | Optimized or relocalized output pose |
+| `/n3mapping/odometry` | topic | `nav_msgs/Odometry` | Optimized/relocalized pose and measured body-frame twist |
+| `/localization/status` | topic | `std_msgs/String` | Provider-neutral JSON status, configurable with `output_status_topic` |
 | `/n3mapping/path` | topic | `nav_msgs/Path` | Output trajectory |
 | `/n3mapping/cloud_body` | topic | `sensor_msgs/PointCloud2` | Current cloud in body frame |
 | `/n3mapping/cloud_world` | topic | `sensor_msgs/PointCloud2` | Current cloud transformed to world/map frame |
@@ -122,6 +131,67 @@ When `map_path` is left empty in `config/n3mapping.yaml`, N3Mapping uses `N3MAPP
 | `/n3mapping/loop_closure_markers` | topic | `visualization_msgs/MarkerArray` | Loop closure and trajectory markers |
 | `/n3mapping/relocalization_lock` | topic | `std_msgs/UInt32` | Relocalization lock event counter |
 | `/n3mapping/save_map` | service | `std_srvs/Trigger` / `std_srvs/srv/Trigger` | Save map files |
+
+External consumers do not need N3Mapping's private status message. The generic
+status contains `mode`, `state`, numeric `stamp` (current estimate source time),
+`observation_stamp` (last processed global scan source time), `correction_stamp`
+(last accepted map correction source time), `frame_id`, and `reason`. Times are
+seconds; zero observation/correction time means none is available. Forwarding a
+current estimate never refreshes an old observation or correction time. In
+localization mode, `tracking` requires an authoritative full localization pose.
+Other states are `localizing`, `degraded`, `lost`, and `error`.
+Mapping reports `initializing` with `waiting_for_static_start_guard` while the
+core's startup protection is holding output, then `tracking` when output is
+available. Invalid mapping input and diverged odometry report `error`; a started
+process alone is not evidence of mapping output. These observations do not grant
+navigation authority or identify the consumer's selected map.
+Mapping startup accepts a continuous three-second stable scan/odometry window
+(pose stays within 2 cm and 0.01 rad of its window anchor, input gaps at most
+0.5 s). This allows a settled stationary front end to start a new mapping session
+without waiting for physical movement. Unsettled input retains scan-based motion
+detection and the existing 120-second fallback. The window is a bounded startup
+consistency check, not proof against future estimator drift. No ROS-specific
+readiness flag or upstream process-age assumption is used.
+The topic is not latched; consumers check current estimate source and receive
+freshness instead of treating a historical lock as current readiness. Correction
+age alone is not proof of estimator failure or accuracy. For example:
+
+```json
+{"mode":"localization","state":"tracking","stamp":123.45,"observation_stamp":123.1,"correction_stamp":123.0,"frame_id":"map","reason":""}
+```
+
+`input_linear_velocity_frame` defaults to `child`, as required by standard
+Odometry. Select `parent` explicitly for a frontend such as this workspace's
+FAST-LIO that reports linear velocity in the odometry parent frame. N3 rotates
+that linear velocity and its covariance using the input odometry orientation;
+angular velocity stays in the child frame. Global localization corrections do
+not create velocity. The input child frame must match `body_frame`. Invalid
+twist/covariance or mismatched child frames suppress output odometry/TF rather
+than publishing a fabricated zero measurement. These conversions are shared by
+the thin Noetic/Humble adapters, not the backend core.
+
+The Noetic wrapper publishes live odometry on an independent input callback in
+all three run modes. The ROS-free `core::RealtimeOdometry` combines the latest
+raw pose with the latest authorized map-to-odom correction for the existing global
+output. The raw pose and asynchronous map correction remain internal to N3;
+there are no public local-odometry or map-correction topics. The independent
+Noetic output queue also forwards body clouds and transforms world clouds using
+the scan's paired odometry, never the newest callback pose. Registration cannot
+block these outputs.
+
+TF ownership remains `map -> upstream odom -> body`; N3 owns the first transform.
+A rejected observation leaves the last trusted correction unchanged. Correction
+age alone does not revoke output or imply known drift; invalid timestamps, poses
+or source frames still invalidate the estimate. Live output keeps actual input
+timestamps. Existing localization JSON separates `stamp` (current estimate),
+`observation_stamp` (last processed scan) and `correction_stamp` (last accepted
+anchor), in seconds. Quality reflects the backend observation, not a fabricated
+covariance guarantee. The independent output queue is implemented by the Noetic
+wrapper; the Humble wrapper does not yet provide that queue.
+
+`test/noetic_output_smoke.py /path/to/n3mapping_node` runs the real Noetic wrapper
+against synthetic inputs on a temporary local ROS master after sourcing the ROS
+and workspace environments. It does not connect to hardware or an existing master.
 
 ### 2.5 Map Files And Logs
 

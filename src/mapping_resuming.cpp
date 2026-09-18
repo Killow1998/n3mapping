@@ -147,7 +147,8 @@ bool MappingResuming::initializeFromLoadedMapNoLock() {
 
 bool MappingResuming::performInitialRelocalization(
     const PointCloudT::Ptr& cloud, const Eigen::Isometry3d& odom_pose,
-    const std::string& source_frame_id) {
+    const std::string& source_frame_id, RelocalizationPerformance* performance) {
+    if (performance) *performance = {};
     std::lock_guard<std::mutex> lock(mutex_);
     if (state_ != MappingResumingState::MAP_LOADED || !cloud || cloud->empty() ||
         !isFiniteTransform(odom_pose)) {
@@ -155,6 +156,7 @@ bool MappingResuming::performInitialRelocalization(
     }
 
     RelocResult result = world_localizing_.relocalize(cloud, odom_pose);
+    if (performance) *performance = result.performance;
     if (!result.success) return false;
 
     auto anchor = keyframe_manager_.getKeyframe(result.matched_keyframe_id);

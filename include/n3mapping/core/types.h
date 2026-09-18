@@ -12,6 +12,7 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/relocalization_state.h"
+#include "n3mapping/relocalization_performance.h"
 
 namespace n3mapping {
 namespace core {
@@ -69,7 +70,10 @@ struct BackendPerformanceTiming {
       std::numeric_limits<double>::quiet_NaN();
 };
 
+enum class MappingBlockReason { None, InvalidInput, OdometryDiverged, StaticStartGuard };
+
 struct BackendOutput {
+  MappingBlockReason mapping_block_reason = MappingBlockReason::None;
   bool success = false;
   bool accepted_keyframe = false;
   bool relocalization_locked = false;
@@ -89,6 +93,8 @@ struct BackendOutput {
   LioFrame::PointCloud::Ptr cloud_body;
   LioFrame::PointCloud::Ptr cloud_world;
   BackendPerformanceTiming performance;
+  RelocalizationPerformance relocalization_performance;
+  TrackingPerformance tracking_performance;
 };
 
 struct DenseTrajectoryPose {

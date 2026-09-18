@@ -299,8 +299,13 @@ PointCloudMatcher::PreparedSource PointCloudMatcher::prepareSourceCloud(
         }
 
         if (config_.icp_refine_use_gicp) {
-            auto [points, unused_kdtree] = preprocessTargetPointCloud(
+            auto points = preprocessSourcePointCloud(
                 cloud, config_.icp_refine_downsampling_resolution);
+            if (!points->empty()) {
+                SmallGicpKdTree tree(points);
+                small_gicp::estimate_covariances_omp(*points, tree.kdtree,
+                    config_.gicp_num_neighbors, config_.num_threads);
+            }
             prepared.refine_cloud = points;
             prepared.has_refine_cloud = true;
         }

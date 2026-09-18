@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <limits>
+#include <vector>
 
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
@@ -55,6 +56,23 @@ struct VisibilityConsistencyResult {
 // a private method, so a test can assert that each key arrives where it is
 // meant to.
 VisibilityConsistencyOptions visibilityOptionsFromConfig(const Config& config);
+
+// One query observation, reusable across poses and targets. Options travel with
+// the prepared ranges so evaluation cannot accidentally use different bins.
+struct PreparedVisibilityObservation {
+  VisibilityConsistencyOptions options;
+  double resolution_deg = 1.0;
+  std::vector<double> ranges;
+};
+
+PreparedVisibilityObservation prepareVisibilityObservation(
+    const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
+    const VisibilityConsistencyOptions &options = {});
+
+VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
+    const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
+    const PreparedVisibilityObservation &observation,
+    const Eigen::Isometry3d &T_map_lidar);
 
 VisibilityConsistencyResult evaluateVisibilityConsistency(
     const pcl::PointCloud<pcl::PointXYZI> &map_cloud,

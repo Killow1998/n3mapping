@@ -52,7 +52,23 @@ struct ProviderFixture {
   std::unique_ptr<RelocTargetProvider> provider;
 };
 
-TEST(RelocTargetProviderTest, LegacyWithoutAtlasUsesFreshLocalTarget) {
+TEST(RelocTargetProviderTest, SmallCropDoesNotRetainGlobalMapCapacity) {
+  Config config;
+  config.rhpd_max_range = 2.0;
+  config.gicp_max_correspondence_distance = 0.0;
+  auto map = pcl::make_shared<PointCloudT>();
+  map->resize(10000);
+  for (auto &point : *map) point.x = 100.0f;
+  map->front().x = 2.0f;
+  map->front().intensity = 17.0f;
+  const auto crop = LocalizationAtlas::cropGlobalMap(config, map, Eigen::Vector3d::Zero());
+  ASSERT_EQ(crop->size(), 1u);
+  EXPECT_EQ(crop->front().x, 2.0f);
+  EXPECT_EQ(crop->front().intensity, 17.0f);
+  EXPECT_LT(crop->points.capacity(), map->size());
+}
+
+TEST(RelocTargetProviderTest, LegacyWithoutAtlasUsesBoundedLocalTarget) {
   Config config;
   config.reloc_target_mode = "legacy_global_atlas";
   ProviderFixture fixture(config);
@@ -63,13 +79,124 @@ TEST(RelocTargetProviderTest, LegacyWithoutAtlasUsesFreshLocalTarget) {
 
   ASSERT_TRUE(target.valid());
   EXPECT_EQ(target.visibility_target, cloud);
-  EXPECT_EQ(target.metrics.registration_source, "legacy_local_no_cache");
+  EXPECT_EQ(target.metrics.registration_source, "legacy_local_lru");
   EXPECT_EQ(target.metrics.anchor_id, 3);
   EXPECT_EQ(target.metrics.target_points, cloud->size());
   EXPECT_DOUBLE_EQ(target.metrics.target_build_ms, 1.25);
   EXPECT_FALSE(target.metrics.cache_hit);
-  EXPECT_FALSE(target.metrics.cache_miss);
+  EXPECT_TRUE(target.metrics.cache_miss);
+  EXPECT_EQ(fixture.provider->diagnostics().cache_entries, 1u);
+  EXPECT_EQ(target.metrics.effective_max_bytes, 128u * 1024 * 1024);
+  EXPECT_EQ(target.metrics.effective_max_entries, 8u);
+}
+
+TEST(RelocTargetProviderTest, LazyCropReuseIsEquivalentAndCenterInvalidates) {
+  Config config;
+  config.reloc_target_mode = "legacy_global_atlas";
+  ProviderFixture cached(config);
+  config.reloc_target_mode = "local_no_cache";
+  ProviderFixture uncached(config);
+  auto request = makeRequest(3, {});
+  const auto map = makeTargetCloud();
+  std::size_t builds = 0;
+  request.build_local_target = [&]() {
+    ++builds;
+    return LocalizationAtlas::cropGlobalMap(config, map, request.crop_center);
+  };
+  const auto first = cached.provider->getTarget(request);
+  const auto reused = cached.provider->getTarget(request);
+  const auto reference = uncached.provider->getTarget(request);
+  ASSERT_TRUE(first.valid());
+  ASSERT_TRUE(reference.valid());
+  EXPECT_EQ(builds, 2u);
+  EXPECT_EQ(reused.metrics.target_builds, 0u);
+  EXPECT_EQ(reused.metrics.target_preparations, 0u);
+  EXPECT_EQ(reused.visibility_target, first.visibility_target);
+  EXPECT_EQ(reused.registration_target, first.registration_target);
+  ASSERT_EQ(reused.visibility_target->size(), reference.visibility_target->size());
+  for (std::size_t i = 0; i < reused.visibility_target->size(); ++i) {
+    EXPECT_EQ(reused.visibility_target->at(i).getVector4fMap(),
+              reference.visibility_target->at(i).getVector4fMap());
+    EXPECT_EQ(reused.visibility_target->at(i).intensity,
+              reference.visibility_target->at(i).intensity);
+  }
+  const auto source = cached.matcher.prepareSourceCloud(map);
+  const auto a = cached.matcher.alignPrepared(*reused.registration_target, source,
+                                               Eigen::Isometry3d::Identity());
+  const auto b = uncached.matcher.alignPrepared(*reference.registration_target, source,
+                                                 Eigen::Isometry3d::Identity());
+  EXPECT_EQ(a.converged, b.converged);
+  EXPECT_DOUBLE_EQ(a.fitness_score, b.fitness_score);
+  EXPECT_DOUBLE_EQ(a.inlier_ratio, b.inlier_ratio);
+  EXPECT_TRUE(a.T_target_source.matrix().isApprox(b.T_target_source.matrix(), 1e-12));
+  request.crop_center.x() += 0.1;
+  EXPECT_TRUE(cached.provider->getTarget(request).metrics.cache_miss);
+  EXPECT_EQ(builds, 3u);
+}
+
+TEST(RelocTargetProviderTest, ClearDuringBuildDoesNotRepopulateCache) {
+  ProviderFixture fixture(Config{});
+  auto request = makeRequest(3, {});
+  std::promise<void> started;
+  std::promise<void> resume;
+  auto resumed = resume.get_future();
+  request.build_local_target = [&]() {
+    started.set_value();
+    resumed.wait();
+    return makeTargetCloud();
+  };
+  auto result = std::async(std::launch::async, [&]() {
+    return fixture.provider->getTarget(request);
+  });
+  started.get_future().wait();
+  fixture.provider->clear();
+  resume.set_value();
+  EXPECT_TRUE(result.get().valid());
   EXPECT_EQ(fixture.provider->diagnostics().cache_entries, 0u);
+  EXPECT_EQ(fixture.provider->diagnostics().cache_total_bytes, 0u);
+}
+
+TEST(RelocTargetProviderTest, CandidateFallbackCannotPopulateHypothesisCrop) {
+  ProviderFixture fixture(Config{});
+  auto request = makeRequest(3, {});
+  request.build_local_target = [] { return pcl::make_shared<PointCloudT>(); };
+  request.build_fallback_target = [] { return makeTargetCloud(); };
+  EXPECT_TRUE(fixture.provider->getTarget(request).valid());
+  EXPECT_EQ(fixture.provider->diagnostics().cache_entries, 0u);
+  request.build_fallback_target = {};
+  EXPECT_FALSE(fixture.provider->getTarget(request).valid());
+}
+
+TEST(RelocTargetProviderTest, ReuseConstructionAblation) {
+  const auto cloud = makeTargetCloud();
+  constexpr int kRequests = 8;
+  for (const std::string mode : {"local_no_cache", "legacy_global_atlas"}) {
+    Config config;
+    config.reloc_target_mode = mode;
+    ProviderFixture fixture(config);
+    auto request = makeRequest(3, {});
+    request.build_local_target = [&] {
+      return LocalizationAtlas::cropGlobalMap(config, cloud, request.crop_center);
+    };
+    std::size_t builds = 0;
+    std::size_t preparations = 0;
+    const auto started = std::chrono::steady_clock::now();
+    for (int i = 0; i < kRequests; ++i) {
+      const auto target = fixture.provider->getTarget(request);
+      ASSERT_TRUE(target.valid());
+      builds += target.metrics.target_builds;
+      preparations += target.metrics.target_preparations;
+    }
+    const double ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - started).count();
+    const std::size_t expected = mode == "local_no_cache" ? kRequests : 1;
+    EXPECT_EQ(builds, expected);
+    EXPECT_EQ(preparations, expected);
+    // Timings are evidence, not a load-sensitive pass/fail threshold.
+    RecordProperty(mode + "_milliseconds", std::to_string(ms));
+    RecordProperty(mode + "_builds", static_cast<int>(builds));
+    RecordProperty(mode + "_preparations", static_cast<int>(preparations));
+  }
 }
 
 TEST(RelocTargetProviderTest, LegacyUsesLoadedGlobalAtlasForRegistration) {

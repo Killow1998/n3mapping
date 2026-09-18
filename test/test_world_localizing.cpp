@@ -19,6 +19,23 @@
 namespace n3mapping {
 namespace test {
 
+void expectEquivalentRelocalization(const RelocResult &actual,
+                                    const RelocResult &reference) {
+  EXPECT_EQ(actual.success, reference.success);
+  EXPECT_EQ(actual.state, reference.state);
+  EXPECT_EQ(actual.decision, reference.decision);
+  EXPECT_EQ(actual.seed_keyframe_id, reference.seed_keyframe_id);
+  EXPECT_EQ(actual.support_keyframe_id, reference.support_keyframe_id);
+  EXPECT_EQ(actual.matched_keyframe_id, reference.matched_keyframe_id);
+  EXPECT_DOUBLE_EQ(actual.confidence, reference.confidence);
+  EXPECT_EQ(actual.performance.candidates, reference.performance.candidates);
+  EXPECT_EQ(actual.performance.hypotheses, reference.performance.hypotheses);
+  EXPECT_EQ(actual.performance.alignments, reference.performance.alignments);
+  EXPECT_LE(actual.performance.target_builds, reference.performance.target_builds);
+  EXPECT_LE(actual.performance.target_preparations, reference.performance.target_preparations);
+  EXPECT_TRUE(actual.pose_in_map.matrix().isApprox(reference.pose_in_map.matrix(), 1e-12));
+}
+
 TEST(RelocalizationRankingTest, NearVisibilityScoresRemainOrdered)
 {
   Config config;
@@ -499,6 +516,9 @@ TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess) {
   buildTestMap(10, 2.0);
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);
+  Config no_reuse = config_;
+  no_reuse.reloc_target_mode = "local_no_cache";
+  WorldLocalizing reference(no_reuse, *keyframe_manager_, *loop_detector_, *matcher_);
 
   Eigen::Isometry3d query_pose = Eigen::Isometry3d::Identity();
   query_pose.translation().x() = 8.0;
@@ -507,6 +527,7 @@ TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess) {
   RelocResult result;
   for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
     result = reloc.relocalize(cloud, query_pose);
+    expectEquivalentRelocalization(result, reference.relocalize(cloud, query_pose));
     if (i + 1 < config_.reloc_temporal_window_size) {
       EXPECT_FALSE(result.success);
       EXPECT_EQ(result.state, RelocalizationState::PROVISIONAL);
@@ -578,12 +599,17 @@ TEST_F(WorldLocalizingTest, DuplicatedGeometryDoesNotClaimAUniquePlace) {
   }
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);
+  Config no_reuse = config_;
+  no_reuse.reloc_target_mode = "local_no_cache";
+  WorldLocalizing reference(no_reuse, *keyframe_manager_, *loop_detector_, *matcher_);
 
   const Eigen::Isometry3d odom_pose = Eigen::Isometry3d::Identity();
 
   RelocResult result;
   for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
     result = reloc.relocalize(repeated_observation, odom_pose);
+    expectEquivalentRelocalization(result,
+        reference.relocalize(repeated_observation, odom_pose));
   }
 
   EXPECT_FALSE(result.success);
@@ -848,6 +874,10 @@ TEST_F(WorldLocalizingTest,
             std::string::npos);
   EXPECT_NE(lines[1].find("\"localization_target_cache_hit\":true"),
             std::string::npos);
+  EXPECT_NE(lines[1].find("\"submap_build_ms\":0,"), std::string::npos);
+  EXPECT_NE(lines[2].find("\"submap_build_ms\":0,"), std::string::npos);
+  EXPECT_EQ(lines[0].find("\"submap_build_ms\":0,"), std::string::npos);
+  EXPECT_EQ(lines[3].find("\"submap_build_ms\":0,"), std::string::npos);
 
   reloc.notifyMapReplaced();
   diagnostics = reloc.cacheDiagnostics();
@@ -856,6 +886,61 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diagnostics.localization_target_cache_bytes, 0u);
   EXPECT_EQ(diagnostics.localization_target_cache_entries, 0u);
   std::filesystem::remove_all(dir);
+}
+
+TEST_F(WorldLocalizingTest,
+       OrdinaryLocalizationEmptySubmapCannotReuseOldTarget) {
+  config_.localization_tracking_target_cache_max_bytes = 64 * 1024 * 1024;
+  config_.localization_tracking_target_cache_max_entries = 2;
+  buildTestMap(1, 2.0);
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+  const auto pose = Eigen::Isometry3d::Identity();
+  const auto cloud = generateCorridorCloud(pose);
+  reloc.setMapToOdomTransform(pose);
+  ASSERT_TRUE(reloc.trackLocalization(cloud, pose).success);
+  ASSERT_EQ(reloc.cacheDiagnostics().localization_target_cache_entries, 1u);
+
+  keyframe_manager_->clear();
+  const auto empty = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+  keyframe_manager_->addKeyframe(1.0, pose, empty);
+  const auto result = reloc.trackLocalization(cloud, pose);
+  EXPECT_EQ(result.decision, "empty_submap");
+  EXPECT_NE(result.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
+  EXPECT_EQ(reloc.cacheDiagnostics().localization_target_cache_entries, 0u);
+}
+
+TEST_F(WorldLocalizingTest, TrackingStageCostsAreAvailableWithoutDebugLogging) {
+  config_.reloc_debug_enable = false;
+  config_.localization_tracking_target_cache_max_bytes = 64 * 1024 * 1024;
+  config_.localization_tracking_target_cache_max_entries = 2;
+  buildTestMap(1, 2.0);
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+  const auto pose = Eigen::Isometry3d::Identity();
+  const auto cloud = generateCorridorCloud(pose);
+  reloc.setMapToOdomTransform(pose);
+  const auto cold = reloc.trackLocalization(cloud, pose);
+  const auto warm = reloc.trackLocalization(cloud, pose);
+  ASSERT_TRUE(cold.success);
+  ASSERT_TRUE(warm.success);
+  for (const auto *result : {&cold, &warm}) {
+    const auto &cost = result->tracking_performance;
+    EXPECT_TRUE(cost.available);
+    EXPECT_FALSE(cost.strict_loaded_map);
+    EXPECT_GE(cost.tracking_total_ms, cost.registration_ms);
+    EXPECT_GE(cost.lock_wait_ms, 0.0);
+    EXPECT_GE(cost.nearest_keyframe_ms, 0.0);
+    EXPECT_GE(cost.source_prepare_ms, 0.0);
+    EXPECT_GE(cost.registration_ms, 0.0);
+    EXPECT_FALSE(result->performance.available);
+  }
+  EXPECT_TRUE(cold.tracking_performance.localization_target_cache_miss);
+  EXPECT_TRUE(warm.tracking_performance.localization_target_cache_hit);
+  EXPECT_GE(cold.tracking_performance.target_prepare_ms, 0.0);
+  const auto empty = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+  const auto rejected = reloc.trackLocalization(empty, pose);
+  EXPECT_TRUE(rejected.tracking_performance.available);
+  EXPECT_GE(rejected.tracking_performance.tracking_total_ms, 0.0);
+  EXPECT_TRUE(std::isnan(rejected.tracking_performance.registration_ms));
 }
 
 TEST_F(WorldLocalizingTest,
@@ -901,7 +986,8 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 1u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
   EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
-  EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
+  // One foreground anchor plus three asynchronously prefetched alternatives.
+  EXPECT_LE(diag.loaded_map_target_cache_entries, 4u);
 
   Eigen::Isometry3d extension_pose = Eigen::Isometry3d::Identity();
   extension_pose.translation().x() = 40.0;
@@ -913,7 +999,7 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 2u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
   EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
-  EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
+  EXPECT_LE(diag.loaded_map_target_cache_entries, 4u);
 
   const auto keyframe = keyframe_manager_->getKeyframe(0);
   ASSERT_NE(keyframe, nullptr);
@@ -925,7 +1011,7 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 3u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
   EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
-  EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
+  EXPECT_LE(diag.loaded_map_target_cache_entries, 4u);
 
   reloc.resetLocalizationState();
   reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
@@ -934,7 +1020,7 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 4u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
   EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
-  EXPECT_LE(diag.loaded_map_target_cache_entries, 3u);
+  EXPECT_LE(diag.loaded_map_target_cache_entries, 4u);
 
   reloc.notifyMapReplaced();
   diag = reloc.cacheDiagnostics();
@@ -1084,15 +1170,13 @@ TEST_F(WorldLocalizingTest,
   Eigen::Isometry3d query_a = Eigen::Isometry3d::Identity();
   query_a.translation().x() = 8.0;
   auto cloud_a = generateCorridorCloud(query_a);
-  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
-    reloc.relocalize(cloud_a, query_a);
-  }
+  EXPECT_FALSE(reloc.relocalize(cloud_a, query_a).success);
   WorldLocalizing::WorldLocalizingCacheDiagnostics diag =
       reloc.cacheDiagnostics();
   ASSERT_GT(diag.frame_rhpd_indexed_keyframes, 0u);
   ASSERT_GT(diag.reloc_map_cached_keyframes, 0u);
 
-  // Reset only runtime state, deliberately retaining map-derived caches. Then
+  // Reset runtime state, retaining the place index but releasing search crops. Then
   // replace with map B at the same keyframe count. Revision-keyed lazy rebuild
   // must supersede the old count-based behavior without a manual cache notice.
   reloc.resetLocalizationState();
@@ -1102,7 +1186,7 @@ TEST_F(WorldLocalizingTest,
 
   diag = reloc.cacheDiagnostics();
   EXPECT_GT(diag.frame_rhpd_indexed_keyframes, 0u);
-  EXPECT_GT(diag.reloc_map_cached_keyframes, 0u);
+  EXPECT_EQ(diag.reloc_map_cached_keyframes, 0u);
 
   // A query inside B must lock to B (x > 90); a leaked A index would answer
   // with map A's geometry around x = 8.
@@ -1130,9 +1214,7 @@ TEST_F(WorldLocalizingTest, FreeSpaceStateClearedOnMapReplacement) {
   Eigen::Isometry3d query_a = Eigen::Isometry3d::Identity();
   query_a.translation().x() = 8.0;
   auto cloud_a = generateCorridorCloud(query_a);
-  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
-    reloc.relocalize(cloud_a, query_a);
-  }
+  EXPECT_FALSE(reloc.relocalize(cloud_a, query_a).success);
   ASSERT_TRUE(reloc.cacheDiagnostics().free_space_grid_valid);
 
   keyframe_manager_->clear();
@@ -1151,9 +1233,7 @@ TEST_F(WorldLocalizingTest, FreeSpaceStateClearedOnMapReplacement) {
   Eigen::Isometry3d query_b = Eigen::Isometry3d::Identity();
   query_b.translation().x() = 108.0;
   auto cloud_b = generateCorridorCloud(query_b);
-  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
-    reloc.relocalize(cloud_b, query_b);
-  }
+  EXPECT_FALSE(reloc.relocalize(cloud_b, query_b).success);
   diag = reloc.cacheDiagnostics();
   EXPECT_TRUE(diag.free_space_grid_valid);
   EXPECT_EQ(diag.free_space_grid_keyframes, 10u);
@@ -1205,7 +1285,7 @@ TEST_F(WorldLocalizingTest, AtlasClearedOnMapReplacement) {
   std::filesystem::remove_all(dir, ec);
 }
 
-TEST_F(WorldLocalizingTest, StateOnlyResetKeepsMapCache) {
+TEST_F(WorldLocalizingTest, LockAndStateResetReleaseSearchPreparationKeepPlaceIndex) {
   config_.reloc_lock_min_margin = 0.1;
   buildTestMap(10, 2.0, 0.0);
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
@@ -1222,7 +1302,8 @@ TEST_F(WorldLocalizingTest, StateOnlyResetKeepsMapCache) {
   ASSERT_TRUE(reloc.isRelocalized());
   WorldLocalizing::WorldLocalizingCacheDiagnostics diag =
       reloc.cacheDiagnostics();
-  ASSERT_GT(diag.reloc_map_cached_keyframes, 0u);
+  EXPECT_EQ(diag.reloc_map_cached_keyframes, 0u);
+  EXPECT_EQ(diag.reloc_target_cache_entries, 0u);
   ASSERT_GT(diag.frame_rhpd_indexed_keyframes, 0u);
 
   reloc.resetLocalizationState();
@@ -1233,7 +1314,7 @@ TEST_F(WorldLocalizingTest, StateOnlyResetKeepsMapCache) {
   EXPECT_EQ(diag2.reloc_map_cached_keyframes, diag.reloc_map_cached_keyframes);
   EXPECT_EQ(diag2.frame_rhpd_indexed_keyframes,
             diag.frame_rhpd_indexed_keyframes);
-  EXPECT_TRUE(diag2.free_space_grid_valid);
+  EXPECT_FALSE(diag2.free_space_grid_valid);
 
   // The same map must still be localizable right after the state-only reset.
   bool locked = false;

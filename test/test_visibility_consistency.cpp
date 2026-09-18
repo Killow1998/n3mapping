@@ -46,6 +46,61 @@ TEST(VisibilityConsistencyTest, ExactPredictionExplainsEveryObservedRay) {
   EXPECT_DOUBLE_EQ(result.median_abs_range_error_m, 0.0);
 }
 
+TEST(VisibilityConsistencyTest, PreparedObservationPreservesOcclusionAndInvalidResults) {
+  auto query = makeFourRayCloud(5.0);
+  auto map = query;
+  map += makeFourRayCloud(2.0);
+  query.push_back(pcl::PointXYZI{});
+  query.back().x = std::numeric_limits<float>::quiet_NaN();
+  for (bool occlusion_aware : {false, true}) {
+    VisibilityConsistencyOptions options;
+    options.occlusion_aware = occlusion_aware;
+    const auto prepared = prepareVisibilityObservation(query, options);
+    for (double translation : {0.0, 1.0, 100.0}) {
+      auto pose = Eigen::Isometry3d::Identity();
+      pose.translation().x() = translation;
+      const auto direct = evaluateVisibilityConsistency(map, query, pose, options);
+      const auto reused = evaluatePreparedVisibilityConsistency(map, prepared, pose);
+      EXPECT_EQ(reused.valid, direct.valid);
+      EXPECT_EQ(reused.observed_bins, direct.observed_bins);
+      EXPECT_EQ(reused.predicted_bins, direct.predicted_bins);
+      EXPECT_EQ(reused.common_bins, direct.common_bins);
+      EXPECT_EQ(reused.consistent_bins, direct.consistent_bins);
+      EXPECT_EQ(reused.foreground_conflict_bins, direct.foreground_conflict_bins);
+      EXPECT_DOUBLE_EQ(reused.consistency_ratio, direct.consistency_ratio);
+      EXPECT_DOUBLE_EQ(reused.foreground_conflict_ratio, direct.foreground_conflict_ratio);
+      if (direct.valid) {
+        EXPECT_DOUBLE_EQ(reused.evidence_log_odds, direct.evidence_log_odds);
+      }
+    }
+    auto invalid_pose = Eigen::Isometry3d::Identity();
+    invalid_pose.translation().x() = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_FALSE(evaluatePreparedVisibilityConsistency(map, prepared, invalid_pose).valid);
+  }
+  EXPECT_FALSE(evaluatePreparedVisibilityConsistency(map,
+      prepareVisibilityObservation({}), Eigen::Isometry3d::Identity()).valid);
+  VisibilityConsistencyOptions invalid;
+  invalid.range_tolerance_m = 0.0;
+  EXPECT_TRUE(prepareVisibilityObservation(query, invalid).ranges.empty());
+}
+
+TEST(VisibilityConsistencyTest, MalformedPreparedObservationIsRejectedBeforeIndexing) {
+  const auto query = makeFourRayCloud(5.0);
+  VisibilityConsistencyOptions options;
+  options.occlusion_aware = true;
+  auto prepared = prepareVisibilityObservation(query, options);
+  prepared.ranges.pop_back();
+  EXPECT_FALSE(evaluatePreparedVisibilityConsistency(query, prepared,
+      Eigen::Isometry3d::Identity()).valid);
+  prepared = prepareVisibilityObservation(query, options);
+  for (double resolution : {0.0, -1.0, 1e-100,
+       std::numeric_limits<double>::quiet_NaN()}) {
+    prepared.resolution_deg = resolution;
+    EXPECT_FALSE(evaluatePreparedVisibilityConsistency(query, prepared,
+        Eigen::Isometry3d::Identity()).valid);
+  }
+}
+
 TEST(VisibilityConsistencyTest,
      PredictedForegroundContradictsObservedFreeSpace) {
   const auto query = makeFourRayCloud(5.0);

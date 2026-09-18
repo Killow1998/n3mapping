@@ -132,7 +132,12 @@ n3mapping_add_nav_resource_reader(n3map_nav_resource_reader)
 
 add_library(n3mapping_humble_wrapper SHARED
   ${N3MAPPING_HUMBLE_WRAPPER_SOURCES}
+  ${N3MAPPING_ROOT}/src/ros_output_contract.cpp
 )
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
+target_include_directories(n3mapping_humble_wrapper PRIVATE ${JSONCPP_INCLUDE_DIRS})
+target_link_libraries(n3mapping_humble_wrapper ${JSONCPP_LIBRARIES})
 n3mapping_guard_product_target(n3mapping_humble_wrapper)
 n3mapping_configure_humble_wrapper_target(n3mapping_humble_wrapper)
 
@@ -332,6 +337,7 @@ if(N3MAPPING_BUILD_RESEARCH_TOOLS)
   )
 endif()
 
+install(FILES ${PROTO_HDRS} DESTINATION include)
 ament_export_targets(export_n3mapping HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp
@@ -536,6 +542,12 @@ if(BUILD_TESTING)
     set_tests_properties(test_n3mapping_fa02b_tools PROPERTIES TIMEOUT 60)
   endif()
 
+  ament_add_gtest(test_ros_output_contract ${N3MAPPING_ROOT}/test/test_ros_output_contract.cpp)
+  target_compile_definitions(test_ros_output_contract PRIVATE N3MAPPING_ROS2_OUTPUT_TEST)
+  target_include_directories(test_ros_output_contract PRIVATE ${JSONCPP_INCLUDE_DIRS})
+  target_link_libraries(test_ros_output_contract n3mapping_humble_wrapper ${JSONCPP_LIBRARIES})
+  ament_target_dependencies(test_ros_output_contract nav_msgs)
+
   ament_add_gtest(test_keyframe_manager ${N3MAPPING_ROOT}/test/test_keyframe_manager.cpp)
   if(TARGET test_keyframe_manager)
     target_link_libraries(test_keyframe_manager ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
@@ -605,7 +617,6 @@ if(BUILD_TESTING)
   ament_add_gtest(test_point_cloud_matcher ${N3MAPPING_ROOT}/test/test_point_cloud_matcher.cpp)
   if(TARGET test_point_cloud_matcher)
     target_link_libraries(test_point_cloud_matcher ${PROJECT_NAME}_lib ${PCL_LIBRARIES} OpenMP::OpenMP_CXX)
-    ament_target_dependencies(test_point_cloud_matcher rclcpp)
   endif()
 
   ament_add_gtest(test_point_cloud_matcher_pbt ${N3MAPPING_ROOT}/test/test_point_cloud_matcher_pbt.cpp)

@@ -51,7 +51,7 @@ SphericalDepthImage makeDepthImage(double resolution_deg) {
 void insertPoint(const Eigen::Vector3d &point,
                  const VisibilityConsistencyOptions &options,
                  SphericalDepthImage *image,
-                 const SphericalDepthImage *measured = nullptr) {
+                 const std::vector<double> *measured = nullptr) {
   if (!image || !point.array().isFinite().all())
     return;
   const double range = point.norm();
@@ -86,7 +86,7 @@ void insertPoint(const Eigen::Vector3d &point,
   // that best matches the measurement, so occlusion can be told apart from
   // contradiction.
   if (measured != nullptr && !image->match_ranges.empty()) {
-    const double measured_range = measured->ranges[index];
+    const double measured_range = (*measured)[index];
     if (std::isfinite(measured_range)) {
       double &best = image->match_ranges[index];
       if (!std::isfinite(best) ||
@@ -99,14 +99,12 @@ void insertPoint(const Eigen::Vector3d &point,
 
 } // namespace
 
-VisibilityConsistencyResult evaluateVisibilityConsistency(
-    const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
+PreparedVisibilityObservation prepareVisibilityObservation(
     const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
-    const Eigen::Isometry3d &T_map_lidar,
     const VisibilityConsistencyOptions &options) {
-  VisibilityConsistencyResult result;
-  if (map_cloud.empty() || query_cloud.empty() ||
-      !T_map_lidar.matrix().array().isFinite().all() ||
+  PreparedVisibilityObservation result;
+  result.options = options;
+  if (query_cloud.empty() ||
       options.range_max_m <= options.range_min_m ||
       options.range_tolerance_m <= 0.0) {
     return result;
@@ -137,13 +135,38 @@ VisibilityConsistencyResult evaluateVisibilityConsistency(
                  std::max(options.min_angular_resolution_deg,
                           options.max_angular_resolution_deg));
   auto observed = makeDepthImage(resolution_deg);
-  auto predicted = makeDepthImage(resolution_deg);
 
   for (const auto &point : query_cloud) {
     if (!pcl::isFinite(point))
       continue;
     insertPoint(Eigen::Vector3d(point.x, point.y, point.z), options, &observed);
   }
+  result.resolution_deg = resolution_deg;
+  result.ranges = std::move(observed.ranges);
+  return result;
+}
+
+VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
+    const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
+    const PreparedVisibilityObservation &observed,
+    const Eigen::Isometry3d &T_map_lidar) {
+  VisibilityConsistencyResult result;
+  if (map_cloud.empty() || observed.ranges.empty() ||
+      !T_map_lidar.matrix().array().isFinite().all()) {
+    return result;
+  }
+  const auto &options = observed.options;
+  const double resolution_deg = observed.resolution_deg;
+  if (!std::isfinite(resolution_deg) || resolution_deg <= 0.0) return result;
+  const double azimuth_bins = std::max(1.0, std::ceil(360.0 / resolution_deg));
+  const double elevation_bins = std::max(1.0, std::ceil(180.0 / resolution_deg));
+  if (azimuth_bins > std::numeric_limits<int>::max() ||
+      elevation_bins > std::numeric_limits<int>::max()) return result;
+  const auto azimuth_count = static_cast<std::size_t>(azimuth_bins);
+  const auto elevation_count = static_cast<std::size_t>(elevation_bins);
+  if (observed.ranges.size() / azimuth_count != elevation_count ||
+      observed.ranges.size() % azimuth_count != 0) return result;
+  auto predicted = makeDepthImage(resolution_deg);
   if (options.occlusion_aware) {
     predicted.match_ranges.assign(predicted.ranges.size(),
                                   std::numeric_limits<double>::infinity());
@@ -154,7 +177,7 @@ VisibilityConsistencyResult evaluateVisibilityConsistency(
       continue;
     insertPoint(T_lidar_map * Eigen::Vector3d(point.x, point.y, point.z),
                 options, &predicted,
-                options.occlusion_aware ? &observed : nullptr);
+                options.occlusion_aware ? &observed.ranges : nullptr);
   }
 
   std::vector<double> residuals;
@@ -230,6 +253,19 @@ VisibilityConsistencyResult evaluateVisibilityConsistency(
   result.median_abs_range_error_m = percentile(residuals, 0.5);
   result.p90_abs_range_error_m = percentile(residuals, 0.9);
   return result;
+}
+
+VisibilityConsistencyResult evaluateVisibilityConsistency(
+    const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
+    const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
+    const Eigen::Isometry3d &T_map_lidar,
+    const VisibilityConsistencyOptions &options) {
+  if (map_cloud.empty() || query_cloud.empty() ||
+      !T_map_lidar.matrix().array().isFinite().all()) {
+    return {};
+  }
+  return evaluatePreparedVisibilityConsistency(
+      map_cloud, prepareVisibilityObservation(query_cloud, options), T_map_lidar);
 }
 
 VisibilityConsistencyOptions visibilityOptionsFromConfig(const Config& config) {

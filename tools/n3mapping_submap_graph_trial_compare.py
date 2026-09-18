@@ -23,7 +23,7 @@ import json
 import math
 from pathlib import Path
 import struct
-from typing import Any, Iterable
+from typing import Any, Iterable, Tuple
 
 
 REPORT_SCHEMA = "n3mapping_submap_graph_trial_comparison_v1"
@@ -37,8 +37,8 @@ EXIT_CODES = {READY: 0, INSUFFICIENT: 2, INVALID: 3}
 PAIRING_TRANSLATION_TOLERANCE_M = 1e-6
 PAIRING_ROTATION_TOLERANCE_RAD = 1e-6
 
-Pose = tuple[tuple[float, float, float], tuple[float, float, float, float]]
-Point = tuple[float, float, float, float]
+Pose = Tuple[Tuple[float, float, float], Tuple[float, float, float, float]]
+Point = Tuple[float, float, float, float]
 
 
 class ComparisonError(RuntimeError):

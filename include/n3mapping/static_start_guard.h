@@ -1,8 +1,9 @@
-// static_start_guard.h - waits for the platform to actually move before mapping.
+// static_start_guard.h - rejects unsettled odometry at mapping startup.
 #pragma once
 
 #include <cstdint>
 #include <unordered_set>
+#include <Eigen/Geometry>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -18,15 +19,10 @@ struct Config;
 // accelerometer says did not happen. Mapping those frames writes the moving part
 // of that error into the odometry edges, where nothing downstream can undo it.
 //
-// Dropping them is not a workaround: a stationary opening carries no mapping
-// information to lose. Doing exactly that by hand -- truncating the bag to the
-// moment the robot moved -- took the worst revisit pair from 2.3275 m to 0.5865
-// and the floor residual span from 0.434 to 0.255, after thirteen stages in
-// which nothing else had moved either number.
-//
-// The odometry cannot be asked whether the platform moved, because during that
-// same stationary opening it claims 9.37 m and speeds up to 0.94 m/s. The scan
-// can: standing still, what the sensor sees does not change.
+// A stable scan alone cannot distinguish that drift from a healthy stationary
+// estimator. Require both a stable view and a continuous, bounded pose window
+// to start without motion. Otherwise retain the scan-based motion test and the
+// existing timeout. Odometry alone is never evidence of physical movement.
 class StaticStartGuard {
 public:
     struct Options {
@@ -62,12 +58,10 @@ public:
     StaticStartGuard() = default;
     explicit StaticStartGuard(const Options& options) : options_(options) {}
 
-    // Feeds one frame's cloud in the sensor frame. Returns true once the
-    // platform has been seen to move; latches, because a platform that has
-    // moved does not become un-moved.
-    bool update(double timestamp, const pcl::PointCloud<pcl::PointXYZI>& cloud);
+    bool update(double timestamp, const pcl::PointCloud<pcl::PointXYZI>& cloud,
+                const Eigen::Isometry3d& odom_pose);
 
-    bool moved() const { return moved_; }
+    bool released() const { return released_; }
     // Diagnostics for the frame that released the guard.
     double releaseTimestamp() const { return release_timestamp_; }
     double lastOverlap() const { return last_overlap_; }
@@ -79,13 +73,16 @@ private:
         const pcl::PointCloud<pcl::PointXYZI>& cloud) const;
 
     Options options_;
-    bool moved_ = false;
+    bool released_ = false;
     bool released_by_timeout_ = false;
     bool has_reference_ = false;
     double first_timestamp_ = 0.0;
     double release_timestamp_ = 0.0;
     double last_overlap_ = 1.0;
     int consecutive_below_ = 0;
+    double stable_since_ = -1.0;
+    double previous_timestamp_ = -1.0;
+    Eigen::Isometry3d stable_pose_ = Eigen::Isometry3d::Identity();
     std::unordered_set<VoxelKey> reference_;
 };
 

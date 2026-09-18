@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <list>
+#include <limits>
 #include <mutex>
 #include <stdexcept>
 
@@ -13,6 +14,11 @@ namespace n3mapping {
 namespace {
 
 using Clock = std::chrono::steady_clock;
+
+// Search-only working set, independent of the tracking cache. Oversized
+// targets are evaluated normally without retention.
+constexpr std::size_t kSearchLocalCacheBytes = 128 * 1024 * 1024;
+constexpr std::size_t kSearchLocalCacheEntries = 8;
 
 double elapsedMs(const Clock::time_point &start) {
   return std::chrono::duration<double, std::milli>(Clock::now() - start)
@@ -38,29 +44,18 @@ RelocTargetMode parseMode(const std::string &mode) {
 struct CacheKey {
   int64_t anchor_id = -1;
   KeyframeMapRevision map_revision;
-  double global_map_voxel_size = 0.0;
-  double crop_max_range = 0.0;
-  double crop_correspondence_margin = 0.0;
-  double base_resolution = 0.0;
-  int num_neighbors = 0;
-  bool refine_enabled = false;
-  double refine_resolution = 0.0;
+  Eigen::Vector3d crop_center = Eigen::Vector3d::Zero();
 
   bool operator==(const CacheKey &other) const {
     return anchor_id == other.anchor_id && map_revision == other.map_revision &&
-           global_map_voxel_size == other.global_map_voxel_size &&
-           crop_max_range == other.crop_max_range &&
-           crop_correspondence_margin == other.crop_correspondence_margin &&
-           base_resolution == other.base_resolution &&
-           num_neighbors == other.num_neighbors &&
-           refine_enabled == other.refine_enabled &&
-           refine_resolution == other.refine_resolution;
+           crop_center == other.crop_center;
   }
 };
 
 struct CacheEntry {
   CacheKey key;
   std::shared_ptr<const PointCloudMatcher::PreparedTarget> target;
+  pcl::PointCloud<pcl::PointXYZI>::Ptr local_target;
   std::size_t bytes = 0;
 };
 
@@ -72,7 +67,8 @@ public:
       : config_(config), mode_(parseMode(config.reloc_target_mode)),
         matcher_(matcher), localization_atlas_(localization_atlas) {}
 
-  PreparedRelocTarget getTarget(const RelocTargetRequest &request) override {
+  PreparedRelocTarget getTarget(const RelocTargetRequest &input) override {
+    RelocTargetRequest request = input;
     PreparedRelocTarget result;
     result.visibility_target = request.local_target;
     result.metrics.mode = relocTargetModeName(mode_);
@@ -81,6 +77,18 @@ public:
     result.metrics.crop_center = request.crop_center;
     result.metrics.map_revision = request.map_revision;
 
+    const bool automatic_local =
+        mode_ == RelocTargetMode::LEGACY_GLOBAL_ATLAS &&
+        !localization_atlas_.loaded();
+    if (automatic_local || mode_ == RelocTargetMode::LOCAL_LRU) {
+      getCachedLocalTarget(request, &result);
+      result.metrics.registration_source = automatic_local
+          ? "legacy_local_lru" : "local_lru";
+      logMetrics(result.metrics);
+      return result;
+    }
+    const bool primary_target = buildLocalTarget(&request, &result.metrics);
+    result.visibility_target = request.local_target;
     if (!request.local_target || request.local_target->empty()) {
       logMetrics(result.metrics);
       return result;
@@ -94,13 +102,16 @@ public:
       setUncachedLocalTarget(request, &result);
       break;
     case RelocTargetMode::LOCAL_LRU:
-      result.registration_target =
-          getCachedLocalTarget(request, &result.metrics);
-      result.metrics.registration_source = "local_lru";
       break;
     case RelocTargetMode::SHADOW_LOCAL_LRU: {
-      RelocTargetMetrics shadow_metrics = result.metrics;
-      (void)getCachedLocalTarget(request, &shadow_metrics);
+      PreparedRelocTarget shadow;
+      shadow.metrics = result.metrics;
+      if (primary_target) {
+        getCachedLocalTarget(request, &shadow);
+      } else {
+        setUncachedLocalTarget(request, &shadow);
+      }
+      const auto &shadow_metrics = shadow.metrics;
       setLegacyTarget(request, &result);
       result.metrics.target_prepare_ms = shadow_metrics.target_prepare_ms;
       result.metrics.target_points = shadow_metrics.target_points;
@@ -123,6 +134,7 @@ public:
   void clear() override {
     std::lock_guard<std::mutex> lock(mutex_);
     clearEntriesLocked();
+    ++epoch_;
     cache_hits_ = 0;
     cache_misses_ = 0;
     have_cache_revision_ = false;
@@ -134,20 +146,6 @@ public:
   }
 
 private:
-  CacheKey makeKey(const RelocTargetRequest &request) const {
-    CacheKey key;
-    key.anchor_id = request.anchor_id;
-    key.map_revision = request.map_revision;
-    key.global_map_voxel_size = config_.global_map_voxel_size;
-    key.crop_max_range = config_.rhpd_max_range;
-    key.crop_correspondence_margin = config_.gicp_max_correspondence_distance;
-    key.base_resolution = config_.gicp_downsampling_resolution;
-    key.num_neighbors = config_.gicp_num_neighbors;
-    key.refine_enabled = config_.icp_refine_use_gicp;
-    key.refine_resolution = config_.icp_refine_downsampling_resolution;
-    return key;
-  }
-
   void setLegacyTarget(const RelocTargetRequest &request,
                        PreparedRelocTarget *result) {
     if (localization_atlas_.loaded()) {
@@ -167,6 +165,7 @@ private:
                               PreparedRelocTarget *result) {
     const auto start = Clock::now();
     auto prepared = matcher_.prepareTargetCloud(request.local_target);
+    ++result->metrics.target_preparations;
     result->metrics.target_prepare_ms = elapsedMs(start);
     result->metrics.target_points = request.local_target->size();
     result->registration_target =
@@ -175,10 +174,38 @@ private:
     result->metrics.registration_source = "local_no_cache";
   }
 
-  std::shared_ptr<const PointCloudMatcher::PreparedTarget>
-  getCachedLocalTarget(const RelocTargetRequest &request,
-                       RelocTargetMetrics *metrics) {
-    const CacheKey key = makeKey(request);
+  bool buildLocalTarget(RelocTargetRequest *request, RelocTargetMetrics *metrics) {
+    if (!request->local_target && request->build_local_target) {
+      const auto start = Clock::now();
+      request->local_target = request->build_local_target();
+      metrics->target_build_ms += elapsedMs(start);
+      ++metrics->target_builds;
+    }
+    if ((!request->local_target || request->local_target->empty()) &&
+        request->build_fallback_target) {
+      const auto start = Clock::now();
+      request->local_target = request->build_fallback_target();
+      metrics->target_build_ms += elapsedMs(start);
+      ++metrics->target_builds;
+      return false;
+    }
+    return true;
+  }
+
+  void getCachedLocalTarget(RelocTargetRequest request,
+                            PreparedRelocTarget *result) {
+    auto *metrics = &result->metrics;
+    const bool automatic_local = mode_ == RelocTargetMode::LEGACY_GLOBAL_ATLAS;
+    const std::size_t max_bytes = automatic_local ? kSearchLocalCacheBytes :
+        static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_bytes));
+    const std::size_t max_entries = automatic_local ? kSearchLocalCacheEntries :
+        static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_entries));
+    metrics->effective_max_bytes = max_bytes;
+    metrics->effective_max_entries = max_entries;
+    // Config identity is the provider itself: its config is immutable and no
+    // entries are shared between providers.
+    const CacheKey key{request.anchor_id, request.map_revision, request.crop_center};
+    std::size_t build_epoch = 0;
     {
       std::lock_guard<std::mutex> lock(mutex_);
       synchronizeRevisionLocked(request.map_revision);
@@ -189,39 +216,50 @@ private:
         metrics->cache_hit = true;
         metrics->cache_entry_bytes = entries_.front().bytes;
         fillCacheMetricsLocked(metrics);
-        metrics->target_points = request.local_target->size();
-        return entries_.front().target;
+        metrics->target_points = entries_.front().local_target->size();
+        result->visibility_target = entries_.front().local_target;
+        result->registration_target = entries_.front().target;
+        return;
       }
       ++cache_misses_;
       metrics->cache_miss = true;
+      build_epoch = epoch_;
     }
 
+    const bool retainable = buildLocalTarget(&request, metrics);
+    result->visibility_target = request.local_target;
+    if (!request.local_target || request.local_target->empty()) return;
     const auto start = Clock::now();
     auto prepared = std::make_shared<const PointCloudMatcher::PreparedTarget>(
         matcher_.prepareTargetCloud(request.local_target));
     metrics->target_prepare_ms = elapsedMs(start);
+    ++metrics->target_preparations;
+    result->registration_target = prepared;
     metrics->target_points = request.local_target->size();
-    const std::size_t entry_bytes =
-        estimatePreparedTargetMemoryBytes(*prepared);
+    const std::size_t crop_bytes = sizeof(*request.local_target) +
+        request.local_target->points.capacity() * sizeof(pcl::PointXYZI);
+    const std::size_t prepared_bytes = estimatePreparedTargetMemoryBytes(*prepared);
+    const std::size_t entry_bytes = prepared_bytes >
+        std::numeric_limits<std::size_t>::max() - crop_bytes
+        ? std::numeric_limits<std::size_t>::max() : prepared_bytes + crop_bytes;
     metrics->cache_entry_bytes = entry_bytes;
 
     std::lock_guard<std::mutex> lock(mutex_);
-    synchronizeRevisionLocked(request.map_revision);
+    // A reset or a newer map wins over work that started before it.
+    if (build_epoch != epoch_) return;
     const auto raced = findLocked(key);
     if (raced != entries_.end()) {
       entries_.splice(entries_.begin(), entries_, raced);
       metrics->cache_entry_bytes = entries_.front().bytes;
       fillCacheMetricsLocked(metrics);
-      return entries_.front().target;
+      result->visibility_target = entries_.front().local_target;
+      result->registration_target = entries_.front().target;
+      return;
     }
 
-    const std::size_t max_bytes = static_cast<std::size_t>(
-        std::max(0, config_.reloc_target_cache_max_bytes));
-    const std::size_t max_entries = static_cast<std::size_t>(
-        std::max(0, config_.reloc_target_cache_max_entries));
-    if (max_bytes == 0 || max_entries == 0 || entry_bytes > max_bytes) {
+    if (!retainable || max_bytes == 0 || max_entries == 0 || entry_bytes > max_bytes) {
       fillCacheMetricsLocked(metrics);
-      return prepared;
+      return;
     }
 
     while (!entries_.empty() &&
@@ -230,10 +268,9 @@ private:
       cache_total_bytes_ -= entries_.back().bytes;
       entries_.pop_back();
     }
-    entries_.push_front({key, prepared, entry_bytes});
+    entries_.push_front({key, prepared, request.local_target, entry_bytes});
     cache_total_bytes_ += entry_bytes;
     fillCacheMetricsLocked(metrics);
-    return prepared;
   }
 
   using EntryIterator = std::list<CacheEntry>::iterator;
@@ -247,6 +284,7 @@ private:
   void synchronizeRevisionLocked(const KeyframeMapRevision &revision) {
     if (!have_cache_revision_ || cache_revision_ != revision) {
       clearEntriesLocked();
+      ++epoch_;
       cache_revision_ = revision;
       have_cache_revision_ = true;
     }
@@ -274,13 +312,17 @@ private:
             << " cache_entry_bytes=" << metrics.cache_entry_bytes
             << " cache_total_bytes=" << metrics.cache_total_bytes
             << " cache_entries=" << metrics.cache_entries
+            << " target_builds=" << metrics.target_builds
+            << " target_preparations=" << metrics.target_preparations
+            << " effective_max_bytes=" << metrics.effective_max_bytes
+            << " effective_max_entries=" << metrics.effective_max_entries
             << " crop_center=" << metrics.crop_center.transpose()
             << " map_revision=" << metrics.map_revision.generation << ":"
             << metrics.map_revision.structure_revision << ":"
             << metrics.map_revision.pose_revision;
   }
 
-  Config config_;
+  const Config config_;
   RelocTargetMode mode_;
   PointCloudMatcher &matcher_;
   LocalizationAtlas &localization_atlas_;
@@ -289,6 +331,7 @@ private:
   std::size_t cache_total_bytes_ = 0;
   std::size_t cache_hits_ = 0;
   std::size_t cache_misses_ = 0;
+  std::size_t epoch_ = 0;
   bool have_cache_revision_ = false;
   KeyframeMapRevision cache_revision_;
 };

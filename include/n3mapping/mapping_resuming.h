@@ -52,7 +52,8 @@ public:
     bool performInitialRelocalization(
         const PointCloudT::Ptr& cloud,
         const Eigen::Isometry3d& odom_pose,
-        const std::string& source_frame_id = {});
+        const std::string& source_frame_id = {},
+        RelocalizationPerformance* performance = nullptr);
     bool shouldAddKeyframe(
         const Eigen::Isometry3d& pose_in_session) const;
     int64_t processNewKeyframe(

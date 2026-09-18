@@ -1,0 +1,31 @@
+<launch>
+  <!-- Development-only raw-map entry point, not a certified Product Bundle. -->
+  <arg name="config_file" default="$(find n3mapping)/config/n3mapping.yaml" />
+  <arg name="mode" default="mapping" />
+  <arg name="map_path" default="" />
+  <arg name="map_save_path" />
+  <arg name="cloud_topic" default="/cloud_registered_body" />
+  <arg name="odom_topic" default="/Odometry" />
+  <arg name="world_frame" default="map" />
+  <arg name="body_frame" default="base_link" />
+  <arg name="output_odom_topic" default="/n3mapping/odometry" />
+  <arg name="output_status_topic" default="/localization/status" />
+  <arg name="input_linear_velocity_frame" default="child" />
+  <arg name="output_cloud_world_topic" default="/n3mapping/cloud_world" />
+
+  <node pkg="n3mapping" type="n3mapping_node" name="n3mapping_node" output="screen">
+    <env name="OMP_WAIT_POLICY" value="$(optenv OMP_WAIT_POLICY PASSIVE)" />
+    <rosparam command="load" file="$(arg config_file)" />
+    <param name="mode" value="$(arg mode)" />
+    <param name="map_path" value="$(arg map_path)" />
+    <param name="map_save_path" value="$(arg map_save_path)" />
+    <param name="cloud_topic" value="$(arg cloud_topic)" />
+    <param name="odom_topic" value="$(arg odom_topic)" />
+    <param name="world_frame" value="$(arg world_frame)" />
+    <param name="body_frame" value="$(arg body_frame)" />
+    <param name="output_odom_topic" value="$(arg output_odom_topic)" />
+    <param name="output_status_topic" value="$(arg output_status_topic)" />
+    <param name="input_linear_velocity_frame" value="$(arg input_linear_velocity_frame)" />
+    <param name="output_cloud_world_topic" value="$(arg output_cloud_world_topic)" />
+  </node>
+</launch>

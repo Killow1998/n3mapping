@@ -670,7 +670,9 @@ core::BackendOutput
 N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   if (!frame.pose_valid || !frame.undistorted_cloud ||
       frame.undistorted_cloud->empty()) {
-    return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+    auto output = makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+    output.mapping_block_reason = core::MappingBlockReason::InvalidInput;
+    return output;
   }
 
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
@@ -687,22 +689,25 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
       odometry_sanity_configured_ = true;
     }
     if (odometry_sanity_.check(timestamp, frame.T_world_lidar).diverged) {
-      return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+      auto output = makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+      output.mapping_block_reason = core::MappingBlockReason::OdometryDiverged;
+      return output;
     }
   }
 
-  // Nothing the estimator says while the platform is still is worth building
-  // on, and the scan is the only thing here that can tell -- the odometry
-  // reports 9.37 m of travel across a stationary opening it should report none
-  // of.
+  // Do not seed the graph with unsettled odometry. A stable scan/pose window
+  // also permits mapping when the robot remains stationary.
   if (config_.mapping_static_start_guard_enable) {
     if (!static_start_guard_configured_) {
       static_start_guard_ =
           StaticStartGuard(staticStartGuardOptionsFromConfig(config_));
       static_start_guard_configured_ = true;
     }
-    if (!static_start_guard_.update(timestamp, *frame.undistorted_cloud)) {
-      return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+    if (!static_start_guard_.update(timestamp, *frame.undistorted_cloud,
+                                   frame.T_world_lidar)) {
+      auto output = makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+      output.mapping_block_reason = core::MappingBlockReason::StaticStartGuard;
+      return output;
     }
   }
 
@@ -812,6 +817,8 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   RelocalizationState relocalization_state = RelocalizationState::SEARCHING;
   PoseSource pose_source = PoseSource::NONE;
   std::string relocalization_decision = "not_attempted";
+  RelocalizationPerformance relocalization_performance;
+  TrackingPerformance tracking_performance;
   int64_t seed_keyframe_id = -1;
   int64_t support_keyframe_id = -1;
   int64_t matched_keyframe_id = -1;
@@ -822,23 +829,25 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
     tracking_attempted = true;
     auto result = localizer.trackLocalization(frame.undistorted_cloud,
                                               frame.T_world_lidar);
+    tracking_performance = result.tracking_performance;
     relocalization_state = result.state;
     pose_source = result.pose_source;
+    relocalization_decision = result.decision;
+    seed_keyframe_id = result.seed_keyframe_id;
+    support_keyframe_id = result.support_keyframe_id;
+    matched_keyframe_id = result.matched_keyframe_id;
     if (result.success) {
       pose_map = result.pose_in_map;
       success = true;
-      relocalization_decision = result.decision;
-      seed_keyframe_id = result.seed_keyframe_id;
-      support_keyframe_id = result.support_keyframe_id;
-      matched_keyframe_id = result.matched_keyframe_id;
     }
   }
 
-  if (!localizer.isRelocalized() || !success) {
+  if (!localizer.isRelocalized()) {
     const double query_timestamp =
         static_cast<double>(frame.stamp.nsec) * 1e-9;
     auto result = localizer.relocalize(
         frame.undistorted_cloud, frame.T_world_lidar, query_timestamp);
+    relocalization_performance = result.performance;
     relocalization_decision = result.decision;
     relocalization_state = result.state;
     pose_source = result.pose_source;
@@ -861,6 +870,8 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   output.relocalization_state = relocalization_state;
   output.pose_source = pose_source;
   output.relocalization_decision = relocalization_decision;
+  output.relocalization_performance = relocalization_performance;
+  output.tracking_performance = tracking_performance;
   output.relocalization_seed_keyframe_id = seed_keyframe_id;
   output.relocalization_support_keyframe_id = support_keyframe_id;
   output.matched_keyframe_id = matched_keyframe_id;
@@ -885,6 +896,7 @@ RegistrationSeedProbeResult N3MappingCore::probeLocalizationRegistration(
 
 core::BackendOutput
 N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
+  TrackingPerformance tracking_performance;
   using PerformanceClock = std::chrono::steady_clock;
   core::BackendPerformanceTiming performance;
   performance.enabled = config_.reloc_debug_enable;
@@ -900,6 +912,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   const auto make_output = [&](bool success, const Eigen::Isometry3d &pose,
                                const PointCloud::Ptr &cloud) {
     auto output = makeOutput(success, pose, cloud);
+    output.tracking_performance = tracking_performance;
     if (performance.enabled) {
       output.performance = performance;
     }
@@ -917,9 +930,10 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
 
   if (state == MappingResumingState::MAP_LOADED) {
     const auto relocalization_started = timingStarted();
+    RelocalizationPerformance relocalization_performance;
     const bool locked = resuming.performInitialRelocalization(
         frame.undistorted_cloud, frame.T_world_lidar,
-        frame.source_frame_id);
+        frame.source_frame_id, &relocalization_performance);
     if (performance.enabled) {
       performance.initial_relocalization_ms =
           elapsedMilliseconds(relocalization_started);
@@ -928,6 +942,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
         locked, localizer.getMapToOdomTransform() * frame.T_world_lidar,
         frame.undistorted_cloud);
     output.relocalization_locked = locked;
+    output.relocalization_performance = relocalization_performance;
     output.relocalization_state =
         locked ? RelocalizationState::FULL_6DOF_LOCKED
                : RelocalizationState::SEARCHING;
@@ -963,6 +978,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   const auto tracking_started = timingStarted();
   const RelocResult tracking = localizer.trackLoadedMap(
       frame.undistorted_cloud, frame.T_world_lidar);
+  tracking_performance = tracking.tracking_performance;
   if (performance.enabled) {
     performance.loaded_map_tracking_ms =
         elapsedMilliseconds(tracking_started);

@@ -1,6 +1,7 @@
 // WorldLocalizing: global relocalization via RHPD + ICP, and tracking
 // localization with T_map_odom.
 #pragma once
+#include "n3mapping/relocalization_performance.h"
 
 #include <condition_variable>
 #include <cstdint>
@@ -39,6 +40,8 @@
 namespace n3mapping {
 
 struct RelocResult {
+  RelocalizationPerformance performance;
+  TrackingPerformance tracking_performance;
   bool success = false;
   RelocalizationState state = RelocalizationState::SEARCHING;
   PoseSource pose_source = PoseSource::NONE;
@@ -183,6 +186,7 @@ private:
     KeyframeMapRevision map_revision;
     std::shared_ptr<const PointCloudMatcher::PreparedTarget> target;
     std::size_t bytes = 0;
+    std::size_t submap_points = 0;
   };
 
   struct LocalizationTrackingTargetCacheResult {
@@ -193,6 +197,9 @@ private:
     std::size_t entry_bytes = 0;
     std::size_t total_bytes = 0;
     std::size_t entries = 0;
+    std::size_t submap_points = 0;
+    double submap_build_ms = 0.0;
+    double target_prepare_ms = 0.0;
   };
 
   struct LoadedMapTrackingTargetPrefetchRequest {
@@ -212,8 +219,7 @@ private:
   void rebuildRelocMapCacheIfNeeded();
   void rebuildLoadedMapVisibilityCacheIfNeeded();
   LocalizationTrackingTargetCacheResult
-  prepareLocalizationTrackingTarget(int64_t anchor_id, int submap_range,
-                                    const PointCloudT::Ptr &submap);
+  prepareLocalizationTrackingTarget(int64_t anchor_id, int submap_range);
   void clearLocalizationTrackingTargetCache(bool reset_statistics);
   void invalidateLoadedMapTrackingTargetCache();
   PointCloudMatcher::PreparedTarget
@@ -240,6 +246,7 @@ private:
                           const Eigen::Isometry3d &odom_pose);
   PointCloudT::Ptr buildRelocTargetCloud(int64_t center_id);
   RelocTargetRequest makeRelocTargetRequest(int64_t center_id);
+  void releaseSearchPreparation();
   VisibilityConsistencyResult
   evaluatePoseVisibility(const PointCloudT::Ptr &target_cloud,
                          const PointCloudT::Ptr &query_cloud,

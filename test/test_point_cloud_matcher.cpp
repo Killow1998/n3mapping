@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
 #include <array>
 #include <random>
 #include <cmath>
@@ -38,7 +37,7 @@ protected:
     Keyframe::PointCloudT::Ptr createPlaneCloud(size_t num_points = 1000, 
                                                   double size = 10.0,
                                                   double noise = 0.01) {
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        Keyframe::PointCloudT::Ptr cloud(new Keyframe::PointCloudT());
         cloud->points.resize(num_points);
         
         std::mt19937 rng(42);  // 固定种子以保证可重复性
@@ -68,7 +67,7 @@ protected:
     Keyframe::PointCloudT::Ptr createSphereCloud(size_t num_points = 1000,
                                                    double radius = 5.0,
                                                    double noise = 0.01) {
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        Keyframe::PointCloudT::Ptr cloud(new Keyframe::PointCloudT());
         cloud->points.resize(num_points);
         
         std::mt19937 rng(42);
@@ -101,7 +100,7 @@ protected:
      */
     Keyframe::PointCloudT::Ptr transformCloud(const Keyframe::PointCloudT::Ptr& cloud,
                                                 const Eigen::Isometry3d& transform) {
-        auto transformed = std::make_shared<Keyframe::PointCloudT>();
+        Keyframe::PointCloudT::Ptr transformed(new Keyframe::PointCloudT());
         transformed->points.resize(cloud->size());
         
         for (size_t i = 0; i < cloud->size(); ++i) {
@@ -180,7 +179,8 @@ protected:
         LoopCandidate candidate;
         candidate.match_id = keyframes.addKeyframe(1.0, Eigen::Isometry3d::Identity(), query);
         RelocalizationCandidateEvaluator evaluator(config_, keyframes, *matcher_, provider);
-        return evaluator.evaluate(query, matcher_->prepareSourceCloud(query), candidate, {});
+        return evaluator.evaluate(matcher_->prepareSourceCloud(query), candidate, {},
+            prepareVisibilityObservation(*query, visibilityOptionsFromConfig(config_)));
     }
 
     Config config_;
@@ -202,7 +202,7 @@ TEST_F(PointCloudMatcherTest, PreprocessPointCloud) {
 
 // 测试空点云预处理
 TEST_F(PointCloudMatcherTest, PreprocessEmptyCloud) {
-    auto empty_cloud = std::make_shared<Keyframe::PointCloudT>();
+    Keyframe::PointCloudT::Ptr empty_cloud(new Keyframe::PointCloudT());
     
     auto [processed, kdtree] = matcher_->preprocessPointCloud(empty_cloud);
     
@@ -308,7 +308,7 @@ TEST_F(PointCloudMatcherTest, FitnessScoreCalculation) {
 // 测试无效输入处理
 TEST_F(PointCloudMatcherTest, AlignWithInvalidInput) {
     auto cloud = createPlaneCloud(1000);
-    auto empty_cloud = std::make_shared<Keyframe::PointCloudT>();
+    Keyframe::PointCloudT::Ptr empty_cloud(new Keyframe::PointCloudT());
     
     auto valid_kf = Keyframe::create(0, 0.0, Eigen::Isometry3d::Identity(), cloud);
     auto empty_kf = Keyframe::create(1, 0.1, Eigen::Isometry3d::Identity(), empty_cloud);
@@ -481,6 +481,34 @@ TEST_F(PointCloudMatcherTest, FixedPoseEvaluationMeasuresSelectedPoseWithoutOpti
 
 }
 
+TEST_F(PointCloudMatcherTest, SourceRefinementDoesNotNeedTargetNormals) {
+    config_.icp_refine_use_gicp = true;
+    config_.num_threads = 1;
+    matcher_ = std::make_unique<PointCloudMatcher>(config_);
+    const auto cloud = createPlaneCloud(2000, 10.0, 0.0);
+    const auto target = matcher_->prepareTargetCloud(cloud);
+    const auto source = matcher_->prepareSourceCloud(cloud);
+    ASSERT_TRUE(source.has_refine_cloud);
+    ASSERT_TRUE(target.has_refine_level);
+    ASSERT_EQ(source.refine_cloud->size(), target.refine_level.cloud->size());
+    for (std::size_t i = 0; i < source.refine_cloud->size(); ++i) {
+        EXPECT_TRUE(source.refine_cloud->point(i).isApprox(target.refine_level.cloud->point(i), 1e-12));
+        EXPECT_TRUE(source.refine_cloud->cov(i).isApprox(target.refine_level.cloud->cov(i), 1e-12));
+    }
+    auto redundant_source = source;
+    redundant_source.refine_cloud = target.refine_level.cloud;
+    const auto guess = createPose(0.0, 0.0, 0.05, 0.0, 0.0, 0.0);
+    const auto lean = matcher_->alignPrepared(target, source, guess);
+    const auto redundant = matcher_->alignPrepared(target, redundant_source, guess);
+    ASSERT_TRUE(lean.converged);
+    ASSERT_FALSE(lean.stages.empty());
+    EXPECT_EQ(lean.stages.back().stage, "refine_gicp");
+    EXPECT_EQ(lean.converged, redundant.converged);
+    EXPECT_TRUE(lean.T_target_source.isApprox(redundant.T_target_source, 1e-12));
+    EXPECT_NEAR(lean.fitness_score, redundant.fitness_score, 1e-12);
+    EXPECT_EQ(lean.num_inliers, redundant.num_inliers);
+}
+
 TEST_F(PointCloudMatcherTest, CandidateVisibilityFallbackCarriesItsOwnQuality) {
     const auto evaluations = evaluateVisibilityFallback(2.0);
     ASSERT_FALSE(evaluations.empty());
@@ -569,11 +597,3 @@ TEST_F(PointCloudMatcherTest, ModifySettings) {
 
 }  // namespace test
 }  // namespace n3mapping
-
-int main(int argc, char** argv) {
-    rclcpp::init(argc, argv);
-    testing::InitGoogleTest(&argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

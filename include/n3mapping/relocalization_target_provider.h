@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -30,6 +31,11 @@ struct RelocTargetRequest {
   KeyframeMapRevision map_revision;
   Eigen::Vector3d crop_center = Eigen::Vector3d::Zero();
   pcl::PointCloud<pcl::PointXYZI>::Ptr local_target;
+  // Invoked only on a miss; geometry must match revision/anchor/crop_center.
+  std::function<pcl::PointCloud<pcl::PointXYZI>::Ptr()> build_local_target;
+  // Candidate-only fallback is not retained: tracking an existing hypothesis
+  // intentionally rejects an empty crop instead of using this alternative.
+  std::function<pcl::PointCloud<pcl::PointXYZI>::Ptr()> build_fallback_target;
   double target_build_ms = 0.0;
 };
 
@@ -45,6 +51,10 @@ struct RelocTargetMetrics {
   std::size_t cache_entry_bytes = 0;
   std::size_t cache_total_bytes = 0;
   std::size_t cache_entries = 0;
+  std::size_t target_builds = 0;
+  std::size_t target_preparations = 0;
+  std::size_t effective_max_bytes = 0;
+  std::size_t effective_max_entries = 0;
   Eigen::Vector3d crop_center = Eigen::Vector3d::Zero();
   KeyframeMapRevision map_revision;
 };

@@ -47,6 +47,8 @@ generate_messages(
 
 find_package(PCL REQUIRED COMPONENTS common io filters)
 find_package(Eigen3 REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_package(OpenCV REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(Protobuf REQUIRED)
@@ -97,6 +99,11 @@ foreach(PROTO_FILE ${PROTO_FILES})
   )
 endforeach()
 
+add_custom_target(n3mapping_proto_headers ALL
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CATKIN_DEVEL_PREFIX}/include
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PROTO_HDRS} ${CATKIN_DEVEL_PREFIX}/include
+  DEPENDS ${PROTO_HDRS})
+
 include_directories(
   ${N3MAPPING_ROOT}/include
   ${N3MAPPING_ROOT}/include/Scancontext
@@ -126,11 +133,14 @@ n3mapping_configure_core_target(n3mapping_core)
 target_include_directories(n3mapping_core PUBLIC ${catkin_INCLUDE_DIRS})
 
 n3mapping_add_nav_resource_reader(n3map_nav_resource_reader)
+add_dependencies(n3map_nav_resource_reader n3mapping_proto_headers)
 
 add_library(n3mapping_noetic_wrapper SHARED
   src/config_noetic.cpp
   src/conversions.cpp
+  ${N3MAPPING_ROOT}/src/ros_output_contract.cpp
 )
+target_include_directories(n3mapping_noetic_wrapper PRIVATE ${JSONCPP_INCLUDE_DIRS})
 n3mapping_guard_product_target(n3mapping_noetic_wrapper)
 target_include_directories(n3mapping_noetic_wrapper PUBLIC
   ${N3MAPPING_ROOT}/include
@@ -139,6 +149,7 @@ target_include_directories(n3mapping_noetic_wrapper PUBLIC
   ${PROTO_GEN_DIR}
 )
 target_link_libraries(n3mapping_noetic_wrapper
+  ${JSONCPP_LIBRARIES}
   n3mapping_core
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
@@ -362,6 +373,7 @@ endif()
 install(DIRECTORY ${N3MAPPING_ROOT}/include/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
+install(FILES ${PROTO_HDRS} DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION})
 
 install(DIRECTORY include/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
@@ -390,13 +402,19 @@ install(FILES ${N3MAPPING_ROOT}/requirements-product-tools.txt
 )
 
 if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_ros_output_contract
+    ${N3MAPPING_ROOT}/test/test_ros_output_contract.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp)
+  if(TARGET test_ros_output_contract)
+    target_include_directories(test_ros_output_contract PRIVATE ${JSONCPP_INCLUDE_DIRS})
+    target_link_libraries(test_ros_output_contract n3mapping_noetic_wrapper ${JSONCPP_LIBRARIES})
+  endif()
   include(${N3MAPPING_ROOT}/cmake/n3mapping_checks.cmake)
   n3mapping_add_static_checks()
-  find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
   add_test(
     NAME test_n3mapping_support_bundle
-    COMMAND ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_support_bundle.py
+    COMMAND ${PYTHON_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_support_bundle.py
   )
   set_tests_properties(test_n3mapping_support_bundle PROPERTIES TIMEOUT 30)
 
@@ -404,7 +422,7 @@ if(CATKIN_ENABLE_TESTING)
     NAME test_n3mapping_product_bundle
     COMMAND ${CMAKE_COMMAND} -E env
       PYTHONDONTWRITEBYTECODE=1
-      ${Python3_EXECUTABLE} -B
+      ${PYTHON_EXECUTABLE} -B
       ${N3MAPPING_ROOT}/test/test_n3mapping_product_bundle.py
   )
   set_tests_properties(test_n3mapping_product_bundle PROPERTIES TIMEOUT 30)
@@ -413,7 +431,7 @@ if(CATKIN_ENABLE_TESTING)
     NAME test_n3mapping_product_gate
     COMMAND ${CMAKE_COMMAND} -E env
       PYTHONDONTWRITEBYTECODE=1
-      ${Python3_EXECUTABLE} -B
+      ${PYTHON_EXECUTABLE} -B
       ${N3MAPPING_ROOT}/test/test_n3mapping_product_gate.py
   )
   set_tests_properties(test_n3mapping_product_gate PROPERTIES TIMEOUT 30)
@@ -422,7 +440,7 @@ if(CATKIN_ENABLE_TESTING)
     NAME test_n3mapping_product_runtime
     COMMAND ${CMAKE_COMMAND} -E env
       PYTHONDONTWRITEBYTECODE=1
-      ${Python3_EXECUTABLE} -B
+      ${PYTHON_EXECUTABLE} -B
       ${N3MAPPING_ROOT}/test/test_n3mapping_product_runtime.py
   )
   set_tests_properties(test_n3mapping_product_runtime PROPERTIES TIMEOUT 30)
@@ -431,7 +449,7 @@ if(CATKIN_ENABLE_TESTING)
     NAME test_n3mapping_product_preflight
     COMMAND ${CMAKE_COMMAND} -E env
       PYTHONDONTWRITEBYTECODE=1
-      ${Python3_EXECUTABLE} -B
+      ${PYTHON_EXECUTABLE} -B
       ${N3MAPPING_ROOT}/test/test_n3mapping_product_preflight.py
   )
   set_tests_properties(test_n3mapping_product_preflight PROPERTIES TIMEOUT 60)
@@ -440,7 +458,7 @@ if(CATKIN_ENABLE_TESTING)
     NAME test_n3mapping_source_tree_guard
     COMMAND ${CMAKE_COMMAND} -E env
       PYTHONDONTWRITEBYTECODE=1
-      ${Python3_EXECUTABLE} -B
+      ${PYTHON_EXECUTABLE} -B
       ${N3MAPPING_ROOT}/test/test_n3mapping_source_tree_guard.py
   )
   set_tests_properties(test_n3mapping_source_tree_guard PROPERTIES TIMEOUT 30)
@@ -449,7 +467,7 @@ if(CATKIN_ENABLE_TESTING)
     NAME test_n3mapping_raw_lio_replay_evidence
     COMMAND ${CMAKE_COMMAND} -E env
       PYTHONDONTWRITEBYTECODE=1
-      ${Python3_EXECUTABLE} -B
+      ${PYTHON_EXECUTABLE} -B
       ${N3MAPPING_ROOT}/test/test_n3mapping_raw_lio_replay_evidence.py
   )
   set_tests_properties(test_n3mapping_raw_lio_replay_evidence PROPERTIES TIMEOUT 60)
@@ -458,7 +476,7 @@ if(CATKIN_ENABLE_TESTING)
     NAME test_n3mapping_ros1_raw_bag_slice
     COMMAND ${CMAKE_COMMAND} -E env
       PYTHONDONTWRITEBYTECODE=1
-      ${Python3_EXECUTABLE} -B
+      ${PYTHON_EXECUTABLE} -B
       ${N3MAPPING_ROOT}/test/test_n3mapping_ros1_raw_bag_slice.py
   )
   set_tests_properties(test_n3mapping_ros1_raw_bag_slice PROPERTIES TIMEOUT 60)
@@ -493,6 +511,14 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_core_types)
     target_link_libraries(test_core_types n3mapping_core ${PCL_LIBRARIES})
+  endif()
+
+  catkin_add_gtest(test_n3mapping_core
+    ${N3MAPPING_ROOT}/test/test_n3mapping_core.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_n3mapping_core)
+    target_link_libraries(test_n3mapping_core n3mapping_core ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
   endif()
 
   catkin_add_gtest(test_loop_detector
@@ -533,6 +559,14 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_world_localizing)
     target_link_libraries(test_world_localizing n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
+  endif()
+
+  catkin_add_gtest(test_point_cloud_matcher
+    ${N3MAPPING_ROOT}/test/test_point_cloud_matcher.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_point_cloud_matcher)
+    target_link_libraries(test_point_cloud_matcher n3mapping_core ${PCL_LIBRARIES} OpenMP::OpenMP_CXX)
   endif()
 
   catkin_add_gtest(test_config_wiring

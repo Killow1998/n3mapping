@@ -2,6 +2,7 @@
 build/
 install/
 log/
+/logs/
 
 # Generated code
 proto_gen/

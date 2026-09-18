@@ -142,9 +142,17 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   const auto reloc_started = std::chrono::steady_clock::now();
   RelocResult result;
   result.success = false;
+  auto &cost = result.performance;
+  cost.available = true;
+  std::mutex performance_mutex;
   const bool reloc_debug_enabled = debug_emitter_.enabled();
   RelocalizationDebugEvent debug_event = debug_emitter_.beginRelocalization();
   debug_event.query_timestamp = query_timestamp;
+  const auto completed_result = [&]() {
+    cost.total_ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - reloc_started).count();
+    return result;
+  };
   auto finish_debug = [&](const std::string &lock_result,
                           const std::string &reject_reason) {
     result.decision = reject_reason.empty() ? lock_result : reject_reason;
@@ -152,7 +160,15 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         std::chrono::duration<double, std::milli>(
             std::chrono::steady_clock::now() - reloc_started)
             .count();
+    cost.total_ms = total_ms;
+    const auto cache = target_provider_->diagnostics();
+    cost.cache_bytes = cache.cache_total_bytes;
+    cost.cache_entries = cache.cache_entries;
     VLOG(1) << "[RelocTiming] total_ms=" << total_ms
+            << " align_ms=" << cost.align_ms
+            << " alignments=" << cost.alignments
+            << " visibility_ms=" << cost.visibility_ms
+            << " visibility_evaluations=" << cost.visibility_evaluations
             << " outcome=" << lock_result
             << " reason=" << (reject_reason.empty() ? "none" : reject_reason);
     if (!reloc_debug_enabled) {
@@ -165,7 +181,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (!cloud || cloud->empty()) {
     LOG(WARNING) << "Empty point cloud for relocalization.";
     finish_debug("rejected", "empty_cloud");
-    return result;
+    return completed_result();
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
@@ -175,7 +191,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (keyframe_manager_.size() == 0) {
     LOG(WARNING) << "No keyframes available for relocalization.";
     finish_debug("rejected", "missing_keyframes");
-    return result;
+    return completed_result();
   }
 
   const PlaceObservation query_observation =
@@ -184,7 +200,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (!query_cloud || query_cloud->empty()) {
     LOG(WARNING) << "Relocalization query cloud is empty after aggregation.";
     finish_debug("rejected", "empty_query_cloud");
-    return result;
+    return completed_result();
   }
   if (reloc_debug_enabled) {
     RelocQueryCloudDebugSummary query_cloud_debug;
@@ -205,7 +221,32 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 
   // The query is unchanged for every candidate and yaw seed in this call.
   // Prepare all registration representations once, then reuse them below.
+  const auto source_started = std::chrono::steady_clock::now();
   const auto prepared_query = matcher_.prepareSourceCloud(query_cloud);
+  const auto visibility_started = std::chrono::steady_clock::now();
+  const auto visibility_observation = prepareVisibilityObservation(
+      *query_cloud, visibilityOptionsFromConfig(config_));
+  cost.source_preparations = 1;
+  cost.visibility_preparations = 1;
+  cost.source_prepare_ms = std::chrono::duration<double, std::milli>(
+      visibility_started - source_started).count();
+  cost.visibility_prepare_ms = std::chrono::duration<double, std::milli>(
+      std::chrono::steady_clock::now() - visibility_started).count();
+  VLOG(1) << "[RelocQueryCost] source_preparations=1 source_prepare_ms="
+          << std::chrono::duration<double, std::milli>(visibility_started - source_started).count()
+          << " visibility_preparations=1 visibility_prepare_ms="
+          << std::chrono::duration<double, std::milli>(
+                 std::chrono::steady_clock::now() - visibility_started).count();
+  const auto hypothesis_visibility = [&](const PointCloudT::Ptr &target,
+                                         const Eigen::Isometry3d &pose) {
+    const auto started = std::chrono::steady_clock::now();
+    auto visibility = evaluatePreparedVisibilityConsistency(
+        *target, visibility_observation, pose);
+    cost.visibility_ms += std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - started).count();
+    ++cost.visibility_evaluations;
+    return visibility;
+  };
 
   auto descriptor_supports_keyframe =
       [&](const std::vector<LoopCandidate> &candidates, int64_t keyframe_id) {
@@ -244,7 +285,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                    << config_.rhpd_num_candidates
                    << " dist_thr=" << config_.rhpd_dist_threshold;
       finish_debug("rejected", "no_candidates");
-      return result;
+      return completed_result();
     }
 
     struct BasinGroup {
@@ -342,9 +383,15 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 
         RelocTargetRequest target_request =
             makeRelocTargetRequest(candidate.match_id);
-        for (const auto &evaluation : candidate_evaluator_.evaluate(
-                 query_cloud, prepared_query, candidate,
-                 std::move(target_request))) {
+        RelocalizationPerformance candidate_cost;
+        const auto evaluations = candidate_evaluator_.evaluate(
+                 prepared_query, candidate,
+                 std::move(target_request), visibility_observation, &candidate_cost);
+        {
+          std::lock_guard<std::mutex> cost_lock(performance_mutex);
+          cost.addCandidate(candidate_cost);
+        }
+        for (const auto &evaluation : evaluations) {
           const auto& selected_match = evaluation.match;
           const auto quality = evaluateRelocMatchQuality(selected_match);
           if (!quality.accepted)
@@ -493,7 +540,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     if (hypothesis_manager_.empty()) {
       LOG(WARNING) << "Relocalization init failed: no valid ICP hypothesis.";
       finish_debug("rejected", "no_valid_icp_hypothesis");
-      return result;
+      return completed_result();
     }
   } else {
     const auto current_candidates = place_index_.search(query_cloud);
@@ -526,7 +573,18 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       }
 
       RelocTargetRequest target_request = makeRelocTargetRequest(nearest_kf_id);
-      auto submap = target_request.local_target;
+      const PreparedRelocTarget prepared_target =
+          target_provider_->getTarget(target_request);
+      ++cost.hypotheses;
+      cost.target_build_ms += prepared_target.metrics.target_build_ms;
+      cost.target_prepare_ms += prepared_target.metrics.target_prepare_ms;
+      cost.target_builds += prepared_target.metrics.target_builds;
+      cost.target_preparations += prepared_target.metrics.target_preparations;
+      cost.cache_hits += prepared_target.metrics.cache_hit;
+      cost.cache_misses += prepared_target.metrics.cache_miss;
+      cost.effective_cache_max_bytes = prepared_target.metrics.effective_max_bytes;
+      cost.effective_cache_max_entries = prepared_target.metrics.effective_max_entries;
+      auto submap = prepared_target.visibility_target;
       if (!submap || submap->empty()) {
         hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
         continue;
@@ -537,20 +595,22 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       // surface on each ray. This prevents one-way ICP from dragging a valid
       // pose onto a remote dense surface.
       const auto predicted_visibility =
-          evaluatePoseVisibility(submap, query_cloud, predicted_pose);
-      const PreparedRelocTarget prepared_target =
-          target_provider_->getTarget(target_request);
+          hypothesis_visibility(submap, predicted_pose);
       MatchResult mr;
       if (prepared_target.valid()) {
+        const auto align_started = std::chrono::steady_clock::now();
         mr = matcher_.alignPrepared(*prepared_target.registration_target,
                                     prepared_query, predicted_pose);
+        cost.align_ms += std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - align_started).count();
+        ++cost.alignments;
       }
       VisibilityConsistencyResult selected_visibility = predicted_visibility;
       Eigen::Isometry3d selected_pose = predicted_pose;
       bool selected_registration_endpoint = false;
       if (hasValidRegistrationResult(mr)) {
         const auto refined_visibility =
-            evaluatePoseVisibility(submap, query_cloud, mr.T_target_source);
+            hypothesis_visibility(submap, mr.T_target_source);
         if (refined_visibility.valid &&
             (!selected_visibility.valid ||
              refined_visibility.consistency_ratio >
@@ -751,7 +811,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             << effective_temporal_window
             << ", active hypotheses=" << hypothesis_manager_.size();
     finish_debug("pending", "temporal_window_pending");
-    return result;
+    return completed_result();
   }
 
   const int effective_min_winner_streak = decision.effective_min_winner_streak;
@@ -868,6 +928,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
               << ", ratio_value=" << ratio
               << ", basin_separation=" << basin_separation;
     finish_debug("accepted", "");
+    releaseSearchPreparation();
   } else {
     const std::string &reject_reason = decision.reject_reason;
     if (ambiguous) {
@@ -926,7 +987,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             << " persisted_frames=" << persistence.persisted_frames;
   }
 
-  return result;
+  return completed_result();
 }
 
 RelocResult
@@ -949,13 +1010,12 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   RelocResult result;
   result.success = false;
   const bool reloc_debug_enabled = debug_emitter_.enabled();
-  const auto tracking_started =
-      reloc_debug_enabled ? TrackingClock::now() : TrackingClock::time_point{};
+  const auto tracking_started = TrackingClock::now();
   RelocTrackingDebugEvent debug_event = debug_emitter_.beginTracking();
+  debug_event.available = true;
   debug_event.strict_loaded_map = strict_loaded_map;
   const auto timing_started = [&]() {
-    return reloc_debug_enabled ? TrackingClock::now()
-                               : TrackingClock::time_point{};
+    return TrackingClock::now();
   };
   const auto elapsed_ms = [&](const TrackingClock::time_point &started) {
     return std::chrono::duration<double, std::milli>(TrackingClock::now() -
@@ -967,10 +1027,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                           ? (strict_loaded_map ? "loaded_map_tracking_geometric"
                                                : "tracking_geometric")
                           : reject_reason;
+    debug_event.tracking_total_ms = elapsed_ms(tracking_started);
+    result.tracking_performance = debug_event;
     if (!reloc_debug_enabled) {
       return;
     }
-    debug_event.tracking_total_ms = elapsed_ms(tracking_started);
     debug_emitter_.finishTracking(debug_event, result.success,
                                   consecutive_track_failures_, reject_reason);
   };
@@ -993,7 +1054,9 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     return result;
   }
 
+  const auto lock_started = timing_started();
   std::lock_guard<std::mutex> lock(mutex_);
+  debug_event.lock_wait_ms = elapsed_ms(lock_started);
   result.seed_keyframe_id = relocalization_seed_id_;
 
   Eigen::Isometry3d predicted_pose = T_map_odom_ * odom_pose;
@@ -1012,9 +1075,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   int64_t nearest_kf_id = strict_loaded_map
                               ? findNearestLoadedKeyframe(predicted_pose)
                               : findNearestKeyframe(predicted_pose);
-  if (reloc_debug_enabled) {
-    debug_event.nearest_keyframe_ms = elapsed_ms(nearest_keyframe_started);
-  }
+  debug_event.nearest_keyframe_ms = elapsed_ms(nearest_keyframe_started);
   debug_event.nearest_kf_id = nearest_kf_id;
   if (nearest_kf_id < 0) {
     consecutive_track_failures_++;
@@ -1045,12 +1106,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         std::max(submap_range, config_.reloc_track_unstable_submap_size);
 
   PointCloudT::Ptr submap;
+  LocalizationTrackingTargetCacheResult localization_target;
   if (strict_loaded_map) {
     const auto cache_started = timing_started();
     rebuildLoadedMapVisibilityCacheIfNeeded();
-    if (reloc_debug_enabled) {
-      debug_event.loaded_map_cache_ms = elapsed_ms(cache_started);
-    }
+    debug_event.loaded_map_cache_ms = elapsed_ms(cache_started);
     const auto submap_started = timing_started();
     const auto nearest = keyframe_manager_.getKeyframe(nearest_kf_id);
     if (nearest) {
@@ -1058,17 +1118,13 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
           config_, loaded_map_visibility_cache_,
           nearest->pose_optimized.translation());
     }
-    if (reloc_debug_enabled) {
-      debug_event.submap_build_ms = elapsed_ms(submap_started);
-    }
+    debug_event.submap_build_ms = elapsed_ms(submap_started);
   } else {
     // Keep the established ordinary-localization target unchanged. The
     // loaded-map-only target is specific to map-extension safety.
-    const auto submap_started = timing_started();
-    submap = keyframe_manager_.buildLocalSubmap(nearest_kf_id, submap_range);
-    if (reloc_debug_enabled) {
-      debug_event.submap_build_ms = elapsed_ms(submap_started);
-    }
+    localization_target =
+        prepareLocalizationTrackingTarget(nearest_kf_id, submap_range);
+    debug_event.submap_build_ms = localization_target.submap_build_ms;
     if (VLOG_IS_ON(1)) {
       LocalMapSelectionRequest shadow_request;
       shadow_request.predicted_pose = predicted_pose;
@@ -1111,7 +1167,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
               << " recent_tail=0 legacy_size=" << legacy_ids.size()
               << " spatial_size=" << spatial_ids.size()
               << " jaccard=" << jaccard
-              << " legacy_points=" << (submap ? submap->size() : 0)
+              << " legacy_points=" << localization_target.submap_points
               << " spatial_points=" << shadow_selection.selected_points
               << " index_rebuilt=" << shadow_selection.index_rebuilt
               << " index_build_ms=" << shadow_selection.index_build_ms
@@ -1126,8 +1182,10 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
               << " floor_labels=unavailable";
     }
   }
-  debug_event.submap_size = submap ? submap->size() : 0;
-  if (!submap || submap->empty()) {
+  debug_event.submap_size = strict_loaded_map
+                               ? (submap ? submap->size() : 0)
+                               : localization_target.submap_points;
+  if (debug_event.submap_size == 0) {
     consecutive_track_failures_++;
     if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
       is_relocalized_ = false;
@@ -1159,8 +1217,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         &debug_event.loaded_map_target_cache_miss);
     prepared_target = &loaded_map_prepared_target;
   } else {
-    const LocalizationTrackingTargetCacheResult cache_result =
-        prepareLocalizationTrackingTarget(nearest_kf_id, submap_range, submap);
+    const auto &cache_result = localization_target;
     localization_prepared_target = cache_result.target;
     prepared_target = localization_prepared_target.get();
     debug_event.localization_target_cache_enabled = cache_result.enabled;
@@ -1176,23 +1233,19 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     requestLoadedMapTrackingTargetPrefetch(predicted_pose.translation(),
                                            nearest_kf_id);
   }
-  if (reloc_debug_enabled) {
-    debug_event.target_prepare_ms = elapsed_ms(target_prepare_started);
-  }
+  debug_event.target_prepare_ms = strict_loaded_map
+                                      ? elapsed_ms(target_prepare_started)
+                                      : localization_target.target_prepare_ms;
   const auto source_prepare_started = timing_started();
   const auto prepared_source = matcher_.prepareSourceCloud(cloud);
-  if (reloc_debug_enabled) {
-    debug_event.source_prepare_ms = elapsed_ms(source_prepare_started);
-  }
+  debug_event.source_prepare_ms = elapsed_ms(source_prepare_started);
   const auto registration_started = timing_started();
   MatchResult match_result;
   if (prepared_target) {
     match_result =
         matcher_.alignPrepared(*prepared_target, prepared_source, predicted_pose);
   }
-  if (reloc_debug_enabled) {
-    debug_event.registration_ms = elapsed_ms(registration_started);
-  }
+  debug_event.registration_ms = elapsed_ms(registration_started);
   bool retry_used = false;
 
   // If ICP failed with standard params and we have recent failures, retry with
@@ -1213,9 +1266,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                      ? matcher_.alignPrepared(*prepared_target, prepared_source,
                                               predicted_pose, wide)
                      : MatchResult{};
-    if (reloc_debug_enabled) {
-      debug_event.retry_registration_ms = elapsed_ms(retry_started);
-    }
+    debug_event.retry_registration_ms = elapsed_ms(retry_started);
     retry_used = true;
     if (hasValidRegistrationResult(retry) &&
         (!hasValidRegistrationResult(match_result) ||
@@ -1323,9 +1374,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         visibility = predicted_visibility;
         debug_event.visibility_selected_pose_source = "motion_prediction";
       }
-      if (reloc_debug_enabled) {
-        debug_event.visibility_ms = elapsed_ms(visibility_started);
-      }
+      debug_event.visibility_ms = elapsed_ms(visibility_started);
     }
     const Eigen::Isometry3d delta =
         predicted_pose.inverse() * match_result.T_target_source;
@@ -1421,7 +1470,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                    << " fitness=" << match_result.fitness_score
                    << " inlier=" << match_result.inlier_ratio
                    << " nearest_kf=" << nearest_kf_id
-                   << " submap_pts=" << (submap ? submap->size() : 0)
+                   << " submap_pts=" << debug_event.submap_size
                    << " cloud_pts=" << cloud->size() << " pos=("
                    << predicted_pose.translation().x() << ","
                    << predicted_pose.translation().y() << ","
@@ -1474,6 +1523,18 @@ void WorldLocalizing::resetLocalizationState() {
   consecutive_track_failures_ = 0;
   query_builder_.reset();
   hypothesis_manager_.reset();
+  releaseSearchPreparation();
+}
+
+void WorldLocalizing::releaseSearchPreparation() {
+  target_provider_->clear();
+  reloc_map_cache_ = pcl::make_shared<PointCloudT>();
+  reloc_map_cached_keyframes_ = 0;
+  reloc_map_revision_ = {};
+  free_space_grid_ = FreeSpaceGrid();
+  free_space_grid_keyframes_ = 0;
+  free_space_grid_revision_ = {};
+  free_space_grid_failed_ = false;
 }
 
 void WorldLocalizing::notifyMapReplaced() {
@@ -1491,9 +1552,7 @@ void WorldLocalizing::notifyMapReplaced() {
   // happens to have the same keyframe count as the previous one must still
   // rebuild its frame-RHPD index, reloc map cache, free-space grid and atlas.
   place_index_.resetMapDerivedState();
-  reloc_map_cache_ = pcl::make_shared<PointCloudT>();
-  reloc_map_cached_keyframes_ = 0;
-  reloc_map_revision_ = {};
+  releaseSearchPreparation();
   loaded_map_visibility_cache_ = pcl::make_shared<PointCloudT>();
   loaded_map_visibility_cached_keyframes_ = 0;
   loaded_map_visibility_revision_ = {};
@@ -1506,15 +1565,8 @@ void WorldLocalizing::notifyMapReplaced() {
     loaded_map_tracking_target_cache_misses_ = 0;
     loaded_map_tracking_target_prefetch_requests_ = 0;
   }
-  free_space_grid_ = FreeSpaceGrid();
-  free_space_grid_keyframes_ = 0;
-  free_space_grid_revision_ = {};
-  free_space_grid_failed_ = false;
   if (localization_atlas_) {
     localization_atlas_->clear();
-  }
-  if (target_provider_) {
-    target_provider_->clear();
   }
 }
 
@@ -1576,6 +1628,7 @@ void WorldLocalizing::setMapToOdomTransform(
   relocalization_seed_id_ = -1;
   query_builder_.reset();
   hypothesis_manager_.reset();
+  releaseSearchPreparation();
 }
 
 int64_t WorldLocalizing::getLastMatchedKeyframeId() const {
@@ -1939,17 +1992,18 @@ WorldLocalizing::buildRelocTargetCloud(int64_t center_id) {
 }
 
 RelocTargetRequest WorldLocalizing::makeRelocTargetRequest(int64_t center_id) {
-  using Clock = std::chrono::steady_clock;
-  const auto start = Clock::now();
-
+  const auto started = std::chrono::steady_clock::now();
+  rebuildRelocMapCacheIfNeeded();
   RelocTargetRequest request;
+  request.target_build_ms = std::chrono::duration<double, std::milli>(
+      std::chrono::steady_clock::now() - started).count();
   request.anchor_id = center_id;
-  request.local_target = buildRelocTargetCloud(center_id);
-  request.target_build_ms =
-      std::chrono::duration<double, std::milli>(Clock::now() - start).count();
   request.map_revision = keyframe_manager_.revision();
   if (const auto center_keyframe = keyframe_manager_.getKeyframe(center_id)) {
     request.crop_center = center_keyframe->pose_optimized.translation();
+    request.build_local_target = [this, map = reloc_map_cache_, center = request.crop_center]() {
+      return LocalizationAtlas::cropGlobalMap(config_, map, center);
+    };
   }
   return request;
 }
@@ -1981,7 +2035,7 @@ void WorldLocalizing::rebuildLoadedMapVisibilityCacheIfNeeded() {
 
 WorldLocalizing::LocalizationTrackingTargetCacheResult
 WorldLocalizing::prepareLocalizationTrackingTarget(
-    int64_t anchor_id, int submap_range, const PointCloudT::Ptr &submap) {
+    int64_t anchor_id, int submap_range) {
   LocalizationTrackingTargetCacheResult result;
   const std::size_t max_bytes = static_cast<std::size_t>(std::max(
       0, config_.localization_tracking_target_cache_max_bytes));
@@ -2015,6 +2069,8 @@ WorldLocalizing::prepareLocalizationTrackingTarget(
         localization_tracking_target_cache_.push_front(std::move(entry));
       }
       result.target = localization_tracking_target_cache_.front().target;
+      result.submap_points =
+          localization_tracking_target_cache_.front().submap_points;
       result.entry_bytes = localization_tracking_target_cache_.front().bytes;
       result.total_bytes = localization_tracking_target_cache_bytes_;
       result.entries = localization_tracking_target_cache_.size();
@@ -2024,8 +2080,19 @@ WorldLocalizing::prepareLocalizationTrackingTarget(
     ++localization_tracking_target_cache_misses_;
   }
 
+  // A cache hit already owns the same revision/anchor/range geometry. Build
+  // the raw submap only on a miss, before preparing the registration target.
+  using Clock = std::chrono::steady_clock;
+  const auto build_started = Clock::now();
+  const auto submap = keyframe_manager_.buildLocalSubmap(anchor_id, submap_range);
+  result.submap_points = submap ? submap->size() : 0;
+  result.submap_build_ms =
+      std::chrono::duration<double, std::milli>(Clock::now() - build_started).count();
+  const auto prepare_started = Clock::now();
   auto prepared = std::make_shared<const PointCloudMatcher::PreparedTarget>(
       matcher_.prepareTargetCloud(submap));
+  result.target_prepare_ms =
+      std::chrono::duration<double, std::milli>(Clock::now() - prepare_started).count();
   result.target = prepared;
   result.entry_bytes = estimatePreparedTargetMemoryBytes(*prepared);
   if (!result.enabled || !hasUsablePreparedTarget(*prepared) ||
@@ -2049,6 +2116,7 @@ WorldLocalizing::prepareLocalizationTrackingTarget(
   entry.map_revision = current_revision;
   entry.target = prepared;
   entry.bytes = result.entry_bytes;
+  entry.submap_points = result.submap_points;
   localization_tracking_target_cache_.push_front(std::move(entry));
   localization_tracking_target_cache_bytes_ += result.entry_bytes;
   result.total_bytes = localization_tracking_target_cache_bytes_;

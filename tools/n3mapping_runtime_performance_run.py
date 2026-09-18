@@ -15,7 +15,11 @@ import subprocess
 import sys
 import time
 from typing import Any, TextIO
-from zoneinfo import ZoneInfo
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # ROS Noetic's Python 3.8 needs the standard-library backport.
+    from backports.zoneinfo import ZoneInfo
 
 
 SCHEMA = "n3mapping_runtime_performance_run_v1"

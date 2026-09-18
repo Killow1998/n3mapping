@@ -32,20 +32,27 @@ pcl::PointCloud<pcl::PointXYZI> roomSeenFrom(double x, double y, double yaw = 0.
     return cloud;
 }
 
-TEST(StaticStartGuard, HoldsWhileTheViewDoesNotChange)
+Eigen::Isometry3d driftingPose(double time)
+{
+    auto pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = time * 0.3;
+    return pose;
+}
+
+TEST(StaticStartGuard, ReleasesStableStationaryInputAfterThreeSeconds)
 {
     StaticStartGuard guard;
     const auto still = roomSeenFrom(0.0, 0.0);
-    for (int i = 0; i < 300; ++i) {
-        EXPECT_FALSE(guard.update(i * 0.1, still)) << "released at frame " << i;
+    for (int i = 0; i < 30; ++i) {
+        EXPECT_FALSE(guard.update(i * 0.1, still, Eigen::Isometry3d::Identity()));
     }
-    EXPECT_FALSE(guard.moved());
+    EXPECT_TRUE(guard.update(3.0, still, Eigen::Isometry3d::Identity()));
+    EXPECT_FALSE(guard.releasedByTimeout());
 }
 
 // The odometry claims 9.37 m across the stationary opening it should claim none
-// of, which is why the guard is not allowed to look at it. Sensor noise is the
-// only thing that moves here.
-TEST(StaticStartGuard, IsNotFooledByNoise)
+// of. Stable scans must not excuse that odometry drift.
+TEST(StaticStartGuard, RejectsDriftingOdometryDespiteStableNoisyScans)
 {
     StaticStartGuard guard;
     for (int i = 0; i < 300; ++i) {
@@ -53,9 +60,9 @@ TEST(StaticStartGuard, IsNotFooledByNoise)
         for (auto& p : cloud.points) {
             p.z += static_cast<float>(0.01 * std::sin(i + p.x));
         }
-        guard.update(i * 0.1, cloud);
+        guard.update(i * 0.1, cloud, driftingPose(i * 0.1));
     }
-    EXPECT_FALSE(guard.moved());
+    EXPECT_FALSE(guard.released());
 }
 
 // 0.17 m/s at 10 Hz advances 17 mm a frame, which is why the reference is the
@@ -64,13 +71,13 @@ TEST(StaticStartGuard, ReleasesOnceSlowMotionAccumulates)
 {
     StaticStartGuard guard;
     for (int i = 0; i < 40; ++i) {
-        guard.update(i * 0.1, roomSeenFrom(0.0, 0.0));
+        guard.update(i * 0.1, roomSeenFrom(0.0, 0.0), driftingPose(i * 0.1));
     }
-    ASSERT_FALSE(guard.moved());
+    ASSERT_FALSE(guard.released());
 
     bool released = false;
     for (int i = 40; i < 400 && !released; ++i) {
-        released = guard.update(i * 0.1, roomSeenFrom((i - 39) * 0.017, 0.0));
+        released = guard.update(i * 0.1, roomSeenFrom((i - 39) * 0.017, 0.0), driftingPose(i * 0.1));
     }
     EXPECT_TRUE(released);
     EXPECT_FALSE(guard.releasedByTimeout());
@@ -84,14 +91,14 @@ TEST(StaticStartGuard, MayNotSeeRotationAlone_ButSeesWhatFollows)
 {
     StaticStartGuard guard;
     for (int i = 0; i < 20; ++i) {
-        guard.update(i * 0.1, roomSeenFrom(0.0, 0.0));
+        guard.update(i * 0.1, roomSeenFrom(0.0, 0.0), driftingPose(i * 0.1));
     }
     for (int i = 20; i < 200; ++i) {
-        guard.update(i * 0.1, roomSeenFrom(0.0, 0.0, (i - 19) * 0.02));
+        guard.update(i * 0.1, roomSeenFrom(0.0, 0.0, (i - 19) * 0.02), driftingPose(i * 0.1));
     }
     bool released = false;
     for (int i = 200; i < 500 && !released; ++i) {
-        released = guard.update(i * 0.1, roomSeenFrom((i - 199) * 0.05, 0.0));
+        released = guard.update(i * 0.1, roomSeenFrom((i - 199) * 0.05, 0.0), driftingPose(i * 0.1));
     }
     EXPECT_TRUE(released);
 }
@@ -101,17 +108,17 @@ TEST(StaticStartGuard, Latches)
 {
     StaticStartGuard guard;
     for (int i = 0; i < 20; ++i) {
-        guard.update(i * 0.1, roomSeenFrom(0.0, 0.0));
+        guard.update(i * 0.1, roomSeenFrom(0.0, 0.0), driftingPose(i * 0.1));
     }
     for (int i = 20; i < 400; ++i) {
-        if (guard.update(i * 0.1, roomSeenFrom((i - 19) * 0.05, 0.0))) {
+        if (guard.update(i * 0.1, roomSeenFrom((i - 19) * 0.05, 0.0), driftingPose(i * 0.1))) {
             break;
         }
     }
-    ASSERT_TRUE(guard.moved());
+    ASSERT_TRUE(guard.released());
     const double released_at = guard.releaseTimestamp();
     for (int i = 0; i < 50; ++i) {
-        EXPECT_TRUE(guard.update(100.0 + i * 0.1, roomSeenFrom(0.0, 0.0)));
+        EXPECT_TRUE(guard.update(100.0 + i * 0.1, roomSeenFrom(0.0, 0.0), Eigen::Isometry3d::Identity()));
     }
     EXPECT_DOUBLE_EQ(guard.releaseTimestamp(), released_at);
 }
@@ -126,7 +133,7 @@ TEST(StaticStartGuard, GivesUpWaitingAfterTheCap)
     const auto still = roomSeenFrom(0.0, 0.0);
     bool released = false;
     for (int i = 0; i < 200 && !released; ++i) {
-        released = guard.update(i * 0.1, still);
+        released = guard.update(i * 0.1, still, driftingPose(i * 0.1));
     }
     EXPECT_TRUE(released);
     EXPECT_TRUE(guard.releasedByTimeout());
@@ -137,7 +144,7 @@ TEST(StaticStartGuard, NonPositiveCapDisablesTheWait)
     StaticStartGuard::Options options;
     options.max_wait_s = 0.0;
     StaticStartGuard guard(options);
-    EXPECT_TRUE(guard.update(0.0, roomSeenFrom(0.0, 0.0)));
+    EXPECT_TRUE(guard.update(0.0, roomSeenFrom(0.0, 0.0), Eigen::Isometry3d::Identity()));
 }
 
 TEST(StaticStartGuard, IgnoresCloudsTooSmallToJudge)
@@ -154,8 +161,33 @@ TEST(StaticStartGuard, IgnoresCloudsTooSmallToJudge)
     sparse.width = sparse.points.size();
     sparse.height = 1;
     for (int i = 0; i < 100; ++i) {
-        EXPECT_FALSE(guard.update(i * 0.1, sparse));
+        EXPECT_FALSE(guard.update(i * 0.1, sparse, Eigen::Isometry3d::Identity()));
     }
+}
+
+TEST(StaticStartGuard, SparseOrDiscontinuousInputCannotAccumulateStableTime)
+{
+    StaticStartGuard guard;
+    const auto still = roomSeenFrom(0.0, 0.0);
+    const auto pose = Eigen::Isometry3d::Identity();
+    for (int i = 0; i < 10; ++i) EXPECT_FALSE(guard.update(i, still, pose));
+    for (int i = 0; i < 25; ++i) EXPECT_FALSE(guard.update(10.0 + i * 0.1, still, pose));
+    EXPECT_FALSE(guard.update(12.5, {}, pose));
+    for (int i = 0; i < 30; ++i) EXPECT_FALSE(guard.update(12.6 + i * 0.1, still, pose));
+    EXPECT_TRUE(guard.update(15.7, still, pose));
+}
+
+TEST(StaticStartGuard, RejectsRotationalDriftAndRepeatedTimestamps)
+{
+    StaticStartGuard guard;
+    const auto still = roomSeenFrom(0.0, 0.0);
+    for (int i = 0; i < 300; ++i) {
+        auto pose = Eigen::Isometry3d::Identity();
+        pose.linear() = Eigen::AngleAxisd(i * 0.001, Eigen::Vector3d::UnitY()).toRotationMatrix();
+        EXPECT_FALSE(guard.update(i * 0.1, still, pose));
+    }
+    StaticStartGuard repeated;
+    for (int i = 0; i < 100; ++i) EXPECT_FALSE(repeated.update(1.0, still, Eigen::Isometry3d::Identity()));
 }
 
 }  // namespace

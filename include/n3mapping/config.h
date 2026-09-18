@@ -253,11 +253,11 @@ struct Config {
     std::string reloc_atlas_path = "";
     // Registration target selection is explicit so Atlas presence cannot
     // silently change semantics during later cache work. The legacy mode
-    // exactly reproduces current behavior: global Atlas when loaded, otherwise
-    // a freshly prepared local crop.
+    // preserves target geometry: global Atlas when loaded, otherwise the exact
+    // local crop with a search-only 128 MiB / 8-entry preparation working set.
     std::string reloc_target_mode = "legacy_global_atlas";
-    // Zero disables retention. A local LRU must be given both an explicit byte
-    // and entry budget before it keeps prepared targets.
+    // Explicit local_lru/shadow_local_lru modes require both budgets; zero
+    // disables their retention. The legacy fallback owns its separate bound.
     int reloc_target_cache_max_bytes = 0;
     int reloc_target_cache_max_entries = 0;
     // Ordinary localization repeatedly revisits the same local-map anchor.

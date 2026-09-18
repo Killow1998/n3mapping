@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <chrono>
+#include <glog/logging.h>
 
 #include <pcl/common/transforms.h>
 
@@ -19,45 +21,67 @@ RelocalizationCandidateEvaluator::RelocalizationCandidateEvaluator(
 
 std::vector<RelocalizationCandidateEvaluation>
 RelocalizationCandidateEvaluator::evaluate(
-    const PointCloudT::Ptr &query_cloud,
     const PointCloudMatcher::PreparedSource &prepared_query,
-    const LoopCandidate &candidate, RelocTargetRequest target_request) {
+    const LoopCandidate &candidate, RelocTargetRequest target_request,
+    const PreparedVisibilityObservation &visibility_observation,
+    RelocalizationPerformance *performance) {
+  RelocalizationPerformance unused_performance;
+  auto &cost = performance ? *performance : unused_performance;
+  cost.candidates = 1;
   std::vector<RelocalizationCandidateEvaluation> evaluations;
   auto match_keyframe = keyframe_manager_.getKeyframe(candidate.match_id);
   if (!match_keyframe) {
     return evaluations;
   }
 
-  PointCloudT::Ptr target = target_request.local_target;
-  if (!target || target->empty()) {
+  target_request.build_fallback_target = [match_keyframe]() {
     if (!match_keyframe->cloud || match_keyframe->cloud->empty()) {
-      return evaluations;
+      return PointCloudT::Ptr{};
     }
-    target = pcl::make_shared<PointCloudT>();
+    auto target = pcl::make_shared<PointCloudT>();
     const Eigen::Matrix4f transform =
         match_keyframe->pose_optimized.matrix().cast<float>();
     pcl::transformPointCloud(*match_keyframe->cloud, *target, transform);
-  }
-
-  target_request.local_target = target;
+    return target;
+  };
   const PreparedRelocTarget prepared_target =
       target_provider_.getTarget(target_request);
+  cost.target_build_ms = prepared_target.metrics.target_build_ms;
+  cost.target_prepare_ms = prepared_target.metrics.target_prepare_ms;
+  cost.target_builds = prepared_target.metrics.target_builds;
+  cost.target_preparations = prepared_target.metrics.target_preparations;
+  cost.cache_hits = prepared_target.metrics.cache_hit;
+  cost.cache_misses = prepared_target.metrics.cache_miss;
+  cost.effective_cache_max_bytes = prepared_target.metrics.effective_max_bytes;
+  cost.effective_cache_max_entries = prepared_target.metrics.effective_max_entries;
   if (!prepared_target.valid()) {
     return evaluations;
   }
-  target = prepared_target.visibility_target;
+  const auto &target = prepared_target.visibility_target;
 
   const auto yaw_hypotheses = buildDescriptorYawHypotheses(candidate, config_);
+  const auto visibility = [&](const Eigen::Isometry3d &pose) {
+    const auto start = std::chrono::steady_clock::now();
+    auto result = evaluatePreparedVisibilityConsistency(*target, visibility_observation, pose);
+    cost.visibility_ms += std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - start).count();
+    ++cost.visibility_evaluations;
+    return result;
+  };
   for (const double yaw : yaw_hypotheses) {
     Eigen::Isometry3d initial_pose = match_keyframe->pose_optimized;
     initial_pose.linear() =
         match_keyframe->pose_optimized.linear() *
         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     const auto initial_visibility =
-        evaluateVisibility(target, query_cloud, initial_pose);
+        visibility(initial_pose);
 
+    const auto align_started = std::chrono::steady_clock::now();
     MatchResult match = matcher_.alignPrepared(
         *prepared_target.registration_target, prepared_query, initial_pose);
+    cost.align_ms += std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - align_started).count();
+    ++cost.alignments;
     const bool production_quality =
         isFiniteRigidPose(match.T_target_source) && match.converged &&
         std::isfinite(match.fitness_score) &&
@@ -69,7 +93,7 @@ RelocalizationCandidateEvaluator::evaluate(
     }
 
     auto selected_visibility =
-        evaluateVisibility(target, query_cloud, match.T_target_source);
+        visibility(match.T_target_source);
     if (initial_visibility.valid &&
         (!selected_visibility.valid ||
          initial_visibility.consistency_ratio >
@@ -128,18 +152,12 @@ RelocalizationCandidateEvaluator::evaluate(
       distinct.push_back(evaluation);
     }
   }
+  VLOG(1) << "[RelocCandidateCost] anchor=" << candidate.match_id
+          << " align_ms=" << cost.align_ms << " alignments=" << cost.alignments
+          << " visibility_ms=" << cost.visibility_ms
+          << " visibility_evaluations=" << cost.visibility_evaluations
+          << " accepted_modes=" << distinct.size();
   return distinct;
-}
-
-VisibilityConsistencyResult
-RelocalizationCandidateEvaluator::evaluateVisibility(
-    const PointCloudT::Ptr &target_cloud, const PointCloudT::Ptr &query_cloud,
-    const Eigen::Isometry3d &T_map_lidar) const {
-  if (!target_cloud || !query_cloud) {
-    return {};
-  }
-  return evaluateVisibilityConsistency(*target_cloud, *query_cloud, T_map_lidar,
-                                       visibilityOptionsFromConfig(config_));
 }
 
 } // namespace n3mapping

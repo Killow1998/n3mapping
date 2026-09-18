@@ -14,7 +14,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 
 
 CONTRACT_SCHEMA = "n3mapping_final_acceptance_contract_v1"
@@ -301,7 +301,7 @@ def default_map_inspector(
     }
 
 
-MapInspector = Callable[[Path, Path, Path, Path], dict[str, Any]]
+MapInspector = Callable[[Path, Path, Path, Path], Dict[str, Any]]
 
 
 def compare_structure(

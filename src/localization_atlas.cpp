@@ -171,7 +171,7 @@ LocalizationAtlas::PointCloudT::Ptr LocalizationAtlas::cropGlobalMap(
     const double radius = std::max(1.0, config.rhpd_max_range) +
                           std::max(0.0, config.gicp_max_correspondence_distance);
     const double squared_radius = radius * radius;
-    target->reserve(global_map->size());
+    // Retained local crops must not each reserve the entire global map.
     for (const auto& point : *global_map) {
         if (!pcl::isFinite(point)) continue;
         const Eigen::Vector3d position(point.x, point.y, point.z);

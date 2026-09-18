@@ -13,6 +13,7 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_target_provider.h"
+#include "n3mapping/relocalization_performance.h"
 #include "n3mapping/visibility_consistency.h"
 
 namespace n3mapping {
@@ -35,16 +36,12 @@ public:
                                    RelocTargetProvider &target_provider);
 
   std::vector<RelocalizationCandidateEvaluation>
-  evaluate(const PointCloudT::Ptr &query_cloud,
-           const PointCloudMatcher::PreparedSource &prepared_query,
-           const LoopCandidate &candidate, RelocTargetRequest target_request);
+  evaluate(const PointCloudMatcher::PreparedSource &prepared_query,
+           const LoopCandidate &candidate, RelocTargetRequest target_request,
+           const PreparedVisibilityObservation &visibility_observation,
+           RelocalizationPerformance *performance = nullptr);
 
 private:
-  VisibilityConsistencyResult
-  evaluateVisibility(const PointCloudT::Ptr &target_cloud,
-                     const PointCloudT::Ptr &query_cloud,
-                     const Eigen::Isometry3d &T_map_lidar) const;
-
   Config config_;
   KeyframeManager &keyframe_manager_;
   PointCloudMatcher &matcher_;
