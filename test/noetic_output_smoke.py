@@ -140,7 +140,11 @@ def run(binary, directory):
             assert not incoherent, incoherent[:3]
             observation = statuses[-1]["observation_stamp"]
             correction = statuses[-1]["correction_stamp"]
-            assert all(t.child_frame_id != "base_link" for t in transforms)
+            assert transforms
+            assert all(t.header.frame_id == "map" and
+                       t.child_frame_id == "base_link" for t in transforms)
+            assert any(t.header.stamp == received[-1].header.stamp
+                       for t in transforms)
             published = {entry[0] for entry in api.getPublishedTopics("/probe", "")[2]}
             assert "/probe/output/local" not in published and "/probe/output/correction" not in published
 

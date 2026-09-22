@@ -266,22 +266,26 @@ class N3MappingNoeticNode {
                 (localization_mode ? hasAuthoritativeRelocalizationInitializationPose(
                     output.relocalization_state, output.pose_source) :
                     (output.success || output.accepted_keyframe));
-            std::optional<core::MapOdometryCorrection> correction;
             {
                 // Install correction and its observation as one small snapshot.
                 std::lock_guard<std::mutex> status_lock(status_mutex_);
-                correction = realtime_odometry_.updateCorrection(
+                realtime_odometry_.updateCorrection(
                     static_cast<int64_t>(odom_msg->header.stamp.toNSec()),
                     odom_msg->header.frame_id, odom_msg->child_frame_id,
                     frame.T_world_lidar, output.T_world_lidar,
                     live_authorized && frame.pose_valid);
+                if (output.mapping_block_reason == core::MappingBlockReason::OdometryDiverged) {
+                    // This is an explicit raw-input failure, not an ordinary
+                    // geometric observation rejection. Keep the decision and
+                    // the live projection in one status snapshot so neither
+                    // output can use the failed LIO pose after this frame.
+                    realtime_odometry_.invalidateForOdometryDivergence(
+                        static_cast<int64_t>(odom_msg->header.stamp.toNSec()));
+                }
                 last_backend_status_ = output;
                 last_backend_status_.cloud_body.reset();
                 last_backend_status_.cloud_world.reset();
                 observation_stamp_ = cloud_msg->header.stamp.toSec();
-            }
-            if (correction) {
-                publishCorrection(*correction);
             }
             const bool backend_authorized = live_authorized && frame.pose_valid;
             const double backend_source_age_s =
@@ -391,10 +395,17 @@ class N3MappingNoeticNode {
         }
         const char* reason = core::realtimeOdometryReasonName(diagnostic.reason);
         bool estimate_available = false;
+        // A prior trusted correction makes this a live estimate attempt even
+        // when projection rejects the raw input before Odometry publication.
+        realtime.estimate_attempted = diagnostic.correction_stamp_nsec > 0;
         if (output) {
             estimate_available = publishOdometry(output->pose, odom_msg->header, *odom_msg);
             if (!estimate_available) {
                 reason = "invalid_twist_or_body_frame";
+            }
+            if (estimate_available) {
+                realtime.estimate_stamp = odom_msg->header.stamp.toSec();
+                publishLiveTransform(output->pose, odom_msg->header);
             }
         }
         if (diagnostic.reason != core::RealtimeOdometryReason::DuplicateInput &&
@@ -594,23 +605,31 @@ class N3MappingNoeticNode {
         return true;
     }
 
-    void publishCorrection(const core::MapOdometryCorrection& correction)
+    void publishLiveTransform(const Eigen::Isometry3d& pose,
+                              const std_msgs::Header& header)
     {
-        ros::Time stamp;
-        stamp.fromNSec(correction.stamp_nsec);
+        const ros::Time& stamp = header.stamp;
+        if (stamp.isZero()) {
+            ROS_WARN_THROTTLE(2.0, "Skip map->%s TF with zero live source stamp",
+                              config_.body_frame.c_str());
+            return;
+        }
         if (!last_tf_stamp_.isZero() && stamp <= last_tf_stamp_) {
+            ROS_WARN_THROTTLE(2.0,
+                              "Skip non-increasing live map->%s TF stamp: current=%.6f last=%.6f",
+                              config_.body_frame.c_str(), stamp.toSec(),
+                              last_tf_stamp_.toSec());
             return;
         }
         geometry_msgs::TransformStamped tf;
         tf.header.frame_id = config_.world_frame;
         tf.header.stamp = stamp;
-        tf.child_frame_id = correction.odom_frame;
-        const auto pose = makePose(correction.map_to_odom);
-        tf.transform.translation.x = pose.position.x;
-        tf.transform.translation.y = pose.position.y;
-        tf.transform.translation.z = pose.position.z;
-        tf.transform.rotation = pose.orientation;
-        // The upstream odometry owns odom -> body. Never give body two TF parents.
+        tf.child_frame_id = config_.body_frame;
+        const auto transform = makePose(pose);
+        tf.transform.translation.x = transform.position.x;
+        tf.transform.translation.y = transform.position.y;
+        tf.transform.translation.z = transform.position.z;
+        tf.transform.rotation = transform.orientation;
         tf_broadcaster_.sendTransform(tf);
         last_tf_stamp_ = stamp;
     }

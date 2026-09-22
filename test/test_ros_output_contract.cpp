@@ -130,6 +130,7 @@ TEST(RosOutputContract, RealtimeStampNeverRefreshesObservationOrCorrectionTime) 
     RealtimeLocalizationStatus realtime;
     realtime.observation_stamp = 1.2;
     realtime.correction_stamp = 1.0;
+    realtime.estimate_stamp = 62.0;
     realtime.estimate_available = true;
     Json::Value json;
     std::istringstream stream(localizationStatusJson(
@@ -139,13 +140,36 @@ TEST(RosOutputContract, RealtimeStampNeverRefreshesObservationOrCorrectionTime) 
     EXPECT_DOUBLE_EQ(json["stamp"].asDouble(), 62.0);
     EXPECT_DOUBLE_EQ(json["observation_stamp"].asDouble(), 1.2);
     EXPECT_DOUBLE_EQ(json["correction_stamp"].asDouble(), 1.0);
+    realtime.estimate_attempted = true;
     realtime.estimate_available = false;
+    realtime.estimate_stamp = 0.0;
     realtime.input_reason = "invalid_input_pose";
     std::istringstream invalid(localizationStatusJson(
         CoreRunMode::LOCALIZATION, output, 62.1, "map", &realtime));
     invalid >> json;
     EXPECT_EQ(json["state"], "error");
     EXPECT_EQ(json["reason"], "invalid_input_pose");
+    EXPECT_DOUBLE_EQ(json["stamp"].asDouble(), 0.0);
+}
+
+TEST(RosOutputContract, BackendLossKeepsLastObservationAndCorrectionStamps) {
+    core::BackendOutput output;
+    output.relocalization_state = RelocalizationState::RECENTLY_LOST;
+    output.pose_source = PoseSource::ODOM_PREDICTED;
+    RealtimeLocalizationStatus realtime;
+    realtime.observation_stamp = 2.0;
+    realtime.correction_stamp = 1.0;
+    realtime.estimate_attempted = false;
+    realtime.estimate_available = false;
+
+    Json::Value json;
+    std::istringstream stream(localizationStatusJson(
+        CoreRunMode::LOCALIZATION, output, 2.0, "map", &realtime));
+    stream >> json;
+    EXPECT_EQ(json["state"], "degraded");
+    EXPECT_DOUBLE_EQ(json["stamp"].asDouble(), 0.0);
+    EXPECT_DOUBLE_EQ(json["observation_stamp"].asDouble(), 2.0);
+    EXPECT_DOUBLE_EQ(json["correction_stamp"].asDouble(), 1.0);
 }
 
 TEST(RosOutputContract, RelocalizationCostsAreOptionalFiniteAndDoNotChangeState) {

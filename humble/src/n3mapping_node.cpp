@@ -666,8 +666,14 @@ class N3MappingNode : public rclcpp::Node
             const auto authority_started = performance_enabled
               ? PerformanceClock::now()
               : PerformanceClock::time_point{};
+            const bool backend_output_publishable =
+              output.success || output.accepted_keyframe ||
+              run_mode_ == CoreRunMode::LOCALIZATION;
             const auto publication =
-              publishRelocalizationOutput(header, output);
+              publishRelocalizationOutput(
+                header, output,
+                odom_msg.get(), backend_output_publishable,
+                performance_enabled ? &performance_event : nullptr);
             if (performance_enabled) {
                 performance_event.authority_publish_ms =
                   elapsed_ms(authority_started);
@@ -682,10 +688,9 @@ class N3MappingNode : public rclcpp::Node
                     const auto pose_publish_started = performance_enabled
                       ? PerformanceClock::now()
                       : PerformanceClock::time_point{};
-                    publishOdometry(output.T_world_lidar, header, *odom_msg);
                     publishPath(header, &output.T_world_lidar);
                     if (performance_enabled) {
-                        performance_event.odometry_path_publish_ms =
+                        performance_event.odometry_path_publish_ms +=
                           elapsed_ms(pose_publish_started);
                     }
                 }
@@ -742,7 +747,10 @@ class N3MappingNode : public rclcpp::Node
     }
 
     RelocalizationPublicationPlan publishRelocalizationOutput(
-      const std_msgs::msg::Header& header, core::BackendOutput& output)
+      const std_msgs::msg::Header& header, core::BackendOutput& output,
+      const nav_msgs::msg::Odometry* odom_input = nullptr,
+      bool odometry_allowed = true,
+      RuntimePerformanceDebugEvent* performance_event = nullptr)
     {
         const bool localization_mode =
           run_mode_ == CoreRunMode::LOCALIZATION;
@@ -754,9 +762,47 @@ class N3MappingNode : public rclcpp::Node
                  : RelocalizationOutputMode::OTHER);
         const auto publication =
           relocalization_output_authority_.process(output_mode, output);
+        RealtimeLocalizationStatus realtime;
+        RealtimeLocalizationStatus* realtime_status = nullptr;
+        if (odom_input) {
+            const double source_stamp = rclcpp::Time(header.stamp).seconds();
+            const bool valid_source_stamp = std::isfinite(source_stamp) && source_stamp > 0.0;
+            if (valid_source_stamp) {
+                last_observation_stamp_ = source_stamp;
+            }
+            const bool correction_accepted =
+              localization_mode
+                ? hasAuthoritativeRelocalizationInitializationPose(
+                    output.relocalization_state, output.pose_source)
+                : (output.success || output.accepted_keyframe);
+            if (correction_accepted && valid_source_stamp) {
+                last_correction_stamp_ = source_stamp;
+            }
+            realtime.observation_stamp = last_observation_stamp_;
+            realtime.correction_stamp = last_correction_stamp_;
+            realtime_status = &realtime;
+            if (odometry_allowed && publication.publish_global_pose && valid_source_stamp) {
+                const auto odometry_started = std::chrono::steady_clock::now();
+                realtime.estimate_attempted = true;
+                realtime.estimate_available = publishOdometry(
+                    output.T_world_lidar, header, *odom_input);
+                if (!realtime.estimate_available) {
+                    realtime.input_reason = "invalid_twist_or_body_frame";
+                } else {
+                    realtime.estimate_stamp = source_stamp;
+                }
+                if (performance_event) {
+                    performance_event->odometry_path_publish_ms =
+                      std::chrono::duration<double, std::milli>(
+                        std::chrono::steady_clock::now() - odometry_started)
+                        .count();
+                }
+            }
+        }
         std_msgs::msg::String status;
         status.data = localizationStatusJson(
-            run_mode_, output, rclcpp::Time(header.stamp).seconds(), config_.world_frame);
+            run_mode_, output, rclcpp::Time(header.stamp).seconds(),
+            config_.world_frame, realtime_status);
         localization_status_pub_->publish(status);
 
         if (run_mode_ == CoreRunMode::MAP_EXTENSION &&
@@ -934,7 +980,7 @@ class N3MappingNode : public rclcpp::Node
         return out;
     }
 
-    void publishOdometry(const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header,
+    bool publishOdometry(const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header,
                          const nav_msgs::msg::Odometry& input)
     {
         nav_msgs::msg::Odometry odom_msg;
@@ -955,7 +1001,7 @@ class N3MappingNode : public rclcpp::Node
         if (!forwardOdometryTwist(input, input_linear_velocity_frame_, &odom_msg)) {
             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
                 "Odometry suppressed: invalid twist or mismatched body frame");
-            return;
+            return false;
         }
         odom_pub_->publish(odom_msg);
 
@@ -971,7 +1017,9 @@ class N3MappingNode : public rclcpp::Node
                                  config_.body_frame.c_str(),
                                  tf_stamp.seconds(),
                                  last_tf_stamp_->seconds());
-            return;
+            // Odometry was already published; only this duplicate TF sample
+            // is suppressed.
+            return true;
         }
 
         geometry_msgs::msg::TransformStamped tf;
@@ -986,6 +1034,7 @@ class N3MappingNode : public rclcpp::Node
         tf.transform.rotation = odom_msg.pose.pose.orientation;
         tf_broadcaster_->sendTransform(tf);
         last_tf_stamp_ = tf_stamp;
+        return true;
     }
 
     void publishLegacyRelocalizationLock(std::uint64_t lock_epoch)
@@ -1619,6 +1668,8 @@ class N3MappingNode : public rclcpp::Node
     std::vector<geometry_msgs::msg::PoseStamped> localization_path_; // 定位模式累积轨迹
     std::vector<std::pair<int64_t, int64_t>> loop_marker_history_;
     std::optional<rclcpp::Time> last_tf_stamp_;
+    double last_observation_stamp_ = 0.0;
+    double last_correction_stamp_ = 0.0;
 
     // 统计
     bool odometry_divergence_reported_ = false;

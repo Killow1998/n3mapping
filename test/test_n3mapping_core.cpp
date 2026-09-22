@@ -1119,6 +1119,30 @@ TEST(RealtimeOdometry, RejectedObservationKeepsTheLastTrustedCorrection)
     EXPECT_EQ(projected->correction_stamp_nsec, 1150000000);
 }
 
+TEST(RealtimeOdometry, LatchedRawDivergenceStopsPoseAndScanProjection)
+{
+    const auto pose = Eigen::Isometry3d::Identity();
+    core::RealtimeOdometry live;
+    ASSERT_TRUE(live.updateCorrection(
+        1000000000, "odom", "body", pose, pose, true));
+    ASSERT_TRUE(live.project(1100000000, 1100000000,
+                             "odom", "body", pose));
+
+    live.invalidateForOdometryDivergence(1200000000);
+    core::RealtimeOdometryDiagnostic diagnostic;
+    EXPECT_FALSE(live.project(1300000000, 1300000000,
+                              "odom", "body", pose, true, &diagnostic));
+    EXPECT_EQ(diagnostic.reason, core::RealtimeOdometryReason::OdometryDiverged);
+    EXPECT_FALSE(live.projectScan(1300000000, 1300000000,
+                                  "odom", "body", pose));
+    // A later correction cannot silently re-enable the latched raw input.
+    EXPECT_FALSE(live.updateCorrection(
+        1400000000, "odom", "body", pose, pose, true));
+    EXPECT_FALSE(live.project(1500000000, 1500000000,
+                              "odom", "body", pose, true, &diagnostic));
+    EXPECT_EQ(diagnostic.reason, core::RealtimeOdometryReason::OdometryDiverged);
+}
+
 TEST(RealtimeOdometry, ClockAndFrameDiscontinuitiesCannotReviveOldCorrection)
 {
     const auto pose = Eigen::Isometry3d::Identity();

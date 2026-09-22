@@ -68,8 +68,12 @@ bool forwardOdometryTwist(const Odometry& input,
 }
 
 struct RealtimeLocalizationStatus {
+    double estimate_stamp = 0.0;
     double observation_stamp = 0.0;
     double correction_stamp = 0.0;
+    // True only when this input frame requested an Odometry estimate. A
+    // lost/initializing backend may publish status without attempting one.
+    bool estimate_attempted = false;
     bool estimate_available = false;
     std::string input_reason;
 };

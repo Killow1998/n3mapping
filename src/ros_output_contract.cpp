@@ -47,14 +47,20 @@ std::string localizationStatusJson(CoreRunMode mode,
         reason = "localization_lost";
     }
 
-    if (realtime && !realtime->estimate_available && realtime->correction_stamp > 0.0) {
+    if (realtime && realtime->estimate_attempted &&
+        !realtime->estimate_available) {
         state = "error";
-        reason = realtime->input_reason.c_str();
+        reason = realtime->input_reason.empty()
+            ? "odometry_not_published"
+            : realtime->input_reason.c_str();
     }
     Json::Value status(Json::objectValue);
     status["mode"] = coreRunModeName(mode);
     status["state"] = state;
-    status["stamp"] = std::isfinite(stamp) ? stamp : 0.0;
+    status["stamp"] = realtime
+        ? (std::isfinite(realtime->estimate_stamp) && realtime->estimate_stamp > 0.0
+            ? realtime->estimate_stamp : 0.0)
+        : (std::isfinite(stamp) ? stamp : 0.0);
     status["observation_stamp"] = realtime ? realtime->observation_stamp : status["stamp"].asDouble();
     status["correction_stamp"] = realtime ? realtime->correction_stamp :
         (std::string(state) == "tracking" ? status["stamp"].asDouble() : 0.0);
