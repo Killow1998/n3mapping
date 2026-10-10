@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -67,6 +69,27 @@ bool forwardOdometryTwist(const Odometry& input,
     return true;
 }
 
+struct ProjectionMetadata {
+    bool available = true;
+    std::string kind;
+    std::string session_id;
+    uint64_t generation = 0;
+    uint64_t basis_revision = 0;
+    std::string world_frame;
+    std::string source_frame;
+    std::string body_frame;
+    uint64_t odom_stamp_nsec = 0;
+    uint64_t cloud_stamp_nsec = 0;
+    std::string cloud_frame;
+    Eigen::Isometry3d map_from_source = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d source_from_body = Eigen::Isometry3d::Identity();
+};
+
+// Adds a self-contained association without changing scalar clocks. Invalid
+// metadata returns empty, never an untagged scalar masquerading as a cloud event.
+std::string appendProjectionMetadata(const std::string& scalar_status,
+                                     const ProjectionMetadata& projection);
+
 struct RealtimeLocalizationStatus {
     double estimate_stamp = 0.0;
     double observation_stamp = 0.0;
@@ -76,6 +99,7 @@ struct RealtimeLocalizationStatus {
     bool estimate_attempted = false;
     bool estimate_available = false;
     std::string input_reason;
+    std::optional<ProjectionMetadata> projection;
 };
 
 std::string localizationStatusJson(CoreRunMode mode,

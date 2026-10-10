@@ -1,9 +1,57 @@
 #include "n3mapping/ros_output_contract.h"
-#include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/core/run_mode.h"
 
 #include <json/json.h>
 
 namespace n3mapping {
+
+std::string appendProjectionMetadata(const std::string& scalar_status,
+                                     const ProjectionMetadata& projection) {
+    Json::Value status;
+    Json::Reader reader;
+    if (!reader.parse(scalar_status, status) || !status.isObject() ||
+        (projection.kind != "odom" && projection.kind != "cloud") ||
+        projection.session_id.empty() ||
+        (projection.available && (projection.basis_revision == 0 ||
+        projection.odom_stamp_nsec == 0 || projection.world_frame.empty() ||
+        projection.source_frame.empty() || projection.body_frame.empty() ||
+        !isFiniteRigidPose(projection.map_from_source) ||
+        !isFiniteRigidPose(projection.source_from_body))) ||
+        (projection.kind == "cloud" &&
+         (!projection.available || projection.cloud_stamp_nsec == 0 || projection.cloud_frame.empty()))) {
+        return {};
+    }
+    auto& value = status["projection"];
+    value = Json::Value(Json::objectValue);
+    value["schema_version"] = 1;
+    value["kind"] = projection.kind;
+    value["available"] = projection.available;
+    value["session_id"] = projection.session_id;
+    value["generation"] = Json::UInt64(projection.generation);
+    value["basis_revision"] = Json::UInt64(projection.basis_revision);
+    value["world_frame"] = projection.world_frame;
+    value["source_frame"] = projection.source_frame;
+    value["body_frame"] = projection.body_frame;
+    value["odom_stamp_nsec"] = Json::UInt64(projection.odom_stamp_nsec);
+    if (projection.kind == "cloud") {
+        value["cloud_stamp_nsec"] = Json::UInt64(projection.cloud_stamp_nsec);
+        value["cloud_frame"] = projection.cloud_frame;
+    }
+    const auto transform = [](const Eigen::Isometry3d& pose) {
+        Json::Value result(Json::objectValue);
+        for (int i = 0; i < 3; ++i) result["translation"].append(pose.translation()[i]);
+        const Eigen::Quaterniond q(pose.linear());
+        for (int i = 0; i < 4; ++i) result["quaternion_xyzw"].append(q.coeffs()[i]);
+        return result;
+    };
+    if (projection.available) {
+        value["map_from_source"] = transform(projection.map_from_source);
+        value["source_from_body"] = transform(projection.source_from_body);
+    }
+    Json::StreamWriterBuilder writer;
+    writer["indentation"] = "";
+    return Json::writeString(writer, status);
+}
 
 std::string localizationStatusJson(CoreRunMode mode,
                                    const core::BackendOutput& output,
@@ -118,7 +166,9 @@ std::string localizationStatusJson(CoreRunMode mode,
     }
     Json::StreamWriterBuilder writer;
     writer["indentation"] = "";
-    return Json::writeString(writer, status);
+    const std::string scalar = Json::writeString(writer, status);
+    return realtime && realtime->projection
+        ? appendProjectionMetadata(scalar, *realtime->projection) : scalar;
 }
 
 }  // namespace n3mapping

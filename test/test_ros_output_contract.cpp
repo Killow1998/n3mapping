@@ -11,7 +11,8 @@ using Odometry = nav_msgs::msg::Odometry;
 using Odometry = nav_msgs::Odometry;
 #endif
 
-#include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/core/run_mode.h"
+#include "n3mapping/core/realtime_odometry.h"
 #include "n3mapping/ros_output_contract.h"
 
 namespace n3mapping {
@@ -218,6 +219,52 @@ TEST(RosOutputContract, TrackingCostsDoNotRequireRelocalizationOrChangePoseAutho
     cost.loaded_map_target_cache_miss = true;
     EXPECT_FALSE(status(output)["tracking_performance"]["target_cache_hit"].asBool());
     EXPECT_TRUE(status(output)["tracking_performance"]["target_cache_miss"].asBool());
+}
+
+TEST(RosOutputContract, UnavailableAssociationNeverInventsTransformOrRefreshesScalar) {
+    ProjectionMetadata metadata;
+    metadata.kind = "odom";
+    metadata.session_id = "session-a";
+    metadata.available = false;
+    metadata.generation = 2;
+    metadata.odom_stamp_nsec = 100;
+    Json::Value json;
+    Json::Reader reader;
+    ASSERT_TRUE(reader.parse(appendProjectionMetadata("{\"stamp\":0,\"state\":\"error\"}", metadata), json));
+    EXPECT_EQ(json["stamp"].asDouble(), 0);
+    EXPECT_FALSE(json["projection"]["available"].asBool());
+    EXPECT_EQ(json["projection"]["generation"].asUInt64(), 2U);
+    EXPECT_FALSE(json["projection"].isMember("map_from_source"));
+    EXPECT_FALSE(json["projection"].isMember("source_from_body"));
+}
+
+TEST(RosOutputContract, UnpublishableInputCannotUnlockLatchedDivergence) {
+    core::RealtimeOdometry projector;
+    const auto identity = Eigen::Isometry3d::Identity();
+    ASSERT_TRUE(projector.updateCorrection(90, "continuous", "body", identity, identity, true));
+    projector.invalidateForOdometryDivergence(100);
+    projector.invalidateUnpublishableInput(101);
+    EXPECT_FALSE(projector.updateCorrection(102, "continuous", "body", identity, identity, true));
+    EXPECT_FALSE(projector.projectScan(103, 103, "continuous", "body", identity));
+}
+
+TEST(RosOutputContract, InvalidCloudMetadataCannotRepublishAnOdomScalar) {
+    ProjectionMetadata invalid;
+    invalid.kind = "cloud";
+    invalid.session_id = "session-a";
+    invalid.basis_revision = 1;
+    invalid.odom_stamp_nsec = 100;
+    invalid.cloud_stamp_nsec = 101;
+    invalid.world_frame = "map";
+    invalid.source_frame = "continuous";
+    invalid.body_frame = "body";
+    invalid.cloud_frame = "body";
+    invalid.map_from_source.translation().x() = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_TRUE(appendProjectionMetadata(
+      "{\"stamp\":100,\"projection\":{\"kind\":\"odom\"}}", invalid).empty());
+    invalid.map_from_source = Eigen::Isometry3d::Identity();
+    invalid.cloud_stamp_nsec = 0;
+    EXPECT_TRUE(appendProjectionMetadata("{\"stamp\":100}", invalid).empty());
 }
 
 }  // namespace

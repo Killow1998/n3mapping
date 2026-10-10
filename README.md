@@ -172,22 +172,64 @@ the thin Noetic/Humble adapters, not the backend core.
 
 The Noetic wrapper publishes live odometry on an independent input callback in
 all three run modes. The ROS-free `core::RealtimeOdometry` combines the latest
-raw pose with the latest authorized map-to-odom correction for the existing global
-output. The raw pose and asynchronous map correction remain internal to N3;
-there are no public local-odometry or map-correction topics. The independent
-Noetic output queue also forwards body clouds and transforms world clouds using
-the scan's paired odometry, never the newest callback pose. Registration cannot
-block these outputs.
+raw pose with an authorized map-to-odom correction for the existing global
+output. There are no public local-odometry or map-correction topics. Exact
+applied correction and paired-pose metadata are exposed by the existing status
+JSON contract below; their authority remains N3-owned. The independent
+Noetic cloud queue forwards body clouds and transforms world clouds using the
+scan's paired odometry, never the newest callback pose. Cloud conversion and
+publication use a different single-worker queue from raw odometry; neither runs
+under the projection lock or waits for registration.
 
-TF ownership remains `map -> upstream odom -> body`; N3 owns the first transform.
+The first valid odometry or paired scan freezes the map pose and applied
+correction stamp for that source odometry timestamp. A later correction cannot
+change that observation's geometry. The cache retains at most `sync_queue_size`
+poses; evicted observations are rejected, not reconstructed using a newer
+correction. An already-reserved in-flight cloud keeps its copied immutable basis
+after eviction unless its generation is invalidated. Approximate synchronization
+preserves the cloud's original stamp and associates the basis by its paired
+odometry stamp. Invalid input cancels
+retained bases and in-flight cloud work at its final publication check; ordinary
+geometric observation rejection still retains the trusted anchor.
+The check admits completed work; it is not an atomic transaction with ROS publish.
+
+Noetic `/localization/status` may include a `projection` object (schema version
+1). `kind=odom` accompanies the existing scalar estimate; `kind=cloud` is an
+association-only event and must not update scalar state or freshness. Cloud
+events retain the latest scalar snapshot without changing its timestamps. Every
+available record carries `session_id`, `generation`, `basis_revision`,
+`world_frame`, `source_frame`, `body_frame`, integer `odom_stamp_nsec`, and the
+finite rigid `map_from_source` and `source_from_body` transforms. Each transform
+contains `translation:[x,y,z]` and `quaternion_xyzw:[x,y,z,w]`. Cloud records also
+carry integer `cloud_stamp_nsec` and `cloud_frame` (the body-cloud frame);
+`world_frame` identifies the corresponding world-cloud output. Both clouds keep
+their original source stamp, even when approximate synchronization paired them
+with a different odometry stamp. The full paired pose is present even if the
+independent raw-odometry subscription dropped that observation.
+
+`available=false` is an odometry invalidation record carrying session,
+generation, frames and input stamp, but no invented transform. It cancels old
+associations; a newer timestamp alone cannot restore availability. Recovery
+requires a genuinely available full-pose record backed by an authorized
+correction. Ordinary rejected backend observations do not revoke the anchor.
+Consumers must join by the exact integer stamp and declared frames, wait or drop
+unpaired inputs within their existing retention/freshness bounds, and never
+infer a correction from timestamp differences. A late cloud's frozen correction
+only converts that observation into continuous source coordinates; it must not
+roll back the current view correction selected by newer valid odometry.
+This metadata contract currently applies to the Noetic live-output path.
+
+N3 publishes the direct world-to-body TF with the same source pose as its odometry.
 A rejected observation leaves the last trusted correction unchanged. Correction
 age alone does not revoke output or imply known drift; invalid timestamps, poses
 or source frames still invalidate the estimate. Live output keeps actual input
 timestamps. Existing localization JSON separates `stamp` (current estimate),
-`observation_stamp` (last processed scan) and `correction_stamp` (last accepted
-anchor), in seconds. Quality reflects the backend observation, not a fabricated
-covariance guarantee. The independent output queue is implemented by the Noetic
-wrapper; the Humble wrapper does not yet provide that queue.
+`observation_stamp` (last processed scan) and `correction_stamp` (the anchor
+actually applied to this estimate), in seconds. A cloud-first frozen estimate
+can use an older anchor than the newest backend observation. Quality reflects
+the backend observation, not a fabricated covariance guarantee. These independent
+output queues are implemented by the Noetic wrapper; Humble still publishes
+paired backend odometry/clouds synchronously and does not provide this fast path.
 
 `test/noetic_output_smoke.py /path/to/n3mapping_node` runs the real Noetic wrapper
 against synthetic inputs on a temporary local ROS master after sourcing the ROS

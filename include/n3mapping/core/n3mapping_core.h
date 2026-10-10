@@ -11,24 +11,13 @@
 #include "n3mapping/static_start_guard.h"
 #include "n3mapping/config.h"
 #include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping/core/run_mode.h"
 #include "n3mapping/core/types.h"
 #include "n3mapping/keyframe.h"
 #include "n3mapping/loop_debug_logger.h"
 #include "n3mapping/loop_detector.h"
 
 namespace n3mapping {
-
-enum class CoreRunMode {
-    MAPPING,
-    LOCALIZATION,
-    MAP_EXTENSION,
-};
-
-CoreRunMode parseCoreRunMode(const std::string& mode);
-const char* coreRunModeName(CoreRunMode mode);
-bool coreRunModeLoadsMap(CoreRunMode mode);
-bool coreRunModeSavesMap(CoreRunMode mode);
-bool coreRunModeProcessesLoopClosures(CoreRunMode mode);
 
 struct CoreLoopClosureResult {
     bool optimized = false;
@@ -51,7 +40,12 @@ struct CoreLoopClosureResult {
 
 class N3MappingCore {
   public:
-    explicit N3MappingCore(const Config& config);
+    // Realtime consumers project their own scan at its paired source pose.
+    // Synchronous consumers (including Humble) still request the backend cloud.
+    enum class WorldCloudOutput { Enabled, Disabled };
+    explicit N3MappingCore(
+        const Config& config,
+        WorldCloudOutput world_cloud_output = WorldCloudOutput::Enabled);
     ~N3MappingCore();
 
     core::BackendOutput processMappingFrame(const core::LioFrame& frame);
@@ -113,6 +107,7 @@ class N3MappingCore {
     void appendLoopDebugOptimization(const LoopDebugOptimizationEvent& event) const;
 
     Config config_;
+    const WorldCloudOutput world_cloud_output_;
     std::unique_ptr<core::N3MappingSession> session_;
     mutable std::mutex loop_queue_mutex_;
     mutable std::mutex loop_debug_mutex_;

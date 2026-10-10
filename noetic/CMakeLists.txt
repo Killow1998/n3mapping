@@ -47,8 +47,6 @@ generate_messages(
 
 find_package(PCL REQUIRED COMPONENTS common io filters)
 find_package(Eigen3 REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_package(OpenCV REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(Protobuf REQUIRED)
@@ -138,9 +136,7 @@ add_dependencies(n3map_nav_resource_reader n3mapping_proto_headers)
 add_library(n3mapping_noetic_wrapper SHARED
   src/config_noetic.cpp
   src/conversions.cpp
-  ${N3MAPPING_ROOT}/src/ros_output_contract.cpp
 )
-target_include_directories(n3mapping_noetic_wrapper PRIVATE ${JSONCPP_INCLUDE_DIRS})
 n3mapping_guard_product_target(n3mapping_noetic_wrapper)
 target_include_directories(n3mapping_noetic_wrapper PUBLIC
   ${N3MAPPING_ROOT}/include
@@ -149,7 +145,6 @@ target_include_directories(n3mapping_noetic_wrapper PUBLIC
   ${PROTO_GEN_DIR}
 )
 target_link_libraries(n3mapping_noetic_wrapper
-  ${JSONCPP_LIBRARIES}
   n3mapping_core
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
@@ -402,12 +397,37 @@ install(FILES ${N3MAPPING_ROOT}/requirements-product-tools.txt
 )
 
 if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_realtime_odometry
+    ${N3MAPPING_ROOT}/test/test_realtime_odometry.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp)
+  if(TARGET test_realtime_odometry)
+    target_link_libraries(test_realtime_odometry ${PCL_LIBRARIES})
+  endif()
+  catkin_add_gtest(test_realtime_projection_contract
+    ${N3MAPPING_ROOT}/test/test_realtime_projection_contract.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  catkin_add_gtest(test_noetic_live_output_queues
+    ${N3MAPPING_ROOT}/test/test_noetic_live_output_queues.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_noetic_live_output_queues)
+    target_link_libraries(test_noetic_live_output_queues ${catkin_LIBRARIES})
+  endif()
   catkin_add_gtest(test_ros_output_contract
     ${N3MAPPING_ROOT}/test/test_ros_output_contract.cpp
     ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp)
   if(TARGET test_ros_output_contract)
     target_include_directories(test_ros_output_contract PRIVATE ${JSONCPP_INCLUDE_DIRS})
     target_link_libraries(test_ros_output_contract n3mapping_noetic_wrapper ${JSONCPP_LIBRARIES})
+  endif()
+
+  catkin_add_gtest(test_realtime_output
+    ${N3MAPPING_ROOT}/test/test_realtime_output.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp)
+  if(TARGET test_realtime_output)
+    target_include_directories(test_realtime_output PRIVATE ${JSONCPP_INCLUDE_DIRS})
+    target_link_libraries(test_realtime_output n3mapping_core ${JSONCPP_LIBRARIES})
   endif()
   include(${N3MAPPING_ROOT}/cmake/n3mapping_checks.cmake)
   n3mapping_add_static_checks()

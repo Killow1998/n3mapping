@@ -45,11 +45,9 @@
 
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/core/latest_frame_slot.h"
-#include "n3mapping/core/realtime_odometry.h"
-#include "n3mapping/odometry_pose_validation.h"
+#include "n3mapping/core/realtime_output.h"
 #include "n3mapping/global_map_cache.h"
 #include "n3mapping/product_build_identity.h"
-#include "n3mapping/relocalization_output_authority.h"
 #include "n3mapping/ros_output_contract.h"
 #include "n3mapping_noetic/config_noetic.h"
 #include "n3mapping_noetic/conversions.h"
@@ -89,7 +87,10 @@ class N3MappingNoeticNode {
         ROS_INFO("%s", config_.toString().c_str());
 
         run_mode_ = parseCoreRunMode(config_.mode);
-        core_ = std::make_unique<N3MappingCore>(config_);
+        core_ = std::make_unique<N3MappingCore>(
+            config_, N3MappingCore::WorldCloudOutput::Disabled);
+        realtime_output_ = std::make_unique<core::RealtimeOutput>(
+            run_mode_, config_.world_frame, std::max(1, config_.sync_queue_size));
         core_->setExternalDenseTrajectoryRecordingEnabled(
             run_mode_ == CoreRunMode::MAPPING);
         if (coreRunModeSavesMap(run_mode_)) {
@@ -113,6 +114,7 @@ class N3MappingNoeticNode {
     void spin()
     {
         live_odom_spinner_->start();
+        live_cloud_spinner_->start();
         if (run_mode_ != CoreRunMode::LOCALIZATION) {
             ros::spin();
             return;
@@ -174,7 +176,8 @@ class N3MappingNoeticNode {
             ros::VoidPtr(), &live_odom_queue_);
         live_odom_sub_ = nh_.subscribe(live_options);
         ros::NodeHandle live_nh(nh_);
-        live_nh.setCallbackQueue(&live_odom_queue_);
+        // Full cloud conversion/publication must not occupy the raw odom queue.
+        live_nh.setCallbackQueue(&live_cloud_queue_);
         live_cloud_sub_.subscribe(live_nh, config_.cloud_topic, sync_queue_size);
         live_paired_odom_sub_.subscribe(live_nh, config_.odom_topic, sync_queue_size);
         if (product_profile_v1_) {
@@ -191,6 +194,7 @@ class N3MappingNoeticNode {
                 &N3MappingNoeticNode::liveCloudCallback, this, _1, _2));
         }
         live_odom_spinner_ = std::make_unique<ros::AsyncSpinner>(1, &live_odom_queue_);
+        live_cloud_spinner_ = std::make_unique<ros::AsyncSpinner>(1, &live_cloud_queue_);
         localization_status_pub_ = nh_.advertise<std_msgs::String>(output_status_topic_, 1, false);
         path_pub_ = nh_.advertise<nav_msgs::Path>(config_.output_path_topic, 10);
         cloud_body_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(config_.output_cloud_body_topic, 10);
@@ -253,41 +257,13 @@ class N3MappingNoeticNode {
             auto output = core_->processFrame(run_mode_, frame);
             const double backend_seconds = std::chrono::duration<double>(
                 std::chrono::steady_clock::now() - backend_started).count();
-            const bool localization_mode = run_mode_ == CoreRunMode::LOCALIZATION;
-            const auto output_mode =
-                localization_mode
-                    ? RelocalizationOutputMode::LOCALIZATION
-                    : (run_mode_ == CoreRunMode::MAP_EXTENSION
-                           ? RelocalizationOutputMode::MAP_EXTENSION
-                           : RelocalizationOutputMode::OTHER);
-            const auto publication =
-                relocalization_output_authority_.process(output_mode, output);
-            const bool live_authorized = publication.publish_global_pose &&
-                (localization_mode ? hasAuthoritativeRelocalizationInitializationPose(
-                    output.relocalization_state, output.pose_source) :
-                    (output.success || output.accepted_keyframe));
-            {
-                // Install correction and its observation as one small snapshot.
-                std::lock_guard<std::mutex> status_lock(status_mutex_);
-                realtime_odometry_.updateCorrection(
-                    static_cast<int64_t>(odom_msg->header.stamp.toNSec()),
-                    odom_msg->header.frame_id, odom_msg->child_frame_id,
-                    frame.T_world_lidar, output.T_world_lidar,
-                    live_authorized && frame.pose_valid);
-                if (output.mapping_block_reason == core::MappingBlockReason::OdometryDiverged) {
-                    // This is an explicit raw-input failure, not an ordinary
-                    // geometric observation rejection. Keep the decision and
-                    // the live projection in one status snapshot so neither
-                    // output can use the failed LIO pose after this frame.
-                    realtime_odometry_.invalidateForOdometryDivergence(
-                        static_cast<int64_t>(odom_msg->header.stamp.toNSec()));
-                }
-                last_backend_status_ = output;
-                last_backend_status_.cloud_body.reset();
-                last_backend_status_.cloud_world.reset();
-                observation_stamp_ = cloud_msg->header.stamp.toSec();
-            }
-            const bool backend_authorized = live_authorized && frame.pose_valid;
+            const auto committed = realtime_output_->acceptBackend(
+                {static_cast<int64_t>(odom_msg->header.stamp.toNSec()),
+                 frame.source_frame_id, odom_msg->child_frame_id,
+                 frame.T_world_lidar, frame.pose_valid},
+                cloud_msg->header.stamp.toSec(), output);
+            const auto& publication = committed.plan;
+            const bool backend_authorized = committed.live_authorized;
             const double backend_source_age_s =
                 (ros::Time::now() - odom_msg->header.stamp).toSec();
             const auto backend_completed = std::chrono::steady_clock::now();
@@ -373,49 +349,25 @@ class N3MappingNoeticNode {
             ? std::chrono::duration<double>(received - *last_live_odom_receive_).count()
             : 0.0;
         last_live_odom_receive_ = received;
-        Eigen::Isometry3d raw_pose;
-        const auto& pose = odom_msg->pose.pose;
-        const bool pose_valid = tryMakeRigidOdometryPose(
-            pose.position.x, pose.position.y, pose.position.z,
-            pose.orientation.x, pose.orientation.y, pose.orientation.z,
-            pose.orientation.w, &raw_pose);
-        core::RealtimeOdometryDiagnostic diagnostic;
-        core::BackendOutput backend_status;
-        RealtimeLocalizationStatus realtime;
-        std::optional<core::RealtimeOdometryPose> output;
-        {
-            std::lock_guard<std::mutex> lock(status_mutex_);
-            output = realtime_odometry_.project(
-                static_cast<int64_t>(odom_msg->header.stamp.toNSec()),
-                static_cast<int64_t>(ros::Time::now().toNSec()),
-                odom_msg->header.frame_id, odom_msg->child_frame_id,
-                raw_pose, pose_valid, &diagnostic);
-            backend_status = last_backend_status_;
-            realtime.observation_stamp = observation_stamp_;
+        nav_msgs::Odometry odometry;
+        odometry.header = odom_msg->header;
+        odometry.header.frame_id = config_.world_frame;
+        odometry.child_frame_id = config_.body_frame;
+        const bool twist_publishable = forwardOdometryTwist(
+            *odom_msg, input_linear_velocity_frame_, &odometry);
+        const auto source = toCoreOdometrySource(*odom_msg);
+        const auto emission = realtime_output_->observeOdometry(
+            source, static_cast<int64_t>(ros::Time::now().toNSec()), twist_publishable);
+        const auto& diagnostic = emission.diagnostic;
+        const auto& reason = emission.reason;
+        if (emission.pose) {
+            odometry.pose.pose = makePose(emission.pose->pose);
+            odom_pub_.publish(odometry);
+            publishLiveTransform(emission.pose->pose, odom_msg->header);
         }
-        const char* reason = core::realtimeOdometryReasonName(diagnostic.reason);
-        bool estimate_available = false;
-        // A prior trusted correction makes this a live estimate attempt even
-        // when projection rejects the raw input before Odometry publication.
-        realtime.estimate_attempted = diagnostic.correction_stamp_nsec > 0;
-        if (output) {
-            estimate_available = publishOdometry(output->pose, odom_msg->header, *odom_msg);
-            if (!estimate_available) {
-                reason = "invalid_twist_or_body_frame";
-            }
-            if (estimate_available) {
-                realtime.estimate_stamp = odom_msg->header.stamp.toSec();
-                publishLiveTransform(output->pose, odom_msg->header);
-            }
-        }
-        if (diagnostic.reason != core::RealtimeOdometryReason::DuplicateInput &&
-            diagnostic.reason != core::RealtimeOdometryReason::InputBeforeCorrection) {
-            realtime.correction_stamp = diagnostic.correction_stamp_nsec * 1e-9;
-            realtime.estimate_available = estimate_available;
-            realtime.input_reason = reason;
+        if (!emission.status_json.empty()) {
             std_msgs::String status;
-            status.data = localizationStatusJson(run_mode_, backend_status,
-                odom_msg->header.stamp.toSec(), config_.world_frame, &realtime);
+            status.data = emission.status_json;
             localization_status_pub_.publish(status);
         }
         if (last_logged_live_reason_ != reason ||
@@ -590,21 +542,6 @@ class N3MappingNoeticNode {
         ROS_INFO("Debug global map saved: %s (%zu points)", global_map_file.c_str(), cloud->size());
     }
 
-    bool publishOdometry(const Eigen::Isometry3d& pose, const std_msgs::Header& header,
-                         const nav_msgs::Odometry& input)
-    {
-        nav_msgs::Odometry odom_msg;
-        odom_msg.header = header;
-        odom_msg.header.frame_id = config_.world_frame;
-        odom_msg.child_frame_id = config_.body_frame;
-        odom_msg.pose.pose = makePose(pose);
-        if (!forwardOdometryTwist(input, input_linear_velocity_frame_, &odom_msg)) {
-            return false;
-        }
-        odom_pub_.publish(odom_msg);
-        return true;
-    }
-
     void publishLiveTransform(const Eigen::Isometry3d& pose,
                               const std_msgs::Header& header)
     {
@@ -679,22 +616,22 @@ class N3MappingNoeticNode {
         if (cloud->header.frame_id != odom->child_frame_id ||
             odom->child_frame_id != config_.body_frame) return;
         cloud_body_pub_.publish(cloud);
-        if (cloud_world_pub_.getNumSubscribers() == 0) return;
-        const auto& p = odom->pose.pose;
-        Eigen::Isometry3d raw;
-        if (!tryMakeRigidOdometryPose(p.position.x, p.position.y, p.position.z,
-            p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w, &raw)) return;
-        const auto projected = realtime_odometry_.projectScan(
-            odom->header.stamp.toNSec(), ros::Time::now().toNSec(),
-            odom->header.frame_id, odom->child_frame_id, raw);
+        const auto projected = realtime_output_->observeCloud(
+            toCoreOdometrySource(*odom), ros::Time::now().toNSec(),
+            cloud->header.stamp.toNSec(), cloud->header.frame_id);
         if (!projected) return;
+        std_msgs::String association;
+        association.data = projected->status_json;
+        localization_status_pub_.publish(association);
+        if (cloud_world_pub_.getNumSubscribers() == 0) return;
         pcl::PointCloud<pcl::PointXYZI> body, world;
         pcl::fromROSMsg(*cloud, body);
-        pcl::transformPointCloud(body, world, projected->pose.matrix());
+        pcl::transformPointCloud(body, world, projected->projection.pose.matrix());
         sensor_msgs::PointCloud2 message;
         pcl::toROSMsg(world, message);
         message.header = cloud->header;
         message.header.frame_id = config_.world_frame;
+        if (!realtime_output_->isCurrent(*projected)) return;
         cloud_world_pub_.publish(message);
     }
 
@@ -1026,7 +963,10 @@ class N3MappingNoeticNode {
         if (shutdown_called_) return;
         shutdown_called_ = true;
         if (live_odom_spinner_) live_odom_spinner_->stop();
+        if (live_cloud_spinner_) live_cloud_spinner_->stop();
         live_odom_sub_.shutdown();
+        live_cloud_sub_.unsubscribe();
+        live_paired_odom_sub_.unsubscribe();
         if (coreRunModeSavesMap(run_mode_)) {
             std::string error;
             std::string warning;
@@ -1067,23 +1007,22 @@ class N3MappingNoeticNode {
     bool product_profile_v1_ = false;
     std::unique_ptr<N3MappingCore> core_;
     std::mutex data_mutex_;
-    core::RealtimeOdometry realtime_odometry_;
+    std::unique_ptr<core::RealtimeOutput> realtime_output_;
     std::optional<bool> last_logged_backend_authorized_;
-    std::mutex status_mutex_;
-    core::BackendOutput last_backend_status_;
-    double observation_stamp_ = 0.0;
     ros::Time previous_backend_authorized_stamp_;
     std::optional<std::chrono::steady_clock::time_point>
         previous_backend_authorized_update_;
     std::string last_logged_live_reason_;
     std::optional<std::chrono::steady_clock::time_point> last_live_odom_receive_;
     ros::CallbackQueue live_odom_queue_;
+    ros::CallbackQueue live_cloud_queue_;
     ros::Subscriber live_odom_sub_;
     message_filters::Subscriber<sensor_msgs::PointCloud2> live_cloud_sub_;
     message_filters::Subscriber<nav_msgs::Odometry> live_paired_odom_sub_;
     std::unique_ptr<ApproxSynchronizer> live_approx_sync_;
     std::unique_ptr<ExactSynchronizer> live_exact_sync_;
     std::unique_ptr<ros::AsyncSpinner> live_odom_spinner_;
+    std::unique_ptr<ros::AsyncSpinner> live_cloud_spinner_;
     struct SynchronizedFrame {
         sensor_msgs::PointCloud2ConstPtr cloud;
         nav_msgs::OdometryConstPtr odom;
@@ -1122,7 +1061,6 @@ class N3MappingNoeticNode {
     std::size_t frame_count_ = 0;
     std::size_t keyframe_count_ = 0;
     std::size_t loop_count_ = 0;
-    RelocalizationOutputAuthority relocalization_output_authority_;
     bool shutdown_called_ = false;
 };
 

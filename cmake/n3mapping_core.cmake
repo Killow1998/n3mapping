@@ -1,8 +1,15 @@
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
+
 set(N3MAPPING_CORE_SOURCES
   ${PROTO_SRCS}
   ${N3MAPPING_ROOT}/src/config.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_loop_closure.cpp
+  ${N3MAPPING_ROOT}/src/core/run_mode.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
+  ${N3MAPPING_ROOT}/src/core/realtime_output.cpp
+  ${N3MAPPING_ROOT}/src/ros_output_contract.cpp
   ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
   ${N3MAPPING_ROOT}/src/local_map_selector.cpp
   ${N3MAPPING_ROOT}/src/submap_builder.cpp
@@ -58,6 +65,7 @@ function(n3mapping_configure_core_target target_name)
     $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
     $<INSTALL_INTERFACE:include>
   )
+  target_include_directories(${target_name} PRIVATE ${JSONCPP_INCLUDE_DIRS})
 
   target_link_libraries(${target_name}
     PUBLIC
@@ -71,5 +79,6 @@ function(n3mapping_configure_core_target target_name)
     OpenSSL::Crypto
     PRIVATE
     TBB::tbb
+    ${JSONCPP_LIBRARIES}
   )
 endfunction()

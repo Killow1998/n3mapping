@@ -2,6 +2,7 @@
 #include <array>
 #include <random>
 #include <cmath>
+#include <small_gicp/util/normal_estimation_omp.hpp>
 
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_candidate_evaluator.h"
@@ -198,6 +199,50 @@ TEST_F(PointCloudMatcherTest, PreprocessPointCloud) {
     EXPECT_GT(processed->size(), 0u);
     // 下采样后点数应该减少
     EXPECT_LT(processed->size(), cloud->size());
+}
+
+TEST_F(PointCloudMatcherTest, CompactTargetsPreserveSerialNeighborsAndFeatures) {
+    config_.gicp_downsampling_resolution = 0.1;
+    PointCloudMatcher matcher(config_);
+    const auto prepared = matcher.prepareTargetCloud(createPlaneCloud(12000));
+    auto levels = prepared.plane_levels;
+    if (prepared.has_refine_level) levels.push_back(prepared.refine_level);
+    for (const auto& level : levels) {
+        ASSERT_NE(level.cloud, nullptr);
+        ASSERT_NE(level.kdtree, nullptr);
+        EXPECT_EQ(level.cloud->points.capacity(), level.cloud->size());
+        EXPECT_EQ(level.cloud->normals.capacity(), level.cloud->size());
+        EXPECT_EQ(level.cloud->covs.capacity(), level.cloud->size());
+        PointCloudMatcher::SmallGicpKdTree serial(level.cloud);
+        for (std::size_t i = 0; i < level.cloud->size(); i += 13) {
+            std::array<std::size_t, 20> actual{}, expected{};
+            std::array<double, 20> actual_dist{}, expected_dist{};
+            const auto& point = level.cloud->point(i);
+            ASSERT_EQ(level.kdtree->knn_search(point, 20, actual.data(), actual_dist.data()),
+                      serial.knn_search(point, 20, expected.data(), expected_dist.data()));
+            EXPECT_EQ(actual, expected);
+            EXPECT_EQ(actual_dist, expected_dist);
+        }
+        auto reference = *level.cloud;
+        small_gicp::estimate_normals_covariances_omp(
+            reference, serial.kdtree, config_.gicp_num_neighbors, 1);
+        for (std::size_t i = 0; i < reference.size(); ++i) {
+            EXPECT_TRUE(reference.normal(i).isApprox(level.cloud->normal(i), 1e-12));
+            EXPECT_TRUE(reference.cov(i).isApprox(level.cloud->cov(i), 1e-12));
+        }
+    }
+}
+
+TEST_F(PointCloudMatcherTest, PreparedTargetBudgetCountsRetainedCapacity) {
+    PointCloudMatcher::PreparedTarget target;
+    auto cloud = std::make_shared<PointCloudMatcher::SmallGicpCloud>();
+    cloud->resize(10);
+    target.plane_levels.push_back({0.1, cloud, nullptr});
+    const auto small = estimatePreparedTargetMemoryBytes(target);
+    const auto capacity = cloud->covs.capacity();
+    cloud->covs.reserve(1000);
+    EXPECT_GE(estimatePreparedTargetMemoryBytes(target) - small,
+              (cloud->covs.capacity() - capacity) * sizeof(Eigen::Matrix4d));
 }
 
 // 测试空点云预处理

@@ -6,10 +6,12 @@
 #include <sensor_msgs/PointCloud2.h>
 
 #include "n3mapping/core/types.h"
+#include "n3mapping/core/realtime_output.h"
 
 namespace n3mapping {
 
 core::TimeStamp toCoreTimeStamp(const ros::Time& stamp);
+core::OdometrySource toCoreOdometrySource(const nav_msgs::Odometry& odom_msg);
 Eigen::Isometry3d odometryPoseToIsometry(const nav_msgs::Odometry& odom_msg);
 core::LioFrame toCoreLioFrame(const sensor_msgs::PointCloud2& cloud_msg,
                               const nav_msgs::Odometry& odom_msg);
