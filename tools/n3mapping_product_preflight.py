@@ -1194,8 +1194,8 @@ def validate_localization_sequence(events: Any, location: str) -> None:
             epoch=1,
             authority_count=0,
             legacy_epochs=[],
-            global_count=0,
-            world_cloud_count=0,
+            global_count=1,
+            world_cloud_count=1,
         ),
         dict(
             label="recovered_full_lock",
@@ -1216,6 +1216,15 @@ def validate_localization_sequence(events: Any, location: str) -> None:
         _expect_localization_event(
             parsed[index], f"{location}[{index}]", **specification
         )
+
+    # The probe supplies the same valid stationary raw pose throughout this
+    # sequence. Recently-lost/lost observations do not install a correction;
+    # their live geometry must retain the last trusted full-lock anchor.
+    steady = parsed[3]["observed"]["global_poses"][0]
+    for index in (4, 5):
+        pose = parsed[index]["observed"]["global_poses"][0]
+        if any(pose[key] != steady[key] for key in ("frame_id", "position", "orientation_xyzw")):
+            raise PreflightError(f"{location}[{index}] must retain the trusted live projection")
 
 
 def validate_invalid_pose_sequence(events: Any, location: str) -> None:

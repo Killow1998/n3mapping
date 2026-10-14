@@ -8,6 +8,12 @@ set(FORBIDDEN_PATTERNS
   "PointCloudMatcher"
   "MapSerializer"
   "KeyframeManager"
+  "RelocalizationOutputAuthority"
+  "core::RealtimeOdometry"
+  "localizationStatusJson("
+  "updateCorrection("
+  "last_observation_stamp_"
+  "last_correction_stamp_"
 )
 
 set(CHECK_FILES

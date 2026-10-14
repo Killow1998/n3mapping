@@ -18,6 +18,28 @@ TEST(HumbleConversionsTest, TimestampUsesNanoseconds)
     EXPECT_EQ(core_stamp.nsec, 12000000345LL);
 }
 
+TEST(HumbleConversionsTest, LiveAndBackendSourcesPreserveEpochNanosecondsAndValidity)
+{
+    nav_msgs::msg::Odometry odom;
+    odom.header.stamp.sec = 1700000000;
+    odom.header.stamp.nanosec = 1;
+    odom.header.frame_id = "continuous";
+    odom.child_frame_id = "body";
+    odom.pose.pose.orientation.w = 1.0;
+    odom.pose.pose.position.x = 5.0;
+    sensor_msgs::msg::PointCloud2 cloud;
+    const auto source = toCoreOdometrySource(odom);
+    const auto frame = toCoreLioFrame(cloud, odom);
+    EXPECT_EQ(source.stamp_nsec, 1700000000000000001LL);
+    EXPECT_EQ(source.source_frame, "continuous");
+    EXPECT_EQ(source.body_frame, "body");
+    EXPECT_TRUE(source.pose_valid);
+    EXPECT_TRUE(source.pose.matrix().isApprox(frame.T_world_lidar.matrix()));
+    odom.pose.pose.orientation.w = 0.0;
+    EXPECT_FALSE(toCoreOdometrySource(odom).pose_valid);
+    EXPECT_FALSE(toCoreLioFrame(cloud, odom).pose_valid);
+}
+
 TEST(HumbleConversionsTest, OdometryPoseConvertsToIsometry)
 {
     nav_msgs::msg::Odometry odom;
