@@ -543,6 +543,18 @@ if(BUILD_TESTING)
   target_link_libraries(test_ros_output_contract n3mapping_humble_wrapper ${JSONCPP_LIBRARIES})
   ament_target_dependencies(test_ros_output_contract nav_msgs)
 
+  ament_add_gtest(test_humble_conversions ${N3MAPPING_ROOT}/test/test_humble_conversions.cpp)
+  target_link_libraries(test_humble_conversions n3mapping_humble_wrapper)
+  ament_target_dependencies(test_humble_conversions nav_msgs sensor_msgs pcl_conversions)
+
+  ament_add_gtest(test_humble_live_output ${N3MAPPING_ROOT}/test/test_humble_live_output.cpp TIMEOUT 60)
+  n3mapping_configure_humble_node_target(test_humble_live_output)
+  target_include_directories(test_humble_live_output PRIVATE ${JSONCPP_INCLUDE_DIRS})
+  target_link_libraries(test_humble_live_output "${n3mapping_typesupport_target}" ${JSONCPP_LIBRARIES})
+
+  ament_add_gtest(test_realtime_projection_contract ${N3MAPPING_ROOT}/test/test_realtime_projection_contract.cpp)
+  target_link_libraries(test_realtime_projection_contract n3mapping_core)
+
   ament_add_gtest(test_realtime_odometry ${N3MAPPING_ROOT}/test/test_realtime_odometry.cpp)
   target_link_libraries(test_realtime_odometry ${PCL_LIBRARIES})
 

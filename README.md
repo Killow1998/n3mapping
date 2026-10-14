@@ -170,13 +170,13 @@ twist/covariance or mismatched child frames suppress output odometry/TF rather
 than publishing a fabricated zero measurement. These conversions are shared by
 the thin Noetic/Humble adapters, not the backend core.
 
-The Noetic wrapper publishes live odometry on an independent input callback in
-all three run modes. The ROS-free `core::RealtimeOdometry` combines the latest
-raw pose with an authorized map-to-odom correction for the existing global
-output. There are no public local-odometry or map-correction topics. Exact
+Both wrappers publish live odometry on an independent input callback in
+all three run modes. The ROS-free `core::RealtimeOutput` owns authorization and
+combines the latest raw pose with the last trusted map-to-odom correction for
+the existing global output. There are no public local-odometry or map-correction topics. Exact
 applied correction and paired-pose metadata are exposed by the existing status
-JSON contract below; their authority remains N3-owned. The independent
-Noetic cloud queue forwards body clouds and transforms world clouds using the
+JSON contract below; their authority remains N3-owned. Each adapter
+forwards body clouds and transforms world clouds using the
 scan's paired odometry, never the newest callback pose. Cloud conversion and
 publication use a different single-worker queue from raw odometry; neither runs
 under the projection lock or waits for registration.
@@ -193,7 +193,7 @@ retained bases and in-flight cloud work at its final publication check; ordinary
 geometric observation rejection still retains the trusted anchor.
 The check admits completed work; it is not an atomic transaction with ROS publish.
 
-Noetic `/localization/status` may include a `projection` object (schema version
+`/localization/status` in both wrappers may include a `projection` object (schema version
 1). `kind=odom` accompanies the existing scalar estimate; `kind=cloud` is an
 association-only event and must not update scalar state or freshness. Cloud
 events retain the latest scalar snapshot without changing its timestamps. Every
@@ -217,7 +217,8 @@ unpaired inputs within their existing retention/freshness bounds, and never
 infer a correction from timestamp differences. A late cloud's frozen correction
 only converts that observation into continuous source coordinates; it must not
 roll back the current view correction selected by newer valid odometry.
-This metadata contract currently applies to the Noetic live-output path.
+Body-only subscriptions still receive the association; without world-cloud
+subscribers the adapter skips full cloud conversion and transformation.
 
 N3 publishes the direct world-to-body TF with the same source pose as its odometry.
 A rejected observation leaves the last trusted correction unchanged. Correction
@@ -227,9 +228,26 @@ timestamps. Existing localization JSON separates `stamp` (current estimate),
 `observation_stamp` (last processed scan) and `correction_stamp` (the anchor
 actually applied to this estimate), in seconds. A cloud-first frozen estimate
 can use an older anchor than the newest backend observation. Quality reflects
-the backend observation, not a fabricated covariance guarantee. These independent
-output queues are implemented by the Noetic wrapper; Humble still publishes
-paired backend odometry/clouds synchronously and does not provide this fast path.
+the backend observation, not a fabricated covariance guarantee. A `LOST` backend
+observation also leaves an existing trusted anchor intact while raw input stays
+valid; it grants no new initialization authority or lock epoch.
+
+Humble uses separate callback groups and independently spun serial executors for
+live odometry and paired clouds. The backend, dense trajectory recorder, loop
+processing and save service keep one serial executor. Raw odometry retains only
+one pending sample (reliable, volatile, depth 1); the other subscriptions retain
+the configured synchronization queue and existing QoS. Product V1 uses exact
+synchronization; other profiles keep `sync_time_tolerance`. Localization drains
+received backend pairs into the existing `LatestFrameSlot`, replacing pending
+work with the newest complete pair before processing it. Mapping and extension
+retain their serial paired backend processing. Shutdown stops and joins both
+live workers before saving maps. Path and authority events keep backend cadence;
+TF keeps odometry source time and suppresses zero/non-increasing timestamps.
+
+`test_humble_live_output`, registered with Humble's CTest/ament tests, exercises
+actual ROS subscriptions and publishers with blocked backend/cloud callbacks,
+a coupled-executor control, frozen/invalidation metadata, and shutdown/map save.
+`test_humble_conversions` checks source validation and integer nanoseconds.
 
 `test/noetic_output_smoke.py /path/to/n3mapping_node` runs the real Noetic wrapper
 against synthetic inputs on a temporary local ROS master after sourcing the ROS

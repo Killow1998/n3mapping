@@ -21,7 +21,7 @@ add_library(n3mapping_output_contract STATIC
 target_include_directories(n3mapping_output_contract PUBLIC
   ${N3MAPPING_ROOT}/include ${PCL_INCLUDE_DIRS} ${JSONCPP_INCLUDE_DIRS})
 target_link_libraries(n3mapping_output_contract PUBLIC
-  Eigen3::Eigen Threads::Threads ${JSONCPP_LIBRARIES})
+  Eigen3::Eigen Threads::Threads ${JSONCPP_LIBRARIES} ${PCL_LIBRARIES})
 
 foreach(target IN ITEMS test_realtime_odometry test_realtime_projection_contract test_realtime_output)
   add_executable(${target} ../${target}.cpp)

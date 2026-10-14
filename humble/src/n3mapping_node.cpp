@@ -54,7 +54,9 @@
 #include "n3mapping/humble/conversions.h"
 #include "n3mapping/msg/relocalization_status.hpp"
 #include "n3mapping/product_build_identity.h"
-#include "n3mapping/relocalization_output_authority.h"
+#include "n3mapping/core/realtime_output.h"
+#include "n3mapping/core/latest_frame_slot.h"
+#include "n3mapping/humble/callback_worker.h"
 #include "n3mapping/ros_output_contract.h"
 #include "n3mapping/runtime_performance_debug_logger.h"
 
@@ -68,6 +70,7 @@ static std::atomic<bool> g_shutdown_requested{ false };
  */
 class N3MappingNode : public rclcpp::Node
 {
+    friend class HumbleOutputTestAccess;
   public:
     using PointCloud = pcl::PointCloud<pcl::PointXYZI>;
     using ApproxSyncPolicy =
@@ -142,8 +145,7 @@ class N3MappingNode : public rclcpp::Node
      */
     void shutdown()
     {
-        if (shutdown_called_) return;
-        shutdown_called_ = true;
+        if (shutdown_called_.exchange(true)) return;
 
         RCLCPP_INFO(this->get_logger(), "Shutting down N3Mapping node...");
 
@@ -153,6 +155,7 @@ class N3MappingNode : public rclcpp::Node
         if (authority_probe_timer_) {
             authority_probe_timer_->cancel();
         }
+        stopLiveOutput();
         if (authority_probe_scenario_) {
             return;
         }
@@ -164,6 +167,20 @@ class N3MappingNode : public rclcpp::Node
 
         // 输出统计信息
         printStatistics();
+    }
+
+    void startLiveOutput()
+    {
+        live_odom_worker_->start();
+        live_cloud_worker_->start();
+    }
+
+    void processPendingLocalizationFrame()
+    {
+        auto pending = pending_localization_frame_.take();
+        if (pending && !shutdown_called_) {
+            processSynchronizedFrame(pending->cloud, pending->odom);
+        }
     }
 
   private:
@@ -182,6 +199,8 @@ class N3MappingNode : public rclcpp::Node
               *authority_probe_scenario_);
         }
 
+        realtime_output_ = std::make_unique<core::RealtimeOutput>(
+            run_mode_, config_.world_frame, std::max(1, config_.sync_queue_size));
         tf_broadcaster_ =
           std::make_unique<tf2_ros::TransformBroadcaster>(*this);
         odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(
@@ -197,6 +216,11 @@ class N3MappingNode : public rclcpp::Node
         relocalization_lock_pub_ =
           this->create_publisher<std_msgs::msg::UInt32>(
             "/n3mapping/relocalization_lock", 10);
+
+        rclcpp::QoS marker_qos(10);
+        marker_qos.transient_local();
+        loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
+            "/n3mapping/loop_closure_markers", marker_qos);
 
         rclcpp::QoS status_qos(1);
         status_qos.reliable();
@@ -231,6 +255,7 @@ class N3MappingNode : public rclcpp::Node
           << ",\"global_world_cloud\":" << cloud_actual.depth
           << "}" << std::endl;
 
+        initializeLiveSubscriptions();
         authority_probe_timer_ = this->create_wall_timer(
           std::chrono::milliseconds(250),
           std::bind(&N3MappingNode::authorityProbeTick, this));
@@ -278,18 +303,6 @@ class N3MappingNode : public rclcpp::Node
 
         if (label == "invalid_full_pose") {
             output.T_world_lidar.linear()(0, 0) = 2.0;
-        }
-        if (hasUsableGlobalRelocalizationPose(
-              output.relocalization_state, output.pose_source) ||
-            label == "map_extension_lock") {
-            output.cloud_world =
-              std::make_shared<core::LioFrame::PointCloud>();
-            pcl::PointXYZI point;
-            point.x = static_cast<float>(event_index);
-            point.y = 0.0F;
-            point.z = 0.0F;
-            point.intensity = 1.0F;
-            output.cloud_world->push_back(point);
         }
         return output;
     }
@@ -343,18 +356,25 @@ class N3MappingNode : public rclcpp::Node
         std::cout << "N3MAPPING_AUTHORITY_PROBE_EVENT "
                   << *authority_probe_scenario_ << " " << label << " "
                   << header.stamp.sec << std::endl;
-        const auto publication =
-          publishRelocalizationOutput(header, output);
+        auto probe_odom = std::make_shared<nav_msgs::msg::Odometry>();
+        probe_odom->header = header;
+        probe_odom->header.frame_id = "continuous";
+        probe_odom->child_frame_id = config_.body_frame;
+        probe_odom->pose.pose.orientation.w = 1.0;
+        // The same production callbacks use a consistent synthetic clock. The
+        // source epoch stays stable for the verifier's existing event buckets.
+        authority_probe_now_nsec_ = toCoreTimeStamp(header.stamp).nsec;
+        const auto publication = publishRelocalizationOutput(header, *probe_odom, output);
+        liveOdomCallback(probe_odom);
         if (publication.publish_global_pose) {
-            nav_msgs::msg::Odometry stationary_probe;
-            stationary_probe.child_frame_id = config_.body_frame;
-            stationary_probe.pose.pose.orientation.w = 1.0;
-            publishOdometry(output.T_world_lidar, header, stationary_probe);
             publishPath(header, &output.T_world_lidar);
         }
-        if (publication.publish_world_cloud) {
-            publishPointClouds(output, header);
-        }
+        PointCloud body;
+        body.push_back(pcl::PointXYZI{1.0F, 0.0F, 0.0F, 1.0F});
+        auto cloud = std::make_shared<sensor_msgs::msg::PointCloud2>();
+        pcl::toROSMsg(body, *cloud);
+        cloud->header = header;
+        liveCloudCallback(cloud, probe_odom);
     }
 
     /**
@@ -362,7 +382,10 @@ class N3MappingNode : public rclcpp::Node
      */
     void initializeComponents()
     {
-        n3mapping_core_ = std::make_unique<N3MappingCore>(config_);
+        n3mapping_core_ = std::make_unique<N3MappingCore>(
+            config_, N3MappingCore::WorldCloudOutput::Disabled);
+        realtime_output_ = std::make_unique<core::RealtimeOutput>(
+            run_mode_, config_.world_frame, std::max(1, config_.sync_queue_size));
         n3mapping_core_->setExternalDenseTrajectoryRecordingEnabled(
           run_mode_ == CoreRunMode::MAPPING);
         global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
@@ -434,6 +457,8 @@ class N3MappingNode : public rclcpp::Node
                 std::placeholders::_1, std::placeholders::_2));
         }
 
+        initializeLiveSubscriptions();
+
         // 发布者
         odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(config_.output_odom_topic, 10);
         path_pub_ = this->create_publisher<nav_msgs::msg::Path>(config_.output_path_topic, 10);
@@ -467,15 +492,114 @@ class N3MappingNode : public rclcpp::Node
         global_map_qos.transient_local();
         global_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/n3mapping/global_map", global_map_qos);
 
-        loop_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
         loop_timer_ = this->create_wall_timer(
-          std::chrono::milliseconds(100), std::bind(&N3MappingNode::loopDetectionTimerCallback, this), loop_callback_group_);
+          std::chrono::milliseconds(100), std::bind(&N3MappingNode::loopDetectionTimerCallback, this));
         const double global_map_hz = std::max(0.1, config_.global_map_publish_hz);
         global_map_timer_ = this->create_wall_timer(
           std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(1.0 / global_map_hz)),
           std::bind(&N3MappingNode::globalMapTimerCallback, this));
     }
 
+    void initializeLiveSubscriptions()
+    {
+        live_odom_worker_ = std::make_unique<CallbackWorker>(*this);
+        live_cloud_worker_ = std::make_unique<CallbackWorker>(*this);
+        live_odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+            config_.odom_topic, rclcpp::QoS(1),
+            std::bind(&N3MappingNode::liveOdomCallback, this, std::placeholders::_1),
+            live_odom_worker_->options());
+        const int queue_size = std::max(1, config_.sync_queue_size);
+        auto qos = rmw_qos_profile_default;
+        qos.depth = static_cast<std::size_t>(queue_size);
+        const auto options = live_cloud_worker_->options();
+        live_cloud_sub_.subscribe(this, config_.cloud_topic, qos, options);
+        live_paired_odom_sub_.subscribe(this, config_.odom_topic, qos, options);
+        if (product_profile_v1_) {
+            ExactSyncPolicy policy(static_cast<uint32_t>(queue_size));
+            live_exact_sync_ = std::make_unique<message_filters::Synchronizer<ExactSyncPolicy>>(
+                static_cast<const ExactSyncPolicy&>(policy), live_cloud_sub_, live_paired_odom_sub_);
+            live_exact_sync_->registerCallback(std::bind(&N3MappingNode::liveCloudCallback,
+                this, std::placeholders::_1, std::placeholders::_2));
+        } else {
+            ApproxSyncPolicy policy(static_cast<uint32_t>(queue_size));
+            policy.setMaxIntervalDuration(rclcpp::Duration::from_seconds(config_.sync_time_tolerance));
+            live_approx_sync_ = std::make_unique<message_filters::Synchronizer<ApproxSyncPolicy>>(
+                static_cast<const ApproxSyncPolicy&>(policy), live_cloud_sub_, live_paired_odom_sub_);
+            live_approx_sync_->registerCallback(std::bind(&N3MappingNode::liveCloudCallback,
+                this, std::placeholders::_1, std::placeholders::_2));
+        }
+    }
+
+    void stopLiveOutput()
+    {
+        if (live_odom_worker_) live_odom_worker_->stop();
+        if (live_cloud_worker_) live_cloud_worker_->stop();
+    }
+
+    int64_t liveOutputNow()
+    {
+        const auto probe_time = authority_probe_now_nsec_.load();
+        return probe_time > 0 ? probe_time : this->get_clock()->now().nanoseconds();
+    }
+
+    void liveOdomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr odom)
+    {
+        if (shutdown_called_) return;
+        nav_msgs::msg::Odometry message;
+        message.header = odom->header;
+        message.header.frame_id = config_.world_frame;
+        message.child_frame_id = config_.body_frame;
+        const bool publishable = forwardOdometryTwist(*odom, input_linear_velocity_frame_, &message);
+        const auto emission = realtime_output_->observeOdometry(
+            toCoreOdometrySource(*odom), liveOutputNow(), publishable);
+        if (emission.pose) {
+            message.pose.pose = makePose(emission.pose->pose);
+            odom_pub_->publish(message);
+            publishLiveTransform(emission.pose->pose, odom->header);
+        }
+        if (!emission.status_json.empty()) {
+            std_msgs::msg::String status;
+            status.data = emission.status_json;
+            localization_status_pub_->publish(status);
+        }
+    }
+
+    void liveCloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud,
+                           const nav_msgs::msg::Odometry::ConstSharedPtr& odom)
+    {
+        if (shutdown_called_ || cloud->header.frame_id != odom->child_frame_id ||
+            odom->child_frame_id != config_.body_frame) return;
+        cloud_body_pub_->publish(*cloud);
+        const auto emission = realtime_output_->observeCloud(
+            toCoreOdometrySource(*odom), liveOutputNow(),
+            toCoreTimeStamp(cloud->header.stamp).nsec, cloud->header.frame_id);
+        if (!emission) return;
+        std_msgs::msg::String association;
+        association.data = emission->status_json;
+        localization_status_pub_->publish(association);
+        if (cloud_world_pub_->get_subscription_count() == 0) return;
+        const auto message = transformLiveCloud(*cloud, emission->projection.pose);
+        if (shutdown_called_ || !realtime_output_->isCurrent(*emission)) return;
+        cloud_world_pub_->publish(message);
+    }
+
+  protected:
+    // Conversion is outside the core and backend locks. This boundary also lets
+    // contract tests pause real publication during conversion and invalidate it.
+    virtual sensor_msgs::msg::PointCloud2 transformLiveCloud(
+        const sensor_msgs::msg::PointCloud2& cloud, const Eigen::Isometry3d& pose)
+    {
+        PointCloud body, world;
+        pcl::fromROSMsg(cloud, body);
+        pcl::transformPointCloud(body, world, pose.matrix());
+        sensor_msgs::msg::PointCloud2 message;
+        pcl::toROSMsg(world, message);
+        message.header = cloud.header;
+        message.header.frame_id = config_.world_frame;
+        return message;
+    }
+
+  private:
     void initializeOptimizationLogging()
     {
         std::error_code ec;
@@ -548,7 +672,23 @@ class N3MappingNode : public rclcpp::Node
      * @brief 同步回调处理
      * Requirements: 10.2, 5.4, 5.5
      */
-    void syncCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg, const nav_msgs::msg::Odometry::ConstSharedPtr& odom_msg)
+    struct SynchronizedFrame {
+        sensor_msgs::msg::PointCloud2::ConstSharedPtr cloud;
+        nav_msgs::msg::Odometry::ConstSharedPtr odom;
+    };
+
+    void syncCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud,
+                      const nav_msgs::msg::Odometry::ConstSharedPtr& odom)
+    {
+        if (run_mode_ == CoreRunMode::LOCALIZATION) {
+            pending_localization_frame_.submit(toCoreTimeStamp(cloud->header.stamp).nsec,
+                                              SynchronizedFrame{cloud, odom});
+        } else {
+            processSynchronizedFrame(cloud, odom);
+        }
+    }
+
+    void processSynchronizedFrame(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg, const nav_msgs::msg::Odometry::ConstSharedPtr& odom_msg)
     {
         using PerformanceClock = std::chrono::steady_clock;
         const bool performance_enabled =
@@ -572,10 +712,6 @@ class N3MappingNode : public rclcpp::Node
             performance_event.input_points =
               static_cast<std::size_t>(cloud_msg->width) * cloud_msg->height;
         }
-
-        core::BackendOutput output_for_clouds;
-        std_msgs::msg::Header cloud_header;
-        bool publish_clouds = false;
 
         {
             std::unique_lock<std::mutex> lock(data_mutex_);
@@ -666,19 +802,13 @@ class N3MappingNode : public rclcpp::Node
             const auto authority_started = performance_enabled
               ? PerformanceClock::now()
               : PerformanceClock::time_point{};
-            const bool backend_output_publishable =
-              output.success || output.accepted_keyframe ||
-              run_mode_ == CoreRunMode::LOCALIZATION;
             const auto publication =
-              publishRelocalizationOutput(
-                header, output,
-                odom_msg.get(), backend_output_publishable,
-                performance_enabled ? &performance_event : nullptr);
+              publishRelocalizationOutput(header, *odom_msg, output);
             if (performance_enabled) {
                 performance_event.authority_publish_ms =
                   elapsed_ms(authority_started);
-                performance_event.published_global_pose =
-                  publication.publish_global_pose;
+                // Live odometry/cloud publication is measured outside this
+                // serial backend callback; these publication counters stay false.
             }
             if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
                 ++frame_count_;
@@ -702,20 +832,6 @@ class N3MappingNode : public rclcpp::Node
                 }
 
                 ++frame_count_;
-                output_for_clouds = output;
-                if (!publication.publish_world_cloud) {
-                    output_for_clouds.cloud_world.reset();
-                }
-                cloud_header = header;
-                publish_clouds = true;
-                if (performance_enabled) {
-                    performance_event.published_body_cloud =
-                      output_for_clouds.cloud_body &&
-                      !output_for_clouds.cloud_body->empty();
-                    performance_event.published_world_cloud =
-                      output_for_clouds.cloud_world &&
-                      !output_for_clouds.cloud_world->empty();
-                }
             }
             if (performance_enabled) {
                 performance_event.callback_locked_ms =
@@ -723,16 +839,6 @@ class N3MappingNode : public rclcpp::Node
             }
         }
 
-        if (publish_clouds) {
-            const auto cloud_publish_started = performance_enabled
-              ? PerformanceClock::now()
-              : PerformanceClock::time_point{};
-            publishPointClouds(output_for_clouds, cloud_header);
-            if (performance_enabled) {
-                performance_event.cloud_publish_ms =
-                  elapsed_ms(cloud_publish_started);
-            }
-        }
         if (performance_enabled) {
             performance_event.callback_total_ms =
               elapsed_ms(callback_started);
@@ -747,63 +853,12 @@ class N3MappingNode : public rclcpp::Node
     }
 
     RelocalizationPublicationPlan publishRelocalizationOutput(
-      const std_msgs::msg::Header& header, core::BackendOutput& output,
-      const nav_msgs::msg::Odometry* odom_input = nullptr,
-      bool odometry_allowed = true,
-      RuntimePerformanceDebugEvent* performance_event = nullptr)
+      const std_msgs::msg::Header& header, const nav_msgs::msg::Odometry& source,
+      core::BackendOutput& output)
     {
-        const bool localization_mode =
-          run_mode_ == CoreRunMode::LOCALIZATION;
-        const auto output_mode =
-          localization_mode
-            ? RelocalizationOutputMode::LOCALIZATION
-            : (run_mode_ == CoreRunMode::MAP_EXTENSION
-                 ? RelocalizationOutputMode::MAP_EXTENSION
-                 : RelocalizationOutputMode::OTHER);
-        const auto publication =
-          relocalization_output_authority_.process(output_mode, output);
-        RealtimeLocalizationStatus realtime;
-        RealtimeLocalizationStatus* realtime_status = nullptr;
-        if (odom_input) {
-            const double source_stamp = rclcpp::Time(header.stamp).seconds();
-            const bool valid_source_stamp = std::isfinite(source_stamp) && source_stamp > 0.0;
-            if (valid_source_stamp) {
-                last_observation_stamp_ = source_stamp;
-            }
-            const bool correction_accepted =
-              localization_mode
-                ? hasAuthoritativeRelocalizationInitializationPose(
-                    output.relocalization_state, output.pose_source)
-                : (output.success || output.accepted_keyframe);
-            if (correction_accepted && valid_source_stamp) {
-                last_correction_stamp_ = source_stamp;
-            }
-            realtime.observation_stamp = last_observation_stamp_;
-            realtime.correction_stamp = last_correction_stamp_;
-            realtime_status = &realtime;
-            if (odometry_allowed && publication.publish_global_pose && valid_source_stamp) {
-                const auto odometry_started = std::chrono::steady_clock::now();
-                realtime.estimate_attempted = true;
-                realtime.estimate_available = publishOdometry(
-                    output.T_world_lidar, header, *odom_input);
-                if (!realtime.estimate_available) {
-                    realtime.input_reason = "invalid_twist_or_body_frame";
-                } else {
-                    realtime.estimate_stamp = source_stamp;
-                }
-                if (performance_event) {
-                    performance_event->odometry_path_publish_ms =
-                      std::chrono::duration<double, std::milli>(
-                        std::chrono::steady_clock::now() - odometry_started)
-                        .count();
-                }
-            }
-        }
-        std_msgs::msg::String status;
-        status.data = localizationStatusJson(
-            run_mode_, output, rclcpp::Time(header.stamp).seconds(),
-            config_.world_frame, realtime_status);
-        localization_status_pub_->publish(status);
+        const auto committed = realtime_output_->acceptBackend(
+            toCoreOdometrySource(source), rclcpp::Time(header.stamp).seconds(), output);
+        const auto& publication = committed.plan;
 
         if (run_mode_ == CoreRunMode::MAP_EXTENSION &&
             output.relocalization_locked && !output.accepted_keyframe) {
@@ -844,10 +899,11 @@ class N3MappingNode : public rclcpp::Node
             return;
         }
 
+        const auto source = toCoreOdometrySource(*odom_msg);
+        if (!source.pose_valid) return;
         std::lock_guard<std::mutex> lock(data_mutex_);
         const double timestamp = rclcpp::Time(odom_msg->header.stamp).seconds();
-        n3mapping_core_->recordDenseTrajectoryPose(
-          run_mode_, timestamp, odometryPoseToIsometry(*odom_msg));
+        n3mapping_core_->recordDenseTrajectoryPose(run_mode_, timestamp, source.pose);
     }
 
     /**
@@ -980,61 +1036,21 @@ class N3MappingNode : public rclcpp::Node
         return out;
     }
 
-    bool publishOdometry(const Eigen::Isometry3d& pose, const std_msgs::msg::Header& header,
-                         const nav_msgs::msg::Odometry& input)
+    void publishLiveTransform(const Eigen::Isometry3d& pose,
+                              const std_msgs::msg::Header& source_header)
     {
-        nav_msgs::msg::Odometry odom_msg;
-        odom_msg.header = header;
-        odom_msg.header.frame_id = config_.world_frame;
-        odom_msg.child_frame_id = config_.body_frame;
-
-        odom_msg.pose.pose.position.x = pose.translation().x();
-        odom_msg.pose.pose.position.y = pose.translation().y();
-        odom_msg.pose.pose.position.z = pose.translation().z();
-
-        Eigen::Quaterniond q(pose.rotation());
-        odom_msg.pose.pose.orientation.w = q.w();
-        odom_msg.pose.pose.orientation.x = q.x();
-        odom_msg.pose.pose.orientation.y = q.y();
-        odom_msg.pose.pose.orientation.z = q.z();
-
-        if (!forwardOdometryTwist(input, input_linear_velocity_frame_, &odom_msg)) {
-            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-                "Odometry suppressed: invalid twist or mismatched body frame");
-            return false;
-        }
-        odom_pub_->publish(odom_msg);
-
-        rclcpp::Time tf_stamp(odom_msg.header.stamp);
-        if (tf_stamp.nanoseconds() == 0) {
-            tf_stamp = this->now();
-        }
-        if (last_tf_stamp_ && tf_stamp <= *last_tf_stamp_) {
-            RCLCPP_WARN_THROTTLE(this->get_logger(),
-                                 *this->get_clock(),
-                                 2000,
-                                 "Skip non-increasing TF stamp map->%s: current=%.6f last=%.6f",
-                                 config_.body_frame.c_str(),
-                                 tf_stamp.seconds(),
-                                 last_tf_stamp_->seconds());
-            // Odometry was already published; only this duplicate TF sample
-            // is suppressed.
-            return true;
-        }
-
+        const rclcpp::Time stamp(source_header.stamp);
+        if (stamp.nanoseconds() <= 0 || (last_tf_stamp_ && stamp <= *last_tf_stamp_)) return;
         geometry_msgs::msg::TransformStamped tf;
-        tf.header = odom_msg.header;
-        const int64_t tf_stamp_ns = tf_stamp.nanoseconds();
-        tf.header.stamp.sec = static_cast<int32_t>(tf_stamp_ns / 1000000000LL);
-        tf.header.stamp.nanosec = static_cast<uint32_t>(tf_stamp_ns % 1000000000LL);
+        tf.header = source_header;
+        tf.header.frame_id = config_.world_frame;
         tf.child_frame_id = config_.body_frame;
         tf.transform.translation.x = pose.translation().x();
         tf.transform.translation.y = pose.translation().y();
         tf.transform.translation.z = pose.translation().z();
-        tf.transform.rotation = odom_msg.pose.pose.orientation;
+        tf.transform.rotation = makePose(pose).orientation;
         tf_broadcaster_->sendTransform(tf);
-        last_tf_stamp_ = tf_stamp;
-        return true;
+        last_tf_stamp_ = stamp;
     }
 
     void publishLegacyRelocalizationLock(std::uint64_t lock_epoch)
@@ -1430,28 +1446,6 @@ class N3MappingNode : public rclcpp::Node
         return true;
     }
 
-    /**
-     * @brief 发布点云
-     */
-    void publishPointClouds(const core::BackendOutput& output, const std_msgs::msg::Header& header)
-    {
-        if (output.cloud_body && !output.cloud_body->empty()) {
-            sensor_msgs::msg::PointCloud2 cloud_body_msg;
-            pcl::toROSMsg(*output.cloud_body, cloud_body_msg);
-            cloud_body_msg.header = header;
-            cloud_body_msg.header.frame_id = config_.body_frame;
-            cloud_body_pub_->publish(cloud_body_msg);
-        }
-
-        if (output.cloud_world && !output.cloud_world->empty()) {
-            sensor_msgs::msg::PointCloud2 cloud_world_msg;
-            pcl::toROSMsg(*output.cloud_world, cloud_world_msg);
-            cloud_world_msg.header = header;
-            cloud_world_msg.header.frame_id = config_.world_frame;
-            cloud_world_pub_->publish(cloud_world_msg);
-        }
-    }
-
     void publishGlobalMap()
     {
         std::vector<Keyframe::Ptr> keyframes;
@@ -1479,7 +1473,8 @@ class N3MappingNode : public rclcpp::Node
     /**
      * @brief 关闭时保存地图
      */
-    void saveMapOnShutdown()
+  protected:
+    virtual void saveMapOnShutdown()
     {
         std::string error;
         std::string warning;
@@ -1505,6 +1500,7 @@ class N3MappingNode : public rclcpp::Node
         }
     }
 
+  private:
     void handleSaveMap(const std::shared_ptr<std_srvs::srv::Trigger::Request>,
                        std::shared_ptr<std_srvs::srv::Trigger::Response> response)
     {
@@ -1648,7 +1644,6 @@ class N3MappingNode : public rclcpp::Node
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
     rclcpp::TimerBase::SharedPtr loop_timer_;
-    rclcpp::CallbackGroup::SharedPtr loop_callback_group_;
     rclcpp::TimerBase::SharedPtr global_map_timer_;
     rclcpp::TimerBase::SharedPtr authority_probe_timer_;
     GlobalMapCache global_map_cache_;
@@ -1662,14 +1657,12 @@ class N3MappingNode : public rclcpp::Node
 
     // 状态
     bool map_loaded_ = false;
-    bool shutdown_called_ = false;
+    std::atomic<bool> shutdown_called_{false};
     std::string optimization_log_path_;
     std::mutex optimization_log_mutex_;
     std::vector<geometry_msgs::msg::PoseStamped> localization_path_; // 定位模式累积轨迹
     std::vector<std::pair<int64_t, int64_t>> loop_marker_history_;
     std::optional<rclcpp::Time> last_tf_stamp_;
-    double last_observation_stamp_ = 0.0;
-    double last_correction_stamp_ = 0.0;
 
     // 统计
     bool odometry_divergence_reported_ = false;
@@ -1682,13 +1675,23 @@ class N3MappingNode : public rclcpp::Node
     size_t frame_count_ = 0;
     size_t keyframe_count_ = 0;
     size_t loop_count_ = 0;
-    RelocalizationOutputAuthority relocalization_output_authority_;
+    std::unique_ptr<core::RealtimeOutput> realtime_output_;
+    std::unique_ptr<CallbackWorker> live_odom_worker_;
+    std::unique_ptr<CallbackWorker> live_cloud_worker_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr live_odom_sub_;
+    message_filters::Subscriber<sensor_msgs::msg::PointCloud2> live_cloud_sub_;
+    message_filters::Subscriber<nav_msgs::msg::Odometry> live_paired_odom_sub_;
+    std::unique_ptr<message_filters::Synchronizer<ApproxSyncPolicy>> live_approx_sync_;
+    std::unique_ptr<message_filters::Synchronizer<ExactSyncPolicy>> live_exact_sync_;
+    core::LatestFrameSlot<SynchronizedFrame> pending_localization_frame_;
+    std::atomic<int64_t> authority_probe_now_nsec_{0};
     std::optional<std::string> authority_probe_scenario_;
     int authority_probe_tick_ = 0;
 };
 
 } // namespace n3mapping
 
+#ifndef N3MAPPING_NODE_NO_MAIN
 // 信号处理
 void
 signalHandler(int signum)
@@ -1737,12 +1740,15 @@ main(int argc, char** argv)
     auto node =
       std::make_shared<n3mapping::N3MappingNode>(authority_probe_scenario);
 
-    // 使用多线程执行器
-    rclcpp::executors::MultiThreadedExecutor executor;
+    // The backend remains serial. Live odometry and cloud groups are explicitly
+    // owned by two independent executors, including message-filter subscribers.
+    rclcpp::executors::SingleThreadedExecutor executor;
     executor.add_node(node);
+    node->startLiveOutput();
 
     while (rclcpp::ok() && !n3mapping::g_shutdown_requested) {
         executor.spin_some();
+        node->processPendingLocalizationFrame();
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
@@ -1750,3 +1756,5 @@ main(int argc, char** argv)
     rclcpp::shutdown();
     return 0;
 }
+
+#endif  // N3MAPPING_NODE_NO_MAIN

@@ -277,7 +277,7 @@ class ProductPreflightTest(unittest.TestCase):
 
         first_pose = pose(100, 1.0)
         steady_pose = pose(200, 1.1)
-        recently_lost_pose = pose(300, 1.2)
+        recently_lost_pose = pose(300, 1.1)
         recovered_pose = pose(500, 1.3)
         extension_pose = pose(600, 2.0)
         observation: dict[str, object] = {
@@ -387,8 +387,8 @@ class ProductPreflightTest(unittest.TestCase):
                             epoch=1,
                             authority=[],
                             legacy=[],
-                            global_poses=[],
-                            world_cloud_count=0,
+                            global_poses=[copy.deepcopy(recently_lost_pose)],
+                            world_cloud_count=1,
                         ),
                         event(
                             "recovered_full_lock",
@@ -828,6 +828,27 @@ class ProductPreflightTest(unittest.TestCase):
             )
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn("hash mismatch", rejected.stderr)
+
+    def test_live_loss_requires_retained_geometry_without_new_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            node, _ = self.make_binaries(root)
+            _, observation = self.make_observation(root, node, trusted_runner=True)
+            events = observation["scenarios"][0]["events"]
+            preflight.validate_localization_sequence(events, "sequence")
+            missing = copy.deepcopy(events)
+            missing[5]["observed"]["global_poses"] = []
+            with self.assertRaisesRegex(preflight.PreflightError, "global pose count"):
+                preflight.validate_localization_sequence(missing, "sequence")
+            changed = copy.deepcopy(events)
+            changed[5]["observed"]["global_poses"][0]["position"][0] += 1.0
+            with self.assertRaisesRegex(preflight.PreflightError, "trusted live projection"):
+                preflight.validate_localization_sequence(changed, "sequence")
+            unauthorized = copy.deepcopy(events)
+            unauthorized[5]["observed"]["authoritative_poses"] = [
+                copy.deepcopy(unauthorized[5]["observed"]["global_poses"][0])]
+            with self.assertRaisesRegex(preflight.PreflightError, "initialization pose count"):
+                preflight.validate_localization_sequence(unauthorized, "sequence")
 
 
 if __name__ == "__main__":
