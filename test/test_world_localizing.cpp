@@ -5,7 +5,9 @@
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_hypothesis_manager.h"
 #include "n3mapping/relocalization_query_builder.h"
+#include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/world_localizing.h"
+#include <algorithm>
 #include <cmath>
 #include "n3mapping/relocalization_decision_policy.h"
 #include <filesystem>
@@ -963,6 +965,88 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diagnostics.localization_target_cache_misses, 2u);
   EXPECT_EQ(diagnostics.localization_target_cache_bytes, 0u);
   EXPECT_EQ(diagnostics.localization_target_cache_entries, 0u);
+}
+
+TEST_F(WorldLocalizingTest,
+       LoadedTargetKeepsRawAndPreparedGeometryTogetherUntilMapInvalidation) {
+  buildTestMap(1);
+  const auto anchor = keyframe_manager_->getKeyframe(0);
+  ASSERT_NE(anchor, nullptr);
+  anchor->is_from_loaded_map = true;
+  const auto initial_revision = keyframe_manager_->revision();
+  const auto source = matcher_->prepareSourceCloud(anchor->cloud);
+  const MatchMetric metric{small_gicp::RegistrationSetting::PLANE_ICP,
+                           config_.gicp_downsampling_resolution,
+                           config_.gicp_max_correspondence_distance};
+  TrackingTargetCache cache(config_, *keyframe_manager_, *matcher_);
+  const auto expect_coherent = [&](const TrackingTargetCache::TargetResult &target,
+                                    const Eigen::Isometry3d &pose) {
+    ASSERT_NE(target.visibility_cloud, nullptr);
+    ASSERT_FALSE(target.visibility_cloud->empty());
+    ASSERT_NE(target.target, nullptr);
+    const auto reference_target = matcher_->prepareTargetCloud(target.visibility_cloud);
+    const auto actual = matcher_->evaluatePreparedPose(*target.target, source, pose, metric);
+    const auto reference = matcher_->evaluatePreparedPose(reference_target, source, pose, metric);
+    ASSERT_EQ(actual.termination, MatchTermination::FixedPoseEvaluation);
+    ASSERT_EQ(reference.termination, MatchTermination::FixedPoseEvaluation);
+    ASSERT_GT(actual.num_inliers, 10u);
+    EXPECT_EQ(actual.num_inliers, reference.num_inliers);
+    EXPECT_NEAR(actual.fitness_score, reference.fitness_score, 1e-12);
+    EXPECT_NEAR(actual.inlier_ratio, reference.inlier_ratio, 1e-12);
+  };
+
+  const auto initial = cache.acquireLoaded(anchor->id);
+  ASSERT_TRUE(initial.miss);
+  expect_coherent(initial, Eigen::Isometry3d::Identity());
+  ASSERT_NE(initial.visibility_cloud, nullptr);
+  const auto original_cloud = *initial.visibility_cloud;
+
+  Eigen::Isometry3d shifted_pose = Eigen::Isometry3d::Identity();
+  shifted_pose.translation().x() = 100.0;
+  keyframe_manager_->updateOptimizedPoses({{anchor->id, shifted_pose}});
+  const auto shifted_revision = keyframe_manager_->revision();
+  ASSERT_EQ(shifted_revision.generation, initial_revision.generation);
+  ASSERT_EQ(shifted_revision.structure_revision, initial_revision.structure_revision);
+  ASSERT_GT(shifted_revision.pose_revision, initial_revision.pose_revision);
+  ASSERT_EQ(keyframe_manager_->size(), 1u);
+  // The loaded reference remains at the original map coordinates. Re-cropping
+  // around the mutable optimized anchor would now produce an empty target.
+  ASSERT_TRUE(cache.loadedVisibilityTarget(shifted_pose.translation())->empty());
+  const auto cached = cache.acquireLoaded(anchor->id);
+  ASSERT_TRUE(cached.hit);
+  ASSERT_NE(cached.visibility_cloud, nullptr);
+  ASSERT_EQ(cached.visibility_cloud->size(), original_cloud.size());
+  for (std::size_t i = 0; i < original_cloud.size(); ++i) {
+    const auto &actual = (*cached.visibility_cloud)[i];
+    const auto &expected = original_cloud[i];
+    EXPECT_FLOAT_EQ(actual.x, expected.x);
+    EXPECT_FLOAT_EQ(actual.y, expected.y);
+    EXPECT_FLOAT_EQ(actual.z, expected.z);
+    EXPECT_FLOAT_EQ(actual.intensity, expected.intensity);
+  }
+  expect_coherent(cached, Eigen::Isometry3d::Identity());
+
+  cache.clearMap();
+  EXPECT_EQ(cache.diagnostics().loaded_entries, 0u);
+  const auto rebuilt = cache.acquireLoaded(anchor->id);
+  ASSERT_TRUE(rebuilt.miss);
+  expect_coherent(rebuilt, shifted_pose);
+  ASSERT_NE(rebuilt.visibility_cloud, nullptr);
+  EXPECT_TRUE(std::all_of(rebuilt.visibility_cloud->begin(), rebuilt.visibility_cloud->end(),
+                         [](const auto &point) { return point.x > 90.0f && point.x < 110.0f; }));
+
+  Eigen::Isometry3d replacement_pose = Eigen::Isometry3d::Identity();
+  replacement_pose.translation().x() = 200.0;
+  const auto replacement = Keyframe::create(0, 1.0, replacement_pose, anchor->cloud);
+  ASSERT_TRUE(keyframe_manager_->loadKeyframes({replacement}));
+  ASSERT_NE(keyframe_manager_->revision().generation, shifted_revision.generation);
+  ASSERT_EQ(keyframe_manager_->size(), 1u);
+  const auto replaced = cache.acquireLoaded(replacement->id);
+  ASSERT_TRUE(replaced.miss);
+  expect_coherent(replaced, replacement_pose);
+  ASSERT_NE(replaced.visibility_cloud, nullptr);
+  EXPECT_TRUE(std::all_of(replaced.visibility_cloud->begin(), replaced.visibility_cloud->end(),
+                         [](const auto &point) { return point.x > 190.0f && point.x < 210.0f; }));
 }
 
 TEST_F(WorldLocalizingTest,

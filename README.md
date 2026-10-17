@@ -667,6 +667,47 @@ rosrun n3mapping n3mapping_m2dgr_eval \
 - Do not commit local wrapper-selection marker files.
 - Do not commit generated maps, logs, build artifacts, or local test configs.
 
+Localization changes should follow the existing ownership boundaries:
+
+| Responsibility | Owner |
+| --- | --- |
+| Session state, reset and map replacement | `WorldLocalizing` |
+| Query history and place retrieval | `RelocalizationQueryBuilder`, `RelocalizationPlaceIndex` |
+| Candidate registration and temporal acceptance | Candidate evaluator, hypothesis manager and decision policy |
+| Tracking targets, bounded caches and prefetch worker lifetime | `TrackingTargetCache` |
+| Trusted corrections and live pose/cloud projection | `core::RealtimeOutput` |
+
+Search, tracking, map evidence and offline probes have separate implementation
+files. Session reset preserves map-derived tracking targets; map replacement
+invalidates their generation and queued work. Loaded-map cache entries retain
+the exact raw visibility crop with its prepared registration target. Prefetch
+workers start only when loaded-map tracking requests them; worker diagnostics
+report the number started.
+
+The deterministic `test_localization_episode` passes actual saved/loaded maps
+through the production core and live-output owner. It covers initialization,
+moving outside the map, reentry, invalid odometry, fresh map lifecycles,
+ambiguous places, no candidates and strict map-extension tracking. Together
+with ROS publication tests, it is the integration check for changes within
+these boundaries:
+
+```bash
+ctest --test-dir build/n3mapping --output-on-failure \
+  -R 'test_(localization_episode|world_localizing|humble_live_output)$'
+```
+
+The episode test also accepts `N3MAPPING_EPISODE_ATLAS=1` and
+`N3MAPPING_EPISODE_FREE_SPACE_MODE=kill` for the existing algorithm variants.
+`N3MAPPING_EPISODE_TRACE=/tmp/episode.csv` records per-frame decisions, poses,
+timestamps, work counts and timings for ablations. Synthetic episodes measure
+backend behavior; real-sensor drift and robot acceptance require recorded or
+live sensor input.
+
+The [2026-10-17 optimization evidence](docs/evidence/localization_optimization_20261017.json)
+records 61 passing CTest projects and 36 ablation runs with identical public
+outputs. It shows reduced repeated work and a prefetch tail-latency benefit in
+these synthetic scenes; whole-process runtime remains essentially unchanged.
+
 </details>
 
 ### TODO

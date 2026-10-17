@@ -73,9 +73,6 @@ RelocalizationCandidateEvaluator::evaluate(
     initial_pose.linear() =
         match_keyframe->pose_optimized.linear() *
         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
-    const auto initial_visibility =
-        visibility(initial_pose);
-
     const auto align_started = std::chrono::steady_clock::now();
     MatchResult match = matcher_.alignPrepared(
         *prepared_target.registration_target, prepared_query, initial_pose);
@@ -92,6 +89,7 @@ RelocalizationCandidateEvaluator::evaluate(
       continue;
     }
 
+    const auto initial_visibility = visibility(initial_pose);
     auto selected_visibility =
         visibility(match.T_target_source);
     if (initial_visibility.valid &&

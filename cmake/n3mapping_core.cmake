@@ -41,7 +41,13 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/relocalization_place_index.cpp
   ${N3MAPPING_ROOT}/src/relocalization_query_builder.cpp
   ${N3MAPPING_ROOT}/src/relocalization_target_provider.cpp
+  ${N3MAPPING_ROOT}/src/tracking_target_cache.cpp
+  ${N3MAPPING_ROOT}/src/tracking_target_prefetch.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
+  ${N3MAPPING_ROOT}/src/world_localizing_relocalization.cpp
+  ${N3MAPPING_ROOT}/src/world_localizing_tracking.cpp
+  ${N3MAPPING_ROOT}/src/world_localizing_evidence.cpp
+  ${N3MAPPING_ROOT}/src/world_localizing_probe.cpp
   ${N3MAPPING_ROOT}/src/free_space_grid.cpp
   ${N3MAPPING_ROOT}/src/floor_attitude.cpp
   ${N3MAPPING_ROOT}/src/odometry_sanity.cpp

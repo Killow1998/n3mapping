@@ -1,0 +1,781 @@
+{
+  "date": "2026-10-17",
+  "scope": "Existing localization algorithm, scheduling and ownership optimization; public contracts, production acceptance thresholds and configuration files unchanged.",
+  "baseline_tree": "9e5d8fffc580848c376dbdb33510bcd56a45cd0e",
+  "environment": {
+    "os": "Ubuntu 22.04",
+    "architecture": "x86_64",
+    "ros": "Humble",
+    "build_type": "Release",
+    "research_tools": false,
+    "gtsam": "4.1.1",
+    "small_gicp": "1.0.0"
+  },
+  "verification": {
+    "ctest_projects": 61,
+    "failures": 0,
+    "skipped": 0,
+    "junit_sha256": "eb2197897696aa1eed2157845fac0baa89f2ebf0400659c1350d1d001fc314d5",
+    "candidate_product_identity": "Development build with empty N3MAPPING_PRODUCT_COMMIT; UNVERIFIED. Rebuild a clean published commit for hardware Product identity.",
+    "noetic": "Source/static boundary checks only; no Noetic runtime available."
+  },
+  "source_sha256": {
+    "cmake/n3mapping_core.cmake": "0ff64244a915dc1931ec60fa3e006d3a8ed34c2a153c5cba372b57f8feeae87e",
+    "humble/CMakeLists.txt": "746714f9a3dadfbc2ca5d66bdf4adbf0b61e53c28b2edcc955bc4ee3d22bd80a",
+    "include/n3mapping/tracking_target_cache.h": "1569172bb99519a19f966da2a8a99ccc4397374bdf1a0fad324749d78ddb9e5e",
+    "include/n3mapping/world_localizing.h": "10906d953f747276770c231f75aff036467837704fa3d06ce08b7d0d458c030d",
+    "noetic/CMakeLists.txt": "b149f34d15b9abedb013740f230cf45dee9c62301ead0556726a48fde71bf462",
+    "src/relocalization_candidate_evaluator.cpp": "6d5fb5e997f2c6692bf946b542bb5b22b5048c0389fa468bbde9f4885a6e5c64",
+    "src/tracking_target_cache.cpp": "c227651aeb5a31443fe9000bb4bf273ac53f258277d1a783c3a69bc659fa7a5d",
+    "src/tracking_target_prefetch.cpp": "c19dc89a7db564887a94e39c153703f112437b9f0327e80b1cc501299e704a2a",
+    "src/world_localizing.cpp": "ee81d4019c79c2ea8010c981e0f480af5ca5350f908779c905d175c47a24a76a",
+    "src/world_localizing_evidence.cpp": "89242a9190449c9125b549601ba141f058cd4757cf84503376626d35dd0d0c38",
+    "src/world_localizing_probe.cpp": "1007b5285aa9dcf3c57afa4aa9e9008703f4a6ba45f830a3a61b8d8f8d6ef417",
+    "src/world_localizing_relocalization.cpp": "08f2e8612b6214827424b469bf38bc1b0ab3700c51dc5435841504fd4f44fdfb",
+    "src/world_localizing_tracking.cpp": "75a9455fcca9b07061f07735ffb60649dbc33c3e1cb23ece1fbfeed2a3be5422",
+    "test/support/localization_scene.h": "af5394140382019eaa0036ba0c1607cba2d99fec68a1181473ef1743136a0ac0",
+    "test/test_localization_episode.cpp": "75d5977326fb669182fa980c587b150ec070420b5c2c0d4f56281203d881e292",
+    "test/test_synthetic_relocalization.cpp": "1b66946c7d40ec2bfeb7c3296f2cb77d63b7474683883ed2440980f7fa7ca0c6",
+    "test/test_world_localizing.cpp": "8b4edcf3b25f26c9a84783939f230eab1452d008b48a57ab908cfa6873dfd836"
+  },
+  "unchanged_profile_sha256": {
+    "config/product_v1.yaml": "1b603a0a180330857aac150e0450cb5e94e284a84934e9b6ee387000f3f254d4"
+  },
+  "ablation": {
+    "harness_source": "test/test_localization_episode.cpp",
+    "harness_sha256": "0902533ff20654ed6a19c87a48575f998da04a1e56f23ddc490db59ab86ff979",
+    "harness_cases": 6,
+    "frames_per_process": 52,
+    "processes": 36,
+    "case_executions": 216,
+    "frame_observations": 1872,
+    "repeats": 3,
+    "order": "Rotated variants; measurement runs without concurrent builds or tests. Dynamic loader resolution checked on each run.",
+    "public_fields_compared": "States, decisions, status, stamps, identifiers, and all published pose components.",
+    "public_float_tolerance": 1e-12,
+    "all_public_equivalent": true,
+    "max_public_pose_delta": 0.0,
+    "variants": {
+      "baseline": {
+        "library_sha256": "02bbbdb737b9d1ba0a2e0f14271b90ac6a072949a6ea7581d137096fa9a09ad8",
+        "source_commit": "459be6f1983d2cbc67b6b1535ea08d477a3bb919",
+        "product_identity_verified": true
+      },
+      "search": {
+        "library_sha256": "d553a8a0d0d9df589e3de20cb97bf6b9e53b9257c30534cdde3219790b807acf",
+        "description": "Deferred visibility, lazy query preparation, serial target-request snapshots; before tracking-cache extraction."
+      },
+      "combined": {
+        "library_sha256": "ead482351e61d0b9613deaf2387e856bf32eda19b4773b1bbee42f8f30f6062c",
+        "description": "Final optimization sources in this commit.",
+        "product_identity_verified": false
+      },
+      "no_deferred": {
+        "library_sha256": "7a4e76ee97c8829f77f9c4a6b5275a96d923bd005f9e1ae25301aa432cd3e445",
+        "description": "Combined, replacing only candidate evaluator with baseline source; same flags and current headers."
+      },
+      "no_prefetch": {
+        "library_sha256": "f995f368cb00a46e14bab38983cd49312cc253a11346daf85c30cfbb16a09d9b",
+        "description": "Combined, replacing only prefetchLoaded body with a no-op in a temporary build; same flags and headers."
+      }
+    },
+    "main": {
+      "legacy": {
+        "baseline": {
+          "process_wall_s_median": 5.04,
+          "process_max_rss_kib_median": 76912,
+          "per_52_frame_round": {
+            "visibility_evaluations": 792,
+            "alignments": 510
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 9,
+              "visibility_preparations": 9
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.507971,
+              "p95": 1.845057,
+              "max": 1.845057
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 8.199561,
+              "p95": 10.540548,
+              "max": 10.550051
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.06669800000000001,
+              "p95": 0.136694,
+              "max": 0.308708
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.0016475,
+              "p95": 0.005535,
+              "max": 0.005828
+            }
+          },
+          "process_wall_s_samples": [
+            5.04,
+            5.03,
+            5.05
+          ],
+          "process_max_rss_kib_samples": [
+            69932,
+            76912,
+            77140
+          ]
+        },
+        "search": {
+          "process_wall_s_median": 5.16,
+          "process_max_rss_kib_median": 70732,
+          "per_52_frame_round": {
+            "visibility_evaluations": 564,
+            "alignments": 510
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 0,
+              "visibility_preparations": 0
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.088671,
+              "p95": 1.377846,
+              "max": 1.377846
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 8.3019015,
+              "p95": 10.932281,
+              "max": 11.047521
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.0698025,
+              "p95": 0.171448,
+              "max": 0.323463
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.001388,
+              "p95": 0.005898,
+              "max": 0.006003
+            }
+          },
+          "process_wall_s_samples": [
+            5.16,
+            5.18,
+            5.15
+          ],
+          "process_max_rss_kib_samples": [
+            70540,
+            70732,
+            71528
+          ]
+        },
+        "combined": {
+          "process_wall_s_median": 5.04,
+          "process_max_rss_kib_median": 74132,
+          "per_52_frame_round": {
+            "visibility_evaluations": 564,
+            "alignments": 510
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 0,
+              "visibility_preparations": 0
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.090495,
+              "p95": 1.494068,
+              "max": 1.494068
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 8.006832,
+              "p95": 10.291728,
+              "max": 10.318408
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.0,
+              "p95": 0.0,
+              "max": 0.0
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.0001235,
+              "p95": 0.003542,
+              "max": 0.003971
+            }
+          },
+          "process_wall_s_samples": [
+            5.04,
+            5.04,
+            5.06
+          ],
+          "process_max_rss_kib_samples": [
+            77060,
+            74132,
+            72472
+          ]
+        }
+      },
+      "atlas": {
+        "baseline": {
+          "process_wall_s_median": 3.4,
+          "process_max_rss_kib_median": 78588,
+          "per_52_frame_round": {
+            "visibility_evaluations": 792,
+            "alignments": 510
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 9,
+              "visibility_preparations": 9
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.515617,
+              "p95": 1.843673,
+              "max": 1.843673
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 8.179344,
+              "p95": 10.805774,
+              "max": 11.026495
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.069426,
+              "p95": 0.194994,
+              "max": 0.201111
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.0013475,
+              "p95": 0.004471,
+              "max": 0.004582
+            }
+          },
+          "process_wall_s_samples": [
+            3.4,
+            3.42,
+            3.4
+          ],
+          "process_max_rss_kib_samples": [
+            81600,
+            78052,
+            78588
+          ]
+        },
+        "search": {
+          "process_wall_s_median": 3.49,
+          "process_max_rss_kib_median": 79292,
+          "per_52_frame_round": {
+            "visibility_evaluations": 564,
+            "alignments": 510
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 0,
+              "visibility_preparations": 0
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.090257,
+              "p95": 1.533991,
+              "max": 1.533991
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 9.0729565,
+              "p95": 14.267558,
+              "max": 15.418512
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.07056799999999999,
+              "p95": 0.335116,
+              "max": 0.401323
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.00228,
+              "p95": 0.009343,
+              "max": 0.009892
+            }
+          },
+          "process_wall_s_samples": [
+            3.46,
+            3.51,
+            3.49
+          ],
+          "process_max_rss_kib_samples": [
+            74172,
+            81096,
+            79292
+          ]
+        },
+        "combined": {
+          "process_wall_s_median": 3.42,
+          "process_max_rss_kib_median": 75644,
+          "per_52_frame_round": {
+            "visibility_evaluations": 564,
+            "alignments": 510
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 0,
+              "visibility_preparations": 0
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.092352,
+              "p95": 1.401225,
+              "max": 1.401225
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 7.9160315,
+              "p95": 10.291502,
+              "max": 10.400233
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.0,
+              "p95": 0.0,
+              "max": 0.0
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.000127,
+              "p95": 0.002811,
+              "max": 0.003043
+            }
+          },
+          "process_wall_s_samples": [
+            3.42,
+            3.42,
+            3.4
+          ],
+          "process_max_rss_kib_samples": [
+            74408,
+            78960,
+            75644
+          ]
+        }
+      },
+      "kill": {
+        "baseline": {
+          "process_wall_s_median": 4.09,
+          "process_max_rss_kib_median": 76972,
+          "per_52_frame_round": {
+            "visibility_evaluations": 640,
+            "alignments": 434
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 9,
+              "visibility_preparations": 9
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.512173,
+              "p95": 1.848027,
+              "max": 1.848027
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 8.156205499999999,
+              "p95": 10.475348,
+              "max": 10.523607
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.066419,
+              "p95": 0.14643,
+              "max": 0.315909
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.0012265,
+              "p95": 0.003943,
+              "max": 0.005195
+            }
+          },
+          "process_wall_s_samples": [
+            4.07,
+            4.09,
+            4.11
+          ],
+          "process_max_rss_kib_samples": [
+            77040,
+            76972,
+            72460
+          ]
+        },
+        "search": {
+          "process_wall_s_median": 4.2,
+          "process_max_rss_kib_median": 70700,
+          "per_52_frame_round": {
+            "visibility_evaluations": 412,
+            "alignments": 434
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 0,
+              "visibility_preparations": 0
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.087698,
+              "p95": 1.450129,
+              "max": 1.450129
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 8.282224,
+              "p95": 10.689922,
+              "max": 10.745292
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.067497,
+              "p95": 0.158737,
+              "max": 0.310715
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.0011765,
+              "p95": 0.005567,
+              "max": 0.007425
+            }
+          },
+          "process_wall_s_samples": [
+            4.19,
+            4.2,
+            4.2
+          ],
+          "process_max_rss_kib_samples": [
+            70700,
+            71632,
+            68968
+          ]
+        },
+        "combined": {
+          "process_wall_s_median": 4.09,
+          "process_max_rss_kib_median": 70912,
+          "per_52_frame_round": {
+            "visibility_evaluations": 412,
+            "alignments": 434
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 0,
+              "visibility_preparations": 0
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.087223,
+              "p95": 1.444107,
+              "max": 1.444107
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 7.9262755,
+              "p95": 10.496004,
+              "max": 10.679781
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.0,
+              "p95": 0.0,
+              "max": 0.0
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.0001665,
+              "p95": 0.002969,
+              "max": 0.00361
+            }
+          },
+          "process_wall_s_samples": [
+            4.09,
+            4.09,
+            4.09
+          ],
+          "process_max_rss_kib_samples": [
+            72576,
+            70912,
+            68584
+          ]
+        }
+      }
+    },
+    "individual": {
+      "legacy": {
+        "combined": {
+          "process_wall_s_median": 5.06,
+          "process_max_rss_kib_median": 73852,
+          "per_52_frame_round": {
+            "visibility_evaluations": 564,
+            "alignments": 510
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 0,
+              "visibility_preparations": 0
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.090725,
+              "p95": 1.505229,
+              "max": 1.505229
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 7.9434815,
+              "p95": 10.305432,
+              "max": 10.308934
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.0,
+              "p95": 0.0,
+              "max": 0.0
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.0001195,
+              "p95": 0.002628,
+              "max": 0.003234
+            }
+          },
+          "process_wall_s_samples": [
+            5.06,
+            5.05,
+            5.06
+          ],
+          "process_max_rss_kib_samples": [
+            73840,
+            73852,
+            76732
+          ]
+        },
+        "no_deferred": {
+          "process_wall_s_median": 5.06,
+          "process_max_rss_kib_median": 71672,
+          "per_52_frame_round": {
+            "visibility_evaluations": 792,
+            "alignments": 510
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 0,
+              "visibility_preparations": 0
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.08955,
+              "p95": 1.435299,
+              "max": 1.435299
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 36,
+              "tracking_cache_miss": 0
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 8.1007745,
+              "p95": 10.260985,
+              "max": 10.311418
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.0,
+              "p95": 0.0,
+              "max": 0.0
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.000192,
+              "p95": 0.003288,
+              "max": 0.00424
+            }
+          },
+          "process_wall_s_samples": [
+            5.06,
+            5.06,
+            5.06
+          ],
+          "process_max_rss_kib_samples": [
+            68296,
+            71672,
+            75784
+          ]
+        },
+        "no_prefetch": {
+          "process_wall_s_median": 5.02,
+          "process_max_rss_kib_median": 69544,
+          "per_52_frame_round": {
+            "visibility_evaluations": 564,
+            "alignments": 510
+          },
+          "no_candidates": {
+            "frame_observations": 9,
+            "counters_over_three_runs": {
+              "source_preparations": 0,
+              "visibility_preparations": 0
+            },
+            "total_ms": {
+              "n": 9,
+              "p50": 0.089458,
+              "p95": 1.399958,
+              "max": 1.399958
+            }
+          },
+          "strict_tracking": {
+            "frame_observations": 36,
+            "counters_over_three_runs": {
+              "tracking_cache_hit": 30,
+              "tracking_cache_miss": 6
+            },
+            "total_ms": {
+              "n": 36,
+              "p50": 7.960438999999999,
+              "p95": 21.761399,
+              "max": 21.977798
+            },
+            "submap_build_ms": {
+              "n": 36,
+              "p50": 0.0,
+              "p95": 0.115673,
+              "max": 0.178733
+            },
+            "target_prepare_ms": {
+              "n": 36,
+              "p50": 0.0001355,
+              "p95": 11.429965,
+              "max": 11.473343
+            }
+          },
+          "process_wall_s_samples": [
+            5.02,
+            5.03,
+            5.02
+          ],
+          "process_max_rss_kib_samples": [
+            68648,
+            70280,
+            69544
+          ]
+        }
+      }
+    }
+  },
+  "decisions": [
+    "Keep deferred visibility: 792 to 564 evaluations in legacy/atlas, 640 to 412 in kill, with unchanged alignments and outputs. Individual reversal confirms work reduction; whole-process speedup not demonstrated.",
+    "Keep bounded prefetch: individual removal increases strict-tracking p95 from 10.305 to 21.761 ms, with 36/0 to 30/6 cache hits/misses over three runs. Median process maximum RSS falls from 73852 to 69544 KiB without prefetch; retain its measured tail/resource tradeoff and start workers lazily.",
+    "Cache exact raw visibility crops with prepared loaded-map targets: four-entry bound, warm hits require no recrop. No additional fixed byte bound was introduced.",
+    "Remove two PBT suites that primarily exercised Eigen/PCL/getters; retain matcher, schema, ROS concurrency and output contracts; add six production-core/output episodes and a map-generation geometry regression."
+  ],
+  "limits": [
+    "Deterministic synthetic backend episodes with a fixed test configuration shared by all variants; not a Product-default accuracy dataset or real sensor odometry drift benchmark.",
+    "Outside-map continuity relies on valid upstream odometry and the last trusted correction; no new drift-free localization capability, search strategy, motion-submap activation or status API was added.",
+    "Fresh-map episode creates fresh core/output owners; it does not establish live hot-map-switch support.",
+    "Whole-process wall time remains essentially unchanged; small-scene stage timings do not prove overall deployment speedup.",
+    "Raw crops add bounded-entry storage; large-map peak memory and CPU/tail behavior require robot measurement.",
+    "Temporary binaries, generated ablation copies and raw traces are not published. This record retains source/library/harness identities and measured summaries."
+  ]
+}

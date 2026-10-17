@@ -700,6 +700,15 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(test_synthetic_relocalization n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
   endif()
 
+  catkin_add_gtest(test_localization_episode
+    ${N3MAPPING_ROOT}/test/test_localization_episode.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
+  )
+  if(TARGET test_localization_episode)
+    target_include_directories(test_localization_episode PRIVATE ${JSONCPP_INCLUDE_DIRS})
+    target_link_libraries(test_localization_episode n3mapping_core ${PCL_LIBRARIES} ${JSONCPP_LIBRARIES})
+  endif()
+
   catkin_add_gtest(test_dense_trajectory_export
     ${N3MAPPING_ROOT}/test/test_dense_trajectory_export.cpp
     ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp

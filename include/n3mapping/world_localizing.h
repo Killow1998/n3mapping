@@ -3,16 +3,11 @@
 #pragma once
 #include "n3mapping/relocalization_performance.h"
 
-#include <condition_variable>
 #include <cstdint>
-#include <deque>
 #include <limits>
 #include <memory>
 #include <mutex>
-#include <set>
 #include <string>
-#include <thread>
-#include <tuple>
 #include <vector>
 
 #include <Eigen/Core>
@@ -38,6 +33,8 @@
 #include "n3mapping/visibility_consistency.h"
 
 namespace n3mapping {
+
+class TrackingTargetCache;
 
 struct RelocResult {
   RelocalizationPerformance performance;
@@ -155,9 +152,9 @@ public:
   VisibilityConsistencyResult
   evaluateLoadedMapPoseVisibility(const PointCloudT::Ptr &query_cloud,
                                   const Eigen::Isometry3d &T_map_lidar);
-  // Rebuild the exact current-revision target for the loaded-map anchor after
-  // a committed extension graph update. Nearby targets are only prefetched;
-  // a later tracking callback still builds synchronously on any cache miss.
+  // Warm the immutable loaded-map target for an extension anchor and prefetch
+  // nearby alternatives. A later tracking callback still prepares the exact
+  // loaded-generation target synchronously on any cache miss.
   void warmLoadedMapTrackingTargets(int64_t anchor_id,
                                     const Eigen::Vector3d &query_position,
                                     bool wait_for_prefetch = false);
@@ -173,71 +170,10 @@ private:
     bool accepted = false;
   };
 
-  struct LoadedMapTrackingTargetCacheEntry {
-    int64_t anchor_id = -1;
-    std::size_t loaded_keyframe_count = 0;
-    KeyframeMapRevision map_revision;
-    PointCloudMatcher::PreparedTarget target;
-  };
-
-  struct LocalizationTrackingTargetCacheEntry {
-    int64_t anchor_id = -1;
-    int submap_range = 0;
-    KeyframeMapRevision map_revision;
-    std::shared_ptr<const PointCloudMatcher::PreparedTarget> target;
-    std::size_t bytes = 0;
-    std::size_t submap_points = 0;
-  };
-
-  struct LocalizationTrackingTargetCacheResult {
-    std::shared_ptr<const PointCloudMatcher::PreparedTarget> target;
-    bool enabled = false;
-    bool hit = false;
-    bool miss = false;
-    std::size_t entry_bytes = 0;
-    std::size_t total_bytes = 0;
-    std::size_t entries = 0;
-    std::size_t submap_points = 0;
-    double submap_build_ms = 0.0;
-    double target_prepare_ms = 0.0;
-  };
-
-  struct LoadedMapTrackingTargetPrefetchRequest {
-    int64_t anchor_id = -1;
-    Eigen::Vector3d crop_center = Eigen::Vector3d::Zero();
-    PointCloudT::Ptr loaded_map;
-    std::size_t loaded_keyframe_count = 0;
-    KeyframeMapRevision map_revision;
-    std::uint64_t cache_epoch = 0;
-  };
-
-  using LoadedMapTrackingTargetRequestKey =
-      std::tuple<int64_t, std::uint64_t, std::uint64_t, std::size_t>;
-
+  static bool hasValidRegistrationResult(const MatchResult &match);
   RelocMatchQuality evaluateRelocMatchQuality(const MatchResult &match) const;
 
   void rebuildRelocMapCacheIfNeeded();
-  void rebuildLoadedMapVisibilityCacheIfNeeded();
-  LocalizationTrackingTargetCacheResult
-  prepareLocalizationTrackingTarget(int64_t anchor_id, int submap_range);
-  void clearLocalizationTrackingTargetCache(bool reset_statistics);
-  void invalidateLoadedMapTrackingTargetCache();
-  PointCloudMatcher::PreparedTarget
-  prepareLoadedMapTrackingTarget(int64_t anchor_id,
-                                 const PointCloudT::Ptr &submap,
-                                 bool *cache_hit, bool *cache_miss);
-  void
-  requestLoadedMapTrackingTargetPrefetch(const Eigen::Vector3d &query_position,
-                                         int64_t current_anchor_id);
-  void loadedMapTrackingTargetPrefetchLoop(std::size_t worker_index);
-  bool
-  hasLoadedMapTrackingTargetLocked(int64_t anchor_id,
-                                   const KeyframeMapRevision &map_revision,
-                                   std::size_t loaded_keyframe_count) const;
-  static LoadedMapTrackingTargetRequestKey
-  loadedMapTrackingTargetRequestKey(int64_t anchor_id,
-                                    const KeyframeMapRevision &map_revision,
-                                    std::size_t loaded_keyframe_count);
   void rebuildFreeSpaceGridIfNeeded();
   void killFreeSpaceDominatedHypotheses(const PointCloudT::Ptr &query_cloud,
                                         const Eigen::Isometry3d &odom_pose);
@@ -247,10 +183,6 @@ private:
   PointCloudT::Ptr buildRelocTargetCloud(int64_t center_id);
   RelocTargetRequest makeRelocTargetRequest(int64_t center_id);
   void releaseSearchPreparation();
-  VisibilityConsistencyResult
-  evaluatePoseVisibility(const PointCloudT::Ptr &target_cloud,
-                         const PointCloudT::Ptr &query_cloud,
-                         const Eigen::Isometry3d &T_map_lidar) const;
   double computeRelocLogLikelihood(const LoopCandidate &candidate,
                                    const MatchResult &match_result) const;
   double
@@ -264,7 +196,6 @@ private:
 
   Config config_;
   KeyframeManager &keyframe_manager_;
-  LoopDetector &loop_detector_;
   PointCloudMatcher &matcher_;
   LocalMapSelector local_map_selector_;
   RelocalizationQueryBuilder query_builder_;
@@ -278,34 +209,7 @@ private:
   PointCloudT::Ptr reloc_map_cache_;
   size_t reloc_map_cached_keyframes_;
   KeyframeMapRevision reloc_map_revision_;
-  PointCloudT::Ptr loaded_map_visibility_cache_;
-  size_t loaded_map_visibility_cached_keyframes_ = 0;
-  KeyframeMapRevision loaded_map_visibility_revision_;
-  std::deque<LocalizationTrackingTargetCacheEntry>
-      localization_tracking_target_cache_;
-  KeyframeMapRevision localization_tracking_target_cache_revision_;
-  bool have_localization_tracking_target_cache_revision_ = false;
-  std::size_t localization_tracking_target_cache_bytes_ = 0;
-  std::size_t localization_tracking_target_cache_hits_ = 0;
-  std::size_t localization_tracking_target_cache_misses_ = 0;
-  std::deque<LoadedMapTrackingTargetCacheEntry>
-      loaded_map_tracking_target_cache_;
-  std::deque<LoadedMapTrackingTargetPrefetchRequest>
-      loaded_map_tracking_target_prefetch_queue_;
-  std::set<LoadedMapTrackingTargetRequestKey>
-      loaded_map_tracking_target_prefetch_pending_;
-  mutable std::mutex loaded_map_tracking_target_cache_mutex_;
-  std::condition_variable loaded_map_tracking_target_prefetch_cv_;
-  std::vector<std::unique_ptr<PointCloudMatcher>>
-      loaded_map_tracking_target_prefetch_matchers_;
-  std::vector<std::thread> loaded_map_tracking_target_prefetch_threads_;
-  std::size_t loaded_map_tracking_target_prefetch_worker_count_ = 0;
-  int loaded_map_tracking_target_prefetch_threads_per_worker_ = 1;
-  bool loaded_map_tracking_target_prefetch_stop_ = false;
-  std::uint64_t loaded_map_tracking_target_cache_epoch_ = 0;
-  size_t loaded_map_tracking_target_cache_hits_ = 0;
-  size_t loaded_map_tracking_target_cache_misses_ = 0;
-  size_t loaded_map_tracking_target_prefetch_requests_ = 0;
+  std::unique_ptr<TrackingTargetCache> tracking_targets_;
   FreeSpaceGrid free_space_grid_;
   size_t free_space_grid_keyframes_ = 0;
   KeyframeMapRevision free_space_grid_revision_;
