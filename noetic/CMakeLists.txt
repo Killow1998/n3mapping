@@ -583,6 +583,7 @@ if(CATKIN_ENABLE_TESTING)
 
   catkin_add_gtest(test_point_cloud_matcher
     ${N3MAPPING_ROOT}/test/test_point_cloud_matcher.cpp
+    ${N3MAPPING_ROOT}/test/test_registration_search.cpp
     ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
   )
   if(TARGET test_point_cloud_matcher)

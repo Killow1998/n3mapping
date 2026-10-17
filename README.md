@@ -708,6 +708,23 @@ records 61 passing CTest projects and 36 ablation runs with identical public
 outputs. It shows reduced repeated work and a prefetch tail-latency benefit in
 these synthetic scenes; whole-process runtime remains essentially unchanged.
 
+Registration uses the existing correspondence-distance gate to bound exact
+nearest-neighbor search. It preserves accepted neighbors, equality at the gate,
+tie order and optimizer settings; it does not use approximate search.
+
+For a CPU budget, compare process CPU time at the same sensor cadence, then
+sample the deployed node with `tools/n3mapping_process_resource_sample.py`.
+Its `process_cpu_percent` uses 100% for one fully occupied core. A continuously
+running test may still occupy one core after it becomes faster. At 10 Hz, a
+half-core average budget is 50 CPU ms per frame, including background work;
+tracking, recovery, input/output cadence and latency must also pass on the
+target CPU and map.
+
+The [exact-search CPU evidence](docs/evidence/registration_cpu_optimization_20261017.json)
+records a 13%–15% reduction in process CPU time on the same synthetic episodes,
+with identical public outputs. The RK3588 half-core deployment target remains
+unverified; target sampling is required.
+
 </details>
 
 ### TODO

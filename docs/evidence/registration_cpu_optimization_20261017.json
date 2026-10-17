@@ -1,0 +1,688 @@
+{
+  "harness_sha256": "9cf66bf8066861028ae6efc38a0018747af701f37c0d460e9d0ab56a5db6f721",
+  "library_sha256": {
+    "baseline": "ead482351e61d0b9613deaf2387e856bf32eda19b4773b1bbee42f8f30f6062c",
+    "final": "702d16c6a287499ba22294c8a95191f21189bd4cd12734a0345e8a32cc0017cb"
+  },
+  "processes": 18,
+  "frames": 936,
+  "all_public_fields_and_counters_exact": true,
+  "runs": [
+    {
+      "wall_s": 5.05,
+      "user_s": 5.05,
+      "system_s": 0.08,
+      "max_rss_kib": 69884,
+      "repeat": 0,
+      "config": "legacy",
+      "variant": "baseline",
+      "cpu_s": 5.13
+    },
+    {
+      "wall_s": 4.33,
+      "user_s": 4.36,
+      "system_s": 0.06,
+      "max_rss_kib": 75032,
+      "repeat": 0,
+      "config": "legacy",
+      "variant": "final",
+      "cpu_s": 4.42
+    },
+    {
+      "wall_s": 3.42,
+      "user_s": 4.86,
+      "system_s": 0.08,
+      "max_rss_kib": 77500,
+      "repeat": 0,
+      "config": "atlas",
+      "variant": "baseline",
+      "cpu_s": 4.94
+    },
+    {
+      "wall_s": 2.9,
+      "user_s": 4.1,
+      "system_s": 0.08,
+      "max_rss_kib": 81740,
+      "repeat": 0,
+      "config": "atlas",
+      "variant": "final",
+      "cpu_s": 4.18
+    },
+    {
+      "wall_s": 4.08,
+      "user_s": 4.09,
+      "system_s": 0.07,
+      "max_rss_kib": 76072,
+      "repeat": 0,
+      "config": "kill",
+      "variant": "baseline",
+      "cpu_s": 4.16
+    },
+    {
+      "wall_s": 3.55,
+      "user_s": 3.56,
+      "system_s": 0.06,
+      "max_rss_kib": 73536,
+      "repeat": 0,
+      "config": "kill",
+      "variant": "final",
+      "cpu_s": 3.62
+    },
+    {
+      "wall_s": 4.36,
+      "user_s": 4.35,
+      "system_s": 0.08,
+      "max_rss_kib": 69320,
+      "repeat": 1,
+      "config": "legacy",
+      "variant": "final",
+      "cpu_s": 4.43
+    },
+    {
+      "wall_s": 5.03,
+      "user_s": 5.02,
+      "system_s": 0.09,
+      "max_rss_kib": 76804,
+      "repeat": 1,
+      "config": "legacy",
+      "variant": "baseline",
+      "cpu_s": 5.11
+    },
+    {
+      "wall_s": 2.89,
+      "user_s": 4.09,
+      "system_s": 0.08,
+      "max_rss_kib": 76732,
+      "repeat": 1,
+      "config": "atlas",
+      "variant": "final",
+      "cpu_s": 4.17
+    },
+    {
+      "wall_s": 3.41,
+      "user_s": 4.84,
+      "system_s": 0.06,
+      "max_rss_kib": 74892,
+      "repeat": 1,
+      "config": "atlas",
+      "variant": "baseline",
+      "cpu_s": 4.9
+    },
+    {
+      "wall_s": 3.56,
+      "user_s": 3.58,
+      "system_s": 0.07,
+      "max_rss_kib": 72972,
+      "repeat": 1,
+      "config": "kill",
+      "variant": "final",
+      "cpu_s": 3.65
+    },
+    {
+      "wall_s": 4.08,
+      "user_s": 4.08,
+      "system_s": 0.09,
+      "max_rss_kib": 69772,
+      "repeat": 1,
+      "config": "kill",
+      "variant": "baseline",
+      "cpu_s": 4.17
+    },
+    {
+      "wall_s": 5.07,
+      "user_s": 5.08,
+      "system_s": 0.08,
+      "max_rss_kib": 71672,
+      "repeat": 2,
+      "config": "legacy",
+      "variant": "baseline",
+      "cpu_s": 5.16
+    },
+    {
+      "wall_s": 4.34,
+      "user_s": 4.35,
+      "system_s": 0.07,
+      "max_rss_kib": 73608,
+      "repeat": 2,
+      "config": "legacy",
+      "variant": "final",
+      "cpu_s": 4.42
+    },
+    {
+      "wall_s": 3.4,
+      "user_s": 4.82,
+      "system_s": 0.09,
+      "max_rss_kib": 83684,
+      "repeat": 2,
+      "config": "atlas",
+      "variant": "baseline",
+      "cpu_s": 4.91
+    },
+    {
+      "wall_s": 2.88,
+      "user_s": 4.08,
+      "system_s": 0.09,
+      "max_rss_kib": 79928,
+      "repeat": 2,
+      "config": "atlas",
+      "variant": "final",
+      "cpu_s": 4.17
+    },
+    {
+      "wall_s": 4.1,
+      "user_s": 4.09,
+      "system_s": 0.09,
+      "max_rss_kib": 73388,
+      "repeat": 2,
+      "config": "kill",
+      "variant": "baseline",
+      "cpu_s": 4.18
+    },
+    {
+      "wall_s": 3.55,
+      "user_s": 3.54,
+      "system_s": 0.08,
+      "max_rss_kib": 75836,
+      "repeat": 2,
+      "config": "kill",
+      "variant": "final",
+      "cpu_s": 3.62
+    }
+  ],
+  "summary": {
+    "legacy": {
+      "baseline": {
+        "cpu_s_median": 5.13,
+        "wall_s_median": 5.05,
+        "max_rss_kib_median": 71672,
+        "stages": {
+          "ambiguous": {
+            "frames": 18,
+            "p50_ms": 73.7839755,
+            "p95_ms": 180.294027,
+            "max_ms": 180.294027
+          },
+          "geometric_restore": {
+            "frames": 3,
+            "p50_ms": 17.740256,
+            "p95_ms": 17.797472,
+            "max_ms": 17.797472
+          },
+          "initial_unmapped": {
+            "frames": 3,
+            "p50_ms": 87.621564,
+            "p95_ms": 90.431495,
+            "max_ms": 90.431495
+          },
+          "invalid_then_mismatch": {
+            "frames": 3,
+            "p50_ms": 11.765619,
+            "p95_ms": 12.099292,
+            "max_ms": 12.099292
+          },
+          "mapped": {
+            "frames": 54,
+            "p50_ms": 81.42005549999999,
+            "p95_ms": 524.641297,
+            "max_ms": 526.656165
+          },
+          "no_candidates": {
+            "frames": 9,
+            "p50_ms": 0.089123,
+            "p95_ms": 1.422264,
+            "max_ms": 1.422264
+          },
+          "outside": {
+            "frames": 27,
+            "p50_ms": 14.285779,
+            "p95_ms": 96.637054,
+            "max_ms": 98.573894
+          },
+          "replacement_unmapped": {
+            "frames": 3,
+            "p50_ms": 80.136939,
+            "p95_ms": 80.441418,
+            "max_ms": 80.441418
+          },
+          "strict_tracking": {
+            "frames": 36,
+            "p50_ms": 7.933832,
+            "p95_ms": 10.310541,
+            "max_ms": 10.486973
+          }
+        }
+      },
+      "final": {
+        "cpu_s_median": 4.42,
+        "wall_s_median": 4.34,
+        "max_rss_kib_median": 73608,
+        "stages": {
+          "ambiguous": {
+            "frames": 18,
+            "p50_ms": 59.130900499999996,
+            "p95_ms": 166.57014,
+            "max_ms": 166.57014
+          },
+          "geometric_restore": {
+            "frames": 3,
+            "p50_ms": 17.804648,
+            "p95_ms": 17.897115,
+            "max_ms": 17.897115
+          },
+          "initial_unmapped": {
+            "frames": 3,
+            "p50_ms": 65.624637,
+            "p95_ms": 67.243456,
+            "max_ms": 67.243456
+          },
+          "invalid_then_mismatch": {
+            "frames": 3,
+            "p50_ms": 9.952937,
+            "p95_ms": 10.103278,
+            "max_ms": 10.103278
+          },
+          "mapped": {
+            "frames": 54,
+            "p50_ms": 68.66692950000001,
+            "p95_ms": 461.50456,
+            "max_ms": 462.944782
+          },
+          "no_candidates": {
+            "frames": 9,
+            "p50_ms": 0.089557,
+            "p95_ms": 1.408345,
+            "max_ms": 1.408345
+          },
+          "outside": {
+            "frames": 27,
+            "p50_ms": 11.9334,
+            "p95_ms": 74.170134,
+            "max_ms": 74.411965
+          },
+          "replacement_unmapped": {
+            "frames": 3,
+            "p50_ms": 59.683903,
+            "p95_ms": 60.884564,
+            "max_ms": 60.884564
+          },
+          "strict_tracking": {
+            "frames": 36,
+            "p50_ms": 7.8666195000000005,
+            "p95_ms": 10.071111,
+            "max_ms": 10.115819
+          }
+        }
+      }
+    },
+    "atlas": {
+      "baseline": {
+        "cpu_s_median": 4.91,
+        "wall_s_median": 3.41,
+        "max_rss_kib_median": 77500,
+        "stages": {
+          "ambiguous": {
+            "frames": 18,
+            "p50_ms": 73.6061845,
+            "p95_ms": 102.960648,
+            "max_ms": 102.960648
+          },
+          "geometric_restore": {
+            "frames": 3,
+            "p50_ms": 18.017726,
+            "p95_ms": 18.209,
+            "max_ms": 18.209
+          },
+          "initial_unmapped": {
+            "frames": 3,
+            "p50_ms": 19.782354,
+            "p95_ms": 19.896406,
+            "max_ms": 19.896406
+          },
+          "invalid_then_mismatch": {
+            "frames": 3,
+            "p50_ms": 11.731816,
+            "p95_ms": 11.819386,
+            "max_ms": 11.819386
+          },
+          "mapped": {
+            "frames": 54,
+            "p50_ms": 82.1231205,
+            "p95_ms": 261.856936,
+            "max_ms": 262.164244
+          },
+          "no_candidates": {
+            "frames": 9,
+            "p50_ms": 0.098311,
+            "p95_ms": 1.427756,
+            "max_ms": 1.427756
+          },
+          "outside": {
+            "frames": 27,
+            "p50_ms": 13.664874,
+            "p95_ms": 32.546772,
+            "max_ms": 34.978754
+          },
+          "replacement_unmapped": {
+            "frames": 3,
+            "p50_ms": 18.71376,
+            "p95_ms": 27.016663,
+            "max_ms": 27.016663
+          },
+          "strict_tracking": {
+            "frames": 36,
+            "p50_ms": 7.972317,
+            "p95_ms": 10.293932,
+            "max_ms": 10.518792
+          }
+        }
+      },
+      "final": {
+        "cpu_s_median": 4.17,
+        "wall_s_median": 2.89,
+        "max_rss_kib_median": 79928,
+        "stages": {
+          "ambiguous": {
+            "frames": 18,
+            "p50_ms": 59.2429245,
+            "p95_ms": 80.954791,
+            "max_ms": 80.954791
+          },
+          "geometric_restore": {
+            "frames": 3,
+            "p50_ms": 17.867949,
+            "p95_ms": 18.004389,
+            "max_ms": 18.004389
+          },
+          "initial_unmapped": {
+            "frames": 3,
+            "p50_ms": 5.873123,
+            "p95_ms": 5.943205,
+            "max_ms": 5.943205
+          },
+          "invalid_then_mismatch": {
+            "frames": 3,
+            "p50_ms": 9.931623,
+            "p95_ms": 10.210734,
+            "max_ms": 10.210734
+          },
+          "mapped": {
+            "frames": 54,
+            "p50_ms": 68.7585465,
+            "p95_ms": 219.819489,
+            "max_ms": 221.208001
+          },
+          "no_candidates": {
+            "frames": 9,
+            "p50_ms": 0.094903,
+            "p95_ms": 1.414048,
+            "max_ms": 1.414048
+          },
+          "outside": {
+            "frames": 27,
+            "p50_ms": 11.983016,
+            "p95_ms": 15.574558,
+            "max_ms": 15.777674
+          },
+          "replacement_unmapped": {
+            "frames": 3,
+            "p50_ms": 5.216753,
+            "p95_ms": 5.331101,
+            "max_ms": 5.331101
+          },
+          "strict_tracking": {
+            "frames": 36,
+            "p50_ms": 7.8847645,
+            "p95_ms": 10.170776,
+            "max_ms": 10.404154
+          }
+        }
+      }
+    },
+    "kill": {
+      "baseline": {
+        "cpu_s_median": 4.17,
+        "wall_s_median": 4.08,
+        "max_rss_kib_median": 73388,
+        "stages": {
+          "ambiguous": {
+            "frames": 18,
+            "p50_ms": 11.515685999999999,
+            "p95_ms": 182.06632,
+            "max_ms": 182.06632
+          },
+          "geometric_restore": {
+            "frames": 3,
+            "p50_ms": 17.823459,
+            "p95_ms": 17.85953,
+            "max_ms": 17.85953
+          },
+          "initial_unmapped": {
+            "frames": 3,
+            "p50_ms": 87.728142,
+            "p95_ms": 90.6537,
+            "max_ms": 90.6537
+          },
+          "invalid_then_mismatch": {
+            "frames": 3,
+            "p50_ms": 11.694977,
+            "p95_ms": 11.745451,
+            "max_ms": 11.745451
+          },
+          "mapped": {
+            "frames": 54,
+            "p50_ms": 9.506006,
+            "p95_ms": 523.257538,
+            "max_ms": 523.733536
+          },
+          "no_candidates": {
+            "frames": 9,
+            "p50_ms": 0.089133,
+            "p95_ms": 1.429225,
+            "max_ms": 1.429225
+          },
+          "outside": {
+            "frames": 27,
+            "p50_ms": 13.600266,
+            "p95_ms": 97.28907,
+            "max_ms": 98.271041
+          },
+          "replacement_unmapped": {
+            "frames": 3,
+            "p50_ms": 80.04512,
+            "p95_ms": 80.243891,
+            "max_ms": 80.243891
+          },
+          "strict_tracking": {
+            "frames": 36,
+            "p50_ms": 7.8963725,
+            "p95_ms": 10.280946,
+            "max_ms": 10.473514
+          }
+        }
+      },
+      "final": {
+        "cpu_s_median": 3.62,
+        "wall_s_median": 3.55,
+        "max_rss_kib_median": 73536,
+        "stages": {
+          "ambiguous": {
+            "frames": 18,
+            "p50_ms": 11.407267000000001,
+            "p95_ms": 166.068653,
+            "max_ms": 166.068653
+          },
+          "geometric_restore": {
+            "frames": 3,
+            "p50_ms": 17.786939,
+            "p95_ms": 17.84842,
+            "max_ms": 17.84842
+          },
+          "initial_unmapped": {
+            "frames": 3,
+            "p50_ms": 66.040067,
+            "p95_ms": 66.124775,
+            "max_ms": 66.124775
+          },
+          "invalid_then_mismatch": {
+            "frames": 3,
+            "p50_ms": 9.915638,
+            "p95_ms": 9.935145,
+            "max_ms": 9.935145
+          },
+          "mapped": {
+            "frames": 54,
+            "p50_ms": 9.591644500000001,
+            "p95_ms": 460.70105,
+            "max_ms": 462.506131
+          },
+          "no_candidates": {
+            "frames": 9,
+            "p50_ms": 0.089379,
+            "p95_ms": 1.491124,
+            "max_ms": 1.491124
+          },
+          "outside": {
+            "frames": 27,
+            "p50_ms": 11.915314,
+            "p95_ms": 74.364812,
+            "max_ms": 75.870763
+          },
+          "replacement_unmapped": {
+            "frames": 3,
+            "p50_ms": 59.713601,
+            "p95_ms": 60.365423,
+            "max_ms": 60.365423
+          },
+          "strict_tracking": {
+            "frames": 36,
+            "p50_ms": 7.830386,
+            "p95_ms": 10.361904,
+            "max_ms": 10.411125
+          }
+        }
+      }
+    }
+  },
+  "date": "2026-10-17",
+  "baseline_commit": "df36b130b895a8d8adf19b505372c3564f5c60d7",
+  "target": {
+    "cpu": "RK3588",
+    "map_extent_m": [
+      100,
+      100
+    ],
+    "sensor": "MID360",
+    "pointcloud_hz": 10,
+    "cpu_budget_cores": 0.5,
+    "average_cpu_budget_ms_per_frame": 50,
+    "achieved_on_target": false,
+    "target_hardware_measured": false
+  },
+  "environment": {
+    "cpu": "Intel Core i5-14600KF",
+    "architecture": "x86_64",
+    "os": "Ubuntu 22.04",
+    "ros": "Humble",
+    "build": "Release",
+    "research_tools": false,
+    "product_identity_verified": false,
+    "episode_config_num_threads": 1,
+    "OMP_WAIT_POLICY": "PASSIVE",
+    "gtsam": "4.1.1",
+    "small_gicp": "1.0.0"
+  },
+  "method": {
+    "repeats": 3,
+    "order": "Rotated baseline/final, all runs without concurrent builds or tests. Same frozen 6-case/52-frame harness, dynamic library resolution checked each run.",
+    "cpu_time": "Per-process user + system CPU seconds from /usr/bin/time, including all threads. Whole E2E includes synthetic map construction/load and mixed localization states.",
+    "public_equivalence": "Every non-timing CSV field compared exactly, including decisions, poses, source stamps, identifiers and work counters.",
+    "source": "test/test_localization_episode.cpp",
+    "p95": "Nearest-rank on pooled per-stage frames across three runs."
+  },
+  "source_sha256": {
+    "cmake/n3mapping_core.cmake": "fccf5c42652b725ffabecdc1a754043952cab7da419adcb514f07186cbdc63c8",
+    "humble/CMakeLists.txt": "632083874d1a12d4f5a215fd80260cd3be3a760cfdc5ea7fbbe235df8717bfd3",
+    "noetic/CMakeLists.txt": "f1d4f9dd3c17f1a1a64e250603531addcd734920c79d4dbec67afc54dd1f4bb2",
+    "src/point_cloud_matcher.cpp": "c13dc8c941fe570ec6d5fc186a6fa7cb0ac6d0d8464519f93705fa0d97fb4357",
+    "src/point_cloud_registration.cpp": "9724a930c2aaa5ec7670a50f273fc8fb7e3fb47be91411825047206f02ca8ea4",
+    "src/registration_search.h": "c74ba0bf89fbf30a36237348ac16092549a5bf90b9a12677853083ee8cd02ed0",
+    "test/test_registration_search.cpp": "3f1301ba66042ebc35364caaa63cfa019fece7296da172af8a918a4a592414fa"
+  },
+  "product_profile_sha256": "1b603a0a180330857aac150e0450cb5e94e284a84934e9b6ee387000f3f254d4",
+  "verification": {
+    "ctest_projects": 61,
+    "ctest_failures": 0,
+    "ctest_skipped": 0,
+    "junit_sha256": "74c2c90b02d67df0e225679c721c5a3225445b00140bc9b7f0a572eb9b0aa0f9",
+    "exact_search_cases": 5,
+    "checks": [
+      "12000 random query/radius comparisons against unbounded nearest neighbor followed by the original gate.",
+      "Distance-gate equality, coincident/equidistant targets, floating-point split boundaries, unbounded and nonfinite-query fallback.",
+      "ICP, plane ICP and GICP: exact pose, convergence, iteration count, inlier count, error, Hessian and gradient against the upstream optimizer."
+    ],
+    "noetic": "Common sources and static boundary checks only; Noetic runtime unavailable."
+  },
+  "profiling": {
+    "scope": "Baseline synthetic E2E only; not a 100 x 100 m map or RK3588 profile.",
+    "method": "Temporary userspace SIGPROF program-counter sampling; no kernel perf settings changed.",
+    "samples": 5041,
+    "nearest_neighbor_sample_percent": 54.4
+  },
+  "ablation": {
+    "processes": 21,
+    "frames": 1092,
+    "all_public_fields_and_counters_exact": true,
+    "library_sha256": {
+      "baseline": "ead482351e61d0b9613deaf2387e856bf32eda19b4773b1bbee42f8f30f6062c",
+      "radius": "36e6e6413f4adb66413743d9abd87cce38aee727544a73142ce76a7cf526d452",
+      "bounds": "ab8af3a9ce9928133e7d665b181345e9854261b420f752efa426d10325a04889"
+    },
+    "variants": {
+      "radius": "Exact distance-bound search before hoisting the constant nextafter/min out of each query.",
+      "bounds": "Additional accumulated spatial half-space bounds; removed because the tested workload regressed versus radius."
+    },
+    "legacy": {
+      "baseline": {
+        "cpu_s_median": 5.13,
+        "wall_s_median": 5.05,
+        "max_rss_kib_median": 76152,
+        "strict_tracking": {
+          "frames": 36,
+          "p50_ms": 7.958959,
+          "p95_ms": 10.267929,
+          "max_ms": 10.324978
+        }
+      },
+      "radius": {
+        "cpu_s_median": 4.52,
+        "wall_s_median": 4.45,
+        "max_rss_kib_median": 73512,
+        "strict_tracking": {
+          "frames": 36,
+          "p50_ms": 7.95526,
+          "p95_ms": 10.435562,
+          "max_ms": 10.645236
+        }
+      },
+      "bounds": {
+        "cpu_s_median": 5.1,
+        "wall_s_median": 5.03,
+        "max_rss_kib_median": 69792,
+        "strict_tracking": {
+          "frames": 36,
+          "p50_ms": 8.3222635,
+          "p95_ms": 10.986763,
+          "max_ms": 11.004735
+        }
+      }
+    }
+  },
+  "limits": [
+    "The RK3588 half-core target is not verified. The measured synthetic scene, test settings and x86 CPU do not reproduce the requested 100 x 100 m MID360 deployment.",
+    "No point-count reduction, frame skipping, cadence reduction, thread-budget change, approximate search, threshold change or optimizer-iteration reduction. The original correspondence distance is applied earlier, with equality and tie order preserved.",
+    "No extra map index/cache is retained. Process peak RSS varies across runs and is not evidence of a RAM reduction.",
+    "Strict-tracking p95 decreases in legacy and atlas; kill increases by about 0.08 ms (under 1%) in this small sample. The data do not establish a universal latency non-regression guarantee.",
+    "The production process resource sampler must measure the target node at unchanged 10 Hz input, including background work. One full logical core is 100%; a half-core budget is 50%. Tracking, recovery, cadence and latency also require target acceptance.",
+    "Build a clean published commit with its actual N3MAPPING_PRODUCT_COMMIT for hardware Product identity; these local test binaries are development/UNVERIFIED. Temporary binaries and raw traces are not published."
+  ]
+}

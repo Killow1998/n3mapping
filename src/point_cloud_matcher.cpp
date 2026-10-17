@@ -1,6 +1,7 @@
 // PointCloudMatcher: small_gicp registration — single, batch, and cloud-level alignment with multi-scale ICP + optional GICP refinement.
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_state.h"
+#include "registration_search.h"
 
 #include <glog/logging.h>
 #include <omp.h>
@@ -168,8 +169,9 @@ void evaluateFixedPoseFactors(
     std::vector<Factor> factors(source.size());
     small_gicp::ParallelReductionOMP reduction;
     reduction.num_threads = num_threads;
+    const registration_detail::CorrespondenceSearch search(*target.kdtree, rejector.max_dist_sq);
     const auto [H, b, error] = reduction.linearize(
-        *target.cloud, source, *target.kdtree, rejector, pose, factors);
+        *target.cloud, source, search, rejector, pose, factors);
     (void)b;
     result->num_inliers = std::count_if(factors.begin(), factors.end(),
         [](const Factor& factor) { return factor.inlier(); });
@@ -351,7 +353,7 @@ MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe
             config_.gicp_num_neighbors, config_.num_threads);
         auto ls = setting_;
         ls.type = small_gicp::RegistrationSetting::GICP;
-        auto rr = small_gicp::align(*tp, *sp, *tt, init_guess, ls);
+        auto rr = registration_detail::align(*tp, *sp, *tt, init_guess, ls);
         const auto stage = makeStageResult("single_gicp", config_.gicp_downsampling_resolution,
                                            rr, sp->size(), ls.max_iterations);
         result.stages.push_back(stage);
@@ -508,7 +510,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
             }
             auto ls = setting;
             if (res > base_res * 1.01) ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
-            auto rr = small_gicp::align(*target_level->cloud, *source_level->cloud,
+            auto rr = registration_detail::align(*target_level->cloud, *source_level->cloud,
                                         *target_level->kdtree, T, ls);
             T = rr.T_target_source;
             const auto stage = makeStageResult(
@@ -554,7 +556,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
                     rs.max_iterations = config_.icp_refine_max_iterations;
                     rs.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
                     rs.downsampling_resolution = config_.icp_refine_downsampling_resolution;
-                    auto rr = small_gicp::align(*tr.cloud, *sr, *tr.kdtree, T, rs);
+                    auto rr = registration_detail::align(*tr.cloud, *sr, *tr.kdtree, T, rs);
                     const auto stage = makeStageResult("refine_gicp", config_.icp_refine_downsampling_resolution,
                                                        rr, sr->size(), rs.max_iterations);
                     result.stages.push_back(stage);
