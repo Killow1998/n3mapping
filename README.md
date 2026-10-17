@@ -65,12 +65,15 @@ src/n3mapping/scripts/select_distro_wrapper.sh clear
 Launch resources are wrapper-local. Humble uses `*.launch.py`; Noetic uses `*.launch`. After selecting a wrapper, use the launch commands for that ROS distribution only.
 
 The mapping, localization, and map-extension launch entries (including Noetic
-`development_runtime.launch`) default the N3 process to `OMP_WAIT_POLICY=PASSIVE`
+`development_runtime.launch`) and the Product runtime launcher default the N3
+process to `OMP_WAIT_POLICY=PASSIVE`
 to reduce OpenMP waiting overhead when sharing CPU cores with the frontend and
 navigation. An explicit inherited `OMP_WAIT_POLICY` takes precedence. This does
 not change thread counts or registration settings;
 an external `GOMP_SPINCOUNT` can affect the waiting behavior. Direct `rosrun` or
 executable invocation bypasses these launch defaults.
+
+Evidence for local CPU/latency optimization, its workload boundaries and reproducible probes: [runtime CPU measurements](docs/evidence/runtime_cpu_20261017/README.md).
 
 ### 2.3 Configuration
 

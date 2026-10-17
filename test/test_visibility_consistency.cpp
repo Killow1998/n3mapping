@@ -1,12 +1,93 @@
 #include "n3mapping/visibility_consistency.h"
+#include "../src/visibility_angular_bins.h"
 
 #include <array>
 #include <cmath>
+#include <random>
 
 #include <gtest/gtest.h>
 
 namespace n3mapping {
 namespace {
+
+int referenceAngularBin(double y, double x, double resolution, bool azimuth) {
+  double degrees = std::atan2(y, x) * 180.0 / M_PI + (azimuth ? 180.0 : 90.0);
+  if (azimuth) {
+    if (degrees >= 360.0) degrees -= 360.0;
+    if (degrees < 0.0) degrees += 360.0;
+  }
+  const int count = std::max(1, static_cast<int>(std::ceil((azimuth ? 360.0 : 180.0) / resolution)));
+  return std::clamp(static_cast<int>(std::floor(degrees / resolution)), 0, count - 1);
+}
+
+TEST(VisibilityConsistencyTest, AngularLookupPreservesBinsAcrossQuadrantsAndScales) {
+  std::mt19937_64 random(20261017);
+  std::uniform_real_distribution<double> coordinate(-1.0, 1.0);
+  for (const double resolution : {0.001, 0.1, 0.5, 1.0, 1.234567, 2.0, 4.0}) {
+    for (const bool azimuth : {false, true}) {
+      const int count = std::ceil((azimuth ? 360.0 : 180.0) / resolution);
+      const visibility_detail::AngularBinLookup bins(
+          azimuth ? 180.0 : 90.0, resolution, count, azimuth);
+      for (int i = 0; i < 10000; ++i) {
+        const double scale = i % 3 == 0 ? 1e-300 : (i % 3 == 1 ? 1.0 : 1e300);
+        const double y = coordinate(random) * scale;
+        const double x = (azimuth ? coordinate(random) : std::abs(coordinate(random))) * scale;
+        ASSERT_EQ(bins(y, x), referenceAngularBin(y, x, resolution, azimuth));
+      }
+      for (const double x : {-1.0, -0.0, 0.0, 1.0}) {
+        if (!azimuth && x < 0.0) continue;
+        for (const double y : {-1.0, -0.0, 0.0, 1.0})
+          EXPECT_EQ(bins(y, x), referenceAngularBin(y, x, resolution, azimuth));
+      }
+    }
+  }
+}
+
+TEST(VisibilityConsistencyTest, AngularLookupKeepsOriginalRoundingAtEveryBinBoundary) {
+  for (const double resolution : {0.001, 0.5, 1.234567, 4.0}) {
+    for (const bool azimuth : {false, true}) {
+      const int count = std::ceil((azimuth ? 360.0 : 180.0) / resolution);
+      const double offset = azimuth ? 180.0 : 90.0;
+      const visibility_detail::AngularBinLookup bins(offset, resolution, count, azimuth);
+      for (int i = 0; i < count; ++i) {
+        const double boundary = (i * resolution - offset) * M_PI / 180.0;
+        for (const double delta : {-1e-12, 0.0, 1e-12}) {
+          const double y = std::sin(boundary + delta);
+          const double x = std::cos(boundary + delta);
+          ASSERT_EQ(bins(y, x), referenceAngularBin(y, x, resolution, azimuth));
+        }
+      }
+    }
+  }
+}
+
+TEST(VisibilityConsistencyTest, ElevationLookupRetainsHypotAtBoundariesAndExtremeScales) {
+  std::mt19937_64 random(3588);
+  std::uniform_real_distribution<double> coordinate(-1.0, 1.0);
+  for (const double resolution : {0.001, 1.0, 1.234567, 4.0}) {
+    const int count = std::ceil(180.0 / resolution);
+    const visibility_detail::AngularBinLookup bins(90.0, resolution, count, false);
+    for (const double scale : {1e-300, 1e-162, 1e-154, 1.0, 1e150, 1e300}) {
+      for (int i = 0; i < 10000; ++i) {
+        const double x = coordinate(random) * scale;
+        const double y = coordinate(random) * scale;
+        const double z = coordinate(random) * scale;
+        ASSERT_EQ(bins.elevation(z, x, y),
+                  referenceAngularBin(z, std::hypot(x, y), resolution, false));
+      }
+    }
+    for (int i = 0; i < count; ++i) {
+      const double boundary = (i * resolution - 90.0) * M_PI / 180.0;
+      for (const double delta : {-1e-12, 0.0, 1e-12}) {
+        const double z = std::sin(boundary + delta);
+        const double x = std::cos(boundary + delta) * std::cos(0.713);
+        const double y = std::cos(boundary + delta) * std::sin(0.713);
+        ASSERT_EQ(bins.elevation(z, x, y),
+                  referenceAngularBin(z, std::hypot(x, y), resolution, false));
+      }
+    }
+  }
+}
 
 pcl::PointCloud<pcl::PointXYZI> makeFourRayCloud(double range) {
   pcl::PointCloud<pcl::PointXYZI> cloud;

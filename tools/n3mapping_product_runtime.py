@@ -157,6 +157,8 @@ def main() -> int:
     print(json.dumps(evidence, sort_keys=True), flush=True)
     if args.dry_run:
         return 0
+    # Match the ROS launch defaults before the child initializes OpenMP.
+    os.environ.setdefault("OMP_WAIT_POLICY", "PASSIVE")
     os.execv(node_executable, command)
     return 1
 

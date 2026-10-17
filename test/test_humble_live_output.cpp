@@ -317,6 +317,18 @@ TEST_F(HumbleLiveOutput, SameProductionSequenceMatchesSharedCoreInAllModes) {
     compare_live(invalid, false);
     update(epoch + 9, trusted(20.0));
     compare_live(raw(epoch + 10), true);
+    if (mode == CoreRunMode::LOCALIZATION) {
+      // Published snapshots must retain their own history when the node reuses
+      // its accumulated path for subsequent publications.
+      ASSERT_EQ(paths[path_count - 1].poses.size(), 1U);
+      ASSERT_EQ(paths.back().poses.size(), 3U);
+      EXPECT_EQ(paths.back().header.frame_id, "map");
+      EXPECT_DOUBLE_EQ(paths.back().poses[0].pose.position.x, 12.0);
+      EXPECT_DOUBLE_EQ(paths.back().poses[1].pose.position.x, 50.0);
+      EXPECT_DOUBLE_EQ(paths.back().poses[2].pose.position.x, 20.0);
+      EXPECT_EQ(toCoreTimeStamp(paths.back().poses[0].header.stamp).nsec, epoch - 9);
+      EXPECT_EQ(toCoreTimeStamp(paths.back().header.stamp).nsec, epoch + 10);
+    }
 
   }
 }

@@ -1,6 +1,7 @@
 #include "n3mapping/visibility_consistency.h"
 
 #include "n3mapping/config.h"
+#include "visibility_angular_bins.h"
 
 #include <algorithm>
 #include <cmath>
@@ -11,10 +12,9 @@
 namespace n3mapping {
 namespace {
 
-double percentile(std::vector<double> values, double quantile) {
+double sortedPercentile(const std::vector<double>& values, double quantile) {
   if (values.empty())
     return std::numeric_limits<double>::quiet_NaN();
-  std::sort(values.begin(), values.end());
   const double index =
       std::clamp(quantile, 0.0, 1.0) * static_cast<double>(values.size() - 1);
   const std::size_t lower = static_cast<std::size_t>(std::floor(index));
@@ -51,7 +51,9 @@ SphericalDepthImage makeDepthImage(double resolution_deg) {
 void insertPoint(const Eigen::Vector3d &point,
                  const VisibilityConsistencyOptions &options,
                  SphericalDepthImage *image,
-                 const std::vector<double> *measured = nullptr) {
+                 const std::vector<double> *measured = nullptr,
+                 const visibility_detail::AngularBinLookup *azimuth = nullptr,
+                 const visibility_detail::AngularBinLookup *elevation = nullptr) {
   if (!image || !point.array().isFinite().all())
     return;
   const double range = point.norm();
@@ -59,20 +61,14 @@ void insertPoint(const Eigen::Vector3d &point,
       range > options.range_max_m)
     return;
 
-  double azimuth_deg = std::atan2(point.y(), point.x()) * 180.0 / M_PI + 180.0;
-  if (azimuth_deg >= 360.0)
-    azimuth_deg -= 360.0;
-  if (azimuth_deg < 0.0)
-    azimuth_deg += 360.0;
-  const double elevation_deg =
-      std::atan2(point.z(), std::hypot(point.x(), point.y())) * 180.0 / M_PI +
-      90.0;
-  const int azimuth_index = std::clamp(
-      static_cast<int>(std::floor(azimuth_deg / image->resolution_deg)), 0,
-      image->azimuth_bins - 1);
-  const int elevation_index = std::clamp(
-      static_cast<int>(std::floor(elevation_deg / image->resolution_deg)), 0,
-      image->elevation_bins - 1);
+  const int azimuth_index = azimuth
+      ? (*azimuth)(point.y(), point.x())
+      : visibility_detail::originalAngularBin(point.y(), point.x(), 180.0,
+          image->resolution_deg, image->azimuth_bins, true);
+  const int elevation_index = elevation
+      ? elevation->elevation(point.z(), point.x(), point.y())
+      : visibility_detail::originalAngularBin(point.z(), std::hypot(point.x(), point.y()), 90.0,
+          image->resolution_deg, image->elevation_bins, false);
   const std::size_t index =
       static_cast<std::size_t>(elevation_index) *
           static_cast<std::size_t>(image->azimuth_bins) +
@@ -124,7 +120,8 @@ PreparedVisibilityObservation prepareVisibilityObservation(
   if (query_ranges.empty())
     return result;
 
-  const double median_query_range = percentile(query_ranges, 0.5);
+  std::sort(query_ranges.begin(), query_ranges.end());
+  const double median_query_range = sortedPercentile(query_ranges, 0.5);
   const double inferred_resolution_deg =
       std::atan2(options.range_tolerance_m,
                  std::max(options.range_min_m, median_query_range)) *
@@ -172,12 +169,17 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
                                   std::numeric_limits<double>::infinity());
   }
   const Eigen::Isometry3d T_lidar_map = T_map_lidar.inverse();
+  const visibility_detail::AngularBinLookup azimuth(
+      180.0, resolution_deg, predicted.azimuth_bins, true);
+  const visibility_detail::AngularBinLookup elevation(
+      90.0, resolution_deg, predicted.elevation_bins, false);
   for (const auto &point : map_cloud) {
     if (!pcl::isFinite(point))
       continue;
     insertPoint(T_lidar_map * Eigen::Vector3d(point.x, point.y, point.z),
                 options, &predicted,
-                options.occlusion_aware ? &observed.ranges : nullptr);
+                options.occlusion_aware ? &observed.ranges : nullptr,
+                &azimuth, &elevation);
   }
 
   std::vector<double> residuals;
@@ -250,8 +252,9 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
       (static_cast<double>(result.consistent_bins) + kJeffreysPrior) /
       (static_cast<double>(result.observed_bins - result.consistent_bins) +
        kJeffreysPrior));
-  result.median_abs_range_error_m = percentile(residuals, 0.5);
-  result.p90_abs_range_error_m = percentile(residuals, 0.9);
+  std::sort(residuals.begin(), residuals.end());
+  result.median_abs_range_error_m = sortedPercentile(residuals, 0.5);
+  result.p90_abs_range_error_m = sortedPercentile(residuals, 0.9);
   return result;
 }
 

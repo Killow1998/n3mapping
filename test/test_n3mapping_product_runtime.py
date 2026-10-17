@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -112,6 +113,36 @@ class ProductRuntimeTest(unittest.TestCase):
             )
             self.assertNotIn("reloc_atlas_enable:=true", command)
             self.assertEqual(report["status"], "verified")
+
+    def test_executed_node_inherits_wait_policy_without_losing_user_overrides(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            child = root / "report_environment.py"
+            child.write_text(
+                'import json, os\nprint(json.dumps({key: os.environ.get(key) '
+                'for key in ("OMP_WAIT_POLICY", "GOMP_SPINCOUNT")}))\n',
+                encoding="utf-8",
+            )
+            node = build_fake_product_elf(
+                root, "n3mapping_node", commit=COMMIT,
+                product_profile_sha256=sha256_file(ROOT / "config" / "product_v1.yaml"),
+                runtime_node=True, delegate_script=child,
+            )
+            bundle = self.make_bundle(root, node)
+            for ros_version, inherited, expected in (("2", None, "PASSIVE"), ("1", "ACTIVE", "ACTIVE")):
+                with self.subTest(ros_version=ros_version, inherited=inherited):
+                    environment = dict(os.environ, GOMP_SPINCOUNT="123")
+                    environment.pop("OMP_WAIT_POLICY", None)
+                    if inherited is not None:
+                        environment["OMP_WAIT_POLICY"] = inherited
+                    completed = subprocess.run(
+                        [sys.executable, "-B", str(RUNTIME), "--bundle", str(bundle),
+                         "--node-executable", str(node), "--ros-version", ros_version],
+                        env=environment, capture_output=True, text=True, check=False,
+                    )
+                    self.assertEqual(completed.returncode, 0, completed.stderr)
+                    observed = json.loads(completed.stdout.splitlines()[-1])
+                    self.assertEqual(observed, {"OMP_WAIT_POLICY": expected, "GOMP_SPINCOUNT": "123"})
 
     def test_tampered_bundle_never_executes_node(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

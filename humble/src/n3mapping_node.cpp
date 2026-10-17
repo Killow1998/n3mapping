@@ -820,7 +820,7 @@ class N3MappingNode : public rclcpp::Node
                       : PerformanceClock::time_point{};
                     publishPath(header, &output.T_world_lidar);
                     if (performance_enabled) {
-                        performance_event.odometry_path_publish_ms +=
+                        performance_event.odometry_path_publish_ms =
                           elapsed_ms(pose_publish_started);
                     }
                 }
@@ -1118,7 +1118,10 @@ class N3MappingNode : public rclcpp::Node
      */
     void publishPath(const std_msgs::msg::Header& header, const Eigen::Isometry3d* current_pose)
     {
-        nav_msgs::msg::Path path_msg;
+        nav_msgs::msg::Path mapping_path;
+        // Serialize localization history directly, without copying every pose.
+        auto& path_msg = run_mode_ == CoreRunMode::LOCALIZATION
+          ? localization_path_ : mapping_path;
         path_msg.header = header;
         path_msg.header.frame_id = config_.world_frame;
 
@@ -1136,9 +1139,8 @@ class N3MappingNode : public rclcpp::Node
                 pose.pose.orientation.x = q.x();
                 pose.pose.orientation.y = q.y();
                 pose.pose.orientation.z = q.z();
-                localization_path_.push_back(pose);
+                path_msg.poses.push_back(pose);
             }
-            path_msg.poses = localization_path_;
         } else {
             // 建图/续建模式: 按 version 分段构建彩色轨迹 marker
             // 同时保留 nav_msgs/Path 发布全部轨迹（用于数据记录/导航）
@@ -1660,7 +1662,7 @@ class N3MappingNode : public rclcpp::Node
     std::atomic<bool> shutdown_called_{false};
     std::string optimization_log_path_;
     std::mutex optimization_log_mutex_;
-    std::vector<geometry_msgs::msg::PoseStamped> localization_path_; // 定位模式累积轨迹
+    nav_msgs::msg::Path localization_path_; // 定位模式累积轨迹
     std::vector<std::pair<int64_t, int64_t>> loop_marker_history_;
     std::optional<rclcpp::Time> last_tf_stamp_;
 
