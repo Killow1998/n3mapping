@@ -101,6 +101,60 @@ six-scenario localization episodes preserve all 52 non-timing rows exactly in
 legacy, atlas, and atlas-plus-kill configurations. The four-thread episode variant
 also passes. Detailed samples, hashes, exclusions and scope are in [results.json](results.json).
 
+## Atlas memory and difficult-recording follow-up
+
+The follow-up starts from published commit
+`bcba7f2167c49ba0135c1c872794c77473f4a4e2`. Atlas loading now releases each
+serialized array after its values have been validated and copied into the final
+cloud, before building its KD-tree or decoding the next level. Map files,
+prepared geometry, feature values, runtime configuration and acceptance rules
+remain unchanged. The existing round-trip test compares every stored point,
+normal and covariance exactly.
+
+| Peak process RSS | Before | After |
+| --- | ---: | ---: |
+| Floor7 loading plus 30 frames, median of three alternating runs | 287.5 MiB | 268.5 MiB |
+| Saved-map loading plus 30 frames, median of three alternating runs | 493.0 MiB | 429.2 MiB |
+| Full floor7 ROS replay, 1,848 pairs | 473.5 MiB | 464.9 MiB |
+| Full saved-map ROS workload, 1,800 pairs | 626.0 MiB | 622.6 MiB |
+
+Startup savings are larger than the full-run savings, where caches and allocator
+reuse also determine the peak. Both full ROS runs preserve every processed pair,
+backend decision and received output count. CPU was 0.268 cores before/after on
+floor7 and 0.256/0.258 on the saved-map workload; the latter difference is 0.30
+CPU seconds over 180 wall seconds. This change establishes a memory benefit,
+without claiming an additional runtime CPU improvement.
+
+The independent `floor7_outside_713_room.bag` also ran through actual same-process
+DDS, comparing the original `45f4a17` baseline with the final combination. It
+preserves all 448 input pairs and backend behavior fields. Both accept the 55th
+observation after the same ambiguity checks, but the first path arrives in
+**13.820 / 10.524 seconds**. CPU after that first path averages **0.174 / 0.162
+cores**. The entire 44.7-second recording, including prolonged initial search,
+averages **1.286 / 1.193 cores**. Thus the half-core result applies to normal
+tracking; relocalization search and short bursts can exceed it. Earlier locking
+also starts authoritative live output sooner (309 / 342 odometry messages).
+
+Two scheduling experiments were rejected. Parallelizing only hypotheses with
+the same target increased first-lock latency about 12%. Parallelizing across
+targets saved about 4% on the easy prefix and 2% on the difficult recording,
+while increasing the latter's peak RSS by 27–39 MiB. The original scheduler is
+retained. Samples and rejected source/library hashes are in
+[followup_results.json](followup_results.json).
+
+The final full suite passes **61/61 CTest targets**. Frozen complete localization
+episodes remain identical in all 52 non-timing rows for legacy, atlas and
+atlas-plus-kill configurations.
+
+The existing out-of-map/reentry episode was also run three times per version and
+mode, alternating the original `45f4a17` baseline and final library. Every run
+requires the same three return observations and preserves all non-timing fields.
+Median backend processing across those observations falls from 504.8 to 472.9 ms
+in legacy mode, 494.6 to 462.6 ms with atlas, and 398.9 to 377.3 ms with
+atlas-plus-kill (5.4–6.5%). These are synthetic recovery computation measurements,
+with one registration thread per call and four P-cores pinned for both versions;
+they exclude the physical time required to acquire the observations.
+
 ## Reproduce
 
 Build the normal Release/Humble workspace first with `BUILD_TESTING=ON`; research

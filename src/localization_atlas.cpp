@@ -95,7 +95,7 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
     return true;
 }
 
-bool decodeLevel(const LocalizationAtlasPreparedLevel& input,
+bool decodeLevel(LocalizationAtlasPreparedLevel& input,
                  PointCloudMatcher::PreparedTargetLevel* output,
                  std::string* error) {
     if (!output || input.num_points() == 0 || !std::isfinite(input.resolution()) ||
@@ -133,6 +133,9 @@ bool decodeLevel(const LocalizationAtlasPreparedLevel& input,
     }
     output->resolution = input.resolution();
     output->cloud = cloud;
+    // The validated arrays now belong to cloud. Release the serialized copy
+    // before building the tree or decoding the next level; Clear retains it.
+    LocalizationAtlasPreparedLevel{}.Swap(&input);
     output->kdtree = std::make_shared<PointCloudMatcher::SmallGicpKdTree>(cloud);
     return true;
 }
@@ -450,10 +453,13 @@ bool LocalizationAtlas::load(const std::string& map_path,
     global_map_->height = 1;
     global_map_->is_dense = true;
 
+    // All global points have been validated and copied to their final cloud.
+    google::protobuf::RepeatedField<float>{}.Swap(data.mutable_global_points());
+
     const auto kdtree_start = Clock::now();
     prepared_target_.plane_levels.resize(2);
     for (int i = 0; i < data.plane_levels_size(); ++i) {
-        if (!decodeLevel(data.plane_levels(i),
+        if (!decodeLevel(*data.mutable_plane_levels(i),
                          &prepared_target_.plane_levels[static_cast<std::size_t>(i)],
                          error)) {
             return false;
@@ -463,7 +469,7 @@ bool LocalizationAtlas::load(const std::string& map_path,
     }
     prepared_target_.has_refine_level = data.refine_level_present();
     if (data.refine_level_present()) {
-        if (!decodeLevel(data.refine_level(), &prepared_target_.refine_level, error)) {
+        if (!decodeLevel(*data.mutable_refine_level(), &prepared_target_.refine_level, error)) {
             return false;
         }
         local_stats.prepared_point_count += prepared_target_.refine_level.cloud->size();
