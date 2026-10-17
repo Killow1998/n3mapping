@@ -28,11 +28,18 @@ void expectSameCorrespondence(const Search::Tree& tree,
   double reference_distance = 0.0, actual_distance = 0.0;
   const bool reference = tree.nearest_neighbor_search(
       query, &reference_index, &reference_distance) && reference_distance <= gate_squared;
-  const bool actual = Search(tree, gate_squared).nearest(query, &actual_index, &actual_distance);
-  ASSERT_EQ(actual, reference);
-  if (reference) {
-    EXPECT_EQ(actual_index, reference_index);
-    EXPECT_DOUBLE_EQ(actual_distance, reference_distance);
+  // Exercise both useful and stale hints, including a different equal-distance
+  // point and an out-of-range index. A hint must never choose the answer.
+  for (const std::size_t hint : {std::numeric_limits<std::size_t>::max(),
+                                 std::size_t{0}, tree.points->size() - 1,
+                                 reference_index, tree.points->size()}) {
+    const bool actual = Search(tree, gate_squared).withHint(hint).nearest(
+        query, &actual_index, &actual_distance);
+    ASSERT_EQ(actual, reference);
+    if (reference) {
+      EXPECT_EQ(actual_index, reference_index);
+      EXPECT_DOUBLE_EQ(actual_distance, reference_distance);
+    }
   }
 }
 

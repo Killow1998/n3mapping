@@ -1,0 +1,1387 @@
+{
+  "date": "2026-10-17",
+  "scope": "12 pinned source reviews; 5 original components executed; N3M storage ablation rejected",
+  "baseline_commit": "3874efc668b4fabddfbbfe988e3c290c5a247bae",
+  "baseline_tree": "11dd0ebb5db3ecd4a8def9b72f469fc9711fa7dd",
+  "environment": {
+    "architecture": "x86_64",
+    "cpu": "Intel Core i5-14600KF",
+    "os": "Ubuntu 22.04",
+    "ros": "Humble",
+    "build": "Release",
+    "identity": "UNVERIFIED",
+    "gpu_used": false,
+    "target_hardware_run": false
+  },
+  "target": {
+    "cpu": "RK3588",
+    "sensor": "MID360",
+    "cloud_hz": 10,
+    "map_extent_m": [
+      100,
+      100
+    ],
+    "budget_cpu_ms_per_frame_including_background": 50,
+    "validated": false
+  },
+  "repositories": [
+    {
+      "repository": "rsasaki0109/lidar_localization_ros2",
+      "commit": "3e232cad48789b31617a9c6163cbbb1aada006e5",
+      "license": "BSD-2-Clause",
+      "source_files": [
+        "README.md",
+        "include/lidar_localization/local_map_target_policy.hpp",
+        "include/lidar_localization/registration_cloud_keep_alive_policy.hpp",
+        "include/lidar_localization/soft_odom_correction_gate.hpp",
+        "src/component_scan_preparation.cpp",
+        "include/lidar_localization/bbs_branch_and_bound.hpp"
+      ],
+      "url": "https://github.com/rsasaki0109/lidar_localization_ros2/tree/3e232cad48789b31617a9c6163cbbb1aada006e5",
+      "validation_level": "component_runtime",
+      "runtime_scope": "original BBS2D golden fixtures; four cases and yaw-window equivalence",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "README.md": "047ae9dee79dc6df71e770d51e0c031d7b536098fedf6d65ec2a2904e3fb421c",
+        "include/lidar_localization/bbs_branch_and_bound.hpp": "811a02647a1802a50ae0559b1938e64e432a8d7dbe752e67544e5ad1da634211",
+        "include/lidar_localization/local_map_target_policy.hpp": "60fcb3b370d960993bf7ff3ddcd6028548aef174f0ac14f94d69c8d6dbadd5bb",
+        "include/lidar_localization/registration_cloud_keep_alive_policy.hpp": "e17faf4504c0d7d02aa49feb4eba1bb87840b0f2edbee5dd821c697b4d709891",
+        "include/lidar_localization/soft_odom_correction_gate.hpp": "b5274a8a0afdc8f7bf497ba1aeda1ec44b941d23f6bd495f3e1e039eb5bc51e8",
+        "src/component_scan_preparation.cpp": "c3e5b57b6b1bdddf1cf3c169fb690c0f901a29dd0f0e7a4f17f591df2c12e06a",
+        "test/bbs_golden_fixtures.inc": "d77b549390b7e0b0a798dd87c533c666a8e9006cc2e56d21319a8eeb15ea58e9",
+        "test/test_bbs_branch_and_bound.cpp": "fec63e6a973c7beb042f207215c1b07d878624df2413d311f4fd807ee97f5a85"
+      }
+    },
+    {
+      "repository": "koide3/hdl_localization",
+      "commit": "de2dc7769aa2412876d05ae6161408d3295b6a3c",
+      "license": "BSD-2-Clause",
+      "source_files": [
+        "README.md",
+        "include/hdl_localization/delta_estimater.hpp",
+        "apps/hdl_localization_nodelet.cpp"
+      ],
+      "url": "https://github.com/koide3/hdl_localization/tree/de2dc7769aa2412876d05ae6161408d3295b6a3c",
+      "validation_level": "source_review_only",
+      "runtime_scope": "none",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "README.md": "d83d548900e7acf28dba3015787ab9c6758ff401cb6195202d58e9d557316496",
+        "apps/hdl_localization_nodelet.cpp": "34a40fa6c17734fdf2c802917b564a06bcdda37d327e5b8b297d52cd0076ebc3",
+        "include/hdl_localization/delta_estimater.hpp": "c2793a14ebb5b94dfde3ba7d9a5204c9ce1e0119cf2628a670d8005fddee6e05"
+      }
+    },
+    {
+      "repository": "koide3/hdl_global_localization",
+      "commit": "a6a6b69929ac371d9531d0dcdef3c1593fd49245",
+      "license": "BSD-2-Clause",
+      "source_files": [
+        "README.md",
+        "include/hdl_global_localization/bbs/occupancy_gridmap.hpp",
+        "src/hdl_global_localization/bbs/bbs_localization.cpp",
+        "include/hdl_global_localization/ransac/matching_cost_evaluater_flann.hpp"
+      ],
+      "url": "https://github.com/koide3/hdl_global_localization/tree/a6a6b69929ac371d9531d0dcdef3c1593fd49245",
+      "validation_level": "source_review_only",
+      "runtime_scope": "none",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "README.md": "8b4441fd90cb6bde90189ac27fb17710e24ac91ee6ff811f361ec594be8abd2d",
+        "include/hdl_global_localization/bbs/occupancy_gridmap.hpp": "e4f2520fa1bd669946674a90171bf12b3edcca7dad74c0a1a1da5d33481c364b",
+        "include/hdl_global_localization/ransac/matching_cost_evaluater_flann.hpp": "68e5795c8c61ecb5d813c1593131522220a9da7ef9234daa89c788c3d85702c4",
+        "src/hdl_global_localization/bbs/bbs_localization.cpp": "789f6c385731c6eff810d3f6b450691498b43ba6d2ab988fbcfbb5321a748dfa"
+      }
+    },
+    {
+      "repository": "KOKIAOKI/3d_bbs",
+      "commit": "41529a34a2fb9618b5ff560fb3c2363f1615666d",
+      "license": "MIT",
+      "source_files": [
+        "README.md",
+        "LICENSE",
+        "CMakeLists.txt",
+        "bbs3d/include/cpu_bbs3d/bbs3d.hpp",
+        "bbs3d/include/cpu_bbs3d/voxelmaps.hpp",
+        "bbs3d/include/discrete_transformation/discrete_transformation.hpp",
+        "bbs3d/src/cpu_bbs3d/bbs3d.cpp",
+        "bbs3d/src/cpu_bbs3d/voxelmaps.cpp",
+        "bbs3d/src/cpu_bbs3d/voxelmaps_io.cpp"
+      ],
+      "url": "https://github.com/KOKIAOKI/3d_bbs/tree/41529a34a2fb9618b5ff560fb3c2363f1615666d",
+      "validation_level": "component_runtime",
+      "runtime_scope": "original CPU BBS3D",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "CMakeLists.txt": "342b332e67c4ca70e23de49e8741d1d569a81c730845ed805768ccddf4307f14",
+        "LICENSE": "7ed04ba571bb71f34bf9d74359a318d1e041e19c5e39e3fe2ddddc0e8c96a2ed",
+        "README.md": "7b52ba21b58fdd631e2c1556385ae18e4a3afcb5c88da15151fa91bb843118ea",
+        "bbs3d/include/cpu_bbs3d/bbs3d.hpp": "5a77730f14808a8ddb71957d2ff54a74d74e34f80df3e5aa2c07299c072f263a",
+        "bbs3d/include/cpu_bbs3d/voxelmaps.hpp": "bc9c42eb03147552eb7ed3cb81f20b23e91de577547a93d1a77ac103946cc0d0",
+        "bbs3d/include/discrete_transformation/discrete_transformation.hpp": "ab31190db1ccb760fc1eeee6672687d99cc51493abd83aaae16408de9d731063",
+        "bbs3d/src/cpu_bbs3d/bbs3d.cpp": "ec198f2a9f04c10f41466a01d22adb2bd6a2bed7072146f63c6b4c4ceedf4e6e",
+        "bbs3d/src/cpu_bbs3d/voxelmaps.cpp": "a65b7d8606ac1b8b186037b329fb1e7e83a14b77e2c76572e53a33601c0e7ce8",
+        "bbs3d/src/cpu_bbs3d/voxelmaps_io.cpp": "62969b306190700353fdf36beffe3fb30e6d68e7454b7b51693cd6f1bf6fa806"
+      }
+    },
+    {
+      "repository": "engcang/FAST-LIO-Localization-QN",
+      "commit": "123473d59bac4f8cc3b038c3d863a0684bd39ee8",
+      "license": "NOASSERTION",
+      "source_files": [
+        "README.md",
+        "fast_lio_localization_qn/src/map_matcher.cpp",
+        "fast_lio_localization_qn/src/fast_lio_localization_qn.cpp"
+      ],
+      "url": "https://github.com/engcang/FAST-LIO-Localization-QN/tree/123473d59bac4f8cc3b038c3d863a0684bd39ee8",
+      "validation_level": "source_review_only",
+      "runtime_scope": "none",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "README.md": "be27e8e0537e703828ab67de4a98607ab03e0926b71b48f0b684ac69b073acce",
+        "fast_lio_localization_qn/src/fast_lio_localization_qn.cpp": "f91be06c40cd3ecfcbe9d255202a0d0e2a7c6bd5c22683b46452e721db0378a8",
+        "fast_lio_localization_qn/src/map_matcher.cpp": "b5dadb4220f196a2f8f9c13085533b428951191e5729cd848e7bf8a8c9958529"
+      },
+      "readme_license": "CC-BY-NC-SA-4.0"
+    },
+    {
+      "repository": "HViktorTsoi/FAST_LIO_LOCALIZATION",
+      "commit": "2bc274ed0b36d14a5c34ada5e1473d52aa1db0d2",
+      "license": "GPL-2.0",
+      "source_files": [
+        "README.md",
+        "scripts/global_localization.py",
+        "scripts/transform_fusion.py"
+      ],
+      "url": "https://github.com/HViktorTsoi/FAST_LIO_LOCALIZATION/tree/2bc274ed0b36d14a5c34ada5e1473d52aa1db0d2",
+      "validation_level": "source_review_only",
+      "runtime_scope": "none",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "README.md": "5faae1759ea57d4908a2e9dc1942ce0f87e57e291c20a352dae155f94b299cbc",
+        "scripts/global_localization.py": "a2c52110bdc6e45058c58a6c1dc7e4813f907468e107dba8731665c76f42621f",
+        "scripts/transform_fusion.py": "0b2001eabe52a65db6c825495a3c3ac11e84324aa3612bb65d0ca7b89699bf9e"
+      }
+    },
+    {
+      "repository": "at-wat/mcl_3dl",
+      "commit": "0399995b018095f2ac50e9bb9c789b8362e079b3",
+      "license": "BSD-3-Clause",
+      "source_files": [
+        "README.md",
+        "include/mcl_3dl/chunked_kdtree.h",
+        "src/lidar_measurement_model_beam.cpp",
+        "src/lidar_measurement_model_likelihood.cpp"
+      ],
+      "url": "https://github.com/at-wat/mcl_3dl/tree/0399995b018095f2ac50e9bb9c789b8362e079b3",
+      "validation_level": "component_runtime",
+      "runtime_scope": "original chunked KD-tree against PCL",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "README.md": "80d5175b700df3cd8aa671bd86e05cccd7e83c96559e10f3beed6bced31e1a88",
+        "include/mcl_3dl/chunked_kdtree.h": "f24afe41c564167b1cde520bb15b8ea3a5718680520c8d28b636dc34662482c7",
+        "src/lidar_measurement_model_beam.cpp": "4824e1ffc1d958d5a3199dd690381085d14819008ec76f6b094e34a82842db98",
+        "src/lidar_measurement_model_likelihood.cpp": "fac42aebca5313422df6abe823520f27e56f0a52556e775676ffd96102fc07dd"
+      }
+    },
+    {
+      "repository": "MOLAorg/mola",
+      "commit": "b2010eb9e69bb8b14dc1536abcac4df1165ffd08",
+      "license": "NOASSERTION",
+      "source_files": [
+        "README.md",
+        "mola_relocalization/README.md",
+        "mola_relocalization/src/RelocalizationICP_SE2.cpp",
+        "mola_relocalization/src/RelocalizationLikelihood_SE2.cpp"
+      ],
+      "url": "https://github.com/MOLAorg/mola/tree/b2010eb9e69bb8b14dc1536abcac4df1165ffd08",
+      "validation_level": "source_review_only",
+      "runtime_scope": "none",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "README.md": "cd9c32771abe4c20ad0c8370b832af09cb462da294374901fa611d7f6c44b57d",
+        "mola_relocalization/README.md": "4b1ff49e6d54d4ba9283f6943660fbbf3f7a218c7b86ed0a2cccf78bc10da10e",
+        "mola_relocalization/src/RelocalizationICP_SE2.cpp": "8c7069782980d0917d8a085119836e94526e5e9669a66946aedb65c730b8b9c8",
+        "mola_relocalization/src/RelocalizationLikelihood_SE2.cpp": "f9d2847c7e9ceac2385396daf0ee2c76801a715139f33f9d0c20e56f7645e076",
+        "mola_relocalization/src/find_best_poses_se2.cpp": "5ef3c35e437426bf7d6112880cd20f5e6255d728e95b67aa4600ef174ff06c5e"
+      },
+      "module_readme_license": "mola_relocalization: GPL-3.0"
+    },
+    {
+      "repository": "hku-mars/LTAOM",
+      "commit": "aeb0bedcdfe4ec51e0d12f7b3804552e6066c0ae",
+      "license": "Apache-2.0",
+      "source_files": [
+        "README.md",
+        "STD/src/loop_detection.cpp"
+      ],
+      "url": "https://github.com/hku-mars/LTAOM/tree/aeb0bedcdfe4ec51e0d12f7b3804552e6066c0ae",
+      "validation_level": "source_review_only",
+      "runtime_scope": "none",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "README.md": "fb324c16eac127639c300314b8f310ebdcd263c63135760b8817ea1890b144bb",
+        "STD/src/loop_detection.cpp": "048b5c14b728849d30745ed2e1c85ef27f8efc18796012ad38891389291eeda5"
+      }
+    },
+    {
+      "repository": "YWL0720/FAST-LOCALIZATION",
+      "commit": "93da4f462b8da16679c18a8aea9545ed4cb3c71b",
+      "license": "GPL-2.0",
+      "source_files": [
+        "README.md",
+        "src/laserMapping.cpp"
+      ],
+      "url": "https://github.com/YWL0720/FAST-LOCALIZATION/tree/93da4f462b8da16679c18a8aea9545ed4cb3c71b",
+      "validation_level": "source_review_only",
+      "runtime_scope": "none",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "README.md": "6b2649c108211c8e8a9d8f5aa7ca1fc17604ae3805e6566157ea37bb047e36b9",
+        "src/laserMapping.cpp": "a56f6a26a22788494b523f61d8ca900181c2fa45f942181e2ecee1f4653aedff"
+      }
+    },
+    {
+      "repository": "MIT-SPARK/KISS-Matcher",
+      "commit": "8b58b118e00c7a5a22448741f8d956d638a44ae2",
+      "license": "MIT",
+      "source_files": [
+        "README.md",
+        "cpp/kiss_matcher/core/kiss_matcher/KISSMatcher.cpp",
+        "cpp/kiss_matcher/core/kiss_matcher/FasterPFH.cpp"
+      ],
+      "url": "https://github.com/MIT-SPARK/KISS-Matcher/tree/8b58b118e00c7a5a22448741f8d956d638a44ae2",
+      "validation_level": "component_runtime",
+      "runtime_scope": "original FasterPFH only",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "LICENSE": "62d6268dd5722a6a55996abb282b279cc00d9b6cf70d89e6a4f7387a2778fcb8",
+        "README.md": "09166083fe6ed3fc8d61580cbf810da04fea6c2f4a2500e8a8350002f8d963ba",
+        "cpp/kiss_matcher/core/kiss_matcher/FasterPFH.cpp": "d67a72d64fd2156aed782c27a3d4e7524fe192a4bf73dc01d67fd4a8854160fb",
+        "cpp/kiss_matcher/core/kiss_matcher/FasterPFH.hpp": "d2afa03b4a44cebac5a26e3796d5d81ec1807d62ef2db1b0548b081137e02d93",
+        "cpp/kiss_matcher/core/kiss_matcher/KISSMatcher.cpp": "b530517c120d731bec9742464e1c537908fe58fd461ad70f18cf160f6d340d5a",
+        "cpp/kiss_matcher/core/kiss_matcher/kdtree/kdtree.hpp": "92ac122c90681a3795c1a577f142ce8a6f4d246689b18fdb3f452dc506050fda",
+        "cpp/kiss_matcher/core/kiss_matcher/kdtree/kdtree_tbb.hpp": "4f84b5658edfef8db10cee0db32bac7860f7b1b5582b38765d36e61e7df51afb",
+        "cpp/kiss_matcher/core/kiss_matcher/kdtree/nanoflann.hpp": "4f77129292cad68e34265d55f533599f4d59b800c67050c4053c3de979e8e06f",
+        "cpp/kiss_matcher/core/kiss_matcher/kdtree/nanoflann_tbb.hpp": "7d6a0d29a4692a502812013c44a5131ded0fee3520555ea4fa5dac99ba7817af",
+        "cpp/kiss_matcher/core/kiss_matcher/kdtree/traits.hpp": "ada7f69d084da4b56c8cba700b24bc215d988c0a976e4e821936bda1a7e23f69",
+        "cpp/kiss_matcher/core/kiss_matcher/points/downsampling.hpp": "fb123e26a81657cb9f9a81555df51a80881f101246b9430950fd93cebc62ac13",
+        "cpp/kiss_matcher/core/kiss_matcher/points/eigen.hpp": "befa983d46951a0f20af899136414551eb4e7f359f6347202bf8c96d7c6ba661",
+        "cpp/kiss_matcher/core/kiss_matcher/points/fast_floor.hpp": "023e6c5d62cd48a14b6ad66523c47540d09fe34cdb19f13a02c3c0fa76cd0c56",
+        "cpp/kiss_matcher/core/kiss_matcher/points/point_cloud.hpp": "7abd4404583c07c6a74ce657bb9ca9bdcdbf0bb9a60e8fde77a10e1dd328cdff",
+        "cpp/kiss_matcher/core/kiss_matcher/points/traits.hpp": "d89b6bf08bce17adb97bcc03cb532dbd752fcf78d91166e089f7205f104e82d6",
+        "cpp/kiss_matcher/core/kiss_matcher/points/vector3i_hash.hpp": "59ee508e01f8096bd4ae3093768d3f112ac1da99c6fd665eafff802edb75d72a",
+        "cpp/kiss_matcher/core/kiss_matcher/tsl/robin_growth_policy.h": "e2e50c10658da22cef9cd19fa1345f520da5ab7c420693de521ec2967dcdc150",
+        "cpp/kiss_matcher/core/kiss_matcher/tsl/robin_hash.h": "52e5ae37f21d98c7ccd14407569baff6da3998034dd99ee7cd19ad84f01efb52",
+        "cpp/kiss_matcher/core/kiss_matcher/tsl/robin_map.h": "f6cd765a3d7f4dabca359d8664cd82502d716080fa0bb5ff140ce3df67ac037e",
+        "cpp/kiss_matcher/core/kiss_matcher/tsl/robin_set.h": "2e51aaaa22a6b6a561a84b49c4ce652142476d47bf18d21eaf82b824910f3dfd"
+      }
+    },
+    {
+      "repository": "PRBonn/MapClosures",
+      "commit": "95920fa549326a9a04a5b1efc4441e5071a5b835",
+      "license": "MIT",
+      "source_files": [
+        "README.md",
+        "cpp/map_closures/MapClosures.cpp",
+        "cpp/map_closures/DensityMap.cpp"
+      ],
+      "url": "https://github.com/PRBonn/MapClosures/tree/95920fa549326a9a04a5b1efc4441e5071a5b835",
+      "validation_level": "component_runtime",
+      "runtime_scope": "original density generator and upstream ORB parameters only",
+      "full_system_runtime_validated": false,
+      "downloaded_source_sha256": {
+        "LICENSE": "15947158a558e90a1c535f8aa25c3eb5c9c6adef58dfc95692bd2c474e375d2e",
+        "README.md": "bbc67bcd3b21a8445d227aaa9a66c8287b0c3ba261c2b85cd075f33cb3282c3c",
+        "cpp/map_closures/DensityMap.cpp": "0e430922119d14fded4acaa3de48170ac62aadda2eb6c05bb7d4b43bccc2604c",
+        "cpp/map_closures/DensityMap.hpp": "7e97bf3456c0d37000173182002fd02894488e091038cc92004915c0164934b7",
+        "cpp/map_closures/MapClosures.cpp": "74aabde7e4fa33372e4cb3c8e60914c59a8e017b633dfcb48945568cb67e9e54"
+      }
+    }
+  ],
+  "input": {
+    "map_sha256": "8d949ec3adcb143aa526f0ad94771ceb67fbddf7fa7e4c66d89bea8a26f6ae0e",
+    "map_points": 152116,
+    "extent": [
+      49.9759578704834,
+      59.11015510559082,
+      13.960211515426636
+    ],
+    "map_min": [
+      -25.8735294342041,
+      -35.388614654541016,
+      -2.9982411861419678
+    ],
+    "map_max": [
+      24.102428436279297,
+      23.721540451049805,
+      10.961970329284668
+    ],
+    "queries": [
+      {
+        "name": "query0",
+        "points": 1852,
+        "xyz": [
+          5.1481674909591675,
+          -25.672815799713135,
+          0.04408240411430597
+        ],
+        "yaw": 0.7,
+        "kind": "self_map_crop_not_independent_sensor_scan"
+      },
+      {
+        "name": "query1",
+        "points": 1694,
+        "xyz": [
+          8.470738410949707,
+          -6.751821041107178,
+          1.2010440826416016
+        ],
+        "yaw": 0.7,
+        "kind": "self_map_crop_not_independent_sensor_scan"
+      },
+      {
+        "name": "query2",
+        "points": 1525,
+        "xyz": [
+          10.840469360351562,
+          1.9680595099925995,
+          2.2082420587539673
+        ],
+        "yaw": 0.7,
+        "kind": "self_map_crop_not_independent_sensor_scan"
+      }
+    ]
+  },
+  "input_binary_sha256": {
+    "map.bin": "eac2ce313ae9c15caa58a1d7d15d39d360462421c4e32dc59f2de24f32600aef",
+    "negative.bin": "0c0ad4077a0075cf7a56e5a0d22d947964f8c09b94020061205ba4dcfb9ae2d5",
+    "query0.bin": "584ca5edcbac8ab238d8166591fe10665f2172c4d137ff04ef412a91f966354c",
+    "query1.bin": "9fbf787641e3df9ff2f04cc798c14b27c47bc33df088d0d03dc0663c0f45094e",
+    "query2.bin": "56cc4645760737c7f325aba3734836a7788cb21c8bd788869b0d5ee358d7d4e1"
+  },
+  "runtime": {
+    "bbs2d": {
+      "golden_cases": 4,
+      "assertions_enabled": true,
+      "golden_cases_exact": true,
+      "yaw_window_exact": true,
+      "scope": "author-provided fixtures, not real-map localization"
+    },
+    "bbs3d_1s_timeout": [
+      {
+        "query": "query0",
+        "returncode": 0,
+        "points": 152116,
+        "query_points": 1852,
+        "threads": 1,
+        "build_ms": 18.343101,
+        "build_cpu_ms": 18.335,
+        "query_ms": 1000.371326,
+        "query_cpu_ms": 998.682,
+        "rss_kib": 13332,
+        "localized": false,
+        "timeout": true,
+        "score": 0
+      },
+      {
+        "query": "query1",
+        "returncode": 0,
+        "points": 152116,
+        "query_points": 1694,
+        "threads": 1,
+        "build_ms": 18.306674,
+        "build_cpu_ms": 18.302,
+        "query_ms": 1000.34207,
+        "query_cpu_ms": 999.37,
+        "rss_kib": 13392,
+        "localized": false,
+        "timeout": true,
+        "score": 0
+      },
+      {
+        "query": "query2",
+        "returncode": 0,
+        "points": 152116,
+        "query_points": 1525,
+        "threads": 1,
+        "build_ms": 19.506236,
+        "build_cpu_ms": 19.495,
+        "query_ms": 1000.337121,
+        "query_cpu_ms": 1000.252,
+        "rss_kib": 13032,
+        "localized": false,
+        "timeout": true,
+        "score": 0
+      },
+      {
+        "query": "negative",
+        "returncode": 0,
+        "points": 152116,
+        "query_points": 1500,
+        "threads": 1,
+        "build_ms": 18.2994,
+        "build_cpu_ms": 18.296,
+        "query_ms": 1000.313384,
+        "query_cpu_ms": 1000.231,
+        "rss_kib": 13300,
+        "localized": false,
+        "timeout": true,
+        "score": 0
+      },
+      {
+        "query": "query0",
+        "returncode": 0,
+        "points": 152116,
+        "query_points": 1852,
+        "threads": 4,
+        "build_ms": 18.01847,
+        "build_cpu_ms": 18.009,
+        "query_ms": 373.968085,
+        "query_cpu_ms": 1365.329,
+        "rss_kib": 13336,
+        "localized": true,
+        "timeout": false,
+        "score": 0.99838012959,
+        "xyz": [
+          5,
+          -26,
+          -0.5
+        ],
+        "yaw": 0.673198425769
+      },
+      {
+        "query": "query1",
+        "returncode": 0,
+        "points": 152116,
+        "query_points": 1694,
+        "threads": 4,
+        "build_ms": 21.15059,
+        "build_cpu_ms": 21.142,
+        "query_ms": 634.503598,
+        "query_cpu_ms": 2277.708,
+        "rss_kib": 14784,
+        "localized": true,
+        "timeout": false,
+        "score": 0.998819362456,
+        "xyz": [
+          8,
+          -7,
+          1
+        ],
+        "yaw": 0.729298294583
+      },
+      {
+        "query": "query2",
+        "returncode": 0,
+        "points": 152116,
+        "query_points": 1525,
+        "threads": 4,
+        "build_ms": 18.199963,
+        "build_cpu_ms": 18.197,
+        "query_ms": 353.994801,
+        "query_cpu_ms": 1257.695,
+        "rss_kib": 13212,
+        "localized": true,
+        "timeout": false,
+        "score": 1,
+        "xyz": [
+          10.5,
+          2,
+          2
+        ],
+        "yaw": 0.729298294583
+      },
+      {
+        "query": "negative",
+        "returncode": 0,
+        "points": 152116,
+        "query_points": 1500,
+        "threads": 4,
+        "build_ms": 18.188629,
+        "build_cpu_ms": 18.186,
+        "query_ms": 574.473724,
+        "query_cpu_ms": 2131.866,
+        "rss_kib": 13340,
+        "localized": false,
+        "timeout": false,
+        "score": 0
+      }
+    ],
+    "bbs3d_5s_timeout": [
+      {
+        "query": "query0",
+        "points": 152116,
+        "query_points": 1852,
+        "threads": 1,
+        "build_ms": 19.160411,
+        "build_cpu_ms": 19.157,
+        "query_ms": 1325.155692,
+        "query_cpu_ms": 1325.05,
+        "rss_kib": 13340,
+        "localized": true,
+        "timeout": false,
+        "score": 0.99838012959,
+        "xyz": [
+          5,
+          -26,
+          -0.5
+        ],
+        "yaw": 0.673198425769
+      },
+      {
+        "query": "query1",
+        "points": 152116,
+        "query_points": 1694,
+        "threads": 1,
+        "build_ms": 17.962742,
+        "build_cpu_ms": 17.958,
+        "query_ms": 2196.140448,
+        "query_cpu_ms": 2194.008,
+        "rss_kib": 15080,
+        "localized": true,
+        "timeout": false,
+        "score": 0.998819362456,
+        "xyz": [
+          8,
+          -7,
+          1
+        ],
+        "yaw": 0.729298294583
+      },
+      {
+        "query": "query2",
+        "points": 152116,
+        "query_points": 1525,
+        "threads": 1,
+        "build_ms": 23.176536,
+        "build_cpu_ms": 23.133,
+        "query_ms": 1185.104562,
+        "query_cpu_ms": 1185.037,
+        "rss_kib": 13188,
+        "localized": true,
+        "timeout": false,
+        "score": 1,
+        "xyz": [
+          10.5,
+          2,
+          2
+        ],
+        "yaw": 0.729298294583
+      },
+      {
+        "query": "negative",
+        "points": 152116,
+        "query_points": 1500,
+        "threads": 1,
+        "build_ms": 18.177099,
+        "build_cpu_ms": 18.174,
+        "query_ms": 2069.658388,
+        "query_cpu_ms": 2069.535,
+        "rss_kib": 13332,
+        "localized": false,
+        "timeout": false,
+        "score": 0
+      }
+    ],
+    "other_components": [
+      {
+        "probe": "density",
+        "args": [
+          "map.bin"
+        ],
+        "repeat": 0,
+        "points": 152116,
+        "density_ms": 2.74758,
+        "width": 119,
+        "height": 101,
+        "orb_keypoints": 19,
+        "vertical_5m_shift_identical": true
+      },
+      {
+        "probe": "density",
+        "args": [
+          "query1.bin"
+        ],
+        "repeat": 0,
+        "points": 1694,
+        "density_ms": 0.022497,
+        "width": 32,
+        "height": 30,
+        "orb_keypoints": 0,
+        "vertical_5m_shift_identical": true
+      },
+      {
+        "probe": "fpfh",
+        "args": [
+          "query1.bin",
+          "1"
+        ],
+        "repeat": 0,
+        "points": 1694,
+        "keypoints": 1690,
+        "descriptors": 1690,
+        "finite": true,
+        "wall_ms": 29.0825,
+        "cpu_ms": 29.043,
+        "rss_kib": 11040
+      },
+      {
+        "probe": "fpfh",
+        "args": [
+          "query1.bin",
+          "4"
+        ],
+        "repeat": 0,
+        "points": 1694,
+        "keypoints": 1690,
+        "descriptors": 1690,
+        "finite": true,
+        "wall_ms": 8.74192,
+        "cpu_ms": 31.155,
+        "rss_kib": 11040
+      },
+      {
+        "probe": "chunk",
+        "args": [
+          "global_map.pcd",
+          "full"
+        ],
+        "repeat": 0,
+        "chunked": false,
+        "build_ms": 14.4153,
+        "query_ms": 20.7037,
+        "matched": 1771,
+        "distance_sum": 1377.71,
+        "mismatches": 0,
+        "rss_kib": 35152
+      },
+      {
+        "probe": "chunk",
+        "args": [
+          "global_map.pcd",
+          "chunk"
+        ],
+        "repeat": 0,
+        "chunked": true,
+        "build_ms": 34.8968,
+        "query_ms": 13.3184,
+        "matched": 1771,
+        "distance_sum": 1377.71,
+        "mismatches": 0,
+        "rss_kib": 57364
+      },
+      {
+        "probe": "chunk",
+        "args": [
+          "global_map.pcd",
+          "chunk"
+        ],
+        "repeat": 1,
+        "chunked": true,
+        "build_ms": 33.708,
+        "query_ms": 12.2026,
+        "matched": 1771,
+        "distance_sum": 1377.71,
+        "mismatches": 0,
+        "rss_kib": 57040
+      },
+      {
+        "probe": "chunk",
+        "args": [
+          "global_map.pcd",
+          "full"
+        ],
+        "repeat": 1,
+        "chunked": false,
+        "build_ms": 14.6028,
+        "query_ms": 19.7768,
+        "matched": 1771,
+        "distance_sum": 1377.71,
+        "mismatches": 0,
+        "rss_kib": 35208
+      },
+      {
+        "probe": "fpfh",
+        "args": [
+          "query1.bin",
+          "4"
+        ],
+        "repeat": 1,
+        "points": 1694,
+        "keypoints": 1690,
+        "descriptors": 1690,
+        "finite": true,
+        "wall_ms": 7.68715,
+        "cpu_ms": 27.832,
+        "rss_kib": 11040
+      },
+      {
+        "probe": "fpfh",
+        "args": [
+          "query1.bin",
+          "1"
+        ],
+        "repeat": 1,
+        "points": 1694,
+        "keypoints": 1690,
+        "descriptors": 1690,
+        "finite": true,
+        "wall_ms": 26.65,
+        "cpu_ms": 26.602,
+        "rss_kib": 11040
+      },
+      {
+        "probe": "density",
+        "args": [
+          "query1.bin"
+        ],
+        "repeat": 1,
+        "points": 1694,
+        "density_ms": 0.025492,
+        "width": 32,
+        "height": 30,
+        "orb_keypoints": 0,
+        "vertical_5m_shift_identical": true
+      },
+      {
+        "probe": "density",
+        "args": [
+          "map.bin"
+        ],
+        "repeat": 1,
+        "points": 152116,
+        "density_ms": 1.23265,
+        "width": 119,
+        "height": 101,
+        "orb_keypoints": 19,
+        "vertical_5m_shift_identical": true
+      },
+      {
+        "probe": "density",
+        "args": [
+          "map.bin"
+        ],
+        "repeat": 2,
+        "points": 152116,
+        "density_ms": 1.08017,
+        "width": 119,
+        "height": 101,
+        "orb_keypoints": 19,
+        "vertical_5m_shift_identical": true
+      },
+      {
+        "probe": "density",
+        "args": [
+          "query1.bin"
+        ],
+        "repeat": 2,
+        "points": 1694,
+        "density_ms": 0.035676,
+        "width": 32,
+        "height": 30,
+        "orb_keypoints": 0,
+        "vertical_5m_shift_identical": true
+      },
+      {
+        "probe": "fpfh",
+        "args": [
+          "query1.bin",
+          "1"
+        ],
+        "repeat": 2,
+        "points": 1694,
+        "keypoints": 1690,
+        "descriptors": 1690,
+        "finite": true,
+        "wall_ms": 23.5214,
+        "cpu_ms": 23.514,
+        "rss_kib": 11040
+      },
+      {
+        "probe": "fpfh",
+        "args": [
+          "query1.bin",
+          "4"
+        ],
+        "repeat": 2,
+        "points": 1694,
+        "keypoints": 1690,
+        "descriptors": 1690,
+        "finite": true,
+        "wall_ms": 8.20108,
+        "cpu_ms": 29.913,
+        "rss_kib": 11040
+      },
+      {
+        "probe": "chunk",
+        "args": [
+          "global_map.pcd",
+          "full"
+        ],
+        "repeat": 2,
+        "chunked": false,
+        "build_ms": 14.2335,
+        "query_ms": 20.8782,
+        "matched": 1771,
+        "distance_sum": 1377.71,
+        "mismatches": 0,
+        "rss_kib": 35244
+      },
+      {
+        "probe": "chunk",
+        "args": [
+          "global_map.pcd",
+          "chunk"
+        ],
+        "repeat": 2,
+        "chunked": true,
+        "build_ms": 33.8432,
+        "query_ms": 13.0877,
+        "matched": 1771,
+        "distance_sum": 1377.71,
+        "mismatches": 0,
+        "rss_kib": 57408
+      }
+    ]
+  },
+  "n3m_ablation": {
+    "disposition": "REJECTED; all production and test edits restored to baseline",
+    "reason": "No CPU reduction; process CPU medians increased 1.10 to 2.86 percent in three small repeated E2E configurations. Memory savings alone do not meet the requirement.",
+    "variants": {
+      "trim_storage": "Compute as baseline, then free plane target covariance; free plane source normals/covariance and refine source normals. Initial Atlas save failed, so not deployable.",
+      "needed_features": "As trim_storage, with normal-only estimation for plane target. Preparation-only measurements; not Atlas-compatible.",
+      "final": "As needed_features, plus Atlas encoder materializes covariance using original tree and neighbor count in a temporary cloud (one thread); decoder validates old arrays then frees plane covariance. Full v1 bytes preserved. Rejected after E2E CPU measurement."
+    },
+    "rejected_source_sha256": {
+      "include/n3mapping/point_cloud_matcher.h": "16720f6134f9a4efb0ccd34072af9ed2b1caa11501696f2efc45b34c02ec55f1",
+      "src/localization_atlas.cpp": "f272c45f59b95395e2394bde974a9226af51b0274a04379f211de309105fb5b5",
+      "src/point_cloud_matcher.cpp": "aff216d55d8681e4520362c1f7e5f7a3e1386943767df73f4075de65e524592b",
+      "test/test_localization_atlas.cpp": "d9f3fa11ab8f33b29a73acc7315fec48563f2ab5198706bdb6a6c8bec580986e",
+      "test/test_point_cloud_matcher.cpp": "0778b801ccc11886bdb06e876338acc7595346afd3b00ab602690a7089911c27"
+    },
+    "library_sha256": {
+      "baseline": "702d16c6a287499ba22294c8a95191f21189bd4cd12734a0345e8a32cc0017cb",
+      "trim_storage": "518acd711d1f652540dfdebe245ad2545a17729c39b8e69e25cae4be440e0932",
+      "needed_features": "be3c960b1a817b58356032ee151c1cc9fb9a63b7b42da42c8b6d474edc76ed71",
+      "final": "402a5f64b0aefef71e7a14dc0960d19be2efa7d31d4d0791cef496025e4b238b"
+    },
+    "frozen_episode_binary_sha256": "9cf66bf8066861028ae6efc38a0018747af701f37c0d460e9d0ab56a5db6f721",
+    "product_config_sha256": "1b603a0a180330857aac150e0450cb5e94e284a84934e9b6ee387000f3f254d4",
+    "preparation_runs": [
+      {
+        "variant": "baseline",
+        "repeat": 0,
+        "input_points": 152116,
+        "plane_target_points": 196793,
+        "payload_bytes": 133981056,
+        "estimated_target_bytes": 89321192,
+        "required_features_fingerprint": "7861678915621729186",
+        "wall_ms": 657.215232,
+        "cpu_ms": 657.102,
+        "rss_kib": 164092
+      },
+      {
+        "variant": "trim_storage",
+        "repeat": 0,
+        "input_points": 152116,
+        "plane_target_points": 196793,
+        "payload_bytes": 72436960,
+        "estimated_target_bytes": 64131688,
+        "required_features_fingerprint": "7861678915621729186",
+        "wall_ms": 656.97893,
+        "cpu_ms": 656.938,
+        "rss_kib": 139156
+      },
+      {
+        "variant": "needed_features",
+        "repeat": 0,
+        "input_points": 152116,
+        "plane_target_points": 196793,
+        "payload_bytes": 72436960,
+        "estimated_target_bytes": 64131688,
+        "required_features_fingerprint": "7861678915621729186",
+        "wall_ms": 654.369314,
+        "cpu_ms": 654.34,
+        "rss_kib": 138228
+      },
+      {
+        "variant": "trim_storage",
+        "repeat": 1,
+        "input_points": 152116,
+        "plane_target_points": 196793,
+        "payload_bytes": 72436960,
+        "estimated_target_bytes": 64131688,
+        "required_features_fingerprint": "7861678915621729186",
+        "wall_ms": 654.449626,
+        "cpu_ms": 653.072,
+        "rss_kib": 138636
+      },
+      {
+        "variant": "needed_features",
+        "repeat": 1,
+        "input_points": 152116,
+        "plane_target_points": 196793,
+        "payload_bytes": 72436960,
+        "estimated_target_bytes": 64131688,
+        "required_features_fingerprint": "7861678915621729186",
+        "wall_ms": 656.484924,
+        "cpu_ms": 656.309,
+        "rss_kib": 138228
+      },
+      {
+        "variant": "baseline",
+        "repeat": 1,
+        "input_points": 152116,
+        "plane_target_points": 196793,
+        "payload_bytes": 133981056,
+        "estimated_target_bytes": 89321192,
+        "required_features_fingerprint": "7861678915621729186",
+        "wall_ms": 659.90389,
+        "cpu_ms": 659.747,
+        "rss_kib": 163968
+      },
+      {
+        "variant": "needed_features",
+        "repeat": 2,
+        "input_points": 152116,
+        "plane_target_points": 196793,
+        "payload_bytes": 72436960,
+        "estimated_target_bytes": 64131688,
+        "required_features_fingerprint": "7861678915621729186",
+        "wall_ms": 656.47887,
+        "cpu_ms": 656.45,
+        "rss_kib": 138232
+      },
+      {
+        "variant": "baseline",
+        "repeat": 2,
+        "input_points": 152116,
+        "plane_target_points": 196793,
+        "payload_bytes": 133981056,
+        "estimated_target_bytes": 89321192,
+        "required_features_fingerprint": "7861678915621729186",
+        "wall_ms": 656.176334,
+        "cpu_ms": 656.001,
+        "rss_kib": 164112
+      },
+      {
+        "variant": "trim_storage",
+        "repeat": 2,
+        "input_points": 152116,
+        "plane_target_points": 196793,
+        "payload_bytes": 72436960,
+        "estimated_target_bytes": 64131688,
+        "required_features_fingerprint": "7861678915621729186",
+        "wall_ms": 650.536716,
+        "cpu_ms": 649.548,
+        "rss_kib": 139244
+      }
+    ],
+    "preparation_limit": "Entire 152116-point map used as both source and target; not a normal scan or deployment RAM estimate. These runs precede the Atlas compatibility repair, with identical preparation logic.",
+    "atlas_compatibility": [
+      {
+        "writer": "baseline",
+        "mode": "write",
+        "result": {
+          "ok": true,
+          "required_features_fingerprint": "1174265760787015589"
+        },
+        "file_sha256": "298af7e2103a315ae70c61ff061095ad6db5c4f432e5bea4331c5fc823a933c3"
+      },
+      {
+        "writer": "final",
+        "mode": "write",
+        "result": {
+          "ok": true,
+          "required_features_fingerprint": "1174265760787015589"
+        },
+        "file_sha256": "298af7e2103a315ae70c61ff061095ad6db5c4f432e5bea4331c5fc823a933c3"
+      },
+      {
+        "reader": "baseline",
+        "writer": "baseline",
+        "mode": "read",
+        "result": {
+          "ok": true,
+          "required_features_fingerprint": "1174265760787015589"
+        }
+      },
+      {
+        "reader": "baseline",
+        "writer": "final",
+        "mode": "read",
+        "result": {
+          "ok": true,
+          "required_features_fingerprint": "1174265760787015589"
+        }
+      },
+      {
+        "reader": "final",
+        "writer": "baseline",
+        "mode": "read",
+        "result": {
+          "ok": true,
+          "required_features_fingerprint": "1174265760787015589"
+        }
+      },
+      {
+        "reader": "final",
+        "writer": "final",
+        "mode": "read",
+        "result": {
+          "ok": true,
+          "required_features_fingerprint": "1174265760787015589"
+        }
+      }
+    ],
+    "candidate_ctest": {
+      "tests": "61",
+      "failures": "0",
+      "errors": null,
+      "skipped": "0",
+      "time": "32"
+    },
+    "episode_runs": [
+      {
+        "variant": "baseline",
+        "config": "legacy",
+        "repeat": 0,
+        "wall_s": 4.36,
+        "cpu_s": 4.44,
+        "rss_kib": 69884,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "60d1ef4422042bc0ec38036e16c10e7f1ca39f9f14da2c74e8c38ded1b5b5bb5",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "429b1db5d5beb13096700a996b5525e932f2a89be0b6ba39152ae5d83594bf49"
+      },
+      {
+        "variant": "final",
+        "config": "legacy",
+        "repeat": 0,
+        "wall_s": 4.41,
+        "cpu_s": 4.49,
+        "rss_kib": 70692,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "b4d87a3db1bbda44a42bf906121f201348cf7b84e42d771253841063018fea53",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "429b1db5d5beb13096700a996b5525e932f2a89be0b6ba39152ae5d83594bf49"
+      },
+      {
+        "variant": "baseline",
+        "config": "atlas",
+        "repeat": 0,
+        "wall_s": 2.9,
+        "cpu_s": 4.19,
+        "rss_kib": 77676,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "f99e91b1f5eae3ddc7acc046b4a6ce4aa138061ca3b43e77fa6cc57f8dbaa325",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "998e7fa5160798fad4f25b43410c6abaac76c462c610e48b5813cb21dd228f63"
+      },
+      {
+        "variant": "final",
+        "config": "atlas",
+        "repeat": 0,
+        "wall_s": 2.96,
+        "cpu_s": 4.3100000000000005,
+        "rss_kib": 74376,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "21ca764e9f43eeed902af90888707fe1375d95f795f9360dd33d928f9efd8d64",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "998e7fa5160798fad4f25b43410c6abaac76c462c610e48b5813cb21dd228f63"
+      },
+      {
+        "variant": "baseline",
+        "config": "kill",
+        "repeat": 0,
+        "wall_s": 3.58,
+        "cpu_s": 3.67,
+        "rss_kib": 73376,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "02d8ee4815fa3d867fe3a84a27a8d5decfb608ce1015ccbe6efed924ec9d385d",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "1426e591bcfc726f497b90022361bd8bf45228a78b957b540f91dc3e4f54e797"
+      },
+      {
+        "variant": "final",
+        "config": "kill",
+        "repeat": 0,
+        "wall_s": 3.61,
+        "cpu_s": 3.6799999999999997,
+        "rss_kib": 65996,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "a206ae8681f097b10d1be3b9862bfe39c196de1dc8f12d0b8e1a6f9c743c74ff",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "1426e591bcfc726f497b90022361bd8bf45228a78b957b540f91dc3e4f54e797"
+      },
+      {
+        "variant": "final",
+        "config": "legacy",
+        "repeat": 1,
+        "wall_s": 4.41,
+        "cpu_s": 4.49,
+        "rss_kib": 69380,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "da18638ae26e8ce3457898a2130f45a32438b3d6a353bc0ed4b919a3b834a9bf",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "429b1db5d5beb13096700a996b5525e932f2a89be0b6ba39152ae5d83594bf49"
+      },
+      {
+        "variant": "baseline",
+        "config": "legacy",
+        "repeat": 1,
+        "wall_s": 4.35,
+        "cpu_s": 4.43,
+        "rss_kib": 73740,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "f2332b50f332652a272b1b9622bc7fa08fd2b36b3c2cf463b8a4e1c0f6bc3a04",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "429b1db5d5beb13096700a996b5525e932f2a89be0b6ba39152ae5d83594bf49"
+      },
+      {
+        "variant": "final",
+        "config": "atlas",
+        "repeat": 1,
+        "wall_s": 2.96,
+        "cpu_s": 4.28,
+        "rss_kib": 76236,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "c0f0d914b5f7fcc9f4b1c9cd45299be18d4f7e300efa1e30b743c3bd33a62ecb",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "998e7fa5160798fad4f25b43410c6abaac76c462c610e48b5813cb21dd228f63"
+      },
+      {
+        "variant": "baseline",
+        "config": "atlas",
+        "repeat": 1,
+        "wall_s": 2.88,
+        "cpu_s": 4.17,
+        "rss_kib": 80432,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "58abde09138f42de346004e0316e2a1661d8604080870615b87f55796af96d30",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "998e7fa5160798fad4f25b43410c6abaac76c462c610e48b5813cb21dd228f63"
+      },
+      {
+        "variant": "final",
+        "config": "kill",
+        "repeat": 1,
+        "wall_s": 3.6,
+        "cpu_s": 3.67,
+        "rss_kib": 65640,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "924964dcaf2539831c64d242ee4a2e78467f632b10423b1457a7871af54d845d",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "1426e591bcfc726f497b90022361bd8bf45228a78b957b540f91dc3e4f54e797"
+      },
+      {
+        "variant": "baseline",
+        "config": "kill",
+        "repeat": 1,
+        "wall_s": 3.56,
+        "cpu_s": 3.64,
+        "rss_kib": 75652,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "626457d62dcf94fcabe9a6c8130a2a81e3ce8386138b6a65854b7a2c3d99c506",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "1426e591bcfc726f497b90022361bd8bf45228a78b957b540f91dc3e4f54e797"
+      },
+      {
+        "variant": "baseline",
+        "config": "legacy",
+        "repeat": 2,
+        "wall_s": 4.35,
+        "cpu_s": 4.42,
+        "rss_kib": 79568,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "fb223367cb9c92d01a485a56a213ad76ecf8e705cbe6eea97cc0a1611889b696",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "429b1db5d5beb13096700a996b5525e932f2a89be0b6ba39152ae5d83594bf49"
+      },
+      {
+        "variant": "final",
+        "config": "legacy",
+        "repeat": 2,
+        "wall_s": 4.41,
+        "cpu_s": 4.49,
+        "rss_kib": 67148,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "eb715f9d91b6956380692fba5033c93cdcf145565183ac9f143e79ed921e03ad",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "429b1db5d5beb13096700a996b5525e932f2a89be0b6ba39152ae5d83594bf49"
+      },
+      {
+        "variant": "baseline",
+        "config": "atlas",
+        "repeat": 2,
+        "wall_s": 2.9,
+        "cpu_s": 4.1899999999999995,
+        "rss_kib": 79856,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "0c03b93dd2ff45681daff5f5242622f747867c2b123ffced17fdf0019b0736a3",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "998e7fa5160798fad4f25b43410c6abaac76c462c610e48b5813cb21dd228f63"
+      },
+      {
+        "variant": "final",
+        "config": "atlas",
+        "repeat": 2,
+        "wall_s": 2.98,
+        "cpu_s": 4.319999999999999,
+        "rss_kib": 76200,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "fb40b3495a2c1902f25f4b33c56a511aa6254566ca3a5f34142558f40f5135ac",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "998e7fa5160798fad4f25b43410c6abaac76c462c610e48b5813cb21dd228f63"
+      },
+      {
+        "variant": "baseline",
+        "config": "kill",
+        "repeat": 2,
+        "wall_s": 3.55,
+        "cpu_s": 3.61,
+        "rss_kib": 75512,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "32f7bccf644aae8ee75a3051c8df7c7f72d249e5bf0c151a9a713b88380acd65",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "1426e591bcfc726f497b90022361bd8bf45228a78b957b540f91dc3e4f54e797"
+      },
+      {
+        "variant": "final",
+        "config": "kill",
+        "repeat": 2,
+        "wall_s": 3.6,
+        "cpu_s": 3.7,
+        "rss_kib": 67812,
+        "frames": 52,
+        "public_exact": true,
+        "trace_sha256": "8eedfaa19833084a72f62f883cd281573c21f10d0de83784346f706e126716bc",
+        "all_non_timing_columns_exact": true,
+        "non_timing_sha256": "1426e591bcfc726f497b90022361bd8bf45228a78b957b540f91dc3e4f54e797"
+      }
+    ],
+    "episode_summary": {
+      "legacy": {
+        "baseline": {
+          "cpu_s": 4.43,
+          "wall_s": 4.35,
+          "rss_kib": 73740
+        },
+        "final": {
+          "cpu_s": 4.49,
+          "wall_s": 4.41,
+          "rss_kib": 69380
+        },
+        "cpu_change_percent": 1.3544018058690765
+      },
+      "atlas": {
+        "baseline": {
+          "cpu_s": 4.1899999999999995,
+          "wall_s": 2.9,
+          "rss_kib": 79856
+        },
+        "final": {
+          "cpu_s": 4.3100000000000005,
+          "wall_s": 2.96,
+          "rss_kib": 76200
+        },
+        "cpu_change_percent": 2.863961813842497
+      },
+      "kill": {
+        "baseline": {
+          "cpu_s": 3.64,
+          "wall_s": 3.56,
+          "rss_kib": 75512
+        },
+        "final": {
+          "cpu_s": 3.6799999999999997,
+          "wall_s": 3.6,
+          "rss_kib": 65996
+        },
+        "cpu_change_percent": 1.098901098901095
+      }
+    },
+    "episode_scope": {
+      "processes": 18,
+      "scenarios_per_process": 6,
+      "frames_per_process": 52,
+      "all_non_timing_columns_exact": true,
+      "excluded_columns": "names ending in _ms",
+      "config_num_threads": 1,
+      "includes": "test map construction, serialization/loading, all worker threads; not fixed-cadence deployment",
+      "repetitions": 3,
+      "order": "alternating baseline/final by repetition"
+    },
+    "restored_baseline_ctest": {
+      "tests": "61",
+      "failures": "0",
+      "skipped": "0",
+      "time": "30"
+    },
+    "restored_library_sha256": "702d16c6a287499ba22294c8a95191f21189bd4cd12734a0345e8a32cc0017cb",
+    "restored_library_byte_identical_to_baseline": true
+  },
+  "probe_source_provenance": {
+    "bbs_probe.cpp": {
+      "measured_source_sha256": "73b846d93203e43e75ab741d7b6593c46ef21d7d09df83d460d28890e96cc611",
+      "reproduction_source_sha256": "f60d444625b12e48e62c18c8b9753a74ccae33fb11e6d1da2fbabe6de7512661"
+    },
+    "density_probe.cpp": {
+      "measured_source_sha256": "8e635fd4a73903129ac5dd64b54e10eaf9332ebd4201de6bfb3ba62964f28b17",
+      "reproduction_source_sha256": "beb47a8ffe33e0222ff2bebbae4390ee8b515f0475c6c07dc1b47d65093f915d"
+    },
+    "fpfh_probe.cpp": {
+      "measured_source_sha256": "54ba3b9e397e5ca03ca1f2772f59d89565deb444366f5efd8b9169f35bea1ac8",
+      "reproduction_source_sha256": "73a14ba2730e8d0e6e5c9d1fda4fe93deaa2cbbf9c407c5de1e23505d11b5541"
+    },
+    "chunk_probe.cpp": {
+      "measured_source_sha256": "e4296bc3abc7eae81f88e829daf5958074929f5bcdf970e5a0dafe8cec8d1d2f",
+      "reproduction_source_sha256": "a8c69e60ffed7231a83f73cb65d3932e2c5f1bfc81169b33730f8faec2c0c12a"
+    },
+    "n3m_preparation_probe.cpp": {
+      "measured_source_sha256": "4e786be3d16164e483e5c9d68efc5d3545448d1f379b1c32a3965a7d6a7df683",
+      "reproduction_source_sha256": "23e227bac8def11140ba9dc894c9413061584671c8d0a84d07b89e94fded2b0c"
+    },
+    "atlas_compat_probe.cpp": {
+      "measured_source_sha256": "2dd8bd1342b0656640f0862840daa810a2c9062b0a204bbc7a64cb5650f3d369",
+      "reproduction_source_sha256": "a3e0687446ef15bab6e8138c8b8362ebcb5d149032b938a98522b84f5a34b15d"
+    }
+  },
+  "limitations": [
+    "All measurements on x86; no direct conversion to RK3588.",
+    "Queries are cropped from the same map; no independent LiDAR accuracy or recall ground truth.",
+    "Only the listed components ran; no full ROS system comparison.",
+    "No GPU checks performed.",
+    "No algorithms added to production; no frequencies, thresholds or product config changed.",
+    "Rejected candidate is not a published executable/source release; methods and hashes retained."
+  ],
+  "reproduction_check": {
+    "component_probes_compiled": [
+      "bbs_probe",
+      "fpfh_probe",
+      "density_probe",
+      "chunk_probe",
+      "bbs2d_test"
+    ],
+    "input_recipe_sha256": "edea58019057b77377b84aab3015ee3f143fa54fd46516f46521b04938f677c0",
+    "all_generated_inputs_byte_identical": true,
+    "runtime_not_repeated_for_formatting_only": true
+  }
+}

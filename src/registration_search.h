@@ -22,14 +22,37 @@ class CorrespondenceSearch {
                                std::numeric_limits<double>::infinity()))
             : max_distance_squared) {}
 
+  struct Hint {
+    const CorrespondenceSearch& search;
+    std::size_t index;
+
+    std::size_t nearest(const Eigen::Vector4d& query, std::size_t* result,
+                        double* distance_squared) const {
+      return search.nearest(query, result, distance_squared, index);
+    }
+  };
+
+  Hint withHint(std::size_t index) const { return {*this, index}; }
+
   std::size_t nearest(const Eigen::Vector4d& query, std::size_t* index,
-                      double* distance_squared) const {
+                      double* distance_squared,
+                      std::size_t hint_index = std::numeric_limits<std::size_t>::max()) const {
     if (!query.allFinite() || !std::isfinite(search_limit_))
       return tree_.nearest_neighbor_search(query, index, distance_squared);
     *index = std::numeric_limits<std::size_t>::max();
     // DistanceRejector accepts equality. One representable step above the
     // gate permits that boundary while retaining the original strict tie rule.
     *distance_squared = search_limit_;
+    // A previous correspondence is only an upper bound, never the answer.
+    // Keep one representable step of slack so equal-distance points are still
+    // visited in the tree's original order, including the hint itself.
+    if (hint_index < tree_.points->size()) {
+      const double hint_distance =
+          (tree_.points->point(hint_index) - query).squaredNorm();
+      if (hint_distance < *distance_squared)
+        *distance_squared = std::nextafter(
+            hint_distance, std::numeric_limits<double>::infinity());
+    }
     if (!tree_.points->empty())
       visit(tree_.kdtree.root, query, index, distance_squared);
     return *index != std::numeric_limits<std::size_t>::max();
@@ -76,6 +99,15 @@ struct Traits<n3mapping::registration_detail::CorrespondenceSearch> {
       const n3mapping::registration_detail::CorrespondenceSearch& search,
       const Eigen::Vector4d& query, std::size_t* index, double* distance_squared) {
     return search.nearest(query, index, distance_squared);
+  }
+};
+
+template <>
+struct Traits<n3mapping::registration_detail::CorrespondenceSearch::Hint> {
+  static std::size_t nearest_neighbor_search(
+      const n3mapping::registration_detail::CorrespondenceSearch::Hint& hint,
+      const Eigen::Vector4d& query, std::size_t* index, double* distance_squared) {
+    return hint.nearest(query, index, distance_squared);
   }
 };
 }  // namespace small_gicp::traits

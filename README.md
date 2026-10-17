@@ -711,6 +711,9 @@ these synthetic scenes; whole-process runtime remains essentially unchanged.
 Registration uses the existing correspondence-distance gate to bound exact
 nearest-neighbor search. It preserves accepted neighbors, equality at the gate,
 tie order and optimizer settings; it does not use approximate search.
+Each factor's previous correspondence can tighten that bound for the next
+iteration. The old point is only a search hint: traversal still selects the
+exact neighbor in the original order, with no extra per-point cache.
 
 For a CPU budget, compare process CPU time at the same sensor cadence, then
 sample the deployed node with `tools/n3mapping_process_resource_sample.py`.
@@ -724,6 +727,18 @@ The [exact-search CPU evidence](docs/evidence/registration_cpu_optimization_2026
 records a 13%–15% reduction in process CPU time on the same synthetic episodes,
 with identical public outputs. The RK3588 half-core deployment target remains
 unverified; target sampling is required.
+
+The [open-source relocalization survey](docs/evidence/framework_survey_20261017/README.md)
+reviews 12 pinned projects and records direct component runs from five of them.
+A subsequent prepared-cloud memory ablation preserved outputs but increased
+process CPU time in these episodes, so it was rejected. The report separates
+source review, component measurements and hardware validation; it does not
+claim a full-system accuracy comparison or an RK3588 half-core result.
+The [subsequent correspondence-reuse evidence](docs/evidence/registration_hint_optimization_20261017.json)
+records a further 3.6%–3.8% reduction in process CPU time with identical episode
+outputs and 61 passing CTest projects. Pinned map-registration batches also
+check one and four threads; individual short measurements and target hardware
+remain separate from that measured result.
 
 </details>
 

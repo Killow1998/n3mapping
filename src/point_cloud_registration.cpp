@@ -8,12 +8,30 @@
 
 namespace n3mapping::registration_detail {
 namespace {
+// Each upstream factor already owns its last correspondence. Reuse that index
+// only to bound the next exact search; the factor and optimizer remain intact.
+template <typename Factor>
+struct HintedFactor : Factor {
+  using Factor::Factor;
+
+  template <typename Target, typename Source, typename Rejector>
+  bool linearize(const Target& target, const Source& source,
+                 const CorrespondenceSearch& search, const Eigen::Isometry3d& pose,
+                 std::size_t source_index, const Rejector& rejector,
+                 Eigen::Matrix<double, 6, 6>* H,
+                 Eigen::Matrix<double, 6, 1>* b, double* error) {
+    const auto hinted_search = search.withHint(this->target_index);
+    return Factor::linearize(target, source, hinted_search, pose,
+                             source_index, rejector, H, b, error);
+  }
+};
+
 template <typename Factor>
 small_gicp::RegistrationResult alignWithFactor(
     const small_gicp::PointCloud& target, const small_gicp::PointCloud& source,
     const CorrespondenceSearch::Tree& tree, const Eigen::Isometry3d& initial_pose,
     const small_gicp::RegistrationSetting& setting) {
-  small_gicp::Registration<Factor, small_gicp::ParallelReductionOMP> registration;
+  small_gicp::Registration<HintedFactor<Factor>, small_gicp::ParallelReductionOMP> registration;
   registration.reduction.num_threads = setting.num_threads;
   registration.rejector.max_dist_sq =
       setting.max_correspondence_distance * setting.max_correspondence_distance;
