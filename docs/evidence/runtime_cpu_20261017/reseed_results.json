@@ -1,0 +1,938 @@
+{
+  "baseline_commit": "114937af3b892ff2a26786fa9eaf6addc9143ae1",
+  "status": "experimental_only_not_enabled_in_product",
+  "conditions": {
+    "core_affinity": "0,2,4,6",
+    "configured_openmp_threads": 4,
+    "OMP_WAIT_POLICY": "PASSIVE",
+    "input_reduction": false,
+    "acceptance_threshold_changes": false,
+    "decision_semantics_changed": true,
+    "independent_recording_ground_truth": false,
+    "ros": "Authorized host, same-process DDS, all input pairs processed. No RK3588 or physical MID360 qualification."
+  },
+  "hypotheses": {
+    "persistence": "Preserve old hypotheses; no first lock in 100 frames.",
+    "warm_start": "Odometry-propagated registration endpoints as retry initial guesses, with original-seed fallback on failed quality; rejected after slower lock.",
+    "unguarded_kill": "Existing kill mode; rejects the important outside710 comparison.",
+    "guarded": "Wait for a complete temporal window, prior winner stability, converged updates, log likelihood, moving visibility, and agreement of visibility/free-space winners before eliminating candidates. Retain the free-space veto on final acceptance.",
+    "occlusion": "Guarded version plus existing occlusion-aware range matching; prohibit elimination when the top two visibility scores tie under the existing score comparator. No new descriptor or input decimation."
+  },
+  "modes": [
+    {
+      "mode": "baseline",
+      "frames": 100,
+      "first_lock": 55,
+      "initializations": 11,
+      "alignments": 773,
+      "cpu_ms": 39081.900522,
+      "cpu_to_lock_ms": 38436.128148,
+      "wall_to_lock_ms": 13048.594881
+    },
+    {
+      "mode": "persistent",
+      "frames": 100,
+      "first_lock": null,
+      "initializations": 1,
+      "alignments": 828,
+      "cpu_ms": 36488.435167,
+      "cpu_to_lock_ms": 36488.435167,
+      "wall_to_lock_ms": 13231.928473
+    },
+    {
+      "mode": "free_space",
+      "frames": 100,
+      "first_lock": 5,
+      "initializations": 1,
+      "alignments": 44,
+      "cpu_ms": 2965.997398,
+      "cpu_to_lock_ms": 1610.542547,
+      "wall_to_lock_ms": 641.59633
+    },
+    {
+      "mode": "persistent_free_space",
+      "frames": 100,
+      "first_lock": 5,
+      "initializations": 1,
+      "alignments": 44,
+      "cpu_ms": 2979.096429,
+      "cpu_to_lock_ms": 1615.0460010000002,
+      "wall_to_lock_ms": 635.83208
+    }
+  ],
+  "threads": [
+    {
+      "mode": "omp1",
+      "frames": 448,
+      "first_lock": 55,
+      "initializations": 11,
+      "alignments": 773,
+      "cpu_ms": 40966.965077,
+      "cpu_to_lock_ms": 36675.279969,
+      "wall_to_lock_ms": 36680.293246
+    }
+  ],
+  "warm_start": [
+    {
+      "mode": "warm",
+      "frames": 100,
+      "first_lock": 65,
+      "initializations": 13,
+      "alignments": 921,
+      "cpu_ms": 47512.918001000005,
+      "cpu_to_lock_ms": 46999.12697600001,
+      "wall_to_lock_ms": 15795.392451
+    }
+  ],
+  "unguarded_corpus": [
+    {
+      "dataset": "normal",
+      "frames": 1848,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 43156.879458999996,
+      "baseline_cpu_ms": 44454.147629,
+      "initializations": 1,
+      "alignments": 51,
+      "joint_authoritative_samples": 1844,
+      "max_position_delta_m": 5.515473566030869e-14,
+      "max_rotation_delta_deg": 4.3717489508606324e-14,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "hard",
+      "frames": 448,
+      "first_lock_before": 55,
+      "first_lock_after": 5,
+      "cpu_ms": 6966.202880000001,
+      "baseline_cpu_ms": 43187.2175,
+      "initializations": 1,
+      "alignments": 44,
+      "joint_authoritative_samples": 394,
+      "max_position_delta_m": 0.013586678043464206,
+      "max_rotation_delta_deg": 0.06929670612759928,
+      "state_changes": 50,
+      "decision_changes": 51
+    },
+    {
+      "dataset": "inside710",
+      "frames": 452,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 7377.385703,
+      "baseline_cpu_ms": 8571.202287,
+      "initializations": 1,
+      "alignments": 49,
+      "joint_authoritative_samples": 448,
+      "max_position_delta_m": 9.053594779595603e-16,
+      "max_rotation_delta_deg": 2.4258169743794765e-14,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "outside707",
+      "frames": 448,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 8265.77491,
+      "baseline_cpu_ms": 9583.599424,
+      "initializations": 1,
+      "alignments": 55,
+      "joint_authoritative_samples": 444,
+      "max_position_delta_m": 1.7772239894833365e-15,
+      "max_rotation_delta_deg": 2.0447409964941728e-14,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "outside710",
+      "frames": 448,
+      "first_lock_before": 10,
+      "first_lock_after": 5,
+      "cpu_ms": 19986.655318999998,
+      "baseline_cpu_ms": 14497.082944,
+      "initializations": 1,
+      "alignments": 64,
+      "joint_authoritative_samples": 439,
+      "max_position_delta_m": 14.45470491307924,
+      "max_rotation_delta_deg": 2.3635821699193795,
+      "state_changes": 5,
+      "decision_changes": 6
+    },
+    {
+      "dataset": "user_map",
+      "frames": 1800,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 40106.608695999996,
+      "baseline_cpu_ms": 41006.570168,
+      "initializations": 1,
+      "alignments": 52,
+      "joint_authoritative_samples": 1796,
+      "max_position_delta_m": 2.981965628531249e-13,
+      "max_rotation_delta_deg": 3.7057497300042426e-13,
+      "state_changes": 0,
+      "decision_changes": 0
+    }
+  ],
+  "actual_ray_origins": [
+    {
+      "mode": "rays_hard",
+      "frames": 448,
+      "first_lock": 5,
+      "initializations": 1,
+      "alignments": 44,
+      "cpu_ms": 6959.383532,
+      "cpu_to_lock_ms": 1617.9795159999999,
+      "wall_to_lock_ms": 649.009823
+    },
+    {
+      "mode": "rays_outside710",
+      "frames": 448,
+      "first_lock": 5,
+      "initializations": 1,
+      "alignments": 62,
+      "cpu_ms": 20068.455826999998,
+      "cpu_to_lock_ms": 3141.817881,
+      "wall_to_lock_ms": 1131.799582
+    }
+  ],
+  "guarded_corpus": [
+    {
+      "dataset": "normal",
+      "frames": 1848,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 44224.552578999996,
+      "initializations": 1,
+      "alignments": 83,
+      "joint_authoritative_samples": 1844,
+      "max_position_delta_m": 5.564255712777595e-14,
+      "max_rotation_delta_deg": 3.114378181762844e-14,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "hard",
+      "frames": 448,
+      "first_lock_before": 55,
+      "first_lock_after": 5,
+      "cpu_ms": 7968.676270999999,
+      "initializations": 1,
+      "alignments": 68,
+      "joint_authoritative_samples": 394,
+      "max_position_delta_m": 0.013586678043464206,
+      "max_rotation_delta_deg": 0.06929670612757254,
+      "state_changes": 50,
+      "decision_changes": 51
+    },
+    {
+      "dataset": "inside710",
+      "frames": 452,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 8668.486568,
+      "initializations": 1,
+      "alignments": 81,
+      "joint_authoritative_samples": 448,
+      "max_position_delta_m": 9.222205069512407e-16,
+      "max_rotation_delta_deg": 2.3685871033959203e-14,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "outside707",
+      "frames": 448,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 9543.598175000001,
+      "initializations": 1,
+      "alignments": 71,
+      "joint_authoritative_samples": 444,
+      "max_position_delta_m": 1.776573666601473e-15,
+      "max_rotation_delta_deg": 1.7074495060608043e-14,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "outside710",
+      "frames": 448,
+      "first_lock_before": 10,
+      "first_lock_after": 10,
+      "cpu_ms": 14447.371794,
+      "initializations": 2,
+      "alignments": 145,
+      "joint_authoritative_samples": 439,
+      "max_position_delta_m": 1.9860273225978185e-15,
+      "max_rotation_delta_deg": 1.7171029811293183e-13,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "user_map",
+      "frames": 1800,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 40803.295713,
+      "initializations": 1,
+      "alignments": 77,
+      "joint_authoritative_samples": 1796,
+      "max_position_delta_m": 2.686002145826479e-13,
+      "max_rotation_delta_deg": 3.4339184419432217e-13,
+      "state_changes": 0,
+      "decision_changes": 0
+    }
+  ],
+  "occlusion_corpus": [
+    {
+      "dataset": "normal",
+      "frames": 1848,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 44284.513373,
+      "initializations": 1,
+      "alignments": 83,
+      "joint_authoritative_samples": 1844,
+      "max_position_delta_m": 0.005291299438159789,
+      "max_rotation_delta_deg": 0.14579997599152109,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "hard",
+      "frames": 448,
+      "first_lock_before": 55,
+      "first_lock_after": 5,
+      "cpu_ms": 8037.146135,
+      "initializations": 1,
+      "alignments": 68,
+      "joint_authoritative_samples": 394,
+      "max_position_delta_m": 0.013586678043464199,
+      "max_rotation_delta_deg": 0.0692967061275486,
+      "state_changes": 50,
+      "decision_changes": 51
+    },
+    {
+      "dataset": "inside710",
+      "frames": 452,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 8616.703246000001,
+      "initializations": 1,
+      "alignments": 81,
+      "joint_authoritative_samples": 448,
+      "max_position_delta_m": 0.0018681278102160995,
+      "max_rotation_delta_deg": 0.16081572996122107,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "outside707",
+      "frames": 448,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 9622.583111,
+      "initializations": 1,
+      "alignments": 71,
+      "joint_authoritative_samples": 444,
+      "max_position_delta_m": 0.005183736153419918,
+      "max_rotation_delta_deg": 0.1019468962887051,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "outside710",
+      "frames": 448,
+      "first_lock_before": 10,
+      "first_lock_after": 10,
+      "cpu_ms": 14724.917599,
+      "initializations": 2,
+      "alignments": 145,
+      "joint_authoritative_samples": 439,
+      "max_position_delta_m": 0.003745849476234556,
+      "max_rotation_delta_deg": 0.03960124836767484,
+      "state_changes": 0,
+      "decision_changes": 0
+    },
+    {
+      "dataset": "user_map",
+      "frames": 1800,
+      "first_lock_before": 5,
+      "first_lock_after": 5,
+      "cpu_ms": 41116.535792,
+      "initializations": 1,
+      "alignments": 81,
+      "joint_authoritative_samples": 1796,
+      "max_position_delta_m": 0.0034772153135453677,
+      "max_rotation_delta_deg": 0.023045080891307076,
+      "state_changes": 0,
+      "decision_changes": 0
+    }
+  ],
+  "standard_episodes": [
+    {
+      "mode": "baseline",
+      "exit_code": 0
+    },
+    {
+      "mode": "guard_veto",
+      "exit_code": 0
+    }
+  ],
+  "negative_episodes": {
+    "baseline": {
+      "sparse_copies": [
+        {
+          "kept_fraction": 0.5,
+          "frames": 10,
+          "authoritative_frames": 0,
+          "max_position_error_m": null
+        },
+        {
+          "kept_fraction": 0.75,
+          "frames": 10,
+          "authoritative_frames": 6,
+          "max_position_error_m": 20.00000000000108
+        },
+        {
+          "kept_fraction": 0.9,
+          "frames": 10,
+          "authoritative_frames": 6,
+          "max_position_error_m": 19.999999999990525
+        }
+      ],
+      "fractional_copy_frames": 50,
+      "fractional_authoritative_frames": 0
+    },
+    "guarded": {
+      "sparse_copies": [
+        {
+          "kept_fraction": 0.5,
+          "frames": 10,
+          "authoritative_frames": 0,
+          "max_position_error_m": null
+        },
+        {
+          "kept_fraction": 0.75,
+          "frames": 10,
+          "authoritative_frames": 6,
+          "max_position_error_m": 20.00000000000108
+        },
+        {
+          "kept_fraction": 0.9,
+          "frames": 10,
+          "authoritative_frames": 6,
+          "max_position_error_m": 19.999999999990525
+        }
+      ],
+      "fractional_copy_frames": 50,
+      "fractional_authoritative_frames": 0
+    },
+    "occlusion": {
+      "sparse_copies": [
+        {
+          "kept_fraction": 0.5,
+          "frames": 10,
+          "authoritative_frames": 0,
+          "max_position_error_m": null
+        },
+        {
+          "kept_fraction": 0.75,
+          "frames": 10,
+          "authoritative_frames": 0,
+          "max_position_error_m": null
+        },
+        {
+          "kept_fraction": 0.9,
+          "frames": 10,
+          "authoritative_frames": 0,
+          "max_position_error_m": null
+        }
+      ],
+      "fractional_copy_frames": 50,
+      "fractional_authoritative_frames": 0
+    }
+  },
+  "dds": [
+    {
+      "dataset": "hard",
+      "variant": "baseline",
+      "repeat": 0,
+      "MAP_READY": {
+        "wall_ms": 364.315
+      },
+      "COMPLETE": {
+        "wall_ms": 44706.1,
+        "cpu_ms": 49756.9,
+        "inputs": 448.0,
+        "processed": 448.0,
+        "poses": 394.0
+      },
+      "OUTPUT": {
+        "odometry": 348.0,
+        "body": 448.0,
+        "world": 348.0,
+        "paths": 394.0,
+        "maps": 2.0
+      },
+      "peak_rss_kib": 315936,
+      "cpu_cores": 1.1129778710287859,
+      "first_path_ms": 9965.57726,
+      "after_10s_cpu_cores": 0.1617472821429452,
+      "first_accepted_observation": 55,
+      "cpu_to_first_path_ms": 44020.67769,
+      "cores_until_first_path": 4.417273233803618
+    },
+    {
+      "dataset": "hard",
+      "variant": "guard_veto",
+      "repeat": 0,
+      "MAP_READY": {
+        "wall_ms": 366.983
+      },
+      "COMPLETE": {
+        "wall_ms": 44706.6,
+        "cpu_ms": 9908.34,
+        "inputs": 448.0,
+        "processed": 448.0,
+        "poses": 444.0
+      },
+      "OUTPUT": {
+        "odometry": 439.0,
+        "body": 448.0,
+        "world": 439.0,
+        "paths": 444.0,
+        "maps": 2.0
+      },
+      "peak_rss_kib": 301384,
+      "cpu_cores": 0.2216303633020628,
+      "first_path_ms": 896.459836,
+      "after_10s_cpu_cores": 0.14886637476411194,
+      "first_accepted_observation": 5,
+      "cpu_to_first_path_ms": 3042.056722,
+      "cores_until_first_path": 3.3934110596339084
+    },
+    {
+      "dataset": "normal",
+      "variant": "baseline",
+      "repeat": 0,
+      "MAP_READY": {
+        "wall_ms": 364.654
+      },
+      "COMPLETE": {
+        "wall_ms": 59928.1,
+        "cpu_ms": 20876.5,
+        "inputs": 600.0,
+        "processed": 600.0,
+        "poses": 596.0
+      },
+      "OUTPUT": {
+        "odometry": 591.0,
+        "body": 600.0,
+        "world": 591.0,
+        "paths": 596.0,
+        "maps": 2.0
+      },
+      "peak_rss_kib": 437068,
+      "cpu_cores": 0.3483591170085486,
+      "first_path_ms": 892.614729,
+      "after_10s_cpu_cores": 0.30229621670339163,
+      "first_accepted_observation": 5,
+      "cpu_to_first_path_ms": 3578.982815,
+      "cores_until_first_path": 4.009549359564735
+    },
+    {
+      "dataset": "normal",
+      "variant": "occlusion",
+      "repeat": 0,
+      "MAP_READY": {
+        "wall_ms": 364.88
+      },
+      "COMPLETE": {
+        "wall_ms": 59929.1,
+        "cpu_ms": 20696.6,
+        "inputs": 600.0,
+        "processed": 600.0,
+        "poses": 596.0
+      },
+      "OUTPUT": {
+        "odometry": 591.0,
+        "body": 600.0,
+        "world": 591.0,
+        "paths": 596.0,
+        "maps": 2.0
+      },
+      "peak_rss_kib": 437088,
+      "cpu_cores": 0.345351423598886,
+      "first_path_ms": 898.705285,
+      "after_10s_cpu_cores": 0.29907622508456067,
+      "first_accepted_observation": 5,
+      "cpu_to_first_path_ms": 3546.9914750000003,
+      "cores_until_first_path": 3.9467793660521315
+    },
+    {
+      "dataset": "hard",
+      "variant": "occlusion",
+      "repeat": 0,
+      "MAP_READY": {
+        "wall_ms": 374.191
+      },
+      "COMPLETE": {
+        "wall_ms": 44706.5,
+        "cpu_ms": 9792.53,
+        "inputs": 448.0,
+        "processed": 448.0,
+        "poses": 444.0
+      },
+      "OUTPUT": {
+        "odometry": 438.0,
+        "body": 448.0,
+        "world": 438.0,
+        "paths": 444.0,
+        "maps": 2.0
+      },
+      "peak_rss_kib": 300132,
+      "cpu_cores": 0.21904040799436325,
+      "first_path_ms": 918.599674,
+      "after_10s_cpu_cores": 0.1458983160369037,
+      "first_accepted_observation": 5,
+      "cpu_to_first_path_ms": 3026.636889,
+      "cores_until_first_path": 3.2948377564958724
+    }
+  ],
+  "exclusions": [
+    "A ray-origin launch with a missing preload library was discarded and rerun after compilation succeeded.",
+    "The first guarded DDS attempt only set a ROS parameter, which the frozen Product factory does not read. It still ran veto mode and is excluded as a candidate result. Qualified Product probes print their actual overrides before map loading."
+  ],
+  "limitations": [
+    "CPU below half a core over a full recording is not a half-core ceiling during initial search.",
+    "The guarded-only candidate still fails two sparse-copy negative cases that also fail in the baseline.",
+    "The occlusion combination passes the added synthetic negatives but changes real trajectories and the observation model; same-input comparisons cannot prove absolute accuracy.",
+    "The historical twenty-query and independent raw-sensor wrong-map gates were not rerun. Product defaults remain unchanged.",
+    "Free-space sampling variance assumes independent point returns and is not calibrated for correlated surfaces or unequal map coverage."
+  ],
+  "occlusion_e2e": "10/10 passed, including three sparse-copy densities and five fractional-grid separations. Rebuilt from the published evidence sources and reran 10/10 successfully. No independent real-world accuracy claim.",
+  "fingerprints": [
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/alias_baseline.csv",
+      "bytes": 14190,
+      "sha256": "430fd0105937dffe6a929112b1488a4f8190c585af9791c00b0ee34f23755cb4"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/alias_guard.csv",
+      "bytes": 15650,
+      "sha256": "d2e522f083a304d1555f854e6201dc7e3a67e296164f9d45adcd822fefe420c2"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/alias_occlusion.csv",
+      "bytes": 58668,
+      "sha256": "b7c8e7f135e942918eaa1d1118807ff634d4d4cd1e1737075f22659ae8cdcc40"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/alias_v2_baseline.csv",
+      "bytes": 32195,
+      "sha256": "d5c5a5c14c68d352ff6a72b18739be1b9c97bba528b1fd229da5920012be4754"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/alias_v2_guard_veto.csv",
+      "bytes": 32265,
+      "sha256": "fbfaf7b6f113a1114fe7df6f11b43f72a1f5e9f63efcda22c173373d456bb252"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/alias_v3_baseline.csv",
+      "bytes": 31377,
+      "sha256": "2e39c647269b5d8eb0aa63276a18d6ab4e2020d232e5eabf16674a48bfcf63ad"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/alias_v3_guard_veto.csv",
+      "bytes": 31344,
+      "sha256": "1b313e3eade3c303eb4136b487ccd182b962e5b1e0a3ae9b426454ba14e6d22b"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/baseline.csv",
+      "bytes": 48463,
+      "sha256": "f49a0b540ba4b3ca194411401d9ede931e7ea97d884439ee98bacfb58da724b8"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/episodes_baseline.csv",
+      "bytes": 31319,
+      "sha256": "860968261dbd8f55c927968733c04731730e8b67a5f357836fcf7b5797ebaa9f"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/episodes_guard_veto.csv",
+      "bytes": 31119,
+      "sha256": "fd2f3b64b718de167d0b04a09a6fa3eb9023861d69fb25072adf6e081fc6b116"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/free_space.csv",
+      "bytes": 47146,
+      "sha256": "4c3fcc06088e25aef5b98b2e59e6f24861ff8fbb8bd25ecc42556ef64ea29241"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_hard.csv",
+      "bytes": 209878,
+      "sha256": "62ae4eb2ad88c519758edf7945073975c3fe6f34813229dc93763e7389f6761e"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_inside710.csv",
+      "bytes": 209491,
+      "sha256": "79042580c9639233a629bca220a021470c21962bee7934e1736260c2df72deaf"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_normal.csv",
+      "bytes": 884585,
+      "sha256": "f67d0eb1d94b26b37b6c45ec0b3938a1bb8d4e9610a3c2095d681e805fa9e7dc"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_outside707.csv",
+      "bytes": 208706,
+      "sha256": "d26816485d80850c96fc0124521231d64c7079b271d0042161cc2b2c18d11305"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_outside710.csv",
+      "bytes": 209225,
+      "sha256": "4e1dc50e77e117a7899c848f6c04a5a700d1e5cc657422ecb8ade189db5f5d9a"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_user_map.csv",
+      "bytes": 836044,
+      "sha256": "b5f0ab76847f43ec4908256683df74e398363d2914d73154ac7a61e038d4dfa6"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_veto_hard.csv",
+      "bytes": 209330,
+      "sha256": "d7622ec9152b566cfbc6c7a895c1c15233ebf23f908c1dc4dedba0f2cea76e81"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_veto_inside710.csv",
+      "bytes": 209392,
+      "sha256": "4bf0e8987df57aae20d2e767535f91609803de21b1c521b388b7d73fdf22dc3b"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_veto_normal.csv",
+      "bytes": 884470,
+      "sha256": "3f099ae0bdec018ca7353c0e8890d16583111a7db7c5a020d36d116dc10abb56"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_veto_outside707.csv",
+      "bytes": 208584,
+      "sha256": "a6fc99cae5bda748fef4a81c1184b0e96383aa679f7172dcf04991faff58d609"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_veto_outside710.csv",
+      "bytes": 209277,
+      "sha256": "8370bbc5df56b4fae2e5805ae2b4daa461acd4669a58f206d67f49a2a08bf156"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_veto_user_map.csv",
+      "bytes": 837026,
+      "sha256": "3bbc874e1fd283a197890762f785bb50a96ecf7ff0c612a0935350f6a75a4429"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/kill_hard.csv",
+      "bytes": 209750,
+      "sha256": "d9651ca2d0d0e6cc719deda812cac876cac3af37b83e25a574361819bd7b431e"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/kill_inside710.csv",
+      "bytes": 209021,
+      "sha256": "906cf497baca20c842f7abe02a5b198c25c316b0faff6692b773084dc7d4d436"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/kill_normal.csv",
+      "bytes": 885177,
+      "sha256": "35ae312721dc2988d640d94f4dd540de3ea08125e7b12e24b73eba0f7bbd745a"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/kill_outside707.csv",
+      "bytes": 208573,
+      "sha256": "4c8c64bb0f08814c649f9e6e05cd72383b78d6fcf429bbcc7a336760e75de4da"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/kill_outside710.csv",
+      "bytes": 210587,
+      "sha256": "744945968aa521ab1e1912542dcb6aca4bd94bfdb54c9226728db8f6cd4864c8"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/kill_user_map.csv",
+      "bytes": 836264,
+      "sha256": "cfb9d85cfd15f771f5e976df2a688d8d6e7c679ff841eccfcb438bd70d86bdcb"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/occlusion_hard.csv",
+      "bytes": 209679,
+      "sha256": "0f8c20fa409de80706ec4a43de948556de508ee37b995a6bed3bafa7a4b67ef6"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/occlusion_inside710.csv",
+      "bytes": 209320,
+      "sha256": "a825e9b217c4e839ffc5e6ffa728ae196f71e3e0152c58f25d1afc968a24e91d"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/occlusion_normal.csv",
+      "bytes": 883896,
+      "sha256": "d93657aabe130463790219fa380d07f458d06481494e08b25003c8d0b1e19bcf"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/occlusion_outside707.csv",
+      "bytes": 208820,
+      "sha256": "7c9f135a51ec62da502981f4cf221c723869e24f7f993e40cf0958acab391394"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/occlusion_outside710.csv",
+      "bytes": 209327,
+      "sha256": "ca69e9fc307b8075a247b6af6c93d7cc9c3e049029f9a60e458733baa5aa1485"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/occlusion_user_map.csv",
+      "bytes": 837395,
+      "sha256": "ce7a406ccbb0c53547526c2596c79ac254bd059e2ace5180079544a648b21e6a"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/omp1.csv",
+      "bytes": 213378,
+      "sha256": "7aecb1ee21cfae6319e29ce235ad319713bc4fb764a8438e94e1e48a512accb6"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/persistent.csv",
+      "bytes": 48215,
+      "sha256": "ff23d2490c80ee1826b53f17b87210ec6634cb68291b48f403189412252eae90"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/persistent_free_space.csv",
+      "bytes": 47330,
+      "sha256": "00cf059aab26c96c125c35f76c302729e0cbe1440651fcbe91e82185f641583a"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/published_alias_occlusion.csv",
+      "bytes": 58617,
+      "sha256": "10cf1e51084445146bda29890c19c0215173c597f01182623abd951746be9fec"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/ray_diagnostic_hard.csv",
+      "bytes": 2881,
+      "sha256": "743a2a14168f79cf839f36f1c44492aa1b9bf163ebbbdd782fa08713b993a295"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/ray_diagnostic_outside710.csv",
+      "bytes": 2881,
+      "sha256": "008e05b72349a7566990db09e03f76b671ff70a08445de7cf81da4ce6fafdc88"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/rays_hard.csv",
+      "bytes": 209658,
+      "sha256": "9f704931994e6da21a963bc9f38be562ce058c7664fb528c35e4e55fbacd2e1c"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/rays_outside710.csv",
+      "bytes": 210411,
+      "sha256": "d94a14f27c9872e5c655cb0ea969b4a8bca98fef52488c11127089640c9ed973"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/warm.csv",
+      "bytes": 48596,
+      "sha256": "c2d072ee945b08c16d2031ce55eeb85fcdb159c4e97690caa23d5126f3ad543e"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/baseline/libn3mapping_core.so",
+      "bytes": 2999088,
+      "sha256": "883b5cc846ffe6cde20733527bd8966230ae864aa5d64a6b9df5cf0a17b2f01b"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/replay_probe.cpp",
+      "bytes": 6347,
+      "sha256": "7a81ccaa06fda5087c3fc55a61d3fa90248e10587fcc169ebc25a855d02d9e29"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+      "bytes": 66920,
+      "sha256": "48e5ee302b654d7beaeb413b0fe8485882b2280c5048a6a2e5c2a70721a66f76"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/warm_evaluator.cpp",
+      "bytes": 8756,
+      "sha256": "4a587236638bfae74aaec599bfc2eae76982dee18bc472fd122fb9979d21314a"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/warm.so",
+      "bytes": 104616,
+      "sha256": "691ecd435527850eb130fc3c5dc96380267bc0fc5a8a1a5ba1191b209061239a"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/ray_grid.cpp",
+      "bytes": 8678,
+      "sha256": "f07d87b02e04bc035e396dd6479c7a2cb45d71e8d821469b440a70db64dedb67"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/ray_grid.so",
+      "bytes": 48736,
+      "sha256": "346d5e826625cc045aa15deb0a455bddb57805765512ae25b36ddaf7de1e1192"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guarded_kill.cpp",
+      "bytes": 3762,
+      "sha256": "f58662c747c818da88ed7f12a187f3e6769bb726df4de20ffeb951f1497aa7bc"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_decision.cpp",
+      "bytes": 10252,
+      "sha256": "8c445ae2ec81953c2975bdbf2d848d548eaa4d0b969dbbcc119f2827eb2350fd"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guarded_veto.so",
+      "bytes": 67968,
+      "sha256": "6942c1209583fe815bfceecac43459eab285010c47ad5b83f4c59bb3313df498"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/occlusion_probe.cpp",
+      "bytes": 502,
+      "sha256": "cdd75b56e783ab0bdc154c4e43d365db19a7c72944fbd87dc16fbba4d85e7e41"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_edge.cpp",
+      "bytes": 3926,
+      "sha256": "b233e2c71b15a888a199e247e8033abd9f51a9199b16fcd9be3f89cf20e425ca"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/guard_occlusion.so",
+      "bytes": 68160,
+      "sha256": "1dd21a1577da2e953b856d374814a8652e60d7bb2c069a8637fbcab4c3993064"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/alias_episode.cpp",
+      "bytes": 3295,
+      "sha256": "3fc6293037bb085f3db800d3f4feb579054de1139d35109fc274a0b32195cde3"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/alias_episode",
+      "bytes": 687272,
+      "sha256": "1533271b76a8f89dcfcb68999e7781ab768ad6080068f38619fbc1e793029609"
+    },
+    {
+      "path": "/tmp/n3m_half_core/reseed_20261018/published_probe/guard_occlusion_product.so",
+      "bytes": 76888,
+      "sha256": "8b018cb6ed856dec33a140b3937d549702f946578f7e6ccb264589e82698adff"
+    },
+    {
+      "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/docs/evidence/runtime_cpu_20261017/build_reseed_probes.py",
+      "bytes": 4049,
+      "sha256": "50b2bf7a6e4ed6c4c9869015ddfe963381eaf625ceed37db0eb6fa440b3464df"
+    },
+    {
+      "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/docs/evidence/runtime_cpu_20261017/reseed_alias_probe.cpp",
+      "bytes": 3344,
+      "sha256": "89c32c41aa91cf875bef91cf47851f3dc4190f8f69bd1a9b6101251ee23224a6"
+    },
+    {
+      "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/docs/evidence/runtime_cpu_20261017/reseed_guard_probe.cpp",
+      "bytes": 3868,
+      "sha256": "e4f9e9c4158347455e864e4626aa7b6a61b3bedf4cf47d95951767bcab66923e"
+    },
+    {
+      "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/docs/evidence/runtime_cpu_20261017/reseed_occlusion_probe.cpp",
+      "bytes": 573,
+      "sha256": "447cbe50bbd1d3dd89bdb991edfcc68899eea542257b26566f3597e796dd87eb"
+    }
+  ]
+}

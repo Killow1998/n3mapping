@@ -12,8 +12,10 @@ CPU is process CPU time divided by elapsed time: 1.0 means one fully occupied
 logical CPU. All threads are included. Map loading precedes the measurement;
 initial relocalization is included. First-path latency starts with the first
 input, after map loading. RSS is the process high-water mark, not live retained
-memory. No CPU quota, input reduction, frequency reduction, or acceptance changes
-were used. OpenMP has four configured threads and the existing launch default
+memory. The adopted runtime optimizations use no CPU quota, input reduction,
+frequency reduction, or acceptance changes. The isolated reseeding experiments
+at the end of this record do change candidate selection and are not adopted.
+OpenMP has four configured threads and the existing launch default
 `OMP_WAIT_POLICY=PASSIVE`; an isolated comparison also tests the unset policy.
 
 The ROS probe puts the production node, replay publisher, and output subscribers
@@ -400,3 +402,102 @@ with that commit's headers/library. With the same 15 input PCDs, the binary has
 compares the 60 default-setting descriptors in all 3600 pairs. The dense fused
 intermediate reference was a local experiment, identified by its library hash
 in the results; it was not a separately published product version.
+
+## Reseeding experiments — not enabled in Product (2026-10-18)
+
+Baseline runtime: `114937a`. These experiments change candidate selection while
+keeping the numeric acceptance thresholds, input clouds and input frequency.
+**Production code and Product defaults remain unchanged.** Their performance
+numbers describe isolated prototypes, not the version currently deployed.
+Sources, input/output fingerprints and individual results are recorded in
+[reseed_results.json](reseed_results.json).
+
+The difficult recording spends its first 55 observations in eleven independent
+five-observation windows. A failed window clears its hypotheses. Initial seed
+registration accounts for 462 of its 773 alignments; the remaining 311 update
+existing hypotheses. Retaining hypotheses alone fails to lock within 100
+observations: a plausible reverse-heading competitor survives. Odometry-based
+warm starts move acceptance from observation 55 to 65 and increase CPU. Limiting
+OpenMP to one thread saves only about 5% process CPU and increases processing to
+first lock to 36.68 seconds. None of these alternatives qualifies.
+
+Unconditional free-space elimination accepts at observation five and saves most
+of that work, but outside710 then differs from baseline by up to 14.45 metres
+and consumes more CPU. Rebuilding free rays from their actual saved keyframe
+origins, instead of the nearest-origin approximation, does not remove that
+counterexample. Neither variant is accepted.
+
+The guarded prototype waits for the complete temporal window, the previous
+winner streak, sufficient converged updates, log likelihood and moving-visibility
+checks. Visibility and free-space evidence must favour the same physical pose
+before elimination; final acceptance still retains the free-space veto. The
+previous streak makes this deliberately conservative for windows as short as
+the streak requirement. This is evidence-based candidate elimination, not exact
+reuse of an unchanged computation, and changes acceptance behavior.
+
+| Complete core replay | Baseline | Guarded prototype |
+| --- | ---: | ---: |
+| Difficult recording: first accepted observation | 55 | 5 |
+| Initializations / registration calls | 11 / 773 | 1 / 68 |
+| Total process CPU | 43.19 s | 7.97 s |
+| Maximum common-output position / rotation difference | — | 0.01359 m / 0.06930° |
+
+The other five complete inputs retain their lock observations, decisions and
+output availability; pose differences are floating-point scale. The unchanged
+outside710 acceptance at observation ten is an important counterexample to the
+unconditional elimination variant. These recordings do not have independent GT.
+
+New synthetic E2E probes expose a separate confidence problem. Two copies of a
+scene are 20 metres apart. One map copy retains 50%, 75% or 90% of its samples;
+the query is the same subset observed at the other copy. Baseline and guarded
+prototypes abstain at 50%, but choose the wrong copy at 75% and 90%, approximately
+20 metres from the supplied synthetic truth. This is an existing failure too,
+not evidence that the guarded prototype alone introduced it. Five identical-copy
+separations of 20.05–20.30 metres remain ambiguous in both versions.
+
+A subsequent combination uses the existing occlusion-aware range matcher and
+refuses elimination when the two visibility scores tie under the existing score
+comparator. It passes all ten E2E scenarios, including all three sparse-copy
+cases and all five fractional-grid cases. Across the six full core replays it
+retains acceptance observations 5/5/5/5/10/5, with one initialization on the hard
+recording. However, its real trajectories change: maximum differences from the
+baseline across those recordings are 0.01359 metres and 0.16082 degrees. They are
+regression measurements, not independently established accuracy errors. The
+observation model now permits a matching accumulated return behind a nearer map
+return; the synthetic improvement does not establish safety for every occlusion
+or wrong-map case. Historical raw-sensor/twenty-query qualification was not rerun.
+
+Authorized same-process DDS measurements include every input pair. The
+guarded-only prototype uses 0.222 average cores and produces its first path in
+0.896 seconds on the difficult recording. The final occlusion combination was
+measured separately:
+
+| Same-process DDS | Baseline | Final experimental combination |
+| --- | ---: | ---: |
+| Normal 600 frames: average cores | 0.348 | 0.345 |
+| Normal: first path | 0.893 s | 0.899 s |
+| Difficult 448 frames: average cores | 1.113 | 0.219 |
+| Difficult: first path | 9.966 s | 0.919 s |
+| Difficult: processed inputs | 448 | 448 |
+
+The difficult average includes the entire 44.7-second recording. Initial search
+still exceeds half a core; there is no hard CPU ceiling or throttling. These
+single paired runs are evidence for the specific workloads, not deployment
+qualification or a universal performance guarantee.
+
+The reproducible experiment sources are [reseed_guard_probe.cpp](reseed_guard_probe.cpp),
+[reseed_occlusion_probe.cpp](reseed_occlusion_probe.cpp), and
+[reseed_alias_probe.cpp](reseed_alias_probe.cpp). Build them with
+[build_reseed_probes.py](build_reseed_probes.py) against the baseline runtime.
+They are outside the production build. The baseline alias probe deliberately
+fails its two sparse-copy assertions; the final combination passes them.
+`guarded_product.so` and `guard_occlusion_product.so` explicitly override the
+frozen Product factory for DDS measurement and print their active settings.
+Ordinary ROS parameter overrides do not modify that frozen factory; an initial
+trial that did only that is excluded from candidate performance claims.
+
+The next qualification must address density/occlusion ambiguity and labelled
+wrong-map/independent-session behavior before changing Product defaults. Reduced
+reseed count on one recording is not proof that repetitive initialization is
+solved for all ambiguous observations, nor that difficult search always uses
+at most half a core.
