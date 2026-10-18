@@ -244,9 +244,10 @@ TEST(VisibilityConsistencyTest, NoKnownBinsRemainUndefinedShadowEvidence) {
 }
 
 TEST(VisibilityConsistencyTest,
-     SurfaceInFrontOfAMatchingReturnIsOcclusionNotContradiction) {
-  // What a place mapped twice looks like: the map holds the wall the query
-  // measures, and also nearer returns the other pass saw from elsewhere.
+     ExperimentalRangeMatchingCanHideForegroundContradictions) {
+  // Characterize the experimental mode's limitation: matching the background
+  // erases the nearer return's contradiction. This does not certify visibility
+  // through an opaque foreground surface; the Product profile leaves it off.
   const auto query = makeFourRayCloud(5.0);
   auto doubled_map = makeFourRayCloud(5.0);
   const auto nearer = makeFourRayCloud(2.0);

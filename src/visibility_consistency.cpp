@@ -75,12 +75,9 @@ void insertPoint(const Eigen::Vector3d &point,
       static_cast<std::size_t>(azimuth_index);
   double &stored = image->ranges[index];
   stored = std::min(stored, range);
-  // A spot the session drove through twice contributes twice the surface, and
-  // from any one vantage much of it is occluded yet still lands in this
-  // bearing. Keeping only the nearest return therefore shortens the prediction
-  // in proportion to how thick the map is there. Remember as well the return
-  // that best matches the measurement, so occlusion can be told apart from
-  // contradiction.
+  // Experimental range matching can reduce collisions between surfaces in a
+  // coarse angular bin. It also ignores real foreground blockers when a
+  // matching background exists; this score alone cannot establish visibility.
   if (measured != nullptr && !image->match_ranges.empty()) {
     const double measured_range = (*measured)[index];
     if (std::isfinite(measured_range)) {

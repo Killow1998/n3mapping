@@ -18,10 +18,9 @@ struct VisibilityConsistencyOptions {
   double range_tolerance_m = 0.3;
   double min_angular_resolution_deg = 1.0;
   double max_angular_resolution_deg = 4.0;
-  // Score a bearing against the accumulated return that best matches the
-  // measurement rather than against the nearest one. Surface in front of a
-  // return that does match is occlusion, not contradiction. Off keeps the
-  // published arithmetic exactly.
+  // Experimental closest-range matching within each angular bin. It can hide
+  // a nearer opaque surface behind a matching background return, so it is not
+  // a physical first-return visibility model. Product keeps this disabled.
   bool occlusion_aware = false;
 };
 

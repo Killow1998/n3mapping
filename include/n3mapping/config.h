@@ -237,9 +237,9 @@ struct Config {
     // True makes the gate apply whenever a competing hypothesis exists.
     bool reloc_ambiguity_ignore_basin_separation = false;
     double reloc_ambiguity_min_basin_separation = 3.0;
-    // See VisibilityConsistencyOptions::occlusion_aware. False reproduces the
-    // published evidence exactly; it decides every lock, so it stays off until
-    // the twenty-query evaluation says otherwise.
+    // Experimental range matching; see VisibilityConsistencyOptions. Keep off
+    // until independent accuracy and foreground-occlusion cases qualify it.
+    // Agreement on recorded poses alone does not establish absolute accuracy.
     bool reloc_visibility_occlusion_aware = false;
     // Experimental loaded-map tracking cascade. When enabled, a registration
     // endpoint that already passes every current strict geometry/visibility

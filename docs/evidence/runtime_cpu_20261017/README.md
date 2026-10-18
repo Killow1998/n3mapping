@@ -810,3 +810,84 @@ The current reference PCD is
 authored scene surfaces; the simulation retains the ceiling. Renderer colors do
 not enter the MID360 estimator input. Exact run and source identities are in
 `varied_scene_v2` in [sprobo_results.json](sprobo_results.json).
+
+### Serial cost and sensor-consistency follow-up
+
+The veto-only Product-factory ablation was measured through real same-process
+DDS with no concurrent simulator/replay job. CPU is process CPU time divided by
+wall time, not a cap or a four-worker speedup. Map loading is reported separately.
+
+| Recording / variant | Pairs processed | Average cores | First path (s) | Peak RSS (MiB) |
+| --- | ---: | ---: | ---: | ---: |
+| Difficult / baseline | 448/448 | 1.087 | 9.659 | 307.6 |
+| Difficult / closest-range + veto | 448/448 | 0.212 | 0.885 | 294.8 |
+| Normal prefix / baseline | 600/600 | 0.340 | 0.864 | 426.5 |
+| Normal prefix / closest-range + veto | 600/600 | 0.338 | 0.901 | 428.0 |
+
+These are one serial run per variant, on this host, with `OMP_WAIT_POLICY=PASSIVE`.
+The normal recording is a 59.93 s prefix; the difficult recording is complete
+(44.71 s). The candidate's difficult-run gain comes from reaching the existing
+lock gate earlier, not from making every registration five times faster.
+**The candidate remains disabled:** choosing a matching background return can
+hide a nearer opaque surface. The header, source comments and existing
+characterization-test name now state this limitation explicitly. No arithmetic,
+threshold, assertion or Product default changed.
+
+Two raw recordings with the largest asynchronous output differences were
+replayed once to freeze the LIO cloud/odometry pairs, then both backends consumed
+those identical pairs without scheduling differences. On `11-49-55` (194 pairs),
+the maximum successful-backend position difference was 0.0928 m / 0.346 degrees;
+the second lock occurred at zero-based frames 100 / 102. On `11-52-00` (195 pairs),
+the corresponding differences were 0.0198 m / 0.145 degrees, and frames 73 / 74.
+The earlier published-pose maxima (1.050 / 0.738 m) used different correction
+ages: status metadata shows 3.000 vs 1.500 s and 5.000 vs 3.600 s at those stamps.
+Thus asynchronous correction delivery amplifies a smaller backend difference;
+the algorithms are not identical, and neither comparison establishes absolute
+accuracy on these recordings.
+
+Additional ablations were rejected rather than added to production:
+
+- A one-entry per-thread angular-table cache preserved all difficult-recording
+  decisions and pose matrix elements within 3.22e-15. Serial DDS used 1.1097 /
+  1.1103 cores before/after, with the same 448 processed inputs and 394 paths.
+  There is no measured overall saving to justify the extra cache state.
+- Retaining nearest-return scoring but reducing the maximum angular bin width
+  to 3, 2, 1 and 0.5 degrees did not improve the difficult 100-frame prefix:
+  first locks were observation 55, none, 65 and 55. Registration counts were
+  773, 1,441, 937 and 797. These unpaced prefix trials are decision ablations,
+  not a controlled CPU comparison or independent accuracy validation.
+- Registration worker counts of 1, 2 and 4 preserved all decisions on the same
+  100-frame prefix (773 registrations, first lock at observation 55; maximum
+  pose matrix element difference 4.67e-15). Elapsed time to lock was 25.59,
+  14.46 and 9.81 s, while total process CPU time was 39.73, 38.35 and 44.43 s.
+  More workers shorten elapsed time without removing the repeated work. These
+  single unpaced runs overlapped the simulator owner's work, so they do not
+  qualify an isolated performance gain or a half-core result. The worker count
+  is not a process-wide CPU cap; the default remains four.
+
+The simulator investigation now has a native-rate reproduction. Replaying the
+frozen `command.applied` events through the same Scout Mini physics reproduces
+all 1,400 truth poses and 28,001 raw IMU accelerations over the first 140 s with
+zero element difference. It therefore avoids differentiating interpolated
+10 Hz truth. At 5 ms `implicitfast`, integrating world-frame specific force after
+gravity compensation disagrees with the actual IMU-site velocity increment by
+`[-0.312476, -0.000571, -0.387392] m/s` over 7–10 s and
+`[0.087318, 0.350173, -0.468243] m/s` over 7–40 s; the stationary 2–7 s interval
+is consistent to about 1e-8 m/s. MuJoCo documents that forward acceleration and
+implicit velocity integration are separate stages; the exact simulator fix
+still needs validation ([computation documentation](https://mujoco.readthedocs.io/en/stable/computation/)).
+
+Replacing only acceleration with the central difference of the reproduced
+native velocity still leaves 16.61 m maximum frontend position error; delaying
+startup to 6 s still leaves 3.61 m. These are failed diagnostic interventions,
+not qualified sensor implementations or an identified sole root cause. The
+logging-only frontend binary also diverges numerically from the recorded
+trajectory on this longer input, so its results must not be presented as a
+strict same-binary accuracy A/B. All transforms use the first pose only, with
+no whole-trajectory or query fitting. The complete mapping run remains invalid.
+
+Per Xian's request, the simulator defect and reproducer were sent to the original
+SpRobo/simple_rbt development session. This repository keeps the n3m experiments
+and consumes the eventual repaired simulator as an independently verified input.
+See `sensor_and_serial_followup` in [sprobo_results.json](sprobo_results.json) for
+measurements, local artifact paths, source hashes and remaining limitations.

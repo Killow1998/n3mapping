@@ -2812,5 +2812,612 @@
       "Relocalization discrimination and drift improvement not yet measured",
       "Original session JSON and frozen false-lock fixtures preserved"
     ]
+  },
+  "sensor_and_serial_followup": {
+    "scope": "Serial n3m DDS CPU; frozen LIO comparison; simulator sensor diagnosis. No production algorithm/default change.",
+    "veto_cpu": [
+      {
+        "dataset": "hard",
+        "variant": "baseline",
+        "repeat": 0,
+        "MAP_READY": {
+          "wall_ms": 368.12
+        },
+        "COMPLETE": {
+          "wall_ms": 44707.9,
+          "cpu_ms": 48584.9,
+          "inputs": 448.0,
+          "processed": 448.0,
+          "poses": 394.0
+        },
+        "OUTPUT": {
+          "odometry": 351.0,
+          "body": 448.0,
+          "world": 351.0,
+          "paths": 394.0,
+          "maps": 2.0
+        },
+        "peak_rss_kib": 314952,
+        "cpu_cores": 1.086718454680269,
+        "first_path_ms": 9658.511501,
+        "after_10s_cpu_cores": 0.13891983485557277
+      },
+      {
+        "dataset": "hard",
+        "variant": "occlusion",
+        "repeat": 0,
+        "MAP_READY": {
+          "wall_ms": 360.191
+        },
+        "COMPLETE": {
+          "wall_ms": 44707.3,
+          "cpu_ms": 9482.47,
+          "inputs": 448.0,
+          "processed": 448.0,
+          "poses": 444.0
+        },
+        "OUTPUT": {
+          "odometry": 439.0,
+          "body": 448.0,
+          "world": 439.0,
+          "paths": 444.0,
+          "maps": 2.0
+        },
+        "peak_rss_kib": 301880,
+        "cpu_cores": 0.21210115573966665,
+        "first_path_ms": 884.858537,
+        "after_10s_cpu_cores": 0.14210830225163232
+      },
+      {
+        "dataset": "normal",
+        "variant": "baseline",
+        "repeat": 0,
+        "MAP_READY": {
+          "wall_ms": 361.03
+        },
+        "COMPLETE": {
+          "wall_ms": 59930.5,
+          "cpu_ms": 20398.0,
+          "inputs": 600.0,
+          "processed": 600.0,
+          "poses": 596.0
+        },
+        "OUTPUT": {
+          "odometry": 591.0,
+          "body": 600.0,
+          "world": 591.0,
+          "paths": 596.0,
+          "maps": 2.0
+        },
+        "peak_rss_kib": 436756,
+        "cpu_cores": 0.34036091806342345,
+        "first_path_ms": 863.717263,
+        "after_10s_cpu_cores": 0.2958507250145809
+      },
+      {
+        "dataset": "normal",
+        "variant": "occlusion",
+        "repeat": 0,
+        "MAP_READY": {
+          "wall_ms": 361.891
+        },
+        "COMPLETE": {
+          "wall_ms": 59927.5,
+          "cpu_ms": 20262.4,
+          "inputs": 600.0,
+          "processed": 600.0,
+          "poses": 596.0
+        },
+        "OUTPUT": {
+          "odometry": 591.0,
+          "body": 600.0,
+          "world": 591.0,
+          "paths": 596.0,
+          "maps": 2.0
+        },
+        "peak_rss_kib": 438308,
+        "cpu_cores": 0.33811522256059406,
+        "first_path_ms": 900.529192,
+        "after_10s_cpu_cores": 0.2925477849125324
+      }
+    ],
+    "frozen_raw_backend": [
+      {
+        "case": "11-49-55",
+        "frames": 194,
+        "max_backend_pose_delta_m": 0.09282477382580769,
+        "max_backend_angle_delta_deg": 0.34575292283507497,
+        "decision_changes": 7,
+        "baseline_locks": [
+          4,
+          100
+        ],
+        "candidate_locks": [
+          4,
+          102
+        ],
+        "limitation": "Frozen shared LIO; comparison, not absolute truth"
+      },
+      {
+        "case": "11-52-00",
+        "frames": 195,
+        "max_backend_pose_delta_m": 0.01980430198770314,
+        "max_backend_angle_delta_deg": 0.14485954461916514,
+        "decision_changes": 4,
+        "baseline_locks": [
+          4,
+          73
+        ],
+        "candidate_locks": [
+          4,
+          74
+        ],
+        "limitation": "Frozen shared LIO; comparison, not absolute truth"
+      }
+    ],
+    "native_sensor": {
+      "common_truth": 1400,
+      "max_truth_pose_element_delta": 0.0,
+      "raw_imu_samples": 28001,
+      "max_raw_imu_acc_delta_g": 0.0,
+      "intervals": [
+        {
+          "start": 2,
+          "end": 7,
+          "delta_velocity": [
+            3.4172041264094854e-10,
+            1.2577132842547295e-09,
+            2.6157740079625615e-12
+          ],
+          "integrated_imu_delta_velocity": [
+            1.0044731034446777e-08,
+            2.895984579473414e-09,
+            -4.904487302392901e-10
+          ],
+          "residual_m_s": [
+            9.703010621805829e-09,
+            1.6382712952186843e-09,
+            -4.930645042472527e-10
+          ]
+        },
+        {
+          "start": 7,
+          "end": 10,
+          "delta_velocity": [
+            -0.283606498886825,
+            -2.478188748527447e-05,
+            8.158754433049466e-05
+          ],
+          "integrated_imu_delta_velocity": [
+            -0.5960827971270575,
+            -0.0005957061495933876,
+            -0.38731052092271345
+          ],
+          "residual_m_s": [
+            -0.3124762982402325,
+            -0.0005709242621081131,
+            -0.38739210846704397
+          ]
+        },
+        {
+          "start": 7,
+          "end": 20,
+          "delta_velocity": [
+            -0.007816959217708459,
+            -1.2000252305870842,
+            -1.9251742288119085e-06
+          ],
+          "integrated_imu_delta_velocity": [
+            0.07950469606351111,
+            -0.8494999493369445,
+            -0.46824930784104996
+          ],
+          "residual_m_s": [
+            0.08732165528121957,
+            0.3505252812501397,
+            -0.46824738266682114
+          ]
+        },
+        {
+          "start": 7,
+          "end": 40,
+          "delta_velocity": [
+            -3.055249844185896e-05,
+            -1.1999985973501057,
+            -7.687953102202026e-07
+          ],
+          "integrated_imu_delta_velocity": [
+            0.08728760683516942,
+            -0.8498260948709334,
+            -0.4682433889822046
+          ],
+          "residual_m_s": [
+            0.08731815933361128,
+            0.3501725024791723,
+            -0.46824262018689433
+          ]
+        },
+        {
+          "start": 40,
+          "end": 90,
+          "delta_velocity": [
+            1.2000769506800573,
+            1.1990336606639962,
+            3.722984941479114e-07
+          ],
+          "integrated_imu_delta_velocity": [
+            1.051811202011806,
+            1.306918904196747,
+            -0.6270692033121413
+          ],
+          "residual_m_s": [
+            -0.14826574866825126,
+            0.10788524353275086,
+            -0.6270695756106355
+          ]
+        },
+        {
+          "start": 90,
+          "end": 130,
+          "delta_velocity": [
+            -2.729594662076451e-06,
+            1.0892237229202513e-05,
+            -3.750040064136074e-07
+          ],
+          "integrated_imu_delta_velocity": [
+            -0.00028974691796612717,
+            1.0994997192981248e-05,
+            -3.8061149190138366e-06
+          ],
+          "residual_m_s": [
+            -0.0002870173233040507,
+            1.0275996377873565e-07,
+            -3.4311109126002294e-06
+          ]
+        }
+      ]
+    },
+    "frontend_ablation": {
+      "frontend_full_first140": {
+        "poses": 1397,
+        "position_rmse_m": 9.3688550505895,
+        "position_max_m": 20.03774205897687,
+        "horizontal_max_m": 19.23622167236201,
+        "z_max_m": 5.630890196589462,
+        "rotation_max_deg": 24.103592263186236,
+        "samples": [
+          {
+            "t": 10,
+            "xyz": [
+              0.012599565992722717,
+              0.03916727236046419,
+              -0.17971924711685983
+            ],
+            "angle": 2.0830684587912063
+          },
+          {
+            "t": 20,
+            "xyz": [
+              0.04075903552258353,
+              0.11740178729371742,
+              -0.35514400323925943
+            ],
+            "angle": 0.510146242736023
+          },
+          {
+            "t": 40,
+            "xyz": [
+              -0.9383850592774223,
+              0.08043310735610021,
+              -0.5253513996756684
+            ],
+            "angle": 16.283099887126273
+          },
+          {
+            "t": 90,
+            "xyz": [
+              -0.9770857685970826,
+              -6.92617313390766,
+              1.4280428964363456
+            ],
+            "angle": 17.666852805147098
+          },
+          {
+            "t": 130,
+            "xyz": [
+              -2.2686863586536887,
+              -17.94876468556088,
+              5.239348730143515
+            ],
+            "angle": 17.677683343449782
+          }
+        ]
+      },
+      "frontend_consistent140": {
+        "poses": 1397,
+        "position_rmse_m": 7.662098760222933,
+        "position_max_m": 16.611803421602254,
+        "horizontal_max_m": 3.01635563826899,
+        "z_max_m": 16.336997630544033,
+        "rotation_max_deg": 17.474661764340233,
+        "samples": [
+          {
+            "t": 10,
+            "xyz": [
+              0.03193004281369838,
+              0.06398219033964823,
+              -0.17798902481204143
+            ],
+            "angle": 2.9169523113010096
+          },
+          {
+            "t": 20,
+            "xyz": [
+              0.0026560113673639307,
+              0.03589149210120013,
+              -0.2684701931045084
+            ],
+            "angle": 3.5606402754758757
+          },
+          {
+            "t": 40,
+            "xyz": [
+              -0.289389439434629,
+              -0.001747003309183981,
+              -1.4942410280553429
+            ],
+            "angle": 16.41292996749541
+          },
+          {
+            "t": 90,
+            "xyz": [
+              -1.9414463958651327,
+              -0.07853769965512214,
+              5.843183095046311
+            ],
+            "angle": 11.432434227327555
+          },
+          {
+            "t": 130,
+            "xyz": [
+              -2.9100410970695947,
+              -0.08332650862084989,
+              15.364114318711742
+            ],
+            "angle": 11.457066426111032
+          }
+        ]
+      },
+      "frontend_settled140": {
+        "poses": 1337,
+        "position_rmse_m": 1.7680571841596877,
+        "position_max_m": 3.6108405492644535,
+        "horizontal_max_m": 1.7908267450097013,
+        "z_max_m": 3.1531857876546074,
+        "rotation_max_deg": 5.836684713579079,
+        "samples": [
+          {
+            "t": 10,
+            "xyz": [
+              0.014748501218917909,
+              0.15272226785166657,
+              -0.20577141993594172
+            ],
+            "angle": 0.5146168915752736
+          },
+          {
+            "t": 20,
+            "xyz": [
+              0.09984188002824368,
+              0.055448743327824346,
+              -0.39504926992007544
+            ],
+            "angle": 4.648318988599379
+          },
+          {
+            "t": 40,
+            "xyz": [
+              -0.000701015051440379,
+              0.10659958219618915,
+              -1.4377923418943372
+            ],
+            "angle": 1.9665580011338695
+          },
+          {
+            "t": 90,
+            "xyz": [
+              -0.14077970011029084,
+              -0.7046071259727498,
+              -0.06275943677117612
+            ],
+            "angle": 4.690909000124872
+          },
+          {
+            "t": 130,
+            "xyz": [
+              -0.25577069731905056,
+              -1.653175347804023,
+              2.7263354088940277
+            ],
+            "angle": 4.650921186741351
+          }
+        ]
+      }
+    },
+    "angular_cache_rejected": [
+      {
+        "dataset": "hard",
+        "variant": "baseline",
+        "repeat": 0,
+        "MAP_READY": {
+          "wall_ms": 361.343
+        },
+        "COMPLETE": {
+          "wall_ms": 44707.1,
+          "cpu_ms": 49613.4,
+          "inputs": 448.0,
+          "processed": 448.0,
+          "poses": 394.0
+        },
+        "OUTPUT": {
+          "odometry": 348.0,
+          "body": 448.0,
+          "world": 348.0,
+          "paths": 394.0,
+          "maps": 2.0
+        },
+        "peak_rss_kib": 313792,
+        "cpu_cores": 1.109743195152448,
+        "first_path_ms": 9948.70231,
+        "after_10s_cpu_cores": 0.16192334902230607
+      },
+      {
+        "dataset": "hard",
+        "variant": "cache",
+        "repeat": 0,
+        "MAP_READY": {
+          "wall_ms": 360.876
+        },
+        "COMPLETE": {
+          "wall_ms": 44706.3,
+          "cpu_ms": 49639.0,
+          "inputs": 448.0,
+          "processed": 448.0,
+          "poses": 394.0
+        },
+        "OUTPUT": {
+          "odometry": 348.0,
+          "body": 448.0,
+          "world": 348.0,
+          "paths": 394.0,
+          "maps": 2.0
+        },
+        "peak_rss_kib": 317588,
+        "cpu_cores": 1.1103356797587811,
+        "first_path_ms": 9991.421381,
+        "after_10s_cpu_cores": 0.16195303647586629
+      }
+    ],
+    "angular_resolution_rejected": [
+      {
+        "degrees": 3,
+        "frames": 100,
+        "first_lock": 55,
+        "outputs": 46,
+        "alignments": 773,
+        "cpu_ms": 44269.388295000004
+      },
+      {
+        "degrees": 2,
+        "frames": 100,
+        "first_lock": null,
+        "outputs": 0,
+        "alignments": 1441,
+        "cpu_ms": 83198.92491799999
+      },
+      {
+        "degrees": 1,
+        "frames": 100,
+        "first_lock": 65,
+        "outputs": 36,
+        "alignments": 937,
+        "cpu_ms": 55484.122547
+      },
+      {
+        "degrees": 0.5,
+        "frames": 100,
+        "first_lock": 55,
+        "outputs": 46,
+        "alignments": 797,
+        "cpu_ms": 47487.141709
+      }
+    ],
+    "limitations": [
+      "Veto plus closest-range scoring remains experimental: matching background can hide real foreground blockers.",
+      "Real raw cases have no independent absolute trajectory truth; backend pose agreement is not an accuracy pass.",
+      "Frontend diagnostic binary and installed binary diverge numerically over the long trajectory; do not use those runs for a controlled accuracy improvement claim.",
+      "Finite-difference acceleration is a diagnostic substitute, not a qualified sensor implementation.",
+      "All frontend variants still fail the gross mapping quality gate; simulator repair is delegated to its project owner.",
+      "Resolution runs are unpaced prefix ablations, not controlled CPU qualification."
+    ],
+    "fingerprints": {
+      "/tmp/n3m_sprobo_20261018/coverage2_native140_audit.json": "7b14d178090e2a4da0d41922af6091f17466e03af8110a5bf9e86ecd02e95b2b",
+      "/tmp/n3m_sprobo_20261018/frontend_sensor_ablation.json": "b2c606a914926a99156e13acf5d67da67e9e9872846bf39634711480ba36ca60",
+      "/tmp/n3m_sprobo_20261018/native_trace.cpp": "533b1d494b0056bb9b2239ee5b61c6970b22cdeec6c4ecc4297c9bb1a4ed376a",
+      "/tmp/n3m_sprobo_20261018/build_native_trace.py": "bed1c02447d6a71ae640f25b1fb04226912c2e19914d9375bbaa88edc4e634ff",
+      "/tmp/n3m_sprobo_20261018/audit_native_trace.py": "0dc7d0183fe8203fc8e01c4af92ef6d48580e9f09053f13b40999d5f22bebfce",
+      "/tmp/n3m_sprobo_20261018/coverage2_commands.json": "469ab19ad383ccb56e96a7c83e3ad8f46a3ad9f26187110b21090a95cfdace57",
+      "/tmp/n3m_sprobo_20261018/coverage2_native140.csv": "16d8f24069128f3649a8daf5ba2429e1ebebfef1df421e8029731a870e722a9a",
+      "/tmp/n3m_sprobo_20261018/veto_cpu_serial/dds_occlusion_results.json": "ae4e28bf5fe3f5f7dacb7366518e8d2eb88ac4cd22a0c8b8afd492891e69b66f",
+      "/tmp/n3m_sprobo_20261018/frozen_raw_compare/results.json": "491b0bfdb75c38b344ba0435a1e0728c4f211538c457f90c518af6000bbaef59",
+      "/tmp/n3m_sprobo_20261018/visibility_cache_cpu_serial/dds_occlusion_results.json": "1d958b650f47ca728f21d572f861435a27448a57be44efb504480003077131cd",
+      "/tmp/n3m_sprobo_20261018/visibility_resolution/results.json": "12ed33e116d8773f41699b0dd00d8babb172e1f88bd7e38005b7185a54574a3d",
+      "/tmp/n3m_sprobo_20261018/run_veto_cpu.py": "5c25a71fb1188a9a4c7d85faccf5b23a77eaad87e71d7fae17b068e96dc1d8fd",
+      "/tmp/n3m_sprobo_20261018/frozen_raw_compare.py": "19e844e87dca55560eb395975ab47ea43d24aa823edbc526c5af840a4b8fb97e",
+      "/tmp/n3m_sprobo_20261018/capture_raw_lio.py": "b95f2d100d14cee3a900dcf6ef13d7d6bad6452f92292e6b9d6c2acf1439b04f",
+      "/tmp/n3m_sprobo_20261018/visibility_resolution.cpp": "2c1b4de3b361f2c0ed3ae16136779e4d6d0bb9560a0786fa853af0841ed41530",
+      "/tmp/n3m_sprobo_20261018/check_visibility_resolution.py": "df8db03f91298dfef1fc6fd66512e83fabc0cf17dd5a3e9c3cfba5383af513fe",
+      "/tmp/n3m_sprobo_20261018/build_visibility_cache.py": "c2603830a5045746239d81e0df8e22e9b4511004af68b73ba0cdaba572a637f4",
+      "/tmp/n3m_sprobo_20261018/visibility_cache/cache.so": "3508dcefb75758a4d52981dbea70d1a72fa8086dceee5ebc83b321bf99a8028a",
+      "/tmp/n3m_sprobo_20261018/check_thread_count.py": "9348c0880cf96d847f04e56bae0bd548a3977cca09649c19ad549997eb2fe6e6",
+      "/tmp/n3m_sprobo_20261018/thread_count/factory.cpp": "8e929547b6c100bfe49347504086bbd9c8dfac3f60e1b83f7cf5ec820f491e63",
+      "/tmp/n3m_sprobo_20261018/thread_count/factory.so": "bb1016496e34dc812c6f6927ee4ac2c1d602ef7b14c9e26961b74c7b086219a9",
+      "/tmp/n3m_sprobo_20261018/thread_count/results.json": "541b7440723c373dd1402963f047f4a9050a7734ade99e05954787102885a745",
+      "/tmp/n3m_sprobo_20261018/thread_count/hard_1.csv": "be2d350db4c31edbca5c287298ce778d4e329d17476ef3fdc7a357db388103a6",
+      "/tmp/n3m_sprobo_20261018/thread_count/hard_2.csv": "8e215c78bcb15cab85a126d6aab9e95402e9f74a8935600bf7177c13e6801a2a",
+      "/tmp/n3m_sprobo_20261018/thread_count/hard_4.csv": "8ae74ca3efe33b07e7ecfe72394f490ba5b6b288ece0eefce8ea9e4d5dbbf142"
+    },
+    "registration_threads": {
+      "runs": [
+        {
+          "threads": 1,
+          "frames": 100,
+          "first_lock": 55,
+          "first_lock_processing_ms": 25587.528369,
+          "outputs": 46,
+          "alignments": 773,
+          "cpu_ms": 39734.4309,
+          "wall_ms": 26190.412897
+        },
+        {
+          "threads": 2,
+          "frames": 100,
+          "first_lock": 55,
+          "first_lock_processing_ms": 14463.194814,
+          "outputs": 46,
+          "alignments": 773,
+          "cpu_ms": 38345.836252,
+          "wall_ms": 14784.613826
+        },
+        {
+          "threads": 4,
+          "frames": 100,
+          "first_lock": 55,
+          "first_lock_processing_ms": 9805.373983,
+          "outputs": 46,
+          "alignments": 773,
+          "cpu_ms": 44425.63464,
+          "wall_ms": 9986.919802
+        }
+      ],
+      "comparison": [
+        {
+          "threads": 2,
+          "decision_changes_vs_one_thread": 0,
+          "max_pose_matrix_element_delta_vs_one_thread": 3.3306690738754696e-15
+        },
+        {
+          "threads": 4,
+          "decision_changes_vs_one_thread": 0,
+          "max_pose_matrix_element_delta_vs_one_thread": 4.6629367034256575e-15
+        }
+      ],
+      "interpretation": "Changing registration workers preserves this prefix decision sequence; four workers reduce elapsed lock time but do not reduce total CPU work. Keep the Product default of four.",
+      "limitations": [
+        "One unpaced difficult 100-frame prefix per setting, not a paced half-core qualification.",
+        "The simulator owner session was also active; timings are exploratory, not an isolated performance claim.",
+        "The registration worker count is not a process-wide CPU cap."
+      ]
+    }
   }
 }
