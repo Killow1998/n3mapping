@@ -131,13 +131,13 @@ protected:
     }
 
     // 比较两个描述子是否接近
-    bool descriptorsNear(const Eigen::MatrixXd& d1, const Eigen::MatrixXd& d2,
+    bool descriptorsNear(const RHPDHeadingPtr& d1, const RHPDHeadingPtr& d2,
                          double tol = 1e-6) {
-        if (d1.rows() != d2.rows() || d1.cols() != d2.cols()) {
+        if (!d1 || !d2 || d1->rings != d2->rings || d1->sectors != d2->sectors) {
             return false;
         }
         
-        return (d1 - d2).norm() < tol;
+        return (rhpdHeadingDenseValues(*d1) - rhpdHeadingDenseValues(*d2)).norm() < tol;
     }
 
     Config config_;
@@ -187,7 +187,6 @@ TEST_F(MapSerializerPBT, RoundTripConsistency) {
             
             int64_t kf_id = kf_manager.addKeyframe(i * 0.1, current_pose, cloud);
             auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-            kf_manager.updateDescriptor(kf_id, descriptor);  // 更新关键帧的描述子
             
             // 添加里程计边
             if (i > 0) {
@@ -274,7 +273,7 @@ TEST_F(MapSerializerPBT, RoundTripConsistency) {
             }
             
             // 验证描述子
-            if (!descriptorsNear(kf_orig->sc_descriptor, kf_loaded->sc_descriptor, DESCRIPTOR_TOLERANCE)) {
+            if (!descriptorsNear(loop_detector.getDescriptor(kf_orig->id), loop_detector_loaded.getDescriptor(kf_loaded->id), DESCRIPTOR_TOLERANCE)) {
                 iteration_passed = false;
             }
         }
@@ -349,7 +348,6 @@ TEST_F(MapSerializerPBT, LargeMapRoundTrip) {
             
             int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
             auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-            kf_manager.updateDescriptor(kf_id, descriptor);  // 更新关键帧的描述子
             
             if (i > 0) {
                 EdgeInfo edge;

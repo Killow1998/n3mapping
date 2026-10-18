@@ -5,8 +5,7 @@
 #include <glog/logging.h>
 
 namespace n3mapping {
-void RHPDManager::add(int64_t kf_id, const VecD& descriptor) {
-    if (descriptor.size() != RHPD_DIM) return;
+void RHPDManager::add(int64_t kf_id, const Place& descriptor) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (std::find(ids_.begin(), ids_.end(), kf_id) != ids_.end()) {
         LOG(WARNING) << "[RHPDManager] Duplicate RHPD descriptor id " << kf_id
@@ -18,28 +17,28 @@ void RHPDManager::add(int64_t kf_id, const VecD& descriptor) {
     coarse_keys_.push_back(makeCoarseKey(descriptor));
 }
 
-RHPDManager::VecD RHPDManager::addCloud(int64_t kf_id, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) {
-    VecD descriptor = desc_.compute(cloud);
+RHPDManager::Place RHPDManager::addCloud(int64_t kf_id, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) {
+    Place descriptor = desc_.compute(cloud);
     add(kf_id, descriptor);
     return descriptor;
 }
 
-std::vector<std::pair<int64_t, double>> RHPDManager::search(const VecD& query, int top_k) const {
+std::vector<std::pair<int64_t, double>> RHPDManager::search(const Place& query, int top_k) const {
     return search(query, top_k, 0);
 }
 
-std::vector<std::pair<int64_t, double>> RHPDManager::search(const VecD& query, int top_k, int preselect) const {
+std::vector<std::pair<int64_t, double>> RHPDManager::search(const Place& query, int top_k, int preselect) const {
     return searchFiltered(query, top_k, preselect, nullptr);
 }
 
 std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
-    const VecD& query,
+    const Place& query,
     int top_k,
     int preselect,
     const std::function<bool(int64_t)>& accept) const {
     std::vector<std::pair<int64_t, double>> results;
     std::lock_guard<std::mutex> lock(mutex_);
-    if (ids_.empty() || query.size() != RHPD_DIM) return results;
+    if (ids_.empty()) return results;
 
     const VecD query_key = makeCoarseKey(query);
     const int safe_top_k = std::max(1, top_k);
@@ -52,7 +51,7 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
     coarse_ranked.reserve(ids_.size());
     for (size_t i = 0; i < ids_.size(); ++i) {
         if (accept && !accept(ids_[i])) continue;
-        if (descriptors_[i].size() != RHPD_DIM || coarse_keys_[i].size() != RHPD_COARSE_KEY_DIM) continue;
+        if (coarse_keys_[i].size() != RHPD_COARSE_KEY_DIM) continue;
         coarse_ranked.emplace_back((query_key - coarse_keys_[i]).squaredNorm(), i);
     }
 
@@ -64,10 +63,11 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
         coarse_ranked.resize(candidate_count);
     }
 
+    const auto prepared = desc_.prepareQuery(query);
     results.reserve(coarse_ranked.size());
     for (const auto& item : coarse_ranked) {
         const size_t i = item.second;
-        const double d = desc_.distance(query, descriptors_[i]);
+        const double d = desc_.distance(prepared, descriptors_[i]);
         results.emplace_back(ids_[i], d);
     }
 
@@ -80,7 +80,7 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
     return results;
 }
 
-bool RHPDManager::get(int64_t kf_id, VecD* descriptor) const {
+bool RHPDManager::get(int64_t kf_id, Place* descriptor) const {
     if (!descriptor) return false;
     std::lock_guard<std::mutex> lock(mutex_);
     for (size_t i = 0; i < ids_.size(); ++i) {
@@ -110,77 +110,38 @@ void RHPDManager::swapWith(RHPDManager& other) {
     std::swap(coarse_keys_, other.coarse_keys_);
 }
 
-std::vector<std::pair<int64_t, RHPDManager::VecD>> RHPDManager::getAll() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::vector<std::pair<int64_t, VecD>> out;
-    out.reserve(ids_.size());
-    for (size_t i = 0; i < ids_.size(); ++i) {
-        out.emplace_back(ids_[i], descriptors_[i]);
-    }
-    return out;
-}
-
-void RHPDManager::loadAll(const std::vector<std::pair<int64_t, VecD>>& data) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    ids_.clear();
-    descriptors_.clear();
-    coarse_keys_.clear();
-    for (const auto& [id, desc] : data) {
-        if (std::find(ids_.begin(), ids_.end(), id) != ids_.end()) {
-            LOG(WARNING) << "[RHPDManager] Skip duplicate RHPD descriptor id " << id;
-            continue;
-        }
-        if (desc.size() == RHPD_DIM) {
-            ids_.push_back(id);
-            descriptors_.push_back(desc);
-            coarse_keys_.push_back(makeCoarseKey(desc));
-        }
-    }
-}
-
 size_t RHPDManager::size() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return ids_.size();
 }
 
-RHPDManager::VecD RHPDManager::makeCoarseKey(const VecD& descriptor) const {
+RHPDManager::VecD RHPDManager::makeCoarseKey(const Place& descriptor) const {
     VecD key = VecD::Zero(RHPD_COARSE_KEY_DIM);
-    if (descriptor.size() != RHPD_DIM) return key;
-
-    int out = 0;
-    const int part_b_base = RHPD_PART_A_DIM;
-    for (int r = 0; r < RHPD_RINGS; ++r) {
-        double density_sum = 0.0;
-        for (int z = 0; z < RHPD_ZLAYERS; ++z) {
-            const int idx = part_b_base + (r * RHPD_ZLAYERS + z) * RHPD_RH_CHANS;
-            density_sum += descriptor(idx);
-        }
-        key(out++) = density_sum;
+    for (size_t i = 0; i < descriptor.ring_height.indices.size(); ++i) {
+        const int ring = descriptor.ring_height.indices[i] / RHPD_ZLAYERS;
+        key(ring) += descriptor.ring_height.values[i](0);
     }
-
-    const int neg_base = RHPD_PART_A_DIM + RHPD_PART_B_DIM;
-    for (int s = 0; s < RHPD_NEG_SPACE_SECTORS; ++s) {
-        const int idx = neg_base + s * RHPD_NEG_SPACE_CHANS;
-        key(out++) = 0.6 * descriptor(idx) + 0.25 * descriptor(idx + 1) + 0.15 * descriptor(idx + 2);
+    int out = RHPD_RINGS;
+    for (int sector = 0; sector < RHPD_NEG_SPACE_SECTORS; ++sector) {
+        const int i = sector * RHPD_NEG_SPACE_CHANS;
+        const auto& aux = descriptor.auxiliary;
+        key(out++) = 0.6 * aux(i) + 0.25 * aux(i + 1) + 0.15 * aux(i + 2);
     }
-
-    const int token_base = neg_base + RHPD_NEG_SPACE_DIM;
-    key.segment(out, RHPD_VERTICAL_TOKEN_DIM) = descriptor.segment(token_base, RHPD_VERTICAL_TOKEN_DIM);
-    out += RHPD_VERTICAL_TOKEN_DIM;
-
-    key(out) = descriptor(RHPD_DIM - 1);
+    key(out) = descriptor.auxiliary(RHPD_AUX_DIM - 1);
     return key;
 }
 
 RHPDescriptor::Params rhpdParamsFromConfig(const Config& config) {
   RHPDescriptor::Params params;
+  params.heading.rings = std::max(1, config.sc_num_rings);
+  params.heading.sectors = std::max(4, config.sc_num_sectors);
+  params.heading.max_radius = std::max(config.sc_max_radius, params.heading.min_radius + 1e-3);
   params.max_range = std::max(1.0, config.rhpd_max_range);
   params.z_min = config.rhpd_z_min;
   params.z_max = std::max(config.rhpd_z_max, config.rhpd_z_min + 1e-3);
   params.v2_enable = config.rhpd_v2_enable;
   params.v3_enable = config.rhpd_v3_enable;
   params.enable_negative_space = config.rhpd_enable_negative_space;
-  params.enable_vertical_tokens = config.rhpd_enable_vertical_tokens;
   params.enable_pca_confidence = config.rhpd_enable_pca_confidence;
   params.part_a_scale = config.rhpd_part_a_scale;
   params.aux_scale = config.rhpd_aux_scale;

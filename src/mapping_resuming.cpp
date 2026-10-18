@@ -407,10 +407,10 @@ int64_t MappingResuming::processNewKeyframe(
     ScopedElapsedMilliseconds descriptor_timer(
         timing ? &timing->descriptor_update_ms : nullptr);
     try {
-        const Eigen::MatrixXd descriptor =
+        const auto descriptor =
             loop_detector_.addDescriptor(new_kf_id, cloud);
-        if (descriptor.size() == 0) {
-            LOG(WARNING) << "[MappingResuming] ScanContext descriptor missing for accepted keyframe id="
+        if (!descriptor) {
+            LOG(WARNING) << "[MappingResuming] RHPD heading missing for accepted keyframe id="
                          << new_kf_id;
         }
 
@@ -432,8 +432,7 @@ int64_t MappingResuming::processNewKeyframe(
                     rhpd_cloud = filtered;
                 }
             }
-            new_kf->rhpd_descriptor =
-                loop_detector_.addRHPD(new_kf_id, rhpd_cloud);
+            loop_detector_.addRHPD(new_kf_id, rhpd_cloud);
         }
     } catch (const std::exception& error) {
         LOG(WARNING) << "[MappingResuming] Descriptor generation failed for accepted keyframe id="

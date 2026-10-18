@@ -124,7 +124,6 @@ TEST(N3MappingCoreTest, ProcessMappingFrameAcceptsFirstKeyframe)
     ASSERT_EQ(keyframes.size(), 1U);
     ASSERT_NE(keyframes.front(), nullptr);
     EXPECT_EQ(keyframes.front()->id, 0);
-    EXPECT_EQ(keyframes.front()->rhpd_descriptor.size(), RHPD_DIM);
 
     const auto optimized = core.getOptimizedPoses();
     EXPECT_EQ(optimized.size(), 1U);

@@ -308,19 +308,43 @@ TEST_F(LoopDetectorTest, ConfigInjectionAffectsDescriptorManagers) {
     LoopDetector detector(cfg);
 
     auto dims = detector.getDescriptorDimensions();
-    EXPECT_EQ(dims.first, HybridSCManager::NUM_CHANNELS * cfg.sc_num_rings);
+    EXPECT_EQ(dims.first, RHPDHeadingParams::channels * cfg.sc_num_rings);
     EXPECT_EQ(dims.second, cfg.sc_num_sectors);
-    EXPECT_NEAR(detector.getScanContextSectorAngleDeg(), 360.0 / cfg.sc_num_sectors, 1e-9);
+    EXPECT_NEAR(detector.getHeadingSectorAngleDeg(), 360.0 / cfg.sc_num_sectors, 1e-9);
     EXPECT_DOUBLE_EQ(detector.getRHPDParams().max_range, cfg.rhpd_max_range);
     EXPECT_DOUBLE_EQ(detector.getRHPDParams().z_min, cfg.rhpd_z_min);
     EXPECT_DOUBLE_EQ(detector.getRHPDParams().z_max, cfg.rhpd_z_max);
 }
 
-TEST_F(LoopDetectorTest, RHPDComputeReturnsConfiguredDimension) {
+TEST_F(LoopDetectorTest, RHPDStoresObservedCells) {
     RHPDescriptor descriptor(RHPDescriptor::Params{});
     auto rhpd = descriptor.compute(createAsymmetricCloud());
-    EXPECT_EQ(rhpd.size(), RHPD_DIM);
-    EXPECT_GT(rhpd.norm(), 0.0);
+    EXPECT_LT(rhpd.storedValues(), RHPD_DIM);
+    EXPECT_FALSE(rhpd.isZero());
+}
+
+TEST_F(LoopDetectorTest, UnifiedHeadingRetainsItsOwnRangeAndHeightSupport) {
+    RHPDescriptor descriptor(RHPDescriptor::Params{});
+    auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
+    pcl::PointXYZI point;
+    point.x = 40.0f;
+    point.y = 1.0f;
+    point.z = 8.0f;
+    cloud->push_back(point);
+    // Too sparse and outside the place summary's support, but a valid heading
+    // return. Fusing the traversals must not apply the place filter to both.
+    const auto sparse = descriptor.computeWithHeading(cloud);
+    EXPECT_TRUE(sparse.place.isZero());
+    ASSERT_TRUE(sparse.heading);
+    const auto sparse_values = rhpdHeadingDenseValues(*sparse.heading);
+    ASSERT_EQ(sparse_values.rows(), 140);
+    EXPECT_DOUBLE_EQ(sparse_values.topRows(20).maxCoeff(), 10.0);
+    EXPECT_DOUBLE_EQ(sparse_values.middleRows(40, 20).maxCoeff(), 1.0);
+    EXPECT_TRUE(sparse_values.bottomRows(80).isZero());
+    cloud->resize(25, point);
+    const auto full = descriptor.computeWithHeading(cloud);
+    EXPECT_TRUE(full.place.ring_height.isZero());
+    EXPECT_TRUE(rhpdHeadingDenseValues(*full.heading).isApprox(sparse_values, 0.0));
 }
 
 TEST_F(LoopDetectorTest, RhpdOnlyRelocalizationHasFiniteCandidateScores) {
@@ -377,7 +401,7 @@ TEST_F(LoopDetectorTest, RHPDHandlesYaw180FlipForAsymmetricCloud) {
 TEST_F(LoopDetectorTest, RHPDCoarsePrefilterFindsExactMatchAndSortsByFullDistance) {
     RHPDManager manager(RHPDescriptor::Params{});
     RHPDescriptor descriptor(RHPDescriptor::Params{});
-    std::vector<Eigen::VectorXd> descriptors;
+    std::vector<RHPDPlace> descriptors;
     for (int i = 0; i < 12; ++i) {
         auto cloud = (i == 7) ? createAsymmetricCloud() : createOffsetCloud(i * 2.0, -i * 1.5, 600);
         auto rhpd = descriptor.compute(cloud);
@@ -399,21 +423,24 @@ TEST_F(LoopDetectorTest, RHPDCoarsePrefilterKeepsBruteForceTop1InLargeSyntheticD
     std::mt19937 rng(7);
     std::uniform_real_distribution<double> value_dist(0.0, 1.0);
 
-    std::vector<Eigen::VectorXd> db;
-    db.reserve(500);
+    std::vector<RHPDPlace> db;
     for (int i = 0; i < 500; ++i) {
-        Eigen::VectorXd v(RHPD_DIM);
-        for (int j = 0; j < RHPD_DIM; ++j) {
-            v(j) = value_dist(rng);
-        }
-        db.push_back(v);
-        manager.add(i, v);
+        RHPDPlace place;
+        auto random_cell = [&]() {
+            return Eigen::Vector4d(value_dist(rng), value_dist(rng), value_dist(rng), value_dist(rng));
+        };
+        for (auto& plane : place.planes)
+            for (int cell = 0; cell < RHPD_PLANE_BINS * RHPD_PLANE_BINS; ++cell)
+                plane.append(cell, random_cell());
+        for (int cell = 0; cell < RHPD_RINGS * RHPD_ZLAYERS; ++cell)
+            place.ring_height.append(cell, random_cell());
+        for (int j = 0; j < RHPD_AUX_DIM; ++j) place.auxiliary(j) = value_dist(rng);
+        db.push_back(place);
+        manager.add(i, place);
     }
-
-    Eigen::VectorXd query = db[317];
-    for (int j = 0; j < RHPD_DIM; ++j) {
-        query(j) += (j % 17 == 0) ? 1e-5 : 0.0;
-    }
+    auto query = db[317];
+    for (auto& plane : query.planes)
+        for (size_t i = 0; i < plane.values.size(); i += 17) plane.values[i](0) += 1e-5;
 
     int brute_id = -1;
     double brute_dist = std::numeric_limits<double>::max();
@@ -464,30 +491,31 @@ TEST_F(LoopDetectorTest, RHPDSemanticsNegativeSpaceSeparatesOpenFromUnknown) {
 }
 
 // 测试 ScanContext 描述子生成 - Requirements 4.1
-TEST_F(LoopDetectorTest, MakeScanContext) {
+TEST_F(LoopDetectorTest, ComputeHeading) {
     auto cloud = createCircularCloud();
     
-    auto descriptor = detector_->makeScanContext(cloud);
+    auto descriptor = detector_->computeHeading(cloud);
     
     // 验证描述子维度
     auto dims = detector_->getDescriptorDimensions();
-    EXPECT_EQ(descriptor.rows(), dims.first);
-    EXPECT_EQ(descriptor.cols(), dims.second);
+    ASSERT_TRUE(descriptor);
+    EXPECT_EQ(descriptor->rings * 7, dims.first);
+    EXPECT_EQ(descriptor->sectors, dims.second);
     
     // 描述子应该有非零值
-    EXPECT_GT(descriptor.sum(), 0.0);
+    EXPECT_GT(rhpdHeadingDenseValues(*descriptor).sum(), 0.0);
 }
 
 // 测试空点云处理
 TEST_F(LoopDetectorTest, EmptyCloudHandling) {
     auto empty_cloud = pcl::make_shared<Keyframe::PointCloudT>();
     
-    auto descriptor = detector_->makeScanContext(empty_cloud);
-    EXPECT_EQ(descriptor.size(), 0);
+    auto descriptor = detector_->computeHeading(empty_cloud);
+    EXPECT_FALSE(descriptor);
     
     // 添加空点云描述子应该返回空矩阵
     auto desc = detector_->addDescriptor(0, empty_cloud);
-    EXPECT_EQ(desc.size(), 0);
+    EXPECT_FALSE(desc);
     EXPECT_EQ(detector_->size(), 0u);
 }
 
@@ -498,12 +526,11 @@ TEST_F(LoopDetectorTest, AddDescriptor) {
     auto desc = detector_->addDescriptor(0, cloud);
     
     EXPECT_EQ(detector_->size(), 1u);
-    EXPECT_GT(desc.size(), 0);
+    ASSERT_TRUE(desc);
     
     // 验证可以获取描述子
     auto retrieved = detector_->getDescriptor(0);
-    EXPECT_EQ(retrieved.rows(), desc.rows());
-    EXPECT_EQ(retrieved.cols(), desc.cols());
+    EXPECT_EQ(retrieved, desc);
 }
 
 // 测试添加多个描述子
@@ -518,7 +545,7 @@ TEST_F(LoopDetectorTest, AddMultipleDescriptors) {
     // 验证每个描述子都可以获取
     for (int i = 0; i < 5; ++i) {
         auto desc = detector_->getDescriptor(i);
-        EXPECT_GT(desc.size(), 0);
+        ASSERT_TRUE(desc);
     }
 }
 
@@ -753,53 +780,24 @@ TEST_F(LoopDetectorTest, DetectSpatialCandidatesUsesPoseRadiusAndPathLength) {
     }
 }
 
-TEST_F(LoopDetectorTest, RejectsIncompatibleScanContextDescriptorDimensions) {
+TEST_F(LoopDetectorTest, RejectsInvalidHeadingShape) {
     auto cloud = createCircularCloud();
-    auto valid = detector_->makeScanContext(cloud);
+    auto valid = detector_->computeHeading(cloud);
     detector_->addDescriptor(0, valid);
     EXPECT_EQ(detector_->size(), 1u);
 
-    Eigen::MatrixXd wrong_rows = Eigen::MatrixXd::Zero(valid.rows() + 1, valid.cols());
-    detector_->addDescriptor(1, wrong_rows);
+    Eigen::MatrixXd wrong_rows = Eigen::MatrixXd::Zero(valid->rings * 7 + 1, valid->sectors);
+    detector_->addDescriptor(1, makeRHPDHeading(wrong_rows));
     EXPECT_EQ(detector_->size(), 1u);
 
     auto new_detector = std::make_unique<LoopDetector>(config_);
-    std::vector<std::pair<int64_t, Eigen::MatrixXd>> descriptors;
+    std::vector<std::pair<int64_t, RHPDHeadingPtr>> descriptors;
     descriptors.emplace_back(10, valid);
-    descriptors.emplace_back(11, Eigen::MatrixXd::Zero(valid.rows(), valid.cols() + 1));
-    new_detector->loadDescriptors(descriptors);
+    descriptors.emplace_back(11, makeRHPDHeading(Eigen::MatrixXd::Zero(valid->rings * 7, valid->sectors + 1)));
+    for (const auto& [id, heading] : descriptors) new_detector->addDescriptor(id, heading);
     EXPECT_EQ(new_detector->size(), 1u);
-    EXPECT_GT(new_detector->getDescriptor(10).size(), 0);
-    EXPECT_EQ(new_detector->getDescriptor(11).size(), 0);
-}
-
-// 测试描述子序列化和加载
-TEST_F(LoopDetectorTest, SerializeAndLoad) {
-    // 添加一些描述子
-    for (int i = 0; i < 5; ++i) {
-        auto cloud = createOffsetCloud(i * 10.0, 0);
-        detector_->addDescriptor(i, cloud);
-    }
-    
-    // 获取所有描述子
-    auto descriptors = detector_->getDescriptors();
-    EXPECT_EQ(descriptors.size(), 5u);
-    
-    // 创建新的检测器并加载描述子
-    auto new_detector = std::make_unique<LoopDetector>(config_);
-    new_detector->loadDescriptors(descriptors);
-    
-    EXPECT_EQ(new_detector->size(), 5u);
-    
-    // 验证描述子内容一致
-    for (int i = 0; i < 5; ++i) {
-        auto orig = detector_->getDescriptor(i);
-        auto loaded = new_detector->getDescriptor(i);
-        
-        EXPECT_EQ(orig.rows(), loaded.rows());
-        EXPECT_EQ(orig.cols(), loaded.cols());
-        EXPECT_NEAR((orig - loaded).norm(), 0.0, 1e-9);
-    }
+    EXPECT_TRUE(new_detector->getDescriptor(10));
+    EXPECT_FALSE(new_detector->getDescriptor(11));
 }
 
 // 测试清空功能
@@ -817,13 +815,13 @@ TEST_F(LoopDetectorTest, Clear) {
     
     // 清空后获取描述子应该返回空矩阵
     auto desc = detector_->getDescriptor(0);
-    EXPECT_EQ(desc.size(), 0);
+    EXPECT_FALSE(desc);
 }
 
 // 测试添加已有描述子 (用于地图加载)
 TEST_F(LoopDetectorTest, AddExistingDescriptor) {
     auto cloud = createCircularCloud();
-    auto desc = detector_->makeScanContext(cloud);
+    auto desc = detector_->computeHeading(cloud);
     
     // 使用已有描述子添加
     detector_->addDescriptor(100, desc);
@@ -831,14 +829,13 @@ TEST_F(LoopDetectorTest, AddExistingDescriptor) {
     EXPECT_EQ(detector_->size(), 1u);
     
     auto retrieved = detector_->getDescriptor(100);
-    EXPECT_EQ(retrieved.rows(), desc.rows());
-    EXPECT_EQ(retrieved.cols(), desc.cols());
+    EXPECT_EQ(retrieved, desc);
 }
 
 // 测试获取不存在的描述子
 TEST_F(LoopDetectorTest, GetNonExistentDescriptor) {
     auto desc = detector_->getDescriptor(999);
-    EXPECT_EQ(desc.size(), 0);
+    EXPECT_FALSE(desc);
 }
 
 // 测试 LoopCandidate 有效性
@@ -872,26 +869,6 @@ TEST_F(LoopDetectorTest, VerifiedLoopValidity) {
     unverified_loop.match_id = 5;
     unverified_loop.verified = false;
     EXPECT_FALSE(unverified_loop.isValid());
-}
-
-// 测试重建 KD 树
-TEST_F(LoopDetectorTest, RebuildTree) {
-    // 添加描述子
-    for (int i = 0; i < 5; ++i) {
-        auto cloud = createOffsetCloud(i * 10.0, 0);
-        detector_->addDescriptor(i, cloud);
-    }
-    
-    // 重建树
-    detector_->rebuildTree();
-    
-    // 验证描述子仍然存在
-    EXPECT_EQ(detector_->size(), 5u);
-    
-    for (int i = 0; i < 5; ++i) {
-        auto desc = detector_->getDescriptor(i);
-        EXPECT_GT(desc.size(), 0);
-    }
 }
 
 TEST_F(LoopDetectorTest, SpatialCandidateRadiusIsHardBound) {

@@ -23,15 +23,13 @@
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.7.0";
+constexpr const char* MAP_VERSION = "2.8.0";
 
 struct SemVer {
     int major = 0;
     int minor = 0;
     int patch = 0;
 };
-
-constexpr SemVer kRhpdPersistenceVersion{2, 5, 0};
 
 bool parseSemVer(const std::string& version, SemVer* out) {
     if (!out) return false;
@@ -57,27 +55,6 @@ int compareSemVer(const SemVer& a, const SemVer& b) {
     if (a.minor != b.minor) return (a.minor < b.minor) ? -1 : 1;
     if (a.patch != b.patch) return (a.patch < b.patch) ? -1 : 1;
     return 0;
-}
-
-std::string buildRhpdSchema(const Config& config) {
-    std::ostringstream ss;
-    ss << std::fixed << std::setprecision(6)
-       << "dim=" << RHPD_DIM
-       << ";submap_mode=causal"
-       << ";submap_kf_radius=" << config.rhpd_submap_kf_radius
-       << ";submap_voxel_size=" << config.rhpd_submap_voxel_size
-       << ";azimuth_bins=" << RHPDescriptor::Params{}.azimuth_bins
-       << ";v2=" << config.rhpd_v2_enable
-       << ";v3=" << config.rhpd_v3_enable
-       << ";v3_visibility_bins=" << RHPDescriptor::Params{}.v3_visibility_bins
-       << ";v3_free_space_margin_m=" << RHPDescriptor::Params{}.v3_free_space_margin_m
-       << ";negative_space=" << config.rhpd_enable_negative_space
-       << ";vertical_tokens=" << config.rhpd_enable_vertical_tokens
-       << ";pca_confidence=" << config.rhpd_enable_pca_confidence
-       << ";max_range=" << config.rhpd_max_range
-       << ";z_min=" << config.rhpd_z_min
-       << ";z_max=" << config.rhpd_z_max;
-    return ss.str();
 }
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr maybeVoxelizeRhpdCloud(
@@ -121,8 +98,6 @@ Keyframe::Ptr keyframeFromParsedProto(const ParsedKeyframeProto& parsed) {
     keyframe->pose_odom = parsed.pose_odom;
     keyframe->pose_optimized = parsed.pose_optimized;
     keyframe->cloud = parsed.cloud;
-    keyframe->sc_descriptor = parsed.sc_descriptor;
-    keyframe->rhpd_descriptor = parsed.rhpd_descriptor;
     keyframe->is_from_loaded_map = true;
     return keyframe;
 }
@@ -189,7 +164,7 @@ bool MapSerializer::saveMap(const std::string& filepath,
 
 bool MapSerializer::saveMap(const std::string& filepath,
                             const KeyframeManager& keyframe_manager,
-                            const LoopDetector& loop_detector,
+                            const LoopDetector&,
                             const GraphOptimizer& optimizer,
                             const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
                             const core::DenseTrajectoryMetadata& dense_trajectory_metadata,
@@ -375,7 +350,6 @@ bool MapSerializer::saveMap(const std::string& filepath,
             }
         }
         meta->set_num_keyframes(keyframes.size());
-        meta->set_rhpd_schema(buildRhpdSchema(config_));
         std::string dense_source = dense_trajectory_metadata.source.empty()
             ? (dense_optimized_trajectory.empty() ? "none" : "native")
             : dense_trajectory_metadata.source;
@@ -389,32 +363,9 @@ bool MapSerializer::saveMap(const std::string& filepath,
         }
         meta->set_dense_trajectory_source(dense_source);
         meta->set_dense_trajectory_degraded(dense_degraded);
-        auto desc_vec = loop_detector.getDescriptors();
-        std::map<int64_t, Eigen::MatrixXd> desc_map;
-        for (const auto& item : desc_vec) desc_map[item.first] = item.second;
-        // Collect RHPD descriptors from the manager
-        auto rhpd_vec = loop_detector.getRHPDManager().getAll();
-        std::map<int64_t, Eigen::VectorXd> rhpd_map;
-        for (const auto& item : rhpd_vec) rhpd_map[item.first] = item.second;
+        // Persist source geometry only. Both descriptor parts are rebuilt on load.
         for (const auto& kf : keyframes) {
-            auto* kp = map_proto.add_keyframes();
-            keyframeToProto(kf, kp);
-            if (kp->sc_descriptor().values_size() == 0 && desc_map.count(kf->id))
-                descriptorToProto(desc_map[kf->id], kp->mutable_sc_descriptor());
-            Eigen::VectorXd save_rhpd;
-            const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
-            auto rhpd_cloud = keyframe_manager.buildCausalSubmapInRootFrame(kf->id, submap_radius, kf->id);
-            rhpd_cloud = maybeVoxelizeRhpdCloud(rhpd_cloud, config_.rhpd_submap_voxel_size);
-            if (rhpd_cloud && !rhpd_cloud->empty()) {
-                save_rhpd = loop_detector.computeRHPD(rhpd_cloud);
-            }
-            if (save_rhpd.size() == RHPD_DIM && !save_rhpd.isZero()) {
-                rhpdToProto(save_rhpd, kp->mutable_rhpd_descriptor());
-            } else if (kf->rhpd_descriptor.size() == RHPD_DIM && !kf->rhpd_descriptor.isZero()) {
-                rhpdToProto(kf->rhpd_descriptor, kp->mutable_rhpd_descriptor());
-            } else if (rhpd_map.count(kf->id) && rhpd_map[kf->id].size() == RHPD_DIM && !rhpd_map[kf->id].isZero()) {
-                rhpdToProto(rhpd_map[kf->id], kp->mutable_rhpd_descriptor());
-            }
+            keyframeToProto(kf, map_proto.add_keyframes());
         }
         auto edges = optimizer.getEdges();
         int n_odom = 0, n_loop = 0, n_anchor = 0;
@@ -554,44 +505,14 @@ bool MapSerializer::loadMap(const std::string& filepath,
             return false;
         }
 
-        bool force_rebuild_rhpd = false;
         const std::string file_version = map_proto.metadata().version();
-        SemVer file_semver;
-        SemVer code_semver;
-        const bool file_version_ok = parseSemVer(file_version, &file_semver);
-        const bool code_version_ok = parseSemVer(MAP_VERSION, &code_semver);
-        if (file_version_ok && code_version_ok) {
-            const int version_cmp = compareSemVer(file_semver, code_semver);
-            if (version_cmp > 0) {
-                LOG(ERROR) << "[MapSerializer] Reject map: file version " << file_version
-                           << " is newer than supported " << MAP_VERSION;
-                return false;
-            }
-            if (version_cmp < 0) {
-                if (compareSemVer(file_semver, kRhpdPersistenceVersion) < 0) {
-                    force_rebuild_rhpd = true;
-                    LOG(INFO) << "[MapSerializer] Map version " << file_version
-                              << " predates persisted RHPD, rebuilding descriptors.";
-                } else {
-                    LOG(INFO) << "[MapSerializer] Loading compatible older map version "
-                              << file_version << " with current " << MAP_VERSION;
-                }
-            }
-        } else {
-            force_rebuild_rhpd = true;
-            LOG(WARNING) << "[MapSerializer] Invalid map version format (file=" << file_version
-                         << ", code=" << MAP_VERSION << "), force rebuilding RHPD.";
-        }
-        const std::string expected_rhpd_schema = buildRhpdSchema(config_);
-        const std::string file_rhpd_schema = map_proto.metadata().rhpd_schema();
-        if (file_rhpd_schema.empty()) {
-            force_rebuild_rhpd = true;
-            LOG(INFO) << "[MapSerializer] Missing RHPD schema, RHPD will be rebuilt.";
-        } else if (file_rhpd_schema != expected_rhpd_schema) {
-            force_rebuild_rhpd = true;
-            LOG(INFO) << "[MapSerializer] RHPD schema mismatch, RHPD will be rebuilt."
-                      << " file=" << file_rhpd_schema
-                      << " expected=" << expected_rhpd_schema;
+        SemVer file_semver, code_semver;
+        if (parseSemVer(file_version, &file_semver) &&
+            parseSemVer(MAP_VERSION, &code_semver) &&
+            compareSemVer(file_semver, code_semver) > 0) {
+            LOG(ERROR) << "[MapSerializer] Reject map: file version " << file_version
+                       << " is newer than supported " << MAP_VERSION;
+            return false;
         }
 
         std::string parse_error;
@@ -599,8 +520,6 @@ bool MapSerializer::loadMap(const std::string& filepath,
         std::unordered_set<int64_t> loaded_keyframe_ids;
         PbstreamKeyframeParseOptions keyframe_parse_options;
         keyframe_parse_options.policy = options.policy;
-        keyframe_parse_options.expected_rhpd_dim = RHPD_DIM;
-        keyframe_parse_options.parse_descriptors = true;
         if (!parseKeyframesFromProto(map_proto, keyframe_parse_options,
                                      &parsed_keyframes, &loaded_keyframe_ids, &parse_error)) {
             LOG(ERROR) << "[MapSerializer] Reject map: " << parse_error;
@@ -749,44 +668,20 @@ bool MapSerializer::loadMap(const std::string& filepath,
             LOG(ERROR) << "[MapSerializer] Reject map: invalid submap registry.";
             return false;
         }
-        std::vector<std::pair<int64_t, Eigen::MatrixXd>> descriptors;
-        for (const auto& kf : keyframes)
-            if (kf->sc_descriptor.size() > 0) descriptors.emplace_back(kf->id, kf->sc_descriptor);
-        temp_loop_detector.loadDescriptors(descriptors);
-        // Restore/rebuild RHPD descriptors.
-        std::vector<std::pair<int64_t, Eigen::VectorXd>> rhpd_data;
-        bool rhpd_missing_or_invalid = false;
+        // Heading uses the saved single frame. Place recognition uses the causal
+        // submap in its root frame, including the current optimized poses.
+        const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
         for (const auto& kf : keyframes) {
-            if (!kf) continue;
-            if (kf->rhpd_descriptor.size() == RHPD_DIM) {
-                rhpd_data.emplace_back(kf->id, kf->rhpd_descriptor);
-            } else {
-                rhpd_missing_or_invalid = true;
-            }
+            auto place_cloud = submap_radius > 0
+                ? temp_keyframe_manager.buildCausalSubmapInRootFrame(kf->id, submap_radius, kf->id)
+                : kf->cloud;
+            if (!place_cloud || place_cloud->empty()) place_cloud = kf->cloud;
+            place_cloud = maybeVoxelizeRhpdCloud(place_cloud, config_.rhpd_submap_voxel_size);
+            temp_loop_detector.addDescriptor(kf->id, kf->cloud);
+            temp_loop_detector.addRHPD(kf->id, place_cloud);
         }
-
-        if (!force_rebuild_rhpd && !rhpd_missing_or_invalid) {
-            temp_loop_detector.loadRHPDDescriptors(rhpd_data);
-            LOG(INFO) << "[MapSerializer] Loaded " << rhpd_data.size() << " RHPD descriptors from map.";
-        } else {
-            LOG(INFO) << "[MapSerializer] Rebuilding RHPD descriptors for " << keyframes.size() << " keyframes.";
-            temp_loop_detector.clearRHPD();
-            int rebuilt_count = 0;
-            for (const auto& kf : keyframes) {
-                if (kf && kf->cloud && !kf->cloud->empty()) {
-                    const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
-                    pcl::PointCloud<pcl::PointXYZI>::Ptr rhpd_cloud = kf->cloud;
-                    if (submap_radius > 0) {
-                        rhpd_cloud = temp_keyframe_manager.buildCausalSubmapInRootFrame(kf->id, submap_radius, kf->id);
-                        if (!rhpd_cloud || rhpd_cloud->empty()) rhpd_cloud = kf->cloud;
-                    }
-                    rhpd_cloud = maybeVoxelizeRhpdCloud(rhpd_cloud, config_.rhpd_submap_voxel_size);
-                    kf->rhpd_descriptor = temp_loop_detector.addRHPD(kf->id, rhpd_cloud);
-                    ++rebuilt_count;
-                }
-            }
-            LOG(INFO) << "[MapSerializer] Rebuilt RHPD for " << rebuilt_count << " keyframes.";
-        }
+        LOG(INFO) << "[MapSerializer] Rebuilt RHPD place/heading for "
+                  << keyframes.size() << " keyframes from point clouds.";
 
         std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
         for (const auto& kf : keyframes) {
@@ -851,8 +746,6 @@ void MapSerializer::keyframeToProto(const Keyframe::Ptr& kf, n3mapping::Keyframe
     poseToProto(kf->pose_odom, proto->mutable_pose_odom());
     poseToProto(kf->pose_optimized, proto->mutable_pose_optimized());
     if (kf->cloud && !kf->cloud->empty()) pointCloudToProto(kf->cloud, proto->mutable_cloud());
-    if (kf->sc_descriptor.size() > 0) descriptorToProto(kf->sc_descriptor, proto->mutable_sc_descriptor());
-    if (kf->rhpd_descriptor.size() > 0) rhpdToProto(kf->rhpd_descriptor, proto->mutable_rhpd_descriptor());
 }
 
 void MapSerializer::edgeToProto(const EdgeInfo& edge, n3mapping::EdgeProto* proto) {
@@ -898,22 +791,9 @@ void MapSerializer::pointCloudToProto(const pcl::PointCloud<pcl::PointXYZI>::Ptr
     }
 }
 
-void MapSerializer::descriptorToProto(const Eigen::MatrixXd& desc, n3mapping::ScanContextDescriptor* proto) {
-    proto->set_rows(desc.rows()); proto->set_cols(desc.cols());
-    proto->mutable_values()->Reserve(desc.size());
-    for (int i = 0; i < desc.rows(); ++i) for (int j = 0; j < desc.cols(); ++j) proto->add_values(desc(i, j));
-}
-
 void MapSerializer::informationToProto(const Eigen::Matrix<double, 6, 6>& info, n3mapping::InformationMatrix* proto) {
     proto->mutable_values()->Reserve(21);
     for (int i = 0; i < 6; ++i) for (int j = i; j < 6; ++j) proto->add_values(info(i, j));
-}
-
-void MapSerializer::rhpdToProto(const Eigen::VectorXd& rhpd, n3mapping::RHPDDescriptor* proto) {
-    proto->Clear();
-    proto->set_dim(static_cast<uint32_t>(rhpd.size()));
-    proto->mutable_values()->Reserve(rhpd.size());
-    for (int i = 0; i < rhpd.size(); ++i) proto->add_values(rhpd(i));
 }
 
 } // namespace n3mapping

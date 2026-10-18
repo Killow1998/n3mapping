@@ -340,7 +340,7 @@ bool updateOutputMetadata(const std::filesystem::path& output,
     }
     meta->set_nav_cloud_filter_applied(true);
     meta->set_nav_cloud_filter_policy(buildPolicyString(options));
-    meta->set_descriptors_recomputed_from_filtered_cloud(true);
+    meta->set_descriptors_recomputed_from_filtered_cloud(false);
     meta->set_nav_filter_raw_points(stats.original_points);
     meta->set_nav_filter_kept_points(stats.kept_points);
     meta->set_nav_filter_removed_points(stats.removed_points);
@@ -518,13 +518,6 @@ int main(int argc, char** argv) {
                                           removed_world.points.begin(),
                                           removed_world.points.end());
         }
-    }
-
-    loop_detector.clear();
-    for (const auto& keyframe : keyframes) {
-        if (!keyframe || !keyframe->cloud || keyframe->cloud->empty()) continue;
-        keyframe->sc_descriptor = loop_detector.addDescriptor(keyframe->id, keyframe->cloud);
-        keyframe->rhpd_descriptor = loop_detector.addRHPD(keyframe->id, keyframe->cloud);
     }
 
     if (!serializer.saveMap(options.output_pbstream,

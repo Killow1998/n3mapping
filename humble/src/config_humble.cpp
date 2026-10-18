@@ -203,7 +203,6 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("rhpd_use_sc_yaw", config->rhpd_use_sc_yaw);
     get("rhpd_yaw_hypotheses", config->rhpd_yaw_hypotheses);
     get("rhpd_enable_negative_space", config->rhpd_enable_negative_space);
-    get("rhpd_enable_vertical_tokens", config->rhpd_enable_vertical_tokens);
     get("rhpd_enable_pca_confidence", config->rhpd_enable_pca_confidence);
     get("rhpd_part_a_scale", config->rhpd_part_a_scale);
     get("rhpd_aux_scale", config->rhpd_aux_scale);

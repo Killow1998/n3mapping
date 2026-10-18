@@ -1,4 +1,4 @@
-// LoopDetector: ScanContext-based loop candidate detection and ICP verification.
+// LoopDetector: RHPD place/heading candidates and spatial candidate selection.
 #pragma once
 
 #include <functional>
@@ -15,7 +15,6 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include "Scancontext/HybridScancontext.h"
 #include "n3mapping/RHPDescriptor.h"
 #include "n3mapping/config.h"
 #include "n3mapping/keyframe.h"
@@ -193,10 +192,10 @@ public:
     explicit LoopDetector(const Config& config);
     ~LoopDetector() = default;
 
-    Eigen::MatrixXd makeScanContext(const PointCloudT::Ptr& cloud);
-    Eigen::MatrixXd addDescriptor(int64_t keyframe_id, const PointCloudT::Ptr& cloud);
-    void addDescriptor(int64_t keyframe_id, const Eigen::MatrixXd& descriptor);
-    bool isScanContextDescriptorCompatible(const Eigen::MatrixXd& descriptor) const;
+    RHPDHeadingPtr computeHeading(const PointCloudT::Ptr& cloud);
+    RHPDHeadingPtr addDescriptor(int64_t keyframe_id, const PointCloudT::Ptr& cloud);
+    void addDescriptor(int64_t keyframe_id, const RHPDHeadingPtr& descriptor);
+    bool isHeadingShapeValid(const RHPDHeadingPtr& descriptor) const;
     // keyframes supplies the odometry poses the path-length exclusion needs;
     // pass the same map used for spatial candidates.
     std::vector<LoopCandidate> detectLoopCandidates(
@@ -208,37 +207,33 @@ public:
         const std::map<int64_t, Keyframe::Ptr>& keyframes,
         const MatchFilter& accept_match = {}) const;
 
-    void rebuildTree();
-    std::vector<std::pair<int64_t, Eigen::MatrixXd>> getDescriptors() const;
-    void loadDescriptors(const std::vector<std::pair<int64_t, Eigen::MatrixXd>>& descriptors);
+    std::vector<std::pair<int64_t, RHPDHeadingPtr>> getDescriptors() const;
     void swapWith(LoopDetector& other);
     size_t size() const;
     void clear();
     std::pair<int, int> getDescriptorDimensions() const;
-    double getScanContextSectorAngleDeg() const { return sc_manager_.PC_UNIT_SECTORANGLE; }
-    Eigen::MatrixXd getDescriptor(int64_t keyframe_id) const;
+    double getHeadingSectorAngleDeg() const { return getRHPDParams().heading.sectorAngleDeg(); }
+    RHPDHeadingPtr getDescriptor(int64_t keyframe_id) const;
     int getNumExcludeRecent() const { return config_.sc_num_exclude_recent; }
-    std::pair<double, int> computeDistance(const Eigen::MatrixXd& sc1, const Eigen::MatrixXd& sc2);
+    std::pair<double, int> computeDistance(const RHPDHeadingPtr& sc1, const RHPDHeadingPtr& sc2);
+
+    RHPDescriptor::Features computeFeatures(const PointCloudT::Ptr& cloud) const;
 
     // RHPD interface
-    Eigen::VectorXd computeRHPD(const PointCloudT::Ptr& cloud) const;
-    Eigen::VectorXd addRHPD(int64_t kf_id, const PointCloudT::Ptr& cloud);
-    void loadRHPDDescriptors(const std::vector<std::pair<int64_t, Eigen::VectorXd>>& descriptors);
-    void clearRHPD();
+    RHPDPlace computeRHPD(const PointCloudT::Ptr& cloud) const;
+    RHPDPlace addRHPD(int64_t kf_id, const PointCloudT::Ptr& cloud);
     const RHPDManager& getRHPDManager() const { return rhpd_manager_; }
     const RHPDescriptor::Params& getRHPDParams() const { return rhpd_manager_.getDescriptorParams(); }
 
 private:
     Config config_;
-    HybridSCManager sc_manager_;
     RHPDManager rhpd_manager_;
     std::map<int64_t, size_t> id_to_index_;
     std::vector<int64_t> index_to_id_;
-    std::vector<Eigen::MatrixXd> descriptors_;
+    std::vector<RHPDHeadingPtr> descriptors_;
     mutable std::mutex mutex_;
 
-    void rebuildTreeUnlocked();
-    void addDescriptorUnlocked(int64_t id, const Eigen::MatrixXd& descriptor);
+    void addDescriptorUnlocked(int64_t id, const RHPDHeadingPtr& descriptor);
 };
 
 } // namespace n3mapping

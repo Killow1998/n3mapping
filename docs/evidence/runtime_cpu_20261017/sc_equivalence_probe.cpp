@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   if (!serializer.loadMap(argv[1], frames, detector, graph))
     return 3;
   const auto database = detector.getDescriptors();
-  std::vector<Eigen::MatrixXd> queries;
+  std::vector<n3mapping::RHPDHeadingPtr> queries;
   for (int i = 3; i < argc; ++i) {
     auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
     if (pcl::io::loadPCDFile(argv[i], *cloud) != 0)
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
           Eigen::AngleAxisf(degrees * M_PI / 180., Eigen::Vector3f::UnitZ())
               .toRotationMatrix();
       pcl::transformPointCloud(*cloud, *rotated, pose);
-      queries.push_back(detector.makeScanContext(rotated));
+      queries.push_back(detector.computeHeading(rotated));
     }
   }
   std::ofstream out(argv[2]);

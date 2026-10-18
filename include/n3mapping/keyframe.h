@@ -1,4 +1,4 @@
-// keyframe.h — Keyframe data structure: id, timestamps, poses, point cloud, and ScanContext descriptor.
+// keyframe.h — Keyframe data structure: id, timestamps, poses, point cloud.
 #pragma once
 
 #include <memory>
@@ -21,8 +21,6 @@ struct Keyframe {
     Eigen::Isometry3d pose_optimized = Eigen::Isometry3d::Identity();
     MapSessionId session_id = 0;
     PointCloudT::Ptr cloud = nullptr;
-    Eigen::MatrixXd sc_descriptor;
-    Eigen::VectorXd rhpd_descriptor;   // RHPD descriptor for relocalization
     bool is_from_loaded_map = false;
 
     Keyframe() = default;

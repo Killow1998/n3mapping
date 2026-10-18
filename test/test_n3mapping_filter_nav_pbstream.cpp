@@ -109,25 +109,6 @@ std::filesystem::path findFilterTool() {
     return {};
 }
 
-bool hasDescriptorDifference(const N3Map& before, const N3Map& after) {
-    if (before.keyframes_size() == 0 || after.keyframes_size() == 0) return false;
-    const auto& lhs = before.keyframes(0);
-    const auto& rhs = after.keyframes(0);
-    if (lhs.sc_descriptor().values_size() != rhs.sc_descriptor().values_size() ||
-        lhs.rhpd_descriptor().values_size() != rhs.rhpd_descriptor().values_size()) {
-        return true;
-    }
-    double sc_delta = 0.0;
-    for (int i = 0; i < lhs.sc_descriptor().values_size(); ++i) {
-        sc_delta += std::abs(lhs.sc_descriptor().values(i) - rhs.sc_descriptor().values(i));
-    }
-    double rhpd_delta = 0.0;
-    for (int i = 0; i < lhs.rhpd_descriptor().values_size(); ++i) {
-        rhpd_delta += std::abs(lhs.rhpd_descriptor().values(i) - rhs.rhpd_descriptor().values(i));
-    }
-    return sc_delta > 1e-6 && rhpd_delta > 1e-6;
-}
-
 }  // namespace
 
 TEST(N3MappingFilterNavPbstreamTest, RemovesOnlyRearSectorAndRecomputesDescriptors) {
@@ -150,8 +131,8 @@ TEST(N3MappingFilterNavPbstreamTest, RemovesOnlyRearSectorAndRecomputesDescripto
     const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     const int64_t kf_id = keyframes.addKeyframe(1.0, pose, makeSectorCloud());
     auto cloud = keyframes.getKeyframe(kf_id)->cloud;
-    keyframes.updateDescriptor(kf_id, loop_detector.addDescriptor(kf_id, cloud));
-    keyframes.getKeyframe(kf_id)->rhpd_descriptor = loop_detector.addRHPD(kf_id, cloud);
+    loop_detector.addDescriptor(kf_id, cloud);
+    loop_detector.addRHPD(kf_id, cloud);
     optimizer.addPriorFactor(kf_id, pose);
 
     const std::filesystem::path input = std::filesystem::path(config.map_save_path) / "input.pbstream";
@@ -203,11 +184,16 @@ TEST(N3MappingFilterNavPbstreamTest, RemovesOnlyRearSectorAndRecomputesDescripto
     N3Map after;
     ASSERT_TRUE(parseMap(input, &before));
     ASSERT_TRUE(parseMap(output, &after));
-    EXPECT_TRUE(hasDescriptorDifference(before, after));
+    EXPECT_FALSE(after.keyframes(0).has_sc_descriptor());
+    EXPECT_FALSE(after.keyframes(0).has_rhpd_descriptor());
+    EXPECT_GT((rhpdHeadingDenseValues(*loop_detector.getDescriptor(kf_id)) -
+               rhpdHeadingDenseValues(*filtered_loops.getDescriptor(kf_id))).norm(), 1e-6);
+    EXPECT_TRUE(rhpdHeadingDenseValues(*filtered_loops.getDescriptor(kf_id)).isApprox(
+        rhpdHeadingDenseValues(*filtered_loops.computeHeading(filtered_kf->cloud)), 1e-12));
     EXPECT_EQ(after.metadata().map_frame(), "world");
     EXPECT_EQ(after.metadata().body_frame(), "base_link");
     EXPECT_TRUE(after.metadata().nav_cloud_filter_applied());
-    EXPECT_TRUE(after.metadata().descriptors_recomputed_from_filtered_cloud());
+    EXPECT_FALSE(after.metadata().descriptors_recomputed_from_filtered_cloud());
     EXPECT_EQ(after.metadata().nav_filter_raw_points(), 240U);
     EXPECT_EQ(after.metadata().nav_filter_kept_points(), 170U);
     EXPECT_EQ(after.metadata().nav_filter_removed_points(), 70U);
@@ -256,8 +242,8 @@ TEST(N3MappingFilterNavPbstreamTest, AppliesRangeAndSelfBoxFilters) {
     const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     const int64_t kf_id = keyframes.addKeyframe(1.0, pose, makeRangeSelfCloud());
     auto cloud = keyframes.getKeyframe(kf_id)->cloud;
-    keyframes.updateDescriptor(kf_id, loop_detector.addDescriptor(kf_id, cloud));
-    keyframes.getKeyframe(kf_id)->rhpd_descriptor = loop_detector.addRHPD(kf_id, cloud);
+    loop_detector.addDescriptor(kf_id, cloud);
+    loop_detector.addRHPD(kf_id, cloud);
     optimizer.addPriorFactor(kf_id, pose);
 
     const std::filesystem::path input = std::filesystem::path(config.map_save_path) / "input.pbstream";
@@ -310,8 +296,8 @@ TEST(N3MappingFilterNavPbstreamTest, RejectsInputOutputSamePath) {
     const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     const int64_t kf_id = keyframes.addKeyframe(1.0, pose, makeSectorCloud());
     auto cloud = keyframes.getKeyframe(kf_id)->cloud;
-    keyframes.updateDescriptor(kf_id, loop_detector.addDescriptor(kf_id, cloud));
-    keyframes.getKeyframe(kf_id)->rhpd_descriptor = loop_detector.addRHPD(kf_id, cloud);
+    loop_detector.addDescriptor(kf_id, cloud);
+    loop_detector.addRHPD(kf_id, cloud);
     optimizer.addPriorFactor(kf_id, pose);
 
     const std::filesystem::path input = std::filesystem::path(config.map_save_path) / "input.pbstream";
@@ -349,8 +335,8 @@ TEST(N3MappingFilterNavPbstreamTest, FailsFastWhenFilterWouldEmptyKeyframe) {
     const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     const int64_t kf_id = keyframes.addKeyframe(1.0, pose, makeRearOnlyCloud());
     auto cloud = keyframes.getKeyframe(kf_id)->cloud;
-    keyframes.updateDescriptor(kf_id, loop_detector.addDescriptor(kf_id, cloud));
-    keyframes.getKeyframe(kf_id)->rhpd_descriptor = loop_detector.addRHPD(kf_id, cloud);
+    loop_detector.addDescriptor(kf_id, cloud);
+    loop_detector.addRHPD(kf_id, cloud);
     optimizer.addPriorFactor(kf_id, pose);
 
     const std::filesystem::path input = std::filesystem::path(config.map_save_path) / "input.pbstream";

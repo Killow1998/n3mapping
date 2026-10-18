@@ -11,7 +11,7 @@ It consumes deskewed body-frame point clouds and odometry, then produces optimiz
 - ROS-free C++ backend core.
 - ROS 2 Humble and ROS 1 Noetic wrappers.
 - Mapping, localization, and map extension modes.
-- RHPD-primary place recognition with ScanContext auxiliary yaw/rerank/fallback.
+- Unified RHPD place recognition and direction-preserving heading matching, with sparse descriptor storage.
 - GTSAM pose graph optimization.
 - Map save/load with `n3map.pbstream` and `global_map.pcd`.
 

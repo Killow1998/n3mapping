@@ -18,6 +18,8 @@ node_source = (args.node_source or sources.parents[2] / 'humble/src/n3mapping_no
 for source, target, extra in (
     ('replay_probe', 'test_localization_episode', []),
     ('sc_equivalence_probe', 'test_localization_episode', []),
+    ('rhpd_generation_probe', 'test_localization_episode', ['-DN3M_FUSED']),
+    ('rhpd_pair_probe', 'test_localization_episode', ['-DN3M_SPARSE']),
     ('humble_replay_probe', 'n3mapping_node', [f'-DN3M_NODE_SOURCE="{node_source}"']),
 ):
     generated = build / f'CMakeFiles/{target}.dir'

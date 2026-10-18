@@ -8,42 +8,6 @@
 #include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
-namespace {
-void flipPlaneAxis(Eigen::VectorXd& v, int base, bool flip_axis0, bool flip_axis1) {
-    const int B = RHPD_PLANE_BINS;
-    Eigen::VectorXd plane = v.segment(base, RHPD_PLANE_DIM);
-    for (int row = 0; row < B; ++row) {
-        const int src_row = flip_axis0 ? (B - 1 - row) : row;
-        for (int col = 0; col < B; ++col) {
-            const int src_col = flip_axis1 ? (B - 1 - col) : col;
-            const int dst = base + (row * B + col) * RHPD_PLANE_CHANS;
-            const int src = (src_row * B + src_col) * RHPD_PLANE_CHANS;
-            for (int c = 0; c < RHPD_PLANE_CHANS; ++c) {
-                v(dst + c) = plane(src + c);
-            }
-        }
-    }
-}
-
-void shiftNegativeSpace180(Eigen::VectorXd& v) {
-    const int base = RHPD_PART_A_DIM + RHPD_PART_B_DIM;
-    Eigen::VectorXd neg = v.segment(base, RHPD_NEG_SPACE_DIM);
-    const int half = RHPD_NEG_SPACE_SECTORS / 2;
-    for (int i = 0; i < RHPD_NEG_SPACE_SECTORS; ++i) {
-        const int src_sector = (i + half) % RHPD_NEG_SPACE_SECTORS;
-        const int dst = base + i * RHPD_NEG_SPACE_CHANS;
-        const int src = src_sector * RHPD_NEG_SPACE_CHANS;
-        for (int c = 0; c < RHPD_NEG_SPACE_CHANS; ++c) {
-            v(dst + c) = neg(src + c);
-        }
-    }
-}
-
-void shiftVerticalTokens180(Eigen::VectorXd&) {
-    // Vertical token histogram is coarse radial, not azimuthal; no yaw shift needed.
-}
-} // namespace
-
 // ============================================================
 //  RHPDescriptor
 // ============================================================
@@ -52,7 +16,7 @@ RHPDescriptor::RHPDescriptor(const Params& params) : params_(params) {}
 
 // ---- PCA alignment ----
 
-Eigen::Matrix3d RHPDescriptor::computePCAAlignment(const CloudT::Ptr& cloud) const {
+Eigen::Matrix3d RHPDescriptor::computePCAAlignment(const CloudT::Ptr& cloud, double* confidence) const {
     if (!cloud || static_cast<int>(cloud->size()) < params_.min_points) {
         return Eigen::Matrix3d::Identity();
     }
@@ -80,22 +44,12 @@ Eigen::Matrix3d RHPDescriptor::computePCAAlignment(const CloudT::Ptr& cloud) con
     // Construct rotation matrix to align principal axis to +X
     double angle = std::atan2(principal.y(), principal.x());
 
-    // 180° disambiguation: the half with more points becomes +X
-    // Count points on positive principal axis side
-    int pos_count = 0;
-    Eigen::Vector2d perp(-principal.y(), principal.x());  // perpendicular (unused, just need sign)
-    for (const auto& pt : cloud->points) {
-        Eigen::Vector2d d(pt.x - mean.x(), pt.y - mean.y());
-        if (d.dot(principal) > 0) ++pos_count;
+    if (confidence) {
+        const double l1 = std::max(0.0, solver.eigenvalues()(1));
+        const double l2 = std::max(0.0, solver.eigenvalues()(0));
+        *confidence = solver.info() == Eigen::Success && l1 + l2 > 1e-9
+            ? std::clamp((l1 - l2) / (l1 + l2), 0.0, 1.0) : 0.0;
     }
-    int neg_count = static_cast<int>(cloud->size()) - pos_count;
-
-    // Convention: the denser side (closer objects, more points from sensor) → negative principal
-    // (machine facing +X means points behind it accumulate). Flip if positive side has more points.
-    // Simple rule: keep the principal axis orientation that gives MORE points on positive side
-    // We want +X to be the direction with fewer points (front of robot usually less dense in corridors)
-    // Actually use a neutral rule: just align, accept 180° and handle in distance() with two comparisons.
-    (void)pos_count; (void)neg_count;  // disambiguation handled in distance()
 
     Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
     double c = std::cos(-angle), s = std::sin(-angle);
@@ -104,36 +58,9 @@ Eigen::Matrix3d RHPDescriptor::computePCAAlignment(const CloudT::Ptr& cloud) con
     return R;
 }
 
-double RHPDescriptor::computePCAConfidence(const CloudT::Ptr& cloud) const {
-    if (!params_.enable_pca_confidence || !cloud || static_cast<int>(cloud->size()) < params_.min_points) {
-        return params_.enable_pca_confidence ? 0.0 : 1.0;
-    }
-
-    Eigen::Vector2d mean = Eigen::Vector2d::Zero();
-    for (const auto& pt : cloud->points) {
-        mean += Eigen::Vector2d(pt.x, pt.y);
-    }
-    mean /= static_cast<double>(cloud->size());
-
-    Eigen::Matrix2d cov = Eigen::Matrix2d::Zero();
-    for (const auto& pt : cloud->points) {
-        const Eigen::Vector2d d(pt.x - mean.x(), pt.y - mean.y());
-        cov += d * d.transpose();
-    }
-    cov /= static_cast<double>(cloud->size());
-
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(cov);
-    if (solver.info() != Eigen::Success) return 0.0;
-    const double l1 = std::max(0.0, solver.eigenvalues()(1));
-    const double l2 = std::max(0.0, solver.eigenvalues()(0));
-    const double denom = l1 + l2;
-    if (denom <= 1e-9) return 0.0;
-    return std::clamp((l1 - l2) / denom, 0.0, 1.0);
-}
-
 // ---- Single plane projection ----
 
-RHPDescriptor::VecD RHPDescriptor::projectToPlane(
+RHPDCells RHPDescriptor::projectToPlane(
     const CloudT::Ptr& cloud,
     int axis0, double r0_min, double r0_max,
     int axis1, double r1_min, double r1_max,
@@ -152,10 +79,11 @@ RHPDescriptor::VecD RHPDescriptor::projectToPlane(
     // [2] visibility_state  = 1.0(occupied), 0.5(observed-free), 0.0(unknown)
     // [3] boundary_strength = transition strength between occupied/free/unknown cells
     const int B2 = B * B;
-    std::vector<double> counts(B2, 0.0);
-    std::vector<double> h_sum(B2, 0.0);
-    std::vector<double> h_min(B2,  std::numeric_limits<double>::max());
-    std::vector<double> h_max(B2, -std::numeric_limits<double>::max());
+    std::array<double, B2> counts{};
+    std::array<double, B2> h_sum{};
+    std::array<double, B2> h_min, h_max;
+    h_min.fill(std::numeric_limits<double>::max());
+    h_max.fill(-std::numeric_limits<double>::max());
     std::vector<double> sector_max_r;
     if (params_.v3_enable) {
         const int sector_n = std::max(8, params_.v3_visibility_bins);
@@ -170,7 +98,7 @@ RHPDescriptor::VecD RHPDescriptor::projectToPlane(
 
     double r0_range = r0_max - r0_min;
     double r1_range = r1_max - r1_min;
-    if (r0_range <= 0 || r1_range <= 0) return VecD::Zero(B2 * RHPD_PLANE_CHANS);
+    if (r0_range <= 0 || r1_range <= 0) return {};
 
     double h_range = (height_axis == 2) ? (params_.z_max - params_.z_min)
                    : params_.max_range * 2.0;
@@ -208,7 +136,7 @@ RHPDescriptor::VecD RHPDescriptor::projectToPlane(
         ++total;
     }
 
-    VecD out(B2 * RHPD_PLANE_CHANS);
+    Eigen::Matrix<double, RHPD_PLANE_DIM, 1> out;
     double inv_total = total > 0 ? 1.0 / static_cast<double>(total) : 0.0;
     const double max_count = *std::max_element(counts.begin(), counts.end());
     const double inv_max_count = max_count > 0.0 ? 1.0 / max_count : 0.0;
@@ -290,42 +218,50 @@ RHPDescriptor::VecD RHPDescriptor::projectToPlane(
             out(i * RHPD_PLANE_CHANS + 3) = 0.0;
         }
     }
-    return out;
+    RHPDCells cells;
+    size_t active = 0;
+    for (int i = 0; i < B2; ++i) active += !out.segment<4>(i * 4).isZero(0.0);
+    cells.indices.reserve(active);
+    cells.values.reserve(active);
+    for (int i = 0; i < B2; ++i) cells.append(i, out.segment<4>(i * 4));
+    return cells;
 }
 
 // ---- Part A: triple-plane projection ----
 
-RHPDescriptor::VecD RHPDescriptor::computePartA(const CloudT::Ptr& aligned_cloud) const {
-    const double R = params_.max_range;
-    const double Zn = params_.z_min;
-    const double Zx = params_.z_max;
-
-    // XY plane: axis0=X [-R,+R], axis1=Y [-R,+R], height=Z
-    VecD xy = projectToPlane(aligned_cloud, 0, -R, R, 1, -R, R, 2);
-
-    // XZ plane: axis0=X [-R,+R], axis1=Z [Zn,Zx], height=Y (lateral)
-    VecD xz = projectToPlane(aligned_cloud, 0, -R, R, 2, Zn, Zx, 1);
-
-    // YZ plane: axis0=Y [-R,+R], axis1=Z [Zn,Zx], height=X (forward)
-    VecD yz = projectToPlane(aligned_cloud, 1, -R, R, 2, Zn, Zx, 0);
-
-    VecD out(RHPD_PART_A_DIM);
-    out.segment(0,                   RHPD_PLANE_DIM) = xy;
-    out.segment(RHPD_PLANE_DIM,      RHPD_PLANE_DIM) = xz;
-    out.segment(RHPD_PLANE_DIM * 2,  RHPD_PLANE_DIM) = yz;
-    return out;
+std::array<RHPDCells, 3> RHPDescriptor::computePartA(const CloudT::Ptr& cloud) const {
+    const double r = params_.max_range, z0 = params_.z_min, z1 = params_.z_max;
+    return {{projectToPlane(cloud, 0, -r, r, 1, -r, r, 2),
+             projectToPlane(cloud, 0, -r, r, 2, z0, z1, 1),
+             projectToPlane(cloud, 1, -r, r, 2, z0, z1, 0)}};
 }
 
 // ---- Main compute ----
 
-RHPDescriptor::VecD RHPDescriptor::compute(const CloudT::Ptr& cloud) const {
-    VecD zero = VecD::Zero(RHPD_DIM);
+RHPDescriptor::Place RHPDescriptor::compute(const CloudT::Ptr& cloud) const {
+    return computeImpl(cloud, nullptr);
+}
+
+RHPDescriptor::Features RHPDescriptor::computeWithHeading(const CloudT::Ptr& cloud) const {
+    Features result;
+    result.place = computeImpl(cloud, &result.heading);
+    return result;
+}
+
+RHPDHeadingPtr RHPDescriptor::computeHeading(const CloudT::Ptr& cloud) const {
+    if (!cloud || cloud->empty()) return {};
+    return computeRHPDHeading(*cloud, params_.heading);
+}
+
+RHPDescriptor::Place RHPDescriptor::computeImpl(const CloudT::Ptr& cloud, RHPDHeadingPtr* heading) const {
     if (!cloud || static_cast<int>(cloud->size()) < params_.min_points) {
-        return zero;
+        if (heading) *heading = computeHeading(cloud);
+        return {};
     }
 
     // PCA alignment
-    Eigen::Matrix3d R_align = computePCAAlignment(cloud);
+    double confidence = 1.0;
+    Eigen::Matrix3d R_align = computePCAAlignment(cloud, params_.enable_pca_confidence ? &confidence : nullptr);
 
     // Build aligned cloud (only rotate around Z, preserve heights)
     CloudT::Ptr aligned = pcl::make_shared<CloudT>();
@@ -341,52 +277,10 @@ RHPDescriptor::VecD RHPDescriptor::compute(const CloudT::Ptr& cloud) const {
         aligned->push_back(apt);
     }
 
-    const double pca_confidence = computePCAConfidence(cloud);
-    VecD part_a = computePartA(aligned);
-    VecD part_b = computePartB(cloud);   // Part B is rotation-invariant, use original cloud
-    VecD aux = computeAux(cloud, pca_confidence);
-
-    VecD out(RHPD_DIM);
-    out.segment(0, RHPD_PART_A_DIM) = part_a;
-    out.segment(RHPD_PART_A_DIM, RHPD_PART_B_DIM) = part_b;
-    out.segment(RHPD_PART_A_DIM + RHPD_PART_B_DIM, RHPD_AUX_DIM) = aux;
+    Place out;
+    out.planes = computePartA(aligned);
+    computePolar(cloud, confidence, out, heading);
     return out;
 }
-
-// ---- Distance (with 180° handling) ----
-
-double RHPDescriptor::distance(const VecD& a, const VecD& b) const {
-    if (a.size() != RHPD_DIM || b.size() != RHPD_DIM) {
-        return std::numeric_limits<double>::max();
-    }
-
-    VecD a_flip = a;
-    flipPlaneAxis(a_flip, 0, true, true);                        // XY: X and Y flip
-    flipPlaneAxis(a_flip, RHPD_PLANE_DIM, true, false);          // XZ: X flips only
-    flipPlaneAxis(a_flip, RHPD_PLANE_DIM * 2, true, false);      // YZ: Y flips only
-    if (params_.enable_negative_space) {
-        shiftNegativeSpace180(a_flip);
-    }
-    shiftVerticalTokens180(a_flip);
-
-    const double conf_a = params_.enable_pca_confidence ? a(RHPD_DIM - 1) : 1.0;
-    const double conf_b = params_.enable_pca_confidence ? b(RHPD_DIM - 1) : 1.0;
-    const double part_a_weight = params_.enable_pca_confidence
-        ? (0.35 + 0.65 * std::min(std::clamp(conf_a, 0.0, 1.0), std::clamp(conf_b, 0.0, 1.0)))
-        : 1.0;
-
-    auto weightedDistance = [&](const VecD& lhs, const VecD& rhs) {
-        const double da = (lhs.segment(0, RHPD_PART_A_DIM) - rhs.segment(0, RHPD_PART_A_DIM)).squaredNorm();
-        const double db = (lhs.segment(RHPD_PART_A_DIM, RHPD_PART_B_DIM) -
-                           rhs.segment(RHPD_PART_A_DIM, RHPD_PART_B_DIM)).squaredNorm();
-        const double daux = (lhs.segment(RHPD_PART_A_DIM + RHPD_PART_B_DIM, RHPD_AUX_DIM) -
-                             rhs.segment(RHPD_PART_A_DIM + RHPD_PART_B_DIM, RHPD_AUX_DIM)).squaredNorm();
-        return std::sqrt(params_.part_a_scale * part_a_weight * da + db +
-                         params_.aux_scale * 0.5 * daux);
-    };
-
-    return std::min(weightedDistance(a, b), weightedDistance(a_flip, b));
-}
-
 
 } // namespace n3mapping

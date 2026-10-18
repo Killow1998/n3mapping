@@ -32,16 +32,21 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
   }
 
   const auto &rhpd_manager = loop_detector_.getRHPDManager();
-  Eigen::VectorXd query_rhpd;
-  Eigen::MatrixXd query_sc;
-  if (config_.rhpd_use_sc_yaw || !config_.rhpd_enabled ||
-      rhpd_manager.size() == 0) {
-    query_sc = loop_detector_.makeScanContext(cloud);
+  RHPDPlace query_rhpd;
+  RHPDHeadingPtr query_sc;
+  const bool use_rhpd = config_.rhpd_enabled && rhpd_manager.size() > 0;
+  if (use_rhpd && config_.rhpd_use_sc_yaw) {
+    auto features = loop_detector_.computeFeatures(cloud);
+    query_rhpd = std::move(features.place);
+    query_sc = std::move(features.heading);
+  } else if (use_rhpd) {
+    query_rhpd = loop_detector_.computeRHPD(cloud);
+  } else {
+    query_sc = loop_detector_.computeHeading(cloud);
   }
 
-  if (config_.rhpd_enabled && rhpd_manager.size() > 0) {
-    query_rhpd = loop_detector_.computeRHPD(cloud);
-    if (query_rhpd.size() != RHPD_DIM || query_rhpd.isZero()) {
+  if (use_rhpd) {
+    if (query_rhpd.isZero()) {
       LOG(WARNING) << "[Reloc/RHPD] query descriptor is zero.";
     } else {
       const int preselect = std::max(config_.rhpd_num_candidates * 3,
@@ -65,17 +70,17 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
         candidate.candidate_source = LoopCandidate::Source::RhpdPrimary;
         candidate.rhpd_rank = i;
 
-        Eigen::MatrixXd match_sc;
+        RHPDHeadingPtr match_sc;
         if (config_.rhpd_use_sc_yaw) match_sc = loop_detector_.getDescriptor(item.first);
-        if (config_.rhpd_use_sc_yaw && query_sc.size() > 0 &&
-            match_sc.size() > 0) {
+        if (config_.rhpd_use_sc_yaw && query_sc &&
+            match_sc) {
           auto [sc_dist, yaw_shift] =
               loop_detector_.computeDistance(query_sc, match_sc);
           candidate.sc_distance = sc_dist;
           candidate.yaw_diff_rad =
               static_cast<float>(yaw_shift) *
               static_cast<float>(
-                  loop_detector_.getScanContextSectorAngleDeg()) *
+                  loop_detector_.getHeadingSectorAngleDeg()) *
               static_cast<float>(M_PI / 180.0);
           candidate.source_flags |= LoopCandidate::SOURCE_SC;
           if (config_.sc_aux_veto_enabled &&
@@ -144,7 +149,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
     }
   }
 
-  if (query_sc.size() == 0) {
+  if (!query_sc) {
     return candidates;
   }
 
@@ -153,7 +158,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
   sc_ranked.reserve(descriptors.size());
   for (int i = 0; i < static_cast<int>(descriptors.size()); ++i) {
     const auto &[keyframe_id, descriptor] = descriptors[i];
-    if (descriptor.size() == 0) {
+    if (!descriptor) {
       continue;
     }
     auto [sc_dist, yaw_shift] =
@@ -167,7 +172,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
     candidate.sc_distance = sc_dist;
     candidate.yaw_diff_rad =
         static_cast<float>(yaw_shift) *
-        static_cast<float>(loop_detector_.getScanContextSectorAngleDeg()) *
+        static_cast<float>(loop_detector_.getHeadingSectorAngleDeg()) *
         static_cast<float>(M_PI / 180.0);
     candidate.source_flags = LoopCandidate::SOURCE_SC;
     candidate.candidate_source = LoopCandidate::Source::ScanContextFallback;
@@ -204,8 +209,8 @@ void RelocalizationPlaceIndex::rebuildFrameRHPDIndexIfNeeded() {
     if (!keyframe || !keyframe->cloud || keyframe->cloud->empty()) {
       continue;
     }
-    Eigen::VectorXd descriptor = loop_detector_.computeRHPD(keyframe->cloud);
-    if (descriptor.size() != RHPD_DIM || descriptor.isZero()) {
+    RHPDPlace descriptor = loop_detector_.computeRHPD(keyframe->cloud);
+    if (descriptor.isZero()) {
       continue;
     }
     frame_rhpd_manager_.add(keyframe->id, descriptor);
@@ -218,9 +223,9 @@ void RelocalizationPlaceIndex::rebuildFrameRHPDIndexIfNeeded() {
 }
 
 void RelocalizationPlaceIndex::appendFrameRHPDCandidates(
-    const Eigen::VectorXd &query_rhpd, const Eigen::MatrixXd &query_sc,
+    const RHPDPlace &query_rhpd, const RHPDHeadingPtr &query_sc,
     std::vector<LoopCandidate> &candidates) {
-  if (query_rhpd.size() != RHPD_DIM || query_rhpd.isZero()) {
+  if (query_rhpd.isZero()) {
     return;
   }
 
@@ -248,15 +253,15 @@ void RelocalizationPlaceIndex::appendFrameRHPDCandidates(
     candidate.candidate_source = LoopCandidate::Source::RhpdFrame;
     candidate.rhpd_rank = i;
 
-    Eigen::MatrixXd match_sc;
+    RHPDHeadingPtr match_sc;
     if (config_.rhpd_use_sc_yaw) match_sc = loop_detector_.getDescriptor(item.first);
-    if (config_.rhpd_use_sc_yaw && query_sc.size() > 0 && match_sc.size() > 0) {
+    if (config_.rhpd_use_sc_yaw && query_sc && match_sc) {
       auto [sc_dist, yaw_shift] =
           loop_detector_.computeDistance(query_sc, match_sc);
       candidate.sc_distance = sc_dist;
       candidate.yaw_diff_rad =
           static_cast<float>(yaw_shift) *
-          static_cast<float>(loop_detector_.getScanContextSectorAngleDeg()) *
+          static_cast<float>(loop_detector_.getHeadingSectorAngleDeg()) *
           static_cast<float>(M_PI / 180.0);
       candidate.source_flags |= LoopCandidate::SOURCE_SC;
       if (config_.sc_aux_veto_enabled &&

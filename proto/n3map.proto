@@ -44,6 +44,7 @@ message KeyframeProto {
     Pose3D pose_odom = 3;
     Pose3D pose_optimized = 4;
     PointCloudData cloud = 5;
+    // Obsolete caches: ignored on load, never written. Keep tags unavailable for reuse.
     ScanContextDescriptor sc_descriptor = 6;
     RHPDDescriptor rhpd_descriptor = 7;
     uint64 session_id = 8;
@@ -116,7 +117,7 @@ message MapMetadata {
     uint32 num_keyframes = 3;
     uint32 num_odometry_edges = 4;
     uint32 num_loop_edges = 5;
-    string rhpd_schema = 6;
+    string rhpd_schema = 6; // Obsolete; descriptors are rebuilt from geometry.
     string map_frame = 7;
     string body_frame = 8;
     bool nav_cloud_filter_applied = 9;

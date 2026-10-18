@@ -263,14 +263,6 @@ Keyframe::Ptr KeyframeManager::findNearestByPosition(const Eigen::Vector3d& posi
     return nearest;
 }
 
-bool KeyframeManager::updateDescriptor(int64_t id, const Eigen::MatrixXd& descriptor) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = keyframes_.find(id);
-    if (it == keyframes_.end()) return false;
-    it->second->sc_descriptor = descriptor;
-    return true;
-}
-
 bool KeyframeManager::addSession(const MapSessionInfo& session) {
     if (!validSessionInfo(session)) return false;
     std::lock_guard<std::mutex> lock(mutex_);

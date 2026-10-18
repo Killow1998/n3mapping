@@ -229,15 +229,16 @@ TEST_F(LoopDetectorPBTTest, Property7_DescriptorDimensionInvariance) {
         }
         
         // 生成描述子
-        auto descriptor = detector->makeScanContext(cloud);
+        auto descriptor = detector->computeHeading(cloud);
         
         // 验证属性：描述子维度应该恒定
-        EXPECT_EQ(descriptor.rows(), expected_rows)
+        ASSERT_TRUE(descriptor);
+        EXPECT_EQ(descriptor->rings * RHPDHeadingParams::channels, expected_rows)
             << "Iteration: " << iter
             << ", Cloud type: " << cloud_type
             << ", Cloud size: " << cloud->size();
         
-        EXPECT_EQ(descriptor.cols(), expected_cols)
+        EXPECT_EQ(descriptor->sectors, expected_cols)
             << "Iteration: " << iter
             << ", Cloud type: " << cloud_type
             << ", Cloud size: " << cloud->size();

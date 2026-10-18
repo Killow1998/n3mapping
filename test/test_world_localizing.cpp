@@ -183,7 +183,6 @@ protected:
       auto rhpd = loop_detector_->addRHPD(kf_id, cloud);
       auto kf = keyframe_manager_->getKeyframe(kf_id);
       ASSERT_NE(kf, nullptr);
-      kf->rhpd_descriptor = rhpd;
       pose.translation().x() += spacing;
     }
   }
@@ -597,7 +596,6 @@ TEST_F(WorldLocalizingTest, DuplicatedGeometryDoesNotClaimAUniquePlace) {
     auto rhpd = loop_detector_->addRHPD(kf_id, repeated_observation);
     auto keyframe = keyframe_manager_->getKeyframe(kf_id);
     ASSERT_NE(keyframe, nullptr);
-    keyframe->rhpd_descriptor = rhpd;
   }
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);

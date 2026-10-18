@@ -1,7 +1,8 @@
-// LoopDetector: ScanContext descriptor generation, candidate search, and ICP verification.
+// LoopDetector: RHPD place/heading retrieval and spatial candidates.
 #include <map>
 
 #include "n3mapping/loop_detector.h"
+#include "Scancontext/KDTreeVectorOfVectorsAdaptor.h"
 
 #include <algorithm>
 #include <cmath>
@@ -15,35 +16,8 @@
 #endif
 
 namespace {
-// Eigen column vector → std::vector<float> (for KD-tree)
-inline std::vector<float> eig2stdvec(const Eigen::MatrixXd& mat) {
-    std::vector<float> vec(mat.size());
-    for (int i = 0; i < static_cast<int>(mat.size()); ++i)
-        vec[i] = static_cast<float>(mat(i));
-    return vec;
-}
-
-void swapScanContextConfig(HybridSCManager& lhs, HybridSCManager& rhs) {
-    using std::swap;
-    swap(lhs.PC_NUM_RING, rhs.PC_NUM_RING);
-    swap(lhs.PC_NUM_SECTOR, rhs.PC_NUM_SECTOR);
-    swap(lhs.PC_MAX_RADIUS, rhs.PC_MAX_RADIUS);
-    swap(lhs.PC_MIN_RADIUS, rhs.PC_MIN_RADIUS);
-    swap(lhs.LIDAR_HEIGHT, rhs.LIDAR_HEIGHT);
-    swap(lhs.USE_LOG_POLAR, rhs.USE_LOG_POLAR);
-    swap(lhs.OCCUPY_Z_MIN, rhs.OCCUPY_Z_MIN);
-    swap(lhs.OCCUPY_Z_MAX, rhs.OCCUPY_Z_MAX);
-    swap(lhs.SEARCH_RATIO, rhs.SEARCH_RATIO);
-    swap(lhs.W_HEIGHT, rhs.W_HEIGHT);
-    swap(lhs.W_HEIGHT_VAR, rhs.W_HEIGHT_VAR);
-    swap(lhs.W_DENSITY, rhs.W_DENSITY);
-    swap(lhs.W_OCCUPY_L0, rhs.W_OCCUPY_L0);
-    swap(lhs.W_OCCUPY_L1, rhs.W_OCCUPY_L1);
-    swap(lhs.W_OCCUPY_L2, rhs.W_OCCUPY_L2);
-    swap(lhs.W_OCCUPY_L3, rhs.W_OCCUPY_L3);
-    swap(lhs.PC_UNIT_SECTORANGLE, rhs.PC_UNIT_SECTORANGLE);
-}
-
+using KeyMat = std::vector<std::vector<float>>;
+using InvKeyTree = KDTreeVectorOfVectorsAdaptor<KeyMat, float>;
 double wrapYaw(double yaw) {
     while (yaw >= M_PI) yaw -= 2.0 * M_PI;
     while (yaw < -M_PI) yaw += 2.0 * M_PI;
@@ -85,51 +59,46 @@ std::vector<double> buildDescriptorYawHypotheses(
 }
 
 LoopDetector::LoopDetector(const Config& config)
-    : config_(config), rhpd_manager_(rhpdParamsFromConfig(config)) {
-    sc_manager_.PC_NUM_RING = std::max(1, config_.sc_num_rings);
-    sc_manager_.PC_NUM_SECTOR = std::max(4, config_.sc_num_sectors);
-    sc_manager_.PC_MAX_RADIUS = std::max(config_.sc_max_radius, sc_manager_.PC_MIN_RADIUS + 1e-3);
-    sc_manager_.PC_UNIT_SECTORANGLE = 360.0 / static_cast<double>(sc_manager_.PC_NUM_SECTOR);
+    : config_(config), rhpd_manager_(rhpdParamsFromConfig(config)) {}
+
+RHPDHeadingPtr LoopDetector::computeHeading(const PointCloudT::Ptr& cloud) {
+    return rhpd_manager_.computeHeading(cloud);
 }
 
-Eigen::MatrixXd LoopDetector::makeScanContext(const PointCloudT::Ptr& cloud) {
-    if (!cloud || cloud->empty()) return Eigen::MatrixXd();
-    pcl::PointCloud<SCPointType> cloud_copy = *cloud;
-    return sc_manager_.makeScancontext(cloud_copy);
+RHPDescriptor::Features LoopDetector::computeFeatures(const PointCloudT::Ptr& cloud) const {
+    return rhpd_manager_.computeWithHeading(cloud);
 }
 
-Eigen::MatrixXd LoopDetector::addDescriptor(int64_t id, const PointCloudT::Ptr& cloud) {
-    if (!cloud || cloud->empty()) return Eigen::MatrixXd();
+RHPDHeadingPtr LoopDetector::addDescriptor(int64_t id, const PointCloudT::Ptr& cloud) {
+    if (!cloud || cloud->empty()) return RHPDHeadingPtr();
     std::lock_guard<std::mutex> lock(mutex_);
-    const Eigen::MatrixXd descriptor = makeScanContext(cloud);
-    if (!isScanContextDescriptorCompatible(descriptor)) return Eigen::MatrixXd();
+    const RHPDHeadingPtr descriptor = computeHeading(cloud);
+    if (!isHeadingShapeValid(descriptor)) return RHPDHeadingPtr();
     addDescriptorUnlocked(id, descriptor);
     return descriptors_[id_to_index_.at(id)];
 }
 
-void LoopDetector::addDescriptor(int64_t id, const Eigen::MatrixXd& descriptor) {
-    if (descriptor.size() == 0) return;
+void LoopDetector::addDescriptor(int64_t id, const RHPDHeadingPtr& descriptor) {
+    if (!descriptor) return;
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!isScanContextDescriptorCompatible(descriptor)) {
-        LOG(WARNING) << "[LoopDetector] Skip incompatible ScanContext descriptor for keyframe "
-                     << id << ": got " << descriptor.rows() << "x" << descriptor.cols()
-                     << ", expected " << sc_manager_.totalRows() << "x" << sc_manager_.PC_NUM_SECTOR;
+    if (!isHeadingShapeValid(descriptor)) {
+        LOG(WARNING) << "[LoopDetector] Skip incompatible RHPD heading for keyframe "
+                     << id << ": got " << descriptor->rings * RHPDHeadingParams::channels << "x" << descriptor->sectors
+                     << ", expected " << getRHPDParams().heading.rows() << "x" << getRHPDParams().heading.sectors;
         return;
     }
     addDescriptorUnlocked(id, descriptor);
 }
 
-void LoopDetector::addDescriptorUnlocked(int64_t id, const Eigen::MatrixXd& descriptor) {
+void LoopDetector::addDescriptorUnlocked(int64_t id, const RHPDHeadingPtr& descriptor) {
     if (id_to_index_.count(id) > 0) {
-        LOG(WARNING) << "[LoopDetector] Duplicate ScanContext descriptor id " << id
+        LOG(WARNING) << "[LoopDetector] Duplicate RHPD heading id " << id
                      << ", keeping existing descriptor.";
         return;
     }
     id_to_index_[id] = descriptors_.size();
     index_to_id_.push_back(id);
     descriptors_.push_back(descriptor);
-    sc_manager_.polarcontext_invkeys_mat_.push_back(
-        eig2stdvec(sc_manager_.makeRingkeyFromScancontext(descriptors_.back())));
 }
 
 std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
@@ -174,12 +143,12 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
     }
     const double min_path = std::max(0.0, config_.loop_min_path_length_m);
 
-    const Eigen::MatrixXd& query_desc = descriptors_[query_index];
-    const bool sc_query_available = query_desc.size() > 0;
+    const RHPDHeadingPtr& query_desc = descriptors_[query_index];
+    const bool sc_query_available = static_cast<bool>(query_desc);
 
     if (config_.rhpd_enabled && rhpd_manager_.size() > 0) {
-        Eigen::VectorXd query_rhpd;
-        if (rhpd_manager_.get(query_id, &query_rhpd) && query_rhpd.size() == RHPD_DIM && !query_rhpd.isZero()) {
+        RHPDPlace query_rhpd;
+        if (rhpd_manager_.get(query_id, &query_rhpd) && !query_rhpd.isZero()) {
             const int preselect = std::max(config_.rhpd_num_candidates * 3, config_.sc_num_candidates * 4);
             // Informative rather than merely old: the pair must be separated by
             // enough travel that the odometry no longer pins it down.
@@ -209,12 +178,12 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
                 candidate.candidate_source = LoopCandidate::Source::RhpdPrimary;
                 candidate.rhpd_rank = rhpd_rank++;
 
-                const bool sc_match_available = match_index < descriptors_.size() && descriptors_[match_index].size() > 0;
+                const bool sc_match_available = match_index < descriptors_.size() && static_cast<bool>(descriptors_[match_index]);
                 if (config_.rhpd_use_sc_yaw && sc_query_available && sc_match_available) {
                     auto [sc_dist, yaw_shift] = computeDistance(query_desc, descriptors_[match_index]);
                     candidate.sc_distance = sc_dist;
                     candidate.yaw_diff_rad = static_cast<float>(yaw_shift) *
-                        static_cast<float>(sc_manager_.PC_UNIT_SECTORANGLE) * static_cast<float>(M_PI / 180.0);
+                        static_cast<float>(getRHPDParams().heading.sectorAngleDeg()) * static_cast<float>(M_PI / 180.0);
                     candidate.source_flags |= LoopCandidate::SOURCE_SC;
                     candidate.sc_rank = -1;
                     if (config_.sc_aux_veto_enabled && sc_dist > config_.sc_aux_veto_threshold) {
@@ -255,9 +224,9 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
         }
     }
 
-    // RHPD disabled or unavailable: fallback to ScanContext for A/B testing and legacy maps.
+    // Place retrieval disabled or unavailable: use the direction-preserving channels.
     if (search_end == 0) return candidates;
-    const auto& query_ringkey_vec = sc_manager_.polarcontext_invkeys_mat_[query_index];
+    const auto& query_ringkey_vec = descriptors_[query_index]->ring_key;
 
     // Build a temporary eligible search set. Cross-session callers must apply
     // their loaded-map boundary before top-k selection; filtering the returned
@@ -271,11 +240,11 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
         if (accept_match && !accept_match(index_to_id_[i])) {
             continue;
         }
-        search_keys.push_back(sc_manager_.polarcontext_invkeys_mat_[i]);
+        search_keys.push_back(descriptors_[i]->ring_key);
         search_indices.push_back(i);
     }
     if (search_keys.empty()) return candidates;
-    int tree_dim = sc_manager_.totalRows();
+    int tree_dim = getRHPDParams().heading.rows();
     InvKeyTree search_tree(tree_dim, search_keys, 10 /* max leaf */);
 
     // KNN 搜索: 取 NUM_CANDIDATES_FROM_TREE 个初筛候选
@@ -333,7 +302,7 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
         candidate.sc_distance = dist;
         candidate.rhpd_distance = std::numeric_limits<double>::max();
         candidate.yaw_diff_rad = static_cast<float>(yaw_shift) *
-            static_cast<float>(sc_manager_.PC_UNIT_SECTORANGLE) * static_cast<float>(M_PI / 180.0);
+            static_cast<float>(getRHPDParams().heading.sectorAngleDeg()) * static_cast<float>(M_PI / 180.0);
         candidate.source_flags = LoopCandidate::SOURCE_SC;
         candidate.candidate_source = LoopCandidate::Source::ScanContextFallback;
         candidate.fused_score = dist;
@@ -446,63 +415,18 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
     return candidates;
 }
 
-void LoopDetector::rebuildTree() {
+std::vector<std::pair<int64_t, RHPDHeadingPtr>> LoopDetector::getDescriptors() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    rebuildTreeUnlocked();
-}
-
-void LoopDetector::rebuildTreeUnlocked() {
-    sc_manager_.polarcontexts_.clear();
-    sc_manager_.polarcontext_invkeys_.clear();
-    sc_manager_.polarcontext_vkeys_.clear();
-    sc_manager_.polarcontext_invkeys_mat_.clear();
-    sc_manager_.polarcontext_invkeys_to_search_.clear();
-    sc_manager_.polarcontext_tree_.reset();
-    sc_manager_.polarcontext_invkeys_mat_.resize(descriptors_.size());
-    for (size_t i = 0; i < descriptors_.size(); ++i) {
-        sc_manager_.polarcontext_invkeys_mat_[i] =
-            eig2stdvec(sc_manager_.makeRingkeyFromScancontext(descriptors_[i]));
-    }
-}
-
-std::vector<std::pair<int64_t, Eigen::MatrixXd>> LoopDetector::getDescriptors() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::vector<std::pair<int64_t, Eigen::MatrixXd>> result;
+    std::vector<std::pair<int64_t, RHPDHeadingPtr>> result;
     result.reserve(descriptors_.size());
     for (size_t i = 0; i < descriptors_.size(); ++i) result.emplace_back(index_to_id_[i], descriptors_[i]);
     return result;
 }
 
-bool LoopDetector::isScanContextDescriptorCompatible(const Eigen::MatrixXd& descriptor) const {
-    return descriptor.size() > 0 &&
-           descriptor.rows() == sc_manager_.totalRows() &&
-           descriptor.cols() == sc_manager_.PC_NUM_SECTOR;
-}
-
-void LoopDetector::loadDescriptors(const std::vector<std::pair<int64_t, Eigen::MatrixXd>>& descriptors) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    id_to_index_.clear(); index_to_id_.clear(); descriptors_.clear();
-    sc_manager_.polarcontexts_.clear(); sc_manager_.polarcontext_invkeys_.clear();
-    sc_manager_.polarcontext_vkeys_.clear(); sc_manager_.polarcontext_invkeys_mat_.clear();
-    sc_manager_.polarcontext_invkeys_to_search_.clear();
-    sc_manager_.polarcontext_tree_.reset();
-    for (const auto& [id, desc] : descriptors) {
-        if (id_to_index_.count(id) > 0) {
-            LOG(WARNING) << "[LoopDetector] Skip duplicate ScanContext descriptor id " << id;
-            continue;
-        }
-        if (!isScanContextDescriptorCompatible(desc)) {
-            LOG(WARNING) << "[LoopDetector] Skip incompatible ScanContext descriptor for keyframe "
-                         << id << ": got " << desc.rows() << "x" << desc.cols()
-                         << ", expected " << sc_manager_.totalRows() << "x" << sc_manager_.PC_NUM_SECTOR;
-            continue;
-        }
-        size_t index = descriptors_.size();
-        id_to_index_[id] = index;
-        index_to_id_.push_back(id);
-        descriptors_.push_back(desc);
-    }
-    rebuildTreeUnlocked();
+bool LoopDetector::isHeadingShapeValid(const RHPDHeadingPtr& descriptor) const {
+    return descriptor &&
+           descriptor->rings * RHPDHeadingParams::channels == getRHPDParams().heading.rows() &&
+           descriptor->sectors == getRHPDParams().heading.sectors;
 }
 
 void LoopDetector::swapWith(LoopDetector& other) {
@@ -512,13 +436,10 @@ void LoopDetector::swapWith(LoopDetector& other) {
     std::lock_guard<std::mutex> lock_other(other.mutex_, std::adopt_lock);
     using std::swap;
     swap(config_, other.config_);
-    swapScanContextConfig(sc_manager_, other.sc_manager_);
     rhpd_manager_.swapWith(other.rhpd_manager_);
     swap(id_to_index_, other.id_to_index_);
     swap(index_to_id_, other.index_to_id_);
     swap(descriptors_, other.descriptors_);
-    rebuildTreeUnlocked();
-    other.rebuildTreeUnlocked();
 }
 
 size_t LoopDetector::size() const { std::lock_guard<std::mutex> lock(mutex_); return descriptors_.size(); }
@@ -526,46 +447,33 @@ size_t LoopDetector::size() const { std::lock_guard<std::mutex> lock(mutex_); re
 void LoopDetector::clear() {
     std::lock_guard<std::mutex> lock(mutex_);
     id_to_index_.clear(); index_to_id_.clear(); descriptors_.clear();
-    sc_manager_.polarcontexts_.clear(); sc_manager_.polarcontext_invkeys_.clear();
-    sc_manager_.polarcontext_vkeys_.clear(); sc_manager_.polarcontext_invkeys_mat_.clear();
-    sc_manager_.polarcontext_invkeys_to_search_.clear();
-    sc_manager_.polarcontext_tree_.reset();
     rhpd_manager_.clear();
 }
 
 std::pair<int, int> LoopDetector::getDescriptorDimensions() const {
-    return { sc_manager_.totalRows(), sc_manager_.PC_NUM_SECTOR };
+    return { getRHPDParams().heading.rows(), getRHPDParams().heading.sectors };
 }
 
-Eigen::MatrixXd LoopDetector::getDescriptor(int64_t keyframe_id) const {
+RHPDHeadingPtr LoopDetector::getDescriptor(int64_t keyframe_id) const {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = id_to_index_.find(keyframe_id);
-    return (it != id_to_index_.end()) ? descriptors_[it->second] : Eigen::MatrixXd();
+    return (it != id_to_index_.end()) ? descriptors_[it->second] : RHPDHeadingPtr();
 }
 
-std::pair<double, int> LoopDetector::computeDistance(const Eigen::MatrixXd& sc1, const Eigen::MatrixXd& sc2) {
-    return sc_manager_.distanceBtnScanContext(sc1, sc2);
+std::pair<double, int> LoopDetector::computeDistance(const RHPDHeadingPtr& sc1, const RHPDHeadingPtr& sc2) {
+    if (!isHeadingShapeValid(sc1) || !isHeadingShapeValid(sc2)) return {1.0, 0};
+    return matchRHPDHeading(*sc1, *sc2, getRHPDParams().heading);
 }
 
 // ---- RHPD methods ----
 
-Eigen::VectorXd LoopDetector::computeRHPD(const PointCloudT::Ptr& cloud) const {
+RHPDPlace LoopDetector::computeRHPD(const PointCloudT::Ptr& cloud) const {
     return rhpd_manager_.compute(cloud);
 }
 
-Eigen::VectorXd LoopDetector::addRHPD(int64_t kf_id, const PointCloudT::Ptr& cloud) {
+RHPDPlace LoopDetector::addRHPD(int64_t kf_id, const PointCloudT::Ptr& cloud) {
     std::lock_guard<std::mutex> lock(mutex_);
     return rhpd_manager_.addCloud(kf_id, cloud);
-}
-
-void LoopDetector::loadRHPDDescriptors(const std::vector<std::pair<int64_t, Eigen::VectorXd>>& descriptors) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    rhpd_manager_.loadAll(descriptors);
-}
-
-void LoopDetector::clearRHPD() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    rhpd_manager_.clear();
 }
 
 } // namespace n3mapping

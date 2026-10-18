@@ -60,7 +60,6 @@ public:
     void clear();
     Keyframe::Ptr findNearestByTimestamp(double timestamp) const;
     Keyframe::Ptr findNearestByPosition(const Eigen::Vector3d& position) const;
-    bool updateDescriptor(int64_t id, const Eigen::MatrixXd& descriptor);
 
     bool addSession(const MapSessionInfo& session);
     bool removeSessionIfEmpty(MapSessionId session_id);

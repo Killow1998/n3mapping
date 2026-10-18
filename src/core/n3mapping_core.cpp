@@ -803,8 +803,7 @@ void N3MappingCore::addRhpdDescriptorForKeyframe(
     }
   }
 
-  kf->rhpd_descriptor =
-      session_->loopDetector().addRHPD(keyframe_id, rhpd_cloud);
+  session_->loopDetector().addRHPD(keyframe_id, rhpd_cloud);
 }
 
 bool N3MappingCore::addOdometryConstraint(int64_t keyframe_id,

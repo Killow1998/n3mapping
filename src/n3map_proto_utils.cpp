@@ -257,57 +257,6 @@ bool pointCloudFromProto(const PointCloudData& proto,
     return true;
 }
 
-bool scanContextFromProto(const ScanContextDescriptor& proto,
-                          Eigen::MatrixXd* descriptor,
-                          std::string* error) {
-    if (!descriptor) return setError(error, "null ScanContext descriptor output");
-    descriptor->resize(0, 0);
-    const uint64_t required_values =
-        static_cast<uint64_t>(proto.rows()) * static_cast<uint64_t>(proto.cols());
-    if (proto.rows() == 0 || proto.cols() == 0 ||
-        required_values > kMaxPbstreamDescriptorValues ||
-        required_values > static_cast<uint64_t>(std::numeric_limits<int>::max()) ||
-        proto.values_size() != static_cast<int>(required_values)) {
-        return setError(error, "malformed ScanContext descriptor");
-    }
-
-    Eigen::MatrixXd parsed(proto.rows(), proto.cols());
-    int index = 0;
-    for (uint32_t row = 0; row < proto.rows(); ++row) {
-        for (uint32_t col = 0; col < proto.cols(); ++col) {
-            const double value = proto.values(index++);
-            if (!std::isfinite(value)) {
-                return setError(error, "non-finite ScanContext descriptor value");
-            }
-            parsed(row, col) = value;
-        }
-    }
-    *descriptor = parsed;
-    return true;
-}
-
-bool rhpdFromProto(const RHPDDescriptor& proto,
-                   int expected_dim,
-                   Eigen::VectorXd* descriptor,
-                   std::string* error) {
-    if (!descriptor) return setError(error, "null RHPD descriptor output");
-    *descriptor = Eigen::VectorXd();
-    if (expected_dim <= 0 ||
-        proto.dim() != static_cast<uint32_t>(expected_dim) ||
-        proto.values_size() != static_cast<int>(proto.dim())) {
-        return setError(error, "malformed RHPD descriptor");
-    }
-
-    Eigen::VectorXd parsed = Eigen::VectorXd::Zero(proto.dim());
-    for (uint32_t i = 0; i < proto.dim(); ++i) {
-        const double value = proto.values(i);
-        if (!std::isfinite(value)) return setError(error, "non-finite RHPD descriptor value");
-        parsed(i) = value;
-    }
-    *descriptor = parsed;
-    return true;
-}
-
 bool informationFromProto(const InformationMatrix& proto,
                           Eigen::Matrix<double, 6, 6>* information,
                           std::string* error) {
@@ -396,19 +345,6 @@ bool parseKeyframesFromProto(const N3Map& map_proto,
             if (options.policy == PbstreamLoadPolicy::STRICT) return setError(error, "empty keyframe cloud");
             keyframe_ids->erase(parsed.id);
             continue;
-        }
-        if (options.parse_descriptors && proto.has_sc_descriptor()) {
-            if (!scanContextFromProto(proto.sc_descriptor(), &parsed.sc_descriptor, &local_error)) {
-                parsed.sc_descriptor = Eigen::MatrixXd();
-            }
-        }
-        if (options.parse_descriptors &&
-            proto.has_rhpd_descriptor() &&
-            proto.rhpd_descriptor().values_size() > 0) {
-            if (!rhpdFromProto(proto.rhpd_descriptor(), options.expected_rhpd_dim,
-                               &parsed.rhpd_descriptor, &local_error)) {
-                parsed.rhpd_descriptor = Eigen::VectorXd();
-            }
         }
         keyframes->push_back(std::move(parsed));
     }

@@ -82,7 +82,6 @@ TEST(ConfigWiringTest, DescriptorParamsCarryEveryKey) {
     config.rhpd_v2_enable = false;
     config.rhpd_v3_enable = true;
     config.rhpd_enable_negative_space = false;
-    config.rhpd_enable_vertical_tokens = false;
     config.rhpd_enable_pca_confidence = false;
     config.rhpd_part_a_scale = 0.25;
     config.rhpd_aux_scale = 0.75;
@@ -94,7 +93,6 @@ TEST(ConfigWiringTest, DescriptorParamsCarryEveryKey) {
     EXPECT_FALSE(params.v2_enable);
     EXPECT_TRUE(params.v3_enable);
     EXPECT_FALSE(params.enable_negative_space);
-    EXPECT_FALSE(params.enable_vertical_tokens);
     EXPECT_FALSE(params.enable_pca_confidence);
     EXPECT_DOUBLE_EQ(params.part_a_scale, 0.25);
     EXPECT_DOUBLE_EQ(params.aux_scale, 0.75);

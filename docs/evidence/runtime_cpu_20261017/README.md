@@ -1,7 +1,7 @@
 # Runtime CPU and relocalization measurements — 2026-10-17
 
-Baseline: `45f4a171fcab1d9742ab7d575f41a632c7d75073`, branch
-`dev/n3mapping-realtime-pipeline`. The Product V1 configuration remains unchanged
+Initial-stage baseline: `45f4a171fcab1d9742ab7d575f41a632c7d75073`, branch
+`dev/n3mapping-realtime-pipeline`. In that stage the Product V1 configuration remained unchanged
 (SHA-256 `1b603a0a180330857aac150e0450cb5e94e284a84934e9b6ee387000f3f254d4`).
 These are Release/Humble development builds with **UNVERIFIED** build identity;
 they do not constitute a Product Bundle or hardware qualification.
@@ -20,8 +20,9 @@ The ROS probe puts the production node, replay publisher, and output subscribers
 in one process. DDS subscriptions, exact message synchronization, the normal
 backend loop, both live callback workers, cloud conversion, TF/output publication,
 and complete path publication all execute. CPU includes the replay and subscriber
-helpers as well. Fast DDS same-process communication works in this environment;
-UDP/interface access is restricted. **Cross-process DDS, physical MID360 input,
+helpers as well. The initial runs used same-process Fast DDS with restricted
+UDP/interface access; the latest stage uses authorized host execution.
+**Cross-process DDS, physical MID360 input,
 RK3588, and RViz rendering were not measured.** The independent LIO recordings
 have no ground truth and do not independently establish their sensor model.
 
@@ -157,10 +158,11 @@ they exclude the physical time required to acquire the observations.
 
 ## RHPD heading ablation and equivalent descriptor work reduction
 
-This stage compares against `682f5af6b7848d7959d1e9e66f32e313a5ce8ce6`.
-**The RHPD/SC fusion prototype was rejected; the default still uses SC.**
-The existing 3037-value RHPD, map format, Product configuration and acceptance
-thresholds remain in place.
+This historical stage compares against `682f5af6b7848d7959d1e9e66f32e313a5ce8ce6`
+and was published as `4c9c436`.
+**That fusion prototype was rejected; this stage retained independent SC.**
+It retained the 3037-value RHPD, map format, Product configuration and acceptance
+thresholds. The subsequent fusion and sparse-storage stage is described below.
 
 The prototype shared RHPD polar statistics with a heading histogram. There were
 22 settings across five independent recordings, each using the first 100 frames:
@@ -176,7 +178,7 @@ cardinal coverage exposed a competing registration mode and moved acceptance
 to observation 60. Other settings delayed the outside710 recording from 10 to
 30 observations. A missing competitor cannot establish better disambiguation;
 none of these changes qualified for the requested no-regression default switch.
-The prototype and its map-format change are absent from the shipped source.
+The prototype and its map-format change were absent from `4c9c436`.
 
 The retained changes remove redundant work while preserving descriptor scores:
 
@@ -223,8 +225,114 @@ scenarios also pass separately against both libraries in legacy, atlas and
 atlas-plus-kill modes. Each mode preserves all 70 non-timing trace rows exactly,
 including poses. Source/library hashes, raw aggregate samples and comparison
 fields are in [descriptor_results.json](descriptor_results.json).
-Relocalization latency and repeated initialization remain unresolved; SC removal
-has not qualified for the default path.
+At this stage, relocalization latency and repeated initialization remained
+unresolved, and SC removal had not qualified for the default path.
+
+## RHPD fusion, channel ablation and sparse storage — 2026-10-18
+
+Baseline: `4c9c43664c219016d66f6d4c0570e9e70b30c87c`. RHPD now owns both place
+and heading features. The seven angular channels and circular matching formerly
+implemented by Hybrid Scan Context are integrated into RHPD. Query generation
+shares the polar traversal and PCA eigensolve; planar and polar temporary grids
+use fixed or contiguous buffers. Independent SC classes, duplicate keyframe
+descriptor storage and unused cache APIs have been removed. Place generation,
+place matching, heading matching and index management have separate implementation
+files. ROS topics and the existing heading-related configuration names remain.
+
+The 64-value vertical-token block and its configuration have been removed after
+[20 channel ablations across five recording prefixes](rhpd_channel_ablation.csv).
+The remaining place grid has 2973 logical values and a 53-value coarse key.
+[17 further grid/channel variants](rhpd_compaction_ablation.csv) did not qualify:
+10/8/6-bin planar grids failed to lock the difficult recording within 100 frames;
+the four-bin grid delayed acceptance and increased registrations. Area reweighting
+could preserve lock frames but increased total registrations. Several smaller
+heading grids either failed or changed the resulting pose; no independent GT was
+available to establish their accuracy. Removing a planar channel that worked
+alone also failed when combined with token removal. Ablations must be validated
+in combination. Their exploratory timings are not deployment measurements.
+
+Instead of reducing resolution further, absent zero cells are omitted from
+storage and matching. The 60 default-query samples retain an average **505.5
+place values** (range 325–637), while the logical grid remains 2973. Combined
+place/heading storage averages **24.6 KiB**, including cell indices, object sizes,
+vector capacity and cached norms/keys, versus **88.9 KiB** for the equivalent
+2973+8400 dense doubles alone. Allocator headers and shared-pointer control blocks
+are excluded; these samples are not a whole-map memory estimate. Heading objects
+are immutable and shared by the index and its readers.
+
+New pbstream files save geometry and use version **2.8.0**. Loading always rebuilds
+place features from causal submaps with saved optimized poses, and heading from
+each saved scan, using the active configuration. Old descriptor caches are ignored;
+their protobuf fields remain only for resource limits and to prevent tag reuse.
+This removes descriptor-schema compatibility paths. Older readers reject new
+2.8.0 maps. Rebuilding has a startup cost: the saved-map fixture's map/Atlas setup
+was 0.290 / 0.622 seconds before/after; the floor7 pair was 0.354 / 0.352 seconds.
+These setup times precede the runtime measurements below.
+
+Generation preserves all **2,588,400 surviving values exactly** across 240 samples
+(15 recorded clouds, four yaw angles, V1/V2/V3 and a custom grid/range setting).
+Three alternating runs, with ten repetitions per sample, reduce median generation
+thread CPU from **1475.45 to 967.02 ms (34.5%)**. This is descriptor generation,
+not whole-process CPU. Against the dense fused intermediate version, 3600 pair
+comparisons have maximum place/heading score differences of `1.78e-15`/`2.22e-16`
+and zero changed yaw selections. Place-pair CPU falls from 6.227 to 3.123 ms;
+heading-pair CPU rises from 59.80 to 61.00 ms. The production heading API did not
+reproduce an earlier prototype's speedup, and that prototype result is not counted.
+
+All **61 CTest targets pass**. Eight E2E scenarios pass for both libraries in
+legacy, Atlas and Atlas-plus-kill modes: 48 scenario passes, with all 70 non-timing
+trace rows per mode identical. The suite covers unknown headings, symmetric-scene
+rejection, out-of-map/reentry and map lifecycle. Map tests verify cache-free save,
+ignored old caches, active descriptor configuration and optimized causal geometry.
+No native Noetic build was run; its existing static wrapper check passed.
+
+The six final complete core replays preserve lock frames, decisions, states,
+matched/seed/support identifiers and output availability. Maximum pose-matrix
+component difference is `2.42e-13`. Token removal changes some candidate and
+registration counts; sparse storage alone preserves those counts against the
+dense fused intermediate version. Each row is one paired unpaced run, including
+all process threads but excluding map loading. RSS is the process high-water mark.
+
+| Workload | Frames | First accepted observation | Process CPU before / after | Peak RSS before / after |
+| --- | ---: | ---: | ---: | ---: |
+| Floor7 moving recording | 1848 | 5 / 5 | 44.43 / 44.45 s | 391.6 / 366.8 MiB |
+| Outside713 difficult recording | 448 | 55 / 55 | 46.81 / 43.19 s | 268.9 / 247.1 MiB |
+| Inside710 recording | 452 | 5 / 5 | 8.93 / 8.57 s | 246.7 / 223.4 MiB |
+| Outside707 recording | 448 | 5 / 5 | 9.64 / 9.58 s | 245.1 / 222.9 MiB |
+| Outside710 recording | 448 | 10 / 10 | 16.15 / 14.50 s | 270.1 / 235.6 MiB |
+| Saved-map moving cost fixture | 1800 | 5 / 5 | 41.06 / 41.01 s | 507.0 / 467.5 MiB |
+
+Normal whole-core CPU is essentially unchanged. Difficult-recording CPU falls
+7.7%; CPU through first acceptance falls from 42.12 to 38.48 seconds, while the
+required observation remains 55. This does not resolve repeated initialization
+or demonstrate earlier disambiguation. Independent real-world GT, physical MID360
+and RK3588 validation remain outstanding. Raw aggregates, ablation proxy recall,
+comparison fields and source/library fingerprints are in
+[rhpd_compaction_results.json](rhpd_compaction_results.json).
+
+Host ROS/DDS validation also completed, using the production callbacks and
+publication workers at the recorded 10 Hz cadence, with all helper threads
+included. The normal 600-frame prefix ran twice per version in alternating order;
+the full difficult recording and saved-map 600-frame cost prefix each ran once
+per version. Both wrapper executables use the unchanged `4c9c436` node source,
+built with the matching version's headers and core library.
+
+| Same-process DDS workload | Average CPU cores before / after | First path before / after | Peak RSS before / after |
+| --- | ---: | ---: | ---: |
+| Normal, 600 frames, median of two | 0.347 / 0.349 | 0.911 / 0.903 s | 452.3 / 428.2 MiB |
+| Difficult, all 448 frames | 1.181 / 1.087 | 10.351 / 9.617 s | 330.9 / 318.9 MiB |
+| Saved-map cost fixture, 600 frames | 0.282 / 0.275 | 1.049 / 0.920 s | 585.4 / 551.9 MiB |
+
+Every input pair was processed. All 2248 compared backend rows agree on input
+timestamp/point count, state, decision, matched identifier, lock, tracking and
+backend publication flags. Normal CPU remains essentially unchanged; after ten
+seconds it is 0.300 / 0.302 cores. The difficult recording's CPU after first path
+is 0.160 / 0.158 cores, but its initial search still takes more than half a core.
+Earlier first path starts authoritative live output sooner on that run (344 / 351
+odometry outputs). Live callback counts depend on wall-clock activation and
+scheduling; raw received counts are retained separately from backend equivalence.
+These results support the local average-half-core normal-operation target on
+the measured inputs, not a hard burst limit or RK3588/physical-sensor guarantee.
 
 ## Reproduce
 
@@ -237,6 +345,8 @@ python3 docs/evidence/runtime_cpu_20261017/build_probes.py \
   /path/to/workspace/build/n3mapping /tmp/n3m_probes
 ```
 
+Build each probe with its version's matching headers, library and wrapper source;
+this stage changes internal C++ types and old/new probes are not ABI interchangeable.
 Freeze each compared `libn3mapping_core.so` in its own directory and select it via
 `LD_LIBRARY_PATH`, ahead of the normal dependency paths. Use `--node-source` when
 building the ROS probe against a frozen wrapper source. The core probe arguments
@@ -276,6 +386,17 @@ and PCD inputs for both frozen libraries:
 ```
 
 It rotates each query by 0, 42, 137 and 180 degrees and compares it with every
-loaded SC descriptor. Compare `(query, keyframe, distance, shift)` rows exactly;
+loaded heading descriptor. Compare `(query, keyframe, distance, shift)` rows;
 `MATCH_CPU_MS` excludes generation, loading and CSV output. The recorded corpus
 uses observations 1, 50 and 100 from each of the five recordings.
+
+For generation, `rhpd_generation_probe OUTPUT_BIN REPETITIONS QUERY_PCD...`
+emits the surviving place values followed by heading values for four rotations
+and four parameter settings per input; the accompanying CSV reports actual
+storage. Generation timing excludes dense expansion and file output. The current
+builder defines `N3M_FUSED`; the `4c9c436` reference is compiled without it and
+with that commit's headers/library. With the same 15 input PCDs, the binary has
+240 samples and can be passed to `rhpd_pair_probe INPUT_BIN OUTPUT_CSV`, which
+compares the 60 default-setting descriptors in all 3600 pairs. The dense fused
+intermediate reference was a local experiment, identified by its library hash
+in the results; it was not a separately published product version.

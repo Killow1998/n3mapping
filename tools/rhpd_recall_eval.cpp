@@ -13,9 +13,8 @@
 // Reimplementing that in a script is how a measurement quietly becomes wrong,
 // so this links the real one.
 //
-// Ground truth is geometric and needs no labels: two keyframes within a metre
-// of each other horizontally, separated by enough travelled path that the
-// odometry no longer pins them together, are the same place.
+// Proxy revisit labels use saved map geometry and odometry travel. They are
+// useful for comparing retrieval, but are not independent ground truth.
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -68,11 +67,19 @@ int main(int argc, char** argv)
     const auto all = keyframes.getAllKeyframes();
     std::vector<n3mapping::Keyframe::Ptr> kfs;
     for (const auto& kf : all) {
-        if (kf && kf->rhpd_descriptor.size() > 0) kfs.push_back(kf);
+        if (kf) kfs.push_back(kf);
     }
     std::sort(kfs.begin(), kfs.end(), [](const auto& a, const auto& b) {
         return a->timestamp < b->timestamp;
     });
+    std::vector<n3mapping::RHPDPlace> places;
+    std::vector<Eigen::VectorXd> dense;
+    for (const auto& kf : kfs) {
+        n3mapping::RHPDPlace place;
+        if (!detector.getRHPDManager().get(kf->id, &place)) return 1;
+        dense.push_back(n3mapping::rhpdDenseValues(place));
+        places.push_back(std::move(place));
+    }
     if (kfs.size() < 10) {
         std::printf("only %zu keyframes carry a descriptor\n", kfs.size());
         return 1;
@@ -94,7 +101,6 @@ int main(int argc, char** argv)
     params.z_min = config.rhpd_z_min;
     params.z_max = config.rhpd_z_max;
     params.enable_negative_space = config.rhpd_enable_negative_space;
-    params.enable_vertical_tokens = config.rhpd_enable_vertical_tokens;
     params.enable_pca_confidence = config.rhpd_enable_pca_confidence;
     params.part_a_scale = part_a_scale;
     params.aux_scale = aux_scale;
@@ -112,8 +118,7 @@ int main(int argc, char** argv)
         std::vector<std::size_t> truth;
         for (std::size_t mi = 0; mi < qi; ++mi) {
             if (travelled[qi] - travelled[mi] < min_path) continue;
-            const double d = descriptor.distance(kfs[qi]->rhpd_descriptor,
-                                                 kfs[mi]->rhpd_descriptor);
+            const double d = descriptor.distance(places[qi], places[mi]);
             if (!std::isfinite(d)) continue;
             ranked.emplace_back(d, mi);
             if (qi % 5 == 0 && mi % 5 == 0) all_distance.push_back(d);
@@ -173,7 +178,7 @@ int main(int argc, char** argv)
         const int aux_dim = n3mapping::RHPD_AUX_DIM;
         const int offsets[3] = {0, a_dim, a_dim + b_dim};
         const int widths[3] = {a_dim, b_dim, aux_dim};
-        const char* names[3] = {"Part A (planes)", "Part B (ring-height)", "Aux (neg+tokens)"};
+        const char* names[3] = {"Part A (planes)", "Part B (ring-height)", "Aux (negative space+PCA)"};
         std::printf("which block separates same-place from elsewhere:\n");
         for (int blk = 0; blk < 3; ++blk) {
             std::vector<double> same, other;
@@ -181,8 +186,8 @@ int main(int argc, char** argv)
                 for (std::size_t mi = 0; mi < qi; ++mi) {
                     if (travelled[qi] - travelled[mi] < min_path) continue;
                     const double d =
-                        (kfs[qi]->rhpd_descriptor.segment(offsets[blk], widths[blk]) -
-                         kfs[mi]->rhpd_descriptor.segment(offsets[blk], widths[blk])).norm();
+                        (dense[qi].segment(offsets[blk], widths[blk]) -
+                         dense[mi].segment(offsets[blk], widths[blk])).norm();
                     if (!std::isfinite(d)) continue;
                     const auto& pa = kfs[qi]->pose_optimized.translation();
                     const auto& pb = kfs[mi]->pose_optimized.translation();
@@ -222,8 +227,8 @@ int main(int argc, char** argv)
                 for (std::size_t mi = 0; mi < qi; ++mi) {
                     if (travelled[qi] - travelled[mi] < min_path) continue;
                     const double d =
-                        (kfs[qi]->rhpd_descriptor.segment(offsets[blk], widths[blk]) -
-                         kfs[mi]->rhpd_descriptor.segment(offsets[blk], widths[blk])).norm();
+                        (dense[qi].segment(offsets[blk], widths[blk]) -
+                         dense[mi].segment(offsets[blk], widths[blk])).norm();
                     if (!std::isfinite(d)) continue;
                     ranked.emplace_back(d, mi);
                     const auto& pa = kfs[qi]->pose_optimized.translation();

@@ -58,10 +58,10 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/runtime_performance_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
   ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
+  ${N3MAPPING_ROOT}/src/rhpd_heading.cpp
+  ${N3MAPPING_ROOT}/src/rhpd_place.cpp
   ${N3MAPPING_ROOT}/src/rhpd_polar.cpp
   ${N3MAPPING_ROOT}/src/rhpd_manager.cpp
-  ${N3MAPPING_ROOT}/include/Scancontext/Scancontext.cpp
-  ${N3MAPPING_ROOT}/include/Scancontext/HybridScancontext.cpp
 )
 
 function(n3mapping_configure_core_target target_name)

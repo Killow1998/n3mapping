@@ -140,5 +140,4 @@ n3mapping_node:
     rhpd_use_sc_yaw: true
     rhpd_yaw_hypotheses: 4
     rhpd_enable_negative_space: true
-    rhpd_enable_vertical_tokens: true
     rhpd_enable_pca_confidence: true

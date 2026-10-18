@@ -151,7 +151,6 @@ TEST_F(MapSerializerTest, BasicSaveAndLoad) {
         
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-        kf_manager.updateDescriptor(kf_id, descriptor);  // 更新关键帧的描述子
         
         if (i > 0) {
             EdgeInfo edge;
@@ -225,9 +224,9 @@ TEST_F(MapSerializerTest, LoopDetectorSwapWithExchangesDescriptorsAndRhpd) {
 
     EXPECT_EQ(first.size(), 1U);
     EXPECT_EQ(second.size(), 1U);
-    EXPECT_EQ(first.getDescriptor(2).size(), first.getDescriptorDimensions().first * first.getDescriptorDimensions().second);
-    EXPECT_EQ(second.getDescriptor(1).size(), second.getDescriptorDimensions().first * second.getDescriptorDimensions().second);
-    Eigen::VectorXd rhpd;
+    EXPECT_TRUE(first.getDescriptor(2));
+    EXPECT_TRUE(second.getDescriptor(1));
+    RHPDPlace rhpd;
     EXPECT_TRUE(first.getRHPDManager().get(2, &rhpd));
     EXPECT_TRUE(second.getRHPDManager().get(1, &rhpd));
 }
@@ -265,7 +264,6 @@ TEST_F(MapSerializerTest, KeyframeDataIntegrity) {
     
     int64_t kf_id = kf_manager.addKeyframe(timestamp, pose, cloud);
     auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-    kf_manager.updateDescriptor(kf_id, descriptor);  // 更新关键帧的描述子
     optimizer.addPriorFactor(kf_id, pose);
     
     // 保存和加载
@@ -296,8 +294,8 @@ TEST_F(MapSerializerTest, KeyframeDataIntegrity) {
     EXPECT_EQ(kf_original->cloud->size(), kf_loaded->cloud->size());
     
     // 验证描述子
-    EXPECT_EQ(kf_original->sc_descriptor.rows(), kf_loaded->sc_descriptor.rows());
-    EXPECT_EQ(kf_original->sc_descriptor.cols(), kf_loaded->sc_descriptor.cols());
+    EXPECT_TRUE(rhpdHeadingDenseValues(*loop_detector.getDescriptor(kf_id)).isApprox(
+        rhpdHeadingDenseValues(*loop_detector_loaded.getDescriptor(kf_id)), 1e-12));
 }
 
 /**
@@ -317,7 +315,6 @@ TEST_F(MapSerializerTest, EdgeSerialization) {
         
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-        kf_manager.updateDescriptor(kf_id, descriptor);  // 更新关键帧的描述子
         
         if (i == 0) {
             optimizer.addPriorFactor(kf_id, pose);
@@ -782,7 +779,7 @@ TEST_F(MapSerializerTest, AtomicSaveFailureDoesNotClobberExistingMap) {
 
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     const int64_t kf_id = kf_manager.addKeyframe(0.0, pose, generateRandomPointCloud(64));
-    kf_manager.updateDescriptor(kf_id, loop_detector.addDescriptor(kf_id, kf_manager.getKeyframe(kf_id)->cloud));
+    loop_detector.addDescriptor(kf_id, kf_manager.getKeyframe(kf_id)->cloud);
     optimizer.addPriorFactor(kf_id, pose);
 
     const std::string map_file = config_.map_save_path + "/atomic.pbstream";
@@ -1128,8 +1125,8 @@ TEST_F(MapSerializerTest, RoundTripDenseOptimizedTrajectory) {
 
     const int64_t kf0 = kf_manager.addKeyframe(1.0, pose0, generateRandomPointCloud(120));
     const int64_t kf1 = kf_manager.addKeyframe(2.0, pose1, generateRandomPointCloud(120));
-    kf_manager.updateDescriptor(kf0, loop_detector.addDescriptor(kf0, kf_manager.getKeyframe(kf0)->cloud));
-    kf_manager.updateDescriptor(kf1, loop_detector.addDescriptor(kf1, kf_manager.getKeyframe(kf1)->cloud));
+    loop_detector.addDescriptor(kf0, kf_manager.getKeyframe(kf0)->cloud);
+    loop_detector.addDescriptor(kf1, kf_manager.getKeyframe(kf1)->cloud);
     optimizer.addPriorFactor(kf0, pose0);
     EdgeInfo edge;
     edge.from_id = kf0;
@@ -1265,7 +1262,6 @@ TEST_F(MapSerializerTest, LoadFailureDoesNotClearExistingMap) {
     const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     const int64_t existing_id = loaded_kfs.addKeyframe(10.0, pose, generateRandomPointCloud(64));
     auto descriptor = loaded_loops.addDescriptor(existing_id, loaded_kfs.getKeyframe(existing_id)->cloud);
-    loaded_kfs.updateDescriptor(existing_id, descriptor);
     loaded_optimizer.addPriorFactor(existing_id, pose);
     ASSERT_EQ(loaded_kfs.size(), 1U);
     ASSERT_EQ(loaded_loops.size(), 1U);
@@ -1330,7 +1326,6 @@ TEST_F(MapSerializerTest, StrictKeyframeLoadFailureDoesNotClearExistingMap) {
     const Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     const int64_t existing_id = loaded_kfs.addKeyframe(10.0, pose, generateRandomPointCloud(64));
     auto descriptor = loaded_loops.addDescriptor(existing_id, loaded_kfs.getKeyframe(existing_id)->cloud);
-    loaded_kfs.updateDescriptor(existing_id, descriptor);
     loaded_optimizer.addPriorFactor(existing_id, pose);
     ASSERT_EQ(loaded_kfs.size(), 1U);
     ASSERT_EQ(loaded_loops.size(), 1U);
@@ -1746,13 +1741,9 @@ TEST_F(MapSerializerTest, NavResourceReaderSkipsUnusedDescriptors) {
     std::string error;
     PbstreamKeyframeParseOptions parse_options;
     parse_options.policy = PbstreamLoadPolicy::STRICT;
-    parse_options.expected_rhpd_dim = RHPD_DIM;
-    parse_options.parse_descriptors = false;
     ASSERT_TRUE(parseKeyframesFromProto(map_proto, parse_options, &parsed_keyframes, &keyframe_ids, &error))
         << error;
     ASSERT_EQ(parsed_keyframes.size(), 1U);
-    EXPECT_EQ(parsed_keyframes.front().sc_descriptor.size(), 0);
-    EXPECT_EQ(parsed_keyframes.front().rhpd_descriptor.size(), 0);
 
     const std::string map_file = config_.map_save_path + "/reader_skips_descriptors.pbstream";
     {
@@ -1866,93 +1857,59 @@ TEST_F(MapSerializerTest, MalformedRhpdDescriptorIsRejectedAndRebuilt) {
     ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
     auto loaded_kf = kf_manager_loaded.getKeyframe(0);
     ASSERT_NE(loaded_kf, nullptr);
-    EXPECT_EQ(loaded_kf->rhpd_descriptor.size(), RHPD_DIM);
-    EXPECT_LT(loaded_kf->rhpd_descriptor.maxCoeff(), 10.0) << "malformed serialized values were accepted";
+    RHPDPlace rebuilt;
+    ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(0, &rebuilt));
+    EXPECT_LT(rhpdDenseValues(rebuilt).maxCoeff(), 10.0) << "obsolete cache was accepted";
 }
 
-TEST_F(MapSerializerTest, MatchingRhpdSchemaLoadsSaveTimeRecomputedDescriptorWithoutRebuild) {
-    Config cfg = config_;
-    cfg.rhpd_submap_voxel_size = 0.0;
-    KeyframeManager kf_manager(cfg);
-    LoopDetector loop_detector(cfg);
-    GraphOptimizer optimizer(cfg);
-    MapSerializer serializer(cfg);
-
-    auto cloud = generateRandomPointCloud(500);
-    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-    int64_t kf_id = kf_manager.addKeyframe(0.1, pose, cloud);
-    auto sc = loop_detector.addDescriptor(kf_id, cloud);
-    kf_manager.updateDescriptor(kf_id, sc);
-    optimizer.addPriorFactor(kf_id, pose);
-
-    Eigen::VectorXd custom = Eigen::VectorXd::LinSpaced(RHPD_DIM, 0.001, 0.999);
-    auto kf = kf_manager.getKeyframe(kf_id);
-    ASSERT_NE(kf, nullptr);
-    kf->rhpd_descriptor = custom;
-    loop_detector.loadRHPDDescriptors({{kf_id, custom}});
-    auto expected_cloud = kf_manager.buildCausalSubmapInRootFrame(kf_id, cfg.rhpd_submap_kf_radius, kf_id);
-    Eigen::VectorXd expected_saved = loop_detector.computeRHPD(expected_cloud);
-    ASSERT_EQ(expected_saved.size(), RHPD_DIM);
-    ASSERT_FALSE(expected_saved.isZero());
-
-    std::string map_file = cfg.map_save_path + "/rhpd_schema_match.pbstream";
-    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
-
-    KeyframeManager kf_manager_loaded(cfg);
-    LoopDetector loop_detector_loaded(cfg);
-    GraphOptimizer optimizer_loaded(cfg);
-    ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
-
-    Eigen::VectorXd loaded;
-    ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(kf_id, &loaded));
-    EXPECT_EQ(loaded.size(), RHPD_DIM);
-    EXPECT_NEAR((loaded - expected_saved).norm(), 0.0, 1e-9);
-    EXPECT_GT((loaded - custom).norm(), 1.0);
-}
-
-TEST_F(MapSerializerTest, RhpdSchemaMismatchRebuildsSerializedDescriptor) {
-    KeyframeManager kf_manager(config_);
-    LoopDetector loop_detector(config_);
+TEST_F(MapSerializerTest, OldDescriptorCachesAreIgnoredAndHeadingUsesCurrentParameters) {
+    KeyframeManager keyframes(config_);
+    LoopDetector loops(config_);
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
-
     auto cloud = generateRandomPointCloud(500);
-    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-    int64_t kf_id = kf_manager.addKeyframe(0.1, pose, cloud);
-    auto sc = loop_detector.addDescriptor(kf_id, cloud);
-    kf_manager.updateDescriptor(kf_id, sc);
-    optimizer.addPriorFactor(kf_id, pose);
+    const auto id = keyframes.addKeyframe(0.1, Eigen::Isometry3d::Identity(), cloud);
+    optimizer.addPriorFactor(id, Eigen::Isometry3d::Identity());
+    const std::string path = config_.map_save_path + "/old_descriptor_cache.pbstream";
+    ASSERT_TRUE(serializer.saveMap(path, keyframes, loops, optimizer));
 
-    Eigen::VectorXd custom = Eigen::VectorXd::Constant(RHPD_DIM, 123.0);
-    auto kf = kf_manager.getKeyframe(kf_id);
-    ASSERT_NE(kf, nullptr);
-    kf->rhpd_descriptor = custom;
-    loop_detector.loadRHPDDescriptors({{kf_id, custom}});
-
-    std::string map_file = config_.map_save_path + "/rhpd_schema_mismatch.pbstream";
-    ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
-
-    n3mapping::N3Map map_proto;
+    N3Map proto;
     {
-        std::ifstream ifs(map_file, std::ios::binary);
-        ASSERT_TRUE(map_proto.ParseFromIstream(&ifs));
+        std::ifstream stream(path, std::ios::binary);
+        ASSERT_TRUE(proto.ParseFromIstream(&stream));
     }
-    map_proto.mutable_metadata()->set_rhpd_schema("mismatch");
+    EXPECT_FALSE(proto.keyframes(0).has_sc_descriptor());
+    EXPECT_FALSE(proto.keyframes(0).has_rhpd_descriptor());
+    EXPECT_TRUE(proto.metadata().rhpd_schema().empty());
+    proto.mutable_metadata()->set_version("2.7.0");
+    proto.mutable_metadata()->set_rhpd_schema("obsolete");
+    auto* old = proto.mutable_keyframes(0);
+    old->mutable_sc_descriptor()->set_rows(140);
+    old->mutable_sc_descriptor()->set_cols(60);
+    for (int i = 0; i < 8400; ++i) old->mutable_sc_descriptor()->add_values(123.0);
+    old->mutable_rhpd_descriptor()->set_dim(3037);
+    for (int i = 0; i < 3037; ++i) old->mutable_rhpd_descriptor()->add_values(123.0);
     {
-        std::ofstream ofs(map_file, std::ios::binary);
-        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
+        std::ofstream stream(path, std::ios::binary);
+        ASSERT_TRUE(proto.SerializeToOstream(&stream));
     }
-
-    KeyframeManager kf_manager_loaded(config_);
-    LoopDetector loop_detector_loaded(config_);
-    GraphOptimizer optimizer_loaded(config_);
-    ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
-
-    Eigen::VectorXd loaded;
-    ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(kf_id, &loaded));
-    EXPECT_EQ(loaded.size(), RHPD_DIM);
-    EXPECT_GT((loaded - custom).norm(), 1.0);
-    EXPECT_LT(loaded.maxCoeff(), 10.0);
+    Config current = config_;
+    current.sc_num_rings = 12;
+    current.sc_num_sectors = 72;
+    current.rhpd_submap_voxel_size = 0.0;
+    KeyframeManager loaded_keyframes(current);
+    LoopDetector loaded_loops(current);
+    GraphOptimizer loaded_optimizer(current);
+    MapSerializer current_serializer(current);
+    ASSERT_TRUE(current_serializer.loadMap(path, loaded_keyframes, loaded_loops, loaded_optimizer));
+    const auto heading = loaded_loops.getDescriptor(id);
+    ASSERT_TRUE(heading);
+    EXPECT_EQ(heading->rings, 12);
+    EXPECT_EQ(heading->sectors, 72);
+    EXPECT_TRUE(rhpdHeadingDenseValues(*heading).isApprox(rhpdHeadingDenseValues(*loaded_loops.computeHeading(cloud)), 1e-12));
+    RHPDPlace place;
+    ASSERT_TRUE(loaded_loops.getRHPDManager().get(id, &place));
+    EXPECT_TRUE(rhpdDenseValues(place).isApprox(rhpdDenseValues(loaded_loops.computeRHPD(cloud)), 1e-12));
 }
 
 TEST_F(MapSerializerTest, CausalRhpdRebuildMatchesOnlineDescriptors) {
@@ -1965,14 +1922,13 @@ TEST_F(MapSerializerTest, CausalRhpdRebuildMatchesOnlineDescriptors) {
     GraphOptimizer optimizer(cfg);
     MapSerializer serializer(cfg);
 
-    std::vector<std::pair<int64_t, Eigen::VectorXd>> online_rhpd;
+    std::vector<std::pair<int64_t, RHPDPlace>> online_rhpd;
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     for (int i = 0; i < 6; ++i) {
         auto cloud = generateRandomPointCloud(240);
         pose.translation().x() = static_cast<double>(i);
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto sc = loop_detector.addDescriptor(kf_id, cloud);
-        kf_manager.updateDescriptor(kf_id, sc);
         if (i == 0) {
             optimizer.addPriorFactor(kf_id, pose);
         }
@@ -1981,23 +1937,11 @@ TEST_F(MapSerializerTest, CausalRhpdRebuildMatchesOnlineDescriptors) {
         auto rhpd = loop_detector.addRHPD(kf_id, rhpd_cloud);
         auto kf = kf_manager.getKeyframe(kf_id);
         ASSERT_NE(kf, nullptr);
-        kf->rhpd_descriptor = rhpd;
         online_rhpd.emplace_back(kf_id, rhpd);
     }
 
     std::string map_file = cfg.map_save_path + "/causal_rhpd_rebuild.pbstream";
     ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
-
-    n3mapping::N3Map map_proto;
-    {
-        std::ifstream ifs(map_file, std::ios::binary);
-        ASSERT_TRUE(map_proto.ParseFromIstream(&ifs));
-    }
-    map_proto.mutable_metadata()->set_rhpd_schema("force-rebuild");
-    {
-        std::ofstream ofs(map_file, std::ios::binary);
-        ASSERT_TRUE(map_proto.SerializeToOstream(&ofs));
-    }
 
     KeyframeManager kf_manager_loaded(cfg);
     LoopDetector loop_detector_loaded(cfg);
@@ -2005,14 +1949,13 @@ TEST_F(MapSerializerTest, CausalRhpdRebuildMatchesOnlineDescriptors) {
     ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
 
     for (const auto& [kf_id, expected] : online_rhpd) {
-        Eigen::VectorXd loaded;
+        RHPDPlace loaded;
         ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(kf_id, &loaded));
-        ASSERT_EQ(loaded.size(), RHPD_DIM);
-        EXPECT_NEAR((loaded - expected).norm(), 0.0, 1e-9) << "kf_id=" << kf_id;
+        EXPECT_NEAR((rhpdDenseValues(loaded) - rhpdDenseValues(expected)).norm(), 0.0, 1e-9) << "kf_id=" << kf_id;
     }
 }
 
-TEST_F(MapSerializerTest, SaveMapRecomputesCausalRhpdUsingCurrentOptimizedPoses) {
+TEST_F(MapSerializerTest, LoadMapRebuildsCausalRhpdUsingSavedOptimizedPoses) {
     Config cfg = config_;
     cfg.rhpd_submap_kf_radius = 2;
     cfg.rhpd_submap_voxel_size = 0.0;
@@ -2029,19 +1972,16 @@ TEST_F(MapSerializerTest, SaveMapRecomputesCausalRhpdUsingCurrentOptimizedPoses)
         pose.translation().x() = static_cast<double>(i) * 2.0;
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto sc = loop_detector.addDescriptor(kf_id, cloud);
-        kf_manager.updateDescriptor(kf_id, sc);
         if (i == 0) optimizer.addPriorFactor(kf_id, pose);
 
         auto rhpd_cloud = kf_manager.buildCausalSubmapInRootFrame(kf_id, cfg.rhpd_submap_kf_radius, kf_id);
         auto rhpd = loop_detector.addRHPD(kf_id, rhpd_cloud);
         auto kf = kf_manager.getKeyframe(kf_id);
         ASSERT_NE(kf, nullptr);
-        kf->rhpd_descriptor = rhpd;
     }
 
-    Eigen::VectorXd old_online;
+    RHPDPlace old_online;
     ASSERT_TRUE(loop_detector.getRHPDManager().get(4, &old_online));
-    ASSERT_EQ(old_online.size(), RHPD_DIM);
 
     std::map<int64_t, Eigen::Isometry3d> optimized_poses;
     for (const auto& kf : kf_manager.getAllKeyframes()) {
@@ -2053,17 +1993,16 @@ TEST_F(MapSerializerTest, SaveMapRecomputesCausalRhpdUsingCurrentOptimizedPoses)
     kf_manager.updateOptimizedPoses(optimized_poses);
 
     auto expected_cloud = kf_manager.buildCausalSubmapInRootFrame(4, cfg.rhpd_submap_kf_radius, 4);
-    Eigen::VectorXd expected_saved = loop_detector.computeRHPD(expected_cloud);
-    ASSERT_EQ(expected_saved.size(), RHPD_DIM);
+    auto expected_saved = loop_detector.computeRHPD(expected_cloud);
     ASSERT_FALSE(expected_saved.isZero());
-    ASSERT_GT((expected_saved - old_online).norm(), 1e-3);
+    ASSERT_GT((rhpdDenseValues(expected_saved) - rhpdDenseValues(old_online)).norm(), 1e-3);
 
     std::string map_file = cfg.map_save_path + "/save_recomputes_rhpd.pbstream";
     ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
 
-    Eigen::VectorXd manager_after_save;
+    RHPDPlace manager_after_save;
     ASSERT_TRUE(loop_detector.getRHPDManager().get(4, &manager_after_save));
-    EXPECT_NEAR((manager_after_save - old_online).norm(), 0.0, 1e-9)
+    EXPECT_NEAR((rhpdDenseValues(manager_after_save) - rhpdDenseValues(old_online)).norm(), 0.0, 1e-9)
         << "saveMap should not mutate runtime RHPDManager state";
 
     KeyframeManager kf_manager_loaded(cfg);
@@ -2071,11 +2010,10 @@ TEST_F(MapSerializerTest, SaveMapRecomputesCausalRhpdUsingCurrentOptimizedPoses)
     GraphOptimizer optimizer_loaded(cfg);
     ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
 
-    Eigen::VectorXd loaded;
+    RHPDPlace loaded;
     ASSERT_TRUE(loop_detector_loaded.getRHPDManager().get(4, &loaded));
-    ASSERT_EQ(loaded.size(), RHPD_DIM);
-    EXPECT_LT((loaded - expected_saved).norm(), (loaded - old_online).norm());
-    EXPECT_NEAR((loaded - expected_saved).norm(), 0.0, 1e-9);
+    EXPECT_LT((rhpdDenseValues(loaded) - rhpdDenseValues(expected_saved)).norm(), (rhpdDenseValues(loaded) - rhpdDenseValues(old_online)).norm());
+    EXPECT_NEAR((rhpdDenseValues(loaded) - rhpdDenseValues(expected_saved)).norm(), 0.0, 1e-9);
 }
 
 /**
@@ -2119,7 +2057,6 @@ TEST_F(MapSerializerTest, FloorConstraintSaveLoadRoundTrip) {
         pose.translation().x() += 1.0;
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-        kf_manager.updateDescriptor(kf_id, descriptor);
         if (i > 0) {
             EdgeInfo edge;
             edge.from_id = i - 1;
@@ -2168,7 +2105,6 @@ TEST_F(MapSerializerTest, MapWithoutFloorFieldsStillLoads) {
         pose.translation().x() += 1.0;
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-        kf_manager.updateDescriptor(kf_id, descriptor);
     }
     optimizer.incrementalOptimize();
 
@@ -2261,7 +2197,6 @@ TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
         pose.translation().x() += 1.0;
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-        kf_manager.updateDescriptor(kf_id, descriptor);
         if (i > 0) {
             EdgeInfo edge;
             edge.from_id = i - 1;
@@ -2303,7 +2238,7 @@ TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
         std::ifstream ifs(map_file, std::ios::binary);
         ASSERT_TRUE(saved_proto.ParseFromIstream(&ifs));
     }
-    EXPECT_EQ(saved_proto.metadata().version(), "2.7.0");
+    EXPECT_EQ(saved_proto.metadata().version(), "2.8.0");
     EXPECT_EQ(saved_proto.metadata().num_session_anchor_edges(), 1u);
 
     KeyframeManager kf_loaded(config_);
@@ -2348,9 +2283,9 @@ TEST_F(MapSerializerTest, Legacy24MapStillLoadsAndFuturePatchIsRejected) {
     EXPECT_TRUE(legacy_kfs.getSessions()[0].loaded);
 
     N3Map future = legacy;
-    future.mutable_metadata()->set_version("2.7.1");
+    future.mutable_metadata()->set_version("2.8.1");
     const std::string future_file =
-        config_.map_save_path + "/future_271.pbstream";
+        config_.map_save_path + "/future_281.pbstream";
     {
         std::ofstream ofs(future_file, std::ios::binary);
         ASSERT_TRUE(future.SerializeToOstream(&ofs));
@@ -2635,7 +2570,6 @@ TEST_F(MapSerializerTest, MapWithoutSessionAnchorsStillLoads) {
         pose.translation().x() += 1.0;
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-        kf_manager.updateDescriptor(kf_id, descriptor);
     }
     optimizer.incrementalOptimize();
 

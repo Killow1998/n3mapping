@@ -29,8 +29,8 @@ public:
 
 private:
   void rebuildFrameRHPDIndexIfNeeded();
-  void appendFrameRHPDCandidates(const Eigen::VectorXd &query_rhpd,
-                                 const Eigen::MatrixXd &query_sc,
+  void appendFrameRHPDCandidates(const RHPDPlace &query_rhpd,
+                                 const RHPDHeadingPtr &query_sc,
                                  std::vector<LoopCandidate> &candidates);
 
   Config config_;

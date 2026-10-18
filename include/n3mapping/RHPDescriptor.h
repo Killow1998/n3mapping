@@ -6,19 +6,22 @@
 //                                      hit_count_norm, height_extent_norm.
 //                    - V3:           density_norm, height_mean_norm,
 //                                      visibility_state, boundary_strength.
-// Part B (512-dim):  Rotation-invariant ring-height statistics,
+// Part B (512-dim):  Yaw-tolerant ring-height statistics,
 //                    16 rings x 8 z-layers x 4 ch (density, azimuth_variance,
 //                    mean_range, range_variance).
 //
 // Augmentation:
 //   Negative-space signature: per-azimuth nearest hit, frontier span, open/unknown state.
-//   Vertical token histogram: 4 coarse rings x 4-bit z-layer token histogram.
 //   PCA anisotropy confidence: one scalar used to down-weight unstable Part A.
 //
-// Total: 3037 dim, stored as a flat Eigen::VectorXd.
+// Place summary: sparse observed cells and a compact auxiliary block.
+// Heading: 7 channels on a ring/sector grid, sharing the polar traversal.
+// Heading matching estimates yaw by circular sector alignment.
 // Matching: L2 distance with 180-degree flip handling.
 #pragma once
 
+#include "n3mapping/rhpd_heading.h"
+#include "n3mapping/rhpd_place.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
@@ -33,37 +36,21 @@ namespace n3mapping {
 
 struct Config;
 
-// ----------- Descriptor parameters (compile-time constants) -----------
-constexpr int RHPD_PLANE_BINS  = 14;       // grid size for each planar projection
-constexpr int RHPD_PLANE_CHANS = 4;        // 4 channels per bin (semantics depend on V3 flag)
-constexpr int RHPD_PLANE_DIM   = RHPD_PLANE_BINS * RHPD_PLANE_BINS * RHPD_PLANE_CHANS;
-constexpr int RHPD_PART_A_DIM  = RHPD_PLANE_DIM * 3;  // XY + XZ + YZ
-
-constexpr int RHPD_RINGS       = 16;       // radial rings for Part B
-constexpr int RHPD_ZLAYERS     = 8;        // height layers for Part B
-constexpr int RHPD_RH_CHANS    = 4;        // density, azimuth_variance, mean_range, range_variance
-constexpr int RHPD_PART_B_DIM  = RHPD_RINGS * RHPD_ZLAYERS * RHPD_RH_CHANS;  // 512
-
-constexpr int RHPD_NEG_SPACE_SECTORS = 36;
-constexpr int RHPD_NEG_SPACE_CHANS   = 3;   // nearest hit, frontier span, open/unknown state
-constexpr int RHPD_NEG_SPACE_DIM     = RHPD_NEG_SPACE_SECTORS * RHPD_NEG_SPACE_CHANS;
-constexpr int RHPD_VERTICAL_TOKEN_RINGS = 4;
-constexpr int RHPD_VERTICAL_TOKEN_BINS = 16;
-constexpr int RHPD_VERTICAL_TOKEN_DIM = RHPD_VERTICAL_TOKEN_RINGS * RHPD_VERTICAL_TOKEN_BINS;
-constexpr int RHPD_PCA_CONF_DIM       = 1;
-constexpr int RHPD_AUX_DIM = RHPD_NEG_SPACE_DIM + RHPD_VERTICAL_TOKEN_DIM + RHPD_PCA_CONF_DIM;
-
-constexpr int RHPD_DIM = RHPD_PART_A_DIM + RHPD_PART_B_DIM + RHPD_AUX_DIM;  // 3037
-constexpr int RHPD_COARSE_KEY_DIM = RHPD_RINGS + RHPD_NEG_SPACE_SECTORS + RHPD_VERTICAL_TOKEN_DIM + RHPD_PCA_CONF_DIM;
-
 // ----------- RHPDescriptor class -----------
 class RHPDescriptor {
 public:
     using PointT  = pcl::PointXYZI;
     using CloudT  = pcl::PointCloud<PointT>;
     using VecD    = Eigen::VectorXd;
+    using Place   = RHPDPlace;
+
+    struct Features {
+        Place place;
+        RHPDHeadingPtr heading;
+    };
 
     struct Params {
+        RHPDHeadingParams heading;
         double max_range    = 30.0;   // max radial distance to consider [m]
         double z_min        = -2.0;   // min height relative to sensor [m]
         double z_max        =  6.0;   // max height relative to sensor [m]
@@ -74,7 +61,6 @@ public:
         int    v3_visibility_bins = 72;          // angular sectors for visibility projection
         double v3_free_space_margin_m = 0.15;    // margin before measured frontier to mark free space
         bool   enable_negative_space = true;
-        bool   enable_vertical_tokens = true;
         bool   enable_pca_confidence = true;
         // Scales on the plane and auxiliary blocks, applied on top of the
         // weights already in distance(). One leaves the shipped behaviour
@@ -88,43 +74,50 @@ public:
     explicit RHPDescriptor(const Params& params);
 
     // Compute RHPD from a body-frame point cloud.
-    // Returns a zero vector if cloud is too sparse.
-    VecD compute(const CloudT::Ptr& cloud) const;
+    // Returns an empty observation summary if the cloud is too sparse.
+    Place compute(const CloudT::Ptr& cloud) const;
+    Features computeWithHeading(const CloudT::Ptr& cloud) const;
+    RHPDHeadingPtr computeHeading(const CloudT::Ptr& cloud) const;
 
     // L2 distance between two descriptors (lower = more similar).
     // Handles 180-degree ambiguity by comparing both orientations and taking the minimum.
-    double distance(const VecD& a, const VecD& b) const;
+    double distance(const Place& a, const Place& b) const;
 
-    int dim() const { return RHPD_DIM; }
     const Params& params() const { return params_; }
 
 private:
     // PCA-align: rotate cloud so XY-plane PCA principal axis → +X axis.
-    // Returns the 2D rotation angle applied. Also performs 180° disambiguation.
-    Eigen::Matrix3d computePCAAlignment(const CloudT::Ptr& cloud) const;
+    // Returns the XY alignment rotation; distance() handles its 180-degree ambiguity.
+    Eigen::Matrix3d computePCAAlignment(const CloudT::Ptr& cloud, double* confidence) const;
 
     // Part A: triple-plane projection (XY, XZ, YZ) on PCA-aligned cloud.
-    // Output: RHPD_PART_A_DIM-dim vector.
-    VecD computePartA(const CloudT::Ptr& aligned_cloud) const;
+    // Stores only cells with nonzero channels.
+    std::array<RHPDCells, 3> computePartA(const CloudT::Ptr& aligned_cloud) const;
 
-    // Part B: rotation-invariant ring-height statistics on original cloud.
-    // Output: RHPD_PART_B_DIM-dim vector.
-    VecD computePartB(const CloudT::Ptr& cloud) const;
-
-    VecD computeAux(const CloudT::Ptr& cloud, double pca_confidence) const;
-    double computePCAConfidence(const CloudT::Ptr& cloud) const;
+    // Ring-height, negative-space and optional heading share
+    // a polar traversal. Preserve each channel's original support and rounding.
+    void computePolar(const CloudT::Ptr& cloud, double confidence, Place& place, RHPDHeadingPtr* heading) const;
+    Place computeImpl(const CloudT::Ptr& cloud, RHPDHeadingPtr* heading) const;
 
     // Single plane projection: project points onto a plane, fill BINSxBINS grid.
     // axis0, axis1: which coordinate axes to use (0=x,1=y,2=z)
     // range0, range1: physical range [min, max] for each axis
-    // Output: BINS*BINS*CHANS vector.
+    // Output: sorted cells with four channels per observed cell.
     // - legacy(V1/V2): [density_norm, height_mean_norm, hit_count_norm, height_extent_norm]
     // - V3:           [density_norm, height_mean_norm, visibility_state, boundary_strength]
-    VecD projectToPlane(const CloudT::Ptr& cloud,
+    RHPDCells projectToPlane(const CloudT::Ptr& cloud,
                         int axis0, double range0_min, double range0_max,
                         int axis1, double range1_min, double range1_max,
                         int height_axis) const;
 
+    friend class RHPDManager;
+    struct PreparedQuery {
+        const Place& place;
+        std::array<RHPDCells, 3> flipped_planes;
+        Eigen::Matrix<double, RHPD_AUX_DIM, 1> flipped_auxiliary;
+    };
+    PreparedQuery prepareQuery(const Place& place) const;
+    double distance(const PreparedQuery& query, const Place& reference) const;
     Params params_;
 };
 
@@ -132,46 +125,51 @@ private:
 class RHPDManager {
 public:
     using VecD = Eigen::VectorXd;
+    using Place = RHPDPlace;
 
     explicit RHPDManager(const RHPDescriptor::Params& params)
         : desc_(params) {}
     RHPDManager() : desc_(RHPDescriptor::Params{}) {}
 
     // Add a descriptor for a keyframe.
-    void add(int64_t kf_id, const VecD& descriptor);
+    void add(int64_t kf_id, const Place& descriptor);
 
     // Add and compute descriptor from cloud. Returns the computed descriptor.
-    VecD addCloud(int64_t kf_id, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
+    Place addCloud(int64_t kf_id, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
 
     // Search for the top-k nearest neighbors. Returns (kf_id, distance) pairs sorted by distance.
-    std::vector<std::pair<int64_t, double>> search(const VecD& query, int top_k) const;
-    std::vector<std::pair<int64_t, double>> search(const VecD& query, int top_k, int preselect) const;
+    std::vector<std::pair<int64_t, double>> search(const Place& query, int top_k) const;
+    std::vector<std::pair<int64_t, double>> search(const Place& query, int top_k, int preselect) const;
     std::vector<std::pair<int64_t, double>> searchFiltered(
-        const VecD& query,
+        const Place& query,
         int top_k,
         int preselect,
         const std::function<bool(int64_t)>& accept) const;
-    bool get(int64_t kf_id, VecD* descriptor) const;
-    VecD makeCoarseKey(const VecD& descriptor) const;
+    bool get(int64_t kf_id, Place* descriptor) const;
+    VecD makeCoarseKey(const Place& descriptor) const;
 
     // Compute descriptor for a cloud (for use before searching).
-    VecD compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) const {
+    Place compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) const {
         return desc_.compute(cloud);
+    }
+
+    RHPDescriptor::Features computeWithHeading(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) const {
+        return desc_.computeWithHeading(cloud);
+    }
+    RHPDHeadingPtr computeHeading(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) const {
+        return desc_.computeHeading(cloud);
     }
 
     size_t size() const;
     void clear();
     void swapWith(RHPDManager& other);
 
-    // Serialization helpers.
-    std::vector<std::pair<int64_t, VecD>> getAll() const;
-    void loadAll(const std::vector<std::pair<int64_t, VecD>>& data);
     const RHPDescriptor::Params& getDescriptorParams() const { return desc_.params(); }
 
 private:
     RHPDescriptor desc_;
     std::vector<int64_t> ids_;
-    std::vector<VecD>    descriptors_;
+    std::vector<Place>   descriptors_;
     std::vector<VecD>    coarse_keys_;
     mutable std::mutex mutex_;
 };

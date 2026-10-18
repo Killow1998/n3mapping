@@ -117,8 +117,6 @@ private:
                                 n3mapping::DenseTrajectoryPose* proto);
     void poseToProto(const Eigen::Isometry3d& pose, n3mapping::Pose3D* proto);
     void pointCloudToProto(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, n3mapping::PointCloudData* proto);
-    void descriptorToProto(const Eigen::MatrixXd& descriptor, n3mapping::ScanContextDescriptor* proto);
-    void rhpdToProto(const Eigen::VectorXd& rhpd, n3mapping::RHPDDescriptor* proto);
     void informationToProto(const Eigen::Matrix<double, 6, 6>& info, n3mapping::InformationMatrix* proto);
 };
 

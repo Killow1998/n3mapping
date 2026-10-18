@@ -39,8 +39,6 @@ struct PbstreamResourceLimits {
 
 struct PbstreamKeyframeParseOptions {
     PbstreamLoadPolicy policy = PbstreamLoadPolicy::STRICT;
-    int expected_rhpd_dim = 0;
-    bool parse_descriptors = true;
 };
 
 struct PbstreamMetadata {
@@ -75,8 +73,6 @@ struct ParsedKeyframeProto {
     Eigen::Isometry3d pose_odom = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d pose_optimized = Eigen::Isometry3d::Identity();
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
-    Eigen::MatrixXd sc_descriptor;
-    Eigen::VectorXd rhpd_descriptor;
 };
 
 struct ParsedEdgeProto {
@@ -121,13 +117,6 @@ bool readN3MapProtoFromFile(const std::string& filepath,
 bool pointCloudFromProto(const PointCloudData& proto,
                          pcl::PointCloud<pcl::PointXYZI>::Ptr* cloud,
                          std::string* error);
-bool scanContextFromProto(const ScanContextDescriptor& proto,
-                          Eigen::MatrixXd* descriptor,
-                          std::string* error);
-bool rhpdFromProto(const RHPDDescriptor& proto,
-                   int expected_dim,
-                   Eigen::VectorXd* descriptor,
-                   std::string* error);
 bool informationFromProto(const InformationMatrix& proto,
                           Eigen::Matrix<double, 6, 6>* information,
                           std::string* error);

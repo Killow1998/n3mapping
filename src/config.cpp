@@ -205,7 +205,6 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(rhpd_use_sc_yaw);
     N3MAPPING_CONFIG_FIELD(rhpd_yaw_hypotheses);
     N3MAPPING_CONFIG_FIELD(rhpd_enable_negative_space);
-    N3MAPPING_CONFIG_FIELD(rhpd_enable_vertical_tokens);
     N3MAPPING_CONFIG_FIELD(rhpd_enable_pca_confidence);
     N3MAPPING_CONFIG_FIELD(rhpd_part_a_scale);
     N3MAPPING_CONFIG_FIELD(rhpd_aux_scale);
@@ -331,7 +330,6 @@ std::string Config::toString() const {
         << ", use_sc_yaw=" << (rhpd_use_sc_yaw ? "YES" : "NO")
         << ", yaw_hyp=" << rhpd_yaw_hypotheses
         << ", aug(neg=" << (rhpd_enable_negative_space ? "YES" : "NO")
-        << ", vert=" << (rhpd_enable_vertical_tokens ? "YES" : "NO")
         << ", pca_conf=" << (rhpd_enable_pca_confidence ? "YES" : "NO")
         << ")\n";
     oss << "Global map publish: hz=" << global_map_publish_hz
