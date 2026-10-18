@@ -3,6 +3,7 @@
 #include <limits>
 #include <random>
 #include "n3mapping/loop_detector.h"
+#include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
@@ -320,6 +321,22 @@ TEST_F(LoopDetectorTest, RHPDComputeReturnsConfiguredDimension) {
     auto rhpd = descriptor.compute(createAsymmetricCloud());
     EXPECT_EQ(rhpd.size(), RHPD_DIM);
     EXPECT_GT(rhpd.norm(), 0.0);
+}
+
+TEST_F(LoopDetectorTest, RhpdOnlyRelocalizationHasFiniteCandidateScores) {
+    Config config;
+    config.rhpd_use_sc_yaw = false;
+    KeyframeManager keyframes(config);
+    LoopDetector detector(config);
+    const auto cloud = createAsymmetricCloud();
+    const auto id = keyframes.addKeyframe(1.0, Eigen::Isometry3d::Identity(), cloud);
+    detector.addRHPD(id, cloud);
+    RelocalizationPlaceIndex index(config, keyframes, detector);
+    const auto candidates = index.search(cloud);
+    ASSERT_FALSE(candidates.empty());
+    EXPECT_EQ(candidates.front().match_id, id);
+    EXPECT_FALSE(candidates.front().fromSC());
+    EXPECT_TRUE(std::isfinite(candidates.front().fused_score));
 }
 
 TEST_F(LoopDetectorTest, RHPDEmptyAndSparseCloudReturnZero) {

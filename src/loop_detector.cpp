@@ -98,49 +98,38 @@ Eigen::MatrixXd LoopDetector::makeScanContext(const PointCloudT::Ptr& cloud) {
     return sc_manager_.makeScancontext(cloud_copy);
 }
 
-Eigen::MatrixXd LoopDetector::addDescriptor(int64_t keyframe_id, const PointCloudT::Ptr& cloud) {
+Eigen::MatrixXd LoopDetector::addDescriptor(int64_t id, const PointCloudT::Ptr& cloud) {
     if (!cloud || cloud->empty()) return Eigen::MatrixXd();
     std::lock_guard<std::mutex> lock(mutex_);
-    pcl::PointCloud<SCPointType> cloud_copy = *cloud;
-    Eigen::MatrixXd descriptor = sc_manager_.makeScancontext(cloud_copy);
-    if (descriptor.size() == 0) return Eigen::MatrixXd();
-    if (id_to_index_.count(keyframe_id) > 0) {
-        LOG(WARNING) << "[LoopDetector] Duplicate ScanContext descriptor id " << keyframe_id
-                     << ", keeping existing descriptor.";
-        return descriptors_[id_to_index_[keyframe_id]];
-    }
-    size_t index = descriptors_.size();
-    id_to_index_[keyframe_id] = index;
-    index_to_id_.push_back(keyframe_id);
-    descriptors_.push_back(descriptor);
-    sc_manager_.makeAndSaveScancontextAndKeys(cloud_copy);
-    return descriptor;
+    const Eigen::MatrixXd descriptor = makeScanContext(cloud);
+    if (!isScanContextDescriptorCompatible(descriptor)) return Eigen::MatrixXd();
+    addDescriptorUnlocked(id, descriptor);
+    return descriptors_[id_to_index_.at(id)];
 }
 
-void LoopDetector::addDescriptor(int64_t keyframe_id, const Eigen::MatrixXd& descriptor) {
+void LoopDetector::addDescriptor(int64_t id, const Eigen::MatrixXd& descriptor) {
     if (descriptor.size() == 0) return;
     std::lock_guard<std::mutex> lock(mutex_);
     if (!isScanContextDescriptorCompatible(descriptor)) {
         LOG(WARNING) << "[LoopDetector] Skip incompatible ScanContext descriptor for keyframe "
-                     << keyframe_id << ": got " << descriptor.rows() << "x" << descriptor.cols()
+                     << id << ": got " << descriptor.rows() << "x" << descriptor.cols()
                      << ", expected " << sc_manager_.totalRows() << "x" << sc_manager_.PC_NUM_SECTOR;
         return;
     }
-    if (id_to_index_.count(keyframe_id) > 0) {
-        LOG(WARNING) << "[LoopDetector] Duplicate ScanContext descriptor id " << keyframe_id
+    addDescriptorUnlocked(id, descriptor);
+}
+
+void LoopDetector::addDescriptorUnlocked(int64_t id, const Eigen::MatrixXd& descriptor) {
+    if (id_to_index_.count(id) > 0) {
+        LOG(WARNING) << "[LoopDetector] Duplicate ScanContext descriptor id " << id
                      << ", keeping existing descriptor.";
         return;
     }
-    size_t index = descriptors_.size();
-    id_to_index_[keyframe_id] = index;
-    index_to_id_.push_back(keyframe_id);
+    id_to_index_[id] = descriptors_.size();
+    index_to_id_.push_back(id);
     descriptors_.push_back(descriptor);
-    sc_manager_.polarcontexts_.push_back(descriptor);
-    Eigen::MatrixXd ringkey = sc_manager_.makeRingkeyFromScancontext(const_cast<Eigen::MatrixXd&>(descriptor));
-    Eigen::MatrixXd sectorkey = sc_manager_.makeSectorkeyFromScancontext(const_cast<Eigen::MatrixXd&>(descriptor));
-    sc_manager_.polarcontext_invkeys_.push_back(ringkey);
-    sc_manager_.polarcontext_vkeys_.push_back(sectorkey);
-    sc_manager_.polarcontext_invkeys_mat_.push_back(eig2stdvec(ringkey));
+    sc_manager_.polarcontext_invkeys_mat_.push_back(
+        eig2stdvec(sc_manager_.makeRingkeyFromScancontext(descriptors_.back())));
 }
 
 std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
@@ -234,9 +223,9 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
                 }
 
                 const double rhpd_norm = rhpd_dist / std::max(1e-6, config_.rhpd_dist_threshold);
-                const double sc_norm = std::isfinite(candidate.sc_distance)
+                const double sc_norm = candidate.fromSC() && std::isfinite(candidate.sc_distance)
                     ? candidate.sc_distance / std::max(1e-6, config_.sc_aux_veto_threshold)
-                    : 1.0;
+                    : 0.0;
                 candidate.fused_score =
                     config_.rhpd_primary_weight * rhpd_norm + config_.sc_aux_weight * sc_norm;
                 candidate.descriptor_score = 1.0 / (1.0 + candidate.fused_score);
@@ -469,17 +458,10 @@ void LoopDetector::rebuildTreeUnlocked() {
     sc_manager_.polarcontext_invkeys_mat_.clear();
     sc_manager_.polarcontext_invkeys_to_search_.clear();
     sc_manager_.polarcontext_tree_.reset();
+    sc_manager_.polarcontext_invkeys_mat_.resize(descriptors_.size());
     for (size_t i = 0; i < descriptors_.size(); ++i) {
-        Eigen::MatrixXd desc = descriptors_[i];
-        sc_manager_.polarcontexts_.push_back(desc);
-        sc_manager_.polarcontext_invkeys_.push_back(sc_manager_.makeRingkeyFromScancontext(desc));
-        sc_manager_.polarcontext_vkeys_.push_back(sc_manager_.makeSectorkeyFromScancontext(desc));
-        sc_manager_.polarcontext_invkeys_mat_.push_back(eig2stdvec(sc_manager_.polarcontext_invkeys_.back()));
-    }
-    if (!sc_manager_.polarcontext_invkeys_mat_.empty()) {
-        sc_manager_.polarcontext_invkeys_to_search_ = sc_manager_.polarcontext_invkeys_mat_;
-        sc_manager_.polarcontext_tree_.reset(
-            new InvKeyTree(sc_manager_.totalRows(), sc_manager_.polarcontext_invkeys_to_search_, 10));
+        sc_manager_.polarcontext_invkeys_mat_[i] =
+            eig2stdvec(sc_manager_.makeRingkeyFromScancontext(descriptors_[i]));
     }
 }
 
@@ -519,17 +501,8 @@ void LoopDetector::loadDescriptors(const std::vector<std::pair<int64_t, Eigen::M
         id_to_index_[id] = index;
         index_to_id_.push_back(id);
         descriptors_.push_back(desc);
-        sc_manager_.polarcontexts_.push_back(desc);
-        Eigen::MatrixXd desc_copy = desc;
-        sc_manager_.polarcontext_invkeys_.push_back(sc_manager_.makeRingkeyFromScancontext(desc_copy));
-        sc_manager_.polarcontext_vkeys_.push_back(sc_manager_.makeSectorkeyFromScancontext(desc_copy));
-        sc_manager_.polarcontext_invkeys_mat_.push_back(eig2stdvec(sc_manager_.polarcontext_invkeys_.back()));
     }
-    if (!sc_manager_.polarcontext_invkeys_mat_.empty()) {
-        sc_manager_.polarcontext_invkeys_to_search_ = sc_manager_.polarcontext_invkeys_mat_;
-        sc_manager_.polarcontext_tree_.reset(
-            new InvKeyTree(sc_manager_.totalRows(), sc_manager_.polarcontext_invkeys_to_search_, 10));
-    }
+    rebuildTreeUnlocked();
 }
 
 void LoopDetector::swapWith(LoopDetector& other) {
@@ -571,8 +544,7 @@ Eigen::MatrixXd LoopDetector::getDescriptor(int64_t keyframe_id) const {
 }
 
 std::pair<double, int> LoopDetector::computeDistance(const Eigen::MatrixXd& sc1, const Eigen::MatrixXd& sc2) {
-    Eigen::MatrixXd a = sc1, b = sc2;
-    return sc_manager_.distanceBtnScanContext(a, b);
+    return sc_manager_.distanceBtnScanContext(sc1, sc2);
 }
 
 // ---- RHPD methods ----

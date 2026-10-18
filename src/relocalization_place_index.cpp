@@ -65,7 +65,8 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
         candidate.candidate_source = LoopCandidate::Source::RhpdPrimary;
         candidate.rhpd_rank = i;
 
-        Eigen::MatrixXd match_sc = loop_detector_.getDescriptor(item.first);
+        Eigen::MatrixXd match_sc;
+        if (config_.rhpd_use_sc_yaw) match_sc = loop_detector_.getDescriptor(item.first);
         if (config_.rhpd_use_sc_yaw && query_sc.size() > 0 &&
             match_sc.size() > 0) {
           auto [sc_dist, yaw_shift] =
@@ -86,10 +87,10 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
         const double rhpd_norm = candidate.rhpd_distance /
                                  std::max(1e-6, config_.rhpd_dist_threshold);
         const double sc_norm =
-            std::isfinite(candidate.sc_distance)
+            candidate.fromSC() && std::isfinite(candidate.sc_distance)
                 ? candidate.sc_distance /
                       std::max(1e-6, config_.sc_aux_veto_threshold)
-                : 1.0;
+                : 0.0;
         candidate.fused_score = config_.rhpd_primary_weight * rhpd_norm +
                                 config_.sc_aux_weight * sc_norm;
         ranked.push_back(candidate);
@@ -247,7 +248,8 @@ void RelocalizationPlaceIndex::appendFrameRHPDCandidates(
     candidate.candidate_source = LoopCandidate::Source::RhpdFrame;
     candidate.rhpd_rank = i;
 
-    Eigen::MatrixXd match_sc = loop_detector_.getDescriptor(item.first);
+    Eigen::MatrixXd match_sc;
+    if (config_.rhpd_use_sc_yaw) match_sc = loop_detector_.getDescriptor(item.first);
     if (config_.rhpd_use_sc_yaw && query_sc.size() > 0 && match_sc.size() > 0) {
       auto [sc_dist, yaw_shift] =
           loop_detector_.computeDistance(query_sc, match_sc);
@@ -266,10 +268,10 @@ void RelocalizationPlaceIndex::appendFrameRHPDCandidates(
     const double rhpd_norm =
         candidate.rhpd_distance / std::max(1e-6, config_.rhpd_dist_threshold);
     const double sc_norm =
-        std::isfinite(candidate.sc_distance)
+        candidate.fromSC() && std::isfinite(candidate.sc_distance)
             ? candidate.sc_distance /
                   std::max(1e-6, config_.sc_aux_veto_threshold)
-            : 1.0;
+            : 0.0;
     candidate.fused_score = config_.rhpd_primary_weight * rhpd_norm +
                             config_.sc_aux_weight * sc_norm;
 

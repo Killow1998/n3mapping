@@ -98,6 +98,7 @@ class HybridSCManager
     double distDirectSC(Eigen::MatrixXd& sc1, Eigen::MatrixXd& sc2);
     int fastAlignUsingVkey(Eigen::MatrixXd& vkey1, Eigen::MatrixXd& vkey2);
     std::pair<double, int> distanceBtnScanContext(Eigen::MatrixXd& sc1, Eigen::MatrixXd& sc2);
+    std::pair<double, int> distanceBtnScanContext(const Eigen::MatrixXd& sc1, const Eigen::MatrixXd& sc2);
 
     // ======== 兼容 SCManager 的内部数据 ========
     double PC_UNIT_SECTORANGLE = 360.0 / 60.0;
@@ -114,5 +115,5 @@ class HybridSCManager
   private:
     int rangeToRingIndex(double range) const;
     static float xy2theta(float x, float y);
-    static Eigen::MatrixXd circshift(Eigen::MatrixXd& mat, int num_shift);
+
 };

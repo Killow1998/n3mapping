@@ -19,20 +19,6 @@ float HybridSCManager::xy2theta(float x, float y)
     return deg; // [0, 360)
 }
 
-Eigen::MatrixXd HybridSCManager::circshift(Eigen::MatrixXd& mat, int num_shift)
-{
-    if (num_shift == 0) {
-        return mat;
-    }
-    const int cols = mat.cols();
-    num_shift = ((num_shift % cols) + cols) % cols; // 保证正数
-    Eigen::MatrixXd shifted(mat.rows(), cols);
-    for (int c = 0; c < cols; ++c) {
-        shifted.col((c + num_shift) % cols) = mat.col(c);
-    }
-    return shifted;
-}
-
 int HybridSCManager::rangeToRingIndex(double range) const
 {
     if (range < PC_MIN_RADIUS || range > PC_MAX_RADIUS)
@@ -180,50 +166,60 @@ Eigen::MatrixXd HybridSCManager::makeSectorkeyFromScancontext(Eigen::MatrixXd& d
 //  多通道加权距离
 // ============================================================
 
+namespace {
+// Norms are invariant under a circular shift. Compute them once per pair;
+// retain division by the product of norms to preserve the original score.
+Eigen::MatrixXd columnNorms(const Eigen::MatrixXd& descriptor, int rings) {
+    Eigen::MatrixXd norms(HybridSCManager::NUM_CHANNELS, descriptor.cols());
+    for (int channel = 0; channel < HybridSCManager::NUM_CHANNELS; ++channel)
+        for (int sector = 0; sector < descriptor.cols(); ++sector)
+            norms(channel, sector) = descriptor.col(sector).segment(channel * rings, rings).norm();
+    return norms;
+}
+
+double distanceAtShift(const Eigen::MatrixXd& query, const Eigen::MatrixXd& reference,
+                       const Eigen::MatrixXd& query_norms, const Eigen::MatrixXd& reference_norms,
+                       int rings, int shift, const double* weights) {
+    double total_dist = 0.0;
+    double weight_sum = 0.0;
+    const int sectors = query.cols();
+    for (int channel = 0; channel < HybridSCManager::NUM_CHANNELS; ++channel) {
+        int effective = 0;
+        double sum_sim = 0.0;
+        for (int sector = 0; sector < sectors; ++sector) {
+            const int matched = (sector + sectors - shift) % sectors;
+            const double n1 = query_norms(channel, sector);
+            const double n2 = reference_norms(channel, matched);
+            if (n1 < 1e-6 || n2 < 1e-6) continue;
+            const auto col1 = query.col(sector).segment(channel * rings, rings);
+            const auto col2 = reference.col(matched).segment(channel * rings, rings);
+            sum_sim += col1.dot(col2) / (n1 * n2);
+            ++effective;
+        }
+        if (effective > 0) {
+            total_dist += weights[channel] * (1.0 - sum_sim / effective);
+            weight_sum += weights[channel];
+        }
+    }
+    return weight_sum < 1e-6 ? 1.0 : total_dist / weight_sum;
+}
+
+Eigen::MatrixXd sectorKey(const Eigen::MatrixXd& descriptor) {
+    Eigen::MatrixXd key(1, descriptor.cols());
+    for (int sector = 0; sector < descriptor.cols(); ++sector)
+        key(0, sector) = descriptor.col(sector).mean();
+    return key;
+}
+} // namespace
+
 double HybridSCManager::distDirectSC(Eigen::MatrixXd& sc1, Eigen::MatrixXd& sc2)
 {
-    const int R = PC_NUM_RING;
-    const int S = sc1.cols();
     const double weights[NUM_CHANNELS] = {
         W_HEIGHT, W_HEIGHT_VAR, W_DENSITY,
         W_OCCUPY_L0, W_OCCUPY_L1, W_OCCUPY_L2, W_OCCUPY_L3
     };
-    double weight_sum = 0.0;
-
-    double total_dist = 0.0;
-
-    // 对每个通道分别计算余弦距离
-    for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
-        int row_start = ch * R;
-
-        int num_eff_cols = 0;
-        double sum_sim = 0.0;
-
-        for (int c = 0; c < S; ++c) {
-            Eigen::VectorXd col1 = sc1.block(row_start, c, R, 1);
-            Eigen::VectorXd col2 = sc2.block(row_start, c, R, 1);
-
-            double n1 = col1.norm();
-            double n2 = col2.norm();
-            if (n1 < 1e-6 || n2 < 1e-6)
-                continue;
-
-            double sim = col1.dot(col2) / (n1 * n2);
-            sum_sim += sim;
-            num_eff_cols++;
-        }
-
-        if (num_eff_cols > 0) {
-            double channel_dist = 1.0 - (sum_sim / num_eff_cols);
-            total_dist += weights[ch] * channel_dist;
-            weight_sum += weights[ch];
-        }
-    }
-
-    if (weight_sum < 1e-6)
-        return 1.0;
-
-    return total_dist / weight_sum;
+    return distanceAtShift(sc1, sc2, columnNorms(sc1, PC_NUM_RING),
+                           columnNorms(sc2, PC_NUM_RING), PC_NUM_RING, 0, weights);
 }
 
 // ============================================================
@@ -235,8 +231,10 @@ int HybridSCManager::fastAlignUsingVkey(Eigen::MatrixXd& vkey1, Eigen::MatrixXd&
     int argmin_shift = 0;
     double min_diff = std::numeric_limits<double>::max();
 
+    Eigen::MatrixXd shifted(vkey2.rows(), vkey2.cols());
     for (int shift = 0; shift < vkey1.cols(); ++shift) {
-        Eigen::MatrixXd shifted = circshift(vkey2, shift);
+        shifted.leftCols(shift) = vkey2.rightCols(shift);
+        shifted.rightCols(vkey2.cols() - shift) = vkey2.leftCols(vkey2.cols() - shift);
         double diff = (vkey1 - shifted).norm();
         if (diff < min_diff) {
             min_diff = diff;
@@ -253,9 +251,15 @@ int HybridSCManager::fastAlignUsingVkey(Eigen::MatrixXd& vkey1, Eigen::MatrixXd&
 
 std::pair<double, int> HybridSCManager::distanceBtnScanContext(Eigen::MatrixXd& sc1, Eigen::MatrixXd& sc2)
 {
-    // 1. 用 sector key 粗对齐
-    Eigen::MatrixXd vkey1 = makeSectorkeyFromScancontext(sc1);
-    Eigen::MatrixXd vkey2 = makeSectorkeyFromScancontext(sc2);
+    return distanceBtnScanContext(static_cast<const Eigen::MatrixXd&>(sc1),
+                                 static_cast<const Eigen::MatrixXd&>(sc2));
+}
+
+std::pair<double, int> HybridSCManager::distanceBtnScanContext(
+    const Eigen::MatrixXd& sc1, const Eigen::MatrixXd& sc2)
+{
+    Eigen::MatrixXd vkey1 = sectorKey(sc1);
+    Eigen::MatrixXd vkey2 = sectorKey(sc2);
     int coarse_shift = fastAlignUsingVkey(vkey1, vkey2);
 
     // 2. 在粗对齐附近精搜索
@@ -270,9 +274,14 @@ std::pair<double, int> HybridSCManager::distanceBtnScanContext(Eigen::MatrixXd& 
     double min_dist = std::numeric_limits<double>::max();
     int best_shift = 0;
 
+    const auto norms1 = columnNorms(sc1, PC_NUM_RING);
+    const auto norms2 = columnNorms(sc2, PC_NUM_RING);
+    const double weights[NUM_CHANNELS] = {
+        W_HEIGHT, W_HEIGHT_VAR, W_DENSITY,
+        W_OCCUPY_L0, W_OCCUPY_L1, W_OCCUPY_L2, W_OCCUPY_L3
+    };
     for (int shift : shifts) {
-        Eigen::MatrixXd sc2_shifted = circshift(sc2, shift);
-        double dist = distDirectSC(sc1, sc2_shifted);
+        double dist = distanceAtShift(sc1, sc2, norms1, norms2, PC_NUM_RING, shift, weights);
         if (dist < min_dist) {
             min_dist = dist;
             best_shift = shift;

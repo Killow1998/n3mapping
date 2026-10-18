@@ -1,0 +1,366 @@
+{
+  "baseline_commit": "682f5af6b7848d7959d1e9e66f32e313a5ce8ce6",
+  "status": "Equivalent descriptor optimizations retained; integrated RHPD heading prototype rejected; SC remains enabled.",
+  "conditions": {
+    "build": "Release/Humble, UNVERIFIED development identity",
+    "affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "OMP_WAIT_POLICY": "PASSIVE",
+    "OMP_PROC_BIND": "TRUE",
+    "OMP_PLACES": "cores",
+    "core_replay_rate": 0,
+    "core_repetitions": 1,
+    "scope": "Core replay, not ROS/DDS; map loading excluded from CPU/wall timing and included in peak RSS; five recordings plus one same-map cost fixture; no independent ground truth."
+  },
+  "library_sha256": {
+    "baseline": "f34029f4c9de773b9787099187ad193bc80c982c1fb1e68215863c4f79ef81ce",
+    "verified": "dadf0c17c5a9fb9984c3fe95828e307c2e14a65d46dc9eff9cd06a3a07c25b98"
+  },
+  "source_sha256": {
+    "cmake/n3mapping_core.cmake": "b9ed13f4f1f5ff317ddfe3df6fe4751d72d7102eb4c4b0e9eddec64134c59952",
+    "include/Scancontext/HybridScancontext.cpp": "5cc840f810a6ab7ee78aa575810f24d36a28eea8097de3ed30fcbb1f17aaa5e1",
+    "include/Scancontext/HybridScancontext.h": "3fa943121879b71bac0a9245be8ea0cbd528356d93a01e2fb1e28f607b3a05db",
+    "include/n3mapping/loop_detector.h": "c8e5f540a41787f8e7c2c55c9af449bd555466c85bb9213ed948401737dd879f",
+    "src/loop_detector.cpp": "fcf415498159c2c11eb5fbb2d75e53e8145bf983058ac5a7151ae4b971fba926",
+    "src/relocalization_place_index.cpp": "2086d6db0f5e1500c6a911c3f235fa7f6c358853197a87d7e2d10c2319169a53",
+    "src/RHPDescriptor.cpp": "36a2cd5c3c2cb69d03f289277892ff547e8633a2ed59d4c237bf98ac68577c3d",
+    "src/rhpd_polar.cpp": "697415b381ff3cf5113e3fbfba876588df9160719aa54921d43ef316e144665f",
+    "src/rhpd_manager.cpp": "f55512769aa122ac6190bca159711e4526c9e2c155d83a4d15718e2601ad53df",
+    "test/test_localization_episode.cpp": "e38d156a1f26553c99eb1d561748017ccbeb2e4c8eca60398fa3f4302b828b78",
+    "test/test_loop_detector.cpp": "62d44936fad46824f1d09fc5860b010765cef3a2794aef815e07133b292075c8",
+    "docs/evidence/runtime_cpu_20261017/sc_equivalence_probe.cpp": "425164c3118c376da3acddbe2b4cd9c6c1ee5daedb442886182e093008d88e0b"
+  },
+  "product_config_sha256": "1b603a0a180330857aac150e0450cb5e94e284a84934e9b6ee387000f3f254d4",
+  "pair_matching": {
+    "pairs_per_run": 8640,
+    "queries": "Observations 1, 50 and 100 from each recording; rotated by 0, 42, 137 and 180 degrees; compared with 144 map descriptors.",
+    "timing": "CLOCK_THREAD_CPUTIME_ID around LoopDetector::computeDistance, excludes descriptor generation and map loading.",
+    "cpu_ms": {
+      "baseline": [
+        769.581,
+        765.265,
+        769.123
+      ],
+      "verified": [
+        143.378,
+        143.513,
+        144.234
+      ]
+    },
+    "comparison": [
+      {
+        "repeat": 0,
+        "pairs": 8640,
+        "max_score_delta": 0.0,
+        "yaw_changes": 0
+      },
+      {
+        "repeat": 1,
+        "pairs": 8640,
+        "max_score_delta": 0.0,
+        "yaw_changes": 0
+      },
+      {
+        "repeat": 2,
+        "pairs": 8640,
+        "max_score_delta": 0.0,
+        "yaw_changes": 0
+      }
+    ]
+  },
+  "corpus": [
+    {
+      "dataset": "normal",
+      "variant": "baseline",
+      "repeat": 0,
+      "frames": 1848,
+      "first_lock": 5,
+      "cpu_ms": 44856.892427,
+      "wall_ms": 13193.193972,
+      "rss_kib": 423612,
+      "alignments": 83,
+      "cpu_until_lock_ms": 3120.324439
+    },
+    {
+      "dataset": "normal",
+      "variant": "verified",
+      "repeat": 0,
+      "frames": 1848,
+      "first_lock": 5,
+      "cpu_ms": 44157.467979,
+      "wall_ms": 12841.004986,
+      "rss_kib": 398904,
+      "alignments": 83,
+      "cpu_until_lock_ms": 3096.393614
+    },
+    {
+      "comparison": "normal",
+      "repeat": 0,
+      "mismatches": {
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0,
+        "live": 0,
+        "candidates": 0,
+        "alignments": 0
+      },
+      "max_pose_component_delta": 6.394884621840902e-14
+    },
+    {
+      "dataset": "hard",
+      "variant": "baseline",
+      "repeat": 0,
+      "frames": 448,
+      "first_lock": 55,
+      "cpu_ms": 46836.843962,
+      "wall_ms": 15747.756074,
+      "rss_kib": 294904,
+      "alignments": 817,
+      "cpu_until_lock_ms": 42124.979092
+    },
+    {
+      "dataset": "hard",
+      "variant": "verified",
+      "repeat": 0,
+      "frames": 448,
+      "first_lock": 55,
+      "cpu_ms": 46557.194848,
+      "wall_ms": 15547.93098,
+      "rss_kib": 275396,
+      "alignments": 817,
+      "cpu_until_lock_ms": 41922.077593
+    },
+    {
+      "comparison": "hard",
+      "repeat": 0,
+      "mismatches": {
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0,
+        "live": 0,
+        "candidates": 0,
+        "alignments": 0
+      },
+      "max_pose_component_delta": 3.552713678800501e-15
+    },
+    {
+      "dataset": "inside710",
+      "variant": "baseline",
+      "repeat": 0,
+      "frames": 452,
+      "first_lock": 5,
+      "cpu_ms": 9029.540825999999,
+      "wall_ms": 2830.707663,
+      "rss_kib": 272232,
+      "alignments": 87,
+      "cpu_until_lock_ms": 3170.581778
+    },
+    {
+      "dataset": "inside710",
+      "variant": "verified",
+      "repeat": 0,
+      "frames": 452,
+      "first_lock": 5,
+      "cpu_ms": 8991.891195,
+      "wall_ms": 2824.51553,
+      "rss_kib": 252796,
+      "alignments": 87,
+      "cpu_until_lock_ms": 3176.7943450000002
+    },
+    {
+      "comparison": "inside710",
+      "repeat": 0,
+      "mismatches": {
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0,
+        "live": 0,
+        "candidates": 0,
+        "alignments": 0
+      },
+      "max_pose_component_delta": 8.881784197001252e-16
+    },
+    {
+      "dataset": "outside707",
+      "variant": "baseline",
+      "repeat": 0,
+      "frames": 448,
+      "first_lock": 5,
+      "cpu_ms": 9668.692168,
+      "wall_ms": 2988.477754,
+      "rss_kib": 270508,
+      "alignments": 71,
+      "cpu_until_lock_ms": 3830.717406
+    },
+    {
+      "dataset": "outside707",
+      "variant": "verified",
+      "repeat": 0,
+      "frames": 448,
+      "first_lock": 5,
+      "cpu_ms": 9575.538341,
+      "wall_ms": 2942.641735,
+      "rss_kib": 251196,
+      "alignments": 71,
+      "cpu_until_lock_ms": 3826.350704
+    },
+    {
+      "comparison": "outside707",
+      "repeat": 0,
+      "mismatches": {
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0,
+        "live": 0,
+        "candidates": 0,
+        "alignments": 0
+      },
+      "max_pose_component_delta": 1.7763568394002505e-15
+    },
+    {
+      "dataset": "outside710",
+      "variant": "baseline",
+      "repeat": 0,
+      "frames": 448,
+      "first_lock": 10,
+      "cpu_ms": 16126.573789999999,
+      "wall_ms": 5019.540563,
+      "rss_kib": 296048,
+      "alignments": 158,
+      "cpu_until_lock_ms": 9568.931639999999
+    },
+    {
+      "dataset": "outside710",
+      "variant": "verified",
+      "repeat": 0,
+      "frames": 448,
+      "first_lock": 10,
+      "cpu_ms": 15979.431875999999,
+      "wall_ms": 4961.621099,
+      "rss_kib": 276484,
+      "alignments": 158,
+      "cpu_until_lock_ms": 9582.609493
+    },
+    {
+      "comparison": "outside710",
+      "repeat": 0,
+      "mismatches": {
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0,
+        "live": 0,
+        "candidates": 0,
+        "alignments": 0
+      },
+      "max_pose_component_delta": 3.219646771412954e-15
+    },
+    {
+      "dataset": "user_map",
+      "variant": "baseline",
+      "repeat": 0,
+      "frames": 1800,
+      "first_lock": 5,
+      "cpu_ms": 41556.859280000004,
+      "wall_ms": 12318.268583,
+      "rss_kib": 561380,
+      "alignments": 82,
+      "cpu_until_lock_ms": 3055.143902
+    },
+    {
+      "dataset": "user_map",
+      "variant": "verified",
+      "repeat": 0,
+      "frames": 1800,
+      "first_lock": 5,
+      "cpu_ms": 41068.722867,
+      "wall_ms": 12259.203728,
+      "rss_kib": 522752,
+      "alignments": 82,
+      "cpu_until_lock_ms": 3026.432954
+    },
+    {
+      "comparison": "user_map",
+      "repeat": 0,
+      "mismatches": {
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0,
+        "live": 0,
+        "candidates": 0,
+        "alignments": 0
+      },
+      "max_pose_component_delta": 2.7711166694643907e-13
+    }
+  ],
+  "episodes": [
+    {
+      "mode": "legacy",
+      "rows": 70,
+      "behavior_mismatches": {},
+      "max_pose_component_delta": 0.0
+    },
+    {
+      "mode": "atlas",
+      "rows": 70,
+      "behavior_mismatches": {},
+      "max_pose_component_delta": 0.0
+    },
+    {
+      "mode": "kill",
+      "rows": 70,
+      "behavior_mismatches": {},
+      "max_pose_component_delta": 0.0
+    }
+  ],
+  "ctest": {
+    "tests": "61",
+    "failures": "0",
+    "disabled": "0",
+    "skipped": "0",
+    "time": "31",
+    "timestamp": "2026-10-17T22:10:14"
+  },
+  "ablation": {
+    "settings": 22,
+    "recordings": 5,
+    "observations_per_run": 100,
+    "runs": 110,
+    "csv": "rhpd_heading_ablation.csv",
+    "sha256": "b5daa604499145d43413023084e696feb6aeef9525b9d969e4ad2ef1ebb011f3",
+    "limitation": "Exploratory prefixes; timings not used because compilation overlapped some runs. Rejecting alternatives does not establish real-world accuracy of the retained baseline."
+  }
+}

@@ -238,6 +238,7 @@ private:
     mutable std::mutex mutex_;
 
     void rebuildTreeUnlocked();
+    void addDescriptorUnlocked(int64_t id, const Eigen::MatrixXd& descriptor);
 };
 
 } // namespace n3mapping

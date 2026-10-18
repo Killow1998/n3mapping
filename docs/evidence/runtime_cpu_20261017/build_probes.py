@@ -17,6 +17,7 @@ sources = Path(__file__).resolve().parent
 node_source = (args.node_source or sources.parents[2] / 'humble/src/n3mapping_node.cpp').resolve()
 for source, target, extra in (
     ('replay_probe', 'test_localization_episode', []),
+    ('sc_equivalence_probe', 'test_localization_episode', []),
     ('humble_replay_probe', 'n3mapping_node', [f'-DN3M_NODE_SOURCE="{node_source}"']),
 ):
     generated = build / f'CMakeFiles/{target}.dir'

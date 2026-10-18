@@ -233,6 +233,26 @@ class LocalizationEpisode : public ::testing::Test {
   int64_t tick_ = 20;
 };
 
+TEST_F(LocalizationEpisode, UnknownInitialYawLocksToKnownMapPose) {
+  for (const double degrees : {-137.0, -47.0, 73.0, 173.0}) {
+    ASSERT_TRUE(localizer_->loadMap(map_path_.string()));
+    startOutput();
+    const auto pose = makePose(6.0, 0.0, degrees * M_PI / 180.0);
+    Step step;
+    for (int i = 0; i < 12; ++i) {
+      step = run("rotated", pose,
+          synthesizeBodyCloud(scene_, pose, 12.0, 0.15, 0.005, 1900U + i));
+      if (step.backend.relocalization_locked) break;
+      EXPECT_FALSE(step.live.pose);
+    }
+    ASSERT_TRUE(step.backend.relocalization_locked) << degrees << ": "
+        << step.backend.relocalization_decision;
+    EXPECT_LT((step.backend.T_world_lidar.translation() - pose.translation()).norm(), 0.5);
+    EXPECT_LT(Eigen::AngleAxisd(pose.linear().transpose() *
+        step.backend.T_world_lidar.linear()).angle(), 5.0 * M_PI / 180.0);
+  }
+}
+
 TEST_F(LocalizationEpisode, OutOfMapMotionKeepsTrustedCorrectionAndReentryRelocks) {
   const auto mismatch = unrelatedCloud();
   ASSERT_GT(mismatch->size(), 200U);
@@ -339,6 +359,35 @@ TEST_F(LocalizationEpisode, RepeatedPlacesNeverPublishAnAuthoritativeGuess) {
     const auto query = run("ambiguous", makePose(0.0, 0.0, 0.0), cloud);
     EXPECT_FALSE(query.backend.relocalization_locked);
     EXPECT_NE(query.backend.relocalization_state, RelocalizationState::FULL_6DOF_LOCKED);
+    EXPECT_FALSE(query.publication.plan.publish_authoritative_pose);
+    EXPECT_FALSE(query.live.pose);
+  }
+}
+
+TEST_F(LocalizationEpisode, OppositeHeadingsInSymmetricGeometryRemainAmbiguous) {
+  auto symmetric = synthesizeBodyCloud(scene_, makePose(6.0, 0.0, 0.0),
+                                       12.0, 0.0, 0.0, 1442);
+  const auto original = *symmetric;
+  for (auto point : original) {
+    point.x = -point.x;
+    point.y = -point.y;
+    symmetric->push_back(point);
+  }
+  const auto path = directory_ / "symmetric.pbstream";
+  {
+    N3MappingCore mapper(config_, N3MappingCore::WorldCloudOutput::Disabled);
+    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(
+        1000000000LL, makePose(0.0, 0.0, 0.0), symmetric)).accepted_keyframe);
+    ASSERT_TRUE(mapper.saveMap(path.string()));
+    compileAtlas(mapper, path);
+  }
+  ASSERT_TRUE(localizer_->loadMap(path.string()));
+  startOutput();
+  const auto pose = makePose(0.0, 0.0, 42.0 * M_PI / 180.0);
+  const auto query_cloud = synthesizeBodyCloud(symmetric, pose, 12.0, 0.0, 0.0, 19);
+  for (int i = 0; i < 2 * config_.reloc_temporal_window_size; ++i) {
+    const auto query = run("heading_ambiguous", pose, query_cloud);
+    EXPECT_FALSE(query.backend.relocalization_locked);
     EXPECT_FALSE(query.publication.plan.publish_authoritative_pose);
     EXPECT_FALSE(query.live.pose);
   }

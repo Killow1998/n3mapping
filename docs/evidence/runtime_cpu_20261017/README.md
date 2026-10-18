@@ -155,11 +155,82 @@ atlas-plus-kill (5.4–6.5%). These are synthetic recovery computation measureme
 with one registration thread per call and four P-cores pinned for both versions;
 they exclude the physical time required to acquire the observations.
 
+## RHPD heading ablation and equivalent descriptor work reduction
+
+This stage compares against `682f5af6b7848d7959d1e9e66f32e313a5ce8ce6`.
+**The RHPD/SC fusion prototype was rejected; the default still uses SC.**
+The existing 3037-value RHPD, map format, Product configuration and acceptance
+thresholds remain in place.
+
+The prototype shared RHPD polar statistics with a heading histogram. There were
+22 settings across five independent recordings, each using the first 100 frames:
+[110 observations](rhpd_heading_ablation.csv). They cover histogram resolution,
+linear/log radial bins, global/sector normalization, heading peaks, uniform and
+cardinal coverage, explicit opposite headings, and angular reranking. These
+are exploratory ablations without independent ground truth. Some runs overlapped
+compilation; their timings are not deployment measurements.
+
+The four-ring/four-layer/60-sector peak-only version accepted the difficult
+recording at observation 10, versus 55 previously. Adding back the existing
+cardinal coverage exposed a competing registration mode and moved acceptance
+to observation 60. Other settings delayed the outside710 recording from 10 to
+30 observations. A missing competitor cannot establish better disambiguation;
+none of these changes qualified for the requested no-regression default switch.
+The prototype and its map-format change are absent from the shipped source.
+
+The retained changes remove redundant work while preserving descriptor scores:
+
+- SC generation runs once per added keyframe. The detector stores one descriptor
+  matrix and the ring keys used by its eligible-prefix search; its unused second
+  descriptor store, sector-key cache and persistent tree are no longer built.
+- Pair matching reuses column norms across shifts and reads circularly indexed
+  column views. It avoids shifted descriptor matrices, copied column vectors and
+  the two input-matrix copies. Coarse search order and weighted scoring stay the
+  same.
+- Explicitly disabling SC yaw no longer copies SC matrices for RHPD candidates.
+  Missing SC scores contribute zero rather than overflowing the finite sentinel
+  to infinity. The default option stays enabled.
+- RHPD planar projection, polar statistics and index management have separate
+  implementation files (392, 169 and 191 lines); moved method bodies are unchanged.
+
+The new E2E cases check four unknown initial headings and rejection of a known
+180-degree symmetric scene. Existing out-of-map/reentry, repeated-place, map
+lifecycle and extension scenarios remain part of the suite. These checks compare
+behavior and known synthetic poses; they do not establish real-world accuracy.
+
+Measured against the frozen baseline, 8,640 SC pairs repeated three times have
+**identical scores and yaw shifts**. Median matching thread CPU falls from
+**769.123 to 143.513 ms (81.3%)**. This is the SC pair-matching component, not an
+81% reduction in localization CPU.
+
+Final full core replays preserve all decision, candidate, alignment, lock and
+output-availability fields. Maximum pose-matrix component difference is
+`2.78e-13`. Each workload below is one paired, unpaced run; CPU differences of
+about 0.4–1.6% do not establish a stable whole-process speedup. RSS includes
+startup, allocator high-water marks and caches.
+
+| Workload | Frames | First accepted observation, before / after | Peak RSS before / after |
+| --- | ---: | ---: | ---: |
+| Floor7 moving recording | 1,848 | 5 / 5 | 413.7 / 389.6 MiB |
+| Outside713 difficult recording | 448 | 55 / 55 | 288.0 / 268.9 MiB |
+| Inside710 recording | 452 | 5 / 5 | 265.9 / 246.9 MiB |
+| Outside707 recording | 448 | 5 / 5 | 264.2 / 245.3 MiB |
+| Outside710 recording | 448 | 10 / 10 | 289.1 / 270.0 MiB |
+| Saved-map moving cost fixture | 1,800 | 5 / 5 | 548.2 / 510.5 MiB |
+
+The final build passes **61/61 CTest targets, zero skipped**. All eight E2E
+scenarios also pass separately against both libraries in legacy, atlas and
+atlas-plus-kill modes. Each mode preserves all 70 non-timing trace rows exactly,
+including poses. Source/library hashes, raw aggregate samples and comparison
+fields are in [descriptor_results.json](descriptor_results.json).
+Relocalization latency and repeated initialization remain unresolved; SC removal
+has not qualified for the default path.
+
 ## Reproduce
 
 Build the normal Release/Humble workspace first with `BUILD_TESTING=ON`; research
 tools need not be on.
-Build the two evidence probes against its generated include/link configuration:
+Build the evidence probes against its generated include/link configuration:
 
 ```bash
 python3 docs/evidence/runtime_cpu_20261017/build_probes.py \
@@ -196,3 +267,15 @@ it on `PYTHONPATH`, and run `make_saved_map_replay.py MAP OUTPUT --offset 360
 TEMPLATE_ROS2_BAG_DIRECTORY`. The template supplies the original 48-byte
 XYZINormal message layout; unused normals/curvature are zero. The database is
 explicitly a cost fixture, not an independent sensor recording.
+
+For the descriptor-only comparison, run the new probe with the same saved map
+and PCD inputs for both frozen libraries:
+
+```bash
+/tmp/n3m_probes/sc_equivalence_probe MAP OUTPUT_CSV QUERY_PCD...
+```
+
+It rotates each query by 0, 42, 137 and 180 degrees and compares it with every
+loaded SC descriptor. Compare `(query, keyframe, distance, shift)` rows exactly;
+`MATCH_CPU_MS` excludes generation, loading and CSV output. The recorded corpus
+uses observations 1, 50 and 100 from each of the five recordings.
