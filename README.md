@@ -121,6 +121,21 @@ roslaunch n3mapping mapping.launch config_file:=/path/to/n3mapping.yaml
 
 When `map_path` is left empty in `config/n3mapping.yaml`, N3Mapping uses `N3MAPPING_SOURCE_DIR/map/n3map.pbstream`. When `map_save_path` is left empty, it uses `N3MAPPING_SOURCE_DIR/map`.
 
+The Product localization profile requires a matching Atlas cache. Compile it
+from the source map after building and sourcing the workspace:
+
+```bash
+ros2 run n3mapping n3mapping_localization_atlas_compile --map /path/to/n3map.pbstream
+```
+
+The default output is `<map_path>.localization_atlas.pb`. Atlas format v2 stores
+the full double-precision spatial coordinates, normals and 3×3 covariances,
+omitting constant homogeneous padding. Old caches must be rebuilt from the
+original `pbstream`; the map itself does not need conversion. To preserve an old
+cache, use `--output /path/to/new_atlas.pb` and set `reloc_atlas_path` accordingly.
+Use `--force` to explicitly replace an existing cache. The 1 GiB cache limit
+and matching map/configuration fingerprints still apply.
+
 ### 2.4 Runtime Outputs And Services
 
 | Name | Kind | Type | Meaning |

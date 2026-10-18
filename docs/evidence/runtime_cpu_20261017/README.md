@@ -11,10 +11,11 @@ they do not constitute a Product Bundle or hardware qualification.
 CPU is process CPU time divided by elapsed time: 1.0 means one fully occupied
 logical CPU. All threads are included. Map loading precedes the measurement;
 initial relocalization is included. First-path latency starts with the first
-input, after map loading. RSS is the process high-water mark, not live retained
-memory. The adopted runtime optimizations use no CPU quota, input reduction,
-frequency reduction, or acceptance changes. The isolated reseeding experiments
-at the end of this record do change candidate selection and are not adopted.
+input, after map loading. Unless separately labeled as current RSS, memory is the process high-water
+mark, not live retained memory. The adopted runtime optimizations use no CPU quota, input reduction,
+frequency reduction, or acceptance changes. The earlier occlusion-aware scoring and hypothesis-elimination prototypes
+remain unadopted. The adopted half-turn shortlist correction and its separate
+October 18 measurements are documented below.
 OpenMP has four configured threads and the existing launch default
 `OMP_WAIT_POLICY=PASSIVE`; an isolated comparison also tests the unset policy.
 
@@ -891,3 +892,183 @@ SpRobo/simple_rbt development session. This repository keeps the n3m experiments
 and consumes the eventual repaired simulator as an independently verified input.
 See `sensor_and_serial_followup` in [sprobo_results.json](sprobo_results.json) for
 measurements, local artifact paths, source hashes and remaining limitations.
+
+### Frontend local-map window defect (2026-10-18)
+
+The SpRobo owner delivered an isolated CPU sensor-consistency build. Its source
+manifest and binary hash were verified before use. Its closed `live_centred140`
+recording was replayed through the unchanged installed FAST_LIO: all 1,396 pose
+timestamps and seven pose components exactly reproduce the reported failure.
+A logging-only frontend also reproduces the first 396 poses exactly and receives
+20 IMUs per processed scan. Delaying initialization to 6 s still leaves 43.51 m
+maximum error. This failure is not explained by missing IMU packets or merely
+waiting longer before starting the estimator.
+
+The simulation harness starts the frontend executable directly with the MID360
+YAML. That path used `mapping.det_range=100` with the node's default
+`cube_side_length=200`; it missed the standard MID360 launch file's explicit
+1,000 m override. This was a harness integration omission, not evidence of a
+defect in recordings made through that standard launch. The local-map
+implementation moves a window whenever a
+boundary is within `MOV_THRESHOLD * det_range`, where `MOV_THRESHOLD=1.5`.
+There is no stationary interior when the full side length is at most 300 m.
+Runtime logging confirms the consequence: in a fixed-scan/fixed-IMU fixture,
+the window shifts repeatedly; at 0.5 s it deletes 1,646 points, leaving 100,
+and lowers its Z upper boundary to 0.044 m in the estimator frame. Across 97
+static frames, 48 frames delete a total of 71,194 point instances (including
+points subsequently reinserted). Scene ceilings exist, but the frontend removes
+their map support. This is distinct from an absent simulated ceiling.
+
+`FAST_LIO/config/mid360.yaml` now explicitly sets the existing window parameter
+to 500 m, exceeding both boundary margins
+([FAST_LIO e0a02d5](https://github.com/Killow1998/FAST_LIO/commit/e0a02d53701c3bac72c952fe399f024d3ebb2987)).
+No frontend binary, input samples,
+registration thresholds or truth inputs change. Each row below uses one fixed
+first-pose alignment, with no trajectory fit:
+
+| Frozen 140 s input / window | Poses | Position RMSE (m) | Maximum position (m) | Maximum rotation (deg) |
+| --- | ---: | ---: | ---: | ---: |
+| Original sensor / recorded 200 m baseline | 1,397 | 9.543 | 20.417 | 16.333 |
+| Original sensor / 500 m | 1,397 | 0.174 | 0.375 | 0.543 |
+| Corrected sensor / 200 m | 1,396 | 21.320 | 46.047 | 37.370 |
+| Corrected sensor / 500 m | 1,396 | 0.147 | 0.317 | 0.338 |
+
+Compare window sizes within each recording. The two sensor recordings have
+different live command arrival times, so these are not a controlled accuracy
+comparison between sensor implementations. Both 500 m frontend runs pass the
+existing 1 m / 5 degree gross mapping guard; they do not yet qualify a complete
+route, n3m relocalization, real hardware or the half-core target.
+
+The acquisition tool accepts `--sim-executable` to select the isolated candidate
+without replacing the desktop installation. It also allows a successful adapter
+exit to precede simulator process exit; the existing native message-count checks
+still reject truncated streams. One fully received query exposed this lifecycle
+race, and its failed acquisition record is retained.
+
+Four independent 35 s queries subsequently passed acquisition with 350 scans,
+7,000 IMUs and 346 matched LIO outputs each: a reverse-facing central corridor,
+a changed-furniture south corridor, a north corridor and a repetitive central
+corridor. Their respective frontend maximum position errors are 0.0375, 0.0275,
+0.0323 and 0.0356 m, with maximum rotation errors 0.0984, 0.0894, 0.0799 and
+0.0583 degrees. These are input-quality checks,
+not yet loaded-map localization results. The corrected IMU stream starts at
+2.5 ms, and its last sample precedes the last scan end; the finite run therefore
+does not synthesize an extra IMU to process that final scan.
+
+The other launch overrides were checked: this fixture continues using two-point
+subsampling and four iterations (the node defaults used in all preceding
+experiments), now stated explicitly in its command. Standard launch uses three
+and three respectively. Voxel sizes remain 0.5 m and feature extraction remains
+disabled in both paths. The fixture is not claimed to reproduce the standard
+launch's complete configuration.
+
+See `frontend_window_followup` in [sprobo_results.json](sprobo_results.json) for
+the paired measurements, runtime window trace and artifact fingerprints.
+
+### Corrected full-route mapping (2026-10-18)
+
+The isolated corrected sensor build and explicit 500 m frontend window completed
+all 133 route waypoints: 1,272.64 m in 1,379.97 simulated seconds. The closed
+recording contains 13,799 scans, 275,994 IMUs, 13,799 truth poses and 13,796
+frontend outputs. n3m emits 13,724 poses; the initial difference is its existing
+static-start guard (first output at 7.60 s). Acquisition, route completion,
+saved-map and mapping-quality checks all pass.
+
+| Output | Position RMSE (m) | Maximum position (m) | Maximum rotation (deg) |
+| --- | ---: | ---: | ---: |
+| Unchanged FAST_LIO binary | 0.2930 | 0.8123 | 1.2561 |
+| n3m mapping output | 0.2640 | 0.8402 | 1.2030 |
+
+Both use a single first-pose alignment and the original 1 m / 5 degree gross
+quality guard. No trajectory fitting or estimator truth input is used. The
+result qualifies this simulated mapping route; it does not qualify hardware,
+independent relocalization or the half-core target. The saved map contains
+1,276 keyframes. Original failed recordings remain separate and invalid.
+
+The initial full-map Atlas compilation exceeded its existing 1 GiB load limit.
+The subsequent cache-format investigation must preserve all effective prepared
+target values and retain that limit; merely loosening it or downsampling the
+map would not establish an equal-accuracy optimization.
+
+### Atlas packing and RHPD shortlist symmetry (2026-10-18)
+
+Atlas v2 writes 15 effective doubles per prepared point (xyz, normal xyz and
+all nine covariance entries), instead of 24 homogeneous-storage doubles. It
+validates the omitted constants and reconstructs them on load. The bit patterns
+of all effective components survive the roundtrip; runtime cloud layout and
+point counts are unchanged. The full-route cache now occupies 699,390,435 bytes
+(667 MiB), with 2,400,842 global points and 5,508,139 prepared points, and reloads
+successfully under the unchanged 1 GiB limit. This is a serialized-size saving,
+not a corresponding resident-memory reduction or a universal large-map solution.
+Old Atlas caches must be rebuilt from their original maps; see the root README.
+
+The valid full-route map exposed a separate retrieval defect. In a reverse-facing
+central-corridor query, the baseline accepted an approximately 95 m / 180 degree
+alias at observation 225. Closest-range visibility with the existing veto also
+accepted that alias, at observation 185; it remains disabled. Faster acceptance
+of this wrong answer is not an improvement.
+
+An offline descriptor audit of the first input cloud finds the correct region
+ranked first by full place distance and by heading distance. The original coarse
+key ranks the first correct region 199th, outside its 100-entry shortlist.
+Coarse distance ignored the half-turn sector permutation already supported by
+the full descriptor distance. Comparing both orientations puts the correct
+region first without enlarging the shortlist. The shared RHPD search now applies
+that symmetry in its coarse comparison; descriptor contents, registration and
+acceptance thresholds remain unchanged. This also affects RHPD loop retrieval.
+
+| Independent 346-frame query | Baseline first lock | Corrected first lock | Corrected maximum position (m) | Corrected maximum rotation (deg) |
+| --- | ---: | ---: | ---: | ---: |
+| Central corridor, reverse heading | 225, wrong region | 5 | 0.0296 | 0.1861 |
+| South corridor, changed furniture | 15 | 5 | 0.0628 | 0.1594 |
+| North corridor | 5 | 5 | 0.5128 | 0.4988 |
+
+These scores use the mapping session's fixed first-pose alignment, without query
+fitting. They include frontend and map error. Observation counts are not realtime
+latency measurements. The central search performs 60 registrations instead of
+2,724. The production library reproduces the prototype's decisions on all three
+queries, with pose-matrix differences below 1.5e-14. The old implementation fails
+the new shortlist regression; the corrected implementation passes it, all 39
+loop-detector cases, and the full 61-test suite. Six existing full replay corpora
+retain their first-lock observations, output counts and states; their largest
+common-pose differences are 0.075 mm and 0.00166 degrees. Those recordings lack
+truth and establish regression behavior, not absolute accuracy.
+
+The repetitive-geometry query exceeded the initial 300 s offline timeout in
+both the baseline and the first corrected trial; those incomplete records have
+no outputs. A longer production run completes all 346 frames with no lock and no
+output: conservative abstention in this case, not successful localization. It
+performs 4,886 search registrations and takes 558.14 s unpaced. This difficult
+search remains far above the half-core goal. Parallel validation overlaps some
+exploratory runs, whose timings are not controlled CPU comparisons.
+
+The final production DDS measurements run serially on the authorized host after
+all self-owned simulator, frontend and replay jobs stop. Each replays the full
+35 s recording at 10 Hz and processes all 346 input pairs. The stable window
+starts after 10 s; all 249 subsequent pairs are processed in every case.
+CPU includes the in-process replay publisher, subscribers, serialization and
+published-pose logging, and excludes FAST_LIO and the simulator.
+
+| Query | Stable CPU cores | Whole-run CPU cores, including search | First path after map loading (s) | Current RSS (GiB) | Published maximum position (m) | Published maximum rotation (deg) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Central reverse | 0.299 | 0.773 | 6.420 | 2.487 | 0.0194 | 0.1952 |
+| South changed | 0.315 | 0.746 | 5.616 | 2.494 | 0.0636 | 0.1604 |
+| North reference | 0.338 | 0.749 | 5.142 | 2.495 | 0.5125 | 0.4985 |
+
+Map/node loading precedes those latency and CPU measurements and takes about
+7.0 s per run. Current RSS is externally sampled from `/proc/<pid>/statm`, with
+the median after 30 s from process launch shown here; high-water RSS is retained
+separately in the JSON. Each case has 342 backend path poses. The live stream
+begins only after authority becomes available and publishes 286, 294 and 298
+poses respectively, all scored using the fixed mapping alignment. The probe's
+`published_poses.csv` records actual subscriber output, including any projected
+pose; the score is not inferred from backend success counters.
+
+These three short normal-query tests meet half a core during stable tracking.
+Initial search, the full short-run average and repetitive-geometry search do
+not. This is not all-scenario, cross-process transport or RK3588 qualification.
+The full-route map was acquired before the shortlist edit; shared loop retrieval
+passes the existing suite, but a second complete remapping route has not been
+run with this edit. See `corrected_localization_followup` in
+[sprobo_results.json](sprobo_results.json) for source/artifact fingerprints,
+failed trials, complete trajectories, memory samples and reproducible commands.

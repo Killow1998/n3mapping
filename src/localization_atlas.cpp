@@ -25,7 +25,7 @@
 namespace n3mapping {
 namespace {
 
-constexpr const char* kAtlasFormatVersion = "n3mapping_localization_atlas_v1";
+constexpr const char* kAtlasFormatVersion = "n3mapping_localization_atlas_v2";
 constexpr std::uintmax_t kMaxAtlasBytes = std::uintmax_t{1} << 30;
 
 using Clock = std::chrono::steady_clock;
@@ -65,15 +65,15 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
         return false;
     }
     if (input.cloud->size() >
-        static_cast<std::size_t>(std::numeric_limits<int>::max() / 16)) {
+        static_cast<std::size_t>(std::numeric_limits<int>::max() / 9)) {
         setError(error, "prepared target level exceeds protobuf array limits");
         return false;
     }
     output->set_resolution(input.resolution);
     output->set_num_points(input.cloud->size());
-    output->mutable_points()->Reserve(static_cast<int>(input.cloud->size() * 4));
-    output->mutable_normals()->Reserve(static_cast<int>(input.cloud->size() * 4));
-    output->mutable_covariances()->Reserve(static_cast<int>(input.cloud->size() * 16));
+    output->mutable_points()->Reserve(static_cast<int>(input.cloud->size() * 3));
+    output->mutable_normals()->Reserve(static_cast<int>(input.cloud->size() * 3));
+    output->mutable_covariances()->Reserve(static_cast<int>(input.cloud->size() * 9));
     for (std::size_t i = 0; i < input.cloud->size(); ++i) {
         const auto& point = input.cloud->point(i);
         const auto& normal = input.cloud->normal(i);
@@ -82,12 +82,19 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
             setError(error, "prepared target contains non-finite data");
             return false;
         }
-        for (int axis = 0; axis < 4; ++axis) {
+        // small_gicp uses homogeneous storage. Only the spatial components
+        // carry information; reject unexpected padding instead of discarding it.
+        if (point[3] != 1.0 || normal[3] != 0.0 ||
+            !covariance.row(3).isZero(0.0) || !covariance.col(3).isZero(0.0)) {
+            setError(error, "prepared target has non-canonical homogeneous padding");
+            return false;
+        }
+        for (int axis = 0; axis < 3; ++axis) {
             output->add_points(point[axis]);
             output->add_normals(normal[axis]);
         }
-        for (int row = 0; row < 4; ++row) {
-            for (int column = 0; column < 4; ++column) {
+        for (int row = 0; row < 3; ++row) {
+            for (int column = 0; column < 3; ++column) {
                 output->add_covariances(covariance(row, column));
             }
         }
@@ -104,10 +111,10 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
         return false;
     }
     if (input.num_points() >
-            static_cast<std::uint64_t>(std::numeric_limits<int>::max() / 16) ||
-        input.points_size() != static_cast<int>(input.num_points() * 4) ||
-        input.normals_size() != static_cast<int>(input.num_points() * 4) ||
-        input.covariances_size() != static_cast<int>(input.num_points() * 16)) {
+            static_cast<std::uint64_t>(std::numeric_limits<int>::max() / 9) ||
+        input.points_size() != static_cast<int>(input.num_points() * 3) ||
+        input.normals_size() != static_cast<int>(input.num_points() * 3) ||
+        input.covariances_size() != static_cast<int>(input.num_points() * 9)) {
         setError(error, "atlas prepared level array size mismatch");
         return false;
     }
@@ -115,14 +122,17 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
     auto cloud = std::make_shared<PointCloudMatcher::SmallGicpCloud>();
     cloud->resize(static_cast<std::size_t>(input.num_points()));
     for (std::size_t i = 0; i < cloud->size(); ++i) {
-        for (int axis = 0; axis < 4; ++axis) {
-            cloud->point(i)[axis] = input.points(static_cast<int>(i * 4 + axis));
-            cloud->normal(i)[axis] = input.normals(static_cast<int>(i * 4 + axis));
+        cloud->point(i)[3] = 1.0;
+        cloud->normal(i)[3] = 0.0;
+        cloud->cov(i).setZero();
+        for (int axis = 0; axis < 3; ++axis) {
+            cloud->point(i)[axis] = input.points(static_cast<int>(i * 3 + axis));
+            cloud->normal(i)[axis] = input.normals(static_cast<int>(i * 3 + axis));
         }
-        for (int row = 0; row < 4; ++row) {
-            for (int column = 0; column < 4; ++column) {
+        for (int row = 0; row < 3; ++row) {
+            for (int column = 0; column < 3; ++column) {
                 cloud->cov(i)(row, column) =
-                    input.covariances(static_cast<int>(i * 16 + row * 4 + column));
+                    input.covariances(static_cast<int>(i * 9 + row * 3 + column));
             }
         }
         if (!cloud->point(i).allFinite() || !cloud->normal(i).allFinite() ||
@@ -413,7 +423,8 @@ bool LocalizationAtlas::load(const std::string& map_path,
         return false;
     }
     if (data.format_version() != kAtlasFormatVersion) {
-        setError(error, "atlas format version mismatch");
+        setError(error, "atlas format version mismatch; rebuild from the source map "
+                        "with n3mapping_localization_atlas_compile");
         return false;
     }
     map_sha256_ = fileSha256(map_path, error);

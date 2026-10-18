@@ -41,6 +41,14 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
     if (ids_.empty()) return results;
 
     const VecD query_key = makeCoarseKey(query);
+    // Keep the same half-turn symmetry as the full descriptor distance.
+    // Otherwise the shortlist can discard the correct reverse-facing place
+    // before its heading and geometry are ever evaluated.
+    VecD flipped_key = query_key;
+    for (int sector = 0; sector < RHPD_NEG_SPACE_SECTORS; ++sector) {
+        flipped_key(RHPD_RINGS + sector) = query_key(
+            RHPD_RINGS + (sector + RHPD_NEG_SPACE_SECTORS / 2) % RHPD_NEG_SPACE_SECTORS);
+    }
     const int safe_top_k = std::max(1, top_k);
     int candidate_count = static_cast<int>(ids_.size());
     if (preselect > 0) {
@@ -52,7 +60,10 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
     for (size_t i = 0; i < ids_.size(); ++i) {
         if (accept && !accept(ids_[i])) continue;
         if (coarse_keys_[i].size() != RHPD_COARSE_KEY_DIM) continue;
-        coarse_ranked.emplace_back((query_key - coarse_keys_[i]).squaredNorm(), i);
+        const double distance = std::min(
+            (query_key - coarse_keys_[i]).squaredNorm(),
+            (flipped_key - coarse_keys_[i]).squaredNorm());
+        coarse_ranked.emplace_back(distance, i);
     }
 
     if (candidate_count < static_cast<int>(coarse_ranked.size())) {

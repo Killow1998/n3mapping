@@ -417,6 +417,31 @@ TEST_F(LoopDetectorTest, RHPDCoarsePrefilterFindsExactMatchAndSortsByFullDistanc
     }
 }
 
+TEST_F(LoopDetectorTest, RHPDCoarsePrefilterPreservesHalfTurnEquivalentPlace) {
+    RHPDManager manager(RHPDescriptor::Params{});
+    RHPDPlace query;
+    query.auxiliary(0) = 1.0;
+    RHPDPlace same_place_reversed;
+    same_place_reversed.auxiliary(
+        RHPD_NEG_SPACE_SECTORS / 2 * RHPD_NEG_SPACE_CHANS) = 1.0;
+    RHPDPlace distractor = query;
+    distractor.auxiliary(0) = 0.5;
+    manager.add(42, same_place_reversed);
+    manager.add(7, distractor);
+
+    const auto exhaustive = manager.search(query, 1, 0);
+    ASSERT_EQ(exhaustive.size(), 1u);
+    ASSERT_EQ(exhaustive.front().first, 42);
+    EXPECT_DOUBLE_EQ(exhaustive.front().second, 0.0);
+
+    // A one-entry shortlist must retain the equivalent place even though the
+    // distractor is closer if the coarse key ignores the half-turn symmetry.
+    const auto shortlisted = manager.search(query, 1, 1);
+    ASSERT_EQ(shortlisted.size(), 1u);
+    EXPECT_EQ(shortlisted.front().first, exhaustive.front().first);
+    EXPECT_DOUBLE_EQ(shortlisted.front().second, exhaustive.front().second);
+}
+
 TEST_F(LoopDetectorTest, RHPDCoarsePrefilterKeepsBruteForceTop1InLargeSyntheticDb) {
     RHPDManager manager(RHPDescriptor::Params{});
     RHPDescriptor descriptor(RHPDescriptor::Params{});

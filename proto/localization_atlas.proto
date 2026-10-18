@@ -4,6 +4,8 @@ package n3mapping;
 message LocalizationAtlasPreparedLevel {
     double resolution = 1;
     uint64 num_points = 2;
+    // Format v2: xyz / normal xyz / row-major 3x3 covariance, all doubles.
+    // Homogeneous point w=1, normal w=0 and covariance padding=0 are implicit.
     repeated double points = 3 [packed = true];
     repeated double normals = 4 [packed = true];
     repeated double covariances = 5 [packed = true];

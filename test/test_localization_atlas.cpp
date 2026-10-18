@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -7,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include "n3mapping/localization_atlas.h"
+#include "localization_atlas.pb.h"
 
 namespace n3mapping {
 namespace test {
@@ -99,6 +101,16 @@ void expectPreparedLevelExact(
     EXPECT_EQ(expected.cloud->point(i), actual.cloud->point(i));
     EXPECT_EQ(expected.cloud->normal(i), actual.cloud->normal(i));
     EXPECT_EQ(expected.cloud->cov(i), actual.cloud->cov(i));
+    // Effective components must survive bit-for-bit, including signed zero.
+    EXPECT_EQ(std::memcmp(expected.cloud->point(i).data(),
+                          actual.cloud->point(i).data(), 3 * sizeof(double)), 0);
+    EXPECT_EQ(std::memcmp(expected.cloud->normal(i).data(),
+                          actual.cloud->normal(i).data(), 3 * sizeof(double)), 0);
+    for (int column = 0; column < 3; ++column) {
+      EXPECT_EQ(std::memcmp(expected.cloud->cov(i).col(column).data(),
+                            actual.cloud->cov(i).col(column).data(),
+                            3 * sizeof(double)), 0);
+    }
   }
 }
 
@@ -174,6 +186,41 @@ TEST(LocalizationAtlasTest, RejectsChangedMapAndChangedTargetConfig) {
   EXPECT_FALSE(mismatched.load(files.map().string(), files.atlas().string(),
                                nullptr, &error));
   EXPECT_NE(error.find("config SHA-256 mismatch"), std::string::npos);
+}
+
+TEST(LocalizationAtlasTest, RejectsOldFormatAndTruncatedPreparedArrays) {
+  TemporaryAtlasFiles files;
+  const Config config = makeConfig();
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(),
+                                  files.atlas().string(), false, nullptr, &error))
+      << error;
+  LocalizationAtlasData data;
+  {
+    std::ifstream stream(files.atlas(), std::ios::binary);
+    ASSERT_TRUE(data.ParseFromIstream(&stream));
+  }
+  const auto current_version = data.format_version();
+  data.set_format_version("n3mapping_localization_atlas_v1");
+  {
+    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
+    ASSERT_TRUE(data.SerializeToOstream(&stream));
+  }
+  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_FALSE(atlas.loaded());
+  EXPECT_NE(error.find("rebuild from the source map"), std::string::npos);
+
+  data.set_format_version(current_version);
+  data.mutable_plane_levels(0)->mutable_covariances()->RemoveLast();
+  {
+    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
+    ASSERT_TRUE(data.SerializeToOstream(&stream));
+  }
+  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_FALSE(atlas.loaded());
+  EXPECT_NE(error.find("array size mismatch"), std::string::npos);
 }
 
 } // namespace test

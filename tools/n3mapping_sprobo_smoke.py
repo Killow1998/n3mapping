@@ -75,6 +75,8 @@ def start_session(directory):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sim-root", type=Path, required=True)
+    parser.add_argument("--sim-executable", type=Path,
+                        help="Candidate simulator binary (default: sim-root/build/desktop/simple-rbt-sim)")
     parser.add_argument("--adapter", type=Path, required=True)
     parser.add_argument("--workspace", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -118,7 +120,8 @@ def main():
     from tf2_msgs.msg import TFMessage
     from std_srvs.srv import Trigger
 
-    core = args.sim_root / "build/desktop/simple-rbt-sim"
+    core = (args.sim_executable.resolve() if args.sim_executable else
+            args.sim_root / "build/desktop/simple-rbt-sim")
     driver = RouteDriver(variant=args.variant) if args.route == "coverage" else None
     frontend = args.workspace / "install/fast_lio/lib/fast_lio/fastlio_mapping"
     backend = args.workspace / "build/n3mapping/n3mapping_node"
@@ -139,6 +142,7 @@ def main():
         "fast_lio": [str(frontend), "--ros-args", "--params-file",
                      str(args.workspace / "src/FAST_LIO/config/mid360.yaml"),
                      "-p", "use_sim_time:=true", "-p", "common.gravity_m_s2:=9.80665",
+                     "-p", "point_filter_num:=2", "-p", "max_iteration:=4",
                      "-p", "pcd_save.pcd_save_en:=false", "-p", "runtime_pos_log_enable:=false"],
         "n3m": [str(backend), "--ros-args", "--params-file",
                 str(args.workspace / "src/n3mapping/humble/config/n3mapping.yaml"),
@@ -240,7 +244,13 @@ def main():
         last_command, last_progress, stopping = 0., 0., False
         while time.monotonic() < deadline and processes["sim"].poll() is None:
             for name in (name for name in processes if name != "sim"):
-                if processes[name].poll() is not None:
+                status = processes[name].poll()
+                # The adapter can drain the final packet and exit before the
+                # simulator process is reaped. Native message counts below
+                # still reject a clean but premature end of the sensor stream.
+                if name == "adapter" and status == 0:
+                    continue
+                if status is not None:
                     raise RuntimeError(name+" exited during the run")
             rclpy.spin_once(node, timeout_sec=.01)
             if time.monotonic()-last_command >= .05:

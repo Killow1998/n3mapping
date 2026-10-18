@@ -105,8 +105,19 @@ int main(int argc, char** argv) {
   auto odom_pub = io->create_publisher<Odom>("/Odometry", 10);
   auto cloud_pub = io->create_publisher<Cloud>("/cloud_registered_body", 10);
   std::atomic<int> output_odometry{0}, output_body{0}, output_world{0}, output_paths{0}, output_maps{0};
+  std::ofstream published_poses(directory + "/published_poses.csv");
+  published_poses << std::setprecision(17)
+                  << "topic,stamp_ns,tx,ty,tz,qx,qy,qz,qw\n";
   auto odom_sub = io->create_subscription<Odom>("/n3mapping/odometry", 100,
-      [&](Odom::ConstSharedPtr) { ++output_odometry; });
+      [&](Odom::ConstSharedPtr message) {
+        ++output_odometry;
+        const auto& pose = message->pose.pose;
+        published_poses << "/n3mapping/odometry,"
+            << rclcpp::Time(message->header.stamp).nanoseconds() << ','
+            << pose.position.x << ',' << pose.position.y << ',' << pose.position.z << ','
+            << pose.orientation.x << ',' << pose.orientation.y << ','
+            << pose.orientation.z << ',' << pose.orientation.w << '\n';
+      });
   auto body_sub = io->create_subscription<Cloud>("/n3mapping/cloud_body", 10,
       [&](Cloud::ConstSharedPtr) { ++output_body; });
   auto world_sub = io->create_subscription<Cloud>("/n3mapping/cloud_world", 10,
