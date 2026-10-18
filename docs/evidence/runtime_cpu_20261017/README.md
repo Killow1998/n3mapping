@@ -501,3 +501,85 @@ wrong-map/independent-session behavior before changing Product defaults. Reduced
 reseed count on one recording is not proof that repetitive initialization is
 solved for all ambiguous observations, nor that difficult search always uses
 at most half a core.
+
+## SpRobo simulation integration (2026-10-18)
+
+The local `simple_rbt` project provides the SpRobo console and a MuJoCo C++
+simulator. Its existing scene format supports a 100 x 100 m building. The new
+[scene generator](../../../tools/n3mapping_sprobo_scene.py) creates 24 repeated
+offices, continuous corridors, a floor and ceiling, and distinguishing obstacles
+(178 objects). `changed` moves furniture and partially blocks selected doors;
+`repetitive` removes the distinguishing obstacles. Both variants were loaded by
+the actual CPU simulator; they have not yet undergone localization qualification.
+
+The [smoke runner](../../../tools/n3mapping_sprobo_smoke.py) uses separate host
+processes for simulation, the existing Humble adapter, FAST_LIO and n3m. It uses
+the standard n3m mapping/localization configuration, not the frozen Product
+profile or reseeding prototype. No estimator runtime or SpRobo source was changed.
+The simulator checkout had existing uncommitted development; executable hashes,
+configuration, logs, bags and poses identify the actual run, not its HEAD alone.
+
+The CPU sensor retains 20,000 rays per 10 Hz rolling scan and 200 Hz IMU. The
+actual valid-return count is about 19,900 in this scene. Camera rendering is
+disabled. `/livox/imu` uses the simulator's driver-compatible g units, while
+FAST_LIO's gravity magnitude is set to 9.80665 m/s². Its existing MID360 extrinsics
+are retained. Simulator odometry goes only to `/ground_truth/odom`, with simulator
+dynamic odometry TF disabled; n3m receives actual FAST_LIO outputs, never truth.
+
+A 35-second mapping session saved a 10-keyframe pbstream after roughly 7.5 m of
+travel. An independent session started 4 m away with 180-degree heading and
+successfully localized against that map. Each accepted acquisition contains 350
+raw scans, 7,001 IMUs and 347 exact-stamp LIO cloud/odometry pairs. The simulator
+generated the same raw counts. **The scene covers 100 x 100 m; the saved map does
+not yet cover the whole building.** Results and identities are in
+[sprobo_results.json](sprobo_results.json).
+
+The [truth scorer](../../../tools/n3mapping_sprobo_score.py) composes the simulated
+base pose with the IMU extrinsic. It fixes the map-to-simulation transform from
+the mapping run's first backend pose and never fits the query trajectory. The
+two complete query reruns had position RMSE 0.131–0.133 m and rotation RMSE
+0.391–0.392 degrees;
+these include frontend and mapping errors and are not a hardware accuracy claim.
+Injecting a 20 m error into the query estimates remained visible as a 20.04 m
+median error, checking that alignment cannot hide a wrong-location lock.
+
+One initial attempt selected an older installed n3m core and failed at startup;
+the runner now pairs the node with its build-directory libraries. A preliminary
+query recorded only 6,827/7,001 IMUs with best-effort observation. It is excluded
+from complete-acquisition evidence. The final recorder requests reliable sensor
+delivery and checks received counts against the simulator summary; `/clock`
+retains its publisher's best-effort QoS. No input rate or acceptance gate was
+relaxed. Raw input completeness does not prove every ROS consumer received every
+sample; the recorded LIO pairing is checked separately.
+
+From the repository root, with Humble and the workspace sourced, reproduce on
+the authorized host (choose new output directories and an unused ROS domain):
+
+```bash
+cmake -S /path/to/simple_rbt/wrappers -B /tmp/n3m-sprobo-adapter \
+  -DSIMPLE_RBT_ROS=ROS2 -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/n3m-sprobo-adapter --target simple-rbt-ros-session -j 4
+python3 tools/n3mapping_sprobo_scene.py --output /tmp/n3m-indoor.json
+# Optional: open the same scene in the existing desktop console.
+sprobo --config /tmp/n3m-indoor.json
+python3 tools/n3mapping_sprobo_smoke.py \
+  --sim-root /path/to/simple_rbt --workspace /path/to/to_migrate_ws \
+  --adapter /tmp/n3m-sprobo-adapter/simple-rbt-ros-session \
+  --output /tmp/n3m-sim-mapping --domain-id 181
+python3 tools/n3mapping_sprobo_smoke.py \
+  --sim-root /path/to/simple_rbt --workspace /path/to/to_migrate_ws \
+  --adapter /tmp/n3m-sprobo-adapter/simple-rbt-ros-session \
+  --output /tmp/n3m-sim-query --domain-id 181 \
+  --map /tmp/n3m-sim-mapping/map/n3map.pbstream --spawn -40 0 0 --yaw 180
+python3 tools/n3mapping_sprobo_score.py --mapping /tmp/n3m-sim-mapping \
+  --query /tmp/n3m-sim-query --output /tmp/n3m-sim-query/score.json
+```
+
+Next: cover the building with a separate mapping route, freeze query sessions at
+multiple positions/headings, and compare baseline/prototype on repeated rooms,
+changed furniture, occlusion and incorrect-map cases. Exact symmetry should
+remain ambiguous until observations distinguish locations. Measure CPU and RSS
+by replaying the same recorded inputs with the simulator stopped; sensor
+generation and frontend cost must remain separate. Noise/bias, dynamic objects,
+outside-map behavior, full-building coverage and RK3588 performance remain
+unqualified. No prototype has been promoted by this integration result.

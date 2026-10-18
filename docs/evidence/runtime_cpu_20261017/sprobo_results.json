@@ -1,0 +1,570 @@
+{
+  "schema": "n3mapping_sprobo_integration_v1",
+  "production_runtime": "114937a",
+  "scope": "standard mapping/localization config; no Product/prototype qualification",
+  "scene_extent_m": [
+    100,
+    100
+  ],
+  "mapping_travel_m": 7.5134,
+  "map_keyframes": 10,
+  "simulator_source": "local simple_rbt checkout with pre-existing uncommitted development; use binary identities",
+  "runs": {
+    "smoke2": {
+      "summary": {
+        "passed": true,
+        "checks": {
+          "no_error": true,
+          "saved_map": true,
+          "raw_lidar": true,
+          "raw_imu": true,
+          "lio_pairs": true,
+          "backend_output": true,
+          "truth_isolated": true,
+          "rolling_scan": true
+        },
+        "error": null,
+        "counts": {
+          "/tf_static": 1,
+          "/clock": 7001,
+          "/livox/imu": 7001,
+          "/livox/lidar": 350,
+          "/ground_truth/odom": 350,
+          "/Odometry": 347,
+          "/cloud_registered_body": 347,
+          "/n3mapping/odometry": 343
+        },
+        "lio_exact_stamp_pairs": 347,
+        "first_lidar": {
+          "points": 19935,
+          "timebase": 0,
+          "stamp": 0,
+          "max_offset_ns": 99995000,
+          "offsets_ordered": true
+        },
+        "truth_subscribers": [
+          "n3m_sprobo_observer"
+        ],
+        "wall_seconds": 38.52939312811941,
+        "simulation_seconds": 35.0,
+        "limitation": "Integration smoke only; not localization or half-core qualification"
+      },
+      "score": {
+        "mapping": "/tmp/n3m_sprobo_20261018/smoke2",
+        "query": "/tmp/n3m_sprobo_20261018/smoke2",
+        "alignment": {
+          "source": "first mapping n3m pose only; no query fitting",
+          "stamp_ns": 799989997,
+          "translation": [
+            -44.04181006378801,
+            0.033909405196541884,
+            0.6692241923093099
+          ],
+          "quaternion_xyzw": [
+            0.0013274200578745343,
+            -0.00048737435717636314,
+            -0.0011458279200025922,
+            -0.9999983437489303
+          ]
+        },
+        "evaluated_poses": 343,
+        "first_output_sim_s": 0.799989997,
+        "position_error_m": {
+          "rmse": 0.14733424230813785,
+          "median": 0.15944284671762488,
+          "p95": 0.19931767238560685,
+          "maximum": 0.2098593542981201
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3707921561943717,
+          "median": 0.2815228954957313,
+          "p95": 0.7312550846643826,
+          "maximum": 1.1318433543077706
+        },
+        "limitation": "Simulation truth, one short route, ideal sensors; includes mapping/frontend errors"
+      },
+      "commands": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/smoke2/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/smoke2/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/smoke2/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "n3m": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/build/n3mapping/n3mapping_node",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "mode:=mapping",
+            "-p",
+            "map_save_path:=/tmp/n3m_sprobo_20261018/smoke2/map",
+            "-p",
+            "save_global_map_on_shutdown:=false"
+          ],
+          "executable_sha256": "21457e9ba48e6d8c3abc496a8b6c951f708966c8e6eb8aa9e78c78aeee943e96",
+          "core_sha256": "883b5cc846ffe6cde20733527bd8966230ae864aa5d64a6b9df5cf0a17b2f01b"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "/tmp/n3m_sprobo_20261018/smoke2/session.json",
+          "bytes": 65170,
+          "sha256": "0c4d660905ef21ff053f25c8df68ea3ba211610c820de64b725dc4d8a9f6576b"
+        },
+        {
+          "path": "/tmp/n3m_sprobo_20261018/smoke2/poses.csv",
+          "bytes": 182137,
+          "sha256": "14ca9632b287662d4d6d09c6d47caa1d97ae8003717b560a038243c3b3f4259e"
+        },
+        {
+          "path": "/tmp/n3m_sprobo_20261018/smoke2/extrinsics.json",
+          "bytes": 375,
+          "sha256": "9582e0e086bd0a50b66e548e62c21f3c719ca312c2f03764d0c81cf4532dc8ee"
+        },
+        {
+          "path": "/tmp/n3m_sprobo_20261018/smoke2/bag/bag_0.db3",
+          "bytes": 309956608,
+          "sha256": "4054b6d0c56f9057f8d7f907fcc735dc371c33c7a6ac8258a214bd82a1e503c3"
+        }
+      ]
+    },
+    "query2": {
+      "summary": {
+        "passed": true,
+        "checks": {
+          "no_error": true,
+          "raw_lidar": true,
+          "raw_imu": true,
+          "complete_raw_lidar": true,
+          "complete_raw_imu": true,
+          "lio_pairs": true,
+          "backend_output": true,
+          "complete_lio_pairs": true,
+          "truth_isolated": true,
+          "rolling_scan": true
+        },
+        "error": null,
+        "counts": {
+          "/tf_static": 1,
+          "/clock": 7001,
+          "/livox/imu": 7001,
+          "/livox/lidar": 350,
+          "/ground_truth/odom": 350,
+          "/Odometry": 347,
+          "/cloud_registered_body": 347,
+          "/n3mapping/odometry": 325
+        },
+        "lio_exact_stamp_pairs": 347,
+        "first_lidar": {
+          "points": 19929,
+          "timebase": 0,
+          "stamp": 0,
+          "max_offset_ns": 99995000,
+          "offsets_ordered": true
+        },
+        "truth_subscribers": [
+          "n3m_sprobo_observer"
+        ],
+        "wall_seconds": 38.45251629315317,
+        "simulation_seconds": 35.0,
+        "simulation_lidar_frames": 350,
+        "simulation_imu_samples": 7001,
+        "mode": "localization",
+        "limitation": "Integration smoke only; not accuracy or half-core qualification"
+      },
+      "score": {
+        "mapping": "/tmp/n3m_sprobo_20261018/smoke2",
+        "query": "/tmp/n3m_sprobo_20261018/query2",
+        "alignment": {
+          "source": "first mapping n3m pose only; no query fitting",
+          "stamp_ns": 799989997,
+          "translation": [
+            -44.04181006378801,
+            0.033909405196541884,
+            0.6692241923093099
+          ],
+          "quaternion_xyzw": [
+            0.0013274200578745343,
+            -0.00048737435717636314,
+            -0.0011458279200025922,
+            -0.9999983437489303
+          ]
+        },
+        "evaluated_poses": 325,
+        "first_output_sim_s": 2.599995002,
+        "position_error_m": {
+          "rmse": 0.13060025045429408,
+          "median": 0.12362135529461324,
+          "p95": 0.17284816581302923,
+          "maximum": 0.21556489837398168
+        },
+        "rotation_error_deg": {
+          "rmse": 0.39145625487571434,
+          "median": 0.37375707120817586,
+          "p95": 0.5817555318674836,
+          "maximum": 0.7506144348602187
+        },
+        "limitation": "Simulation truth, one short route, ideal sensors; includes mapping/frontend errors"
+      },
+      "commands": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/query2/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/query2/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/query2/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "n3m": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/build/n3mapping/n3mapping_node",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "mode:=mapping",
+            "-p",
+            "map_save_path:=/tmp/n3m_sprobo_20261018/query2/map",
+            "-p",
+            "save_global_map_on_shutdown:=false",
+            "-p",
+            "mode:=localization",
+            "-p",
+            "map_path:=/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream"
+          ],
+          "executable_sha256": "21457e9ba48e6d8c3abc496a8b6c951f708966c8e6eb8aa9e78c78aeee943e96",
+          "core_sha256": "883b5cc846ffe6cde20733527bd8966230ae864aa5d64a6b9df5cf0a17b2f01b"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "/tmp/n3m_sprobo_20261018/query2/session.json",
+          "bytes": 65172,
+          "sha256": "d7986635c741fbfd8ae8b0919b3b61ca03b6b8d4a9c583809ccd65f84c38415a"
+        },
+        {
+          "path": "/tmp/n3m_sprobo_20261018/query2/poses.csv",
+          "bytes": 178587,
+          "sha256": "77915779f7ee049f1e46e285d46d55ce7da926c08a8a407c4a745f3a42ff29a5"
+        },
+        {
+          "path": "/tmp/n3m_sprobo_20261018/query2/extrinsics.json",
+          "bytes": 375,
+          "sha256": "9582e0e086bd0a50b66e548e62c21f3c719ca312c2f03764d0c81cf4532dc8ee"
+        },
+        {
+          "path": "/tmp/n3m_sprobo_20261018/query2/bag/bag_0.db3",
+          "bytes": 309768192,
+          "sha256": "aaecd10747d9545f8582f151c8eb275473e5958306d61548c3bc8e727528468b"
+        }
+      ]
+    },
+    "query3": {
+      "summary": {
+        "passed": true,
+        "checks": {
+          "no_error": true,
+          "simulation_exited_cleanly": true,
+          "raw_lidar": true,
+          "raw_imu": true,
+          "complete_raw_lidar": true,
+          "complete_raw_imu": true,
+          "lio_pairs": true,
+          "backend_output": true,
+          "complete_lio_pairs": true,
+          "timestamps_increase": true,
+          "truth_isolated": true,
+          "rolling_scan": true
+        },
+        "error": null,
+        "counts": {
+          "/tf_static": 1,
+          "/clock": 7001,
+          "/livox/imu": 7001,
+          "/livox/lidar": 350,
+          "/ground_truth/odom": 350,
+          "/Odometry": 347,
+          "/cloud_registered_body": 347,
+          "/n3mapping/odometry": 325
+        },
+        "lio_exact_stamp_pairs": 347,
+        "first_lidar": {
+          "points": 19929,
+          "timebase": 0,
+          "stamp": 0,
+          "max_offset_ns": 99995000,
+          "offsets_ordered": true
+        },
+        "truth_subscribers": [
+          "n3m_sprobo_observer"
+        ],
+        "wall_seconds": 38.45069501642138,
+        "simulation_seconds": 35.0,
+        "simulation_lidar_frames": 350,
+        "simulation_imu_samples": 7001,
+        "mode": "localization",
+        "limitation": "Integration smoke only; not accuracy or half-core qualification"
+      },
+      "score": {
+        "mapping": "/tmp/n3m_sprobo_20261018/smoke2",
+        "query": "/tmp/n3m_sprobo_20261018/query3",
+        "alignment": {
+          "source": "first mapping n3m pose only; no query fitting",
+          "stamp_ns": 799989997,
+          "translation": [
+            -44.04181006378801,
+            0.033909405196541884,
+            0.6692241923093099
+          ],
+          "quaternion_xyzw": [
+            0.0013274200578745343,
+            -0.00048737435717636314,
+            -0.0011458279200025922,
+            -0.9999983437489303
+          ]
+        },
+        "evaluated_poses": 325,
+        "first_output_sim_s": 2.599995002,
+        "position_error_m": {
+          "rmse": 0.13273684239201416,
+          "median": 0.12605186251353373,
+          "p95": 0.17284816581302923,
+          "maximum": 0.21759273479894262
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3924041418522938,
+          "median": 0.3817924910129077,
+          "p95": 0.5796014768891624,
+          "maximum": 0.8218515605864923
+        },
+        "limitation": "Simulation truth, one short route, ideal sensors; includes mapping/frontend errors"
+      },
+      "commands": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/query3/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/query3/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/query3/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "n3m": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/build/n3mapping/n3mapping_node",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "mode:=mapping",
+            "-p",
+            "map_save_path:=/tmp/n3m_sprobo_20261018/query3/map",
+            "-p",
+            "save_global_map_on_shutdown:=false",
+            "-p",
+            "mode:=localization",
+            "-p",
+            "map_path:=/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream"
+          ],
+          "executable_sha256": "21457e9ba48e6d8c3abc496a8b6c951f708966c8e6eb8aa9e78c78aeee943e96",
+          "core_sha256": "883b5cc846ffe6cde20733527bd8966230ae864aa5d64a6b9df5cf0a17b2f01b"
+        },
+        "inputs": {
+          "/tmp/n3m_sprobo_20261018/query3/session.json": "0268831fa616c58334f869c04b9f4fa1faabecf28e161edec52cb979af51d8bd",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "ff24c16d7a98c82494c52efcf74628d5b735eada11fc3a5cd8ba3bf2aa2fc044",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "793a9dab19636b7916f723a605fd6472313379edd971cd0cca586bf308450628",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "583f437e9bb4ffe470729a3dc434e97510b787a1e58bc95cdc984747339887e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677",
+          "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream": "2e2c9d4a68fe8cabf55eb851c92d6443f92e0832cdd730b1eae3b2461f913b41"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "/tmp/n3m_sprobo_20261018/query3/session.json",
+          "bytes": 65172,
+          "sha256": "0268831fa616c58334f869c04b9f4fa1faabecf28e161edec52cb979af51d8bd"
+        },
+        {
+          "path": "/tmp/n3m_sprobo_20261018/query3/poses.csv",
+          "bytes": 178495,
+          "sha256": "19556f0415d7187c93ddda321edf09bb4a8f9c23d1f4c286fff04c35b81c0a39"
+        },
+        {
+          "path": "/tmp/n3m_sprobo_20261018/query3/extrinsics.json",
+          "bytes": 375,
+          "sha256": "9582e0e086bd0a50b66e548e62c21f3c719ca312c2f03764d0c81cf4532dc8ee"
+        },
+        {
+          "path": "/tmp/n3m_sprobo_20261018/query3/bag/bag_0.db3",
+          "bytes": 309780480,
+          "sha256": "a6f56ffe3f582fdfa1cd0e21eac55fe2754cfe886030fddb3b80cf00c64dc689"
+        }
+      ]
+    }
+  },
+  "saved_map": {
+    "path": "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream",
+    "bytes": 1625380,
+    "sha256": "2e2c9d4a68fe8cabf55eb851c92d6443f92e0832cdd730b1eae3b2461f913b41"
+  },
+  "score_wrong_location_control": {
+    "mapping": "/tmp/n3m_sprobo_20261018/smoke2",
+    "query": "/tmp/n3m_sprobo_20261018/score_counterexample",
+    "alignment": {
+      "source": "first mapping n3m pose only; no query fitting",
+      "stamp_ns": 799989997,
+      "translation": [
+        -44.04181006378801,
+        0.033909405196541884,
+        0.6692241923093099
+      ],
+      "quaternion_xyzw": [
+        0.0013274200578745343,
+        -0.00048737435717636314,
+        -0.0011458279200025922,
+        -0.9999983437489303
+      ]
+    },
+    "evaluated_poses": 325,
+    "first_output_sim_s": 2.599995002,
+    "position_error_m": {
+      "rmse": 20.043041377690933,
+      "median": 20.042473670070258,
+      "p95": 20.064705211780165,
+      "maximum": 20.072468018155245
+    },
+    "rotation_error_deg": {
+      "rmse": 0.39145625487571434,
+      "median": 0.37375707120817586,
+      "p95": 0.5817555318674836,
+      "maximum": 0.7506144348602187
+    },
+    "limitation": "Simulation truth, one short route, ideal sensors; includes mapping/frontend errors"
+  },
+  "excluded_attempts": [
+    {
+      "run": "/tmp/n3m_sprobo_20261018/smoke1",
+      "reason": "new node selected an older installed core; startup symbol error"
+    },
+    {
+      "run": "/tmp/n3m_sprobo_20261018/query1",
+      "reason": "best-effort recorder captured 6827 of 7001 generated IMUs; preliminary presence-only smoke gate was insufficient"
+    }
+  ],
+  "scene_load_checks": {
+    "changed": {
+      "simulation_seconds": 0.1,
+      "terrain": {
+        "name": "N3Mapping indoor 100 x 100 m",
+        "scene_id": "n3m-indoor-100",
+        "type": "user_scene"
+      },
+      "localization_tested": false
+    },
+    "repetitive": {
+      "simulation_seconds": 0.1,
+      "terrain": {
+        "name": "N3Mapping indoor 100 x 100 m",
+        "scene_id": "n3m-indoor-100",
+        "type": "user_scene"
+      },
+      "localization_tested": false
+    }
+  }
+}
