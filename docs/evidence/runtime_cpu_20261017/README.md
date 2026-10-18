@@ -514,7 +514,8 @@ The local `simple_rbt` project provides the SpRobo console and a MuJoCo C++
 simulator. Its existing scene format supports a 100 x 100 m building. The new
 [scene generator](../../../tools/n3mapping_sprobo_scene.py) creates 24 repeated
 offices, continuous corridors, a floor and ceiling, and distinguishing obstacles
-(178 objects). `changed` moves furniture and partially blocks selected doors;
+(178 objects in the original recorded fixture; the varied v2 reference below has
+220). The original `changed` fixture moves furniture and partially blocks selected doors;
 `repetitive` removes the distinguishing obstacles. Both variants were loaded by
 the actual CPU simulator; they have not yet undergone localization qualification.
 
@@ -581,9 +582,11 @@ python3 tools/n3mapping_sprobo_score.py --mapping /tmp/n3m-sim-mapping \
   --query /tmp/n3m-sim-query --output /tmp/n3m-sim-query/score.json
 ```
 
-The acquisition runner now supports `--route coverage --duration 1500` for a
-79-waypoint, approximately 1,232 m route through all 24 rooms and back to the
-start. The route controller consumes truth only to drive the test vehicle;
+The acquisition runner supports `--route coverage` (default 1,800 s ceiling).
+The original recorded route had 79 waypoints and approximately 1,232 m; the
+current varied scene uses 133 waypoints and approximately 1,281 m through all
+24 rooms and back to the start, stopping two seconds after completion. It stops on stale truth or 30 s
+without progress and reports actual distance. The route controller consumes truth only to drive the test vehicle;
 estimators still consume actual sensors/LIO. `--input-only` records independent
 queries without launching n3m; `--route stationary` permits repeated-room and
 occlusion observations. Six separate 35-second queries were acquired, each with
@@ -686,3 +689,124 @@ python3 tools/n3mapping_sprobo_score.py \
 It reports 61 poses with approximately 32 m error; it does not fit the query to
 truth. A probe with no output has no accuracy score. A coasted output cannot be
 scored from the backend pose alone and is rejected by this scorer.
+
+### Complete coverage, visible drift, and veto-only ablation
+
+The subsequent complete acquisition reached **79/79 waypoints**, travelled
+**1,224.86 m**, and stopped at 1,236.085 simulation seconds. It recorded all
+12,360 raw scans and 247,218 IMUs, with 12,357 exact-stamp LIO pairs. All acquisition
+checks passed; **the geometry check failed**. The saved map has 1,208 keyframes.
+Frontend maximum horizontal/Z error is 54.93/17.57 m, with 33.55 degrees maximum
+attitude error; backend maximum position error is 56.95 m. This map is a failure
+fixture and visualization, not an accepted localization reference.
+
+Local PCL Viewer artifacts are in `map/sprobo_view/full_route/`:
+
+- `n3mapping_map_unqualified.pcd`: 3,898,619 points from optimized n3m keyframes,
+  with 10 cm display voxel selection. It visibly retains the drift.
+- `sprobo_authored_scene_ceiling_hidden.pcd`: 1,474,373 colored surface samples
+  from the original 178-object scene JSON, independent of estimation. Walls are
+  blue and furniture yellow; only the ceiling is omitted for viewing. The
+  simulation still includes its ceiling at z=3.5 m.
+- `simulation_truth_reference.pcd`: 4,559,858 measured returns positioned using
+  interpolated simulation truth. This is another reference visualization, not
+  an n3m map or a frontend-qualified map. Interpolation introduces small surface
+  artifacts during motion.
+
+An earlier 332-second acquisition was interrupted by an audit reading its live
+SQLite recorder; the recorder reported `database is locked`. That incomplete
+run is excluded from acquisition qualification. Monitor progress logs while a
+recorder is active and inspect its database after shutdown. Its closed data are
+still useful for diagnosis: maximum frontend horizontal/Z error was 0.255/3.415 m.
+A diagnostic whole-trajectory rigid fit reduced position RMSE to 0.129 m,
+suggesting a large constant-tilt component **in that run only**. This fit does
+not replace the fixed-origin gate or fit independent query estimates.
+
+The ceiling is present in the actual sensor inputs: nine sampled scans contain
+4,096–11,609 ceiling returns each. A logging-only FAST_LIO build replayed the
+first 40 seconds of the closed recording and reproduced all 397 output positions
+exactly. At 40 s, 266 of 526 accepted plane normals have |nz| > 0.8; the unweighted
+translation information diagonal is approximately (197, 56, 272). This block
+does not establish full coupled LIO observability, but it contradicts an absent
+vertical-plane-constraint explanation for this segment. Ground and ceiling
+normals constrain the same translation direction; a ground plane alone can
+penalize both upward and downward displacement. Attitude, inertial/scan timing
+consistency and map deformation still require diagnosis. The later full run
+also develops substantial XY/yaw error, so it cannot be described as Z drift only.
+
+Separately, disabling candidate elimination while retaining the existing
+occlusion-aware visibility model preserves the earlier real-recording benefit:
+the difficult 448-frame case first accepts at observation **5 instead of 55**,
+with **68 rather than 773** relocalization registrations. The other five complete
+core recordings retain their acceptance observations. Maximum common-pose
+position/rotation differences are 0.01359 m / 0.16082 degrees; these recordings
+do not provide independent accuracy truth. The ten alias/episode scenarios pass
+with occlusion + veto, including the two sparse-copy failures of the baseline.
+
+All seven independent SpRobo queries completed with this ablation: the six
+partial-map/repeated-room/changed-scene queries emit no poses over 347 inputs
+each; the reverse-heading positive emits 343 poses, with fixed-map position
+RMSE 0.13538 m. Thus the earlier 32 m false lock is avoided without eliminating
+competing hypotheses. Rejection on these queries is not proof of useful coverage
+or general localization success.
+
+The twenty historical raw LiDAR/IMU recordings were also replayed through one
+FAST_LIO and paired baseline/candidate Product nodes: 3,956 scans and 79,116 IMUs
+were sent completely, and both nodes processed every generated LIO pair.
+Both variants lock in all twenty. The previously unaccepted `11-56-10` now locks
+in both current variants; its independent location label remains unresolved.
+Asynchronous published poses differ transiently by up to 1.050 m around a
+relocalization correction, despite much smaller differences at the lock itself
+and convergence afterward. This is not a twenty-case absolute-accuracy pass.
+One scratch replay timed out because a computed spin timeout could become
+negative (an indefinite wait); nonnegative waits repaired the replay and the
+incomplete attempt is excluded. No production ROS scheduling code was changed.
+
+The pure Product-factory ablation is reproducible without overriding ranking or
+elimination methods:
+
+```bash
+python3 docs/evidence/runtime_cpu_20261017/build_reseed_probes.py \
+  /path/to/build/n3mapping /tmp/n3m-occlusion-veto --occlusion-veto-only
+# LD_PRELOAD=/tmp/n3m-occlusion-veto/occlusion_veto_product.so
+```
+
+Its complete difficult replay matches the earlier veto ablation's decisions;
+maximum pose-matrix element difference is 4.11e-15. **Production remains
+unchanged.** These concurrent runs do not provide a new CPU/RSS qualification.
+Next: isolate the first frontend/simulation divergence on the frozen full-route
+recording, separate backend corrections from asynchronous output timing, and
+resolve the unlabeled raw case before promoting visibility defaults. See the
+`coverage_and_veto_followup` entry in [sprobo_results.json](sprobo_results.json)
+for identities and measured results.
+
+### Varied reference geometry (v2)
+
+Visual review showed that the original 24 nearly identical rooms were a useful
+ambiguity stress case but an inadequate representative indoor scene. The default
+`reference` generator now varies room dimensions and offsets, rectangular/L-shaped/
+chamfered outlines, 3–5 m door openings and their positions, and office, shelving,
+meeting and column layouts (220 objects). `changed` shares this structure and
+moves/adds furniture (228 objects). `repetitive` retains repeated room geometry
+and furniture as a negative case (174 objects). These are geometric changes;
+object IDs and display colors are not localization cues. Original sessions and
+the frozen false-lock fixture retain their original JSON and are unchanged.
+
+Scene construction and route generation share `room_layout()`, so door edits no
+longer require separately rewriting acquisition waypoints. All 133 route segments
+were checked against oriented obstacles inflated by a 0.4 m vehicle radius in
+all three variants, with no intersections. This is a static path check, not a
+completed dynamic coverage run on v2.
+
+A real 35 s CPU-simulator/ROS run started at (43, -24), facing -90 degrees, and
+crossed an offset door into a room. All 350 scans and 7,001 IMUs were recorded,
+347 exact-stamp LIO pairs were processed, and the map saved successfully. Maximum
+frontend/backend position error was 0.274/0.241 m on this short route. It does
+not establish that full-route drift or relocalization ambiguity is repaired.
+The current reference PCD is
+`map/sprobo_view/varied_scene/sprobo_authored_scene_ceiling_hidden.pcd`
+(1,533,889 colored points), shown in PCL Viewer with the title
+`SpRobo reference v2 - varied geometry (ceiling hidden)`. It comes directly from
+authored scene surfaces; the simulation retains the ceiling. Renderer colors do
+not enter the MID360 estimator input. Exact run and source identities are in
+`varied_scene_v2` in [sprobo_results.json](sprobo_results.json).

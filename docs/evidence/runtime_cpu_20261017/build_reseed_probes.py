@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproduce rejected reseeding experiments from the 114937a runtime sources.
+"""Reproduce reseeding experiments from the 114937a runtime sources.
 
 Neither the runtime library nor the Product profile in the repository is changed.
 Use LD_PRELOAD=OUTPUT/guarded_veto.so with reloc_free_space_mode=kill for core
@@ -9,6 +9,8 @@ The alias probe is diagnostic: two sparse-copy cases fail in baseline too.
 The guarded/occlusion combination fails an independent SpRobo corridor case by
 about 32 m while baseline abstains. These builds reproduce that failure; the
 historical CPU reduction does not qualify the combination for production.
+--occlusion-veto-only builds a separate factory-only ablation: existing
+occlusion-aware scoring, unchanged veto policy, no hypothesis elimination.
 """
 import argparse
 from pathlib import Path
@@ -18,8 +20,11 @@ import subprocess
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('build', type=Path)
 parser.add_argument('output', type=Path)
-parser.add_argument('--occlusion-only', action='store_true',
+selection = parser.add_mutually_exclusive_group()
+selection.add_argument('--occlusion-only', action='store_true',
                     help='Build only the subsequent occlusion-aware combination')
+selection.add_argument('--occlusion-veto-only', action='store_true',
+                       help='Build only the Product occlusion/veto factory ablation')
 args = parser.parse_args()
 build, output = args.build.resolve(), args.output.resolve()
 output.mkdir(parents=True, exist_ok=True)
@@ -36,6 +41,11 @@ factory = (repo / 'src/config.cpp').read_text().split(
     'std::string runtimeConfigCanonical', 1)[0] + '}\n'
 assert factory.count('config.reloc_free_space_mode = "veto";') == 1
 factory = factory.replace('#include <cmath>', '#include <cmath>\n#include <cstdio>')
+veto_factory = factory.replace('config.reloc_free_space_mode = "veto";',
+    'config.reloc_free_space_mode = "veto";\n'
+    '    config.reloc_visibility_occlusion_aware = true;\n'
+    '    std::fprintf(stderr, "PROBE_FREE_SPACE_MODE=veto PROBE_OCCLUSION_AWARE=true\\n");')
+(output / 'occlusion_veto_product.cpp').write_text(veto_factory)
 factory = factory.replace('config.reloc_free_space_mode = "veto";',
     'config.reloc_free_space_mode = "kill";\n'
     '    std::fprintf(stderr, "PROBE_FREE_SPACE_MODE=kill\\n");')
@@ -73,7 +83,10 @@ targets = [
     ('guard_occlusion.so', occlusion, ['-shared']),
     ('guard_occlusion_product.so',
      occlusion + [str(output / 'guard_occlusion_product.cpp')], ['-shared']),
+    ('occlusion_veto_product.so', [str(output / 'occlusion_veto_product.cpp')], ['-shared']),
 ]
-for target, sources, extra in targets[3:] if args.occlusion_only else targets:
+selected = (targets[-1:] if args.occlusion_veto_only else
+            targets[3:5] if args.occlusion_only else targets)
+for target, sources, extra in selected:
     subprocess.run([*base, *extra, *sources, '-o', str(output / target), *libraries],
                    check=True)

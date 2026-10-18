@@ -5,6 +5,8 @@ Run on the authorized host after sourcing Humble and the n3m workspace. This
 checks input completeness; coverage also checks route completion and gross map
 drift against independent truth. Passing does not qualify localization or CPU.
 All generated data go into a new output directory; existing sessions are unused.
+Monitor stdout while recording. Read the bag database only after this process
+exits: concurrent SQLite readers can block the recorder's write transaction.
 """
 import argparse
 from collections import Counter
@@ -76,7 +78,8 @@ def main():
     parser.add_argument("--adapter", type=Path, required=True)
     parser.add_argument("--workspace", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--duration", type=float, default=35.)
+    parser.add_argument("--duration", type=float,
+                        help="Simulation limit in seconds (coverage: 1800; other routes: 35)")
     parser.add_argument("--domain-id", type=int, default=181)
     parser.add_argument("--map", type=Path, help="Existing pbstream: run localization instead of mapping")
     parser.add_argument("--spawn", nargs=3, type=float, default=[-44, 0, 0])
@@ -85,6 +88,8 @@ def main():
     parser.add_argument("--route", choices=["smoke", "coverage", "stationary"], default="smoke")
     parser.add_argument("--input-only", action="store_true", help="Record independent sensor/LIO queries without running n3m")
     args = parser.parse_args()
+    if args.duration is None:
+        args.duration = 1800. if args.route == "coverage" else 35.
     if not 20 <= args.duration <= 2400 or not 1 <= args.domain_id <= 232:
         parser.error("duration must be 20..2400 s and domain-id 1..232")
     if args.input_only and (args.map or args.route == "coverage"):
@@ -114,7 +119,7 @@ def main():
     from std_srvs.srv import Trigger
 
     core = args.sim_root / "build/desktop/simple-rbt-sim"
-    driver = RouteDriver() if args.route == "coverage" else None
+    driver = RouteDriver(variant=args.variant) if args.route == "coverage" else None
     frontend = args.workspace / "install/fast_lio/lib/fast_lio/fastlio_mapping"
     backend = args.workspace / "build/n3mapping/n3mapping_node"
     config = session(args.variant, args.spawn, args.yaw, duration=args.duration)

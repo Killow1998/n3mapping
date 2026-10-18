@@ -2068,5 +2068,749 @@
       "segment_collisions": 0,
       "limitation": "Authored geometry check; complete driven route not yet verified"
     }
+  },
+  "coverage_and_veto_followup": {
+    "scope": "Completed acquisition, failed mapping geometry; no production change or new CPU qualification",
+    "run": "/tmp/n3m_sprobo_20261018/coverage_continuous2",
+    "summary": {
+      "passed": false,
+      "checks": {
+        "no_error": true,
+        "simulation_exited_cleanly": true,
+        "raw_lidar": true,
+        "raw_imu": true,
+        "complete_raw_lidar": true,
+        "complete_raw_imu": true,
+        "lio_pairs": true,
+        "complete_lio_pairs": true,
+        "timestamps_increase": true,
+        "truth_isolated": true,
+        "rolling_scan": true,
+        "backend_output": true,
+        "saved_map": true,
+        "route_completed": true,
+        "mapping_geometry": false
+      },
+      "error": null,
+      "counts": {
+        "/tf_static": 1,
+        "/clock": 247218,
+        "/livox/imu": 247218,
+        "/livox/lidar": 12360,
+        "/ground_truth/odom": 12360,
+        "/Odometry": 12357,
+        "/cloud_registered_body": 12357,
+        "/n3mapping/odometry": 12353
+      },
+      "lio_exact_stamp_pairs": 12357,
+      "first_lidar": {
+        "points": 19935,
+        "timebase": 0,
+        "stamp": 0,
+        "max_offset_ns": 99995000,
+        "offsets_ordered": true
+      },
+      "truth_subscribers": [
+        "n3m_sprobo_observer"
+      ],
+      "wall_seconds": 1241.8051421148703,
+      "simulation_seconds": 1236.085,
+      "simulation_lidar_frames": 12360,
+      "simulation_imu_samples": 247218,
+      "mode": "mapping",
+      "limitation": "Acquisition checks only; not localization accuracy or half-core qualification"
+    },
+    "route": {
+      "reached": 79,
+      "total": 79,
+      "completed_at_s": 1234.06,
+      "distance_m": 1224.8635992923898
+    },
+    "mapping_geometry": {
+      "passed": false,
+      "limits": {
+        "maximum_position_error_m": 1.0,
+        "maximum_rotation_error_deg": 5.0
+      },
+      "scope": "Gross mapping drift guard; not a localization acceptance threshold",
+      "/Odometry": {
+        "mapping": "/tmp/n3m_sprobo_20261018/coverage_continuous2",
+        "query": "/tmp/n3m_sprobo_20261018/coverage_continuous2",
+        "topic": "/Odometry",
+        "probe_csv": null,
+        "alignment": {
+          "source": "first mapping pose on /Odometry only; no query fitting",
+          "stamp_ns": 399995002,
+          "translation": [
+            -43.99227480652411,
+            0.025556969263379827,
+            0.6385946408087827
+          ],
+          "quaternion_xyzw": [
+            -0.0001382518689977778,
+            0.00013345814371456811,
+            0.00017654275645364678,
+            -0.9999999659539994
+          ]
+        },
+        "evaluated_poses": 12357,
+        "first_output_sim_s": 0.399995002,
+        "position_error_m": {
+          "rmse": 27.031517904026966,
+          "median": 21.135324863905797,
+          "p95": 47.22658265286858,
+          "maximum": 55.141746776652596
+        },
+        "rotation_error_deg": {
+          "rmse": 21.36391857080304,
+          "median": 24.98888487958507,
+          "p95": 30.333325137497795,
+          "maximum": 33.554970441634346
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "/n3mapping/odometry": {
+        "mapping": "/tmp/n3m_sprobo_20261018/coverage_continuous2",
+        "query": "/tmp/n3m_sprobo_20261018/coverage_continuous2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": null,
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 799989997,
+          "translation": [
+            -44.041810063787935,
+            0.03390940519515717,
+            0.6692241923086234
+          ],
+          "quaternion_xyzw": [
+            0.0013274200578878997,
+            -0.0004873743571618293,
+            -0.0011458279200054473,
+            -0.9999983437489303
+          ]
+        },
+        "evaluated_poses": 12353,
+        "first_output_sim_s": 0.799989997,
+        "position_error_m": {
+          "rmse": 27.897445381505936,
+          "median": 21.97910748822386,
+          "p95": 48.67761919092838,
+          "maximum": 56.94943253308129
+        },
+        "rotation_error_deg": {
+          "rmse": 21.884743054350526,
+          "median": 25.504170523206643,
+          "p95": 31.183165860080255,
+          "maximum": 34.39772274657081
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    "pcd_export": {
+      "map_keyframes": 1208,
+      "n3mapping": {
+        "points": 3898619,
+        "min_xyz": [
+          -11.35175895690918,
+          -85.09259796142578,
+          -11.445738792419434
+        ],
+        "max_xyz": [
+          115.76225280761719,
+          39.473487854003906,
+          23.577550888061523
+        ]
+      },
+      "truth_reference": {
+        "points": 4559858,
+        "min_xyz": [
+          -50.06029510498047,
+          -50.0753173828125,
+          -0.29944807291030884
+        ],
+        "max_xyz": [
+          50.113075256347656,
+          49.94331359863281,
+          3.825634002685547
+        ]
+      },
+      "scans_sampled": 2449,
+      "returns_sampled": 48709121,
+      "display_voxel_m": 0.1,
+      "truth_usage": "Per-return interpolation of recorded 10 Hz base truth and configured LiDAR mount; for reference visualization only, not n3m output or frontend qualification"
+    },
+    "scene_reference": {
+      "source": "/tmp/n3m_sprobo_20261018/coverage_continuous2/session.json",
+      "source_sha256": "ae781dd9bf5b20a6d88874b09117e8f3feb62841e89971141fc421ef82f03e0f",
+      "objects": 178,
+      "displayed_objects": 177,
+      "points": 1474373,
+      "ceiling_bottom_m": 3.5,
+      "pcd": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_view/full_route/sprobo_authored_scene_ceiling_hidden.pcd",
+      "scope": "Authored box surfaces, independent of robot estimates. Ceiling hidden for display only; no changes to simulation, estimator inputs, or maps."
+    },
+    "earlier_closed_segment": {
+      "axis": {
+        "/Odometry": {
+          "poses": 3314,
+          "axis_max_abs_m": {
+            "x": 0.13314949583778457,
+            "y": 0.25328855020546825,
+            "z": 3.4152265671135185
+          },
+          "axis_rmse_m": {
+            "x": 0.053585315835730986,
+            "y": 0.11709477092103951,
+            "z": 1.8459397840194236
+          },
+          "horizontal_max_m": 0.25495540379533344,
+          "rotation_max_deg": 8.527961566988568
+        },
+        "/n3mapping/odometry": {
+          "poses": 3310,
+          "axis_max_abs_m": {
+            "x": 0.2107511477908659,
+            "y": 0.21927991875376662,
+            "z": 3.4039129977102975
+          },
+          "axis_rmse_m": {
+            "x": 0.06854563584732956,
+            "y": 0.10164302709127719,
+            "z": 1.839680680585808
+          },
+          "horizontal_max_m": 0.2282431955334716,
+          "rotation_max_deg": 8.596705205208412
+        }
+      },
+      "rigid_diagnostic": {
+        "scope": "Diagnostic full-trajectory rigid fit, NEVER map/query qualification",
+        "rotation_rpy_deg": [
+          -2.4121749921880573,
+          2.9356912827816335,
+          -0.04066354793717073
+        ],
+        "position_rmse_m": 0.12875728668008404,
+        "axis_rmse_m": [
+          0.023486012936327818,
+          0.06964280035564029,
+          0.10572003796913995
+        ],
+        "position_max_m": 0.33843641965482846,
+        "rotation_rmse_deg": 1.7321220021217683,
+        "rotation_max_deg": 11.730659473244799
+      },
+      "plane_measurements": {
+        "frames": 397,
+        "z_information_fraction": {
+          "min": 0.0605382012539185,
+          "median": 0.34668270542635665,
+          "max": 0.5835499714285715
+        },
+        "min_translation_eigenvalue": 1.23934477,
+        "samples": [
+          {
+            "time": 39.999989998,
+            "points": 526.0,
+            "z_normals": 266.0,
+            "mean_residual": 0.0213327381,
+            "ix": 197.022481,
+            "iy": 56.4800171,
+            "iz": 272.497502,
+            "eig_min": 56.0656466,
+            "eig_mid": 197.158326,
+            "eig_max": 272.776027,
+            "pz": -1.76542689,
+            "gx": 0.00808374716,
+            "gy": 0.174899634,
+            "gz": -9.80743727
+          }
+        ],
+        "diagnostic_vs_original_capture": {
+          "exact_stamp_overlap": 397,
+          "max_position_difference_m": 0.0,
+          "median_position_difference_m": 0.0
+        }
+      }
+    },
+    "occlusion_veto": {
+      "core": [
+        {
+          "dataset": "hard",
+          "frames": 448,
+          "first_before": 55,
+          "first_after": 5,
+          "live_before": 394,
+          "live_after": 444,
+          "alignments": 68,
+          "max_position_delta_m": 0.01358667804346336,
+          "max_rotation_delta_deg": 0.06929670612772092,
+          "state_changes": 50,
+          "limitation": "Decision regression only; no truth for real recordings and concurrent simulation; not CPU qualification"
+        },
+        {
+          "dataset": "normal",
+          "frames": 1848,
+          "first_before": 5,
+          "first_after": 5,
+          "live_before": 1844,
+          "live_after": 1844,
+          "alignments": 83,
+          "max_position_delta_m": 0.005291299438159888,
+          "max_rotation_delta_deg": 0.14579997599152011,
+          "state_changes": 0,
+          "limitation": "Decision regression only; no truth for real recordings and concurrent simulation; not CPU qualification"
+        },
+        {
+          "dataset": "inside710",
+          "frames": 452,
+          "first_before": 5,
+          "first_after": 5,
+          "live_before": 448,
+          "live_after": 448,
+          "alignments": 81,
+          "max_position_delta_m": 0.0018681278102161399,
+          "max_rotation_delta_deg": 0.16081572996122787,
+          "state_changes": 0,
+          "limitation": "Decision regression only; no truth for real recordings and concurrent simulation; not CPU qualification"
+        },
+        {
+          "dataset": "outside707",
+          "frames": 448,
+          "first_before": 5,
+          "first_after": 5,
+          "live_before": 444,
+          "live_after": 444,
+          "alignments": 71,
+          "max_position_delta_m": 0.005183736153419957,
+          "max_rotation_delta_deg": 0.10194689628870394,
+          "state_changes": 0,
+          "limitation": "Decision regression only; no truth for real recordings and concurrent simulation; not CPU qualification"
+        },
+        {
+          "dataset": "outside710",
+          "frames": 448,
+          "first_before": 10,
+          "first_after": 10,
+          "live_before": 439,
+          "live_after": 439,
+          "alignments": 145,
+          "max_position_delta_m": 0.003745849476234964,
+          "max_rotation_delta_deg": 0.03960124836766996,
+          "state_changes": 0,
+          "limitation": "Decision regression only; no truth for real recordings and concurrent simulation; not CPU qualification"
+        },
+        {
+          "dataset": "user_map",
+          "frames": 1800,
+          "first_before": 5,
+          "first_after": 5,
+          "live_before": 1796,
+          "live_after": 1796,
+          "alignments": 81,
+          "max_position_delta_m": 0.0034772153135454687,
+          "max_rotation_delta_deg": 0.023045080891306583,
+          "state_changes": 0,
+          "limitation": "Decision regression only; no truth for real recordings and concurrent simulation; not CPU qualification"
+        }
+      ],
+      "sim_queries": [
+        {
+          "session": "inputs_central",
+          "frames": 347,
+          "outputs": 0,
+          "alignments": 3914
+        },
+        {
+          "session": "inputs_room_repetitive",
+          "frames": 347,
+          "outputs": 0,
+          "alignments": 4269
+        },
+        {
+          "session": "inputs_north_changed",
+          "frames": 347,
+          "outputs": 0,
+          "alignments": 4242
+        },
+        {
+          "session": "inputs_south",
+          "frames": 347,
+          "outputs": 0,
+          "alignments": 4020
+        },
+        {
+          "session": "inputs_north",
+          "frames": 347,
+          "outputs": 0,
+          "alignments": 4243
+        },
+        {
+          "session": "inputs_west_heading",
+          "frames": 347,
+          "outputs": 0,
+          "alignments": 4252
+        },
+        {
+          "session": "query3",
+          "frames": 347,
+          "outputs": 343,
+          "alignments": 49,
+          "score": {
+            "mapping": "/tmp/n3m_sprobo_20261018/smoke2",
+            "query": "/tmp/n3m_sprobo_20261018/query3",
+            "topic": "/n3mapping/odometry",
+            "probe_csv": "/tmp/n3m_sprobo_20261018/occlusion_veto_sim/query3.csv",
+            "alignment": {
+              "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+              "stamp_ns": 799989997,
+              "translation": [
+                -44.04181006378801,
+                0.033909405196541884,
+                0.6692241923093099
+              ],
+              "quaternion_xyzw": [
+                0.0013274200578745343,
+                -0.00048737435717636314,
+                -0.0011458279200025922,
+                -0.9999983437489303
+              ]
+            },
+            "evaluated_poses": 343,
+            "first_output_sim_s": 0.799995002,
+            "position_error_m": {
+              "rmse": 0.13538377678459576,
+              "median": 0.12804917906506486,
+              "p95": 0.18369402592012604,
+              "maximum": 0.19642158318008907
+            },
+            "rotation_error_deg": {
+              "rmse": 0.37077911728204904,
+              "median": 0.36629369676296336,
+              "p95": 0.5574635962674785,
+              "maximum": 0.7774250207406589
+            },
+            "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+          }
+        }
+      ],
+      "factory_equivalence": {
+        "frames": 448,
+        "non_timing_changed_columns": [
+          "pose0",
+          "pose1",
+          "pose10",
+          "pose12",
+          "pose13",
+          "pose14",
+          "pose2",
+          "pose4",
+          "pose5",
+          "pose6",
+          "pose8",
+          "pose9",
+          "registration_ms",
+          "reloc_align_ms",
+          "reloc_source_ms",
+          "reloc_visibility_ms",
+          "source_ms",
+          "submap_ms",
+          "target_ms",
+          "tracking_ms"
+        ],
+        "command": [
+          "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+          "/home/user/ros_ws/bagfile/n3mapping_test/n3map.pbstream",
+          "/tmp/n3m_half_core/data/floor7_atlas.pb",
+          "/tmp/n3m_half_core/data/floor7_outside_713_room_frames/frames.csv",
+          "/tmp/n3m_sprobo_20261018/veto_published/hard.csv",
+          "0",
+          "0"
+        ],
+        "decisions_equal": true,
+        "max_pose_element_delta": 4.107825191113079e-15
+      },
+      "raw_pairs": {
+        "completed_cases": 20,
+        "all_input_checks": true,
+        "raw_lidar": 3956,
+        "raw_imu": 79116,
+        "max_common_output_delta_m": 1.0501565085147622,
+        "limitations": [
+          "11-56-10 independent label unresolved; both current variants lock",
+          "Asynchronous output correction differences are not absolute pose errors",
+          "No CPU comparison during concurrent simulation"
+        ],
+        "cases": [
+          {
+            "case": "11-45-43",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.0761070367650287,
+            "max_common_rotation_delta_deg": 1.2065637689134874
+          },
+          {
+            "case": "11-46-29",
+            "lio_frames": 193,
+            "max_common_position_delta_m": 0.05323857431522998,
+            "max_common_rotation_delta_deg": 0.1725175123937172
+          },
+          {
+            "case": "11-47-22",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.046962330041688684,
+            "max_common_rotation_delta_deg": 0.33246392758925813
+          },
+          {
+            "case": "11-47-53",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.07057559047522662,
+            "max_common_rotation_delta_deg": 0.275197763609602
+          },
+          {
+            "case": "11-48-26",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.10770951381309081,
+            "max_common_rotation_delta_deg": 4.2182541185980975
+          },
+          {
+            "case": "11-49-09",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.15994313018458076,
+            "max_common_rotation_delta_deg": 6.232877120740433
+          },
+          {
+            "case": "11-49-55",
+            "lio_frames": 194,
+            "max_common_position_delta_m": 1.0501565085147622,
+            "max_common_rotation_delta_deg": 3.0580522237157353
+          },
+          {
+            "case": "11-50-34",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.11487266530193047,
+            "max_common_rotation_delta_deg": 0.3926176879739925
+          },
+          {
+            "case": "11-51-17",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.16002066290620473,
+            "max_common_rotation_delta_deg": 0.5732038893704732
+          },
+          {
+            "case": "11-52-00",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.7383785293080406,
+            "max_common_rotation_delta_deg": 3.603050350257309
+          },
+          {
+            "case": "11-52-34",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.032383834243373516,
+            "max_common_rotation_delta_deg": 0.2581949639851904
+          },
+          {
+            "case": "11-53-11",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.030046974973864597,
+            "max_common_rotation_delta_deg": 0.4406303138072514
+          },
+          {
+            "case": "11-53-44",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.00643712082724716,
+            "max_common_rotation_delta_deg": 0.22816288755479108
+          },
+          {
+            "case": "11-54-17",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.007042235451165152,
+            "max_common_rotation_delta_deg": 0.21026907598951736
+          },
+          {
+            "case": "11-54-55",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.00751955660128347,
+            "max_common_rotation_delta_deg": 0.1594457963001088
+          },
+          {
+            "case": "11-55-38",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.003548954955330119,
+            "max_common_rotation_delta_deg": 0.06404955157521673
+          },
+          {
+            "case": "11-56-10",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.03963011575252729,
+            "max_common_rotation_delta_deg": 0.28496510890268845
+          },
+          {
+            "case": "11-57-16",
+            "lio_frames": 194,
+            "max_common_position_delta_m": 0.21459505530579973,
+            "max_common_rotation_delta_deg": 2.4888941348336386
+          },
+          {
+            "case": "11-58-18",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.04727654530219552,
+            "max_common_rotation_delta_deg": 0.9926710531537086
+          },
+          {
+            "case": "11-58-53",
+            "lio_frames": 195,
+            "max_common_position_delta_m": 0.09658329476956055,
+            "max_common_rotation_delta_deg": 1.8296772889865573
+          }
+        ]
+      }
+    },
+    "fingerprints": {
+      "/tmp/n3m_sprobo_20261018/coverage_continuous2/summary.json": "17ebaa04e36265d72a0250515f1361bb58fb5f99771000851154fc76d21a7899",
+      "/tmp/n3m_sprobo_20261018/coverage_continuous2/route.json": "dfb3eba9441c08e4e895a4a522a4a96378ba743d3aa7ca77147ddfcc7dc35218",
+      "/tmp/n3m_sprobo_20261018/coverage_continuous2/mapping_quality.json": "4b08ac9ca235a3eecadeb1fb480f8c3079c2d5139fc38a5fad34d9a0aba2c370",
+      "/tmp/n3m_sprobo_20261018/coverage_continuous2/commands.json": "c0a7a1191603d15bc152def83cddf73e582c1966a27d150693ae3c8e62825471",
+      "/tmp/n3m_sprobo_20261018/coverage_continuous2/map/n3map.pbstream": "f4a6ff15c7c5e438abb13b71bf1a2efae78dd7da2c75eb688a2d4ad43eabde62",
+      "/tmp/n3m_sprobo_20261018/frontend_plane_info2/measurement_summary.json": "44741bbd9ca23bbd87bb7dbe20cd38be016fed36a0b314fac0479465585acbc9",
+      "/tmp/n3m_sprobo_20261018/frontend_diagnostic/laserMapping.cpp": "41e94e59d6c7b29d27e106bb3bc6cc8bdc0e99e84f796070b4a3a3946b0a926a",
+      "/tmp/n3m_sprobo_20261018/frontend_diagnostic/fastlio_mapping": "49b265bd57c9f40cc8a1ce7ed0827ee085838730eb339aa1e1b5ca56914915d3",
+      "/tmp/n3m_sprobo_20261018/raw_pair_summary.json": "9006682b7c50a8f3c788d8ee3a852e1fda4b672c6917a817d71a8a9f0d953ded",
+      "/tmp/n3m_sprobo_20261018/raw_pair.py": "5e8e201d53b2612f2133cc0c7ab432db915b55a416dc002fb3318b5d31b5c2f0",
+      "/tmp/n3m_sprobo_20261018/occlusion_veto_sim/results.json": "b60aa4e9e9fd04319761d7b4da610cc0d958ae2c1e36bc7fc10e83a039bdb5f5",
+      "/tmp/n3m_sprobo_20261018/occlusion_veto_regression/results.json": "47cfdcda2eec482c34f55fc06e5a2853d036a0d702740f0e548c078d5e5fe916",
+      "/tmp/n3m_sprobo_20261018/veto_published/occlusion_veto_product.so": "9bc1cb509df6741c0674539e1e9ab5a24213e41d983986821d746bbc25f2d359",
+      "/tmp/n3m_sprobo_20261018/veto_published/equivalence.json": "deb7576a979b9d89fb996a45955afb57020e10221565bc0d249debb426fc9cdf",
+      "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_view/full_route/export.json": "5a22cbc07e5b0d5592a1682aeb8076e64412d9b15e1ffe72e1a6e5599cdbc274",
+      "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_view/full_route/sprobo_authored_scene_ceiling_hidden.json": "a3ebd0d252a1f36bb9865f3b4ac4259d1a854d7d88d03432fba4a06e56bf12b1"
+    }
+  },
+  "varied_scene_v2": {
+    "scope": "Geometrically varied fixture and acquisition tools only; no production algorithm/default change",
+    "route_checks": [
+      {
+        "variant": "reference",
+        "objects": 220,
+        "waypoints": 133,
+        "length_m": 1280.6435428856325,
+        "collision_segments": 0,
+        "hits": []
+      },
+      {
+        "variant": "changed",
+        "objects": 228,
+        "waypoints": 133,
+        "length_m": 1280.6435428856325,
+        "collision_segments": 0,
+        "hits": []
+      },
+      {
+        "variant": "repetitive",
+        "objects": 174,
+        "waypoints": 133,
+        "length_m": 1244.0,
+        "collision_segments": 0,
+        "hits": []
+      }
+    ],
+    "run": "/tmp/n3m_sprobo_20261018/varied_door_smoke",
+    "summary": {
+      "passed": true,
+      "checks": {
+        "no_error": true,
+        "simulation_exited_cleanly": true,
+        "raw_lidar": true,
+        "raw_imu": true,
+        "complete_raw_lidar": true,
+        "complete_raw_imu": true,
+        "lio_pairs": true,
+        "complete_lio_pairs": true,
+        "timestamps_increase": true,
+        "truth_isolated": true,
+        "rolling_scan": true,
+        "backend_output": true,
+        "saved_map": true
+      },
+      "error": null,
+      "counts": {
+        "/tf_static": 1,
+        "/clock": 7001,
+        "/livox/imu": 7001,
+        "/livox/lidar": 350,
+        "/ground_truth/odom": 350,
+        "/Odometry": 347,
+        "/cloud_registered_body": 347,
+        "/n3mapping/odometry": 343
+      },
+      "lio_exact_stamp_pairs": 347,
+      "first_lidar": {
+        "points": 19888,
+        "timebase": 0,
+        "stamp": 0,
+        "max_offset_ns": 99995000,
+        "offsets_ordered": true
+      },
+      "truth_subscribers": [
+        "n3m_sprobo_observer"
+      ],
+      "wall_seconds": 38.47970605362207,
+      "simulation_seconds": 35.0,
+      "simulation_lidar_frames": 350,
+      "simulation_imu_samples": 7001,
+      "mode": "mapping",
+      "limitation": "Acquisition checks only; not localization accuracy or half-core qualification"
+    },
+    "short_route_quality": {
+      "/Odometry": {
+        "position_error_m": {
+          "rmse": 0.14139520750623857,
+          "median": 0.10107455335220823,
+          "p95": 0.26022047263714615,
+          "maximum": 0.274408160111962
+        },
+        "rotation_error_deg": {
+          "rmse": 0.7773842723344858,
+          "median": 0.5821106942607143,
+          "p95": 1.276395686733162,
+          "maximum": 2.3944232489265405
+        }
+      },
+      "/n3mapping/odometry": {
+        "position_error_m": {
+          "rmse": 0.11837901622980695,
+          "median": 0.08064620716832889,
+          "p95": 0.21665648250441327,
+          "maximum": 0.24092982652541134
+        },
+        "rotation_error_deg": {
+          "rmse": 0.680269578852851,
+          "median": 0.3750688819286228,
+          "p95": 1.219267730084684,
+          "maximum": 2.3581350023132712
+        }
+      }
+    },
+    "scene_pcd": {
+      "source": "/tmp/n3m_sprobo_20261018/varied_door_smoke/session.json",
+      "source_sha256": "fad7297f521ef33df962e1b689aff274c6c8cc3386f47c9421cfec04d364f35f",
+      "objects": 220,
+      "displayed_objects": 219,
+      "points": 1533889,
+      "ceiling_bottom_m": 3.5,
+      "pcd": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_view/varied_scene/sprobo_authored_scene_ceiling_hidden.pcd",
+      "scope": "Authored box surfaces, independent of robot estimates. Ceiling hidden for display only; no changes to simulation, estimator inputs, or maps."
+    },
+    "fingerprints": {
+      "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "2a54119f6596535c2db8d289ccbbdd6fbeab90219538f46443ee07d590630e7d",
+      "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "1522a82f969a7bce2ffe2714015ef03351589bfd61b0199e97430a8a0ea7a91a",
+      "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "7c15b5ff3c37db1612a16ba7f68f6f9ef5d13bddabc5c6fb60648807f4d95284",
+      "/tmp/n3m_sprobo_20261018/varied_door_smoke/session.json": "fad7297f521ef33df962e1b689aff274c6c8cc3386f47c9421cfec04d364f35f",
+      "/tmp/n3m_sprobo_20261018/varied_door_smoke/summary.json": "3761e5f52ccb45d74c05510bfedca06ed65ca79afd0727dbbd1c08c7b3590e32",
+      "/tmp/n3m_sprobo_20261018/varied_door_smoke/mapping_quality.json": "06e133896a356ceeaf8d528d1014d0679a39b685c1543b9e19dc1d3d0f62a1ea",
+      "/tmp/n3m_sprobo_20261018/varied_route_geometry.json": "e8e0f07174a9a495fc3ca189b76fa9faac17d80fcc3762d96d06e7974db2f652"
+    },
+    "limitations": [
+      "v2 full dynamic coverage not run",
+      "Relocalization discrimination and drift improvement not yet measured",
+      "Original session JSON and frozen false-lock fixtures preserved"
+    ]
   }
 }
