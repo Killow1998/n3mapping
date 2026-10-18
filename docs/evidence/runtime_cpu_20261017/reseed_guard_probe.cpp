@@ -1,4 +1,6 @@
-// Experimental candidate for baseline 114937a; not linked into production.
+// Rejected experiment for baseline 114937a; not linked into production.
+// With the occlusion model, independent SpRobo corridor input locks about 32 m
+// from truth after elimination removes five of six hypotheses. See README.md.
 #include "n3mapping/world_localizing.h"
 
 #include <algorithm>

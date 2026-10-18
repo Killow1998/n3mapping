@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Build isolated reseeding experiments from the 114937a runtime sources.
+"""Reproduce rejected reseeding experiments from the 114937a runtime sources.
 
 Neither the runtime library nor the Product profile in the repository is changed.
 Use LD_PRELOAD=OUTPUT/guarded_veto.so with reloc_free_space_mode=kill for core
 experiments. guarded_product.so also overrides the frozen Product factory for
 the DDS probe; ordinary ROS overrides do not change that factory's profile.
 The alias probe is diagnostic: two sparse-copy cases fail in baseline too.
+The guarded/occlusion combination fails an independent SpRobo corridor case by
+about 32 m while baseline abstains. These builds reproduce that failure; the
+historical CPU reduction does not qualify the combination for production.
 """
 import argparse
 from pathlib import Path

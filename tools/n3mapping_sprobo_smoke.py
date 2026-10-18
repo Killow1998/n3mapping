@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Record a real SpRobo -> ROS 2 -> FAST_LIO -> n3m smoke run.
+"""Record SpRobo -> ROS 2 -> FAST_LIO -> n3m acquisitions.
 
 Run on the authorized host after sourcing Humble and the n3m workspace. This
-checks integration, not full-building coverage, localization accuracy or CPU.
+checks input completeness; coverage also checks route completion and gross map
+drift against independent truth. Passing does not qualify localization or CPU.
 All generated data go into a new output directory; existing sessions are unused.
 """
 import argparse
@@ -20,6 +21,7 @@ import time
 import uuid
 
 from n3mapping_sprobo_scene import session
+from n3mapping_sprobo_route import RouteDriver
 
 
 def file_hash(path):
@@ -80,9 +82,15 @@ def main():
     parser.add_argument("--spawn", nargs=3, type=float, default=[-44, 0, 0])
     parser.add_argument("--yaw", type=float, default=0.)
     parser.add_argument("--variant", choices=["reference", "changed", "repetitive"], default="reference")
+    parser.add_argument("--route", choices=["smoke", "coverage", "stationary"], default="smoke")
+    parser.add_argument("--input-only", action="store_true", help="Record independent sensor/LIO queries without running n3m")
     args = parser.parse_args()
-    if not 20 <= args.duration <= 120 or not 1 <= args.domain_id <= 232:
-        parser.error("duration must be 20..120 s and domain-id 1..232")
+    if not 20 <= args.duration <= 2400 or not 1 <= args.domain_id <= 232:
+        parser.error("duration must be 20..2400 s and domain-id 1..232")
+    if args.input_only and (args.map or args.route == "coverage"):
+        parser.error("input-only cannot be combined with map or coverage route")
+    if args.map and args.route == "coverage":
+        parser.error("coverage is a mapping acquisition route")
     args.sim_root, args.workspace, args.adapter = (
         path.resolve() for path in (args.sim_root, args.workspace, args.adapter))
     args.output = args.output.resolve()
@@ -106,6 +114,7 @@ def main():
     from std_srvs.srv import Trigger
 
     core = args.sim_root / "build/desktop/simple-rbt-sim"
+    driver = RouteDriver() if args.route == "coverage" else None
     frontend = args.workspace / "install/fast_lio/lib/fast_lio/fastlio_mapping"
     backend = args.workspace / "build/n3mapping/n3mapping_node"
     config = session(args.variant, args.spawn, args.yaw, duration=args.duration)
@@ -115,8 +124,9 @@ def main():
     session_dir = args.output / "ipc"
     session_dir.mkdir()
     # The raw simulator stream uses g, matching this FAST_LIO configuration.
-    # Gravity is overridden to the simulator's SI magnitude; extrinsic signs
-    # are inherited from the existing MID360 configuration.
+    # The wire unit divides SI by standard gravity (9.80665). MuJoCo defaults
+    # to 9.81; FAST_LIO also normalizes the initial accelerometer mean. Retain
+    # the existing MID360 extrinsics and record this override explicitly.
     commands = {
         "sim": [str(core), "--project-root", str(args.sim_root), "--session-config",
                 str(config_path), "--session-dir", str(session_dir)],
@@ -133,11 +143,15 @@ def main():
     }
     if args.map:
         commands["n3m"] += ["-p", "mode:=localization", "-p", "map_path:="+str(args.map.resolve())]
+    if args.input_only:
+        del commands["n3m"]
     identity = {name: dict(command=command, executable_sha256=file_hash(command[0]))
                 for name, command in commands.items()}
-    identity["n3m"]["core_sha256"] = file_hash(args.workspace / "build/n3mapping/libn3mapping_core.so")
+    if not args.input_only:
+        identity["n3m"]["core_sha256"] = file_hash(args.workspace / "build/n3mapping/libn3mapping_core.so")
     identity["inputs"] = {str(path): file_hash(path) for path in
                           (config_path, Path(__file__), Path(__file__).with_name("n3mapping_sprobo_scene.py"),
+                           Path(__file__).with_name("n3mapping_sprobo_route.py"),
                            args.workspace / "src/FAST_LIO/config/mid360.yaml",
                            args.workspace / "src/n3mapping/humble/config/n3mapping.yaml")}
     if args.map:
@@ -176,6 +190,8 @@ def main():
                 if cls is Odometry:
                     p, q = message.pose.pose.position, message.pose.pose.orientation
                     poses.append([topic, stamp, p.x, p.y, p.z, q.x, q.y, q.z, q.w])
+                    if driver and topic == "/ground_truth/odom":
+                        driver.observe(message, stamp)
                 elif cls is CustomMsg:
                     lidar_sample.update(points=message.point_num, timebase=message.timebase,
                         stamp=stamp, max_offset_ns=max(p.offset_time for p in message.points),
@@ -210,27 +226,36 @@ def main():
                 raise RuntimeError("A child exited during startup; inspect its log")
             if (static_tf and node.count_subscribers("/scout_mini/cmd_vel") and
                     node.count_publishers("/cloud_registered_body") and
-                    node.count_subscribers("/cloud_registered_body")):
+                    node.count_subscribers("/cloud_registered_body") >= (1 if args.input_only else 2)):
                 break
         else:
             raise RuntimeError("ROS graph did not become ready")
         owner = start_session(session_dir)
         deadline = time.monotonic()+args.duration*4+30
-        last_command = 0.
+        last_command, last_progress, stopping = 0., 0., False
         while time.monotonic() < deadline and processes["sim"].poll() is None:
-            for name in ("adapter", "fast_lio", "n3m"):
+            for name in (name for name in processes if name != "sim"):
                 if processes[name].poll() is not None:
                     raise RuntimeError(name+" exited during the run")
             rclpy.spin_once(node, timeout_sec=.01)
             if time.monotonic()-last_command >= .05:
                 elapsed = sim_ns/1e9
                 command = Twist()
-                if 7 <= elapsed < 22:
+                if driver:
+                    command.linear.x, command.angular.z = driver.command(elapsed)
+                    if driver.completed_at is not None and elapsed > driver.completed_at+2 and not stopping:
+                        processes["sim"].send_signal(signal.SIGINT)
+                        stopping = True
+                elif args.route == "smoke" and 7 <= elapsed < 22:
                     command.linear.x = .5
-                elif 22 <= elapsed < 26:
+                elif args.route == "smoke" and 22 <= elapsed < 26:
                     command.angular.z = .3
                 publisher.publish(command)
                 last_command = time.monotonic()
+                if driver and elapsed-last_progress >= 10:
+                    print(json.dumps(dict(sim_s=elapsed, route=driver.index, total=len(driver.points),
+                                          pose=driver.pose, counts=dict(counts))), flush=True)
+                    last_progress = elapsed
         if processes["sim"].poll() is None:
             raise RuntimeError("Simulation exceeded its wall-time allowance")
         deadline = time.monotonic()+2
@@ -238,7 +263,7 @@ def main():
             rclpy.spin_once(node, timeout_sec=.02)
         truth_subscribers = [info.node_name for info in
                              node.get_subscriptions_info_by_topic("/ground_truth/odom")]
-        if not args.map:
+        if not args.map and not args.input_only:
             save = node.create_client(Trigger, "/n3mapping/save_map")
             if save.wait_for_service(timeout_sec=5):
                 future = save.call_async(Trigger.Request())
@@ -269,23 +294,32 @@ def main():
                   raw_lidar=counts["/livox/lidar"] >= 100, raw_imu=counts["/livox/imu"] >= 2000,
                   complete_raw_lidar=counts["/livox/lidar"] == native.get("lidar_frames"),
                   complete_raw_imu=counts["/livox/imu"] == native.get("imu_samples"),
-                  lio_pairs=len(pairs) >= 100, backend_output=counts["/n3mapping/odometry"] >= 100,
+                  lio_pairs=len(pairs) >= 100,
                   complete_lio_pairs=len(pairs) == counts["/Odometry"] == counts["/cloud_registered_body"],
                   timestamps_increase=all(all(a < b for a, b in zip(values, values[1:]))
                                           for values in stamps.values()),
                   truth_isolated=truth_subscribers == ["n3m_sprobo_observer"],
                   rolling_scan=bool(lidar_sample.get("offsets_ordered")) and
                       90_000_000 < lidar_sample.get("max_offset_ns", 0) < 100_000_000)
-    if not args.map:
+    if not args.input_only:
+        checks["backend_output"] = counts["/n3mapping/odometry"] >= 100
+    if not args.map and not args.input_only:
         checks["saved_map"] = bool(saved)
+    if driver:
+        checks["route_completed"] = driver.completed_at is not None
+        (args.output / "route.json").write_text(json.dumps(driver.report(), indent=2)+"\n")
+        from n3mapping_sprobo_score import mapping_quality
+        quality = mapping_quality(args.output)
+        checks["mapping_geometry"] = quality["passed"]
+        (args.output / "mapping_quality.json").write_text(json.dumps(quality, indent=2)+"\n")
     summary = dict(passed=all(checks.values()), checks=checks, error=error, counts=dict(counts),
                    lio_exact_stamp_pairs=len(pairs), first_lidar=lidar_sample,
                    truth_subscribers=truth_subscribers, wall_seconds=time.monotonic()-started,
                    simulation_seconds=sim_ns/1e9,
                    simulation_lidar_frames=native.get("lidar_frames"),
                    simulation_imu_samples=native.get("imu_samples"),
-                   mode="localization" if args.map else "mapping",
-                   limitation="Integration smoke only; not accuracy or half-core qualification")
+                   mode="input_only" if args.input_only else "localization" if args.map else "mapping",
+                   limitation="Acquisition checks only; not localization accuracy or half-core qualification")
     (args.output / "summary.json").write_text(json.dumps(summary, indent=2)+"\n")
     print(json.dumps(summary, indent=2))
     return 0 if summary["passed"] else 1

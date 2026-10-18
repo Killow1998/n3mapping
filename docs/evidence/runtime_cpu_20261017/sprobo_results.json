@@ -566,5 +566,1507 @@
       },
       "localization_tested": false
     }
+  },
+  "extended_validation": {
+    "scope": "Independent acquisition, gross mapping drift rejection, and prototype false-lock screening; no production algorithm change or performance qualification",
+    "full_mapping": {
+      "directory": "/tmp/n3m_sprobo_20261018/coverage1",
+      "summary": {
+        "passed": false,
+        "checks": {
+          "no_error": true,
+          "simulation_exited_cleanly": true,
+          "raw_lidar": true,
+          "raw_imu": true,
+          "complete_raw_lidar": true,
+          "complete_raw_imu": true,
+          "lio_pairs": true,
+          "backend_output": true,
+          "complete_lio_pairs": true,
+          "timestamps_increase": true,
+          "truth_isolated": true,
+          "rolling_scan": true,
+          "saved_map": true,
+          "route_completed": false
+        },
+        "error": null,
+        "counts": {
+          "/tf_static": 1,
+          "/clock": 29019,
+          "/livox/imu": 29019,
+          "/livox/lidar": 1450,
+          "/ground_truth/odom": 1450,
+          "/Odometry": 1447,
+          "/cloud_registered_body": 1447,
+          "/n3mapping/odometry": 1443
+        },
+        "lio_exact_stamp_pairs": 1447,
+        "first_lidar": {
+          "points": 19935,
+          "timebase": 0,
+          "stamp": 0,
+          "max_offset_ns": 99995000,
+          "offsets_ordered": true
+        },
+        "truth_subscribers": [
+          "n3m_sprobo_observer"
+        ],
+        "wall_seconds": 148.65809648111463,
+        "simulation_seconds": 145.09,
+        "simulation_lidar_frames": 1450,
+        "simulation_imu_samples": 29019,
+        "mode": "mapping",
+        "limitation": "Integration smoke only; not accuracy or half-core qualification"
+      },
+      "route_reached": 3,
+      "route_total": 79,
+      "planned_distance_m": 1232.0,
+      "quality": {
+        "passed": false,
+        "limits": {
+          "maximum_position_error_m": 1.0,
+          "maximum_rotation_error_deg": 5.0
+        },
+        "scope": "Gross mapping drift guard; not a localization acceptance threshold",
+        "/Odometry": {
+          "mapping": "/tmp/n3m_sprobo_20261018/coverage1",
+          "query": "/tmp/n3m_sprobo_20261018/coverage1",
+          "topic": "/Odometry",
+          "alignment": {
+            "source": "first mapping pose on /Odometry only; no query fitting",
+            "stamp_ns": 399995002,
+            "translation": [
+              -43.99227480652411,
+              0.025556969263379827,
+              0.6385946408087827
+            ],
+            "quaternion_xyzw": [
+              -0.00013825186899777789,
+              0.00013345814371456822,
+              0.00017654275645364643,
+              -0.9999999659539994
+            ]
+          },
+          "evaluated_poses": 1447,
+          "first_output_sim_s": 0.399995002,
+          "position_error_m": {
+            "rmse": 7.871353951786078,
+            "median": 2.447932136925677,
+            "p95": 16.107435428116176,
+            "maximum": 16.502398578459225
+          },
+          "rotation_error_deg": {
+            "rmse": 10.788770925620428,
+            "median": 11.523949399637415,
+            "p95": 11.916641299743205,
+            "maximum": 13.689609714756944
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "/n3mapping/odometry": {
+          "mapping": "/tmp/n3m_sprobo_20261018/coverage1",
+          "query": "/tmp/n3m_sprobo_20261018/coverage1",
+          "topic": "/n3mapping/odometry",
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 799989997,
+            "translation": [
+              -44.04181006378801,
+              0.033909405196541884,
+              0.6692241923093099
+            ],
+            "quaternion_xyzw": [
+              0.0013274200578745343,
+              -0.00048737435717636314,
+              -0.0011458279200025922,
+              -0.9999983437489303
+            ]
+          },
+          "evaluated_poses": 1443,
+          "first_output_sim_s": 0.799989997,
+          "position_error_m": {
+            "rmse": 7.921388063651568,
+            "median": 2.3323721429670794,
+            "p95": 16.15873409759173,
+            "maximum": 16.52961181082199
+          },
+          "rotation_error_deg": {
+            "rmse": 10.709654390446412,
+            "median": 11.425950915145743,
+            "p95": 11.821542798471388,
+            "maximum": 13.60199386241415
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        }
+      },
+      "status": "Rejected reference map; stopped after observed drift; data retained"
+    },
+    "guard_e2e": {
+      "directory": "/tmp/n3m_sprobo_20261018/coverage_guard",
+      "summary": {
+        "passed": false,
+        "checks": {
+          "no_error": true,
+          "simulation_exited_cleanly": true,
+          "raw_lidar": true,
+          "raw_imu": true,
+          "complete_raw_lidar": true,
+          "complete_raw_imu": true,
+          "lio_pairs": true,
+          "complete_lio_pairs": true,
+          "timestamps_increase": true,
+          "truth_isolated": true,
+          "rolling_scan": true,
+          "backend_output": true,
+          "saved_map": true,
+          "route_completed": false,
+          "mapping_geometry": true
+        },
+        "error": null,
+        "counts": {
+          "/tf_static": 1,
+          "/clock": 4001,
+          "/livox/imu": 4001,
+          "/livox/lidar": 200,
+          "/ground_truth/odom": 200,
+          "/Odometry": 197,
+          "/cloud_registered_body": 197,
+          "/n3mapping/odometry": 193
+        },
+        "lio_exact_stamp_pairs": 197,
+        "first_lidar": {
+          "points": 19935,
+          "timebase": 0,
+          "stamp": 0,
+          "max_offset_ns": 99995000,
+          "offsets_ordered": true
+        },
+        "truth_subscribers": [
+          "n3m_sprobo_observer"
+        ],
+        "wall_seconds": 23.469382020644844,
+        "simulation_seconds": 20.0,
+        "simulation_lidar_frames": 200,
+        "simulation_imu_samples": 4001,
+        "mode": "mapping",
+        "limitation": "Acquisition checks only; not localization accuracy or half-core qualification"
+      },
+      "quality": {
+        "passed": true,
+        "limits": {
+          "maximum_position_error_m": 1.0,
+          "maximum_rotation_error_deg": 5.0
+        },
+        "scope": "Gross mapping drift guard; not a localization acceptance threshold",
+        "/Odometry": {
+          "mapping": "/tmp/n3m_sprobo_20261018/coverage_guard",
+          "query": "/tmp/n3m_sprobo_20261018/coverage_guard",
+          "topic": "/Odometry",
+          "alignment": {
+            "source": "first mapping pose on /Odometry only; no query fitting",
+            "stamp_ns": 399995002,
+            "translation": [
+              -43.99227480652411,
+              0.025556969263379827,
+              0.6385946408087827
+            ],
+            "quaternion_xyzw": [
+              -0.00013825186899777789,
+              0.00013345814371456822,
+              0.00017654275645364643,
+              -0.9999999659539994
+            ]
+          },
+          "evaluated_poses": 197,
+          "first_output_sim_s": 0.399995002,
+          "position_error_m": {
+            "rmse": 0.20650252119334908,
+            "median": 0.1716702505840325,
+            "p95": 0.3965078888475324,
+            "maximum": 0.46746094961111295
+          },
+          "rotation_error_deg": {
+            "rmse": 1.720924561649981,
+            "median": 0.9510417802231114,
+            "p95": 3.478771158603407,
+            "maximum": 4.030780062648739
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "/n3mapping/odometry": {
+          "mapping": "/tmp/n3m_sprobo_20261018/coverage_guard",
+          "query": "/tmp/n3m_sprobo_20261018/coverage_guard",
+          "topic": "/n3mapping/odometry",
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 799989997,
+            "translation": [
+              -44.04181006378801,
+              0.033909405196541884,
+              0.6692241923093099
+            ],
+            "quaternion_xyzw": [
+              0.0013274200578745343,
+              -0.00048737435717636314,
+              -0.0011458279200025922,
+              -0.9999983437489303
+            ]
+          },
+          "evaluated_poses": 193,
+          "first_output_sim_s": 0.799989997,
+          "position_error_m": {
+            "rmse": 0.16861201044097543,
+            "median": 0.14029732342569518,
+            "p95": 0.3422604545717903,
+            "maximum": 0.4124624845036554
+          },
+          "rotation_error_deg": {
+            "rmse": 1.6648769007837132,
+            "median": 0.8578407483692571,
+            "p95": 3.401740749402748,
+            "maximum": 3.969663412854014
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        }
+      }
+    },
+    "independent_queries": [
+      {
+        "name": "central",
+        "spawn": [
+          -10,
+          0,
+          0
+        ],
+        "yaw": 0,
+        "variant": "reference",
+        "route": "smoke",
+        "directory": "/tmp/n3m_sprobo_20261018/inputs_central",
+        "summary": {
+          "passed": true,
+          "checks": {
+            "no_error": true,
+            "simulation_exited_cleanly": true,
+            "raw_lidar": true,
+            "raw_imu": true,
+            "complete_raw_lidar": true,
+            "complete_raw_imu": true,
+            "lio_pairs": true,
+            "complete_lio_pairs": true,
+            "timestamps_increase": true,
+            "truth_isolated": true,
+            "rolling_scan": true
+          },
+          "error": null,
+          "counts": {
+            "/tf_static": 1,
+            "/clock": 7001,
+            "/livox/imu": 7001,
+            "/livox/lidar": 350,
+            "/ground_truth/odom": 350,
+            "/Odometry": 347,
+            "/cloud_registered_body": 347
+          },
+          "lio_exact_stamp_pairs": 347,
+          "first_lidar": {
+            "points": 19612,
+            "timebase": 0,
+            "stamp": 0,
+            "max_offset_ns": 99995000,
+            "offsets_ordered": true
+          },
+          "truth_subscribers": [
+            "n3m_sprobo_observer"
+          ],
+          "wall_seconds": 38.29669315274805,
+          "simulation_seconds": 35.0,
+          "simulation_lidar_frames": 350,
+          "simulation_imu_samples": 7001,
+          "mode": "input_only",
+          "limitation": "Integration smoke only; not accuracy or half-core qualification"
+        }
+      },
+      {
+        "name": "south",
+        "spawn": [
+          0,
+          -24,
+          0
+        ],
+        "yaw": 0,
+        "variant": "reference",
+        "route": "smoke",
+        "directory": "/tmp/n3m_sprobo_20261018/inputs_south",
+        "summary": {
+          "passed": true,
+          "checks": {
+            "no_error": true,
+            "simulation_exited_cleanly": true,
+            "raw_lidar": true,
+            "raw_imu": true,
+            "complete_raw_lidar": true,
+            "complete_raw_imu": true,
+            "lio_pairs": true,
+            "complete_lio_pairs": true,
+            "timestamps_increase": true,
+            "truth_isolated": true,
+            "rolling_scan": true
+          },
+          "error": null,
+          "counts": {
+            "/tf_static": 1,
+            "/clock": 7001,
+            "/livox/imu": 7001,
+            "/livox/lidar": 350,
+            "/ground_truth/odom": 350,
+            "/Odometry": 347,
+            "/cloud_registered_body": 347
+          },
+          "lio_exact_stamp_pairs": 347,
+          "first_lidar": {
+            "points": 19651,
+            "timebase": 0,
+            "stamp": 0,
+            "max_offset_ns": 99995000,
+            "offsets_ordered": true
+          },
+          "truth_subscribers": [
+            "n3m_sprobo_observer"
+          ],
+          "wall_seconds": 38.27513609454036,
+          "simulation_seconds": 35.0,
+          "simulation_lidar_frames": 350,
+          "simulation_imu_samples": 7001,
+          "mode": "input_only",
+          "limitation": "Integration smoke only; not accuracy or half-core qualification"
+        }
+      },
+      {
+        "name": "north",
+        "spawn": [
+          28,
+          34,
+          0
+        ],
+        "yaw": 90,
+        "variant": "reference",
+        "route": "stationary",
+        "directory": "/tmp/n3m_sprobo_20261018/inputs_north",
+        "summary": {
+          "passed": true,
+          "checks": {
+            "no_error": true,
+            "simulation_exited_cleanly": true,
+            "raw_lidar": true,
+            "raw_imu": true,
+            "complete_raw_lidar": true,
+            "complete_raw_imu": true,
+            "lio_pairs": true,
+            "complete_lio_pairs": true,
+            "timestamps_increase": true,
+            "truth_isolated": true,
+            "rolling_scan": true
+          },
+          "error": null,
+          "counts": {
+            "/tf_static": 1,
+            "/clock": 7001,
+            "/livox/imu": 7001,
+            "/livox/lidar": 350,
+            "/ground_truth/odom": 350,
+            "/Odometry": 347,
+            "/cloud_registered_body": 347
+          },
+          "lio_exact_stamp_pairs": 347,
+          "first_lidar": {
+            "points": 20000,
+            "timebase": 0,
+            "stamp": 0,
+            "max_offset_ns": 99995000,
+            "offsets_ordered": true
+          },
+          "truth_subscribers": [
+            "n3m_sprobo_observer"
+          ],
+          "wall_seconds": 38.28141968604177,
+          "simulation_seconds": 35.0,
+          "simulation_lidar_frames": 350,
+          "simulation_imu_samples": 7001,
+          "mode": "input_only",
+          "limitation": "Integration smoke only; not accuracy or half-core qualification"
+        }
+      },
+      {
+        "name": "north_changed",
+        "spawn": [
+          28,
+          34,
+          0
+        ],
+        "yaw": 90,
+        "variant": "changed",
+        "route": "stationary",
+        "directory": "/tmp/n3m_sprobo_20261018/inputs_north_changed",
+        "summary": {
+          "passed": true,
+          "checks": {
+            "no_error": true,
+            "simulation_exited_cleanly": true,
+            "raw_lidar": true,
+            "raw_imu": true,
+            "complete_raw_lidar": true,
+            "complete_raw_imu": true,
+            "lio_pairs": true,
+            "complete_lio_pairs": true,
+            "timestamps_increase": true,
+            "truth_isolated": true,
+            "rolling_scan": true
+          },
+          "error": null,
+          "counts": {
+            "/tf_static": 1,
+            "/clock": 7001,
+            "/livox/imu": 7001,
+            "/livox/lidar": 350,
+            "/ground_truth/odom": 350,
+            "/Odometry": 347,
+            "/cloud_registered_body": 347
+          },
+          "lio_exact_stamp_pairs": 347,
+          "first_lidar": {
+            "points": 20000,
+            "timebase": 0,
+            "stamp": 0,
+            "max_offset_ns": 99995000,
+            "offsets_ordered": true
+          },
+          "truth_subscribers": [
+            "n3m_sprobo_observer"
+          ],
+          "wall_seconds": 38.27299755625427,
+          "simulation_seconds": 35.0,
+          "simulation_lidar_frames": 350,
+          "simulation_imu_samples": 7001,
+          "mode": "input_only",
+          "limitation": "Integration smoke only; not accuracy or half-core qualification"
+        }
+      },
+      {
+        "name": "room_repetitive",
+        "spawn": [
+          -28,
+          10,
+          0
+        ],
+        "yaw": 180,
+        "variant": "repetitive",
+        "route": "stationary",
+        "directory": "/tmp/n3m_sprobo_20261018/inputs_room_repetitive",
+        "summary": {
+          "passed": true,
+          "checks": {
+            "no_error": true,
+            "simulation_exited_cleanly": true,
+            "raw_lidar": true,
+            "raw_imu": true,
+            "complete_raw_lidar": true,
+            "complete_raw_imu": true,
+            "lio_pairs": true,
+            "complete_lio_pairs": true,
+            "timestamps_increase": true,
+            "truth_isolated": true,
+            "rolling_scan": true
+          },
+          "error": null,
+          "counts": {
+            "/tf_static": 1,
+            "/clock": 7001,
+            "/livox/imu": 7001,
+            "/livox/lidar": 350,
+            "/ground_truth/odom": 350,
+            "/Odometry": 347,
+            "/cloud_registered_body": 347
+          },
+          "lio_exact_stamp_pairs": 347,
+          "first_lidar": {
+            "points": 20000,
+            "timebase": 0,
+            "stamp": 0,
+            "max_offset_ns": 99995000,
+            "offsets_ordered": true
+          },
+          "truth_subscribers": [
+            "n3m_sprobo_observer"
+          ],
+          "wall_seconds": 38.28222755808383,
+          "simulation_seconds": 35.0,
+          "simulation_lidar_frames": 350,
+          "simulation_imu_samples": 7001,
+          "mode": "input_only",
+          "limitation": "Integration smoke only; not accuracy or half-core qualification"
+        }
+      },
+      {
+        "name": "west_heading",
+        "spawn": [
+          -40,
+          -34,
+          0
+        ],
+        "yaw": -90,
+        "variant": "reference",
+        "route": "stationary",
+        "directory": "/tmp/n3m_sprobo_20261018/inputs_west_heading",
+        "summary": {
+          "passed": true,
+          "checks": {
+            "no_error": true,
+            "simulation_exited_cleanly": true,
+            "raw_lidar": true,
+            "raw_imu": true,
+            "complete_raw_lidar": true,
+            "complete_raw_imu": true,
+            "lio_pairs": true,
+            "complete_lio_pairs": true,
+            "timestamps_increase": true,
+            "truth_isolated": true,
+            "rolling_scan": true
+          },
+          "error": null,
+          "counts": {
+            "/tf_static": 1,
+            "/clock": 7001,
+            "/livox/imu": 7001,
+            "/livox/lidar": 350,
+            "/ground_truth/odom": 350,
+            "/Odometry": 347,
+            "/cloud_registered_body": 347
+          },
+          "lio_exact_stamp_pairs": 347,
+          "first_lidar": {
+            "points": 20000,
+            "timebase": 0,
+            "stamp": 0,
+            "max_offset_ns": 99995000,
+            "offsets_ordered": true
+          },
+          "truth_subscribers": [
+            "n3m_sprobo_observer"
+          ],
+          "wall_seconds": 38.2842956809327,
+          "simulation_seconds": 35.0,
+          "simulation_lidar_frames": 350,
+          "simulation_imu_samples": 7001,
+          "mode": "input_only",
+          "limitation": "Integration smoke only; not accuracy or half-core qualification"
+        }
+      }
+    ],
+    "frontend_diagnostics": [
+      {
+        "name": "frontend_acc100",
+        "run": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false",
+            "-p",
+            "mapping.acc_cov:=100.0"
+          ],
+          "start": 0.0,
+          "end": 40.0,
+          "oracle_imu": false,
+          "sent": {
+            "/livox/lidar": 400,
+            "/livox/imu": 8001,
+            "/clock": 8002
+          },
+          "poses": 397
+        },
+        "position_rmse_m": 3.0194392697752486,
+        "position_max_m": 4.772789076831037,
+        "rotation_max_deg": 13.329186853189551
+      },
+      {
+        "name": "frontend_baseline",
+        "run": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false",
+            "-p",
+            "mapping.acc_cov:=0.1"
+          ],
+          "start": 0.0,
+          "end": 40.0,
+          "oracle_imu": false,
+          "sent": {
+            "/livox/lidar": 400,
+            "/livox/imu": 8001,
+            "/clock": 8002
+          },
+          "poses": 397
+        },
+        "position_rmse_m": 0.9870480568024225,
+        "position_max_m": 1.8882877019332611,
+        "rotation_max_deg": 12.557033643935727
+      },
+      {
+        "name": "frontend_gyro_small",
+        "run": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false",
+            "-p",
+            "mapping.acc_cov:=0.1",
+            "-p",
+            "mapping.gyr_cov:=0.000001"
+          ],
+          "start": 0.0,
+          "end": 40.0,
+          "oracle_imu": false,
+          "sent": {
+            "/livox/lidar": 400,
+            "/livox/imu": 8001,
+            "/clock": 8002
+          },
+          "poses": 397
+        },
+        "position_rmse_m": 0.6770544614550875,
+        "position_max_m": 1.5227222451916982,
+        "rotation_max_deg": 8.743936068971665
+      },
+      {
+        "name": "frontend_oracle",
+        "run": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false",
+            "-p",
+            "mapping.acc_cov:=0.1"
+          ],
+          "start": 1.0,
+          "end": 40.0,
+          "oracle_imu": true,
+          "sent": {
+            "/livox/lidar": 391,
+            "/livox/imu": 7801,
+            "/clock": 7801
+          },
+          "poses": 387
+        },
+        "position_rmse_m": 2.874652560980375,
+        "position_max_m": 4.762530614436306,
+        "rotation_max_deg": 15.679094453856996
+      },
+      {
+        "name": "frontend_voxel_small",
+        "run": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false",
+            "-p",
+            "mapping.acc_cov:=0.1",
+            "-p",
+            "filter_size_surf:=0.2",
+            "-p",
+            "filter_size_map:=0.2"
+          ],
+          "start": 0.0,
+          "end": 40.0,
+          "oracle_imu": false,
+          "sent": {
+            "/livox/lidar": 400,
+            "/livox/imu": 8001,
+            "/clock": 8002
+          },
+          "poses": 397
+        },
+        "position_rmse_m": 2.6964405051666143,
+        "position_max_m": 4.6462793106064035,
+        "rotation_max_deg": 9.091084556758878
+      },
+      {
+        "name": "frontend_warmup",
+        "run": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false",
+            "-p",
+            "mapping.acc_cov:=0.1"
+          ],
+          "start": 1.0,
+          "end": 40.0,
+          "oracle_imu": false,
+          "sent": {
+            "/livox/lidar": 391,
+            "/livox/imu": 7801,
+            "/clock": 7801
+          },
+          "poses": 387
+        },
+        "position_rmse_m": 2.1435395746127037,
+        "position_max_m": 3.4591843134214635,
+        "rotation_max_deg": 24.64533834453406
+      }
+    ],
+    "imu_numerical_probe": {
+      "scope": "Native Scout Mini accelerate/stop fixture; no ROS/GPU or estimator; integration from 6 s to end, sampled near 13.9 s",
+      "dt_s": [
+        0.005,
+        0.001,
+        0.0005
+      ],
+      "residual_velocity_m_s": [
+        0.3035503030239159,
+        0.07686169671026201,
+        0.0354391412237288
+      ],
+      "root_cause_status": "Numerical inconsistency demonstrated; not established as the complete cause of frontend drift"
+    },
+    "decision_positive_control": [
+      {
+        "session": "query3",
+        "variant": "baseline",
+        "frames": 347,
+        "live_poses": 343,
+        "locked_frames": 1,
+        "alignments": 49,
+        "errors": {
+          "first_output_sim_s": 0.799995002,
+          "first_position_error_m": 0.18200025404836923,
+          "position_rmse_m": 0.13527879517686656,
+          "position_max_m": 0.1953262092551622,
+          "rotation_rmse_deg": 0.3706282912261749,
+          "rotation_max_deg": 0.7774250207406617,
+          "wrong_output_poses": 0
+        },
+        "command": [
+          "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+          "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream",
+          "/tmp/n3m_sprobo_20261018/smoke2_atlas.pb",
+          "/tmp/n3m_sprobo_20261018/manifest_query3/frames.csv",
+          "/tmp/n3m_sprobo_20261018/query_ab/query3_baseline.csv",
+          "0",
+          "0"
+        ],
+        "preload": null,
+        "limitation": "ROS-free decision comparison, rate=0, short partial map; no CPU qualification"
+      },
+      {
+        "session": "query3",
+        "variant": "prototype",
+        "frames": 347,
+        "live_poses": 343,
+        "locked_frames": 1,
+        "alignments": 49,
+        "errors": {
+          "first_output_sim_s": 0.799995002,
+          "first_position_error_m": 0.1822578777781089,
+          "position_rmse_m": 0.1353837767845957,
+          "position_max_m": 0.196421583180089,
+          "rotation_rmse_deg": 0.37077911728204915,
+          "rotation_max_deg": 0.77742502074066,
+          "wrong_output_poses": 0
+        },
+        "command": [
+          "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+          "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream",
+          "/tmp/n3m_sprobo_20261018/smoke2_atlas.pb",
+          "/tmp/n3m_sprobo_20261018/manifest_query3/frames.csv",
+          "/tmp/n3m_sprobo_20261018/query_ab/query3_prototype.csv",
+          "0",
+          "0"
+        ],
+        "preload": "/tmp/n3m_half_core/reseed_20261018/published_probe/guard_occlusion_product.so",
+        "limitation": "ROS-free decision comparison, rate=0, short partial map; no CPU qualification"
+      }
+    ],
+    "incomplete_decision_run": {
+      "session": "inputs_central",
+      "variant": "baseline",
+      "frames": 314,
+      "limit_wall_s": 240,
+      "status": "Timeout, not a completed 347-frame result; completed first 100 frames reused only for matching-prefix screening"
+    },
+    "prototype_status": "Rejected for promotion: independent corridor false lock, approximately 32 m from truth; production remains unchanged",
+    "decision_screen": [
+      {
+        "session": "inputs_central",
+        "variant": "baseline",
+        "frames": 100,
+        "live_poses": 0,
+        "locked_frames": 0,
+        "alignments": 1227,
+        "errors": {},
+        "command": [
+          "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+          "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream",
+          "/tmp/n3m_sprobo_20261018/smoke2_atlas.pb",
+          "/tmp/n3m_sprobo_20261018/manifest_inputs_central/frames.csv",
+          "/tmp/n3m_sprobo_20261018/query_ab_screen/inputs_central_baseline.csv",
+          "0",
+          "100"
+        ],
+        "preload": null,
+        "reused_prefix_from": "/tmp/n3m_sprobo_20261018/query_ab/inputs_central_baseline.csv",
+        "limitation": "ROS-free decision screening, rate=0, short partial map, explicit frame cap; no CPU or complete-session qualification"
+      },
+      {
+        "session": "inputs_central",
+        "variant": "prototype",
+        "frames": 100,
+        "live_poses": 61,
+        "locked_frames": 1,
+        "alignments": 492,
+        "errors": {
+          "first_output_sim_s": 4.299989997,
+          "first_position_error_m": 31.96269411397232,
+          "position_rmse_m": 31.640330095325385,
+          "position_max_m": 32.10762035662349,
+          "rotation_rmse_deg": 0.5003460510223835,
+          "rotation_max_deg": 0.9292698541108595,
+          "wrong_output_poses": 61
+        },
+        "command": [
+          "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+          "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream",
+          "/tmp/n3m_sprobo_20261018/smoke2_atlas.pb",
+          "/tmp/n3m_sprobo_20261018/manifest_inputs_central/frames.csv",
+          "/tmp/n3m_sprobo_20261018/query_ab_screen/inputs_central_prototype.csv",
+          "0",
+          "100"
+        ],
+        "preload": "/tmp/n3m_half_core/reseed_20261018/published_probe/guard_occlusion_product.so",
+        "reused_prefix_from": null,
+        "limitation": "ROS-free decision screening, rate=0, short partial map, explicit frame cap; no CPU or complete-session qualification"
+      },
+      {
+        "session": "inputs_south",
+        "variant": "baseline",
+        "frames": 100,
+        "live_poses": 0,
+        "locked_frames": 0,
+        "alignments": 1193,
+        "errors": {},
+        "command": [
+          "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+          "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream",
+          "/tmp/n3m_sprobo_20261018/smoke2_atlas.pb",
+          "/tmp/n3m_sprobo_20261018/manifest_inputs_south/frames.csv",
+          "/tmp/n3m_sprobo_20261018/query_ab_screen/inputs_south_baseline.csv",
+          "0",
+          "100"
+        ],
+        "preload": null,
+        "reused_prefix_from": null,
+        "limitation": "ROS-free decision screening, rate=0, short partial map, explicit frame cap; no CPU or complete-session qualification"
+      }
+    ],
+    "ablation": [
+      {
+        "name": "occlusion_veto",
+        "overrides": {
+          "N3M_PROBE_FREE_SPACE_MODE": "veto"
+        },
+        "preload": "/tmp/n3m_half_core/reseed_20261018/published_probe/guard_occlusion_product.so",
+        "command": [
+          "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+          "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream",
+          "/tmp/n3m_sprobo_20261018/smoke2_atlas.pb",
+          "/tmp/n3m_sprobo_20261018/manifest_inputs_central/frames.csv",
+          "/tmp/n3m_sprobo_20261018/false_lock_ablation/occlusion_veto.csv",
+          "0",
+          "100"
+        ],
+        "frames": 100,
+        "live_poses": 0,
+        "first_live_stamp_ns": null,
+        "alignments": 1227,
+        "candidates": 120
+      },
+      {
+        "name": "kill_no_occlusion",
+        "overrides": {},
+        "preload": "/tmp/n3m_half_core/reseed_20261018/published_probe/guarded_product.so",
+        "command": [
+          "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+          "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream",
+          "/tmp/n3m_sprobo_20261018/smoke2_atlas.pb",
+          "/tmp/n3m_sprobo_20261018/manifest_inputs_central/frames.csv",
+          "/tmp/n3m_sprobo_20261018/false_lock_ablation/kill_no_occlusion.csv",
+          "0",
+          "100"
+        ],
+        "frames": 100,
+        "live_poses": 0,
+        "first_live_stamp_ns": null,
+        "alignments": 1227,
+        "candidates": 120
+      },
+      {
+        "name": "occlusion_veto_persist",
+        "overrides": {
+          "N3M_PROBE_FREE_SPACE_MODE": "veto",
+          "N3M_PROBE_PERSIST": "1"
+        },
+        "preload": "/tmp/n3m_half_core/reseed_20261018/published_probe/guard_occlusion_product.so",
+        "command": [
+          "/tmp/n3m_half_core/reseed_20261018/replay_probe",
+          "/tmp/n3m_sprobo_20261018/smoke2/map/n3map.pbstream",
+          "/tmp/n3m_sprobo_20261018/smoke2_atlas.pb",
+          "/tmp/n3m_sprobo_20261018/manifest_inputs_central/frames.csv",
+          "/tmp/n3m_sprobo_20261018/false_lock_ablation/occlusion_veto_persist.csv",
+          "0",
+          "100"
+        ],
+        "frames": 100,
+        "live_poses": 0,
+        "first_live_stamp_ns": null,
+        "alignments": 631,
+        "candidates": 6
+      }
+    ],
+    "false_lock_score": {
+      "mapping": "/tmp/n3m_sprobo_20261018/smoke2",
+      "query": "/tmp/n3m_sprobo_20261018/inputs_central",
+      "topic": "/n3mapping/odometry",
+      "probe_csv": "/tmp/n3m_sprobo_20261018/query_ab_screen/inputs_central_prototype.csv",
+      "alignment": {
+        "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+        "stamp_ns": 799989997,
+        "translation": [
+          -44.04181006378801,
+          0.033909405196541884,
+          0.6692241923093099
+        ],
+        "quaternion_xyzw": [
+          0.0013274200578745343,
+          -0.00048737435717636314,
+          -0.0011458279200025922,
+          -0.9999983437489303
+        ]
+      },
+      "evaluated_poses": 61,
+      "first_output_sim_s": 4.299989997,
+      "position_error_m": {
+        "rmse": 31.640330095325385,
+        "median": 31.491105686387826,
+        "p95": 32.09493608758629,
+        "maximum": 32.10762035662349
+      },
+      "rotation_error_deg": {
+        "rmse": 0.5003460510223835,
+        "median": 0.4395318127505663,
+        "p95": 0.8023742275106187,
+        "maximum": 0.9292698541108599
+      },
+      "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+    },
+    "excluded_partial_screen": {
+      "session": "inputs_south",
+      "variant": "prototype",
+      "completed_frames": 30,
+      "reason": "Stopped after a complete central-corridor counterexample; no comparison claim"
+    },
+    "fixture": {
+      "path": "map/sprobo_corridor_regression",
+      "git_tracked": false,
+      "frames": 100,
+      "fingerprints_sha256": "9bcbcc7495c6d5a3da31623f0986400188c463365046de77ad1457c99174c80b",
+      "map_sha256": "2e2c9d4a68fe8cabf55eb851c92d6443f92e0832cdd730b1eae3b2461f913b41",
+      "manifest_sha256": "888d0ca3ed1feb29fb87e993f607018893b6d4785c82adb7c8308bd5e81f2245",
+      "total_payload_bytes": 18352775
+    },
+    "probe_identities": {
+      "/tmp/n3m_half_core/reseed_20261018/replay_probe": "48e5ee302b654d7beaeb413b0fe8485882b2280c5048a6a2e5c2a70721a66f76",
+      "/tmp/n3m_half_core/reseed_20261018/baseline/libn3mapping_core.so": "883b5cc846ffe6cde20733527bd8966230ae864aa5d64a6b9df5cf0a17b2f01b",
+      "/tmp/n3m_half_core/reseed_20261018/published_probe/guard_occlusion_product.so": "8b018cb6ed856dec33a140b3937d549702f946578f7e6ccb264589e82698adff",
+      "/tmp/n3m_half_core/reseed_20261018/published_probe/guarded_product.so": "56067a97922fdf1ff6a37e427cd1d4f85069824a4d04475d31eb8b78212c63aa",
+      "/tmp/n3m_sprobo_20261018/smoke2_atlas.pb": "f8dbf6f610d7b38b060c575d70e1eebe41a3e4d6749ee5214ba33456a5b2398b"
+    },
+    "acquisition_identities": {
+      "coverage1": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/coverage1/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/coverage1/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/coverage1/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "n3m": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/build/n3mapping/n3mapping_node",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "mode:=mapping",
+            "-p",
+            "map_save_path:=/tmp/n3m_sprobo_20261018/coverage1/map",
+            "-p",
+            "save_global_map_on_shutdown:=false"
+          ],
+          "executable_sha256": "21457e9ba48e6d8c3abc496a8b6c951f708966c8e6eb8aa9e78c78aeee943e96",
+          "core_sha256": "883b5cc846ffe6cde20733527bd8966230ae864aa5d64a6b9df5cf0a17b2f01b"
+        },
+        "inputs": {
+          "/tmp/n3m_sprobo_20261018/coverage1/session.json": "9d538e64c4ab220e81372d0a2b93c2a13050358e48be3be2ae5b4f0fee50ce85",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "79e4f02aa07776a06b859fdd4706d5857e65c17e978d1011dc5761b745a20843",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "793a9dab19636b7916f723a605fd6472313379edd971cd0cca586bf308450628",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "74a1a3e9fdf66899bf4f6020b3d2ae03b1abbcb3e99faf3c3db04d771f8e455f",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "583f437e9bb4ffe470729a3dc434e97510b787a1e58bc95cdc984747339887e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677"
+        }
+      },
+      "coverage_guard": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/coverage_guard/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/coverage_guard/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/coverage_guard/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "n3m": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/build/n3mapping/n3mapping_node",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "mode:=mapping",
+            "-p",
+            "map_save_path:=/tmp/n3m_sprobo_20261018/coverage_guard/map",
+            "-p",
+            "save_global_map_on_shutdown:=false"
+          ],
+          "executable_sha256": "21457e9ba48e6d8c3abc496a8b6c951f708966c8e6eb8aa9e78c78aeee943e96",
+          "core_sha256": "883b5cc846ffe6cde20733527bd8966230ae864aa5d64a6b9df5cf0a17b2f01b"
+        },
+        "inputs": {
+          "/tmp/n3m_sprobo_20261018/coverage_guard/session.json": "d09112b26328fe7347b090f1f3e27177ee39cb2916fc6196c63fbd6fc6b30acd",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "62df334369039a66f6823f895744b2a0abc15c710dfe6fa9d47acfe6a51d14ce",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "793a9dab19636b7916f723a605fd6472313379edd971cd0cca586bf308450628",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "74a1a3e9fdf66899bf4f6020b3d2ae03b1abbcb3e99faf3c3db04d771f8e455f",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "583f437e9bb4ffe470729a3dc434e97510b787a1e58bc95cdc984747339887e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677"
+        }
+      },
+      "inputs_central": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/inputs_central/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_central/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_central/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "inputs": {
+          "/tmp/n3m_sprobo_20261018/inputs_central/session.json": "0a6a001b87a722cf31cb8614852e0c430fc6f3789d84f53936e9e4c842433883",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "e1acd1236dddd1af604ae5d49e0e73716730338c880bdc6da9edefc7be2b36e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "793a9dab19636b7916f723a605fd6472313379edd971cd0cca586bf308450628",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "74a1a3e9fdf66899bf4f6020b3d2ae03b1abbcb3e99faf3c3db04d771f8e455f",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "583f437e9bb4ffe470729a3dc434e97510b787a1e58bc95cdc984747339887e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677"
+        }
+      },
+      "inputs_south": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/inputs_south/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_south/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_south/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "inputs": {
+          "/tmp/n3m_sprobo_20261018/inputs_south/session.json": "2f5c4832f4cbc9b4d46cd349ad5f5e9043e9ec9f828b10d186c5976ff79f7b0d",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "e1acd1236dddd1af604ae5d49e0e73716730338c880bdc6da9edefc7be2b36e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "793a9dab19636b7916f723a605fd6472313379edd971cd0cca586bf308450628",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "74a1a3e9fdf66899bf4f6020b3d2ae03b1abbcb3e99faf3c3db04d771f8e455f",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "583f437e9bb4ffe470729a3dc434e97510b787a1e58bc95cdc984747339887e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677"
+        }
+      },
+      "inputs_north": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/inputs_north/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_north/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_north/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "inputs": {
+          "/tmp/n3m_sprobo_20261018/inputs_north/session.json": "f0035d0a72cd79e975e586fa59d5f7af2f5d80290dae1950d0f3680874cbc3d7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "e1acd1236dddd1af604ae5d49e0e73716730338c880bdc6da9edefc7be2b36e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "793a9dab19636b7916f723a605fd6472313379edd971cd0cca586bf308450628",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "74a1a3e9fdf66899bf4f6020b3d2ae03b1abbcb3e99faf3c3db04d771f8e455f",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "583f437e9bb4ffe470729a3dc434e97510b787a1e58bc95cdc984747339887e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677"
+        }
+      },
+      "inputs_north_changed": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/inputs_north_changed/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_north_changed/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_north_changed/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "inputs": {
+          "/tmp/n3m_sprobo_20261018/inputs_north_changed/session.json": "5d700be7ed7c82bf7223cb4ea40ac00939871f10b8f532e189c7ae2ba7baabcf",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "e1acd1236dddd1af604ae5d49e0e73716730338c880bdc6da9edefc7be2b36e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "793a9dab19636b7916f723a605fd6472313379edd971cd0cca586bf308450628",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "74a1a3e9fdf66899bf4f6020b3d2ae03b1abbcb3e99faf3c3db04d771f8e455f",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "583f437e9bb4ffe470729a3dc434e97510b787a1e58bc95cdc984747339887e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677"
+        }
+      },
+      "inputs_room_repetitive": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/inputs_room_repetitive/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_room_repetitive/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_room_repetitive/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "inputs": {
+          "/tmp/n3m_sprobo_20261018/inputs_room_repetitive/session.json": "09a5bf3bef8dedd449ae07f1ab41f1a8a75085ada7f00aaf2bfa5586ce853dbf",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "e1acd1236dddd1af604ae5d49e0e73716730338c880bdc6da9edefc7be2b36e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "793a9dab19636b7916f723a605fd6472313379edd971cd0cca586bf308450628",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "74a1a3e9fdf66899bf4f6020b3d2ae03b1abbcb3e99faf3c3db04d771f8e455f",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "583f437e9bb4ffe470729a3dc434e97510b787a1e58bc95cdc984747339887e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677"
+        }
+      },
+      "inputs_west_heading": {
+        "sim": {
+          "command": [
+            "/home/user/Projects/simple_rbt/build/desktop/simple-rbt-sim",
+            "--project-root",
+            "/home/user/Projects/simple_rbt",
+            "--session-config",
+            "/tmp/n3m_sprobo_20261018/inputs_west_heading/session.json",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_west_heading/ipc"
+          ],
+          "executable_sha256": "53272cb0e9234b1bb4015b17773f81fc4365ef39b5830cfc8eb0f32d0c3319a7"
+        },
+        "adapter": {
+          "command": [
+            "/tmp/n3m_sprobo_adapter/simple-rbt-ros-session",
+            "--session-dir",
+            "/tmp/n3m_sprobo_20261018/inputs_west_heading/ipc"
+          ],
+          "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+        },
+        "fast_lio": {
+          "command": [
+            "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+            "--ros-args",
+            "--params-file",
+            "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "common.gravity_m_s2:=9.80665",
+            "-p",
+            "pcd_save.pcd_save_en:=false",
+            "-p",
+            "runtime_pos_log_enable:=false"
+          ],
+          "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+        },
+        "inputs": {
+          "/tmp/n3m_sprobo_20261018/inputs_west_heading/session.json": "43a39519ab940b3be222dbef53a1771ed72245dec784f4a57e5af8ec919281ee",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "e1acd1236dddd1af604ae5d49e0e73716730338c880bdc6da9edefc7be2b36e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "793a9dab19636b7916f723a605fd6472313379edd971cd0cca586bf308450628",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "74a1a3e9fdf66899bf4f6020b3d2ae03b1abbcb3e99faf3c3db04d771f8e455f",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "583f437e9bb4ffe470729a3dc434e97510b787a1e58bc95cdc984747339887e7",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677"
+        }
+      }
+    },
+    "recorded_pose_fingerprints": {
+      "coverage1": "358426bb652469987cb608a0d92d79042c15229cee0962dc3361556143cb3545",
+      "coverage_guard": "49498b24fae96004c0d0b06a795892161bc3e9e2bf4c2d50e13d8d7a9bdf4aae"
+    },
+    "route_static_check": {
+      "waypoints": 79,
+      "length_m": 1232.0,
+      "footprint_radius_m": 0.4,
+      "segment_collisions": 0,
+      "limitation": "Authored geometry check; complete driven route not yet verified"
+    }
   }
 }

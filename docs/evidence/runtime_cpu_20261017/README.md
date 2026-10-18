@@ -412,6 +412,12 @@ numbers describe isolated prototypes, not the version currently deployed.
 Sources, input/output fingerprints and individual results are recorded in
 [reseed_results.json](reseed_results.json).
 
+**Promotion rejected on independent SpRobo input:** the guarded/occlusion
+combination locks approximately 32 m from truth in the corridor counterexample
+below, while baseline abstains. The historical speedups do not meet the
+accuracy-preservation requirement. The experiment sources remain available to
+reproduce this failure.
+
 The difficult recording spends its first 55 observations in eleven independent
 five-observation windows. A failed window clears its hypotheses. Initial seed
 registration accounts for 462 of its 773 alignments; the remaining 311 update
@@ -496,8 +502,8 @@ frozen Product factory for DDS measurement and print their active settings.
 Ordinary ROS parameter overrides do not modify that frozen factory; an initial
 trial that did only that is excluded from candidate performance claims.
 
-The next qualification must address density/occlusion ambiguity and labelled
-wrong-map/independent-session behavior before changing Product defaults. Reduced
+Further optimization must preserve competing evidence instead of deriving
+certainty from its deletion. Reduced
 reseed count on one recording is not proof that repetitive initialization is
 solved for all ambiguous observations, nor that difficult search always uses
 at most half a core.
@@ -575,11 +581,108 @@ python3 tools/n3mapping_sprobo_score.py --mapping /tmp/n3m-sim-mapping \
   --query /tmp/n3m-sim-query --output /tmp/n3m-sim-query/score.json
 ```
 
-Next: cover the building with a separate mapping route, freeze query sessions at
-multiple positions/headings, and compare baseline/prototype on repeated rooms,
-changed furniture, occlusion and incorrect-map cases. Exact symmetry should
-remain ambiguous until observations distinguish locations. Measure CPU and RSS
-by replaying the same recorded inputs with the simulator stopped; sensor
-generation and frontend cost must remain separate. Noise/bias, dynamic objects,
-outside-map behavior, full-building coverage and RK3588 performance remain
-unqualified. No prototype has been promoted by this integration result.
+The acquisition runner now supports `--route coverage --duration 1500` for a
+79-waypoint, approximately 1,232 m route through all 24 rooms and back to the
+start. The route controller consumes truth only to drive the test vehicle;
+estimators still consume actual sensors/LIO. `--input-only` records independent
+queries without launching n3m; `--route stationary` permits repeated-room and
+occlusion observations. Six separate 35-second queries were acquired, each with
+350 raw scans, 7,001 IMUs and 347 exact-stamp LIO pairs. They are inputs for
+evaluation, not six successful localizations.
+
+**The full mapping attempt was rejected.** After three of 79 waypoints and
+145.09 simulation seconds, frontend and backend estimates had drifted badly
+while truth stayed on the floor. The acquired data are complete (1,450 scans,
+29,019 IMUs and 1,447 LIO pairs), but the backend's fixed-origin maximum position
+error is 16.53 m. The run was stopped and preserved as a negative case. Its
+pbstream must not become a localization reference map.
+
+Coverage acquisition now requires both route completion and a gross-drift guard
+on frontend and backend poses: maximum fixed-origin error at most 1 m and 5
+degrees. These are test-map sanity limits, not Product localization acceptance
+thresholds. The guard rejects the bad recorded map and accepts the original
+short map. An actual 20-second E2E rerun preserved every raw input and passed
+the geometry guard, but correctly failed overall because the route was
+incomplete. This rerun does not demonstrate that long-route drift is repaired.
+The scorer's `--topic /Odometry` option audits the frontend separately.
+
+Recorded-data diagnosis found a numerical inconsistency in the simulated IMU:
+after a native accelerate/stop fixture, velocity returns nearly to zero while
+integrated accelerometer velocity retains about 0.304 m/s error at a 5 ms physics
+step. The error falls to about 0.035 m/s at 0.5 ms. Sparse ray-to-authored-box
+checks agree closely during steady motion. Neither these checks nor the IMU
+finding establish the complete cause of frontend drift. Same-input 40-second
+replays reproduced it; skipping startup, changing accelerometer/gyro covariance,
+reducing voxel size, and a diagnostic acceleration replacement derived from
+10 Hz truth did not repair it. The truth-derived replay is diagnostic only and
+is excluded from end-to-end qualification. No simulator or FAST_LIO production
+source/configuration has been changed to mask the failure.
+
+Next: resolve the reproducible frontend/simulation discrepancy, qualify complete
+mapping coverage, and test replacement computation-reuse optimizations against
+the independent counterexamples below before expanding to the remaining rooms,
+changed furniture and occlusion cases. Exact
+symmetry should remain ambiguous until observations distinguish locations.
+Measure CPU and RSS by replaying identical recorded inputs with the simulator
+stopped; sensor generation and frontend cost must remain separate. Noise/bias,
+dynamic objects, outside-map behavior, full-building coverage and RK3588
+performance remain unqualified. No prototype has been promoted by these tests.
+
+### Independent corridor counterexample and ablation
+
+Against the accepted short map, a 347-frame independent reverse-heading query
+gives 343 outputs in both baseline and the guarded/occlusion prototype. Both
+first accept observation five; fixed-map position RMSE is 0.13528/0.13538 m.
+This positive control alone would miss the regression.
+
+The independent central-corridor query starts at world x=-10 m, well away from
+the mapping trajectory near x=-44..-36.5 m. On its identical first 100 LIO inputs:
+
+| Experiment | Output poses | Registration calls | Result |
+| --- | ---: | ---: | --- |
+| Product baseline | 0 | 1,227 | Remains ambiguous |
+| Guarded + occlusion + elimination | 61 | 492 | Wrong position, RMSE 31.64 m |
+| Occlusion + veto (elimination disabled) | 0 | 1,227 | Remains ambiguous |
+| Earlier guarded elimination, without occlusion | 0 | 1,227 | Remains ambiguous |
+| Occlusion + veto + existing persistence | 0 | 631 | Remains ambiguous in this prefix |
+
+The wrong lock occurs at input stamp 4.299989997 s, before the test vehicle
+starts moving. Trace logging shows five of six hypotheses eliminated at that
+decision, leaving an infinite margin and no competing basin. The retained
+candidate has free-space score 0.398618; a distinct viable candidate has score
+0.229653. Their sampling deviations are only 0.004694/0.005452, but the relative
+score does not establish that either candidate is the true location. Repeated,
+correlated returns and partial map coverage make the five-sigma heuristic
+insufficient. Disabling elimination prevents this observed failure without
+altering numeric acceptance thresholds. The combination is rejected.
+
+Persistence's lower registration count here is not an accepted fix: the earlier
+real difficult recording fails to lock within 100 observations under persistence,
+where baseline locks at 55. Work reduction and successful-localization latency
+must both be checked. These runs are ROS-free, maximum-speed decision screens;
+they do not qualify CPU consumption. The full baseline corridor run timed out
+at 240 wall seconds after 314 frames. Only its completed first 100 frames are
+used in the table. Additional screening was stopped after finding the concrete
+counterexample; six acquired queries must not be described as six completed
+baseline/prototype comparisons.
+
+The 100-frame failure fixture is retained locally in the repository's existing
+ignored map storage, `map/sprobo_corridor_regression` (about 18 MB), including
+the map, body-cloud/odometry manifest, independent truth, output traces and
+file fingerprints. It contains no truth pose in the estimator's input manifest.
+Its hashes and the actual executable identities are in
+[sprobo_results.json](sprobo_results.json). Rebuild the Atlas from `map.pbstream`,
+then use the existing core probe and rejected experiment builder with this
+manifest. The fixed-map scorer also accepts probe output:
+
+```bash
+python3 tools/n3mapping_sprobo_score.py \
+  --mapping map/sprobo_corridor_regression/mapping \
+  --query map/sprobo_corridor_regression/query \
+  --probe-csv map/sprobo_corridor_regression/results/inputs_central_prototype.csv \
+  --output /tmp/n3m-corridor-score.json
+```
+
+It reports 61 poses with approximately 32 m error; it does not fit the query to
+truth. A probe with no output has no accuracy score. A coasted output cannot be
+scored from the backend pose alone and is rejected by this scorer.
