@@ -1463,6 +1463,9 @@ simple_rbt are unchanged; no DDS timing or hardware-performance claim is made.
 
 ### Fresh confirmation with reusable seed plans (2026-10-19)
 
+The subsequent **Incremental candidates and current-observation confirmation**
+stage below replaces this stage's whole-plan equality requirement.
+
 The next step reduces repeated initialization after a rejected confirmation
 window. With the same freshly retrieved keyframe/yaw seeds and map revision,
 the localizer keeps pose proposals and competing hypotheses, while clearing
@@ -1546,3 +1549,108 @@ case. Their source/results remain in the build artifact directory, and none of
 these rejected implementations or speedups is part of the delivered change.
 Installed executables, simple_rbt and remote branches are unchanged. Full
 out-of-map/re-entry behavior and RK3588 qualification remain unverified.
+
+### Incremental candidates and current-observation confirmation (2026-10-19)
+
+Baseline: `2c4f1ad`. The final frozen variant is `resumed_progress` in
+`build/n3mapping/incremental_search_20261019` under the workspace. See
+[incremental_confirmation_20261019.json](../incremental_confirmation_20261019.json)
+for source/binary/input fingerprints, complete results, accuracy comparisons and
+rejected ablations. The existing `run.py`, `validate_final.py` and `summarize.py`
+in that artifact directory reproduce the measurements; these are build artifacts,
+not a separate issue workspace or a patch delivery.
+
+Candidate pose proposals now survive changes to individual keyframe/yaw seeds.
+The cache retains the current and immediately previous seed plans, and clears on
+map revision, reset or successful lock. Angular lookup uses the generator's
+existing periodic `1e-6` rad equivalence: neighboring heading sectors previously
+missed the cache because float/double expressions differed by roughly
+`1e-9`–`1e-7` rad. The regression reproduces four cold registrations before the
+fix, versus three freshly evaluated reused seeds and one new registration after.
+
+Cached poses carry no temporal scores, visibility evidence or convergence credit.
+Each use evaluates current full prepared geometry with the existing confidence,
+fitness and inlier gates; failure retries the original descriptor seed immediately.
+A finite, numerically acceptable endpoint that hit the iteration limit may be
+retained only as an unfinished proposal: its next use must perform a full current
+registration before admission. Failed continuation falls back to the original
+seed in the same observation. Explicit geometric rejection invalidates the
+affected seed basin; ambiguity alone does not discard other useful proposals.
+
+Intermediate confirmation observations first check the odometry-propagated pose;
+failure triggers full registration immediately. The final confirmation observation
+still registers fully, and only a winner with current converged registration and
+accepted current geometry may publish. Identical geometry checks within that
+observation are reused only when pose, source, target and metric agree. New seeds
+still receive full registration. Preprocessing, RHPD, registration objectives,
+numeric acceptance gates, input selection, ROS interfaces and tracking are unchanged.
+
+All measurements below process every selected input frame, serially, on CPUs
+0/2/4/6 with PASSIVE OpenMP. CPU includes all workers and replay overhead after
+map loading. These are single complete before/after pairs using the same frozen
+inputs, not multi-run medians, DDS real-time measurements or RK3588 qualification.
+
+| Input | Frames | CPU before → after (s) | Full registrations before → after | Final result |
+|---|---:|---:|---:|---|
+| Central | 346 | 22.36 → 18.19 | 51 → 36 | First lock index 4, 342 outputs |
+| South | 346 | 20.11 → 17.24 | 56 → 41 | First lock index 4, 342 outputs |
+| North | 346 | 24.49 → 20.98 | 68 → 53 | First lock index 4, 342 outputs |
+| Changed repetitive scene | 346 | 1670.06 → 583.44 | 4297 → 1223 | No locks or outputs |
+| Real outside-room prefix | 100 | 78.48 → 39.76 | 1288 → 464 | No locks or outputs |
+| Real inside-room prefix | 100 | 4.04 → 3.25 | 81 → 54 | First lock index 4, 96 outputs |
+| Real room-to-meeting prefix | 100 | 4.80 → 4.03 | 83 → 56 | First lock index 4, 96 outputs |
+
+In the complete difficult simulation, original-seed registrations fall from 2517
+to 674, with 84 additional unfinished-solve resumptions; confirmation registrations
+fall from 1780 to 465. The total is 1223. Rebuilding lightweight confirmation
+metadata is not a cold registration: the number of evaluated seed plans is 70
+versus 65 before, while expensive work is substantially lower. The unfinished-solve
+ablation reduces CPU a further 13.1% versus the already validated 671.59 s variant.
+The real difficult prefix improves only about 2.5% in this final ablation; the
+approximately 49% total reduction includes the earlier seed/confirmation changes.
+
+All five positive replay cases retain their lock/publication decisions and first
+lock frame. With a single fixed mapping alignment and no query fitting, simulated
+maximum position errors are 0.02054 / 0.03019 / 0.51053 m. North's maximum changes
+by about 1.9 micrometres and RMSE improves by about 4.9 micrometres; its largest
+published-position change is 0.714 mm. This does not fix the pre-existing roughly
+half-metre north-map error. The two real positive prefixes have no independent
+truth; their largest published-position difference is 5.32 mm, not an accuracy
+bound. Negative rejection reasons change as fresh confirmation proceeds; neither
+negative produces a lock. Rejection is not recovery of the true pose.
+
+Humble CTest passes **61/61**. All **10** synthetic E2E episodes pass in default,
+Atlas and experimental kill modes (97 observations per mode), including unknown
+yaw, same-seed new geometry, ambiguous-to-distinct transitions, lifecycle/map
+extension, out-of-map projection/re-entry and odometry bias before publication.
+An unguarded cache fails the new below-confidence recovery regression. Skipping
+full registration of brand-new descriptor seeds fails the unknown-yaw episode
+and is excluded. Fine-only continuation did not improve difficult CPU and is
+also excluded. A stale-object ABI experiment is excluded entirely; all affected
+targets were rebuilt before subsequent measurements.
+
+Logs distinguish `seed_initializations`, `seed_continuations`, `seed_resumptions`,
+`seed_retries`, `invalidated_seed_poses`, `confirmation_evaluations` and
+`confirmation_registrations`. Resumptions are a subset of continuations, not free
+cache hits. All 1684 replay observations satisfy
+`alignments = seed_initializations + seed_resumptions + confirmation_registrations`.
+Verbose `[RelocSeedReject]` diagnostics include termination, iterations, fitness
+and inlier ratio. In the separate 20-frame diagnostic prefixes, all 46 / 29
+recorded seed rejections hit the iteration limit; verbose-run timing is excluded.
+Per-call stage durations are summed wall times that can overlap across workers,
+so they must not be presented as process CPU percentages.
+
+Confirmation is extracted into a 246-line implementation; the main relocalization
+file decreases from 771 to 553 lines. Observation preparation and match-quality
+evaluation have one shared implementation. Internal C++ layouts changed and
+require a complete rebuild. Peak simulation replay RSS is about 1915 MiB versus
+1912 MiB before; this stage does not demonstrate a memory reduction.
+
+**The difficult average-half-core goal is still unmet.** The unchanged 34.5 s
+input span permits 17.25 CPU s; this version needs 583.44 CPU s. The ratio 16.91
+CPU s per input second describes required throughput, not actual utilization of
+17 physical cores. New/rejected seeds, non-convergent solves, current geometric
+checks and final registration remain substantial costs. Further work must reduce
+those computations while preserving recoverable modes and fresh evidence. Full
+real out-of-map/re-entry, broad adverse-scene reliability and RK3588 remain open.
+No installation, simple_rbt changes or remote push were performed.

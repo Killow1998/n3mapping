@@ -9,6 +9,7 @@
 #include <Eigen/Geometry>
 
 #include "n3mapping/registration_observability.h"
+#include "n3mapping/point_cloud_matcher.h"
 
 namespace n3mapping {
 
@@ -16,6 +17,7 @@ struct RelocalizationHypothesis {
   int64_t seed_match_id = -1;
   int64_t last_match_id = -1;
   Eigen::Isometry3d T_map_odom = Eigen::Isometry3d::Identity();
+  MatchMetric metric;
   double cumulative_log_likelihood = 0.0;
   int num_updates = 0;
   int converged_updates = 0;
@@ -66,9 +68,7 @@ public:
 
   void start(std::vector<Hypothesis> hypotheses,
              const Eigen::Isometry3d &start_odom_pose);
-  void advanceWindow(const Eigen::Isometry3d &odom_pose = Eigen::Isometry3d::Identity());
-  // Keep pose proposals, but require a completely fresh confirmation window.
-  void renewWindow();
+  void advanceWindow();
   int windowCount() const;
   int persistedFrames() const;
 

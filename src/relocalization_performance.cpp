@@ -40,8 +40,13 @@ Json::Value relocalizationPerformanceJson(const RelocalizationPerformance &cost)
   value["target_preparations"] = Json::UInt64(cost.target_preparations);
   value["alignments"] = Json::UInt64(cost.alignments);
   value["rejected_alignments"] = Json::UInt64(cost.rejected_alignments);
-  value["reused_seed_plan"] = cost.reused_seed_plan;
-  value["retried_seed_plan"] = cost.retried_seed_plan;
+  value["seed_continuations"] = Json::UInt64(cost.seed_continuations);
+  value["seed_resumptions"] = Json::UInt64(cost.seed_resumptions);
+  value["seed_initializations"] = Json::UInt64(cost.seed_initializations);
+  value["seed_retries"] = Json::UInt64(cost.seed_retries);
+  value["invalidated_seed_poses"] = Json::UInt64(cost.invalidated_seed_poses);
+  value["confirmation_evaluations"] = Json::UInt64(cost.confirmation_evaluations);
+  value["confirmation_registrations"] = Json::UInt64(cost.confirmation_registrations);
   value["fixed_pose_evaluations"] = Json::UInt64(cost.fixed_pose_evaluations);
   value["visibility_evaluations"] = Json::UInt64(cost.visibility_evaluations);
   value["candidates"] = Json::UInt64(cost.candidates);

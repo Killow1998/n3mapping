@@ -289,6 +289,29 @@ TEST_F(LocalizationEpisode, OutOfMapMotionKeepsTrustedCorrectionAndReentryRelock
   EXPECT_GT(recovered.live.pose->correction_stamp_nsec, correction_stamp);
 }
 
+TEST_F(LocalizationEpisode, ConfirmationCorrectsBiasedOdometryBeforePublishing) {
+  // Geometry stays in the same map while odometry develops a translation bias
+  // during confirmation. Reusing a proposal must not publish that bias.
+  const auto original_map_from_odom = map_from_odom_;
+  Step step;
+  Eigen::Isometry3d true_pose;
+  for (int i = 0; i < 9; ++i) {
+    true_pose = makePose(6.0 + 0.1 * i, 0.0, 0.0);
+    map_from_odom_ = original_map_from_odom;
+    map_from_odom_.translation().x() -= 0.3 * i;
+    step = run("biased_confirmation", true_pose,
+        synthesizeBodyCloud(scene_, true_pose, 12.0, 0.05, 0.002, 2940U + i));
+    if (step.backend.relocalization_locked) break;
+    EXPECT_FALSE(step.live.pose);
+    EXPECT_FALSE(step.publication.plan.publish_authoritative_pose);
+  }
+  ASSERT_TRUE(step.backend.relocalization_locked);
+  ASSERT_TRUE(step.live.pose);
+  EXPECT_LT((step.live.pose->pose.translation() - true_pose.translation()).norm(), 0.1);
+  EXPECT_LT(Eigen::AngleAxisd(true_pose.linear().transpose() *
+      step.live.pose->pose.linear()).angle(), M_PI / 180.0);
+}
+
 TEST_F(LocalizationEpisode, InvalidRawCancelsProjectionUntilARealGeometricCorrection) {
   const auto locked = lock();
   ASSERT_TRUE(locked.live.pose);

@@ -8,25 +8,6 @@
 #include <pcl/io/pcd_io.h>
 
 namespace n3mapping {
-WorldLocalizing::RelocMatchQuality
-WorldLocalizing::evaluateRelocMatchQuality(const MatchResult &match) const {
-  RelocMatchQuality quality;
-  const bool finite_metrics =
-      std::isfinite(match.fitness_score) && std::isfinite(match.inlier_ratio);
-  quality.fitness_pass =
-      finite_metrics && match.fitness_score < config_.gicp_fitness_threshold;
-  quality.inlier_pass =
-      finite_metrics && match.inlier_ratio >= config_.reloc_min_inlier_ratio;
-  const double scale = std::max(1e-6, config_.gicp_fitness_threshold * 0.5);
-  quality.confidence = std::exp(-match.fitness_score / scale);
-  quality.confidence = std::clamp(quality.confidence, 0.0, 1.0);
-  quality.confidence_pass = quality.confidence >= config_.reloc_min_confidence;
-  quality.accepted = hasValidRegistrationResult(match) &&
-                     quality.fitness_pass && quality.inlier_pass &&
-                     quality.confidence_pass;
-  return quality;
-}
-
 void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
   const KeyframeMapRevision current_revision = keyframe_manager_.revision();
   if (free_space_grid_revision_ != current_revision) {

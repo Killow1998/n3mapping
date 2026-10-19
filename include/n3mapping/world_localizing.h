@@ -26,6 +26,7 @@
 #include "n3mapping/relocalization_debug_emitter.h"
 #include "n3mapping/relocalization_decision_policy.h"
 #include "n3mapping/relocalization_hypothesis_manager.h"
+#include "n3mapping/relocalization_quality.h"
 #include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/relocalization_state.h"
@@ -36,6 +37,7 @@ namespace n3mapping {
 
 class TrackingTargetCache;
 struct RelocalizationSeedPlan;
+struct RelocalizationObservation;
 
 struct RelocResult {
   RelocalizationPerformance performance;
@@ -163,22 +165,17 @@ public:
 private:
   using RelocHypothesis = RelocalizationHypothesis;
 
-  struct RelocMatchQuality {
-    bool fitness_pass = false;
-    bool inlier_pass = false;
-    double confidence = 0.0;
-    bool confidence_pass = false;
-    bool accepted = false;
-  };
+  std::vector<const RelocHypothesis*> confirmRelocalization(
+      const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates,
+      const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,
+      RelocalizationPerformance& cost, bool debug_enabled);
 
-  static bool hasValidRegistrationResult(const MatchResult &match);
   void initializeRelocalization(
       RelocalizationSeedPlan plan,
       const PointCloudMatcher::PreparedSource& prepared_query,
       const PreparedVisibilityObservation& visibility_observation,
       const Eigen::Isometry3d& odom_pose, RelocalizationPerformance& cost,
       RelocalizationDebugEvent* event);
-  RelocMatchQuality evaluateRelocMatchQuality(const MatchResult &match) const;
 
   void rebuildRelocMapCacheIfNeeded();
   void rebuildFreeSpaceGridIfNeeded();
@@ -211,8 +208,6 @@ private:
   std::unique_ptr<RelocTargetProvider> target_provider_;
   RelocalizationCandidateEvaluator candidate_evaluator_;
   RelocalizationHypothesisManager hypothesis_manager_;
-  std::vector<std::pair<int64_t, double>> initialized_reloc_seeds_;
-  KeyframeMapRevision initialized_reloc_revision_;
   RelocalizationDecisionPolicy decision_policy_;
   RelocalizationDebugEmitter debug_emitter_;
   PointCloudT::Ptr reloc_map_cache_;

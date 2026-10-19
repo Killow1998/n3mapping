@@ -2,6 +2,9 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
+#include <mutex>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Geometry>
@@ -35,10 +38,20 @@ public:
                                    PointCloudMatcher &matcher,
                                    RelocTargetProvider &target_provider);
 
+  // Called before parallel evaluation. Retain the current and previous seed
+  // plans so a one-window ranking change does not discard a useful proposal.
+  // A stored pose carries no confirmation evidence. Unconverged endpoints
+  // require a new full registration before they can produce a hypothesis.
+  void beginSeedPlan(const std::vector<std::pair<int64_t, double>>& seeds,
+                     const KeyframeMapRevision& revision);
+  void clear();
+  std::size_t discardSeedsNear(const Eigen::Vector3d& center, double radius_xy);
+
   std::vector<RelocalizationCandidateEvaluation>
   evaluate(const PointCloudMatcher::PreparedSource &prepared_query,
            const LoopCandidate &candidate, RelocTargetRequest target_request,
            const PreparedVisibilityObservation &visibility_observation,
+           const Eigen::Isometry3d &odom_pose,
            RelocalizationPerformance *performance = nullptr);
 
 private:
@@ -46,6 +59,15 @@ private:
   KeyframeManager &keyframe_manager_;
   PointCloudMatcher &matcher_;
   RelocTargetProvider &target_provider_;
+  std::mutex seed_mutex_;
+  KeyframeMapRevision seed_revision_;
+  std::vector<std::pair<int64_t, double>> previous_seeds_;
+  struct SeedPose {
+    Eigen::Isometry3d map_from_odom;
+    MatchMetric metric;
+    bool needs_registration = false;
+  };
+  std::map<std::pair<int64_t, double>, SeedPose> seed_poses_;
 };
 
 } // namespace n3mapping

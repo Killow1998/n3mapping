@@ -64,6 +64,7 @@ void WorldLocalizing::initializeRelocalization(
     const Eigen::Isometry3d &odom_pose, RelocalizationPerformance &cost,
     RelocalizationDebugEvent *event) {
   auto &basins = plan.basins;
+  candidate_evaluator_.beginSeedPlan(plan.seeds, keyframe_manager_.revision());
   using BasinGroup = RelocalizationSeedPlan::Basin;
   std::mutex performance_mutex;
   RelocalizationDebugEvent unused_event;
@@ -124,14 +125,14 @@ void WorldLocalizing::initializeRelocalization(
       RelocalizationPerformance candidate_cost;
       const auto evaluations = candidate_evaluator_.evaluate(
           prepared_query, candidate, std::move(target_request),
-          visibility_observation, &candidate_cost);
+          visibility_observation, odom_pose, &candidate_cost);
       {
         std::lock_guard<std::mutex> cost_lock(performance_mutex);
         cost.addCandidate(candidate_cost);
       }
       for (const auto &evaluation : evaluations) {
         const auto &selected_match = evaluation.match;
-        const auto quality = evaluateRelocMatchQuality(selected_match);
+        const auto quality = evaluateRelocMatchQuality(selected_match, config_);
         if (!quality.accepted)
           continue;
 
@@ -257,6 +258,7 @@ void WorldLocalizing::initializeRelocalization(
     hyp.seed_match_id = bb.basin_center_id;
     hyp.last_match_id = bb.matched_kf_id;
     hyp.T_map_odom = bb.match.T_target_source * odom_pose.inverse();
+    hyp.metric = bb.match.metric;
     hyp.cumulative_log_likelihood =
         computeRelocLogLikelihood(bb.candidate, bb.match);
     hyp.num_updates = 1;

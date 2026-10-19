@@ -1,0 +1,992 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "2c4f1ad",
+  "artifact_root": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019",
+  "final_variant": "resumed_progress",
+  "method": "Serial frozen all-selected-frame core + RealtimeOutput replay on CPUs 0/2/4/6, PASSIVE OpenMP. Process CPU includes workers and replay overhead after map loading. Fixed input timestamp span is the denominator; peaks unrestricted. One complete before/after pair, not DDS real-time or RK3588 qualification.",
+  "baseline_core_sha256": "f5e54e1a9736c72c854724b4a04fbdd659bd7633edfe92cd2b4df00937148fda",
+  "final_core_sha256": "6dde588f4ce0aaec4398f00b57461ee9e7e0c5935eff95b0ceb2153c82cb3378",
+  "final_probe_sha256": "b5d44b4e23beea1222afb5138886b3bc5a9217a7894f41a7ac988cf62add18dd",
+  "source_sha256": {
+    "cmake/n3mapping_core.cmake": "ed6f32863cfab1e54477c3c38bf63885f1cc700d0cd2130a53401331b0c97d9b",
+    "include/n3mapping/relocalization_hypothesis_manager.h": "d88e7f77a5989336a13762f657f1df3374d6049384e888f6d56ec8d1c5a2c969",
+    "include/n3mapping/loop_detector.h": "5ce3dd4c5a47010d9cf761e8e15356c89630564a022e48768cf10af8fff1f792",
+    "include/n3mapping/world_localizing.h": "6706b2db9df12f24150ad0d8cb32d11209a5aaf43a4c18cf231ae94219259f33",
+    "include/n3mapping/relocalization_performance.h": "1968d9fe6ebff54c04da52e4dc6be55d048cc1d6ae5be5085f7b0b2f2f681a9d",
+    "include/n3mapping/relocalization_quality.h": "34a2f25cd0c5c5a41281efffb23ef48ac603d48f914c1827fe01d58fe789382f",
+    "include/n3mapping/relocalization_candidate_evaluator.h": "d14d954d4db2803e964bed58a3933df58b334ac70b59d05876666d763748c855",
+    "src/world_localizing_confirmation.cpp": "68ceb17a5be81628e341f90fef8a944d6197891c23c59dcc830a87470a059a39",
+    "src/relocalization_candidate_evaluator.cpp": "0449cda8dc4864ea030abb8d901da95d70a85e045ecb0344765e6de55fbea157",
+    "src/world_localizing_initialization.cpp": "70e2a5e1fa9b4caa19fdd1f78813fccf0ff04b87f7b545632a09f6792eadab68",
+    "src/relocalization_observation.h": "98a62fc7586e38e0f6bf1ee4b194ab6524fd3db07c0ec6891846daff2cc55478",
+    "src/world_localizing.cpp": "4485edf28aa693956c56c48f022cc898f6acabd0fc6bb0ffa8a23c75804dd872",
+    "src/relocalization_hypothesis_manager.cpp": "a0b7b4887835fe93270896ee3a439f3fc3dd5a1d3c32ad29207c8c484252b78a",
+    "src/loop_detector.cpp": "c81555b66bbc3330b988a3b8d12b1cd2d8ada25a5000c4fab933d9d6961cc01b",
+    "src/world_localizing_relocalization.cpp": "ae4f149148cdce6ca93684a7968fd57a86a2f68fe1cd9ce47e0bdedebc1c6a8e",
+    "src/world_localizing_probe.cpp": "7cfd7b6f5c0659d0c6468241de7167ece405df2fb91bc337c1f822a99736c1dd",
+    "src/world_localizing_evidence.cpp": "07e90117482439554978c7d5539728f986473b8cd9f6698cf131d654783d17a4",
+    "src/relocalization_performance.cpp": "600b9482f5c526d90232084888da1fec5208470464c66794158f38f0a23442a6",
+    "test/test_localization_episode.cpp": "60b49759017ce81301c132b79270b7109c15f97e1541a1389244ea8f733d35c4",
+    "test/test_point_cloud_matcher.cpp": "cd037e7d31847e6098e49b7f5fab691b9457cbaa59c5ad146799fb2533da9abe"
+  },
+  "simulation_map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+  "floor7_map_sha256": "a69db12c2476ec1eea2781068fe334415e102bf92d64871d3e707e99a9554d75",
+  "change": [
+    "Retain per-keyframe/yaw pose proposals for current and immediately previous seed plans, instead of requiring equality of the whole plan. Map revision/reset/lock clears proposals.",
+    "Use the descriptor generator existing 1e-6 rad angular equivalence for cache lookup, including periodic wrap; do not use a fuzzy comparator in ordered containers.",
+    "Every reuse evaluates current full prepared geometry and existing confidence/inlier/fitness gates. Rejected proposals retry full descriptor-seeded registration immediately.",
+    "Retain finite max-iteration endpoints only as incomplete solve proposals when their numerical quality passes the existing gates. A resumed proposal must run full current registration before admission; failure falls back to the original seed in the same observation. The incomplete solve supplies no convergence or temporal evidence.",
+    "Intermediate confirmation evaluates the propagated pose on current geometry; failure refines immediately; final lock requires current full converged registration plus all existing decision checks.",
+    "Reuse identical geometry checks within one observation only when pose, query, target and metric agree. Explicit geometric rejection invalidates the affected seed basin; ambiguity alone does not.",
+    "Split confirmation from orchestration; share observation preparation and quality evaluation. No descriptor, preprocessing, registration objective, numeric gate, input selection or tracking changes."
+  ],
+  "simulation": [
+    {
+      "case": "central_v2",
+      "baseline": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/central_v2_verified_final_0.csv",
+        "csv_sha256": "399fbd81de843f8d13ef44f3cde5261c7cae5a2ead4e7049799be136f6b648b3",
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "seed_plan_evaluations": 1,
+        "alignments": 51,
+        "cpu_s": 22.356183069,
+        "unpaced_wall_s": 8.197465546,
+        "input_span_s": 34.499994995,
+        "cpu_s_per_input_s": 0.648005400355566,
+        "peak_rss_mib": 1911.484375,
+        "cpu_to_first_lock_s": 13.167903157,
+        "unpaced_wall_to_first_lock_s": 5.5734228990000005,
+        "tracking_cpu_s_per_input_s": 0.2694510238123167,
+        "search_cost_totals": {
+          "fixed_pose_evaluations": 17,
+          "rejected_alignments": 11,
+          "align_ms": 4667.809161,
+          "fixed_pose_ms": 48.097879999999996,
+          "visibility_ms": 720.478174,
+          "source_prepare_ms": 33.418468,
+          "target_build_ms": 108.38023299999999,
+          "directional_check_ms": 16.187948,
+          "descriptor_thread_cpu_ms": 428.7980320000006
+        },
+        "registration_calls_by_phase": {
+          "seeds": 31,
+          "confirmation": 20
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "final": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/central_v2_resumed_progress_0.csv",
+        "csv_sha256": "918f3615cfaeccd6f27a3728cd45c3868af6d5efc1ed34be05da56be6ea8387e",
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "seed_plan_evaluations": 1,
+        "alignments": 36,
+        "cpu_s": 18.186031052999997,
+        "unpaced_wall_s": 6.842698577,
+        "input_span_s": 34.499994995,
+        "cpu_s_per_input_s": 0.5271314113418177,
+        "peak_rss_mib": 1914.68359375,
+        "cpu_to_first_lock_s": 8.922874953,
+        "unpaced_wall_to_first_lock_s": 4.191161747,
+        "tracking_cpu_s_per_input_s": 0.27164680645161277,
+        "search_cost_totals": {
+          "seed_initializations": 31,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "invalidated_seed_poses": 0,
+          "confirmation_evaluations": 15,
+          "confirmation_registrations": 5,
+          "fixed_pose_evaluations": 19,
+          "rejected_alignments": 9,
+          "align_ms": 3462.723586,
+          "fixed_pose_ms": 32.381689,
+          "visibility_ms": 530.520533,
+          "source_prepare_ms": 30.229191999999998,
+          "target_build_ms": 65.084145,
+          "directional_check_ms": 16.364726,
+          "descriptor_thread_cpu_ms": 419.28063100000145
+        },
+        "registration_calls_by_phase": {
+          "seeds": 31,
+          "confirmation": 5
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "comparison": {
+        "changed_behavior_frames": {},
+        "maximum_published_position_delta_m": 4.469531110548018e-16,
+        "maximum_published_matrix_component_delta": 4.440892098500626e-16
+      },
+      "manifest": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/central_v2/manifest/frames.csv",
+      "manifest_sha256": "7a83bebd30c784f9139e25e8e5731063003906473a83e5c99355501c891feb96",
+      "cpu_reduction_percent": 18.65323791243464,
+      "truth_score": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/central_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/central_v2_resumed_progress_0.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799989997,
+        "position_error_m": {
+          "rmse": 0.010002277804408885,
+          "median": 0.006444844078881386,
+          "p95": 0.01883951619116452,
+          "maximum": 0.020539899354192148
+        },
+        "rotation_error_deg": {
+          "rmse": 0.07834117242101063,
+          "median": 0.04013049256252347,
+          "p95": 0.15066203439095763,
+          "maximum": 0.16618719921305444
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "baseline_truth_score": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/central_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/central_v2_verified_final_0.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799989997,
+        "position_error_m": {
+          "rmse": 0.01000227780440889,
+          "median": 0.006444844078881395,
+          "p95": 0.018839516191164512,
+          "maximum": 0.020539899354192148
+        },
+        "rotation_error_deg": {
+          "rmse": 0.07834117242101064,
+          "median": 0.040130492562523434,
+          "p95": 0.15066203439095757,
+          "maximum": 0.16618719921305447
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    {
+      "case": "south_v2",
+      "baseline": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/south_v2_verified_final_0.csv",
+        "csv_sha256": "9a5eb662fc9732e3b4346cf08a835ed72f680cfd86fbabaef6a962fdfc2d0fca",
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "seed_plan_evaluations": 1,
+        "alignments": 56,
+        "cpu_s": 20.105907074999998,
+        "unpaced_wall_s": 8.145934793,
+        "input_span_s": 34.499994995,
+        "cpu_s_per_input_s": 0.5827799997627217,
+        "peak_rss_mib": 1911.59765625,
+        "cpu_to_first_lock_s": 10.951184951,
+        "unpaced_wall_to_first_lock_s": 5.445759543,
+        "tracking_cpu_s_per_input_s": 0.26846696386150004,
+        "search_cost_totals": {
+          "fixed_pose_evaluations": 19,
+          "rejected_alignments": 11,
+          "align_ms": 3996.220311,
+          "fixed_pose_ms": 57.520521,
+          "visibility_ms": 716.4987759999999,
+          "source_prepare_ms": 43.896748,
+          "target_build_ms": 60.077605999999996,
+          "directional_check_ms": 16.214704,
+          "descriptor_thread_cpu_ms": 427.73897300000044
+        },
+        "registration_calls_by_phase": {
+          "seeds": 36,
+          "confirmation": 20
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "final": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/south_v2_resumed_progress_0.csv",
+        "csv_sha256": "ef05be508419fbf4ff3d5d460b95bbe08e165ae2d141191aab94a3ae2083ba1b",
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "seed_plan_evaluations": 1,
+        "alignments": 41,
+        "cpu_s": 17.243259511,
+        "unpaced_wall_s": 6.451508006,
+        "input_span_s": 34.499994995,
+        "cpu_s_per_input_s": 0.49980469601514504,
+        "peak_rss_mib": 1914.6171875,
+        "cpu_to_first_lock_s": 8.022275566,
+        "unpaced_wall_to_first_lock_s": 3.861788039,
+        "tracking_cpu_s_per_input_s": 0.2704101260528646,
+        "search_cost_totals": {
+          "seed_initializations": 36,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "invalidated_seed_poses": 0,
+          "confirmation_evaluations": 15,
+          "confirmation_registrations": 5,
+          "fixed_pose_evaluations": 22,
+          "rejected_alignments": 11,
+          "align_ms": 2382.9840169999998,
+          "fixed_pose_ms": 49.474388000000005,
+          "visibility_ms": 533.703045,
+          "source_prepare_ms": 29.397517999999998,
+          "target_build_ms": 53.812272,
+          "directional_check_ms": 16.15895,
+          "descriptor_thread_cpu_ms": 422.692806
+        },
+        "registration_calls_by_phase": {
+          "seeds": 36,
+          "confirmation": 5
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "comparison": {
+        "changed_behavior_frames": {},
+        "maximum_published_position_delta_m": 3.636035757471332e-14,
+        "maximum_published_matrix_component_delta": 2.4868995751603507e-14
+      },
+      "manifest": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/south_v2/manifest/frames.csv",
+      "manifest_sha256": "58c6ccdd4d6c4bafd87cd60384db52368133ef25c62a88f40dffe85bf3798bd9",
+      "cpu_reduction_percent": 14.23784340254639,
+      "truth_score": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/south_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/south_v2_resumed_progress_0.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799995002,
+        "position_error_m": {
+          "rmse": 0.020668307515165803,
+          "median": 0.02021882416231078,
+          "p95": 0.027585952802032968,
+          "maximum": 0.03019097774050137
+        },
+        "rotation_error_deg": {
+          "rmse": 0.2469877805891898,
+          "median": 0.24819723986128023,
+          "p95": 0.2572672668429637,
+          "maximum": 0.26917070995978454
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "baseline_truth_score": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/south_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/south_v2_verified_final_0.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799995002,
+        "position_error_m": {
+          "rmse": 0.02066830751516566,
+          "median": 0.02021882416231078,
+          "p95": 0.027585952802032968,
+          "maximum": 0.03019097774050137
+        },
+        "rotation_error_deg": {
+          "rmse": 0.24698778058919418,
+          "median": 0.24819723986128023,
+          "p95": 0.25726726684296375,
+          "maximum": 0.26917070995978454
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    {
+      "case": "north_v2",
+      "baseline": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/north_v2_verified_final_0.csv",
+        "csv_sha256": "68fa07664322c2ae5dcc1d4d451785e91c3dd63aaa8d86c360a8419971795f03",
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "seed_plan_evaluations": 1,
+        "alignments": 68,
+        "cpu_s": 24.490527073,
+        "unpaced_wall_s": 9.448911062999999,
+        "input_span_s": 34.500005005,
+        "cpu_s_per_input_s": 0.7098702469594033,
+        "peak_rss_mib": 1911.7109375,
+        "cpu_to_first_lock_s": 14.361641683,
+        "unpaced_wall_to_first_lock_s": 6.442117057000001,
+        "tracking_cpu_s_per_input_s": 0.2970347185730567,
+        "search_cost_totals": {
+          "fixed_pose_evaluations": 22,
+          "rejected_alignments": 15,
+          "align_ms": 7773.508168,
+          "fixed_pose_ms": 71.122888,
+          "visibility_ms": 768.9941119999999,
+          "source_prepare_ms": 42.016316,
+          "target_build_ms": 91.74753700000001,
+          "directional_check_ms": 18.609276,
+          "descriptor_thread_cpu_ms": 447.9896290000006
+        },
+        "registration_calls_by_phase": {
+          "seeds": 48,
+          "confirmation": 20
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "final": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/north_v2_resumed_progress_0.csv",
+        "csv_sha256": "a711dac6fd99ed6aa51c8841638d7ce0c62f1922fbbde0fbf6d762b4a3e7a1bd",
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "seed_plan_evaluations": 1,
+        "alignments": 53,
+        "cpu_s": 20.98446993,
+        "unpaced_wall_s": 7.438869422,
+        "input_span_s": 34.500005005,
+        "cpu_s_per_input_s": 0.60824541697773,
+        "peak_rss_mib": 1915.11328125,
+        "cpu_to_first_lock_s": 10.810115913999999,
+        "unpaced_wall_to_first_lock_s": 4.587792395,
+        "tracking_cpu_s_per_input_s": 0.29836810916913825,
+        "search_cost_totals": {
+          "seed_initializations": 48,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "invalidated_seed_poses": 0,
+          "confirmation_evaluations": 15,
+          "confirmation_registrations": 5,
+          "fixed_pose_evaluations": 26,
+          "rejected_alignments": 14,
+          "align_ms": 5453.6751269999995,
+          "fixed_pose_ms": 65.35041700000001,
+          "visibility_ms": 579.647365,
+          "source_prepare_ms": 29.034878,
+          "target_build_ms": 71.016778,
+          "directional_check_ms": 18.168612,
+          "descriptor_thread_cpu_ms": 421.64274899999964
+        },
+        "registration_calls_by_phase": {
+          "seeds": 48,
+          "confirmation": 5
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "comparison": {
+        "changed_behavior_frames": {},
+        "maximum_published_position_delta_m": 0.0007142546609852018,
+        "maximum_published_matrix_component_delta": 0.0007011310836304574
+      },
+      "manifest": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/north_v2/manifest/frames.csv",
+      "manifest_sha256": "6ced4bed6f06cff63b0e8fe409949a924a28873e8b96c50222ec2deabf6deb95",
+      "cpu_reduction_percent": 14.315972590338056,
+      "truth_score": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/north_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/north_v2_resumed_progress_0.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799989997,
+        "position_error_m": {
+          "rmse": 0.47261253259638564,
+          "median": 0.4860791467085911,
+          "p95": 0.5082758433739272,
+          "maximum": 0.5105317641585536
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3838367579971313,
+          "median": 0.3831665938460979,
+          "p95": 0.39635110355897457,
+          "maximum": 0.41184753880883157
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "baseline_truth_score": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/north_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/north_v2_verified_final_0.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799989997,
+        "position_error_m": {
+          "rmse": 0.472617451233284,
+          "median": 0.48607914613814396,
+          "p95": 0.5082863802163377,
+          "maximum": 0.5105298646062033
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3838244095653754,
+          "median": 0.3831665938460976,
+          "p95": 0.39635110355897457,
+          "maximum": 0.41184753880883174
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    {
+      "case": "repetitive_v2",
+      "baseline": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/repetitive_v2_verified_final_0.csv",
+        "csv_sha256": "610d2da64304f94cf0627d30dec94b039396834902981af7aa08edfe56ca1d54",
+        "frames": 346,
+        "first_lock_frame": null,
+        "outputs": 0,
+        "seed_plan_evaluations": 65,
+        "alignments": 4297,
+        "cpu_s": 1670.057654309,
+        "unpaced_wall_s": 531.348756987,
+        "input_span_s": 34.5,
+        "cpu_s_per_input_s": 48.40746824084058,
+        "peak_rss_mib": 1911.65625,
+        "search_cost_totals": {
+          "fixed_pose_evaluations": 1955,
+          "rejected_alignments": 785,
+          "align_ms": 807522.4862019994,
+          "fixed_pose_ms": 8243.992351,
+          "visibility_ms": 62921.28151400001,
+          "source_prepare_ms": 3004.5352709999997,
+          "target_build_ms": 2825.7721449999985,
+          "directional_check_ms": 218.430125,
+          "descriptor_thread_cpu_ms": 1598.7715859999216
+        },
+        "registration_calls_by_phase": {
+          "seeds": 2517,
+          "confirmation": 1780
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "final": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/repetitive_v2_resumed_progress_0.csv",
+        "csv_sha256": "08af09c3cb0558f15dbe8b96692476a54de6cb32125a2e6139477f4abb6ee658",
+        "frames": 346,
+        "first_lock_frame": null,
+        "outputs": 0,
+        "seed_plan_evaluations": 70,
+        "alignments": 1223,
+        "cpu_s": 583.437620099,
+        "unpaced_wall_s": 200.026809952,
+        "input_span_s": 34.5,
+        "cpu_s_per_input_s": 16.911235365188407,
+        "peak_rss_mib": 1914.61328125,
+        "search_cost_totals": {
+          "seed_initializations": 674,
+          "seed_continuations": 2039,
+          "seed_resumptions": 84,
+          "seed_retries": 22,
+          "invalidated_seed_poses": 28,
+          "confirmation_evaluations": 1401,
+          "confirmation_registrations": 465,
+          "fixed_pose_evaluations": 4273,
+          "rejected_alignments": 213,
+          "align_ms": 219509.63917099996,
+          "fixed_pose_ms": 21648.774473000005,
+          "visibility_ms": 63790.688808,
+          "source_prepare_ms": 2993.669128999999,
+          "target_build_ms": 3068.4743680000015,
+          "directional_check_ms": 37.749777,
+          "descriptor_thread_cpu_ms": 1608.483813999962
+        },
+        "registration_calls_by_phase": {
+          "seeds": 758,
+          "confirmation": 465
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "comparison": {
+        "changed_behavior_frames": {
+          "decision": [
+            14,
+            24,
+            29,
+            34,
+            39,
+            44,
+            49,
+            64,
+            69,
+            74,
+            79,
+            104,
+            124,
+            134,
+            139,
+            144,
+            159,
+            174,
+            244,
+            254,
+            259,
+            274,
+            284,
+            294,
+            299,
+            304,
+            314,
+            334,
+            339,
+            344
+          ]
+        },
+        "maximum_published_position_delta_m": null,
+        "maximum_published_matrix_component_delta": null
+      },
+      "manifest": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/repetitive_v2/manifest/frames.csv",
+      "manifest_sha256": "6e65682e1ba0f3a8fd7eca4c277f7eb8ff7b88f185d678ba5052d7985b1e6bf9",
+      "cpu_reduction_percent": 65.06482164890276
+    }
+  ],
+  "real_prefixes": [
+    {
+      "case": "floor7_outside_710_room",
+      "baseline": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/floor7_outside_710_room_verified_final_100.csv",
+        "csv_sha256": "6417b1feafb3e24421b65d0b82f85eca35dc211a6d4d24ef76e60c823159ce7f",
+        "frames": 100,
+        "first_lock_frame": null,
+        "outputs": 0,
+        "seed_plan_evaluations": 18,
+        "alignments": 1288,
+        "cpu_s": 78.476782793,
+        "unpaced_wall_s": 23.980531037000002,
+        "input_span_s": 9.899784326,
+        "cpu_s_per_input_s": 7.927120451189514,
+        "peak_rss_mib": 187.10546875,
+        "search_cost_totals": {
+          "fixed_pose_evaluations": 576,
+          "rejected_alignments": 218,
+          "align_ms": 44715.04805800001,
+          "fixed_pose_ms": 723.371026,
+          "visibility_ms": 3810.8530399999995,
+          "source_prepare_ms": 229.32246099999998,
+          "target_build_ms": 59.861758999999985,
+          "directional_check_ms": 80.25886,
+          "descriptor_thread_cpu_ms": 209.4156789999994
+        },
+        "registration_calls_by_phase": {
+          "seeds": 892,
+          "confirmation": 396
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "final": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/floor7_outside_710_room_resumed_progress_100.csv",
+        "csv_sha256": "03fce19d278f608ab2e8b6088e228e967915034abe07536db71159dd88b3932f",
+        "frames": 100,
+        "first_lock_frame": null,
+        "outputs": 0,
+        "seed_plan_evaluations": 20,
+        "alignments": 464,
+        "cpu_s": 39.755476098,
+        "unpaced_wall_s": 12.927468631,
+        "input_span_s": 9.899784326,
+        "cpu_s_per_input_s": 4.015792141409526,
+        "peak_rss_mib": 190.08203125,
+        "search_cost_totals": {
+          "seed_initializations": 273,
+          "seed_continuations": 778,
+          "seed_resumptions": 65,
+          "seed_retries": 57,
+          "invalidated_seed_poses": 0,
+          "confirmation_evaluations": 357,
+          "confirmation_registrations": 126,
+          "fixed_pose_evaluations": 1312,
+          "rejected_alignments": 104,
+          "align_ms": 17702.320288999996,
+          "fixed_pose_ms": 1811.1970079999996,
+          "visibility_ms": 4320.604006999998,
+          "source_prepare_ms": 246.0954089999999,
+          "target_build_ms": 84.68246900000001,
+          "directional_check_ms": 0.0,
+          "descriptor_thread_cpu_ms": 212.12953200000072
+        },
+        "registration_calls_by_phase": {
+          "seeds": 338,
+          "confirmation": 126
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "comparison": {
+        "changed_behavior_frames": {
+          "decision": [
+            9,
+            14,
+            19,
+            24,
+            29,
+            34,
+            39,
+            44,
+            49,
+            54,
+            59,
+            64,
+            69,
+            74,
+            79,
+            84,
+            89,
+            94,
+            99
+          ]
+        },
+        "maximum_published_position_delta_m": null,
+        "maximum_published_matrix_component_delta": null
+      },
+      "manifest": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/inputs/floor7_outside_710_room/frames.csv",
+      "manifest_sha256": "3d37010ef11ab29e3b8fa54136f66ad88c8aef2d3a8bb816cd1fb151ee41993d",
+      "cpu_reduction_percent": 49.34109849678225,
+      "accuracy_limitation": "No independent ground truth; output agreement alone does not establish absolute localization accuracy."
+    },
+    {
+      "case": "floor7_inside_710_room",
+      "baseline": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/floor7_inside_710_room_verified_final_100.csv",
+        "csv_sha256": "460b0f7b9c2fad47570881beca62dcb5ab22bc1cc23a00083a63a003e2b9f382",
+        "frames": 100,
+        "first_lock_frame": 4,
+        "outputs": 96,
+        "seed_plan_evaluations": 1,
+        "alignments": 81,
+        "cpu_s": 4.041356364,
+        "unpaced_wall_s": 1.3052739549999999,
+        "input_span_s": 9.901467084,
+        "cpu_s_per_input_s": 0.40815732958709905,
+        "peak_rss_mib": 187.91796875,
+        "cpu_to_first_lock_s": 2.778292211,
+        "unpaced_wall_to_first_lock_s": 0.943038177,
+        "tracking_cpu_s_per_input_s": 0.13293240628614594,
+        "search_cost_totals": {
+          "fixed_pose_evaluations": 26,
+          "rejected_alignments": 13,
+          "align_ms": 1317.186007,
+          "fixed_pose_ms": 10.691232000000001,
+          "visibility_ms": 201.78939399999996,
+          "source_prepare_ms": 9.641649,
+          "target_build_ms": 5.114052999999999,
+          "directional_check_ms": 4.218619,
+          "descriptor_thread_cpu_ms": 39.61156799999998
+        },
+        "registration_calls_by_phase": {
+          "seeds": 45,
+          "confirmation": 36
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "final": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/floor7_inside_710_room_resumed_progress_100.csv",
+        "csv_sha256": "35bf53629a6b70dce26050f5b8656aad6239f15532e2cd0cbe4264c01435b0ba",
+        "frames": 100,
+        "first_lock_frame": 4,
+        "outputs": 96,
+        "seed_plan_evaluations": 1,
+        "alignments": 54,
+        "cpu_s": 3.2482489099999996,
+        "unpaced_wall_s": 1.0655012750000001,
+        "input_span_s": 9.901467084,
+        "cpu_s_per_input_s": 0.3280573355890782,
+        "peak_rss_mib": 190.875,
+        "cpu_to_first_lock_s": 1.960372136,
+        "unpaced_wall_to_first_lock_s": 0.695515744,
+        "tracking_cpu_s_per_input_s": 0.1355438345401755,
+        "search_cost_totals": {
+          "seed_initializations": 45,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "invalidated_seed_poses": 0,
+          "confirmation_evaluations": 27,
+          "confirmation_registrations": 9,
+          "fixed_pose_evaluations": 33,
+          "rejected_alignments": 12,
+          "align_ms": 1072.415559,
+          "fixed_pose_ms": 14.263237,
+          "visibility_ms": 165.049485,
+          "source_prepare_ms": 8.653198,
+          "target_build_ms": 4.923438,
+          "directional_check_ms": 4.184485,
+          "descriptor_thread_cpu_ms": 39.69614500000006
+        },
+        "registration_calls_by_phase": {
+          "seeds": 45,
+          "confirmation": 9
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "comparison": {
+        "changed_behavior_frames": {},
+        "maximum_published_position_delta_m": 8.916411167297361e-16,
+        "maximum_published_matrix_component_delta": 8.881784197001252e-16
+      },
+      "manifest": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/inputs/floor7_inside_710_room/frames.csv",
+      "manifest_sha256": "4da4511c0a5fde43f66b0117eb15ebb4e3783f362bf4ce46b939498f3151b142",
+      "cpu_reduction_percent": 19.624783923163093,
+      "accuracy_limitation": "No independent ground truth; output agreement alone does not establish absolute localization accuracy."
+    },
+    {
+      "case": "floor7_710toMeeting",
+      "baseline": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/floor7_710toMeeting_verified_final_100.csv",
+        "csv_sha256": "a0afe9d3fd3780947ab946732158266316eee2347853e7ebab0a7ba98010302d",
+        "frames": 100,
+        "first_lock_frame": 4,
+        "outputs": 96,
+        "seed_plan_evaluations": 1,
+        "alignments": 83,
+        "cpu_s": 4.79866663,
+        "unpaced_wall_s": 1.515451167,
+        "input_span_s": 9.899982691,
+        "cpu_s_per_input_s": 0.4847146484773586,
+        "peak_rss_mib": 255.39453125,
+        "cpu_to_first_lock_s": 2.955193029,
+        "unpaced_wall_to_first_lock_s": 0.9865418130000001,
+        "tracking_cpu_s_per_input_s": 0.19405200530467057,
+        "search_cost_totals": {
+          "fixed_pose_evaluations": 28,
+          "rejected_alignments": 1,
+          "align_ms": 1378.0059519999998,
+          "fixed_pose_ms": 13.637651,
+          "visibility_ms": 238.38064300000002,
+          "source_prepare_ms": 8.941314,
+          "target_build_ms": 6.49841,
+          "directional_check_ms": 4.233074,
+          "descriptor_thread_cpu_ms": 39.90565899999996
+        },
+        "registration_calls_by_phase": {
+          "seeds": 47,
+          "confirmation": 36
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "final": {
+        "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/floor7_710toMeeting_resumed_progress_100.csv",
+        "csv_sha256": "475508a87c98a42f014294e55b7df0a27f3e09f8f70ebb2188e715d2585794b9",
+        "frames": 100,
+        "first_lock_frame": 4,
+        "outputs": 96,
+        "seed_plan_evaluations": 1,
+        "alignments": 56,
+        "cpu_s": 4.025197524999999,
+        "unpaced_wall_s": 1.287683577,
+        "input_span_s": 9.899982691,
+        "cpu_s_per_input_s": 0.4065863194548084,
+        "peak_rss_mib": 256.11328125,
+        "cpu_to_first_lock_s": 2.1558440090000004,
+        "unpaced_wall_to_first_lock_s": 0.753225513,
+        "tracking_cpu_s_per_input_s": 0.1967762371028043,
+        "search_cost_totals": {
+          "seed_initializations": 47,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "invalidated_seed_poses": 0,
+          "confirmation_evaluations": 27,
+          "confirmation_registrations": 9,
+          "fixed_pose_evaluations": 34,
+          "rejected_alignments": 1,
+          "align_ms": 1224.06572,
+          "fixed_pose_ms": 14.597638000000002,
+          "visibility_ms": 199.387101,
+          "source_prepare_ms": 9.208252,
+          "target_build_ms": 6.232369,
+          "directional_check_ms": 4.202312,
+          "descriptor_thread_cpu_ms": 40.011090000000024
+        },
+        "registration_calls_by_phase": {
+          "seeds": 47,
+          "confirmation": 9
+        },
+        "stage_timing_scope": "wall time summed across calls; parallel calls may overlap; not CPU attribution"
+      },
+      "comparison": {
+        "changed_behavior_frames": {},
+        "maximum_published_position_delta_m": 0.005321595835310339,
+        "maximum_published_matrix_component_delta": 0.004545486101859869
+      },
+      "manifest": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/inputs/floor7_710toMeeting/frames.csv",
+      "manifest_sha256": "560c60b2b70234bd83dcfc9580b121852a5293bdf048bf46afea3370d315681b",
+      "cpu_reduction_percent": 16.118417148723672,
+      "accuracy_limitation": "No independent ground truth; output agreement alone does not establish absolute localization accuracy."
+    }
+  ],
+  "validation": {
+    "ctest": "61/61 passed",
+    "episodes": "10 episodes pass in default, Atlas and experimental kill modes",
+    "regression_proofs": [
+      "Biased odometry is corrected before publication in both baseline and final.",
+      "Cached pose below confidence must recover from current geometry: unguarded prototype fails; final passes.",
+      "Neighboring heading sector retains three shared seeds and registers only one new seed: exact-float cache re-registers all four; final passes."
+    ],
+    "logs": [
+      "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/resumed_progress_ctest.log",
+      "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/atlas_resumed_progress_episode.log",
+      "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/kill_resumed_progress_episode.log",
+      "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/confidence_before_guard.log",
+      "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/before_yaw_identity.log",
+      "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/after_yaw_identity.log"
+    ],
+    "registration_accounting": "All 1684 observations balance full registrations = cold seed registrations + incomplete-solve resumptions + confirmation registrations."
+  },
+  "ablations": [
+    {
+      "variant": "continuation",
+      "decision": "rejected",
+      "reason": "Fine-only warm-start registration did not reduce difficult replay CPU; no matcher change retained."
+    },
+    {
+      "variant": "seed_continuation",
+      "decision": "rejected",
+      "reason": "Per-seed warm full refinement did not produce a convincing difficult CPU reduction."
+    },
+    {
+      "variant": "seed_confirmation",
+      "decision": "corrected",
+      "reason": "Quality check omitted confidence; a newly supported pose could be hidden by a cached mode. Shared full quality gate fixes the counterexample."
+    },
+    {
+      "variant": "descriptor_confirmation",
+      "decision": "rejected",
+      "reason": "Skipping initial full registration of new descriptor seeds fails UnknownInitialYawLocksToKnownMapPose."
+    },
+    {
+      "variant": "final",
+      "decision": "valid_intermediate",
+      "reason": "Single-plan retention before bounded two-plan pool; full regression passed; hard negative CPU 749.616357052 s and 1631 alignments."
+    },
+    {
+      "variant": "pool",
+      "decision": "valid_intermediate",
+      "reason": "Two-plan pool before yaw roundoff identity fix; full regression passed; hard negative CPU 677.770569644 s and 1437 alignments."
+    },
+    {
+      "variant": "yaw_identity",
+      "decision": "valid_intermediate",
+      "reason": "Full regression and all replay inputs passed before incomplete-solve continuation; hard negative CPU 671.587957439 s / 1403 alignments, real difficult prefix 40.772922014 s / 464 alignments."
+    },
+    {
+      "variant": "resume_failed",
+      "decision": "retained_with_explicit_accounting",
+      "reason": "Short 40-frame screen passed all 10 episodes, core and matcher checks; hard negative CPU 91.402774718 to 82.718752823 s, real difficult CPU 17.562927880 to 17.541816721 s. Full validation uses resumed_progress with an explicit seed_resumptions counter."
+    }
+  ],
+  "excluded_results": [
+    {
+      "variant": "verified_confirmation",
+      "reason": "Stale object ABI after timestamp-preserving source/header restoration. Excluded entirely; rebuilt all affected targets before verified2 and all subsequent validation."
+    }
+  ],
+  "rejection_diagnostic": {
+    "timing_excluded": true,
+    "detail": "Verbose short replays inspect termination only; no timing claim from these runs.",
+    "cases": {
+      "repetitive_v2": {
+        "log": "build/n3mapping/incremental_search_20261019/repetitive_v2_yaw_identity_20.log",
+        "frames": 20,
+        "rejected_seeds": 46,
+        "termination_counts": {
+          "max_iterations": 46
+        }
+      },
+      "floor7_outside_710_room": {
+        "log": "build/n3mapping/incremental_search_20261019/floor7_outside_710_room_yaw_identity_20.log",
+        "frames": 20,
+        "rejected_seeds": 29,
+        "termination_counts": {
+          "max_iterations": 29
+        }
+      }
+    }
+  },
+  "remaining": [
+    "Difficult search average half-core remains unmet. Use 0.5 CPU seconds per input second, including first search, without dropping input frames or relaxing thresholds.",
+    "New seeds, failed reused geometry, rejected basins and final confirmation still require full registration. Reinitialization is reduced, not eliminated.",
+    "Repeated-scene negative is conservative rejection, not recovery of true pose. Full real out-of-map/re-entry and RK3588 qualification remain open.",
+    "Single complete timing pair is not a multi-run median; no installed-node CPU or RSS claim."
+  ],
+  "delivery": "Local source and evidence only; no installation, simple_rbt changes or remote push."
+}

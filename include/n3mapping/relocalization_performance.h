@@ -51,8 +51,13 @@ struct RelocalizationPerformance {
   double fixed_pose_ms = 0.0;
   std::uint64_t fixed_pose_evaluations = 0;
   std::uint64_t rejected_alignments = 0;
-  bool reused_seed_plan = false;
-  bool retried_seed_plan = false;
+  std::uint64_t seed_continuations = 0;
+  std::uint64_t seed_resumptions = 0;
+  std::uint64_t seed_initializations = 0;
+  std::uint64_t seed_retries = 0;
+  std::uint64_t invalidated_seed_poses = 0;
+  std::uint64_t confirmation_evaluations = 0;
+  std::uint64_t confirmation_registrations = 0;
   DescriptorSearchPerformance descriptor;
   double source_prepare_ms = 0.0;
   double visibility_prepare_ms = 0.0;
@@ -82,6 +87,10 @@ struct RelocalizationPerformance {
     fixed_pose_ms += other.fixed_pose_ms;
     fixed_pose_evaluations += other.fixed_pose_evaluations;
     rejected_alignments += other.rejected_alignments;
+    seed_continuations += other.seed_continuations;
+    seed_resumptions += other.seed_resumptions;
+    seed_initializations += other.seed_initializations;
+    seed_retries += other.seed_retries;
     visibility_ms += other.visibility_ms;
     target_builds += other.target_builds;
     target_preparations += other.target_preparations;

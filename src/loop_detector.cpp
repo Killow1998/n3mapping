@@ -34,7 +34,7 @@ std::vector<double> buildDescriptorYawHypotheses(
         const double wrapped = wrapYaw(yaw);
         const bool duplicate = std::any_of(
             yaws.begin(), yaws.end(), [&](double existing) {
-                return std::abs(wrapYaw(existing - wrapped)) < 1e-6;
+                return std::abs(wrapYaw(existing - wrapped)) < kDescriptorYawMergeTolerance;
             });
         if (!duplicate) yaws.push_back(wrapped);
     };

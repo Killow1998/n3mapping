@@ -6,8 +6,7 @@
 #include <limits>
 #include <glog/logging.h>
 #include "relocalization_seed_plan.h"
-#include <Eigen/Eigenvalues>
-#include <map>
+#include "relocalization_observation.h"
 #include <iomanip>
 #include <memory>
 #include <utility>
@@ -123,67 +122,18 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 
   // Retrieval needs no registration representation. Prepare once on the
   // calling thread, only when candidates or hypotheses need verification.
-  PointCloudMatcher::PreparedSource prepared_query;
-  PreparedVisibilityObservation visibility_observation;
-  bool query_prepared = false;
+  RelocalizationObservation prepared_observation;
+  auto& prepared_query = prepared_observation.registration;
+  auto& visibility_observation = prepared_observation.visibility;
   const auto prepare_query = [&]() {
-    if (query_prepared) return;
-    const auto source_started = std::chrono::steady_clock::now();
-    prepared_query = matcher_.prepareSourceCloud(query_cloud);
-    const auto visibility_started = std::chrono::steady_clock::now();
-    visibility_observation = prepareVisibilityObservation(
-        *query_cloud, visibilityOptionsFromConfig(config_));
-    cost.source_preparations = 1;
-    cost.visibility_preparations = 1;
-    cost.source_prepare_ms = std::chrono::duration<double, std::milli>(
-        visibility_started - source_started).count();
-    cost.visibility_prepare_ms = std::chrono::duration<double, std::milli>(
-        std::chrono::steady_clock::now() - visibility_started).count();
-    query_prepared = true;
-    VLOG(1) << "[RelocQueryCost] source_preparations=1 source_prepare_ms="
-            << cost.source_prepare_ms
-            << " visibility_preparations=1 visibility_prepare_ms="
-            << cost.visibility_prepare_ms;
+    prepared_observation.prepare(query_cloud, matcher_, config_, cost);
   };
-  const auto hypothesis_visibility = [&](const PreparedRelocTarget &target,
-                                         const Eigen::Isometry3d &pose) {
-    const auto started = std::chrono::steady_clock::now();
-    auto visibility = evaluatePreparedVisibilityConsistency(
-        *target.visibility_target, visibility_observation, pose, target.visibility_indices.get());
-    cost.visibility_ms += std::chrono::duration<double, std::milli>(
-        std::chrono::steady_clock::now() - started).count();
-    ++cost.visibility_evaluations;
-    return visibility;
-  };
-
-  auto descriptor_supports_keyframe =
-      [&](const std::vector<LoopCandidate> &candidates, int64_t keyframe_id) {
-        auto target = keyframe_manager_.getKeyframe(keyframe_id);
-        if (!target) {
-          return false;
-        }
-        const Eigen::Vector2d target_xy =
-            target->pose_optimized.translation().head<2>();
-        for (const auto &candidate : candidates) {
-          auto candidate_kf = keyframe_manager_.getKeyframe(candidate.match_id);
-          if (!candidate_kf) {
-            continue;
-          }
-          const double d_xy =
-              (candidate_kf->pose_optimized.translation().head<2>() - target_xy)
-                  .norm();
-          if (d_xy <= kRelocBasinAssignRadiusXY) {
-            return true;
-          }
-        }
-        return false;
-      };
 
   const auto candidates = place_index_.search(query_cloud, &cost.descriptor);
-  bool initialized_this_frame = false;
-  bool reused_seed_plan = false;
-  bool retained_geometry_supported = false;
-  if (hypothesis_manager_.empty() || hypothesis_manager_.windowCount() == 0) {
+  // Only a current full registration can authorize publication after cheaper
+  // intermediate confirmations. This is independent of historical scores.
+  std::vector<const RelocHypothesis*> currently_registered;
+  if (hypothesis_manager_.empty()) {
     if (reloc_debug_enabled) {
       debug_event.query_cloud.candidate_count = candidates.size();
       debug_event.query_cloud.top_candidates = candidates;
@@ -215,29 +165,19 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       }
     }
 
-    const auto revision = keyframe_manager_.revision();
-    const bool has_alive = std::any_of(
-        hypothesis_manager_.hypotheses().begin(), hypothesis_manager_.hypotheses().end(),
-        [](const auto& hypothesis) { return hypothesis.alive; });
-    const bool reuse = has_alive && revision == initialized_reloc_revision_ &&
-                       plan.seeds == initialized_reloc_seeds_;
-    reused_seed_plan = reuse;
-    cost.reused_seed_plan = reuse;
-    if (!reuse) {
-      initialized_reloc_seeds_ = plan.seeds;
-      initialized_reloc_revision_ = revision;
-      prepare_query();
-      initializeRelocalization(std::move(plan), prepared_query, visibility_observation,
-                               odom_pose, cost, reloc_debug_enabled ? &debug_event : nullptr);
-      initialized_this_frame = true;
-      if (hypothesis_manager_.empty()) {
-        LOG(WARNING) << "Relocalization init failed: no valid ICP hypothesis.";
-        finish_debug("rejected", "no_valid_icp_hypothesis");
-        return completed_result();
-      }
+    prepare_query();
+    initializeRelocalization(std::move(plan), prepared_query, visibility_observation,
+                             odom_pose, cost, reloc_debug_enabled ? &debug_event : nullptr);
+    if (hypothesis_manager_.empty()) {
+      LOG(WARNING) << "Relocalization init failed: no valid ICP hypothesis.";
+      finish_debug("rejected", "no_valid_icp_hypothesis");
+      return completed_result();
     }
-  }
-  if (!initialized_this_frame) {
+    if (config_.reloc_temporal_window_size <= 1) {
+      for (const auto& hypothesis : hypothesis_manager_.hypotheses())
+        currently_registered.push_back(&hypothesis);
+    }
+  } else {
     const auto &current_candidates = candidates;
     if (reloc_debug_enabled) {
       debug_event.query_cloud.candidate_count = current_candidates.size();
@@ -245,180 +185,9 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       debug_event.candidate_count = current_candidates.size();
       debug_event.top_candidates = current_candidates;
     }
-    hypothesis_manager_.advanceWindow(odom_pose);
-    // Hypotheses are independent until ranking. Evaluate those using the same
-    // immutable map target together, without reordering their stored identities
-    // or retaining an unbounded set of prepared targets across observations.
-    std::map<int64_t, std::vector<RelocHypothesis*>> target_groups;
-    for (auto &hyp : hypothesis_manager_.hypotheses()) {
-      if (!hyp.alive)
-        continue;
-      if (reloc_debug_enabled) {
-        // This field describes a registration produced by this query only.
-        // A miss must be null instead of silently reusing the prior query's H.
-        hyp.last_registration_observability = {};
-      }
-
-      Eigen::Isometry3d predicted_pose = hyp.T_map_odom * odom_pose;
-      int64_t nearest_kf_id = findNearestKeyframe(predicted_pose);
-      if (nearest_kf_id < 0) {
-        hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
-        continue;
-      }
-
-      if (!descriptor_supports_keyframe(current_candidates, nearest_kf_id)) {
-        hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
-        continue;
-      }
-      target_groups[nearest_kf_id].push_back(&hyp);
-    }
-
-    for (const auto &[nearest_kf_id, hypotheses] : target_groups) {
-      RelocTargetRequest target_request = makeRelocTargetRequest(nearest_kf_id);
-      const PreparedRelocTarget prepared_target =
-          target_provider_->getTarget(target_request);
-      cost.target_build_ms += prepared_target.metrics.target_build_ms;
-      cost.target_prepare_ms += prepared_target.metrics.target_prepare_ms;
-      cost.target_builds += prepared_target.metrics.target_builds;
-      cost.target_preparations += prepared_target.metrics.target_preparations;
-      cost.cache_hits += prepared_target.metrics.cache_hit;
-      cost.cache_misses += prepared_target.metrics.cache_miss;
-      cost.effective_cache_max_bytes = prepared_target.metrics.effective_max_bytes;
-      cost.effective_cache_max_entries = prepared_target.metrics.effective_max_entries;
-      for (auto *hypothesis : hypotheses) {
-        auto &hyp = *hypothesis;
-        const Eigen::Isometry3d predicted_pose = hyp.T_map_odom * odom_pose;
-        ++cost.hypotheses;
-        if (!prepared_target.hasVisibility()) {
-          hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
-          continue;
-        }
-
-        // Registration proposes a local correction; the LiDAR observation model
-        // decides whether that correction actually explains the measured nearest
-        // surface on each ray. This prevents one-way ICP from dragging a valid
-        // pose onto a remote dense surface.
-        prepare_query();
-        const auto predicted_visibility =
-            hypothesis_visibility(prepared_target, predicted_pose);
-        MatchResult mr;
-        if (prepared_target.valid()) {
-          const auto align_started = std::chrono::steady_clock::now();
-          mr = matcher_.alignPrepared(*prepared_target.registration_target,
-                                      prepared_query, predicted_pose);
-          cost.align_ms += std::chrono::duration<double, std::milli>(
-              std::chrono::steady_clock::now() - align_started).count();
-          ++cost.alignments;
-          if (!hasValidRegistrationResult(mr)) ++cost.rejected_alignments;
-        }
-        VisibilityConsistencyResult selected_visibility = predicted_visibility;
-        Eigen::Isometry3d selected_pose = predicted_pose;
-        bool selected_registration_endpoint = false;
-        if (hasValidRegistrationResult(mr)) {
-          const auto refined_visibility =
-              hypothesis_visibility(prepared_target, mr.T_target_source);
-          if (refined_visibility.valid &&
-              (!selected_visibility.valid ||
-               refined_visibility.consistency_ratio >
-                   selected_visibility.consistency_ratio + 1e-9)) {
-            selected_visibility = refined_visibility;
-            selected_pose = mr.T_target_source;
-            selected_registration_endpoint = true;
-          }
-          if (!selected_registration_endpoint) {
-            const auto fixed_started = std::chrono::steady_clock::now();
-            mr = matcher_.evaluatePreparedPose(*prepared_target.registration_target,
-                                               prepared_query, selected_pose,
-                                               mr.metric);
-            cost.fixed_pose_ms += std::chrono::duration<double, std::milli>(
-                std::chrono::steady_clock::now() - fixed_started).count();
-            ++cost.fixed_pose_evaluations;
-          }
-        }
-        hyp.cumulative_log_likelihood +=
-            computeTrackLogLikelihood(mr, predicted_pose);
-        hyp.num_updates += 1;
-        if (hasValidRegistrationResult(mr)) {
-          retained_geometry_supported |= evaluateRelocMatchQuality(mr).accepted;
-          hyp.T_map_odom = selected_pose * odom_pose.inverse();
-          hyp.last_match_id = nearest_kf_id;
-          hyp.converged_updates += 1;
-
-          // Recorded here, not at alignment, so the numbers describe the pose
-          // this hypothesis actually carries.
-          const bool information_at_selected_pose =
-              selected_pose.isApprox(mr.T_target_source);
-          const Eigen::Matrix3d trans_info = mr.information.block<3, 3>(0, 0);
-          const Eigen::Matrix3d rot_info = mr.information.block<3, 3>(3, 3);
-          const Eigen::Matrix3d cross_info = mr.information.block<3, 3>(3, 0);
-          const Eigen::Matrix3d rot_marginal =
-              rot_info -
-              cross_info *
-                  trans_info.completeOrthogonalDecomposition().pseudoInverse() *
-                  cross_info.transpose();
-          const Eigen::Vector3d re =
-              Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_info)
-                  .eigenvalues();
-          const Eigen::Vector3d rm =
-              Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(rot_marginal)
-                  .eigenvalues();
-          const Eigen::Vector3d te =
-              Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(trans_info)
-                  .eigenvalues();
-          const bool production_quality =
-              mr.success && mr.fitness_score <= config_.gicp_fitness_threshold &&
-              mr.inlier_ratio >= config_.reloc_min_inlier_ratio;
-          hyp.last_rot_info_min = re(0);
-          hyp.last_rot_info_marginal_min = rm(0);
-          hyp.last_trans_info_min = te(0);
-          hyp.last_iterations = static_cast<int>(mr.iterations);
-          hyp.last_termination = static_cast<int>(mr.termination);
-          hyp.last_inlier_ratio = mr.inlier_ratio;
-          hyp.last_fitness = mr.fitness_score;
-          hyp.last_pose_is_refined = selected_registration_endpoint;
-          hyp.last_production_quality = production_quality;
-          if (reloc_debug_enabled) {
-            hyp.last_registration_observability =
-                analyzeRegistrationObservability(
-                    mr,
-                    selected_registration_endpoint ? "registration_endpoint"
-                                                   : "motion_prediction",
-                    information_at_selected_pose, production_quality);
-          }
-          VLOG(1) << "[Reloc/Info] seed=" << hyp.seed_match_id << " pose="
-                  << (selected_registration_endpoint ? "refined" : "predicted")
-                  << " prod_quality=" << production_quality
-                  << " rot_eig=" << re(0) << "," << re(1) << "," << re(2)
-                  << " rot_marg_eig=" << rm(0) << "," << rm(1) << "," << rm(2)
-                  << " trans_eig=" << te(0) << "," << te(1) << "," << te(2)
-                  << " inliers=" << mr.num_inliers
-                  << " fitness=" << mr.fitness_score
-                  << " inlier_ratio=" << mr.inlier_ratio;
-        }
-        if (selected_visibility.valid) {
-          hyp.visibility_consistency_sum += selected_visibility.consistency_ratio;
-          hyp.visibility_evidence_sum += selected_visibility.evidence_log_odds;
-          hyp.visibility_updates += 1;
-        }
-      }
-    }
-  }
-
-  // Retrieval can return the same seeds after geometry changes. A previously
-  // rejected yaw/place may now be the valid mode. Retry this observation cold
-  // when none of the retained poses has current geometric support; do not wait
-  // for another confirmation window or borrow the previous window's quality.
-  if (reused_seed_plan && !retained_geometry_supported) {
-    prepare_query();
-    initializeRelocalization(
-        makeRelocalizationSeedPlan(candidates, keyframe_manager_, config_),
-        prepared_query, visibility_observation, odom_pose, cost,
-        reloc_debug_enabled ? &debug_event : nullptr);
-    cost.retried_seed_plan = true;
-    if (hypothesis_manager_.empty()) {
-      finish_debug("rejected", "no_valid_icp_hypothesis");
-      return completed_result();
-    }
+    currently_registered = confirmRelocalization(
+        query_cloud, current_candidates, odom_pose, prepared_observation,
+        cost, reloc_debug_enabled);
   }
 
   // Kill mode changes the hypothesis set before ranking. Veto mode is a final
@@ -538,6 +307,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       decision_policy_.evaluate(ranking, hypothesis_manager_.windowCount(),
                                 hypothesis_manager_.winnerStreak(),
                                 motion_baseline, nullptr, odom_pose);
+  bool rejected_current_geometry = false;
+  if (!decision.temporal_window_pending && decision.accepted &&
+      std::find(currently_registered.begin(), currently_registered.end(), top1) ==
+          currently_registered.end()) {
+    decision.accepted = false;
+    decision.reject_reason = "current_registration_unverified";
+    rejected_current_geometry = true;
+  }
   if (!decision.temporal_window_pending && decision.accepted) {
     const auto started = std::chrono::steady_clock::now();
     prepare_query();
@@ -559,6 +336,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     // Matching a large floor must not compensate for contradictory walls.
     if (!std::isfinite(witness.planar_min_support) || witness.planar_min_support <= 0.5) {
       decision.accepted = false;
+      rejected_current_geometry = std::isfinite(witness.planar_min_support);
       decision.reject_reason = visibility_observation.planar_jacobians.empty()
           ? "planar_geometry_unobservable"
           : (std::isfinite(witness.planar_min_support)
@@ -566,6 +344,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     }
     VLOG(1) << "[Reloc/Directional] min_support=" << cost.directional_min_support
             << " passed=" << decision.accepted << " ms=" << cost.directional_check_ms;
+  }
+  if (rejected_current_geometry) {
+    // A rejected place must get fresh seed searches next time. Other spatial
+    // basins remain reusable; ambiguity alone does not invalidate a proposal.
+    const auto anchor = keyframe_manager_.getKeyframe(top1->seed_match_id);
+    if (anchor)
+      cost.invalidated_seed_poses += candidate_evaluator_.discardSeedsNear(
+          anchor->pose_optimized.translation(), kRelocBasinAssignRadiusXY);
   }
   if (config_.reloc_free_space_mode != "kill" &&
       !decision.temporal_window_pending && decision.accepted) {
@@ -750,19 +536,15 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     finish_debug("rejected", reject_reason);
   }
 
-  // Confirmation evidence belongs to this window only. Retained pose proposals
-  // may be reused only after comparing the next window's fresh descriptor seeds.
-  if (!result.success && !config_.reloc_persist_hypotheses) {
-    hypothesis_manager_.renewWindow();
-  } else {
-    const HypothesisPersistenceResult persistence =
-        hypothesis_manager_.finishWindow(result.success,
-                                         config_.reloc_persist_hypotheses,
-                                         config_.reloc_persist_max_frames);
-    if (persistence.reseeded) {
-      VLOG(1) << "[Reloc/Persist] reseeding: alive=" << persistence.any_alive
-              << " persisted_frames=" << persistence.persisted_frames;
-    }
+  // The next window starts with fresh evidence for every retrieved seed.
+  // Candidate poses survive separately, keyed by seed and map revision.
+  const HypothesisPersistenceResult persistence =
+      hypothesis_manager_.finishWindow(result.success,
+                                       config_.reloc_persist_hypotheses,
+                                       config_.reloc_persist_max_frames);
+  if (persistence.reseeded) {
+    VLOG(1) << "[Reloc/Persist] reseeding: alive=" << persistence.any_alive
+            << " persisted_frames=" << persistence.persisted_frames;
   }
 
   return completed_result();

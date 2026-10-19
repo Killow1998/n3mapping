@@ -40,7 +40,7 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
   const auto finish_attempt = [&](RegistrationSeedProbeAttempt *attempt) {
     if (!attempt)
       return;
-    const auto quality = evaluateRelocMatchQuality(attempt->match);
+    const auto quality = evaluateRelocMatchQuality(attempt->match, config_);
     attempt->fitness_pass = quality.fitness_pass;
     attempt->inlier_pass = quality.inlier_pass;
     attempt->derived_confidence = quality.confidence;

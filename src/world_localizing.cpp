@@ -7,14 +7,6 @@
 #include <glog/logging.h>
 
 namespace n3mapping {
-bool WorldLocalizing::hasValidRegistrationResult(const MatchResult &match) {
-  return (match.converged ||
-          match.termination == MatchTermination::FixedPoseEvaluation) &&
-         std::isfinite(match.fitness_score) &&
-         std::isfinite(match.inlier_ratio) &&
-         isFiniteRigidPose(match.T_target_source);
-}
-
 WorldLocalizing::WorldLocalizing(const Config &config,
                                  KeyframeManager &keyframe_manager,
                                  LoopDetector &loop_detector,
@@ -68,8 +60,7 @@ void WorldLocalizing::resetLocalizationState() {
 }
 
 void WorldLocalizing::releaseSearchPreparation() {
-  initialized_reloc_seeds_.clear();
-  initialized_reloc_revision_ = {};
+  candidate_evaluator_.clear();
   target_provider_->clear();
   reloc_map_cache_ = pcl::make_shared<PointCloudT>();
   reloc_map_cached_keyframes_ = 0;
