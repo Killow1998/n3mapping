@@ -4094,5 +4094,97 @@
     },
     "artifacts": "build/n3mapping/recovery_context_20261019",
     "scope": "Four P cores 0,2,4,6; 4 registration threads; PASSIVE; same original 10 Hz input, maps, numeric gates and truth alignment; no installation or push"
+  },
+  "cross_solve_hint_ablation": {
+    "status": "rejected_no_production_adoption",
+    "accepted_commit": "5c01129",
+    "core_sha256": "71a4ce252667dbceee79f0408f8b74d48a7d15a23e7ab7afda5f4f4b102a9de3",
+    "scope": "Four physical P cores 0,2,4,6, four registration threads, PASSIVE. First 30 frames of 03/08/14 and first ten repeated-negative frames. Screening only, not complete-input qualification.",
+    "design": "Bounded eight-entry correspondence-index cache; nearest saved endpoint chooses only a first-iteration search upper bound. Every query still performs exact nearest-neighbor traversal, residual evaluation and fresh optimization. Compare native, same interposer disabled, same-frame reuse and cross-frame reuse.",
+    "cases": {
+      "03_south_corridor": {
+        "cpu_s": {
+          "native": 15.738820413999997,
+          "off": 15.748727198000001,
+          "frame": 15.806789993999999,
+          "cross": 15.901056250999998
+        },
+        "relative_to_native_percent": {
+          "native": 0.0,
+          "off": 0.06294489510274559,
+          "frame": 0.4318594291827793,
+          "cross": 1.030800483978389
+        },
+        "frames": 30,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 63,
+        "maximum_matrix_delta": 1.6653345369377348e-16,
+        "peak_retained_index_bytes": 1662672
+      },
+      "08_west_shelves": {
+        "cpu_s": {
+          "cross": 13.979445548,
+          "frame": 13.838054343999998,
+          "off": 13.710685573000003,
+          "native": 13.579669636
+        },
+        "relative_to_native_percent": {
+          "cross": 2.943929585298477,
+          "frame": 1.902731914147715,
+          "off": 0.9647947300034154,
+          "native": 0.0
+        },
+        "frames": 30,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 72,
+        "maximum_matrix_delta": 8.881784197001252e-16,
+        "peak_retained_index_bytes": 879808
+      },
+      "14_north_door": {
+        "cpu_s": {
+          "native": 17.553689246,
+          "off": 17.465566628,
+          "frame": 18.040689586,
+          "cross": 18.027323762
+        },
+        "relative_to_native_percent": {
+          "native": 0.0,
+          "off": -0.5020176486266625,
+          "frame": 2.774347507097241,
+          "cross": 2.6982049719715073
+        },
+        "frames": 30,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 63,
+        "maximum_matrix_delta": 3.0531133177191805e-16,
+        "peak_retained_index_bytes": 1370240
+      },
+      "negative10": {
+        "cpu_s": {
+          "cross": 25.109016022,
+          "frame": 25.198179563,
+          "off": 25.254694645999997,
+          "native": 25.142659942999998
+        },
+        "relative_to_native_percent": {
+          "cross": -0.1338120989436753,
+          "frame": 0.22081840237218042,
+          "off": 0.4455960636384093,
+          "native": 0.0
+        },
+        "frames": 10,
+        "locks": 0,
+        "outputs": 0,
+        "alignments": 83,
+        "maximum_matrix_delta": 0.0,
+        "peak_retained_index_bytes": 1324744
+      }
+    },
+    "decision": "No net benefit on positive screens; negative cross-frame gain is only 0.134%, with positive CPU regressions. Do not add this state or abstraction to production. Full14/long negative/moving qualification of this rejected prototype is not warranted.",
+    "artifacts": "build/n3mapping/stage_reuse_20261019",
+    "next": "Retain source-lifecycle fix. Continue motion-context reliability analysis and fresh-geometry cost reduction; do not equate nearby endpoints with reusable acceptance evidence."
   }
 }

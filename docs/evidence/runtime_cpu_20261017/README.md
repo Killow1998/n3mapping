@@ -16,7 +16,9 @@ fixes explicit source replacement and invalid-input recovery, with 61/61 checks,
 controls. This does not fix the newly measured map-like out-of-map alias or
 moving tracking excursion. Difficult-search half-core, 10 cm and independent
 offline loop consistency remain open. Earlier optimization and rejected-trial
-evidence is preserved in the dated sections below.
+evidence is preserved in the dated sections below. The subsequent
+[cross-solve hint ablation](#cross-solve-correspondence-hint-ablation--2026-10-19)
+was rejected for lack of CPU benefit.
 
 ## Measurement boundaries
 
@@ -2559,3 +2561,52 @@ binaries, validation logs, paired runs and `comparison_v3.json` are under
 `build/n3mapping/recovery_context_20261019`. Core SHA-256:
 `71a4ce252667dbceee79f0408f8b74d48a7d15a23e7ab7afda5f4f4b102a9de3`. Moving reliability, difficult-search half-core,
 10 cm and independent offline loop consistency all remain open.
+
+
+## Cross-solve correspondence-hint ablation — 2026-10-19
+
+**Rejected: no new production cache or abstraction.** Following the accepted
+source-lifecycle correction, a bounded eight-entry experimental cache carries
+previous target indices into the next solve's first exact nearest-neighbor
+search. It never reuses a correspondence as the answer, a score, convergence,
+or confirmation evidence. The factor keeps its existing index field; cache
+copies occur outside the optimizer's point loop. Same-frame and cross-frame
+retention are ablated separately.
+
+Each case runs serially with four physical P cores, four configured threads,
+PASSIVE, the same frozen core, map and original inputs. The positive cases use
+30-frame prefixes and the repeated negative uses ten frames. These are rejection
+screens, not replacements for complete replay qualification. A disabled-cache
+interposer controls for the separate compilation and dispatch path.
+
+| Process CPU seconds | Native | Interposer, reuse off | Same-frame reuse | Cross-frame reuse |
+| --- | ---: | ---: | ---: | ---: |
+| 03_south_corridor | 15.7388 | 15.7487 | 15.8068 | 15.9011 |
+| 08_west_shelves | 13.5797 | 13.7107 | 13.8381 | 13.9794 |
+| 14_north_door | 17.5537 | 17.4656 | 18.0407 | 18.0273 |
+| negative10 | 25.1427 | 25.2547 | 25.1982 | 25.1090 |
+
+Same-frame reuse is 0.43%, 1.90% and 2.77% slower than native on 03/08/14;
+cross-frame reuse is 1.03%, 2.94% and 2.70% slower. The negative is +0.22% and
+−0.13%, respectively: no useful overall gain. This is enough to reject the
+added cache; it is not a stable estimate of each small timing difference.
+Retained index storage reaches
+1.586 MiB,
+excluding temporary copies. Loading-dominated peak RSS does not measure that
+cache's live retained footprint.
+
+All compared decisions, registration counts, locks and outputs match. Positive
+prefixes each have one lock and 26 outputs; all negative prefixes have none.
+Maximum matrix-element difference is
+8.88e-16. Exact-search
+correctness therefore does not establish a performance benefit. Complete14,
+long negative and moving qualification were not run for the rejected candidate.
+
+Closeout leaves production core `5c01129` and its validated hash unchanged;
+no runtime configuration, header layout, test or retained cache was added.
+The original code's within-solve correspondence hint remains. Experimental
+source, frozen commands, all sixteen runs and `hint_decision.json` remain under
+`build/n3mapping/stage_reuse_20261019`. Compact results are in
+`cross_solve_hint_ablation` of `../search_cost_20261019.json`. The next work remains
+motion-context reliability and reducing fresh geometric work; difficult-search
+half-core and the remaining goal stages are not complete.
