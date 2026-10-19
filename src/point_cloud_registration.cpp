@@ -1,9 +1,9 @@
 #include "registration_search.h"
+#include "registration_reduction.h"
 
 #include <small_gicp/factors/gicp_factor.hpp>
 #include <small_gicp/factors/icp_factor.hpp>
 #include <small_gicp/factors/plane_icp_factor.hpp>
-#include <small_gicp/registration/reduction_omp.hpp>
 #include <small_gicp/registration/registration.hpp>
 
 namespace n3mapping::registration_detail {
@@ -31,7 +31,7 @@ small_gicp::RegistrationResult alignWithFactor(
     const small_gicp::PointCloud& target, const small_gicp::PointCloud& source,
     const CorrespondenceSearch::Tree& tree, const Eigen::Isometry3d& initial_pose,
     const small_gicp::RegistrationSetting& setting) {
-  small_gicp::Registration<HintedFactor<Factor>, small_gicp::ParallelReductionOMP> registration;
+  small_gicp::Registration<HintedFactor<Factor>, RegistrationReduction> registration;
   registration.reduction.num_threads = setting.num_threads;
   registration.rejector.max_dist_sq =
       setting.max_correspondence_distance * setting.max_correspondence_distance;

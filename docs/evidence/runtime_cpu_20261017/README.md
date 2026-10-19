@@ -1220,3 +1220,42 @@ CSV and `OUTPUT_CSV.costs.jsonl`. The retained artifact root contains
 `pinned_ab.py`, `full_replay.py`, `run_dds.py`, the rejected coarse-gate sources,
 the perturbation probe, complete outputs and frozen baseline/selected libraries.
 Their hashes, exact DDS arguments and timing audit are in the linked JSON.
+
+### Registration reduction and persistent reacquisition (2026-10-18)
+
+Against `472d5b1`, registration and fixed-pose linearization now accumulate each
+worker's Hessian, gradient and error on its own stack, then publish once per
+worker. This removes per-point writes to adjacent shared accumulators. Factors,
+guided scheduling, optimizer iterations, distance gates and acceptance remain
+unchanged. Upstream error evaluation is reused. No descriptor dimensions change.
+
+[Measured results](../registration_reduction_20261018.json) contain three serial,
+alternating A/B rounds on CPUs 0, 2, 4, 6 with `OMP_WAIT_POLICY=PASSIVE`:
+
+| Scope | Baseline CPU | Candidate CPU | Change |
+| --- | ---: | ---: | ---: |
+| Four-thread prepared alignment, sum of four initial offsets | 52.673 ms | 50.336 ms | -4.44% |
+| Complete 100-frame repetitive-corridor replay | 267.776 s | 264.481 s | -1.23% |
+| 300-frame retained-map-scan replay | 6.706 s | 6.680 s | -0.38% |
+
+The last row and single-thread synthetic episodes show little material change;
+the latter vary by about +0.2–0.4%. The prepared-alignment gain is not a whole-node
+gain. Across 3,336 replay frames including repetitions, decisions and work counts
+match; maximum pose-matrix difference is 1.05e-13. Single-thread optimizer checks
+remain exact; four-thread checks allow summation roundoff already present in the
+baseline. Release/Humble CTest passes 61/61. These are regression and cost tests,
+not new hardware, absolute-accuracy, RAM or difficult-search half-core acceptance.
+
+The reboot removed the previous `/tmp` artifacts. Their committed measurements
+remain historical evidence, but those raw files are no longer available. New
+frozen libraries, input manifests, runners and outputs live in the workspace's
+`build/n3mapping/registration_reduction_20261018`; raw simulation captures live in
+`map/sprobo_20261018`. The first replacement adapter omitted the configured truth
+topic. The old acquisition checker incorrectly accepted `central` without truth;
+that recording is excluded. Startup now requires a truth publisher, and completed
+recordings must contain one truth pose per native LiDAR scan. `coverage` verifies
+that the old adapter is rejected before simulation begins. An adapter rebuilt in
+the workspace, without changing simple_rbt sources, passes these checks in
+`central_v2`: 350 scans, 7,000 IMUs, 350 truth poses and 346 LIO pairs; frontend
+maximum errors are 0.0337 m / 0.1005 degrees. Full `coverage_v2` reacquisition is
+in progress and is not yet qualified.

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <random>
@@ -114,25 +115,38 @@ TEST(RegistrationSearch, PreservesOptimizerPoseQualityAndInformation) {
   const Search::Tree tree(target);
   small_gicp::estimate_normals_covariances_omp(*target, tree, 20, 1);
   const Cloud source = *target;
-  for (const auto type : {small_gicp::RegistrationSetting::ICP,
-                          small_gicp::RegistrationSetting::PLANE_ICP,
-                          small_gicp::RegistrationSetting::GICP}) {
-    for (const double offset : {0.0, 0.1, 2.0, 40.0}) {
-      small_gicp::RegistrationSetting setting;
-      setting.type = type;
-      setting.num_threads = 1;
-      setting.max_correspondence_distance = 1.0;
-      Eigen::Isometry3d initial = Eigen::Isometry3d::Identity();
-      initial.translation() = Eigen::Vector3d(offset, -0.5 * offset, 0.2 * offset);
-      const auto expected = small_gicp::align(*target, source, tree, initial, setting);
-      const auto actual = registration_detail::align(*target, source, tree, initial, setting);
-      EXPECT_EQ(actual.converged, expected.converged);
-      EXPECT_EQ(actual.iterations, expected.iterations);
-      EXPECT_EQ(actual.num_inliers, expected.num_inliers);
-      EXPECT_DOUBLE_EQ(actual.error, expected.error);
-      EXPECT_EQ(actual.T_target_source.matrix(), expected.T_target_source.matrix());
-      EXPECT_EQ(actual.H, expected.H);
-      EXPECT_EQ(actual.b, expected.b);
+  for (const int threads : {1, 4}) {
+    for (const auto type : {small_gicp::RegistrationSetting::ICP,
+                            small_gicp::RegistrationSetting::PLANE_ICP,
+                            small_gicp::RegistrationSetting::GICP}) {
+      for (const double offset : {0.0, 0.1, 2.0, 40.0}) {
+        small_gicp::RegistrationSetting setting;
+        setting.type = type;
+        setting.num_threads = threads;
+        setting.max_correspondence_distance = 1.0;
+        Eigen::Isometry3d initial = Eigen::Isometry3d::Identity();
+        initial.translation() = Eigen::Vector3d(offset, -0.5 * offset, 0.2 * offset);
+        const auto expected = small_gicp::align(*target, source, tree, initial, setting);
+        const auto actual = registration_detail::align(*target, source, tree, initial, setting);
+        EXPECT_EQ(actual.converged, expected.converged);
+        EXPECT_EQ(actual.iterations, expected.iterations);
+        EXPECT_EQ(actual.num_inliers, expected.num_inliers);
+        if (threads == 1) {
+          EXPECT_DOUBLE_EQ(actual.error, expected.error);
+          EXPECT_EQ(actual.T_target_source.matrix(), expected.T_target_source.matrix());
+          EXPECT_EQ(actual.H, expected.H);
+          EXPECT_EQ(actual.b, expected.b);
+        } else {
+          // Guided scheduling already changes summation order between runs.
+          EXPECT_NEAR(actual.error, expected.error, 1e-9);
+          EXPECT_TRUE(actual.T_target_source.matrix().isApprox(
+              expected.T_target_source.matrix(), 1e-10));
+          EXPECT_LE((actual.H - expected.H).norm(),
+                    1e-12 * std::max(1.0, expected.H.norm()));
+          EXPECT_LE((actual.b - expected.b).norm(),
+                    std::max(1e-9, 1e-12 * expected.b.norm()));
+        }
+      }
     }
   }
 }

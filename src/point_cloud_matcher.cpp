@@ -2,6 +2,7 @@
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_state.h"
 #include "registration_search.h"
+#include "registration_reduction.h"
 
 #include <glog/logging.h>
 #include <omp.h>
@@ -15,7 +16,6 @@
 #include <small_gicp/util/normal_estimation_omp.hpp>
 #include <small_gicp/factors/plane_icp_factor.hpp>
 #include <small_gicp/factors/gicp_factor.hpp>
-#include <small_gicp/registration/reduction_omp.hpp>
 #include <small_gicp/registration/rejector.hpp>
 
 namespace n3mapping {
@@ -167,7 +167,7 @@ void evaluateFixedPoseFactors(
     rejector.max_dist_sq = metric.max_correspondence_distance *
                            metric.max_correspondence_distance;
     std::vector<Factor> factors(source.size());
-    small_gicp::ParallelReductionOMP reduction;
+    registration_detail::RegistrationReduction reduction;
     reduction.num_threads = num_threads;
     const registration_detail::CorrespondenceSearch search(*target.kdtree, rejector.max_dist_sq);
     const auto [H, b, error] = reduction.linearize(

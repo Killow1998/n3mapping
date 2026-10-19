@@ -1,0 +1,658 @@
+{
+  "baseline_commit": "472d5b197b20a7ce424584cfddcfdc4101270216",
+  "method": "Three serial alternating A/B rounds, taskset 0,2,4,6; OMP_WAIT_POLICY=PASSIVE; unchanged clouds, gates and thread counts. CPU includes all process threads. No simulator or concurrent builds during timing.",
+  "alignment": {
+    "1": {
+      "baseline": {
+        "cpu_ms": {
+          "values": [
+            48.2988,
+            49.6675,
+            48.562020000000004
+          ],
+          "median": 48.562020000000004
+        },
+        "wall_ms": {
+          "values": [
+            48.3138072,
+            49.684866920000005,
+            48.5794078
+          ],
+          "median": 48.5794078
+        }
+      },
+      "candidate": {
+        "cpu_ms": {
+          "values": [
+            47.97816,
+            48.8513,
+            48.36816
+          ],
+          "median": 48.36816
+        },
+        "wall_ms": {
+          "values": [
+            47.99410424,
+            48.86919182,
+            48.38518652
+          ],
+          "median": 48.38518652
+        }
+      },
+      "max_pose_matrix_delta": 0.0,
+      "discrete_equal": true,
+      "max_stage_error_delta": 0.0,
+      "all_within_batch_discrete_stable": true
+    },
+    "4": {
+      "baseline": {
+        "cpu_ms": {
+          "values": [
+            52.899559999999994,
+            52.67318,
+            52.12804
+          ],
+          "median": 52.67318
+        },
+        "wall_ms": {
+          "values": [
+            13.631756039999999,
+            13.584416220000001,
+            17.921011540000002
+          ],
+          "median": 13.631756039999999
+        }
+      },
+      "candidate": {
+        "cpu_ms": {
+          "values": [
+            50.2807,
+            50.335539999999995,
+            51.14162
+          ],
+          "median": 50.335539999999995
+        },
+        "wall_ms": {
+          "values": [
+            12.991243920000002,
+            13.01834492,
+            15.912488580000002
+          ],
+          "median": 13.01834492
+        }
+      },
+      "max_pose_matrix_delta": 5.329070518200751e-15,
+      "discrete_equal": true,
+      "max_stage_error_delta": 3.183231456205249e-12,
+      "all_within_batch_discrete_stable": true
+    }
+  },
+  "replays": {
+    "saved": {
+      "baseline": {
+        "frames": [
+          300,
+          300,
+          300
+        ],
+        "cpu_ms": {
+          "values": [
+            6750.286836999998,
+            6687.123944999995,
+            6706.135731999999
+          ],
+          "median": 6706.135731999999
+        },
+        "wall_ms": {
+          "values": [
+            2418.6339859999985,
+            2137.5777720000006,
+            2151.4328259999984
+          ],
+          "median": 2151.4328259999984
+        },
+        "initial_lock_frames": [
+          [
+            "4"
+          ]
+        ],
+        "published_frames": 296
+      },
+      "candidate": {
+        "frames": [
+          300,
+          300,
+          300
+        ],
+        "cpu_ms": {
+          "values": [
+            6670.3812699999935,
+            6698.739269000008,
+            6680.339908000003
+          ],
+          "median": 6680.339908000003
+        },
+        "wall_ms": {
+          "values": [
+            2139.275821000001,
+            2147.059337000001,
+            2146.941014
+          ],
+          "median": 2146.941014
+        },
+        "initial_lock_frames": [
+          [
+            "4"
+          ]
+        ],
+        "published_frames": 296
+      },
+      "discrete_differences": [],
+      "max_pose_matrix_delta": 1.0480505352461478e-13,
+      "search_cost": {
+        "baseline": {
+          "alignments": 76,
+          "rejected_alignments": 14,
+          "process_cpu_ms": 2891.1210370000003,
+          "total_ms": 1049.16453,
+          "align_ms": 1321.3351599999999,
+          "fixed_pose_ms": 4.6816949999999995,
+          "visibility_ms": 280.17170899999996,
+          "source_prepare_ms": 7.050485
+        },
+        "candidate": {
+          "alignments": 76,
+          "rejected_alignments": 14,
+          "process_cpu_ms": 2854.896354,
+          "total_ms": 1025.910139,
+          "align_ms": 1257.131739,
+          "fixed_pose_ms": 4.567837,
+          "visibility_ms": 274.914145,
+          "source_prepare_ms": 7.323519
+        }
+      }
+    },
+    "corridor": {
+      "baseline": {
+        "frames": [
+          100,
+          100,
+          100
+        ],
+        "cpu_ms": {
+          "values": [
+            267775.714697,
+            267733.60160199995,
+            267795.751912
+          ],
+          "median": 267775.714697
+        },
+        "wall_ms": {
+          "values": [
+            82225.423973,
+            82338.926684,
+            81461.883905
+          ],
+          "median": 82225.423973
+        },
+        "initial_lock_frames": [
+          []
+        ],
+        "published_frames": 0
+      },
+      "candidate": {
+        "frames": [
+          100,
+          100,
+          100
+        ],
+        "cpu_ms": {
+          "values": [
+            264481.27757399995,
+            264513.446199,
+            264196.12492299994
+          ],
+          "median": 264481.27757399995
+        },
+        "wall_ms": {
+          "values": [
+            80492.85411600002,
+            81327.81552799999,
+            79853.678211
+          ],
+          "median": 80492.85411600002
+        },
+        "initial_lock_frames": [
+          []
+        ],
+        "published_frames": 0
+      },
+      "discrete_differences": [],
+      "max_pose_matrix_delta": 0.0,
+      "search_cost": {
+        "baseline": {
+          "alignments": 1227,
+          "rejected_alignments": 190,
+          "process_cpu_ms": 267717.82199199987,
+          "total_ms": 81813.20513099998,
+          "align_ms": 127549.96435399992,
+          "fixed_pose_ms": 1333.5084120000006,
+          "visibility_ms": 2108.3205060000005,
+          "source_prepare_ms": 1013.538152
+        },
+        "candidate": {
+          "alignments": 1227,
+          "rejected_alignments": 190,
+          "process_cpu_ms": 264427.0197320001,
+          "total_ms": 80438.54748199998,
+          "align_ms": 125940.720738,
+          "fixed_pose_ms": 1336.6578479999998,
+          "visibility_ms": 2129.305133999999,
+          "source_prepare_ms": 1003.4746210000001
+        }
+      }
+    }
+  },
+  "episodes": {
+    "legacy": {
+      "baseline": {
+        "cpu_s": {
+          "values": [
+            6.15,
+            6.13,
+            6.14
+          ],
+          "median": 6.14
+        },
+        "wall_s": {
+          "values": [
+            6.13,
+            6.1,
+            6.11
+          ],
+          "median": 6.11
+        },
+        "max_rss_kib": {
+          "values": [
+            71796.0,
+            68072.0,
+            69924.0
+          ],
+          "median": 69924.0
+        },
+        "frames": [
+          70,
+          70,
+          70
+        ]
+      },
+      "candidate": {
+        "cpu_s": {
+          "values": [
+            6.16,
+            6.14,
+            6.17
+          ],
+          "median": 6.16
+        },
+        "wall_s": {
+          "values": [
+            6.14,
+            6.11,
+            6.15
+          ],
+          "median": 6.14
+        },
+        "max_rss_kib": {
+          "values": [
+            66908.0,
+            67384.0,
+            69796.0
+          ],
+          "median": 67384.0
+        },
+        "frames": [
+          70,
+          70,
+          70
+        ]
+      },
+      "non_timing_fields_equal": true
+    },
+    "atlas": {
+      "baseline": {
+        "cpu_s": {
+          "values": [
+            5.7,
+            5.66,
+            5.6899999999999995
+          ],
+          "median": 5.6899999999999995
+        },
+        "wall_s": {
+          "values": [
+            4.04,
+            4.03,
+            4.03
+          ],
+          "median": 4.03
+        },
+        "max_rss_kib": {
+          "values": [
+            71308.0,
+            71428.0,
+            71252.0
+          ],
+          "median": 71308.0
+        },
+        "frames": [
+          70,
+          70,
+          70
+        ]
+      },
+      "candidate": {
+        "cpu_s": {
+          "values": [
+            5.71,
+            5.72,
+            5.64
+          ],
+          "median": 5.71
+        },
+        "wall_s": {
+          "values": [
+            4.04,
+            4.05,
+            4.01
+          ],
+          "median": 4.04
+        },
+        "max_rss_kib": {
+          "values": [
+            71492.0,
+            70968.0,
+            71160.0
+          ],
+          "median": 71160.0
+        },
+        "frames": [
+          70,
+          70,
+          70
+        ]
+      },
+      "non_timing_fields_equal": true
+    },
+    "kill": {
+      "baseline": {
+        "cpu_s": {
+          "values": [
+            5.17,
+            5.199999999999999,
+            5.2
+          ],
+          "median": 5.199999999999999
+        },
+        "wall_s": {
+          "values": [
+            5.14,
+            5.17,
+            5.17
+          ],
+          "median": 5.17
+        },
+        "max_rss_kib": {
+          "values": [
+            76532.0,
+            76944.0,
+            69668.0
+          ],
+          "median": 76532.0
+        },
+        "frames": [
+          70,
+          70,
+          70
+        ]
+      },
+      "candidate": {
+        "cpu_s": {
+          "values": [
+            5.18,
+            5.21,
+            5.25
+          ],
+          "median": 5.21
+        },
+        "wall_s": {
+          "values": [
+            5.15,
+            5.18,
+            5.22
+          ],
+          "median": 5.18
+        },
+        "max_rss_kib": {
+          "values": [
+            73044.0,
+            73320.0,
+            67796.0
+          ],
+          "median": 73044.0
+        },
+        "frames": [
+          70,
+          70,
+          70
+        ]
+      },
+      "non_timing_fields_equal": true
+    }
+  },
+  "limitations": [
+    "Saved-map replay uses retained mapping scans with interpolated poses, not independent accuracy data.",
+    "Corridor recording predates corrected simulator IMU; usable for behavioral regression, not mapping accuracy.",
+    "No new full 100 x 100 m corpus, DDS, RK3588 or half-core qualification is inferred from these CPU tests.",
+    "Four-thread guided summation has roundoff variation; single-thread exact comparisons retained.",
+    "Existing /tmp artifacts were lost after reboot; this experiment root and regenerated inputs are persistent."
+  ],
+  "artifact_root": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/registration_reduction_20261018",
+  "artifacts": {
+    "align_baseline_1_0.jsonl": "6ff75c1d7bf9054e4ae90a715b6b482553d57d3cd0781264446bdd469271ea0d",
+    "align_baseline_1_1.jsonl": "0ba857dee756323e93aa195039b366883639d8cae00dc0a2a13f141931e3880c",
+    "align_baseline_1_2.jsonl": "eff626552c0a520a6da79f1195861a7936f8e2b8faeb638dcb65f4406ca19585",
+    "align_baseline_4_0.jsonl": "3f594dc7268e592db8ad329c672c66f79033d7a56f61136269880ce14f3bf793",
+    "align_baseline_4_1.jsonl": "cc4c0157d6989560a2f0efaaa282c23fa155d43896f165c0695f8140cf2e04f0",
+    "align_baseline_4_2.jsonl": "6762ea354097ba7feb99577f25f356cd4dcd977c49025ea1ea96f5c8f530a5ce",
+    "align_candidate_1_0.jsonl": "ac087bc9f97d6c4f61237401f0ebc8f195fc40a52836ddccb2219b038f309b9a",
+    "align_candidate_1_1.jsonl": "04e5d814119fd9cb6a6d77a32a6fe2e13cac326b1d6e59e1d70c3e8882cfb499",
+    "align_candidate_1_2.jsonl": "8587b60f8f690c1b2cd6198d647007085b07fff7e1c62a397a5e7d953254973f",
+    "align_candidate_4_0.jsonl": "aca78e6a44f8f4d58c981ac2d44392f47c5694a31bfdae43825ab899e2272619",
+    "align_candidate_4_1.jsonl": "446ee4eaf29ca43b021d18d2cc6f7c23ad02f2890ce76ea2e6877ba8590052ba",
+    "align_candidate_4_2.jsonl": "573e3a42de72e72b9a2d5b0645a2fef56fac9bccfeede23e39aab6d7e3c460dc",
+    "analyze.py": "01f888639f571b7a004300f5526f58fe05da4b93a3c090bceb63c2e33bc83fd6",
+    "episode_atlas_baseline_0.csv": "1b301995eaa6593926c65189f245ef814a789b73714345a8b8ce0401607793f6",
+    "episode_atlas_baseline_0.time": "9ef6045cdf12f56c78ad06560caca17f761c6e5ace5f62a74090539c82717354",
+    "episode_atlas_baseline_1.csv": "a73d2bd9be10f2218deefc6720c1a5a5a4ad3a8f2c410ab77f399c60dd55ebc1",
+    "episode_atlas_baseline_1.time": "85738adaf2f60b64a7b0da919ab0867d92bee96ead2cd791405b23e3df8c52d3",
+    "episode_atlas_baseline_2.csv": "f53abc5593170540618c2002d934fac8f1520dcfc940c126cb13b21ca51f3c4e",
+    "episode_atlas_baseline_2.time": "7c7dd12a7e7384cee5dfd92f95213f8c7d9f7e8e4e06c48943f320565464e46b",
+    "episode_atlas_candidate_0.csv": "20b5a18cac4588dd5a973e739c7a1a90d6bfc50b4943161be6c0bd5d7cd3461f",
+    "episode_atlas_candidate_0.time": "a57156e0e9ded1d24c4de836607d7b645ebcf97940a993861d886bfd9a3e2638",
+    "episode_atlas_candidate_1.csv": "f879e7eb7b4986537f479d9e8df10d2397ab5b8578d5977c0d80cc7821073f71",
+    "episode_atlas_candidate_1.time": "85f01c9c07dc9971546be0c996aa3c8621196c6b02f1406bf8bbf4a32f8fae72",
+    "episode_atlas_candidate_2.csv": "06c6544c27581d9c306696a6f96455f2205dd9a3507f7c21f70562393d0944ac",
+    "episode_atlas_candidate_2.time": "b5432adad1547610d7ce95620248a4cf1e73c4921d80ba70cc9a6851e6c774f5",
+    "episode_kill_baseline_0.csv": "d0ebfaff3457e46bc04549beed34a5993e806fc0aa96f8011ece33c862ecc519",
+    "episode_kill_baseline_0.time": "04e4c040f1b444929e2ea229c9ce81eecde5eb47230331a507fc81cf1b32ee82",
+    "episode_kill_baseline_1.csv": "4035cb6a18f582db6416632dbc83c399afe18f6d31b8d416402e5aa18792b809",
+    "episode_kill_baseline_1.time": "8a6e57bee67a7328256a10e8bc6c6d7d3cbd4c36f0a6552943ee838470642940",
+    "episode_kill_baseline_2.csv": "c319c9557529c8fb71cf8020186a091c9f3d23fe232ee4962d765a29556aa984",
+    "episode_kill_baseline_2.time": "d8e9cc3b64247a2da62ea0a217e13d6f0df4e171b8ef6115ca4fea71006b9628",
+    "episode_kill_candidate_0.csv": "5b8205a9ae642ed8a4486fea1a19e4f3fe7cf8513da93eea63e46ba54678b923",
+    "episode_kill_candidate_0.time": "021abb3065f023cbd190068626449e96cef82683902edec0de9efe74b349e8c9",
+    "episode_kill_candidate_1.csv": "4efe866f9dda7ec100d5dd6369e9200ba1ae527711d8b86bb3a3a25b2f518efc",
+    "episode_kill_candidate_1.time": "d6e28ce05112a1bb409431bc6ec7ff876ccc36a76e551afa91b36f974d3393a8",
+    "episode_kill_candidate_2.csv": "adda1db96190880101f36bfb14c78ac01a15df4ac8cda120f7136c614c50db18",
+    "episode_kill_candidate_2.time": "25def1adf50b52ccea43c257349606f89ef836d10d5e960cfce8ac6b6ec033d8",
+    "episode_legacy_baseline_0.csv": "197ae39de24d524d4927deb2fd5e5ea6fd6783cf0086069f8cacf52e722e1646",
+    "episode_legacy_baseline_0.time": "e9be0cc5960fb7b589fa6006dcc2385beb45d7b99f8cfb5909ba2b743f7e5f10",
+    "episode_legacy_baseline_1.csv": "7bcc554fe549f0544a0666a495d45f6732889779e9d97df6a1017e0c12120539",
+    "episode_legacy_baseline_1.time": "3c4cfbd296dfc0a6d6262431785db629618ecb8248fd5c8e78af5023a35c27a7",
+    "episode_legacy_baseline_2.csv": "a1c3f5235b48e654b66007e9255180bfe6539d57d6d074ac292c4dceb7ad9b3d",
+    "episode_legacy_baseline_2.time": "f77afc223deb4a4b617a66460a497a27128f3de589cb30217543982dd533748a",
+    "episode_legacy_candidate_0.csv": "08fc9b1182a2aa2721f4f6f518f31a32dfb540807872e72d435bd8c300a556e5",
+    "episode_legacy_candidate_0.time": "9b69dec4177679121403c837ed5c35bab3632c3c882a4dfcb505d454827a0340",
+    "episode_legacy_candidate_1.csv": "9cb450b34e9f857a23e64a0897fe000fec73eb80104a0608d647ec36ad3acea2",
+    "episode_legacy_candidate_1.time": "f500e5758c7d7cf2cfccb1abe4fec0ebaa91f0a71e3118d523be3603f2249326",
+    "episode_legacy_candidate_2.csv": "6b30088fc9e652d5516919774962956eb6ff6ffa275e644c782d3af0cbd4a882",
+    "episode_legacy_candidate_2.time": "d17668ba0bd26525be49034294abd8ffe71b010fce114c7d472cc85bc79fba79",
+    "n3map_pb2.py": "6da4c2a92907696501bda1f5c3fa12f98d93734ba11140d5e5aa8ef3ef150827",
+    "prepare_alignment.py": "67c09a14ef3944882f4f942e1c1a59693b1380b2260c95945def74ecc78fa600",
+    "replay_corridor_baseline_0.csv": "12324fac3c834c1d2eaa02b8c2ad1741b4b6a680ce215e1fe88793b8a3986bcc",
+    "replay_corridor_baseline_0.csv.costs.jsonl": "72673547e5fab1bc32066d70b9fb94a6f7baebb68806e2e9332c1513f3fdbfba",
+    "replay_corridor_baseline_1.csv": "61a789e16711412106fc542f64922a7e9ff7b352b9f68fc020d8f38f9e412984",
+    "replay_corridor_baseline_1.csv.costs.jsonl": "c709c638d3fe236b862f91577b055803a8a219f8e3774222deb3d193cc249b07",
+    "replay_corridor_baseline_2.csv": "4c5a2274f27a06d500d3ec224b718883b7fe596e6113cbfde359ab4377ac5818",
+    "replay_corridor_baseline_2.csv.costs.jsonl": "c17d338c78e60e609cc6e86d9641c080db67ed424e7e11052e5083939e9dc43c",
+    "replay_corridor_candidate_0.csv": "425a82058c7ea34535f2098bee1705744d4510c08bbba01c963dbc5a8da9efc8",
+    "replay_corridor_candidate_0.csv.costs.jsonl": "6fef32b9cb1307768147849bcff79b7fbec46d7cbd0fb4148ff71611f01a512c",
+    "replay_corridor_candidate_1.csv": "01610da9e34342fe12fb540875a3298c83e5dc70ffeee8bb39930d29b7354725",
+    "replay_corridor_candidate_1.csv.costs.jsonl": "ce6b1ace2d360b4e8db38951b204dbeb54c73d9707caccff859b8dd1acd38172",
+    "replay_corridor_candidate_2.csv": "590603e14a997fd7bc613de43d0c50bdfec64395304c0e9558458494da6197df",
+    "replay_corridor_candidate_2.csv.costs.jsonl": "28f7a5578662481a58fc2fc6337c1949948057ad5eb4913b27acf2795c0a93df",
+    "replay_saved_baseline_0.csv": "523f55db279d1ae964180e6d4c38c02a38ca749859cfe63eb10ebdfe7b6e6244",
+    "replay_saved_baseline_0.csv.costs.jsonl": "7903a8d20a8376421cc1d994ca6c40d1ab28efe45bf15e291ccff562e46ba812",
+    "replay_saved_baseline_1.csv": "02bb8781de05c641c3826ba8fba71b631c3648cf43101ddea4884e87cc1b801c",
+    "replay_saved_baseline_1.csv.costs.jsonl": "599af952c5fccf6511d2d96d9c906717c5b57e506d02f4db7266a8422f3320bc",
+    "replay_saved_baseline_2.csv": "6c0acd2c0f8b52babd40f728af05770d9107c81c92caa34e08d40624acc809e1",
+    "replay_saved_baseline_2.csv.costs.jsonl": "c2f2860595e284f73e293c44cc96d1a8a42630452276442c300dbb69aebb5c34",
+    "replay_saved_candidate_0.csv": "779ecfa8009afca790c123a35e8b28207daa01f786a80cea5e16bf2bdaa355ac",
+    "replay_saved_candidate_0.csv.costs.jsonl": "4b6f324a52becce449d34e1d00cb1439df21ccb541b60bf524fd53f564c656be",
+    "replay_saved_candidate_1.csv": "468f19720533456903d69aeaed0f35b1f9e01a53e42e117e62a5cad4d88501bb",
+    "replay_saved_candidate_1.csv.costs.jsonl": "ab34c50717dd25df196bb61cdc1b5e2261f9ec6dd13a673a310b816677bf538f",
+    "replay_saved_candidate_2.csv": "da5b057ff8cb4a2832ea742d935e84264e1207fd85142a86cd2c5725bbf01bfb",
+    "replay_saved_candidate_2.csv.costs.jsonl": "094d307d495c0c9c9de21b1fe594e5b80c7119cd3b0469481c6d8d5ff1f3d088",
+    "run_alignment.py": "883c33a3641c834e10d61f0aa8b87f08835a04c5fc606ba21bb0c3d0c4484f2b",
+    "run_replays.py": "69fa50ee13e32cb1364a27d7604bcc473327fce76529104b541c1951890012e2",
+    "source.bin": "fea699c8ffa2966e985af94868fc2f1c9f33b0c6499db6d4445f1b7933505426"
+  },
+  "library_sha256": {
+    "baseline": "13ad599cf0b407127ea2afc5e1ef7c4cd159867fc46a40d7cf1a4b09109ffa93",
+    "candidate": "c3920ebb7bfba0cd90b77f918ec7dbe7379bd67eaac2f45311d3ad99442068f8"
+  },
+  "source_sha256": {
+    "src/registration_reduction.h": "633b53b3a17283bb6edd230739c0b7105cd2d26049777f65f05bc8cd4251826f",
+    "src/point_cloud_registration.cpp": "9200d4a8eb58aea700d9c80afdc74135de8802a6cb293081a7e4d9c05cf6184f",
+    "src/point_cloud_matcher.cpp": "72efd3c6e19defa55e01db01a6fd6f194df7e8644dc4c9f61bebbe827c7e92d3",
+    "test/test_registration_search.cpp": "d0150a07adc4a17cc6fa2c7eca6a25f75efe04a6d379e6b7556d142c0105399c"
+  },
+  "date": "2026-10-18",
+  "adopted_change": "Per-worker stack accumulation for registration and fixed-pose linearization; unchanged upstream factors, guided schedule, optimizer and error evaluation.",
+  "verification": {
+    "ctest_passed": 61,
+    "ctest_failed": 0,
+    "matched_library_after_final_build": true,
+    "replay_frames": 3336,
+    "all_discrete_decisions_and_counters_equal": true,
+    "maximum_pose_matrix_delta": 1.0480505352461478e-13,
+    "single_thread_optimizer_exact": true,
+    "roundoff_test_note": "New four-thread H comparisons use relative tolerance, b uses absolute plus relative tolerance near a zero gradient. The initial over-tight b tolerance also failed against the unchanged baseline; upstream_roundoff.log preserves the reproducer."
+  },
+  "input_hashes": {
+    "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/n3map.pbstream": "8f2aa036ffd826f21937b03fd08b9e49bbfe68074f91eab8efd967d3962d778a",
+    "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/global_map.pcd": "6850a00ecffddf97c6a73d3fd7e6a5870fd8b2789a2402e578726913032c6a49",
+    "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_corridor_regression/map.pbstream": "2e2c9d4a68fe8cabf55eb851c92d6443f92e0832cdd730b1eae3b2461f913b41",
+    "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_corridor_regression/manifest/frames.csv": "888d0ca3ed1feb29fb87e993f607018893b6d4785c82adb7c8308bd5e81f2245"
+  },
+  "acquisition_followup": {
+    "status": "Full route reacquisition in progress; not qualified yet.",
+    "root": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018",
+    "central_v2_summary": {
+      "passed": true,
+      "checks": {
+        "no_error": true,
+        "simulation_exited_cleanly": true,
+        "raw_lidar": true,
+        "raw_imu": true,
+        "complete_raw_lidar": true,
+        "complete_raw_imu": true,
+        "complete_truth": true,
+        "lio_pairs": true,
+        "complete_lio_pairs": true,
+        "timestamps_increase": true,
+        "truth_isolated": true,
+        "rolling_scan": true
+      },
+      "error": null,
+      "counts": {
+        "/tf_static": 1,
+        "/clock": 7001,
+        "/livox/imu": 7000,
+        "/livox/lidar": 350,
+        "/ground_truth/odom": 350,
+        "/Odometry": 346,
+        "/cloud_registered_body": 346
+      },
+      "lio_exact_stamp_pairs": 346,
+      "first_lidar": {
+        "points": 19930,
+        "timebase": 0,
+        "stamp": 0,
+        "max_offset_ns": 99995000,
+        "offsets_ordered": true
+      },
+      "truth_subscribers": [
+        "n3m_sprobo_observer"
+      ],
+      "wall_seconds": 38.38031690499997,
+      "simulation_seconds": 35.0,
+      "simulation_lidar_frames": 350,
+      "simulation_imu_samples": 7000,
+      "mode": "input_only",
+      "limitation": "Acquisition checks only; not localization accuracy or half-core qualification"
+    },
+    "central_v2_frontend_score": {
+      "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/central_v2",
+      "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/central_v2",
+      "topic": "/Odometry",
+      "probe_csv": null,
+      "alignment": {
+        "source": "first mapping pose on /Odometry only; no query fitting",
+        "stamp_ns": 399995002,
+        "translation": [
+          -40.010727100387946,
+          -0.02100313695610601,
+          0.640557651050057
+        ],
+        "quaternion_xyzw": [
+          0.0001616199498064363,
+          0.000493783740773074,
+          -0.9999998650070544,
+          6.5178541835173154e-06
+        ]
+      },
+      "evaluated_poses": 346,
+      "first_output_sim_s": 0.399995002,
+      "position_error_m": {
+        "rmse": 0.02477011949297145,
+        "median": 0.022882440722923426,
+        "p95": 0.0329607643281063,
+        "maximum": 0.033695853527818134
+      },
+      "rotation_error_deg": {
+        "rmse": 0.06267348141257194,
+        "median": 0.05821839094853577,
+        "p95": 0.08444318567029761,
+        "maximum": 0.10046798979542051
+      },
+      "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+    },
+    "excluded": [
+      "central: old adapter did not publish /ground_truth/odom; previous acquisition checks incorrectly reported pass without checking truth quantity. Excluded from accuracy evidence.",
+      "coverage: updated graph startup guard rejected the old adapter before simulation started."
+    ],
+    "guard_fix": "Require a /ground_truth/odom publisher before starting and exactly one truth pose per native LiDAR scan, at least 100; source adapter rebuilt into workspace build/n3m_sprobo_adapter with no simple_rbt source changes."
+  }
+}

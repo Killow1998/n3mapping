@@ -234,6 +234,7 @@ def main():
             if any(process.poll() is not None for process in processes.values()):
                 raise RuntimeError("A child exited during startup; inspect its log")
             if (static_tf and node.count_subscribers("/scout_mini/cmd_vel") and
+                    node.count_publishers("/ground_truth/odom") and
                     node.count_publishers("/cloud_registered_body") and
                     node.count_subscribers("/cloud_registered_body") >= (1 if args.input_only else 2)):
                 break
@@ -309,6 +310,8 @@ def main():
                   raw_lidar=counts["/livox/lidar"] >= 100, raw_imu=counts["/livox/imu"] >= 2000,
                   complete_raw_lidar=counts["/livox/lidar"] == native.get("lidar_frames"),
                   complete_raw_imu=counts["/livox/imu"] == native.get("imu_samples"),
+                  complete_truth=counts["/ground_truth/odom"] == native.get("lidar_frames")
+                      and counts["/ground_truth/odom"] >= 100,
                   lio_pairs=len(pairs) >= 100,
                   complete_lio_pairs=len(pairs) == counts["/Odometry"] == counts["/cloud_registered_body"],
                   timestamps_increase=all(all(a < b for a, b in zip(values, values[1:]))
