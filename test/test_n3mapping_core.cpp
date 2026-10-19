@@ -8,6 +8,7 @@
 #include "n3mapping/pcl_compat.h"
 
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/registration_probe.h"
 #include "n3mapping/localization_atlas.h"
 #include "n3map.pb.h"
 

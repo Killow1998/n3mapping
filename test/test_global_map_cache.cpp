@@ -5,6 +5,9 @@
 #include <Eigen/Geometry>
 
 #include "n3mapping/global_map_cache.h"
+#include "n3mapping/core/map_artifacts.h"
+// Also enforce that the public facade compiles without private detector/index includes.
+#include "n3mapping/core/n3mapping_core.h"
 
 namespace n3mapping {
 namespace {
@@ -43,6 +46,26 @@ Keyframe::Ptr makeKeyframe(int64_t id, const Eigen::Vector3d& translation, const
     auto keyframe = Keyframe::create(id, static_cast<double>(id), pose, cloud);
     keyframe->pose_optimized = pose;
     return keyframe;
+}
+
+TEST(MapArtifactsTest, LocalizationSaveIsRejectedBeforeAnyBackendOrFileAccess)
+{
+    Config config;
+    config.mode = "localization";
+    MapArtifacts artifacts(config);
+    std::string error;
+    EXPECT_FALSE(artifacts.save(nullptr, &error, nullptr));
+    EXPECT_EQ(error, "save_disabled_in_mode:localization");
+}
+
+TEST(MapArtifactsTest, MissingMappingBackendPreservesTheFailureContract)
+{
+    Config config;
+    config.mode = "mapping";
+    MapArtifacts artifacts(config);
+    std::string error;
+    EXPECT_FALSE(artifacts.save(nullptr, &error, nullptr));
+    EXPECT_EQ(error, "core_unavailable");
 }
 
 TEST(GlobalMapCacheTest, RepeatedUpdateWithoutNewKeyframesKeepsRevision)

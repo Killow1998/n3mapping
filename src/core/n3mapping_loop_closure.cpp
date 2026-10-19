@@ -1,4 +1,6 @@
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping/loop_debug_logger.h"
 
 #include <algorithm>
 #include <array>
