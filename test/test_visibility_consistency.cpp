@@ -6,9 +6,107 @@
 #include <random>
 
 #include <gtest/gtest.h>
+#include <pcl/common/transforms.h>
 
 namespace n3mapping {
 namespace {
+
+pcl::PointCloud<pcl::PointXYZI>::Ptr planarWitnessRoom(bool walls = true) {
+  auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+  const auto add = [&](double x, double y, double z) {
+    pcl::PointXYZI point;
+    point.x = x; point.y = y; point.z = z;
+    cloud->push_back(point);
+  };
+  for (int x = -40; x <= 40; ++x)
+    for (int y = -30; y <= 30; ++y) {
+      add(x * 0.2, y * 0.2, -0.8);
+      add(x * 0.2, y * 0.2, 2.2);
+    }
+  if (walls)
+    for (int z = -3; z <= 10; ++z) {
+      for (int x = -40; x <= 40; ++x) {
+        add(x * 0.2, -6.0, z * 0.2);
+        add(x * 0.2, 6.0, z * 0.2);
+      }
+      for (int y = -30; y <= 30; ++y) {
+        add(-8.0, y * 0.2, z * 0.2);
+        add(8.0, y * 0.2, z * 0.2);
+      }
+    }
+  return cloud;
+}
+
+TEST(VisibilityConsistencyTest, MatchingFloorCannotHideContradictoryWalls) {
+  const auto query = planarWitnessRoom();
+  auto map = *query;
+  for (auto &point : map)
+    if (point.z > -0.7 && point.z < 2.1) {
+      point.x *= 1.4;
+      point.y *= 1.4;
+    }
+  auto observation = prepareVisibilityObservation(*query);
+  prepareVisibilityPlanarSupport(query, Eigen::Vector3d::UnitZ(), &observation);
+  const auto result = evaluatePreparedVisibilityConsistency(
+      map, observation, Eigen::Isometry3d::Identity());
+  ASSERT_TRUE(result.valid);
+  ASSERT_GT(result.consistency_ratio, 0.5); // The old pooled witness passes.
+  EXPECT_LT(result.planar_min_support, 0.5);
+}
+
+TEST(VisibilityConsistencyTest, PlanarWitnessHandlesTiltAndMissingReturns) {
+  const auto map = planarWitnessRoom();
+  for (double tilt : {0.0, 0.35, 0.8}) {
+    auto pose = Eigen::Isometry3d::Identity();
+    pose.linear() = (Eigen::AngleAxisd(tilt, Eigen::Vector3d::UnitX()) *
+                     Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitZ())).toRotationMatrix();
+    auto query = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    // Missing query returns do not turn the remaining measured surfaces into
+    // contradiction. Use a deterministic dropout independent of surface type.
+    for (std::size_t i = 0; i < map->size(); ++i) {
+      if (i % 4 == 0) continue;
+      const auto q = pose.inverse() * (*map)[i].getVector3fMap().cast<double>();
+      pcl::PointXYZI point;
+      point.x = q.x(); point.y = q.y(); point.z = q.z();
+      query->push_back(point);
+    }
+    auto observation = prepareVisibilityObservation(*query);
+    prepareVisibilityPlanarSupport(query, pose.rotation().transpose() * Eigen::Vector3d::UnitZ(),
+                                  &observation);
+    const auto result = evaluatePreparedVisibilityConsistency(*map, observation, pose);
+    EXPECT_GT(result.planar_min_support, 0.5) << "sensor tilt=" << tilt;
+  }
+}
+
+TEST(VisibilityConsistencyTest, OtherDirectionsCannotHideUnsupportedTranslation) {
+  const auto query = planarWitnessRoom();
+  auto map = *query;
+  for (auto &point : map)
+    if (std::abs(point.x) > 7.9 && point.z > -0.7 && point.z < 2.1)
+      point.x *= 1.4;
+  auto observation = prepareVisibilityObservation(*query);
+  prepareVisibilityPlanarSupport(query, Eigen::Vector3d::UnitZ(), &observation);
+  const auto result = evaluatePreparedVisibilityConsistency(
+      map, observation, Eigen::Isometry3d::Identity());
+  ASSERT_GT(result.consistency_ratio, 0.8);
+  EXPECT_LT(result.planar_min_support, 0.5);
+}
+
+TEST(VisibilityConsistencyTest, FloorAloneDoesNotEstablishHorizontalLocation) {
+  const auto floor = planarWitnessRoom(false);
+  for (double tilt : {0.0, 0.35, 0.8}) {
+    auto pose = Eigen::Isometry3d::Identity();
+    pose.linear() = Eigen::AngleAxisd(tilt, Eigen::Vector3d::UnitX()).toRotationMatrix();
+    auto query = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+    pcl::transformPointCloud(*floor, *query, pose.inverse().matrix());
+    auto observation = prepareVisibilityObservation(*query);
+    prepareVisibilityPlanarSupport(query, pose.rotation().transpose() * Eigen::Vector3d::UnitZ(),
+                                  &observation);
+    const auto result = evaluatePreparedVisibilityConsistency(*floor, observation, pose);
+    ASSERT_GT(result.consistency_ratio, 0.9);
+    EXPECT_FALSE(std::isfinite(result.planar_min_support)) << "sensor tilt=" << tilt;
+  }
+}
 
 int referenceAngularBin(double y, double x, double resolution, bool azimuth) {
   double degrees = std::atan2(y, x) * 180.0 / M_PI + (azimuth ? 180.0 : 90.0);

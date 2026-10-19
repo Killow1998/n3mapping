@@ -1,0 +1,385 @@
+{
+  "date": "2026-10-19",
+  "baseline_commit": "ea157e0",
+  "artifact_root": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/localization_reliability_20261019",
+  "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+  "baseline_core_sha256": "66ba1d33a7ff6caa014c68832171a18fe0ec70c5a0e8d598c80c5812aebe84f5",
+  "full_replay_core_sha256": "c7cd046af4aa0745a7232a77327d74091d3e7c36f990336e058eafdcbccf805d",
+  "final_core_sha256": "8325528696c6336d8d334f761756254e3413c1574a52cb11b32ff2d48f4e82d0",
+  "method": "Closed frozen LIO inputs, core + RealtimeOutput; serial unpaced runs on CPUs 0/2/4/6, PASSIVE OpenMP; all-thread CPU excludes map load. Truth only in fixed first-mapping alignment scorer. No DDS/hardware qualification.",
+  "change": "Absolute planar visibility witness before lock; smallest generalized support eigenvalue > 0.5; rank-deficient evidence refuses. Existing candidate ranking, registration, likelihood/margin, free-space veto and tracking retained.",
+  "cases": [
+    {
+      "case": "central_v2",
+      "manifest_sha256": "7a83bebd30c784f9139e25e8e5731063003906473a83e5c99355501c891feb96",
+      "output_sha256": "d8e0aa0cdf47be94dfb793fab4800d8da4f25f340940532f08b1f73cde4c7434",
+      "frames": 346,
+      "published_poses": 342,
+      "first_lock": 4,
+      "replay_cpu_ms": 22403.77751,
+      "replay_wall_ms": 8776.824369,
+      "peak_rss_kib": 1958088,
+      "checks": [
+        {
+          "frame": 4,
+          "min_support": 0.8976761272217213,
+          "wall_ms": 19.852221
+        }
+      ],
+      "decision_counts": {
+        "accepted": 1,
+        "temporal_window_pending": 4,
+        "tracking_geometric": 341
+      },
+      "accuracy": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/central_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/localization_reliability_20261019/central_v2_full1_0.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799989997,
+        "position_error_m": {
+          "rmse": 0.01000227780440889,
+          "median": 0.006444844078881366,
+          "p95": 0.018839516191164522,
+          "maximum": 0.020539899354192148
+        },
+        "rotation_error_deg": {
+          "rmse": 0.07834117242101066,
+          "median": 0.04013049256252348,
+          "p95": 0.15066203439095763,
+          "maximum": 0.1661871992130544
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "baseline_comparison": {
+        "case": "central_v2",
+        "frames": [
+          346,
+          346
+        ],
+        "changed_decisions": [],
+        "maximum_pose_matrix_delta": 4.440892098500626e-16,
+        "directional_checks": [
+          {
+            "directional_check_ms": 19.852221,
+            "directional_min_support": 0.8976761272217213
+          }
+        ]
+      }
+    },
+    {
+      "case": "south_v2",
+      "manifest_sha256": "58c6ccdd4d6c4bafd87cd60384db52368133ef25c62a88f40dffe85bf3798bd9",
+      "output_sha256": "96ce19c7192a580b9f326f3e8fef96f2a30e1bc16a3a49b7a11f5e1a490b8a3d",
+      "frames": 346,
+      "published_poses": 342,
+      "first_lock": 4,
+      "replay_cpu_ms": 19969.253913,
+      "replay_wall_ms": 7838.513817,
+      "peak_rss_kib": 1958028,
+      "checks": [
+        {
+          "frame": 4,
+          "min_support": 0.8988044664523436,
+          "wall_ms": 16.943956
+        }
+      ],
+      "decision_counts": {
+        "accepted": 1,
+        "temporal_window_pending": 4,
+        "tracking_geometric": 341
+      },
+      "accuracy": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/south_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/localization_reliability_20261019/south_v2_full1_0.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799995002,
+        "position_error_m": {
+          "rmse": 0.020668307515165667,
+          "median": 0.02021882416231078,
+          "p95": 0.027585952802032968,
+          "maximum": 0.03019097774050137
+        },
+        "rotation_error_deg": {
+          "rmse": 0.24698778058919418,
+          "median": 0.24819723986128017,
+          "p95": 0.25726726684296375,
+          "maximum": 0.26917070995978454
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "baseline_comparison": {
+        "case": "south_v2",
+        "frames": [
+          346,
+          346
+        ],
+        "changed_decisions": [],
+        "maximum_pose_matrix_delta": 3.552713678800501e-15,
+        "directional_checks": [
+          {
+            "directional_check_ms": 16.943956,
+            "directional_min_support": 0.8988044664523436
+          }
+        ]
+      }
+    },
+    {
+      "case": "north_v2",
+      "manifest_sha256": "6ced4bed6f06cff63b0e8fe409949a924a28873e8b96c50222ec2deabf6deb95",
+      "output_sha256": "de53361a34767ee830921bd42a16eab7970f73081f3799ff67ac55b7780a2025",
+      "frames": 346,
+      "published_poses": 342,
+      "first_lock": 4,
+      "replay_cpu_ms": 24425.111037,
+      "replay_wall_ms": 9105.392158,
+      "peak_rss_kib": 1957836,
+      "checks": [
+        {
+          "frame": 4,
+          "min_support": 0.753839866600571,
+          "wall_ms": 18.653012
+        }
+      ],
+      "decision_counts": {
+        "accepted": 1,
+        "temporal_window_pending": 4,
+        "tracking_geometric": 341
+      },
+      "accuracy": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/north_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/localization_reliability_20261019/north_v2_full1_0.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799989997,
+        "position_error_m": {
+          "rmse": 0.472617451233284,
+          "median": 0.48607914613814396,
+          "p95": 0.5082863802163377,
+          "maximum": 0.5105298646062033
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3838244095653754,
+          "median": 0.3831665938460976,
+          "p95": 0.39635110355897457,
+          "maximum": 0.4118475388088317
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "baseline_comparison": {
+        "case": "north_v2",
+        "frames": [
+          346,
+          346
+        ],
+        "changed_decisions": [],
+        "maximum_pose_matrix_delta": 1.1102230246251565e-16,
+        "directional_checks": [
+          {
+            "directional_check_ms": 18.653012,
+            "directional_min_support": 0.753839866600571
+          }
+        ]
+      }
+    },
+    {
+      "case": "repetitive_v2",
+      "manifest_sha256": "6e65682e1ba0f3a8fd7eca4c277f7eb8ff7b88f185d678ba5052d7985b1e6bf9",
+      "output_sha256": "d2f0ab4982aec3ee4a7c7288d4b24cc312259e19c07eccdb4a353ee53dc352a5",
+      "frames": 346,
+      "published_poses": 0,
+      "first_lock": null,
+      "replay_cpu_ms": 1759566.4409669999,
+      "replay_wall_ms": 558345.049684,
+      "peak_rss_kib": 1957764,
+      "checks": [
+        {
+          "frame": 4,
+          "min_support": 0.18942960855219595,
+          "wall_ms": 22.360819
+        },
+        {
+          "frame": 9,
+          "min_support": 0.03386887069101621,
+          "wall_ms": 19.2368
+        },
+        {
+          "frame": 274,
+          "min_support": 0.1512354827308978,
+          "wall_ms": 17.586649
+        },
+        {
+          "frame": 284,
+          "min_support": 0.15949810559555733,
+          "wall_ms": 20.616916
+        },
+        {
+          "frame": 294,
+          "min_support": 0.15471494222072008,
+          "wall_ms": 18.040164
+        },
+        {
+          "frame": 299,
+          "min_support": 0.15712166797602678,
+          "wall_ms": 17.254324
+        },
+        {
+          "frame": 304,
+          "min_support": 0.16965900440635795,
+          "wall_ms": 17.364475
+        },
+        {
+          "frame": 314,
+          "min_support": 0.1508377835363121,
+          "wall_ms": 19.07105
+        },
+        {
+          "frame": 334,
+          "min_support": 0.15662983621014906,
+          "wall_ms": 20.606684
+        },
+        {
+          "frame": 339,
+          "min_support": 0.1573472712901286,
+          "wall_ms": 18.087144
+        },
+        {
+          "frame": 344,
+          "min_support": 0.1705507746110115,
+          "wall_ms": 20.177312
+        }
+      ],
+      "decision_counts": {
+        "ambiguous": 10,
+        "directional_visibility_disagreement": 11,
+        "log_likelihood": 3,
+        "margin": 45,
+        "temporal_window_pending": 277
+      },
+      "accuracy": null,
+      "outcome": "abstention, not successful localization",
+      "baseline_false_lock": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/repetitive_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/full_repetitive_v2_locality.csv",
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 342,
+        "first_output_sim_s": 0.799989997,
+        "position_error_m": {
+          "rmse": 68.66096876414717,
+          "median": 70.70013455278378,
+          "p95": 74.7989378002624,
+          "maximum": 74.89324330731526
+        },
+        "rotation_error_deg": {
+          "rmse": 179.748514199146,
+          "median": 179.6813942391409,
+          "p95": 179.94118170347411,
+          "maximum": 179.9998377076721
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    }
+  ],
+  "saved_map_regression": {
+    "frames": [
+      300,
+      300
+    ],
+    "changed_decisions": [],
+    "maximum_pose_matrix_delta": 9.059419880941277e-14,
+    "outputs": [
+      296,
+      296
+    ],
+    "scope": "Same-map generated cost fixture; not an independent sensor query or truth accuracy test"
+  },
+  "tests": {
+    "ctest": "61/61",
+    "log": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/localization_reliability_20261019/verified_ctest.log",
+    "initial_failure": "Old dense-provenance test paired a flat map with a different non-planar query and required acceptance. Preserve the refusal as a behavior regression, then serialize matching geometry to test the original provenance contract.",
+    "episode_modes": [
+      "default (CTest)",
+      "atlas",
+      "experimental kill"
+    ],
+    "final_smoke_cases": [
+      "central_v2: first lock frame 4",
+      "repetitive_v2: zero outputs over 10 frames"
+    ]
+  },
+  "remaining": [
+    "Repeated initialization and difficult-search half-core target remain unresolved",
+    "Abstention does not recover a correct pose in a changed/unknown map",
+    "No universal repeated-scene uniqueness guarantee",
+    "Large dynamic occlusions, arbitrary odometry-world tilt, complete out-of-map/re-entry and RK3588 validation remain open"
+  ],
+  "notes": [
+    "Full replay candidate frozen before final diagnostic reason/log wording adjustments; final build also passes focused replay and whole test suite",
+    "No installed program replacement, simple_rbt changes or remote push"
+  ]
+}

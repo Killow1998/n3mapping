@@ -775,7 +775,7 @@ TEST(N3MappingCoreTest,
     std::filesystem::remove_all(dir);
 }
 
-TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseMarksMixedSource)
+TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseRequiresLockBeforeMixingSources)
 {
     Config config = makeCoreTestConfig();
     config.reloc_temporal_window_size = 1;
@@ -815,8 +815,33 @@ TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseMarksMixedSource)
 
     N3MappingCore extension_core(config);
     ASSERT_TRUE(extension_core.loadMap(old_map_path.string()));
+    const auto query = makeFrame(2000000000, Eigen::Isometry3d::Identity());
+    // The old fixture paired a flat map with a different, non-planar query.
+    // Even permissive likelihood settings must not manufacture an XY lock or
+    // append an extension trajectory from geometry that does not support it.
+    const auto rejected = extension_core.processMapExtensionFrame(query);
+    EXPECT_FALSE(rejected.success);
+    EXPECT_FALSE(rejected.relocalization_locked);
+    EXPECT_EQ(rejected.relocalization_decision, "initial_relocalization_rejected");
+    EXPECT_EQ(extension_core.getAllKeyframes().size(), 1U);
+    EXPECT_EQ(extension_core.getDenseOptimizedTrajectory().size(), 1U);
+
+    // Exercise the original provenance contract with matching geometry while
+    // retaining the old-format map without a dense trajectory.
+    cloud->clear_points();
+    for (const auto &point : *query.undistorted_cloud) {
+        cloud->add_points(point.x);
+        cloud->add_points(point.y);
+        cloud->add_points(point.z);
+        cloud->add_points(point.intensity);
+    }
+    {
+        std::ofstream ofs(old_map_path, std::ios::binary);
+        ASSERT_TRUE(old_map.SerializeToOstream(&ofs));
+    }
+    ASSERT_TRUE(extension_core.loadMap(old_map_path.string()));
     const auto output = extension_core.processMapExtensionFrame(
-        makeFrame(2000000000, Eigen::Isometry3d::Identity()));
+        query);
     ASSERT_TRUE(output.success);
     ASSERT_TRUE(extension_core.saveMap(extended_map_path.string()));
 

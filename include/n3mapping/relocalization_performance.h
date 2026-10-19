@@ -33,8 +33,9 @@ struct TrackingPerformance {
   std::size_t localization_target_cache_entries = 0;
 };
 
-// Per-observation costs, never used by localization decisions. Zero means the
-// stage did not run; available distinguishes a search attempt from tracking.
+// Per-observation costs and diagnostic snapshots. Timing never influences a
+// decision. Zero time means the stage did not run; available distinguishes a
+// search attempt from tracking.
 struct RelocalizationPerformance {
   bool available = false;
   double total_ms = 0.0;
@@ -42,6 +43,10 @@ struct RelocalizationPerformance {
   double process_cpu_ms = 0.0;
   double query_build_ms = 0.0;
   double free_space_ms = 0.0;
+  double directional_check_ms = 0.0;
+  bool directional_checked = false;
+  // Copy of the lock witness for normal status/logs, not its decision state.
+  double directional_min_support = std::numeric_limits<double>::quiet_NaN();
   double diagnostics_ms = 0.0;
   double fixed_pose_ms = 0.0;
   std::uint64_t fixed_pose_evaluations = 0;

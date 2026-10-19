@@ -50,6 +50,9 @@ struct VisibilityConsistencyResult {
       std::numeric_limits<double>::quiet_NaN();
   double median_abs_range_error_m = std::numeric_limits<double>::quiet_NaN();
   double p90_abs_range_error_m = std::numeric_limits<double>::quiet_NaN();
+  // Fraction of query geometry explained in the least supported planar motion
+  // direction. NaN means unavailable, including a rank-deficient observation.
+  double planar_min_support = std::numeric_limits<double>::quiet_NaN();
 };
 
 // The options as configuration sets them. A function rather than a block inside
@@ -63,11 +66,21 @@ struct PreparedVisibilityObservation {
   VisibilityConsistencyOptions options;
   double resolution_deg = 1.0;
   std::vector<double> ranges;
+  std::vector<Eigen::Vector3d> planar_jacobians;
 };
 
 PreparedVisibilityObservation prepareVisibilityObservation(
     const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
     const VisibilityConsistencyOptions &options = {});
+
+// Optional lock witness, prepared only when the other acceptance gates pass.
+// up_in_query is the odometry world's Z axis expressed in the query frame;
+// sensor mounting tilt must not be mistaken for the world's horizontal plane.
+// Jacobians are whitened against all observed surfaces, including disagreement.
+void prepareVisibilityPlanarSupport(
+    const pcl::PointCloud<pcl::PointXYZI>::ConstPtr &query_cloud,
+    const Eigen::Vector3d &up_in_query,
+    PreparedVisibilityObservation *observation);
 
 VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const pcl::PointCloud<pcl::PointXYZI> &map_cloud,

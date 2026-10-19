@@ -12,8 +12,9 @@ CPU is process CPU time divided by elapsed time: 1.0 means one fully occupied
 logical CPU. All threads are included. Map loading precedes the measurement;
 initial relocalization is included. First-path latency starts with the first
 input, after map loading. Unless separately labeled as current RSS, memory is the process high-water
-mark, not live retained memory. The adopted runtime optimizations use no CPU quota, input reduction,
-frequency reduction, or acceptance changes. The earlier occlusion-aware scoring and hypothesis-elimination prototypes
+mark, not live retained memory. The cost-only runtime optimizations use no CPU quota, input reduction,
+frequency reduction, or acceptance changes. The separate October 19 reliability
+repair adds an absolute directional witness before accepting a lock. The earlier occlusion-aware scoring and hypothesis-elimination prototypes
 remain unadopted. The adopted half-turn shortlist correction and its separate
 October 18 measurements are documented below.
 OpenMP has four configured threads and the existing launch default
@@ -1373,9 +1374,10 @@ from walls and objects. Weighting all six pose directions by their weakest
 support would also reject the correct central pose, so that proposal is excluded.
 Planar position/yaw support separates the three normal accepted poses from this
 wrong candidate in the audit, but arbitrary tilt, occlusion, dynamics and map
-boundaries remain untested. No new evidence gate is enabled. The next correctness
-step is to validate directional support and unknown-scene rejection across those
-conditions before changing acceptance or retaining hypotheses between windows.
+boundaries remained untested in that audit. No evidence gate was enabled at that
+stage. The directional lock witness adopted in the following reliability stage
+addresses the reproduced rejection failure; it does not establish universal
+scene uniqueness or complete boundary/dynamic-object qualification.
 
 Warm RHPD generation plus retrieval remains 3.10–3.20 ms calling-thread CPU in
 these queries; initial frame-index construction is another 406–408 ms. The
@@ -1387,3 +1389,74 @@ inputs and runners remain under `build/n3mapping/search_scheduling_20261018`.
 Difficult-search half-core operation, repeated-initialization elimination and
 out-of-map/re-entry qualification remain open. This stage has no new DDS or
 RK3588 qualification and does not replace the installed version.
+
+### Directional lock witness (2026-10-19)
+
+The `ea157e0` baseline could accept the changed repetitive scene because shared
+floor and ceiling returns dominated its pooled visibility score. Stationary
+five-frame confirmation repeated that evidence; a relative competitor veto
+could not establish that the winner itself was plausible.
+
+Before a prospective lock, the localizer now measures support separately in
+all combinations of planar translation and yaw. Twenty-neighbor query normals
+provide point-to-plane Jacobians at the existing nearest-return angular bins.
+The odometry world's Z axis is transformed into the query frame, accounting for
+sensor mounting tilt; no simulator pose, authored surface label or query truth
+enters this calculation. This follows the existing odometry horizontal-plane
+convention, not a new measurement of gravity.
+
+Whitening against all query information makes the smallest eigenvalue of the
+matching information equal to the least supported motion direction. It must
+exceed one half: geometric support must outweigh non-support in every direction.
+Rank-deficient observations cannot pass. This is an additional refusal gate;
+ranking, old likelihood/margin/free-space gates and registration parameters
+remain intact. Normal estimation occurs only for an otherwise eligible winner,
+with the existing query bins and target crop; tracking does not prepare it.
+The implementation lives in `visibility_planar_support.cpp`, sharing the
+existing visibility projection rather than maintaining another map renderer.
+
+[Reproduction and measurements](../directional_reliability_20261019.json) use the
+same closed inputs, fixed CPUs 0/2/4/6 and PASSIVE OpenMP. Four complete queries,
+346 frames each, run through the core and `RealtimeOutput` with truth used only
+by the fixed-mapping-alignment scorer:
+
+| Query | Accepted outputs before → after | First lock | Maximum position error after |
+| --- | ---: | ---: | ---: |
+| Central | 342 → 342 | frame index 4, unchanged | 0.02054 m |
+| South, changed furniture | 342 → 342 | frame index 4, unchanged | 0.03019 m |
+| North | 342 → 342 | frame index 4, unchanged | 0.51053 m |
+| Repetitive, changed geometry | 342 → 0 | none after repair | unavailable: abstention |
+
+The three normal traces retain every decision and work count checked, with pose
+matrix differences at most 3.56e-15. Their lock witnesses are 0.8977 / 0.8988 /
+0.7538. In the negative query, eleven otherwise eligible attempts are refused
+with support 0.0339–0.1894; the baseline's maximum error was 74.893 m and almost
+180 degrees. No output is a safety result here, not successful localization or
+an accuracy score. The map/query geometry change prevents assuming that a true
+pose must be recoverable.
+
+The witness takes 16.94–22.36 ms per evaluated lock attempt in these complete
+runs. Normal tracking does not execute it. The negative still consumes 1,759.57 s
+process CPU and 558.35 s unpaced wall time for the 35 s recording: repeated
+initialization and expensive failed searches remain unresolved. Faster
+incorrect locking is not a useful CPU baseline for successful localization.
+Normal status costs include `directional_checked`, `directional_check_ms` and
+`directional_min_support` (null when unavailable). Rejection reasons distinguish
+geometric disagreement, unobservable query geometry and unavailable visibility;
+warning logs include the reason instead of displaying only the older gates.
+
+Final Humble CTest passes 61/61. Synthetic episodes pass in default, Atlas and
+experimental kill modes. The generated saved-map fixture retains all 300 frame
+decisions, 296 outputs and its first lock at frame index 4; this is a behavior
+regression, not an independent real-world accuracy measurement. Final-build
+smoke replays preserve normal acceptance and negative refusal. One old
+dense-trajectory test had required accepting a flat map with a different
+non-planar query. It now checks refusal without adding keyframes/trajectory,
+then uses matching geometry to verify the original mixed-source metadata.
+
+Behavioral tests cover floor-dominated wrong walls, one unsupported horizontal
+translation despite agreement in other directions, missing returns with sensor
+tilt, and tilted floor-only observations. These checks do not qualify large
+dynamic occlusions, arbitrary odometry-world tilt, all repeated environments,
+out-of-map/re-entry behavior or RK3588 deployment. Installed programs and
+simple_rbt are unchanged; no DDS timing or hardware-performance claim is made.

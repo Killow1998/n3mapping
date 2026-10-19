@@ -55,6 +55,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/odometry_sanity.cpp
   ${N3MAPPING_ROOT}/src/static_start_guard.cpp
   ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
+  ${N3MAPPING_ROOT}/src/visibility_planar_support.cpp
   ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/runtime_performance_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/relocalization_performance.cpp

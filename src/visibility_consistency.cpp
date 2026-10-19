@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <Eigen/Eigenvalues>
 
 #include <pcl/common/point_tests.h>
 
@@ -188,6 +189,8 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
   }
 
   std::vector<double> residuals;
+  Eigen::Matrix3d planar_support = Eigen::Matrix3d::Zero();
+  const bool has_planar = observed.planar_jacobians.size() == observed.ranges.size();
   residuals.reserve(observed.ranges.size());
   for (std::size_t i = 0; i < observed.ranges.size(); ++i) {
     const bool has_observation = std::isfinite(observed.ranges[i]);
@@ -210,8 +213,13 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const double signed_error = predicted_range - observed.ranges[i];
     const double absolute_error = std::abs(signed_error);
     residuals.push_back(absolute_error);
-    if (absolute_error <= options.range_tolerance_m)
+    if (absolute_error <= options.range_tolerance_m) {
       ++result.consistent_bins;
+      if (has_planar) {
+        const auto &j = observed.planar_jacobians[i];
+        planar_support.noalias() += j * j.transpose();
+      }
+    }
     if (signed_error < -options.range_tolerance_m)
       ++result.foreground_conflict_bins;
   }
@@ -242,6 +250,11 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     return result;
   const double observed_denominator = static_cast<double>(result.observed_bins);
   result.valid = true;
+  if (has_planar) {
+    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(planar_support);
+    if (solver.info() == Eigen::Success)
+      result.planar_min_support = std::clamp(solver.eigenvalues()[0], 0.0, 1.0);
+  }
   result.angular_resolution_deg = resolution_deg;
   result.observed_coverage =
       static_cast<double>(result.common_bins) / observed_denominator;

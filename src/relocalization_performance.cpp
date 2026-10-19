@@ -22,6 +22,10 @@ Json::Value relocalizationPerformanceJson(const RelocalizationPerformance &cost)
   timing("process_cpu_ms", cost.process_cpu_ms);
   timing("query_build_ms", cost.query_build_ms);
   timing("free_space_ms", cost.free_space_ms);
+  timing("directional_check_ms", cost.directional_check_ms);
+  value["directional_checked"] = cost.directional_checked;
+  value["directional_min_support"] = std::isfinite(cost.directional_min_support)
+      ? Json::Value(cost.directional_min_support) : Json::Value();
   timing("diagnostics_ms", cost.diagnostics_ms);
   timing("source_prepare_ms", cost.source_prepare_ms);
   timing("visibility_prepare_ms", cost.visibility_prepare_ms);
