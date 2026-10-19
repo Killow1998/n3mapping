@@ -10,25 +10,21 @@ Current task order and acceptance boundaries are maintained in the
 [project TODO](../../../README.md#todo). The dated sections below preserve the
 scope and evidence of each completed experiment.
 
-Latest stage: [exact correspondence bounds and map-error diagnosis](#exact-correspondence-bounds-and-map-error-diagnosis--2026-10-19)
-reduces complete repetitive-negative CPU by 9.9% in a four-core pair and separates
-dominant local map bias from registration residuals. All 14 initial searches
-retain their behavior; full replay this stage covers 09/14 and the moving negative.
-The earlier [complete 14-position result](#exact-fused-retrieval-and-corrected-heading-seeds--2026-10-19)
-and its scope remain below. Difficult-search average half-core is still unmet.
-
-Whole-episode cost and tracking-only cost must be distinguished: in the last
-complete 14-position run (`c3dcc96`), only **01 and 09** meet half a core including
-initial search; the other **12** do not, and the suite mean is **0.631**. All 14
-last-ten-second tracking windows use **0.217–0.368** cores. The latest complete
-09/14 results are **0.441/0.841**; other positions were only prefix-tested on the
-latest version. Thus 14 is not the sole known over-budget case, and the current
-version's full-suite pass count remains unmeasured.
+Latest stage: [bounded seed history and complete replay ablation](#bounded-seed-history-and-complete-replay-ablation--2026-10-19)
+reduces complete moving-negative CPU by **13.2%** without false locks. All 14 full
+replays retain their decisions and emitted poses. Only **01 and 09** meet half a
+core including initial search; the suite mean is **0.610**. Normal last-ten-second
+tracking windows use **0.216–0.376** cores. Difficult-search half-core remains
+unmet, and initial-search latency has not consistently improved. Earlier dated
+sections below retain their original experimental scope.
 
 ## Measurement boundaries
 
-CPU is process CPU time divided by elapsed time: 1.0 means one fully occupied
-logical CPU. All threads are included. Map loading precedes the measurement;
+Historical ROS measurements use process CPU time divided by elapsed wall time.
+The newer SpRobo direct-core replays explicitly use **original input duration**;
+when replay falls behind, that ratio measures demand at the original input rate,
+not how many cores the four-core process simultaneously occupies. All threads
+are included. Map loading precedes the measurement;
 initial relocalization is included. First-path latency starts with the first
 input, after map loading. Unless separately labeled as current RSS, memory is the process high-water
 mark, not live retained memory. The cost-only runtime optimizations use no CPU quota, input reduction,
@@ -2079,3 +2075,146 @@ No issue workspace, installation, push or simulator/FAST_LIO change is involved.
 The next search-cost work still needs to reduce repeated/new-candidate geometry
 while preserving fresh evidence and recovery. Map-consistency work is deferred
 as requested; RK3588 and full live deployment throughput remain unqualified.
+
+## Bounded seed history and complete replay ablation — 2026-10-19
+
+The fresh full `2bea8b1` baseline processed all 14 × 296 frames, recovering every
+region on frame 5, with 292 outputs per position. Only 01/09 met half a core;
+the suite mean was 0.609743. This initial audit is separate from the later paired
+measurements below, so its timing is not used as their improvement denominator.
+
+### Retained change and reliability
+
+The existing candidate evaluator now keeps pose proposals for up to 32 absent
+seed plans, replacing the previous-plan list with a last-seen epoch. A candidate
+that briefly leaves the ranking can reuse its proposal on return. Stored poses
+carry no confirmation scores or winner streaks: current geometry is evaluated,
+failure immediately retries the original seed, rejected-region invalidation
+still applies, and map revision/reset still clears the history. There is no new
+configuration, map metadata, descriptor, acceptance gate or scheduling change.
+
+One existing matcher regression now covers return after several missing plans,
+recovery after an unreported 0.6 m geometry change, and expiration. The return
+assertions fail against the old frozen core with its matching old headers and
+pass against the candidate. The full **61 CTest targets** and **12 E2E cases each**
+in default, Atlas and kill modes pass, including incremental admission, ambiguous
+places and synthetic out-of-map/reentry. Those synthetic cases do not substitute
+for an independent continuous moving out/reentry acquisition.
+
+### Complete four-core paired results
+
+Both variants use physical P cores 0/2/4/6, four registration threads, PASSIVE
+OpenMP, identical map/configuration and all original 10 Hz inputs. Runs are
+serial and alternate variant order by position. Process CPU includes PCD decode,
+initial search, tracking and RealtimeOutput, after map loading; frontend,
+simulator and DDS are excluded. Ground truth is observer-only and uses the
+previously frozen mapping alignment, with no query fit.
+
+| Full position | Baseline CPU / input s | Candidate CPU / input s |
+| --- | ---: | ---: |
+| 01 | 0.470 | 0.466 |
+| 02 | 0.567 | 0.545 |
+| 03 | 0.773 | 0.809 |
+| 04 | 0.671 | 0.634 |
+| 05 | 0.586 | 0.587 |
+| 06 | 0.530 | 0.525 |
+| 07 | 0.593 | 0.595 |
+| 08 | 0.803 | 0.797 |
+| 09 | 0.442 | 0.440 |
+| 10 | 0.512 | 0.508 |
+| 11 | 0.599 | 0.597 |
+| 12 | 0.648 | 0.650 |
+| 13 | 0.566 | 0.555 |
+| 14 | 0.817 | 0.834 |
+
+Across the full14, CPU is **252.979 → 251.994 s**, or **0.612540 → 0.610155** cores:
+this small difference does not establish a startup optimization. All 4,144
+behavioral rows agree, with one frame-5 lock and 292 outputs per position; the
+largest emitted-pose matrix component difference is **1.42e-14**. Maximum absolute
+position error remains **0.473875 m**. Initial-lock CPU summed over positions is
+**147.953 → 147.927 s**; first-lock wall-time median is **4.722 → 4.827 s**. Peak
+RSS is approximately **1,912 MiB** for both (loading high-water, not retained
+memory); median loading wall time is 5.906/5.872 s. No RAM or startup-speed gain
+is claimed.
+
+03/14 looked slower in this single full pair. Two additional counterbalanced
+prefix pairs per position retain the same decisions and poses. Their mean
+first-lock CPU is **15.647 → 15.414 s** for 03 and **17.145 → 17.074 s** for 14;
+mean wall time is **6.888 → 6.881 s** and **7.071 → 7.247 s**, respectively. This
+does not reproduce a consistent CPU regression, and it also does not establish
+improved startup latency—14 remains a latency optimization target. These short
+repeats are not used to infer full-episode half-core results.
+
+The complete moving repetitive negative has **346 frames / 34.5 input s**:
+
+| Metric | Baseline | Candidate |
+| --- | ---: | ---: |
+| Process CPU | 654.701 s | 567.986 s |
+| Processing wall | 235.992 s | 209.963 s |
+| Full registrations | 1,678 | 1,402 |
+| Cold seed initializations | 1,015 | 720 |
+| Resumed registrations | 82 | 73 |
+| Confirmation registrations | 581 | 609 |
+| Fixed-pose evaluations | 4,278 | 4,558 |
+| Locks / outputs | 0 / 0 | 0 / 0 |
+
+CPU decreases **13.245%** and wall time **11.03%**. Confirmation work rises slightly,
+so cold-start counts alone would overstate the benefit. The half-core budget is
+still only **17.25 CPU s**. Candidate demand is **16.463 CPU s per input second**;
+actual process CPU/processing-wall is 2.705 cores. Do not describe this as 16
+simultaneously occupied cores or dilute the demand with its delayed replay wall
+time. Descriptor work alone costs 14.403 thread-CPU s in this negative; geometry
+and retrieval both need further work. Safe refusal on this trace does not prove
+successful recovery or universal ambiguity rejection.
+
+### Ablation and stage cleanup
+
+- Eight-plan and 32-plan histories were screened separately. Extending eight to
+  32 reduced negative-prefix cold starts 98→92 and registrations 228→224. The
+  retained 32-plan policy then passed the complete A/B above; this is not a claim
+  of a globally optimal history length for all maps.
+- Serial basin evaluation saved little CPU and worsened negative-prefix wall
+  time by 5.6%; withdrawn.
+- Batched leaf distances increased prefix CPU by roughly 3% and negative-prefix
+  CPU 102.054→106.083 s; withdrawn.
+- Nearest-point separation certificates saved 4.6% on a negative prefix but added
+  preparation/storage with no stable startup gain; withdrawn.
+- Plane-ICP moment reduction made the isolated arithmetic much faster and
+  looked useful on prefixes, but complete14 CPU was unchanged and full-negative
+  CPU increased 1.115%; the new math helper and its added tests were withdrawn.
+- Keeping a better unfinished continuation endpoint did not reduce registrations
+  in the measured negative prefix; withdrawn.
+- Leaf bounding boxes improved isolated fine-level NN timing by about 15%, but
+  their integrated prefix results were inconsistent (03 CPU +6.02%) and the
+  negative-prefix gain was only 1.56%; boxes, derived metadata and plumbing were
+  withdrawn. Root-only bounds and iterative traversal also remained experiments.
+
+Production changes are confined to the existing candidate evaluator header and
+implementation. The stage cleanup moves the four candidate-lifecycle tests out
+of the mixed matcher file: 743→444 lines, with a 158-line candidate-test file and
+133-line shared registration fixture. Humble and Noetic source lists use the same
+existing target. All 29 matcher/candidate/exact-search cases still execute and
+pass; no case or target was added or dropped. The production library SHA256 is
+unchanged after this test-only rebuild, so the complete replay evidence remains
+applicable. The Noetic source-list edit is not a new native Noetic qualification.
+No experimental runtime abstraction or extra test target remains. The lesson is to qualify the complete workload after a
+microbenchmark or short-prefix win; preserving all negative trials makes this
+boundary reproducible rather than selecting only favorable timings.
+
+Evidence: [`search_cost_20261019.json`](../search_cost_20261019.json). Frozen cores,
+matching headers/probes, full traces, source hashes and ablations are retained in
+`build/n3mapping/search_cost_20261019/`. `history_verified.json` is the adopted
+history report; the earlier `verified.json` and misleadingly named `final/`
+identify the **rejected plane-moment trial**, not the retained candidate.
+`complete_history_replays.py`, `summarize_history.py`, `repeat_focus.py` and
+`finalize_history_report.py` reproduce the measurements/checks. An earlier
+interrupted negative stopped at 62 frames and was excluded; the complete fresh
+pair above has both terminal success and all 346 rows. No data were deleted.
+
+The [project TODO](../../../README.md#todo) remains the maintained task order:
+continue reducing repeated/new-candidate and confirmation geometry, address
+measured retrieval cost, complete moving out/reentry coverage, distinguish
+algorithmic error from deferred map bias, and subsequently compare independent
+loop constraints offline. Difficult average half-core, 10 cm absolute accuracy,
+RK3588/full-node deployment and loop/map improvement remain unqualified. No
+installation, push, simulator/FAST_LIO change or new online feature is involved.

@@ -630,6 +630,7 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_point_cloud_matcher
     ${N3MAPPING_ROOT}/test/test_point_cloud_matcher.cpp
+    ${N3MAPPING_ROOT}/test/test_relocalization_candidate_evaluator.cpp
     ${N3MAPPING_ROOT}/test/test_registration_search.cpp)
   if(TARGET test_point_cloud_matcher)
     target_link_libraries(test_point_cloud_matcher ${PROJECT_NAME}_lib ${PCL_LIBRARIES} OpenMP::OpenMP_CXX)

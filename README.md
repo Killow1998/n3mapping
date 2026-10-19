@@ -762,14 +762,15 @@ remain separate from that measured result.
 
 ### TODO
 
-Current localization work, updated **2026-10-19**, uses `2bea8b1` as the measured
-implementation baseline. This is the maintained task order; detailed results and
-their limits remain in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#exact-correspondence-bounds-and-map-error-diagnosis--2026-10-19).
+Current localization work, updated **2026-10-19**, uses `2bea8b1` as the pre-stage
+comparison baseline; bounded seed history is retained after complete replay
+ablation. This is the maintained task order; detailed results and their limits
+remain in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#bounded-seed-history-and-complete-replay-ablation--2026-10-19).
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
 | Reliability — preserve verified behavior; broader coverage open | Incremental candidate admission, reuse of unaffected seeds, current-observation confirmation, and recovery of all 14 fixed regions are implemented and checked on the recorded inputs. Keep these as regressions. Complete moving out-of-map/reentry and independent sensor validation remain open; stationary success and safe refusal of a negative do not establish those behaviors. |
-| Search cost — current implementation priority | Reduce new/invalid-candidate solves and repeated confirmation geometry without losing fresh evidence or recomputing unaffected candidates. The last complete 14-position run (`c3dcc96`) has only 01/09 below half a core; 12 positions exceed it, with a suite mean of 0.631 cores. The latest complete 09/14 replays measure 0.441/0.841 cores; other positions have only initial-search checks on this version. The moving negative still takes 655.076 CPU s for 34.5 input s. Optimize the shared search cost, including expensive positions 03/08/14, and repeat the full suite before declaring which positions now pass. Start with a measured single-component ablation of cold-seed, resumed-solve and confirmation work; reject changes that impair precision, recovery or ambiguity rejection. |
+| Search cost — current implementation priority | Bounded seed-history reuse reduces complete moving-negative CPU from 654.701 to 567.986 s (−13.2%) and cold starts from 1,015 to 720, with zero false locks. Complete four-core 14-position A/B preserves every lock decision and emitted pose; only 01/09 meet half a core, with a suite mean of 0.610 cores. Positions 03/08/14 use 0.809/0.797/0.834 cores. Initial-search CPU is effectively unchanged, and startup wall time does not consistently improve. Continue reducing new/invalid-candidate and confirmation geometry, and the measured descriptor-search cost, without stale confirmation evidence, lost recovery or missed new regions. Half-core difficult search remains unmet: the negative has only a 17.25 CPU s budget for 34.5 input s. |
 | Accuracy — keep attribution separate; map correction deferred | Preserve Xian's at-most-10-cm localization accuracy objective. Current absolute errors do not pass it. Independent diagnostics support dominant map bias at 09/11/14, so correction of that map is deferred; algorithmic local-fit errors remain in scope. Support-keyframe truth transport is diagnostic only and cannot count as runtime accuracy. |
 | Loop/map consistency — next independent experiment | Test whether complete fused retrieval can improve the existing loop pipeline's recall. Use independently registered source/target scans for relative constraints, preserve competing-hypothesis and neighborhood checks, then compare pose-graph trajectory and map consistency. Start with frozen-input offline runs and separate outputs, preserving the baseline map. Require recall, false-loop and geometry/trajectory evidence before adopting the change; no improvement is established yet. |
 
@@ -788,8 +789,14 @@ release decisions; short prefixes are screening evidence. Use the existing E2E
 episodes and frozen bags, with truth restricted to observers and scoring. A pose
 localized against the current map is not an independent loop measurement, and
 repeated evidence from the same scans must not be counted as new confirmation.
-Continue simplifying modules and rejecting unhelpful caches/abstractions as part
-of these tasks; frontend selection and unrelated new features stay outside scope.
+After each substantial stage, review the complete affected path, ablate the
+proposed changes, remove experiments without demonstrated overall benefit, and
+keep module responsibilities explicit. Prefer small cohesive files over added
+layers or mechanical splitting. Run the relevant observable-behavior E2E checks,
+record verified results and remaining gaps here and in the existing measurement
+record, then make the authorized local commit before continuing. Frontend
+selection and unrelated new features stay outside scope; loop-consistency work
+starts as an offline comparison, without adding a new online capability.
 
 Other pending work:
 

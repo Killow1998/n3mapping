@@ -14,6 +14,7 @@
 
 namespace n3mapping {
 namespace {
+constexpr std::uint64_t kSeedRetentionPlans = 32;
 bool sameSeed(const std::pair<int64_t, double>& lhs,
               const std::pair<int64_t, double>& rhs) {
   return lhs.first == rhs.first &&
@@ -31,7 +32,7 @@ RelocalizationCandidateEvaluator::RelocalizationCandidateEvaluator(
 void RelocalizationCandidateEvaluator::clear() {
   std::lock_guard<std::mutex> lock(seed_mutex_);
   seed_poses_.clear();
-  previous_seeds_.clear();
+  seed_plan_epoch_ = 0;
   seed_revision_ = {};
 }
 
@@ -41,18 +42,19 @@ void RelocalizationCandidateEvaluator::beginSeedPlan(
   std::lock_guard<std::mutex> lock(seed_mutex_);
   if (!(seed_revision_ == revision)) {
     seed_poses_.clear();
-    previous_seeds_.clear();
+    seed_plan_epoch_ = 0;
   }
   seed_revision_ = revision;
+  ++seed_plan_epoch_;
   for (auto it = seed_poses_.begin(); it != seed_poses_.end();) {
     const auto matches = [&](const auto& seed) { return sameSeed(seed, it->first); };
-    if (!std::any_of(seeds.begin(), seeds.end(), matches) &&
-        !std::any_of(previous_seeds_.begin(), previous_seeds_.end(), matches))
+    if (std::any_of(seeds.begin(), seeds.end(), matches))
+      it->second.last_seen_epoch = seed_plan_epoch_;
+    if (seed_plan_epoch_ - it->second.last_seen_epoch >= kSeedRetentionPlans)
       it = seed_poses_.erase(it);
     else
       ++it;
   }
-  previous_seeds_ = seeds;
 }
 
 std::size_t RelocalizationCandidateEvaluator::discardSeedsNear(
@@ -200,7 +202,8 @@ RelocalizationCandidateEvaluator::evaluate(
           match.termination == MatchTermination::MaxIterations &&
           isFiniteRigidPose(match.T_target_source) && quality.fitness_pass &&
           quality.inlier_pass && quality.confidence_pass)
-        seed_poses_[stored_seed] = {match.T_target_source * odom_pose.inverse(), match.metric, true};
+        seed_poses_[stored_seed] = {match.T_target_source * odom_pose.inverse(),
+                                    match.metric, true, seed_plan_epoch_};
       else
         seed_poses_.erase(stored_seed);
       continue;
@@ -230,7 +233,8 @@ RelocalizationCandidateEvaluator::evaluate(
       std::lock_guard<std::mutex> lock(seed_mutex_);
       if (config_.reloc_temporal_window_size > 1 &&
           evaluateRelocMatchQuality(match, config_).accepted)
-        seed_poses_[stored_seed] = {match.T_target_source * odom_pose.inverse(), match.metric};
+        seed_poses_[stored_seed] = {match.T_target_source * odom_pose.inverse(),
+                                    match.metric, false, seed_plan_epoch_};
       else
         seed_poses_.erase(stored_seed);
     }
