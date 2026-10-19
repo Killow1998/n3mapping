@@ -312,6 +312,28 @@ TEST_F(LocalizationEpisode, ConfirmationCorrectsBiasedOdometryBeforePublishing) 
       step.live.pose->pose.linear()).angle(), M_PI / 180.0);
 }
 
+TEST_F(LocalizationEpisode, StationaryTrackingKeepsRigidOutputWithoutRelocking) {
+  // Repeated matrix/quaternion conversions at a large world-frame yaw used
+  // to amplify roundoff until publication rejected an otherwise tracked pose.
+  map_from_odom_ = makePose(20.0, -8.0, -110.0 * M_PI / 180.0);
+  const auto locked = lock();
+  const auto pose = makePose(6.0, 0.0, 0.0);
+  for (int i = 0; i < 200; ++i) {
+    const auto step = run("stationary_tracking", pose,
+        synthesizeBodyCloud(scene_, pose, 12.0, 0.05, 0.002, 3900U + i));
+    ASSERT_TRUE(step.backend.success) << i << ": " << step.backend.relocalization_decision;
+    ASSERT_TRUE(step.live.pose) << i;
+    EXPECT_EQ(step.backend.relocalization_state, RelocalizationState::FULL_6DOF_LOCKED);
+    EXPECT_FALSE(step.backend.relocalization_locked);
+    EXPECT_EQ(step.publication.plan.lock_epoch, locked.publication.plan.lock_epoch);
+    EXPECT_TRUE(isFiniteRigidPose(step.backend.T_world_lidar, 1e-10));
+    EXPECT_TRUE(isFiniteRigidPose(step.live.pose->pose, 1e-10));
+    EXPECT_LT((step.live.pose->pose.translation() - pose.translation()).norm(), 0.1);
+    EXPECT_LT(Eigen::AngleAxisd(pose.linear().transpose() *
+        step.live.pose->pose.linear()).angle(), M_PI / 180.0);
+  }
+}
+
 TEST_F(LocalizationEpisode, InvalidRawCancelsProjectionUntilARealGeometricCorrection) {
   const auto locked = lock();
   ASSERT_TRUE(locked.live.pose);

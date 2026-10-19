@@ -777,7 +777,7 @@ N3MappingCore::interpolateDenseCorrection(
   Eigen::Quaterniond qa(correction_after.rotation());
   qb.normalize();
   qa.normalize();
-  correction.linear() = qb.slerp(alpha, qa).toRotationMatrix();
+  correction.linear() = qb.slerp(alpha, qa).normalized().toRotationMatrix();
   return correction;
 }
 

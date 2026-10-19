@@ -430,7 +430,12 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
       Eigen::Quaterniond q_current(T_map_odom_.rotation());
       Eigen::Quaterniond q_target(T_map_odom_icp.rotation());
-      Eigen::Quaterniond q_new = q_current.slerp(alpha, q_target);
+      // slerp assumes unit inputs and uses a linear branch for close rotations.
+      // Keep the correction on SO(3); repeated conversion otherwise amplifies
+      // roundoff until a stationary tracked pose fails the rigid-pose guard.
+      q_current.normalize();
+      q_target.normalize();
+      const Eigen::Quaterniond q_new = q_current.slerp(alpha, q_target).normalized();
 
       T_map_odom_.translation() = t_new;
       T_map_odom_.linear() = q_new.toRotationMatrix();
