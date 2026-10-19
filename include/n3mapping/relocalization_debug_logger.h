@@ -57,6 +57,7 @@ struct RelocDebugHypothesisSummary {
   Eigen::Isometry3d pose_in_map = Eigen::Isometry3d::Identity();
   double cumulative_log_likelihood = std::numeric_limits<double>::quiet_NaN();
   int num_updates = 0;
+  int observations = 0;
   int converged_updates = 0;
   int visibility_updates = 0;
   double mean_visibility_consistency = std::numeric_limits<double>::quiet_NaN();

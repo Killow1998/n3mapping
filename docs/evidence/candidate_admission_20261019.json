@@ -1,0 +1,2966 @@
+{
+  "dataset": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2",
+  "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+  "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+  "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+  "plan_sha256": "73b72903f9705e35908a80a887f6771380e8fe8469e36ceb80c228c511947a45",
+  "cpus": "0,2,4,6",
+  "threads": 4,
+  "rate": 1.0,
+  "max_frames": 0,
+  "variants": {
+    "baseline": {
+      "libn3mapping_core.so": "6d71afa54e133b4099a0c293d945b5a9a31d4e55bac0d3227d8ab72c2077fdf8",
+      "replay_probe": "84a4750d3813cd72c88ecc30056d0920ebd53d1a2c5ab97534dd5d39cf86c520",
+      "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+    },
+    "final": {
+      "libn3mapping_core.so": "2e8cfbabaacabf7cec097e00fa06cb0eab6e06ca8d010f498241f289e217a7ef",
+      "replay_probe": "a48b85aa4c87d25714b9187be6e14b9ba6e4886af9268bc6cb320d9b8928f3ac",
+      "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+    }
+  },
+  "selected_positions": [
+    "01_west_corridor",
+    "02_east_corridor",
+    "03_south_corridor",
+    "04_north_corridor",
+    "05_southwest_office",
+    "06_south_meeting",
+    "07_south_pillars",
+    "08_west_shelves",
+    "09_east_shelves",
+    "10_northwest_meeting",
+    "11_northeast_pillars",
+    "12_north_office",
+    "13_south_door",
+    "14_north_door"
+  ],
+  "scope": "Full serial four-physical-P-core paired replay; map loading, simulator, frontend and DDS excluded; one A/B per fixed position; no query-to-truth fit.",
+  "gross_wrong_place_audit_only": {
+    "position_m": 1.0,
+    "rotation_deg": 5.0,
+    "note": "Separates wrong-place locks only; not a product threshold or precision acceptance criterion."
+  },
+  "results": [
+    {
+      "id": "01_west_corridor",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "2febd832139abebf4edc1c20b53076263079cdb9f97c1a32622a8d57dc94c36d",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 3.811068316,
+      "first_lock_cpu_s": 7.9174978309999995,
+      "cpu_s": 14.646272428,
+      "wall_s": 29.50670023,
+      "input_s": 29.499994995,
+      "cpu_seconds_per_input_second": 0.4964838953526066,
+      "alignments": 44,
+      "peak_rss_mib": 1914.5859375,
+      "map_load_wall_s": 5.87946,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/01_west_corridor_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.011931776766096533,
+        "first_output_rotation_error_deg": 0.030114808917121934,
+        "position_error_m": {
+          "rmse": 0.006902225925288427,
+          "median": 0.006680606700332644,
+          "p95": 0.008965359612028127,
+          "maximum": 0.011931776766096533
+        },
+        "rotation_error_deg": {
+          "rmse": 0.05072537174474571,
+          "median": 0.05160771645087714,
+          "p95": 0.06265439987168334,
+          "maximum": 0.06948251706120596
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.22437012702697903,
+      "search_counts": {
+        "seed_initializations": 38,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 6,
+        "confirmation_evaluations": 17,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.42101507500000024
+    },
+    {
+      "id": "01_west_corridor",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "2febd832139abebf4edc1c20b53076263079cdb9f97c1a32622a8d57dc94c36d",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 4.520598662,
+      "first_lock_cpu_s": 8.892982486000001,
+      "cpu_s": 15.503022434999998,
+      "wall_s": 29.50938014,
+      "input_s": 29.499994995,
+      "cpu_seconds_per_input_second": 0.52552627339861,
+      "alignments": 50,
+      "peak_rss_mib": 1911.984375,
+      "map_load_wall_s": 5.8315,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/01_west_corridor_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.0119317767660966,
+        "first_output_rotation_error_deg": 0.03011480891712193,
+        "position_error_m": {
+          "rmse": 0.006902225925288431,
+          "median": 0.006680606700332617,
+          "p95": 0.008965359612028108,
+          "maximum": 0.0119317767660966
+        },
+        "rotation_error_deg": {
+          "rmse": 0.05072537174474571,
+          "median": 0.051607716450877146,
+          "p95": 0.06265439987168335,
+          "maximum": 0.06948251706120598
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.2166011585236434,
+      "search_counts": {
+        "seed_initializations": 44,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 6,
+        "confirmation_evaluations": 23,
+        "admitted_basins": 3,
+        "admitted_hypotheses": 9,
+        "preserved_basins": 11,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.42609164299999974
+    },
+    {
+      "id": "02_east_corridor",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 290,
+      "manifest_sha256": "ae32a235322d1266b6bf6f6ec88682ea6f65d6f35a467814459fc41836869410",
+      "first_lock_frame": 6,
+      "first_lock_wall_s": 10.416691515,
+      "first_lock_cpu_s": 28.302299261,
+      "cpu_s": 35.853846868,
+      "wall_s": 29.507031042999998,
+      "input_s": 29.500005005,
+      "cpu_seconds_per_input_second": 1.2153844333898614,
+      "alignments": 100,
+      "peak_rss_mib": 1912.0703125,
+      "map_load_wall_s": 5.894909999999999,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/02_east_corridor_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 6,
+        "accepted": 1,
+        "tracking_geometric": 289
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 290,
+        "first_output_sim_s": 0.999989997,
+        "first_output_position_error_m": 0.3990183702713168,
+        "first_output_rotation_error_deg": 0.4758945336213165,
+        "position_error_m": {
+          "rmse": 0.3973266580186356,
+          "median": 0.39731050839112725,
+          "p95": 0.39833379249854883,
+          "maximum": 0.39914566345863495
+        },
+        "rotation_error_deg": {
+          "rmse": 0.4596891706511261,
+          "median": 0.4594610436224993,
+          "p95": 0.4658957978114063,
+          "maximum": 0.4759886328591239
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.25571451239097703,
+      "search_counts": {
+        "seed_initializations": 82,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 18,
+        "confirmation_evaluations": 30,
+        "admitted_basins": 6,
+        "admitted_hypotheses": 17,
+        "preserved_basins": 15,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4302653989999999
+    },
+    {
+      "id": "02_east_corridor",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 287,
+      "manifest_sha256": "ae32a235322d1266b6bf6f6ec88682ea6f65d6f35a467814459fc41836869410",
+      "first_lock_frame": 9,
+      "first_lock_wall_s": 10.861690458,
+      "first_lock_cpu_s": 31.809210532999998,
+      "cpu_s": 38.954001925,
+      "wall_s": 29.506994219,
+      "input_s": 29.500005005,
+      "cpu_seconds_per_input_second": 1.3204744174923913,
+      "alignments": 83,
+      "peak_rss_mib": 1914.9765625,
+      "map_load_wall_s": 5.77512,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/02_east_corridor_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 8,
+        "log_likelihood": 1,
+        "accepted": 1,
+        "tracking_geometric": 286
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 287,
+        "first_output_sim_s": 1.299989997,
+        "first_output_position_error_m": 0.3978452492414042,
+        "first_output_rotation_error_deg": 0.4124854325478032,
+        "position_error_m": {
+          "rmse": 0.3973006043885348,
+          "median": 0.39729585810989704,
+          "p95": 0.39826016034959877,
+          "maximum": 0.3987283992799015
+        },
+        "rotation_error_deg": {
+          "rmse": 0.45871288022209117,
+          "median": 0.45904032896860303,
+          "p95": 0.4652198909314227,
+          "maximum": 0.47068945956579744
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.24658431057876487,
+      "search_counts": {
+        "seed_initializations": 76,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 7,
+        "confirmation_evaluations": 24,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4407418950000001
+    },
+    {
+      "id": "03_south_corridor",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "733179d895d843f0b821841342e733a199046c0ae602aea85b88360be4ad6fc1",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.014637645,
+      "first_lock_cpu_s": 11.236181847,
+      "cpu_s": 19.028497995,
+      "wall_s": 29.507500835,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.645033830338983,
+      "alignments": 45,
+      "peak_rss_mib": 1914.60546875,
+      "map_load_wall_s": 6.3328999999999995,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/03_south_corridor_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.14938702174459215,
+        "first_output_rotation_error_deg": 0.2223395539703392,
+        "position_error_m": {
+          "rmse": 0.14968159427370556,
+          "median": 0.1498534933822439,
+          "p95": 0.15028884776023946,
+          "maximum": 0.15045624556207124
+        },
+        "rotation_error_deg": {
+          "rmse": 0.2319295143697252,
+          "median": 0.23185571073644662,
+          "p95": 0.23589324888707378,
+          "maximum": 0.2478913042691921
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.26467995435643565,
+      "search_counts": {
+        "seed_initializations": 36,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 9,
+        "confirmation_evaluations": 27,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4268967689999981
+    },
+    {
+      "id": "03_south_corridor",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "733179d895d843f0b821841342e733a199046c0ae602aea85b88360be4ad6fc1",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 6.445254578,
+      "first_lock_cpu_s": 13.568649578000002,
+      "cpu_s": 21.225562264,
+      "wall_s": 29.50745953,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.719510585220339,
+      "alignments": 57,
+      "peak_rss_mib": 1911.8984375,
+      "map_load_wall_s": 5.791729999999999,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/03_south_corridor_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.14938702174459215,
+        "first_output_rotation_error_deg": 0.2223395539703392,
+        "position_error_m": {
+          "rmse": 0.14968159427370556,
+          "median": 0.1498534933822439,
+          "p95": 0.15028884776023946,
+          "maximum": 0.15045624556207124
+        },
+        "rotation_error_deg": {
+          "rmse": 0.23192951436972523,
+          "median": 0.23185571073644662,
+          "p95": 0.23589324888707378,
+          "maximum": 0.2478913042691922
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.2597281153465343,
+      "search_counts": {
+        "seed_initializations": 48,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 9,
+        "confirmation_evaluations": 32,
+        "admitted_basins": 4,
+        "admitted_hypotheses": 12,
+        "preserved_basins": 11,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.42418971700000113
+    },
+    {
+      "id": "04_north_corridor",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "32ae751300d9a871fcbf6e5183d925a9d0e7d7855e622d4c6195c7be660749ef",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.155695602,
+      "first_lock_cpu_s": 12.000222446999999,
+      "cpu_s": 20.01269352,
+      "wall_s": 29.508072327999997,
+      "input_s": 29.499994995,
+      "cpu_seconds_per_input_second": 0.6783965056059156,
+      "alignments": 51,
+      "peak_rss_mib": 1911.99609375,
+      "map_load_wall_s": 6.354220000000001,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/04_north_corridor_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.2940771531572094,
+        "first_output_rotation_error_deg": 0.3728617038398176,
+        "position_error_m": {
+          "rmse": 0.2751074780458475,
+          "median": 0.2748490683878437,
+          "p95": 0.2765149754320572,
+          "maximum": 0.2940771531572094
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3564890895973401,
+          "median": 0.3566514541329399,
+          "p95": 0.3597210448278688,
+          "maximum": 0.3728617038398176
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.2765908776571628,
+      "search_counts": {
+        "seed_initializations": 43,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 8,
+        "confirmation_evaluations": 21,
+        "admitted_basins": 3,
+        "admitted_hypotheses": 9,
+        "preserved_basins": 9,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4248776719999996
+    },
+    {
+      "id": "04_north_corridor",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "32ae751300d9a871fcbf6e5183d925a9d0e7d7855e622d4c6195c7be660749ef",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.313233096,
+      "first_lock_cpu_s": 12.219538772,
+      "cpu_s": 20.260388337000002,
+      "wall_s": 29.507892842,
+      "input_s": 29.499994995,
+      "cpu_seconds_per_input_second": 0.6867929415050398,
+      "alignments": 51,
+      "peak_rss_mib": 1914.953125,
+      "map_load_wall_s": 5.772060000000001,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/04_north_corridor_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.29407715315720934,
+        "first_output_rotation_error_deg": 0.3728617038398176,
+        "position_error_m": {
+          "rmse": 0.2751074780458475,
+          "median": 0.2748490683878437,
+          "p95": 0.2765149754320572,
+          "maximum": 0.29407715315720934
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3564890895973401,
+          "median": 0.35665145413293986,
+          "p95": 0.3597210448278688,
+          "maximum": 0.3728617038398176
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.26855039129650604,
+      "search_counts": {
+        "seed_initializations": 43,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 8,
+        "confirmation_evaluations": 21,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4233987639999996
+    },
+    {
+      "id": "05_southwest_office",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "554bffb0d28a28afef1a2890d5538b9863ee55f69b537529b540e8cd1c4b3a8b",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 4.513042856,
+      "first_lock_cpu_s": 9.726188046999999,
+      "cpu_s": 16.685124442,
+      "wall_s": 29.506006258000003,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.5655974387118644,
+      "alignments": 44,
+      "peak_rss_mib": 1914.875,
+      "map_load_wall_s": 6.6849300000000005,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/05_southwest_office_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.05390184830396772,
+        "first_output_rotation_error_deg": 0.24529548997670667,
+        "position_error_m": {
+          "rmse": 0.061176057952204266,
+          "median": 0.06103514882487927,
+          "p95": 0.06278958620853017,
+          "maximum": 0.06346627084910507
+        },
+        "rotation_error_deg": {
+          "rmse": 0.2184590110570379,
+          "median": 0.2186247748428332,
+          "p95": 0.22706971244231217,
+          "maximum": 0.24529548997670667
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.2368655406930695,
+      "search_counts": {
+        "seed_initializations": 33,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 11,
+        "confirmation_evaluations": 27,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.42167801900000085
+    },
+    {
+      "id": "05_southwest_office",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "554bffb0d28a28afef1a2890d5538b9863ee55f69b537529b540e8cd1c4b3a8b",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 6.379524662,
+      "first_lock_cpu_s": 15.137593339,
+      "cpu_s": 22.224303088,
+      "wall_s": 29.506314259,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.7533662063728813,
+      "alignments": 65,
+      "peak_rss_mib": 1912.0859375,
+      "map_load_wall_s": 5.78878,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/05_southwest_office_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.053901848303967576,
+        "first_output_rotation_error_deg": 0.2452954899767066,
+        "position_error_m": {
+          "rmse": 0.061176057952204266,
+          "median": 0.06103514882487927,
+          "p95": 0.06278958620853015,
+          "maximum": 0.06346627084910503
+        },
+        "rotation_error_deg": {
+          "rmse": 0.2184590110570379,
+          "median": 0.2186247748428332,
+          "p95": 0.22706971244231217,
+          "maximum": 0.2452954899767066
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.23546369495049538,
+      "search_counts": {
+        "seed_initializations": 54,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 11,
+        "confirmation_evaluations": 31,
+        "admitted_basins": 4,
+        "admitted_hypotheses": 11,
+        "preserved_basins": 11,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4215016679999999
+    },
+    {
+      "id": "06_south_meeting",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 291,
+      "manifest_sha256": "6427f2fdb87cf3a8de97bd5af10eaf0b8d22bf33725c09dad8bcc2e114cf087d",
+      "first_lock_frame": 5,
+      "first_lock_wall_s": 5.901609456,
+      "first_lock_cpu_s": 14.315638611,
+      "cpu_s": 21.285510430000002,
+      "wall_s": 29.508108614,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.7215427264406781,
+      "alignments": 77,
+      "peak_rss_mib": 1911.79296875,
+      "map_load_wall_s": 6.55243,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/06_south_meeting_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 5,
+        "accepted": 1,
+        "tracking_geometric": 290
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 291,
+        "first_output_sim_s": 0.899995002,
+        "first_output_position_error_m": 0.06487964879930334,
+        "first_output_rotation_error_deg": 0.29670511173630154,
+        "position_error_m": {
+          "rmse": 0.06261604059445093,
+          "median": 0.0630060403265381,
+          "p95": 0.06406859709019139,
+          "maximum": 0.06487964879930334
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3086348958815626,
+          "median": 0.30851376059424646,
+          "p95": 0.3157424470439443,
+          "maximum": 0.32116300608868653
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.24074094377144312,
+      "search_counts": {
+        "seed_initializations": 56,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 21,
+        "confirmation_evaluations": 36,
+        "admitted_basins": 4,
+        "admitted_hypotheses": 12,
+        "preserved_basins": 14,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.431226909
+    },
+    {
+      "id": "06_south_meeting",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 282,
+      "manifest_sha256": "6427f2fdb87cf3a8de97bd5af10eaf0b8d22bf33725c09dad8bcc2e114cf087d",
+      "first_lock_frame": 14,
+      "first_lock_wall_s": 8.902203750999998,
+      "first_lock_cpu_s": 21.824498227,
+      "cpu_s": 28.434515311000002,
+      "wall_s": 29.507608271000002,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.9638818749491526,
+      "alignments": 88,
+      "peak_rss_mib": 1914.5078125,
+      "map_load_wall_s": 5.79706,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/06_south_meeting_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 12,
+        "margin": 2,
+        "accepted": 1,
+        "tracking_geometric": 281
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 282,
+        "first_output_sim_s": 1.799989997,
+        "first_output_position_error_m": 0.06511228826080616,
+        "first_output_rotation_error_deg": 0.3031483178113509,
+        "position_error_m": {
+          "rmse": 0.06280699869103133,
+          "median": 0.06307125267830224,
+          "p95": 0.06406900510641754,
+          "maximum": 0.06511228826080616
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3087534079123785,
+          "median": 0.30851878964588225,
+          "p95": 0.3157203042617807,
+          "maximum": 0.32113408363307455
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.23702902699700198,
+      "search_counts": {
+        "seed_initializations": 59,
+        "seed_continuations": 68,
+        "seed_resumptions": 2,
+        "seed_retries": 1,
+        "confirmation_registrations": 27,
+        "confirmation_evaluations": 81,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4502031930000003
+    },
+    {
+      "id": "07_south_pillars",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "2e46e287af0f2d9b85c6b6712d9a147b4de5c752188edc725c83e59f7647db21",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 4.481510413,
+      "first_lock_cpu_s": 9.929194577999999,
+      "cpu_s": 17.373607643,
+      "wall_s": 29.510031485,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.5889358523050847,
+      "alignments": 67,
+      "peak_rss_mib": 1914.89453125,
+      "map_load_wall_s": 6.35834,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/07_south_pillars_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.20280862682691875,
+        "first_output_rotation_error_deg": 0.21466713181835692,
+        "position_error_m": {
+          "rmse": 0.20768511463380956,
+          "median": 0.20895247579228238,
+          "p95": 0.21042975448667764,
+          "maximum": 0.21091592483365537
+        },
+        "rotation_error_deg": {
+          "rmse": 0.17616107574065382,
+          "median": 0.1756869714609834,
+          "p95": 0.18760222946117242,
+          "maximum": 0.21466713181835692
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.2534471777227722,
+      "search_counts": {
+        "seed_initializations": 55,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 12,
+        "confirmation_evaluations": 27,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.46932027199999904
+    },
+    {
+      "id": "07_south_pillars",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "2e46e287af0f2d9b85c6b6712d9a147b4de5c752188edc725c83e59f7647db21",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 4.388518016,
+      "first_lock_cpu_s": 9.763029431000001,
+      "cpu_s": 17.248930605,
+      "wall_s": 29.506374548,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.5847095120338983,
+      "alignments": 67,
+      "peak_rss_mib": 1911.88671875,
+      "map_load_wall_s": 5.79099,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/07_south_pillars_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.20280862682691853,
+        "first_output_rotation_error_deg": 0.21466713181835698,
+        "position_error_m": {
+          "rmse": 0.20768511463380956,
+          "median": 0.20895247579228232,
+          "p95": 0.21042975448667764,
+          "maximum": 0.21091592483365537
+        },
+        "rotation_error_deg": {
+          "rmse": 0.17616107574065382,
+          "median": 0.17568697146098336,
+          "p95": 0.18760222946117242,
+          "maximum": 0.21466713181835698
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.25171580445544556,
+      "search_counts": {
+        "seed_initializations": 55,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 12,
+        "confirmation_evaluations": 27,
+        "admitted_basins": 3,
+        "admitted_hypotheses": 9,
+        "preserved_basins": 12,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.41863424199999916
+    },
+    {
+      "id": "08_west_shelves",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "e0e670ea0f490ae292c21c94768e0a709b5817c0a722c10f84d7dc0a7b55de0e",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.492274214,
+      "first_lock_cpu_s": 12.188735945000001,
+      "cpu_s": 23.014942971,
+      "wall_s": 29.514467965,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.7801675583389831,
+      "alignments": 75,
+      "peak_rss_mib": 1911.71875,
+      "map_load_wall_s": 6.10137,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/08_west_shelves_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.04309609915557816,
+        "first_output_rotation_error_deg": 0.08237799776500976,
+        "position_error_m": {
+          "rmse": 0.07674991654017804,
+          "median": 0.0771939914556832,
+          "p95": 0.07858906020310874,
+          "maximum": 0.07985198583711249
+        },
+        "rotation_error_deg": {
+          "rmse": 0.2685435140396864,
+          "median": 0.2716438118687171,
+          "p95": 0.2904504187981153,
+          "maximum": 0.3031473281151902
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.37163490772277213,
+      "search_counts": {
+        "seed_initializations": 69,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 6,
+        "confirmation_evaluations": 27,
+        "admitted_basins": 5,
+        "admitted_hypotheses": 15,
+        "preserved_basins": 10,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4458036789999996
+    },
+    {
+      "id": "08_west_shelves",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "e0e670ea0f490ae292c21c94768e0a709b5817c0a722c10f84d7dc0a7b55de0e",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 3.776433356,
+      "first_lock_cpu_s": 7.451803237000001,
+      "cpu_s": 18.362384499,
+      "wall_s": 29.511412015999998,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.6224537118305085,
+      "alignments": 48,
+      "peak_rss_mib": 1914.9140625,
+      "map_load_wall_s": 5.99917,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/08_west_shelves_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.04309609915557814,
+        "first_output_rotation_error_deg": 0.08237799776500974,
+        "position_error_m": {
+          "rmse": 0.07674991654017804,
+          "median": 0.0771939914556832,
+          "p95": 0.07858906020310874,
+          "maximum": 0.07985198583711249
+        },
+        "rotation_error_deg": {
+          "rmse": 0.2685435140396854,
+          "median": 0.2716438118687171,
+          "p95": 0.2904504187981153,
+          "maximum": 0.3031473281151902
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.37282488039603956,
+      "search_counts": {
+        "seed_initializations": 42,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 6,
+        "confirmation_evaluations": 21,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.42363513899999905
+    },
+    {
+      "id": "09_east_shelves",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 0,
+      "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+      "first_lock_frame": null,
+      "first_lock_wall_s": null,
+      "first_lock_cpu_s": null,
+      "cpu_s": 262.586878994,
+      "wall_s": 97.951341015,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 8.901250135389832,
+      "alignments": 671,
+      "peak_rss_mib": 1914.75,
+      "map_load_wall_s": 5.88764,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/09_east_shelves_baseline.csv",
+      "locks": 0,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 237,
+        "log_likelihood": 1,
+        "margin": 58
+      },
+      "outcome": "no_lock",
+      "search_counts": {
+        "seed_initializations": 178,
+        "seed_continuations": 1945,
+        "seed_resumptions": 12,
+        "seed_retries": 23,
+        "confirmation_registrations": 481,
+        "confirmation_evaluations": 1440,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 1.3120823929999905
+    },
+    {
+      "id": "09_east_shelves",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 0,
+      "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+      "first_lock_frame": null,
+      "first_lock_wall_s": null,
+      "first_lock_cpu_s": null,
+      "cpu_s": 294.22577711699995,
+      "wall_s": 110.402021838,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 9.973755156508473,
+      "alignments": 812,
+      "peak_rss_mib": 1911.9765625,
+      "map_load_wall_s": 6.04213,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/09_east_shelves_final.csv",
+      "locks": 0,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 237,
+        "log_likelihood": 1,
+        "margin": 54,
+        "ambiguous": 4
+      },
+      "outcome": "no_lock",
+      "search_counts": {
+        "seed_initializations": 282,
+        "seed_continuations": 2015,
+        "seed_resumptions": 41,
+        "seed_retries": 15,
+        "confirmation_registrations": 489,
+        "confirmation_evaluations": 1552,
+        "admitted_basins": 197,
+        "admitted_hypotheses": 540,
+        "preserved_basins": 691,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 1.3033456260000094
+    },
+    {
+      "id": "10_northwest_meeting",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "a5576adf71a0eed91a2ec0928d8bb59c8dc9eb7c572357d7f74735a1de6ade3d",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.223073494,
+      "first_lock_cpu_s": 12.239968985,
+      "cpu_s": 19.456046140999998,
+      "wall_s": 29.510784964,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.6595269878305084,
+      "alignments": 65,
+      "peak_rss_mib": 1911.796875,
+      "map_load_wall_s": 5.96534,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/10_northwest_meeting_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.0832942470371215,
+        "first_output_rotation_error_deg": 0.08378439666485474,
+        "position_error_m": {
+          "rmse": 0.08809560261055706,
+          "median": 0.08811076490290501,
+          "p95": 0.08891965864245252,
+          "maximum": 0.08941006457891376
+        },
+        "rotation_error_deg": {
+          "rmse": 0.07115463957081189,
+          "median": 0.07126104715237501,
+          "p95": 0.0781792055472819,
+          "maximum": 0.08620996262851004
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.24221919900990055,
+      "search_counts": {
+        "seed_initializations": 56,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 9,
+        "confirmation_evaluations": 27,
+        "admitted_basins": 3,
+        "admitted_hypotheses": 9,
+        "preserved_basins": 12,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.44379733899999974
+    },
+    {
+      "id": "10_northwest_meeting",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "a5576adf71a0eed91a2ec0928d8bb59c8dc9eb7c572357d7f74735a1de6ade3d",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.055392887,
+      "first_lock_cpu_s": 11.716421177,
+      "cpu_s": 19.010539008,
+      "wall_s": 29.507283271,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.644425051118644,
+      "alignments": 65,
+      "peak_rss_mib": 1914.68359375,
+      "map_load_wall_s": 5.90763,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/10_northwest_meeting_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.08329424703712159,
+        "first_output_rotation_error_deg": 0.08378439666485143,
+        "position_error_m": {
+          "rmse": 0.08809560261055706,
+          "median": 0.08811076490290501,
+          "p95": 0.08891965864245252,
+          "maximum": 0.08941006457891376
+        },
+        "rotation_error_deg": {
+          "rmse": 0.07115463957081183,
+          "median": 0.071261047152375,
+          "p95": 0.0781792055472819,
+          "maximum": 0.08620996262850547
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.2501537526732673,
+      "search_counts": {
+        "seed_initializations": 56,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 9,
+        "confirmation_evaluations": 27,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.41946430800000145
+    },
+    {
+      "id": "11_northeast_pillars",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "78350f0bcde6576e3f67e4ecaeb47c567c011e83e167e3b329db68840bd489fb",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 4.893522172,
+      "first_lock_cpu_s": 10.949824097999999,
+      "cpu_s": 21.145032454,
+      "wall_s": 29.510007185,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.7167807611525423,
+      "alignments": 53,
+      "peak_rss_mib": 1914.890625,
+      "map_load_wall_s": 5.8565,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/11_northeast_pillars_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 22.620860697231617,
+        "first_output_rotation_error_deg": 0.3378627287451227,
+        "position_error_m": {
+          "rmse": 22.59237913589499,
+          "median": 22.591950558995975,
+          "p95": 22.592970097486543,
+          "maximum": 22.620860697231617
+        },
+        "rotation_error_deg": {
+          "rmse": 0.35701639185159356,
+          "median": 0.35663681026462957,
+          "p95": 0.3691907647585521,
+          "maximum": 0.37944312820609605
+        }
+      },
+      "outcome": "wrong_location",
+      "last_10s_cpu_cores": 0.3451916564356433,
+      "search_counts": {
+        "seed_initializations": 49,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 4,
+        "confirmation_evaluations": 16,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4297604760000004
+    },
+    {
+      "id": "11_northeast_pillars",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 290,
+      "manifest_sha256": "78350f0bcde6576e3f67e4ecaeb47c567c011e83e167e3b329db68840bd489fb",
+      "first_lock_frame": 6,
+      "first_lock_wall_s": 6.636760091,
+      "first_lock_cpu_s": 17.473607525,
+      "cpu_s": 23.935267200000002,
+      "wall_s": 29.506241074000002,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.8113649898305085,
+      "alignments": 90,
+      "peak_rss_mib": 1912.02734375,
+      "map_load_wall_s": 5.9026499999999995,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/11_northeast_pillars_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 6,
+        "accepted": 1,
+        "tracking_geometric": 289
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 290,
+        "first_output_sim_s": 0.999989997,
+        "first_output_position_error_m": 0.4722887395563665,
+        "first_output_rotation_error_deg": 0.40033125436242106,
+        "position_error_m": {
+          "rmse": 0.4720561769153981,
+          "median": 0.4723946371663281,
+          "p95": 0.4733156879272447,
+          "maximum": 0.47387485803346
+        },
+        "rotation_error_deg": {
+          "rmse": 0.4351706161341832,
+          "median": 0.43519290381636133,
+          "p95": 0.4438555567549746,
+          "maximum": 0.4527213220492082
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.22209581346534654,
+      "search_counts": {
+        "seed_initializations": 70,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 20,
+        "confirmation_evaluations": 31,
+        "admitted_basins": 5,
+        "admitted_hypotheses": 11,
+        "preserved_basins": 16,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4271152500000007
+    },
+    {
+      "id": "12_north_office",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "cea9e59c53ac1673866ea369766da53e354587a94f237d77ea4286033b3a3b49",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.640392987,
+      "first_lock_cpu_s": 13.193019584999998,
+      "cpu_s": 21.005894422999997,
+      "wall_s": 29.510585304,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.7120642177288135,
+      "alignments": 60,
+      "peak_rss_mib": 1911.96875,
+      "map_load_wall_s": 5.83145,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/12_north_office_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.29363298440541036,
+        "first_output_rotation_error_deg": 0.40766227002694516,
+        "position_error_m": {
+          "rmse": 0.298852321586018,
+          "median": 0.29867314823316427,
+          "p95": 0.3007024303859563,
+          "maximum": 0.301891234078862
+        },
+        "rotation_error_deg": {
+          "rmse": 0.35936646775066583,
+          "median": 0.35850900839230737,
+          "p95": 0.3692314012848763,
+          "maximum": 0.40766227002694516
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.2622990504950493,
+      "search_counts": {
+        "seed_initializations": 48,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 12,
+        "confirmation_evaluations": 27,
+        "admitted_basins": 3,
+        "admitted_hypotheses": 9,
+        "preserved_basins": 12,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.428126253999998
+    },
+    {
+      "id": "12_north_office",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "cea9e59c53ac1673866ea369766da53e354587a94f237d77ea4286033b3a3b49",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.370443481000001,
+      "first_lock_cpu_s": 12.913213935999998,
+      "cpu_s": 20.831902754,
+      "wall_s": 29.507624204,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 0.7061661950508475,
+      "alignments": 60,
+      "peak_rss_mib": 1914.91796875,
+      "map_load_wall_s": 5.90499,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/12_north_office_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.2936329844054102,
+        "first_output_rotation_error_deg": 0.4076622700269405,
+        "position_error_m": {
+          "rmse": 0.298852321586018,
+          "median": 0.29867314823316427,
+          "p95": 0.3007024303859563,
+          "maximum": 0.301891234078862
+        },
+        "rotation_error_deg": {
+          "rmse": 0.35936646775066583,
+          "median": 0.35850900839230737,
+          "p95": 0.36923140128487625,
+          "maximum": 0.4076622700269405
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.2715653980198019,
+      "search_counts": {
+        "seed_initializations": 48,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 12,
+        "confirmation_evaluations": 27,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.42154619199999976
+    },
+    {
+      "id": "13_south_door",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "f79b59e4788614fb32fca74b79316f501513635f41e8a19085beeb4132423a07",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.576510265,
+      "first_lock_cpu_s": 12.711122672000002,
+      "cpu_s": 19.428915395,
+      "wall_s": 29.508878508000002,
+      "input_s": 29.500005005,
+      "cpu_seconds_per_input_second": 0.6586071897854582,
+      "alignments": 46,
+      "peak_rss_mib": 1914.42578125,
+      "map_load_wall_s": 5.7685,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/13_south_door_baseline.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799995002,
+        "first_output_position_error_m": 0.22910147055736074,
+        "first_output_rotation_error_deg": 0.229425057745699,
+        "position_error_m": {
+          "rmse": 0.24057221599604395,
+          "median": 0.2412533299519526,
+          "p95": 0.24228103051071975,
+          "maximum": 0.24273532499868714
+        },
+        "rotation_error_deg": {
+          "rmse": 0.2040833099820263,
+          "median": 0.20429663978029133,
+          "p95": 0.2109900320044655,
+          "maximum": 0.23988058974362947
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.2245291591318373,
+      "search_counts": {
+        "seed_initializations": 40,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 6,
+        "confirmation_evaluations": 21,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4229289109999991
+    },
+    {
+      "id": "13_south_door",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 292,
+      "manifest_sha256": "f79b59e4788614fb32fca74b79316f501513635f41e8a19085beeb4132423a07",
+      "first_lock_frame": 4,
+      "first_lock_wall_s": 5.803678647,
+      "first_lock_cpu_s": 13.711952212999998,
+      "cpu_s": 20.538753123000003,
+      "wall_s": 29.506878614,
+      "input_s": 29.500005005,
+      "cpu_seconds_per_input_second": 0.6962288013008425,
+      "alignments": 53,
+      "peak_rss_mib": 1912.02734375,
+      "map_load_wall_s": 5.95089,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/13_south_door_final.csv",
+      "locks": 1,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 291
+      },
+      "truth": {
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 292,
+        "first_output_sim_s": 0.799995002,
+        "first_output_position_error_m": 0.22910147055736074,
+        "first_output_rotation_error_deg": 0.22942505774569907,
+        "position_error_m": {
+          "rmse": 0.24057221599604395,
+          "median": 0.2412533299519526,
+          "p95": 0.24228103051071975,
+          "maximum": 0.24273532499868714
+        },
+        "rotation_error_deg": {
+          "rmse": 0.20408330998202634,
+          "median": 0.20429663978029136,
+          "p95": 0.21099003200446548,
+          "maximum": 0.23988058974363083
+        }
+      },
+      "outcome": "intended_location",
+      "last_10s_cpu_cores": 0.23381943809244726,
+      "search_counts": {
+        "seed_initializations": 47,
+        "seed_continuations": 0,
+        "seed_resumptions": 0,
+        "seed_retries": 0,
+        "confirmation_registrations": 6,
+        "confirmation_evaluations": 30,
+        "admitted_basins": 4,
+        "admitted_hypotheses": 12,
+        "preserved_basins": 11,
+        "invalidated_seed_poses": 0
+      },
+      "descriptor_thread_cpu_s": 0.4230950780000003
+    },
+    {
+      "id": "14_north_door",
+      "variant": "final",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 0,
+      "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+      "first_lock_frame": null,
+      "first_lock_wall_s": null,
+      "first_lock_cpu_s": null,
+      "cpu_s": 657.58228776,
+      "wall_s": 227.65436208699998,
+      "input_s": 29.500005005,
+      "cpu_seconds_per_input_second": 22.290921226913195,
+      "alignments": 1180,
+      "peak_rss_mib": 1911.90625,
+      "map_load_wall_s": 5.78781,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/14_north_door_final.csv",
+      "locks": 0,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 237,
+        "margin": 30,
+        "ambiguous": 23,
+        "directional_visibility_disagreement": 6
+      },
+      "outcome": "no_lock",
+      "search_counts": {
+        "seed_initializations": 533,
+        "seed_continuations": 1997,
+        "seed_resumptions": 200,
+        "seed_retries": 55,
+        "confirmation_registrations": 447,
+        "confirmation_evaluations": 1444,
+        "admitted_basins": 209,
+        "admitted_hypotheses": 601,
+        "preserved_basins": 679,
+        "invalidated_seed_poses": 120
+      },
+      "descriptor_thread_cpu_s": 1.5124916790000233
+    },
+    {
+      "id": "14_north_door",
+      "variant": "baseline",
+      "returncode": 0,
+      "frames": 296,
+      "outputs": 0,
+      "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+      "first_lock_frame": null,
+      "first_lock_wall_s": null,
+      "first_lock_cpu_s": null,
+      "cpu_s": 667.1285767109999,
+      "wall_s": 221.772220944,
+      "input_s": 29.500005005,
+      "cpu_seconds_per_input_second": 22.61452418729852,
+      "alignments": 1218,
+      "peak_rss_mib": 1914.66796875,
+      "map_load_wall_s": 5.93275,
+      "trace": "build/n3mapping/candidate_admission_20261019/four_core_full_final/14_north_door_baseline.csv",
+      "locks": 0,
+      "coasted_outputs": 0,
+      "decisions": {
+        "temporal_window_pending": 237,
+        "margin": 23,
+        "ambiguous": 23,
+        "directional_visibility_disagreement": 13
+      },
+      "outcome": "no_lock",
+      "search_counts": {
+        "seed_initializations": 574,
+        "seed_continuations": 1766,
+        "seed_resumptions": 203,
+        "seed_retries": 60,
+        "confirmation_registrations": 441,
+        "confirmation_evaluations": 1328,
+        "admitted_basins": null,
+        "admitted_hypotheses": null,
+        "preserved_basins": null,
+        "invalidated_seed_poses": 261
+      },
+      "descriptor_thread_cpu_s": 1.4768986009999845
+    }
+  ],
+  "totals": {
+    "baseline": {
+      "episodes": 14,
+      "outcomes": {
+        "intended_location": 11,
+        "no_lock": 2,
+        "wrong_location": 1
+      },
+      "cpu_s": 1183.876637896,
+      "alignments": 2583,
+      "frames": 4144,
+      "maximum_rss_mib": 1914.9765625,
+      "intended_first_lock_wall_s_median": 5.055392887
+    },
+    "final": {
+      "episodes": 14,
+      "outcomes": {
+        "intended_location": 12,
+        "no_lock": 2
+      },
+      "cpu_s": 1213.112837945,
+      "alignments": 2802,
+      "frames": 4144,
+      "maximum_rss_mib": 1912.0859375,
+      "intended_first_lock_wall_s_median": 5.722035817
+    }
+  },
+  "paired_intended_cases": [
+    {
+      "id": "01_west_corridor",
+      "common_outputs": 292,
+      "maximum_position_delta_m": 7.105430745731983e-15,
+      "baseline": {
+        "position_rmse_m": 0.006902225925288427,
+        "position_max_m": 0.011931776766096533,
+        "rotation_rmse_deg": 0.05072537174474571,
+        "rotation_max_deg": 0.06948251706120594
+      },
+      "final": {
+        "position_rmse_m": 0.006902225925288431,
+        "position_max_m": 0.0119317767660966,
+        "rotation_rmse_deg": 0.05072537174474571,
+        "rotation_max_deg": 0.06948251706120595
+      }
+    },
+    {
+      "id": "02_east_corridor",
+      "common_outputs": 287,
+      "maximum_position_delta_m": 0.015705195642025844,
+      "baseline": {
+        "position_rmse_m": 0.3973006043885348,
+        "position_max_m": 0.3987283992799015,
+        "rotation_rmse_deg": 0.4587128802220922,
+        "rotation_max_deg": 0.47068945956579833
+      },
+      "final": {
+        "position_rmse_m": 0.3973091843513495,
+        "position_max_m": 0.39872858990496746,
+        "rotation_rmse_deg": 0.4595553468132601,
+        "rotation_max_deg": 0.47090602121663766
+      }
+    },
+    {
+      "id": "03_south_corridor",
+      "common_outputs": 292,
+      "maximum_position_delta_m": 0.0,
+      "baseline": {
+        "position_rmse_m": 0.14968159427370556,
+        "position_max_m": 0.15045624556207124,
+        "rotation_rmse_deg": 0.23192951436972523,
+        "rotation_max_deg": 0.2478913042691921
+      },
+      "final": {
+        "position_rmse_m": 0.14968159427370556,
+        "position_max_m": 0.15045624556207124,
+        "rotation_rmse_deg": 0.2319295143697252,
+        "rotation_max_deg": 0.2478913042691922
+      }
+    },
+    {
+      "id": "04_north_corridor",
+      "common_outputs": 292,
+      "maximum_position_delta_m": 2.220446049250313e-16,
+      "baseline": {
+        "position_rmse_m": 0.2751074780458475,
+        "position_max_m": 0.29407715315720934,
+        "rotation_rmse_deg": 0.3564890895973401,
+        "rotation_max_deg": 0.37286170383982103
+      },
+      "final": {
+        "position_rmse_m": 0.2751074780458475,
+        "position_max_m": 0.2940771531572094,
+        "rotation_rmse_deg": 0.3564890895973401,
+        "rotation_max_deg": 0.37286170383982103
+      }
+    },
+    {
+      "id": "05_southwest_office",
+      "common_outputs": 292,
+      "maximum_position_delta_m": 3.3306690738754696e-16,
+      "baseline": {
+        "position_rmse_m": 0.061176057952204266,
+        "position_max_m": 0.06346627084910507,
+        "rotation_rmse_deg": 0.218459011057038,
+        "rotation_max_deg": 0.24529548997670667
+      },
+      "final": {
+        "position_rmse_m": 0.061176057952204266,
+        "position_max_m": 0.06346627084910503,
+        "rotation_rmse_deg": 0.218459011057038,
+        "rotation_max_deg": 0.24529548997670667
+      }
+    },
+    {
+      "id": "06_south_meeting",
+      "common_outputs": 282,
+      "maximum_position_delta_m": 0.004462372565959688,
+      "baseline": {
+        "position_rmse_m": 0.06280699869103133,
+        "position_max_m": 0.06511228826080616,
+        "rotation_rmse_deg": 0.3087534079123766,
+        "rotation_max_deg": 0.32113408363306806
+      },
+      "final": {
+        "position_rmse_m": 0.0626120752918221,
+        "position_max_m": 0.06429245558186902,
+        "rotation_rmse_deg": 0.3088342315114327,
+        "rotation_max_deg": 0.32116300608868203
+      }
+    },
+    {
+      "id": "07_south_pillars",
+      "common_outputs": 292,
+      "maximum_position_delta_m": 2.220446049250313e-16,
+      "baseline": {
+        "position_rmse_m": 0.20768511463380956,
+        "position_max_m": 0.21091592483365537,
+        "rotation_rmse_deg": 0.1761610757406526,
+        "rotation_max_deg": 0.214667131818354
+      },
+      "final": {
+        "position_rmse_m": 0.20768511463380956,
+        "position_max_m": 0.21091592483365537,
+        "rotation_rmse_deg": 0.17616107574065254,
+        "rotation_max_deg": 0.2146671318183541
+      }
+    },
+    {
+      "id": "08_west_shelves",
+      "common_outputs": 292,
+      "maximum_position_delta_m": 2.220446049250313e-16,
+      "baseline": {
+        "position_rmse_m": 0.07674991654017804,
+        "position_max_m": 0.07985198583711249,
+        "rotation_rmse_deg": 0.2685435140396932,
+        "rotation_max_deg": 0.3031473281152066
+      },
+      "final": {
+        "position_rmse_m": 0.07674991654017804,
+        "position_max_m": 0.07985198583711249,
+        "rotation_rmse_deg": 0.2685435140396941,
+        "rotation_max_deg": 0.3031473281152066
+      }
+    },
+    {
+      "id": "10_northwest_meeting",
+      "common_outputs": 292,
+      "maximum_position_delta_m": 1.7763568394002505e-15,
+      "baseline": {
+        "position_rmse_m": 0.08809560261055706,
+        "position_max_m": 0.08941006457891376,
+        "rotation_rmse_deg": 0.07115463957081158,
+        "rotation_max_deg": 0.08620996262850443
+      },
+      "final": {
+        "position_rmse_m": 0.08809560261055706,
+        "position_max_m": 0.08941006457891376,
+        "rotation_rmse_deg": 0.07115463957081165,
+        "rotation_max_deg": 0.08620996262850902
+      }
+    },
+    {
+      "id": "12_north_office",
+      "common_outputs": 292,
+      "maximum_position_delta_m": 2.220446049250313e-16,
+      "baseline": {
+        "position_rmse_m": 0.298852321586018,
+        "position_max_m": 0.301891234078862,
+        "rotation_rmse_deg": 0.3593664677506657,
+        "rotation_max_deg": 0.40766227002693806
+      },
+      "final": {
+        "position_rmse_m": 0.298852321586018,
+        "position_max_m": 0.301891234078862,
+        "rotation_rmse_deg": 0.3593664677506657,
+        "rotation_max_deg": 0.4076622700269428
+      }
+    },
+    {
+      "id": "13_south_door",
+      "common_outputs": 292,
+      "maximum_position_delta_m": 1.1102230246251565e-16,
+      "baseline": {
+        "position_rmse_m": 0.24057221599604395,
+        "position_max_m": 0.24273532499868714,
+        "rotation_rmse_deg": 0.20408330998202537,
+        "rotation_max_deg": 0.23988058974362642
+      },
+      "final": {
+        "position_rmse_m": 0.24057221599604395,
+        "position_max_m": 0.24273532499868714,
+        "rotation_rmse_deg": 0.20408330998202542,
+        "rotation_max_deg": 0.23988058974362922
+      }
+    }
+  ],
+  "same_intended_cases_first_lock_wall_median_s": {
+    "baseline": 5.055392887,
+    "final": 5.640392987
+  },
+  "runtime_identity": {
+    "base_commit": "9dcc4cef000dba3a742fb2a6bcdd05bdb5db35a3",
+    "files": {
+      "include/n3mapping/relocalization_debug_logger.h": "64f74205a73b67b5c92773448caa6b8eed65217a7efdc68e262d6b645cb290ff",
+      "include/n3mapping/relocalization_hypothesis_manager.h": "6be7f62fb167eb69a15e088d5a5d10634ed1a7460f339da73da6667f7937f21f",
+      "include/n3mapping/relocalization_performance.h": "731236c76e26bbc2b5127b6805be8d632f5da7fd04387d87000541a2f357febc",
+      "include/n3mapping/world_localizing.h": "94ecc8b1ff25e2b9da1d168adfd1eeedcb7cab45b3ff814b750b3bbf8755cc77",
+      "src/relocalization_debug_logger.cpp": "9356f60432ae7e18bbc9162ce48b5d36b91864d4a0f97e3bd260a598138d609a",
+      "src/relocalization_hypothesis_manager.cpp": "fcec030f708fb4645844197b89b5f48f1fe3a5107231f6e775c1680dc88ac928",
+      "src/relocalization_performance.cpp": "5bef2efc719b10b7a43fd003ae875df39affc40931eab02e04914bc9124ba76b",
+      "src/world_localizing_confirmation.cpp": "6cb055be21be5e5ab9199bf703516a9ea58ccc314328e820ced357fc31eb8492",
+      "src/world_localizing_initialization.cpp": "5dda9ddfb493b4c81032465c02b19063c2412c94b970cc2f02f0c3b055b34761",
+      "src/world_localizing_relocalization.cpp": "254c9034fdd05fdffcc3fb3aa609a0a278f3d9224ec15d25a336b67aa7fdb026",
+      "test/test_localization_episode.cpp": "69b4657e303c71dc6b15161f6cf243b0d73f178d7b15667f599f88136c16fd50",
+      "test/test_world_localizing.cpp": "952290c5535fbcbbabe6302ac2b36d62664096618375eb1b2e657934af07a110"
+    },
+    "core_sha256": "2e8cfbabaacabf7cec097e00fa06cb0eab6e06ca8d010f498241f289e217a7ef"
+  },
+  "baseline_identity": {
+    "commit": "9dcc4cef000dba3a742fb2a6bcdd05bdb5db35a3",
+    "files": {
+      "libn3mapping_core.so": "6d71afa54e133b4099a0c293d945b5a9a31d4e55bac0d3227d8ab72c2077fdf8",
+      "replay_probe": "84a4750d3813cd72c88ecc30056d0920ebd53d1a2c5ab97534dd5d39cf86c520",
+      "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+    }
+  },
+  "negative": {
+    "frames": 346,
+    "locks": 0,
+    "outputs": 0,
+    "cpu_s": 693.760128507,
+    "wall_s": 240.282046162,
+    "alignments": 1549
+  },
+  "validation": {
+    "humble_ctest_checks_passed": 61,
+    "humble_ctest_checks_total": 61,
+    "setup_note": "Initial run passed 60/61. ROS live-output setup lacked the build-directory typesupport library path; adding that path and rerunning the failed check passed. The final episode-only test assertion change was rebuilt and rerun in all three modes. Runtime core hashes of v2/v3/final are identical.",
+    "localization_episodes_per_mode": 12,
+    "episode_modes": [
+      "default",
+      "atlas",
+      "experimental_kill"
+    ],
+    "new_regressions": [
+      "Late spatial region gets its own confirmation window without restarting surviving hypotheses",
+      "Returning to original window origin cannot erase a late hypothesis motion baseline"
+    ],
+    "logs": [
+      "build/n3mapping/candidate_admission_20261019/ctest_v2.log",
+      "build/n3mapping/candidate_admission_20261019/ctest_rerun_v2.log",
+      "build/n3mapping/candidate_admission_20261019/ctest_episode_final.log",
+      "build/n3mapping/candidate_admission_20261019/atlas_final.log",
+      "build/n3mapping/candidate_admission_20261019/kill_final.log"
+    ]
+  },
+  "late_candidate_diagnostic": {
+    "excluded_from_performance": true,
+    "frames": [
+      {
+        "query_index": 1,
+        "winner_seed_match_id": 818,
+        "winner_last_match_id": 818,
+        "winner_streak": 1,
+        "outcome": null,
+        "reject_reason": "temporal_window_pending",
+        "hypotheses": [
+          {
+            "seed_match_id": 818,
+            "last_match_id": 818,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 330,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 330,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 250,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 250,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          },
+          {
+            "seed_match_id": 818,
+            "last_match_id": 821,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          }
+        ]
+      },
+      {
+        "query_index": 2,
+        "winner_seed_match_id": 818,
+        "winner_last_match_id": 819,
+        "winner_streak": 2,
+        "outcome": null,
+        "reject_reason": "temporal_window_pending",
+        "hypotheses": [
+          {
+            "seed_match_id": 818,
+            "last_match_id": 819,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 251,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 252,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 818,
+            "last_match_id": 821,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1006,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1006,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          }
+        ]
+      },
+      {
+        "query_index": 3,
+        "winner_seed_match_id": 759,
+        "winner_last_match_id": 759,
+        "winner_streak": 1,
+        "outcome": null,
+        "reject_reason": "temporal_window_pending",
+        "hypotheses": [
+          {
+            "seed_match_id": 818,
+            "last_match_id": 819,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 251,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 252,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 818,
+            "last_match_id": 821,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 759,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 759,
+            "observations": 1,
+            "num_updates": 1,
+            "converged_updates": 1,
+            "alive": true
+          }
+        ]
+      },
+      {
+        "query_index": 4,
+        "winner_seed_match_id": 759,
+        "winner_last_match_id": 758,
+        "winner_streak": 2,
+        "outcome": null,
+        "reject_reason": "temporal_window_pending",
+        "hypotheses": [
+          {
+            "seed_match_id": 818,
+            "last_match_id": 819,
+            "observations": 4,
+            "num_updates": 4,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 4,
+            "num_updates": 4,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 4,
+            "num_updates": 4,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 251,
+            "observations": 4,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 252,
+            "observations": 4,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 818,
+            "last_match_id": 821,
+            "observations": 4,
+            "num_updates": 4,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 758,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 758,
+            "observations": 2,
+            "num_updates": 2,
+            "converged_updates": 2,
+            "alive": true
+          }
+        ]
+      },
+      {
+        "query_index": 5,
+        "winner_seed_match_id": 759,
+        "winner_last_match_id": 758,
+        "winner_streak": 3,
+        "outcome": null,
+        "reject_reason": "temporal_window_pending",
+        "hypotheses": [
+          {
+            "seed_match_id": 818,
+            "last_match_id": 819,
+            "observations": 5,
+            "num_updates": 5,
+            "converged_updates": 5,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 5,
+            "num_updates": 5,
+            "converged_updates": 5,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 5,
+            "num_updates": 5,
+            "converged_updates": 5,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 251,
+            "observations": 5,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 252,
+            "observations": 5,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 818,
+            "last_match_id": 821,
+            "observations": 5,
+            "num_updates": 5,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 4,
+            "num_updates": 4,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 4,
+            "num_updates": 4,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 4,
+            "num_updates": 4,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 758,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 758,
+            "observations": 3,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          }
+        ]
+      },
+      {
+        "query_index": 6,
+        "winner_seed_match_id": 759,
+        "winner_last_match_id": 758,
+        "winner_streak": 4,
+        "outcome": null,
+        "reject_reason": "temporal_window_pending",
+        "hypotheses": [
+          {
+            "seed_match_id": 818,
+            "last_match_id": 819,
+            "observations": 6,
+            "num_updates": 6,
+            "converged_updates": 6,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 6,
+            "num_updates": 6,
+            "converged_updates": 6,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 6,
+            "num_updates": 6,
+            "converged_updates": 6,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 251,
+            "observations": 6,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 252,
+            "observations": 6,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 818,
+            "last_match_id": 821,
+            "observations": 6,
+            "num_updates": 6,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 5,
+            "num_updates": 5,
+            "converged_updates": 5,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 5,
+            "num_updates": 5,
+            "converged_updates": 5,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 5,
+            "num_updates": 5,
+            "converged_updates": 5,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 758,
+            "observations": 4,
+            "num_updates": 4,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 758,
+            "observations": 4,
+            "num_updates": 4,
+            "converged_updates": 4,
+            "alive": true
+          }
+        ]
+      },
+      {
+        "query_index": 7,
+        "winner_seed_match_id": 759,
+        "winner_last_match_id": 758,
+        "winner_streak": 5,
+        "outcome": null,
+        "reject_reason": "",
+        "hypotheses": [
+          {
+            "seed_match_id": 818,
+            "last_match_id": 819,
+            "observations": 7,
+            "num_updates": 7,
+            "converged_updates": 7,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 7,
+            "num_updates": 7,
+            "converged_updates": 7,
+            "alive": true
+          },
+          {
+            "seed_match_id": 330,
+            "last_match_id": 332,
+            "observations": 7,
+            "num_updates": 7,
+            "converged_updates": 7,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 251,
+            "observations": 7,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 250,
+            "last_match_id": 252,
+            "observations": 7,
+            "num_updates": 3,
+            "converged_updates": 3,
+            "alive": true
+          },
+          {
+            "seed_match_id": 818,
+            "last_match_id": 821,
+            "observations": 7,
+            "num_updates": 7,
+            "converged_updates": 4,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 6,
+            "num_updates": 6,
+            "converged_updates": 6,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 6,
+            "num_updates": 6,
+            "converged_updates": 6,
+            "alive": true
+          },
+          {
+            "seed_match_id": 1006,
+            "last_match_id": 1005,
+            "observations": 6,
+            "num_updates": 6,
+            "converged_updates": 6,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 758,
+            "observations": 5,
+            "num_updates": 5,
+            "converged_updates": 5,
+            "alive": true
+          },
+          {
+            "seed_match_id": 759,
+            "last_match_id": 758,
+            "observations": 5,
+            "num_updates": 5,
+            "converged_updates": 5,
+            "alive": true
+          }
+        ]
+      }
+    ],
+    "path": "build/n3mapping/candidate_admission_20261019/11_final_diagnostic.jsonl"
+  },
+  "known_wrong_room_counts": [
+    {
+      "frame": 0,
+      "admitted_basins": 3,
+      "admitted_hypotheses": 6,
+      "preserved_basins": 0,
+      "seed_initializations": 49,
+      "confirmation_registrations": 0
+    },
+    {
+      "frame": 1,
+      "admitted_basins": 1,
+      "admitted_hypotheses": 3,
+      "preserved_basins": 2,
+      "seed_initializations": 14,
+      "confirmation_registrations": 0
+    },
+    {
+      "frame": 2,
+      "admitted_basins": 1,
+      "admitted_hypotheses": 2,
+      "preserved_basins": 2,
+      "seed_initializations": 7,
+      "confirmation_registrations": 0
+    },
+    {
+      "frame": 3,
+      "admitted_basins": 0,
+      "admitted_hypotheses": 0,
+      "preserved_basins": 3,
+      "seed_initializations": 0,
+      "confirmation_registrations": 0
+    },
+    {
+      "frame": 4,
+      "admitted_basins": 0,
+      "admitted_hypotheses": 0,
+      "preserved_basins": 3,
+      "seed_initializations": 0,
+      "confirmation_registrations": 4
+    },
+    {
+      "frame": 5,
+      "admitted_basins": 0,
+      "admitted_hypotheses": 0,
+      "preserved_basins": 3,
+      "seed_initializations": 0,
+      "confirmation_registrations": 7
+    },
+    {
+      "frame": 6,
+      "admitted_basins": 0,
+      "admitted_hypotheses": 0,
+      "preserved_basins": 3,
+      "seed_initializations": 0,
+      "confirmation_registrations": 9
+    }
+  ],
+  "limitations": [
+    "One complete A/B per position, not repeated timing statistics.",
+    "The 1 m / 5 degree band only labels gross wrong-place locks; exact errors are retained.",
+    "Two positions remain unlocked and greatly exceed 14.75 CPU seconds per 29.5 seconds of input.",
+    "The corrected position retains about 0.474 m maximum error.",
+    "No hardware/RK3588, full DDS throughput, or universal scene reliability qualification.",
+    "No descriptor, registration, ambiguity, directional or free-space threshold was relaxed."
+  ]
+}

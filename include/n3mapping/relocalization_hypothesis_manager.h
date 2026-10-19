@@ -14,6 +14,10 @@
 namespace n3mapping {
 
 struct RelocalizationHypothesis {
+  // Observation within this window when this region first acquired geometry.
+  // Late arrivals must not inherit the older hypotheses' confirmation age.
+  int first_observation = 1;
+  Eigen::Isometry3d first_odom_pose = Eigen::Isometry3d::Identity();
   int64_t seed_match_id = -1;
   int64_t last_match_id = -1;
   Eigen::Isometry3d T_map_odom = Eigen::Isometry3d::Identity();
@@ -68,6 +72,8 @@ public:
 
   void start(std::vector<Hypothesis> hypotheses,
              const Eigen::Isometry3d &start_odom_pose);
+  void appendForNextObservation(std::vector<Hypothesis> hypotheses,
+                                const Eigen::Isometry3d &odom_pose);
   void advanceWindow();
   int windowCount() const;
   int persistedFrames() const;
@@ -78,7 +84,8 @@ public:
                                 double max_rotation_delta);
   int winnerStreak() const;
   HypothesisMotionBaseline
-  motionBaseline(const Eigen::Isometry3d &current_odom_pose) const;
+  motionBaseline(const Hypothesis *hypothesis,
+                 const Eigen::Isometry3d &current_odom_pose) const;
 
   HypothesisPersistenceResult
   finishWindow(bool success, bool persistence_enabled, int max_persist_frames);
@@ -87,7 +94,6 @@ public:
 private:
   std::vector<Hypothesis> hypotheses_;
   int window_count_ = 0;
-  Eigen::Isometry3d window_start_odom_pose_ = Eigen::Isometry3d::Identity();
   bool has_last_winner_transform_ = false;
   Eigen::Isometry3d last_winner_map_odom_ = Eigen::Isometry3d::Identity();
   int winner_streak_ = 0;

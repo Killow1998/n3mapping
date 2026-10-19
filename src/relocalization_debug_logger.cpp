@@ -341,6 +341,7 @@ void appendHypotheses(
     appendNumber(os, &item_first, "cumulative_log_likelihood",
                  hypotheses[i].cumulative_log_likelihood);
     appendInteger(os, &item_first, "num_updates", hypotheses[i].num_updates);
+    appendInteger(os, &item_first, "observations", hypotheses[i].observations);
     appendInteger(os, &item_first, "converged_updates",
                   hypotheses[i].converged_updates);
     appendInteger(os, &item_first, "visibility_updates",

@@ -60,6 +60,10 @@ WorldLocalizing::confirmRelocalization(
   for (auto &hyp : hypothesis_manager_.hypotheses()) {
     if (!hyp.alive)
       continue;
+    // This region was already evaluated against this observation at admission.
+    // Counting it again would manufacture a second confirmation from one scan.
+    if (hyp.first_observation == hypothesis_manager_.windowCount())
+      continue;
     if (reloc_debug_enabled) {
       // This field describes a registration produced by this query only.
       // A miss must be null instead of silently reusing the prior query's H.
@@ -115,7 +119,8 @@ WorldLocalizing::confirmRelocalization(
         // Intermediate observations confirm the odometry-propagated pose
         // with fresh residuals. The final observation always refines it;
         // failed geometric confirmation falls back immediately as well.
-        if (hypothesis_manager_.windowCount() < config_.reloc_temporal_window_size) {
+        const int observations = hypothesis_manager_.windowCount() - hyp.first_observation + 1;
+        if (observations < config_.reloc_temporal_window_size) {
           const auto started = std::chrono::steady_clock::now();
           mr = matcher_.evaluatePreparedPose(*prepared_target.registration_target,
                                              prepared_query, predicted_pose, hyp.metric);

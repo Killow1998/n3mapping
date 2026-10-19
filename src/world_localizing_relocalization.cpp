@@ -123,7 +123,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   // Retrieval needs no registration representation. Prepare once on the
   // calling thread, only when candidates or hypotheses need verification.
   RelocalizationObservation prepared_observation;
-  auto& prepared_query = prepared_observation.registration;
   auto& visibility_observation = prepared_observation.visibility;
   const auto prepare_query = [&]() {
     prepared_observation.prepare(query_cloud, matcher_, config_, cost);
@@ -133,60 +132,34 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   // Only a current full registration can authorize publication after cheaper
   // intermediate confirmations. This is independent of historical scores.
   std::vector<const RelocHypothesis*> currently_registered;
+  const bool starting = hypothesis_manager_.empty();
+  if (reloc_debug_enabled) {
+    debug_event.query_cloud.candidate_count = candidates.size();
+    debug_event.query_cloud.top_candidates = candidates;
+    debug_event.candidate_count = candidates.size();
+    debug_event.top_candidates = candidates;
+  }
+  if (starting && candidates.empty()) {
+    finish_debug("rejected", "no_candidates");
+    return completed_result();
+  }
+
+  // New spatial regions enter independently. Established hypotheses keep their
+  // poses and evidence; only the new regions need descriptor-seeded solves.
+  updateRelocalizationCandidates(query_cloud, candidates, odom_pose,
+      prepared_observation, cost, reloc_debug_enabled ? &debug_event : nullptr);
   if (hypothesis_manager_.empty()) {
-    if (reloc_debug_enabled) {
-      debug_event.query_cloud.candidate_count = candidates.size();
-      debug_event.query_cloud.top_candidates = candidates;
-      debug_event.candidate_count = candidates.size();
-      debug_event.top_candidates = candidates;
-    }
-    if (candidates.empty()) {
-      LOG(WARNING) << "No relocalization candidates found. Map has "
-                   << keyframe_manager_.size() << " keyframes, RHPD candidates="
-                   << config_.rhpd_num_candidates
-                   << " dist_thr=" << config_.rhpd_dist_threshold;
-      finish_debug("rejected", "no_candidates");
-      return completed_result();
-    }
-
-    auto plan = makeRelocalizationSeedPlan(candidates, keyframe_manager_, config_);
-    const auto &basins = plan.basins;
-    if (reloc_debug_enabled) {
-      debug_event.basins.clear();
-      debug_event.basins.reserve(basins.size());
-      for (const auto &basin : basins) {
-        RelocDebugBasinSummary summary;
-        summary.center_match_id = basin.center_match_id;
-        summary.member_match_ids.reserve(basin.members.size());
-        for (const auto &member : basin.members) {
-          summary.member_match_ids.push_back(member.match_id);
-        }
-        debug_event.basins.push_back(std::move(summary));
-      }
-    }
-
-    prepare_query();
-    initializeRelocalization(std::move(plan), prepared_query, visibility_observation,
-                             odom_pose, cost, reloc_debug_enabled ? &debug_event : nullptr);
-    if (hypothesis_manager_.empty()) {
-      LOG(WARNING) << "Relocalization init failed: no valid ICP hypothesis.";
-      finish_debug("rejected", "no_valid_icp_hypothesis");
-      return completed_result();
-    }
+    finish_debug("rejected", "no_valid_icp_hypothesis");
+    return completed_result();
+  }
+  if (starting) {
     if (config_.reloc_temporal_window_size <= 1) {
       for (const auto& hypothesis : hypothesis_manager_.hypotheses())
         currently_registered.push_back(&hypothesis);
     }
   } else {
-    const auto &current_candidates = candidates;
-    if (reloc_debug_enabled) {
-      debug_event.query_cloud.candidate_count = current_candidates.size();
-      debug_event.query_cloud.top_candidates = current_candidates;
-      debug_event.candidate_count = current_candidates.size();
-      debug_event.top_candidates = current_candidates;
-    }
     currently_registered = confirmRelocalization(
-        query_cloud, current_candidates, odom_pose, prepared_observation,
+        query_cloud, candidates, odom_pose, prepared_observation,
         cost, reloc_debug_enabled);
   }
 
@@ -210,6 +183,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       summary.pose_in_map = hyp.T_map_odom * odom_pose;
       summary.cumulative_log_likelihood = hyp.cumulative_log_likelihood;
       summary.num_updates = hyp.num_updates;
+      summary.observations = hypothesis_manager_.windowCount() - hyp.first_observation + 1;
       summary.converged_updates = hyp.converged_updates;
       summary.visibility_updates = hyp.visibility_updates;
       summary.mean_visibility_consistency =
@@ -302,9 +276,12 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   }
 
   const HypothesisMotionBaseline motion_baseline =
-      hypothesis_manager_.motionBaseline(odom_pose);
+      hypothesis_manager_.motionBaseline(top1, odom_pose);
+  const int winner_observations = top1
+      ? hypothesis_manager_.windowCount() - top1->first_observation + 1
+      : hypothesis_manager_.windowCount();
   RelocalizationDecision decision =
-      decision_policy_.evaluate(ranking, hypothesis_manager_.windowCount(),
+      decision_policy_.evaluate(ranking, winner_observations,
                                 hypothesis_manager_.winnerStreak(),
                                 motion_baseline, nullptr, odom_pose);
   bool rejected_current_geometry = false;
@@ -360,13 +337,13 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     cost.free_space_ms = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - started).count();
     decision = decision_policy_.evaluate(
-        ranking, hypothesis_manager_.windowCount(), hypothesis_manager_.winnerStreak(),
+        ranking, winner_observations, hypothesis_manager_.winnerStreak(),
         motion_baseline, free_space_best, odom_pose);
   }
   const int effective_temporal_window = decision.effective_temporal_window;
   if (decision.temporal_window_pending) {
-    VLOG(1) << "Relocalization pending: window "
-            << hypothesis_manager_.windowCount() << "/"
+    VLOG(1) << "Relocalization pending: winner observations "
+            << winner_observations << "/"
             << effective_temporal_window
             << ", active hypotheses=" << hypothesis_manager_.size();
     finish_debug("pending", "temporal_window_pending");

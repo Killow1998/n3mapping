@@ -47,6 +47,9 @@ Json::Value relocalizationPerformanceJson(const RelocalizationPerformance &cost)
   value["invalidated_seed_poses"] = Json::UInt64(cost.invalidated_seed_poses);
   value["confirmation_evaluations"] = Json::UInt64(cost.confirmation_evaluations);
   value["confirmation_registrations"] = Json::UInt64(cost.confirmation_registrations);
+  value["admitted_basins"] = Json::UInt64(cost.admitted_basins);
+  value["admitted_hypotheses"] = Json::UInt64(cost.admitted_hypotheses);
+  value["preserved_basins"] = Json::UInt64(cost.preserved_basins);
   value["fixed_pose_evaluations"] = Json::UInt64(cost.fixed_pose_evaluations);
   value["visibility_evaluations"] = Json::UInt64(cost.visibility_evaluations);
   value["candidates"] = Json::UInt64(cost.candidates);

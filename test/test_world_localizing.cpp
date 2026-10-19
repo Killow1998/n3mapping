@@ -292,7 +292,7 @@ TEST(RelocalizationHypothesisManagerTest,
   current_odom.translation().x() = 1.25;
   manager.advanceWindow();
   const HypothesisMotionBaseline baseline =
-      manager.motionBaseline(current_odom);
+      manager.motionBaseline(&manager.hypotheses().front(), current_odom);
   EXPECT_NEAR(baseline.translation, 1.25, 1e-12);
   EXPECT_NEAR(baseline.rotation, 0.0, 1e-12);
 
@@ -316,6 +316,50 @@ TEST(RelocalizationHypothesisManagerTest,
   EXPECT_TRUE(manager.empty());
   EXPECT_EQ(manager.windowCount(), 0);
   EXPECT_EQ(manager.winnerStreak(), 0);
+}
+
+TEST(RelocalizationHypothesisManagerTest,
+     LateRegionCannotBorrowTheOriginalMotionBaseline) {
+  RelocalizationHypothesisManager manager;
+  RelocalizationHypothesis older;
+  older.seed_match_id = 1;
+  older.num_updates = older.converged_updates = 3;
+  older.cumulative_log_likelihood = 5.0;
+  older.visibility_updates = 1;
+  older.visibility_evidence_sum = -0.3;
+  const auto origin = Eigen::Isometry3d::Identity();
+  manager.start({older}, origin);
+  manager.advanceWindow();
+
+  auto late = older;
+  late.seed_match_id = 2;
+  late.visibility_evidence_sum = -0.1;
+  Eigen::Isometry3d admission_pose = origin;
+  admission_pose.translation().x() = 1.25;
+  manager.appendForNextObservation({late}, admission_pose);
+  for (int i = 0; i < 3; ++i) manager.advanceWindow();
+
+  const auto& kept = manager.hypotheses().front();
+  const auto& added = manager.hypotheses().back();
+  EXPECT_EQ(kept.num_updates, older.num_updates);
+  EXPECT_DOUBLE_EQ(kept.cumulative_log_likelihood, older.cumulative_log_likelihood);
+  const int observations = manager.windowCount() - added.first_observation + 1;
+  EXPECT_EQ(observations, 3);
+  // Returning to the original window's origin is still motion for the late
+  // candidate. Its negative ray evidence must remain a publication veto.
+  EXPECT_DOUBLE_EQ(manager.motionBaseline(&kept, origin).translation, 0.0);
+  const auto baseline = manager.motionBaseline(&added, origin);
+  EXPECT_DOUBLE_EQ(baseline.translation, 1.25);
+  Config config;
+  config.reloc_temporal_window_size = 3;
+  RelocalizationDecisionPolicy policy(config);
+  const auto ranking = policy.rank(manager.hypotheses(), origin);
+  ASSERT_EQ(ranking.top1, &added);
+  const auto decision = policy.evaluate(ranking, observations, 3, baseline, nullptr, origin);
+  EXPECT_FALSE(decision.temporal_window_pending);
+  EXPECT_TRUE(decision.moving_visibility_required);
+  EXPECT_FALSE(decision.accepted);
+  EXPECT_EQ(decision.reject_reason, "moving_visibility_disagreement");
 }
 
 TEST_F(WorldLocalizingTest, BasicConstruction) {

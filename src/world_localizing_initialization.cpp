@@ -1,12 +1,56 @@
 #include "n3mapping/relocalization_order.h"
 #include "n3mapping/world_localizing.h"
 #include "relocalization_seed_plan.h"
+#include "relocalization_observation.h"
 
 #include <algorithm>
 #include <future>
 #include <glog/logging.h>
 
 namespace n3mapping {
+void WorldLocalizing::updateRelocalizationCandidates(
+    const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates,
+    const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,
+    RelocalizationPerformance& cost, RelocalizationDebugEvent* event) {
+  const bool starting = hypothesis_manager_.empty();
+  auto plan = makeRelocalizationSeedPlan(candidates, keyframe_manager_, config_);
+  auto& basins = plan.basins;
+  basins.erase(std::remove_if(basins.begin(), basins.end(), [&](const RelocalizationSeedPlan::Basin& basin) {
+    for (const auto& hyp : hypothesis_manager_.hypotheses()) {
+      if (!hyp.alive) continue;
+      const Eigen::Vector3d position = (hyp.T_map_odom * odom_pose).translation();
+      const auto anchor = keyframe_manager_.getKeyframe(hyp.seed_match_id);
+      if ((basin.center_pos - position).head<2>().norm() <= kRelocBasinAssignRadiusXY ||
+          (anchor && (basin.center_pos - anchor->pose_optimized.translation())
+                         .head<2>().norm() <= kRelocBasinAssignRadiusXY)) {
+        ++cost.preserved_basins;
+        return true;
+      }
+    }
+    return false;
+  }), basins.end());
+  if (basins.empty()) return;
+
+  cost.admitted_basins += basins.size();
+  if (event) {
+    for (const auto& basin : basins) {
+      RelocDebugBasinSummary summary;
+      summary.center_match_id = basin.center_match_id;
+      for (const auto& member : basin.members)
+        summary.member_match_ids.push_back(member.match_id);
+      event->basins.push_back(std::move(summary));
+    }
+  }
+  observation.prepare(cloud, matcher_, config_, cost);
+  auto added = seedRelocalization(std::move(plan), observation.registration,
+                                 observation.visibility, odom_pose, cost, event);
+  cost.admitted_hypotheses += added.size();
+  if (starting)
+    hypothesis_manager_.start(std::move(added), odom_pose);
+  else
+    hypothesis_manager_.appendForNextObservation(std::move(added), odom_pose);
+}
+
 RelocalizationSeedPlan
 makeRelocalizationSeedPlan(const std::vector<LoopCandidate> &candidates,
                            KeyframeManager &keyframes, const Config &config) {
@@ -57,7 +101,7 @@ makeRelocalizationSeedPlan(const std::vector<LoopCandidate> &candidates,
   return plan;
 }
 
-void WorldLocalizing::initializeRelocalization(
+std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalization(
     RelocalizationSeedPlan plan,
     const PointCloudMatcher::PreparedSource &prepared_query,
     const PreparedVisibilityObservation &visibility_observation,
@@ -272,6 +316,6 @@ void WorldLocalizing::initializeRelocalization(
     hyp.alive = true;
     seeded_hypotheses.push_back(hyp);
   }
-  hypothesis_manager_.start(std::move(seeded_hypotheses), odom_pose);
+  return seeded_hypotheses;
 }
 } // namespace n3mapping

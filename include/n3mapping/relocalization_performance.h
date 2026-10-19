@@ -58,6 +58,11 @@ struct RelocalizationPerformance {
   std::uint64_t invalidated_seed_poses = 0;
   std::uint64_t confirmation_evaluations = 0;
   std::uint64_t confirmation_registrations = 0;
+  // Regions sent to seed evaluation, resulting modes, and regions kept on
+  // their existing confirmation path. Initial search has no preserved regions.
+  std::uint64_t admitted_basins = 0;
+  std::uint64_t admitted_hypotheses = 0;
+  std::uint64_t preserved_basins = 0;
   DescriptorSearchPerformance descriptor;
   double source_prepare_ms = 0.0;
   double visibility_prepare_ms = 0.0;

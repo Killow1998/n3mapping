@@ -165,12 +165,17 @@ public:
 private:
   using RelocHypothesis = RelocalizationHypothesis;
 
+  void updateRelocalizationCandidates(
+      const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates,
+      const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,
+      RelocalizationPerformance& cost, RelocalizationDebugEvent* event);
+
   std::vector<const RelocHypothesis*> confirmRelocalization(
       const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates,
       const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,
       RelocalizationPerformance& cost, bool debug_enabled);
 
-  void initializeRelocalization(
+  std::vector<RelocHypothesis> seedRelocalization(
       RelocalizationSeedPlan plan,
       const PointCloudMatcher::PreparedSource& prepared_query,
       const PreparedVisibilityObservation& visibility_observation,

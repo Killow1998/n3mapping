@@ -426,6 +426,86 @@ TEST_F(LocalizationEpisode, RepeatedPlacesStayUnpublishedAndFreshGeometryCanLock
   EXPECT_LT((identified.live.pose->pose.translation() - Eigen::Vector3d(40, 0, 0)).norm(), 0.5);
 }
 
+TEST_F(LocalizationEpisode, NewlyVisibleRegionGetsItsOwnConfirmationWithoutRestartingOthers) {
+  // The sensor stays in one room. Initially missing returns hide its extra
+  // walls, so two repeated rooms occupy the shortlist; later returns reveal it.
+  const auto common = synthesizeBodyCloud(scene_, makePose(6, 0, 0), 12, 0, 0, 5001);
+  auto complete = pcl::make_shared<Cloud>(*common);
+  for (float x = 1.0F; x < 5.0F; x += 0.15F) {
+    for (float z = 0.0F; z < 3.0F; z += 0.15F) {
+      for (float y : {-1.6F, 1.9F}) {
+        pcl::PointXYZI p;
+        p.x = x; p.y = y; p.z = z; p.intensity = 60.0F;
+        complete->push_back(p);
+      }
+    }
+  }
+  // Map occupancy requires two surface returns per voxel. Sample along the
+  // authored planes/pillars, rather than interpreting isolated synthetic
+  // points as occupied walls while the unchanged free-space grid rejects them.
+  const auto sample_surfaces = [](const Cloud::Ptr& cloud) {
+    const auto count = cloud->size();
+    for (std::size_t i = 0; i < count; ++i) {
+      auto point = (*cloud)[i];
+      if (point.z < -0.24F) point.x += 0.01F;
+      else point.z += 0.01F;
+      cloud->push_back(point);
+    }
+  };
+  sample_surfaces(common);
+  sample_surfaces(complete);
+  config_.reloc_num_candidates = 2;
+  config_.rhpd_num_candidates = 2;
+  const auto path = directory_ / "late_region.pbstream";
+  {
+    N3MappingCore mapper(config_, N3MappingCore::WorldCloudOutput::Disabled);
+    for (int i = 0; i < 3; ++i) {
+      ASSERT_TRUE(mapper.processMappingFrame(makeFrame(
+          (i + 1) * 1000000000LL, makePose(20.0 * i, 0, 0),
+          i == 2 ? complete : common)).accepted_keyframe);
+    }
+    ASSERT_TRUE(mapper.saveMap(path.string()));
+    compileAtlas(mapper, path);
+  }
+  localizer_ = std::make_unique<N3MappingCore>(
+      config_, N3MappingCore::WorldCloudOutput::Disabled);
+  ASSERT_TRUE(localizer_->loadMap(path.string()));
+  startOutput();
+  const auto pose = makePose(40, 0, 0);
+  for (int i = 0; i < 2; ++i) {
+    const auto partial = run("hidden_region", pose, common);
+    EXPECT_FALSE(partial.live.pose);
+    EXPECT_FALSE(partial.backend.relocalization_locked);
+  }
+  Step step;
+  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+    step = run("revealed_region", pose, complete);
+    const auto cost = relocalizationPerformanceJson(step.backend.relocalization_performance);
+    if (i == 0) {
+      EXPECT_GE(cost["admitted_basins"].asUInt64(), 1U);
+      // The experimental kill mode discards rejected regions; preservation
+      // applies to surviving hypotheses, not to those intentionally removed.
+      if (config_.reloc_free_space_mode != "kill") {
+        EXPECT_EQ(cost["admitted_basins"].asUInt64(), 1U);
+        EXPECT_GE(cost["preserved_basins"].asUInt64(), 1U);
+      }
+    } else {
+      if (config_.reloc_free_space_mode != "kill") {
+        EXPECT_EQ(cost["admitted_basins"].asUInt64(), 0U);
+      }
+      EXPECT_EQ(step.backend.relocalization_performance.seed_initializations, 0U);
+    }
+    if (i + 1 < config_.reloc_temporal_window_size) {
+      EXPECT_FALSE(step.backend.relocalization_locked);
+      EXPECT_FALSE(step.live.pose);
+    }
+  }
+  ASSERT_TRUE(step.backend.relocalization_locked);
+  ASSERT_TRUE(step.live.pose);
+  EXPECT_LT((step.live.pose->pose.translation() - pose.translation()).norm(), 0.1);
+  EXPECT_EQ(step.publication.plan.lock_epoch, 1U);
+}
+
 TEST_F(LocalizationEpisode, OppositeHeadingsInSymmetricGeometryRemainAmbiguous) {
   auto symmetric = synthesizeBodyCloud(scene_, makePose(6.0, 0.0, 0.0),
                                        12.0, 0.0, 0.0, 1442);
