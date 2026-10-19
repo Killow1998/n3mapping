@@ -35,6 +35,7 @@
 namespace n3mapping {
 
 class TrackingTargetCache;
+struct RelocalizationSeedPlan;
 
 struct RelocResult {
   RelocalizationPerformance performance;
@@ -171,6 +172,12 @@ private:
   };
 
   static bool hasValidRegistrationResult(const MatchResult &match);
+  void initializeRelocalization(
+      RelocalizationSeedPlan plan,
+      const PointCloudMatcher::PreparedSource& prepared_query,
+      const PreparedVisibilityObservation& visibility_observation,
+      const Eigen::Isometry3d& odom_pose, RelocalizationPerformance& cost,
+      RelocalizationDebugEvent* event);
   RelocMatchQuality evaluateRelocMatchQuality(const MatchResult &match) const;
 
   void rebuildRelocMapCacheIfNeeded();
@@ -204,6 +211,8 @@ private:
   std::unique_ptr<RelocTargetProvider> target_provider_;
   RelocalizationCandidateEvaluator candidate_evaluator_;
   RelocalizationHypothesisManager hypothesis_manager_;
+  std::vector<std::pair<int64_t, double>> initialized_reloc_seeds_;
+  KeyframeMapRevision initialized_reloc_revision_;
   RelocalizationDecisionPolicy decision_policy_;
   RelocalizationDebugEmitter debug_emitter_;
   PointCloudT::Ptr reloc_map_cache_;

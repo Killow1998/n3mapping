@@ -51,6 +51,8 @@ struct RelocalizationPerformance {
   double fixed_pose_ms = 0.0;
   std::uint64_t fixed_pose_evaluations = 0;
   std::uint64_t rejected_alignments = 0;
+  bool reused_seed_plan = false;
+  bool retried_seed_plan = false;
   DescriptorSearchPerformance descriptor;
   double source_prepare_ms = 0.0;
   double visibility_prepare_ms = 0.0;

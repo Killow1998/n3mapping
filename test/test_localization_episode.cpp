@@ -339,9 +339,15 @@ TEST_F(LocalizationEpisode, FreshMapLifecycleCannotReuseOldAuthorityOrPose) {
              old_lock.live.pose->pose.translation()).norm(), 90.0);
 }
 
-TEST_F(LocalizationEpisode, RepeatedPlacesNeverPublishAnAuthoritativeGuess) {
+TEST_F(LocalizationEpisode, RepeatedPlacesStayUnpublishedAndFreshGeometryCanLock) {
   const auto cloud = synthesizeBodyCloud(scene_, makePose(6.0, 0.0, 0.0),
                                         12.0, 0.0, 0.0, 1442);
+  auto unique_cloud = pcl::make_shared<Cloud>(*cloud);
+  for (auto& point : *unique_cloud) {
+    point.x *= 0.6F;
+    point.y *= 1.6F;
+    point.z *= 1.3F;
+  }
   const auto repeated_path = directory_ / "repeated.pbstream";
   {
     N3MappingCore mapper(config_, N3MappingCore::WorldCloudOutput::Disabled);
@@ -350,18 +356,29 @@ TEST_F(LocalizationEpisode, RepeatedPlacesNeverPublishAnAuthoritativeGuess) {
           (i + 1) * 1000000000LL, makePose(i * 20.0, 0.0, 0.0), cloud));
       ASSERT_TRUE(mapped.accepted_keyframe);
     }
+    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(
+        3000000000LL, makePose(40.0, 0.0, 0.0), unique_cloud)).accepted_keyframe);
     ASSERT_TRUE(mapper.saveMap(repeated_path.string()));
     compileAtlas(mapper, repeated_path);
   }
   ASSERT_TRUE(localizer_->loadMap(repeated_path.string()));
   startOutput();
-  for (int i = 0; i < 2 * config_.reloc_temporal_window_size; ++i) {
+  for (int i = 0; i < 5 * config_.reloc_temporal_window_size; ++i) {
     const auto query = run("ambiguous", makePose(0.0, 0.0, 0.0), cloud);
     EXPECT_FALSE(query.backend.relocalization_locked);
     EXPECT_NE(query.backend.relocalization_state, RelocalizationState::FULL_6DOF_LOCKED);
     EXPECT_FALSE(query.publication.plan.publish_authoritative_pose);
     EXPECT_FALSE(query.live.pose);
   }
+  Step identified;
+  for (int i = 0; i < 3 * config_.reloc_temporal_window_size; ++i) {
+    identified = run("distinct_after_ambiguity", makePose(40.0, 0.0, 0.0), unique_cloud);
+    if (identified.backend.relocalization_locked) break;
+    EXPECT_FALSE(identified.live.pose);
+  }
+  ASSERT_TRUE(identified.backend.relocalization_locked);
+  ASSERT_TRUE(identified.live.pose);
+  EXPECT_LT((identified.live.pose->pose.translation() - Eigen::Vector3d(40, 0, 0)).norm(), 0.5);
 }
 
 TEST_F(LocalizationEpisode, OppositeHeadingsInSymmetricGeometryRemainAmbiguous) {
@@ -391,6 +408,39 @@ TEST_F(LocalizationEpisode, OppositeHeadingsInSymmetricGeometryRemainAmbiguous) 
     EXPECT_FALSE(query.publication.plan.publish_authoritative_pose);
     EXPECT_FALSE(query.live.pose);
   }
+}
+
+TEST_F(LocalizationEpisode, UnchangedSeedsCannotStrandSearchInOldPoseModes) {
+  // All three places remain in retrieval with the same uniform yaw seeds.
+  // The third mode has no geometric support in the initial observation.
+  config_.rhpd_use_sc_yaw = false;
+  const auto repeated = synthesizeBodyCloud(scene_, makePose(6, 0, 0), 12, 0, 0, 1442);
+  auto distinct = pcl::make_shared<Cloud>(*repeated);
+  for (auto& point : *distinct) point.z += 5.5F;
+  const auto path = directory_ / "mode_transition.pbstream";
+  {
+    N3MappingCore mapper(config_, N3MappingCore::WorldCloudOutput::Disabled);
+    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(1000000000LL, makePose(0, 0, 0), repeated)).accepted_keyframe);
+    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(2000000000LL, makePose(20, 0, 0), repeated)).accepted_keyframe);
+    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(3000000000LL, makePose(140, 0, 0), distinct)).accepted_keyframe);
+    ASSERT_TRUE(mapper.saveMap(path.string()));
+    compileAtlas(mapper, path);
+  }
+  localizer_ = std::make_unique<N3MappingCore>(config_, N3MappingCore::WorldCloudOutput::Disabled);
+  ASSERT_TRUE(localizer_->loadMap(path.string()));
+  startOutput();
+  for (int i = 0; i < 3 * config_.reloc_temporal_window_size; ++i) {
+    const auto step = run("unmapped_alias", makePose(100, 0, 0), repeated);
+    ASSERT_FALSE(step.backend.relocalization_locked);
+    ASSERT_FALSE(step.live.pose);
+  }
+  Step identified;
+  for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
+    identified = run("new_supported_mode", makePose(140, 0, 0), distinct);
+  }
+  ASSERT_TRUE(identified.backend.relocalization_locked);
+  ASSERT_TRUE(identified.live.pose);
+  EXPECT_LT((identified.live.pose->pose.translation() - Eigen::Vector3d(140, 0, 0)).norm(), 0.5);
 }
 
 TEST_F(LocalizationEpisode, NoPlaceCandidateLeavesPoseUnavailable) {

@@ -68,6 +68,8 @@ void WorldLocalizing::resetLocalizationState() {
 }
 
 void WorldLocalizing::releaseSearchPreparation() {
+  initialized_reloc_seeds_.clear();
+  initialized_reloc_revision_ = {};
   target_provider_->clear();
   reloc_map_cache_ = pcl::make_shared<PointCloudT>();
   reloc_map_cached_keyframes_ = 0;

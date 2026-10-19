@@ -5,9 +5,8 @@
 #include <cmath>
 #include <limits>
 #include <glog/logging.h>
-#include "n3mapping/relocalization_order.h"
+#include "relocalization_seed_plan.h"
 #include <Eigen/Eigenvalues>
-#include <future>
 #include <map>
 #include <iomanip>
 #include <memory>
@@ -15,9 +14,6 @@
 
 namespace n3mapping {
 namespace {
-constexpr int kRelocMaxBasinCount = 3;
-constexpr int kRelocPerBasinVerifyCount = 3;
-constexpr double kRelocBasinAssignRadiusXY = 4.0;
 
 void fillQueryCloudDebugSummary(const PlaceObservation &observation,
                                 RelocQueryCloudDebugSummary *summary) {
@@ -44,7 +40,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   result.success = false;
   auto &cost = result.performance;
   cost.available = true;
-  std::mutex performance_mutex;
   const bool reloc_debug_enabled = debug_emitter_.enabled();
   RelocalizationDebugEvent debug_event = debug_emitter_.beginRelocalization();
   debug_event.query_timestamp = query_timestamp;
@@ -184,8 +179,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         return false;
       };
 
-  if (hypothesis_manager_.empty()) {
-    auto candidates = place_index_.search(query_cloud, &cost.descriptor);
+  const auto candidates = place_index_.search(query_cloud, &cost.descriptor);
+  bool initialized_this_frame = false;
+  bool reused_seed_plan = false;
+  bool retained_geometry_supported = false;
+  if (hypothesis_manager_.empty() || hypothesis_manager_.windowCount() == 0) {
     if (reloc_debug_enabled) {
       debug_event.query_cloud.candidate_count = candidates.size();
       debug_event.query_cloud.top_candidates = candidates;
@@ -201,45 +199,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       return completed_result();
     }
 
-    struct BasinGroup {
-      int64_t center_match_id = -1;
-      Eigen::Vector3d center_pos = Eigen::Vector3d::Zero();
-      std::vector<LoopCandidate> members;
-      std::vector<RelocTargetRequest> targets;
-    };
-    std::vector<BasinGroup> basins;
-    basins.reserve(kRelocMaxBasinCount);
-
-    // Candidates are already sorted by coarse descriptor distance.
-    // Build up to top-K basins in XY, then verify per-basin with local-submap
-    // ICP.
-    for (const auto &candidate : candidates) {
-      auto kf = keyframe_manager_.getKeyframe(candidate.match_id);
-      if (!kf)
-        continue;
-      const Eigen::Vector3d pos = kf->pose_optimized.translation();
-
-      int best_basin = -1;
-      double best_dist = std::numeric_limits<double>::max();
-      for (size_t i = 0; i < basins.size(); ++i) {
-        const double d =
-            (basins[i].center_pos.head<2>() - pos.head<2>()).norm();
-        if (d < best_dist) {
-          best_dist = d;
-          best_basin = static_cast<int>(i);
-        }
-      }
-
-      if (best_basin >= 0 && best_dist <= kRelocBasinAssignRadiusXY) {
-        basins[best_basin].members.push_back(candidate);
-      } else if (static_cast<int>(basins.size()) < kRelocMaxBasinCount) {
-        BasinGroup bg;
-        bg.center_match_id = candidate.match_id;
-        bg.center_pos = pos;
-        bg.members.push_back(candidate);
-        basins.push_back(std::move(bg));
-      }
-    }
+    auto plan = makeRelocalizationSeedPlan(candidates, keyframe_manager_, config_);
+    const auto &basins = plan.basins;
     if (reloc_debug_enabled) {
       debug_event.basins.clear();
       debug_event.basins.reserve(basins.size());
@@ -254,222 +215,37 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       }
     }
 
-    if (!basins.empty()) prepare_query();
-    // Workers share immutable requests. Rebuilding map revisions inside an
-    // asynchronous basin would race with the other basin workers.
-    for (auto &basin : basins) {
-      const auto count = std::min<std::size_t>(
-          basin.members.size(), kRelocPerBasinVerifyCount);
-      basin.targets.reserve(count);
-      for (std::size_t i = 0; i < count; ++i) {
-        basin.targets.push_back(makeRelocTargetRequest(basin.members[i].match_id));
+    const auto revision = keyframe_manager_.revision();
+    const bool has_alive = std::any_of(
+        hypothesis_manager_.hypotheses().begin(), hypothesis_manager_.hypotheses().end(),
+        [](const auto& hypothesis) { return hypothesis.alive; });
+    const bool reuse = has_alive && revision == initialized_reloc_revision_ &&
+                       plan.seeds == initialized_reloc_seeds_;
+    reused_seed_plan = reuse;
+    cost.reused_seed_plan = reuse;
+    if (!reuse) {
+      initialized_reloc_seeds_ = plan.seeds;
+      initialized_reloc_revision_ = revision;
+      prepare_query();
+      initializeRelocalization(std::move(plan), prepared_query, visibility_observation,
+                               odom_pose, cost, reloc_debug_enabled ? &debug_event : nullptr);
+      initialized_this_frame = true;
+      if (hypothesis_manager_.empty()) {
+        LOG(WARNING) << "Relocalization init failed: no valid ICP hypothesis.";
+        finish_debug("rejected", "no_valid_icp_hypothesis");
+        return completed_result();
       }
     }
-
-    struct BasinBest {
-      int64_t basin_center_id = -1;
-      int64_t matched_kf_id = -1;
-      LoopCandidate candidate;
-      MatchResult match;
-      VisibilityConsistencyResult visibility;
-      RegistrationObservability registration_observability;
-      double selection_score = std::numeric_limits<double>::max();
-    };
-    std::vector<BasinBest> basin_best_results;
-    basin_best_results.reserve(basins.size() * kRelocPerBasinVerifyCount);
-    const auto better_basin_mode = [](const BasinBest &candidate,
-                                      const BasinBest &incumbent) {
-      if (candidate.visibility.valid != incumbent.visibility.valid) {
-        return candidate.visibility.valid;
-      }
-      if (candidate.visibility.valid) {
-        const int order = compareRelocalizationScore(
-            candidate.visibility.consistency_ratio, incumbent.visibility.consistency_ratio);
-        if (order != 0) return order < 0;
-      }
-      const int quality_order = compareRelocalizationScore(
-          -candidate.selection_score, -incumbent.selection_score);
-      if (quality_order != 0) return quality_order < 0;
-      if (candidate.matched_kf_id != incumbent.matched_kf_id)
-        return candidate.matched_kf_id < incumbent.matched_kf_id;
-      if (candidate.basin_center_id != incumbent.basin_center_id)
-        return candidate.basin_center_id < incumbent.basin_center_id;
-      return relocalizationPoseLess(candidate.match.T_target_source,
-                                    incumbent.match.T_target_source);
-    };
-
-    const auto evaluate_basin = [&](const BasinGroup &basin) {
-      std::vector<BasinBest> basin_modes;
-      for (std::size_t i = 0; i < basin.targets.size(); ++i) {
-        const auto &candidate = basin.members[i];
-        RelocTargetRequest target_request = basin.targets[i];
-        RelocalizationPerformance candidate_cost;
-        const auto evaluations = candidate_evaluator_.evaluate(
-                 prepared_query, candidate,
-                 std::move(target_request), visibility_observation, &candidate_cost);
-        {
-          std::lock_guard<std::mutex> cost_lock(performance_mutex);
-          cost.addCandidate(candidate_cost);
-        }
-        for (const auto &evaluation : evaluations) {
-          const auto& selected_match = evaluation.match;
-          const auto quality = evaluateRelocMatchQuality(selected_match);
-          if (!quality.accepted)
-            continue;
-
-          BasinBest mode;
-          mode.basin_center_id = basin.center_match_id;
-          mode.matched_kf_id = evaluation.matched_keyframe_id;
-          mode.candidate = candidate;
-          mode.match = selected_match;
-          mode.visibility = evaluation.visibility;
-          if (reloc_debug_enabled) {
-            mode.registration_observability = analyzeRegistrationObservability(
-                selected_match,
-                selected_match.converged ? "registration_endpoint"
-                                         : "descriptor_initial",
-                true, quality.accepted);
-          }
-          const double descriptor_score = std::isfinite(candidate.fused_score)
-                                              ? candidate.fused_score
-                                              : 1.0;
-          mode.selection_score =
-              selected_match.fitness_score + descriptor_score;
-
-          auto duplicate = std::find_if(
-              basin_modes.begin(), basin_modes.end(),
-              [&](const BasinBest &existing) {
-                const Eigen::Isometry3d delta =
-                    existing.match.T_target_source.inverse() *
-                    mode.match.T_target_source;
-                return delta.translation().norm() <
-                           config_.reloc_ambiguity_min_basin_separation &&
-                       Eigen::AngleAxisd(delta.rotation()).angle() <
-                           config_.reloc_track_max_rotation;
-              });
-          if (duplicate == basin_modes.end()) {
-            basin_modes.push_back(std::move(mode));
-          } else if (better_basin_mode(mode, *duplicate)) {
-            *duplicate = std::move(mode);
-          }
-        }
-      }
-
-      std::sort(basin_modes.begin(), basin_modes.end(), better_basin_mode);
-      if (basin_modes.size() >
-          static_cast<std::size_t>(kRelocPerBasinVerifyCount)) {
-        basin_modes.resize(kRelocPerBasinVerifyCount);
-      }
-      return basin_modes;
-    };
-
-    // Atlas registration shares one immutable target across all independent
-    // spatial basins. Evaluate those basins concurrently, then merge in the
-    // original order so ranking and tie-breaking remain deterministic. The
-    // default path stays sequential.
-    if (localization_atlas_ && localization_atlas_->loaded() &&
-        basins.size() > 1) {
-      std::vector<std::future<std::vector<BasinBest>>> futures;
-      futures.reserve(basins.size());
-      for (const auto &basin : basins) {
-        futures.push_back(
-            std::async(std::launch::async, evaluate_basin, std::cref(basin)));
-      }
-      for (auto &future : futures) {
-        auto basin_modes = future.get();
-        basin_best_results.insert(basin_best_results.end(), basin_modes.begin(),
-                                  basin_modes.end());
-      }
-    } else {
-      for (const auto &basin : basins) {
-        auto basin_modes = evaluate_basin(basin);
-        basin_best_results.insert(basin_best_results.end(), basin_modes.begin(),
-                                  basin_modes.end());
-      }
-    }
-
-    std::sort(basin_best_results.begin(), basin_best_results.end(),
-              better_basin_mode);
-    if (reloc_debug_enabled) {
-      debug_event.basin_best_results.clear();
-      debug_event.basin_best_results.reserve(basin_best_results.size());
-      for (const auto &best : basin_best_results) {
-        RelocDebugBasinBestSummary summary;
-        summary.basin_center_id = best.basin_center_id;
-        summary.matched_kf_id = best.matched_kf_id;
-        summary.candidate = best.candidate;
-        summary.pose_in_map = best.match.T_target_source;
-        summary.fitness_score = best.match.fitness_score;
-        summary.inlier_ratio = best.match.inlier_ratio;
-        summary.selection_score = best.selection_score;
-        summary.log_likelihood =
-            computeRelocLogLikelihood(best.candidate, best.match);
-        summary.visibility_consistency_ratio =
-            best.visibility.valid ? best.visibility.consistency_ratio
-                                  : std::numeric_limits<double>::quiet_NaN();
-        summary.visibility_observed_coverage =
-            best.visibility.valid ? best.visibility.observed_coverage
-                                  : std::numeric_limits<double>::quiet_NaN();
-        summary.visibility_foreground_conflict_ratio =
-            best.visibility.valid ? best.visibility.foreground_conflict_ratio
-                                  : std::numeric_limits<double>::quiet_NaN();
-        summary.visibility_evidence_log_odds =
-            best.visibility.valid ? best.visibility.evidence_log_odds
-                                  : std::numeric_limits<double>::quiet_NaN();
-        summary.visibility_known_bins = best.visibility.known_bins;
-        summary.visibility_unknown_bins = best.visibility.unknown_bins;
-        summary.visibility_known_fraction = best.visibility.known_fraction;
-        summary.visibility_consistent_given_known =
-            best.visibility.consistent_given_known;
-        summary.visibility_foreground_conflict_given_known =
-            best.visibility.foreground_conflict_given_known;
-        summary.visibility_evidence_log_odds_given_known =
-            best.visibility.evidence_log_odds_given_known;
-        summary.registration_observability = best.registration_observability;
-        debug_event.basin_best_results.push_back(std::move(summary));
-      }
-    }
-
-    VLOG(1) << "Relocalization basin init: coarse_candidates="
-            << candidates.size() << " basins=" << basins.size()
-            << " retained_pose_modes=" << basin_best_results.size();
-
-    std::vector<RelocHypothesis> seeded_hypotheses;
-    seeded_hypotheses.reserve(basin_best_results.size());
-    for (const auto &bb : basin_best_results) {
-      RelocHypothesis hyp;
-      hyp.seed_match_id = bb.basin_center_id;
-      hyp.last_match_id = bb.matched_kf_id;
-      hyp.T_map_odom = bb.match.T_target_source * odom_pose.inverse();
-      hyp.cumulative_log_likelihood =
-          computeRelocLogLikelihood(bb.candidate, bb.match);
-      hyp.num_updates = 1;
-      hyp.converged_updates = 1;
-      if (bb.visibility.valid) {
-        hyp.visibility_consistency_sum = bb.visibility.consistency_ratio;
-        hyp.visibility_evidence_sum = bb.visibility.evidence_log_odds;
-        hyp.visibility_updates = 1;
-      }
-      hyp.last_registration_observability = bb.registration_observability;
-      hyp.alive = true;
-      seeded_hypotheses.push_back(hyp);
-    }
-    hypothesis_manager_.start(std::move(seeded_hypotheses), odom_pose);
-
-    if (hypothesis_manager_.empty()) {
-      LOG(WARNING) << "Relocalization init failed: no valid ICP hypothesis.";
-      finish_debug("rejected", "no_valid_icp_hypothesis");
-      return completed_result();
-    }
-  } else {
-    const auto current_candidates = place_index_.search(query_cloud, &cost.descriptor);
+  }
+  if (!initialized_this_frame) {
+    const auto &current_candidates = candidates;
     if (reloc_debug_enabled) {
       debug_event.query_cloud.candidate_count = current_candidates.size();
       debug_event.query_cloud.top_candidates = current_candidates;
       debug_event.candidate_count = current_candidates.size();
       debug_event.top_candidates = current_candidates;
     }
-    hypothesis_manager_.advanceWindow();
+    hypothesis_manager_.advanceWindow(odom_pose);
     // Hypotheses are independent until ranking. Evaluate those using the same
     // immutable map target together, without reordering their stored identities
     // or retaining an unbounded set of prepared targets across observations.
@@ -563,6 +339,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             computeTrackLogLikelihood(mr, predicted_pose);
         hyp.num_updates += 1;
         if (hasValidRegistrationResult(mr)) {
+          retained_geometry_supported |= evaluateRelocMatchQuality(mr).accepted;
           hyp.T_map_odom = selected_pose * odom_pose.inverse();
           hyp.last_match_id = nearest_kf_id;
           hyp.converged_updates += 1;
@@ -624,6 +401,23 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           hyp.visibility_updates += 1;
         }
       }
+    }
+  }
+
+  // Retrieval can return the same seeds after geometry changes. A previously
+  // rejected yaw/place may now be the valid mode. Retry this observation cold
+  // when none of the retained poses has current geometric support; do not wait
+  // for another confirmation window or borrow the previous window's quality.
+  if (reused_seed_plan && !retained_geometry_supported) {
+    prepare_query();
+    initializeRelocalization(
+        makeRelocalizationSeedPlan(candidates, keyframe_manager_, config_),
+        prepared_query, visibility_observation, odom_pose, cost,
+        reloc_debug_enabled ? &debug_event : nullptr);
+    cost.retried_seed_plan = true;
+    if (hypothesis_manager_.empty()) {
+      finish_debug("rejected", "no_valid_icp_hypothesis");
+      return completed_result();
     }
   }
 
@@ -956,16 +750,19 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     finish_debug("rejected", reject_reason);
   }
 
-  // Card C/D: clearing after every rejected window capped the accumulated
-  // viewpoint baseline at 1-3 cm. The manager keeps the seed pose across
-  // rejected windows, so the baseline grows with the robot's motion.
-  const HypothesisPersistenceResult persistence =
-      hypothesis_manager_.finishWindow(result.success,
-                                       config_.reloc_persist_hypotheses,
-                                       config_.reloc_persist_max_frames);
-  if (persistence.reseeded) {
-    VLOG(1) << "[Reloc/Persist] reseeding: alive=" << persistence.any_alive
-            << " persisted_frames=" << persistence.persisted_frames;
+  // Confirmation evidence belongs to this window only. Retained pose proposals
+  // may be reused only after comparing the next window's fresh descriptor seeds.
+  if (!result.success && !config_.reloc_persist_hypotheses) {
+    hypothesis_manager_.renewWindow();
+  } else {
+    const HypothesisPersistenceResult persistence =
+        hypothesis_manager_.finishWindow(result.success,
+                                         config_.reloc_persist_hypotheses,
+                                         config_.reloc_persist_max_frames);
+    if (persistence.reseeded) {
+      VLOG(1) << "[Reloc/Persist] reseeding: alive=" << persistence.any_alive
+              << " persisted_frames=" << persistence.persisted_frames;
+    }
   }
 
   return completed_result();

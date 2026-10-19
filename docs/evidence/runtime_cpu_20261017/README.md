@@ -1460,3 +1460,89 @@ tilt, and tilted floor-only observations. These checks do not qualify large
 dynamic occlusions, arbitrary odometry-world tilt, all repeated environments,
 out-of-map/re-entry behavior or RK3588 deployment. Installed programs and
 simple_rbt are unchanged; no DDS timing or hardware-performance claim is made.
+
+### Fresh confirmation with reusable seed plans (2026-10-19)
+
+The next step reduces repeated initialization after a rejected confirmation
+window. With the same freshly retrieved keyframe/yaw seeds and map revision,
+the localizer keeps pose proposals and competing hypotheses, while clearing
+the previous window's likelihoods, update counts, visibility evidence and winner
+streak. Every confirmation window therefore needs fresh observations. Changed
+seeds, a changed map or no surviving hypothesis still trigger initialization.
+If none of the reused poses has acceptable geometry in the current observation,
+the localizer retries the full seed plan on that same observation. This recovery
+is necessary even when retrieval returns identical seeds: a previously rejected
+pose mode may become the supported one as the robot moves.
+
+The candidate initialization code now lives in
+`src/world_localizing_initialization.cpp` (275 lines), reducing
+`world_localizing_relocalization.cpp` to 771 lines. Preprocessing, registration
+objective, numeric acceptance gates, RHPD and tracking are unchanged. Costs
+expose `reused_seed_plan` and `retried_seed_plan`; these are diagnostics, not
+inputs to the search policy. Reset, map replacement and successful lock release
+the stored seed plan. The experimental persistent-evidence mode retains its
+existing behavior.
+
+[Measurements, input fingerprints and validation logs](../relocalization_reuse_20261019.json)
+record serial, unpaced core + `RealtimeOutput` replays on CPUs 0/2/4/6 with
+PASSIVE OpenMP. Process CPU includes all workers and replay overhead after map
+load. The budget denominator is the fixed input timestamp span, not the slower
+processing wall time; short CPU peaks are allowed. Normal simulation comparisons
+use the preceding complete directional-witness replay, whose frozen binary hash
+is recorded separately. The real-data comparison uses the frozen `5b64e6a`
+baseline. Final timed runs did not overlap this session's builds.
+
+| Input | Frames | Initializations before → after | Alignments before → after | Process CPU before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Central simulation | 346 | 1 → 1 | 51 → 51 | 22.40 → 22.36 s |
+| South simulation | 346 | 1 → 1 | 56 → 56 | 19.97 → 20.11 s |
+| North simulation | 346 | 1 → 1 | 68 → 68 | 24.43 → 24.49 s |
+| Repetitive changed scene | 346 | 70 → 65 | 4,445 → 4,297 | 1,759.57 → 1,670.06 s |
+| Floor 7 outside room 710 | 100 | 20 → 18 | 1,380 → 1,288 | 84.54 → 78.48 s |
+
+The complete negative remains at zero locks and zero authoritative outputs;
+this is abstention, not a recovered pose or an accuracy score. Its CPU reduction
+is about 5.1% in this single full comparison. The real difficult prefix saves
+about 7.2%, also without locking; it has no independent position truth. The
+three normal simulations retain their first lock at frame index 4, all 342
+outputs, all decisions/work counts and pose matrix agreement within 3.56e-15.
+Their whole-episode CPU/input ratios are 0.648 / 0.583 / 0.710; after-lock
+tracking alone is 0.269 / 0.268 / 0.297 core. Tracking cost cannot be used to
+claim that initial or difficult search meets the budget.
+
+**The difficult-search half-core target is not achieved.** The complete negative
+still needs 1,670.06 CPU seconds for 34.5 seconds of input, a required CPU/input
+ratio of 48.41. This is a throughput deficit, not measured utilization of 48
+physical cores. A small change in the descriptor seed set still rebuilds the
+whole initialization plan. Incremental admission of changed seeds and the cost
+of continuous hypothesis registration remain open. No input frames were dropped
+and no acceptance thresholds were relaxed to obtain the reported reductions.
+
+Original floor-7 bags were recovered from the persistent bag directory and
+paired by exact cloud/odometry header timestamps. Their matching map is
+`bagfile/n3mapping_test/n3map.pbstream` (SHA256
+`a69db12c2476ec1eea2781068fe334415e102bf92d64871d3e707e99a9554d75`),
+not the different map shipped in this repository. Exploratory runs using the
+wrong pair and timings overlapping a build are excluded. Inside-room and
+room-to-meeting prefixes each retain all 100 decisions, 96 outputs and first
+lock at index 4. The generated saved-map fixture retains all 300 decisions and
+296 outputs; it remains a behavior fixture, not independent accuracy evidence.
+
+Final Humble CTest passes **61/61**. Nine synthetic episodes pass in default,
+Atlas and experimental kill modes (94 observations per mode). Five ambiguous
+confirmation windows now need one initialization instead of five, publish no
+guess, and lock at the same third fresh observation after distinct geometry
+appears. A separate episode holds retrieval seeds unchanged while a previously
+unsupported place becomes valid; baseline and final pass, while unguarded
+proposal reuse fails. The map-extension fixture now models a moving sensor
+observing fixed world surfaces and checks known positions; baseline and final
+both pass.
+
+Three ablations were rejected: a stationary-endpoint cache saved only 35 of
+1,380 registrations and increased CPU from 84.54 to 84.78 s; unguarded proposal
+reuse could strand search in old pose modes; a scalar normal-projection objective
+reduced some replay costs but failed the physically consistent map-extension
+case. Their source/results remain in the build artifact directory, and none of
+these rejected implementations or speedups is part of the delivered change.
+Installed executables, simple_rbt and remote branches are unchanged. Full
+out-of-map/re-entry behavior and RK3588 qualification remain unverified.

@@ -34,10 +34,25 @@ void RelocalizationHypothesisManager::start(
   }
 }
 
-void RelocalizationHypothesisManager::advanceWindow() {
+void RelocalizationHypothesisManager::advanceWindow(const Eigen::Isometry3d &odom_pose) {
   if (!hypotheses_.empty()) {
+    if (window_count_ == 0) window_start_odom_pose_ = odom_pose;
     ++window_count_;
   }
+}
+
+void RelocalizationHypothesisManager::renewWindow() {
+  for (auto& hypothesis : hypotheses_) {
+    hypothesis.cumulative_log_likelihood = 0.0;
+    hypothesis.num_updates = 0;
+    hypothesis.converged_updates = 0;
+    hypothesis.visibility_consistency_sum = 0.0;
+    hypothesis.visibility_evidence_sum = 0.0;
+    hypothesis.visibility_updates = 0;
+  }
+  window_count_ = 0;
+  has_last_winner_transform_ = false;
+  winner_streak_ = 0;
 }
 
 int RelocalizationHypothesisManager::windowCount() const {

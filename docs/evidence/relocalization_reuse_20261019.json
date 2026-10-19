@@ -1,0 +1,450 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "5b64e6a",
+  "artifact_root": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019",
+  "method": "Serial frozen replay of all selected input frames on CPUs 0/2/4/6, PASSIVE OpenMP; process CPU includes all workers and replay overhead after map load. CPU budget uses fixed input span; peaks are unrestricted. Core + RealtimeOutput replay, not DDS timing or hardware qualification.",
+  "change": "Keep pose proposals when the fresh descriptor seed plan and map revision match; discard prior confirmation scores/counts/streak. Re-evaluate current geometry. If retained modes have no current accepted geometric support, initialize from the same observation immediately. Existing point-cloud preprocessing, optimizer, numeric acceptance gates, descriptor and tracking retained.",
+  "baseline_core_sha256": "8325528696c6336d8d334f761756254e3413c1574a52cb11b32ff2d48f4e82d0",
+  "simulation_reference_core_sha256": "c7cd046af4aa0745a7232a77327d74091d3e7c36f990336e058eafdcbccf805d",
+  "simulation_reference_note": "Previous complete directional-witness replay, before diagnostic-only wording/local-result-copy cleanup; fresh floor7 comparisons use the exact frozen 5b64e6a library.",
+  "final_core_sha256": "f5e54e1a9736c72c854724b4a04fbdd659bd7633edfe92cd2b4df00937148fda",
+  "final_probe_sha256": "42c28d3c9e359fb68fdcb1389acdeb4d06c26b9d792627e4b31dcc5f5c70a0ee",
+  "source_sha256": {
+    "cmake/n3mapping_core.cmake": "652bdbf5fc12959063ca02c27074907943651f706588ad29bcb7dd59747d10e5",
+    "include/n3mapping/relocalization_hypothesis_manager.h": "2cbd4329e15857b0107b20e62f6217291c1bd3a710b86b7552a1cda7ae1fd34d",
+    "include/n3mapping/relocalization_performance.h": "b7c768ac19a0ec8fcb146ceb5e477a5ab7ab01cddb4a69dcae9a1bd41c697d03",
+    "include/n3mapping/world_localizing.h": "85c34dcca661a086973a4aa659dae7b300ba7464eefa906a6a06aae7cdb299fc",
+    "src/relocalization_hypothesis_manager.cpp": "f60a1317ccbc420befc558bf182a3bc68101c4e03ab5f3acd270dbb657e4f22d",
+    "src/relocalization_performance.cpp": "60dc5f6b1cd612ca4f50290cd71b9d1a233fa556ecdb07361803fa560ed51f8c",
+    "src/world_localizing.cpp": "ca00a592b68c8202e80c0b63d34789e5908c9bdfd5a187af37542f8f1ecd4c3c",
+    "src/world_localizing_relocalization.cpp": "374e296f961d91d4008ebba3b4e5f1f7c85b38d0b04805e5741c6cbfdddbfe12",
+    "test/test_localization_episode.cpp": "9d12c32b2e8da753c4704b882c244b5b7c56601322f6a9c696868e2457256a5b",
+    "test/test_n3mapping_core.cpp": "7d51667e36ddafab952f8ef10a98dd2a8cebc5363b80515711b8237e7cfae86d",
+    "src/relocalization_seed_plan.h": "c5bd3a9e9dd9871d981251f838b46a07026ad89c569d373e32c0333d30cd62d2",
+    "src/world_localizing_initialization.cpp": "5f19590664262a5bba7f11ab7b1a0054df3da6b59384ea4014422fec5b3fb073"
+  },
+  "simulation_map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+  "floor7_map_sha256": "a69db12c2476ec1eea2781068fe334415e102bf92d64871d3e707e99a9554d75",
+  "simulation": [
+    {
+      "case": "central_v2",
+      "manifest_sha256": "7a83bebd30c784f9139e25e8e5731063003906473a83e5c99355501c891feb96",
+      "baseline": {
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "initializations": 1,
+        "alignments": 51,
+        "cpu_s": 22.40377751,
+        "unpaced_wall_s": 8.776824369,
+        "input_span_s": 34.499994995,
+        "peak_rss_mib": 1912.1953125,
+        "cpu_s_per_input_s": 0.6493849495701934,
+        "cpu_to_first_lock_s": 13.096546851,
+        "unpaced_wall_to_first_lock_s": 6.133961541,
+        "tracking_cpu_s_per_input_s": 0.2729393155131965,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final": {
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "initializations": 1,
+        "alignments": 51,
+        "cpu_s": 22.356183069,
+        "unpaced_wall_s": 8.197465546,
+        "input_span_s": 34.499994995,
+        "peak_rss_mib": 1911.484375,
+        "cpu_s_per_input_s": 0.648005400355566,
+        "cpu_to_first_lock_s": 13.167903157,
+        "unpaced_wall_to_first_lock_s": 5.5734228990000005,
+        "tracking_cpu_s_per_input_s": 0.26945102381231667,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/central_v2_verified_final_0.csv",
+      "comparison": {
+        "changed_decision_or_work_count_frames": [],
+        "maximum_pose_matrix_delta": 4.440892098500626e-16
+      },
+      "truth_reference": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/localization_reliability_20261019/central_v2_score.json"
+    },
+    {
+      "case": "south_v2",
+      "manifest_sha256": "58c6ccdd4d6c4bafd87cd60384db52368133ef25c62a88f40dffe85bf3798bd9",
+      "baseline": {
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "initializations": 1,
+        "alignments": 56,
+        "cpu_s": 19.969253913,
+        "unpaced_wall_s": 7.838513817,
+        "input_span_s": 34.499994995,
+        "peak_rss_mib": 1912.13671875,
+        "cpu_s_per_input_s": 0.5788190379707039,
+        "cpu_to_first_lock_s": 10.669421135999999,
+        "unpaced_wall_to_first_lock_s": 5.161560495,
+        "tracking_cpu_s_per_input_s": 0.2727224088555911,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final": {
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "initializations": 1,
+        "alignments": 56,
+        "cpu_s": 20.105907074999998,
+        "unpaced_wall_s": 8.145934793,
+        "input_span_s": 34.499994995,
+        "peak_rss_mib": 1911.59765625,
+        "cpu_s_per_input_s": 0.5827799997627217,
+        "cpu_to_first_lock_s": 10.951184951,
+        "unpaced_wall_to_first_lock_s": 5.445759543,
+        "tracking_cpu_s_per_input_s": 0.26846696386150015,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/south_v2_verified_final_0.csv",
+      "comparison": {
+        "changed_decision_or_work_count_frames": [],
+        "maximum_pose_matrix_delta": 3.552713678800501e-15
+      },
+      "truth_reference": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/localization_reliability_20261019/south_v2_score.json"
+    },
+    {
+      "case": "north_v2",
+      "manifest_sha256": "6ced4bed6f06cff63b0e8fe409949a924a28873e8b96c50222ec2deabf6deb95",
+      "baseline": {
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "initializations": 1,
+        "alignments": 68,
+        "cpu_s": 24.425111036999997,
+        "unpaced_wall_s": 9.105392158,
+        "input_span_s": 34.500005005,
+        "peak_rss_mib": 1911.94921875,
+        "cpu_s_per_input_s": 0.7079741302489704,
+        "cpu_to_first_lock_s": 14.179763362000001,
+        "unpaced_wall_to_first_lock_s": 6.240526714,
+        "tracking_cpu_s_per_input_s": 0.3004500343474362,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final": {
+        "frames": 346,
+        "first_lock_frame": 4,
+        "outputs": 342,
+        "initializations": 1,
+        "alignments": 68,
+        "cpu_s": 24.490527073,
+        "unpaced_wall_s": 9.448911062999999,
+        "input_span_s": 34.500005005,
+        "peak_rss_mib": 1911.7109375,
+        "cpu_s_per_input_s": 0.7098702469594033,
+        "cpu_to_first_lock_s": 14.361641683,
+        "unpaced_wall_to_first_lock_s": 6.442117057000001,
+        "tracking_cpu_s_per_input_s": 0.29703471857305663,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/north_v2_verified_final_0.csv",
+      "comparison": {
+        "changed_decision_or_work_count_frames": [],
+        "maximum_pose_matrix_delta": 3.0531133177191805e-16
+      },
+      "truth_reference": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/localization_reliability_20261019/north_v2_score.json"
+    },
+    {
+      "case": "repetitive_v2",
+      "manifest_sha256": "6e65682e1ba0f3a8fd7eca4c277f7eb8ff7b88f185d678ba5052d7985b1e6bf9",
+      "baseline": {
+        "frames": 346,
+        "first_lock_frame": null,
+        "outputs": 0,
+        "initializations": 70,
+        "alignments": 4445,
+        "cpu_s": 1759.5664409669998,
+        "unpaced_wall_s": 558.345049684,
+        "input_span_s": 34.5,
+        "peak_rss_mib": 1911.87890625,
+        "cpu_s_per_input_s": 51.00192582513043,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final": {
+        "frames": 346,
+        "first_lock_frame": null,
+        "outputs": 0,
+        "initializations": 65,
+        "alignments": 4297,
+        "cpu_s": 1670.057654309,
+        "unpaced_wall_s": 531.348756987,
+        "input_span_s": 34.5,
+        "peak_rss_mib": 1911.65625,
+        "cpu_s_per_input_s": 48.40746824084058,
+        "reused_seed_plan_observations": 5,
+        "retried_seed_plan_observations": 0
+      },
+      "final_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/repetitive_v2_verified_final_0.csv",
+      "outcome": "Abstention on changed/repetitive geometry; not successful localization and not an accuracy score."
+    }
+  ],
+  "real_prefixes": [
+    {
+      "case": "floor7_outside_710_room",
+      "baseline": {
+        "frames": 100,
+        "first_lock_frame": null,
+        "outputs": 0,
+        "initializations": 20,
+        "alignments": 1380,
+        "cpu_s": 84.538347742,
+        "unpaced_wall_s": 26.703989878,
+        "input_span_s": 9.899784326,
+        "peak_rss_mib": 185.33984375,
+        "cpu_s_per_input_s": 8.539413077916784,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final": {
+        "frames": 100,
+        "first_lock_frame": null,
+        "outputs": 0,
+        "initializations": 18,
+        "alignments": 1288,
+        "cpu_s": 78.476782793,
+        "unpaced_wall_s": 23.980531037000002,
+        "input_span_s": 9.899784326,
+        "peak_rss_mib": 187.10546875,
+        "cpu_s_per_input_s": 7.927120451189514,
+        "reused_seed_plan_observations": 2,
+        "retried_seed_plan_observations": 0
+      },
+      "manifest_metadata": {
+        "source": "/home/user/ros_ws/bagfile/n3mapping_test/floor7_outside_710_room.bag",
+        "source_sha256": "176efeb6de09c6755296216464d3bbeafbe1e76adf0033c94cfe4ed6adaabe96",
+        "frames": 448,
+        "odom_messages": 448,
+        "cloud_messages": 448,
+        "manifest_sha256": "3d37010ef11ab29e3b8fa54136f66ad88c8aef2d3a8bb816cd1fb151ee41993d",
+        "truth": false
+      },
+      "independent_truth_available": false
+    },
+    {
+      "case": "floor7_inside_710_room",
+      "baseline": {
+        "frames": 100,
+        "first_lock_frame": 4,
+        "outputs": 96,
+        "initializations": 1,
+        "alignments": 81,
+        "cpu_s": 4.042416276999999,
+        "unpaced_wall_s": 1.307675352,
+        "input_span_s": 9.901467084,
+        "peak_rss_mib": 188.19921875,
+        "cpu_s_per_input_s": 0.40826437564310336,
+        "cpu_to_first_lock_s": 2.757963178,
+        "unpaced_wall_to_first_lock_s": 0.9405330719999999,
+        "tracking_cpu_s_per_input_s": 0.135183506559201,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final": {
+        "frames": 100,
+        "first_lock_frame": 4,
+        "outputs": 96,
+        "initializations": 1,
+        "alignments": 81,
+        "cpu_s": 4.041356364,
+        "unpaced_wall_s": 1.3052739549999999,
+        "input_span_s": 9.901467084,
+        "peak_rss_mib": 187.91796875,
+        "cpu_s_per_input_s": 0.40815732958709905,
+        "cpu_to_first_lock_s": 2.778292211,
+        "unpaced_wall_to_first_lock_s": 0.943038177,
+        "tracking_cpu_s_per_input_s": 0.13293240628614594,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "manifest_metadata": {
+        "source": "/home/user/ros_ws/bagfile/n3mapping_test/floor7_inside_710_room.bag",
+        "source_sha256": "52922599d25e37e45d26a03deb9c9514cdd3b0b22768a6c06d83a0e167b4186d",
+        "frames": 452,
+        "odom_messages": 452,
+        "cloud_messages": 452,
+        "manifest_sha256": "4da4511c0a5fde43f66b0117eb15ebb4e3783f362bf4ce46b939498f3151b142",
+        "truth": false
+      },
+      "independent_truth_available": false,
+      "comparison": {
+        "changed_decision_or_work_count_frames": [],
+        "maximum_pose_matrix_delta": 8.881784197001252e-16
+      }
+    },
+    {
+      "case": "floor7_710toMeeting",
+      "baseline": {
+        "frames": 100,
+        "first_lock_frame": 4,
+        "outputs": 96,
+        "initializations": 1,
+        "alignments": 83,
+        "cpu_s": 4.815678521,
+        "unpaced_wall_s": 1.7366730339999998,
+        "input_span_s": 9.899982691,
+        "peak_rss_mib": 255.5703125,
+        "cpu_s_per_input_s": 0.48643302431002194,
+        "cpu_to_first_lock_s": 2.9428209400000003,
+        "unpaced_wall_to_first_lock_s": 0.980039464,
+        "tracking_cpu_s_per_input_s": 0.1971450901417625,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "final": {
+        "frames": 100,
+        "first_lock_frame": 4,
+        "outputs": 96,
+        "initializations": 1,
+        "alignments": 83,
+        "cpu_s": 4.79866663,
+        "unpaced_wall_s": 1.515451167,
+        "input_span_s": 9.899982691,
+        "peak_rss_mib": 255.39453125,
+        "cpu_s_per_input_s": 0.4847146484773586,
+        "cpu_to_first_lock_s": 2.955193029,
+        "unpaced_wall_to_first_lock_s": 0.9865418130000001,
+        "tracking_cpu_s_per_input_s": 0.1940520053046706,
+        "reused_seed_plan_observations": 0,
+        "retried_seed_plan_observations": 0
+      },
+      "manifest_metadata": {
+        "source": "/home/user/ros_ws/bagfile/n3mapping_test/floor7_710toMeeting.bag",
+        "source_sha256": "fe466f40cf2b18e5ff7799b32961405c9ea353e160e7d87c57d891038d96dd45",
+        "frames": 1848,
+        "odom_messages": 1849,
+        "cloud_messages": 1848,
+        "manifest_sha256": "560c60b2b70234bd83dcfc9580b121852a5293bdf048bf46afea3370d315681b",
+        "truth": false
+      },
+      "independent_truth_available": false,
+      "comparison": {
+        "changed_decision_or_work_count_frames": [],
+        "maximum_pose_matrix_delta": 2.6645352591003757e-15
+      }
+    }
+  ],
+  "saved_map": {
+    "baseline": {
+      "frames": 300,
+      "first_lock_frame": 4,
+      "outputs": 296,
+      "initializations": 1,
+      "alignments": 76,
+      "cpu_s": 6.568590492999999,
+      "unpaced_wall_s": 2.8059544030000003,
+      "input_span_s": 29.9,
+      "peak_rss_mib": 320.91796875,
+      "cpu_s_per_input_s": 0.21968530076923076,
+      "cpu_to_first_lock_s": 2.847921041,
+      "unpaced_wall_to_first_lock_s": 1.12915426,
+      "tracking_cpu_s_per_input_s": 0.1261243882033898,
+      "reused_seed_plan_observations": 0,
+      "retried_seed_plan_observations": 0
+    },
+    "final": {
+      "frames": 300,
+      "first_lock_frame": 4,
+      "outputs": 296,
+      "initializations": 1,
+      "alignments": 76,
+      "cpu_s": 6.51040124,
+      "unpaced_wall_s": 2.1297081760000003,
+      "input_span_s": 29.9,
+      "peak_rss_mib": 320.7421875,
+      "cpu_s_per_input_s": 0.21773917190635453,
+      "cpu_to_first_lock_s": 2.843637065,
+      "unpaced_wall_to_first_lock_s": 1.047666011,
+      "tracking_cpu_s_per_input_s": 0.1242970906779661,
+      "reused_seed_plan_observations": 0,
+      "retried_seed_plan_observations": 0
+    },
+    "comparison": {
+      "changed_decision_or_work_count_frames": [],
+      "maximum_pose_matrix_delta": 8.704148513061227e-14
+    },
+    "scope": "Same-map generated behavior/cost fixture, not independent accuracy evidence."
+  },
+  "synthetic_reuse": {
+    "baseline": {
+      "ambiguous_initializations": 5,
+      "first_distinct_lock_stamp": "38000000000"
+    },
+    "final": {
+      "ambiguous_initializations": 1,
+      "first_distinct_lock_stamp": "38000000000"
+    }
+  },
+  "validation": {
+    "ctest": "61/61",
+    "ctest_log": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/final_ctest.log",
+    "episode_modes": {
+      "default": {
+        "tests": 9,
+        "observations": 94,
+        "log": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/default_final_episode.log"
+      },
+      "atlas": {
+        "tests": 9,
+        "observations": 94,
+        "log": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/atlas_final_episode.log"
+      },
+      "kill": {
+        "tests": 9,
+        "observations": 94,
+        "log": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/kill_final_episode.log"
+      }
+    },
+    "unchanged_seed_new_mode": "ABI-matched baseline passes; unguarded renew2 fails; final passes within the same three-observation confirmation window.",
+    "abi_reference_logs": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/abi_reference",
+    "physical_dense_fixture": "Moving sensor observes a fixed world; baseline and final pass known map-position assertions."
+  },
+  "ablations": [
+    {
+      "name": "stationary cached endpoint",
+      "promoted": false,
+      "reason": "Only 35 of 1380 alignments avoided on difficult real prefix; 84.54 -> 84.78 s CPU, no benefit.",
+      "artifacts": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/stationary_cache_ablation"
+    },
+    {
+      "name": "renewal without geometry-loss recovery",
+      "promoted": false,
+      "reason": "Same seed identities can conceal a newly supported pose mode; new end-to-end test fails. Fixed by same-observation cold fallback.",
+      "artifacts": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/renew2"
+    },
+    {
+      "name": "scalar normal-distance coarse registration",
+      "promoted": false,
+      "reason": "Normal-route CPU improved but physically consistent map extension stalls at 1.2 m. Mathematical objective change is not a verified system improvement.",
+      "artifacts": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/relocalization_reuse_20261019/normal_projection"
+    }
+  ],
+  "excluded_results": {
+    "normal_projection_full": "Serial full replay after CTest; no concurrent builds. All input frames consumed; process CPU divided by fixed recording duration, map load excluded.",
+    "renew2_full": "Behavioral ablation only. Build/test overlapped this replay; exclude timing from performance claims.",
+    "verified_baseline_full": "outside710 overlapped initial compilation; use clean baseline_100 for timed real comparison.",
+    "baseline_real_summary": "Invalid pairing: repository map used with floor7 bags. Exclude these results from localization and performance claims.",
+    "half_core_target": "<= 0.5 average core, peak unconstrained; not achieved."
+  },
+  "remaining": [
+    "Difficult-search average <= 0.5 core is NOT achieved; complete negative consumes far more CPU than its input span permits.",
+    "A changed candidate/yaw set still rebuilds the whole initialization plan; incremental admission remains open.",
+    "First initialization and continuous hypothesis registration remain expensive.",
+    "No universal repeated-scene reliability, full out-of-map/re-entry, or RK3588 hardware qualification."
+  ],
+  "delivery": "Local source/build only; installed executables are regular unchanged files, no installation or remote push."
+}

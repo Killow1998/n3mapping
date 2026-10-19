@@ -686,6 +686,20 @@ TEST(N3MappingCoreTest, MapExtensionDenseSampleDoesNotDoubleApplyLoadedMapCorrec
 TEST(N3MappingCoreTest,
      MapExtensionDenseSamplesUseAuthoritativeTrackedPoses)
 {
+    // Keep the world surfaces fixed while moving the sensor. Repeating a body
+    // cloud unchanged at a new odometry pose describes moving world geometry.
+    const auto observed_frame = [](int64_t stamp, const Eigen::Isometry3d& pose) {
+        auto frame = makeFrame(stamp, pose);
+        auto cloud = pcl::make_shared<core::LioFrame::PointCloud>(*frame.undistorted_cloud);
+        for (auto& point : *cloud) {
+            const Eigen::Vector3d p = pose.inverse() * Eigen::Vector3d(point.x, point.y, point.z);
+            point.x = static_cast<float>(p.x());
+            point.y = static_cast<float>(p.y());
+            point.z = static_cast<float>(p.z());
+        }
+        frame.undistorted_cloud = cloud;
+        return frame;
+    };
     Config config = makeCoreTestConfig();
     config.reloc_temporal_window_size = 1;
     config.reloc_lock_min_winner_streak = 1;
@@ -734,9 +748,10 @@ TEST(N3MappingCoreTest,
     Eigen::Isometry3d moved_odom = Eigen::Isometry3d::Identity();
     moved_odom.translation().x() = 1.0;
     const auto extension = extension_core.processMapExtensionFrame(
-        makeFrame(3000000000, moved_odom));
+        observed_frame(3000000000, moved_odom));
     ASSERT_TRUE(extension.success);
     ASSERT_TRUE(extension.accepted_keyframe);
+    EXPECT_LT((extension.T_world_lidar.translation() - Eigen::Vector3d(1, 10, 0)).norm(), 1e-3);
     const auto dense_after_keyframe =
         extension_core.getDenseOptimizedTrajectory();
     const auto keyframe_sample = std::find_if(
@@ -751,9 +766,10 @@ TEST(N3MappingCoreTest,
     Eigen::Isometry3d internal_dense_odom = moved_odom;
     internal_dense_odom.translation().x() = 1.2;
     const auto internal = extension_core.processMapExtensionFrame(
-        makeFrame(4000000000, internal_dense_odom));
+        observed_frame(4000000000, internal_dense_odom));
     ASSERT_TRUE(internal.success);
     ASSERT_FALSE(internal.accepted_keyframe);
+    EXPECT_LT((internal.T_world_lidar.translation() - Eigen::Vector3d(1.2, 10, 0)).norm(), 1e-3);
 
     const auto dense_with_internal =
         extension_core.getDenseOptimizedTrajectory();

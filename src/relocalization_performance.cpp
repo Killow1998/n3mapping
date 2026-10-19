@@ -40,6 +40,8 @@ Json::Value relocalizationPerformanceJson(const RelocalizationPerformance &cost)
   value["target_preparations"] = Json::UInt64(cost.target_preparations);
   value["alignments"] = Json::UInt64(cost.alignments);
   value["rejected_alignments"] = Json::UInt64(cost.rejected_alignments);
+  value["reused_seed_plan"] = cost.reused_seed_plan;
+  value["retried_seed_plan"] = cost.retried_seed_plan;
   value["fixed_pose_evaluations"] = Json::UInt64(cost.fixed_pose_evaluations);
   value["visibility_evaluations"] = Json::UInt64(cost.visibility_evaluations);
   value["candidates"] = Json::UInt64(cost.candidates);

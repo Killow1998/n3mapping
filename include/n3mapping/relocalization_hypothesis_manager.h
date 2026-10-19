@@ -66,7 +66,9 @@ public:
 
   void start(std::vector<Hypothesis> hypotheses,
              const Eigen::Isometry3d &start_odom_pose);
-  void advanceWindow();
+  void advanceWindow(const Eigen::Isometry3d &odom_pose = Eigen::Isometry3d::Identity());
+  // Keep pose proposals, but require a completely fresh confirmation window.
+  void renewWindow();
   int windowCount() const;
   int persistedFrames() const;
 
