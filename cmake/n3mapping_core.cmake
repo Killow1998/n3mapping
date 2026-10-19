@@ -20,6 +20,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/submap_graph_trial_runtime.cpp
   ${N3MAPPING_ROOT}/src/global_map_cache.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
+  ${N3MAPPING_ROOT}/src/point_cloud_matcher_alignment.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_registration.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
   ${N3MAPPING_ROOT}/src/loop_verifier.cpp

@@ -4186,5 +4186,1350 @@
     "decision": "No net benefit on positive screens; negative cross-frame gain is only 0.134%, with positive CPU regressions. Do not add this state or abstraction to production. Full14/long negative/moving qualification of this rejected prototype is not warranted.",
     "artifacts": "build/n3mapping/stage_reuse_20261019",
     "next": "Retain source-lifecycle fix. Continue motion-context reliability analysis and fresh-geometry cost reduction; do not equate nearby endpoints with reusable acceptance evidence."
+  },
+  "registration_stage_ablation": {
+    "scope": "Serial four physical P cores 0,2,4,6; PASSIVE; frozen accepted core. Short prefixes screen candidates, not qualification.",
+    "core_sha256": "71a4ce252667dbceee79f0408f8b74d48a7d15a23e7ab7afda5f4f4b102a9de3",
+    "thread_budget": {
+      "status": "REJECTED",
+      "reason": "Inner one-thread calls save at most 3.4 percent CPU but increase negative wall latency 45 percent; two threads show no useful total CPU gain.",
+      "results": [
+        {
+          "case": "03_south_corridor",
+          "variant": "native",
+          "frames": 30,
+          "cpu_s": 16.838524899,
+          "wall_s": 7.052310508,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.3359375
+        },
+        {
+          "case": "03_south_corridor",
+          "variant": "inner1",
+          "frames": 30,
+          "cpu_s": 16.376514489,
+          "wall_s": 7.502770099999999,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "maximum_matrix_delta": 1.734723475976807e-18,
+          "peak_rss_mib": 1920.46484375
+        },
+        {
+          "case": "03_south_corridor",
+          "variant": "inner2",
+          "frames": 30,
+          "cpu_s": 16.840703491,
+          "wall_s": 7.6091777050000005,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "maximum_matrix_delta": 2.6020852139652106e-18,
+          "peak_rss_mib": 1920.4296875
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "inner2",
+          "frames": 30,
+          "cpu_s": 13.644864708000002,
+          "wall_s": 6.196782506,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 72,
+          "maximum_matrix_delta": 7.771561172376096e-16,
+          "peak_rss_mib": 1920.546875
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "inner1",
+          "frames": 30,
+          "cpu_s": 13.579810075000001,
+          "wall_s": 6.9124272499999995,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 72,
+          "maximum_matrix_delta": 1.3877787807814457e-17,
+          "peak_rss_mib": 1920.31640625
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "native",
+          "frames": 30,
+          "cpu_s": 13.642399227999999,
+          "wall_s": 5.728122426,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 72,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.36328125
+        },
+        {
+          "case": "14_north_door",
+          "variant": "native",
+          "frames": 30,
+          "cpu_s": 17.522678264000003,
+          "wall_s": 6.997346141,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.25390625
+        },
+        {
+          "case": "14_north_door",
+          "variant": "inner1",
+          "frames": 30,
+          "cpu_s": 17.367467444,
+          "wall_s": 7.410611649000001,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "maximum_matrix_delta": 3.7470027081099033e-16,
+          "peak_rss_mib": 1920.47265625
+        },
+        {
+          "case": "14_north_door",
+          "variant": "inner2",
+          "frames": 30,
+          "cpu_s": 17.458309135,
+          "wall_s": 6.939910407,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "maximum_matrix_delta": 2.706168622523819e-16,
+          "peak_rss_mib": 1920.25390625
+        },
+        {
+          "case": "negative10",
+          "variant": "inner2",
+          "frames": 10,
+          "cpu_s": 25.208287457999997,
+          "wall_s": 9.859571239000001,
+          "locks": 0,
+          "outputs": 0,
+          "alignments": 83,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.48828125
+        },
+        {
+          "case": "negative10",
+          "variant": "inner1",
+          "frames": 10,
+          "cpu_s": 24.450140239,
+          "wall_s": 13.775377058,
+          "locks": 0,
+          "outputs": 0,
+          "alignments": 83,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.5078125
+        },
+        {
+          "case": "negative10",
+          "variant": "native",
+          "frames": 10,
+          "cpu_s": 25.304969315999998,
+          "wall_s": 9.484848158,
+          "locks": 0,
+          "outputs": 0,
+          "alignments": 83,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.28125
+        }
+      ]
+    },
+    "worker_accounting": {
+      "status": "DIAGNOSTIC_ONLY",
+      "analysis": {
+        "03_south_corridor": {
+          "process_cpu_s": 15.437972294,
+          "attributed_registration_cpu_s": 11.109960216000008,
+          "other_or_unattributed_cpu_s": 4.3280120779999915,
+          "stages": {
+            "coarse": {
+              "calls": 63,
+              "iterations": 1131,
+              "cpu_s": 3.332705998000005
+            },
+            "fine": {
+              "calls": 63,
+              "iterations": 689,
+              "cpu_s": 3.919622188000001
+            },
+            "refine": {
+              "calls": 55,
+              "iterations": 713,
+              "cpu_s": 3.8576320300000018
+            }
+          }
+        },
+        "08_west_shelves": {
+          "process_cpu_s": 12.563412066000001,
+          "attributed_registration_cpu_s": 8.94236500599999,
+          "other_or_unattributed_cpu_s": 3.621047060000011,
+          "stages": {
+            "coarse": {
+              "calls": 72,
+              "iterations": 1338,
+              "cpu_s": 2.2607153019999964
+            },
+            "fine": {
+              "calls": 72,
+              "iterations": 1019,
+              "cpu_s": 4.532327616999999
+            },
+            "refine": {
+              "calls": 69,
+              "iterations": 631,
+              "cpu_s": 2.1493220869999945
+            }
+          }
+        },
+        "14_north_door": {
+          "process_cpu_s": 16.73169803,
+          "attributed_registration_cpu_s": 13.285513470999998,
+          "other_or_unattributed_cpu_s": 3.4461845590000024,
+          "stages": {
+            "coarse": {
+              "calls": 63,
+              "iterations": 1482,
+              "cpu_s": 4.137991821000002
+            },
+            "fine": {
+              "calls": 63,
+              "iterations": 1212,
+              "cpu_s": 6.820692782000001
+            },
+            "refine": {
+              "calls": 45,
+              "iterations": 535,
+              "cpu_s": 2.3268288679999958
+            }
+          }
+        },
+        "negative10": {
+          "process_cpu_s": 24.559304663000002,
+          "attributed_registration_cpu_s": 20.729962247000003,
+          "other_or_unattributed_cpu_s": 3.8293424159999994,
+          "stages": {
+            "coarse": {
+              "calls": 83,
+              "iterations": 2041,
+              "cpu_s": 5.961459565000002
+            },
+            "fine": {
+              "calls": 83,
+              "iterations": 1657,
+              "cpu_s": 10.495652110000004
+            },
+            "refine": {
+              "calls": 68,
+              "iterations": 980,
+              "cpu_s": 4.272850571999998
+            }
+          }
+        },
+        "scope": "Instrumented calling-thread CPU plus noncaller worker-loop CPU; runtime startup/barrier costs outside worker loops remain in residual. Do not sum overlapping process CPU timers or treat this as speedup qualification."
+      }
+    },
+    "warm_start": {
+      "status": "DEFERRED_NOT_ADOPTED",
+      "reason": "Full negative CPU saving 2.21 percent with new cache state. Complete14/movement qualification not performed; test the simpler fresh-refinement alternative first.",
+      "prefix_results": [
+        {
+          "case": "03_south_corridor",
+          "variant": "native",
+          "frames": 30,
+          "cpu_s": 16.726763773000002,
+          "wall_s": 7.222653692,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "first_lock_wall_s": 6.978420863999999,
+          "first_lock_cpu_s": 15.883341451,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.328125
+        },
+        {
+          "case": "03_south_corridor",
+          "variant": "off",
+          "frames": 30,
+          "cpu_s": 16.924576561,
+          "wall_s": 7.074220945,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "first_lock_wall_s": 6.8403311350000005,
+          "first_lock_cpu_s": 16.090592163999997,
+          "maximum_matrix_delta": 2.7755575615628914e-16,
+          "peak_rss_mib": 1920.55078125
+        },
+        {
+          "case": "03_south_corridor",
+          "variant": "roundoff",
+          "frames": 30,
+          "cpu_s": 16.364000269,
+          "wall_s": 7.453041332,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "first_lock_wall_s": 7.2127921079999995,
+          "first_lock_cpu_s": 15.517816552000001,
+          "maximum_matrix_delta": 3.469446951953614e-18,
+          "peak_rss_mib": 1920.37890625
+        },
+        {
+          "case": "03_south_corridor",
+          "variant": "convergence",
+          "frames": 30,
+          "cpu_s": 15.755907746,
+          "wall_s": 7.071193104,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "first_lock_wall_s": 6.654836961,
+          "first_lock_cpu_s": 14.755571042,
+          "maximum_matrix_delta": 3.9004876537518385e-05,
+          "peak_rss_mib": 1920.765625
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "convergence",
+          "frames": 30,
+          "cpu_s": 13.183753024999998,
+          "wall_s": 5.7798444710000005,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 72,
+          "first_lock_wall_s": 5.360823355000001,
+          "first_lock_cpu_s": 12.128844348,
+          "maximum_matrix_delta": 7.771561172376096e-16,
+          "peak_rss_mib": 1920.48046875
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "roundoff",
+          "frames": 30,
+          "cpu_s": 13.526087046999999,
+          "wall_s": 5.629274525,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 72,
+          "first_lock_wall_s": 5.346142422,
+          "first_lock_cpu_s": 12.50210229,
+          "maximum_matrix_delta": 3.122502256758253e-16,
+          "peak_rss_mib": 1920.1796875
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "off",
+          "frames": 30,
+          "cpu_s": 13.674174557000002,
+          "wall_s": 5.8485514510000005,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 72,
+          "first_lock_wall_s": 5.561338536,
+          "first_lock_cpu_s": 12.627187953,
+          "maximum_matrix_delta": 7.771561172376096e-16,
+          "peak_rss_mib": 1920.2734375
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "native",
+          "frames": 30,
+          "cpu_s": 14.025515471999999,
+          "wall_s": 6.099751078000001,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 72,
+          "first_lock_wall_s": 5.815860723,
+          "first_lock_cpu_s": 12.998843360999999,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.53125
+        },
+        {
+          "case": "14_north_door",
+          "variant": "native",
+          "frames": 30,
+          "cpu_s": 17.915921247000004,
+          "wall_s": 7.769922137,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "first_lock_wall_s": 7.555898358,
+          "first_lock_cpu_s": 17.164748835999998,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.55078125
+        },
+        {
+          "case": "14_north_door",
+          "variant": "off",
+          "frames": 30,
+          "cpu_s": 18.138383537000003,
+          "wall_s": 7.977409463,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "first_lock_wall_s": 7.7625319710000005,
+          "first_lock_cpu_s": 17.378923668,
+          "maximum_matrix_delta": 1.0408340855860843e-16,
+          "peak_rss_mib": 1920.58984375
+        },
+        {
+          "case": "14_north_door",
+          "variant": "roundoff",
+          "frames": 30,
+          "cpu_s": 18.126721481,
+          "wall_s": 7.698030539,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "first_lock_wall_s": 7.483043869,
+          "first_lock_cpu_s": 17.367641457,
+          "maximum_matrix_delta": 1.1102230246251565e-16,
+          "peak_rss_mib": 1920.37109375
+        },
+        {
+          "case": "14_north_door",
+          "variant": "convergence",
+          "frames": 30,
+          "cpu_s": 17.601894107,
+          "wall_s": 7.3613670540000005,
+          "locks": 1,
+          "outputs": 26,
+          "alignments": 63,
+          "first_lock_wall_s": 7.023164854,
+          "first_lock_cpu_s": 16.796712728000003,
+          "maximum_matrix_delta": 2.635818813345736e-05,
+          "peak_rss_mib": 1920.4921875
+        },
+        {
+          "case": "negative10",
+          "variant": "convergence",
+          "frames": 10,
+          "cpu_s": 25.222737099,
+          "wall_s": 9.158821164999999,
+          "locks": 0,
+          "outputs": 0,
+          "alignments": 83,
+          "first_lock_wall_s": null,
+          "first_lock_cpu_s": null,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.2890625
+        },
+        {
+          "case": "negative10",
+          "variant": "roundoff",
+          "frames": 10,
+          "cpu_s": 25.298085760000003,
+          "wall_s": 9.47357062,
+          "locks": 0,
+          "outputs": 0,
+          "alignments": 83,
+          "first_lock_wall_s": null,
+          "first_lock_cpu_s": null,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.24609375
+        },
+        {
+          "case": "negative10",
+          "variant": "off",
+          "frames": 10,
+          "cpu_s": 25.447529862,
+          "wall_s": 9.319124911000001,
+          "locks": 0,
+          "outputs": 0,
+          "alignments": 83,
+          "first_lock_wall_s": null,
+          "first_lock_cpu_s": null,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.30859375
+        },
+        {
+          "case": "negative10",
+          "variant": "native",
+          "frames": 10,
+          "cpu_s": 25.68732242,
+          "wall_s": 9.308558799,
+          "locks": 0,
+          "outputs": 0,
+          "alignments": 83,
+          "first_lock_wall_s": null,
+          "first_lock_cpu_s": null,
+          "maximum_matrix_delta": 0.0,
+          "peak_rss_mib": 1920.38671875
+        }
+      ],
+      "negative_results": [
+        {
+          "variant": "convergence",
+          "frames": 346,
+          "cpu_s": 555.944636446,
+          "input_s": 34.5,
+          "mean_cores": 16.114337288289857,
+          "wall_s": 206.660513199,
+          "outputs": 0,
+          "locks": 0,
+          "alignments": 1402,
+          "peak_rss_mib": 1920.359375
+        },
+        {
+          "variant": "off",
+          "frames": 346,
+          "cpu_s": 568.508722179,
+          "input_s": 34.5,
+          "mean_cores": 16.478513686347824,
+          "wall_s": 209.903356428,
+          "outputs": 0,
+          "locks": 0,
+          "alignments": 1402,
+          "peak_rss_mib": 1920.3984375
+        }
+      ]
+    }
+  },
+  "confirmation_refinement_ablation": {
+    "status": "COMPLETE_NO_REFINEMENT_CANDIDATE_ADOPTED",
+    "direct_v1": {
+      "status": "NOT_ADOPTED_ACCURACY_REGRESSION",
+      "core_sha256": "d19e78beab844af21950bfabfd158de909838f51cadc13d030350ab26a2ecef0",
+      "review": {
+        "reason": "02 first output position error increases 1.757 mm and first attitude error 0.021727 deg; full-run maximum attitude error increases 0.015921 deg. Unchanged lock events and near-identical maximum position error do not establish per-frame accuracy preservation.",
+        "next": "V2 and V3 complete; neither added path retained.",
+        "cost_gain_fraction": {
+          "full14": 0.028300614721785133,
+          "negative": 0.11157703142439246
+        }
+      },
+      "full14_summary": {
+        "baseline": {
+          "cpu_s": 252.60139149900002,
+          "input_s": 413.000005005,
+          "mean_cores": 0.6116256378639557,
+          "pass_half_core": [
+            "01_west_corridor",
+            "09_east_shelves"
+          ],
+          "peak_rss_mib": 1920.484375,
+          "first_lock_cpu_s": 148.63838866599997,
+          "first_lock_wall_median_s": 4.824792864499999,
+          "first_lock_wall_max_s": 7.2651473079999995
+        },
+        "candidate": {
+          "cpu_s": 245.45261684000002,
+          "input_s": 413.000005005,
+          "mean_cores": 0.5943162563328018,
+          "pass_half_core": [
+            "01_west_corridor",
+            "06_south_meeting",
+            "09_east_shelves",
+            "10_northwest_meeting"
+          ],
+          "peak_rss_mib": 1920.3984375,
+          "first_lock_cpu_s": 140.169020451,
+          "first_lock_wall_median_s": 4.646803626500001,
+          "first_lock_wall_max_s": 6.93169644
+        }
+      },
+      "negative": [
+        {
+          "variant": "direct_candidate_v1",
+          "core_sha256": "d19e78beab844af21950bfabfd158de909838f51cadc13d030350ab26a2ecef0",
+          "frames": 346,
+          "cpu_s": 502.638422848,
+          "wall_s": 189.874908304,
+          "input_s": 34.5,
+          "mean_cores": 14.569229647768116,
+          "outputs": 0,
+          "locks": 0,
+          "alignments": 1477,
+          "peak_rss_mib": 1920.51171875,
+          "costs": {
+            "alignments": 1477,
+            "confirmation_registrations": 684,
+            "confirmation_refinements": 441,
+            "confirmation_refine_fallbacks": 75,
+            "confirmation_refinement_ms": 6017.651592,
+            "fixed_pose_evaluations": 4963,
+            "seed_initializations": 720,
+            "seed_continuations": 2003,
+            "invalidated_seed_poses": 142
+          }
+        },
+        {
+          "variant": "final",
+          "core_sha256": "71a4ce252667dbceee79f0408f8b74d48a7d15a23e7ab7afda5f4f4b102a9de3",
+          "frames": 346,
+          "cpu_s": 565.7647771689999,
+          "wall_s": 208.01191052899998,
+          "input_s": 34.5,
+          "mean_cores": 16.39897904837681,
+          "outputs": 0,
+          "locks": 0,
+          "alignments": 1402,
+          "peak_rss_mib": 1920.51171875,
+          "costs": {
+            "alignments": 1402,
+            "confirmation_registrations": 609,
+            "confirmation_refinements": 0,
+            "confirmation_refine_fallbacks": 0,
+            "confirmation_refinement_ms": 0,
+            "fixed_pose_evaluations": 4558,
+            "seed_initializations": 720,
+            "seed_continuations": 2003,
+            "invalidated_seed_poses": 142
+          }
+        }
+      ],
+      "artifact": "build/n3mapping/stage_reuse_20261019/direct_comparison.json"
+    },
+    "guard_v2": {
+      "status": "REJECTED",
+      "reason": "All 14 refinement attempts across five positive prefixes fall back; restores 02 accuracy by eliminating useful fast-path work.",
+      "results": [
+        {
+          "case": "02_east_corridor",
+          "cpu_s": 9.601230539,
+          "costs": {
+            "confirmation_refinements": 2,
+            "confirmation_refine_fallbacks": 2
+          }
+        },
+        {
+          "case": "04_north_corridor",
+          "cpu_s": 11.823502676999999,
+          "costs": {
+            "confirmation_refinements": 3,
+            "confirmation_refine_fallbacks": 3
+          }
+        },
+        {
+          "case": "03_south_corridor",
+          "cpu_s": 15.994064866,
+          "costs": {
+            "confirmation_refinements": 2,
+            "confirmation_refine_fallbacks": 2
+          }
+        },
+        {
+          "case": "08_west_shelves",
+          "cpu_s": 13.810096669,
+          "costs": {
+            "confirmation_refinements": 5,
+            "confirmation_refine_fallbacks": 5
+          }
+        },
+        {
+          "case": "14_north_door",
+          "cpu_s": 18.303701697,
+          "costs": {
+            "confirmation_refinements": 2,
+            "confirmation_refine_fallbacks": 2
+          }
+        }
+      ]
+    },
+    "confirmation_only_v3": {
+      "core_sha256": "397190f0b4229caf70952a0043879cdc93e276e79ae14393bd9f06d8f2f815f2",
+      "screen": "All14 30-frame prefixes equivalent; complete qualification below supersedes screening.",
+      "negative60": [
+        {
+          "variant": "native",
+          "frames": 60,
+          "cpu_s": 94.059015493,
+          "wall_s": 36.354204207,
+          "locks": 0,
+          "outputs": 0,
+          "costs": {
+            "confirmation_refinements": 0,
+            "confirmation_refine_fallbacks": 0
+          }
+        },
+        {
+          "variant": "confirmation_only",
+          "frames": 60,
+          "cpu_s": 91.046767766,
+          "wall_s": 35.048411821,
+          "locks": 0,
+          "outputs": 0,
+          "costs": {
+            "confirmation_refinements": 75,
+            "confirmation_refine_fallbacks": 40
+          }
+        }
+      ],
+      "movement": {
+        "partial": {
+          "states_equal": true,
+          "state_differences": [],
+          "decision_difference_count": 11,
+          "maximum_output_matrix_delta": 0.03214601154639243,
+          "locks": [
+            {
+              "frame": 4,
+              "sim_s": 0.799989997,
+              "phase": "initial_mapped",
+              "position_error_m": 0.011363541952391008,
+              "rotation_error_deg": 0.03183891373569147,
+              "support": 0
+            },
+            {
+              "frame": 922,
+              "sim_s": 92.599995002,
+              "phase": "outside_descriptor_horizon",
+              "position_error_m": 96.66947889126877,
+              "rotation_error_deg": 179.99367461549355,
+              "support": 403
+            },
+            {
+              "frame": 1686,
+              "sim_s": 168.999989997,
+              "phase": "boundary_inbound",
+              "position_error_m": 0.22066305109118697,
+              "rotation_error_deg": 0.3424192807376157,
+              "support": 958
+            }
+          ],
+          "gross_geometric_frames": 496,
+          "baseline_gross_geometric_frames": 496,
+          "gross_frames_equal": true,
+          "maximum_good_frame_error_increase_m": 3.164135620181696e-15,
+          "maximum_good_frame_error_decrease_m": -3.982925100842749e-15,
+          "maximum_good_frame_rotation_increase_deg": 1.3322676295501878e-15,
+          "cpu_s": 2313.776498944,
+          "mean_cores": 10.35246755679639,
+          "error": {
+            "maximum": 107.66540871196977,
+            "p95": 102.06445678084256,
+            "rmse": 45.56110576585849
+          },
+          "output_changes_confined_to_baseline_gross_failure": true,
+          "output_changed_frames_over_1e8": 267,
+          "maximum_output_delta_outside_baseline_gross_failure": 7.105427357601002e-15
+        },
+        "full": {
+          "states_equal": true,
+          "state_differences": [],
+          "decision_difference_count": 0,
+          "maximum_output_matrix_delta": 1.4210854715202004e-14,
+          "locks": [
+            {
+              "frame": 4,
+              "sim_s": 0.799989997,
+              "phase": "initial_mapped",
+              "position_error_m": 0.01193177676609641,
+              "rotation_error_deg": 0.030114808917121705,
+              "support": 0
+            }
+          ],
+          "gross_geometric_frames": 83,
+          "baseline_gross_geometric_frames": 83,
+          "gross_frames_equal": true,
+          "maximum_good_frame_error_increase_m": 5.88418203051333e-15,
+          "maximum_good_frame_error_decrease_m": -7.438494264988549e-15,
+          "maximum_good_frame_rotation_increase_deg": 1.7930101847696278e-14,
+          "cpu_s": 140.47014614100001,
+          "mean_cores": 0.6285017724429511,
+          "error": {
+            "maximum": 4.399766990558109,
+            "p95": 0.5397663995208072,
+            "rmse": 0.7127552364317387
+          },
+          "output_changes_confined_to_baseline_gross_failure": true,
+          "output_changed_frames_over_1e8": 0,
+          "maximum_output_delta_outside_baseline_gross_failure": 1.4210854715202004e-14
+        },
+        "proceed": true,
+        "scope": "Strict behavioral continuation check against frozen historical moving replay; not adoption or absolute reliability acceptance. Full-map excursion and out-of-map alias remain unqualified. No fresh paired moving cost claim.",
+        "strict_all_frame_output_equivalence": false,
+        "review": "Continue further qualification only. Published differences above 1e-8 are confined to the existing gross-failure interval; all other emitted matrices, all lock events, recovery timing and gross-failure frame sets are preserved. This is not adoption, motion reliability acceptance, 10cm acceptance or a claim that failed outputs are identical. Gross 1m/5deg audit bands classify the existing failure and are not new runtime or accuracy gates."
+      },
+      "status": "DEFERRED_NOT_ADOPTED",
+      "full14_summary": {
+        "baseline": {
+          "cpu_s": 252.13231435499995,
+          "input_s": 413.000005005,
+          "mean_cores": 0.6104898578680344,
+          "pass_half_core": [
+            "01_west_corridor",
+            "09_east_shelves"
+          ],
+          "peak_rss_mib": 1920.5390625,
+          "first_lock_cpu_s": 148.07100052700002,
+          "first_lock_wall_median_s": 4.780699916,
+          "first_lock_wall_max_s": 6.853139258000001
+        },
+        "candidate": {
+          "cpu_s": 251.12217254300003,
+          "input_s": 413.000005005,
+          "mean_cores": 0.6080439939461013,
+          "pass_half_core": [
+            "01_west_corridor",
+            "09_east_shelves",
+            "10_northwest_meeting"
+          ],
+          "peak_rss_mib": 1920.4453125,
+          "first_lock_cpu_s": 146.290967413,
+          "first_lock_wall_median_s": 4.627968427500001,
+          "first_lock_wall_max_s": 6.781032422
+        }
+      },
+      "full14": [
+        {
+          "id": "01_west_corridor",
+          "baseline": {
+            "cpu_s": 14.176222318999999,
+            "input_s": 29.499994995,
+            "cpu_seconds_per_input_second": 0.48054999064924414,
+            "wall_s": 29.508230822,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.038883348,
+            "first_lock_cpu_s": 7.496629864000001,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.3359375,
+            "alignments": 46
+          },
+          "candidate": {
+            "cpu_s": 13.170572713000002,
+            "input_s": 29.499994995,
+            "cpu_seconds_per_input_second": 0.4464601677129878,
+            "wall_s": 29.506660612,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 3.5567357339999996,
+            "first_lock_cpu_s": 6.461492904999999,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.37890625,
+            "alignments": 47
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 2.732189474663471e-16
+        },
+        {
+          "id": "02_east_corridor",
+          "baseline": {
+            "cpu_s": 16.11166234,
+            "input_s": 29.500005005,
+            "cpu_seconds_per_input_second": 0.5461579527620151,
+            "wall_s": 29.506976232,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.29121866,
+            "first_lock_cpu_s": 8.643762367999999,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.3828125,
+            "alignments": 39
+          },
+          "candidate": {
+            "cpu_s": 16.571048581000003,
+            "input_s": 29.500005005,
+            "cpu_seconds_per_input_second": 0.5617303650691365,
+            "wall_s": 29.509270001,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.472695172,
+            "first_lock_cpu_s": 9.159486165999999,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.421875,
+            "alignments": 40
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 1.4210854715202004e-14
+        },
+        {
+          "id": "03_south_corridor",
+          "baseline": {
+            "cpu_s": 23.833972995999996,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.8079312879999999,
+            "wall_s": 29.507606006000003,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 6.799915531,
+            "first_lock_cpu_s": 16.203429649,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.4765625,
+            "alignments": 63
+          },
+          "candidate": {
+            "cpu_s": 22.937187194,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.7775317692881356,
+            "wall_s": 29.507358848,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 6.493757747,
+            "first_lock_cpu_s": 15.075454977,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.4453125,
+            "alignments": 64
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 1.6653345369377348e-16
+        },
+        {
+          "id": "04_north_corridor",
+          "baseline": {
+            "cpu_s": 18.768066494,
+            "input_s": 29.499994995,
+            "cpu_seconds_per_input_second": 0.6362057518037215,
+            "wall_s": 29.50793821,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.924881489000001,
+            "first_lock_cpu_s": 10.822374725000001,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.42578125,
+            "alignments": 50
+          },
+          "candidate": {
+            "cpu_s": 19.683226086,
+            "input_s": 29.499994995,
+            "cpu_seconds_per_input_second": 0.6672281161178549,
+            "wall_s": 29.511130163999997,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 5.490237427,
+            "first_lock_cpu_s": 11.834814186,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.1640625,
+            "alignments": 51
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 1.8735013540549517e-16
+        },
+        {
+          "id": "05_southwest_office",
+          "baseline": {
+            "cpu_s": 17.241295754,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.5844507035254237,
+            "wall_s": 29.506232819,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 5.274279941,
+            "first_lock_cpu_s": 10.381712408,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.3828125,
+            "alignments": 57
+          },
+          "candidate": {
+            "cpu_s": 16.920450449000004,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.5735745914915256,
+            "wall_s": 29.506304286,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.636827245,
+            "first_lock_cpu_s": 9.937921839000001,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.1171875,
+            "alignments": 63
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 1.1102230246251565e-16
+        },
+        {
+          "id": "06_south_meeting",
+          "baseline": {
+            "cpu_s": 15.528462712,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.5263885665084745,
+            "wall_s": 29.507938944000003,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.432798251,
+            "first_lock_cpu_s": 8.538098420999999,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.3828125,
+            "alignments": 57
+          },
+          "candidate": {
+            "cpu_s": 15.701165207999999,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.5322428884067796,
+            "wall_s": 29.510146876,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.619109610000001,
+            "first_lock_cpu_s": 8.538765946,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.14453125,
+            "alignments": 63
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 1.7763568394002505e-15
+        },
+        {
+          "id": "07_south_pillars",
+          "baseline": {
+            "cpu_s": 17.525509064999998,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.5940850530508474,
+            "wall_s": 29.506414428,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.636518343,
+            "first_lock_cpu_s": 9.950734807,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.265625,
+            "alignments": 58
+          },
+          "candidate": {
+            "cpu_s": 17.532757232000005,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.5943307536271188,
+            "wall_s": 29.506587827,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.496649538,
+            "first_lock_cpu_s": 9.93632073,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.1875,
+            "alignments": 64
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 6.106226635438361e-16
+        },
+        {
+          "id": "08_west_shelves",
+          "baseline": {
+            "cpu_s": 23.551079027,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.7983416619322034,
+            "wall_s": 29.511620004,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 5.36600791,
+            "first_lock_cpu_s": 12.588778397,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.2578125,
+            "alignments": 72
+          },
+          "candidate": {
+            "cpu_s": 23.595394807,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.7998438917627119,
+            "wall_s": 29.511762295,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 5.823956123,
+            "first_lock_cpu_s": 12.605639387000004,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.43359375,
+            "alignments": 75
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 7.771561172376096e-16
+        },
+        {
+          "id": "09_east_shelves",
+          "baseline": {
+            "cpu_s": 12.902285669999998,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.4373656159322033,
+            "wall_s": 29.506493591999998,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 3.754030218,
+            "first_lock_cpu_s": 6.473518314,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.1640625,
+            "alignments": 39
+          },
+          "candidate": {
+            "cpu_s": 12.852339994000001,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.4356725421694916,
+            "wall_s": 29.506852436000003,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 3.733106699,
+            "first_lock_cpu_s": 6.396527881000001,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1919.96875,
+            "alignments": 44
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 1.7763568394002505e-15
+        },
+        {
+          "id": "10_northwest_meeting",
+          "baseline": {
+            "cpu_s": 14.994987440000001,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.5083046589830509,
+            "wall_s": 29.506706918,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 3.959156474,
+            "first_lock_cpu_s": 7.726288285,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.34765625,
+            "alignments": 57
+          },
+          "candidate": {
+            "cpu_s": 14.716972110999999,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.4988804105423728,
+            "wall_s": 29.506788179,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 3.937157748,
+            "first_lock_cpu_s": 7.371304864,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.12109375,
+            "alignments": 62
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 1.7763568394002505e-15
+        },
+        {
+          "id": "11_northeast_pillars",
+          "baseline": {
+            "cpu_s": 17.622658128999998,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.5973782416610168,
+            "wall_s": 29.505933017,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.993732952999999,
+            "first_lock_cpu_s": 11.128377617000002,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.21875,
+            "alignments": 60
+          },
+          "candidate": {
+            "cpu_s": 17.693073214,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.5997651936949153,
+            "wall_s": 29.506168577,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.968538837,
+            "first_lock_cpu_s": 11.190841783,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.42578125,
+            "alignments": 65
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 9.992007221626409e-16
+        },
+        {
+          "id": "12_north_office",
+          "baseline": {
+            "cpu_s": 19.130937688,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.6485063623050847,
+            "wall_s": 29.508197628999998,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 5.119831876999999,
+            "first_lock_cpu_s": 11.233687297,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.42578125,
+            "alignments": 60
+          },
+          "candidate": {
+            "cpu_s": 18.997698172,
+            "input_s": 29.5,
+            "cpu_seconds_per_input_second": 0.6439897685423729,
+            "wall_s": 29.507463072,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 5.028481583,
+            "first_lock_cpu_s": 11.071816209000001,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.34765625,
+            "alignments": 68
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 1.1102230246251565e-16
+        },
+        {
+          "id": "13_south_door",
+          "baseline": {
+            "cpu_s": 16.359774073,
+            "input_s": 29.500005005,
+            "cpu_seconds_per_input_second": 0.554568518555409,
+            "wall_s": 29.506654817999998,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.515080536,
+            "first_lock_cpu_s": 9.540560112,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.2109375,
+            "alignments": 43
+          },
+          "candidate": {
+            "cpu_s": 16.610730663,
+            "input_s": 29.500005005,
+            "cpu_seconds_per_input_second": 0.5630755201629498,
+            "wall_s": 29.511231084,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.560943881999999,
+            "first_lock_cpu_s": 9.792521747,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.26953125,
+            "alignments": 45
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 3.552713678800501e-15
+        },
+        {
+          "id": "14_north_door",
+          "baseline": {
+            "cpu_s": 24.385400647999997,
+            "input_s": 29.500005005,
+            "cpu_seconds_per_input_second": 0.8266236105338586,
+            "wall_s": 29.510982431,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 6.853139258000001,
+            "first_lock_cpu_s": 17.343048263,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.5390625,
+            "alignments": 63
+          },
+          "candidate": {
+            "cpu_s": 24.139556119,
+            "input_s": 29.500005005,
+            "cpu_seconds_per_input_second": 0.818289899100307,
+            "wall_s": 29.507262589000003,
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 6.781032422,
+            "first_lock_cpu_s": 16.918058793,
+            "frames": 296,
+            "outputs": 292,
+            "peak_rss_mib": 1920.16796875,
+            "alignments": 64
+          },
+          "state_differences": 0,
+          "emitted_matrix_max_delta": 1.1102230246251565e-16
+        }
+      ],
+      "negative": [
+        {
+          "variant": "confirmation_candidate_v3",
+          "core_sha256": "397190f0b4229caf70952a0043879cdc93e276e79ae14393bd9f06d8f2f815f2",
+          "frames": 346,
+          "cpu_s": 546.729344443,
+          "wall_s": 204.153991856,
+          "input_s": 34.5,
+          "mean_cores": 15.847227375159418,
+          "outputs": 0,
+          "locks": 0,
+          "alignments": 1627,
+          "peak_rss_mib": 1920.03125,
+          "costs": {
+            "alignments": 1627,
+            "confirmation_registrations": 834,
+            "confirmation_refinements": 435,
+            "confirmation_refine_fallbacks": 225,
+            "confirmation_refinement_ms": 5971.529070999999,
+            "fixed_pose_evaluations": 5030,
+            "seed_initializations": 720,
+            "seed_continuations": 2003,
+            "invalidated_seed_poses": 142
+          }
+        },
+        {
+          "variant": "final",
+          "core_sha256": "71a4ce252667dbceee79f0408f8b74d48a7d15a23e7ab7afda5f4f4b102a9de3",
+          "frames": 346,
+          "cpu_s": 567.661269827,
+          "wall_s": 209.23423902300001,
+          "input_s": 34.5,
+          "mean_cores": 16.45394985005797,
+          "outputs": 0,
+          "locks": 0,
+          "alignments": 1402,
+          "peak_rss_mib": 1920.1640625,
+          "costs": {
+            "alignments": 1402,
+            "confirmation_registrations": 609,
+            "confirmation_refinements": 0,
+            "confirmation_refine_fallbacks": 0,
+            "confirmation_refinement_ms": 0,
+            "fixed_pose_evaluations": 4558,
+            "seed_initializations": 720,
+            "seed_continuations": 2003,
+            "invalidated_seed_poses": 142
+          }
+        }
+      ],
+      "decision": "Defer the added confirmation-refinement path. Complete fixed14 saves 0.40% process CPU with mixed per-position costs; complete negative saves 3.69%, but 225 of 435 refinements still require full fallback and existing moving aliases remain. No stable broad benefit justifies the extra branch/interface/metrics. Original runtime behavior restored; retain only a verbatim matcher responsibility split. No claim that all candidate poses match in the already-failed moving interval.",
+      "complete_artifact": "build/n3mapping/stage_reuse_20261019/confirmation_comparison.json"
+    },
+    "lesson": "First-output and per-frame emitted-pose/attitude checks are required; unchanged maximum position error can hide an initial accuracy regression.",
+    "retained_change": {
+      "status": "PASSED",
+      "core_sha256": "d1cb332821c0aafee6893bddd6d9eafbcd5ebb5dc64284d86b09932061faf80e",
+      "ctest": "61/61",
+      "episodes": "15 each in default/Atlas/kill",
+      "replay": {
+        "scope": "Behavior regression after verbatim file split, not a new performance benchmark or complete14 qualification.",
+        "core_sha256": "d1cb332821c0aafee6893bddd6d9eafbcd5ebb5dc64284d86b09932061faf80e",
+        "results": [
+          {
+            "case": "03_south_corridor",
+            "frames": 30,
+            "state_differences": [],
+            "maximum_output_matrix_delta": 5.551115123125783e-17,
+            "outputs": 26,
+            "locks": 1
+          },
+          {
+            "case": "08_west_shelves",
+            "frames": 30,
+            "state_differences": [],
+            "maximum_output_matrix_delta": 3.8163916471489756e-17,
+            "outputs": 26,
+            "locks": 1
+          },
+          {
+            "case": "14_north_door",
+            "frames": 30,
+            "state_differences": [],
+            "maximum_output_matrix_delta": 4.163336342344337e-17,
+            "outputs": 26,
+            "locks": 1
+          },
+          {
+            "case": "negative60",
+            "frames": 60,
+            "state_differences": [],
+            "maximum_output_matrix_delta": 0,
+            "outputs": 0,
+            "locks": 0
+          }
+        ]
+      },
+      "source_review": {
+        "status": "MOVED_FUNCTION_BODIES_VERBATIM",
+        "functions": [
+          "const char* matchTerminationName(",
+          "MatchTermination classifyMatchTermination(",
+          "void copyInformation(",
+          "MatchStageResult makeStageResult(",
+          "void copyStageToMatch(",
+          "void evaluateFixedPoseFactors(",
+          "MatchResult PointCloudMatcher::align(",
+          "MatchResult PointCloudMatcher::evaluatePreparedPose(",
+          "MatchResult PointCloudMatcher::alignPreparedWithSetting("
+        ],
+        "restored": [
+          "confirmation",
+          "public matcher interface",
+          "performance layout/serialization"
+        ]
+      },
+      "scope": "Only verbatim responsibility split retained. No new algorithm/API/cache/test target. Replay prefixes validate behavior, not new full-input cost claims."
+    }
   }
 }

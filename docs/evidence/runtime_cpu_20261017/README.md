@@ -18,7 +18,10 @@ moving tracking excursion. Difficult-search half-core, 10 cm and independent
 offline loop consistency remain open. Earlier optimization and rejected-trial
 evidence is preserved in the dated sections below. The subsequent
 [cross-solve hint ablation](#cross-solve-correspondence-hint-ablation--2026-10-19)
-was rejected for lack of CPU benefit.
+was rejected for lack of CPU benefit. The subsequent
+[confirmation ablation and matcher split](#confirmation-refinement-ablation--2026-10-19)
+retains only a behavior-preserving responsibility split; none of its confirmation
+refinement candidates is adopted.
 
 ## Measurement boundaries
 
@@ -2610,3 +2613,136 @@ source, frozen commands, all sixteen runs and `hint_decision.json` remain under
 `cross_solve_hint_ablation` of `../search_cost_20261019.json`. The next work remains
 motion-context reliability and reducing fresh geometric work; difficult-search
 half-core and the remaining goal stages are not complete.
+
+
+## Registration work and thread-budget ablation — 2026-10-19
+
+Before changing confirmation, three isolated experiments use frozen accepted
+core `71a4ce25…9de3`, four physical P cores `0,2,4,6`, four configured registration
+threads and PASSIVE. Thread-budget and warm-start positive screens use 30
+frames of 03/08/14; attribution isolates the first five observations. Negative
+screens use ten frames. These screens reject or prioritize ideas; they do not
+replace complete qualification.
+
+**Account for workers correctly.** Candidate basins launch concurrently, and
+each registration is configured for four threads. Calling-thread CPU alone
+understates this work; adding overlapping process-CPU intervals double-counts
+it. A diagnostic reduction measures the calling thread plus noncaller worker
+loops. Worker startup/barrier cost outside those loops remains in the process
+residual. Instrumentation is for attribution, not speedup claims.
+
+| Attributed CPU seconds | Process total | Coarse plane | Fine plane | GICP refinement | Other/unattributed |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 03, first five observations | 15.4380 | 3.3327 | 3.9196 | 3.8576 | 4.3280 |
+| 08, first five observations | 12.5634 | 2.2607 | 4.5323 | 2.1493 | 3.6211 |
+| 14, first five observations | 16.7317 | 4.1380 | 6.8207 | 2.3268 | 3.4462 |
+| negative, ten observations | 24.5593 | 5.9615 | 10.4956 | 4.2729 | 3.8293 |
+
+**Reject reducing inner worker counts.** Limiting parallel-basin registration
+to one worker saves only 0.5–3.4% process CPU on these screens while increasing
+the negative's wall latency from 9.485 to 13.775 seconds (+45.2%). Two workers
+show no useful net CPU gain. Decisions and poses remain equivalent, but the
+latency cost does not justify changing the existing scheduling. All twelve
+runs and settings remain in `basin_budget_v1`.
+
+**Defer same-observation warm-start caching.** A bounded experimental cache
+supplies a nearby converged endpoint as an initialization, then performs fresh
+optimization. It never reuses acceptance or confirmation evidence. Complete
+negative replay remains 346 frames with zero locks/outputs: process CPU is
+568.509 seconds with the interposer disabled and 555.945 with convergence-scale
+warm starts (−2.21%); wall time is 209.903 versus 206.661 seconds. Demand remains
+16.114 CPU seconds per input second. Positive prefixes save about 1.8–6.0%, with
+small optimizer endpoint changes. Complete14 and movement qualification were
+not performed for this cache, and its state is not added to runtime. The simpler
+fresh-refinement path is evaluated separately.
+
+`build/n3mapping/stage_reuse_20261019/additional_ablation_decisions.json` retains
+these decisions; its subdirectories retain sources, commands and complete
+outputs. Compact machine-readable results are also in
+`registration_stage_ablation` of `../search_cost_20261019.json`. These experiments
+add no runtime scheduling option or cache, and establish no half-core,
+10 cm, moving-reliability or offline-loop acceptance.
+
+
+## Confirmation-refinement ablation — 2026-10-19
+
+**The unrestricted direct-refinement candidate is not adopted.** It replaces
+repeated coarse/fine initialization during confirmation with fresh GICP at the
+previous metric, checks the original fine-level eligibility and quality gates,
+and falls back to the original multiscale solve on failure. It adds no retained
+cache. Its frozen core is `d19e78be…ecef0`.
+
+The candidate passes 61/61 CTest projects and all 15 localization episodes in
+default, Atlas and kill modes. Complete four-core fixed14 A/B has identical
+frame decisions/lock events and 292 emitted poses per position, with first
+lock at frame 4. CPU falls from 252.601 to 245.453 seconds over 413.000 input
+seconds (0.611626 to 0.594316 cores). The complete 346-frame negative remains
+unpublished and unlocked; CPU falls from 565.765 to 502.638 seconds (−11.16%)
+and wall time from 208.012 to 189.875 seconds. Demand is still 14.569 CPU seconds
+per input second. These measurements do not establish acceptance.
+
+The per-frame accuracy review rejects that candidate: at 02 the first position
+error rises from 0.392294 to 0.394052 m, and first attitude error from 0.464898 to
+0.486625 degrees. Maximum attitude error rises by 0.015921 degrees. Looking
+only at maximum position error would hide this initial-output regression.
+A performance-only comparison must inspect emitted transforms, first output
+and per-frame attitude as well as aggregate position statistics. The complete
+moving controls also preserve the old failures; they do not turn unchanged
+lock counts into a claim that every emitted pose is identical.
+
+A second screen restricts direct endpoint movement to the existing solver
+convergence range. All 14 attempts across five positive prefixes then fall
+back to the original solve. This removes the initial-output regression by
+removing useful fast-path work, so the added path is rejected.
+
+A third candidate reserves the fast path for confirmation: if direct GICP
+would change the selected pose under the original visibility rule, it runs
+the original full correction instead. It reuses the current observation's
+already-computed refined visibility. All 14 positive 30-frame prefixes match
+baseline states and emitted matrices to 1.42e-14. A fresh 60-frame negative
+pair costs 94.059 versus 91.047 CPU seconds (−3.20%), with no locks/outputs.
+The candidate's full CTest and all three 15-episode modes pass. Its complete
+moving controls retain the same lock/recovery events and gross-error frame
+sets. Partial-map output differences above 1e-8 occur in 267 frames of the
+already-failed alias interval, reaching 3.21 cm; all other emitted matrices
+match within 1.42e-14. Correct recovery still occurs at frame 1686. Partial/full
+movement CPU is 2313.776/140.470 seconds, versus historical 2327.650/139.747;
+these are not fresh paired cost claims. Motion reliability remains failed.
+
+The third candidate's complete qualification is now finished; it is **not
+adopted**. All 4,144 fixed-position frames preserve state/decision fields and
+emitted matrices within 1.42e-14. Complete14 process CPU is 252.132 versus
+251.122 seconds (0.610490 versus 0.608044 cores, only 0.40% lower), with mixed
+per-position costs. Total registrations increase from 764 to 815. First-lock
+wall median/max is 4.781/6.853 versus 4.628/6.781 seconds. Loading-inclusive
+peak RSS is 1920.539 versus 1920.445 MiB; no memory reduction is established.
+
+The complete negative pair preserves zero locks/outputs over all 346 frames.
+CPU falls 567.661 to 546.729 seconds (3.69%); wall falls 209.234 to 204.154
+seconds. Of 435 direct refinements, 225 fall back to the original full solve:
+registrations increase 1402 to 1627 and fixed-pose checks 4558 to 5030.
+Initializations/continuations/invalidations remain 720/2003/142. Demand is still
+15.847 CPU seconds per input second; the half-core budget is 17.25 CPU seconds
+for this entire 34.5-second input. This ratio measures backlog-producing demand,
+not simultaneous use of more than four cores.
+
+The small, uneven overall gain does not justify the added confirmation path,
+public method and instrumentation layout. All three candidates remain frozen
+as experiments; the original confirmation, solver interfaces and performance
+layout are restored. Only the cohesive matcher split remains: preparation and
+orchestration in 278 lines, geometric evaluation and alignment in 319 lines,
+from the original 582-line file. All nine moved function bodies are verified
+verbatim; this is a modularity change, not a claimed speedup. Post-cleanup
+build passes 61/61 CTest projects and all 15 episodes in default/Atlas/kill
+modes. Replays of 03/08/14 first 30 frames and the first 60 negative frames
+preserve all compared state, candidate and registration-count fields; maximum
+emitted matrix difference is 5.55e-17. These are split-regression checks, not
+new complete-input performance claims. The matched frozen core/header/probe
+identity is `d1cb332821c0aafee6893bddd6d9eafbcd5ebb5dc64284d86b09932061faf80e`;
+`matcher_split_final/validation.json` retains the check details.
+
+Frozen code, raw comparisons and decisions remain in
+`build/n3mapping/stage_reuse_20261019`; `confirmation_comparison.json` records
+complete qualification. The original gates, input frequency and four-core
+policy remain unchanged. Moving aliases, the full-map tracking excursion,
+difficult-search half-core, 10 cm and offline loop consistency remain open.
