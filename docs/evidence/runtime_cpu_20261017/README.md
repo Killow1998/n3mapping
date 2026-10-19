@@ -2851,3 +2851,62 @@ traces, equivalence reports, focused geometry and budget results are preserved i
 neighboring files. The next isolated candidate will try local GICP first for
 tracking, using existing iteration budgets and full fallback; it must preserve
 recovery, negative rejection and full moving behavior before adoption.
+
+
+## Local tracking initialization ablation — 2026-10-19
+
+The isolated candidate tries fresh GICP from the odometry prediction before the
+existing coarse/fine path. It reuses the existing 30+20 iteration budget,
+convergence, quality and refinement-displacement limits, and falls back to the
+original multiscale/retry path. Global search, candidate reuse and confirmation
+are unchanged. An experiment-only existing-setting route selects GICP; no public
+API, permanent test, configuration or installed file changes. This trial retains
+the accepted plane factor, not the rejected scalar replacement.
+
+Candidate CTest passes61/61, with default/Atlas/kill15 episodes each; the matching
+control passes15 default episodes. Complete original-rate full and partial map
+runs each consume2236frames and emit2232poses, on four P cores/4threads/PASSIVE.
+Truth only scores outputs using the single original mapping-session alignment.
+The movement controls below are historical same-input runs, not fresh paired
+performance evidence.
+
+| Full-map metric | Accepted runtime control | Local-first candidate |
+| --- | ---: | ---: |
+| Maximum position error |4.399767m|0.546404m|
+| Position RMSE |0.712755m|0.296480m|
+| Maximum attitude error |9.005996°|0.626181°|
+| Gross geometric frames (>1m or5°) |83|0|
+| Process CPU /223.5 input s |139.747s /0.625267cores|123.531s /0.552711cores|
+
+Both have only the initial frame4 lock. Maximum same-frame error increases are
+8.240mm/0.00830°, despite much smaller trajectory tails. Candidate loading-inclusive
+peak RSS is1920.328MiB. It does not pass half a core or10cm.
+
+The partial-map run preserves locks at4,922 and1686: the same96.669m/180° false
+lock at92.6s and correct recovery at169.0s. Wrong published-pose span922–1685 does
+not lengthen; total gross live poses decrease849to764 because the later tracking
+excursion disappears. However, wrong poses marked geometrically tracked increase
+496to581:168new frames within the existing false-lock interval,83removed after
+recovery. Before the false lock, maximum position/attitude error changes
+0.462118m/0.324859° to0.475235m/0.476993°. After correct recovery, maxima improve
+4.400840m/8.999363° to0.220663m/0.561447°. Overall maximum position error remains
+about107.666m. Reporting only the smaller RMS or identical relock times would
+hide the stronger geometric authority assigned to an existing alias.
+
+Partial candidate CPU is1526.741s/223.5s=6.831057CPU s/input s, wall524.547s,
+4425global registrations and775.445MiB loading-inclusive peak RSS. Historical
+control is2327.650s and6374registrations. Lower cost partly follows longer
+tracking in the wrong region; it is not an accepted speedup. Values above four
+CPU s/input s represent backlog demand, not execution on more than four cores.
+
+**Deferred, not adopted.** Preserve the promising local solve while diagnosing
+the global false lock before further full14/negative qualification. Existing
+runtime remains`ceb39b5`/`d1cb3328…faf80e`; all trial code is confined to
+`build/n3mapping/stage_reuse_20261019/local_tracking_v1`. Its`decision.json`,
+full/partial movement reviews,`partial_segments.json`, command identities and
+raw traces distinguish total published errors from geometric-authority errors.
+No added runtime abstraction or test is retained; evidence-only closeout does
+not repeat unrelated tests. All replay processes have exited. Next inspect the
+false lock's actual selected geometry, visibility, competitors and confirmation
+history; moving reliability, difficult-search half-core,10cm and offline loop
+consistency remain open.

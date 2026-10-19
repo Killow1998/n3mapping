@@ -6489,5 +6489,51 @@
     "scope": "Unpaced diagnostic only: every original input/timestamp retained; output equivalence verified to paced baselines. No timing or trajectory-improvement claim. Truth used exclusively for offline scoring; counterfactual solves never feed the running tracker.",
     "next": "Screen local-first GICP from trusted tracking prediction using existing main+refinement budget30+20; preserve original convergence/quality criteria and full fallback. The observed38-iteration solution motivates a candidate, not adoption or proof for an entire trajectory.",
     "artifacts": "build/n3mapping/stage_reuse_20261019/tracking_acceptance_v1"
+  },
+  "local_tracking_initialization_ablation": {
+    "status": "deferred_not_adopted",
+    "production_runtime_commit": "ceb39b5",
+    "core_sha256": "d1cb332821c0aafee6893bddd6d9eafbcd5ebb5dc64284d86b09932061faf80e",
+    "candidate_scope": "Fresh local GICP first using existing budgets and gates; original multiscale/retry fallback; global search/confirmation unchanged.",
+    "validation": "61/61 CTest; default/Atlas/kill15each; control default15",
+    "full": {
+      "position_max_m": 0.546403506923,
+      "rotation_max_deg": 0.626181096579,
+      "cpu_s": 123.530838042,
+      "mean_cores": 0.552710684752,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "gross_geometric_frames": 0,
+      "peak_rss_mib": 1920.328125
+    },
+    "partial": {
+      "position_max_m": 107.66648554138932,
+      "cpu_s": 1526.74126129,
+      "mean_cores": 6.831057097494408,
+      "wall_s": 524.547410743,
+      "outputs": 2232,
+      "locks": [
+        4,
+        922,
+        1686
+      ],
+      "global_registrations": 4425,
+      "wrong_geometric_frames_baseline": 496,
+      "wrong_geometric_frames_candidate": 581,
+      "new_wrong_geometric_frames": 168,
+      "removed_wrong_geometric_frames": 83,
+      "wrong_live_span_unchanged": [
+        922,
+        1685
+      ],
+      "gross_live_baseline": 849,
+      "gross_live_candidate": 764,
+      "peak_rss_mib": 775.4453125
+    },
+    "limitation": "Historical movement controls; no fresh paired cost claim. Wrong geometric authority persists longer despite unchanged wrong-output interval and correct recovery. No full14/negative qualification expanded; no accepted gain, half-core,10cm or reliability claim.",
+    "artifacts": "build/n3mapping/stage_reuse_20261019/local_tracking_v1",
+    "next": "Diagnose accepted false global lock before combining local tracking optimization."
   }
 }
