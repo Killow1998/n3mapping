@@ -1,0 +1,3597 @@
+{
+  "base_commit": "c3dcc96",
+  "scope": "Four physical P cores 0/2/4/6, four registration threads, PASSIVE OpenMP, original 10 Hz due times. Serial paired runs, no frame drops. Map loading/frontend/DDS excluded. Full 09/14 and moving negative; remaining fixed positions checked through the first 30 frames. No full-suite steady-state CPU aggregate is inferred from prefixes.",
+  "focused_full": {
+    "dataset": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2",
+    "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+    "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+    "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+    "plan_sha256": "73b72903f9705e35908a80a887f6771380e8fe8469e36ceb80c228c511947a45",
+    "cpus": "0,2,4,6",
+    "threads": 4,
+    "rate": 1.0,
+    "max_frames": 0,
+    "variants": {
+      "baseline": {
+        "libn3mapping_core.so": "26762b2d8197d85bb3b457db0518e1106d68dc7c110301ecfc9853f9664a7458",
+        "replay_probe": "a48b85aa4c87d25714b9187be6e14b9ba6e4886af9268bc6cb320d9b8928f3ac",
+        "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+      },
+      "final": {
+        "libn3mapping_core.so": "3d933744b8a43bf3dfd180275edfac52fb800d0d34f7e8a11b0e2e5c3a9aadb3",
+        "replay_probe": "a48b85aa4c87d25714b9187be6e14b9ba6e4886af9268bc6cb320d9b8928f3ac",
+        "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+      }
+    },
+    "selected_positions": [
+      "09_east_shelves",
+      "14_north_door"
+    ],
+    "results": [
+      {
+        "id": "09_east_shelves",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 296,
+        "outputs": 292,
+        "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 3.978807684,
+        "first_lock_cpu_s": 6.8465518549999995,
+        "cpu_s": 13.219874495000001,
+        "wall_s": 29.50669586,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.4481313388135594,
+        "alignments": 39,
+        "peak_rss_mib": 1911.82421875,
+        "map_load_wall_s": 5.752,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 291
+        },
+        "counts": {
+          "seed_initializations": 30,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 36,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 39
+        },
+        "descriptor_thread_cpu_s": 0.6122226850000015,
+        "trace": "build/n3mapping/search_accuracy_20261019/focused_full/09_east_shelves_baseline.csv",
+        "sha256": "1391e7ed3293cc248aff22f0df491ab2af74b7864be03c534d51074ff3708f22",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 292,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.45553973745334064,
+          "first_output_rotation_error_deg": 0.3841355656757276,
+          "position_error_m": {
+            "rmse": 0.46045607428663116,
+            "median": 0.4605981797184213,
+            "p95": 0.46154705848528266,
+            "maximum": 0.46189817669894156
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4086629676597106,
+            "median": 0.4087165158162256,
+            "p95": 0.4179895563198968,
+            "maximum": 0.42382044695309046
+          }
+        }
+      },
+      {
+        "id": "09_east_shelves",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 296,
+        "outputs": 292,
+        "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 3.7335813790000003,
+        "first_lock_cpu_s": 6.503785284,
+        "cpu_s": 13.007188325000003,
+        "wall_s": 29.506630002,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.4409216381355933,
+        "alignments": 39,
+        "peak_rss_mib": 1912.125,
+        "map_load_wall_s": 5.90195,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 291
+        },
+        "counts": {
+          "seed_initializations": 30,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 36,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 39
+        },
+        "descriptor_thread_cpu_s": 0.584045967,
+        "trace": "build/n3mapping/search_accuracy_20261019/focused_full/09_east_shelves_final.csv",
+        "sha256": "d0c3c774e0e67b39fe18bb416b7c91ca06e4bea21e0931f91c7327d4c3f5c218",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 292,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.4555397374533406,
+          "first_output_rotation_error_deg": 0.38413556567572754,
+          "position_error_m": {
+            "rmse": 0.46045607428663116,
+            "median": 0.4605981797184213,
+            "p95": 0.46154705848528266,
+            "maximum": 0.46189817669894156
+          },
+          "rotation_error_deg": {
+            "rmse": 0.40866296765971005,
+            "median": 0.4087165158162256,
+            "p95": 0.4179895563198968,
+            "maximum": 0.42382044695309046
+          }
+        }
+      },
+      {
+        "id": "14_north_door",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 296,
+        "outputs": 292,
+        "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 7.270422857,
+        "first_lock_cpu_s": 17.681207447000002,
+        "cpu_s": 24.796279369999997,
+        "wall_s": 29.507193491000002,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 0.8405517004419911,
+        "alignments": 63,
+        "peak_rss_mib": 1912.0234375,
+        "map_load_wall_s": 5.79321,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 291
+        },
+        "counts": {
+          "seed_initializations": 60,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 3,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 18,
+          "admitted_basins": 7,
+          "preserved_basins": 8,
+          "alignments": 63
+        },
+        "descriptor_thread_cpu_s": 0.6573870909999996,
+        "trace": "build/n3mapping/search_accuracy_20261019/focused_full/14_north_door_final.csv",
+        "sha256": "e3c38f5bfb836de3387a5475b468e5fd7dccf40faf464898323ebddfecec37b0",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 292,
+          "first_output_sim_s": 0.799995002,
+          "first_output_position_error_m": 0.3681105522368443,
+          "first_output_rotation_error_deg": 0.4440126141964052,
+          "position_error_m": {
+            "rmse": 0.35993920189223,
+            "median": 0.3598591489737658,
+            "p95": 0.36128341995488183,
+            "maximum": 0.3681105522368443
+          },
+          "rotation_error_deg": {
+            "rmse": 0.40863850698398074,
+            "median": 0.4080021924841468,
+            "p95": 0.41315268052264303,
+            "maximum": 0.4474648717474834
+          }
+        }
+      },
+      {
+        "id": "14_north_door",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 296,
+        "outputs": 292,
+        "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 7.3078073450000005,
+        "first_lock_cpu_s": 18.414073173,
+        "cpu_s": 25.546659968,
+        "wall_s": 29.507264081000002,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 0.8659883265670654,
+        "alignments": 63,
+        "peak_rss_mib": 1911.91796875,
+        "map_load_wall_s": 6.05455,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 291
+        },
+        "counts": {
+          "seed_initializations": 60,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 3,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 18,
+          "admitted_basins": 7,
+          "preserved_basins": 8,
+          "alignments": 63
+        },
+        "descriptor_thread_cpu_s": 0.6450545310000007,
+        "trace": "build/n3mapping/search_accuracy_20261019/focused_full/14_north_door_baseline.csv",
+        "sha256": "f6feb203f1981d016655c6c10169671062cc77893a9a161f988bc3c0c2880813",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 292,
+          "first_output_sim_s": 0.799995002,
+          "first_output_position_error_m": 0.3681105522368443,
+          "first_output_rotation_error_deg": 0.44401261419640514,
+          "position_error_m": {
+            "rmse": 0.35993920189223,
+            "median": 0.3598591489737658,
+            "p95": 0.36128341995488183,
+            "maximum": 0.3681105522368443
+          },
+          "rotation_error_deg": {
+            "rmse": 0.40863850698398074,
+            "median": 0.4080021924841468,
+            "p95": 0.41315268052264276,
+            "maximum": 0.4474648717474834
+          }
+        }
+      }
+    ],
+    "paired_behavior": {
+      "09_east_shelves": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 4.440892098500626e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "14_north_door": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 4.5102810375396984e-17,
+        "note": "No-output negative has no pose accuracy score."
+      }
+    }
+  },
+  "fixed14_prefix": {
+    "dataset": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2",
+    "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+    "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+    "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+    "plan_sha256": "73b72903f9705e35908a80a887f6771380e8fe8469e36ceb80c228c511947a45",
+    "cpus": "0,2,4,6",
+    "threads": 4,
+    "rate": 1.0,
+    "max_frames": 30,
+    "variants": {
+      "baseline": {
+        "libn3mapping_core.so": "26762b2d8197d85bb3b457db0518e1106d68dc7c110301ecfc9853f9664a7458",
+        "replay_probe": "a48b85aa4c87d25714b9187be6e14b9ba6e4886af9268bc6cb320d9b8928f3ac",
+        "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+      },
+      "final": {
+        "libn3mapping_core.so": "3d933744b8a43bf3dfd180275edfac52fb800d0d34f7e8a11b0e2e5c3a9aadb3",
+        "replay_probe": "a48b85aa4c87d25714b9187be6e14b9ba6e4886af9268bc6cb320d9b8928f3ac",
+        "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+      }
+    },
+    "selected_positions": [
+      "01_west_corridor",
+      "02_east_corridor",
+      "03_south_corridor",
+      "04_north_corridor",
+      "05_southwest_office",
+      "06_south_meeting",
+      "07_south_pillars",
+      "08_west_shelves",
+      "09_east_shelves",
+      "10_northwest_meeting",
+      "11_northeast_pillars",
+      "12_north_office",
+      "13_south_door",
+      "14_north_door"
+    ],
+    "results": [
+      {
+        "id": "01_west_corridor",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "2febd832139abebf4edc1c20b53076263079cdb9f97c1a32622a8d57dc94c36d",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 3.84672351,
+        "first_lock_cpu_s": 7.532351393,
+        "cpu_s": 8.322229811000001,
+        "wall_s": 4.074080975,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 2.8697344175862076,
+        "alignments": 46,
+        "peak_rss_mib": 1912.11328125,
+        "map_load_wall_s": 6.0236,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 42,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 4,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 18,
+          "admitted_basins": 3,
+          "preserved_basins": 11,
+          "alignments": 46
+        },
+        "descriptor_thread_cpu_s": 0.5045459099999989,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/01_west_corridor_baseline.csv",
+        "sha256": "47e92cbc822bfc72b488dbd59692e4e99ac1009e9dedfb8203bd52c35ce891e1",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.011931776766096632,
+          "first_output_rotation_error_deg": 0.03011480891712184,
+          "position_error_m": {
+            "rmse": 0.008190686202840873,
+            "median": 0.007568935491636357,
+            "p95": 0.010972168892274595,
+            "maximum": 0.011931776766096632
+          },
+          "rotation_error_deg": {
+            "rmse": 0.03252754182253462,
+            "median": 0.030102163528073586,
+            "p95": 0.04671163056269232,
+            "maximum": 0.04833533301200723
+          }
+        }
+      },
+      {
+        "id": "01_west_corridor",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "2febd832139abebf4edc1c20b53076263079cdb9f97c1a32622a8d57dc94c36d",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.194135845,
+        "first_lock_cpu_s": 7.64202892,
+        "cpu_s": 8.441749541000002,
+        "wall_s": 4.421654515,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 2.9109481175862078,
+        "alignments": 46,
+        "peak_rss_mib": 1912.17578125,
+        "map_load_wall_s": 5.92923,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 42,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 4,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 18,
+          "admitted_basins": 3,
+          "preserved_basins": 11,
+          "alignments": 46
+        },
+        "descriptor_thread_cpu_s": 0.5369515719999981,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/01_west_corridor_final.csv",
+        "sha256": "5fef66c60fa3a52727d276e8fba46bd05954f40601546aed0377ffdb86bfe1de",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.01193177676609653,
+          "first_output_rotation_error_deg": 0.03011480891712168,
+          "position_error_m": {
+            "rmse": 0.008190686202840816,
+            "median": 0.007568935491636275,
+            "p95": 0.010972168892274568,
+            "maximum": 0.01193177676609653
+          },
+          "rotation_error_deg": {
+            "rmse": 0.0325275418225346,
+            "median": 0.030102163528073506,
+            "p95": 0.04671163056269237,
+            "maximum": 0.04833533301200723
+          }
+        }
+      },
+      {
+        "id": "02_east_corridor",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "ae32a235322d1266b6bf6f6ec88682ea6f65d6f35a467814459fc41836869410",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.462252616,
+        "first_lock_cpu_s": 8.729218928999998,
+        "cpu_s": 9.587442502999998,
+        "wall_s": 4.826121519,
+        "input_s": 2.900005005,
+        "cpu_seconds_per_input_second": 3.3060089504914485,
+        "alignments": 39,
+        "peak_rss_mib": 1911.6875,
+        "map_load_wall_s": 5.83955,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 36,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 3,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 21,
+          "admitted_basins": 4,
+          "preserved_basins": 8,
+          "alignments": 39
+        },
+        "descriptor_thread_cpu_s": 0.6215529459999998,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/02_east_corridor_final.csv",
+        "sha256": "9baf1e0e8db595b2a999c8910d10723207423076b7810f8670acce4b7de49f77",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799995002,
+          "first_output_position_error_m": 0.39229422558062266,
+          "first_output_rotation_error_deg": 0.4648975385472727,
+          "position_error_m": {
+            "rmse": 0.3964742859844661,
+            "median": 0.39658777136880663,
+            "p95": 0.397779953902614,
+            "maximum": 0.3979237921618445
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4596518282584207,
+            "median": 0.459507282525516,
+            "p95": 0.4677059966776975,
+            "maximum": 0.47044795512848075
+          }
+        }
+      },
+      {
+        "id": "02_east_corridor",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "ae32a235322d1266b6bf6f6ec88682ea6f65d6f35a467814459fc41836869410",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.5394840599999995,
+        "first_lock_cpu_s": 9.300272829,
+        "cpu_s": 10.090391702000002,
+        "wall_s": 4.76048854,
+        "input_s": 2.900005005,
+        "cpu_seconds_per_input_second": 3.479439409450261,
+        "alignments": 39,
+        "peak_rss_mib": 1912.0234375,
+        "map_load_wall_s": 5.873060000000001,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 36,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 3,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 21,
+          "admitted_basins": 4,
+          "preserved_basins": 8,
+          "alignments": 39
+        },
+        "descriptor_thread_cpu_s": 0.6190874620000004,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/02_east_corridor_baseline.csv",
+        "sha256": "436ceb5e1eaa5d85a5859d68db130539bf1a14d0ade3a7e763941dad661aa8d6",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799995002,
+          "first_output_position_error_m": 0.3922942255806226,
+          "first_output_rotation_error_deg": 0.4648975385472727,
+          "position_error_m": {
+            "rmse": 0.3964742859844661,
+            "median": 0.3965877713688066,
+            "p95": 0.397779953902614,
+            "maximum": 0.3979237921618444
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4596518282584229,
+            "median": 0.459507282525516,
+            "p95": 0.4677059966777042,
+            "maximum": 0.4704479551284808
+          }
+        }
+      },
+      {
+        "id": "03_south_corridor",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "733179d895d843f0b821841342e733a199046c0ae602aea85b88360be4ad6fc1",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 6.9226940809999995,
+        "first_lock_cpu_s": 16.028950689,
+        "cpu_s": 16.861095484999996,
+        "wall_s": 7.157115693,
+        "input_s": 2.900005005,
+        "cpu_seconds_per_input_second": 5.814160822456924,
+        "alignments": 63,
+        "peak_rss_mib": 1911.92578125,
+        "map_load_wall_s": 6.40751,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 54,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 33,
+          "admitted_basins": 5,
+          "preserved_basins": 10,
+          "alignments": 63
+        },
+        "descriptor_thread_cpu_s": 0.5053841620000002,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/03_south_corridor_baseline.csv",
+        "sha256": "0aea5427f35a2c15ddcc54a3282493be718bf3a32e59a3b82b90821c5c8e232e",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.1493889217195877,
+          "first_output_rotation_error_deg": 0.2223560385842849,
+          "position_error_m": {
+            "rmse": 0.14790038842762432,
+            "median": 0.14783194400425737,
+            "p95": 0.14883079784504472,
+            "maximum": 0.1493889217195877
+          },
+          "rotation_error_deg": {
+            "rmse": 0.23265675302567934,
+            "median": 0.23210399025632705,
+            "p95": 0.238919640673485,
+            "maximum": 0.24790370436648823
+          }
+        }
+      },
+      {
+        "id": "03_south_corridor",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "733179d895d843f0b821841342e733a199046c0ae602aea85b88360be4ad6fc1",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 6.366759632,
+        "first_lock_cpu_s": 14.849166166000002,
+        "cpu_s": 15.698402558,
+        "wall_s": 6.604321787,
+        "input_s": 2.900005005,
+        "cpu_seconds_per_input_second": 5.413232918885945,
+        "alignments": 63,
+        "peak_rss_mib": 1912.11328125,
+        "map_load_wall_s": 6.6704300000000005,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 54,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 33,
+          "admitted_basins": 5,
+          "preserved_basins": 10,
+          "alignments": 63
+        },
+        "descriptor_thread_cpu_s": 0.5059150259999997,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/03_south_corridor_final.csv",
+        "sha256": "1e8b445ef862d6fb4ada416425376884d6dcf2cdaf025d53d88a74c49b1acc4b",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.1493889217195878,
+          "first_output_rotation_error_deg": 0.22235603858428493,
+          "position_error_m": {
+            "rmse": 0.14790038842762437,
+            "median": 0.14783194400425742,
+            "p95": 0.14883079784504472,
+            "maximum": 0.1493889217195878
+          },
+          "rotation_error_deg": {
+            "rmse": 0.23265675302567942,
+            "median": 0.23210399025632705,
+            "p95": 0.2389196406734852,
+            "maximum": 0.24790370436648848
+          }
+        }
+      },
+      {
+        "id": "04_north_corridor",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "32ae751300d9a871fcbf6e5183d925a9d0e7d7855e622d4c6195c7be660749ef",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.3945559350000005,
+        "first_lock_cpu_s": 12.208351620000002,
+        "cpu_s": 13.071809684,
+        "wall_s": 5.635100508000001,
+        "input_s": 2.899994995,
+        "cpu_seconds_per_input_second": 4.507528360061876,
+        "alignments": 50,
+        "peak_rss_mib": 1911.89453125,
+        "map_load_wall_s": 6.05813,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 42,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 8,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 24,
+          "admitted_basins": 3,
+          "preserved_basins": 9,
+          "alignments": 50
+        },
+        "descriptor_thread_cpu_s": 0.572041592999999,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/04_north_corridor_final.csv",
+        "sha256": "95321f95a24d103ee7d51c2eaff180cd158fdf1d3bbad75e43387e8d2d4cf9d2",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.29391433491074687,
+          "first_output_rotation_error_deg": 0.3741410224611386,
+          "position_error_m": {
+            "rmse": 0.2784932013466262,
+            "median": 0.27605750798548545,
+            "p95": 0.2898413397550631,
+            "maximum": 0.29391433491074687
+          },
+          "rotation_error_deg": {
+            "rmse": 0.35969083424571335,
+            "median": 0.3587887912238526,
+            "p95": 0.36765615715254807,
+            "maximum": 0.3741410224611386
+          }
+        }
+      },
+      {
+        "id": "04_north_corridor",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "32ae751300d9a871fcbf6e5183d925a9d0e7d7855e622d4c6195c7be660749ef",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.717821451,
+        "first_lock_cpu_s": 12.427299588000002,
+        "cpu_s": 13.279792256,
+        "wall_s": 5.955635475,
+        "input_s": 2.899994995,
+        "cpu_seconds_per_input_second": 4.5792466121135496,
+        "alignments": 50,
+        "peak_rss_mib": 1911.9765625,
+        "map_load_wall_s": 5.78241,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 42,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 8,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 24,
+          "admitted_basins": 3,
+          "preserved_basins": 9,
+          "alignments": 50
+        },
+        "descriptor_thread_cpu_s": 0.579567419,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/04_north_corridor_baseline.csv",
+        "sha256": "6296c490e238dcf04f65778c6ad59b0b9a225dd785bca72622830ab47305401a",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.29391433491074687,
+          "first_output_rotation_error_deg": 0.37414102246113856,
+          "position_error_m": {
+            "rmse": 0.2784932013466262,
+            "median": 0.27605750798548545,
+            "p95": 0.2898413397550631,
+            "maximum": 0.29391433491074687
+          },
+          "rotation_error_deg": {
+            "rmse": 0.3596908342457134,
+            "median": 0.35878879122385265,
+            "p95": 0.36765615715254824,
+            "maximum": 0.37414102246113856
+          }
+        }
+      },
+      {
+        "id": "05_southwest_office",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "554bffb0d28a28afef1a2890d5538b9863ee55f69b537529b540e8cd1c4b3a8b",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.945358014,
+        "first_lock_cpu_s": 10.823315570999998,
+        "cpu_s": 11.585208265,
+        "wall_s": 5.270364821,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 3.994899401724138,
+        "alignments": 57,
+        "peak_rss_mib": 1911.94140625,
+        "map_load_wall_s": 5.78229,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 33,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 57
+        },
+        "descriptor_thread_cpu_s": 0.5418681370000004,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/05_southwest_office_baseline.csv",
+        "sha256": "f9e09eb4a1382db80e4cbd589539b02ea2ca1b64085eb3eba217e35087851151",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.053901848303973855,
+          "first_output_rotation_error_deg": 0.24529548997670647,
+          "position_error_m": {
+            "rmse": 0.061324253311158046,
+            "median": 0.06220850772384926,
+            "p95": 0.06328213754126602,
+            "maximum": 0.06346627084910503
+          },
+          "rotation_error_deg": {
+            "rmse": 0.22231680833675962,
+            "median": 0.21996892194176632,
+            "p95": 0.23726725348489067,
+            "maximum": 0.24529548997670647
+          }
+        }
+      },
+      {
+        "id": "05_southwest_office",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "554bffb0d28a28afef1a2890d5538b9863ee55f69b537529b540e8cd1c4b3a8b",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.706106234,
+        "first_lock_cpu_s": 10.236987679999999,
+        "cpu_s": 10.965980980999998,
+        "wall_s": 4.910942765,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 3.781372752068965,
+        "alignments": 57,
+        "peak_rss_mib": 1911.9921875,
+        "map_load_wall_s": 5.89738,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 33,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 57
+        },
+        "descriptor_thread_cpu_s": 0.5377593500000003,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/05_southwest_office_final.csv",
+        "sha256": "750e0b7dc036040ecdbdc5fda418851b0e4bb4dd63ca386f2a32fcb8898244a1",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.053901848303974,
+          "first_output_rotation_error_deg": 0.24529548997670683,
+          "position_error_m": {
+            "rmse": 0.061324253311158115,
+            "median": 0.06220850772384934,
+            "p95": 0.06328213754126608,
+            "maximum": 0.06346627084910507
+          },
+          "rotation_error_deg": {
+            "rmse": 0.2223168083367597,
+            "median": 0.2199689219417664,
+            "p95": 0.23726725348489103,
+            "maximum": 0.24529548997670683
+          }
+        }
+      },
+      {
+        "id": "06_south_meeting",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "6427f2fdb87cf3a8de97bd5af10eaf0b8d22bf33725c09dad8bcc2e114cf087d",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.434654898,
+        "first_lock_cpu_s": 8.56579205,
+        "cpu_s": 9.290472299000001,
+        "wall_s": 4.642460126,
+        "input_s": 2.899994995,
+        "cpu_seconds_per_input_second": 3.2036166665866954,
+        "alignments": 57,
+        "peak_rss_mib": 1912.01171875,
+        "map_load_wall_s": 6.48139,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 36,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 57
+        },
+        "descriptor_thread_cpu_s": 0.5243503300000002,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/06_south_meeting_final.csv",
+        "sha256": "1c81ec1bbe3f6f16da518c836d6ab73016b6918b8d67765e83c1e6663bd70eb1",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.06295882190436604,
+          "first_output_rotation_error_deg": 0.29235954381939444,
+          "position_error_m": {
+            "rmse": 0.06026994186313629,
+            "median": 0.05972061771341608,
+            "p95": 0.06292740823142497,
+            "maximum": 0.0630520615209441
+          },
+          "rotation_error_deg": {
+            "rmse": 0.3067015185581028,
+            "median": 0.3080679876411355,
+            "p95": 0.3141570215565059,
+            "maximum": 0.31695205688130557
+          }
+        }
+      },
+      {
+        "id": "06_south_meeting",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "6427f2fdb87cf3a8de97bd5af10eaf0b8d22bf33725c09dad8bcc2e114cf087d",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.233781401,
+        "first_lock_cpu_s": 9.424155085999999,
+        "cpu_s": 10.146160775,
+        "wall_s": 5.444748875,
+        "input_s": 2.899994995,
+        "cpu_seconds_per_input_second": 3.498682167553189,
+        "alignments": 57,
+        "peak_rss_mib": 1912.03515625,
+        "map_load_wall_s": 5.88529,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 36,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 57
+        },
+        "descriptor_thread_cpu_s": 0.5563682850000005,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/06_south_meeting_baseline.csv",
+        "sha256": "07388a32e35566af3f9e826312c71a3d7b3cccd58e765580a5faab98827f2319",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.06295882190436623,
+          "first_output_rotation_error_deg": 0.2923595438193942,
+          "position_error_m": {
+            "rmse": 0.06026994186313637,
+            "median": 0.05972061771341608,
+            "p95": 0.06292740823142515,
+            "maximum": 0.0630520615209442
+          },
+          "rotation_error_deg": {
+            "rmse": 0.3067015185581049,
+            "median": 0.3080679876411355,
+            "p95": 0.314157021556506,
+            "maximum": 0.31695205688130557
+          }
+        }
+      },
+      {
+        "id": "07_south_pillars",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "2e46e287af0f2d9b85c6b6712d9a147b4de5c752188edc725c83e59f7647db21",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.899050253,
+        "first_lock_cpu_s": 10.696584531999997,
+        "cpu_s": 11.489630326999999,
+        "wall_s": 5.138985933,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 3.961941492068965,
+        "alignments": 58,
+        "peak_rss_mib": 1912.08203125,
+        "map_load_wall_s": 5.7829,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 10,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 3,
+          "preserved_basins": 12,
+          "alignments": 58
+        },
+        "descriptor_thread_cpu_s": 0.47988680999999994,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/07_south_pillars_baseline.csv",
+        "sha256": "721272c47a5fbe17b3a85538cdd79fad8c3c44e2dcc6400394f98ece19dc7fe1",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.2028086268269191,
+          "first_output_rotation_error_deg": 0.2146671318183566,
+          "position_error_m": {
+            "rmse": 0.20006499443375436,
+            "median": 0.19961861213625415,
+            "p95": 0.2017625801487608,
+            "maximum": 0.2028086268269191
+          },
+          "rotation_error_deg": {
+            "rmse": 0.18479654095774775,
+            "median": 0.1796129682054301,
+            "p95": 0.2126442579645778,
+            "maximum": 0.2146671318183566
+          }
+        }
+      },
+      {
+        "id": "07_south_pillars",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "2e46e287af0f2d9b85c6b6712d9a147b4de5c752188edc725c83e59f7647db21",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.491463262,
+        "first_lock_cpu_s": 9.919506786,
+        "cpu_s": 10.702107164000001,
+        "wall_s": 4.713047253,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 3.6903817806896555,
+        "alignments": 58,
+        "peak_rss_mib": 1911.94140625,
+        "map_load_wall_s": 5.988779999999999,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 10,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 3,
+          "preserved_basins": 12,
+          "alignments": 58
+        },
+        "descriptor_thread_cpu_s": 0.4723991189999997,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/07_south_pillars_final.csv",
+        "sha256": "099af758e0cafd0bbf1ad30f557e1a3542c86bebd62d52678b4820b6d7fc8cf4",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.2028086268269191,
+          "first_output_rotation_error_deg": 0.2146671318183594,
+          "position_error_m": {
+            "rmse": 0.2000649944337544,
+            "median": 0.1996186121362542,
+            "p95": 0.2017625801487608,
+            "maximum": 0.2028086268269191
+          },
+          "rotation_error_deg": {
+            "rmse": 0.18479654095774875,
+            "median": 0.1796129682054301,
+            "p95": 0.21264425796457992,
+            "maximum": 0.2146671318183594
+          }
+        }
+      },
+      {
+        "id": "08_west_shelves",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "e0e670ea0f490ae292c21c94768e0a709b5817c0a722c10f84d7dc0a7b55de0e",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.431363378,
+        "first_lock_cpu_s": 12.604280888000002,
+        "cpu_s": 13.632384216000002,
+        "wall_s": 5.717756742,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 4.700822143448277,
+        "alignments": 72,
+        "peak_rss_mib": 1911.7421875,
+        "map_load_wall_s": 6.21998,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 66,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 6,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 5,
+          "preserved_basins": 10,
+          "alignments": 72
+        },
+        "descriptor_thread_cpu_s": 0.5442607820000003,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/08_west_shelves_final.csv",
+        "sha256": "3235479d130ac9ca193d288d80d78d829d690659f6ae968a2218d346f0fd6ea0",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.043096098755158394,
+          "first_output_rotation_error_deg": 0.0823779944510019,
+          "position_error_m": {
+            "rmse": 0.07229687958537095,
+            "median": 0.07591851782648895,
+            "p95": 0.07942836532828322,
+            "maximum": 0.07985198583582241
+          },
+          "rotation_error_deg": {
+            "rmse": 0.24855046205431908,
+            "median": 0.25635533976913205,
+            "p95": 0.2942676895616335,
+            "maximum": 0.29914732687601947
+          }
+        }
+      },
+      {
+        "id": "08_west_shelves",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "e0e670ea0f490ae292c21c94768e0a709b5817c0a722c10f84d7dc0a7b55de0e",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.969233988,
+        "first_lock_cpu_s": 13.702003871,
+        "cpu_s": 14.715418148000001,
+        "wall_s": 6.250512451,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 5.07428212,
+        "alignments": 72,
+        "peak_rss_mib": 1912.109375,
+        "map_load_wall_s": 6.13431,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 66,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 6,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 5,
+          "preserved_basins": 10,
+          "alignments": 72
+        },
+        "descriptor_thread_cpu_s": 0.6019175200000009,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/08_west_shelves_baseline.csv",
+        "sha256": "c00bff1bc536f58c8015569942caa9ea4070673517c94c21a653e6c734b6b594",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.043096098755158394,
+          "first_output_rotation_error_deg": 0.08237799445101397,
+          "position_error_m": {
+            "rmse": 0.0722968795853712,
+            "median": 0.07591851782648895,
+            "p95": 0.07942836532828322,
+            "maximum": 0.07985198583582241
+          },
+          "rotation_error_deg": {
+            "rmse": 0.24855046205432932,
+            "median": 0.25635533976913205,
+            "p95": 0.2942676895616335,
+            "maximum": 0.29914732687601947
+          }
+        }
+      },
+      {
+        "id": "09_east_shelves",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.041591523,
+        "first_lock_cpu_s": 6.928429679999999,
+        "cpu_s": 7.597772434,
+        "wall_s": 4.233075993000001,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 2.6199215289655173,
+        "alignments": 39,
+        "peak_rss_mib": 1911.75,
+        "map_load_wall_s": 5.85304,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 30,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 36,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 39
+        },
+        "descriptor_thread_cpu_s": 0.5895968950000015,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/09_east_shelves_baseline.csv",
+        "sha256": "9927f2e8fb02e5051f3f855683e84144a74fbf84426926fee749093c6ecc0ecf",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.4555397374533405,
+          "first_output_rotation_error_deg": 0.3841355656757238,
+          "position_error_m": {
+            "rmse": 0.45916614836919645,
+            "median": 0.4594147457853158,
+            "p95": 0.46035091576857856,
+            "maximum": 0.46050189546249326
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4036534179083673,
+            "median": 0.40344596078736183,
+            "p95": 0.41254529749370594,
+            "maximum": 0.42089172905724515
+          }
+        }
+      },
+      {
+        "id": "09_east_shelves",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 3.777153056,
+        "first_lock_cpu_s": 6.533771448,
+        "cpu_s": 7.224285394,
+        "wall_s": 4.073111482,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 2.4911328944827584,
+        "alignments": 39,
+        "peak_rss_mib": 1912.08984375,
+        "map_load_wall_s": 5.76888,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 30,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 36,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 39
+        },
+        "descriptor_thread_cpu_s": 0.5810873560000009,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/09_east_shelves_final.csv",
+        "sha256": "2c0782f4efc44cc3269e28fec0274238b1da7423820adfe06adf4f129d0751f7",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.4555397374533405,
+          "first_output_rotation_error_deg": 0.3841355656757273,
+          "position_error_m": {
+            "rmse": 0.45916614836919645,
+            "median": 0.4594147457853158,
+            "p95": 0.46035091576857856,
+            "maximum": 0.46050189546249326
+          },
+          "rotation_error_deg": {
+            "rmse": 0.40365341790836734,
+            "median": 0.40344596078736183,
+            "p95": 0.4125452974937059,
+            "maximum": 0.420891729057245
+          }
+        }
+      },
+      {
+        "id": "10_northwest_meeting",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "a5576adf71a0eed91a2ec0928d8bb59c8dc9eb7c572357d7f74735a1de6ade3d",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 3.966214633,
+        "first_lock_cpu_s": 7.7376354439999995,
+        "cpu_s": 8.48820516,
+        "wall_s": 4.17979139,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 2.926967296551724,
+        "alignments": 57,
+        "peak_rss_mib": 1912.11328125,
+        "map_load_wall_s": 5.88718,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 3,
+          "preserved_basins": 12,
+          "alignments": 57
+        },
+        "descriptor_thread_cpu_s": 0.49587576800000077,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/10_northwest_meeting_final.csv",
+        "sha256": "b2285c0b439c83d4ae524b3384580b70d491f8899116032faa50e93c368cc71c",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.08328818511495233,
+          "first_output_rotation_error_deg": 0.08404071289085566,
+          "position_error_m": {
+            "rmse": 0.08752069792942811,
+            "median": 0.08815218350479369,
+            "p95": 0.0889149052268004,
+            "maximum": 0.08911734302146027
+          },
+          "rotation_error_deg": {
+            "rmse": 0.07581580075336757,
+            "median": 0.07509827261064714,
+            "p95": 0.0842717609216356,
+            "maximum": 0.08631450828686606
+          }
+        }
+      },
+      {
+        "id": "10_northwest_meeting",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "a5576adf71a0eed91a2ec0928d8bb59c8dc9eb7c572357d7f74735a1de6ade3d",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.356007264,
+        "first_lock_cpu_s": 8.632024154,
+        "cpu_s": 9.374871996,
+        "wall_s": 4.5666058210000005,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 3.2327144813793103,
+        "alignments": 57,
+        "peak_rss_mib": 1911.90625,
+        "map_load_wall_s": 6.10583,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 9,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 3,
+          "preserved_basins": 12,
+          "alignments": 57
+        },
+        "descriptor_thread_cpu_s": 0.5212513180000006,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/10_northwest_meeting_baseline.csv",
+        "sha256": "f8bd0e0e05f8e1655aecea68f7e40fad1ec9aeacd626563990e7c0a84cd61023",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.08328818511495233,
+          "first_output_rotation_error_deg": 0.08404071289085911,
+          "position_error_m": {
+            "rmse": 0.08752069792942811,
+            "median": 0.08815218350479369,
+            "p95": 0.0889149052268004,
+            "maximum": 0.08911734302146027
+          },
+          "rotation_error_deg": {
+            "rmse": 0.07581580075336847,
+            "median": 0.07509827261064868,
+            "p95": 0.0842717609216381,
+            "maximum": 0.08631450828687089
+          }
+        }
+      },
+      {
+        "id": "11_northeast_pillars",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "78350f0bcde6576e3f67e4ecaeb47c567c011e83e167e3b329db68840bd489fb",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.717244654,
+        "first_lock_cpu_s": 12.065334694999999,
+        "cpu_s": 12.725896197,
+        "wall_s": 5.906494673,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 4.388240067931035,
+        "alignments": 60,
+        "peak_rss_mib": 1912.0859375,
+        "map_load_wall_s": 5.76565,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 54,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 6,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 60
+        },
+        "descriptor_thread_cpu_s": 0.46578230600000003,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/11_northeast_pillars_baseline.csv",
+        "sha256": "9988f98b2703e586bfd028fb84b0613d31486dbf3a5b906a7dc44e8a75c7d81a",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.47121648867921484,
+          "first_output_rotation_error_deg": 0.43008335349931825,
+          "position_error_m": {
+            "rmse": 0.46976495187396344,
+            "median": 0.4695180361654084,
+            "p95": 0.47117901020802866,
+            "maximum": 0.47151402843366
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4340805015122112,
+            "median": 0.43560649516863603,
+            "p95": 0.4467970940063716,
+            "maximum": 0.4500579799300189
+          }
+        }
+      },
+      {
+        "id": "11_northeast_pillars",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "78350f0bcde6576e3f67e4ecaeb47c567c011e83e167e3b329db68840bd489fb",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.867411199,
+        "first_lock_cpu_s": 11.168053387000002,
+        "cpu_s": 11.845365168999999,
+        "wall_s": 5.162622750000001,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 4.084608678965517,
+        "alignments": 60,
+        "peak_rss_mib": 1912.1484375,
+        "map_load_wall_s": 5.79018,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 54,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 6,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 60
+        },
+        "descriptor_thread_cpu_s": 0.46316184900000007,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/11_northeast_pillars_final.csv",
+        "sha256": "a0b281505cefb1d23752198e7f02bfbccb0a71de39d836aba84b1f971d3a2f67",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.471216488679215,
+          "first_output_rotation_error_deg": 0.43008335349931787,
+          "position_error_m": {
+            "rmse": 0.4697649518739635,
+            "median": 0.46951803616540844,
+            "p95": 0.4711790102080288,
+            "maximum": 0.4715140284336602
+          },
+          "rotation_error_deg": {
+            "rmse": 0.43408050151221117,
+            "median": 0.43560649516863587,
+            "p95": 0.4467970940063716,
+            "maximum": 0.4500579799300189
+          }
+        }
+      },
+      {
+        "id": "12_north_office",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "cea9e59c53ac1673866ea369766da53e354587a94f237d77ea4286033b3a3b49",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.082021214,
+        "first_lock_cpu_s": 11.134842354999998,
+        "cpu_s": 11.937016177,
+        "wall_s": 5.316907038,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 4.116212474827586,
+        "alignments": 60,
+        "peak_rss_mib": 1911.85546875,
+        "map_load_wall_s": 5.902229999999999,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 12,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 45,
+          "admitted_basins": 5,
+          "preserved_basins": 10,
+          "alignments": 60
+        },
+        "descriptor_thread_cpu_s": 0.5366092950000002,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/12_north_office_final.csv",
+        "sha256": "4cb610b231a6df6f449a65fa33412a8eb00fbef2bd04caa5e50da86ed6474bf7",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.2936329844054106,
+          "first_output_rotation_error_deg": 0.4076622700269432,
+          "position_error_m": {
+            "rmse": 0.29930023123960914,
+            "median": 0.3002345730711221,
+            "p95": 0.30097388862160124,
+            "maximum": 0.30111595058085455
+          },
+          "rotation_error_deg": {
+            "rmse": 0.3677574818436767,
+            "median": 0.36224937226674975,
+            "p95": 0.4002669492746883,
+            "maximum": 0.4076622700269432
+          }
+        }
+      },
+      {
+        "id": "12_north_office",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "cea9e59c53ac1673866ea369766da53e354587a94f237d77ea4286033b3a3b49",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.143009144,
+        "first_lock_cpu_s": 11.704523454,
+        "cpu_s": 12.487982280000002,
+        "wall_s": 5.3716442120000005,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 4.306200786206897,
+        "alignments": 60,
+        "peak_rss_mib": 1911.84375,
+        "map_load_wall_s": 6.60363,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 48,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 12,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 45,
+          "admitted_basins": 5,
+          "preserved_basins": 10,
+          "alignments": 60
+        },
+        "descriptor_thread_cpu_s": 0.5377943910000004,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/12_north_office_baseline.csv",
+        "sha256": "8670f3a5cab6364eda62be513e322621b050ce314356645be0cb1b0fd82efa7b",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.2936329844054106,
+          "first_output_rotation_error_deg": 0.4076622700269433,
+          "position_error_m": {
+            "rmse": 0.2993002312396092,
+            "median": 0.3002345730711221,
+            "p95": 0.3009738886216013,
+            "maximum": 0.3011159505808546
+          },
+          "rotation_error_deg": {
+            "rmse": 0.36775748184367674,
+            "median": 0.3622493722667498,
+            "p95": 0.4002669492746884,
+            "maximum": 0.4076622700269433
+          }
+        }
+      },
+      {
+        "id": "13_south_door",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "f79b59e4788614fb32fca74b79316f501513635f41e8a19085beeb4132423a07",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.301062099,
+        "first_lock_cpu_s": 10.968529325000002,
+        "cpu_s": 11.681992755000001,
+        "wall_s": 5.502595446,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 4.028273363793104,
+        "alignments": 43,
+        "peak_rss_mib": 1911.88671875,
+        "map_load_wall_s": 5.90468,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 36,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 7,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 43
+        },
+        "descriptor_thread_cpu_s": 0.6254947689999999,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/13_south_door_baseline.csv",
+        "sha256": "242edd0e5900117b03dba7fdb5bc24ecc795af5d30f0f543b4e6f5796410c83a",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799995002,
+          "first_output_position_error_m": 0.237682052780499,
+          "first_output_rotation_error_deg": 0.199471865168438,
+          "position_error_m": {
+            "rmse": 0.23870501900127325,
+            "median": 0.238508656709562,
+            "p95": 0.24027769354041298,
+            "maximum": 0.24037777778094518
+          },
+          "rotation_error_deg": {
+            "rmse": 0.20596745516664733,
+            "median": 0.20537681323250384,
+            "p95": 0.21641812938325788,
+            "maximum": 0.2177157490463438
+          }
+        }
+      },
+      {
+        "id": "13_south_door",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "f79b59e4788614fb32fca74b79316f501513635f41e8a19085beeb4132423a07",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.841754906,
+        "first_lock_cpu_s": 9.630187182999999,
+        "cpu_s": 10.462178229000001,
+        "wall_s": 5.197907702,
+        "input_s": 2.9,
+        "cpu_seconds_per_input_second": 3.607647665172414,
+        "alignments": 43,
+        "peak_rss_mib": 1911.91015625,
+        "map_load_wall_s": 5.7775799999999995,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 36,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 7,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 27,
+          "admitted_basins": 4,
+          "preserved_basins": 11,
+          "alignments": 43
+        },
+        "descriptor_thread_cpu_s": 0.5941451079999998,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/13_south_door_final.csv",
+        "sha256": "d230bd366d0e3ee5b1414dad70085c55468126389c80ad5df858a48b1d74f309",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799995002,
+          "first_output_position_error_m": 0.2376820527804989,
+          "first_output_rotation_error_deg": 0.199471865168438,
+          "position_error_m": {
+            "rmse": 0.2387050190012732,
+            "median": 0.238508656709562,
+            "p95": 0.2402776935404129,
+            "maximum": 0.24037777778094496
+          },
+          "rotation_error_deg": {
+            "rmse": 0.20596745516664736,
+            "median": 0.20537681323250384,
+            "p95": 0.216418129383258,
+            "maximum": 0.21771574904634391
+          }
+        }
+      },
+      {
+        "id": "14_north_door",
+        "variant": "final",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 7.209395356,
+        "first_lock_cpu_s": 16.830432403,
+        "cpu_s": 17.630244879000003,
+        "wall_s": 7.5270198950000005,
+        "input_s": 2.900005005,
+        "cpu_seconds_per_input_second": 6.079384293683314,
+        "alignments": 63,
+        "peak_rss_mib": 1912.0234375,
+        "map_load_wall_s": 5.78985,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 60,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 3,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 18,
+          "admitted_basins": 7,
+          "preserved_basins": 8,
+          "alignments": 63
+        },
+        "descriptor_thread_cpu_s": 0.6448774219999995,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/14_north_door_final.csv",
+        "sha256": "4ebe57ccfbf7e3e71846313702a397ab61e7a049b7afbe67c48f1a06a33d2859",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799995002,
+          "first_output_position_error_m": 0.3681105522368444,
+          "first_output_rotation_error_deg": 0.4440126141964054,
+          "position_error_m": {
+            "rmse": 0.36123863505488985,
+            "median": 0.360632041508274,
+            "p95": 0.36385092171003247,
+            "maximum": 0.3681105522368444
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4169466737546623,
+            "median": 0.4125892893123289,
+            "p95": 0.44236066401057894,
+            "maximum": 0.4474648717474835
+          }
+        }
+      },
+      {
+        "id": "14_north_door",
+        "variant": "baseline",
+        "returncode": 0,
+        "frames": 30,
+        "outputs": 26,
+        "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 7.490770842,
+        "first_lock_cpu_s": 18.506953467,
+        "cpu_s": 19.304305453999998,
+        "wall_s": 7.834613687,
+        "input_s": 2.900005005,
+        "cpu_seconds_per_input_second": 6.6566455646513605,
+        "alignments": 63,
+        "peak_rss_mib": 1911.796875,
+        "map_load_wall_s": 5.994020000000001,
+        "locks": 1,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 25
+        },
+        "counts": {
+          "seed_initializations": 60,
+          "seed_resumptions": 0,
+          "confirmation_registrations": 3,
+          "seed_continuations": 0,
+          "seed_retries": 0,
+          "confirmation_evaluations": 18,
+          "admitted_basins": 7,
+          "preserved_basins": 8,
+          "alignments": 63
+        },
+        "descriptor_thread_cpu_s": 0.6477100039999996,
+        "trace": "build/n3mapping/search_accuracy_20261019/fixed14_prefix/14_north_door_baseline.csv",
+        "sha256": "03e0d45118dfa1a9f7159dd838436515852c809bc7f2ec456f2623809ad03f58",
+        "truth": {
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 26,
+          "first_output_sim_s": 0.799995002,
+          "first_output_position_error_m": 0.3681105522368443,
+          "first_output_rotation_error_deg": 0.4440126141964052,
+          "position_error_m": {
+            "rmse": 0.36123863505488985,
+            "median": 0.360632041508274,
+            "p95": 0.3638509217100324,
+            "maximum": 0.3681105522368443
+          },
+          "rotation_error_deg": {
+            "rmse": 0.41694667375466227,
+            "median": 0.41258928931232886,
+            "p95": 0.4423606640105787,
+            "maximum": 0.4474648717474834
+          }
+        }
+      }
+    ],
+    "paired_behavior": {
+      "01_west_corridor": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 2.255140518769849e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "02_east_corridor": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 4.440892098500626e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "03_south_corridor": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 1.3877787807814457e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "04_north_corridor": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 1.1102230246251565e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "05_southwest_office": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 3.122502256758253e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "06_south_meeting": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 1.7763568394002505e-15,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "07_south_pillars": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 2.220446049250313e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "08_west_shelves": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 8.881784197001252e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "09_east_shelves": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 1.1102230246251565e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "10_northwest_meeting": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 4.440892098500626e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "11_northeast_pillars": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 3.885780586188048e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "12_north_office": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 5.551115123125783e-17,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "13_south_door": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 1.6653345369377348e-16,
+        "note": "No-output negative has no pose accuracy score."
+      },
+      "14_north_door": {
+        "different_behavior_fields": [],
+        "maximum_output_pose_component_delta": 3.191891195797325e-16,
+        "note": "No-output negative has no pose accuracy score."
+      }
+    },
+    "aggregate": {
+      "baseline": {
+        "total_cpu_s": 169.66274788500002,
+        "first_lock_wall_median_s": 5.188395272499999,
+        "first_lock_cpu_total_s": 158.74072833399998,
+        "maximum_rss_mib": 1912.11328125
+      },
+      "final": {
+        "total_cpu_s": 158.977643954,
+        "first_lock_wall_median_s": 4.77393057,
+        "first_lock_cpu_total_s": 147.79025525900002,
+        "maximum_rss_mib": 1912.17578125
+      }
+    }
+  },
+  "negative_full": {
+    "results": [
+      {
+        "variant": "baseline",
+        "frames": 346,
+        "locks": 0,
+        "outputs": 0,
+        "cpu_s": 726.9441331710001,
+        "wall_s": 263.54564273100004,
+        "input_s": 34.5,
+        "alignments": 1678,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 279,
+          "ambiguous": 25,
+          "margin": 38,
+          "log_likelihood": 1,
+          "directional_visibility_disagreement": 3
+        },
+        "counts": {
+          "seed_initializations": 1015,
+          "seed_resumptions": 82,
+          "confirmation_registrations": 581,
+          "seed_continuations": 1735,
+          "seed_retries": 8,
+          "confirmation_evaluations": 1549,
+          "admitted_basins": 207,
+          "preserved_basins": 734,
+          "alignments": 1678
+        },
+        "descriptor_thread_cpu_s": 14.185732995000008,
+        "trace": "build/n3mapping/search_accuracy_20261019/negative_full_baseline.csv",
+        "sha256": "9cb6f6bdb30c4840927a336389f3c060b7757eb3c110d694c61eee51eacc96c5",
+        "cpu_seconds_per_input_second": 21.070844439739133
+      },
+      {
+        "variant": "final",
+        "frames": 346,
+        "locks": 0,
+        "outputs": 0,
+        "cpu_s": 655.076132368,
+        "wall_s": 234.649199511,
+        "input_s": 34.5,
+        "alignments": 1678,
+        "coasted_outputs": 0,
+        "decisions": {
+          "temporal_window_pending": 279,
+          "ambiguous": 25,
+          "margin": 38,
+          "log_likelihood": 1,
+          "directional_visibility_disagreement": 3
+        },
+        "counts": {
+          "seed_initializations": 1015,
+          "seed_resumptions": 82,
+          "confirmation_registrations": 581,
+          "seed_continuations": 1735,
+          "seed_retries": 8,
+          "confirmation_evaluations": 1549,
+          "admitted_basins": 207,
+          "preserved_basins": 734,
+          "alignments": 1678
+        },
+        "descriptor_thread_cpu_s": 14.2677769489999,
+        "trace": "build/n3mapping/search_accuracy_20261019/negative_full_final.csv",
+        "sha256": "b998e1ea253b888492a4aabde0ff6b5d48a5f995fdc3e8c77317c0c06b35e622",
+        "cpu_seconds_per_input_second": 18.98771398168116
+      }
+    ],
+    "paired_behavior": {
+      "different_behavior_fields": [],
+      "maximum_output_pose_component_delta": null,
+      "note": "No-output negative has no pose accuracy score."
+    }
+  },
+  "accuracy_diagnosis": {
+    "scope": "Independent accuracy diagnosis; no truth corrections enter production localization. Fixed-map world alignment unchanged.",
+    "keyframes": 1271,
+    "saved_keyframe_position_error_m": {
+      "rmse": 0.28662580780240315,
+      "median": 0.21847272176812324,
+      "p95": 0.5395832106242507,
+      "maximum": 0.7205224304851606
+    },
+    "saved_keyframe_rotation_error_deg": {
+      "rmse": 0.32388932899688344,
+      "median": 0.2973520252685173,
+      "p95": 0.5037451454789165,
+      "maximum": 1.0793869075349678
+    },
+    "cases": [
+      {
+        "id": "01_west_corridor",
+        "original_position_error_m": {
+          "rmse": 0.0069022259252884055,
+          "median": 0.00668060670033258,
+          "p95": 0.008965359612028132,
+          "maximum": 0.011931776766096533
+        },
+        "mean_error_vector_m": [
+          0.001722956797929666,
+          0.005359183669556746,
+          -0.0034392408541557267
+        ],
+        "reported_support_ids": [
+          0,
+          416
+        ],
+        "support_map_error_vector_mean_m": [
+          0.00133191681260533,
+          0.003415794286203855,
+          -0.0006640429070456982
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.0044126861829785115,
+          "median": 0.0033817133258937536,
+          "p95": 0.007540038195077088,
+          "maximum": 0.012546712945670698
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "02_east_corridor",
+        "original_position_error_m": {
+          "rmse": 0.39724354633171693,
+          "median": 0.3972519909482376,
+          "p95": 0.39823714164984236,
+          "maximum": 0.3987283128906641
+        },
+        "mean_error_vector_m": [
+          -0.21777855671057494,
+          -0.2705980975268863,
+          0.19274412170730107
+        ],
+        "reported_support_ids": [
+          717
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.23590651878418406,
+          -0.2673647182111967,
+          0.1954407104988719
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.01871259427870176,
+          "median": 0.018753693190785823,
+          "p95": 0.01966215696292312,
+          "maximum": 0.0200099943057847
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "03_south_corridor",
+        "original_position_error_m": {
+          "rmse": 0.14968146556753847,
+          "median": 0.1498534933720816,
+          "p95": 0.1502888427955652,
+          "maximum": 0.15045624555507703
+        },
+        "mean_error_vector_m": [
+          -0.00108961929081725,
+          -0.011634246223331594,
+          0.14919954546597114
+        ],
+        "reported_support_ids": [
+          275
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.0011664394684576251,
+          -0.00886855179949464,
+          0.14837635459627507
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.003847493440429396,
+          "median": 0.002715108008178181,
+          "p95": 0.004762516420646784,
+          "maximum": 0.02718906793504862
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "04_north_corridor",
+        "original_position_error_m": {
+          "rmse": 0.27510447929632786,
+          "median": 0.27484906839904677,
+          "p95": 0.2765029652936184,
+          "maximum": 0.29391433491074687
+        },
+        "mean_error_vector_m": [
+          -0.1449357459672282,
+          -0.22217784770536617,
+          -0.07282279500528763
+        ],
+        "reported_support_ids": [
+          915
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.13597721262253246,
+          -0.2096509349405622,
+          -0.07397097354719764
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.015548402955330911,
+          "median": 0.015006523476994466,
+          "p95": 0.016722569320835396,
+          "maximum": 0.039888926626188224
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "05_southwest_office",
+        "original_position_error_m": {
+          "rmse": 0.06117605795220437,
+          "median": 0.06103514882487927,
+          "p95": 0.06278958620853017,
+          "maximum": 0.06346627084910507
+        },
+        "mean_error_vector_m": [
+          0.008652042325143695,
+          -0.055423855896946976,
+          -0.02432396032701313
+        ],
+        "reported_support_ids": [
+          369
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.008191198029251723,
+          -0.0632023477975423,
+          -0.019908059171765587
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.0198504119719789,
+          "median": 0.019770777953972987,
+          "p95": 0.020730033280946556,
+          "maximum": 0.023419682282585935
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "06_south_meeting",
+        "original_position_error_m": {
+          "rmse": 0.06252216093341255,
+          "median": 0.06298158288169034,
+          "p95": 0.06405957614413879,
+          "maximum": 0.06429245539775003
+        },
+        "mean_error_vector_m": [
+          -0.025129369166762137,
+          -0.00502045419550607,
+          0.05700514822680915
+        ],
+        "reported_support_ids": [
+          298
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.023670911740515166,
+          -0.00233212120568993,
+          0.06392726820561388
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.005501838430005379,
+          "median": 0.004991924433402218,
+          "p95": 0.007742762729685578,
+          "maximum": 0.00911374205208101
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "07_south_pillars",
+        "original_position_error_m": {
+          "rmse": 0.20768511463380956,
+          "median": 0.20895247579228238,
+          "p95": 0.21042975448667764,
+          "maximum": 0.21091592483365537
+        },
+        "mean_error_vector_m": [
+          -0.10065441256749512,
+          -0.0503913483145197,
+          0.17449456993527193
+        ],
+        "reported_support_ids": [
+          251
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.10014479739778537,
+          -0.0619796567696298,
+          0.1797494523226533
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.012173485731038007,
+          "median": 0.011161244564802109,
+          "p95": 0.017873396356973416,
+          "maximum": 0.019359248711753613
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "08_west_shelves",
+        "original_position_error_m": {
+          "rmse": 0.07674991653495211,
+          "median": 0.07719399145574748,
+          "p95": 0.0785890602031102,
+          "maximum": 0.07985198583582241
+        },
+        "mean_error_vector_m": [
+          -0.07560204957161948,
+          0.011259191545351287,
+          -0.0055742968867809935
+        ],
+        "reported_support_ids": [
+          433
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.09056517972174305,
+          0.019614108502679528,
+          -0.0026329907922549856
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.01887250800240584,
+          "median": 0.017974382364172287,
+          "p95": 0.02029182607409303,
+          "maximum": 0.0516263028734958
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "09_east_shelves",
+        "original_position_error_m": {
+          "rmse": 0.46045607428663116,
+          "median": 0.4605981797184213,
+          "p95": 0.46154705848528266,
+          "maximum": 0.46189817669894156
+        },
+        "mean_error_vector_m": [
+          -0.33793887195700395,
+          -0.2439655437959669,
+          0.19568831892683666
+        ],
+        "reported_support_ids": [
+          673
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.3379029604810977,
+          -0.2517219888032953,
+          0.1960697568928979
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.009147568940857654,
+          "median": 0.008881922389689847,
+          "p95": 0.010971304708909868,
+          "maximum": 0.014830250078897574
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "10_northwest_meeting",
+        "original_position_error_m": {
+          "rmse": 0.08809557735130848,
+          "median": 0.08811076486489805,
+          "p95": 0.08891967627864786,
+          "maximum": 0.08941005628195169
+        },
+        "mean_error_vector_m": [
+          -0.08424201206766033,
+          -0.023343162244085034,
+          -0.010553797987599632
+        ],
+        "reported_support_ids": [
+          455
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.09110986610976823,
+          -0.030660018580769943,
+          -0.008225416714086534
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.010390176461796333,
+          "median": 0.009812312153834499,
+          "p95": 0.012069693109479,
+          "maximum": 0.027711870463947918
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "11_northeast_pillars",
+        "original_position_error_m": {
+          "rmse": 0.47198091470513387,
+          "median": 0.47238533413528655,
+          "p95": 0.47331529447774345,
+          "maximum": 0.4738748580013345
+        },
+        "mean_error_vector_m": [
+          -0.25469052987898705,
+          -0.3470105934993654,
+          0.19358126965045183
+        ],
+        "reported_support_ids": [
+          758
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.24917094160082964,
+          -0.34841297970707813,
+          0.1977324459885067
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.005989892162636098,
+          "median": 0.004816713975330505,
+          "p95": 0.010244229221974457,
+          "maximum": 0.010948019776910631
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "12_north_office",
+        "original_position_error_m": {
+          "rmse": 0.298852321586018,
+          "median": 0.29867314823316427,
+          "p95": 0.3007024303859563,
+          "maximum": 0.30189123407886204
+        },
+        "mean_error_vector_m": [
+          0.12311265680931502,
+          -0.1840908518232364,
+          -0.20065552632977057
+        ],
+        "reported_support_ids": [
+          973
+        ],
+        "support_map_error_vector_mean_m": [
+          0.1214069428682162,
+          -0.17739517735891752,
+          -0.19449961058809084
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.00740103000151831,
+          "median": 0.007135129934306704,
+          "p95": 0.009255807844224351,
+          "maximum": 0.00976390702831967
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "13_south_door",
+        "original_position_error_m": {
+          "rmse": 0.24093109897176387,
+          "median": 0.2412618367321836,
+          "p95": 0.242281030937915,
+          "maximum": 0.24273532520228547
+        },
+        "mean_error_vector_m": [
+          -0.029099440049204447,
+          -0.08047382711065494,
+          0.22521656694864914
+        ],
+        "reported_support_ids": [
+          176
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.022400666334348784,
+          -0.07458990616129313,
+          0.22816819142110445
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.00927005835090032,
+          "median": 0.009171421398757248,
+          "p95": 0.010384931039933284,
+          "maximum": 0.012989591959651367
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      },
+      {
+        "id": "14_north_door",
+        "original_position_error_m": {
+          "rmse": 0.35993920189223,
+          "median": 0.3598591489737658,
+          "p95": 0.36128341995488183,
+          "maximum": 0.3681105522368443
+        },
+        "mean_error_vector_m": [
+          -0.16539203170804992,
+          -0.31607032566691556,
+          -0.0479509800346436
+        ],
+        "reported_support_ids": [
+          889
+        ],
+        "support_map_error_vector_mean_m": [
+          -0.1576464050176292,
+          -0.31757686412349406,
+          -0.04343336149169565
+        ],
+        "diagnostic_local_map_correction_residual_m": {
+          "rmse": 0.009929155517706624,
+          "median": 0.009758387351896072,
+          "p95": 0.011727378914597537,
+          "maximum": 0.016892388688996215
+        },
+        "note": "Support-keyframe truth transport is diagnosis only; not localization, calibration, or an acceptance result."
+      }
+    ],
+    "diagnostic_global_rigid_fit_only": {
+      "note": "Fitted only to saved mapping keyframes, not queries; not used to replace published scores.",
+      "position_residual_m": {
+        "rmse": 0.1938106402079379,
+        "median": 0.15574531579490905,
+        "p95": 0.35522335656408854,
+        "maximum": 0.5242555479196361
+      }
+    }
+  },
+  "ablations": {
+    "cell_bound_v1": {
+      "smoke": {
+        "dataset": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2",
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+        "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+        "plan_sha256": "73b72903f9705e35908a80a887f6771380e8fe8469e36ceb80c228c511947a45",
+        "cpus": "0,2,4,6",
+        "threads": 4,
+        "rate": 1.0,
+        "max_frames": 30,
+        "variants": {
+          "final": {
+            "libn3mapping_core.so": "26762b2d8197d85bb3b457db0518e1106d68dc7c110301ecfc9853f9664a7458",
+            "replay_probe": "a48b85aa4c87d25714b9187be6e14b9ba6e4886af9268bc6cb320d9b8928f3ac",
+            "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+          },
+          "cell_bound_v1": {
+            "libn3mapping_core.so": "3d933744b8a43bf3dfd180275edfac52fb800d0d34f7e8a11b0e2e5c3a9aadb3",
+            "replay_probe": "a48b85aa4c87d25714b9187be6e14b9ba6e4886af9268bc6cb320d9b8928f3ac",
+            "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+          }
+        },
+        "results": [
+          {
+            "id": "09_east_shelves",
+            "variant": "final",
+            "returncode": 0,
+            "frames": 30,
+            "outputs": 26,
+            "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+            "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_bound_v1/smoke/09_east_shelves_final.csv",
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 3.8062386150000003,
+            "first_lock_cpu_s": 6.7295704810000005,
+            "cpu_s": 7.397235634,
+            "wall_s": 3.997823484,
+            "input_s": 2.9,
+            "cpu_seconds_per_input_second": 2.550770908275862,
+            "alignments": 39,
+            "peak_rss_mib": 1912.03125,
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/09_east_shelves",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_bound_v1/smoke/09_east_shelves_final.csv",
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 26,
+              "first_output_sim_s": 0.799989997,
+              "first_output_position_error_m": 0.4555397374533405,
+              "first_output_rotation_error_deg": 0.3841355656757307,
+              "position_error_m": {
+                "rmse": 0.45916614836919645,
+                "median": 0.4594147457853158,
+                "p95": 0.46035091576857856,
+                "maximum": 0.46050189546249326
+              },
+              "rotation_error_deg": {
+                "rmse": 0.4036534179083675,
+                "median": 0.40344596078736183,
+                "p95": 0.41254529749370594,
+                "maximum": 0.42089172905725264
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            },
+            "map_load_wall_s": 5.79529
+          },
+          {
+            "id": "09_east_shelves",
+            "variant": "cell_bound_v1",
+            "returncode": 0,
+            "frames": 30,
+            "outputs": 26,
+            "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+            "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_bound_v1/smoke/09_east_shelves_cell_bound_v1.csv",
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 3.746299333,
+            "first_lock_cpu_s": 6.508960177,
+            "cpu_s": 7.185324963,
+            "wall_s": 3.941944408,
+            "input_s": 2.9,
+            "cpu_seconds_per_input_second": 2.4776982631034485,
+            "alignments": 39,
+            "peak_rss_mib": 1912.12109375,
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/09_east_shelves",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_bound_v1/smoke/09_east_shelves_cell_bound_v1.csv",
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 26,
+              "first_output_sim_s": 0.799989997,
+              "first_output_position_error_m": 0.4555397374533406,
+              "first_output_rotation_error_deg": 0.3841355656757239,
+              "position_error_m": {
+                "rmse": 0.45916614836919656,
+                "median": 0.4594147457853158,
+                "p95": 0.4603509157685786,
+                "maximum": 0.46050189546249326
+              },
+              "rotation_error_deg": {
+                "rmse": 0.40365341790836734,
+                "median": 0.40344596078736183,
+                "p95": 0.41254529749370594,
+                "maximum": 0.42089172905724515
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            },
+            "map_load_wall_s": 6.14565
+          },
+          {
+            "id": "14_north_door",
+            "variant": "cell_bound_v1",
+            "returncode": 0,
+            "frames": 30,
+            "outputs": 26,
+            "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+            "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_bound_v1/smoke/14_north_door_cell_bound_v1.csv",
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 7.185657791,
+            "first_lock_cpu_s": 17.321974646999998,
+            "cpu_s": 18.084893748,
+            "wall_s": 7.403894191,
+            "input_s": 2.900005005,
+            "cpu_seconds_per_input_second": 6.236159495179905,
+            "alignments": 63,
+            "peak_rss_mib": 1912.03125,
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/14_north_door",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_bound_v1/smoke/14_north_door_cell_bound_v1.csv",
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 26,
+              "first_output_sim_s": 0.799995002,
+              "first_output_position_error_m": 0.3681105522368443,
+              "first_output_rotation_error_deg": 0.4440126141964052,
+              "position_error_m": {
+                "rmse": 0.36123863505488985,
+                "median": 0.360632041508274,
+                "p95": 0.3638509217100324,
+                "maximum": 0.3681105522368443
+              },
+              "rotation_error_deg": {
+                "rmse": 0.41694667375466227,
+                "median": 0.4125892893123289,
+                "p95": 0.4423606640105787,
+                "maximum": 0.4474648717474834
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            },
+            "map_load_wall_s": 5.91138
+          },
+          {
+            "id": "14_north_door",
+            "variant": "final",
+            "returncode": 0,
+            "frames": 30,
+            "outputs": 26,
+            "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+            "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_bound_v1/smoke/14_north_door_final.csv",
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 7.685856006,
+            "first_lock_cpu_s": 18.980227544,
+            "cpu_s": 19.732556528,
+            "wall_s": 7.900527864,
+            "input_s": 2.900005005,
+            "cpu_seconds_per_input_second": 6.8043180939268755,
+            "alignments": 63,
+            "peak_rss_mib": 1912.0,
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/14_north_door",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_bound_v1/smoke/14_north_door_final.csv",
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 26,
+              "first_output_sim_s": 0.799995002,
+              "first_output_position_error_m": 0.3681105522368443,
+              "first_output_rotation_error_deg": 0.4440126141964052,
+              "position_error_m": {
+                "rmse": 0.36123863505488985,
+                "median": 0.360632041508274,
+                "p95": 0.3638509217100324,
+                "maximum": 0.3681105522368443
+              },
+              "rotation_error_deg": {
+                "rmse": 0.4169466737546622,
+                "median": 0.41258928931232886,
+                "p95": 0.4423606640105787,
+                "maximum": 0.4474648717474834
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            },
+            "map_load_wall_s": 5.81913
+          }
+        ],
+        "selected_positions": [
+          "09_east_shelves",
+          "14_north_door"
+        ]
+      },
+      "negative60": [
+        {
+          "variant": "final",
+          "frames": 60,
+          "locks": 0,
+          "outputs": 0,
+          "cpu_s": 112.856523257,
+          "wall_s": 43.902132184,
+          "alignments": 242
+        },
+        {
+          "variant": "cell_bound_v1",
+          "frames": 60,
+          "locks": 0,
+          "outputs": 0,
+          "cpu_s": 101.303182756,
+          "wall_s": 38.969022359,
+          "alignments": 242
+        }
+      ]
+    },
+    "cell_hint_v2": {
+      "smoke": {
+        "dataset": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2",
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+        "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+        "plan_sha256": "73b72903f9705e35908a80a887f6771380e8fe8469e36ceb80c228c511947a45",
+        "cpus": "0,2,4,6",
+        "threads": 4,
+        "rate": 1.0,
+        "max_frames": 30,
+        "variants": {
+          "cell_bound_v1": {
+            "libn3mapping_core.so": "3d933744b8a43bf3dfd180275edfac52fb800d0d34f7e8a11b0e2e5c3a9aadb3",
+            "replay_probe": "a48b85aa4c87d25714b9187be6e14b9ba6e4886af9268bc6cb320d9b8928f3ac",
+            "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+          },
+          "cell_hint_v2": {
+            "libn3mapping_core.so": "a0dc8ddefa63231d5d2e416b475ecede58fb8f581b0747e85bea641060643621",
+            "replay_probe": "a48b85aa4c87d25714b9187be6e14b9ba6e4886af9268bc6cb320d9b8928f3ac",
+            "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+          }
+        },
+        "results": [
+          {
+            "id": "09_east_shelves",
+            "variant": "cell_bound_v1",
+            "returncode": 0,
+            "frames": 30,
+            "outputs": 26,
+            "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+            "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_hint_v2/smoke/09_east_shelves_cell_bound_v1.csv",
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 3.94979548,
+            "first_lock_cpu_s": 6.660881414999999,
+            "cpu_s": 7.341163395000001,
+            "wall_s": 4.145372653000001,
+            "input_s": 2.9,
+            "cpu_seconds_per_input_second": 2.531435653448276,
+            "alignments": 39,
+            "peak_rss_mib": 1912.03125,
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/09_east_shelves",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_hint_v2/smoke/09_east_shelves_cell_bound_v1.csv",
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 26,
+              "first_output_sim_s": 0.799989997,
+              "first_output_position_error_m": 0.4555397374533405,
+              "first_output_rotation_error_deg": 0.38413556567573093,
+              "position_error_m": {
+                "rmse": 0.45916614836919645,
+                "median": 0.4594147457853158,
+                "p95": 0.46035091576857856,
+                "maximum": 0.46050189546249326
+              },
+              "rotation_error_deg": {
+                "rmse": 0.4036534179083675,
+                "median": 0.40344596078736183,
+                "p95": 0.41254529749370594,
+                "maximum": 0.42089172905725264
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            },
+            "map_load_wall_s": 5.8326
+          },
+          {
+            "id": "09_east_shelves",
+            "variant": "cell_hint_v2",
+            "returncode": 0,
+            "frames": 30,
+            "outputs": 26,
+            "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+            "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_hint_v2/smoke/09_east_shelves_cell_hint_v2.csv",
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 4.056623191,
+            "first_lock_cpu_s": 7.3866312160000005,
+            "cpu_s": 8.127284588,
+            "wall_s": 4.271949272,
+            "input_s": 2.9,
+            "cpu_seconds_per_input_second": 2.802511926896552,
+            "alignments": 39,
+            "peak_rss_mib": 1911.9609375,
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/09_east_shelves",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_hint_v2/smoke/09_east_shelves_cell_hint_v2.csv",
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 26,
+              "first_output_sim_s": 0.799989997,
+              "first_output_position_error_m": 0.4555397374533405,
+              "first_output_rotation_error_deg": 0.3841355656757276,
+              "position_error_m": {
+                "rmse": 0.45916614836919645,
+                "median": 0.4594147457853158,
+                "p95": 0.46035091576857856,
+                "maximum": 0.46050189546249326
+              },
+              "rotation_error_deg": {
+                "rmse": 0.40365341790836745,
+                "median": 0.40344596078736183,
+                "p95": 0.41254529749370594,
+                "maximum": 0.42089172905724515
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            },
+            "map_load_wall_s": 5.753220000000001
+          },
+          {
+            "id": "14_north_door",
+            "variant": "cell_hint_v2",
+            "returncode": 0,
+            "frames": 30,
+            "outputs": 26,
+            "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+            "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_hint_v2/smoke/14_north_door_cell_hint_v2.csv",
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 7.543632574,
+            "first_lock_cpu_s": 19.975128106999996,
+            "cpu_s": 20.811239373999996,
+            "wall_s": 7.8109458940000005,
+            "input_s": 2.900005005,
+            "cpu_seconds_per_input_second": 7.176277054045979,
+            "alignments": 63,
+            "peak_rss_mib": 1911.921875,
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/14_north_door",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_hint_v2/smoke/14_north_door_cell_hint_v2.csv",
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 26,
+              "first_output_sim_s": 0.799995002,
+              "first_output_position_error_m": 0.3681105522368444,
+              "first_output_rotation_error_deg": 0.4440126141964055,
+              "position_error_m": {
+                "rmse": 0.36123863505488985,
+                "median": 0.360632041508274,
+                "p95": 0.36385092171003247,
+                "maximum": 0.3681105522368444
+              },
+              "rotation_error_deg": {
+                "rmse": 0.4169466737546621,
+                "median": 0.41258928931232886,
+                "p95": 0.4423606640105787,
+                "maximum": 0.4474648717474824
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            },
+            "map_load_wall_s": 5.91568
+          },
+          {
+            "id": "14_north_door",
+            "variant": "cell_bound_v1",
+            "returncode": 0,
+            "frames": 30,
+            "outputs": 26,
+            "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+            "csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_hint_v2/smoke/14_north_door_cell_bound_v1.csv",
+            "first_lock_frame": 4,
+            "first_lock_wall_s": 6.747125801999999,
+            "first_lock_cpu_s": 16.860714506999997,
+            "cpu_s": 17.621874500999997,
+            "wall_s": 6.963121007,
+            "input_s": 2.900005005,
+            "cpu_seconds_per_input_second": 6.076497961423344,
+            "alignments": 63,
+            "peak_rss_mib": 1911.796875,
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/14_north_door",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_accuracy_20261019/cell_hint_v2/smoke/14_north_door_cell_bound_v1.csv",
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 26,
+              "first_output_sim_s": 0.799995002,
+              "first_output_position_error_m": 0.3681105522368443,
+              "first_output_rotation_error_deg": 0.4440126141964052,
+              "position_error_m": {
+                "rmse": 0.36123863505488985,
+                "median": 0.360632041508274,
+                "p95": 0.3638509217100324,
+                "maximum": 0.3681105522368443
+              },
+              "rotation_error_deg": {
+                "rmse": 0.4169466737546622,
+                "median": 0.41258928931232886,
+                "p95": 0.4423606640105787,
+                "maximum": 0.4474648717474834
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            },
+            "map_load_wall_s": 5.941229999999999
+          }
+        ],
+        "selected_positions": [
+          "09_east_shelves",
+          "14_north_door"
+        ]
+      },
+      "rejected": {
+        "reason": "Both 09/14 prefixes use more CPU than cell_bound_v1 despite passing correspondence and E2E checks. Cache and added test reverted.",
+        "complete_results": "smoke/results.json",
+        "negative_status": "Stopped during baseline negative prefix after deciding not to retain; partial trace excluded."
+      }
+    }
+  },
+  "validation": {
+    "ctest_targets": 61,
+    "ctest_passed": 61,
+    "e2e_modes": [
+      "default",
+      "atlas",
+      "kill"
+    ],
+    "e2e_episodes_per_mode": 12,
+    "note": "Existing correspondence tests include exact neighbors, ties, split boundaries and optimizer pose/quality/information. Rejected cell-cache code and its added regression are absent from final sources."
+  },
+  "runtime_identity": {
+    "base_commit": "c3dcc96454adebe7d708decc3e91dbad6bbfb11e",
+    "files": {
+      "src/registration_search.h": "6d3f90ae51cbe761e8bcae27ea8dbf2bef6a67c6cef2c09c208f024313bf33aa"
+    },
+    "core_sha256": "3d933744b8a43bf3dfd180275edfac52fb800d0d34f7e8a11b0e2e5c3a9aadb3"
+  },
+  "baseline_core_sha256": "26762b2d8197d85bb3b457db0518e1106d68dc7c110301ecfc9853f9664a7458",
+  "artifacts": {
+    "map_poses.cpp": {
+      "path": "build/n3mapping/search_accuracy_20261019/map_poses.cpp",
+      "sha256": "b76f394fde60afbb885067068b0f45ee795e9aa1fdfbf7d6f95f77ff6e8f1fc4"
+    },
+    "map_poses.csv": {
+      "path": "build/n3mapping/search_accuracy_20261019/map_poses.csv",
+      "sha256": "570c83d782dafbc799123694d45ca67181373f284d471c472e2e4543d8fa7120"
+    },
+    "analyze_accuracy.py": {
+      "path": "build/n3mapping/search_accuracy_20261019/analyze_accuracy.py",
+      "sha256": "df41f38106d7bfdf67caf4a1ae04d0070a8c9169626563a0faa3e8b9758fda92"
+    },
+    "accuracy_diagnosis.json": {
+      "path": "build/n3mapping/search_accuracy_20261019/accuracy_diagnosis.json",
+      "sha256": "d75f8ff9bb88ee925626a913ff2182ae58f751a77db4989ba884bcf844885c96"
+    },
+    "saved_keyframe_truth_errors.csv": {
+      "path": "build/n3mapping/search_accuracy_20261019/saved_keyframe_truth_errors.csv",
+      "sha256": "c725a31b4e745f42df40fedfeab4b9e75e81fa504bf5f514da5cf4e5f1636fa5"
+    },
+    "final_ctest.log": {
+      "path": "build/n3mapping/search_accuracy_20261019/final_ctest.log",
+      "sha256": "9740acd292426936b6564eea6492671339c32855487876c81e8d6d5deca11e03"
+    },
+    "final_atlas.log": {
+      "path": "build/n3mapping/search_accuracy_20261019/final_atlas.log",
+      "sha256": "e7c53c4d1f0703cf22c464ff05540d012986ad1cad3e45f244867fbe7d73fe2b"
+    },
+    "final_kill.log": {
+      "path": "build/n3mapping/search_accuracy_20261019/final_kill.log",
+      "sha256": "a19388eb60186a3d8a8f12feb75d3a98595ccc66efa24c31088aba26ce8ad142"
+    },
+    "validate_final.py": {
+      "path": "build/n3mapping/search_accuracy_20261019/validate_final.py",
+      "sha256": "e061216bc9a88b428adb9482e6563d9f17adbff7ffcf7b49c1f655dbead02c68"
+    },
+    "summarize.py": {
+      "path": "build/n3mapping/search_accuracy_20261019/summarize.py",
+      "sha256": "aea96f10902378c0445a9d75128d8550ac629a4c49fa3fec5e156ebd9cb16db7"
+    }
+  },
+  "limitations": [
+    "Map truth transport is a diagnostic counterfactual, never runtime input or a replacement accuracy score.",
+    "Map accuracy work is deferred at Xian request; shared relocalization/loop components do not establish improved loop recall or map consistency without a separate test.",
+    "No acceptance, matching objective, candidate count, iteration limit, input frequency, map or simulator changes.",
+    "Difficult-search average half-core remains an open target."
+  ]
+}

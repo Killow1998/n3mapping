@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <small_gicp/registration/registration_helper.hpp>
@@ -54,13 +55,14 @@ class CorrespondenceSearch {
             hint_distance, std::numeric_limits<double>::infinity());
     }
     if (!tree_.points->empty())
-      visit(tree_.kdtree.root, query, index, distance_squared);
+      visit(tree_.kdtree.root, query, index, distance_squared, {});
     return *index != std::numeric_limits<std::size_t>::max();
   }
 
  private:
   void visit(small_gicp::NodeIndexType node_index, const Eigen::Vector4d& query,
-             std::size_t* index, double* distance_squared) const {
+             std::size_t* index, double* distance_squared,
+             const std::array<double, 3>& cell_distance_squared) const {
     const auto& tree = tree_.kdtree;
     const auto& node = tree.nodes[node_index];
     if (node.left == small_gicp::INVALID_NODE) {
@@ -76,9 +78,20 @@ class CorrespondenceSearch {
     const double offset = node.node_type.sub.proj(query) - node.node_type.sub.thresh;
     const auto near_child = offset < 0.0 ? node.left : node.right;
     const auto far_child = offset < 0.0 ? node.right : node.left;
-    visit(near_child, query, index, distance_squared);
-    if (*distance_squared > offset * offset)
-      visit(far_child, query, index, distance_squared);
+    visit(near_child, query, index, distance_squared, cell_distance_squared);
+    if (*distance_squared > offset * offset) {
+      // Splits on different axes jointly bound this subtree's cell. Testing
+      // only the latest split revisits cells that are already outside the
+      // nearest-neighbor sphere because of an earlier orthogonal split.
+      auto far_cell_distance = cell_distance_squared;
+      far_cell_distance[node.node_type.sub.proj.axis] = offset * offset;
+      const double lower_bound = far_cell_distance[0] + far_cell_distance[1] +
+                                 far_cell_distance[2];
+      const double rounding_guard = 16.0 * std::numeric_limits<double>::epsilon() *
+                                    (1.0 + *distance_squared);
+      if (lower_bound <= *distance_squared + rounding_guard)
+        visit(far_child, query, index, distance_squared, far_cell_distance);
+    }
   }
 
   const Tree& tree_;

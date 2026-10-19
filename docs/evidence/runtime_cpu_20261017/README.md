@@ -6,9 +6,12 @@ Initial-stage baseline: `45f4a171fcab1d9742ab7d575f41a632c7d75073`, branch
 These are Release/Humble development builds with **UNVERIFIED** build identity;
 they do not constitute a Product Bundle or hardware qualification.
 
-Latest fixed-position result: [exact fused retrieval and corrected heading seeds](#exact-fused-retrieval-and-corrected-heading-seeds--2026-10-19)
-recover all 14 locations on four cores. The complete-suite average-half-core goal
-remains open; earlier measurements below retain their original scope.
+Latest stage: [exact correspondence bounds and map-error diagnosis](#exact-correspondence-bounds-and-map-error-diagnosis--2026-10-19)
+reduces complete repetitive-negative CPU by 9.9% in a four-core pair and separates
+dominant local map bias from registration residuals. All 14 initial searches
+retain their behavior; full replay this stage covers 09/14 and the moving negative.
+The earlier [complete 14-position result](#exact-fused-retrieval-and-corrected-heading-seeds--2026-10-19)
+and its scope remain below. Difficult-search average half-core is still unmet.
 
 ## Measurement boundaries
 
@@ -1929,3 +1932,138 @@ and the same `--threads 4 --cpus 0,2,4,6 --rate 1` settings. Further work remain
 negative/new-candidate geometric cost, residual map/local-fit error and moving
 out-of-map/re-entry coverage. RK3588 and full live deployment throughput are not
 qualified. Installed binaries, simulator/FAST_LIO and remote branches are unchanged.
+
+## Exact correspondence bounds and map-error diagnosis — 2026-10-19
+
+This stage starts from `c3dcc96`, which already recovers all 14 fixed locations.
+It targets the remaining cost at 14 and in the changed/repetitive moving negative.
+Only `src/registration_search.h` changes in production: nearest-neighbor traversal
+carries the squared distances to the current cell along its three axes. Their
+sum bounds every point in that cell, allowing branches outside the current
+nearest-neighbor sphere to be skipped. The original near-first traversal, tie
+order and distance gate remain; a conservative rounding guard retains boundary
+branches. This changes neither the registration objective nor the candidate,
+confirmation or acceptance policies. It adds no persistent cache or setting.
+
+An additional per-factor leaf-cell cache passed correspondence and E2E checks but
+increased CPU in both focused initial-search trials: 09 from 7.341 to 8.127 s,
+14 from 17.622 to 20.811 s. That implementation and its added test were reverted.
+Its unfinished negative-prefix baseline is excluded. The retained implementation
+uses the existing exact-neighbor, tie, split-boundary and optimizer tests.
+
+### Paired four-core cost and behavior
+
+The complete 09/14 inputs and complete moving negative use the unchanged frozen
+map, atlas and input hashes, serial A/B processes, physical P cores `0,2,4,6`, four
+registration threads and `OMP_WAIT_POLICY=PASSIVE`. Every input is processed at
+the original 10 Hz due time or later if the process falls behind. CPU covers all
+process threads after map loading; frontend, simulator and DDS are excluded.
+These are single complete pairs, not repeated-run timing statistics.
+
+| Complete replay | Baseline CPU | Final CPU | CPU reduction | Final CPU / input duration |
+| --- | ---: | ---: | ---: | ---: |
+| 09, 296 frames / 29.5 s | 13.220 s | 13.007 s | 1.6% | 0.441 |
+| 14, 296 frames / 29.5 s | 25.547 s | 24.796 s | 2.9% | 0.841 |
+| Moving repetitive negative, 346 frames / 34.5 s | 726.944 s | 655.076 s | 9.9% | 18.988 |
+
+The last ratio expresses how much CPU would be needed per input second to keep
+up, **not actual simultaneous core usage**. That negative takes 263.546 → 234.649
+wall seconds on the same four cores. Its half-core budget is 17.25 CPU s, so it
+still falls far short of the target. At 14 the budget is 14.75 CPU s, also unmet.
+09 remains below half a core; the small positive-case gains should not be read
+as a universal or statistically established speedup.
+
+First-lock wall time at 09 changes 3.979 → 3.734 s and at 14 changes
+7.308 → 7.270 s. Both still lock on query five and emit all 292 subsequent poses.
+Their full-registration counts stay 39 and 63. The negative retains zero locks,
+zero outputs, 1678 full registrations, 1549 confirmation evaluations and the same
+207 admitted / 734 preserved basin events. Its cold/resumed/confirmation solves
+remain 1015/82/581. Thus the retained saving is inside the geometric computation,
+not fewer safety checks or a change in candidate admission. No persistent-memory
+reduction is claimed.
+
+All 14 positions additionally receive a paired **first-30-frame** check, 420
+frames per variant. Each retains query-five locking, 26 outputs and zero coasted
+outputs. Prefix CPU totals 169.663 → 158.978 s (**6.3% less**); first-lock wall
+median across positions changes 5.188 → 4.774 s. The per-case results are retained:
+01 increases CPU 1.4% and first-lock wall 9.0%, whereas the other 13 use less CPU
+in this single pair. Prefix results do not establish full-suite steady-state CPU
+or a new complete-suite half-core measurement.
+
+Across full 09/14, the negative and all prefixes, every compared state, seed,
+support, decision, candidate and alignment-count field agrees. Maximum output
+matrix component differences are `4.44e-16` for full 09/14 and `1.78e-15` for the
+prefixes. Full 09/14 maximum position errors remain exactly 0.461898/0.368111 m
+at reported precision. This supports no observed loss of accuracy or reliability
+on these inputs; no-output negatives have no pose-accuracy score.
+
+Humble validation passes **61/61** checks; default, Atlas and experimental kill
+modes each pass **12 E2E episodes**. Source and map fingerprints match the frozen
+measurements. Final core SHA-256 is
+`3d933744b8a43bf3dfd180275edfac52fb800d0d34f7e8a11b0e2e5c3a9aadb3`;
+baseline core is
+`26762b2d8197d85bb3b457db0518e1106d68dc7c110301ecfc9853f9664a7458`.
+
+### Separating map distortion from local fit
+
+Xian's concern about the 0.3–0.4 m errors is valid: recovering the correct region
+does not qualify the output for navigation accuracy. The existing acquisition
+guard of 1 m / 5 degrees only rejects gross mapping drift. It never established a
+10 cm map or localization guarantee.
+
+An independent extraction of all **1271 saved optimized keyframe poses**, compared
+with mapping-session truth using the unchanged first-pose alignment, finds
+**0.2866 m position RMSE and 0.7205 m maximum error**. Even a diagnostic rigid fit
+using only those mapping keyframes leaves 0.1938 m RMSE and 0.5243 m maximum
+residual; a single global frame offset cannot explain the distortion. That fit
+is not used for any published localization score.
+
+For each previously measured output, a separate diagnostic transports its pose
+through the mapping-truth pose of the **support keyframe actually reported by
+localization**. It does not choose a keyframe using query truth. In notation, the
+diagnostic pose is `T_truth_support * inverse(T_map_support) * T_map_query`.
+This assumes the neighborhood can be approximated by a local rigid correction;
+it is evidence about map bias, not an exact decomposition of every error source.
+
+| Position | Actual output maximum error | Diagnostic residual after support-map truth transport |
+| --- | ---: | ---: |
+| 09 east shelves | 0.4619 m | 0.0148 m |
+| 11 northeast pillars | 0.4739 m | 0.0109 m |
+| 14 north door | 0.3681 m | 0.0169 m |
+
+The error vectors also agree closely with those of the saved support poses.
+Across all 14 positions this diagnostic maximum ranges from 0.0091 to 0.0516 m.
+These counterfactual numbers are **not runtime-corrected output**, navigation
+qualification or proof that every remaining error comes from the map. Together
+they strongly support a dominant map contribution at 09/11/14. No truth enters
+normal localization and no map, scoring alignment or threshold is changed.
+At Xian's request, map correction is deferred while search-cost work continues.
+
+### Reusing relocalization work for loop closure
+
+The current loop pipeline already shares heading-seed generation and the
+registration implementation. The exact complete fused retrieval introduced in
+the previous stage currently applies to localization; approximate loop retrieval
+still has its earlier shortlist. Extending that recall improvement is a concrete
+next experiment, not a demonstrated map-consistency improvement in this stage.
+
+The intended path is to retrieve old regions, estimate independent relative
+measurements from source/target scan geometry, verify competing hypotheses and
+neighborhood consistency, and submit accepted relative constraints to the
+existing pose graph. A localization pose derived from the current map must not
+be inserted as if it were a new independent observation: that would reuse the
+map's own bias. Repeated constraints derived from the same scans also need to
+retain their provenance rather than be treated as independent confirmations.
+Map improvement requires its own before/after trajectory and overlap checks,
+including false-loop controls in repeated regions. No new loop-recall or map
+optimization behavior is delivered or claimed here.
+
+Evidence: [`search_accuracy_20261019.json`](../search_accuracy_20261019.json).
+Frozen variants, complete traces, map-pose extraction, independent diagnostic
+scripts and rejected-cache evidence remain in
+`build/n3mapping/search_accuracy_20261019/`. `validate_final.py` records the test
+and replay commands; `summarize.py` checks identities and behavior comparisons.
+No issue workspace, installation, push or simulator/FAST_LIO change is involved.
+The next search-cost work still needs to reduce repeated/new-candidate geometry
+while preserving fresh evidence and recovery. Map-consistency work is deferred
+as requested; RK3588 and full live deployment throughput remain unqualified.
