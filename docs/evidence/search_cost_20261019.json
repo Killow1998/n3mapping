@@ -6077,5 +6077,417 @@
       "date": "2026-10-19",
       "result": "Fetched source also uses the componentwise residual. Issue search failed; no claim about existing issue/fix status, and no upstream message or write."
     }
+  },
+  "tracking_initialization_diagnosis": {
+    "status": "DIAGNOSIS_COMPLETE_NO_RUNTIME_CHANGE",
+    "runtime_commit": "ceb39b5",
+    "runtime_core_sha256": "d1cb332821c0aafee6893bddd6d9eafbcd5ebb5dc64284d86b09932061faf80e",
+    "equivalence": {
+      "equivalence": [
+        {
+          "variant": "baseline",
+          "frames": 2236,
+          "reference": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_reentry_20261019/full.csv",
+          "state_differences": [],
+          "maximum_output_matrix_delta": 1.4210854715202004e-14,
+          "tracked_queries": 181,
+          "registration_records": 186,
+          "scope": "Unpaced diagnostic retaining all original timestamps/inputs. No performance comparison. Valid causal interpretation requires equivalence to frozen paced run."
+        },
+        {
+          "variant": "scalar",
+          "frames": 2236,
+          "reference": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/stage_reuse_20261019/plane_objective_v1/full_movement.csv",
+          "state_differences": [],
+          "maximum_output_matrix_delta": 1.4210854715202004e-14,
+          "tracked_queries": 181,
+          "registration_records": 189,
+          "scope": "Unpaced diagnostic retaining all original timestamps/inputs. No performance comparison. Valid causal interpretation requires equivalence to frozen paced run."
+        }
+      ],
+      "geometry_equivalence": [
+        {
+          "variant": "baseline",
+          "frames": 2236,
+          "reference": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_reentry_20261019/full.csv",
+          "state_differences": [],
+          "maximum_output_matrix_delta": 1.4210854715202004e-14,
+          "tracked_queries": 181,
+          "registration_records": 186,
+          "scope": "Unpaced diagnostic retaining all original timestamps/inputs. No performance comparison. Valid causal interpretation requires equivalence to frozen paced run."
+        }
+      ],
+      "local_probe_equivalence": [
+        {
+          "variant": "baseline",
+          "frames": 2236,
+          "reference": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_reentry_20261019/full.csv",
+          "state_differences": [],
+          "maximum_output_matrix_delta": 1.4210854715202004e-14,
+          "tracked_queries": 181,
+          "registration_records": 186,
+          "scope": "Unpaced diagnostic retaining all original timestamps/inputs. No performance comparison. Valid causal interpretation requires equivalence to frozen paced run."
+        }
+      ],
+      "local_budget_equivalence": [
+        {
+          "variant": "baseline",
+          "frames": 2236,
+          "reference": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_reentry_20261019/full.csv",
+          "state_differences": [],
+          "maximum_output_matrix_delta": 1.4210854715202004e-14,
+          "tracked_queries": 181,
+          "registration_records": 186,
+          "scope": "Unpaced diagnostic retaining all original timestamps/inputs. No performance comparison. Valid causal interpretation requires equivalence to frozen paced run."
+        }
+      ]
+    },
+    "selected_result_rule": "Join tracking result to registration using actual selected fitness; discarded retry attempts are not accepted measurements. All selected optimizer results converge.",
+    "first_large_fallback": {
+      "frame": 2016,
+      "matched": 455,
+      "metric": 1,
+      "translation": 7.381321758606753,
+      "rotation_deg": 88.63218104146678,
+      "fitness": 0.1352824811218891,
+      "inlier": 0.8808046222983095,
+      "prediction": {
+        "accepted": false,
+        "confidence": 0.00010485395833653984,
+        "fitness": 1.374441307343062,
+        "inlier_ratio": 0.26241915508462915,
+        "valid": true
+      },
+      "endpoint": {
+        "accepted": false,
+        "confidence": 0.01152999530702534,
+        "fitness": 0.6694205027586309,
+        "inlier_ratio": 0.537773496628595,
+        "valid": true
+      },
+      "gate": 0.3,
+      "resolution": 0.05,
+      "stages": [
+        {
+          "converged": false,
+          "fitness": 0.1678332238891887,
+          "inlier_ratio": 0.7943672839506173,
+          "iterations": 29,
+          "stage": "coarse_plane_icp",
+          "termination": "max_iterations"
+        },
+        {
+          "converged": true,
+          "fitness": 0.1352824811218891,
+          "inlier_ratio": 0.8808046222983095,
+          "iterations": 10,
+          "stage": "fine_plane_icp",
+          "termination": "converged"
+        }
+      ]
+    },
+    "selected_window": {
+      "total_selected": 79,
+      "plane_selected": 46,
+      "plane_endpoint_narrow_rejected": 46,
+      "plane_prediction_narrow_accepted": 3
+    },
+    "direct_counterfactual": {
+      "scope": "Independent truth scores counterfactual solves; no truth used by solver and no feedback into replay. This does not qualify a changed tracking trajectory.",
+      "results": [
+        {
+          "frame": 1994,
+          "converged": true,
+          "quality_accepted": true,
+          "iterations": 1,
+          "fitness": 0.006938640341443682,
+          "inlier_ratio": 0.9527872582480091,
+          "prediction": {
+            "position_error_m": 0.11088587330690712,
+            "rotation_error_deg": 0.3421038770970169
+          },
+          "multiscale": {
+            "position_error_m": 0.10898807132767528,
+            "rotation_error_deg": 0.3399376640146855
+          },
+          "direct": {
+            "position_error_m": 0.10900534038436589,
+            "rotation_error_deg": 0.339841018211292
+          }
+        },
+        {
+          "frame": 2004,
+          "converged": true,
+          "quality_accepted": true,
+          "iterations": 1,
+          "fitness": 0.008701277368532104,
+          "inlier_ratio": 0.9380063835011049,
+          "prediction": {
+            "position_error_m": 0.10183593942993721,
+            "rotation_error_deg": 0.33761024553136093
+          },
+          "multiscale": {
+            "position_error_m": 0.10226850406324335,
+            "rotation_error_deg": 0.34622592477872505
+          },
+          "direct": {
+            "position_error_m": 0.1022686386541861,
+            "rotation_error_deg": 0.3462371845704256
+          }
+        },
+        {
+          "frame": 2012,
+          "converged": true,
+          "quality_accepted": true,
+          "iterations": 1,
+          "fitness": 0.008384858489926879,
+          "inlier_ratio": 0.9267433987813135,
+          "prediction": {
+            "position_error_m": 0.09855085837682247,
+            "rotation_error_deg": 0.33885620554838397
+          },
+          "multiscale": {
+            "position_error_m": 0.09757291923051001,
+            "rotation_error_deg": 0.35416602216126586
+          },
+          "direct": {
+            "position_error_m": 0.09757361445704987,
+            "rotation_error_deg": 0.3541034108635081
+          }
+        },
+        {
+          "frame": 2014,
+          "converged": true,
+          "quality_accepted": true,
+          "iterations": 1,
+          "fitness": 0.008543997883859532,
+          "inlier_ratio": 0.9321433437798066,
+          "prediction": {
+            "position_error_m": 0.09827569689347306,
+            "rotation_error_deg": 0.3462052618258322
+          },
+          "multiscale": {
+            "position_error_m": 0.09714211691772559,
+            "rotation_error_deg": 0.34494650503820373
+          },
+          "direct": {
+            "position_error_m": 0.09713382432469259,
+            "rotation_error_deg": 0.34509774617210304
+          }
+        },
+        {
+          "frame": 2016,
+          "converged": false,
+          "quality_accepted": true,
+          "iterations": 19,
+          "fitness": 0.03805117671522341,
+          "inlier_ratio": 0.2723269574790147,
+          "prediction": {
+            "position_error_m": 0.09806364859063017,
+            "rotation_error_deg": 0.34134695812024346
+          },
+          "multiscale": {
+            "position_error_m": 7.42590967312912,
+            "rotation_error_deg": 88.70443241781423
+          },
+          "direct": {
+            "position_error_m": 0.16653926994500895,
+            "rotation_error_deg": 0.48451842235825343
+          }
+        },
+        {
+          "frame": 2017,
+          "converged": false,
+          "quality_accepted": true,
+          "iterations": 19,
+          "fitness": 0.033242048328063406,
+          "inlier_ratio": 0.2634490388604619,
+          "prediction": {
+            "position_error_m": 0.32283142901198925,
+            "rotation_error_deg": 2.9091141855087153
+          },
+          "multiscale": {
+            "position_error_m": 8.634275562279347,
+            "rotation_error_deg": 4.603481521801111
+          },
+          "direct": {
+            "position_error_m": 0.2030253816979689,
+            "rotation_error_deg": 0.6227323245180652
+          }
+        },
+        {
+          "frame": 2024,
+          "converged": false,
+          "quality_accepted": true,
+          "iterations": 19,
+          "fitness": 0.04003723699209293,
+          "inlier_ratio": 0.328761429758936,
+          "prediction": {
+            "position_error_m": 1.6221303553298472,
+            "rotation_error_deg": 3.4028668293668547
+          },
+          "multiscale": {
+            "position_error_m": 6.6203294990050185,
+            "rotation_error_deg": 89.82841022617119
+          },
+          "direct": {
+            "position_error_m": 1.5126234540277474,
+            "rotation_error_deg": 0.18663425853142776
+          }
+        },
+        {
+          "frame": 2025,
+          "converged": true,
+          "quality_accepted": true,
+          "iterations": 8,
+          "fitness": 0.037154106381255346,
+          "inlier_ratio": 0.3247075017205781,
+          "prediction": {
+            "position_error_m": 1.7671623206931093,
+            "rotation_error_deg": 6.096005829479301
+          },
+          "multiscale": {
+            "position_error_m": 6.349751969868465,
+            "rotation_error_deg": 88.32668912965067
+          },
+          "direct": {
+            "position_error_m": 1.7371484723953126,
+            "rotation_error_deg": 0.17144020271934365
+          }
+        }
+      ]
+    },
+    "budget_counterfactual": {
+      "scope": "Observer-only iteration allocation audit; original geometry/thresholds, no trajectory feedback.",
+      "cases": [
+        {
+          "frame": 2016,
+          "original": {
+            "accepted": true,
+            "confidence": 0.7759443219520853,
+            "converged": false,
+            "fitness": 0.038051176715223435,
+            "inlier_ratio": 0.2723269574790147,
+            "iterations": 19,
+            "optimizer_fitness": 0.03805127995346198,
+            "optimizer_inlier_ratio": 0.2723269574790147,
+            "pose": [
+              0.011248466827803474,
+              0.9999058906534584,
+              0.007853778105966634,
+              0.0,
+              -0.9999366834651353,
+              0.011245622334817337,
+              0.0004062499818994131,
+              0.0,
+              0.00031789112749792606,
+              -0.007857850521396556,
+              0.9999690760870629,
+              0.0,
+              -3.8765942336203283,
+              14.538946076979082,
+              0.09341256575981952,
+              1.0
+            ],
+            "valid": true
+          },
+          "budgets": [
+            {
+              "accepted": true,
+              "budget": 30,
+              "confidence": 0.784147765385312,
+              "converged": false,
+              "fitness": 0.03647367002015581,
+              "inlier_ratio": 0.2720517407458373,
+              "iterations": 29,
+              "pose": [
+                0.011399891172920883,
+                0.9998974600737328,
+                0.008666707526129984,
+                0.0,
+                -0.9999347994836373,
+                0.011393715699528179,
+                0.0007615931828262944,
+                0.0,
+                0.0006627690875137943,
+                -0.008674824531726376,
+                0.9999621533620561,
+                0.0,
+                -3.8766336398860846,
+                14.547569756487105,
+                0.10681715287789671,
+                1.0
+              ],
+              "valid": true,
+              "position_error_m": 0.17497962295566577,
+              "rotation_error_deg": 0.5339579625737662
+            },
+            {
+              "accepted": true,
+              "budget": 50,
+              "confidence": 0.7843035978051281,
+              "converged": true,
+              "fitness": 0.0364438637238333,
+              "inlier_ratio": 0.2723269574790147,
+              "iterations": 37,
+              "pose": [
+                0.011299216646083722,
+                0.999897082861406,
+                0.008840327394138954,
+                0.0,
+                -0.9999361325841485,
+                0.011296637070359454,
+                0.00034167756285892096,
+                0.0,
+                0.00024177642822708497,
+                -0.008843623474078856,
+                0.9999608651682363,
+                0.0,
+                -3.8761357049340277,
+                14.559941733606845,
+                0.10828001086141759,
+                1.0
+              ],
+              "valid": true,
+              "position_error_m": 0.1753240767857447,
+              "rotation_error_deg": 0.5376400606222664
+            },
+            {
+              "accepted": true,
+              "budget": 80,
+              "confidence": 0.7843035978051281,
+              "converged": true,
+              "fitness": 0.0364438637238333,
+              "inlier_ratio": 0.2723269574790147,
+              "iterations": 37,
+              "pose": [
+                0.01129921664608372,
+                0.999897082861406,
+                0.008840327394138956,
+                0.0,
+                -0.9999361325841485,
+                0.01129663707035945,
+                0.00034167756285892123,
+                0.0,
+                0.0002417764282270848,
+                -0.008843623474078858,
+                0.9999608651682363,
+                0.0,
+                -3.8761357049340277,
+                14.559941733606845,
+                0.10828001086141759,
+                1.0
+              ],
+              "valid": true,
+              "position_error_m": 0.1753240767857447,
+              "rotation_error_deg": 0.5376400606222664
+            }
+          ]
+        }
+      ]
+    },
+    "scope": "Unpaced diagnostic only: every original input/timestamp retained; output equivalence verified to paced baselines. No timing or trajectory-improvement claim. Truth used exclusively for offline scoring; counterfactual solves never feed the running tracker.",
+    "next": "Screen local-first GICP from trusted tracking prediction using existing main+refinement budget30+20; preserve original convergence/quality criteria and full fallback. The observed38-iteration solution motivates a candidate, not adoption or proof for an entire trajectory.",
+    "artifacts": "build/n3mapping/stage_reuse_20261019/tracking_acceptance_v1"
   }
 }

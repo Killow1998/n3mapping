@@ -2808,3 +2808,46 @@ is ordinary tracking acceptance: identify the actual stage/metric, initial and
 refined poses, and current geometry behind the late-route correction. This
 audit does not yet prove the coordinate defect caused the original tracking
 excursion. All four goal stages remain open at their previously recorded gaps.
+
+
+## Tracking initialization diagnosis — 2026-10-19
+
+Independent observers record tracking queries 1950–2130 and each original/retry
+registration, without changing authority or optimizer inputs. Full 2236-frame
+traces for accepted runtime and the rejected scalar factor preserve all compared
+state/decision/registration-count fields and output matrices within 1.42e-14
+relative to their paced references. Further fixed-GICP and direct-local-solve
+observers preserve the accepted trajectory too. These diagnostics are unpaced
+with original timestamps/inputs and are not timing benchmarks.
+
+The selected result is identified from tracking's actual returned fitness;
+merely observing a retry does not mean it was accepted. All selected optimizer
+results converge. At frame 2016 the accepted runtime nevertheless selects a
+PLANE_ICP endpoint 7.381 m/88.632 degrees from its prediction. That displacement
+skips GICP under the existing 3 m/0.5 rad refinement-eligibility gates, yet ordinary
+tracking accepts the plane result and gradually absorbs it. Plane fitness is
+0.135282 with 88.08% inliers. The same endpoint evaluated with the existing 0.3 m
+GICP correspondence gate has fitness 0.669421 and fails current quality. Across
+the focused 81-query interval, all 46 actually selected plane endpoints fail the
+same-metric GICP check; only three corresponding predictions pass fixed quality.
+Simply rejecting them risks repeating earlier loss/reinitialization regressions.
+
+At the first damaging correction, independent scoring puts the original
+prediction at 0.098064 m/0.341347 degrees, and the multiscale endpoint at
+7.425910 m/88.704432 degrees. Direct GICP from that prediction stays near the
+correct region, but 20 and 30 iterations do not converge. Its fixed-pose quality
+passing is not permission to accept an unconverged optimizer. With a 50-iteration
+budget (configured main 30 plus refinement 20), it converges at recorded index 37
+(38 iterations), yielding 0.175324 m/0.537640 degrees. An 80-iteration budget gives
+the identical endpoint. Thresholds and truth use are unchanged; truth only
+scores these counterfactual results, which never feed the replay. This supports
+examining local initialization before broad multiscale search; it does not yet
+prove a better emitted trajectory, map consistency or 10 cm accuracy.
+
+Production remains `ceb39b5`/`d1cb3328…faf80e`, with no new API, logging layout,
+permanent test or accepted solver change. Raw matched-header observers, complete
+traces, equivalence reports, focused geometry and budget results are preserved in
+`build/n3mapping/stage_reuse_20261019/tracking_acceptance_v1/diagnosis.json` and
+neighboring files. The next isolated candidate will try local GICP first for
+tracking, using existing iteration budgets and full fallback; it must preserve
+recovery, negative rejection and full moving behavior before adoption.
