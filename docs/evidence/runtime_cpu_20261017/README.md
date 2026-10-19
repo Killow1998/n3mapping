@@ -2746,3 +2746,65 @@ Frozen code, raw comparisons and decisions remain in
 complete qualification. The original gates, input frequency and four-core
 policy remain unchanged. Moving aliases, the full-map tracking excursion,
 difficult-search half-core, 10 cm and offline loop consistency remain open.
+
+
+## Plane-factor coordinate audit — 2026-10-19
+
+**A mathematical defect is confirmed; the direct replacement is not adopted.**
+The installed small_gicp header matches clean dependency commit `78f2e7a`
+(SHA256 `f9baeae0…7ae`). Both solver/evaluator dependency files confirm that
+n3m compiles this header. The factor uses componentwise normal-weighted
+residuals, rather than the scalar projection onto the normal. An independent
+compiled test with one unique correspondence and a finite distance gate rotates
+only the target/world frame. A tangent displacement changes energy from 0.5 to
+about 1.85e-32 under a 45-degree rotation, and translation-information rank
+changes from two to one. Its error evaluation agrees with linearization. The
+GICP control preserves energy to floating roundoff. The fetched
+[upstream factor](https://raw.githubusercontent.com/koide3/small_gicp/master/include/small_gicp/factors/plane_icp_factor.hpp)
+also contains the componentwise expression; this read does not establish issue
+or fix status. No upstream message, dependency edit or installation was made.
+
+An isolated scalar-projection factor restores tangent-null energy, rank-one
+translation information and coordinate invariance. Both optimization and
+fixed-pose evaluation use it; the matcher interfaces and numeric gates stay
+unchanged. Fitness meaning nevertheless changes, so formula correctness alone
+cannot qualify this replacement. An identically compiled componentwise
+interposer controls for the experiment path and preserves compared baseline
+decisions/poses to floating roundoff.
+
+Both interposers pass all 15 episodes in default, Atlas and kill modes. Fresh
+four-P-core/4-thread/PASSIVE screens of 02/03/08/14 use 30 original-rate frames
+each. All lock at frame 4 with 26 outputs and unchanged decision fields; scalar
+CPU is lower by 7.10/8.47/4.06/1.83%. Maximum absolute position-error changes
+are within 0.08 mm; full emitted position differences are at most 0.191 mm.
+The fresh 60-frame negative remains unlocked/unpublished but increases CPU
+94.416 to 96.141 seconds and registrations 224 to 240. Its initialization count
+is nearly unchanged (92 to 91); confirmation registrations increase114 to126.
+Neither faster individual solves nor unchanged gate values imply less total
+work or preserved acceptance behavior.
+
+The complete 346-frame scalar negative has zero locks/outputs, 1415 registrations
+and 559.775 CPU seconds over 34.5 input seconds (16.225 CPU s/input s). Its full
+2236-frame movement run has 2232 outputs, one frame-4 lock and 137.672 CPU seconds
+(0.615981 cores). These two costs use historical controls, not fresh paired
+performance claims. Loading-inclusive peak RSS is about1920.5 MiB.
+
+**Movement rejects the candidate.** With the single fixed mapping-session
+alignment, maximum position error improves 4.399767 to3.185053m and RMSE
+0.712755 to0.455852m. However, maximum attitude error increases9.005996 to
+26.745109degrees (peak frame2041); largest same-frame attitude increase is
+18.567912degrees. Gross geometric frames fall83 to43, but one new gross frame
+appears and ten state/source frames change. The gross1m/5degree bands only
+identify existing failures; they are neither runtime gates nor10cm acceptance.
+No complete14 or partial-map qualification follows this demonstrated regression.
+
+Production remains the verified `ceb39b5` matcher split and core
+`d1cb3328…faf80e`; no scalar factor, added runtime abstraction or permanent test
+is retained. Existing tests are not rerun for this evidence-only closeout.
+Sources, matching interposers, compiled factor controls, episode XML, full raw
+replays and `decision.json` remain under
+`build/n3mapping/stage_reuse_20261019/plane_objective_v1`. The next investigation
+is ordinary tracking acceptance: identify the actual stage/metric, initial and
+refined poses, and current geometry behind the late-route correction. This
+audit does not yet prove the coordinate defect caused the original tracking
+excursion. All four goal stages remain open at their previously recorded gaps.

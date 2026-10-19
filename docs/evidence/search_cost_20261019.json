@@ -5531,5 +5531,551 @@
       },
       "scope": "Only verbatim responsibility split retained. No new algorithm/API/cache/test target. Replay prefixes validate behavior, not new full-input cost claims."
     }
+  },
+  "plane_factor_audit": {
+    "status": "NOT_ADOPTED_MOVING_ATTITUDE_REGRESSION",
+    "installed_dependency_commit": "78f2e7a221720625eb95271ad9da21a04fb77f86",
+    "installed_header_sha256": "f9baeae0309d714e6bc890391d561a5760d05972b1f1115670fe6f33f09137ae",
+    "compiled_coordinate_audit": {
+      "status": "COMPILED_FACTOR_COORDINATE_DEPENDENCE_CONFIRMED",
+      "baseline": {
+        "samples": [
+          {
+            "world_yaw_deg": 0,
+            "plane_error": 0.4999999999999999,
+            "plane_error_evaluation": 0.4999999999999999,
+            "plane_body_H_max_delta": 0,
+            "plane_translation_rank": 2,
+            "scalar_projection_reference": 0,
+            "gicp_error": 0.9900990099009874,
+            "gicp_body_H_max_delta": 0
+          },
+          {
+            "world_yaw_deg": 15,
+            "plane_error": 0.375,
+            "plane_error_evaluation": 0.375,
+            "plane_body_H_max_delta": 0.3415063509461097,
+            "plane_translation_rank": 2,
+            "scalar_projection_reference": 6.162975822039155e-33,
+            "gicp_error": 0.9900990099009908,
+            "gicp_body_H_max_delta": 2.7000623958883807e-13
+          },
+          {
+            "world_yaw_deg": 45,
+            "plane_error": 1.848892746611746e-32,
+            "plane_error_evaluation": 1.848892746611746e-32,
+            "plane_body_H_max_delta": 0.9999999999999998,
+            "plane_translation_rank": 1,
+            "scalar_projection_reference": 1.0573994819069704e-33,
+            "gicp_error": 0.9900990099009902,
+            "gicp_body_H_max_delta": 1.1368683772161603e-13
+          },
+          {
+            "world_yaw_deg": 90,
+            "plane_error": 0.49999999999999983,
+            "plane_error_evaluation": 0.49999999999999983,
+            "plane_body_H_max_delta": 5.551115123125783e-17,
+            "plane_translation_rank": 2,
+            "scalar_projection_reference": 6.162975822039155e-33,
+            "gicp_error": 0.9900990099009874,
+            "gicp_body_H_max_delta": 0
+          },
+          {
+            "world_yaw_deg": 135,
+            "plane_error": 1.848892746611746e-32,
+            "plane_error_evaluation": 1.848892746611746e-32,
+            "plane_body_H_max_delta": 0.9999999999999998,
+            "plane_translation_rank": 1,
+            "scalar_projection_reference": 1.0573994819069704e-33,
+            "gicp_error": 0.9900990099009902,
+            "gicp_body_H_max_delta": 1.1368683772161603e-13
+          }
+        ]
+      },
+      "scalar_reference": {
+        "samples": [
+          {
+            "world_yaw_deg": 0,
+            "plane_error": 0,
+            "plane_error_evaluation": 0,
+            "plane_body_H_max_delta": 0,
+            "plane_translation_rank": 1,
+            "scalar_projection_reference": 0,
+            "gicp_error": 0.9900990099009874,
+            "gicp_body_H_max_delta": 0
+          },
+          {
+            "world_yaw_deg": 15,
+            "plane_error": 6.162975822039155e-33,
+            "plane_error_evaluation": 6.162975822039155e-33,
+            "plane_body_H_max_delta": 0,
+            "plane_translation_rank": 1,
+            "scalar_projection_reference": 6.162975822039155e-33,
+            "gicp_error": 0.9900990099009908,
+            "gicp_body_H_max_delta": 2.7000623958883807e-13
+          },
+          {
+            "world_yaw_deg": 45,
+            "plane_error": 1.0573994819069704e-33,
+            "plane_error_evaluation": 1.0573994819069704e-33,
+            "plane_body_H_max_delta": 1.1102230246251565e-16,
+            "plane_translation_rank": 1,
+            "scalar_projection_reference": 1.0573994819069704e-33,
+            "gicp_error": 0.9900990099009902,
+            "gicp_body_H_max_delta": 1.1368683772161603e-13
+          },
+          {
+            "world_yaw_deg": 90,
+            "plane_error": 6.162975822039155e-33,
+            "plane_error_evaluation": 6.162975822039155e-33,
+            "plane_body_H_max_delta": 0,
+            "plane_translation_rank": 1,
+            "scalar_projection_reference": 6.162975822039155e-33,
+            "gicp_error": 0.9900990099009874,
+            "gicp_body_H_max_delta": 0
+          },
+          {
+            "world_yaw_deg": 135,
+            "plane_error": 1.0573994819069704e-33,
+            "plane_error_evaluation": 1.0573994819069704e-33,
+            "plane_body_H_max_delta": 1.1102230246251565e-16,
+            "plane_translation_rank": 1,
+            "scalar_projection_reference": 1.0573994819069704e-33,
+            "gicp_error": 0.9900990099009902,
+            "gicp_body_H_max_delta": 1.1368683772161603e-13
+          }
+        ]
+      },
+      "header": "/home/user/ros_ws/to_migrate_ws/install/small_gicp/include/small_gicp/factors/plane_icp_factor.hpp",
+      "header_sha256": "f9baeae0309d714e6bc890391d561a5760d05972b1f1115670fe6f33f09137ae",
+      "production_dependency_verified": [
+        "point_cloud_registration.cpp.o.d",
+        "point_cloud_matcher_alignment.cpp.o.d"
+      ],
+      "interpretation": "Current componentwise plane residual changes under a pure target/world coordinate rotation and adds tangent stiffness (rank2 instead of rank1). Actual scalar-factor build preserves tangent-null error and body-coordinate Hessian. GICP control is invariant to floating error. This does not prove causality for map/tracking drift, runtime gain, or safety of altered fitness semantics."
+    },
+    "episodes": [
+      {
+        "variant": "componentwise",
+        "mode": "default",
+        "returncode": 0,
+        "tests": 15,
+        "failed": []
+      },
+      {
+        "variant": "componentwise",
+        "mode": "atlas",
+        "returncode": 0,
+        "tests": 15,
+        "failed": []
+      },
+      {
+        "variant": "componentwise",
+        "mode": "kill",
+        "returncode": 0,
+        "tests": 15,
+        "failed": []
+      },
+      {
+        "variant": "scalar",
+        "mode": "default",
+        "returncode": 0,
+        "tests": 15,
+        "failed": []
+      },
+      {
+        "variant": "scalar",
+        "mode": "atlas",
+        "returncode": 0,
+        "tests": 15,
+        "failed": []
+      },
+      {
+        "variant": "scalar",
+        "mode": "kill",
+        "returncode": 0,
+        "tests": 15,
+        "failed": []
+      }
+    ],
+    "screen": [
+      {
+        "case": "02_east_corridor",
+        "variant": "componentwise",
+        "frames": 30,
+        "cpu_s": 10.26330017,
+        "wall_s": 4.933333589,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 39,
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.708636798000001,
+        "first_lock_cpu_s": 9.462852948,
+        "truth": {
+          "first_output_position_error_m": 0.39229422558062255,
+          "first_output_rotation_error_deg": 0.4648975385472729,
+          "position_error_m": {
+            "rmse": 0.3964742859844661,
+            "median": 0.39658777136880663,
+            "p95": 0.397779953902614,
+            "maximum": 0.3979237921618445
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4596518282584207,
+            "median": 0.459507282525516,
+            "p95": 0.4677059966776977,
+            "maximum": 0.4704479551284808
+          }
+        }
+      },
+      {
+        "case": "02_east_corridor",
+        "variant": "scalar",
+        "frames": 30,
+        "cpu_s": 9.534463900999999,
+        "wall_s": 4.8674661619999995,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 39,
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.59360478,
+        "first_lock_cpu_s": 8.602507517,
+        "truth": {
+          "first_output_position_error_m": 0.3921701984294636,
+          "first_output_rotation_error_deg": 0.4630810924426201,
+          "position_error_m": {
+            "rmse": 0.3964402663771142,
+            "median": 0.39653489649901275,
+            "p95": 0.3976963511116696,
+            "maximum": 0.39784738411765436
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4590573508197799,
+            "median": 0.4588143811515627,
+            "p95": 0.46647998610454855,
+            "maximum": 0.47033983953259695
+          }
+        }
+      },
+      {
+        "case": "03_south_corridor",
+        "variant": "scalar",
+        "frames": 30,
+        "cpu_s": 14.530984376000001,
+        "wall_s": 6.4140049580000005,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 62,
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 6.050249673000001,
+        "first_lock_cpu_s": 13.665502441000001,
+        "truth": {
+          "first_output_position_error_m": 0.14940432373170576,
+          "first_output_rotation_error_deg": 0.2223483383817071,
+          "position_error_m": {
+            "rmse": 0.14790295405630371,
+            "median": 0.14783334106521517,
+            "p95": 0.1488315311642176,
+            "maximum": 0.14940432373170576
+          },
+          "rotation_error_deg": {
+            "rmse": 0.23265373181595594,
+            "median": 0.2321029200045166,
+            "p95": 0.2389088464191704,
+            "maximum": 0.24789659858053248
+          }
+        }
+      },
+      {
+        "case": "03_south_corridor",
+        "variant": "componentwise",
+        "frames": 30,
+        "cpu_s": 15.876245538,
+        "wall_s": 6.768863157,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 63,
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 6.5305321670000005,
+        "first_lock_cpu_s": 15.033995416999998,
+        "truth": {
+          "first_output_position_error_m": 0.1493889217195871,
+          "first_output_rotation_error_deg": 0.22235603858428488,
+          "position_error_m": {
+            "rmse": 0.1479003884276242,
+            "median": 0.14783194400425737,
+            "p95": 0.14883079784504472,
+            "maximum": 0.1493889217195871
+          },
+          "rotation_error_deg": {
+            "rmse": 0.23265675302567934,
+            "median": 0.23210399025632705,
+            "p95": 0.23891964067348512,
+            "maximum": 0.2479037043664883
+          }
+        }
+      },
+      {
+        "case": "08_west_shelves",
+        "variant": "componentwise",
+        "frames": 30,
+        "cpu_s": 13.711660203000001,
+        "wall_s": 5.7907766469999995,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 72,
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.508988004,
+        "first_lock_cpu_s": 12.698657775999997,
+        "truth": {
+          "first_output_position_error_m": 0.043096098755158394,
+          "first_output_rotation_error_deg": 0.08237799445101397,
+          "position_error_m": {
+            "rmse": 0.07229687958537095,
+            "median": 0.07591851782648895,
+            "p95": 0.07942836532828322,
+            "maximum": 0.07985198583582241
+          },
+          "rotation_error_deg": {
+            "rmse": 0.24855046205432932,
+            "median": 0.25635533976913205,
+            "p95": 0.2942676895616335,
+            "maximum": 0.29914732687601947
+          }
+        }
+      },
+      {
+        "case": "08_west_shelves",
+        "variant": "scalar",
+        "frames": 30,
+        "cpu_s": 13.155038263999998,
+        "wall_s": 5.642860101,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 71,
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.3583746350000006,
+        "first_lock_cpu_s": 12.117956040999998,
+        "truth": {
+          "first_output_position_error_m": 0.04307416843217738,
+          "first_output_rotation_error_deg": 0.08235515277127045,
+          "position_error_m": {
+            "rmse": 0.07233151806010664,
+            "median": 0.07595449174268439,
+            "p95": 0.07947492783677336,
+            "maximum": 0.07990072273098556
+          },
+          "rotation_error_deg": {
+            "rmse": 0.24855822469137834,
+            "median": 0.2563878656460487,
+            "p95": 0.2944036314946053,
+            "maximum": 0.29910897862438246
+          }
+        }
+      },
+      {
+        "case": "14_north_door",
+        "variant": "scalar",
+        "frames": 30,
+        "cpu_s": 17.827131113,
+        "wall_s": 7.53511042,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 63,
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 7.318666497000001,
+        "first_lock_cpu_s": 17.061542359,
+        "truth": {
+          "first_output_position_error_m": 0.36809094255442343,
+          "first_output_rotation_error_deg": 0.44409547282764594,
+          "position_error_m": {
+            "rmse": 0.3612400838438862,
+            "median": 0.3606346064893039,
+            "p95": 0.3638389509421782,
+            "maximum": 0.36809094255442343
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4169582078127554,
+            "median": 0.4125969645854363,
+            "p95": 0.4424345965185369,
+            "maximum": 0.4475283448157713
+          }
+        }
+      },
+      {
+        "case": "14_north_door",
+        "variant": "componentwise",
+        "frames": 30,
+        "cpu_s": 18.159644539000002,
+        "wall_s": 7.6612790770000005,
+        "locks": 1,
+        "outputs": 26,
+        "alignments": 63,
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 7.447070321999999,
+        "first_lock_cpu_s": 17.402345217999997,
+        "truth": {
+          "first_output_position_error_m": 0.3681105522368443,
+          "first_output_rotation_error_deg": 0.4440126141964052,
+          "position_error_m": {
+            "rmse": 0.36123863505488985,
+            "median": 0.360632041508274,
+            "p95": 0.3638509217100324,
+            "maximum": 0.3681105522368443
+          },
+          "rotation_error_deg": {
+            "rmse": 0.41694667375466227,
+            "median": 0.41258928931232886,
+            "p95": 0.4423606640105787,
+            "maximum": 0.4474648717474834
+          }
+        }
+      },
+      {
+        "case": "negative60",
+        "variant": "componentwise",
+        "frames": 60,
+        "cpu_s": 94.41630083,
+        "wall_s": 36.915314993,
+        "locks": 0,
+        "outputs": 0,
+        "alignments": 224,
+        "first_lock_frame": null,
+        "first_lock_wall_s": null,
+        "first_lock_cpu_s": null
+      },
+      {
+        "case": "negative60",
+        "variant": "scalar",
+        "frames": 60,
+        "cpu_s": 96.14052168399999,
+        "wall_s": 37.019774389,
+        "locks": 0,
+        "outputs": 0,
+        "alignments": 240,
+        "first_lock_frame": null,
+        "first_lock_wall_s": null,
+        "first_lock_cpu_s": null
+      }
+    ],
+    "full_behavior": [
+      {
+        "case": "negative_complete",
+        "frames": 346,
+        "cpu_s": 559.774625325,
+        "wall_s": 204.492198264,
+        "input_s": 34.5,
+        "mean_cores": 16.225351458695652,
+        "locks": [],
+        "outputs": 0,
+        "alignments": 1415,
+        "peak_rss_mib": 1920.49609375
+      },
+      {
+        "case": "full_movement",
+        "frames": 2236,
+        "cpu_s": 137.671824132,
+        "wall_s": 223.506845539,
+        "input_s": 223.5,
+        "mean_cores": 0.6159813160268457,
+        "locks": [
+          4
+        ],
+        "outputs": 2232,
+        "alignments": 47,
+        "peak_rss_mib": 1920.3828125,
+        "truth": {
+          "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+          "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/stage_reuse_20261019/plane_objective_v1/full_movement.csv",
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 2232,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.012056157671202104,
+          "first_output_rotation_error_deg": 0.03000398315780605,
+          "position_error_m": {
+            "rmse": 0.45585199195483384,
+            "median": 0.2458450952681117,
+            "p95": 0.5359928439206781,
+            "maximum": 3.1850531365977566
+          },
+          "rotation_error_deg": {
+            "rmse": 2.8115736345063107,
+            "median": 0.3408866990516284,
+            "p95": 0.5523165368034202,
+            "maximum": 26.74510947651633
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        }
+      }
+    ],
+    "movement": {
+      "baseline": {
+        "outputs": 2232,
+        "locks": [
+          {
+            "frame": 4,
+            "sim_s": 0.799989997,
+            "position_error_m": 0.011931776766096476,
+            "rotation_error_deg": 0.03011480891712185
+          }
+        ],
+        "position_max_m": 4.39976699055811,
+        "position_rmse_m": 0.7127552364317387,
+        "rotation_max_deg": 9.005995633219001,
+        "gross_geometric_frames": 83,
+        "cpu_s": 139.74713616399998,
+        "maximum_position_error_frame": 2062
+      },
+      "scalar": {
+        "outputs": 2232,
+        "locks": [
+          {
+            "frame": 4,
+            "sim_s": 0.799989997,
+            "position_error_m": 0.012056157671202104,
+            "rotation_error_deg": 0.030003983157806058
+          }
+        ],
+        "position_max_m": 3.1850531365977566,
+        "position_rmse_m": 0.45585199195483384,
+        "rotation_max_deg": 26.745109476516326,
+        "gross_geometric_frames": 43,
+        "cpu_s": 137.671824132,
+        "maximum_position_error_frame": 2050
+      },
+      "comparison": {
+        "state_difference_frames": 10,
+        "position_error_change_max_m": 0.00048726102156354534,
+        "position_error_change_min_m": -3.611709126369966,
+        "rotation_error_change_max_deg": 18.567911673730844,
+        "rotation_error_change_min_deg": -3.9398439649214585,
+        "new_gross_frames": 1,
+        "removed_gross_frames": 41,
+        "scope": "Historical same-input movement behavior control, not fresh paired performance. 1m/5deg bands identify gross failures, not runtime gates or 10cm acceptance. Independent fixed mapping-session alignment only."
+      }
+    },
+    "decision": "The current factor has a confirmed coordinate-dependence/tangent-stiffness defect. Direct scalar replacement is not safe to adopt into the current tracker: full-map maximum attitude error rises9.006\u219226.745deg despite position maximum4.400\u21923.185m and gross-frame count83\u219243. Stop expanding qualification; no complete14 or partial-map qualification for this candidate. Preserve production source/core and thresholds. Investigate tracking acceptance on frozen bad corrections before another proposal.",
+    "artifacts": "build/n3mapping/stage_reuse_20261019/plane_objective_v1",
+    "upstream_read_only_check": {
+      "url": "https://raw.githubusercontent.com/koide3/small_gicp/master/include/small_gicp/factors/plane_icp_factor.hpp",
+      "date": "2026-10-19",
+      "result": "Fetched source also uses the componentwise residual. Issue search failed; no claim about existing issue/fix status, and no upstream message or write."
+    }
   }
 }
