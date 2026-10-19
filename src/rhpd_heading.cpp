@@ -85,7 +85,9 @@ double distanceAtShift(const RHPDHeading& query, const RHPDHeading& reference,
         int effective = 0;
         double similarity = 0.0;
         for (int sector = 0; sector < sectors; ++sector) {
-            const int matched = (sector + sectors - shift) % sectors;
+            // Both indices lie in [0, sectors), so one wrap is sufficient.
+            const int unwrapped = sector - shift;
+            const int matched = unwrapped < 0 ? unwrapped + sectors : unwrapped;
             const double n1 = query.column_norms(channel, sector);
             const double n2 = reference.column_norms(channel, matched);
             if (n1 < 1e-6 || n2 < 1e-6) continue;

@@ -10,13 +10,15 @@ Current task order and acceptance boundaries are maintained in the
 [project TODO](../../../README.md#todo). The dated sections below preserve the
 scope and evidence of each completed experiment.
 
-Latest stage: [bounded seed history and complete replay ablation](#bounded-seed-history-and-complete-replay-ablation--2026-10-19)
-reduces complete moving-negative CPU by **13.2%** without false locks. All 14 full
-replays retain their decisions and emitted poses. Only **01 and 09** meet half a
-core including initial search; the suite mean is **0.610**. Normal last-ten-second
-tracking windows use **0.216–0.376** cores. Difficult-search half-core remains
-unmet, and initial-search latency has not consistently improved. Earlier dated
-sections below retain their original experimental scope.
+Latest stage: [exact heading wrap and scheduling ablation](#exact-heading-wrap-and-scheduling-ablation--2026-10-19)
+reduces complete repetitive-negative heading CPU from 12.035 to 10.594 s
+(−12.0%), but total CPU only from 568.492 to 567.056 s
+(−0.25%). All 14 full paired replays preserve
+lock decisions and emitted poses. Only 01/09 meet half a core, with a suite mean
+of **0.607**. The prior bounded-seed-history stage's 13.2% negative-CPU
+saving remains documented below; do not combine nonpaired timing runs as another
+measured speedup. Difficult-search half-core, 10 cm accuracy, independent moving
+out/reentry and offline-loop consistency remain open.
 
 ## Measurement boundaries
 
@@ -2218,3 +2220,84 @@ algorithmic error from deferred map bias, and subsequently compare independent
 loop constraints offline. Difficult average half-core, 10 cm absolute accuracy,
 RK3588/full-node deployment and loop/map improvement remain unqualified. No
 installation, push, simulator/FAST_LIO change or new online feature is involved.
+
+
+## Exact heading wrap and scheduling ablation — 2026-10-19
+
+Baseline: `0d2768f`, the retained bounded-seed-history version. Only the inner
+heading-sector modulo changes to a conditional wrap: both operands already lie
+in `[0, sectors)`. Every score arithmetic operation, sparse representation,
+candidate order, angular hypothesis, registration and acceptance rule remains
+unchanged. No public interface, cache, dimension or production test is added.
+Runtime SHA-256: `5f002f1557f8f188edb62e423fe33760ba388e6ea1c863752f6afac517b30251`.
+
+Six recorded query clouds × 1,271 map headings give **7,626 exactly equal scores
+and shifts**. Single-core ABBA kernel runs improve by **6.6–8.7%**. The full
+four-core negative confirms a heading-phase benefit, but little total benefit:
+
+| Complete repetitive negative, 346 frames / 34.5 input s | Baseline | Retained |
+| --- | ---: | ---: |
+| Heading calling-thread CPU s | 12.034616 | 10.593617 |
+| All descriptor calling-thread CPU s | 14.429962 | 12.961332 |
+| Total process CPU s | 568.492161 | 567.055905 |
+| Processing wall s | 212.654972 | 209.341480 |
+| Full registrations | 1402 | 1402 |
+| Locks / outputs | 0 / 0 | 0 / 0 |
+
+Heading CPU falls **11.97%**, whereas total CPU falls
+**0.253%**. The retained **567.056 CPU s** still far exceeds the
+**17.25 CPU s** half-core budget for 34.5 input s. Its demand is
+**16.436 CPU s per input second**, not simultaneous occupation of 16 cores. The optional `perf` hardware-sampling
+attempt was denied by the host kernel's `perf_event_paranoid=4`; no system setting
+was changed. Existing process and descriptor-thread timing remains available.
+
+All 14 complete positive A/B pairs use the same four physical P cores
+`0,2,4,6`, four registration threads, PASSIVE waiting, original 10 Hz inputs and
+map/Atlas. Every input has 296 frames, one lock at frame index 4 and 292 outputs.
+All 4,144 per-variant decision rows agree; the largest emitted matrix component
+difference is **1.42e-14**. The maximum absolute position error remains
+**0.473875 m**: the 10 cm objective is still unaccepted.
+
+| Complete 14-position suite | Baseline | Retained |
+| --- | ---: | ---: |
+| Total CPU s / 413 input s | 252.729704 | 250.789650 |
+| Mean CPU cores | 0.611936 | 0.607239 |
+| Sum of first-lock CPU s | 148.968509 | 146.843935 |
+| First-lock wall median s | 4.732 | 4.718 |
+| Peak RSS, MiB (includes loading high-water) | 1912.148 | 1912.273 |
+
+| Focus position | Baseline mean cores | Retained mean cores | First-lock wall s, baseline / retained |
+| --- | ---: | ---: | ---: |
+| 03 | 0.802642 | 0.766848 | 6.859 / 6.427 |
+| 08 | 0.796328 | 0.801131 | 5.492 / 5.596 |
+| 14 | 0.828819 | 0.806244 | 7.036 / 6.618 |
+
+Only **01, 09** pass half a core. This is
+one paired complete timing run; mixed small per-position changes do not establish
+a broad startup-latency or RAM gain. Do not attribute the total timing variation
+to the few milliseconds removed from each heading query.
+
+Three alternatives were excluded before final acceptance. A dense query lookup
+adds 67,200 bytes and preserves scores, but its kernel is 24.1% slower at 08 and
+8.4–13.2% slower on the repetitive samples. Static chunk-8 scheduling of geometric
+linearization increases CPU by 4.9–5.7% on 03/08/14 prefixes and 6.3% on the
+60-frame negative. A separate static objective-only summation gives just 0.1%
+negative-prefix CPU improvement and mixed positive results. Both scheduler
+changes were fully removed; no duplicate objective implementation remains.
+
+Humble **61/61 CTest targets** and **12 E2E episodes each** in default, Atlas and
+experimental kill modes pass. These include incremental candidate admission,
+returning-seed current-geometry checks and synthetic out/reentry. This stage does
+not add independent continuous moving out/reentry coverage, native Noetic builds,
+RK3588 tests or full-node deployment validation. The first isolated scheduler
+check lacked the GTSAM dynamic-library path; its loader failure is preserved and
+the same check passed after environment correction.
+
+The `heading_wrap_followup` entry in [`search_cost_20261019.json`](../search_cost_20261019.json)
+contains compact results and source/artifact fingerprints. Full frozen binaries,
+headers, matching probes, all cases and rejected trials remain under
+`build/n3mapping/heading_query_20261019`; `verified.json` is the full report.
+Existing input data, installed binaries, simulator/FAST_LIO files and remote branches were preserved.
+Next work remains eliminating geometric repetition with exact fallback behavior,
+adding independent continuous moving out/reentry coverage, and preserving the
+separate map-error and offline-loop-consistency objectives.

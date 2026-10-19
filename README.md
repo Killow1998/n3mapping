@@ -762,15 +762,15 @@ remain separate from that measured result.
 
 ### TODO
 
-Current localization work, updated **2026-10-19**, uses `2bea8b1` as the pre-stage
-comparison baseline; bounded seed history is retained after complete replay
-ablation. This is the maintained task order; detailed results and their limits
-remain in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#bounded-seed-history-and-complete-replay-ablation--2026-10-19).
+Current localization work, updated **2026-10-19**, retains bounded seed history
+and exact heading-index arithmetic. The latest paired comparison uses `0d2768f`
+as its baseline. This is the maintained task order; detailed results and limits
+remain in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#exact-heading-wrap-and-scheduling-ablation--2026-10-19).
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
 | Reliability — preserve verified behavior; broader coverage open | Incremental candidate admission, reuse of unaffected seeds, current-observation confirmation, and recovery of all 14 fixed regions are implemented and checked on the recorded inputs. Keep these as regressions. Complete moving out-of-map/reentry and independent sensor validation remain open; stationary success and safe refusal of a negative do not establish those behaviors. |
-| Search cost — current implementation priority | Bounded seed-history reuse reduces complete moving-negative CPU from 654.701 to 567.986 s (−13.2%) and cold starts from 1,015 to 720, with zero false locks. Complete four-core 14-position A/B preserves every lock decision and emitted pose; only 01/09 meet half a core, with a suite mean of 0.610 cores. Positions 03/08/14 use 0.809/0.797/0.834 cores. Initial-search CPU is effectively unchanged, and startup wall time does not consistently improve. Continue reducing new/invalid-candidate and confirmation geometry, and the measured descriptor-search cost, without stale confirmation evidence, lost recovery or missed new regions. Half-core difficult search remains unmet: the negative has only a 17.25 CPU s budget for 34.5 input s. |
+| Search cost — current implementation priority | Latest exact heading wrap reduces full repetitive-negative heading CPU 12.035→10.594 s, but total CPU only 568.492→567.056 s (−0.25%), with unchanged 1,402 full registrations and zero false locks. The prior bounded-seed-history stage separately reduced negative CPU by 13.2%. Full four-core 14-position A/B again preserves decisions and emitted poses; only 01/09 meet half a core, suite mean 0.607, positions 03/08/14 0.767/0.801/0.806 cores. No broad startup-latency or RAM improvement is established. Continue reducing new/invalid-candidate and confirmation geometry with fresh evidence and exact fallback; the negative still far exceeds its 17.25 CPU s half-core budget. |
 | Accuracy — keep attribution separate; map correction deferred | Preserve Xian's at-most-10-cm localization accuracy objective. Current absolute errors do not pass it. Independent diagnostics support dominant map bias at 09/11/14, so correction of that map is deferred; algorithmic local-fit errors remain in scope. Support-keyframe truth transport is diagnostic only and cannot count as runtime accuracy. |
 | Loop/map consistency — next independent experiment | Test whether complete fused retrieval can improve the existing loop pipeline's recall. Use independently registered source/target scans for relative constraints, preserve competing-hypothesis and neighborhood checks, then compare pose-graph trajectory and map consistency. Start with frozen-input offline runs and separate outputs, preserving the baseline map. Require recall, false-loop and geometry/trajectory evidence before adopting the change; no improvement is established yet. |
 

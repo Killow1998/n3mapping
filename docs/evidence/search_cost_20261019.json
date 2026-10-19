@@ -2856,5 +2856,429 @@
     "difficult_search_half_core": "not met:567.986CPU_s versus17.25CPU_s budget for34.5input_s",
     "absolute_10cm": "not met; max0.473875m on current map, map correction deferred",
     "offline_loop_consistency": "pending; no improvement claimed"
+  },
+  "heading_wrap_followup": {
+    "date": "2026-10-19",
+    "candidate": {
+      "base_commit": "0d2768f9a4b67045814e0ef4070d4afccc6f7ce4",
+      "files": {
+        "src/rhpd_heading.cpp": "14648ffab5d56fa387eb4951be61423e32869ed30145237a9b5891f923e898a8"
+      },
+      "core_sha256": "5f002f1557f8f188edb62e423fe33760ba388e6ea1c863752f6afac517b30251"
+    },
+    "baseline_commit": "0d2768f9a4b67045814e0ef4070d4afccc6f7ce4",
+    "scope": {
+      "cpus": "0,2,4,6",
+      "threads": 4,
+      "wait_policy": "PASSIVE",
+      "measurement": "All direct-core process threads after loading including initial search, PCD decoding and RealtimeOutput; excludes frontend, simulator and DDS.",
+      "denominator": "original10Hz input duration, not prolonged replay wall time",
+      "truth": "Observer only, frozen first mapping alignment; no query fit",
+      "full_goal_achieved": false
+    },
+    "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+    "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+    "validation": {
+      "ctest_targets": 61,
+      "e2e_modes": [
+        "default",
+        "atlas",
+        "kill"
+      ],
+      "e2e_per_mode": 12,
+      "exact_heading_oracle_pairs": 7626
+    },
+    "cleanup": "Only exact heading index arithmetic retained; no public API, state, cache, dimensionality, objective or acceptance-gate changes. No new production tests or abstractions.",
+    "limitations": [
+      "Difficult-search half-core is unmet; ratio CPU/input measures demand, not actual simultaneous cores.",
+      "10cm absolute accuracy remains unaccepted; map bias analysis is diagnostic only.",
+      "Independent continuous moving out/reentry, RK3588 and full-node deployment remain unverified.",
+      "Small total CPU changes in one paired run do not establish broad latency or RAM improvements.",
+      "Kernel perf_event_paranoid=4 denied optional hardware sampling; no global setting changed. Existing process and calling-thread timings remain available."
+    ],
+    "full14": {
+      "summary": {
+        "baseline": {
+          "cpu_s": 252.729703825,
+          "input_s": 413.000005005,
+          "mean_cores": 0.6119363214582536,
+          "half_core_pass": [
+            "01_west_corridor",
+            "09_east_shelves"
+          ],
+          "first_lock_wall_median_s": 4.7319690285,
+          "first_lock_cpu_total_s": 148.968508525,
+          "last_10s_core_range": [
+            0.21689105019999988,
+            0.37069526670000014
+          ],
+          "max_peak_rss_mib": 1912.1484375,
+          "map_load_wall_median_s": 5.87552,
+          "max_position_error_m": 0.4738748580013345,
+          "heading_thread_cpu_s": 1.5956200199999921
+        },
+        "candidate": {
+          "cpu_s": 250.789650307,
+          "input_s": 413.000005005,
+          "mean_cores": 0.607238855369902,
+          "half_core_pass": [
+            "01_west_corridor",
+            "09_east_shelves"
+          ],
+          "first_lock_wall_median_s": 4.718090828499999,
+          "first_lock_cpu_total_s": 146.84393489099995,
+          "last_10s_core_range": [
+            0.21397584320000024,
+            0.37662640979999995
+          ],
+          "max_peak_rss_mib": 1912.2734375,
+          "map_load_wall_median_s": 5.863424999999999,
+          "max_position_error_m": 0.4738748580013345,
+          "heading_thread_cpu_s": 1.4095457130000377
+        },
+        "cpu_reduction_fraction": 0.0076763969119489905
+      },
+      "all_decisions_equal": true,
+      "compared_frames_per_variant": 4144,
+      "maximum_output_matrix_delta": 1.4210854715202004e-14,
+      "cases": [
+        {
+          "id": "01_west_corridor",
+          "cpu_s_baseline_candidate": [
+            14.234954465,
+            13.698253437
+          ],
+          "mean_cores_baseline_candidate": [
+            0.4825409111904156,
+            0.4643476529172882
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            4.1468695680000005,
+            3.64501351
+          ],
+          "maximum_position_error_m": 0.011931776766096448
+        },
+        {
+          "id": "02_east_corridor",
+          "cpu_s_baseline_candidate": [
+            16.061036240999996,
+            16.558870821
+          ],
+          "mean_cores_baseline_candidate": [
+            0.5444418141040244,
+            0.5613175597154445
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            4.327465312999999,
+            4.713319014
+          ],
+          "maximum_position_error_m": 0.3987283128906642
+        },
+        {
+          "id": "03_south_corridor",
+          "cpu_s_baseline_candidate": [
+            23.677930209,
+            22.622020401999997
+          ],
+          "mean_cores_baseline_candidate": [
+            0.802641702,
+            0.7668481492203388
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            6.859127397,
+            6.427257517
+          ],
+          "maximum_position_error_m": 0.15045624555507703
+        },
+        {
+          "id": "04_north_corridor",
+          "cpu_s_baseline_candidate": [
+            18.697348433,
+            18.995154337
+          ],
+          "mean_cores_baseline_candidate": [
+            0.6338085289902267,
+            0.6439036460928049
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            4.959954154,
+            5.086094104
+          ],
+          "maximum_position_error_m": 0.2939143349107468
+        },
+        {
+          "id": "05_southwest_office",
+          "cpu_s_baseline_candidate": [
+            17.38244629,
+            17.141030926
+          ],
+          "mean_cores_baseline_candidate": [
+            0.5892354674576271,
+            0.5810518957966101
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            4.946700778,
+            4.722862643
+          ],
+          "maximum_position_error_m": 0.06346627084910503
+        },
+        {
+          "id": "06_south_meeting",
+          "cpu_s_baseline_candidate": [
+            15.456985319000001,
+            15.619243229
+          ],
+          "mean_cores_baseline_candidate": [
+            0.5239656040338984,
+            0.5294658721694915
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            4.39722573,
+            4.540849752
+          ],
+          "maximum_position_error_m": 0.06429245539775003
+        },
+        {
+          "id": "07_south_pillars",
+          "cpu_s_baseline_candidate": [
+            17.497731690000002,
+            17.374650108999997
+          ],
+          "mean_cores_baseline_candidate": [
+            0.5931434471186441,
+            0.5889711901355932
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            4.505484823,
+            4.4399319340000005
+          ],
+          "maximum_position_error_m": 0.21091592483365537
+        },
+        {
+          "id": "08_west_shelves",
+          "cpu_s_baseline_candidate": [
+            23.491680057,
+            23.633376202
+          ],
+          "mean_cores_baseline_candidate": [
+            0.7963281375254238,
+            0.8011313966779662
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            5.49246763,
+            5.595946478
+          ],
+          "maximum_position_error_m": 0.07985198583582241
+        },
+        {
+          "id": "09_east_shelves",
+          "cpu_s_baseline_candidate": [
+            12.925940151,
+            13.225288156000003
+          ],
+          "mean_cores_baseline_candidate": [
+            0.43816746274576274,
+            0.4483148527457628
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            3.7509050900000003,
+            3.952457794
+          ],
+          "maximum_position_error_m": 0.46189817669894156
+        },
+        {
+          "id": "10_northwest_meeting",
+          "cpu_s_baseline_candidate": [
+            15.580021483,
+            14.973818102999997
+          ],
+          "mean_cores_baseline_candidate": [
+            0.5281363214576271,
+            0.507587054338983
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            4.283794694,
+            3.925679292
+          ],
+          "maximum_position_error_m": 0.08941005628195169
+        },
+        {
+          "id": "11_northeast_pillars",
+          "cpu_s_baseline_candidate": [
+            17.607497839999997,
+            17.81497729
+          ],
+          "mean_cores_baseline_candidate": [
+            0.5968643335593219,
+            0.6038975352542374
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            4.8805262439999995,
+            5.052613107
+          ],
+          "maximum_position_error_m": 0.4738748580013345
+        },
+        {
+          "id": "12_north_office",
+          "cpu_s_baseline_candidate": [
+            19.335425042000004,
+            18.962050731999998
+          ],
+          "mean_cores_baseline_candidate": [
+            0.6554381370169493,
+            0.6427813807457626
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            5.263102482,
+            5.021616745999999
+          ],
+          "maximum_position_error_m": 0.30189123407886204
+        },
+        {
+          "id": "13_south_door",
+          "cpu_s_baseline_candidate": [
+            16.330555464,
+            16.386720379000003
+          ],
+          "mean_cores_baseline_candidate": [
+            0.5535780574014177,
+            0.55548195250213
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            4.583411813,
+            4.566152923
+          ],
+          "maximum_position_error_m": 0.24273532520228547
+        },
+        {
+          "id": "14_north_door",
+          "cpu_s_baseline_candidate": [
+            24.450151141000003,
+            23.784196184
+          ],
+          "mean_cores_baseline_candidate": [
+            0.8288185421275661,
+            0.8062438016525346
+          ],
+          "first_lock_wall_s_baseline_candidate": [
+            7.035565286,
+            6.6175739899999995
+          ],
+          "maximum_position_error_m": 0.3681105522368444
+        }
+      ]
+    },
+    "negative": {
+      "runs": [
+        {
+          "variant": "baseline",
+          "frames": 346,
+          "locks": 0,
+          "outputs": 0,
+          "cpu_s": 568.492160868,
+          "wall_s": 212.654971512,
+          "input_s": 34.5,
+          "alignments": 1402,
+          "cpu_seconds_per_input_second": 16.47803364834783,
+          "csv_sha256": "b81f420fb9ae287c029ce501f0b0b8a930c630541009414730be4215d25325c6",
+          "peak_rss_mib": 1911.84375,
+          "costs": {
+            "work_counts": {
+              "alignments": 1402,
+              "seed_initializations": 720,
+              "seed_resumptions": 73,
+              "seed_retries": 17,
+              "seed_continuations": 2003,
+              "fixed_pose_evaluations": 4558,
+              "confirmation_registrations": 609,
+              "confirmation_evaluations": 1541,
+              "admitted_basins": 204,
+              "preserved_basins": 737,
+              "invalidated_seed_poses": 142,
+              "visibility_evaluations": 7775
+            },
+            "descriptor_thread_cpu_s": {
+              "generation": 0.3861591420001514,
+              "index_rebuild": 0.40785912999999985,
+              "coarse": 0.08864362099982645,
+              "place": 1.163631168000089,
+              "heading": 12.034616386999755,
+              "total": 14.429961708000068
+            },
+            "heading_comparisons": 367294
+          }
+        },
+        {
+          "variant": "cursor_v1",
+          "frames": 346,
+          "locks": 0,
+          "outputs": 0,
+          "cpu_s": 567.055905302,
+          "wall_s": 209.341480376,
+          "input_s": 34.5,
+          "alignments": 1402,
+          "cpu_seconds_per_input_second": 16.436403052231885,
+          "csv_sha256": "73820ffb7d6b3d0009c0728be656e393e903967b9cb6e38c0523ffdf3a6a5e22",
+          "peak_rss_mib": 1911.73046875,
+          "costs": {
+            "work_counts": {
+              "alignments": 1402,
+              "seed_initializations": 720,
+              "seed_resumptions": 73,
+              "seed_retries": 17,
+              "seed_continuations": 2003,
+              "fixed_pose_evaluations": 4558,
+              "confirmation_registrations": 609,
+              "confirmation_evaluations": 1541,
+              "admitted_basins": 204,
+              "preserved_basins": 737,
+              "invalidated_seed_poses": 142,
+              "visibility_evaluations": 7775
+            },
+            "descriptor_thread_cpu_s": {
+              "generation": 0.38421639000006963,
+              "index_rebuild": 0.4075664420000003,
+              "coarse": 0.08502384200000415,
+              "place": 1.1505903610002224,
+              "heading": 10.593616658999746,
+              "total": 12.961332446999982
+            },
+            "heading_comparisons": 367294
+          }
+        }
+      ],
+      "cpu_reduction_fraction": 0.0025264298522728046,
+      "all_decisions_equal": true
+    },
+    "micro": {
+      "exact_scores_and_shifts": 7626,
+      "query_clouds": 6,
+      "references": 1271,
+      "single_core_ABBA_kernel_gain_percent": [
+        6.5697207973504534,
+        8.714580733833966
+      ]
+    },
+    "ablations": {
+      "dense_query": {
+        "adopted": false,
+        "extra_query_bytes": 67200,
+        "reason": "08 kernel+24.1%,repetitive samples+8.4\u201313.2%; exactscoreoracle passed"
+      },
+      "static_linearization": {
+        "adopted": false,
+        "reason": "03/08/14 CPU+4.9\u20135.7%,negative60+6.3%; removed pragma"
+      },
+      "static_objective": {
+        "adopted": false,
+        "reason": "negative60 CPU only\u22120.1%,positive resultsmixed; removed duplicate override"
+      }
+    },
+    "decision": "Retain exact heading wrap; reject all three alternatives. Global CPU, accuracy and moving-coverage goals remain open.",
+    "full_report": {
+      "path": "build/n3mapping/heading_query_20261019/verified.json",
+      "sha256": "0873ca01d514718aed227b9f7a3dd1ce6c08eebe69d55433d4c06456a2eb156b",
+      "contains": "All per-frame comparisons, source identities, rawCSV hashes, phase counts, exactmicro evidence, rejected experiments and validation/tool fingerprints."
+    }
   }
 }
