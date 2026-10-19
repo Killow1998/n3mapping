@@ -1,0 +1,23 @@
+{
+  "scene": "n3m-indoor-100-v2",
+  "variant": "reference",
+  "duration_s": 30,
+  "route": "stationary",
+  "selection": "Chosen before evaluating localization: corridors, four room rows, different furniture and shapes, doorways, and varied headings. Ground truth is for audit only.",
+  "positions": [
+    {"id": "01_west_corridor", "spawn": [-44, 0, 0], "yaw_deg": 0},
+    {"id": "02_east_corridor", "spawn": [35, 0, 0], "yaw_deg": 135},
+    {"id": "03_south_corridor", "spawn": [0, -24, 0], "yaw_deg": 90},
+    {"id": "04_north_corridor", "spawn": [0, 24, 0], "yaw_deg": -90},
+    {"id": "05_southwest_office", "spawn": [-40, -35, 0], "yaw_deg": 35},
+    {"id": "06_south_meeting", "spawn": [-12, -36, 0], "yaw_deg": -110},
+    {"id": "07_south_pillars", "spawn": [12, -34, 0], "yaw_deg": 160},
+    {"id": "08_west_shelves", "spawn": [-41, -11, 0], "yaw_deg": 80},
+    {"id": "09_east_shelves", "spawn": [27, -12, 0], "yaw_deg": -45},
+    {"id": "10_northwest_meeting", "spawn": [-40, 10, 0], "yaw_deg": -150},
+    {"id": "11_northeast_pillars", "spawn": [42, 12, 0], "yaw_deg": 65},
+    {"id": "12_north_office", "spawn": [-27, 35, 0], "yaw_deg": 15},
+    {"id": "13_south_door", "spawn": [43, -29, 0], "yaw_deg": -70},
+    {"id": "14_north_door", "spawn": [10, 32, 0], "yaw_deg": 175}
+  ]
+}

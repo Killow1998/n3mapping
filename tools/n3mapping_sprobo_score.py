@@ -68,9 +68,12 @@ def score(mapping_dir, query_dir, topic="/n3mapping/odometry", probe_csv=None):
             for row in csv.DictReader(stream):
                 if row["live"] != "1":
                     continue
-                if row["success"] != "1":
+                prefix = "output_pose" if "output_pose0" in row else "pose"
+                if prefix == "pose" and row["success"] != "1":
                     raise ValueError("Probe has coasted outputs; backend pose alone cannot score them")
-                pose = np.array([float(row[f"pose{i}"]) for i in range(16)]).reshape(4, 4).T
+                pose = np.array([float(row[f"{prefix}{i}"]) for i in range(16)]).reshape(4, 4).T
+                if not np.all(np.isfinite(pose)):
+                    raise ValueError("Probe has a nonfinite published pose")
                 rows.append([int(row["stamp_ns"]), *pose[:3, 3],
                              *Rotation.from_matrix(pose[:3, :3]).as_quat()])
         if not rows:
@@ -93,6 +96,8 @@ def score(mapping_dir, query_dir, topic="/n3mapping/odometry", probe_csv=None):
                        stamp_ns=int(anchor[0, 0]), translation=world_from_map_p.tolist(),
                        quaternion_xyzw=world_from_map_r.as_quat().tolist()),
         evaluated_poses=len(estimates), first_output_sim_s=float(estimates[0, 0]/1e9),
+        first_output_position_error_m=float(position_error[0]),
+        first_output_rotation_error_deg=float(rotation_error[0]),
         position_error_m=stats(position_error), rotation_error_deg=stats(rotation_error),
         limitation="Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification")
 
@@ -121,7 +126,7 @@ def main():
     parser.add_argument("--topic", default="/n3mapping/odometry",
                         help="Pose stream to score and anchor; /Odometry audits the frontend")
     parser.add_argument("--probe-csv", type=Path,
-                        help="Score successful replay_probe backend outputs against the query truth")
+                        help="Score replay_probe emitted poses against query truth, including coasted output")
     args = parser.parse_args()
     result = score(args.mapping, args.query, args.topic, args.probe_csv)
     with args.output.open("x") as stream:

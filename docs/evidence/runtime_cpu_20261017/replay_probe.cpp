@@ -1,10 +1,12 @@
 #include <chrono>
 #include <json/json.h>
 #include <ctime>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <thread>
 #include <sys/resource.h>
@@ -31,6 +33,13 @@ int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   FLAGS_logtostderr = true;
   auto config = n3mapping::makeProductLocalizationConfig(argv[1], argv[2]);
+  if (const auto* threads = std::getenv("N3M_BENCH_THREADS"))
+    config.num_threads = std::stoi(threads);
+  if (const auto* debug = std::getenv("N3M_BENCH_DEBUG")) {
+    config.reloc_debug_enable = true;
+    config.reloc_debug_path = debug;
+    FLAGS_v = 1;
+  }
   n3mapping::N3MappingCore core(config,
       n3mapping::N3MappingCore::WorldCloudOutput::Disabled);
   const auto loading = Clock::now();
@@ -38,6 +47,14 @@ int main(int argc, char** argv) {
   if (!core.loadMap(argv[1])) return 3;
   std::cerr << "MAP_READY wall_ms=" << wallMs(loading)
             << " cpu_ms=" << cpuMs() - load_cpu << '\n';
+  if (config.reloc_debug_enable) {
+    std::ofstream keyframes(config.reloc_debug_path + ".keyframes.csv");
+    keyframes << std::setprecision(17) << "id,x,y,z\n";
+    for (const auto& keyframe : core.getAllKeyframes()) {
+      const auto& p = keyframe->pose_optimized.translation();
+      keyframes << keyframe->id << ',' << p.x() << ',' << p.y() << ',' << p.z() << '\n';
+    }
+  }
   n3mapping::core::RealtimeOutput live(
       n3mapping::CoreRunMode::LOCALIZATION, "map", config.sync_queue_size);
   std::ifstream manifest(argv[3]);
@@ -52,6 +69,7 @@ int main(int argc, char** argv) {
   writer["indentation"] = "";
   output << "frame,stamp_ns,points,success,lock,state,pose_source,decision,seed,support,matched,live,wall_ms,cpu_ms,cumulative_wall_ms,cumulative_cpu_ms,late_ms,source_ms,target_ms,submap_ms,tracking_ms,registration_ms,visibility_ms,reloc_source_ms,reloc_align_ms,reloc_visibility_ms,cache_hit,cache_miss,candidates,alignments,rss_kib";
   for (int i = 0; i < 16; ++i) output << ",pose" << i;
+  for (int i = 0; i < 16; ++i) output << ",output_pose" << i;
   output << '\n';
   const double rate = std::stod(argv[5]);
   const int max_frames = std::stoi(argv[6]);
@@ -117,6 +135,9 @@ int main(int argc, char** argv) {
            << ',' << t.localization_target_cache_hit << ',' << t.localization_target_cache_miss
            << ',' << r.candidates << ',' << r.alignments << ',' << usage.ru_maxrss;
     for (int i = 0; i < 16; ++i) output << ',' << result.T_world_lidar.matrix().data()[i];
+    for (int i = 0; i < 16; ++i)
+      output << ',' << (emitted.pose ? emitted.pose->pose.matrix().data()[i]
+                                    : std::numeric_limits<double>::quiet_NaN());
     output << '\n';
     output.flush();
     if (r.available) {

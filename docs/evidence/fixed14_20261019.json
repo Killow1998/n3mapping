@@ -1,0 +1,3721 @@
+{
+  "dataset": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2",
+  "fixed_plan": {
+    "scene": "n3m-indoor-100-v2",
+    "variant": "reference",
+    "duration_s": 30,
+    "route": "stationary",
+    "selection": "Chosen before evaluating localization: corridors, four room rows, different furniture and shapes, doorways, and varied headings. Ground truth is for audit only.",
+    "positions": [
+      {
+        "id": "01_west_corridor",
+        "spawn": [
+          -44,
+          0,
+          0
+        ],
+        "yaw_deg": 0
+      },
+      {
+        "id": "02_east_corridor",
+        "spawn": [
+          35,
+          0,
+          0
+        ],
+        "yaw_deg": 135
+      },
+      {
+        "id": "03_south_corridor",
+        "spawn": [
+          0,
+          -24,
+          0
+        ],
+        "yaw_deg": 90
+      },
+      {
+        "id": "04_north_corridor",
+        "spawn": [
+          0,
+          24,
+          0
+        ],
+        "yaw_deg": -90
+      },
+      {
+        "id": "05_southwest_office",
+        "spawn": [
+          -40,
+          -35,
+          0
+        ],
+        "yaw_deg": 35
+      },
+      {
+        "id": "06_south_meeting",
+        "spawn": [
+          -12,
+          -36,
+          0
+        ],
+        "yaw_deg": -110
+      },
+      {
+        "id": "07_south_pillars",
+        "spawn": [
+          12,
+          -34,
+          0
+        ],
+        "yaw_deg": 160
+      },
+      {
+        "id": "08_west_shelves",
+        "spawn": [
+          -41,
+          -11,
+          0
+        ],
+        "yaw_deg": 80
+      },
+      {
+        "id": "09_east_shelves",
+        "spawn": [
+          27,
+          -12,
+          0
+        ],
+        "yaw_deg": -45
+      },
+      {
+        "id": "10_northwest_meeting",
+        "spawn": [
+          -40,
+          10,
+          0
+        ],
+        "yaw_deg": -150
+      },
+      {
+        "id": "11_northeast_pillars",
+        "spawn": [
+          42,
+          12,
+          0
+        ],
+        "yaw_deg": 65
+      },
+      {
+        "id": "12_north_office",
+        "spawn": [
+          -27,
+          35,
+          0
+        ],
+        "yaw_deg": 15
+      },
+      {
+        "id": "13_south_door",
+        "spawn": [
+          43,
+          -29,
+          0
+        ],
+        "yaw_deg": -70
+      },
+      {
+        "id": "14_north_door",
+        "spawn": [
+          10,
+          32,
+          0
+        ],
+        "yaw_deg": 175
+      }
+    ]
+  },
+  "identity": {
+    "baseline_commit": "2c4f1ad",
+    "current_runtime_commit": "4982862",
+    "current_repository_commit": "15eb35b",
+    "dataset": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2",
+    "measurement_note": "4 threads per registration; fixed four physical P cores on logical CPUs 0,2,4,6. Original 10 Hz paced replay. Wall includes backlog processing, excludes map load and frontend/DDS. Same full input for both variants. Updated per Xian before evaluation started.",
+    "binaries": {
+      "baseline/replay_probe": "d39b7bdf2c6efbfd188e187290f147208d6964b309b366dd0c55407f763635f6",
+      "baseline/libn3mapping_core.so": "f5e54e1a9736c72c854724b4a04fbdd659bd7633edfe92cd2b4df00937148fda",
+      "current/replay_probe": "623739d26fcde380cd4624295358f1b86986dea69a2ae07678ff674cd8cb9d0c",
+      "current/libn3mapping_core.so": "6dde588f4ce0aaec4398f00b57461ee9e7e0c5935eff95b0ceb2153c82cb3378"
+    }
+  },
+  "normalization_identity": {
+    "base_commit": "15eb35bc848c287a31c073dd9800a2de56a494f6",
+    "core_sha256": "6d71afa54e133b4099a0c293d945b5a9a31d4e55bac0d3227d8ab72c2077fdf8",
+    "files": {
+      "src/world_localizing_tracking.cpp": "f7c8f58670081f99ddb9ea445e8e5d76352ad02a0621f50cb560632ef67738fd",
+      "src/core/n3mapping_core.cpp": "4cc4f706528ed847c72cdacb7c2e80e099b841dc4708543fb83d17e5ecadade4",
+      "test/test_localization_episode.cpp": "6aad5aee8817b0b1d7669051f76ead6b4cd079ad5f536adda2f44ef1026e9709",
+      "docs/evidence/runtime_cpu_20261017/replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+    },
+    "regression": {
+      "old_core_result": "fails at tracking index 51: invalid_nonrigid_pose",
+      "candidate_result": "200 stationary observations pass without relocking"
+    }
+  },
+  "settings": {
+    "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+    "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+    "plan_sha256": "73b72903f9705e35908a80a887f6771380e8fe8469e36ceb80c228c511947a45",
+    "cpus": "0,2,4,6",
+    "threads": 4,
+    "rate": 1.0,
+    "max_frames": 0,
+    "variants": {
+      "normalized": {
+        "libn3mapping_core.so": "6d71afa54e133b4099a0c293d945b5a9a31d4e55bac0d3227d8ab72c2077fdf8",
+        "replay_probe": "84a4750d3813cd72c88ecc30056d0920ebd53d1a2c5ab97534dd5d39cf86c520",
+        "replay_probe.cpp": "d6eba6e2cfbfd12d9edeb5579b9e482c575da3cd8ad590c04eeb7a3ba1a6a299"
+      }
+    }
+  },
+  "audit_band": {
+    "position_m": 1,
+    "rotation_deg": 5,
+    "purpose": "Separate gross wrong locks from intended-location locks; not a new product threshold or a precision acceptance criterion."
+  },
+  "aggregate": {
+    "baseline": {
+      "completed": 14,
+      "first_locks_within_audit_band": 11,
+      "wrong_locks": 1,
+      "no_lock": 2,
+      "first_correct_lock_wall_s": {
+        "median": 6.305589708,
+        "minimum": 4.580208082,
+        "maximum": 16.180580221
+      },
+      "cpu_s": 2893.945684156,
+      "alignments": 8074,
+      "max_rss_mib": 1911.8671875,
+      "full_accuracy_scored_correct_positions": 10,
+      "correctly_located_full_output_max_position_m": 0.3987283992799013,
+      "correctly_located_full_output_max_rotation_deg": 0.47068945956579294,
+      "last_10s_fully_tracked_positions": 10,
+      "stable_last_10s_cpu_cores": [
+        0.22216013429999984,
+        0.24974613649999955,
+        0.2598360156999999,
+        0.26823343535083427,
+        0.23593197519999992,
+        0.2540940146000001,
+        0.3605542865000001,
+        0.24660962719999951,
+        0.26205073919999994,
+        0.23067266359999997
+      ]
+    },
+    "current": {
+      "completed": 14,
+      "first_locks_within_audit_band": 11,
+      "wrong_locks": 1,
+      "no_lock": 2,
+      "first_correct_lock_wall_s": {
+        "median": 5.0971923530000005,
+        "minimum": 3.758587877,
+        "maximum": 10.554603371999999
+      },
+      "cpu_s": 1255.396911059,
+      "alignments": 2812,
+      "max_rss_mib": 1915.0390625,
+      "full_accuracy_scored_correct_positions": 10,
+      "correctly_located_full_output_max_position_m": 0.39872839927990134,
+      "correctly_located_full_output_max_rotation_deg": 0.47068945956580177,
+      "last_10s_fully_tracked_positions": 10,
+      "stable_last_10s_cpu_cores": [
+        0.21782563520000003,
+        0.25817686850000027,
+        0.2588069858999999,
+        0.2721899151310524,
+        0.23564025120000007,
+        0.2523048348,
+        0.37728093890000014,
+        0.24792258929999952,
+        0.2715776631999997,
+        0.22593656630000042
+      ]
+    },
+    "normalized": {
+      "completed": 14,
+      "first_locks_within_audit_band": 11,
+      "wrong_locks": 1,
+      "no_lock": 2,
+      "first_correct_lock_wall_s": {
+        "median": 5.326392587,
+        "minimum": 3.752464669,
+        "maximum": 10.669251899
+      },
+      "cpu_s": 1179.8683126719998,
+      "alignments": 2583,
+      "max_rss_mib": 1915.0234375,
+      "full_accuracy_scored_correct_positions": 11,
+      "correctly_located_full_output_max_position_m": 0.3987283992799015,
+      "correctly_located_full_output_max_rotation_deg": 0.47068945956579733,
+      "last_10s_fully_tracked_positions": 11,
+      "stable_last_10s_cpu_cores": [
+        0.21862283530000023,
+        0.25613863950000015,
+        0.25268532650000014,
+        0.2732905777819345,
+        0.23024631289999978,
+        0.23934326379999984,
+        0.25226477909999995,
+        0.3772090383000001,
+        0.24417614610000019,
+        0.2663002693999999,
+        0.23270663859999985
+      ]
+    }
+  },
+  "limitations": [
+    "One full paired four-core run per position, plus separate meeting repeats and final normalized replay; not repeated-run medians.",
+    "First lock starts at first LIO input after map loading. Map load is separate, and ROS transport, frontend and simulator CPU are excluded.",
+    "All 296 exact LIO pairs per bag, original 10 Hz pace, no frame drops. Difficult runs accumulate backlog; CPU/input-second is required work per sensor second, not instantaneous occupied cores.",
+    "Truth uses one fixed mapping-session first-pose alignment; no per-query fit. Frontend-only drift audits use their own first-pose alignment and are not localization scores.",
+    "Old full probes lack actual coasted output poses. Meeting full-run accuracy remains unscored there; the separately replayed output-aware old versions retain their own timings and truth scores. Their repeated lock counts vary, so do not splice repeat accuracy into the original full run.",
+    "Wrong lock at position 11 and no locks at 09/14 remain failures. First-correct-lock latency summaries exclude all three.",
+    "Simulation with ideal sensors, fixed poses and pre-existing map error; no moving/out-of-map/dynamic or RK3588 qualification.",
+    "Quaternion normalization fixes internal nonrigid-pose feedback; retrieval and decision gates are unchanged. No overall precision improvement or difficult-search half-core claim."
+  ],
+  "raw_evidence": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019",
+  "positions": [
+    {
+      "id": "01_west_corridor",
+      "spawn": [
+        -44,
+        0,
+        0
+      ],
+      "yaw_deg": 0,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/01_west_corridor/bag/bag_0.db3",
+        "sha256": "e06b61aa524e70b6eb0ec3cfe3f9a1e9ab0acce93c59a47eb5001f563e9363ec",
+        "bytes": 264970240
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.0014706098970185626,
+        "max_rotation_from_first_deg": 0.008726445745590932
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "2febd832139abebf4edc1c20b53076263079cdb9f97c1a32622a8d57dc94c36d",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.02868499107322518,
+          "median": 0.029116213520661426,
+          "p95": 0.037607120251232154,
+          "maximum": 0.03910068797009825
+        },
+        "rotation_error_deg": {
+          "rmse": 0.07799885822167446,
+          "median": 0.08081628528066771,
+          "p95": 0.10060123761239709,
+          "maximum": 0.10502694170760143
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.682689493,
+        "first_lock_cpu_s": 10.649622028000001,
+        "map_load_wall_s": 5.86071,
+        "cpu_s": 17.289061929,
+        "wall_s": 29.506500344,
+        "input_s": 29.499994995,
+        "cpu_seconds_per_input_second": 0.5860699953315365,
+        "alignments": 61,
+        "peak_rss_mib": 1911.4609375,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4201448839999994,
+        "descriptor_index_cpu_s": 0.40582891700000073,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.22216013429999984,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "13745f58bec5a011c1e20ffc679fe1e61fa3fd05763864b4f71dbafdedfbb5bc",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.006902225925305408,
+            "median": 0.006680606700332652,
+            "p95": 0.008965359612028132,
+            "maximum": 0.011931776766813913
+          },
+          "rotation_error_deg": {
+            "rmse": 0.050725371744766184,
+            "median": 0.051607716450877146,
+            "p95": 0.06265439987168334,
+            "maximum": 0.06948251706120594
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.011931776766813913,
+          "first_output_rotation_error_deg": 0.030114808920184387
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/01_west_corridor_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.1592690679999995,
+        "first_lock_cpu_s": 8.011677217999999,
+        "map_load_wall_s": 5.74057,
+        "cpu_s": 14.814034647,
+        "wall_s": 29.506421952,
+        "input_s": 29.499994995,
+        "cpu_seconds_per_input_second": 0.5021707511988003,
+        "alignments": 44,
+        "peak_rss_mib": 1914.859375,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4182618540000012,
+        "descriptor_index_cpu_s": 0.4040252540000001,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.21782563520000003,
+        "search_counts": {
+          "seed_initializations": 38,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 6,
+          "confirmation_evaluations": 17,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "febd956d15f4a201a331aa309763fb7b1b2ae3175a8ebf5533e396a7cf77cb04",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.006902225925288435,
+            "median": 0.006680606700332603,
+            "p95": 0.008965359612028134,
+            "maximum": 0.011931776766096427
+          },
+          "rotation_error_deg": {
+            "rmse": 0.0507253717447457,
+            "median": 0.05160771645087715,
+            "p95": 0.06265439987168335,
+            "maximum": 0.06948251706120598
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.011931776766096427,
+          "first_output_rotation_error_deg": 0.030114808917122284
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/01_west_corridor_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.4939851090000005,
+        "first_lock_cpu_s": 8.091125307,
+        "map_load_wall_s": 5.740399999999999,
+        "cpu_s": 14.754859136,
+        "wall_s": 29.506484773,
+        "input_s": 29.499994995,
+        "cpu_seconds_per_input_second": 0.5001648013330451,
+        "alignments": 44,
+        "peak_rss_mib": 1914.9296875,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4472047479999992,
+        "descriptor_index_cpu_s": 0.4327062299999998,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.21862283530000023,
+        "search_counts": {
+          "seed_initializations": 38,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 6,
+          "confirmation_evaluations": 17,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "8535f379324f60d104a751d2f07399a2b283ae50e34f051500850b2a32b1db72",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.006902225925288439,
+            "median": 0.0066806067003325875,
+            "p95": 0.008965359612029523,
+            "maximum": 0.011931776766096656
+          },
+          "rotation_error_deg": {
+            "rmse": 0.05072537174474571,
+            "median": 0.051607716450877146,
+            "p95": 0.06265439987168332,
+            "maximum": 0.06948251706120596
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.011931776766096656,
+          "first_output_rotation_error_deg": 0.030114808917122263
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/01_west_corridor_normalized.csv"
+      }
+    },
+    {
+      "id": "02_east_corridor",
+      "spawn": [
+        35,
+        0,
+        0
+      ],
+      "yaw_deg": 135,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/02_east_corridor/bag/bag_0.db3",
+        "sha256": "72f2ba1c2e73c1ede045e7b1df759226947cac3b9ccf4e2c22e240e53c53b3c4",
+        "bytes": 264966144
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.0003309604859610071,
+        "max_rotation_from_first_deg": 0.02764941542315924
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "ae32a235322d1266b6bf6f6ec88682ea6f65d6f35a467814459fc41836869410",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.024359747697059866,
+          "median": 0.024023842313578733,
+          "p95": 0.033771711671161296,
+          "maximum": 0.03468659116229495
+        },
+        "rotation_error_deg": {
+          "rmse": 0.029761032375416396,
+          "median": 0.028466474472425583,
+          "p95": 0.040090899625684406,
+          "maximum": 0.05134562977348656
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 9,
+        "first_lock_wall_s": 13.437335966000001,
+        "first_lock_cpu_s": 38.798231368,
+        "map_load_wall_s": 5.75835,
+        "cpu_s": 45.846940869,
+        "wall_s": 29.507470337999997,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 1.5541333251038207,
+        "alignments": 107,
+        "peak_rss_mib": 1911.57421875,
+        "outputs": 287,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4376617290000004,
+        "descriptor_index_cpu_s": 0.4047186309999997,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.24974613649999955,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "6edd27b311d39cd6955bd8d664227d2e9a642366a6daaf93e6eaf746c3aa58f1",
+        "published_pose_error": {
+          "evaluated_poses": 287,
+          "position_error_m": {
+            "rmse": 0.397300604388537,
+            "median": 0.3972958581098968,
+            "p95": 0.398260160349604,
+            "maximum": 0.3987283992799013
+          },
+          "rotation_error_deg": {
+            "rmse": 0.45871288022209045,
+            "median": 0.4590403289685854,
+            "p95": 0.46521989093141536,
+            "maximum": 0.47068945956579294
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.39784524924140413,
+          "first_output_rotation_error_deg": 0.41248543254780307
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/02_east_corridor_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 9,
+        "first_lock_wall_s": 10.554603371999999,
+        "first_lock_cpu_s": 30.765741565999996,
+        "map_load_wall_s": 6.08503,
+        "cpu_s": 38.18331155,
+        "wall_s": 29.507335295,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 1.294349324467174,
+        "alignments": 83,
+        "peak_rss_mib": 1914.640625,
+        "outputs": 287,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4383943150000005,
+        "descriptor_index_cpu_s": 0.40559999100000005,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.25817686850000027,
+        "search_counts": {
+          "seed_initializations": 76,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 7,
+          "confirmation_evaluations": 24,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "a42c6e41f40d70808e3208f2c986a897c6435250fbe9585b3d1a3d912c99d197",
+        "published_pose_error": {
+          "evaluated_poses": 287,
+          "position_error_m": {
+            "rmse": 0.397300604388537,
+            "median": 0.3972958581098968,
+            "p95": 0.398260160349604,
+            "maximum": 0.39872839927990134
+          },
+          "rotation_error_deg": {
+            "rmse": 0.45871288022209067,
+            "median": 0.4590403289685854,
+            "p95": 0.4652198909314144,
+            "maximum": 0.47068945956580177
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.39784524924140413,
+          "first_output_rotation_error_deg": 0.41248543254780307
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/02_east_corridor_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 9,
+        "first_lock_wall_s": 10.669251899,
+        "first_lock_cpu_s": 30.525338117,
+        "map_load_wall_s": 5.8552100000000005,
+        "cpu_s": 38.155063773,
+        "wall_s": 29.507163032,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 1.2933917728669213,
+        "alignments": 83,
+        "peak_rss_mib": 1914.66015625,
+        "outputs": 287,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.43746995599999994,
+        "descriptor_index_cpu_s": 0.40468743799999995,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.25613863950000015,
+        "search_counts": {
+          "seed_initializations": 76,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 7,
+          "confirmation_evaluations": 24,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "ef6f019315cef28a551cca3a163b08b4cc32d57f55ad0745d203723985705fcd",
+        "published_pose_error": {
+          "evaluated_poses": 287,
+          "position_error_m": {
+            "rmse": 0.3973006043885348,
+            "median": 0.39729585810989704,
+            "p95": 0.39826016034959877,
+            "maximum": 0.3987283992799015
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4587128802220912,
+            "median": 0.45904032896860303,
+            "p95": 0.46521989093142263,
+            "maximum": 0.47068945956579733
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.39784524924140396,
+          "first_output_rotation_error_deg": 0.41248543254780307
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/02_east_corridor_normalized.csv"
+      }
+    },
+    {
+      "id": "03_south_corridor",
+      "spawn": [
+        0,
+        -24,
+        0
+      ],
+      "yaw_deg": 90,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/03_south_corridor/bag/bag_0.db3",
+        "sha256": "728e3125e3b4cf30d80ebee4c98e843397e2b0e95086a6e091681d2bd21affd3",
+        "bytes": 262455296
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.0010388832338462163,
+        "max_rotation_from_first_deg": 0.008703285302153743
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "733179d895d843f0b821841342e733a199046c0ae602aea85b88360be4ad6fc1",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.010119390973165183,
+          "median": 0.01036361892067543,
+          "p95": 0.011862467706819676,
+          "maximum": 0.013283949347912827
+        },
+        "rotation_error_deg": {
+          "rmse": 0.025958207613704622,
+          "median": 0.025504287386110318,
+          "p95": 0.030564580949900003,
+          "maximum": 0.0482298567380496
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 6.47344506,
+        "first_lock_cpu_s": 15.714948282000002,
+        "map_load_wall_s": 6.45412,
+        "cpu_s": 23.382592085,
+        "wall_s": 29.507297619,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.7926302401694915,
+        "alignments": 70,
+        "peak_rss_mib": 1911.6796875,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4265027530000007,
+        "descriptor_index_cpu_s": 0.4077355960000004,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.2598360156999999,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "f40df40750f6d62e618e17ce79c6623924379ec01e9e0036ef81568b14632e86",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.14956982103121197,
+            "median": 0.14985348742200055,
+            "p95": 0.15028593592902978,
+            "maximum": 0.15045624415553635
+          },
+          "rotation_error_deg": {
+            "rmse": 0.23138399441400162,
+            "median": 0.23171890464555422,
+            "p95": 0.23541292916643847,
+            "maximum": 0.23754500047207006
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.1476171350774456,
+          "first_output_rotation_error_deg": 0.19025523942819839
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/03_south_corridor_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.023319668,
+        "first_lock_cpu_s": 11.344555105,
+        "map_load_wall_s": 5.71868,
+        "cpu_s": 19.092996786,
+        "wall_s": 29.507373787,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.6472202300338983,
+        "alignments": 45,
+        "peak_rss_mib": 1914.76953125,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.425302133000001,
+        "descriptor_index_cpu_s": 0.4065222300000005,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.2588069858999999,
+        "search_counts": {
+          "seed_initializations": 36,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 9,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "337c7db1a78d72e282e570f0f9c02ac8fd8d7967f4487b369c7152af045cba6f",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.14968159427370553,
+            "median": 0.1498534933822439,
+            "p95": 0.15028884776023935,
+            "maximum": 0.15045624556207124
+          },
+          "rotation_error_deg": {
+            "rmse": 0.2319295143697049,
+            "median": 0.2318557107364313,
+            "p95": 0.23589324888704463,
+            "maximum": 0.24789130426919223
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.14938702174459215,
+          "first_output_rotation_error_deg": 0.2223395539703392
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/03_south_corridor_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.509926053999999,
+        "first_lock_cpu_s": 11.709808845,
+        "map_load_wall_s": 5.74487,
+        "cpu_s": 19.321710457000002,
+        "wall_s": 29.507496693,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.6549732358305085,
+        "alignments": 45,
+        "peak_rss_mib": 1914.84375,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4259384769999997,
+        "descriptor_index_cpu_s": 0.4071508450000001,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.25268532650000014,
+        "search_counts": {
+          "seed_initializations": 36,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 9,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "1f896609904b6c2ca9591e002f3bddd46da07397469ad587580c4533c3b798c3",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.14968159427370556,
+            "median": 0.1498534933822439,
+            "p95": 0.15028884776023946,
+            "maximum": 0.15045624556207124
+          },
+          "rotation_error_deg": {
+            "rmse": 0.23192951436972523,
+            "median": 0.2318557107364466,
+            "p95": 0.23589324888707378,
+            "maximum": 0.2478913042691922
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.14938702174459215,
+          "first_output_rotation_error_deg": 0.2223395539703392
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/03_south_corridor_normalized.csv"
+      }
+    },
+    {
+      "id": "04_north_corridor",
+      "spawn": [
+        0,
+        24,
+        0
+      ],
+      "yaw_deg": -90,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/04_north_corridor/bag/bag_0.db3",
+        "sha256": "47fb4ec8bbaf93d28a6475b7cd4e0d39d78b5dff75f99ca562614858de6891cf",
+        "bytes": 262524928
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.001038883308717255,
+        "max_rotation_from_first_deg": 0.008703277634529792
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "32ae751300d9a871fcbf6e5183d925a9d0e7d7855e622d4c6195c7be660749ef",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.0042303274125827794,
+          "median": 0.004175849440123086,
+          "p95": 0.005603373540628853,
+          "maximum": 0.007965675553160469
+        },
+        "rotation_error_deg": {
+          "rmse": 0.06719065469954372,
+          "median": 0.07023674898707298,
+          "p95": 0.07850961231343735,
+          "maximum": 0.0832950715806854
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 6.632130654,
+        "first_lock_cpu_s": 16.024003296,
+        "map_load_wall_s": 5.72283,
+        "cpu_s": 24.153118174,
+        "wall_s": 29.507632677,
+        "input_s": 29.499994995,
+        "cpu_seconds_per_input_second": 0.8187499075201113,
+        "alignments": 72,
+        "peak_rss_mib": 1911.7734375,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4266609790000002,
+        "descriptor_index_cpu_s": 0.40744807200000016,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.26823343535083427,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "a31a6180755627cbeec4b0fca5915bcdb4eaa3fc17ab1a063cbb8f57832587dd",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.2751746879493585,
+            "median": 0.27484906724150937,
+            "p95": 0.2765334304412436,
+            "maximum": 0.2984577992978974
+          },
+          "rotation_error_deg": {
+            "rmse": 0.3565263237838585,
+            "median": 0.3566514541329481,
+            "p95": 0.3598486286189526,
+            "maximum": 0.3747992278841475
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.2984577992978974,
+          "first_output_rotation_error_deg": 0.3747992278841475
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/04_north_corridor_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.2564603850000005,
+        "first_lock_cpu_s": 12.183776322999998,
+        "map_load_wall_s": 6.49825,
+        "cpu_s": 20.158280836,
+        "wall_s": 29.507920175,
+        "input_s": 29.499994995,
+        "cpu_seconds_per_input_second": 0.6833316696974578,
+        "alignments": 51,
+        "peak_rss_mib": 1915.0390625,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4364304859999993,
+        "descriptor_index_cpu_s": 0.4174757209999998,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.2721899151310524,
+        "search_counts": {
+          "seed_initializations": 43,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 8,
+          "confirmation_evaluations": 21,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "fed3402346d471934f7ffe04a9f32c1a21bc76518453134f0ba08fe0381d65f2",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.27510747804584784,
+            "median": 0.2748490683878451,
+            "p95": 0.2765149754320572,
+            "maximum": 0.2940771531572094
+          },
+          "rotation_error_deg": {
+            "rmse": 0.3564890895973654,
+            "median": 0.3566514541329481,
+            "p95": 0.3597210448278867,
+            "maximum": 0.3728617038398144
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.2940771531572094,
+          "first_output_rotation_error_deg": 0.3728617038398144
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/04_north_corridor_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.326392587,
+        "first_lock_cpu_s": 12.173289486000002,
+        "map_load_wall_s": 6.09366,
+        "cpu_s": 20.157183026000002,
+        "wall_s": 29.507570816,
+        "input_s": 29.499994995,
+        "cpu_seconds_per_input_second": 0.6832944557928391,
+        "alignments": 51,
+        "peak_rss_mib": 1914.89453125,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.42375166099999934,
+        "descriptor_index_cpu_s": 0.404972651,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.2732905777819345,
+        "search_counts": {
+          "seed_initializations": 43,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 8,
+          "confirmation_evaluations": 21,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "f639d74223fd5a48dafe77f90552a100d6a4d4a4a32cf3b4fae55257c4d45dec",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.2751074780458475,
+            "median": 0.2748490683878437,
+            "p95": 0.2765149754320572,
+            "maximum": 0.29407715315720934
+          },
+          "rotation_error_deg": {
+            "rmse": 0.3564890895973401,
+            "median": 0.35665145413293997,
+            "p95": 0.3597210448278688,
+            "maximum": 0.3728617038398176
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.29407715315720934,
+          "first_output_rotation_error_deg": 0.3728617038398176
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/04_north_corridor_normalized.csv"
+      }
+    },
+    {
+      "id": "05_southwest_office",
+      "spawn": [
+        -40,
+        -35,
+        0
+      ],
+      "yaw_deg": 35,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/05_southwest_office/bag/bag_0.db3",
+        "sha256": "af633750378dfa1d147fbe53a306a98b18fead8c868c763887faba87b65aa15b",
+        "bytes": 266190848
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.0023055415982995244,
+        "max_rotation_from_first_deg": 1.5130259879992433e-05
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "554bffb0d28a28afef1a2890d5538b9863ee55f69b537529b540e8cd1c4b3a8b",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.049113822812554116,
+          "median": 0.05017828861548801,
+          "p95": 0.06563318930136602,
+          "maximum": 0.06677944489207463
+        },
+        "rotation_error_deg": {
+          "rmse": 0.15127534282840374,
+          "median": 0.15943566325716285,
+          "p95": 0.1765604688210933,
+          "maximum": 0.18085918630066383
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.289315737,
+        "first_lock_cpu_s": 12.293196314000001,
+        "map_load_wall_s": 6.42166,
+        "cpu_s": 19.227310536,
+        "wall_s": 29.506349333,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.6517732385084746,
+        "alignments": 69,
+        "peak_rss_mib": 1911.69921875,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4540325449999991,
+        "descriptor_index_cpu_s": 0.4395455000000002,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.23593197519999992,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "ac2ce548e60980a870686d83226072f522592f8b98784241437c829877f7abad",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.06119488970395509,
+            "median": 0.061036098638599,
+            "p95": 0.06283810426510282,
+            "maximum": 0.06355652911306917
+          },
+          "rotation_error_deg": {
+            "rmse": 0.21853695205365473,
+            "median": 0.21862477484790938,
+            "p95": 0.2274836732776378,
+            "maximum": 0.24946214087358687
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.054282287163483364,
+          "first_output_rotation_error_deg": 0.24946214087358687
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/05_southwest_office_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.415044519,
+        "first_lock_cpu_s": 9.768904424,
+        "map_load_wall_s": 5.73632,
+        "cpu_s": 16.751730816,
+        "wall_s": 29.507022212,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.567855281898305,
+        "alignments": 44,
+        "peak_rss_mib": 1914.57421875,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4196645870000002,
+        "descriptor_index_cpu_s": 0.40568411800000015,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.23564025120000007,
+        "search_counts": {
+          "seed_initializations": 33,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 11,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "87389c1d248ebbf833a079aa4c106ace4e0b78f1e3ba9fbff1be1387af511d75",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.061176057952204266,
+            "median": 0.06103514882487927,
+            "p95": 0.06278958620853015,
+            "maximum": 0.06346627084910507
+          },
+          "rotation_error_deg": {
+            "rmse": 0.21845901105703794,
+            "median": 0.2186247748428341,
+            "p95": 0.22706971244231175,
+            "maximum": 0.24529548997670667
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.053901848303967624,
+          "first_output_rotation_error_deg": 0.24529548997670667
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/05_southwest_office_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.772096844,
+        "first_lock_cpu_s": 9.8197433,
+        "map_load_wall_s": 5.76391,
+        "cpu_s": 16.855766068999998,
+        "wall_s": 29.508664339,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.5713819006440677,
+        "alignments": 44,
+        "peak_rss_mib": 1914.85546875,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4216887090000018,
+        "descriptor_index_cpu_s": 0.4072830560000002,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.23024631289999978,
+        "search_counts": {
+          "seed_initializations": 33,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 11,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "49596b21a5ec5cef72dfd39ba4c5daf591db54360c8eb23a143d6fc317eeb5f2",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.06117605795220437,
+            "median": 0.061035148824879246,
+            "p95": 0.06278958620853015,
+            "maximum": 0.06346627084910507
+          },
+          "rotation_error_deg": {
+            "rmse": 0.2184590110570379,
+            "median": 0.2186247748428332,
+            "p95": 0.22706971244231217,
+            "maximum": 0.24529548997670658
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.053901848303973904,
+          "first_output_rotation_error_deg": 0.24529548997670658
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/05_southwest_office_normalized.csv"
+      }
+    },
+    {
+      "id": "06_south_meeting",
+      "spawn": [
+        -12,
+        -36,
+        0
+      ],
+      "yaw_deg": -110,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/06_south_meeting/bag/bag_0.db3",
+        "sha256": "5bad65f92098b042cea2964dc5f5b64578d64745ea090ea83f1c333f4c2aa08f",
+        "bytes": 264974336
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.0006845660673329098,
+        "max_rotation_from_first_deg": 7.584371786677998e-05
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "6427f2fdb87cf3a8de97bd5af10eaf0b8d22bf33725c09dad8bcc2e114cf087d",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.047374431592843595,
+          "median": 0.04855546835976744,
+          "p95": 0.06291167131109743,
+          "maximum": 0.06452118957452171
+        },
+        "rotation_error_deg": {
+          "rmse": 0.1368966901052302,
+          "median": 0.1418666386840251,
+          "p95": 0.15520774123496178,
+          "maximum": 0.16123341294982366
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 14,
+        "first_lock_wall_s": 16.180580221,
+        "first_lock_cpu_s": 48.183123258,
+        "map_load_wall_s": 6.00497,
+        "cpu_s": 161.208019766,
+        "wall_s": 55.283627943,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 5.464678636135593,
+        "alignments": 654,
+        "peak_rss_mib": 1911.6796875,
+        "outputs": 282,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 5,
+        "invalid_rigid_frames": 24,
+        "coasted_output_frames": 50,
+        "descriptor_cpu_s": 0.5836165090000013,
+        "descriptor_index_cpu_s": 0.44468993899999987,
+        "last_10s_all_tracked": false,
+        "last_10s_cpu_cores": 3.5875625550000025,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "truth_score_error": "Probe has coasted outputs; backend pose alone cannot score them",
+        "csv_sha256": "f7ad36563d2c53774ff3ab3103d79e8b7e241e8203792efe5ccf2c03e3eb30dd",
+        "first_lock_error": {
+          "first_output_position_error_m": 0.06659257488137507,
+          "first_output_rotation_error_deg": 0.29836320928010174
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/06_south_meeting_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 14,
+        "first_lock_wall_s": 8.303119578,
+        "first_lock_cpu_s": 21.677280066999998,
+        "map_load_wall_s": 6.2773900000000005,
+        "cpu_s": 100.197133824,
+        "wall_s": 37.474630734,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 3.396513010983051,
+        "alignments": 317,
+        "peak_rss_mib": 1914.87109375,
+        "outputs": 282,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 5,
+        "invalid_rigid_frames": 24,
+        "coasted_output_frames": 55,
+        "descriptor_cpu_s": 0.6094333769999958,
+        "descriptor_index_cpu_s": 0.45176339499999996,
+        "last_10s_all_tracked": false,
+        "last_10s_cpu_cores": 3.4703010181000002,
+        "search_counts": {
+          "seed_initializations": 224,
+          "seed_continuations": 178,
+          "seed_resumptions": 12,
+          "seed_retries": 3,
+          "confirmation_registrations": 81,
+          "confirmation_evaluations": 258,
+          "invalidated_seed_poses": 0
+        },
+        "truth_score_error": "Probe has coasted outputs; backend pose alone cannot score them",
+        "csv_sha256": "43ad0733af40b229c1dcf6907b3b4c2c180a245087663637316f2f53ec425ba1",
+        "first_lock_error": {
+          "first_output_position_error_m": 0.06511228826080616,
+          "first_output_rotation_error_deg": 0.30314831781135076
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/06_south_meeting_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 14,
+        "first_lock_wall_s": 8.339979762,
+        "first_lock_cpu_s": 21.535750269999998,
+        "map_load_wall_s": 6.31762,
+        "cpu_s": 28.262188939,
+        "wall_s": 29.508043529,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.9580403030169492,
+        "alignments": 88,
+        "peak_rss_mib": 1914.84375,
+        "outputs": 282,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4505402209999984,
+        "descriptor_index_cpu_s": 0.406099698,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.23934326379999984,
+        "search_counts": {
+          "seed_initializations": 59,
+          "seed_continuations": 68,
+          "seed_resumptions": 2,
+          "seed_retries": 1,
+          "confirmation_registrations": 27,
+          "confirmation_evaluations": 81,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "b7d1643f38bd5f5d0331bf71fd79f1033ac40c3f19fbb5af6af8b494be73a1b9",
+        "published_pose_error": {
+          "evaluated_poses": 282,
+          "position_error_m": {
+            "rmse": 0.06280699869103135,
+            "median": 0.06307125267830224,
+            "p95": 0.06406900510641754,
+            "maximum": 0.06511228826080616
+          },
+          "rotation_error_deg": {
+            "rmse": 0.30875340791237804,
+            "median": 0.3085187896458821,
+            "p95": 0.31572030426178066,
+            "maximum": 0.3211340836330743
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.06511228826080616,
+          "first_output_rotation_error_deg": 0.30314831781135076
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/06_south_meeting_normalized.csv"
+      }
+    },
+    {
+      "id": "07_south_pillars",
+      "spawn": [
+        12,
+        -34,
+        0
+      ],
+      "yaw_deg": 160,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/07_south_pillars/bag/bag_0.db3",
+        "sha256": "8ae7654a9b722b2d5c87b7b3a764845e43f60317c6f32d627c35a27c7d24ff33",
+        "bytes": 266190848
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.000767145718611343,
+        "max_rotation_from_first_deg": 4.9339291289794155e-05
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "2e46e287af0f2d9b85c6b6712d9a147b4de5c752188edc725c83e59f7647db21",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.06482473987763845,
+          "median": 0.06753191028977444,
+          "p95": 0.08144839429493911,
+          "maximum": 0.08279060215016673
+        },
+        "rotation_error_deg": {
+          "rmse": 0.2147997749138523,
+          "median": 0.22694335581087455,
+          "p95": 0.25127300284978477,
+          "maximum": 0.25618046265536537
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.054795105,
+        "first_lock_cpu_s": 11.974459186,
+        "map_load_wall_s": 6.1,
+        "cpu_s": 19.425632058999998,
+        "wall_s": 29.506742296,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.6584960019999999,
+        "alignments": 91,
+        "peak_rss_mib": 1911.8671875,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4197855619999982,
+        "descriptor_index_cpu_s": 0.40679738199999976,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.2540940146000001,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "bc7eb5798ec9fa359e4d78803f026a818b599297c42caf06f5380bb199e6db3f",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.20764052858084192,
+            "median": 0.20895214716349625,
+            "p95": 0.21042975428930918,
+            "maximum": 0.2109159248124835
+          },
+          "rotation_error_deg": {
+            "rmse": 0.1762000944395732,
+            "median": 0.1756898549074003,
+            "p95": 0.18760222946117638,
+            "maximum": 0.2166635879675645
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.20205620486555045,
+          "first_output_rotation_error_deg": 0.2166635879675645
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/07_south_pillars_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.732480150000001,
+        "first_lock_cpu_s": 9.916912836,
+        "map_load_wall_s": 5.72619,
+        "cpu_s": 17.581544655000002,
+        "wall_s": 29.507032694000003,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.5959845645762712,
+        "alignments": 67,
+        "peak_rss_mib": 1914.4765625,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4171263779999999,
+        "descriptor_index_cpu_s": 0.40376703199999975,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.2523048348,
+        "search_counts": {
+          "seed_initializations": 55,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 12,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "b398413fe19093dbcbd6b4d0f576eebd9a77cb7637b244715afa4815a7d84e39",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.20768511463380945,
+            "median": 0.2089524757922823,
+            "p95": 0.21042975448667764,
+            "maximum": 0.21091592483365537
+          },
+          "rotation_error_deg": {
+            "rmse": 0.17616107574065618,
+            "median": 0.17568697146097878,
+            "p95": 0.18760222946117422,
+            "maximum": 0.21466713181835984
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.20280862682691853,
+          "first_output_rotation_error_deg": 0.21466713181835984
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/07_south_pillars_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.586169326,
+        "first_lock_cpu_s": 9.886846168,
+        "map_load_wall_s": 5.74643,
+        "cpu_s": 17.499155276,
+        "wall_s": 29.506602465,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.5931917042711864,
+        "alignments": 67,
+        "peak_rss_mib": 1914.6953125,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.41760909400000035,
+        "descriptor_index_cpu_s": 0.4043252979999997,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.25226477909999995,
+        "search_counts": {
+          "seed_initializations": 55,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 12,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "6b39a9fc82b2b37a8e7c79bb513a582a51c426978660bdd77495d32f3e77faa9",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.20768511463380956,
+            "median": 0.20895247579228238,
+            "p95": 0.2104297544866777,
+            "maximum": 0.21091592483365537
+          },
+          "rotation_error_deg": {
+            "rmse": 0.17616107574065387,
+            "median": 0.17568697146098336,
+            "p95": 0.18760222946117242,
+            "maximum": 0.21466713181836267
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.20280862682691864,
+          "first_output_rotation_error_deg": 0.21466713181836267
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/07_south_pillars_normalized.csv"
+      }
+    },
+    {
+      "id": "08_west_shelves",
+      "spawn": [
+        -41,
+        -11,
+        0
+      ],
+      "yaw_deg": 80,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/08_west_shelves/bag/bag_0.db3",
+        "sha256": "f0688f40c747123d36de3fac0f474fe7f403852335a6867a07168cce8b8cfd87",
+        "bytes": 266190848
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.005117860139350374,
+        "max_rotation_from_first_deg": 0.00013874026314232533
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "e0e670ea0f490ae292c21c94768e0a709b5817c0a722c10f84d7dc0a7b55de0e",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.05590945470083596,
+          "median": 0.05771714344561575,
+          "p95": 0.07224185718459093,
+          "maximum": 0.07345686037514969
+        },
+        "rotation_error_deg": {
+          "rmse": 0.22429897210691044,
+          "median": 0.2309542889745952,
+          "p95": 0.26034046362395546,
+          "maximum": 0.2677160114293969
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.580208082,
+        "first_lock_cpu_s": 9.138495823,
+        "map_load_wall_s": 5.76434,
+        "cpu_s": 19.922812055,
+        "wall_s": 29.511163837,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.6753495611864407,
+        "alignments": 69,
+        "peak_rss_mib": 1911.71484375,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4177412009999989,
+        "descriptor_index_cpu_s": 0.40464088699999956,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.3605542865000001,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "a05a81e91a5fe44006510acd91c299ce57221458ee230f6cdf8117d73ac91dd4",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.07676719979133606,
+            "median": 0.07719586322553666,
+            "p95": 0.07858911943710709,
+            "maximum": 0.07991281505593816
+          },
+          "rotation_error_deg": {
+            "rmse": 0.2685751352557449,
+            "median": 0.2716438118686823,
+            "p95": 0.2904504188004433,
+            "maximum": 0.30314732811517753
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.04399665518690513,
+          "first_output_rotation_error_deg": 0.08491488657729535
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/08_west_shelves_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 3.758587877,
+        "first_lock_cpu_s": 7.458544421,
+        "map_load_wall_s": 6.3245,
+        "cpu_s": 18.447209282,
+        "wall_s": 29.511522087,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.6253291282033898,
+        "alignments": 48,
+        "peak_rss_mib": 1914.72265625,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.41768843700000163,
+        "descriptor_index_cpu_s": 0.4050499690000006,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.37728093890000014,
+        "search_counts": {
+          "seed_initializations": 42,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 6,
+          "confirmation_evaluations": 21,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "362f6f61f9a67db6ad7a054df063af41c64361ad06c6b9890207470d2e37442b",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.07674991654017804,
+            "median": 0.0771939914556832,
+            "p95": 0.07858906020310888,
+            "maximum": 0.07985198583711249
+          },
+          "rotation_error_deg": {
+            "rmse": 0.2685435140396048,
+            "median": 0.2716438118686823,
+            "p95": 0.2904504187980036,
+            "maximum": 0.30314732811517753
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.0430960991555781,
+          "first_output_rotation_error_deg": 0.08237799776500968
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/08_west_shelves_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 3.752464669,
+        "first_lock_cpu_s": 7.445552468,
+        "map_load_wall_s": 6.377350000000001,
+        "cpu_s": 18.485860026,
+        "wall_s": 29.511582833000002,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.6266393229152543,
+        "alignments": 48,
+        "peak_rss_mib": 1914.73046875,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4247050560000007,
+        "descriptor_index_cpu_s": 0.41189854899999956,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.3772090383000001,
+        "search_counts": {
+          "seed_initializations": 42,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 6,
+          "confirmation_evaluations": 21,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "99b54ec2438b8abf344d09e7509c375d74d2efc7c81a82100047848fbb23e8ce",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.07674991654017804,
+            "median": 0.0771939914556832,
+            "p95": 0.07858906020310874,
+            "maximum": 0.07985198583711249
+          },
+          "rotation_error_deg": {
+            "rmse": 0.2685435140396857,
+            "median": 0.2716438118687171,
+            "p95": 0.2904504187981153,
+            "maximum": 0.3031473281151902
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.04309609915557816,
+          "first_output_rotation_error_deg": 0.08237799776500974
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/08_west_shelves_normalized.csv"
+      }
+    },
+    {
+      "id": "09_east_shelves",
+      "spawn": [
+        27,
+        -12,
+        0
+      ],
+      "yaw_deg": -45,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/09_east_shelves/bag/bag_0.db3",
+        "sha256": "329ead8d53e7beb34231c961f1c41d4e85471decf4ea09546130338eb21c4997",
+        "bytes": 266190848
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 2.2886137644246686e-05,
+        "max_rotation_from_first_deg": 4.693773844821888e-05
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.05036430424564326,
+          "median": 0.051861759352895505,
+          "p95": 0.06622455798294956,
+          "maximum": 0.06759820384260581
+        },
+        "rotation_error_deg": {
+          "rmse": 0.16648965853797273,
+          "median": 0.17578444982366717,
+          "p95": 0.20091433964285696,
+          "maximum": 0.20649551528106191
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": null,
+        "first_lock_wall_s": null,
+        "first_lock_cpu_s": null,
+        "map_load_wall_s": 6.31809,
+        "cpu_s": 706.195518907,
+        "wall_s": 230.519008871,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 23.938831149389827,
+        "alignments": 2870,
+        "peak_rss_mib": 1911.5703125,
+        "outputs": 0,
+        "first_lock_outcome": "no_lock",
+        "lock_events": 0,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 1.2953124380000736,
+        "descriptor_index_cpu_s": 0.40587323000000014,
+        "last_10s_all_tracked": false,
+        "last_10s_cpu_cores": 23.975750565099993,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "5458abdab21c5a5699342efee35724dc18f2bdb9fc94c1cf8945e676b1019469",
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/09_east_shelves_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": null,
+        "first_lock_wall_s": null,
+        "first_lock_cpu_s": null,
+        "map_load_wall_s": 5.828609999999999,
+        "cpu_s": 262.550915186,
+        "wall_s": 98.9940801,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 8.900031023254238,
+        "alignments": 671,
+        "peak_rss_mib": 1914.703125,
+        "outputs": 0,
+        "first_lock_outcome": "no_lock",
+        "lock_events": 0,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 1.3024965130000592,
+        "descriptor_index_cpu_s": 0.4077741210000004,
+        "last_10s_all_tracked": false,
+        "last_10s_cpu_cores": 7.9913174214,
+        "search_counts": {
+          "seed_initializations": 178,
+          "seed_continuations": 1945,
+          "seed_resumptions": 12,
+          "seed_retries": 23,
+          "confirmation_registrations": 481,
+          "confirmation_evaluations": 1440,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "d615c030d3d36099bf4509ca64e90bc92fc62bce245c36139b452040fdec5cf8",
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/09_east_shelves_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": null,
+        "first_lock_wall_s": null,
+        "first_lock_cpu_s": null,
+        "map_load_wall_s": 5.75451,
+        "cpu_s": 262.025607274,
+        "wall_s": 97.776597689,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 8.882223975389829,
+        "alignments": 671,
+        "peak_rss_mib": 1914.85546875,
+        "outputs": 0,
+        "first_lock_outcome": "no_lock",
+        "lock_events": 0,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 1.290850424000033,
+        "descriptor_index_cpu_s": 0.40744352700000036,
+        "last_10s_all_tracked": false,
+        "last_10s_cpu_cores": 7.923884565000003,
+        "search_counts": {
+          "seed_initializations": 178,
+          "seed_continuations": 1945,
+          "seed_resumptions": 12,
+          "seed_retries": 23,
+          "confirmation_registrations": 481,
+          "confirmation_evaluations": 1440,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "ece100eab27b3dd24bef0f7bacbec974cd0976d74139eb1fa7abdabc20619912",
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/09_east_shelves_normalized.csv"
+      }
+    },
+    {
+      "id": "10_northwest_meeting",
+      "spawn": [
+        -40,
+        10,
+        0
+      ],
+      "yaw_deg": -150,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/10_northwest_meeting/bag/bag_0.db3",
+        "sha256": "a0908581e37fc0bd05362f72f790dcf0403e43e0667dd43811bed91e1f03a9ec",
+        "bytes": 266190848
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 8.517457972912947e-05,
+        "max_rotation_from_first_deg": 6.48230703840459e-05
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "a5576adf71a0eed91a2ec0928d8bb59c8dc9eb7c572357d7f74735a1de6ade3d",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.05546580949286796,
+          "median": 0.057251973509252714,
+          "p95": 0.07311300518530414,
+          "maximum": 0.07419585666459945
+        },
+        "rotation_error_deg": {
+          "rmse": 0.1691556610047098,
+          "median": 0.17930303958986205,
+          "p95": 0.20326415368793302,
+          "maximum": 0.21278924715484043
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 6.0729406820000005,
+        "first_lock_cpu_s": 14.685447751000002,
+        "map_load_wall_s": 6.09602,
+        "cpu_s": 21.902501883999996,
+        "wall_s": 29.507028102,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.7424576909830507,
+        "alignments": 92,
+        "peak_rss_mib": 1911.515625,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.46595434600000046,
+        "descriptor_index_cpu_s": 0.4513287129999999,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.24660962719999951,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "83c8b40273f358b6a30c52048e856cb259b1a1f877a78f38576941ddf1d11c12",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.08811053475135153,
+            "median": 0.08811242889680329,
+            "p95": 0.08894887104399232,
+            "maximum": 0.08942606845951434
+          },
+          "rotation_error_deg": {
+            "rmse": 0.07114092766872152,
+            "median": 0.07121198395275607,
+            "p95": 0.07817920554728292,
+            "maximum": 0.0855068543697049
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.0835429750823608,
+          "first_output_rotation_error_deg": 0.08390920167301616
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/10_northwest_meeting_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.0971923530000005,
+        "first_lock_cpu_s": 11.831102953,
+        "map_load_wall_s": 5.75245,
+        "cpu_s": 19.150070376999995,
+        "wall_s": 29.506426177,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.6491549280338982,
+        "alignments": 65,
+        "peak_rss_mib": 1914.640625,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4200796049999999,
+        "descriptor_index_cpu_s": 0.40634668900000087,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.24792258929999952,
+        "search_counts": {
+          "seed_initializations": 56,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 9,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "17088eb9e55343b9a7c0b9bdfef7fa22cf24ad09585afa578f772432ddf749a4",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.08809560261055695,
+            "median": 0.08811076490290501,
+            "p95": 0.08891965864245252,
+            "maximum": 0.08941006457891329
+          },
+          "rotation_error_deg": {
+            "rmse": 0.07115463957081208,
+            "median": 0.0712610471523756,
+            "p95": 0.07817920554728387,
+            "maximum": 0.08620996262850762
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.08329424703712149,
+          "first_output_rotation_error_deg": 0.08378439666485467
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/10_northwest_meeting_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.47002366,
+        "first_lock_cpu_s": 11.902992051000002,
+        "map_load_wall_s": 5.75642,
+        "cpu_s": 19.242248931000002,
+        "wall_s": 29.506686556000002,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.6522796247796611,
+        "alignments": 65,
+        "peak_rss_mib": 1914.94140625,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.419792766999999,
+        "descriptor_index_cpu_s": 0.4060357979999999,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.24417614610000019,
+        "search_counts": {
+          "seed_initializations": 56,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 9,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "be5f9ff6d24abea29286a68d3bbfa71313cd321c1aa9aabcecab71ba2f3ae625",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.08809560261055709,
+            "median": 0.08811076490290501,
+            "p95": 0.08891965864245252,
+            "maximum": 0.08941006457891376
+          },
+          "rotation_error_deg": {
+            "rmse": 0.07115463957081189,
+            "median": 0.071261047152375,
+            "p95": 0.0781792055472819,
+            "maximum": 0.08620996262850782
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.0832942470371215,
+          "first_output_rotation_error_deg": 0.08378439666485486
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/10_northwest_meeting_normalized.csv"
+      }
+    },
+    {
+      "id": "11_northeast_pillars",
+      "spawn": [
+        42,
+        12,
+        0
+      ],
+      "yaw_deg": 65,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/11_northeast_pillars/bag/bag_0.db3",
+        "sha256": "957daceb9e3c72371e55740ff73dd2149bffc859e6d76a099c1dea30f70cb277",
+        "bytes": 266190848
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.0011342293553915938,
+        "max_rotation_from_first_deg": 3.840988006569649e-05
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "78350f0bcde6576e3f67e4ecaeb47c567c011e83e167e3b329db68840bd489fb",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.06189240145920115,
+          "median": 0.06395738339311174,
+          "p95": 0.07965087130720272,
+          "maximum": 0.08089291441579527
+        },
+        "rotation_error_deg": {
+          "rmse": 0.20027971880450363,
+          "median": 0.21079341504407173,
+          "p95": 0.2324913276268008,
+          "maximum": 0.23790931150103367
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.10945691,
+        "first_lock_cpu_s": 12.553037927000002,
+        "map_load_wall_s": 5.73611,
+        "cpu_s": 22.730749852000002,
+        "wall_s": 29.509813736,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.7705338932881357,
+        "alignments": 69,
+        "peak_rss_mib": 1911.68359375,
+        "outputs": 292,
+        "first_lock_outcome": "wrong_location_or_heading",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4188106970000008,
+        "descriptor_index_cpu_s": 0.40556971800000063,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.3478260027,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "8c9aecb7392710141e77af426f0dca168085ec419a0be7f956b4ebaba9ce6842",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 22.59243709861897,
+            "median": 22.591950610769317,
+            "p95": 22.593049778248723,
+            "maximum": 22.62416658014237
+          },
+          "rotation_error_deg": {
+            "rmse": 0.35734630814918744,
+            "median": 0.35664816663115007,
+            "p95": 0.3691907647585586,
+            "maximum": 0.3798863682021338
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 22.62416658014237,
+          "first_output_rotation_error_deg": 0.3549227999909649
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/11_northeast_pillars_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.805172504,
+        "first_lock_cpu_s": 10.929257824999999,
+        "map_load_wall_s": 6.061529999999999,
+        "cpu_s": 21.01362075,
+        "wall_s": 29.512400139,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.7123261271186441,
+        "alignments": 53,
+        "peak_rss_mib": 1914.34765625,
+        "outputs": 292,
+        "first_lock_outcome": "wrong_location_or_heading",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4371655659999997,
+        "descriptor_index_cpu_s": 0.4233975110000001,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.34197513160000015,
+        "search_counts": {
+          "seed_initializations": 49,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 4,
+          "confirmation_evaluations": 16,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "e398d2eb20ff780e35535743eda85573fa4108dc4f3991611049d26d44328f8f",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 22.59237913589499,
+            "median": 22.591950558995975,
+            "p95": 22.592970097486543,
+            "maximum": 22.620860697231617
+          },
+          "rotation_error_deg": {
+            "rmse": 0.35701639185159595,
+            "median": 0.3566368102646422,
+            "p95": 0.3691907647585587,
+            "maximum": 0.3794431282060885
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 22.620860697231617,
+          "first_output_rotation_error_deg": 0.33786272874512335
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/11_northeast_pillars_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 4.499721966,
+        "first_lock_cpu_s": 10.564568158000002,
+        "map_load_wall_s": 6.39766,
+        "cpu_s": 20.825260287000003,
+        "wall_s": 29.509741652,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.7059410266779662,
+        "alignments": 53,
+        "peak_rss_mib": 1914.80078125,
+        "outputs": 292,
+        "first_lock_outcome": "wrong_location_or_heading",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4239442060000001,
+        "descriptor_index_cpu_s": 0.4104626470000003,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.34992095389999994,
+        "search_counts": {
+          "seed_initializations": 49,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 4,
+          "confirmation_evaluations": 16,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "0ec4d4a765d5401fa8994b8481bd956200bf3a3cee57d0b2d34e13450e39eec0",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 22.59237913589499,
+            "median": 22.591950558995975,
+            "p95": 22.592970097486543,
+            "maximum": 22.620860697231617
+          },
+          "rotation_error_deg": {
+            "rmse": 0.35701639185159323,
+            "median": 0.35663681026463134,
+            "p95": 0.3691907647585533,
+            "maximum": 0.3794431282060885
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 22.620860697231617,
+          "first_output_rotation_error_deg": 0.3378627287451228
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/11_northeast_pillars_normalized.csv"
+      }
+    },
+    {
+      "id": "12_north_office",
+      "spawn": [
+        -27,
+        35,
+        0
+      ],
+      "yaw_deg": 15,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/12_north_office/bag/bag_0.db3",
+        "sha256": "b65d8c1c512f28f7831656c88313b3b7aa1677614b9957d703bfa2e0bed73323",
+        "bytes": 266190848
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.00033591690466078765,
+        "max_rotation_from_first_deg": 9.89124718763444e-05
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "cea9e59c53ac1673866ea369766da53e354587a94f237d77ea4286033b3a3b49",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.0467488716566177,
+          "median": 0.04705398168387233,
+          "p95": 0.06277341127849331,
+          "maximum": 0.06416648844162716
+        },
+        "rotation_error_deg": {
+          "rmse": 0.18059781875832617,
+          "median": 0.1884697404838459,
+          "p95": 0.2136985440150926,
+          "maximum": 0.2215179245461173
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 6.305589708,
+        "first_lock_cpu_s": 16.102377292999996,
+        "map_load_wall_s": 5.84328,
+        "cpu_s": 23.851327554,
+        "wall_s": 29.511462412,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.808519578101695,
+        "alignments": 84,
+        "peak_rss_mib": 1911.7265625,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.43324525099999844,
+        "descriptor_index_cpu_s": 0.4198076270000001,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.26205073919999994,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "6e318a6e69836bfc42aef92f513d67076d697b13497b68936c63870f6d34b58a",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.29885221134782236,
+            "median": 0.29867314823248925,
+            "p95": 0.30070242269969943,
+            "maximum": 0.3018911988465031
+          },
+          "rotation_error_deg": {
+            "rmse": 0.35936654790537986,
+            "median": 0.35850900839230615,
+            "p95": 0.36923195542652437,
+            "maximum": 0.40766653684566106
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.2936267453580585,
+          "first_output_rotation_error_deg": 0.40766653684566106
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/12_north_office_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.422457841,
+        "first_lock_cpu_s": 12.999784619000001,
+        "map_load_wall_s": 5.93563,
+        "cpu_s": 20.977368151,
+        "wall_s": 29.507901388999997,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.7110972254576271,
+        "alignments": 60,
+        "peak_rss_mib": 1914.73828125,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4199708580000006,
+        "descriptor_index_cpu_s": 0.406027239,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.2715776631999997,
+        "search_counts": {
+          "seed_initializations": 48,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 12,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "63924003724c2b8b631183de64c1c496c8c7d1fd54979dacb27fc3fa4ad5aabe",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.298852321586018,
+            "median": 0.29867314823316427,
+            "p95": 0.3007024303859563,
+            "maximum": 0.30189123407886204
+          },
+          "rotation_error_deg": {
+            "rmse": 0.35936646775066994,
+            "median": 0.3585090083923062,
+            "p95": 0.3692314012848871,
+            "maximum": 0.40766227002694516
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.29363298440541036,
+          "first_output_rotation_error_deg": 0.40766227002694516
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/12_north_office_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.700702644,
+        "first_lock_cpu_s": 12.969475814999997,
+        "map_load_wall_s": 5.739529999999999,
+        "cpu_s": 20.916630335999997,
+        "wall_s": 29.507591453,
+        "input_s": 29.5,
+        "cpu_seconds_per_input_second": 0.7090383164745762,
+        "alignments": 60,
+        "peak_rss_mib": 1914.8046875,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.41881497200000106,
+        "descriptor_index_cpu_s": 0.4054543130000002,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.2663002693999999,
+        "search_counts": {
+          "seed_initializations": 48,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 12,
+          "confirmation_evaluations": 27,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "df1be1f50f3ce975d429f3cf066b2aa73b0187eca44701d8614e4d7bd8ae66c6",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.298852321586018,
+            "median": 0.29867314823316427,
+            "p95": 0.3007024303859563,
+            "maximum": 0.301891234078862
+          },
+          "rotation_error_deg": {
+            "rmse": 0.35936646775066583,
+            "median": 0.35850900839230737,
+            "p95": 0.3692314012848763,
+            "maximum": 0.40766227002694055
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.29363298440541036,
+          "first_output_rotation_error_deg": 0.40766227002694055
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/12_north_office_normalized.csv"
+      }
+    },
+    {
+      "id": "13_south_door",
+      "spawn": [
+        43,
+        -29,
+        0
+      ],
+      "yaw_deg": -70,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/13_south_door/bag/bag_0.db3",
+        "sha256": "53b825de4993ae040a7ac7227c713c5a8bf63ad1c39155a5641b8aaf2e50cdf0",
+        "bytes": 264982528
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.00012029511625867025,
+        "max_rotation_from_first_deg": 1.877815801967184e-05
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "f79b59e4788614fb32fca74b79316f501513635f41e8a19085beeb4132423a07",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.04272108433754705,
+          "median": 0.04303971260623829,
+          "p95": 0.05648761631667147,
+          "maximum": 0.05807488927044529
+        },
+        "rotation_error_deg": {
+          "rmse": 0.19654683391373984,
+          "median": 0.20307048125308957,
+          "p95": 0.24201085200874278,
+          "maximum": 0.2502061884773523
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 6.788272023,
+        "first_lock_cpu_s": 17.250378062000003,
+        "map_load_wall_s": 5.90618,
+        "cpu_s": 24.032651548,
+        "wall_s": 29.506949046000003,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 0.8146660159524268,
+        "alignments": 67,
+        "peak_rss_mib": 1911.62890625,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4210928039999999,
+        "descriptor_index_cpu_s": 0.40658317200000055,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.23067266359999997,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "ec8d00fae711e088f41760e4b47309af7637c87df6aab76a66f973de6e9c78b7",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.24093109896984194,
+            "median": 0.2412618367321811,
+            "p95": 0.242281030937915,
+            "maximum": 0.24273532520228547
+          },
+          "rotation_error_deg": {
+            "rmse": 0.2035208816287656,
+            "median": 0.20410970920846858,
+            "p95": 0.20999682633452174,
+            "maximum": 0.21771574825984163
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.23768205275035145,
+          "first_output_rotation_error_deg": 0.19947186392471714
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/13_south_door_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.720475829,
+        "first_lock_cpu_s": 12.827579688,
+        "map_load_wall_s": 5.82212,
+        "cpu_s": 19.549665672000003,
+        "wall_s": 29.506755077,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 0.6627004188198105,
+        "alignments": 46,
+        "peak_rss_mib": 1914.57421875,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.42642056400000183,
+        "descriptor_index_cpu_s": 0.41160843899999966,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.22593656630000042,
+        "search_counts": {
+          "seed_initializations": 40,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 6,
+          "confirmation_evaluations": 21,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "74b7aa1b2a361c78c8e54cd05abf6f4e713ecce6f8e129afc6fc2a312b15cb63",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.24057221599604392,
+            "median": 0.2412533299519526,
+            "p95": 0.24228103051071975,
+            "maximum": 0.24273532499868714
+          },
+          "rotation_error_deg": {
+            "rmse": 0.2040833099820327,
+            "median": 0.20429663978031926,
+            "p95": 0.2109900320044655,
+            "maximum": 0.2398805897436353
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.22910147055736063,
+          "first_output_rotation_error_deg": 0.2294250577456991
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/13_south_door_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": 4,
+        "first_lock_wall_s": 5.234245177,
+        "first_lock_cpu_s": 12.282924637,
+        "map_load_wall_s": 6.446140000000001,
+        "cpu_s": 19.097410601,
+        "wall_s": 29.50682753,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 0.6473697410479473,
+        "alignments": 46,
+        "peak_rss_mib": 1914.78515625,
+        "outputs": 292,
+        "first_lock_outcome": "within_1m_5deg_audit_band",
+        "lock_events": 1,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 0.4189262759999983,
+        "descriptor_index_cpu_s": 0.40450973799999973,
+        "last_10s_all_tracked": true,
+        "last_10s_cpu_cores": 0.23270663859999985,
+        "search_counts": {
+          "seed_initializations": 40,
+          "seed_continuations": 0,
+          "seed_resumptions": 0,
+          "seed_retries": 0,
+          "confirmation_registrations": 6,
+          "confirmation_evaluations": 21,
+          "invalidated_seed_poses": 0
+        },
+        "csv_sha256": "0105be86f1cd9de92ac2193eec1fec05fc16ff6bb62577ab2974502958b38a19",
+        "published_pose_error": {
+          "evaluated_poses": 292,
+          "position_error_m": {
+            "rmse": 0.24057221599604392,
+            "median": 0.2412533299519526,
+            "p95": 0.24228103051071975,
+            "maximum": 0.24273532499868714
+          },
+          "rotation_error_deg": {
+            "rmse": 0.2040833099820263,
+            "median": 0.20429663978029133,
+            "p95": 0.21099003200446548,
+            "maximum": 0.23988058974362686
+          }
+        },
+        "first_lock_error": {
+          "first_output_position_error_m": 0.22910147055736063,
+          "first_output_rotation_error_deg": 0.22942505774569918
+        },
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/13_south_door_normalized.csv"
+      }
+    },
+    {
+      "id": "14_north_door",
+      "spawn": [
+        10,
+        32,
+        0
+      ],
+      "yaw_deg": 175,
+      "bag": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/14_north_door/bag/bag_0.db3",
+        "sha256": "0c851f7bf76c5b4dae1066aede9723baa9b894fc18a2bc5a6cab7fc5b6b706f3",
+        "bytes": 264859648
+      },
+      "stationarity": {
+        "max_translation_from_first_m": 0.001225481232786519,
+        "max_rotation_from_first_deg": 6.866732269325704e-06
+      },
+      "verified_pcd_count": 296,
+      "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+      "frontend_drift": {
+        "position_error_m": {
+          "rmse": 0.01951746198014667,
+          "median": 0.01934096864716763,
+          "p95": 0.026362836677129475,
+          "maximum": 0.027252556036780423
+        },
+        "rotation_error_deg": {
+          "rmse": 0.06377465568104144,
+          "median": 0.06511177463362851,
+          "p95": 0.08149523487497534,
+          "maximum": 0.08684751369589214
+        }
+      },
+      "acquisition_counts": {
+        "/tf_static": 1,
+        "/clock": 6001,
+        "/livox/imu": 6000,
+        "/livox/lidar": 300,
+        "/ground_truth/odom": 300,
+        "/Odometry": 296,
+        "/cloud_registered_body": 296
+      },
+      "baseline": {
+        "first_lock_frame": null,
+        "first_lock_wall_s": null,
+        "first_lock_cpu_s": null,
+        "map_load_wall_s": 5.74951,
+        "cpu_s": 1764.7774469380001,
+        "wall_s": 560.3009990590001,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 59.822954153359824,
+        "alignments": 3699,
+        "peak_rss_mib": 1911.7734375,
+        "outputs": 0,
+        "first_lock_outcome": "no_lock",
+        "lock_events": 0,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 1.4681783880000476,
+        "descriptor_index_cpu_s": 0.40468077399999947,
+        "last_10s_all_tracked": false,
+        "last_10s_cpu_cores": 57.65977878240478,
+        "search_counts": {
+          "seed_initializations": null,
+          "seed_continuations": null,
+          "seed_resumptions": null,
+          "seed_retries": null,
+          "confirmation_registrations": null,
+          "confirmation_evaluations": null,
+          "invalidated_seed_poses": null
+        },
+        "csv_sha256": "0a4707d9feff4b2858fb0699cfa3b0e1b5fff17ddff4ff39f85ac04d4cc4e516",
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/14_north_door_baseline.csv"
+      },
+      "current": {
+        "first_lock_frame": null,
+        "first_lock_wall_s": null,
+        "first_lock_cpu_s": null,
+        "map_load_wall_s": 5.86702,
+        "cpu_s": 666.929028527,
+        "wall_s": 222.456650785,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 22.607759843225832,
+        "alignments": 1218,
+        "peak_rss_mib": 1914.6171875,
+        "outputs": 0,
+        "first_lock_outcome": "no_lock",
+        "lock_events": 0,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 1.4780445960000235,
+        "descriptor_index_cpu_s": 0.40774817299999994,
+        "last_10s_all_tracked": false,
+        "last_10s_cpu_cores": 22.852405533203058,
+        "search_counts": {
+          "seed_initializations": 574,
+          "seed_continuations": 1766,
+          "seed_resumptions": 203,
+          "seed_retries": 60,
+          "confirmation_registrations": 441,
+          "confirmation_evaluations": 1328,
+          "invalidated_seed_poses": 261
+        },
+        "csv_sha256": "374e6ba83ad7568bbcc6f9b256d84e8c7ae13a7dd84af0abfce91c07fe906d8e",
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/four_core_full/14_north_door_current.csv"
+      },
+      "normalized": {
+        "first_lock_frame": null,
+        "first_lock_wall_s": null,
+        "first_lock_cpu_s": null,
+        "map_load_wall_s": 5.728149999999999,
+        "cpu_s": 664.269368541,
+        "wall_s": 220.556490701,
+        "input_s": 29.500005005,
+        "cpu_seconds_per_input_second": 22.517601892895,
+        "alignments": 1218,
+        "peak_rss_mib": 1915.0234375,
+        "outputs": 0,
+        "first_lock_outcome": "no_lock",
+        "lock_events": 0,
+        "invalid_rigid_frames": 0,
+        "coasted_output_frames": 0,
+        "descriptor_cpu_s": 1.4747980310000939,
+        "descriptor_index_cpu_s": 0.405504132,
+        "last_10s_all_tracked": false,
+        "last_10s_cpu_cores": 22.65272582253608,
+        "search_counts": {
+          "seed_initializations": 574,
+          "seed_continuations": 1766,
+          "seed_resumptions": 203,
+          "seed_retries": 60,
+          "confirmation_registrations": 441,
+          "confirmation_evaluations": 1328,
+          "invalidated_seed_poses": 261
+        },
+        "csv_sha256": "e4957afdf898a026c34080ce2c7c759e3bbbd01e860984858ca53529cd73d31a",
+        "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/normalized_full/14_north_door_normalized.csv"
+      }
+    }
+  ],
+  "meeting_output_aware_repeats": [
+    {
+      "variant": "baseline_output",
+      "first_lock_frame": 14,
+      "first_lock_wall_s": 16.162514863000002,
+      "first_lock_cpu_s": 48.119301537,
+      "map_load_wall_s": 5.74369,
+      "cpu_s": 157.377114693,
+      "wall_s": 53.163788849999996,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 5.334817447220339,
+      "alignments": 635,
+      "peak_rss_mib": 1911.73046875,
+      "outputs": 282,
+      "first_lock_outcome": "within_1m_5deg_audit_band",
+      "lock_events": 4,
+      "invalid_rigid_frames": 18,
+      "coasted_output_frames": 45,
+      "descriptor_cpu_s": 0.5436023729999988,
+      "descriptor_index_cpu_s": 0.40493397499999995,
+      "last_10s_all_tracked": false,
+      "last_10s_cpu_cores": 1.6599481988000016,
+      "search_counts": {
+        "seed_initializations": null,
+        "seed_continuations": null,
+        "seed_resumptions": null,
+        "seed_retries": null,
+        "confirmation_registrations": null,
+        "confirmation_evaluations": null,
+        "invalidated_seed_poses": null
+      },
+      "csv_sha256": "2a35b0f751d67ab8572b80775fa8cbe7c43a75ca81d622830d24145110cc42cf",
+      "published_pose_error": {
+        "evaluated_poses": 282,
+        "position_error_m": {
+          "rmse": 0.06333512360651078,
+          "median": 0.06346337409255318,
+          "p95": 0.06636577755348333,
+          "maximum": 0.06791104711128702
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3083920142223217,
+          "median": 0.30822029929895056,
+          "p95": 0.31653995571751264,
+          "maximum": 0.3231242790019944
+        }
+      },
+      "first_lock_error": {
+        "first_output_position_error_m": 0.06659257488137507,
+        "first_output_rotation_error_deg": 0.2983632092801016
+      },
+      "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/meeting_actual_output/06_south_meeting_baseline_output.csv"
+    },
+    {
+      "variant": "current_output",
+      "first_lock_frame": 14,
+      "first_lock_wall_s": 9.357457187,
+      "first_lock_cpu_s": 22.341111256999998,
+      "map_load_wall_s": 5.81595,
+      "cpu_s": 102.98369434,
+      "wall_s": 38.150438732000005,
+      "input_s": 29.5,
+      "cpu_seconds_per_input_second": 3.4909726894915254,
+      "alignments": 306,
+      "peak_rss_mib": 1914.69140625,
+      "outputs": 282,
+      "first_lock_outcome": "within_1m_5deg_audit_band",
+      "lock_events": 4,
+      "invalid_rigid_frames": 23,
+      "coasted_output_frames": 60,
+      "descriptor_cpu_s": 0.5838015390000019,
+      "descriptor_index_cpu_s": 0.40665726199999974,
+      "last_10s_all_tracked": false,
+      "last_10s_cpu_cores": 1.5453304121000007,
+      "search_counts": {
+        "seed_initializations": 196,
+        "seed_continuations": 255,
+        "seed_resumptions": 14,
+        "seed_retries": 3,
+        "confirmation_registrations": 96,
+        "confirmation_evaluations": 288,
+        "invalidated_seed_poses": 0
+      },
+      "csv_sha256": "a10f74e24ac5d902bff3a4cab727ddb4a0038c75a192291851fab847a25ee572",
+      "published_pose_error": {
+        "evaluated_poses": 282,
+        "position_error_m": {
+          "rmse": 0.06308701141752023,
+          "median": 0.06364271821115942,
+          "p95": 0.06626822211515991,
+          "maximum": 0.06798073251024328
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3088471859255135,
+          "median": 0.308474342834776,
+          "p95": 0.31853187193034654,
+          "maximum": 0.32598161440976103
+        }
+      },
+      "first_lock_error": {
+        "first_output_position_error_m": 0.06511228826080616,
+        "first_output_rotation_error_deg": 0.30314831781135076
+      },
+      "raw_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/meeting_actual_output/06_south_meeting_current_output.csv"
+    }
+  ],
+  "candidate_admission_audit": {
+    "scope": "Diagnostic only, excluded from timings. Ground truth used only to label nearby map keyframes after the run.",
+    "first_five_queries": [
+      {
+        "query_index": 1,
+        "top_candidates": [
+          {
+            "id": 250,
+            "map_translation": [
+              56.666846111506246,
+              -32.06372538682413,
+              0.21016485259133588
+            ],
+            "fused_score": 0.25215035397473406
+          },
+          {
+            "id": 818,
+            "map_translation": [
+              85.62255372008781,
+              33.44489140149008,
+              0.2136046685416225
+            ],
+            "fused_score": 0.2571999836729212
+          },
+          {
+            "id": 252,
+            "map_translation": [
+              56.719735088080164,
+              -32.06405545696243,
+              0.21410312818239713
+            ],
+            "fused_score": 0.25956252594020335
+          },
+          {
+            "id": 330,
+            "map_translation": [
+              18.63153306000504,
+              -31.14388530209478,
+              0.020677048202979987
+            ],
+            "fused_score": 0.2672469535014652
+          },
+          {
+            "id": 1005,
+            "map_translation": [
+              3.2215725987200896,
+              32.5977156971159,
+              -0.19976516118985083
+            ],
+            "fused_score": 0.2693498942499477
+          },
+          {
+            "id": 1006,
+            "map_translation": [
+              3.6148599775328147,
+              31.582985702316858,
+              -0.19397067397977177
+            ],
+            "fused_score": 0.26984428608004246
+          },
+          {
+            "id": 332,
+            "map_translation": [
+              18.508004322285135,
+              -31.161689741737344,
+              0.015689082371119212
+            ],
+            "fused_score": 0.27198596464140357
+          },
+          {
+            "id": 821,
+            "map_translation": [
+              85.6190516256814,
+              32.294335165002366,
+              0.21765073487373016
+            ],
+            "fused_score": 0.27646724239861364
+          },
+          {
+            "id": 817,
+            "map_translation": [
+              85.6280880248002,
+              32.36194175773514,
+              0.21577277331330855
+            ],
+            "fused_score": 0.2768633568576314
+          },
+          {
+            "id": 820,
+            "map_translation": [
+              85.61626971756698,
+              33.391966809354294,
+              0.21416815769247088
+            ],
+            "fused_score": 0.2804073104384499
+          }
+        ],
+        "hypotheses": [
+          {
+            "seed": 818,
+            "last": 818,
+            "updates": 1
+          },
+          {
+            "seed": 330,
+            "last": 330,
+            "updates": 1
+          },
+          {
+            "seed": 330,
+            "last": 330,
+            "updates": 1
+          },
+          {
+            "seed": 250,
+            "last": 250,
+            "updates": 1
+          },
+          {
+            "seed": 250,
+            "last": 250,
+            "updates": 1
+          },
+          {
+            "seed": 818,
+            "last": 821,
+            "updates": 1
+          }
+        ],
+        "winner": 818,
+        "accepted": false
+      },
+      {
+        "query_index": 2,
+        "top_candidates": [
+          {
+            "id": 250,
+            "map_translation": [
+              56.666846111506246,
+              -32.06372538682413,
+              0.21016485259133588
+            ],
+            "fused_score": 0.24757409354467397
+          },
+          {
+            "id": 252,
+            "map_translation": [
+              56.719735088080164,
+              -32.06405545696243,
+              0.21410312818239713
+            ],
+            "fused_score": 0.25260232158545715
+          },
+          {
+            "id": 818,
+            "map_translation": [
+              85.62255372008781,
+              33.44489140149008,
+              0.2136046685416225
+            ],
+            "fused_score": 0.2533750906608609
+          },
+          {
+            "id": 1006,
+            "map_translation": [
+              3.6148599775328147,
+              31.582985702316858,
+              -0.19397067397977177
+            ],
+            "fused_score": 0.266344937430471
+          },
+          {
+            "id": 330,
+            "map_translation": [
+              18.63153306000504,
+              -31.14388530209478,
+              0.020677048202979987
+            ],
+            "fused_score": 0.2677743772397669
+          },
+          {
+            "id": 1005,
+            "map_translation": [
+              3.2215725987200896,
+              32.5977156971159,
+              -0.19976516118985083
+            ],
+            "fused_score": 0.26804886887870616
+          },
+          {
+            "id": 332,
+            "map_translation": [
+              18.508004322285135,
+              -31.161689741737344,
+              0.015689082371119212
+            ],
+            "fused_score": 0.272286007073241
+          },
+          {
+            "id": 821,
+            "map_translation": [
+              85.6190516256814,
+              32.294335165002366,
+              0.21765073487373016
+            ],
+            "fused_score": 0.27447842800817285
+          },
+          {
+            "id": 817,
+            "map_translation": [
+              85.6280880248002,
+              32.36194175773514,
+              0.21577277331330855
+            ],
+            "fused_score": 0.27493976817097054
+          },
+          {
+            "id": 820,
+            "map_translation": [
+              85.61626971756698,
+              33.391966809354294,
+              0.21416815769247088
+            ],
+            "fused_score": 0.27747278690524346
+          }
+        ],
+        "hypotheses": [
+          {
+            "seed": 818,
+            "last": 819,
+            "updates": 2
+          },
+          {
+            "seed": 330,
+            "last": 332,
+            "updates": 2
+          },
+          {
+            "seed": 330,
+            "last": 332,
+            "updates": 2
+          },
+          {
+            "seed": 250,
+            "last": 251,
+            "updates": 2
+          },
+          {
+            "seed": 250,
+            "last": 252,
+            "updates": 2
+          },
+          {
+            "seed": 818,
+            "last": 821,
+            "updates": 2
+          }
+        ],
+        "winner": 818,
+        "accepted": false
+      },
+      {
+        "query_index": 3,
+        "top_candidates": [
+          {
+            "id": 818,
+            "map_translation": [
+              85.62255372008781,
+              33.44489140149008,
+              0.2136046685416225
+            ],
+            "fused_score": 0.23847463088587412
+          },
+          {
+            "id": 819,
+            "map_translation": [
+              85.60663139470813,
+              34.448331879301755,
+              0.21210039062376626
+            ],
+            "fused_score": 0.25364401504520684
+          },
+          {
+            "id": 1005,
+            "map_translation": [
+              3.2215725987200896,
+              32.5977156971159,
+              -0.19976516118985083
+            ],
+            "fused_score": 0.25368864357544896
+          },
+          {
+            "id": 817,
+            "map_translation": [
+              85.6280880248002,
+              32.36194175773514,
+              0.21577277331330855
+            ],
+            "fused_score": 0.261053904833102
+          },
+          {
+            "id": 821,
+            "map_translation": [
+              85.6190516256814,
+              32.294335165002366,
+              0.21765073487373016
+            ],
+            "fused_score": 0.2614307576651131
+          },
+          {
+            "id": 820,
+            "map_translation": [
+              85.61626971756698,
+              33.391966809354294,
+              0.21416815769247088
+            ],
+            "fused_score": 0.26169200781140234
+          },
+          {
+            "id": 759,
+            "map_translation": [
+              86.00650863653155,
+              10.311279876889445,
+              0.26134937855553064
+            ],
+            "fused_score": 0.263632358150391
+          },
+          {
+            "id": 1006,
+            "map_translation": [
+              3.6148599775328147,
+              31.582985702316858,
+              -0.19397067397977177
+            ],
+            "fused_score": 0.2667977460823146
+          },
+          {
+            "id": 250,
+            "map_translation": [
+              56.666846111506246,
+              -32.06372538682413,
+              0.21016485259133588
+            ],
+            "fused_score": 0.26841592651505264
+          },
+          {
+            "id": 330,
+            "map_translation": [
+              18.63153306000504,
+              -31.14388530209478,
+              0.020677048202979987
+            ],
+            "fused_score": 0.26958824990645625
+          }
+        ],
+        "hypotheses": [
+          {
+            "seed": 818,
+            "last": 819,
+            "updates": 3
+          },
+          {
+            "seed": 330,
+            "last": 332,
+            "updates": 3
+          },
+          {
+            "seed": 330,
+            "last": 332,
+            "updates": 3
+          },
+          {
+            "seed": 250,
+            "last": 251,
+            "updates": 3
+          },
+          {
+            "seed": 250,
+            "last": 252,
+            "updates": 3
+          },
+          {
+            "seed": 818,
+            "last": 821,
+            "updates": 3
+          }
+        ],
+        "winner": 818,
+        "accepted": false
+      },
+      {
+        "query_index": 4,
+        "top_candidates": [
+          {
+            "id": 818,
+            "map_translation": [
+              85.62255372008781,
+              33.44489140149008,
+              0.2136046685416225
+            ],
+            "fused_score": 0.2323564049458886
+          },
+          {
+            "id": 1005,
+            "map_translation": [
+              3.2215725987200896,
+              32.5977156971159,
+              -0.19976516118985083
+            ],
+            "fused_score": 0.2458749024242904
+          },
+          {
+            "id": 819,
+            "map_translation": [
+              85.60663139470813,
+              34.448331879301755,
+              0.21210039062376626
+            ],
+            "fused_score": 0.24741752826349867
+          },
+          {
+            "id": 821,
+            "map_translation": [
+              85.6190516256814,
+              32.294335165002366,
+              0.21765073487373016
+            ],
+            "fused_score": 0.2541229046763408
+          },
+          {
+            "id": 817,
+            "map_translation": [
+              85.6280880248002,
+              32.36194175773514,
+              0.21577277331330855
+            ],
+            "fused_score": 0.2545908990236562
+          },
+          {
+            "id": 820,
+            "map_translation": [
+              85.61626971756698,
+              33.391966809354294,
+              0.21416815769247088
+            ],
+            "fused_score": 0.25493247937192626
+          },
+          {
+            "id": 759,
+            "map_translation": [
+              86.00650863653155,
+              10.311279876889445,
+              0.26134937855553064
+            ],
+            "fused_score": 0.2553547312551175
+          },
+          {
+            "id": 1006,
+            "map_translation": [
+              3.6148599775328147,
+              31.582985702316858,
+              -0.19397067397977177
+            ],
+            "fused_score": 0.2587242980257659
+          },
+          {
+            "id": 330,
+            "map_translation": [
+              18.63153306000504,
+              -31.14388530209478,
+              0.020677048202979987
+            ],
+            "fused_score": 0.2621336759651858
+          },
+          {
+            "id": 332,
+            "map_translation": [
+              18.508004322285135,
+              -31.161689741737344,
+              0.015689082371119212
+            ],
+            "fused_score": 0.26654387407265007
+          }
+        ],
+        "hypotheses": [
+          {
+            "seed": 818,
+            "last": 819,
+            "updates": 4
+          },
+          {
+            "seed": 330,
+            "last": 332,
+            "updates": 4
+          },
+          {
+            "seed": 330,
+            "last": 332,
+            "updates": 4
+          },
+          {
+            "seed": 250,
+            "last": 251,
+            "updates": 3
+          },
+          {
+            "seed": 250,
+            "last": 252,
+            "updates": 3
+          },
+          {
+            "seed": 818,
+            "last": 821,
+            "updates": 4
+          }
+        ],
+        "winner": 818,
+        "accepted": false
+      },
+      {
+        "query_index": 5,
+        "top_candidates": [
+          {
+            "id": 818,
+            "map_translation": [
+              85.62255372008781,
+              33.44489140149008,
+              0.2136046685416225
+            ],
+            "fused_score": 0.23331965452725134
+          },
+          {
+            "id": 1005,
+            "map_translation": [
+              3.2215725987200896,
+              32.5977156971159,
+              -0.19976516118985083
+            ],
+            "fused_score": 0.24633457663361275
+          },
+          {
+            "id": 819,
+            "map_translation": [
+              85.60663139470813,
+              34.448331879301755,
+              0.21210039062376626
+            ],
+            "fused_score": 0.24695188984725933
+          },
+          {
+            "id": 820,
+            "map_translation": [
+              85.61626971756698,
+              33.391966809354294,
+              0.21416815769247088
+            ],
+            "fused_score": 0.2540707393005327
+          },
+          {
+            "id": 759,
+            "map_translation": [
+              86.00650863653155,
+              10.311279876889445,
+              0.26134937855553064
+            ],
+            "fused_score": 0.2543735370494568
+          },
+          {
+            "id": 817,
+            "map_translation": [
+              85.6280880248002,
+              32.36194175773514,
+              0.21577277331330855
+            ],
+            "fused_score": 0.25457439938683396
+          },
+          {
+            "id": 821,
+            "map_translation": [
+              85.6190516256814,
+              32.294335165002366,
+              0.21765073487373016
+            ],
+            "fused_score": 0.2552156140025321
+          },
+          {
+            "id": 1006,
+            "map_translation": [
+              3.6148599775328147,
+              31.582985702316858,
+              -0.19397067397977177
+            ],
+            "fused_score": 0.2591064181353948
+          },
+          {
+            "id": 330,
+            "map_translation": [
+              18.63153306000504,
+              -31.14388530209478,
+              0.020677048202979987
+            ],
+            "fused_score": 0.2617333164516336
+          },
+          {
+            "id": 332,
+            "map_translation": [
+              18.508004322285135,
+              -31.161689741737344,
+              0.015689082371119212
+            ],
+            "fused_score": 0.26601215611750706
+          }
+        ],
+        "hypotheses": [
+          {
+            "seed": 818,
+            "last": 819,
+            "updates": 5
+          },
+          {
+            "seed": 330,
+            "last": 332,
+            "updates": 5
+          },
+          {
+            "seed": 330,
+            "last": 332,
+            "updates": 5
+          },
+          {
+            "seed": 250,
+            "last": 251,
+            "updates": 3
+          },
+          {
+            "seed": 250,
+            "last": 252,
+            "updates": 3
+          },
+          {
+            "seed": 818,
+            "last": 821,
+            "updates": 5
+          }
+        ],
+        "winner": 818,
+        "accepted": true
+      }
+    ],
+    "finding": "Nearby keyframe 759 first appears in the third query. The existing confirmation path only updates established hypotheses and does not seed this new region before locking to 818/819 in the fifth query. Counterfactual success from adding that region has not been established."
+  },
+  "offline_oracle_diagnostic": {
+    "scope": "Offline truth-seeded registration only; excluded from localization accuracy, success rate and timings. Does not prove descriptor-seeded recovery or final lock acceptance.",
+    "attempts_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/11_oracle_diagnostic/registration_probe_attempts.csv",
+    "attempts_sha256": "47faa11e72f99a5f03853e2aa705db01174dc07ca11f98d7602f82a0128b9711",
+    "source": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/fixed14_20261019/oracle_diagnostic.cpp",
+    "source_sha256": "4ad3bbada0f722841b275c2a6b79655d783e98c67205aae8a67a26adba50f119",
+    "oracle_attempts": [
+      {
+        "frame_index": "0",
+        "seed_keyframe_id": "758",
+        "converged": "true",
+        "production_quality_pass": "true",
+        "final_translation_error_m": "0.47425033359",
+        "final_yaw_error_deg": "0.262670890208",
+        "fitness_score": "0.00479913444864",
+        "inlier_ratio": "0.999789251844",
+        "refined_visibility_consistency": "0.92141350211",
+        "refined_visibility_evidence": "2.45864508128"
+      },
+      {
+        "frame_index": "1",
+        "seed_keyframe_id": "758",
+        "converged": "true",
+        "production_quality_pass": "true",
+        "final_translation_error_m": "0.474081261718",
+        "final_yaw_error_deg": "0.280353671118",
+        "fitness_score": "0.0044956408656",
+        "inlier_ratio": "0.999472462545",
+        "refined_visibility_consistency": "0.922710428798",
+        "refined_visibility_evidence": "2.47662443766"
+      },
+      {
+        "frame_index": "2",
+        "seed_keyframe_id": "758",
+        "converged": "true",
+        "production_quality_pass": "true",
+        "final_translation_error_m": "0.472704696673",
+        "final_yaw_error_deg": "0.256688887131",
+        "fitness_score": "0.00730231284922",
+        "inlier_ratio": "0.999519560741",
+        "refined_visibility_consistency": "0.943027210884",
+        "refined_visibility_evidence": "2.80302237178"
+      },
+      {
+        "frame_index": "3",
+        "seed_keyframe_id": "758",
+        "converged": "true",
+        "production_quality_pass": "true",
+        "final_translation_error_m": "0.47174416835",
+        "final_yaw_error_deg": "0.260839795465",
+        "fitness_score": "0.00801264734126",
+        "inlier_ratio": "0.999517316279",
+        "refined_visibility_consistency": "0.957271980279",
+        "refined_visibility_evidence": "3.10465104441"
+      },
+      {
+        "frame_index": "4",
+        "seed_keyframe_id": "758",
+        "converged": "true",
+        "production_quality_pass": "true",
+        "final_translation_error_m": "0.471216590218",
+        "final_yaw_error_deg": "0.291955703508",
+        "fitness_score": "0.00776644066493",
+        "inlier_ratio": "0.999427360705",
+        "refined_visibility_consistency": "0.958448753463",
+        "refined_visibility_evidence": "3.13384439085"
+      }
+    ]
+  },
+  "normalization_commit": "9921dba"
+}

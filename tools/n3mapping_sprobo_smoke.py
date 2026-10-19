@@ -19,6 +19,7 @@ import signal
 import socket
 import struct
 import subprocess
+import tempfile
 import time
 import uuid
 
@@ -129,8 +130,10 @@ def main():
     config["output"] = str(args.output / "simulation")
     config_path = args.output / "session.json"
     config_path.write_text(json.dumps(config, indent=2)+"\n")
-    session_dir = args.output / "ipc"
-    session_dir.mkdir()
+    # Unix socket names are limited to 107 bytes. Nested dataset directories
+    # can exceed that; only transient IPC belongs here, all evidence stays in output.
+    ipc_directory = tempfile.TemporaryDirectory(prefix="n3m-sprobo-")
+    session_dir = Path(ipc_directory.name)
     # The raw simulator stream uses g, matching this FAST_LIO configuration.
     # The wire unit divides SI by standard gravity (9.80665). MuJoCo defaults
     # to 9.81; FAST_LIO also normalizes the initial accelerometer mean. Retain
@@ -231,8 +234,9 @@ def main():
         deadline = time.monotonic()+30
         while time.monotonic() < deadline:
             rclpy.spin_once(node, timeout_sec=.05)
-            if any(process.poll() is not None for process in processes.values()):
-                raise RuntimeError("A child exited during startup; inspect its log")
+            for name, process in processes.items():
+                if process.poll() is not None:
+                    raise RuntimeError(f"{name} exited during startup; inspect {name}.log")
             if (static_tf and node.count_subscribers("/scout_mini/cmd_vel") and
                     node.count_publishers("/ground_truth/odom") and
                     node.count_publishers("/cloud_registered_body") and
@@ -292,6 +296,7 @@ def main():
             connection.close()
         for process in reversed(list(processes.values())):
             stop(process)
+        ipc_directory.cleanup()
         for log in logs:
             log.close()
         node.destroy_node()
