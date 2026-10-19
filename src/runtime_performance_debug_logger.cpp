@@ -1,4 +1,5 @@
 #include "n3mapping/runtime_performance_debug_logger.h"
+#include <json/json.h>
 
 #include <cmath>
 #include <exception>
@@ -176,6 +177,12 @@ bool RuntimePerformanceDebugLogger::append(
                event.callback_locked_ms);
   appendNumber(record, &first, "cloud_publish_ms", event.cloud_publish_ms);
   appendNumber(record, &first, "callback_total_ms", event.callback_total_ms);
+  if (event.relocalization_performance.available) {
+    Json::StreamWriterBuilder writer;
+    writer["indentation"] = "";
+    record << ",\"relocalization_performance\":"
+           << Json::writeString(writer, relocalizationPerformanceJson(event.relocalization_performance));
+  }
   record << '}';
 
   std::lock_guard<std::mutex> lock(mutex_);

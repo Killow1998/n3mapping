@@ -236,8 +236,47 @@ TEST(RelocTargetProviderTest, LegacyUsesLoadedGlobalAtlasForRegistration) {
   EXPECT_EQ(target.visibility_target, cloud);
   EXPECT_EQ(target.metrics.registration_source, "legacy_global_atlas");
   EXPECT_EQ(target.metrics.target_points, fixture.atlas.globalMap()->size());
+  const auto reused = fixture.provider->getTarget(makeRequest(0, cloud));
+  EXPECT_TRUE(reused.metrics.cache_hit);
+  EXPECT_EQ(reused.visibility_target, target.visibility_target);
+  EXPECT_EQ(reused.registration_target, target.registration_target);
+  EXPECT_EQ(reused.metrics.target_builds, 0u);
+  EXPECT_EQ(reused.metrics.target_preparations, 0u);
+  EXPECT_LT(reused.metrics.cache_entry_bytes,
+            estimatePreparedTargetMemoryBytes(*target.registration_target));
+  auto changed = makeRequest(0, cloud);
+  ++changed.map_revision.pose_revision;
+  EXPECT_TRUE(fixture.provider->getTarget(changed).metrics.cache_miss);
+
   EXPECT_FALSE(target.metrics.cache_hit);
-  EXPECT_FALSE(target.metrics.cache_miss);
+  EXPECT_TRUE(target.metrics.cache_miss);
+
+  auto indexed_request = makeRequest(0, {});
+  indexed_request.visibility_from_atlas = true;
+  std::size_t copied_crops = 0;
+  indexed_request.build_local_target = [&] { ++copied_crops; return cloud; };
+  const auto indexed = fixture.provider->getTarget(indexed_request);
+  const auto indexed_again = fixture.provider->getTarget(indexed_request);
+  ASSERT_TRUE(indexed.valid());
+  ASSERT_TRUE(indexed.visibility_indices);
+  EXPECT_EQ(copied_crops, 0u);
+  EXPECT_EQ(indexed.visibility_target, fixture.atlas.globalMap());
+  EXPECT_TRUE(indexed_again.metrics.cache_hit);
+  EXPECT_EQ(indexed_again.visibility_indices, indexed.visibility_indices);
+  const auto copied = fixture.atlas.cropVisibilityTarget(indexed_request.crop_center);
+  ASSERT_EQ(copied->size(), indexed.visibility_indices->size());
+  for (std::size_t i = 0; i < copied->size(); ++i) {
+    const auto &point = (*indexed.visibility_target)[(*indexed.visibility_indices)[i]];
+    EXPECT_EQ(point.getVector4fMap(), (*copied)[i].getVector4fMap());
+    EXPECT_EQ(point.intensity, (*copied)[i].intensity);
+  }
+  indexed_request.crop_center.x() = 1000.0;
+  indexed_request.build_fallback_target = [&] { return cloud; };
+  const auto entries = fixture.provider->diagnostics().cache_entries;
+  EXPECT_TRUE(fixture.provider->getTarget(indexed_request).valid());
+  EXPECT_EQ(fixture.provider->diagnostics().cache_entries, entries);
+  indexed_request.build_fallback_target = {};
+  EXPECT_FALSE(fixture.provider->getTarget(indexed_request).valid());
 
   std::error_code cleanup_error;
   std::filesystem::remove_all(directory, cleanup_error);

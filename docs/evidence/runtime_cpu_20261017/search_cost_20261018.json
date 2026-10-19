@@ -1,0 +1,2325 @@
+{
+  "date": "2026-10-18",
+  "baseline_commit": "7c7ea604c963eeda9a5741634c5c8c463d16be86",
+  "artifact_root": "/tmp/n3m_sprobo_20261018/search_cost_20261018",
+  "scope": "CPU host, unchanged Product config/thresholds/descriptor/registration; profiling baseline has the same instrumentation; no RK3588 qualification",
+  "descriptor": {
+    "logical_place": 2973,
+    "logical_heading": 8400,
+    "coarse_key": 53,
+    "separate_scancontext": false,
+    "dimension_reduction_adopted": false,
+    "queries": [
+      {
+        "case": "central_repetitive",
+        "search_frames": 20,
+        "warm_frames": 19,
+        "warm_mean_cpu_ms": {
+          "total": 3.3421988421049194,
+          "generation": 1.0979771578949065,
+          "coarse": 0.2345292105264889,
+          "place": 0.28662289473743985,
+          "heading": 1.6810597894724004
+        },
+        "first_index_rebuild_cpu_ms": 407.89336899999944,
+        "warm_mean_stored_values": 2945.157894736842,
+        "indexed_keyframes": 1276,
+        "per_query_comparisons": {
+          "coarse_comparisons": 2552,
+          "place_comparisons": 200,
+          "heading_comparisons": 50,
+          "returned_candidates": 10
+        },
+        "registration_counts": {
+          "alignments": 295,
+          "rejected_alignments": 54,
+          "fixed_pose_evaluations": 120
+        }
+      },
+      {
+        "case": "central_reverse_retry",
+        "search_frames": 5,
+        "warm_frames": 4,
+        "warm_mean_cpu_ms": {
+          "total": 3.163629249999758,
+          "generation": 0.931344250000393,
+          "coarse": 0.25488849999987906,
+          "place": 0.277015750000146,
+          "heading": 1.6698124999975335
+        },
+        "first_index_rebuild_cpu_ms": 451.79391699999996,
+        "warm_mean_stored_values": 2896.25,
+        "indexed_keyframes": 1276,
+        "per_query_comparisons": {
+          "coarse_comparisons": 2552,
+          "place_comparisons": 200,
+          "heading_comparisons": 50,
+          "returned_candidates": 10
+        },
+        "registration_counts": {
+          "alignments": 60,
+          "rejected_alignments": 7,
+          "fixed_pose_evaluations": 20
+        }
+      },
+      {
+        "case": "north_reference",
+        "search_frames": 5,
+        "warm_frames": 4,
+        "warm_mean_cpu_ms": {
+          "total": 3.0507485000000543,
+          "generation": 0.8672389999996994,
+          "coarse": 0.215523250000615,
+          "place": 0.2895934999999099,
+          "heading": 1.6457252500006234
+        },
+        "first_index_rebuild_cpu_ms": 408.7202610000004,
+        "warm_mean_stored_values": 3104.75,
+        "indexed_keyframes": 1276,
+        "per_query_comparisons": {
+          "coarse_comparisons": 2552,
+          "place_comparisons": 200,
+          "heading_comparisons": 50,
+          "returned_candidates": 10
+        },
+        "registration_counts": {
+          "alignments": 60,
+          "rejected_alignments": 10,
+          "fixed_pose_evaluations": 22
+        }
+      },
+      {
+        "case": "south_changed",
+        "search_frames": 5,
+        "warm_frames": 4,
+        "warm_mean_cpu_ms": {
+          "total": 3.1201420000002145,
+          "generation": 0.9126305000004322,
+          "coarse": 0.2211702500010233,
+          "place": 0.26450875000045926,
+          "heading": 1.6867042500023217
+        },
+        "first_index_rebuild_cpu_ms": 408.83160900000075,
+        "warm_mean_stored_values": 2944,
+        "indexed_keyframes": 1276,
+        "per_query_comparisons": {
+          "coarse_comparisons": 2552,
+          "place_comparisons": 200,
+          "heading_comparisons": 50,
+          "returned_candidates": 10
+        },
+        "registration_counts": {
+          "alignments": 61,
+          "rejected_alignments": 13,
+          "fixed_pose_evaluations": 18
+        }
+      }
+    ]
+  },
+  "controlled_ab": {
+    "affinity": "0,2,4,6 (four physical P cores)",
+    "threads": "unchanged four workers; OMP_WAIT_POLICY=PASSIVE",
+    "schedule": "three serial alternating A/B rounds; two twenty-frame prefixes",
+    "raw": [
+      {
+        "repeat": 0,
+        "case": "central_reverse_retry",
+        "variant": "profiling",
+        "frames": 20,
+        "cpu_ms": 16204.338893,
+        "wall_ms": 6634.276088,
+        "search_cpu_ms": 15652.207894999996,
+        "search_wall_ms": 6471.751369999999,
+        "crops": 33,
+        "crop_ms": 479.363516,
+        "visibility_ms": 737.92826,
+        "cache_bytes": 0,
+        "alignments": 60
+      },
+      {
+        "repeat": 0,
+        "case": "central_reverse_retry",
+        "variant": "selected",
+        "frames": 20,
+        "cpu_ms": 15860.090277,
+        "wall_ms": 6336.363489,
+        "search_cpu_ms": 15313.297575999995,
+        "search_wall_ms": 6162.81238,
+        "crops": 12,
+        "crop_ms": 88.987757,
+        "visibility_ms": 814.185121,
+        "cache_bytes": 31458688,
+        "alignments": 60
+      },
+      {
+        "repeat": 0,
+        "case": "central_repetitive",
+        "variant": "profiling",
+        "frames": 20,
+        "cpu_ms": 141766.795544,
+        "wall_ms": 45713.618075,
+        "search_cpu_ms": 141758.75365999996,
+        "search_wall_ms": 45705.548537,
+        "crops": 119,
+        "crop_ms": 1832.2128799999996,
+        "visibility_ms": 3992.9005429999997,
+        "cache_bytes": 0,
+        "alignments": 295
+      },
+      {
+        "repeat": 0,
+        "case": "central_repetitive",
+        "variant": "selected",
+        "frames": 20,
+        "cpu_ms": 138727.675688,
+        "wall_ms": 42027.850572,
+        "search_cpu_ms": 138719.447027,
+        "search_wall_ms": 42019.622803000006,
+        "crops": 35,
+        "crop_ms": 261.7038110000001,
+        "visibility_ms": 4486.9354459999995,
+        "cache_bytes": 33555840,
+        "alignments": 295
+      },
+      {
+        "repeat": 1,
+        "case": "central_reverse_retry",
+        "variant": "selected",
+        "frames": 20,
+        "cpu_ms": 15756.553029,
+        "wall_ms": 6135.007529,
+        "search_cpu_ms": 15206.087752,
+        "search_wall_ms": 5979.04015,
+        "crops": 12,
+        "crop_ms": 92.648002,
+        "visibility_ms": 829.310318,
+        "cache_bytes": 31458688,
+        "alignments": 60
+      },
+      {
+        "repeat": 1,
+        "case": "central_reverse_retry",
+        "variant": "profiling",
+        "frames": 20,
+        "cpu_ms": 16317.473864,
+        "wall_ms": 7078.265045,
+        "search_cpu_ms": 15771.025936000004,
+        "search_wall_ms": 6921.563018,
+        "crops": 33,
+        "crop_ms": 468.305636,
+        "visibility_ms": 727.995815,
+        "cache_bytes": 0,
+        "alignments": 60
+      },
+      {
+        "repeat": 1,
+        "case": "central_repetitive",
+        "variant": "selected",
+        "frames": 20,
+        "cpu_ms": 136810.125127,
+        "wall_ms": 41791.865069,
+        "search_cpu_ms": 136802.034421,
+        "search_wall_ms": 41783.79734499999,
+        "crops": 35,
+        "crop_ms": 266.13339999999994,
+        "visibility_ms": 4502.331121,
+        "cache_bytes": 33555840,
+        "alignments": 295
+      },
+      {
+        "repeat": 1,
+        "case": "central_repetitive",
+        "variant": "profiling",
+        "frames": 20,
+        "cpu_ms": 140099.412131,
+        "wall_ms": 45453.265755,
+        "search_cpu_ms": 140091.52740199998,
+        "search_wall_ms": 45445.34699,
+        "crops": 119,
+        "crop_ms": 1859.9833830000002,
+        "visibility_ms": 3937.667072,
+        "cache_bytes": 0,
+        "alignments": 295
+      },
+      {
+        "repeat": 2,
+        "case": "central_reverse_retry",
+        "variant": "profiling",
+        "frames": 20,
+        "cpu_ms": 16227.210597999998,
+        "wall_ms": 6683.838122,
+        "search_cpu_ms": 15680.27439,
+        "search_wall_ms": 6528.329491,
+        "crops": 33,
+        "crop_ms": 493.320238,
+        "visibility_ms": 728.265452,
+        "cache_bytes": 0,
+        "alignments": 60
+      },
+      {
+        "repeat": 2,
+        "case": "central_reverse_retry",
+        "variant": "selected",
+        "frames": 20,
+        "cpu_ms": 15677.836444999997,
+        "wall_ms": 6247.358563,
+        "search_cpu_ms": 15128.142787999997,
+        "search_wall_ms": 6092.134096,
+        "crops": 12,
+        "crop_ms": 87.23162500000001,
+        "visibility_ms": 820.057153,
+        "cache_bytes": 31458688,
+        "alignments": 60
+      },
+      {
+        "repeat": 2,
+        "case": "central_repetitive",
+        "variant": "profiling",
+        "frames": 20,
+        "cpu_ms": 142156.316394,
+        "wall_ms": 47122.723773,
+        "search_cpu_ms": 142148.435222,
+        "search_wall_ms": 47114.79644499999,
+        "crops": 119,
+        "crop_ms": 1858.760242,
+        "visibility_ms": 3992.710043,
+        "cache_bytes": 0,
+        "alignments": 295
+      },
+      {
+        "repeat": 2,
+        "case": "central_repetitive",
+        "variant": "selected",
+        "frames": 20,
+        "cpu_ms": 137693.628075,
+        "wall_ms": 42160.936776,
+        "search_cpu_ms": 137685.24190700002,
+        "search_wall_ms": 42152.55106799999,
+        "crops": 35,
+        "crop_ms": 273.7680269999999,
+        "visibility_ms": 4522.924717,
+        "cache_bytes": 33555840,
+        "alignments": 295
+      }
+    ],
+    "summary": [
+      {
+        "case": "central_reverse_retry",
+        "medians": {
+          "search_cpu_ms": {
+            "before": 15680.27439,
+            "after": 15206.087752,
+            "reduction_percent": 3.0240965572796985
+          },
+          "search_wall_ms": {
+            "before": 6528.329491,
+            "after": 6092.134096,
+            "reduction_percent": 6.681577509244018
+          },
+          "crops": {
+            "before": 33,
+            "after": 12,
+            "reduction_percent": 63.63636363636363
+          },
+          "crop_ms": {
+            "before": 479.363516,
+            "after": 88.987757,
+            "reduction_percent": 81.43626829539527
+          },
+          "visibility_ms": {
+            "before": 728.265452,
+            "after": 820.057153,
+            "reduction_percent": -12.604154261048217
+          },
+          "cache_bytes": {
+            "before": 0,
+            "after": 31458688,
+            "reduction_percent": null
+          },
+          "alignments": {
+            "before": 60,
+            "after": 60,
+            "reduction_percent": 0.0
+          }
+        },
+        "paired_behavior": [
+          {
+            "frames": 20,
+            "different_decision_frames": [],
+            "maximum_pose_matrix_difference": 1.0408340855860843e-16
+          },
+          {
+            "frames": 20,
+            "different_decision_frames": [],
+            "maximum_pose_matrix_difference": 9.71445146547012e-17
+          },
+          {
+            "frames": 20,
+            "different_decision_frames": [],
+            "maximum_pose_matrix_difference": 1.1796119636642288e-16
+          }
+        ]
+      },
+      {
+        "case": "central_repetitive",
+        "medians": {
+          "search_cpu_ms": {
+            "before": 141758.75365999996,
+            "after": 137685.24190700002,
+            "reduction_percent": 2.873552177786509
+          },
+          "search_wall_ms": {
+            "before": 45705.548537,
+            "after": 42019.622803000006,
+            "reduction_percent": 8.06450387750216
+          },
+          "crops": {
+            "before": 119,
+            "after": 35,
+            "reduction_percent": 70.58823529411764
+          },
+          "crop_ms": {
+            "before": 1858.760242,
+            "after": 266.13339999999994,
+            "reduction_percent": 85.68220935726255
+          },
+          "visibility_ms": {
+            "before": 3992.710043,
+            "after": 4502.331121,
+            "reduction_percent": -12.763788817909916
+          },
+          "cache_bytes": {
+            "before": 0,
+            "after": 33555840,
+            "reduction_percent": null
+          },
+          "alignments": {
+            "before": 295,
+            "after": 295,
+            "reduction_percent": 0.0
+          }
+        },
+        "paired_behavior": [
+          {
+            "frames": 20,
+            "different_decision_frames": [],
+            "maximum_pose_matrix_difference": 0.0
+          },
+          {
+            "frames": 20,
+            "different_decision_frames": [],
+            "maximum_pose_matrix_difference": 0.0
+          },
+          {
+            "frames": 20,
+            "different_decision_frames": [],
+            "maximum_pose_matrix_difference": 0.0
+          }
+        ]
+      }
+    ]
+  },
+  "rejected_ablation": {
+    "reference_scope": "baseline accepted pose transported to first query; reference is not independent truth",
+    "cases": [
+      {
+        "case": "central_reverse_retry",
+        "perturbations": 105,
+        "coarse_quality_shortcut_lost": 13,
+        "converged_high_error_shortcut_lost": 0,
+        "example": {
+          "before": {
+            "dx": "-4",
+            "dy": "-2",
+            "yaw": "-30",
+            "success": "1",
+            "position_error": "0.0015899023788583909",
+            "rotation_error": "0.016043434230309947",
+            "fitness": "4.9238207028021515e-05",
+            "inliers": "1",
+            "coarse_converged": "0",
+            "coarse_fitness": "0.00013093464493023026"
+          },
+          "after": {
+            "dx": "-4",
+            "dy": "-2",
+            "yaw": "-30",
+            "success": "0",
+            "position_error": "3.9755453727827557",
+            "rotation_error": "179.98434051610064",
+            "fitness": "1.7976931348623157e+308",
+            "inliers": "0",
+            "coarse_converged": "0",
+            "coarse_fitness": "0"
+          }
+        }
+      },
+      {
+        "case": "south_changed",
+        "perturbations": 105,
+        "coarse_quality_shortcut_lost": 5,
+        "converged_high_error_shortcut_lost": 0,
+        "example": {
+          "before": {
+            "dx": "-4",
+            "dy": "2",
+            "yaw": "30",
+            "success": "1",
+            "position_error": "0.053974884846436387",
+            "rotation_error": "0.10636236229392361",
+            "fitness": "0.00028692690618658899",
+            "inliers": "1",
+            "coarse_converged": "0",
+            "coarse_fitness": "0.15357555120070468"
+          },
+          "after": {
+            "dx": "-4",
+            "dy": "2",
+            "yaw": "30",
+            "success": "0",
+            "position_error": "24.280153557594261",
+            "rotation_error": "0.17090855192172241",
+            "fitness": "1.7976931348623157e+308",
+            "inliers": "0",
+            "coarse_converged": "0",
+            "coarse_fitness": "0"
+          }
+        }
+      },
+      {
+        "case": "north_reference",
+        "perturbations": 105,
+        "coarse_quality_shortcut_lost": 19,
+        "converged_high_error_shortcut_lost": 0,
+        "example": {
+          "before": {
+            "dx": "-4",
+            "dy": "-2",
+            "yaw": "-15",
+            "success": "1",
+            "position_error": "0.0019081594305687237",
+            "rotation_error": "0.028506713795071432",
+            "fitness": "0.00010300842287515758",
+            "inliers": "1",
+            "coarse_converged": "0",
+            "coarse_fitness": "0.10753802932737525"
+          },
+          "after": {
+            "dx": "-4",
+            "dy": "-2",
+            "yaw": "-15",
+            "success": "0",
+            "position_error": "82.134183210788535",
+            "rotation_error": "179.97225033541289",
+            "fitness": "1.7976931348623157e+308",
+            "inliers": "0",
+            "coarse_converged": "0",
+            "coarse_fitness": "0"
+          }
+        }
+      }
+    ],
+    "decision": "neither shortcut adopted: first loses 37/315 originally successful alignments; second gives no demonstrated end-to-end savings"
+  },
+  "complete_core_replays": {
+    "baseline": [
+      {
+        "case": "hard",
+        "frames": 448,
+        "live": 394,
+        "first_lock": 55,
+        "alignments": 773,
+        "cpu_ms": 49149.668488999996,
+        "wall_ms": 11282.532081
+      },
+      {
+        "case": "normal",
+        "frames": 1848,
+        "live": 1844,
+        "first_lock": 5,
+        "alignments": 83,
+        "cpu_ms": 45192.893614,
+        "wall_ms": 12776.750939
+      },
+      {
+        "case": "inside710",
+        "frames": 452,
+        "live": 448,
+        "first_lock": 5,
+        "alignments": 81,
+        "cpu_ms": 9116.444258000001,
+        "wall_ms": 2510.114468
+      },
+      {
+        "case": "outside707",
+        "frames": 448,
+        "live": 444,
+        "first_lock": 5,
+        "alignments": 71,
+        "cpu_ms": 10162.186894,
+        "wall_ms": 2667.44482
+      },
+      {
+        "case": "outside710",
+        "frames": 448,
+        "live": 439,
+        "first_lock": 10,
+        "alignments": 145,
+        "cpu_ms": 15821.838405,
+        "wall_ms": 3770.489018
+      },
+      {
+        "case": "user_map",
+        "frames": 1800,
+        "live": 1796,
+        "first_lock": 5,
+        "alignments": 74,
+        "cpu_ms": 41720.928063,
+        "wall_ms": 12008.169687
+      },
+      {
+        "case": "central_reverse_retry",
+        "frames": 346,
+        "live": 342,
+        "first_lock": 5,
+        "alignments": 60,
+        "cpu_ms": 26604.762648,
+        "wall_ms": 8626.775313
+      },
+      {
+        "case": "south_changed",
+        "frames": 346,
+        "live": 342,
+        "first_lock": 5,
+        "alignments": 61,
+        "cpu_ms": 25318.949584,
+        "wall_ms": 8058.518854
+      },
+      {
+        "case": "north_reference",
+        "frames": 346,
+        "live": 342,
+        "first_lock": 5,
+        "alignments": 60,
+        "cpu_ms": 25436.980054,
+        "wall_ms": 7500.633796
+      }
+    ],
+    "selected": [
+      {
+        "case": "hard",
+        "frames": 448,
+        "live": 394,
+        "first_lock": 55,
+        "alignments": 773,
+        "cpu_ms": 48337.307101,
+        "wall_ms": 10821.663336
+      },
+      {
+        "case": "normal",
+        "frames": 1848,
+        "live": 1844,
+        "first_lock": 5,
+        "alignments": 83,
+        "cpu_ms": 44865.256539,
+        "wall_ms": 12627.820534
+      },
+      {
+        "case": "inside710",
+        "frames": 452,
+        "live": 448,
+        "first_lock": 5,
+        "alignments": 81,
+        "cpu_ms": 9066.456486,
+        "wall_ms": 2503.729875
+      },
+      {
+        "case": "outside707",
+        "frames": 448,
+        "live": 444,
+        "first_lock": 5,
+        "alignments": 71,
+        "cpu_ms": 10100.572198,
+        "wall_ms": 2636.002592
+      },
+      {
+        "case": "outside710",
+        "frames": 448,
+        "live": 439,
+        "first_lock": 10,
+        "alignments": 145,
+        "cpu_ms": 15746.756838,
+        "wall_ms": 3698.919955
+      },
+      {
+        "case": "user_map",
+        "frames": 1800,
+        "live": 1796,
+        "first_lock": 5,
+        "alignments": 74,
+        "cpu_ms": 41167.155757,
+        "wall_ms": 11785.171724
+      },
+      {
+        "case": "central_reverse_retry",
+        "frames": 346,
+        "live": 342,
+        "first_lock": 5,
+        "alignments": 60,
+        "cpu_ms": 25971.857145,
+        "wall_ms": 8289.679276
+      },
+      {
+        "case": "south_changed",
+        "frames": 346,
+        "live": 342,
+        "first_lock": 5,
+        "alignments": 61,
+        "cpu_ms": 25140.848127,
+        "wall_ms": 7636.914185
+      },
+      {
+        "case": "north_reference",
+        "frames": 346,
+        "live": 342,
+        "first_lock": 5,
+        "alignments": 60,
+        "cpu_ms": 25018.300935,
+        "wall_ms": 7408.547153
+      },
+      {
+        "case": "central_repetitive",
+        "frames": 346,
+        "live": 0,
+        "first_lock": null,
+        "alignments": 4886,
+        "cpu_ms": 2567711.263644,
+        "wall_ms": 527366.044785
+      }
+    ],
+    "behavior": [
+      {
+        "case": "hard",
+        "frames": 448,
+        "different_decision_frames": [],
+        "maximum_pose_matrix_difference": 3.885780586188048e-15
+      },
+      {
+        "case": "normal",
+        "frames": 1848,
+        "different_decision_frames": [],
+        "maximum_pose_matrix_difference": 7.105427357601002e-14
+      },
+      {
+        "case": "inside710",
+        "frames": 452,
+        "different_decision_frames": [],
+        "maximum_pose_matrix_difference": 8.881784197001252e-16
+      },
+      {
+        "case": "outside707",
+        "frames": 448,
+        "different_decision_frames": [],
+        "maximum_pose_matrix_difference": 1.7763568394002505e-15
+      },
+      {
+        "case": "outside710",
+        "frames": 448,
+        "different_decision_frames": [],
+        "maximum_pose_matrix_difference": 2.55351295663786e-15
+      },
+      {
+        "case": "user_map",
+        "frames": 1800,
+        "different_decision_frames": [],
+        "maximum_pose_matrix_difference": 3.979039320256561e-13
+      },
+      {
+        "case": "central_reverse_retry",
+        "frames": 346,
+        "different_decision_frames": [],
+        "maximum_pose_matrix_difference": 1.2434497875801753e-14
+      },
+      {
+        "case": "south_changed",
+        "frames": 346,
+        "different_decision_frames": [],
+        "maximum_pose_matrix_difference": 1.7763568394002505e-15
+      },
+      {
+        "case": "north_reference",
+        "frames": 346,
+        "different_decision_frames": [],
+        "maximum_pose_matrix_difference": 1.4210854715202004e-14
+      }
+    ],
+    "negative_behavior": {
+      "frames": 346,
+      "different_decision_frames": [],
+      "maximum_pose_matrix_difference": 0.0
+    },
+    "negative_baseline_scope": "previous stage full run, behavior-only comparison; not controlled CPU A/B"
+  },
+  "dds": {
+    "baseline": [
+      {
+        "case": "central_reverse_retry",
+        "command": [
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/profiling/humble_replay_probe",
+          "/tmp/n3m_sprobo_20261018/corrected_query_central_reverse_retry/bag/bag_0.db3",
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/central_reverse_retry",
+          "0",
+          "--ros-args",
+          "-p",
+          "product_profile_v1:=true",
+          "-p",
+          "map_path:=/tmp/n3m_sprobo_20261018/varied_corrected_coverage/map/n3map.pbstream",
+          "-p",
+          "reloc_atlas_path:=/tmp/n3m_sprobo_20261018/varied_corrected_atlas.pb",
+          "-p",
+          "input_linear_velocity_frame:=parent",
+          "--log-level",
+          "warn"
+        ],
+        "scope": "Serial 10 Hz local DDS replay; includes in-process publisher, output observers and serialization, excludes simulator and FAST_LIO; no RK3588 hardware qualification",
+        "MAP_READY": {
+          "wall_ms": 7675.02
+        },
+        "COMPLETE": {
+          "wall_ms": 34996.3,
+          "cpu_ms": 28838.3,
+          "inputs": 346.0,
+          "processed": 346.0,
+          "poses": 342.0
+        },
+        "OUTPUT": {
+          "odometry": 284.0,
+          "body": 346.0,
+          "world": 284.0,
+          "paths": 342.0,
+          "maps": 1.0
+        },
+        "steady_rss_kib_after_30s_from_launch": 2616692.0,
+        "peak_rss_kib": 2614796,
+        "cpu_cores_including_initial_search": 0.8240385412172143,
+        "first_path_ms_after_map_load": 6620.767354,
+        "after_10s_cpu_cores": 0.30970288976559357,
+        "after_10s_input_frames": 249,
+        "after_10s_processed_frames": 249,
+        "published_pose_score": {
+          "mapping": "/tmp/n3m_sprobo_20261018/varied_corrected_coverage",
+          "query": "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/central_reverse_retry",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": null,
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7599989997,
+            "translation": [
+              -43.98110246749747,
+              0.013103273616381065,
+              0.6553087770523912
+            ],
+            "quaternion_xyzw": [
+              -6.168797331891268e-05,
+              -0.0004934883639281819,
+              0.00010011921277139334,
+              -0.9999998713199777
+            ]
+          },
+          "evaluated_poses": 284,
+          "first_output_sim_s": 6.599995002,
+          "position_error_m": {
+            "rmse": 0.008464319388730891,
+            "median": 0.007149365203596462,
+            "p95": 0.013454602127413262,
+            "maximum": 0.02001462367299888
+          },
+          "rotation_error_deg": {
+            "rmse": 0.06001332459681419,
+            "median": 0.02966940737415608,
+            "p95": 0.15280824784366176,
+            "maximum": 0.19518008248118507
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        }
+      },
+      {
+        "case": "south_changed",
+        "command": [
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/profiling/humble_replay_probe",
+          "/tmp/n3m_sprobo_20261018/corrected_query_south_changed/bag/bag_0.db3",
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/south_changed",
+          "0",
+          "--ros-args",
+          "-p",
+          "product_profile_v1:=true",
+          "-p",
+          "map_path:=/tmp/n3m_sprobo_20261018/varied_corrected_coverage/map/n3map.pbstream",
+          "-p",
+          "reloc_atlas_path:=/tmp/n3m_sprobo_20261018/varied_corrected_atlas.pb",
+          "-p",
+          "input_linear_velocity_frame:=parent",
+          "--log-level",
+          "warn"
+        ],
+        "scope": "Serial 10 Hz local DDS replay; includes in-process publisher, output observers and serialization, excludes simulator and FAST_LIO; no RK3588 hardware qualification",
+        "MAP_READY": {
+          "wall_ms": 7248.13
+        },
+        "COMPLETE": {
+          "wall_ms": 34996.2,
+          "cpu_ms": 26975.2,
+          "inputs": 346.0,
+          "processed": 346.0,
+          "poses": 342.0
+        },
+        "OUTPUT": {
+          "odometry": 291.0,
+          "body": 346.0,
+          "world": 291.0,
+          "paths": 342.0,
+          "maps": 1.0
+        },
+        "steady_rss_kib_after_30s_from_launch": 2621460,
+        "peak_rss_kib": 2619104,
+        "cpu_cores_including_initial_search": 0.7708036872574737,
+        "first_path_ms_after_map_load": 5850.281147,
+        "after_10s_cpu_cores": 0.33030935351495844,
+        "after_10s_input_frames": 249,
+        "after_10s_processed_frames": 249,
+        "published_pose_score": {
+          "mapping": "/tmp/n3m_sprobo_20261018/varied_corrected_coverage",
+          "query": "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/south_changed",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": null,
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7599989997,
+            "translation": [
+              -43.98110246749747,
+              0.013103273616381065,
+              0.6553087770523912
+            ],
+            "quaternion_xyzw": [
+              -6.168797331891268e-05,
+              -0.0004934883639281819,
+              0.00010011921277139334,
+              -0.9999998713199777
+            ]
+          },
+          "evaluated_poses": 291,
+          "first_output_sim_s": 5.899989997,
+          "position_error_m": {
+            "rmse": 0.05329983788043502,
+            "median": 0.053493831806966416,
+            "p95": 0.057257582971226476,
+            "maximum": 0.06359461001508397
+          },
+          "rotation_error_deg": {
+            "rmse": 0.1408845069584112,
+            "median": 0.14009930047348845,
+            "p95": 0.15373406039735965,
+            "maximum": 0.16040226720579845
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        }
+      },
+      {
+        "case": "north_reference",
+        "command": [
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/profiling/humble_replay_probe",
+          "/tmp/n3m_sprobo_20261018/corrected_query_north_reference/bag/bag_0.db3",
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/north_reference",
+          "0",
+          "--ros-args",
+          "-p",
+          "product_profile_v1:=true",
+          "-p",
+          "map_path:=/tmp/n3m_sprobo_20261018/varied_corrected_coverage/map/n3map.pbstream",
+          "-p",
+          "reloc_atlas_path:=/tmp/n3m_sprobo_20261018/varied_corrected_atlas.pb",
+          "-p",
+          "input_linear_velocity_frame:=parent",
+          "--log-level",
+          "warn"
+        ],
+        "scope": "Serial 10 Hz local DDS replay; includes in-process publisher, output observers and serialization, excludes simulator and FAST_LIO; no RK3588 hardware qualification",
+        "MAP_READY": {
+          "wall_ms": 7245.6
+        },
+        "COMPLETE": {
+          "wall_ms": 34996.0,
+          "cpu_ms": 27255.7,
+          "inputs": 346.0,
+          "processed": 346.0,
+          "poses": 342.0
+        },
+        "OUTPUT": {
+          "odometry": 299.0,
+          "body": 346.0,
+          "world": 299.0,
+          "paths": 342.0,
+          "maps": 1.0
+        },
+        "steady_rss_kib_after_30s_from_launch": 2611940,
+        "peak_rss_kib": 2609564,
+        "cpu_cores_including_initial_search": 0.7788232940907532,
+        "first_path_ms_after_map_load": 5110.303724,
+        "after_10s_cpu_cores": 0.3543632638563317,
+        "after_10s_input_frames": 249,
+        "after_10s_processed_frames": 249,
+        "published_pose_score": {
+          "mapping": "/tmp/n3m_sprobo_20261018/varied_corrected_coverage",
+          "query": "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/north_reference",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": null,
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7599989997,
+            "translation": [
+              -43.98110246749747,
+              0.013103273616381065,
+              0.6553087770523912
+            ],
+            "quaternion_xyzw": [
+              -6.168797331891268e-05,
+              -0.0004934883639281819,
+              0.00010011921277139334,
+              -0.9999998713199777
+            ]
+          },
+          "evaluated_poses": 299,
+          "first_output_sim_s": 5.099995002,
+          "position_error_m": {
+            "rmse": 0.47609943711680913,
+            "median": 0.4613360169217291,
+            "p95": 0.5109802124121314,
+            "maximum": 0.5124609449577104
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4752939713767253,
+            "median": 0.47482399267522624,
+            "p95": 0.4819655280011791,
+            "maximum": 0.4985210310880801
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        }
+      }
+    ],
+    "selected": [
+      {
+        "case": "central_reverse_retry",
+        "command": [
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/final_selected/humble_replay_probe",
+          "/tmp/n3m_sprobo_20261018/corrected_query_central_reverse_retry/bag/bag_0.db3",
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/central_reverse_retry",
+          "0",
+          "--ros-args",
+          "-p",
+          "product_profile_v1:=true",
+          "-p",
+          "map_path:=/tmp/n3m_sprobo_20261018/varied_corrected_coverage/map/n3map.pbstream",
+          "-p",
+          "reloc_atlas_path:=/tmp/n3m_sprobo_20261018/varied_corrected_atlas.pb",
+          "-p",
+          "input_linear_velocity_frame:=parent",
+          "--log-level",
+          "warn"
+        ],
+        "scope": "Serial 10 Hz local DDS replay; includes in-process publisher, output observers and serialization, excludes simulator and FAST_LIO; no RK3588 hardware qualification",
+        "MAP_READY": {
+          "wall_ms": 7220.91
+        },
+        "COMPLETE": {
+          "wall_ms": 34995.7,
+          "cpu_ms": 27458.1,
+          "inputs": 346.0,
+          "processed": 346.0,
+          "poses": 342.0
+        },
+        "OUTPUT": {
+          "odometry": 290.0,
+          "body": 346.0,
+          "world": 290.0,
+          "paths": 342.0,
+          "maps": 1.0
+        },
+        "steady_rss_kib_after_30s_from_launch": 2538284,
+        "peak_rss_kib": 2536568,
+        "cpu_cores_including_initial_search": 0.7846135382346975,
+        "first_path_ms_after_map_load": 6000.014352,
+        "after_10s_cpu_cores": 0.3123985759011522,
+        "after_10s_input_frames": 249,
+        "after_10s_processed_frames": 249,
+        "published_pose_score": {
+          "mapping": "/tmp/n3m_sprobo_20261018/varied_corrected_coverage",
+          "query": "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/central_reverse_retry",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": null,
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7599989997,
+            "translation": [
+              -43.98110246749747,
+              0.013103273616381065,
+              0.6553087770523912
+            ],
+            "quaternion_xyzw": [
+              -6.168797331891268e-05,
+              -0.0004934883639281819,
+              0.00010011921277139334,
+              -0.9999998713199777
+            ]
+          },
+          "evaluated_poses": 290,
+          "first_output_sim_s": 5.999995002,
+          "position_error_m": {
+            "rmse": 0.008434363043050803,
+            "median": 0.007208960377824323,
+            "p95": 0.013271176727123864,
+            "maximum": 0.01865773986868116
+          },
+          "rotation_error_deg": {
+            "rmse": 0.05975383620828598,
+            "median": 0.02997772528446643,
+            "p95": 0.15057860234109435,
+            "maximum": 0.19518008248118507
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        }
+      },
+      {
+        "case": "south_changed",
+        "command": [
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/final_selected/humble_replay_probe",
+          "/tmp/n3m_sprobo_20261018/corrected_query_south_changed/bag/bag_0.db3",
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/south_changed",
+          "0",
+          "--ros-args",
+          "-p",
+          "product_profile_v1:=true",
+          "-p",
+          "map_path:=/tmp/n3m_sprobo_20261018/varied_corrected_coverage/map/n3map.pbstream",
+          "-p",
+          "reloc_atlas_path:=/tmp/n3m_sprobo_20261018/varied_corrected_atlas.pb",
+          "-p",
+          "input_linear_velocity_frame:=parent",
+          "--log-level",
+          "warn"
+        ],
+        "scope": "Serial 10 Hz local DDS replay; includes in-process publisher, output observers and serialization, excludes simulator and FAST_LIO; no RK3588 hardware qualification",
+        "MAP_READY": {
+          "wall_ms": 7209.72
+        },
+        "COMPLETE": {
+          "wall_ms": 34996.2,
+          "cpu_ms": 26273.3,
+          "inputs": 346.0,
+          "processed": 346.0,
+          "poses": 342.0
+        },
+        "OUTPUT": {
+          "odometry": 295.0,
+          "body": 346.0,
+          "world": 295.0,
+          "paths": 342.0,
+          "maps": 1.0
+        },
+        "steady_rss_kib_after_30s_from_launch": 2540544,
+        "peak_rss_kib": 2538388,
+        "cpu_cores_including_initial_search": 0.7507472239843184,
+        "first_path_ms_after_map_load": 5488.820679,
+        "after_10s_cpu_cores": 0.32515170781127045,
+        "after_10s_input_frames": 249,
+        "after_10s_processed_frames": 249,
+        "published_pose_score": {
+          "mapping": "/tmp/n3m_sprobo_20261018/varied_corrected_coverage",
+          "query": "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/south_changed",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": null,
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7599989997,
+            "translation": [
+              -43.98110246749747,
+              0.013103273616381065,
+              0.6553087770523912
+            ],
+            "quaternion_xyzw": [
+              -6.168797331891268e-05,
+              -0.0004934883639281819,
+              0.00010011921277139334,
+              -0.9999998713199777
+            ]
+          },
+          "evaluated_poses": 295,
+          "first_output_sim_s": 5.499995002,
+          "position_error_m": {
+            "rmse": 0.05326148125097847,
+            "median": 0.05343700971014957,
+            "p95": 0.0571966171278501,
+            "maximum": 0.06359461001508397
+          },
+          "rotation_error_deg": {
+            "rmse": 0.14080346084430292,
+            "median": 0.139988628423847,
+            "p95": 0.1534655060157322,
+            "maximum": 0.16040226720579842
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        }
+      },
+      {
+        "case": "north_reference",
+        "command": [
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/final_selected/humble_replay_probe",
+          "/tmp/n3m_sprobo_20261018/corrected_query_north_reference/bag/bag_0.db3",
+          "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/north_reference",
+          "0",
+          "--ros-args",
+          "-p",
+          "product_profile_v1:=true",
+          "-p",
+          "map_path:=/tmp/n3m_sprobo_20261018/varied_corrected_coverage/map/n3map.pbstream",
+          "-p",
+          "reloc_atlas_path:=/tmp/n3m_sprobo_20261018/varied_corrected_atlas.pb",
+          "-p",
+          "input_linear_velocity_frame:=parent",
+          "--log-level",
+          "warn"
+        ],
+        "scope": "Serial 10 Hz local DDS replay; includes in-process publisher, output observers and serialization, excludes simulator and FAST_LIO; no RK3588 hardware qualification",
+        "MAP_READY": {
+          "wall_ms": 7248.21
+        },
+        "COMPLETE": {
+          "wall_ms": 34995.8,
+          "cpu_ms": 26602.7,
+          "inputs": 346.0,
+          "processed": 346.0,
+          "poses": 342.0
+        },
+        "OUTPUT": {
+          "odometry": 300.0,
+          "body": 346.0,
+          "world": 300.0,
+          "paths": 342.0,
+          "maps": 1.0
+        },
+        "steady_rss_kib_after_30s_from_launch": 2563308,
+        "peak_rss_kib": 2561364,
+        "cpu_cores_including_initial_search": 0.7601683630607101,
+        "first_path_ms_after_map_load": 5011.856849,
+        "after_10s_cpu_cores": 0.35306245076449966,
+        "after_10s_input_frames": 249,
+        "after_10s_processed_frames": 249,
+        "published_pose_score": {
+          "mapping": "/tmp/n3m_sprobo_20261018/varied_corrected_coverage",
+          "query": "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/north_reference",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": null,
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7599989997,
+            "translation": [
+              -43.98110246749747,
+              0.013103273616381065,
+              0.6553087770523912
+            ],
+            "quaternion_xyzw": [
+              -6.168797331891268e-05,
+              -0.0004934883639281819,
+              0.00010011921277139334,
+              -0.9999998713199777
+            ]
+          },
+          "evaluated_poses": 300,
+          "first_output_sim_s": 4.999995002,
+          "position_error_m": {
+            "rmse": 0.47622024707414434,
+            "median": 0.4613670610765178,
+            "p95": 0.5109852902545194,
+            "maximum": 0.5124609449577104
+          },
+          "rotation_error_deg": {
+            "rmse": 0.4753065307783943,
+            "median": 0.4748331530841091,
+            "p95": 0.48196327345806245,
+            "maximum": 0.4985210310880801
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        }
+      }
+    ],
+    "timing_audit": [
+      {
+        "variant": "profiling",
+        "case": "central_reverse_retry",
+        "frames": 346,
+        "search_frames": 5,
+        "tracking_attempts": 0,
+        "runtime_schema_errors": [],
+        "search_log_finite_and_forwarded": true,
+        "summary": {
+          "search_frames": 5,
+          "descriptor_profiled_frames": 5,
+          "descriptor_phases": {
+            "total": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 87.4197242,
+                "p50": 3.337583,
+                "p95": 339.8777405999999,
+                "max": 423.962306
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 87.35546480000012,
+                "p50": 3.336851000000024,
+                "p95": 339.6228804000005,
+                "max": 423.64393700000073
+              }
+            },
+            "generation": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.8530004,
+                "p50": 0.879673,
+                "p95": 1.1456646,
+                "max": 1.153214
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.852710400000069,
+                "p50": 0.8793399999995017,
+                "p95": 1.1453523999996833,
+                "max": 1.1529169999994338
+              }
+            },
+            "index_rebuild": {
+              "wall_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 421.109602,
+                "p50": 421.109602,
+                "p95": 421.109602,
+                "max": 421.109602
+              },
+              "thread_cpu_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 420.7913520000002,
+                "p50": 420.7913520000002,
+                "p95": 420.7913520000002,
+                "max": 420.7913520000002
+              }
+            },
+            "coarse": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2860074,
+                "p50": 0.232301,
+                "p95": 0.39171520000000004,
+                "max": 0.401916
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.28542419999994306,
+                "p50": 0.23159900000064226,
+                "p95": 0.3912536000003456,
+                "max": 0.4014690000003611
+              }
+            },
+            "place": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.295407,
+                "p50": 0.269409,
+                "p95": 0.35218520000000003,
+                "max": 0.36140700000000003
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2950018000001364,
+                "p50": 0.2689349999991464,
+                "p95": 0.35180319999926724,
+                "max": 0.3610159999989264
+              }
+            },
+            "heading": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.7230225999999997,
+                "p50": 1.7267169999999998,
+                "p95": 1.8578731999999998,
+                "max": 1.88661
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.7154819999996107,
+                "p50": 1.719293000003745,
+                "p95": 1.8504211999934341,
+                "max": 1.879172999992079
+              }
+            }
+          },
+          "descriptor_warm": {
+            "wall_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.28407875,
+              "p50": 3.299441,
+              "p95": 3.5091946,
+              "max": 3.539479
+            },
+            "thread_cpu_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.2833467499999642,
+              "p50": 3.298780500000248,
+              "p95": 3.5083835499999623,
+              "max": 3.5386539999999513
+            }
+          },
+          "counters": {
+            "alignments": 60,
+            "rejected_alignments": 7,
+            "fixed_pose_evaluations": 20
+          },
+          "scope": "descriptor CPU is calling-thread CPU; total includes its phases; alignment wall sums can overlap"
+        }
+      },
+      {
+        "variant": "profiling",
+        "case": "north_reference",
+        "frames": 346,
+        "search_frames": 5,
+        "tracking_attempts": 0,
+        "runtime_schema_errors": [],
+        "search_log_finite_and_forwarded": true,
+        "summary": {
+          "search_frames": 5,
+          "descriptor_profiled_frames": 5,
+          "descriptor_phases": {
+            "total": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 86.1446766,
+                "p50": 3.301924,
+                "p95": 335.2270555999999,
+                "max": 418.189321
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 86.00030479999933,
+                "p50": 3.301238000000012,
+                "p95": 334.65150759999955,
+                "max": 417.47006299999975
+              }
+            },
+            "generation": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.8323892,
+                "p50": 0.831081,
+                "p95": 1.1262062,
+                "max": 1.137775
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.8321081999998569,
+                "p50": 0.8308109999998123,
+                "p95": 1.1258799999999611,
+                "max": 1.1374439999999595
+              }
+            },
+            "index_rebuild": {
+              "wall_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 415.32002,
+                "p50": 415.32002,
+                "p95": 415.32002,
+                "max": 415.32002
+              },
+              "thread_cpu_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 414.6002699999999,
+                "p50": 414.6002699999999,
+                "p95": 414.6002699999999,
+                "max": 414.6002699999999
+              }
+            },
+            "coarse": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2374008,
+                "p50": 0.223512,
+                "p95": 0.27830279999999996,
+                "max": 0.288756
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2368423999998413,
+                "p50": 0.2229589999988093,
+                "p95": 0.2777522000007593,
+                "max": 0.2882270000009157
+              }
+            },
+            "place": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.293476,
+                "p50": 0.291678,
+                "p95": 0.30709440000000005,
+                "max": 0.31081000000000003
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.29306519999991,
+                "p50": 0.29132899999967776,
+                "p95": 0.30652099999970234,
+                "max": 0.3101889999998093
+              }
+            },
+            "heading": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.6882127999999998,
+                "p50": 1.6767169999999996,
+                "p95": 1.7421474,
+                "max": 1.7424060000000001
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.6808300000004237,
+                "p50": 1.6693639999994048,
+                "p95": 1.734732399999848,
+                "max": 1.7350280000009661
+              }
+            }
+          },
+          "descriptor_warm": {
+            "wall_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.1335155,
+              "p50": 3.1580915000000003,
+              "p95": 3.3665835,
+              "max": 3.377994
+            },
+            "thread_cpu_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.132865249999213,
+              "p50": 3.157413999999335,
+              "p95": 3.3658787999991544,
+              "max": 3.3772859999990033
+            }
+          },
+          "counters": {
+            "alignments": 60,
+            "rejected_alignments": 10,
+            "fixed_pose_evaluations": 22
+          },
+          "scope": "descriptor CPU is calling-thread CPU; total includes its phases; alignment wall sums can overlap"
+        }
+      },
+      {
+        "variant": "profiling",
+        "case": "south_changed",
+        "frames": 346,
+        "search_frames": 5,
+        "tracking_attempts": 0,
+        "runtime_schema_errors": [],
+        "search_log_finite_and_forwarded": true,
+        "summary": {
+          "search_frames": 5,
+          "descriptor_profiled_frames": 5,
+          "descriptor_phases": {
+            "total": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 87.08161600000001,
+                "p50": 3.347487,
+                "p95": 338.965065,
+                "max": 422.868713
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 86.96443539999946,
+                "p50": 3.346739999999045,
+                "p95": 338.4988505999997,
+                "max": 422.28627099999994
+              }
+            },
+            "generation": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.858182,
+                "p50": 0.897325,
+                "p95": 1.154199,
+                "max": 1.160387
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.8578552000000854,
+                "p50": 0.8970440000011877,
+                "p95": 1.1538177999991603,
+                "max": 1.1600569999991421
+              }
+            },
+            "index_rebuild": {
+              "wall_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 419.791344,
+                "p50": 419.791344,
+                "p95": 419.791344,
+                "max": 419.791344
+              },
+              "thread_cpu_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 419.20898599999964,
+                "p50": 419.20898599999964,
+                "p95": 419.20898599999964,
+                "max": 419.20898599999964
+              }
+            },
+            "coarse": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2380732,
+                "p50": 0.232661,
+                "p95": 0.2620132,
+                "max": 0.268526
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2369676000005711,
+                "p50": 0.23208799999883922,
+                "p95": 0.2611240000005637,
+                "max": 0.2675230000004376
+              }
+            },
+            "place": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.26565439999999996,
+                "p50": 0.265053,
+                "p95": 0.271051,
+                "max": 0.272287
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2652592000000368,
+                "p50": 0.2646610000010696,
+                "p95": 0.2705983999991076,
+                "max": 0.27181199999904493
+              }
+            },
+            "heading": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.7299146,
+                "p50": 1.6912289999999994,
+                "p95": 1.8566609999999997,
+                "max": 1.8894419999999996
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.722586200002843,
+                "p50": 1.6838540000007924,
+                "p95": 1.8492962000025726,
+                "max": 1.8820690000029572
+              }
+            }
+          },
+          "descriptor_warm": {
+            "wall_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.13484175,
+              "p50": 3.2168305000000004,
+              "p95": 3.3500251,
+              "max": 3.350473
+            },
+            "thread_cpu_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.133976499999335,
+              "p50": 3.2160074999992503,
+              "p95": 3.348804649999147,
+              "max": 3.349168999999165
+            }
+          },
+          "counters": {
+            "alignments": 61,
+            "rejected_alignments": 13,
+            "fixed_pose_evaluations": 18
+          },
+          "scope": "descriptor CPU is calling-thread CPU; total includes its phases; alignment wall sums can overlap"
+        }
+      },
+      {
+        "variant": "selected",
+        "case": "central_reverse_retry",
+        "frames": 346,
+        "search_frames": 5,
+        "tracking_attempts": 341,
+        "runtime_schema_errors": [],
+        "search_log_finite_and_forwarded": true,
+        "summary": {
+          "search_frames": 5,
+          "descriptor_profiled_frames": 5,
+          "descriptor_phases": {
+            "total": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 86.35968199999999,
+                "p50": 3.292738,
+                "p95": 336.04308459999993,
+                "max": 419.221415
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 86.33566980000032,
+                "p50": 3.291909999999916,
+                "p95": 335.94946480000027,
+                "max": 419.10468200000014
+              }
+            },
+            "generation": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.840427,
+                "p50": 0.864939,
+                "p95": 1.1333760000000002,
+                "max": 1.153288
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.8401241999999911,
+                "p50": 0.8646310000003723,
+                "p95": 1.1330589999997756,
+                "max": 1.1529819999996107
+              }
+            },
+            "index_rebuild": {
+              "wall_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 416.332042,
+                "p50": 416.332042,
+                "p95": 416.332042,
+                "max": 416.332042
+              },
+              "thread_cpu_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 416.21519100000023,
+                "p50": 416.21519100000023,
+                "p95": 416.21519100000023,
+                "max": 416.21519100000023
+              }
+            },
+            "coarse": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2443812,
+                "p50": 0.24411500000000003,
+                "p95": 0.27153039999999995,
+                "max": 0.272736
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.24376899999988383,
+                "p50": 0.24358200000006036,
+                "p95": 0.270873400000346,
+                "max": 0.2720470000003843
+              }
+            },
+            "place": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2877806,
+                "p50": 0.263721,
+                "p95": 0.33187880000000003,
+                "max": 0.33557400000000004
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.28733479999991685,
+                "p50": 0.26314500000080443,
+                "p95": 0.33146340000021157,
+                "max": 0.3351440000005823
+              }
+            },
+            "heading": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.6829568000000001,
+                "p50": 1.6487420000000004,
+                "p95": 1.7589921999999998,
+                "max": 1.7625359999999999
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.6754546000011032,
+                "p50": 1.6406989999995858,
+                "p95": 1.751511600001686,
+                "max": 1.7550130000026911
+              }
+            }
+          },
+          "descriptor_warm": {
+            "wall_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.14424875,
+              "p50": 3.1433454999999997,
+              "p95": 3.32420925,
+              "max": 3.329763
+            },
+            "thread_cpu_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.1434167500003696,
+              "p50": 3.1425500000000284,
+              "p95": 3.3230931000010058,
+              "max": 3.3285960000011983
+            }
+          },
+          "counters": {
+            "alignments": 60,
+            "rejected_alignments": 12,
+            "fixed_pose_evaluations": 20
+          },
+          "scope": "descriptor CPU is calling-thread CPU; total includes its phases; alignment wall sums can overlap"
+        }
+      },
+      {
+        "variant": "selected",
+        "case": "north_reference",
+        "frames": 346,
+        "search_frames": 5,
+        "tracking_attempts": 341,
+        "runtime_schema_errors": [],
+        "search_log_finite_and_forwarded": true,
+        "summary": {
+          "search_frames": 5,
+          "descriptor_profiled_frames": 5,
+          "descriptor_phases": {
+            "total": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 86.7327438,
+                "p50": 3.332138,
+                "p95": 337.5732175999999,
+                "max": 421.118818
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 86.57365880000035,
+                "p50": 3.3313539999999193,
+                "p95": 336.93905839999996,
+                "max": 420.3263429999997
+              }
+            },
+            "generation": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.8309606,
+                "p50": 0.836968,
+                "p95": 1.1301528,
+                "max": 1.141402
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.8306728000001385,
+                "p50": 0.8367159999997966,
+                "p95": 1.1297849999999017,
+                "max": 1.1410109999997076
+              }
+            },
+            "index_rebuild": {
+              "wall_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 417.877769,
+                "p50": 417.877769,
+                "p95": 417.877769,
+                "max": 417.877769
+              },
+              "thread_cpu_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 417.08476299999984,
+                "p50": 417.08476299999984,
+                "p95": 417.08476299999984,
+                "max": 417.08476299999984
+              }
+            },
+            "coarse": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2865938,
+                "p50": 0.23109200000000002,
+                "p95": 0.4179142,
+                "max": 0.447283
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2860686000005444,
+                "p50": 0.23066900000048918,
+                "p95": 0.4172374000001582,
+                "max": 0.44657699999970646
+              }
+            },
+            "place": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.308769,
+                "p50": 0.293214,
+                "p95": 0.35954739999999996,
+                "max": 0.375205
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.30836160000035306,
+                "p50": 0.29280500000095344,
+                "p95": 0.3591539999997621,
+                "max": 0.3748169999998936
+              }
+            },
+            "heading": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.6989775999999999,
+                "p50": 1.6900039999999998,
+                "p95": 1.7658358,
+                "max": 1.778381
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.690960800000721,
+                "p50": 1.6827399999965564,
+                "p95": 1.7584128000018608,
+                "max": 1.7709470000027068
+              }
+            }
+          },
+          "descriptor_warm": {
+            "wall_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.13622525,
+              "p50": 3.1827325,
+              "p95": 3.3820143000000003,
+              "max": 3.390816
+            },
+            "thread_cpu_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.135487750000493,
+              "p50": 3.1819789999999557,
+              "p95": 3.381135100001211,
+              "max": 3.389920000001439
+            }
+          },
+          "counters": {
+            "alignments": 60,
+            "rejected_alignments": 10,
+            "fixed_pose_evaluations": 22
+          },
+          "scope": "descriptor CPU is calling-thread CPU; total includes its phases; alignment wall sums can overlap"
+        }
+      },
+      {
+        "variant": "selected",
+        "case": "south_changed",
+        "frames": 346,
+        "search_frames": 5,
+        "tracking_attempts": 341,
+        "runtime_schema_errors": [],
+        "search_log_finite_and_forwarded": true,
+        "summary": {
+          "search_frames": 5,
+          "descriptor_profiled_frames": 5,
+          "descriptor_phases": {
+            "total": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 86.9933122,
+                "p50": 3.471555,
+                "p95": 338.2453075999999,
+                "max": 421.905918
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 86.86156820000069,
+                "p50": 3.4705640000011044,
+                "p95": 337.7209096000002,
+                "max": 421.25059899999997
+              }
+            },
+            "generation": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.8638553999999999,
+                "p50": 0.897429,
+                "p95": 1.1530198,
+                "max": 1.158117
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.8635331999996196,
+                "p50": 0.8969630000001416,
+                "p95": 1.1526824000000488,
+                "max": 1.1577720000004774
+              }
+            },
+            "index_rebuild": {
+              "wall_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 418.967957,
+                "p50": 418.967957,
+                "p95": 418.967957,
+                "max": 418.967957
+              },
+              "thread_cpu_ms": {
+                "count": 1,
+                "missing": 0,
+                "mean": 418.31218999999965,
+                "p50": 418.31218999999965,
+                "p95": 418.31218999999965,
+                "max": 418.31218999999965
+              }
+            },
+            "coarse": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2728628,
+                "p50": 0.276314,
+                "p95": 0.3393492,
+                "max": 0.35394400000000004
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.27227999999977326,
+                "p50": 0.2759109999988141,
+                "p95": 0.33879120000092366,
+                "max": 0.3534360000012384
+              }
+            },
+            "place": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2968098,
+                "p50": 0.29325100000000004,
+                "p95": 0.3375942,
+                "max": 0.345415
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 0.2964114000002155,
+                "p50": 0.2928520000004937,
+                "p95": 0.33718879999905765,
+                "max": 0.3449929999987944
+              }
+            },
+            "heading": {
+              "wall_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.7325726,
+                "p50": 1.736674,
+                "p95": 1.7784320000000002,
+                "max": 1.7887960000000003
+              },
+              "thread_cpu_ms": {
+                "count": 5,
+                "missing": 0,
+                "mean": 1.7251350000011372,
+                "p50": 1.72924599999169,
+                "p95": 1.771048600002723,
+                "max": 1.7814140000027692
+              }
+            }
+          },
+          "descriptor_warm": {
+            "wall_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.26516075,
+              "p50": 3.338902,
+              "p95": 3.5831693500000004,
+              "max": 3.602866
+            },
+            "thread_cpu_ms": {
+              "count": 4,
+              "missing": 0,
+              "mean": 3.2643105000008745,
+              "p50": 3.33799800000088,
+              "p95": 3.582413800001268,
+              "max": 3.602152000001297
+            }
+          },
+          "counters": {
+            "alignments": 61,
+            "rejected_alignments": 14,
+            "fixed_pose_evaluations": 18
+          },
+          "scope": "descriptor CPU is calling-thread CPU; total includes its phases; alignment wall sums can overlap"
+        }
+      }
+    ]
+  },
+  "snapshot_scope": "Controlled timings and complete core replay use selected; final_selected adds a missing-anchor crop guard and removes a duplicate include, then passes the full suite and DDS replays. Both snapshot libraries are retained.",
+  "tests": {
+    "ctest": "61/61 passed",
+    "log": "/tmp/n3m_sprobo_20261018/search_cost_20261018/ctest_final.log"
+  },
+  "artifact_sha256": {
+    "/tmp/n3m_sprobo_20261018/corrected_production_repetitive_full_0/central_repetitive_baseline.csv": "d28c26f700d30a9eeb60049753dfb65f61c1f134f05c8092c5b4dea96c495949",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/south_changed_reference.txt": "db714c6ebd0961e4a5603a1714a49c04746db29e8e3847ce708e10c6a06829f9",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/north_reference_reference.txt": "98ba5c43fd2848948333a931a384d927a55812564f1791d27da3ca52df2e9477",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/central_reverse_retry_reference.txt": "eb35befe5e99090369589c6705ade5d480e59a70eda830adf1c61af641103d39",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/profile.py": "abdc310875c8cd95b841f65ecb3400590e8180236fddb0e25e353e8a97295536",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/candidate_validation.py": "4b37299187007eb876a00a6e49ef95737c27d051642c7f91347c0a441dccc28e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/build_ablation.py": "6b4f1adf9f4188dbc0c815150c76397ac3b4fc05fbfe2f8437596a58df1c9c9a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/final_validation.py": "b38dc3e1f08a920e5815e9b8f9118f471f9f52ee55196a8adcac88b9b54d18c6",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/run_basin_variant.py": "2cbc5680ebbd7bca9749d8a45ac6b48f9847dbc2bed92eaa578cde2a20c5f6e2",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/instrument.py": "af7d85bb6495bb0f77497f96dd2be3f00d9f6ee6777d32a0060037029b5cafa7",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_replay.py": "cd150fc25b4adaae238cdcede5df09486c3ba24793eb4673f531f34fd3dc2eaa",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/audit_dds_timing.py": "048a596346b951a20601378b71bf6289fd5b8e41faf3ce6654bff070722f4098",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/regression.py": "2d2488d8e17e35132b867d4026b09f10c5a39703a7be685754ff075ff31e1d5b",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/run_dds.py": "5290b0f782bc90bc0bade0d574d055143af7ae01d45d99e5727e87b3e80ada5f",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_ab.py": "2fdb8ad59c46da0b96aff9896a4f88de111e2e6ddb2a982d17682925be679287",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/collect_results.py": "24d904722cd14b349e865f8ad4ad1d4d4ac438eb1cab01798e041e512cf1b786",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/build_probes.py": "345efeb82a1968740d1bf9426ef85e1aa04e21bd9d03d5d367d394171b6ecd78",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/indexed_validation.py": "d58159eedd37e30254ae9548a57ad3ed2f6d675de79184bbc79ba5e31120d921",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/run_basin.py": "0c56144d4068af88f140d841b97d758ee34e3c7ebb27653d5867e18530991c38",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/build_converged.py": "e094c567e366b1f600c98eeecdfc9c1c8d51ef54a762fc84f8deae38f85de195",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/build_basin.py": "687ad008bd6eac7e6e478265463d18b04a507657f51ea8705f52ecc2d53f5414",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/converged_gate.cpp": "49ea15b71aa4e47599fdd7d48f2cc8d3282c4cf8b2872b7e752a425db4e4685c",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/coarse_gate.cpp": "c6d6a425298affff934efc5097e15279eed400b35ef393e14adb64c02397bfb6",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/converged_gate.so": "820783c57bb769519fbb02230d5ea53c8d82c849eff42907416f312b30b4041a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/coarse_gate.so": "04f0e17e691a2a5d12b7564c97a8de55dfacdcbb5b4cb73d708ca512b6a08568",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin_probe.cpp": "b0ab748cb385f627fca3b4f71dd5bff2fde63bb9e3a9ef4d7e0602e9cbd871e3",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/ctest_selected.log": "501a2efe21d7f192600fd194dd1914952fd04ef4baff512cf07b2f98b46f4e52",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/selected_build.log": "535d3263b7890e5978dc1704076af613b216228f5f2860734febb709c27a7afe",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/ctest_final.log": "99a8e041fea59add5c6a84230f6b26798077580581ceed25573f0320739540f4",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/final_build.log": "f965e652eb8f9a34b39a28b34dd9008f8c281e29ec239d0f21ea336495c90565",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/profiling/humble_replay_probe": "75b48a1a17270abdcc447f0b452ffcf8ef8288a32f80c74ab51194a090207e56",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/profiling/libn3mapping_humble_wrapper.so": "bb9e917ca1e5e4ce87cd140cb300d5b21bced3779c30576e90373e064f9fb5bc",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/profiling/replay_probe": "cbb7c626db15b3df791790a8671ae22baebbc50f37187ab9c134cdf899da241e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/profiling/libn3mapping_core.so": "036d64761d3e6fb08c299237086ab7fa57e6a97fc76207fa77cb9ba6f40a6c97",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/selected/humble_replay_probe": "75b48a1a17270abdcc447f0b452ffcf8ef8288a32f80c74ab51194a090207e56",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/selected/libn3mapping_humble_wrapper.so": "bb9e917ca1e5e4ce87cd140cb300d5b21bced3779c30576e90373e064f9fb5bc",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/selected/replay_probe": "cbb7c626db15b3df791790a8671ae22baebbc50f37187ab9c134cdf899da241e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/selected/libn3mapping_core.so": "5cb1fa905f81edca834436e08185c63f19751d54e7c220a4615b72c9fc0c1877",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/final_selected/humble_replay_probe": "75b48a1a17270abdcc447f0b452ffcf8ef8288a32f80c74ab51194a090207e56",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/final_selected/libn3mapping_humble_wrapper.so": "bb9e917ca1e5e4ce87cd140cb300d5b21bced3779c30576e90373e064f9fb5bc",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/final_selected/replay_probe": "cbb7c626db15b3df791790a8671ae22baebbc50f37187ab9c134cdf899da241e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/final_selected/libn3mapping_core.so": "13ad599cf0b407127ea2afc5e1ef7c4cd159867fc46a40d7cf1a4b09109ffa93",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_selected_2.csv.costs.jsonl": "62d858f2e52251336de7b9e110f37a4f18de0da4908e3d8d549a4988add2f0fb",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_profiling_1.csv": "622b59ce05a11180fa0e32842ad662cbcca575e45dcd8cd46035d261169403c1",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_selected_1.csv": "00b3d909edbdfca407a875ff1065fde9299e04a1bf5884ef40b85be37d2aca28",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_profiling_2.csv.costs.jsonl": "e7d0bc84970282bb3ab92cb4843300526c81134fbbfdfdcab30c4a42730a2485",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_selected_2.csv": "e9037fd004daf0bad85aa2ff93f83bd17f763bf69d1100ca6d63fa2c228f5d4e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_profiling_2.csv": "b5532749df1c0de7156487a063e7ae850624bba082085785bab9a8d51a4a9661",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_profiling_0.csv.costs.jsonl": "b03d27e9781ec917bfcf0f93c2279b9c62854571795ff72d92f77716cb1e4199",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_selected_2.csv.costs.jsonl": "6d355e3d6c137d98aa33d23848f383bd4f8c8a83e9dea04ff7d6272fed6a94cd",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_profiling_1.csv.costs.jsonl": "df81c23fe1859b3792c1af92bdafb58de3f2dfcc27b2c662f1acfcbb7156e672",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/results.json": "9111b0d16017c05919c08af0a6e28ae241fd87578df850f8eaa38aac478326bb",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_profiling_2.csv.costs.jsonl": "87726d394ec395055cba1a5562ef2e7f7fd882d64554d624e75860d039ff03d4",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_profiling_0.csv.costs.jsonl": "04eddc9a654cbadea704ff1146d04b1a5febf3c504fea1a97b15af19174e3827",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_selected_0.csv.costs.jsonl": "930658fae47d949d3bb14ca31df2608a366509bfe72eb2f17d319a34d4fcc4b9",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_selected_1.csv.costs.jsonl": "11fe76f0e6a7b51f8e3bc0473c21044f1b99c2434890fdf27e54873c2f1c4046",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_profiling_1.csv": "a8b4cef095304ba4a001c9c8a80831635d64d37f002460e823ff678880f113b5",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_profiling_0.csv": "330c611aa7a51315eef955ad7dcbeb8f4c9903f8a54cf157ed14db0c7a823f2f",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_selected_0.csv.costs.jsonl": "0745619f460611bbd9c6790d016ec35ec6a4802d3857a4e62d34bf57435fbe9a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_selected_0.csv": "902ce60e735ab07de71318e411aedec0f4ec120187b0b80454746a1f2310dd2f",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_selected_1.csv.costs.jsonl": "7a80b2bb945399c8ba908df30def2d70230c8b04dbb1b375ae15ed42c8021b82",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_selected_0.csv": "2e096df20d9f0b2544cca9148ae43e54551b04a3a8ae6015bc38a2b8b854385d",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_reverse_retry_profiling_1.csv.costs.jsonl": "0346d22c764805d57228a7b10f572a466511c95eead47e12655de9fd6ac81b1d",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_selected_1.csv": "3a19cbb21567d8f783c7e04501680bfdac7714a3c6269ab59a593946fb0cae8a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_profiling_0.csv": "07ed2955b210cced91fcc6b32fa2652b80346f98404443512ba6c900ff1caa18",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_profiling_2.csv": "a53736b57f5cae33e8073883f18d3630eea2b9f86a34349729e24454a6bc2026",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/pinned_selected/central_repetitive_selected_2.csv": "ab31ac1af8f134c2c02511a4f9aa1d207dd224062ddb01683b1818d71c94f894",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/north_reference_converged_gate.csv": "94293030e50d96f902afb99890ba276db120be63ed6cf12b2300d00d7a800d3d",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/central_reverse_retry_converged_gate_comparison.json": "18129927b8968887c1d8d2f3d45d3c4d9e665d68610a82422ffdd1cf4922fe40",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/south_changed_coarse_gate.csv": "1688b25ff6870b1e2afecbe402fa7c0a946595728ce833f79dd2aef571dd0f00",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/central_reverse_retry_converged_gate.csv": "8077afa5cd931858e30bbe82610204b8dfe857820eea8a8a97581b32f9d19958",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/central_reverse_retry_comparison.json": "92dd90d3ba44865aafe0556095207350fec554561c0cdef33f48d2f8550c3327",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/north_reference_profiling.csv": "91cb7b6a2231b21d393093236635d56ed83a753834061318b0820ba683495834",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/north_reference_coarse_gate.csv": "3362755efd7146b06873a574fd1e2b1726259717261d2460ad743edb8e569ca6",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/north_reference_converged_gate_comparison.json": "dd9ba3b4a0a4178313e5d38c12775173ba9cf7d632b9efd76d2352f9b7e50f1b",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/south_changed_converged_gate.csv": "6201c492e85caba937cf309f2b4a22b77e82085705a77b776e907f02f3624204",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/central_reverse_retry_profiling.csv": "4f4cd39c7d5f7ccbc8dc465914a21d4e27ca5112721ecaabf2b1357919c04aad",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/south_changed_comparison.json": "cb9a66b9b22c02f59d6420e6b866634d1e4a3afae139d60df05cca421e1f4385",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/south_changed_profiling.csv": "22d3616bb6a8b71d7dd5f1090a7c4eb0444dead7dcf1ff47a16b9c0a5860796e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/south_changed_converged_gate_comparison.json": "07ab08317661c3901e2dc6696bc072a3615ec06f32622fca7ea0181d6c4a4a55",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/central_reverse_retry_coarse_gate.csv": "c11ec18706a18cb23b76eb4396a1c2b00bfa8efa4b3531a7cc152029dbc084a5",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/basin/north_reference_comparison.json": "0866f67375506e75b0fbd834ae54782a234560df404e42a94b48bed1fcb221ce",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/outside707.csv": "3374791effff3b1743a1e18f152a886766d2194d119a6278ad689f35acedb435",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/outside710.csv": "e1865ab105e565ff2b64ae465b51c5a819ccd34c24a59dcedfb8db5461aeccf0",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/outside707.csv.costs.jsonl": "d2ec76c7e76fa807c1d5240a0d9cc5fd08632047d8b732eee691d79a6a07d31f",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/user_map.csv.costs.jsonl": "c981209529307b08e995cf4c96aff06a121324535aeeaa3838954f51e73de766",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/south_changed.csv.costs.jsonl": "c76c3301e69fa01c09c6bc9e06082f83a9c19ded2dbcbb09df8d796ac8c2fb7c",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/outside710.csv.costs.jsonl": "9516d846d7e621ffefadd80f63e73d7d2bfd0391496fbc7b6a1b2cebe843a8a8",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/south_changed.csv": "81899f998cd6a02ffe74a2a18ec9436e15e057246ed478be25eab649d51e1267",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/central_reverse_retry.csv.costs.jsonl": "333d8357b47bbded3906d1f43a745d6878b0861b23ac0694a20200e0596f516f",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/central_reverse_retry.csv": "95373fb07ed54404a0a21a7469271a389b081f851891aa73e176d35c7cdc7a56",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/north_reference.csv": "8137474e44092096122bd3c374ec92c2b75cda5eae1aad353f0859546046762a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/inside710.csv.costs.jsonl": "30dc4166c7b76d8ce785a239a570df064ae444abd2e9b9aaca829cd6388eca5b",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/results.json": "252a6a3f4abe8f48051e5465985ae90467f8df763a502558fcfbbe1ba5baef26",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/north_reference.csv.costs.jsonl": "780107066d3bcd6cab183384ac78418c29c1ac1635c24f12ffbda8ca1c928355",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/normal.csv.costs.jsonl": "2deac8e08885d94973384a01b874c7067302e9f333130ca0467cfc19c80b4bef",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/user_map.csv": "ef2c76d2e53b9ff7879a34afc805ef8810b372c21a79ce4eb34a66fb8f12384c",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/hard.csv.costs.jsonl": "8f64369a6eb62d8f890983528512ddc5a590f9cbef19df8766de55de06a02a95",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/normal.csv": "cb8863591498eafe90210ece737c6662735c12968653bd5d519845bdb9faeb7a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/hard.csv": "9515ed3ea78e011d9cce18680d7fc5e662791808b3e63503f6133d110662e9a3",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_profiling/inside710.csv": "da052e8f06d6797dc6c2bac50ea025a18881ed65fc78e9b2eccecd096ff3a235",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/outside707.csv": "68e1aa98b35543d15ba50a111d79a328bb3cfc7683b186f01309eb24edc61a20",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/outside710.csv": "29e4f0b758fd3f6974155406a0d18f55f3eb12afc78e41f356161d99757f419d",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/outside707.csv.costs.jsonl": "f1fbea40a0583de84e3e3aa8b8e98623e2b63c260c5478d54e8d1493f314fccb",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/user_map.csv.costs.jsonl": "cc709876b61f5a2cf9ae9799458872ecc48bc103c124e127bbc26f8dd46bcb33",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/south_changed.csv.costs.jsonl": "bd263c5b8583784257a9bf6191c1a748f738136f8d0792ef170cbc8c707aca1a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/outside710.csv.costs.jsonl": "6ed1e53563cb55059f95c13e9100d58ac1e4ecc2830e7c985977f53cdb495532",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/south_changed.csv": "8475cf3582d5763e3fdb775af9e3c0216ab903b8b4bef6efc4def1bc5c1746a8",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/central_reverse_retry.csv.costs.jsonl": "e5dc239a04b438aa9008f86a3b10ba774dd7e0751eecd7341663c004c80d5986",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/central_reverse_retry.csv": "cbd73b87e700a625d9fad0b54d8cc71a1cb504a5885acdc3126a97daf01e744e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/north_reference.csv": "a3b18d4262038ef320b289cdb6e006a317650db5f17882b1fa166f24b184274b",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/inside710.csv.costs.jsonl": "6e6ccd9083e151a5cb1273e7db75b747adb1bd2245170bfae8b8793ad0ef30bf",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/results.json": "f6e9eff00a1d18ff97811e0eca282104d43055d61b9eb3cd5024e787dd43ecb3",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/north_reference.csv.costs.jsonl": "131a988892debc4387b29d0034b461f7bd77bc95c526efeb0a86d1d6137ee753",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/central_repetitive.csv.costs.jsonl": "19ff8ce84c58fdffe0884a0bb0a91e7d57f8107556fc578ed6e6dc4869864c2b",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/central_repetitive.csv": "1a3891105e286f4a398657aa0cf28e93ec7ff7c42ebd2b2997f530ad2473464b",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/normal.csv.costs.jsonl": "3ef021aaffdb713442bd4c2898399a6fab76e25a4ea47a10014c2f389457226a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/user_map.csv": "dff02f38fd99f105b3bf5f21efbd99d2d3f3436a1b83d96b0471c975326467c0",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/hard.csv.costs.jsonl": "9a4778d8119aab61123bb8dca9f50e4992c9c062e3645159b5afea6984d0f99d",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/normal.csv": "0d688a53c47329413b86d9580e232f68561761ab93e92044fe217ef997123bc3",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/hard.csv": "899a83f1fed45432e2577f7b350de01f52394fd7d6ea6f44790764e8e7168374",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/full_selected/inside710.csv": "bff9c168117fbaf297befb561cbc3580b56b86ceb2d8187be4187060b55ab9a4",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/results.json": "dad87a88dc8efd46bfe1b129e8f02b76d3b0dc64f919cde0c6ad1c0f8a697c35",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/south_changed/published_poses.csv": "cc5b0f127adef7cef1924ae89c704c23696a0c7c988bbd11e763f74c3288643b",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/south_changed/resident_memory.json": "e76e9e62031288a67ffecabebf215b3ef25d6e73f4d537ae4cc0e96bb8e11546",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/south_changed/runtime_performance_debug.jsonl": "a56a6d3356ada2d26ef37f6459987556aa96c0f738722952e7d2473942b49364",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/south_changed/extrinsics.json": "9582e0e086bd0a50b66e548e62c21f3c719ca312c2f03764d0c81cf4532dc8ee",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/south_changed/poses.csv": "7258430cea366614140585c01f61868a8bc7189687f6565c61cf0a8f9323823e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/south_changed/process.csv": "81ee3f8fcd1a945feb3a030f6b1bad6d7bd33b7d0e8482599c48a7e42b8763c0",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/north_reference/published_poses.csv": "8d79ee24b7beaedcef196885102581e9b2ac5330353352be53e999e9d4c8025a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/north_reference/resident_memory.json": "16daf0fddd521993c0b3aa57b55eeff6e518249495b7b006f068e12aaa1fc1fd",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/north_reference/runtime_performance_debug.jsonl": "4f10f9f5b8a2507670d6a0f13707cc722b67c981cb59bfc1ac4744dcdb7ebd00",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/north_reference/extrinsics.json": "9582e0e086bd0a50b66e548e62c21f3c719ca312c2f03764d0c81cf4532dc8ee",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/north_reference/poses.csv": "f8fb4aa0a67f34045dd0cea364a5181fd73dbdef6486b3f469dbb17137aff57c",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/north_reference/process.csv": "3253ac2e3da8f94a4f8496c7eac13c72fa8988f3e808a6e1892eda0c68ea6c82",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/central_reverse_retry/published_poses.csv": "375093daf4f732f0db4192077c2d98b9daf1d4de6c34e3d1c325dbb14a7f1ac6",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/central_reverse_retry/resident_memory.json": "a348e91025655401289325df97db789337697253fb12a7b7ca4495c9e5abb2f6",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/central_reverse_retry/runtime_performance_debug.jsonl": "11a878a810f0d09e80b35fe8e31f073fed6a5604225964808122ae37e758779f",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/central_reverse_retry/extrinsics.json": "9582e0e086bd0a50b66e548e62c21f3c719ca312c2f03764d0c81cf4532dc8ee",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/central_reverse_retry/poses.csv": "23ebc80bbcf30436380efbe5afe775530eddb3f27c2bbb2aabd2cc04ded58991",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_profiling/central_reverse_retry/process.csv": "517ba4a123266ba92b27833ed38a56c5011cc4a6d0703d349208b4d91e3e5fec",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/results.json": "019c36bbb2e77df4a724176d0521ae59d140431a63b38970d0d3aabbfad50934",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/south_changed/published_poses.csv": "f9cc3c853c1427012b383d0d835963772b96fc3672057e6b99b28027c2a70d1a",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/south_changed/resident_memory.json": "e353999afb4378d01d2269bacc4f489f1203aeb6e1c51fd558e98ab6cabb2c10",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/south_changed/runtime_performance_debug.jsonl": "42117d3b37ef44f8af194124e89a3263b01404da8ef3446bb1d15905b6c4c689",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/south_changed/extrinsics.json": "9582e0e086bd0a50b66e548e62c21f3c719ca312c2f03764d0c81cf4532dc8ee",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/south_changed/poses.csv": "78cc6c0855bcffa6f8f5439c97c17e2ef84cae7c0aabcaa3e40c248f8814edb2",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/south_changed/process.csv": "494973f943efbe05c1d713a4ea1e5218faabd6d4c62a73b535ddaae49e63dd6d",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/north_reference/published_poses.csv": "0989f36f17912cfaca4c272cc8c46f23df0d86493239e8f62e5dc7d44741c61e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/north_reference/resident_memory.json": "ff36d5fadd6295d2438430c2595d923e8a2a42229de908d33dff9b89a5dafd6e",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/north_reference/runtime_performance_debug.jsonl": "42aa7f447a95185c35caddae26b1f3317a720cc5ec5ec7b394ad664bfc59424c",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/north_reference/extrinsics.json": "9582e0e086bd0a50b66e548e62c21f3c719ca312c2f03764d0c81cf4532dc8ee",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/north_reference/poses.csv": "1e64bad87e115ed3df263ad723b15a3d64ae2139ad020962bc3040f7c2ccbc2c",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/north_reference/process.csv": "ccd7e38468bc61c3322a07b1f906ac4720da6adec474a48cfafdd9af095cd766",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/central_reverse_retry/published_poses.csv": "3dbb56ad4df724d11ada57ed89190292deb9bac71f0b6d6debd8eb71f7b35ada",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/central_reverse_retry/resident_memory.json": "9b43de56c423edb0bfaefe32de57cf8c7c1a59caca65df0042cb16bc652732da",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/central_reverse_retry/runtime_performance_debug.jsonl": "25c0e388fc68383019f07acce671e66868d96ce2011928446aaf0356c252384f",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/central_reverse_retry/extrinsics.json": "9582e0e086bd0a50b66e548e62c21f3c719ca312c2f03764d0c81cf4532dc8ee",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/central_reverse_retry/poses.csv": "65c3131be6c8c3481709f3f9304529f367a4d1617ec61a1defe43915c2d71289",
+    "/tmp/n3m_sprobo_20261018/search_cost_20261018/dds_selected/central_reverse_retry/process.csv": "516edc313aa7397b406f120ea411a7c07a9aa1b85282d57b5e7f7d80fe4d0efd"
+  },
+  "implementation_sha256": {
+    "include/n3mapping/descriptor_performance.h": "3264a9b66b88fa6a768a006269c9adf5ac08251bac18523a04fab2caa82dee29",
+    "src/relocalization_performance.cpp": "04b2daa4c129cedfeea4b6d06b8aecebf70c24cb47fa81a07a73c37e3d77b23f",
+    "src/localization_crop.cpp": "e7a42a640b6d8c7a8d607c505ce66fdc788eafedae9c18104895d9cf914d4fe5",
+    "src/relocalization_target_provider.cpp": "fc11ee59795e977503ffda2435362d2d80cb18192f4696ff1de5c37e600262c4",
+    "src/world_localizing_relocalization.cpp": "3710a6fa0b5d89bb503eb1c14459b67bcb659fcd7b04a22689308de8e2eae191",
+    "src/world_localizing_evidence.cpp": "a108e0da19201ef9bf7e5dd34625e6aa1011a4ad3d91b267db9ad52b0a9d54e1",
+    "src/visibility_consistency.cpp": "24b2c1711e5f1e0dfc38b30d6a8e0ddb8d66fead261ca5c3420b57b7214fcf28",
+    "src/core/n3mapping_core.cpp": "9adaeeb20d3cf7628d8b2b24a2602a9b0b9512707dbca8181aa422ae7b08cbae"
+  },
+  "input_evidence": "sprobo_results.json / corrected_localization_followup contains the unchanged map and query acquisition fingerprints",
+  "limits": [
+    "Difficult search still exceeds half a core; no heuristic rejection enabled.",
+    "Only invariant target crops are reused, not geometric evidence from different scans/poses.",
+    "Indexed visibility is slower in isolation; overall controlled search CPU improves about 3%.",
+    "Descriptor cold frame-index rebuilding is separate from map loading.",
+    "DDS node plus in-process replay/observers; excludes simulator and FAST_LIO.",
+    "No second full mapping route with these changes; shared descriptor changes are instrumentation only."
+  ]
+}

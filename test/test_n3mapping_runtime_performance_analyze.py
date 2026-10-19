@@ -225,6 +225,25 @@ def write_jsonl(path: Path, records: list[dict[str, object]]) -> None:
 
 
 class RuntimePerformanceAnalyzeTest(unittest.TestCase):
+    def test_search_cost_separates_cold_rebuild_from_warm_retrieval(self) -> None:
+        def record(total, rebuild_calls):
+            return {"relocalization_performance": {
+                "alignments": 3,
+                "descriptor": {
+                    "total": {"wall_ms": total, "thread_cpu_ms": total / 2, "calls": 1},
+                    "index_rebuild": {"wall_ms": total - 2, "thread_cpu_ms": 1, "calls": rebuild_calls},
+                },
+            }}
+        unexecuted = record(0, 0)
+        unexecuted["relocalization_performance"]["alignments"] = 0
+        unexecuted["relocalization_performance"]["descriptor"]["total"]["calls"] = 0
+        report = TOOL.search_cost_summary([{}, unexecuted, record(1000, 1), record(4, 0)])
+        self.assertEqual(report["search_frames"], 3)
+        self.assertEqual(report["descriptor_warm"]["wall_ms"]["p95"], 4)
+        self.assertEqual(report["descriptor_phases"]["index_rebuild"]["wall_ms"]["p95"], 998)
+        self.assertEqual(report["counters"]["alignments"], 6)
+
+
     def test_v2_mapping_requires_and_summarizes_loop_work(self) -> None:
         with tempfile.TemporaryDirectory() as raw_dir:
             directory = Path(raw_dir)

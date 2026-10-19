@@ -295,13 +295,15 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   output.relocalization_decision = relocalization_decision;
   output.relocalization_performance = relocalization_performance;
   output.tracking_performance = tracking_performance;
+  if (relocalization_performance.available)
+    output.performance.initial_relocalization_ms = relocalization_performance.total_ms;
+  if (tracking_performance.available)
+    output.performance.loaded_map_tracking_ms = tracking_performance.tracking_total_ms;
   output.relocalization_seed_keyframe_id = seed_keyframe_id;
   output.relocalization_support_keyframe_id = support_keyframe_id;
   output.matched_keyframe_id = matched_keyframe_id;
-  if (config_.reloc_debug_enable) {
-    output.performance.enabled = true;
-    output.performance.tracking_attempted = tracking_attempted;
-  }
+  output.performance.tracking_attempted = tracking_attempted;
+  output.performance.enabled = config_.reloc_debug_enable;
   return output;
 }
 

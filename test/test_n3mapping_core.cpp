@@ -396,6 +396,16 @@ TEST(N3MappingCoreTest, LocalizationDoesNotAppendDenseOptimizedTrajectory)
         makeFrame(2000000000, Eigen::Isometry3d::Identity()));
     EXPECT_TRUE(output.relocalization_performance.available);
     EXPECT_TRUE(std::isfinite(output.relocalization_performance.total_ms));
+    EXPECT_DOUBLE_EQ(output.performance.initial_relocalization_ms,
+                     output.relocalization_performance.total_ms);
+    const auto& descriptor = output.relocalization_performance.descriptor;
+    EXPECT_EQ(descriptor.total.calls, 1u);
+    EXPECT_EQ(descriptor.generation.calls, 1u);
+    EXPECT_GT(descriptor.generation.thread_cpu_ms, 0.0);
+    EXPECT_GT(descriptor.coarse_comparisons, 0u);
+    EXPECT_GT(descriptor.place_comparisons, 0u);
+    EXPECT_GT(descriptor.place_values, 0u);
+
     EXPECT_EQ(localization_core.getDenseOptimizedTrajectory().size(), loaded_dense.size());
 
     std::filesystem::remove_all(dir);

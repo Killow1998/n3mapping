@@ -641,6 +641,37 @@ def validate_resources(records: list[dict[str, Any]]) -> list[str]:
     return errors
 
 
+def search_cost_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Keep first-use index rebuilds separate from recurring retrieval work."""
+    searches = [row["relocalization_performance"] for row in records
+                if isinstance(row.get("relocalization_performance"), dict)]
+    descriptors = [row["descriptor"] for row in searches
+                   if isinstance(row.get("descriptor"), dict)]
+    phases = {}
+    for phase in ("total", "generation", "index_rebuild", "coarse", "place", "heading"):
+        samples = [row[phase] for row in descriptors
+                   if isinstance(row.get(phase), dict) and row[phase].get("calls", 0) > 0]
+        phases[phase] = {
+            key: stats([row[key] for row in samples if finite(row.get(key))], len(samples))
+            for key in ("wall_ms", "thread_cpu_ms")
+        }
+    warm = [row["total"] for row in descriptors
+            if row.get("index_rebuild", {}).get("calls") == 0
+            and row.get("total", {}).get("calls", 0) > 0]
+    return {
+        "search_frames": len(searches),
+        "descriptor_profiled_frames": len(descriptors),
+        "descriptor_phases": phases,
+        "descriptor_warm": {
+            key: stats([row[key] for row in warm if finite(row.get(key))], len(warm))
+            for key in ("wall_ms", "thread_cpu_ms")
+        },
+        "counters": {key: sum(row.get(key, 0) for row in searches)
+                     for key in ("alignments", "rejected_alignments", "fixed_pose_evaluations")},
+        "scope": "descriptor CPU is calling-thread CPU; total includes its phases; alignment wall sums can overlap",
+    }
+
+
 def dominant_stage(summary: dict[str, dict[str, Any]], fields: Iterable[str]) -> str | None:
     candidates = [
         (summary[field]["p95"], field)
@@ -1098,6 +1129,7 @@ def analyze(
             "resource_samples_outside_runtime_window": len(resources) - len(runtime_resources),
         },
         "runtime_timing_ms": runtime_stats,
+        "relocalization_search": search_cost_summary(runtime),
         "steady_state_runtime_timing_ms": steady_runtime_stats,
         "tracking_timing_ms": tracking_stats,
         "visibility_shadow_timing_ms": visibility_shadow_stats,

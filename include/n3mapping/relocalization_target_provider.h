@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 #include <functional>
 #include <memory>
 #include <string>
@@ -36,6 +37,8 @@ struct RelocTargetRequest {
   // Candidate-only fallback is not retained: tracking an existing hypothesis
   // intentionally rejects an empty crop instead of using this alternative.
   std::function<pcl::PointCloud<pcl::PointXYZI>::Ptr()> build_fallback_target;
+  // The primary visibility crop is exactly the Atlas sphere at crop_center.
+  bool visibility_from_atlas = false;
   double target_build_ms = 0.0;
 };
 
@@ -62,11 +65,16 @@ struct RelocTargetMetrics {
 struct PreparedRelocTarget {
   pcl::PointCloud<pcl::PointXYZI>::Ptr visibility_target;
   std::shared_ptr<const PointCloudMatcher::PreparedTarget> registration_target;
+  // Null means the whole visibility_target; non-null selects points in order.
+  std::shared_ptr<const std::vector<std::uint32_t>> visibility_indices;
   RelocTargetMetrics metrics;
 
-  bool valid() const {
+  bool hasVisibility() const {
     return visibility_target && !visibility_target->empty() &&
-           registration_target && !registration_target->plane_levels.empty();
+           (!visibility_indices || !visibility_indices->empty());
+  }
+  bool valid() const {
+    return hasVisibility() && registration_target && !registration_target->plane_levels.empty();
   }
 };
 

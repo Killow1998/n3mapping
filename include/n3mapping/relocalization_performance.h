@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <cstddef>
 #include <limits>
+#include "n3mapping/descriptor_performance.h"
+
+namespace Json { class Value; }
 
 namespace n3mapping {
 
@@ -35,6 +38,15 @@ struct TrackingPerformance {
 struct RelocalizationPerformance {
   bool available = false;
   double total_ms = 0.0;
+  // Process CPU includes all workers/background work in this interval.
+  double process_cpu_ms = 0.0;
+  double query_build_ms = 0.0;
+  double free_space_ms = 0.0;
+  double diagnostics_ms = 0.0;
+  double fixed_pose_ms = 0.0;
+  std::uint64_t fixed_pose_evaluations = 0;
+  std::uint64_t rejected_alignments = 0;
+  DescriptorSearchPerformance descriptor;
   double source_prepare_ms = 0.0;
   double visibility_prepare_ms = 0.0;
   double target_build_ms = 0.0;
@@ -60,6 +72,9 @@ struct RelocalizationPerformance {
     target_build_ms += other.target_build_ms;
     target_prepare_ms += other.target_prepare_ms;
     align_ms += other.align_ms;
+    fixed_pose_ms += other.fixed_pose_ms;
+    fixed_pose_evaluations += other.fixed_pose_evaluations;
+    rejected_alignments += other.rejected_alignments;
     visibility_ms += other.visibility_ms;
     target_builds += other.target_builds;
     target_preparations += other.target_preparations;
@@ -72,5 +87,7 @@ struct RelocalizationPerformance {
     effective_cache_max_entries = other.effective_cache_max_entries;
   }
 };
+
+Json::Value relocalizationPerformanceJson(const RelocalizationPerformance &cost);
 
 } // namespace n3mapping

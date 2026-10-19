@@ -56,6 +56,9 @@ public:
     const std::string& configSha256() const { return config_sha256_; }
 
     PointCloudT::Ptr cropVisibilityTarget(const Eigen::Vector3d& center) const;
+    // Original point order and exact sphere predicate, sharing immutable map data.
+    std::shared_ptr<const std::vector<std::uint32_t>> cropVisibilityIndices(
+        const Eigen::Vector3d& center) const;
 
     static PointCloudT::Ptr buildGlobalMap(const Config& config,
                                            const std::vector<Keyframe::Ptr>& keyframes);

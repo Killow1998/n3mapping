@@ -176,33 +176,6 @@ LocalizationAtlas::PointCloudT::Ptr LocalizationAtlas::buildGlobalMap(
     return global_map;
 }
 
-LocalizationAtlas::PointCloudT::Ptr LocalizationAtlas::cropGlobalMap(
-    const Config& config, const PointCloudT::Ptr& global_map,
-    const Eigen::Vector3d& center) {
-    auto target = pcl::make_shared<PointCloudT>();
-    if (!global_map || global_map->empty() || !center.allFinite()) return target;
-    const double radius = std::max(1.0, config.rhpd_max_range) +
-                          std::max(0.0, config.gicp_max_correspondence_distance);
-    const double squared_radius = radius * radius;
-    // Retained local crops must not each reserve the entire global map.
-    for (const auto& point : *global_map) {
-        if (!pcl::isFinite(point)) continue;
-        const Eigen::Vector3d position(point.x, point.y, point.z);
-        if ((position - center).squaredNorm() <= squared_radius) {
-            target->push_back(point);
-        }
-    }
-    target->width = static_cast<std::uint32_t>(target->size());
-    target->height = 1;
-    target->is_dense = true;
-    return target;
-}
-
-LocalizationAtlas::PointCloudT::Ptr LocalizationAtlas::cropVisibilityTarget(
-    const Eigen::Vector3d& center) const {
-    return cropGlobalMap(config_, global_map_, center);
-}
-
 std::string LocalizationAtlas::defaultAtlasPath(const std::string& map_path) {
     return map_path + ".localization_atlas.pb";
 }

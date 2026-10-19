@@ -62,7 +62,8 @@ RelocalizationCandidateEvaluator::evaluate(
   const auto yaw_hypotheses = buildDescriptorYawHypotheses(candidate, config_);
   const auto visibility = [&](const Eigen::Isometry3d &pose) {
     const auto start = std::chrono::steady_clock::now();
-    auto result = evaluatePreparedVisibilityConsistency(*target, visibility_observation, pose);
+    auto result = evaluatePreparedVisibilityConsistency(*target, visibility_observation, pose,
+        prepared_target.visibility_indices.get());
     cost.visibility_ms += std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - start).count();
     ++cost.visibility_evaluations;
@@ -86,6 +87,7 @@ RelocalizationCandidateEvaluator::evaluate(
         match.fitness_score < config_.gicp_fitness_threshold &&
         match.inlier_ratio >= config_.reloc_min_inlier_ratio;
     if (!production_quality) {
+      ++cost.rejected_alignments;
       continue;
     }
 
@@ -99,9 +101,13 @@ RelocalizationCandidateEvaluator::evaluate(
       // ICP is only a local pose proposal. Keep the descriptor pose when it
       // explains the measured first-return geometry better than the optimizer's
       // endpoint.
+      const auto fixed_started = std::chrono::steady_clock::now();
       match = matcher_.evaluatePreparedPose(
           *prepared_target.registration_target, prepared_query, initial_pose,
           match.metric);
+      cost.fixed_pose_ms += std::chrono::duration<double, std::milli>(
+          std::chrono::steady_clock::now() - fixed_started).count();
+      ++cost.fixed_pose_evaluations;
       selected_visibility = initial_visibility;
     }
 

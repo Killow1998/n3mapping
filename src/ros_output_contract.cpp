@@ -138,31 +138,7 @@ std::string localizationStatusJson(CoreRunMode mode,
     }
     const auto &cost = output.relocalization_performance;
     if (cost.available) {
-        auto &performance = status["relocalization_performance"];
-        const auto timing = [&](const char *name, double value) {
-            if (std::isfinite(value) && value >= 0.0) performance[name] = value;
-        };
-        timing("total_ms", cost.total_ms);
-        timing("source_prepare_ms", cost.source_prepare_ms);
-        timing("visibility_prepare_ms", cost.visibility_prepare_ms);
-        timing("target_build_ms", cost.target_build_ms);
-        timing("target_prepare_ms", cost.target_prepare_ms);
-        timing("align_ms", cost.align_ms);
-        timing("visibility_ms", cost.visibility_ms);
-        performance["source_preparations"] = Json::UInt64(cost.source_preparations);
-        performance["visibility_preparations"] = Json::UInt64(cost.visibility_preparations);
-        performance["target_builds"] = Json::UInt64(cost.target_builds);
-        performance["target_preparations"] = Json::UInt64(cost.target_preparations);
-        performance["alignments"] = Json::UInt64(cost.alignments);
-        performance["visibility_evaluations"] = Json::UInt64(cost.visibility_evaluations);
-        performance["candidates"] = Json::UInt64(cost.candidates);
-        performance["hypotheses"] = Json::UInt64(cost.hypotheses);
-        performance["cache_hits"] = Json::UInt64(cost.cache_hits);
-        performance["cache_misses"] = Json::UInt64(cost.cache_misses);
-        performance["cache_bytes"] = Json::UInt64(cost.cache_bytes);
-        performance["cache_entries"] = Json::UInt64(cost.cache_entries);
-        performance["effective_cache_max_bytes"] = Json::UInt64(cost.effective_cache_max_bytes);
-        performance["effective_cache_max_entries"] = Json::UInt64(cost.effective_cache_max_entries);
+        status["relocalization_performance"] = relocalizationPerformanceJson(cost);
     }
     Json::StreamWriterBuilder writer;
     writer["indentation"] = "";

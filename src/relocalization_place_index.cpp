@@ -25,12 +25,16 @@ RelocalizationPlaceIndex::RelocalizationPlaceIndex(
           loop_detector.getRHPDManager().getDescriptorParams()) {}
 
 std::vector<LoopCandidate>
-RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
+RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
+    DescriptorSearchPerformance *performance) {
+  DescriptorPhaseTimer search_timer(performance ? &performance->total : nullptr);
   std::vector<LoopCandidate> candidates;
   if (!cloud || cloud->empty()) {
     return candidates;
   }
 
+  DescriptorPhaseTimer generation_timer(performance ? &performance->generation : nullptr);
+  if (performance) performance->input_points += cloud->size();
   const auto &rhpd_manager = loop_detector_.getRHPDManager();
   RHPDPlace query_rhpd;
   RHPDHeadingPtr query_sc;
@@ -45,6 +49,12 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
     query_sc = loop_detector_.computeHeading(cloud);
   }
 
+  generation_timer.finish();
+  if (performance) {
+    performance->place_values += query_rhpd.storedValues();
+    performance->heading_values += query_sc ? query_sc->values.size() : 0;
+  }
+
   if (use_rhpd) {
     if (query_rhpd.isZero()) {
       LOG(WARNING) << "[Reloc/RHPD] query descriptor is zero.";
@@ -52,7 +62,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
       const int preselect = std::max(config_.rhpd_num_candidates * 3,
                                      config_.reloc_num_candidates * 3);
       auto top_k = rhpd_manager.search(query_rhpd, std::max(1, preselect),
-                                       config_.rhpd_preselect_candidates);
+                                       config_.rhpd_preselect_candidates, performance);
       std::vector<LoopCandidate> ranked;
       ranked.reserve(top_k.size());
 
@@ -74,8 +84,11 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
         if (config_.rhpd_use_sc_yaw) match_sc = loop_detector_.getDescriptor(item.first);
         if (config_.rhpd_use_sc_yaw && query_sc &&
             match_sc) {
+          DescriptorPhaseTimer heading_timer(performance ? &performance->heading : nullptr);
+          if (performance) ++performance->heading_comparisons;
           auto [sc_dist, yaw_shift] =
               loop_detector_.computeDistance(query_sc, match_sc);
+          heading_timer.finish();
           candidate.sc_distance = sc_dist;
           candidate.yaw_diff_rad =
               static_cast<float>(yaw_shift) *
@@ -117,7 +130,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
         candidates.push_back(ranked[i]);
       }
 
-      appendFrameRHPDCandidates(query_rhpd, query_sc, candidates);
+      appendFrameRHPDCandidates(query_rhpd, query_sc, candidates, performance);
       std::sort(candidates.begin(), candidates.end(),
                 [](const LoopCandidate &lhs, const LoopCandidate &rhs) {
                   if (lhs.fused_score != rhs.fused_score) {
@@ -145,6 +158,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
               << " score=" << candidate.fused_score;
     }
     if (!candidates.empty()) {
+      if (performance) performance->returned_candidates += candidates.size();
       return candidates;
     }
   }
@@ -161,8 +175,11 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
     if (!descriptor) {
       continue;
     }
+    DescriptorPhaseTimer heading_timer(performance ? &performance->heading : nullptr);
+    if (performance) ++performance->heading_comparisons;
     auto [sc_dist, yaw_shift] =
         loop_detector_.computeDistance(query_sc, descriptor);
+    heading_timer.finish();
     if (sc_dist > config_.reloc_sc_dist_threshold) {
       continue;
     }
@@ -193,16 +210,19 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud) {
   VLOG(1) << "[Reloc/SCFallback] kept=" << candidates.size()
           << " rhpd_enabled=" << config_.rhpd_enabled
           << " rhpd_db=" << rhpd_manager.size();
+  if (performance) performance->returned_candidates += candidates.size();
   return candidates;
 }
 
-void RelocalizationPlaceIndex::rebuildFrameRHPDIndexIfNeeded() {
+void RelocalizationPlaceIndex::rebuildFrameRHPDIndexIfNeeded(
+    DescriptorSearchPerformance *performance) {
   const KeyframeMapRevision current_revision = keyframe_manager_.revision();
   const std::size_t current_size = keyframe_manager_.size();
   if (sameGenerationAndStructure(frame_rhpd_revision_, current_revision)) {
     return;
   }
 
+  DescriptorPhaseTimer rebuild_timer(performance ? &performance->index_rebuild : nullptr);
   frame_rhpd_manager_.clear();
   std::size_t indexed = 0;
   for (const auto &keyframe : keyframe_manager_.getAllKeyframes()) {
@@ -216,6 +236,7 @@ void RelocalizationPlaceIndex::rebuildFrameRHPDIndexIfNeeded() {
     frame_rhpd_manager_.add(keyframe->id, descriptor);
     ++indexed;
   }
+  if (performance) performance->indexed_keyframes += indexed;
   frame_rhpd_indexed_keyframes_ = current_size;
   frame_rhpd_revision_ = current_revision;
   VLOG(1) << "[Reloc/RHPDFrame] rebuilt frame-level index: indexed=" << indexed
@@ -224,12 +245,13 @@ void RelocalizationPlaceIndex::rebuildFrameRHPDIndexIfNeeded() {
 
 void RelocalizationPlaceIndex::appendFrameRHPDCandidates(
     const RHPDPlace &query_rhpd, const RHPDHeadingPtr &query_sc,
-    std::vector<LoopCandidate> &candidates) {
+    std::vector<LoopCandidate> &candidates,
+    DescriptorSearchPerformance *performance) {
   if (query_rhpd.isZero()) {
     return;
   }
 
-  rebuildFrameRHPDIndexIfNeeded();
+  rebuildFrameRHPDIndexIfNeeded(performance);
   if (frame_rhpd_manager_.size() == 0) {
     return;
   }
@@ -238,7 +260,7 @@ void RelocalizationPlaceIndex::appendFrameRHPDCandidates(
                              config_.rhpd_num_candidates * 2);
   const int preselect = std::max(config_.rhpd_preselect_candidates, top_k * 5);
   auto frame_top =
-      frame_rhpd_manager_.search(query_rhpd, std::max(1, top_k), preselect);
+      frame_rhpd_manager_.search(query_rhpd, std::max(1, top_k), preselect, performance);
   for (int i = 0; i < static_cast<int>(frame_top.size()); ++i) {
     const auto &item = frame_top[i];
     if (item.second > config_.rhpd_dist_threshold) {
@@ -256,8 +278,11 @@ void RelocalizationPlaceIndex::appendFrameRHPDCandidates(
     RHPDHeadingPtr match_sc;
     if (config_.rhpd_use_sc_yaw) match_sc = loop_detector_.getDescriptor(item.first);
     if (config_.rhpd_use_sc_yaw && query_sc && match_sc) {
+      DescriptorPhaseTimer heading_timer(performance ? &performance->heading : nullptr);
+      if (performance) ++performance->heading_comparisons;
       auto [sc_dist, yaw_shift] =
           loop_detector_.computeDistance(query_sc, match_sc);
+      heading_timer.finish();
       candidate.sc_distance = sc_dist;
       candidate.yaw_diff_rad =
           static_cast<float>(yaw_shift) *

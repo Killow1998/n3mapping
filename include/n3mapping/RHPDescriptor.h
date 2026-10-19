@@ -22,6 +22,7 @@
 
 #include "n3mapping/rhpd_heading.h"
 #include "n3mapping/rhpd_place.h"
+#include "n3mapping/descriptor_performance.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
@@ -139,12 +140,14 @@ public:
 
     // Search for the top-k nearest neighbors. Returns (kf_id, distance) pairs sorted by distance.
     std::vector<std::pair<int64_t, double>> search(const Place& query, int top_k) const;
-    std::vector<std::pair<int64_t, double>> search(const Place& query, int top_k, int preselect) const;
+    std::vector<std::pair<int64_t, double>> search(const Place& query, int top_k, int preselect,
+        DescriptorSearchPerformance* performance = nullptr) const;
     std::vector<std::pair<int64_t, double>> searchFiltered(
         const Place& query,
         int top_k,
         int preselect,
-        const std::function<bool(int64_t)>& accept) const;
+        const std::function<bool(int64_t)>& accept,
+        DescriptorSearchPerformance* performance = nullptr) const;
     bool get(int64_t kf_id, Place* descriptor) const;
     VecD makeCoarseKey(const Place& descriptor) const;
 

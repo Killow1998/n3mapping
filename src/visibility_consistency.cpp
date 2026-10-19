@@ -143,7 +143,8 @@ PreparedVisibilityObservation prepareVisibilityObservation(
 VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
     const PreparedVisibilityObservation &observed,
-    const Eigen::Isometry3d &T_map_lidar) {
+    const Eigen::Isometry3d &T_map_lidar,
+    const std::vector<std::uint32_t> *indices) {
   VisibilityConsistencyResult result;
   if (map_cloud.empty() || observed.ranges.empty() ||
       !T_map_lidar.matrix().array().isFinite().all()) {
@@ -170,13 +171,20 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
       180.0, resolution_deg, predicted.azimuth_bins, true);
   const visibility_detail::AngularBinLookup elevation(
       90.0, resolution_deg, predicted.elevation_bins, false);
-  for (const auto &point : map_cloud) {
-    if (!pcl::isFinite(point))
-      continue;
+  const auto project = [&](const pcl::PointXYZI &point) {
+    if (!pcl::isFinite(point)) return;
     insertPoint(T_lidar_map * Eigen::Vector3d(point.x, point.y, point.z),
                 options, &predicted,
                 options.occlusion_aware ? &observed.ranges : nullptr,
                 &azimuth, &elevation);
+  };
+  if (indices) {
+    for (const auto index : *indices) {
+      if (index >= map_cloud.size()) return {};
+      project(map_cloud[index]);
+    }
+  } else {
+    for (const auto &point : map_cloud) project(point);
   }
 
   std::vector<double> residuals;

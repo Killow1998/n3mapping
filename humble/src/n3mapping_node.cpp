@@ -754,6 +754,7 @@ class N3MappingNode : public rclcpp::Node
             auto output = n3mapping_core_->processFrame(run_mode_, frame);
             if (performance_enabled) {
                 performance_event.core_frame_ms = elapsed_ms(core_started);
+                performance_event.relocalization_performance = output.relocalization_performance;
                 performance_event.core_success = output.success;
                 performance_event.accepted_keyframe =
                   output.accepted_keyframe;

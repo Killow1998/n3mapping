@@ -38,6 +38,7 @@ void fillQueryCloudDebugSummary(const PlaceObservation &observation,
 RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                                         const Eigen::Isometry3d &odom_pose,
                                         double query_timestamp) {
+  const double reloc_cpu_started = cpuTimeMs(CLOCK_PROCESS_CPUTIME_ID);
   const auto reloc_started = std::chrono::steady_clock::now();
   RelocResult result;
   result.success = false;
@@ -50,6 +51,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   const auto completed_result = [&]() {
     cost.total_ms = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - reloc_started).count();
+    cost.process_cpu_ms = cpuTimeMs(CLOCK_PROCESS_CPUTIME_ID) - reloc_cpu_started;
     return result;
   };
   auto finish_debug = [&](const std::string &lock_result,
@@ -93,8 +95,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     return completed_result();
   }
 
+  const auto query_started = std::chrono::steady_clock::now();
   const PlaceObservation query_observation =
       query_builder_.buildStationary(cloud, odom_pose);
+  cost.query_build_ms = std::chrono::duration<double, std::milli>(
+      std::chrono::steady_clock::now() - query_started).count();
   PointCloudT::Ptr query_cloud = query_observation.cloud;
   if (!query_cloud || query_cloud->empty()) {
     LOG(WARNING) << "Relocalization query cloud is empty after aggregation.";
@@ -102,6 +107,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     return completed_result();
   }
   if (reloc_debug_enabled) {
+    const auto diagnostics_started = std::chrono::steady_clock::now();
     RelocQueryCloudDebugSummary query_cloud_debug;
     fillQueryCloudDebugSummary(query_observation, &query_cloud_debug);
     debug_event.query_cloud = query_cloud_debug;
@@ -116,6 +122,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       debug_event.motion_query_cloud.top_candidates =
           std::move(motion_candidates);
     }
+    cost.diagnostics_ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - diagnostics_started).count();
   }
 
   // Retrieval needs no registration representation. Prepare once on the
@@ -142,11 +150,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             << " visibility_preparations=1 visibility_prepare_ms="
             << cost.visibility_prepare_ms;
   };
-  const auto hypothesis_visibility = [&](const PointCloudT::Ptr &target,
+  const auto hypothesis_visibility = [&](const PreparedRelocTarget &target,
                                          const Eigen::Isometry3d &pose) {
     const auto started = std::chrono::steady_clock::now();
     auto visibility = evaluatePreparedVisibilityConsistency(
-        *target, visibility_observation, pose);
+        *target.visibility_target, visibility_observation, pose, target.visibility_indices.get());
     cost.visibility_ms += std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - started).count();
     ++cost.visibility_evaluations;
@@ -177,7 +185,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       };
 
   if (hypothesis_manager_.empty()) {
-    auto candidates = place_index_.search(query_cloud);
+    auto candidates = place_index_.search(query_cloud, &cost.descriptor);
     if (reloc_debug_enabled) {
       debug_event.query_cloud.candidate_count = candidates.size();
       debug_event.query_cloud.top_candidates = candidates;
@@ -454,7 +462,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       return completed_result();
     }
   } else {
-    const auto current_candidates = place_index_.search(query_cloud);
+    const auto current_candidates = place_index_.search(query_cloud, &cost.descriptor);
     if (reloc_debug_enabled) {
       debug_event.query_cloud.candidate_count = current_candidates.size();
       debug_event.query_cloud.top_candidates = current_candidates;
@@ -501,12 +509,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       cost.cache_misses += prepared_target.metrics.cache_miss;
       cost.effective_cache_max_bytes = prepared_target.metrics.effective_max_bytes;
       cost.effective_cache_max_entries = prepared_target.metrics.effective_max_entries;
-      auto submap = prepared_target.visibility_target;
       for (auto *hypothesis : hypotheses) {
         auto &hyp = *hypothesis;
         const Eigen::Isometry3d predicted_pose = hyp.T_map_odom * odom_pose;
         ++cost.hypotheses;
-        if (!submap || submap->empty()) {
+        if (!prepared_target.hasVisibility()) {
           hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
           continue;
         }
@@ -517,7 +524,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         // pose onto a remote dense surface.
         prepare_query();
         const auto predicted_visibility =
-            hypothesis_visibility(submap, predicted_pose);
+            hypothesis_visibility(prepared_target, predicted_pose);
         MatchResult mr;
         if (prepared_target.valid()) {
           const auto align_started = std::chrono::steady_clock::now();
@@ -526,13 +533,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           cost.align_ms += std::chrono::duration<double, std::milli>(
               std::chrono::steady_clock::now() - align_started).count();
           ++cost.alignments;
+          if (!hasValidRegistrationResult(mr)) ++cost.rejected_alignments;
         }
         VisibilityConsistencyResult selected_visibility = predicted_visibility;
         Eigen::Isometry3d selected_pose = predicted_pose;
         bool selected_registration_endpoint = false;
         if (hasValidRegistrationResult(mr)) {
           const auto refined_visibility =
-              hypothesis_visibility(submap, mr.T_target_source);
+              hypothesis_visibility(prepared_target, mr.T_target_source);
           if (refined_visibility.valid &&
               (!selected_visibility.valid ||
                refined_visibility.consistency_ratio >
@@ -542,9 +550,13 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             selected_registration_endpoint = true;
           }
           if (!selected_registration_endpoint) {
+            const auto fixed_started = std::chrono::steady_clock::now();
             mr = matcher_.evaluatePreparedPose(*prepared_target.registration_target,
                                                prepared_query, selected_pose,
                                                mr.metric);
+            cost.fixed_pose_ms += std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - fixed_started).count();
+            ++cost.fixed_pose_evaluations;
           }
         }
         hyp.cumulative_log_likelihood +=
@@ -615,10 +627,15 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     }
   }
 
-  const RelocHypothesis *free_space_best =
-      freeSpaceBestHypothesis(query_cloud, odom_pose);
-  if (config_.reloc_free_space_mode == "kill")
+  // Kill mode changes the hypothesis set before ranking. Veto mode is a final
+  // acceptance condition and need not inspect geometry for an already rejected
+  // or incomplete temporal window.
+  if (config_.reloc_free_space_mode == "kill") {
+    const auto started = std::chrono::steady_clock::now();
     killFreeSpaceDominatedHypotheses(query_cloud, odom_pose);
+    cost.free_space_ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - started).count();
+  }
 
   if (reloc_debug_enabled) {
     debug_event.hypotheses.clear();
@@ -723,10 +740,20 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
 
   const HypothesisMotionBaseline motion_baseline =
       hypothesis_manager_.motionBaseline(odom_pose);
-  const RelocalizationDecision decision =
+  RelocalizationDecision decision =
       decision_policy_.evaluate(ranking, hypothesis_manager_.windowCount(),
                                 hypothesis_manager_.winnerStreak(),
-                                motion_baseline, free_space_best, odom_pose);
+                                motion_baseline, nullptr, odom_pose);
+  if (config_.reloc_free_space_mode != "kill" &&
+      !decision.temporal_window_pending && decision.accepted) {
+    const auto started = std::chrono::steady_clock::now();
+    const auto *free_space_best = freeSpaceBestHypothesis(query_cloud, odom_pose);
+    cost.free_space_ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - started).count();
+    decision = decision_policy_.evaluate(
+        ranking, hypothesis_manager_.windowCount(), hypothesis_manager_.winnerStreak(),
+        motion_baseline, free_space_best, odom_pose);
+  }
   const int effective_temporal_window = decision.effective_temporal_window;
   if (decision.temporal_window_pending) {
     VLOG(1) << "Relocalization pending: window "

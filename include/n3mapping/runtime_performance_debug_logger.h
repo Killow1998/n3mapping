@@ -8,6 +8,7 @@
 #include <string>
 
 #include "n3mapping/config.h"
+#include "n3mapping/relocalization_performance.h"
 
 namespace n3mapping {
 
@@ -16,6 +17,7 @@ namespace n3mapping {
 // consumers never see a new record type. The logger is enabled by the existing
 // reloc_debug_enable switch and does not participate in runtime decisions.
 struct RuntimePerformanceDebugEvent {
+  RelocalizationPerformance relocalization_performance;
   std::string mode;
   double processing_time = 0.0;
   uint64_t frame_index = 0;

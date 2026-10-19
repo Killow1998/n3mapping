@@ -1,4 +1,5 @@
 #include <chrono>
+#include <json/json.h>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -46,6 +47,9 @@ int main(int argc, char** argv) {
     return 4;
   std::ofstream output(argv[4]);
   output << std::setprecision(17);
+  std::ofstream costs(std::string(argv[4]) + ".costs.jsonl");
+  Json::StreamWriterBuilder writer;
+  writer["indentation"] = "";
   output << "frame,stamp_ns,points,success,lock,state,pose_source,decision,seed,support,matched,live,wall_ms,cpu_ms,cumulative_wall_ms,cumulative_cpu_ms,late_ms,source_ms,target_ms,submap_ms,tracking_ms,registration_ms,visibility_ms,reloc_source_ms,reloc_align_ms,reloc_visibility_ms,cache_hit,cache_miss,candidates,alignments,rss_kib";
   for (int i = 0; i < 16; ++i) output << ",pose" << i;
   output << '\n';
@@ -115,6 +119,12 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 16; ++i) output << ',' << result.T_world_lidar.matrix().data()[i];
     output << '\n';
     output.flush();
+    if (r.available) {
+      auto record = n3mapping::relocalizationPerformanceJson(r);
+      record["frame"] = index;
+      costs << Json::writeString(writer, record) << '\n';
+      costs.flush();
+    }
     if (index % 100 == 0)
       std::cerr << "FRAME " << index << " state=" << static_cast<int>(result.relocalization_state)
                 << " sensor_ms=" << elapsed_sensor_ms << " cpu_ms=" << process_cpu

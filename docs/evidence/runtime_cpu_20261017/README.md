@@ -1072,3 +1072,151 @@ passes the existing suite, but a second complete remapping route has not been
 run with this edit. See `corrected_localization_followup` in
 [sprobo_results.json](sprobo_results.json) for source/artifact fingerprints,
 failed trials, complete trajectories, memory samples and reproducible commands.
+
+### Search accounting and exact geometry reuse (2026-10-18)
+
+This stage starts from `7c7ea604c963eeda9a5741634c5c8c463d16be86` and keeps the
+Product configuration, descriptor contents, registration algorithm and acceptance
+thresholds unchanged. Measurements and artifact fingerprints are in
+[search_cost_20261018.json](search_cost_20261018.json).
+
+The localization core previously failed to forward measured search/tracking times
+to the runtime logger, leaving those fields null even when the stages ran.
+It now forwards both timings and the actual tracking-attempt flag. The shared
+search serializer serves `/localization/status` and the optional runtime JSONL.
+It records query aggregation, descriptor generation, first-use index rebuilding,
+coarse/place/heading matching, target construction, registration, visibility,
+fixed-pose reevaluation and free-space work. Counters distinguish executed work
+from stages that did not run. The analysis tool exposes `relocalization_search`
+and separates first-use rebuilding from warm descriptor samples.
+
+Timing scopes matter: descriptor CPU is the calling thread's CPU; search CPU
+is process CPU during the interval, including workers and background activity.
+Alignment timings are sums of call wall times and can overlap across parallel
+candidates. Descriptor total already contains its component phases. These values
+must not be added together as a CPU breakdown. A clock failure is not reported
+as a measured zero, and unexecuted descriptor phases have `calls=0`.
+Optional motion-shadow retrieval is charged to `diagnostics_ms`, separately
+from normal retrieval; enabling that diagnostic can warm the index first.
+
+On the 1,276-keyframe corrected map, the four initial search prefixes give:
+
+| Descriptor work | Warm mean thread CPU per query |
+| --- | ---: |
+| Generate place and heading | 0.87–1.10 ms |
+| Coarse comparisons | 0.22–0.26 ms |
+| Full place comparisons | 0.27–0.29 ms |
+| Heading comparisons | 1.65–1.69 ms |
+| Complete descriptor generation and retrieval | 3.05–3.34 ms |
+
+The first query additionally spends 409–452 ms rebuilding the frame-level index;
+this is separate from approximately 7 s of map/node loading. Each query performs
+2,552 coarse comparisons across the two indexes, 200 full place comparisons and
+50 heading comparisons, returning ten candidates before spatial grouping.
+
+RHPD remains **2,973 place + 8,400 heading = 11,373 logical values**, plus its
+53-value coarse key. The direction-preserving channels already incorporate the
+SC role; no separate ScanContext descriptor is computed. Occupied cells are
+stored sparsely: the observed warm queries retain about 2,896–3,105 numerical
+values in total, excluding index/key/norm/container overhead. Logical dimension
+is therefore not an allocation count. At ten descriptor queries per second,
+the measured warm work would consume about 0.031–0.033 CPU cores on this host;
+steady tracking does not necessarily retrieve on every input. Dimension
+reduction is deferred because the measured opportunity is small relative to
+geometric search and changing information content risks recall.
+
+Two exact changes are retained:
+
+- Cache the ordered indices of an Atlas visibility crop, sharing the immutable
+  global points and prepared registration geometry. The sphere, finite-point
+  filter, point order, seeds and registration target are unchanged. Reuse the
+  existing search LRU, bounded by 128 MiB / eight entries, invalidated by map
+  generation/structure/pose revision and cleared at lock. Empty-crop fallback
+  remains candidate-only and cannot enter the hypothesis cache. Ordinary local
+  targets retain their existing representation. The observed retained index
+  working set is 20–32 MiB; it is not permanent tracking storage.
+- Defer the terminal free-space veto until the temporal window and all other
+  acceptance gates pass. Kill mode still executes before ranking because it
+  changes the hypothesis set. Pending/rejected windows need no final veto;
+  every otherwise acceptable solution still receives the same check.
+
+Three serial alternating A/B rounds pin both variants to the same four physical
+performance cores, with unchanged four-worker configuration and passive OpenMP
+waiting. The baseline includes the same instrumentation. Medians are:
+
+| Search workload | Process CPU before → after | Elapsed before → after | Crop builds before → after |
+| --- | ---: | ---: | ---: |
+| Central reverse, five observations to first lock | 15.680 → 15.206 s (−3.0%) | 6.528 → 6.092 s (−6.7%) | 33 → 12 |
+| Repetitive central, first twenty observations | 141.759 → 137.685 s (−2.9%) | 45.706 → 42.020 s (−8.1%) | 119 → 35 |
+
+Decisions match at every observation; the maximum pose-matrix difference is
+1.18e-16. Registration counts remain 60 and 295. Crop wall sums fall 81–86%,
+but indexed visibility wall sums increase about 13%, so the overall gain is
+much smaller. This is a measured total tradeoff, not an 80% search speedup.
+A preliminary copied-cloud cache retained roughly 112 MiB yet barely reused
+central crops under the same budget; it was replaced by the index representation.
+Earlier unpinned, non-interleaved timings are exploratory and are not the basis
+for the reported CPU gain.
+
+Early rejection was tested separately and **not adopted**. Stopping after a
+coarse scale that failed convergence/fitness/inlier checks preserved several
+ordinary replay prefixes, but lost 37 formerly successful results among 315
+initial-pose perturbations across three scenes (13 central, five south, nineteen
+north). Every lost result had an unconverged coarse stage; finer stages could
+recover it. The reference is the baseline accepted pose transported to the
+first query, not independent ground truth. A narrower rule, rejecting only an
+already-converged coarse stage with excessive fitness error, lost no such cases
+but produced no demonstrated end-to-end gain. Neither rule changes production.
+
+The unmodified initial search rejects 7/60, 13/61 and 10/60 completed registrations
+in the three positive queries, and 54/295 in the repetitive prefix. This is the
+final registration-quality rejection count, not proof that these candidates
+could have been identified safely before optimization. Likewise, a repeated
+candidate can reuse invariant map geometry while a new scan or changed pose
+still requires fresh geometric evidence. Difficult search remains above half
+a core; this stage does not claim to solve that target or qualify RK3588.
+
+Complete core replay covers six real recordings and three positive simulated
+queries (6,482 frames). Every state, decision, seed/support/matched keyframe,
+first-lock observation and output flag matches the instrumented baseline;
+maximum pose-matrix difference is 3.98e-13. The full 346-frame repetitive query
+also matches its previous production baseline exactly: zero locks/outputs and
+4,886 registrations. The latter baseline is from the previous stage, so its
+whole-run CPU cannot establish a controlled A/B gain. The controlled negative
+CPU claim above is restricted to the twenty-frame prefixes.
+
+Final-source verification passes all 61 CTest entries and serial local DDS
+replays of the three positive queries at 10 Hz. Both baseline and selected node
+process all 346 pairs per query, including all 249 pairs in the stable window
+after ten seconds. The following are individual DDS runs, not repeated medians:
+
+| Query | Stable CPU before → after (cores) | First path before → after (s) | Current RSS before → after (GiB) | Selected maximum position / rotation |
+| --- | ---: | ---: | ---: | ---: |
+| Central reverse | 0.310 → 0.312 | 6.621 → 6.000 | 2.495 → 2.421 | 0.0187 m / 0.1952° |
+| South changed | 0.330 → 0.325 | 5.850 → 5.489 | 2.500 → 2.423 | 0.0636 m / 0.1604° |
+| North reference | 0.354 → 0.353 | 5.110 → 5.012 | 2.491 → 2.445 | 0.5125 m / 0.4985° |
+
+The selected whole-run averages, including search, are 0.785 / 0.751 / 0.760
+cores. First-path times start after map/node loading, which takes another
+7.21–7.25 s in these selected runs. CPU includes the node, in-process replay,
+observers and serialization; it excludes simulator and FAST_LIO. RSS is the
+external sample median after thirty seconds from process launch. Pose scoring
+uses the unchanged mapping first-pose alignment, with no query fitting; the
+1 m / 5° gross quality check is not a claim of centimetre-level accuracy.
+
+Each selected runtime JSONL contains five finite, correctly forwarded search
+timings and 341 actual tracking attempts with finite tracking timings.
+Descriptor subtotals fit within their recorded totals, and all runtime records
+pass schema validation. The previous instrumented snapshot still records zero
+tracking attempts when only its logger is enabled, reproducing the flag defect;
+the final core fixes it. Tests use the explicitly selected build libraries;
+the existing installed workspace binaries are not replaced by these experiments.
+
+For local reproduction, build the probes with the existing `build_probes.py`,
+source the Humble/workspace setup, and put the corresponding build libraries
+first in `LD_LIBRARY_PATH` (do not mix old installed reader/core libraries).
+`replay_probe MAP ATLAS MANIFEST OUTPUT_CSV 0 MAX_FRAMES` writes both the normal
+CSV and `OUTPUT_CSV.costs.jsonl`. The retained artifact root contains
+`pinned_ab.py`, `full_replay.py`, `run_dds.py`, the rejected coarse-gate sources,
+the perturbation probe, complete outputs and frozen baseline/selected libraries.
+Their hashes, exact DDS arguments and timing audit are in the linked JSON.

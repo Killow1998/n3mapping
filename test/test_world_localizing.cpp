@@ -1289,6 +1289,9 @@ TEST_F(WorldLocalizingTest,
 }
 
 TEST_F(WorldLocalizingTest, FreeSpaceStateClearedOnMapReplacement) {
+  // Kill mode needs the grid while the temporal window is still pending;
+  // veto mode now builds it only for an otherwise acceptable decision.
+  config_.reloc_free_space_mode = "kill";
   buildTestMap(10, 2.0, 0.0);
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);

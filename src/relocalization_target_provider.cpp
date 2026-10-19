@@ -17,8 +17,8 @@ using Clock = std::chrono::steady_clock;
 
 // Search-only working set, independent of the tracking cache. Oversized
 // targets are evaluated normally without retention.
-constexpr std::size_t kSearchLocalCacheBytes = 128 * 1024 * 1024;
-constexpr std::size_t kSearchLocalCacheEntries = 8;
+constexpr std::size_t kSearchCacheBytes = 128 * 1024 * 1024;
+constexpr std::size_t kSearchCacheEntries = 8;
 
 double elapsedMs(const Clock::time_point &start) {
   return std::chrono::duration<double, std::milli>(Clock::now() - start)
@@ -45,10 +45,11 @@ struct CacheKey {
   int64_t anchor_id = -1;
   KeyframeMapRevision map_revision;
   Eigen::Vector3d crop_center = Eigen::Vector3d::Zero();
+  bool visibility_from_atlas = false;
 
   bool operator==(const CacheKey &other) const {
     return anchor_id == other.anchor_id && map_revision == other.map_revision &&
-           crop_center == other.crop_center;
+           crop_center == other.crop_center && visibility_from_atlas == other.visibility_from_atlas;
   }
 };
 
@@ -56,6 +57,7 @@ struct CacheEntry {
   CacheKey key;
   std::shared_ptr<const PointCloudMatcher::PreparedTarget> target;
   pcl::PointCloud<pcl::PointXYZI>::Ptr local_target;
+  std::shared_ptr<const std::vector<std::uint32_t>> indices;
   std::size_t bytes = 0;
 };
 
@@ -77,13 +79,14 @@ public:
     result.metrics.crop_center = request.crop_center;
     result.metrics.map_revision = request.map_revision;
 
-    const bool automatic_local =
-        mode_ == RelocTargetMode::LEGACY_GLOBAL_ATLAS &&
-        !localization_atlas_.loaded();
-    if (automatic_local || mode_ == RelocTargetMode::LOCAL_LRU) {
-      getCachedLocalTarget(request, &result);
-      result.metrics.registration_source = automatic_local
-          ? "legacy_local_lru" : "local_lru";
+    const bool legacy = mode_ == RelocTargetMode::LEGACY_GLOBAL_ATLAS;
+    if (legacy || mode_ == RelocTargetMode::LOCAL_LRU) {
+      getCachedTarget(request, &result);
+      result.metrics.registration_source = legacy
+          ? (localization_atlas_.loaded() ? "legacy_global_atlas" : "legacy_local_lru")
+          : "local_lru";
+      if (legacy && localization_atlas_.loaded())
+        result.metrics.target_points = localization_atlas_.globalMap()->size();
       logMetrics(result.metrics);
       return result;
     }
@@ -95,19 +98,17 @@ public:
     }
 
     switch (mode_) {
-    case RelocTargetMode::LEGACY_GLOBAL_ATLAS:
-      setLegacyTarget(request, &result);
-      break;
     case RelocTargetMode::LOCAL_NO_CACHE:
       setUncachedLocalTarget(request, &result);
       break;
+    case RelocTargetMode::LEGACY_GLOBAL_ATLAS:
     case RelocTargetMode::LOCAL_LRU:
-      break;
+      break; // handled by the cache above
     case RelocTargetMode::SHADOW_LOCAL_LRU: {
       PreparedRelocTarget shadow;
       shadow.metrics = result.metrics;
       if (primary_target) {
-        getCachedLocalTarget(request, &shadow);
+        getCachedTarget(request, &shadow);
       } else {
         setUncachedLocalTarget(request, &shadow);
       }
@@ -192,19 +193,20 @@ private:
     return true;
   }
 
-  void getCachedLocalTarget(RelocTargetRequest request,
-                            PreparedRelocTarget *result) {
+  void getCachedTarget(RelocTargetRequest request,
+                       PreparedRelocTarget *result) {
     auto *metrics = &result->metrics;
-    const bool automatic_local = mode_ == RelocTargetMode::LEGACY_GLOBAL_ATLAS;
-    const std::size_t max_bytes = automatic_local ? kSearchLocalCacheBytes :
+    const bool legacy = mode_ == RelocTargetMode::LEGACY_GLOBAL_ATLAS;
+    const std::size_t max_bytes = legacy ? kSearchCacheBytes :
         static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_bytes));
-    const std::size_t max_entries = automatic_local ? kSearchLocalCacheEntries :
+    const std::size_t max_entries = legacy ? kSearchCacheEntries :
         static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_entries));
     metrics->effective_max_bytes = max_bytes;
     metrics->effective_max_entries = max_entries;
     // Config identity is the provider itself: its config is immutable and no
     // entries are shared between providers.
-    const CacheKey key{request.anchor_id, request.map_revision, request.crop_center};
+    const CacheKey key{request.anchor_id, request.map_revision, request.crop_center,
+                       request.visibility_from_atlas};
     std::size_t build_epoch = 0;
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -218,6 +220,7 @@ private:
         fillCacheMetricsLocked(metrics);
         metrics->target_points = entries_.front().local_target->size();
         result->visibility_target = entries_.front().local_target;
+        result->visibility_indices = entries_.front().indices;
         result->registration_target = entries_.front().target;
         return;
       }
@@ -226,19 +229,41 @@ private:
       build_epoch = epoch_;
     }
 
-    const bool retainable = buildLocalTarget(&request, metrics);
+    const bool use_atlas = legacy && localization_atlas_.loaded();
+    bool retainable = true;
+    if (use_atlas && request.visibility_from_atlas) {
+      const auto started = Clock::now();
+      result->visibility_indices = localization_atlas_.cropVisibilityIndices(request.crop_center);
+      metrics->target_build_ms += elapsedMs(started);
+      ++metrics->target_builds;
+      if (result->visibility_indices && !result->visibility_indices->empty()) {
+        request.local_target = localization_atlas_.globalMap();
+      } else if (result->visibility_indices) {
+        // Preserve the candidate-only fallback and never cache it as a primary crop.
+        request.local_target = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        request.build_local_target = {};
+        result->visibility_indices.reset();
+      }
+    }
+    if (!result->visibility_indices) retainable = buildLocalTarget(&request, metrics);
     result->visibility_target = request.local_target;
     if (!request.local_target || request.local_target->empty()) return;
-    const auto start = Clock::now();
-    auto prepared = std::make_shared<const PointCloudMatcher::PreparedTarget>(
-        matcher_.prepareTargetCloud(request.local_target));
-    metrics->target_prepare_ms = elapsedMs(start);
-    ++metrics->target_preparations;
-    result->registration_target = prepared;
-    metrics->target_points = request.local_target->size();
-    const std::size_t crop_bytes = sizeof(*request.local_target) +
-        request.local_target->points.capacity() * sizeof(pcl::PointXYZI);
-    const std::size_t prepared_bytes = estimatePreparedTargetMemoryBytes(*prepared);
+    if (use_atlas) {
+      // The global prepared geometry already owns its points and trees. Cache
+      // only the exact visibility crop, alongside a shared prepared view.
+      setLegacyTarget(request, result);
+    } else {
+      setUncachedLocalTarget(request, result);
+    }
+    const auto &prepared = result->registration_target;
+    const auto &indices = result->visibility_indices;
+    const std::size_t crop_bytes = indices
+        ? sizeof(*indices) + indices->capacity() * sizeof(std::uint32_t)
+        : sizeof(*request.local_target) + request.local_target->points.capacity() * sizeof(pcl::PointXYZI);
+    const std::size_t prepared_bytes = use_atlas
+        ? sizeof(*prepared) + prepared->plane_levels.capacity() *
+              sizeof(PointCloudMatcher::PreparedTargetLevel)
+        : estimatePreparedTargetMemoryBytes(*prepared);
     const std::size_t entry_bytes = prepared_bytes >
         std::numeric_limits<std::size_t>::max() - crop_bytes
         ? std::numeric_limits<std::size_t>::max() : prepared_bytes + crop_bytes;
@@ -253,6 +278,7 @@ private:
       metrics->cache_entry_bytes = entries_.front().bytes;
       fillCacheMetricsLocked(metrics);
       result->visibility_target = entries_.front().local_target;
+      result->visibility_indices = entries_.front().indices;
       result->registration_target = entries_.front().target;
       return;
     }
@@ -268,7 +294,7 @@ private:
       cache_total_bytes_ -= entries_.back().bytes;
       entries_.pop_back();
     }
-    entries_.push_front({key, prepared, request.local_target, entry_bytes});
+    entries_.push_front({key, prepared, request.local_target, indices, entry_bytes});
     cache_total_bytes_ += entry_bytes;
     fillCacheMetricsLocked(metrics);
   }

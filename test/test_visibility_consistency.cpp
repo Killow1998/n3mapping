@@ -153,6 +153,24 @@ TEST(VisibilityConsistencyTest, PreparedObservationPreservesOcclusionAndInvalidR
       if (direct.valid) {
         EXPECT_DOUBLE_EQ(reused.evidence_log_odds, direct.evidence_log_odds);
       }
+      const std::vector<std::uint32_t> subset{0, 2, 4, 6};
+      pcl::PointCloud<pcl::PointXYZI> cropped;
+      for (auto index : subset) cropped.push_back(map[index]);
+      const auto copied = evaluatePreparedVisibilityConsistency(cropped, prepared, pose);
+      const auto indexed = evaluatePreparedVisibilityConsistency(map, prepared, pose, &subset);
+      EXPECT_EQ(indexed.valid, copied.valid);
+      EXPECT_EQ(indexed.predicted_bins, copied.predicted_bins);
+      EXPECT_EQ(indexed.common_bins, copied.common_bins);
+      EXPECT_EQ(indexed.consistent_bins, copied.consistent_bins);
+      EXPECT_EQ(indexed.foreground_conflict_bins, copied.foreground_conflict_bins);
+      if (copied.valid) {
+        EXPECT_DOUBLE_EQ(indexed.evidence_log_odds, copied.evidence_log_odds);
+        EXPECT_DOUBLE_EQ(indexed.median_abs_range_error_m, copied.median_abs_range_error_m);
+        EXPECT_DOUBLE_EQ(indexed.p90_abs_range_error_m, copied.p90_abs_range_error_m);
+      }
+      const std::vector<std::uint32_t> invalid_index{static_cast<std::uint32_t>(map.size())};
+      EXPECT_FALSE(evaluatePreparedVisibilityConsistency(map, prepared, pose, &invalid_index).valid);
+
     }
     auto invalid_pose = Eigen::Isometry3d::Identity();
     invalid_pose.translation().x() = std::numeric_limits<double>::quiet_NaN();

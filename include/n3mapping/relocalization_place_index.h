@@ -23,15 +23,17 @@ public:
                            KeyframeManager &keyframe_manager,
                            LoopDetector &loop_detector);
 
-  std::vector<LoopCandidate> search(const PointCloudT::Ptr &cloud);
+  std::vector<LoopCandidate> search(const PointCloudT::Ptr &cloud,
+      DescriptorSearchPerformance *performance = nullptr);
   void resetMapDerivedState();
   std::size_t indexedKeyframes() const;
 
 private:
-  void rebuildFrameRHPDIndexIfNeeded();
+  void rebuildFrameRHPDIndexIfNeeded(DescriptorSearchPerformance *performance);
   void appendFrameRHPDCandidates(const RHPDPlace &query_rhpd,
                                  const RHPDHeadingPtr &query_sc,
-                                 std::vector<LoopCandidate> &candidates);
+                                 std::vector<LoopCandidate> &candidates,
+                                 DescriptorSearchPerformance *performance);
 
   Config config_;
   KeyframeManager &keyframe_manager_;

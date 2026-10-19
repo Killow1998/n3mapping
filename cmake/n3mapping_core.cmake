@@ -34,6 +34,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp
+  ${N3MAPPING_ROOT}/src/localization_crop.cpp
   ${N3MAPPING_ROOT}/src/registration_observability.cpp
   ${N3MAPPING_ROOT}/src/relocalization_candidate_evaluator.cpp
   ${N3MAPPING_ROOT}/src/relocalization_decision_policy.cpp
@@ -56,6 +57,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/visibility_consistency.cpp
   ${N3MAPPING_ROOT}/src/relocalization_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/runtime_performance_debug_logger.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_performance.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
   ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
   ${N3MAPPING_ROOT}/src/rhpd_heading.cpp

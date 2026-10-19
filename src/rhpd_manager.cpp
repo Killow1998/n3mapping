@@ -27,19 +27,22 @@ std::vector<std::pair<int64_t, double>> RHPDManager::search(const Place& query, 
     return search(query, top_k, 0);
 }
 
-std::vector<std::pair<int64_t, double>> RHPDManager::search(const Place& query, int top_k, int preselect) const {
-    return searchFiltered(query, top_k, preselect, nullptr);
+std::vector<std::pair<int64_t, double>> RHPDManager::search(const Place& query, int top_k, int preselect,
+    DescriptorSearchPerformance* performance) const {
+    return searchFiltered(query, top_k, preselect, nullptr, performance);
 }
 
 std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
     const Place& query,
     int top_k,
     int preselect,
-    const std::function<bool(int64_t)>& accept) const {
+    const std::function<bool(int64_t)>& accept,
+    DescriptorSearchPerformance* performance) const {
     std::vector<std::pair<int64_t, double>> results;
     std::lock_guard<std::mutex> lock(mutex_);
     if (ids_.empty()) return results;
 
+    DescriptorPhaseTimer coarse_timer(performance ? &performance->coarse : nullptr);
     const VecD query_key = makeCoarseKey(query);
     // Keep the same half-turn symmetry as the full descriptor distance.
     // Otherwise the shortlist can discard the correct reverse-facing place
@@ -60,6 +63,7 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
     for (size_t i = 0; i < ids_.size(); ++i) {
         if (accept && !accept(ids_[i])) continue;
         if (coarse_keys_[i].size() != RHPD_COARSE_KEY_DIM) continue;
+        if (performance) ++performance->coarse_comparisons;
         const double distance = std::min(
             (query_key - coarse_keys_[i]).squaredNorm(),
             (flipped_key - coarse_keys_[i]).squaredNorm());
@@ -74,6 +78,9 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
         coarse_ranked.resize(candidate_count);
     }
 
+    coarse_timer.finish();
+    DescriptorPhaseTimer place_timer(performance ? &performance->place : nullptr);
+    if (performance) performance->place_comparisons += coarse_ranked.size();
     const auto prepared = desc_.prepareQuery(query);
     results.reserve(coarse_ranked.size());
     for (const auto& item : coarse_ranked) {

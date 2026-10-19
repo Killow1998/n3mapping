@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 
 #include <cstddef>
 #include <limits>
@@ -71,7 +72,8 @@ PreparedVisibilityObservation prepareVisibilityObservation(
 VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
     const PreparedVisibilityObservation &observation,
-    const Eigen::Isometry3d &T_map_lidar);
+    const Eigen::Isometry3d &T_map_lidar,
+    const std::vector<std::uint32_t> *indices = nullptr);
 
 VisibilityConsistencyResult evaluateVisibilityConsistency(
     const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
