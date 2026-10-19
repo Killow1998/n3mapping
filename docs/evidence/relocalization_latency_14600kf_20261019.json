@@ -1,0 +1,478 @@
+{
+  "date": "2026-10-19",
+  "commit": "498286258c7e5f6a5e7d3a30a8f5134c9d128824",
+  "cpu": "Intel Core i5-14600KF",
+  "physical_cores": 14,
+  "logical_cpus": 20,
+  "allowed_logical_cpus": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "artifact_root": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/incremental_search_20261019/allcore_latency",
+  "core_sha256": "6dde588f4ce0aaec4398f00b57461ee9e7e0c5935eff95b0ceb2153c82cb3378",
+  "probe_sha256": "623739d26fcde380cd4624295358f1b86986dea69a2ae07678ff674cd8cb9d0c",
+  "probe_source_sha256": "6ccf0d21a0c6e9682abf33a66ab3f3b97d12c24ebc93688007d8815f1569aa99",
+  "results_sha256": "bbcc5c87dce5bc30f944885cfaa30ad344269682d7c2a6c8fbf3bd79e1d523a3",
+  "method": "Fresh process per run; same committed core, map, queries and numerical gates. Host all-CPU affinity 0-19, PASSIVE OpenMP, only benchmark config.num_threads varies. Replay first five LIO observations at original 10 Hz pacing (RATE=1), no dropped frames. Wall latency starts at first replay input after map loading and ends at confirmed lock. Includes PCD/replay overhead and RealtimeOutput; excludes map loading, frontend startup and DDS transport. Filesystem cache not cold-controlled.",
+  "product_configuration_changed": false,
+  "results": [
+    {
+      "case": "central_v2",
+      "setting": "all14",
+      "runs": 3,
+      "affinity": "0-19",
+      "threads_per_registration": 14,
+      "first_lock_frames": [
+        4,
+        4,
+        4
+      ],
+      "wall_to_lock_s": [
+        3.117506366,
+        3.362164534,
+        3.105918079
+      ],
+      "cpu_to_lock_s": [
+        11.973487013,
+        13.092084299000001,
+        12.018601890999998
+      ],
+      "map_loading_wall_s": [
+        5.92467,
+        6.09188,
+        5.84519
+      ],
+      "median_wall_to_lock_s": 3.117506366,
+      "min_wall_to_lock_s": 3.105918079,
+      "max_wall_to_lock_s": 3.362164534,
+      "median_cpu_to_lock_s": 12.018601890999998,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 8.326672684688674e-17
+    },
+    {
+      "case": "central_v2",
+      "setting": "all20",
+      "runs": 3,
+      "affinity": "0-19",
+      "threads_per_registration": 20,
+      "first_lock_frames": [
+        4,
+        4,
+        4
+      ],
+      "wall_to_lock_s": [
+        3.1260010929999997,
+        3.351596316,
+        3.1009916979999996
+      ],
+      "cpu_to_lock_s": [
+        13.452926133,
+        14.195520585000002,
+        13.422126597000002
+      ],
+      "map_loading_wall_s": [
+        6.41225,
+        6.070930000000001,
+        5.831989999999999
+      ],
+      "median_wall_to_lock_s": 3.1260010929999997,
+      "min_wall_to_lock_s": 3.1009916979999996,
+      "max_wall_to_lock_s": 3.351596316,
+      "median_cpu_to_lock_s": 13.452926133,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 2.0816681711721685e-16
+    },
+    {
+      "case": "central_v2",
+      "setting": "all4",
+      "runs": 1,
+      "affinity": "0-19",
+      "threads_per_registration": 4,
+      "first_lock_frames": [
+        4
+      ],
+      "wall_to_lock_s": [
+        3.701616024
+      ],
+      "cpu_to_lock_s": [
+        9.748778556
+      ],
+      "map_loading_wall_s": [
+        5.88894
+      ],
+      "median_wall_to_lock_s": 3.701616024,
+      "min_wall_to_lock_s": 3.701616024,
+      "max_wall_to_lock_s": 3.701616024,
+      "median_cpu_to_lock_s": 9.748778556,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 8.673617379884035e-17
+    },
+    {
+      "case": "central_v2",
+      "setting": "all6",
+      "runs": 1,
+      "affinity": "0-19",
+      "threads_per_registration": 6,
+      "first_lock_frames": [
+        4
+      ],
+      "wall_to_lock_s": [
+        3.63733234
+      ],
+      "cpu_to_lock_s": [
+        10.681808051
+      ],
+      "map_loading_wall_s": [
+        6.254770000000001
+      ],
+      "median_wall_to_lock_s": 3.63733234,
+      "min_wall_to_lock_s": 3.63733234,
+      "max_wall_to_lock_s": 3.63733234,
+      "median_cpu_to_lock_s": 10.681808051,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 3.469446951953614e-17
+    },
+    {
+      "case": "central_v2",
+      "setting": "all8",
+      "runs": 1,
+      "affinity": "0-19",
+      "threads_per_registration": 8,
+      "first_lock_frames": [
+        4
+      ],
+      "wall_to_lock_s": [
+        3.397680554
+      ],
+      "cpu_to_lock_s": [
+        11.123813020999998
+      ],
+      "map_loading_wall_s": [
+        5.790430000000001
+      ],
+      "median_wall_to_lock_s": 3.397680554,
+      "min_wall_to_lock_s": 3.397680554,
+      "max_wall_to_lock_s": 3.397680554,
+      "median_cpu_to_lock_s": 11.123813020999998,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 7.632783294297951e-17
+    },
+    {
+      "case": "central_v2",
+      "setting": "pinned4",
+      "runs": 1,
+      "affinity": "0,2,4,6",
+      "threads_per_registration": 4,
+      "first_lock_frames": [
+        4
+      ],
+      "wall_to_lock_s": [
+        4.157302727
+      ],
+      "cpu_to_lock_s": [
+        8.945350534000001
+      ],
+      "map_loading_wall_s": [
+        5.7788900000000005
+      ],
+      "median_wall_to_lock_s": 4.157302727,
+      "min_wall_to_lock_s": 4.157302727,
+      "max_wall_to_lock_s": 4.157302727,
+      "median_cpu_to_lock_s": 8.945350534000001,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 9.367506770274758e-17
+    },
+    {
+      "case": "floor7_710toMeeting",
+      "setting": "all14",
+      "runs": 3,
+      "affinity": "0-19",
+      "threads_per_registration": 14,
+      "first_lock_frames": [
+        4,
+        4,
+        4
+      ],
+      "wall_to_lock_s": [
+        0.5559004230000001,
+        0.55717196,
+        0.557279876
+      ],
+      "cpu_to_lock_s": [
+        3.288994287,
+        3.3171937180000004,
+        3.30848299
+      ],
+      "map_loading_wall_s": [
+        0.324544,
+        0.32762,
+        0.32182799999999995
+      ],
+      "median_wall_to_lock_s": 0.55717196,
+      "min_wall_to_lock_s": 0.5559004230000001,
+      "max_wall_to_lock_s": 0.557279876,
+      "median_cpu_to_lock_s": 3.30848299,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 6.661338147750939e-16
+    },
+    {
+      "case": "floor7_inside_710_room",
+      "setting": "all14",
+      "runs": 3,
+      "affinity": "0-19",
+      "threads_per_registration": 14,
+      "first_lock_frames": [
+        4,
+        4,
+        4
+      ],
+      "wall_to_lock_s": [
+        0.565972671,
+        0.5670493790000001,
+        0.565411953
+      ],
+      "cpu_to_lock_s": [
+        3.0729055929999998,
+        3.0477121420000004,
+        3.022830876
+      ],
+      "map_loading_wall_s": [
+        0.326315,
+        0.322849,
+        0.327461
+      ],
+      "median_wall_to_lock_s": 0.565972671,
+      "min_wall_to_lock_s": 0.565411953,
+      "max_wall_to_lock_s": 0.5670493790000001,
+      "median_cpu_to_lock_s": 3.0477121420000004,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 3.3306690738754696e-16
+    },
+    {
+      "case": "floor7_inside_710_room",
+      "setting": "all20",
+      "runs": 1,
+      "affinity": "0-19",
+      "threads_per_registration": 20,
+      "first_lock_frames": [
+        4
+      ],
+      "wall_to_lock_s": [
+        0.5635900319999999
+      ],
+      "cpu_to_lock_s": [
+        3.39920947
+      ],
+      "map_loading_wall_s": [
+        0.337858
+      ],
+      "median_wall_to_lock_s": 0.5635900319999999,
+      "min_wall_to_lock_s": 0.5635900319999999,
+      "max_wall_to_lock_s": 0.5635900319999999,
+      "median_cpu_to_lock_s": 3.39920947,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 3.3306690738754696e-16
+    },
+    {
+      "case": "floor7_inside_710_room",
+      "setting": "all4",
+      "runs": 1,
+      "affinity": "0-19",
+      "threads_per_registration": 4,
+      "first_lock_frames": [
+        4
+      ],
+      "wall_to_lock_s": [
+        0.612441188
+      ],
+      "cpu_to_lock_s": [
+        2.243101326
+      ],
+      "map_loading_wall_s": [
+        0.32346199999999997
+      ],
+      "median_wall_to_lock_s": 0.612441188,
+      "min_wall_to_lock_s": 0.612441188,
+      "max_wall_to_lock_s": 0.612441188,
+      "median_cpu_to_lock_s": 2.243101326,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 3.3306690738754696e-16
+    },
+    {
+      "case": "floor7_inside_710_room",
+      "setting": "all6",
+      "runs": 1,
+      "affinity": "0-19",
+      "threads_per_registration": 6,
+      "first_lock_frames": [
+        4
+      ],
+      "wall_to_lock_s": [
+        0.585161053
+      ],
+      "cpu_to_lock_s": [
+        2.522444178
+      ],
+      "map_loading_wall_s": [
+        0.322259
+      ],
+      "median_wall_to_lock_s": 0.585161053,
+      "min_wall_to_lock_s": 0.585161053,
+      "max_wall_to_lock_s": 0.585161053,
+      "median_cpu_to_lock_s": 2.522444178,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 3.3306690738754696e-16
+    },
+    {
+      "case": "floor7_inside_710_room",
+      "setting": "all8",
+      "runs": 1,
+      "affinity": "0-19",
+      "threads_per_registration": 8,
+      "first_lock_frames": [
+        4
+      ],
+      "wall_to_lock_s": [
+        0.583285843
+      ],
+      "cpu_to_lock_s": [
+        2.7991064540000004
+      ],
+      "map_loading_wall_s": [
+        0.34566699999999995
+      ],
+      "median_wall_to_lock_s": 0.583285843,
+      "min_wall_to_lock_s": 0.583285843,
+      "max_wall_to_lock_s": 0.583285843,
+      "median_cpu_to_lock_s": 2.7991064540000004,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 2.220446049250313e-16
+    },
+    {
+      "case": "floor7_inside_710_room",
+      "setting": "pinned4",
+      "runs": 1,
+      "affinity": "0,2,4,6",
+      "threads_per_registration": 4,
+      "first_lock_frames": [
+        4
+      ],
+      "wall_to_lock_s": [
+        0.8147046739999999
+      ],
+      "cpu_to_lock_s": [
+        1.95556466
+      ],
+      "map_loading_wall_s": [
+        0.338871
+      ],
+      "median_wall_to_lock_s": 0.8147046739999999,
+      "min_wall_to_lock_s": 0.8147046739999999,
+      "max_wall_to_lock_s": 0.8147046739999999,
+      "median_cpu_to_lock_s": 1.95556466,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 1.6653345369377348e-16
+    },
+    {
+      "case": "north_v2",
+      "setting": "all14",
+      "runs": 3,
+      "affinity": "0-19",
+      "threads_per_registration": 14,
+      "first_lock_frames": [
+        4,
+        4,
+        4
+      ],
+      "wall_to_lock_s": [
+        3.1894312989999998,
+        3.190716805,
+        3.353869981
+      ],
+      "cpu_to_lock_s": [
+        15.059588284000002,
+        15.147653237999998,
+        15.571427288999999
+      ],
+      "map_loading_wall_s": [
+        5.8663,
+        5.92629,
+        5.83581
+      ],
+      "median_wall_to_lock_s": 3.190716805,
+      "min_wall_to_lock_s": 3.1894312989999998,
+      "max_wall_to_lock_s": 3.353869981,
+      "median_cpu_to_lock_s": 15.147653237999998,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 2.7755575615628914e-17
+    },
+    {
+      "case": "repetitive_v2",
+      "setting": "all14",
+      "runs": 1,
+      "affinity": "0-19",
+      "threads_per_registration": 14,
+      "first_lock_frames": [
+        null
+      ],
+      "wall_to_lock_s": [
+        null
+      ],
+      "cpu_to_lock_s": [
+        null
+      ],
+      "map_loading_wall_s": [
+        5.91333
+      ],
+      "total_wall_s": [
+        1.849732117
+      ],
+      "outputs": [
+        0
+      ],
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": null
+    },
+    {
+      "case": "south_v2",
+      "setting": "all14",
+      "runs": 3,
+      "affinity": "0-19",
+      "threads_per_registration": 14,
+      "first_lock_frames": [
+        4,
+        4,
+        4
+      ],
+      "wall_to_lock_s": [
+        3.074567545,
+        3.054806831,
+        2.934313272
+      ],
+      "cpu_to_lock_s": [
+        10.674445080999998,
+        10.668789240000002,
+        10.61592105
+      ],
+      "map_loading_wall_s": [
+        5.78403,
+        5.7918,
+        5.9284799999999995
+      ],
+      "median_wall_to_lock_s": 3.054806831,
+      "min_wall_to_lock_s": 2.934313272,
+      "max_wall_to_lock_s": 3.074567545,
+      "median_cpu_to_lock_s": 10.668789240000002,
+      "max_lock_pose_matrix_delta_vs_committed_four_cpu_replay": 2.185751579730777e-16
+    }
+  ],
+  "limits": [
+    "Five-frame positive-query latency benchmark, not broad all-thread-count accuracy qualification or a complete ROS startup benchmark.",
+    "The repetitive-scene negative has zero outputs in the tested all14 five-frame window; its 1.85 s processing time is not time to successful relocalization.",
+    "More threads lower observed wall latency while increasing process CPU seconds; this does not meet the average-half-core goal.",
+    "One screening run per setting; all14 positives and all20 central have three runs each."
+  ]
+}

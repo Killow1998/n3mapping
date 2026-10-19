@@ -1654,3 +1654,39 @@ checks and final registration remain substantial costs. Further work must reduce
 those computations while preserving recoverable modes and fresh evidence. Full
 real out-of-map/re-entry, broad adverse-scene reliability and RK3588 remain open.
 No installation, simple_rbt changes or remote push were performed.
+
+### i5-14600KF latency with all CPUs available (2026-10-19)
+
+The host is an i5-14600KF, with 14 physical cores and 20 logical CPUs. The earlier
+CPU-budget experiments deliberately used CPUs 0/2/4/6. A follow-up using committed
+core `4982862` opens affinity to 0–19 and varies only the benchmark's per-registration
+thread count. Product configuration is unchanged. Full settings, fingerprints and
+samples are in [relocalization_latency_14600kf_20261019.json](../relocalization_latency_14600kf_20261019.json);
+raw artifacts are in `build/n3mapping/incremental_search_20261019/allcore_latency`.
+
+These wall times start with the first replayed LIO observation **after map load**
+and end at confirmed lock, with the original 10 Hz pacing and five input frames.
+They include replay/PCD overhead and RealtimeOutput, and exclude frontend startup
+and DDS transport. Each row below uses all 20 logical CPUs as the allowed affinity,
+14 threads per registration, PASSIVE OpenMP, and three fresh-process repetitions.
+
+| Query | Median wall to lock (s) | Observed range (s) |
+|---|---:|---:|
+| Central simulation | 3.118 | 3.106–3.362 |
+| South simulation | 3.055 | 2.934–3.075 |
+| North simulation | 3.191 | 3.189–3.354 |
+| Real inside room | 0.566 | 0.565–0.567 |
+| Real room to meeting | 0.557 | 0.556–0.557 |
+
+All positive samples lock at index 4, with maximum pose-matrix component difference
+below `7e-16` from the committed four-CPU reference. This is a five-frame latency
+check, not broad thread-count accuracy qualification. The changed repetitive scene
+still produces no output in its tested five-frame window; its 1.85 s processing time
+is not time to successful relocalization. Failed searches have no promised lock time.
+
+The central three-run median is 3.126 s at 20 threads versus 3.118 s at 14 threads,
+while process CPU increases from 12.02 to 13.45 s. A single default-four-thread run
+with all CPUs available takes 3.702 s, versus 4.157 s when pinned to four physical
+cores. More threads reduce elapsed latency but do not reduce the total CPU budget.
+Map loading for this large map adds roughly 6 s in these fresh processes with an
+uncontrolled warm filesystem cache; these figures are not complete ROS startup times.
