@@ -762,6 +762,37 @@ remain separate from that measured result.
 
 ### TODO
 
+Current localization work, updated **2026-10-19**, uses `2bea8b1` as the measured
+implementation baseline. This is the maintained task order; detailed results and
+their limits remain in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#exact-correspondence-bounds-and-map-error-diagnosis--2026-10-19).
+
+| Priority / state | Task and completion evidence |
+| --- | --- |
+| Reliability — preserve verified behavior; broader coverage open | Incremental candidate admission, reuse of unaffected seeds, current-observation confirmation, and recovery of all 14 fixed regions are implemented and checked on the recorded inputs. Keep these as regressions. Complete moving out-of-map/reentry and independent sensor validation remain open; stationary success and safe refusal of a negative do not establish those behaviors. |
+| Search cost — current implementation priority | Reduce new/invalid-candidate solves and repeated confirmation geometry without losing fresh evidence or recomputing unaffected candidates. The complete position-14 replay still averages 0.841 cores; the moving negative takes 655.076 CPU s for 34.5 input s. Neither meets the difficult-search half-core goal. Start with a measured single-component ablation of the remaining cold-seed, resumed-solve and confirmation work; reject changes that impair precision, recovery or ambiguity rejection. |
+| Accuracy — keep attribution separate; map correction deferred | Preserve Xian's at-most-10-cm localization accuracy objective. Current absolute errors do not pass it. Independent diagnostics support dominant map bias at 09/11/14, so correction of that map is deferred; algorithmic local-fit errors remain in scope. Support-keyframe truth transport is diagnostic only and cannot count as runtime accuracy. |
+| Loop/map consistency — next independent experiment | Test whether complete fused retrieval can improve the existing loop pipeline's recall. Use independently registered source/target scans for relative constraints, preserve competing-hypothesis and neighborhood checks, then compare pose-graph trajectory and map consistency. Start with frozen-input offline runs and separate outputs, preserving the baseline map. Require recall, false-loop and geometry/trajectory evidence before adopting the change; no improvement is established yet. |
+
+All cost comparisons stay on **four physical P cores**, four registration threads,
+`OMP_WAIT_POLICY=PASSIVE`, the same map/configuration and MID360-derived **10 Hz**
+input. The goal is at most **0.5 CPU s per input second**, including initial search,
+recovery and background work; short peaks are allowed. Do not dilute search cost
+with longer stationary recordings or drop inputs to meet the average. Report
+lock/recovery latency and peak RSS alongside CPU. Current direct-core measurements
+exclude loading, frontend, simulator and DDS; full-node deployment and RK3588
+qualification remain separate pending checks.
+
+Retain existing interfaces and numeric acceptance gates. Compare actual emitted
+poses, lock decisions and input/output continuity on the same full inputs for
+release decisions; short prefixes are screening evidence. Use the existing E2E
+episodes and frozen bags, with truth restricted to observers and scoring. A pose
+localized against the current map is not an independent loop measurement, and
+repeated evidence from the same scans must not be counted as new confirmation.
+Continue simplifying modules and rejecting unhelpful caches/abstractions as part
+of these tasks; frontend selection and unrelated new features stay outside scope.
+
+Other pending work:
+
 - Long-duration real-world mapping, localization, and map-extension regression.
 - More compatibility tests for old `pbstream` files.
 - Real-bag evaluation scripts for common workflows.

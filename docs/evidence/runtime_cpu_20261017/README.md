@@ -6,6 +6,10 @@ Initial-stage baseline: `45f4a171fcab1d9742ab7d575f41a632c7d75073`, branch
 These are Release/Humble development builds with **UNVERIFIED** build identity;
 they do not constitute a Product Bundle or hardware qualification.
 
+Current task order and acceptance boundaries are maintained in the
+[project TODO](../../../README.md#todo). The dated sections below preserve the
+scope and evidence of each completed experiment.
+
 Latest stage: [exact correspondence bounds and map-error diagnosis](#exact-correspondence-bounds-and-map-error-diagnosis--2026-10-19)
 reduces complete repetitive-negative CPU by 9.9% in a four-core pair and separates
 dominant local map bias from registration residuals. All 14 initial searches
