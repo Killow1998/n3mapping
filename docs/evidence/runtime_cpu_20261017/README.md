@@ -17,6 +17,14 @@ retain their behavior; full replay this stage covers 09/14 and the moving negati
 The earlier [complete 14-position result](#exact-fused-retrieval-and-corrected-heading-seeds--2026-10-19)
 and its scope remain below. Difficult-search average half-core is still unmet.
 
+Whole-episode cost and tracking-only cost must be distinguished: in the last
+complete 14-position run (`c3dcc96`), only **01 and 09** meet half a core including
+initial search; the other **12** do not, and the suite mean is **0.631**. All 14
+last-ten-second tracking windows use **0.217–0.368** cores. The latest complete
+09/14 results are **0.441/0.841**; other positions were only prefix-tested on the
+latest version. Thus 14 is not the sole known over-budget case, and the current
+version's full-suite pass count remains unmeasured.
+
 ## Measurement boundaries
 
 CPU is process CPU time divided by elapsed time: 1.0 means one fully occupied
