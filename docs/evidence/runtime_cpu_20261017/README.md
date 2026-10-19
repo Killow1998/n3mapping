@@ -2414,3 +2414,64 @@ Next: fix and ablate the ordinary tracking geometry path, diagnose out-of-map
 alias acceptance, then rerun complete movement/fixed14/negative inputs before
 resuming stage-level geometry reuse optimization. Half-core, 10 cm and independent
 offline loop-consistency qualification remain open.
+
+
+## Moving tracking and recovery ablation — 2026-10-19
+
+**All three runtime candidates were rejected.** Accepted core `5702cb4` is
+restored byte-for-byte (`5f002f1557f8f188edb62e423fe33760ba388e6ea1c863752f6afac517b30251`).
+This stage changes evidence and task guidance only; it establishes no production
+speedup or reliability fix.
+
+All completed trials use the same independent 2,236-frame / 223.5-input-second
+movement, four physical P cores, four registration threads, PASSIVE, unchanged
+numeric acceptance gates and the original mapping-session truth alignment.
+
+| Full-map control | Lock events | Maximum position error | CPU seconds |
+| --- | ---: | ---: | ---: |
+| Accepted baseline | 1 | 4.400 m | 139.747 |
+| Apply extension visibility and correction checks to ordinary tracking | 8 | 20.031 m | 328.526 |
+| Apply correction limits alone | 2 | 20.027 m | 236.469 |
+| Reuse the already prepared complete Atlas target for ordinary tracking | 1 | 0.553 m | 86.333 |
+
+The first two candidates trigger recovery onto a wrong map alias, so neither
+proceeds to broad qualification. The Atlas candidate improves the full-map
+control: position RMSE 0.713 to 0.311 m, maximum orientation error 9.006 to
+0.663 degrees, and zero gross geometric-error frames under the existing
+1 m / 5 degree diagnostic. It avoids 370 temporal-target preparations (22.616 s
+summed main-thread wall time), although registration wall time increases from
+9.271 to 15.071 s. Its average 0.386 CPU s/input s applies **only to that control**.
+Peak RSS remains about 1,912 MiB including loading; no retained-RAM benefit is
+established. Timing components overlap and are not additive process CPU.
+
+The complete partial-map control rejects this candidate. The same false lock
+occurs at frame 922 / 92.6 s with 96.669 m / 179.999 degree error. Instead of the
+baseline's correct recovery at 169.0 s, a later lock at 207.8 s is still wrong by
+43.953 m. Position RMSE worsens from 45.561 to 52.531 m, and gross geometric-error
+frames rise from 496 to 1,243. Outputs remain continuous (2,232, no gaps), which
+is insufficient for reliability. CPU drops from 2,327.650 to 1,530.574 s partly
+because the wrong accepted pose continues tracking: **this is not an acceptable
+optimization**. The full-route demand remains 6.848 CPU s/input s with backlog.
+
+The false recovery used fresh registration, good one-way inliers and directional
+support 0.577, above the unchanged 0.5 gate. Its visibility crop already contains
+the complete 30 m query sphere; simply enlarging the crop adds no in-range
+geometry. Recovery currently drops the trusted motion context when it resumes
+unconstrained global search. A hard distance cutoff could also strand genuine
+drift/reset recovery, so no such filter was introduced. The next stage must
+exercise continuous odometry, map-like unknown geometry, drift and source-reset
+behavior together before adopting a recovery change.
+
+Each built candidate passed three focused CTest targets; Atlas reuse additionally
+passed the Atlas episode target. The complete movement then disproved its
+reliability. No extra fixed14 or negative performance runs were made after this
+failure, and no failed trial adds a production test, cache, gate or abstraction.
+One initial visibility variant failed to compile and produced no runtime result.
+Restored core identity preserves the prior 61/61 suite qualification; this stage
+does not claim a new native Noetic build, hardware test or full-node CPU result.
+
+`build/n3mapping/moving_geometry_20261019/stage_result.json` retains decisions,
+frozen variants, complete CSV/logs and analysis. Compact records and hashes are
+under `moving_geometry_ablation` in `../search_cost_20261019.json`. Prepared
+`qualify_v4.py` was not run because its reliability prerequisite failed. All stage
+runs and restoration builds exited. No data was deleted, pushed or installed.

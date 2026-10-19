@@ -3594,5 +3594,174 @@
     "report_sha256": "d6544d28ab3cdeea7a2c598359860c6c3895416e7b760f51bedee08b59959185",
     "decision": "Reject grid indexing before production integration",
     "reason": "All fine/refine cases slower; coarse case gain inconsistent; high metadata memory. No production change."
+  },
+  "moving_geometry_ablation": {
+    "status": "All runtime trials rejected and restored; moving reliability remains failed",
+    "restored_core_sha256": "5f002f1557f8f188edb62e423fe33760ba388e6ea1c863752f6afac517b30251",
+    "scope": "Same 2236-frame / 223.5-input-second independent movement, four physical P cores 0,2,4,6, four threads, PASSIVE; original gates and truth alignment. No installation or push.",
+    "trials": {
+      "visibility_v2": {
+        "core_sha256": "438c86339fd31e69b8c0ee13d8d653c90d91e50da53cf8fada7052c463cb6475",
+        "full_map": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": 8,
+          "cpu_s": 328.526079347,
+          "wall_s": 240.89241098300002,
+          "position_error_m": {
+            "rmse": 4.205359274234789,
+            "median": 0.2555794409482983,
+            "p95": 0.5540730168072685,
+            "maximum": 20.031205051755677
+          },
+          "rotation_error_deg": {
+            "rmse": 0.359587094654466,
+            "median": 0.34353123211886705,
+            "p95": 0.5437723449683974,
+            "maximum": 0.6261985124261069
+          }
+        },
+        "decision": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_geometry_20261019/visibility_v2/decision.json",
+        "decision_sha256": "c3bf1f8483a0d724e2610713544812fb4b4f3eda9b8533826dd9e05641ec6527"
+      },
+      "motion_v3": {
+        "core_sha256": "c72a0cc89ec8d6a133a7e914c192601973beaea4eb5e8eb35766a822aff13b43",
+        "full_map": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": 2,
+          "cpu_s": 236.468818945,
+          "wall_s": 239.717563246,
+          "position_error_m": {
+            "rmse": 4.205071977530955,
+            "median": 0.2523633389376937,
+            "p95": 0.5410453531111279,
+            "maximum": 20.027152695207725
+          },
+          "rotation_error_deg": {
+            "rmse": 0.35077031669325487,
+            "median": 0.34278309480291974,
+            "p95": 0.5220686165062615,
+            "maximum": 0.626199800193914
+          }
+        },
+        "decision": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_geometry_20261019/motion_v3/decision.json",
+        "decision_sha256": "ba026d9082ee108fb726a14d9915253235f9716af5764b59734fc3865b0f9040"
+      },
+      "atlas_v4": {
+        "core_sha256": "415cb0a330540c238c3e19b47085be48690f3b43a10087b892894f3bc5032ffd",
+        "full_map": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": 1,
+          "cpu_s": 86.333275422,
+          "wall_s": 223.511510071,
+          "position_error_m": {
+            "rmse": 0.311413014544094,
+            "median": 0.24599549854567954,
+            "p95": 0.5346904706696733,
+            "maximum": 0.5528404196467006
+          },
+          "rotation_error_deg": {
+            "rmse": 0.36424811520893374,
+            "median": 0.3644265292818778,
+            "p95": 0.5194995535329472,
+            "maximum": 0.6633503124601643
+          }
+        },
+        "decision": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_geometry_20261019/atlas_v4/decision.json",
+        "decision_sha256": "837db595acf16026b5acaf2b33601645b3b0b50ecd581708efb0bd799df44d25",
+        "partial_map": {
+          "candidate_total": {
+            "frames": 2236,
+            "input_s": 223.50000000000068,
+            "cpu_s": 1530.5735154200001,
+            "mean_cores": 6.848203648411613,
+            "outputs": 2232,
+            "geometric_frames": 1529,
+            "lock_events": 3,
+            "position_error_m": {
+              "maximum": 107.6623078254129,
+              "p95": 102.17901943884695,
+              "rmse": 52.53090249454488
+            },
+            "rotation_error_deg": {
+              "maximum": 179.999973295589,
+              "p95": 179.9901066390972,
+              "rmse": 127.00963435916944
+            }
+          },
+          "baseline_total": {
+            "frames": 2236,
+            "input_s": 223.50000000000068,
+            "cpu_s": 2327.649544708,
+            "mean_cores": 10.414539349923906,
+            "outputs": 2232,
+            "geometric_frames": 1267,
+            "lock_events": 3,
+            "position_error_m": {
+              "maximum": 107.66540871694134,
+              "p95": 102.06445732398811,
+              "rmse": 45.56110678349667
+            },
+            "rotation_error_deg": {
+              "maximum": 179.99964846549983,
+              "p95": 179.98822507880166,
+              "rmse": 104.50533641371545
+            }
+          },
+          "cpu_change_fraction": -0.3424381608907504,
+          "lock_events": [
+            {
+              "frame": 4,
+              "sim_s": 0.799989997,
+              "phase": "initial_mapped",
+              "position_error_m": 0.011363541952391098,
+              "rotation_error_deg": 0.031838913735691705,
+              "support": 0
+            },
+            {
+              "frame": 922,
+              "sim_s": 92.599995002,
+              "phase": "outside_descriptor_horizon",
+              "position_error_m": 96.66944633134624,
+              "rotation_error_deg": 179.99944024438184,
+              "support": 403
+            },
+            {
+              "frame": 2074,
+              "sim_s": 207.799989997,
+              "phase": "reentered",
+              "position_error_m": 43.953332256094974,
+              "rotation_error_deg": 0.09940642927542921,
+              "support": 39
+            }
+          ],
+          "output_gaps": 0,
+          "coast_transform_max_element_delta": 7.105427357601002e-14,
+          "maximum_output_correction_m": 96.64164914129448,
+          "search_work": {
+            "alignments": 4316.0,
+            "fixed_pose_evaluations": 7779.0,
+            "seed_initializations": 2951.0,
+            "seed_continuations": 3089.0,
+            "seed_resumptions": 371.0,
+            "seed_retries": 160.0,
+            "confirmation_registrations": 994.0,
+            "confirmation_evaluations": 2728.0,
+            "invalidated_seed_poses": 70.0,
+            "descriptor_calling_thread_cpu_s": 7.764257001999787,
+            "search_observations": 650
+          },
+          "gross_geometric_error_frames": 1243
+        },
+        "full_map_cpu_change_fraction": -0.3822179273807532
+      }
+    },
+    "next": "Audit continuous-odometry recovery, source reset and drift; prevent unsupported distant aliases without stranding legitimate recovery.",
+    "cleanup": "No runtime abstractions, gates, caches, public interfaces or production tests added. Rejected source variants and complete evidence retained only under ignored build artifacts. Do not run prepared qualify_v4.py: candidate failed prerequisite reliability.",
+    "validation": "Each built trial passed three focused CTest targets. Atlas v4 additionally passed the Atlas episode target, but complete moving replay failed. Full14/repetitive qualification intentionally not run for rejected variants. Restored core hash equals the previously 61/61-qualified core; no new native Noetic/hardware/full-node claim.",
+    "report": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_geometry_20261019/stage_result.json",
+    "report_sha256": "bead97c01990ec12bd8eccfb9631f72391c3c19f94827cffa21b47c012ab18e5"
   }
 }
