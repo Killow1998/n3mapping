@@ -123,7 +123,10 @@ class RealtimeOdometry {
     }
     if (correction_.stamp_nsec > 0 &&
         (source_frame != correction_.source_frame || child_frame != correction_.child_frame)) {
-      invalidate(stamp_nsec, source_frame != correction_.source_frame
+      // This authorized correction begins the new basis at stamp_nsec. Retire
+      // older observations, including any already frozen old-frame projection,
+      // without expiring the new correction's own paired observation.
+      invalidate(stamp_nsec - 1, source_frame != correction_.source_frame
           ? RealtimeOdometryReason::SourceFrameMismatch
           : RealtimeOdometryReason::ChildFrameMismatch);
     }

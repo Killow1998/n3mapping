@@ -704,6 +704,7 @@ if(CATKIN_ENABLE_TESTING)
 
   catkin_add_gtest(test_localization_episode
     ${N3MAPPING_ROOT}/test/test_localization_episode.cpp
+    ${N3MAPPING_ROOT}/test/test_localization_recovery.cpp
     ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
   )
   if(TARGET test_localization_episode)

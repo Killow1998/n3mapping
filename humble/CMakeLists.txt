@@ -722,7 +722,10 @@ if(BUILD_TESTING)
     ament_target_dependencies(test_synthetic_relocalization rclcpp)
   endif()
 
-  ament_add_gtest(test_localization_episode ${N3MAPPING_ROOT}/test/test_localization_episode.cpp TIMEOUT 60)
+  ament_add_gtest(test_localization_episode
+    ${N3MAPPING_ROOT}/test/test_localization_episode.cpp
+    ${N3MAPPING_ROOT}/test/test_localization_recovery.cpp
+    TIMEOUT 60)
   if(TARGET test_localization_episode)
     target_include_directories(test_localization_episode PRIVATE ${JSONCPP_INCLUDE_DIRS})
     target_link_libraries(test_localization_episode n3mapping_core ${PCL_LIBRARIES} ${JSONCPP_LIBRARIES})

@@ -3763,5 +3763,336 @@
     "validation": "Each built trial passed three focused CTest targets. Atlas v4 additionally passed the Atlas episode target, but complete moving replay failed. Full14/repetitive qualification intentionally not run for rejected variants. Restored core hash equals the previously 61/61-qualified core; no new native Noetic/hardware/full-node claim.",
     "report": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_geometry_20261019/stage_result.json",
     "report_sha256": "bead97c01990ec12bd8eccfb9631f72391c3c19f94827cffa21b47c012ab18e5"
+  },
+  "source_lifecycle_recovery": {
+    "status": "Accepted input lifecycle correction; continuous-source aliases and tracking error remain open",
+    "core_sha256": "71a4ce252667dbceee79f0408f8b74d48a7d15a23e7ab7afda5f4f4b102a9de3",
+    "validation": {
+      "ctest": "61/61",
+      "e2e_default": "15/15",
+      "e2e_atlas": "15/15",
+      "e2e_kill": "15/15"
+    },
+    "comparison": {
+      "fixed14": {
+        "01_west_corridor": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 4.579669976578771e-16,
+          "maximum_emitted_matrix_element_delta": 4.579669976578771e-16,
+          "baseline_cpu_s": 13.786780388999999,
+          "final_cpu_s": 14.100015724999999,
+          "baseline_mean_cores": 0.46734856705354494,
+          "final_mean_cores": 0.4779667158380817,
+          "baseline_peak_rss_mib": 1911.95703125,
+          "final_peak_rss_mib": 1920.359375,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.01193177676609639
+        },
+        "02_east_corridor": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 8.881784197001252e-16,
+          "maximum_emitted_matrix_element_delta": 8.881784197001252e-16,
+          "baseline_cpu_s": 16.559961551,
+          "final_cpu_s": 15.991735627000002,
+          "baseline_mean_cores": 0.5613545336074767,
+          "final_mean_cores": 0.5420926411466555,
+          "baseline_peak_rss_mib": 1911.79296875,
+          "final_peak_rss_mib": 1920.2890625,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.3987283128906642
+        },
+        "03_south_corridor": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 3.552713678800501e-15,
+          "maximum_emitted_matrix_element_delta": 3.552713678800501e-15,
+          "baseline_cpu_s": 22.681315203,
+          "final_cpu_s": 23.567004751,
+          "baseline_mean_cores": 0.7688581424745763,
+          "final_mean_cores": 0.7988815169830508,
+          "baseline_peak_rss_mib": 1912.19921875,
+          "final_peak_rss_mib": 1920.40625,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.15045624555507703
+        },
+        "04_north_corridor": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 1.6653345369377348e-16,
+          "maximum_emitted_matrix_element_delta": 1.6653345369377348e-16,
+          "baseline_cpu_s": 18.878042641,
+          "final_cpu_s": 18.625691679000003,
+          "baseline_mean_cores": 0.6399337574192697,
+          "final_mean_cores": 0.6313794860696383,
+          "baseline_peak_rss_mib": 1911.85546875,
+          "final_peak_rss_mib": 1920.30859375,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.2939143349107468
+        },
+        "05_southwest_office": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 4.440892098500626e-16,
+          "maximum_emitted_matrix_element_delta": 4.440892098500626e-16,
+          "baseline_cpu_s": 17.113361344,
+          "final_cpu_s": 17.265349308999998,
+          "baseline_mean_cores": 0.5801139438644068,
+          "final_mean_cores": 0.5852660782711864,
+          "baseline_peak_rss_mib": 1911.69921875,
+          "final_peak_rss_mib": 1920.30078125,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.06346627084910503
+        },
+        "06_south_meeting": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 1.7763568394002505e-15,
+          "maximum_emitted_matrix_element_delta": 1.7763568394002505e-15,
+          "baseline_cpu_s": 15.615246045000001,
+          "final_cpu_s": 15.491573163,
+          "baseline_mean_cores": 0.5293303744067797,
+          "final_mean_cores": 0.5251380733220339,
+          "baseline_peak_rss_mib": 1911.96875,
+          "final_peak_rss_mib": 1920.546875,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.06429245539775003
+        },
+        "07_south_pillars": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 7.771561172376096e-16,
+          "maximum_emitted_matrix_element_delta": 7.771561172376096e-16,
+          "baseline_cpu_s": 17.475743003,
+          "final_cpu_s": 17.430898197,
+          "baseline_mean_cores": 0.5923980678983052,
+          "final_mean_cores": 0.5908779049830509,
+          "baseline_peak_rss_mib": 1911.5703125,
+          "final_peak_rss_mib": 1920.30859375,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.21091592483365537
+        },
+        "08_west_shelves": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 1.7763568394002505e-15,
+          "maximum_emitted_matrix_element_delta": 1.7763568394002505e-15,
+          "baseline_cpu_s": 23.652492066000004,
+          "final_cpu_s": 23.470029219999997,
+          "baseline_mean_cores": 0.8017793920677968,
+          "final_mean_cores": 0.7955942108474575,
+          "baseline_peak_rss_mib": 1912.14453125,
+          "final_peak_rss_mib": 1920.296875,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.07985198583582241
+        },
+        "09_east_shelves": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 3.3306690738754696e-16,
+          "maximum_emitted_matrix_element_delta": 3.3306690738754696e-16,
+          "baseline_cpu_s": 12.85514997,
+          "final_cpu_s": 12.889564034,
+          "baseline_mean_cores": 0.4357677955932203,
+          "final_mean_cores": 0.4369343740338983,
+          "baseline_peak_rss_mib": 1912.1328125,
+          "final_peak_rss_mib": 1920.33984375,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.46189817669894156
+        },
+        "10_northwest_meeting": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 1.7763568394002505e-15,
+          "maximum_emitted_matrix_element_delta": 1.7763568394002505e-15,
+          "baseline_cpu_s": 15.056004956999999,
+          "final_cpu_s": 15.020581792999998,
+          "baseline_mean_cores": 0.5103730493898305,
+          "final_mean_cores": 0.5091722641694915,
+          "baseline_peak_rss_mib": 1911.953125,
+          "final_peak_rss_mib": 1920.34375,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.08941005628195169
+        },
+        "11_northeast_pillars": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 5.551115123125783e-16,
+          "maximum_emitted_matrix_element_delta": 5.551115123125783e-16,
+          "baseline_cpu_s": 17.526252544,
+          "final_cpu_s": 17.608749291,
+          "baseline_mean_cores": 0.5941102557288135,
+          "final_mean_cores": 0.5969067556271186,
+          "baseline_peak_rss_mib": 1911.9609375,
+          "final_peak_rss_mib": 1920.52734375,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.4738748580013345
+        },
+        "12_north_office": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 1.6653345369377348e-16,
+          "maximum_emitted_matrix_element_delta": 1.6653345369377348e-16,
+          "baseline_cpu_s": 19.06340071,
+          "final_cpu_s": 18.924436569,
+          "baseline_mean_cores": 0.646216973220339,
+          "final_mean_cores": 0.6415063243728814,
+          "baseline_peak_rss_mib": 1911.8359375,
+          "final_peak_rss_mib": 1920.54296875,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.30189123407886204
+        },
+        "13_south_door": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 1.2212453270876722e-15,
+          "maximum_emitted_matrix_element_delta": 1.2212453270876722e-15,
+          "baseline_cpu_s": 16.260233975000002,
+          "final_cpu_s": 16.288198912000002,
+          "baseline_mean_cores": 0.5511942785177165,
+          "final_mean_cores": 0.5521422423229858,
+          "baseline_peak_rss_mib": 1912.01953125,
+          "final_peak_rss_mib": 1920.3203125,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.24273532520228547
+        },
+        "14_north_door": {
+          "frames": 296,
+          "behavior_differences": [],
+          "maximum_matrix_element_delta": 1.1102230246251565e-16,
+          "maximum_emitted_matrix_element_delta": 1.1102230246251565e-16,
+          "baseline_cpu_s": 24.012643006999998,
+          "final_cpu_s": 23.847450233000004,
+          "baseline_mean_cores": 0.8139877604403816,
+          "final_mean_cores": 0.8083880063395943,
+          "baseline_peak_rss_mib": 1911.8203125,
+          "final_peak_rss_mib": 1920.35546875,
+          "lock_frame": 4,
+          "maximum_position_error_m": 0.3681105522368443
+        }
+      },
+      "full_movement": {
+        "frames": 2236,
+        "behavior_differences": [],
+        "maximum_matrix_element_delta": 2.842170943040401e-14,
+        "maximum_emitted_matrix_element_delta": 2.842170943040401e-14,
+        "result": {
+          "truth": {
+            "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+            "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+            "topic": "/n3mapping/odometry",
+            "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/recovery_context_20261019/final/full.csv",
+            "alignment": {
+              "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "evaluated_poses": 2232,
+            "first_output_sim_s": 0.799989997,
+            "first_output_position_error_m": 0.011931776766096578,
+            "first_output_rotation_error_deg": 0.03011480891712184,
+            "position_error_m": {
+              "rmse": 0.7127552364317388,
+              "median": 0.2523633389376937,
+              "p95": 0.5397663995208072,
+              "maximum": 4.399766990558109
+            },
+            "rotation_error_deg": {
+              "rmse": 1.156827305617685,
+              "median": 0.3422048651372931,
+              "p95": 0.5776700517920124,
+              "maximum": 9.005995633219003
+            },
+            "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+          },
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": 1,
+          "cpu_s": 139.829386276,
+          "wall_s": 223.506463001
+        }
+      },
+      "baseline": {
+        "cpu_s": 250.53662740500002,
+        "input_s": 413.000005005,
+        "mean_cores": 0.6066262091255106,
+        "peak_rss_mib": 1912.19921875
+      },
+      "final": {
+        "cpu_s": 250.52127850300002,
+        "input_s": 413.000005005,
+        "mean_cores": 0.6065890447143386,
+        "peak_rss_mib": 1920.546875
+      },
+      "pass_unchanged_behavior": true,
+      "limits": [
+        "Source lifecycle and fresh confirmation fix only; map-like out-of-map alias remains unresolved",
+        "Movement cost compared to preceding baseline, not a new paired performance claim",
+        "No hardware/native Noetic/full ROS throughput qualification; no 10 cm or half-core claim"
+      ]
+    },
+    "diagnostic_baseline": {
+      "scope": "Diagnostic-only behavior episodes using accepted 5702cb4 core, four CPU affinity, synthetic fixture settings unchanged. No simulator truth input.",
+      "variants": {
+        "default": [
+          {
+            "name": "ContinuousOdometryRejectsOppositeHeadingMapAlias",
+            "failures": 8,
+            "time_s": 1.718
+          },
+          {
+            "name": "SourceFrameReplacementStartsFreshConfirmation",
+            "failures": 2,
+            "time_s": 0.496
+          },
+          {
+            "name": "GradualYawDriftStillRecoversFromFreshGeometry",
+            "failures": 0,
+            "time_s": 1.143
+          }
+        ],
+        "atlas": [
+          {
+            "name": "ContinuousOdometryRejectsOppositeHeadingMapAlias",
+            "failures": 8,
+            "time_s": 1.068
+          },
+          {
+            "name": "SourceFrameReplacementStartsFreshConfirmation",
+            "failures": 2,
+            "time_s": 0.291
+          },
+          {
+            "name": "GradualYawDriftStillRecoversFromFreshGeometry",
+            "failures": 0,
+            "time_s": 0.688
+          }
+        ]
+      },
+      "findings": [
+        "Map-like unknown scene after continuous odometry locks the 40 m / 180 degree alias at its third confirming scan.",
+        "An explicit odometry source-frame replacement does not restart the backend confirmation immediately.",
+        "A 90 degree gradual odometry yaw drift with unchanged source frame recovers on fresh geometry; a hard old-heading veto would sacrifice existing recovery."
+      ],
+      "candidate_v2_findings": "Source reset is recognized by the backend in three observations, but the live projection layer invalidates the newly accepted source frame through that same correction stamp and drops its paired output. Correct the boundary without reviving old projections.",
+      "initial_test_harness_errors": [
+        "CMake compile_commands.json is unavailable; diagnostic compiler arguments were derived from the existing generated flags.make and link.txt.",
+        "Candidate v1 failed to compile because acceptBackend requires a mutable BackendOutput; corrected before any runtime test.",
+        "First full CTest attempt omitted the ROS Python environment. Its C++ test launchers did not import ament_cmake_test. Subsequent --rerun-failed selected only one target from shared CTest state; full-suite qualification must use explicit full invocation."
+      ]
+    },
+    "artifacts": "build/n3mapping/recovery_context_20261019",
+    "scope": "Four P cores 0,2,4,6; 4 registration threads; PASSIVE; same original 10 Hz input, maps, numeric gates and truth alignment; no installation or push"
   }
 }

@@ -84,6 +84,7 @@ int main(int argc, char** argv) {
     while (std::getline(fields, value, ',')) f.push_back(value);
     if (f.size() != 11) return 5;
     n3mapping::core::LioFrame frame;
+    frame.source_frame_id = "camera_init";
     frame.stamp.nsec = std::stoll(f[2]);
     if (index == 0) first_stamp = frame.stamp.nsec;
     const double elapsed_sensor_ms = (frame.stamp.nsec - first_stamp) / 1e6;
@@ -108,7 +109,7 @@ int main(int argc, char** argv) {
     n3mapping::core::OdometrySource source;
     source.stamp_nsec = frame.stamp.nsec;
     source.pose = frame.T_world_lidar;
-    source.source_frame = "camera_init";
+    source.source_frame = frame.source_frame_id;
     source.body_frame = "body";
     live.acceptBackend(source, frame.stamp.nsec / 1e9, result);
     auto emitted = live.observeOdometry(source, frame.stamp.nsec, true);

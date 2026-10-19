@@ -689,6 +689,7 @@ Localization changes should follow the existing ownership boundaries:
 
 | Responsibility | Owner |
 | --- | --- |
+| Input-source lifecycle and backend orchestration | `N3MappingCore` localization facade |
 | Session state, reset and map replacement | `WorldLocalizing` |
 | Query history and place retrieval | `RelocalizationQueryBuilder`, `RelocalizationPlaceIndex` |
 | Candidate registration and temporal acceptance | Candidate evaluator, hypothesis manager and decision policy |
@@ -704,7 +705,8 @@ report the number started.
 
 The deterministic `test_localization_episode` passes actual saved/loaded maps
 through the production core and live-output owner. It covers initialization,
-moving outside the map, reentry, invalid odometry, fresh map lifecycles,
+moving outside the map, reentry, invalid odometry, source replacement, gradual
+yaw-drift recovery, fresh map lifecycles,
 ambiguous places, no candidates and strict map-extension tracking. Together
 with ROS publication tests, it is the integration check for changes within
 these boundaries:
@@ -762,16 +764,17 @@ remain separate from that measured result.
 
 ### TODO
 
-Current localization work, updated **2026-10-19**, retains production commit
-`5702cb4`. The new independent continuous-motion baseline exposed failures that
-must be fixed before claiming moving recovery reliability. Three subsequent
-tracking ablations were rejected; the accepted runtime remains unchanged.
-Detailed results and limits are in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#moving-tracking-and-recovery-ablation--2026-10-19).
+Current localization work, updated **2026-10-19**, has repaired explicit
+odometry-source replacement and invalid-input recovery. The new source requires
+fresh confirmation, and its first authorized live output is retained. Full
+paired fixed14 and full-map movement preserve baseline behavior; map-like
+out-of-map aliases and moving tracking error still fail reliability.
+Detailed results and limits are in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#odometry-source-lifecycle-and-fresh-confirmation--2026-10-19).
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
-| Reliability — moving failures now take priority | Preserve incremental candidate admission, unaffected-seed reuse, fresh-observation confirmation and all 14 fixed-region recoveries. The 240 m query exposes a partial-map false lock (96.67 m / 180° at 92.6 s) and a full-map tracking excursion (4.40 m maximum). Directly applying extension geometry gates or motion limits creates 20 m aliases. Atlas tracking improves the full-map control but prolongs the partial-map false lock and later locks a 43.95 m alias; all three trials were reverted. Audit recovery's lost motion context with continuous-odometry, reset and drift cases before selecting a fix. |
-| Search cost — continue after reliability correction | Existing fixed14 four-core mean remains 0.607 cores, only 01/09 pass; 03/08/14 are 0.767/0.801/0.806. The new moving full-map control needs 0.625 CPU s/input s; partial-map search needs 10.415 and accumulates backlog. It performs 6,374 full registrations and 12,099 fixed-pose checks; descriptor calling-thread CPU is only 12.232 of 2,327.650 process CPU s. Reduce redundant new/invalid-candidate and confirmation geometry. Exact grid lookup was rejected for slower fine queries and 308.64 MiB extra metadata. |
+| Reliability — moving failures now take priority | Preserve incremental candidate admission, unaffected-seed reuse, fresh-observation confirmation and all 14 fixed-region recoveries. The 240 m query exposes a partial-map false lock (96.67 m / 180° at 92.6 s) and a full-map tracking excursion (4.40 m maximum). Directly applying extension geometry gates or motion limits creates 20 m aliases. Atlas tracking improves the full-map control but prolongs the partial-map false lock and later locks a 43.95 m alias; all three trials were reverted. Explicit source replacement and invalid-input recovery are now fixed; 15 E2E episodes pass in default/Atlas/kill modes, including gradual 90° drift. Continuous-source map-like aliases still require a fix that preserves drift recovery. |
+| Search cost — continue after reliability correction | Latest paired fixed14 four-core mean is 0.607 cores, only 01/09 pass; 03/08/14 are 0.799/0.796/0.808. The new moving full-map control needs 0.625 CPU s/input s; partial-map search needs 10.415 and accumulates backlog. It performs 6,374 full registrations and 12,099 fixed-pose checks; descriptor calling-thread CPU is only 12.232 of 2,327.650 process CPU s. Reduce redundant new/invalid-candidate and confirmation geometry. Exact grid lookup was rejected for slower fine queries and 308.64 MiB extra metadata. |
 | Accuracy — retain 10 cm; separate causes | Current absolute errors do not pass 10 cm. Earlier evidence supports map bias at 09/11/14, so that map correction remains deferred. The moving query's frontend maximum is 0.447 m, while full-map localization reaches 4.40 m; investigate the added tracking error rather than treating it as established map-only bias. No new accuracy improvement is claimed. |
 | Loop/map consistency — offline comparison pending | Reuse fused retrieval to propose independently registered scan-to-scan relative constraints, preserve competing-hypothesis and neighborhood checks, then compare trajectory and map consistency on frozen inputs. Preserve the baseline map and use separate outputs. The cropped localization fixture has disconnected graph components and is unsuitable for this graph-optimization experiment. No loop-consistency improvement is established yet. |
 

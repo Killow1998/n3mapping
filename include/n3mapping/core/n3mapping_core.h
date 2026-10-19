@@ -125,6 +125,7 @@ class N3MappingCore {
     int floor_attitude_accepted_ = 0;
     int floor_attitude_rejected_ = 0;
     std::size_t loop_count_ = 0;
+    std::string localization_source_frame_id_;
     bool map_loaded_ = false;
 };
 

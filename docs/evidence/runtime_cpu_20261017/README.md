@@ -10,15 +10,13 @@ Current task order and acceptance boundaries are maintained in the
 [project TODO](../../../README.md#todo). The dated sections below preserve the
 scope and evidence of each completed experiment.
 
-Latest stage: [exact heading wrap and scheduling ablation](#exact-heading-wrap-and-scheduling-ablation--2026-10-19)
-reduces complete repetitive-negative heading CPU from 12.035 to 10.594 s
-(−12.0%), but total CPU only from 568.492 to 567.056 s
-(−0.25%). All 14 full paired replays preserve
-lock decisions and emitted poses. Only 01/09 meet half a core, with a suite mean
-of **0.607**. The prior bounded-seed-history stage's 13.2% negative-CPU
-saving remains documented below; do not combine nonpaired timing runs as another
-measured speedup. Difficult-search half-core, 10 cm accuracy, independent moving
-out/reentry and offline-loop consistency remain open.
+Latest accepted stage: [odometry source lifecycle and fresh confirmation](#odometry-source-lifecycle-and-fresh-confirmation--2026-10-19)
+fixes explicit source replacement and invalid-input recovery, with 61/61 checks,
+15 E2E episodes in three modes, complete paired fixed14 and full-map movement
+controls. This does not fix the newly measured map-like out-of-map alias or
+moving tracking excursion. Difficult-search half-core, 10 cm and independent
+offline loop consistency remain open. Earlier optimization and rejected-trial
+evidence is preserved in the dated sections below.
 
 ## Measurement boundaries
 
@@ -2475,3 +2473,89 @@ frozen variants, complete CSV/logs and analysis. Compact records and hashes are
 under `moving_geometry_ablation` in `../search_cost_20261019.json`. Prepared
 `qualify_v4.py` was not run because its reliability prerequisite failed. All stage
 runs and restoration builds exited. No data was deleted, pushed or installed.
+
+
+## Odometry source lifecycle and fresh confirmation — 2026-10-19
+
+**Accepted scope: explicit source-frame replacement and invalid-pose recovery.**
+This does not repair the known continuous-odometry map-like alias or the full-map
+tracking excursion. Accepted runtime changes are restricted to input lifecycle
+and the corresponding live-output timestamp boundary; numerical registration and
+acceptance gates remain unchanged.
+
+The frozen old core fails two diagnostic behaviors in both default and Atlas
+modes: it locks a 40 m / 180° map-like unknown-region alias after continuous
+odometry, and it fails to begin a fresh confirmation window immediately when the
+source frame changes. It already recovers from an unannounced gradual 90° yaw
+drift. The alias remains an explicit failing diagnostic outside the passing
+suite; the drift behavior is retained to reject a hard old-heading veto.
+
+`N3MappingCore` now clears odometry-dependent localization state on source-frame
+replacement or an explicitly invalid/nonfinite pose. It uses the existing reset:
+map-derived Atlas and tracking targets remain reusable, while query history,
+seed proposals and temporal hypotheses lose authority. An empty cloud with a
+valid unchanged odometry source does not trigger a reset. This is not a detector
+for an unreported discontinuity with an unchanged frame identifier.
+
+The new source then needs the original number of fresh observations. An E2E
+exposed a second defect: an authorized frame-change correction retired its own
+paired observation. `RealtimeOdometry` now retires timestamps before that new
+correction, while retaining the existing retirement of already frozen old-frame
+projections. Late old-frame clouds remain rejected.
+
+Validation: **61/61 CTest** and **15/15 E2E in each of default, Atlas and kill
+modes**. Three recovery episodes cover source replacement, explicit invalid input
+followed by a same-name frontend restart, and gradual yaw drift; the original
+12 episodes remain intact. Earlier setup failures and the intermediate paired-
+output failure are retained in `baseline_findings.json`; only the subsequent
+explicit complete suite is qualification. No native Noetic build or hardware
+claim is made.
+
+Complete four-core paired replays use matching frozen headers/libraries and the
+same probe source, with both backend and live output bound to `camera_init`.
+All **14 × 296 = 4,144 frames** preserve decisions, registrations, seed/support
+identities, the fifth-input lock and 292 outputs per position. Maximum emitted
+matrix-element difference is
+3.55e-15.
+
+| Full 14-position cost | Baseline | Source lifecycle fix |
+| --- | ---: | ---: |
+| Process CPU seconds / 413 input seconds | 250.536627 | 250.521279 |
+| Mean CPU s per input second | 0.606626 | 0.606589 |
+| Peak RSS including map loading, MiB | 1912.199 | 1920.547 |
+
+This is a reliability correction, not an established speed or memory gain.
+Only 01/09 pass the half-core target; 03/08/14 remain
+0.799/
+0.796/
+0.808.
+The original **2,236-frame** full-map movement also preserves all decisions and
+2,232 emitted poses (maximum matrix-element delta
+2.84e-14). Its maximum position error is
+4.399767 m and CPU is
+139.829386 s / 223.5 input s. The known tracking error remains;
+this one candidate replay is not a newly paired moving performance claim.
+The unchanged continuous-source partial-map alias is not declared fixed or
+requalified by these normal-input controls.
+
+Closeout separates the localization facade into 112 lines, reducing the main
+core file from 987 to 892 lines. The original episode file drops from 616 to 384
+lines, sharing one 239-line fixture with the 77-line recovery file. Both ROS build
+lists use the same new sources; no test target or runtime configuration was added.
+Core and public layout changed together and were rebuilt together. No installed
+binary, simulator, FAST_LIO, saved map or remote branch was changed.
+
+A separate diagnostic traces complete stages on 03/08/14 first-five-scan prefixes
+and ten repetitive-negative scans. There are no bit-identical repeated initial
+matrices; near-converged starts alone do not certify reusable registration results.
+The next cost ablation will reuse only nearest-neighbor search upper bounds and
+still compute fresh current-observation geometry. Diagnostic files are under
+`build/n3mapping/stage_reuse_20261019`; none of that experimental state is in
+production.
+
+Compact comparison is in `source_lifecycle_recovery` of
+[`../search_cost_20261019.json`](../search_cost_20261019.json). Full frozen inputs,
+binaries, validation logs, paired runs and `comparison_v3.json` are under
+`build/n3mapping/recovery_context_20261019`. Core SHA-256:
+`71a4ce252667dbceee79f0408f8b74d48a7d15a23e7ab7afda5f4f4b102a9de3`. Moving reliability, difficult-search half-core,
+10 cm and independent offline loop consistency all remain open.
