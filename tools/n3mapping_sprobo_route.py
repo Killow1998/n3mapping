@@ -26,8 +26,11 @@ def coverage_route(variant="reference"):
 
 
 class RouteDriver:
-    def __init__(self, speed=1.2, variant="reference"):
-        self.points = coverage_route(variant)
+    def __init__(self, speed=1.2, variant="reference", points=None):
+        self.points = coverage_route(variant) if points is None else points
+        if (len(self.points) < 2 or any(len(point) != 2 or
+                not all(math.isfinite(value) for value in point) for point in self.points)):
+            raise ValueError("A route needs at least two finite XY waypoints")
         self.speed = speed
         self.index = 0
         self.pose = None

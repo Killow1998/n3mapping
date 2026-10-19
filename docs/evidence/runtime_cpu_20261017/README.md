@@ -2301,3 +2301,116 @@ Existing input data, installed binaries, simulator/FAST_LIO files and remote bra
 Next work remains eliminating geometric repetition with exact fallback behavior,
 adding independent continuous moving out/reentry coverage, and preserving the
 separate map-error and offline-loop-consistency objectives.
+
+
+## Independent moving exit and reentry baseline — 2026-10-19
+
+**Status: acquisition and complete four-core comparisons finished; moving
+reliability fails. Production code remains `5702cb4`.** Fixed14 and synthetic
+E2E results above remain valid for their inputs; they did not cover this failure.
+
+The existing route driver now accepts an input-only JSON waypoint list. The
+committed `tools/fixtures/sprobo_reentry.json` drives west→east→north→west→start,
+239.716 m over 223.955 simulation seconds in the unchanged 100 × 100 m reference
+scene. The sensor-consistency simulator, adapter and FAST_LIO binaries/parameters
+are unchanged. Raw recording is complete: 2,239 LiDAR frames, 44,791 IMU samples,
+2,239 truth records and 2,236 exact-stamp frontend cloud/odometry pairs. Truth is
+restricted to route control and scoring, never estimation. All six waypoints
+were reached. The closed recording and manifest are under
+`map/sprobo_20261018/reentry_20261019/query`.
+
+A separate partial prior keeps 382 original keyframes with saved map x≤20 m and
+removes their cloud points beyond map x=35 m. Saved optimized/odometry poses are
+byte-identical to the original; descriptors and Atlas are rebuilt. The original
+map is preserved. Cropping leaves two graph components (269 and 113 nodes):
+ISAM2 rebuild warns, while localization uses saved keyframe poses independently.
+The pose audit and loader inspection establish that those poses are unchanged;
+this fixture is **not qualified for loop/graph optimization**. Its derivation,
+source and map/Atlas are retained under `reentry_20261019/partial_map`.
+
+Both complete replays use the frozen production core and matching probe/headers,
+four physical P cores 0/2/4/6, four registration threads, PASSIVE and the same
+2,236 frames / 223.500 input seconds. Only prior-map coverage changes. Loading,
+frontend, simulator and DDS are excluded; all replay-process workers, PCD decode
+and actual RealtimeOutput projection are included. These are offline direct-core
+behavior/cost measurements, not full-node real-time qualification. Pose scoring
+uses the first mapping-session alignment only, with no query fit.
+
+| Result | Full prior | Partial prior |
+| --- | ---: | ---: |
+| Outputs after the first lock | 2,232, no gaps | 2,232, no gaps |
+| Lock events | 1 | 3; one incorrect |
+| Total process CPU s | 139.747 | 2,327.650 |
+| CPU s / original input s | 0.625267 | 10.414539 |
+| Replay wall s | 223.507 | 772.060 |
+| Maximum input backlog s | 3.214 | 595.266 |
+| Peak RSS including loading, MiB | 1,911.84 | 797.15 |
+| Maximum absolute position error m | 4.400 | 107.665 |
+| Maximum absolute rotation error ° | 9.006 | 180.000 |
+
+A value above four CPU s/input s denotes accumulated work/backlog, not more than
+four simultaneous cores. The partial-map phase demands are 0.860 initially
+mapped, 19.420 outbound boundary, 8.491 beyond the descriptor horizon, 25.179
+inbound boundary and 0.463 after reentry. The full-prior phases are
+0.936/0.813/0.587/0.530/0.477. The horizon diagnostic is ground-truth map x>65 m,
+30 m beyond retained points; it does not assert absence of long-range rays.
+Neither complete run passes half a core.
+
+The partial run initially locks correctly at input time 0.800 s. At **92.600 s**
+it incorrectly locks at the opposite boundary: **96.669 m / 179.999° error**,
+support keyframe 403. This is a fresh registration/confirmation, with fitness
+0.004654, inlier ratio 0.988291 and directional support 0.577255; it is not an old
+score being published without current geometry. The erroneous correction moves
+the output by 96.281 m. Returning within retained point coverage at 158.200 s,
+it recovers at 169.000 s with 0.221 m / 0.342° error, after another 10.800 input
+seconds / 12.960 m of travel. The large processing backlog means these input
+intervals cannot be called real-time recovery latency. Odom-only intervals keep
+their correction to 8.53e-14 maximum matrix-element difference, but retain an
+incorrect correction after the false lock.
+
+The full-prior control has no relock, yet near input time 206.600 s its tracking
+error reaches 4.400 m; 83 geometrically marked outputs exceed the diagnostic
+1 m/5° gross-error markers. Those markers are not replacement product gates.
+The independent frontend's maximum is 0.447 m / 0.481° with one initial alignment.
+Source review finds that ordinary localization bypasses the visibility and
+correction-size checks already used by map-extension tracking. A causal A/B of
+shared checks is the next experiment; the excursion is not dismissed as map-only
+error. Recovery also needs investigation of prior trusted map/odometry
+continuity without stranding valid new pose modes or changing cold-start recall.
+
+Partial-map search performs 6,374 full registrations, 12,099 fixed-pose checks,
+4,144 cold seed solves and 1,622 confirmation registrations. Descriptor
+calling-thread CPU is 12.232 s versus 2,327.650 total process CPU s, so shrinking
+the descriptor is not the main remedy for this workload.
+
+Before this acquisition, an exact sparse-grid nearest-neighbor experiment was
+rejected without production integration. All 168,014 boundary and 417,378 real
+query oracle comparisons pass, but fine-level kernel wall time increases
+13.7–45.8%, refine-level time 36.9–171.6%, and index metadata adds 308.639 MiB.
+Coarse gains are inconsistent. The isolated gate-squared=1.0 ABBA micro is not
+product optimizer qualification. No cache, abstraction, tests or grid code were
+added to production for this rejected trial.
+
+Stage close-out keeps only the small offline route-tool changes and fixture;
+route control remains in its existing 95-line module and acquisition in the
+370-line orchestration script. Full acquisition supplies the positive behavioral
+check; syntax/help and invalid-mode-before-output-creation checks pass. No new
+unit-test target or production helper is introduced, and unrelated CTest suites
+are not rerun for this offline-only change. The earlier 61/61 and three-mode E2E
+results belong to the unchanged production core.
+
+For a new recording, use the existing smoke tool with the frozen simulator and
+adapter paths, `--input-only --waypoints tools/fixtures/sprobo_reentry.json
+--duration 300 --spawn -44 0 0 --yaw 0`, a fresh output directory and free DDS
+domain. Supply its required `--sim-root`, `--adapter`, and `--workspace` arguments.
+Extract only after recorder closure using the existing manifest tool.
+
+Compact data and fingerprints are in `moving_reentry_baseline` and
+`exact_grid_rejected` in [`search_cost_20261019.json`](../search_cost_20261019.json).
+Full baseline CSV/costs/logs, `verified.json`, pose audit and `moving_reentry.png`
+are under `build/n3mapping/moving_reentry_20261019`; grid micro evidence remains
+under `build/n3mapping/exact_grid_20261019`. Both replay processes have finished.
+Next: fix and ablate the ordinary tracking geometry path, diagnose out-of-map
+alias acceptance, then rerun complete movement/fixed14/negative inputs before
+resuming stage-level geometry reuse optimization. Half-core, 10 cm and independent
+offline loop-consistency qualification remain open.

@@ -90,6 +90,8 @@ def main():
     parser.add_argument("--variant", choices=["reference", "changed", "repetitive"], default="reference")
     parser.add_argument("--route", choices=["smoke", "coverage", "stationary"], default="smoke")
     parser.add_argument("--input-only", action="store_true", help="Record independent sensor/LIO queries without running n3m")
+    parser.add_argument("--waypoints", type=Path,
+                        help="JSON list of XY waypoints for an input-only query; set a sufficient duration")
     args = parser.parse_args()
     if args.duration is None:
         args.duration = 1800. if args.route == "coverage" else 35.
@@ -99,6 +101,18 @@ def main():
         parser.error("input-only cannot be combined with map or coverage route")
     if args.map and args.route == "coverage":
         parser.error("coverage is a mapping acquisition route")
+    if args.waypoints and (not args.input_only or args.route != "smoke"):
+        parser.error("waypoints requires input-only and the default smoke route")
+    try:
+        if args.waypoints:
+            points = json.loads(args.waypoints.read_text())
+            if not isinstance(points, list):
+                raise ValueError("waypoints must be a JSON array")
+            driver = RouteDriver(points=points)
+        else:
+            driver = RouteDriver(variant=args.variant) if args.route == "coverage" else None
+    except (ValueError, TypeError, OSError) as error:
+        parser.error(str(error))
     args.sim_root, args.workspace, args.adapter = (
         path.resolve() for path in (args.sim_root, args.workspace, args.adapter))
     args.output = args.output.resolve()
@@ -123,7 +137,6 @@ def main():
 
     core = (args.sim_executable.resolve() if args.sim_executable else
             args.sim_root / "build/desktop/simple-rbt-sim")
-    driver = RouteDriver(variant=args.variant) if args.route == "coverage" else None
     frontend = args.workspace / "install/fast_lio/lib/fast_lio/fastlio_mapping"
     backend = args.workspace / "build/n3mapping/n3mapping_node"
     config = session(args.variant, args.spawn, args.yaw, duration=args.duration)
@@ -168,6 +181,10 @@ def main():
                            args.workspace / "src/n3mapping/humble/config/n3mapping.yaml")}
     if args.map:
         identity["inputs"][str(args.map.resolve())] = file_hash(args.map)
+    if args.waypoints:
+        plan = args.output / "waypoints.json"
+        plan.write_text(json.dumps(driver.points, indent=2)+"\n")
+        identity["inputs"][str(plan)] = file_hash(plan)
     (args.output / "commands.json").write_text(json.dumps(identity, indent=2)+"\n")
     rclpy.init()
     node = rclpy.create_node("n3m_sprobo_observer")
@@ -331,6 +348,7 @@ def main():
     if driver:
         checks["route_completed"] = driver.completed_at is not None
         (args.output / "route.json").write_text(json.dumps(driver.report(), indent=2)+"\n")
+    if driver and not args.input_only:
         from n3mapping_sprobo_score import mapping_quality
         quality = mapping_quality(args.output)
         checks["mapping_geometry"] = quality["passed"]

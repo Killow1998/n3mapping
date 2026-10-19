@@ -3280,5 +3280,319 @@
       "sha256": "0873ca01d514718aed227b9f7a3dd1ce6c08eebe69d55433d4c06456a2eb156b",
       "contains": "All per-frame comparisons, source identities, rawCSV hashes, phase counts, exactmicro evidence, rejected experiments and validation/tool fingerprints."
     }
+  },
+  "moving_reentry_baseline": {
+    "status": "Measured baseline failures; no production fix adopted in this stage",
+    "baseline_commit": "5702cb4540e318a122a0f9ba00b09c36a7d649f7",
+    "core_sha256": "5f002f1557f8f188edb62e423fe33760ba388e6ea1c863752f6afac517b30251",
+    "scope": "Complete independent moving input; frozen production core, four physical P cores and four registration threads. Direct core includes PCD decode/output/background; excludes loading, frontend, simulation and DDS.",
+    "report": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_reentry_20261019/verified.json",
+    "report_sha256": "c29c5b364302cf26d36d2dbe8a37aa5264f07bc0664fcc3df047583c166692a5",
+    "plot": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/moving_reentry_20261019/moving_reentry.png",
+    "manifest": {
+      "frame_count": 2236,
+      "frames_csv_sha256": "2422a44c5560990ab1ac76bc4719b9c4ecc2880b7d3890fa33560270dd0f3fcf",
+      "pcd_set_sha256": "db167e5906725a690d73e0d0c2873c621d021230398a025f5268cefadf894943",
+      "total_points": 22232816
+    },
+    "route": {
+      "fixture": "tools/fixtures/sprobo_reentry.json",
+      "distance_m": 239.71608230831694,
+      "reached": 6,
+      "total": 6,
+      "completed_at_s": 221.94,
+      "truth_use": "route controller and scoring only; no estimator input"
+    },
+    "acquisition": {
+      "passed": true,
+      "all_named_checks_passed": true,
+      "counts": {
+        "/tf_static": 1,
+        "/clock": 44792,
+        "/livox/imu": 44791,
+        "/livox/lidar": 2239,
+        "/ground_truth/odom": 2239,
+        "/Odometry": 2236,
+        "/cloud_registered_body": 2236
+      },
+      "lio_exact_stamp_pairs": 2236,
+      "simulation_seconds": 223.955,
+      "mode": "input_only"
+    },
+    "partial_map": {
+      "input_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+      "output_sha256": "79fc82c6977fafef3802c15fa8953f0e755ac79a12f3984251f96139a242308c",
+      "anchor_max_map_x": 20,
+      "point_max_map_x": 35,
+      "input_keyframes": 1271,
+      "kept_keyframes": 382,
+      "selected_raw_points": 3805888,
+      "kept_points": 3789154,
+      "odometry_edges": 378,
+      "loop_edges": 63,
+      "bounds_min": [
+        -5.94128,
+        -49.859,
+        -0.902388
+      ],
+      "bounds_max": [
+        35,
+        49.7519,
+        3.01412
+      ]
+    },
+    "partial_pose_audit": {
+      "kept_keyframes": 382,
+      "saved_pose_fields_byte_identical": true,
+      "pose_fields": [
+        "pose_optimized",
+        "pose_odom"
+      ],
+      "connected_components": [
+        {
+          "size": 269,
+          "first_id": 0,
+          "last_id": 1270
+        },
+        {
+          "size": 113,
+          "first_id": 958,
+          "last_id": 1070
+        }
+      ],
+      "scope": "Saved immutable localization geometry/poses; disconnected graph not qualified for loop optimization",
+      "loader_inspection": "MapSerializer loads saved keyframes separately from GraphOptimizer; N3MappingCore.loadMap and MappingResuming.initializeFromLoadedMap do not replace their poses from the graph solve"
+    },
+    "frontend_position_error_m": {
+      "rmse": 0.2884465166122872,
+      "median": 0.29634570236408053,
+      "p95": 0.42561827836791083,
+      "maximum": 0.4472827036268413
+    },
+    "frontend_rotation_error_deg": {
+      "rmse": 0.14923450781521122,
+      "median": 0.08414419362009629,
+      "p95": 0.3100663789480779,
+      "maximum": 0.4811407848712043
+    },
+    "phase_definition": {
+      "initial_mapped": "ground-truth map x <= 20 before the eastern turnaround",
+      "boundary_outbound": "20 < x <= 65 before turnaround",
+      "outside_descriptor_horizon": "map x > 65, at least 30 m beyond retained point bound x=35; does not prove no long-range LiDAR overlap",
+      "boundary_inbound": "20 < x <= 65 after turnaround",
+      "reentered": "x <= 20 after turnaround"
+    },
+    "runs": {
+      "partial": {
+        "total": {
+          "frames": 2236,
+          "input_s": 223.50000000000068,
+          "cpu_s": 2327.649544708,
+          "mean_cores": 10.414539349923906,
+          "outputs": 2232,
+          "geometric_frames": 1267,
+          "lock_events": 3,
+          "maximum_position_error_m": 107.66540871694134,
+          "maximum_rotation_error_deg": 179.99964846549983
+        },
+        "phases": {
+          "initial_mapped": {
+            "frames": 234,
+            "input_s": 23.29999499500001,
+            "cpu_s": 20.044618188,
+            "mean_cores": 0.8602842271983927
+          },
+          "boundary_outbound": {
+            "frames": 375,
+            "input_s": 37.500005005000126,
+            "cpu_s": 728.2500238419999,
+            "mean_cores": 19.419998043864194
+          },
+          "outside_descriptor_horizon": {
+            "frames": 719,
+            "input_s": 71.90000000000029,
+            "cpu_s": 610.4826380930001,
+            "mean_cores": 8.490718193226671
+          },
+          "boundary_inbound": {
+            "frames": 375,
+            "input_s": 37.49999499500014,
+            "cpu_s": 944.2194605819998,
+            "mean_cores": 25.179188976102324
+          },
+          "reentered": {
+            "frames": 533,
+            "input_s": 53.300005005000344,
+            "cpu_s": 24.652804003000256,
+            "mean_cores": 0.4625291123460017
+          }
+        },
+        "lock_events": [
+          {
+            "frame": 4,
+            "sim_s": 0.799989997,
+            "phase": "initial_mapped",
+            "position_error_m": 0.011363541952391075,
+            "rotation_error_deg": 0.0318389137356917,
+            "support": 0
+          },
+          {
+            "frame": 922,
+            "sim_s": 92.599995002,
+            "phase": "outside_descriptor_horizon",
+            "position_error_m": 96.66944633134624,
+            "rotation_error_deg": 179.99944024438184,
+            "support": 403
+          },
+          {
+            "frame": 1686,
+            "sim_s": 168.999989997,
+            "phase": "boundary_inbound",
+            "position_error_m": 0.22066305109118609,
+            "rotation_error_deg": 0.34241928073761585,
+            "support": 958
+          }
+        ],
+        "output_gaps_after_first": 0,
+        "coast_transform_max_element_delta": 8.526512829121202e-14,
+        "maximum_output_correction_m": 96.2807725266336,
+        "peak_rss_mib": 797.15234375,
+        "wall_s": 772.059933803,
+        "maximum_lateness_s": 595.265783494,
+        "search_work": {
+          "alignments": 6374.0,
+          "fixed_pose_evaluations": 12099.0,
+          "seed_initializations": 4144.0,
+          "seed_continuations": 4686.0,
+          "seed_resumptions": 608.0,
+          "seed_retries": 280.0,
+          "confirmation_registrations": 1622.0,
+          "confirmation_evaluations": 4155.0,
+          "invalidated_seed_poses": 70.0,
+          "descriptor_calling_thread_cpu_s": 12.232279667999693,
+          "search_observations": 957
+        },
+        "point_coverage_reentry_sim_s": 158.199995002,
+        "first_lock_after_point_reentry_delay_input_s": 10.799994995,
+        "first_lock_after_point_reentry_travel_m": 12.960405457120784,
+        "geometric_gross_error_frames_count": 496
+      },
+      "full": {
+        "total": {
+          "frames": 2236,
+          "input_s": 223.50000000000068,
+          "cpu_s": 139.74713616399998,
+          "mean_cores": 0.625266828474271,
+          "outputs": 2232,
+          "geometric_frames": 2230,
+          "lock_events": 1,
+          "maximum_position_error_m": 4.39976699055811,
+          "maximum_rotation_error_deg": 9.005995633219001
+        },
+        "phases": {
+          "initial_mapped": {
+            "frames": 234,
+            "input_s": 23.29999499500001,
+            "cpu_s": 21.799906643000003,
+            "mean_cores": 0.93561851183565
+          },
+          "boundary_outbound": {
+            "frames": 375,
+            "input_s": 37.500005005000126,
+            "cpu_s": 30.474886568999995,
+            "mean_cores": 0.8126635333765042
+          },
+          "outside_descriptor_horizon": {
+            "frames": 719,
+            "input_s": 71.90000000000029,
+            "cpu_s": 42.193856426,
+            "mean_cores": 0.5868408404172438
+          },
+          "boundary_inbound": {
+            "frames": 375,
+            "input_s": 37.49999499500014,
+            "cpu_s": 19.86292209599999,
+            "mean_cores": 0.529677993254354
+          },
+          "reentered": {
+            "frames": 533,
+            "input_s": 53.300005005000344,
+            "cpu_s": 25.41556442999999,
+            "mean_cores": 0.47683981319730884
+          }
+        },
+        "lock_events": [
+          {
+            "frame": 4,
+            "sim_s": 0.799989997,
+            "phase": "initial_mapped",
+            "position_error_m": 0.011931776766096476,
+            "rotation_error_deg": 0.03011480891712185,
+            "support": 0
+          }
+        ],
+        "output_gaps_after_first": 0,
+        "coast_transform_max_element_delta": 7.105427357601002e-15,
+        "maximum_output_correction_m": 0.3332215089877058,
+        "peak_rss_mib": 1911.84375,
+        "wall_s": 223.50655497,
+        "maximum_lateness_s": 3.214231702,
+        "search_work": {
+          "alignments": 46.0,
+          "fixed_pose_evaluations": 26.0,
+          "seed_initializations": 42.0,
+          "seed_continuations": 0.0,
+          "seed_resumptions": 0.0,
+          "seed_retries": 0.0,
+          "confirmation_registrations": 4.0,
+          "confirmation_evaluations": 18.0,
+          "invalidated_seed_poses": 0.0,
+          "descriptor_calling_thread_cpu_s": 0.4948749810000008,
+          "search_observations": 5
+        },
+        "point_coverage_reentry_sim_s": 158.199995002,
+        "first_lock_after_point_reentry_delay_input_s": null,
+        "first_lock_after_point_reentry_travel_m": null,
+        "geometric_gross_error_frames_count": 83
+      }
+    },
+    "checks": {
+      "py_compile": true,
+      "help": true,
+      "invalid_waypoints_mode_rejected_before_output_creation": true,
+      "initial_check_invocation": "Omitted required sim-root/adapter/workspace and hit argparse required-argument error; corrected invocation passed intended check",
+      "acquisition": "Full 2236-pair real acquisition is the positive behavior check"
+    },
+    "findings": [
+      "Partial map incorrectly locks at 92.599995 s with 96.669446 m / 179.999440 deg error, despite fresh geometry, directional support 0.577255 and full temporal confirmation. Recovers at 168.999990 s; safety fails.",
+      "Full map stays locked but develops a 4.399767 m / up-to-9.005996 deg tracking excursion. Normal localization bypasses visibility and correction-size checks used by map-extension tracking; causal A/B remains to do.",
+      "Four-core CPU demand is 10.414539 CPU s/input s for partial map and 0.625267 for full map; neither is a half-core pass. Partial replay backlog makes its early timestamped locks unsuitable for real-time latency claims.",
+      "True outside-map aliasing cannot be dismissed as a descriptor-dimension or stale-cache issue; investigate continuity from prior trusted map/odometry without suppressing independent initial candidates or legitimate recovery."
+    ]
+  },
+  "exact_grid_rejected": {
+    "adopted": false,
+    "boundary_oracle_comparisons": 168014,
+    "real_query_oracles": 417378,
+    "added_index_bytes_per_atlas": 323631404,
+    "scope": "One serial main-thread ABBA kernel test per realcloud/targetlevel/hintmode; gate_squared=1.0 as an isolated search probe, not product optimizer gate validation. No end-to-end benefit claimed.",
+    "kernel_wall_change_percent_by_resolution": {
+      "0.2": {
+        "minimum": -12.46309563590965,
+        "maximum": 11.687378057205278
+      },
+      "0.1": {
+        "minimum": 13.682106695036333,
+        "maximum": 45.78000834872542
+      },
+      "0.05": {
+        "minimum": 36.91543313070304,
+        "maximum": 171.5709481519764
+      }
+    },
+    "report": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/exact_grid_20261019/rejected.json",
+    "report_sha256": "d6544d28ab3cdeea7a2c598359860c6c3895416e7b760f51bedee08b59959185",
+    "decision": "Reject grid indexing before production integration",
+    "reason": "All fine/refine cases slower; coarse case gain inconsistent; high metadata memory. No production change."
   }
 }
