@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 
 #include <glog/logging.h>
 
@@ -59,91 +60,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
     if (query_rhpd.isZero()) {
       LOG(WARNING) << "[Reloc/RHPD] query descriptor is zero.";
     } else {
-      const int preselect = std::max(config_.rhpd_num_candidates * 3,
-                                     config_.reloc_num_candidates * 3);
-      auto top_k = rhpd_manager.search(query_rhpd, std::max(1, preselect),
-                                       config_.rhpd_preselect_candidates, performance);
-      std::vector<LoopCandidate> ranked;
-      ranked.reserve(top_k.size());
-
-      for (int i = 0; i < static_cast<int>(top_k.size()); ++i) {
-        const auto &item = top_k[i];
-        if (item.second > config_.rhpd_dist_threshold) {
-          continue;
-        }
-
-        LoopCandidate candidate;
-        candidate.query_id = -1;
-        candidate.match_id = item.first;
-        candidate.rhpd_distance = item.second;
-        candidate.source_flags = LoopCandidate::SOURCE_RHPD;
-        candidate.candidate_source = LoopCandidate::Source::RhpdPrimary;
-        candidate.rhpd_rank = i;
-
-        RHPDHeadingPtr match_sc;
-        if (config_.rhpd_use_sc_yaw) match_sc = loop_detector_.getDescriptor(item.first);
-        if (config_.rhpd_use_sc_yaw && query_sc &&
-            match_sc) {
-          DescriptorPhaseTimer heading_timer(performance ? &performance->heading : nullptr);
-          if (performance) ++performance->heading_comparisons;
-          auto [sc_dist, yaw_shift] =
-              loop_detector_.computeDistance(query_sc, match_sc);
-          heading_timer.finish();
-          candidate.sc_distance = sc_dist;
-          candidate.yaw_diff_rad =
-              static_cast<float>(yaw_shift) *
-              static_cast<float>(
-                  loop_detector_.getHeadingSectorAngleDeg()) *
-              static_cast<float>(M_PI / 180.0);
-          candidate.source_flags |= LoopCandidate::SOURCE_SC;
-          if (config_.sc_aux_veto_enabled &&
-              sc_dist > config_.sc_aux_veto_threshold) {
-            continue;
-          }
-        }
-
-        const double rhpd_norm = candidate.rhpd_distance /
-                                 std::max(1e-6, config_.rhpd_dist_threshold);
-        const double sc_norm =
-            candidate.fromSC() && std::isfinite(candidate.sc_distance)
-                ? candidate.sc_distance /
-                      std::max(1e-6, config_.sc_aux_veto_threshold)
-                : 0.0;
-        candidate.fused_score = config_.rhpd_primary_weight * rhpd_norm +
-                                config_.sc_aux_weight * sc_norm;
-        ranked.push_back(candidate);
-      }
-
-      std::sort(ranked.begin(), ranked.end(),
-                [](const LoopCandidate &lhs, const LoopCandidate &rhs) {
-                  if (lhs.fused_score != rhs.fused_score) {
-                    return lhs.fused_score < rhs.fused_score;
-                  }
-                  return lhs.rhpd_distance < rhs.rhpd_distance;
-                });
-
-      const int keep = std::min(config_.reloc_num_candidates,
-                                static_cast<int>(ranked.size()));
-      candidates.reserve(keep);
-      for (int i = 0; i < keep; ++i) {
-        ranked[i].fused_rank = i;
-        candidates.push_back(ranked[i]);
-      }
-
-      appendFrameRHPDCandidates(query_rhpd, query_sc, candidates, performance);
-      std::sort(candidates.begin(), candidates.end(),
-                [](const LoopCandidate &lhs, const LoopCandidate &rhs) {
-                  if (lhs.fused_score != rhs.fused_score) {
-                    return lhs.fused_score < rhs.fused_score;
-                  }
-                  return lhs.rhpd_distance < rhs.rhpd_distance;
-                });
-      if (static_cast<int>(candidates.size()) > config_.reloc_num_candidates) {
-        candidates.resize(std::max(1, config_.reloc_num_candidates));
-      }
-      for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
-        candidates[i].fused_rank = i;
-      }
+      candidates = searchRHPDCandidates(query_rhpd, query_sc, performance);
     }
 
     VLOG(1) << "[Reloc/RHPDPrimary] kept=" << candidates.size()
@@ -243,80 +160,85 @@ void RelocalizationPlaceIndex::rebuildFrameRHPDIndexIfNeeded(
           << " keyframes=" << current_size;
 }
 
-void RelocalizationPlaceIndex::appendFrameRHPDCandidates(
-    const RHPDPlace &query_rhpd, const RHPDHeadingPtr &query_sc,
-    std::vector<LoopCandidate> &candidates,
+std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
+    const RHPDPlace &query, const RHPDHeadingPtr &heading,
     DescriptorSearchPerformance *performance) {
-  if (query_rhpd.isZero()) {
-    return;
-  }
-
   rebuildFrameRHPDIndexIfNeeded(performance);
-  if (frame_rhpd_manager_.size() == 0) {
-    return;
-  }
-
-  const int top_k = std::max(config_.reloc_num_candidates * 2,
-                             config_.rhpd_num_candidates * 2);
-  const int preselect = std::max(config_.rhpd_preselect_candidates, top_k * 5);
-  auto frame_top =
-      frame_rhpd_manager_.search(query_rhpd, std::max(1, top_k), preselect, performance);
-  for (int i = 0; i < static_cast<int>(frame_top.size()); ++i) {
-    const auto &item = frame_top[i];
-    if (item.second > config_.rhpd_dist_threshold) {
-      continue;
+  const auto &submaps = loop_detector_.getRHPDManager();
+  // A coarse-key rank is not a lower bound on RHPD distance. In particular,
+  // it must not discard a place before its discriminating heading is scored.
+  // Merge both observation scales by their exact place distance; they share
+  // the same keyframe heading and all subsequent quality gates.
+  std::map<int64_t, LoopCandidate> places;
+  const auto append = [&](const RHPDManager &database, LoopCandidate::Source source) {
+    const auto ranked = database.search(query, database.size(), 0, performance);
+    for (std::size_t rank = 0; rank < ranked.size(); ++rank) {
+      const auto [id, distance] = ranked[rank];
+      if (distance > config_.rhpd_dist_threshold) continue;
+      const auto existing = places.find(id);
+      if (existing != places.end() && existing->second.rhpd_distance <= distance)
+        continue;
+      LoopCandidate candidate;
+      candidate.query_id = -1;
+      candidate.match_id = id;
+      candidate.rhpd_distance = distance;
+      candidate.source_flags = LoopCandidate::SOURCE_RHPD;
+      candidate.candidate_source = source;
+      candidate.rhpd_rank = rank;
+      places[id] = candidate;
     }
-
-    LoopCandidate candidate;
-    candidate.query_id = -1;
-    candidate.match_id = item.first;
-    candidate.rhpd_distance = item.second;
-    candidate.source_flags = LoopCandidate::SOURCE_RHPD;
-    candidate.candidate_source = LoopCandidate::Source::RhpdFrame;
-    candidate.rhpd_rank = i;
-
-    RHPDHeadingPtr match_sc;
-    if (config_.rhpd_use_sc_yaw) match_sc = loop_detector_.getDescriptor(item.first);
-    if (config_.rhpd_use_sc_yaw && query_sc && match_sc) {
-      DescriptorPhaseTimer heading_timer(performance ? &performance->heading : nullptr);
+  };
+  append(submaps, LoopCandidate::Source::RhpdPrimary);
+  append(frame_rhpd_manager_, LoopCandidate::Source::RhpdFrame);
+  std::vector<LoopCandidate> ordered;
+  ordered.reserve(places.size());
+  for (const auto &[id, candidate] : places) ordered.push_back(candidate);
+  std::sort(ordered.begin(), ordered.end(), [](const auto &a, const auto &b) {
+    if (a.rhpd_distance != b.rhpd_distance) return a.rhpd_distance < b.rhpd_distance;
+    return a.match_id < b.match_id;
+  });
+  const auto better = [](const auto &a, const auto &b) {
+    if (a.fused_score != b.fused_score) return a.fused_score < b.fused_score;
+    if (a.rhpd_distance != b.rhpd_distance) return a.rhpd_distance < b.rhpd_distance;
+    return a.match_id < b.match_id;
+  };
+  const auto limit = static_cast<std::size_t>(std::max(1, config_.reloc_num_candidates));
+  std::vector<LoopCandidate> selected;
+  selected.reserve(limit + 1);
+  const double rounding_slack = 1e-12 *
+      (1.0 + config_.sc_aux_weight / std::max(1e-6, config_.sc_aux_veto_threshold));
+  for (auto candidate : ordered) {
+    const double place_score = config_.rhpd_primary_weight * candidate.rhpd_distance /
+                              std::max(1e-6, config_.rhpd_dist_threshold);
+    // Heading distance and its configured weight are nonnegative. Once this
+    // bound cannot beat the worst retained fused score, no later place can.
+    // Keep equal scores eligible so distance/id tie-breaking remains exact.
+    // Cosine distance can be a few ulps below zero at an exact match.
+    if (selected.size() == limit &&
+        place_score > selected.back().fused_score + rounding_slack) break;
+    const auto reference = config_.rhpd_use_sc_yaw
+                               ? loop_detector_.getDescriptor(candidate.match_id)
+                               : RHPDHeadingPtr{};
+    if (heading && reference) {
+      DescriptorPhaseTimer timer(performance ? &performance->heading : nullptr);
       if (performance) ++performance->heading_comparisons;
-      auto [sc_dist, yaw_shift] =
-          loop_detector_.computeDistance(query_sc, match_sc);
-      heading_timer.finish();
-      candidate.sc_distance = sc_dist;
-      candidate.yaw_diff_rad =
-          static_cast<float>(yaw_shift) *
+      const auto [distance, shift] = loop_detector_.computeDistance(heading, reference);
+      candidate.sc_distance = distance;
+      candidate.yaw_diff_rad = static_cast<float>(shift) *
           static_cast<float>(loop_detector_.getHeadingSectorAngleDeg()) *
           static_cast<float>(M_PI / 180.0);
       candidate.source_flags |= LoopCandidate::SOURCE_SC;
-      if (config_.sc_aux_veto_enabled &&
-          sc_dist > config_.sc_aux_veto_threshold) {
-        continue;
-      }
+      if (config_.sc_aux_veto_enabled && distance > config_.sc_aux_veto_threshold) continue;
     }
-
-    const double rhpd_norm =
-        candidate.rhpd_distance / std::max(1e-6, config_.rhpd_dist_threshold);
-    const double sc_norm =
-        candidate.fromSC() && std::isfinite(candidate.sc_distance)
-            ? candidate.sc_distance /
-                  std::max(1e-6, config_.sc_aux_veto_threshold)
-            : 0.0;
-    candidate.fused_score = config_.rhpd_primary_weight * rhpd_norm +
-                            config_.sc_aux_weight * sc_norm;
-
-    auto existing = std::find_if(candidates.begin(), candidates.end(),
-                                 [&](const LoopCandidate &old) {
-                                   return old.match_id == candidate.match_id;
-                                 });
-    if (existing == candidates.end()) {
-      candidates.push_back(candidate);
-    } else if (candidate.fused_score < existing->fused_score ||
-               (candidate.fused_score == existing->fused_score &&
-                candidate.rhpd_distance < existing->rhpd_distance)) {
-      *existing = candidate;
-    }
+    const double heading_score = candidate.fromSC() && std::isfinite(candidate.sc_distance)
+        ? config_.sc_aux_weight * candidate.sc_distance /
+              std::max(1e-6, config_.sc_aux_veto_threshold) : 0.0;
+    candidate.fused_score = place_score + heading_score;
+    selected.insert(std::lower_bound(selected.begin(), selected.end(), candidate, better), candidate);
+    if (selected.size() > limit) selected.pop_back();
   }
+  for (std::size_t rank = 0; rank < selected.size(); ++rank) selected[rank].fused_rank = rank;
+  return selected;
 }
 
 void RelocalizationPlaceIndex::resetMapDerivedState() {

@@ -643,10 +643,11 @@ TEST_F(PointCloudMatcherTest, NeighboringHeadingSectorReusesItsSharedYawSeeds) {
     RelocalizationPerformance first, adjacent;
     ASSERT_FALSE(evaluate(sector, first).empty());
     ASSERT_FALSE(evaluate(2.0F * sector, adjacent).empty());
-    // Only the new outer heading needs registration. The three shared seeds,
-    // including the zero-angle wrap, still receive fresh geometric checks.
+    // Only the new outer heading needs registration. The two overlapping
+    // measured headings still receive fresh geometric checks. The one-bin
+    // global grid now coincides with the measured heading, not absolute zero.
     EXPECT_EQ(adjacent.seed_initializations, 1U);
-    EXPECT_EQ(adjacent.seed_continuations, 3U);
+    EXPECT_EQ(adjacent.seed_continuations, 2U);
 }
 
 TEST_F(PointCloudMatcherTest, FixedPoseEvaluationUsesObjectiveAndCorrespondenceGate) {

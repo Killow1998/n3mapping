@@ -39,19 +39,28 @@ std::vector<double> buildDescriptorYawHypotheses(
         if (!duplicate) yaws.push_back(wrapped);
     };
 
+    double heading_phase = 0.0;
     if (config.rhpd_use_sc_yaw && candidate.fromSC() &&
         std::isfinite(candidate.sc_distance)) {
         const double sector_rad =
             2.0 * M_PI / static_cast<double>(std::max(4, config.sc_num_sectors));
-        const double base_yaw = static_cast<double>(candidate.yaw_diff_rad);
+        // Matching shifts the reference's polar image into the query image.
+        // A pose seed transforms query points into the reference frame, so
+        // it needs the inverse rotation. Uniform yaw seeds can mask this sign
+        // error, but then ICP starts far from the descriptor's actual heading.
+        const double base_yaw = -static_cast<double>(candidate.yaw_diff_rad);
+        heading_phase = base_yaw;
         append_unique(base_yaw);
         append_unique(base_yaw - sector_rad);
         append_unique(base_yaw + sector_rad);
     }
     if (candidate.fromRHPD() || yaws.empty()) {
         const int count = std::max(1, config.rhpd_yaw_hypotheses);
+        // Keep the global grid uniform, but phase it with the measured yaw.
+        // A half-turn-symmetric observation then gets equally precise opposite
+        // seeds instead of one good seed and one distant local-optimizer guess.
         for (int i = 0; i < count; ++i) {
-            append_unique(2.0 * M_PI * static_cast<double>(i) /
+            append_unique(heading_phase + 2.0 * M_PI * static_cast<double>(i) /
                           static_cast<double>(count));
         }
     }

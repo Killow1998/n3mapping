@@ -363,6 +363,63 @@ TEST_F(LoopDetectorTest, RhpdOnlyRelocalizationHasFiniteCandidateScores) {
     EXPECT_TRUE(std::isfinite(candidates.front().fused_score));
 }
 
+TEST_F(LoopDetectorTest, RelocalizationKeepsHeadingWinnerBeyondPlaceShortlist) {
+    Config config;
+    config.reloc_num_candidates = 1;
+    config.rhpd_num_candidates = 1;
+    config.rhpd_preselect_candidates = 3;
+    KeyframeManager keyframes(config);
+    LoopDetector detector(config);
+    const auto query = createAsymmetricCloud();
+    const auto wrong_heading = createCircularCloud();
+    // Place and heading use different observation scales in a saved map.
+    // Many similar place summaries must not hide the only matching heading.
+    for (int i = 0; i < 40; ++i) {
+        const auto id = keyframes.addKeyframe(i, Eigen::Isometry3d::Identity(), query);
+        detector.addRHPD(id, query);
+        detector.addDescriptor(id, wrong_heading);
+    }
+    auto shifted = pcl::make_shared<Keyframe::PointCloudT>(*query);
+    for (auto &point : *shifted) point.x += 0.1f;
+    const auto expected = keyframes.addKeyframe(41, Eigen::Isometry3d::Identity(), shifted);
+    detector.addRHPD(expected, shifted);
+    detector.addDescriptor(expected, query);
+    RelocalizationPlaceIndex index(config, keyframes, detector);
+    DescriptorSearchPerformance performance;
+    const auto candidates = index.search(query, &performance);
+    ASSERT_EQ(candidates.size(), 1u);
+    EXPECT_EQ(candidates.front().match_id, expected);
+    EXPECT_TRUE(candidates.front().fromSC());
+    // The two place scales must share one heading comparison per keyframe.
+    EXPECT_LE(performance.heading_comparisons, keyframes.size());
+}
+
+TEST_F(LoopDetectorTest, HeadingSeedRotatesQueryCloudIntoReferenceFrame) {
+    Config config;
+    const auto reference = createAsymmetricCloud();
+    LoopDetector detector(config);
+    const auto reference_heading = detector.computeHeading(reference);
+    for (const double degrees : {-72.0, -30.0, 36.0, 126.0}) {
+        const auto query = rotateCloud(reference, degrees * M_PI / 180.0);
+        const auto [distance, shift] = detector.computeDistance(
+            detector.computeHeading(query), reference_heading);
+        LoopCandidate candidate;
+        candidate.source_flags = LoopCandidate::SOURCE_SC | LoopCandidate::SOURCE_RHPD;
+        candidate.sc_distance = distance;
+        candidate.yaw_diff_rad = shift * detector.getHeadingSectorAngleDeg() * M_PI / 180.0;
+        const auto seeds = buildDescriptorYawHypotheses(candidate, config);
+        ASSERT_FALSE(seeds.empty());
+        // Rotating the points by +theta corresponds to a sensor pose of -theta.
+        // Check the leading descriptor seed, not the uniform fallback seeds.
+        const auto restored = rotateCloud(query, seeds.front());
+        double squared_error = 0.0;
+        for (std::size_t i = 0; i < reference->size(); ++i)
+            squared_error += (restored->points[i].getVector3fMap() -
+                              reference->points[i].getVector3fMap()).squaredNorm();
+        EXPECT_LT(std::sqrt(squared_error / reference->size()), 0.15) << degrees;
+    }
+}
+
 TEST_F(LoopDetectorTest, RHPDEmptyAndSparseCloudReturnZero) {
     RHPDescriptor descriptor(RHPDescriptor::Params{});
     auto empty = pcl::make_shared<Keyframe::PointCloudT>();

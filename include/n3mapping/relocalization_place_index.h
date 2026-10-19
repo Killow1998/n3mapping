@@ -30,10 +30,9 @@ public:
 
 private:
   void rebuildFrameRHPDIndexIfNeeded(DescriptorSearchPerformance *performance);
-  void appendFrameRHPDCandidates(const RHPDPlace &query_rhpd,
-                                 const RHPDHeadingPtr &query_sc,
-                                 std::vector<LoopCandidate> &candidates,
-                                 DescriptorSearchPerformance *performance);
+  std::vector<LoopCandidate> searchRHPDCandidates(
+      const RHPDPlace &query, const RHPDHeadingPtr &heading,
+      DescriptorSearchPerformance *performance);
 
   Config config_;
   KeyframeManager &keyframe_manager_;

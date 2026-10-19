@@ -6,6 +6,10 @@ Initial-stage baseline: `45f4a171fcab1d9742ab7d575f41a632c7d75073`, branch
 These are Release/Humble development builds with **UNVERIFIED** build identity;
 they do not constitute a Product Bundle or hardware qualification.
 
+Latest fixed-position result: [exact fused retrieval and corrected heading seeds](#exact-fused-retrieval-and-corrected-heading-seeds--2026-10-19)
+recover all 14 locations on four cores. The complete-suite average-half-core goal
+remains open; earlier measurements below retain their original scope.
+
 ## Measurement boundaries
 
 CPU is process CPU time divided by elapsed time: 1.0 means one fully occupied
@@ -1783,3 +1787,145 @@ The existing changed/repetitive moving negative was also replayed through all **
 Compact results, shared-time precision, stage counts, validation provenance and source/binary hashes: [`candidate_admission_20261019.json`](../candidate_admission_20261019.json). Full paired traces and separate diagnostics: `build/n3mapping/candidate_admission_20261019/`; final variant is `final`, paired report is `four_core_full_final/results.json`. Use the existing `n3mapping_sprobo_fixed_eval.py` driver with the two frozen variants to reproduce. Missing baseline admission counters are recorded as null, not zero. Full registrations reconcile as seed initializations + seed resumptions + confirmation registrations; `seed_continuations` also includes cheap evaluations and must not be counted as full solves.
 
 Internal C++ state layout changed, so all affected targets were rebuilt together. Installed binaries, ROS interfaces, descriptor dimensions, simulation/FAST_LIO, map data and remote branches were not changed. The next work remains reducing geometric work on positions 09/14 and the moving negative while preserving rejection, and investigating the residual position errors. Moving out-of-map recovery, RK3588 and full live deployment throughput remain outside this validation.
+
+## Exact fused retrieval and corrected heading seeds — 2026-10-19
+
+Against `5ab6fc0`, both remaining fixed-position failures now lock without truth
+input. The changes retain the incremental admission/cache/confirmation machinery:
+new regions are evaluated without rebuilding surviving regions. Candidate count,
+basin limits, registration objectives, temporal confirmation, directional support
+and free-space gates retain their existing numerical settings.
+
+### Separating local registration from retrieval
+
+An independent oracle diagnostic starts the first five queries of positions 09 and
+14 from the true pose and from two perturbations: `(dx, dy, yaw)` of
+`(+0.5 m, +0.5 m, +5 degrees)` and `(-0.5 m, -0.5 m, -5 degrees)`.
+All **30/30 actual refined registrations** converge and pass existing registration
+quality; none of these results merely keeps the supplied initial pose. Residual
+position error is **0.4556–0.4596 m** at 09 and **0.3543–0.3606 m** at 14.
+This establishes local convergence from those starts, not temporal confirmation,
+global retrieval or centimeter accuracy. Truth is used only by this diagnostic
+and the observer/scorer; it never initializes the ordinary measured runs.
+
+Local ICP failure would not by itself prove a descriptor cannot retrieve the
+right region. Retrieval, local convergence, map/input consistency and final
+publication are distinct checks. Here local geometry is usable, and the retrieval
+audit exposes an earlier failure: the first queries' true keyframes 673 and 889
+rank **137 and 213** under the coarse key, beyond the old shortlist of 100. Under
+complete fused place/heading scoring both rank **1**. Position 09 also ranks 33
+under exact place distance, beyond the old place-only top-20/30 cutoff.
+
+Localization now scores the full place descriptors at both submap and single-frame
+scales. The scales share one heading per keyframe, so they merge by the smaller
+place distance before heading comparison. A nonnegative heading contribution
+provides a lower bound: further heading evaluations stop only when they cannot
+enter the existing final top ten. This replaces an unsafe heuristic cutoff with
+exact fused selection, including deterministic ties. `rhpd_preselect_candidates`
+continues to control approximate loop-closure retrieval; it no longer truncates
+localization candidates. There is no new configuration flag or descriptor channel.
+The place-index implementation shrinks from 332 to 254 lines.
+
+The heading audit also finds a transform-direction error. Polar matching shifts
+the reference image into the query image, whereas the pose seed must transform
+query points into the reference frame. The seed now uses the inverse angle. The
+existing uniform yaw grid is phased to that measured angle, preserving equally
+precise opposite-heading competitors with the default four-bin grid. Correcting
+the sign alone caused the symmetric-scene E2E to publish an ambiguous heading;
+that intermediate version was rejected. The final version again refuses that
+scene without changing acceptance gates. The neighboring-sector cache regression
+still requires exactly one new full seed registration.
+
+### Complete four-core paired replay
+
+The same 14 frozen bags, map, atlas and input hashes are used, with **4,144 frames
+per variant**. Baseline/final processes alternate serially on physical P cores
+`0,2,4,6`, four registration threads, `OMP_WAIT_POLICY=PASSIVE`, at the original
+10 Hz due times. There is no frame dropping or truth fitting. CPU includes all
+process threads after map loading; simulator, frontend and DDS remain excluded.
+This is one A/B per position, not repeated-run timing statistics.
+
+| Measure | Baseline | Final |
+| --- | ---: | ---: |
+| Correct regions / wrong regions / no lock | 12 / 0 / 2 | **14 / 0 / 0** |
+| Total CPU, all 14 complete inputs | 1214.097 s | **260.641 s** |
+| Full registrations | 2802 | **764** |
+| Cold seed solves / resumed solves / confirmation solves | 1487 / 241 / 1074 | **660 / 0 / 104** |
+| First-lock wall median, same 12 previously correct cases | 5.699 s | **4.976 s** |
+| CPU / total input duration | 2.940 | **0.631** |
+| Maximum process RSS | 1912.32 MiB | 1912.36 MiB |
+
+Total CPU falls **78.5%**, full registrations **72.7%**. Every final case locks on
+query five, retains one lock epoch, produces 292 outputs and has zero coasted
+outputs. First-lock wall time ranges **3.847–7.741 s after map loading**. Resolving
+failed searches accounts for much of the total gain: individual CPU rises by
+**10.8% at 03** and **4.9% at 07/08**, so this is not a universal per-case speedup.
+
+| Previously failing position | Baseline CPU / lock | Final first-lock wall | Final CPU / 29.5 s input | Mean cores | Maximum emitted position error |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 09 east shelves | 294.757 s / none | 3.854 s | 13.157 s | **0.446** | 0.4619 m |
+| 14 north door | 658.339 s / none | 7.741 s | 25.682 s | **0.871** | 0.3681 m |
+
+Position 09 meets the **14.75 CPU s** whole-episode half-core budget; position 14
+does not. Across all 14 cases the final approximately ten tracked input seconds
+use **0.217–0.368 cores**, which excludes initial search. Extending a stationary
+recording to dilute startup cost would not establish cheaper difficult search.
+The complete-suite average is still above half a core, and no RAM reduction is
+demonstrated.
+
+### Precision, negative coverage and rejected ablations
+
+The same fixed mapping-session alignment scores actual RealtimeOutput poses.
+On shared timestamps, whole-run maximum position errors remain numerically
+equivalent or improve for the previously correct cases. Position RMSE at 13
+increases **0.359 mm**, with up to **12.586 mm** change in an emitted position;
+its maximum position error is equivalent and maximum rotation error improves
+0.02216 degrees. Some rotational errors increase: maximum rotation error at 04
+increases **0.001279 degrees**, and rotation RMSE at 11 increases **0.000154
+degrees**. These are recorded differences, not exact output equivalence or a
+claim that every precision metric improves. Full errors and common-time results
+are retained in the linked JSON. The suite's largest position error is **0.4739
+m**, at 11. The 1 m / 5 degree offline band only distinguishes gross wrong-place
+locks; it is not an accuracy acceptance criterion or a changed product gate.
+
+The changed/repetitive moving negative completes **346 frames with zero locks and
+zero outputs**. It still costs **727.271 CPU s**, 263.206 wall s and 1678 full
+registrations for 34.5 s of input. This is safe refusal, not successful recovery,
+and is far above the half-core budget. It is a functional control, without a
+fresh paired timing baseline; the previous stage's 693.760 CPU s must not be
+presented as a new paired performance comparison.
+
+RHPD remains **2973 place + 8400 heading = 11373 logical values**, stored sparsely;
+heading is already fused and no separate SC pass is added. Complete retrieval
+increases per-query work, but the positive suite now stops searching much sooner:
+descriptor calling-thread CPU totals **7.923 → 7.660 s** across all 14 runs. On the
+full negative it costs **14.143 CPU s** (about 1.9% of total process CPU), so
+geometric work still dominates. Descriptor size reduction alone cannot eliminate
+the observed remaining cost.
+
+Exact retrieval alone recovered all 14 cases in an exploratory full run, but
+required 333.031 CPU s and 916 registrations. This was not the final paired A/B.
+Two further cost experiments were excluded: using one registration thread saved
+little CPU while increasing 02/09/14 first-lock wall from 4.554/4.350/8.031 s to
+7.025/5.677/15.831 s; a mathematically certified nearest-neighbor cache passed
+correctness checks but increased CPU on 02 and 14. Its implementation and added
+tests were reverted. Neither experiment is counted as a delivered improvement.
+
+Final Humble validation passes **61/61** checks. Default, Atlas and experimental
+kill configurations each pass all **12 E2E episodes**, including opposite-heading
+ambiguity and late-region admission. Both new targeted regressions fail against
+the frozen baseline and pass against the final library. The final runtime is
+byte-identical to the three-mode/negative-tested library:
+`26762b2d8197d85bb3b457db0518e1106d68dc7c110301ecfc9853f9664a7458`.
+Source, frozen library, map and atlas fingerprints were rechecked after the full
+paired run.
+
+Evidence: [`hard_regions_20261019.json`](../hard_regions_20261019.json).
+Raw traces, independent diagnostics, rejected variants and validation logs remain
+in `build/n3mapping/hard_regions_20261019/`; final paired report is
+`four_core_final/results.json`. Reproduce with the existing
+`tools/n3mapping_sprobo_fixed_eval.py`, the frozen `baseline` and `final` directories,
+and the same `--threads 4 --cpus 0,2,4,6 --rate 1` settings. Further work remains on
+negative/new-candidate geometric cost, residual map/local-fit error and moving
+out-of-map/re-entry coverage. RK3588 and full live deployment throughput are not
+qualified. Installed binaries, simulator/FAST_LIO and remote branches are unchanged.
