@@ -453,7 +453,7 @@
   "limitations": [
     "Saved-map replay uses retained mapping scans with interpolated poses, not independent accuracy data.",
     "Corridor recording predates corrected simulator IMU; usable for behavioral regression, not mapping accuracy.",
-    "No new full 100 x 100 m corpus, DDS, RK3588 or half-core qualification is inferred from these CPU tests.",
+    "Registration CPU figures do not establish new DDS, RK3588 or difficult-search half-core qualification; reacquired mapping and one independent query are reported separately.",
     "Four-thread guided summation has roundoff variation; single-thread exact comparisons retained.",
     "Existing /tmp artifacts were lost after reboot; this experiment root and regenerated inputs are persistent."
   ],
@@ -567,7 +567,7 @@
     "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_corridor_regression/manifest/frames.csv": "888d0ca3ed1feb29fb87e993f607018893b6d4785c82adb7c8308bd5e81f2245"
   },
   "acquisition_followup": {
-    "status": "Full route reacquisition in progress; not qualified yet.",
+    "status": "Full-route reacquisition/mapping passed; independent central reverse query passed before and after target-tree compaction. Difficult searches and hardware remain unqualified.",
     "root": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018",
     "central_v2_summary": {
       "passed": true,
@@ -653,6 +653,491 @@
       "central: old adapter did not publish /ground_truth/odom; previous acquisition checks incorrectly reported pass without checking truth quantity. Excluded from accuracy evidence.",
       "coverage: updated graph startup guard rejected the old adapter before simulation started."
     ],
-    "guard_fix": "Require a /ground_truth/odom publisher before starting and exactly one truth pose per native LiDAR scan, at least 100; source adapter rebuilt into workspace build/n3m_sprobo_adapter with no simple_rbt source changes."
-  }
+    "guard_fix": "Require a /ground_truth/odom publisher before starting and exactly one truth pose per native LiDAR scan, at least 100; source adapter rebuilt into workspace build/n3m_sprobo_adapter with no simple_rbt source changes.",
+    "coverage_v2_summary": {
+      "passed": true,
+      "checks": {
+        "no_error": true,
+        "simulation_exited_cleanly": true,
+        "raw_lidar": true,
+        "raw_imu": true,
+        "complete_raw_lidar": true,
+        "complete_raw_imu": true,
+        "complete_truth": true,
+        "lio_pairs": true,
+        "complete_lio_pairs": true,
+        "timestamps_increase": true,
+        "truth_isolated": true,
+        "rolling_scan": true,
+        "backend_output": true,
+        "saved_map": true,
+        "route_completed": true,
+        "mapping_geometry": true
+      },
+      "error": null,
+      "counts": {
+        "/tf_static": 1,
+        "/clock": 275898,
+        "/livox/imu": 275897,
+        "/livox/lidar": 13794,
+        "/ground_truth/odom": 13794,
+        "/Odometry": 13791,
+        "/cloud_registered_body": 13791,
+        "/n3mapping/odometry": 13722
+      },
+      "lio_exact_stamp_pairs": 13791,
+      "first_lidar": {
+        "points": 19940,
+        "timebase": 0,
+        "stamp": 0,
+        "max_offset_ns": 99995000,
+        "offsets_ordered": true
+      },
+      "truth_subscribers": [
+        "n3m_sprobo_observer"
+      ],
+      "wall_seconds": 1385.4265277490001,
+      "simulation_seconds": 1379.485,
+      "simulation_lidar_frames": 13794,
+      "simulation_imu_samples": 275897,
+      "mode": "mapping",
+      "limitation": "Acquisition checks only; not localization accuracy or half-core qualification"
+    },
+    "coverage_v2_route": {
+      "reached": 133,
+      "total": 133,
+      "completed_at_s": 1377.445,
+      "distance_m": 1273.087495441484,
+      "truth_use": "route controller and scoring only; no estimator input"
+    },
+    "coverage_v2_mapping_quality": {
+      "passed": true,
+      "limits": {
+        "maximum_position_error_m": 1.0,
+        "maximum_rotation_error_deg": 5.0
+      },
+      "scope": "Gross mapping drift guard; not a localization acceptance threshold",
+      "/Odometry": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "topic": "/Odometry",
+        "probe_csv": null,
+        "alignment": {
+          "source": "first mapping pose on /Odometry only; no query fitting",
+          "stamp_ns": 399995002,
+          "translation": [
+            -43.99235016618747,
+            0.023742378722897868,
+            0.6387408173617387
+          ],
+          "quaternion_xyzw": [
+            -0.00015346671797193817,
+            4.9396235073319926e-05,
+            5.9441107769993764e-05,
+            -0.9999999852373664
+          ]
+        },
+        "evaluated_poses": 13791,
+        "first_output_sim_s": 0.399995002,
+        "position_error_m": {
+          "rmse": 0.29977283149245565,
+          "median": 0.2683513739406741,
+          "p95": 0.5413299896016666,
+          "maximum": 0.7564132076417098
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3637532157111314,
+          "median": 0.3122433589159697,
+          "p95": 0.6467769082310583,
+          "maximum": 1.1391304495287151
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "/n3mapping/odometry": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": null,
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 13722,
+        "first_output_sim_s": 7.299995002,
+        "position_error_m": {
+          "rmse": 0.24617536187404523,
+          "median": 0.20062493112765267,
+          "p95": 0.4381552675486994,
+          "maximum": 0.697021636804315
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3281554503472827,
+          "median": 0.3162519668390198,
+          "p95": 0.4985533418344766,
+          "maximum": 1.1023060438714087
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    "coverage_v2_commands": {
+      "sim": {
+        "command": [
+          "/home/user/Projects/simple_rbt/build/sensor-consistency/simple-rbt-sim",
+          "--project-root",
+          "/home/user/Projects/simple_rbt",
+          "--session-config",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2/session.json",
+          "--session-dir",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2/ipc"
+        ],
+        "executable_sha256": "d393a3fe07f4375872624defd528eaaf770d5626c2a4078c36b1bdd366bf7948"
+      },
+      "adapter": {
+        "command": [
+          "/home/user/ros_ws/to_migrate_ws/build/n3m_sprobo_adapter/simple-rbt-ros-session",
+          "--session-dir",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2/ipc"
+        ],
+        "executable_sha256": "21b4f6fcdd12d709dd12bc18dc8cf032bce63f7342a50ee94c5be211ebbdd0a9"
+      },
+      "fast_lio": {
+        "command": [
+          "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping",
+          "--ros-args",
+          "--params-file",
+          "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml",
+          "-p",
+          "use_sim_time:=true",
+          "-p",
+          "common.gravity_m_s2:=9.80665",
+          "-p",
+          "point_filter_num:=2",
+          "-p",
+          "max_iteration:=4",
+          "-p",
+          "pcd_save.pcd_save_en:=false",
+          "-p",
+          "runtime_pos_log_enable:=false"
+        ],
+        "executable_sha256": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+      },
+      "n3m": {
+        "command": [
+          "/home/user/ros_ws/to_migrate_ws/build/n3mapping/n3mapping_node",
+          "--ros-args",
+          "--params-file",
+          "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml",
+          "-p",
+          "use_sim_time:=true",
+          "-p",
+          "mode:=mapping",
+          "-p",
+          "map_save_path:=/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2/map",
+          "-p",
+          "save_global_map_on_shutdown:=false"
+        ],
+        "executable_sha256": "ef5270bd01e0d83c205510f9a34a3a79252ef6fbf4ff848a6e042ea2190c6426",
+        "core_sha256": "c3920ebb7bfba0cd90b77f918ec7dbe7379bd67eaac2f45311d3ad99442068f8"
+      },
+      "inputs": {
+        "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2/session.json": "e549c69574d7135d745737ca4582170526b6bc27dde3dd0d7eb9944aecea2618",
+        "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_smoke.py": "4dbab5826415400ce90b9d5986f29d5a579958b45ce2372e07d526b5ee07577d",
+        "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_scene.py": "2a54119f6596535c2db8d289ccbbdd6fbeab90219538f46443ee07d590630e7d",
+        "/home/user/ros_ws/to_migrate_ws/src/n3mapping/tools/n3mapping_sprobo_route.py": "1522a82f969a7bce2ffe2714015ef03351589bfd61b0199e97430a8a0ea7a91a",
+        "/home/user/ros_ws/to_migrate_ws/src/FAST_LIO/config/mid360.yaml": "8cc5bd4c2911ca06e9b093ce3d6e5b1d1f542883239e8b4216de94e187d26077",
+        "/home/user/ros_ws/to_migrate_ws/src/n3mapping/humble/config/n3mapping.yaml": "5861da2d3e8abf8637b0effa26b954da1adcbd37a86759dc973deeecd07a3677"
+      }
+    },
+    "coverage_v2_files": {
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream": {
+        "bytes": 204090476,
+        "sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb"
+      },
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/bag/bag_0.db3": {
+        "bytes": 12273307648,
+        "sha256": "9a2b56fae146d7aa76de4b3b3353e0540ad538b1f388539fe932fdb4e2e35c06"
+      },
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/summary.json": {
+        "bytes": 1236,
+        "sha256": "067f3e66dd5471ffc09955a377066cc30f18d0fe12151b530ce216b27204c36b"
+      },
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/mapping_quality.json": {
+        "bytes": 2640,
+        "sha256": "1a1a775279130f4b122c8861a744d080baf4926cfa2c9915422c5c87cc2350a8"
+      },
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/poses.csv": {
+        "bytes": 7146817,
+        "sha256": "549358a9c5a7e3fa57af6388bc7799e48419320ee3a0fb6988b0e751e096ac2c"
+      },
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/session.json": {
+        "bytes": 86113,
+        "sha256": "e549c69574d7135d745737ca4582170526b6bc27dde3dd0d7eb9944aecea2618"
+      },
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream.localization_atlas.pb": {
+        "bytes": 686951283,
+        "sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac"
+      },
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/map/global_map.pcd": {
+        "bytes": 37705712,
+        "sha256": "90c415c1e5e1b5741c32ad413b5de5a388b71e2d125894ca01a6d4c0f1061f9e"
+      },
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/route.json": {
+        "bytes": 23474,
+        "sha256": "b90518d96639d4dd8b898fea90ebc9f266cfe6e50e5d43a2b6952bd116ef83ea"
+      }
+    },
+    "coverage_v2_atlas": {
+      "output": "src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream.localization_atlas.pb",
+      "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+      "config_sha256": "fd565ab435506247f87dc03ed99f7197f896f71f158c55a525d493076ddf0390",
+      "keyframes": 1271,
+      "global_points": 2356595,
+      "prepared_points": 5410379,
+      "sidecar_bytes": 686951283,
+      "global_map_ms": 1014.735,
+      "prepare_ms": 2521.325,
+      "serialize_ms": 222.356,
+      "verify_load_ms": 1886.659,
+      "verify_kdtree_ms": 1225.57
+    }
+  },
+  "target_tree_compaction": {
+    "baseline_commit": "1ccbd63",
+    "change": "After the unchanged serial/OMP builder completes, release unused nodes vector capacity only for retained target trees; no source-tree compaction, layout, ordering, gates or cache-policy changes.",
+    "method": "Three serial alternating before/after fresh-process Atlas loads on CPUs 0,2,4,6 with PASSIVE OpenMP; no simulation or builds concurrent. RSS measured after load, before hashing/search checks; peak RSS also retained. Atlas-only probe is not full-node/DDS RSS.",
+    "libraries": {
+      "before": {
+        "path": "build/n3mapping/registration_reduction_20261018/candidate/libn3mapping_core.so",
+        "sha256": "c3920ebb7bfba0cd90b77f918ec7dbe7379bd67eaac2f45311d3ad99442068f8"
+      },
+      "after": {
+        "path": "build/n3mapping/registration_reduction_20261018/compact/libn3mapping_core.so",
+        "sha256": "806a4b16f625ba296f492da0d7c442eb1ea7495e43458d6f016e96f874a923ee"
+      }
+    },
+    "maps": {
+      "saved": {
+        "before": {
+          "runs": [
+            {
+              "load_cpu_ms": 155.79,
+              "rss_kib": 164600,
+              "peak_rss_kib": 185120,
+              "points": 515717,
+              "nodes": 73725,
+              "node_capacity_bytes": 12377208,
+              "data_and_search_sha256": "dda1db8101b38c054a97fa438b0cb3ff3076f156caac845deb99dc94d456c616"
+            },
+            {
+              "load_cpu_ms": 146.478,
+              "rss_kib": 164700,
+              "peak_rss_kib": 185280,
+              "points": 515717,
+              "nodes": 73725,
+              "node_capacity_bytes": 12377208,
+              "data_and_search_sha256": "dda1db8101b38c054a97fa438b0cb3ff3076f156caac845deb99dc94d456c616"
+            },
+            {
+              "load_cpu_ms": 146.511,
+              "rss_kib": 164588,
+              "peak_rss_kib": 185120,
+              "points": 515717,
+              "nodes": 73725,
+              "node_capacity_bytes": 12377208,
+              "data_and_search_sha256": "dda1db8101b38c054a97fa438b0cb3ff3076f156caac845deb99dc94d456c616"
+            }
+          ],
+          "medians": {
+            "load_cpu_ms": 146.511,
+            "rss_kib": 164600,
+            "peak_rss_kib": 185120,
+            "node_capacity_bytes": 12377208
+          }
+        },
+        "after": {
+          "runs": [
+            {
+              "load_cpu_ms": 173.729,
+              "rss_kib": 158520,
+              "peak_rss_kib": 177972,
+              "points": 515717,
+              "nodes": 73725,
+              "node_capacity_bytes": 1769400,
+              "data_and_search_sha256": "dda1db8101b38c054a97fa438b0cb3ff3076f156caac845deb99dc94d456c616"
+            },
+            {
+              "load_cpu_ms": 156.251,
+              "rss_kib": 158592,
+              "peak_rss_kib": 178068,
+              "points": 515717,
+              "nodes": 73725,
+              "node_capacity_bytes": 1769400,
+              "data_and_search_sha256": "dda1db8101b38c054a97fa438b0cb3ff3076f156caac845deb99dc94d456c616"
+            },
+            {
+              "load_cpu_ms": 147.213,
+              "rss_kib": 158600,
+              "peak_rss_kib": 178072,
+              "points": 515717,
+              "nodes": 73725,
+              "node_capacity_bytes": 1769400,
+              "data_and_search_sha256": "dda1db8101b38c054a97fa438b0cb3ff3076f156caac845deb99dc94d456c616"
+            }
+          ],
+          "medians": {
+            "load_cpu_ms": 156.251,
+            "rss_kib": 158592,
+            "peak_rss_kib": 178068,
+            "node_capacity_bytes": 1769400
+          }
+        },
+        "data_and_30000_nearest_queries_exact": true
+      },
+      "coverage": {
+        "before": {
+          "runs": [
+            {
+              "load_cpu_ms": 1820.92,
+              "rss_kib": 1307988,
+              "peak_rss_kib": 1528576,
+              "points": 5410379,
+              "nodes": 655357,
+              "node_capacity_bytes": 129849096,
+              "data_and_search_sha256": "fec0e235d77b0ab5ce455aea31a98e200b50b6a583957b3c5ce653850ec33f12"
+            },
+            {
+              "load_cpu_ms": 1787.19,
+              "rss_kib": 1308012,
+              "peak_rss_kib": 1528676,
+              "points": 5410379,
+              "nodes": 655357,
+              "node_capacity_bytes": 129849096,
+              "data_and_search_sha256": "fec0e235d77b0ab5ce455aea31a98e200b50b6a583957b3c5ce653850ec33f12"
+            },
+            {
+              "load_cpu_ms": 1790.05,
+              "rss_kib": 1308040,
+              "peak_rss_kib": 1528656,
+              "points": 5410379,
+              "nodes": 655357,
+              "node_capacity_bytes": 129849096,
+              "data_and_search_sha256": "fec0e235d77b0ab5ce455aea31a98e200b50b6a583957b3c5ce653850ec33f12"
+            }
+          ],
+          "medians": {
+            "load_cpu_ms": 1790.05,
+            "rss_kib": 1308012,
+            "peak_rss_kib": 1528656,
+            "node_capacity_bytes": 129849096
+          }
+        },
+        "after": {
+          "runs": [
+            {
+              "load_cpu_ms": 2264.34,
+              "rss_kib": 1197584,
+              "peak_rss_kib": 1473328,
+              "points": 5410379,
+              "nodes": 655357,
+              "node_capacity_bytes": 15728568,
+              "data_and_search_sha256": "fec0e235d77b0ab5ce455aea31a98e200b50b6a583957b3c5ce653850ec33f12"
+            },
+            {
+              "load_cpu_ms": 1777.09,
+              "rss_kib": 1197544,
+              "peak_rss_kib": 1473444,
+              "points": 5410379,
+              "nodes": 655357,
+              "node_capacity_bytes": 15728568,
+              "data_and_search_sha256": "fec0e235d77b0ab5ce455aea31a98e200b50b6a583957b3c5ce653850ec33f12"
+            },
+            {
+              "load_cpu_ms": 1816.96,
+              "rss_kib": 1197552,
+              "peak_rss_kib": 1473448,
+              "points": 5410379,
+              "nodes": 655357,
+              "node_capacity_bytes": 15728568,
+              "data_and_search_sha256": "fec0e235d77b0ab5ce455aea31a98e200b50b6a583957b3c5ce653850ec33f12"
+            }
+          ],
+          "medians": {
+            "load_cpu_ms": 1816.96,
+            "rss_kib": 1197552,
+            "peak_rss_kib": 1473444,
+            "node_capacity_bytes": 15728568
+          }
+        },
+        "data_and_30000_nearest_queries_exact": true
+      }
+    },
+    "independent_query": {
+      "frames": 346,
+      "decision_differences": [],
+      "max_pose_matrix_delta": 4.440892098500626e-16,
+      "before": {
+        "first_lock_frame": 4,
+        "live": 342,
+        "position_error_maximum_m": 0.020539899354192155,
+        "rotation_error_maximum_deg": 0.16618719921305447,
+        "process_cpu_ms": 23388.967618000002
+      },
+      "after": {
+        "first_lock_frame": 4,
+        "live": 342,
+        "position_error_maximum_m": 0.020539899354192145,
+        "rotation_error_maximum_deg": 0.1661871992130544,
+        "process_cpu_ms": 22933.568600000002
+      },
+      "scope": "One complete 346-frame acquired central reverse query through the localization core and realtime output; first mapping pose alignment only, no query fitting. Before/after timing is one pair and not a CPU gain claim."
+    },
+    "verification": {
+      "ctest_passed": 61,
+      "ctest_failed": 0,
+      "test_log": "build/n3mapping/registration_reduction_20261018/compact_ctest.log"
+    },
+    "tradeoff": "Large-map fresh-load CPU median +26.91 ms (+1.50%); node arrays require a one-time copy. Saved-map load +9.74 ms. No claim of faster startup or reduced full-node steady CPU.",
+    "sources": {
+      "src/n3mapping/src/compact_kdtree_builder.h": "cffb4ad12742442969777ed5475193712b33435435ca52f39d06064b5ca5f2a0",
+      "src/n3mapping/src/point_cloud_matcher.cpp": "f4573d18ea0a9eafadae9f41ad3aea6cdbe8e6a6c324e1cd8c6578eed4a28906",
+      "src/n3mapping/src/localization_atlas.cpp": "81a01053e9f3b2123e7952ec95815468a3acbc4ab33577cec6581633f55412c4",
+      "build/n3mapping/registration_reduction_20261018/atlas_memory_probe.cpp": "4d2eda033567b261ad0ea18a5886db507f8363920b203a2d453106ade8c4d4dc",
+      "build/n3mapping/registration_reduction_20261018/atlas_memory_probe": "2a0e09ab7182a86d9535a45f8ae68eabbc6e1d7ada47373e0c383d7208a63216",
+      "build/n3mapping/registration_reduction_20261018/run_compact_target.py": "62b6a7ddc0654f4f2416fcd89a4c22aca08fe2b222998f86e013ebe80da81e5a"
+    }
+  },
+  "rejected_ancestor_bound_search": {
+    "adopted": false,
+    "scope": "Exact branch-bound scratch prototype, not production. Fixed squared distance gate 4; 20,000 deterministic queries on saved global map.",
+    "point_distances_before": 3665892,
+    "point_distances_after": 3039952,
+    "exact_queries": 20000,
+    "additional_boundary_queries_exact": 100000,
+    "boundary_tests_passed": 4,
+    "cpu_ms_before": [
+      12.5,
+      12.57,
+      12.508
+    ],
+    "cpu_ms_after": [
+      13.458,
+      13.515,
+      13.571
+    ],
+    "cpu_median_change_percent": 8.050847457627142,
+    "decision": "Reject: fewer point distances do not compensate for conservative bound/rounding overhead; no production code retained.",
+    "timing_log": "build/n3mapping/registration_reduction_20261018/bounds_gated_timing.log"
+  },
+  "measurement_commit": "1ccbd63 (registration reduction); target_tree_compaction is a separate subsequent change."
 }

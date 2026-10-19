@@ -2,6 +2,7 @@
 #include "n3mapping/localization_atlas.h"
 
 #include "localization_atlas.pb.h"
+#include "compact_kdtree_builder.h"
 
 #include <array>
 #include <chrono>
@@ -146,7 +147,8 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
     // The validated arrays now belong to cloud. Release the serialized copy
     // before building the tree or decoding the next level; Clear retains it.
     LocalizationAtlasPreparedLevel{}.Swap(&input);
-    output->kdtree = std::make_shared<PointCloudMatcher::SmallGicpKdTree>(cloud);
+    output->kdtree = std::make_shared<PointCloudMatcher::SmallGicpKdTree>(
+        cloud, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilder>{});
     return true;
 }
 

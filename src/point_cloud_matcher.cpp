@@ -3,6 +3,7 @@
 #include "n3mapping/relocalization_state.h"
 #include "registration_search.h"
 #include "registration_reduction.h"
+#include "compact_kdtree_builder.h"
 
 #include <glog/logging.h>
 #include <omp.h>
@@ -258,7 +259,8 @@ PointCloudMatcher::preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, dou
     if (ds->empty()) return { ds, nullptr };
     compactDownsampledCloud(*ds);
     auto kdtree = std::make_shared<SmallGicpKdTree>(
-        ds, small_gicp::KdTreeBuilderOMP(config_.num_threads));
+        ds, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilderOMP>(
+                config_.num_threads));
     small_gicp::estimate_normals_covariances_omp(*ds, kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
     return { ds, kdtree };
 }

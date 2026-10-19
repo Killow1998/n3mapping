@@ -1257,5 +1257,60 @@ recordings must contain one truth pose per native LiDAR scan. `coverage` verifie
 that the old adapter is rejected before simulation begins. An adapter rebuilt in
 the workspace, without changing simple_rbt sources, passes these checks in
 `central_v2`: 350 scans, 7,000 IMUs, 350 truth poses and 346 LIO pairs; frontend
-maximum errors are 0.0337 m / 0.1005 degrees. Full `coverage_v2` reacquisition is
-in progress and is not yet qualified.
+maximum errors are 0.0337 m / 0.1005 degrees.
+
+Full `coverage_v2` reacquisition now passes: 133/133 waypoints, 1,273.09 m,
+1,379.485 simulation seconds, 13,794 scans and truth poses, 275,897 IMUs and
+13,791 exact-stamp LIO pairs. The original fixed-first-pose 1 m / 5 degree
+mapping guard passes: FAST_LIO maximum 0.7564 m / 1.1391 degrees, n3m maximum
+0.6970 m / 1.1023 degrees. This capture uses the `1ccbd63` core. Different live
+command arrival times prevent treating old/new acquisition errors as a strict
+algorithm A/B. Raw inputs, metadata and hashes are retained in the workspace;
+the bag is closed and all acquisition processes have exited.
+
+The map is `map/sprobo_20261018/coverage_v2/map/n3map.pbstream`: 1,271 keyframes.
+Its verified Atlas contains 2,356,595 global points and 5,410,379 prepared points,
+686,951,283 bytes on disk. `global_map.pcd` in the same directory exports those
+global points without additional downsampling, ready for PCL viewing. The
+independent `central_v2/manifest/frames.csv` contains 346 cloud/odometry pairs;
+truth remains separate in `poses.csv`. This restores one independent query,
+not all four historical query conditions or a new DDS/hardware qualification.
+
+### Retained target-tree capacity (2026-10-18)
+
+After its serial or OpenMP builder completes, small_gicp reduces the node count
+but keeps a node allocation sized to the input point count. A private builder
+wrapper now releases only that unused capacity before the target tree becomes
+immutable. The same operation covers freshly prepared targets and decoded
+Atlas targets. Point data, node order, search traversal, acceptance and cache
+policy remain unchanged; temporary source trees do not incur the extra copy.
+
+Against `1ccbd63`, three serial alternating fresh-process measurements give:
+
+| Atlas-only process | Loaded RSS before → after | Load CPU before → after |
+| --- | ---: | ---: |
+| Retained real map | 160.74 → 154.88 MiB | 146.51 → 156.25 ms |
+| New full simulation map | 1,277.36 → 1,169.48 MiB | 1,790.05 → 1,816.96 ms |
+
+The large-map node allocation falls from 123.83 to 15.00 MiB; process RSS falls
+107.87 MiB. Compaction costs a one-time copy: large-map load CPU increases
+26.91 ms (1.50%). These are Atlas-only measurements, not full-node RSS or a
+steady-state CPU improvement. All prepared values and 30,000 nearest-neighbor
+queries per map have identical hashes before/after. Release/Humble CTest again
+passes 61/61.
+
+The complete independent central reverse query locks at frame index 4 in both
+versions and emits 342 poses. All 346 frame decisions and work counts match;
+maximum pose-matrix difference is 4.44e-16. Fixed-map truth scoring gives maximum
+0.02054 m / 0.16619 degrees for both. This core/realtime-output replay does not
+establish new DDS, repeated-geometry or half-core results. The frozen libraries,
+probe, runner, individual measurements and hashes are under the existing
+`build/n3mapping/registration_reduction_20261018` root and linked JSON.
+
+An ancestor-bound search prototype was rejected. At the existing 2 m gate it
+reduces point-distance evaluations from 3,665,892 to 3,039,952 with 20,000 exact
+answers, but median query CPU rises from 12.508 to 13.515 ms (8.05%). Conservative
+bound/rounding overhead exceeds the saved distance work; this code remains only
+in the experiment directory. Reducing operation counts alone is not evidence
+of an overall performance improvement. Difficult-search half-core operation
+remains unresolved.
