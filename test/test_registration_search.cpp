@@ -6,6 +6,7 @@
 #include <small_gicp/util/normal_estimation_omp.hpp>
 
 #include "../src/registration_search.h"
+#include "../src/compact_kdtree_builder.h"
 
 namespace n3mapping::test {
 namespace {
@@ -148,6 +149,34 @@ TEST(RegistrationSearch, PreservesOptimizerPoseQualityAndInformation) {
         }
       }
     }
+  }
+}
+
+TEST(RegistrationSearch, PackedTargetKeepsNeighborGeometryAndFeatures) {
+  const auto original = randomCloud();
+  original->point(1) = original->point(0);
+  for (std::size_t i = 0; i < original->size(); ++i) {
+    original->normal(i) = Eigen::Vector4d(double(i), -double(i), 2.0, 0.0);
+    original->cov(i) = Eigen::Matrix4d::Identity() * double(i + 1);
+  }
+  const Search::Tree reference(original);
+  const auto packed = std::make_shared<Cloud>(*original);
+  const Search::Tree actual(packed,
+      registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilder>(*packed, true));
+  std::mt19937 generator(20261018);
+  std::normal_distribution<double> noise(0.0, 0.5);
+  for (int i = 0; i < 10000; ++i) {
+    Eigen::Vector4d query = original->point(i % original->size());
+    if (i >= static_cast<int>(original->size()))
+      query.head<3>() += Eigen::Vector3d(noise(generator), noise(generator), noise(generator));
+    std::size_t expected_index, actual_index;
+    double expected_distance, actual_distance;
+    ASSERT_EQ(actual.nearest_neighbor_search(query, &actual_index, &actual_distance),
+              reference.nearest_neighbor_search(query, &expected_index, &expected_distance));
+    ASSERT_DOUBLE_EQ(actual_distance, expected_distance);
+    ASSERT_EQ(packed->point(actual_index), original->point(expected_index));
+    ASSERT_EQ(packed->normal(actual_index), original->normal(expected_index));
+    ASSERT_EQ(packed->cov(actual_index), original->cov(expected_index));
   }
 }
 }  // namespace

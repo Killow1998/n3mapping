@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <filesystem>
@@ -97,18 +98,37 @@ void expectPreparedLevelExact(
   ASSERT_NE(actual.cloud, nullptr);
   ASSERT_NE(actual.kdtree, nullptr);
   ASSERT_EQ(expected.cloud->size(), actual.cloud->size());
+  // Prepared storage may be packed for tree locality on load. Compare the
+  // complete records in canonical order, including duplicate coordinates and
+  // their associated features; retain the bit-for-bit checks below.
+  const auto ordered = [](const auto& cloud) {
+    std::vector<std::size_t> indices(cloud.size());
+    for (std::size_t i = 0; i < indices.size(); ++i) indices[i] = i;
+    std::sort(indices.begin(), indices.end(), [&](auto a, auto b) {
+      int order = std::memcmp(cloud.point(a).data(), cloud.point(b).data(), 4 * sizeof(double));
+      if (order == 0)
+        order = std::memcmp(cloud.normal(a).data(), cloud.normal(b).data(), 4 * sizeof(double));
+      if (order == 0)
+        order = std::memcmp(cloud.cov(a).data(), cloud.cov(b).data(), 16 * sizeof(double));
+      return order < 0;
+    });
+    return indices;
+  };
+  const auto expected_indices = ordered(*expected.cloud);
+  const auto actual_indices = ordered(*actual.cloud);
   for (std::size_t i = 0; i < expected.cloud->size(); ++i) {
-    EXPECT_EQ(expected.cloud->point(i), actual.cloud->point(i));
-    EXPECT_EQ(expected.cloud->normal(i), actual.cloud->normal(i));
-    EXPECT_EQ(expected.cloud->cov(i), actual.cloud->cov(i));
+    const auto e = expected_indices[i], a = actual_indices[i];
+    EXPECT_EQ(expected.cloud->point(e), actual.cloud->point(a));
+    EXPECT_EQ(expected.cloud->normal(e), actual.cloud->normal(a));
+    EXPECT_EQ(expected.cloud->cov(e), actual.cloud->cov(a));
     // Effective components must survive bit-for-bit, including signed zero.
-    EXPECT_EQ(std::memcmp(expected.cloud->point(i).data(),
-                          actual.cloud->point(i).data(), 3 * sizeof(double)), 0);
-    EXPECT_EQ(std::memcmp(expected.cloud->normal(i).data(),
-                          actual.cloud->normal(i).data(), 3 * sizeof(double)), 0);
+    EXPECT_EQ(std::memcmp(expected.cloud->point(e).data(),
+                          actual.cloud->point(a).data(), 3 * sizeof(double)), 0);
+    EXPECT_EQ(std::memcmp(expected.cloud->normal(e).data(),
+                          actual.cloud->normal(a).data(), 3 * sizeof(double)), 0);
     for (int column = 0; column < 3; ++column) {
-      EXPECT_EQ(std::memcmp(expected.cloud->cov(i).col(column).data(),
-                            actual.cloud->cov(i).col(column).data(),
+      EXPECT_EQ(std::memcmp(expected.cloud->cov(e).col(column).data(),
+                            actual.cloud->cov(a).col(column).data(),
                             3 * sizeof(double)), 0);
     }
   }

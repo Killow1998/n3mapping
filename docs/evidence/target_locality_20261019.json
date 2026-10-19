@@ -1,0 +1,1136 @@
+{
+  "date": "2026-10-19",
+  "started": "2026-10-18",
+  "baseline_commit": "f0a3590",
+  "artifact_root": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018",
+  "selected_change": "Pack retained target points in existing KD leaf order, with in-place cycle permutation. Move decoded features with coordinates; estimate fresh target features after packing. No source order, tree traversal, geometry, factors, thresholds, descriptor or public interface change.",
+  "timing_method": "Three serial alternating A/B rounds; fixed CPUs 0,2,4,6 and PASSIVE OpenMP; 100 frames per central/repetitive query; no simulation, builds or other probes concurrent. All-thread process CPU. Map load measured separately; not DDS or hardware qualification.",
+  "timing": {
+    "runs": [
+      {
+        "case": "central_v2",
+        "variant": "baseline",
+        "repeat": 0,
+        "frames": 100,
+        "cpu_ms": 16639.607659,
+        "wall_ms": 7008.263034,
+        "peak_rss_kib": 1955876,
+        "load_wall_ms": 5238.28,
+        "load_cpu_ms": 5242.13
+      },
+      {
+        "case": "repetitive_v2",
+        "variant": "baseline",
+        "repeat": 0,
+        "frames": 100,
+        "cpu_ms": 24244.912159,
+        "wall_ms": 9352.546381,
+        "peak_rss_kib": 1955736,
+        "load_wall_ms": 5359.28,
+        "load_cpu_ms": 5363.29
+      },
+      {
+        "case": "central_v2",
+        "variant": "locality",
+        "repeat": 0,
+        "frames": 100,
+        "cpu_ms": 15664.251387999999,
+        "wall_ms": 6446.297817,
+        "peak_rss_kib": 1955712,
+        "load_wall_ms": 5904.2,
+        "load_cpu_ms": 5907.95
+      },
+      {
+        "case": "repetitive_v2",
+        "variant": "locality",
+        "repeat": 0,
+        "frames": 100,
+        "cpu_ms": 22400.290193,
+        "wall_ms": 7918.596154,
+        "peak_rss_kib": 1955616,
+        "load_wall_ms": 5858.16,
+        "load_cpu_ms": 5862.56
+      },
+      {
+        "case": "central_v2",
+        "variant": "locality",
+        "repeat": 1,
+        "frames": 100,
+        "cpu_ms": 15614.928622,
+        "wall_ms": 6232.799967,
+        "peak_rss_kib": 1955760,
+        "load_wall_ms": 5936.05,
+        "load_cpu_ms": 5939.44
+      },
+      {
+        "case": "repetitive_v2",
+        "variant": "locality",
+        "repeat": 1,
+        "frames": 100,
+        "cpu_ms": 22460.795884,
+        "wall_ms": 7953.140651,
+        "peak_rss_kib": 1955768,
+        "load_wall_ms": 6467.94,
+        "load_cpu_ms": 6470.7
+      },
+      {
+        "case": "central_v2",
+        "variant": "baseline",
+        "repeat": 1,
+        "frames": 100,
+        "cpu_ms": 17068.323994,
+        "wall_ms": 6668.17713,
+        "peak_rss_kib": 1955720,
+        "load_wall_ms": 5427.81,
+        "load_cpu_ms": 5430.85
+      },
+      {
+        "case": "repetitive_v2",
+        "variant": "baseline",
+        "repeat": 1,
+        "frames": 100,
+        "cpu_ms": 25139.701587,
+        "wall_ms": 9080.374917,
+        "peak_rss_kib": 1955760,
+        "load_wall_ms": 5272.82,
+        "load_cpu_ms": 5277.02
+      },
+      {
+        "case": "central_v2",
+        "variant": "baseline",
+        "repeat": 2,
+        "frames": 100,
+        "cpu_ms": 17440.997233000002,
+        "wall_ms": 7399.421933,
+        "peak_rss_kib": 1955828,
+        "load_wall_ms": 5258.01,
+        "load_cpu_ms": 5262.24
+      },
+      {
+        "case": "repetitive_v2",
+        "variant": "baseline",
+        "repeat": 2,
+        "frames": 100,
+        "cpu_ms": 24048.917036,
+        "wall_ms": 8826.077543,
+        "peak_rss_kib": 1955588,
+        "load_wall_ms": 5268.45,
+        "load_cpu_ms": 5272.16
+      },
+      {
+        "case": "central_v2",
+        "variant": "locality",
+        "repeat": 2,
+        "frames": 100,
+        "cpu_ms": 15887.968118,
+        "wall_ms": 6807.423856,
+        "peak_rss_kib": 1955832,
+        "load_wall_ms": 5771.73,
+        "load_cpu_ms": 5776.47
+      },
+      {
+        "case": "repetitive_v2",
+        "variant": "locality",
+        "repeat": 2,
+        "frames": 100,
+        "cpu_ms": 23100.959517,
+        "wall_ms": 8768.840156,
+        "peak_rss_kib": 1955680,
+        "load_wall_ms": 5753.39,
+        "load_cpu_ms": 5758.08
+      }
+    ],
+    "checks": [
+      {
+        "case": "central_v2",
+        "repeat": 0,
+        "public_field_differences": [],
+        "maximum_pose_coefficient_delta": 1.1102230246251565e-16
+      },
+      {
+        "case": "central_v2",
+        "repeat": 1,
+        "public_field_differences": [],
+        "maximum_pose_coefficient_delta": 4.440892098500626e-16
+      },
+      {
+        "case": "central_v2",
+        "repeat": 2,
+        "public_field_differences": [],
+        "maximum_pose_coefficient_delta": 2.220446049250313e-15
+      },
+      {
+        "case": "repetitive_v2",
+        "repeat": 0,
+        "public_field_differences": [],
+        "maximum_pose_coefficient_delta": 2.220446049250313e-16
+      },
+      {
+        "case": "repetitive_v2",
+        "repeat": 1,
+        "public_field_differences": [],
+        "maximum_pose_coefficient_delta": 2.498001805406602e-16
+      },
+      {
+        "case": "repetitive_v2",
+        "repeat": 2,
+        "public_field_differences": [],
+        "maximum_pose_coefficient_delta": 2.220446049250313e-16
+      }
+    ],
+    "medians": {
+      "central_v2": {
+        "baseline": {
+          "cpu_ms": 17068.323994,
+          "wall_ms": 7008.263034,
+          "load_cpu_ms": 5262.24,
+          "load_wall_ms": 5258.01,
+          "peak_rss_kib": 1955828
+        },
+        "locality": {
+          "cpu_ms": 15664.251387999999,
+          "wall_ms": 6446.297817,
+          "load_cpu_ms": 5907.95,
+          "load_wall_ms": 5904.2,
+          "peak_rss_kib": 1955760
+        }
+      },
+      "repetitive_v2": {
+        "baseline": {
+          "cpu_ms": 24244.912159,
+          "wall_ms": 9080.374917,
+          "load_cpu_ms": 5277.02,
+          "load_wall_ms": 5272.82,
+          "peak_rss_kib": 1955736
+        },
+        "locality": {
+          "cpu_ms": 22460.795884,
+          "wall_ms": 7953.140651,
+          "load_cpu_ms": 5862.56,
+          "load_wall_ms": 5858.16,
+          "peak_rss_kib": 1955680
+        }
+      }
+    }
+  },
+  "full_query_regression": [
+    {
+      "case": "central_v2",
+      "frames": 346,
+      "field_differences": [],
+      "maximum_pose_coefficient_delta": 4.440892098500626e-16,
+      "scores": [
+        {
+          "evaluated_poses": 342,
+          "first_output_sim_s": 0.799989997,
+          "position_error_m": {
+            "rmse": 0.010002277804408882,
+            "median": 0.006444844078881385,
+            "p95": 0.018839516191164512,
+            "maximum": 0.020539899354192145
+          },
+          "rotation_error_deg": {
+            "rmse": 0.07834117242101064,
+            "median": 0.040130492562523455,
+            "p95": 0.15066203439095763,
+            "maximum": 0.16618719921305444
+          },
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/full_central_v2_baseline.csv"
+        },
+        {
+          "evaluated_poses": 342,
+          "first_output_sim_s": 0.799989997,
+          "position_error_m": {
+            "rmse": 0.010002277804408884,
+            "median": 0.006444844078881342,
+            "p95": 0.01883951619116452,
+            "maximum": 0.020539899354192148
+          },
+          "rotation_error_deg": {
+            "rmse": 0.07834117242101063,
+            "median": 0.04013049256252346,
+            "p95": 0.15066203439095763,
+            "maximum": 0.16618719921305444
+          },
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/full_central_v2_locality.csv"
+        }
+      ]
+    },
+    {
+      "case": "south_v2",
+      "frames": 346,
+      "field_differences": [],
+      "maximum_pose_coefficient_delta": 1.7763568394002505e-15,
+      "scores": [
+        {
+          "evaluated_poses": 342,
+          "first_output_sim_s": 0.799995002,
+          "position_error_m": {
+            "rmse": 0.02066830751516566,
+            "median": 0.020218824162310727,
+            "p95": 0.027585952802032968,
+            "maximum": 0.03019097774050137
+          },
+          "rotation_error_deg": {
+            "rmse": 0.24698778058919418,
+            "median": 0.24819723986128017,
+            "p95": 0.2572672668429637,
+            "maximum": 0.26917070995978454
+          },
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/full_south_v2_baseline.csv"
+        },
+        {
+          "evaluated_poses": 342,
+          "first_output_sim_s": 0.799995002,
+          "position_error_m": {
+            "rmse": 0.020668307515165664,
+            "median": 0.02021882416231078,
+            "p95": 0.027585952802032968,
+            "maximum": 0.03019097774050137
+          },
+          "rotation_error_deg": {
+            "rmse": 0.24698778058919418,
+            "median": 0.24819723986128023,
+            "p95": 0.25726726684296375,
+            "maximum": 0.26917070995978454
+          },
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/full_south_v2_locality.csv"
+        }
+      ]
+    },
+    {
+      "case": "north_v2",
+      "frames": 346,
+      "field_differences": [],
+      "maximum_pose_coefficient_delta": 3.0531133177191805e-16,
+      "scores": [
+        {
+          "evaluated_poses": 342,
+          "first_output_sim_s": 0.799989997,
+          "position_error_m": {
+            "rmse": 0.472617451233284,
+            "median": 0.48607914613814396,
+            "p95": 0.5082863802163377,
+            "maximum": 0.5105298646062033
+          },
+          "rotation_error_deg": {
+            "rmse": 0.3838244095653754,
+            "median": 0.3831665938460976,
+            "p95": 0.39635110355897446,
+            "maximum": 0.4118475388088317
+          },
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/full_north_v2_baseline.csv"
+        },
+        {
+          "evaluated_poses": 342,
+          "first_output_sim_s": 0.799989997,
+          "position_error_m": {
+            "rmse": 0.472617451233284,
+            "median": 0.48607914613814396,
+            "p95": 0.5082863802163377,
+            "maximum": 0.5105298646062033
+          },
+          "rotation_error_deg": {
+            "rmse": 0.3838244095653754,
+            "median": 0.3831665938460976,
+            "p95": 0.39635110355897457,
+            "maximum": 0.4118475388088317
+          },
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/full_north_v2_locality.csv"
+        }
+      ]
+    },
+    {
+      "case": "repetitive_v2",
+      "frames": 346,
+      "field_differences": [],
+      "maximum_pose_coefficient_delta": 1.4210854715202004e-14,
+      "scores": [
+        {
+          "evaluated_poses": 342,
+          "first_output_sim_s": 0.799989997,
+          "position_error_m": {
+            "rmse": 68.66096876414717,
+            "median": 70.70013455278378,
+            "p95": 74.7989378002624,
+            "maximum": 74.89324330731526
+          },
+          "rotation_error_deg": {
+            "rmse": 179.748514199146,
+            "median": 179.6813942391409,
+            "p95": 179.94118170347411,
+            "maximum": 179.9998377076721
+          },
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/full_repetitive_v2_baseline.csv"
+        },
+        {
+          "evaluated_poses": 342,
+          "first_output_sim_s": 0.799989997,
+          "position_error_m": {
+            "rmse": 68.66096876414717,
+            "median": 70.70013455278378,
+            "p95": 74.7989378002624,
+            "maximum": 74.89324330731526
+          },
+          "rotation_error_deg": {
+            "rmse": 179.748514199146,
+            "median": 179.6813942391409,
+            "p95": 179.94118170347411,
+            "maximum": 179.9998377076721
+          },
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/full_repetitive_v2_locality.csv"
+        }
+      ]
+    }
+  ],
+  "synthetic_episodes": [
+    {
+      "mode": "legacy",
+      "frames": 70,
+      "non_timing_field_differences": [],
+      "max_pose_component_delta": 0.0
+    },
+    {
+      "mode": "atlas",
+      "frames": 70,
+      "non_timing_field_differences": [],
+      "max_pose_component_delta": 0.0
+    },
+    {
+      "mode": "kill",
+      "frames": 70,
+      "non_timing_field_differences": [],
+      "max_pose_component_delta": 0.0
+    }
+  ],
+  "acquired_queries": {
+    "central_v2": {
+      "path": "map/sprobo_20261018/central_v2",
+      "variant": "reference",
+      "frames": 346,
+      "counts": {
+        "/tf_static": 1,
+        "/clock": 7001,
+        "/livox/imu": 7000,
+        "/livox/lidar": 350,
+        "/ground_truth/odom": 350,
+        "/Odometry": 346,
+        "/cloud_registered_body": 346
+      },
+      "exact_stamp_lio_pairs": 346,
+      "manifest_sha256": "7a83bebd30c784f9139e25e8e5731063003906473a83e5c99355501c891feb96",
+      "metadata_sha256": "d9de063cb4ba21d585f37cd06702f70962ae55d5885d5bbffa68ce7d00219b38",
+      "pcd_set_sha256": "0bafbc155d9e9a08bfba385ddc022eceaab807609acbaecad4911a786f88199d",
+      "frontend_max_position_m": 0.033695853527818134,
+      "frontend_max_rotation_deg": 0.10046798979542051,
+      "descriptor_warm_median_thread_cpu_ms": 3.1503460000003543,
+      "descriptor_first_index_thread_cpu_ms": 407.4960890000002
+    },
+    "south_v2": {
+      "path": "map/sprobo_20261018/south_v2",
+      "variant": "changed",
+      "frames": 346,
+      "counts": {
+        "/tf_static": 1,
+        "/clock": 7001,
+        "/livox/imu": 7000,
+        "/livox/lidar": 350,
+        "/ground_truth/odom": 350,
+        "/Odometry": 346,
+        "/cloud_registered_body": 346
+      },
+      "exact_stamp_lio_pairs": 346,
+      "manifest_sha256": "58c6ccdd4d6c4bafd87cd60384db52368133ef25c62a88f40dffe85bf3798bd9",
+      "metadata_sha256": "ec4597ac041daf446f79c636afc49e930c71040f72ae8be2f4ff4b65b365192b",
+      "pcd_set_sha256": "23227f99db4e3d28e9aea147eece5d3abc153f310d59ea6be049be992eea3c8b",
+      "frontend_max_position_m": 0.02713312819635316,
+      "frontend_max_rotation_deg": 0.09583720223467816,
+      "descriptor_warm_median_thread_cpu_ms": 3.195766000000276,
+      "descriptor_first_index_thread_cpu_ms": 406.5887249999996
+    },
+    "north_v2": {
+      "path": "map/sprobo_20261018/north_v2",
+      "variant": "reference",
+      "frames": 346,
+      "counts": {
+        "/tf_static": 1,
+        "/clock": 7001,
+        "/livox/imu": 7000,
+        "/livox/lidar": 350,
+        "/ground_truth/odom": 350,
+        "/Odometry": 346,
+        "/cloud_registered_body": 346
+      },
+      "exact_stamp_lio_pairs": 346,
+      "manifest_sha256": "6ced4bed6f06cff63b0e8fe409949a924a28873e8b96c50222ec2deabf6deb95",
+      "metadata_sha256": "3b1c5af29d3fdf852526bbc819c0969f61d737abaabf8f5f790d049d3e7d1ad1",
+      "pcd_set_sha256": "5cb5729d28bec81961875bff54253c15e701724613160b47f75a456dea62614e",
+      "frontend_max_position_m": 0.036497708944212344,
+      "frontend_max_rotation_deg": 0.07414316458506483,
+      "descriptor_warm_median_thread_cpu_ms": 3.1736420000002,
+      "descriptor_first_index_thread_cpu_ms": 407.8014119999998
+    },
+    "repetitive_v2": {
+      "path": "map/sprobo_20261018/repetitive_v2",
+      "variant": "repetitive",
+      "frames": 346,
+      "counts": {
+        "/tf_static": 1,
+        "/clock": 7001,
+        "/livox/imu": 7000,
+        "/livox/lidar": 350,
+        "/ground_truth/odom": 350,
+        "/Odometry": 346,
+        "/cloud_registered_body": 346
+      },
+      "exact_stamp_lio_pairs": 346,
+      "manifest_sha256": "6e65682e1ba0f3a8fd7eca4c277f7eb8ff7b88f185d678ba5052d7985b1e6bf9",
+      "metadata_sha256": "91447d645be746b6882ab04cf22b8c82daacc06cf0636663802502100ce95f4d",
+      "pcd_set_sha256": "520dbbe5d84f286ffcd71f428f032f4bd1506d58181918b3b79635a2871399ef",
+      "frontend_max_position_m": 0.03574018645794002,
+      "frontend_max_rotation_deg": 0.06307264504316291,
+      "descriptor_warm_median_thread_cpu_ms": 3.1014530000002196,
+      "descriptor_first_index_thread_cpu_ms": 406.00934400000006
+    }
+  },
+  "atlas_checks": {
+    "baseline": {
+      "load_cpu_ms": 1875.78,
+      "rss_kib": 1197556,
+      "peak_rss_kib": 1473420,
+      "points": 5410379,
+      "nodes": 655357,
+      "node_capacity_bytes": 15728568,
+      "unordered_record_checksums_and_neighbor_geometry_sha256": "6fc49ff06ae04f22e5825a64350b2feb7df7785468b825ae2fc23b5a6b9434ba"
+    },
+    "locality": {
+      "load_cpu_ms": 2302.66,
+      "rss_kib": 1197520,
+      "peak_rss_kib": 1473420,
+      "points": 5410379,
+      "nodes": 655357,
+      "node_capacity_bytes": 15728568,
+      "unordered_record_checksums_and_neighbor_geometry_sha256": "6fc49ff06ae04f22e5825a64350b2feb7df7785468b825ae2fc23b5a6b9434ba"
+    }
+  },
+  "atlas_check_scope": "All 5,410,379 prepared records have identical unordered 64-bit sum/sum-square checksums; 30,000 deterministic nearest-neighbor results hash the chosen coordinates, associated normal/covariance, distance and count, not changed storage indices. Combined SHA256 is equal. One load/RSS pair only, not a RAM or load-speed benchmark.",
+  "tests": {
+    "ctest_passed": 61,
+    "ctest_total": 61,
+    "log": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/search_scheduling_20261018/final_ctest.log",
+    "target_neighbor_queries": 10000,
+    "roundtrip": "All prepared point/normal/covariance bits compared as complete records in canonical order; signed-zero assertions retained."
+  },
+  "profile": {
+    "method": "Exploratory ITIMER_PROF user-space instruction samples, including map load; kernel perf is disabled by host policy and was not reconfigured.",
+    "samples": 3711,
+    "nearest_tree_visit_samples": 1627,
+    "nearest_tree_visit_fraction": 0.4384263001886284,
+    "limitation": "Self-time sampling indicates a hotspot; not an exact stage CPU budget."
+  },
+  "descriptor": {
+    "place_logical_dimensions": 2973,
+    "heading_logical_dimensions": 8400,
+    "total_logical_dimensions": 11373,
+    "independent_scancontext": false,
+    "changed": false
+  },
+  "known_failure": {
+    "case": "repetitive_v2",
+    "scene": "Room positions, sizes, shapes and furniture replaced by repeated templates; landmarks removed. This differs from the reference map. It is a changed-scene negative case, not evidence that true-pose recovery is always possible.",
+    "baseline_and_candidate_false_lock": true,
+    "first_lock_frame_index": 4,
+    "first_20_max_position_error_m": 58.815459426728914,
+    "full_max_position_error_m": 74.89324330731526,
+    "full_max_rotation_error_deg": 179.9998377076721,
+    "all_gates_passed": "registration, five-frame temporal confirmation, winner margin and final relative free-space veto",
+    "oracle": "First mapping pose fixes alignment once; independent query truth never enters estimator or alignment fitting.",
+    "diagnostic_audit": {
+      "scope": "Offline first raw frame; full map, not production cropped aggregate; truth labels floor/ceiling for audit only; no estimator input or gate changes",
+      "results": [
+        {
+          "case": "central_v2",
+          "pose": "truth",
+          "resolution_deg": 2.7644517060123053,
+          "groups": {
+            "all": {
+              "observed": 2509,
+              "consistent": 2058,
+              "ratio": 0.8202471104025508,
+              "foreground_conflicts": 451
+            },
+            "floor_ceiling": {
+              "observed": 1544,
+              "consistent": 1143,
+              "ratio": 0.7402849740932642,
+              "foreground_conflicts": 401
+            },
+            "other": {
+              "observed": 965,
+              "consistent": 915,
+              "ratio": 0.9481865284974094,
+              "foreground_conflicts": 50
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.42509489490259084,
+            0.4897007082086982,
+            0.7740332908235501,
+            0.8037037307634978,
+            0.871746567041583,
+            0.9353755317372063
+          ],
+          "query_information_eigenvalues": [
+            269.7755840210474,
+            712.8421912043566,
+            1482.07085293997,
+            17325.412978337474,
+            23633.55930982803,
+            29217.931008498857
+          ],
+          "planar_consistency_eigenvalues": [
+            0.8032215188027106,
+            0.8709315603668837,
+            0.9349858631182117
+          ]
+        },
+        {
+          "case": "central_v2",
+          "pose": "accepted",
+          "resolution_deg": 2.7644517060123053,
+          "groups": {
+            "all": {
+              "observed": 2509,
+              "consistent": 2057,
+              "ratio": 0.8198485452371462,
+              "foreground_conflicts": 452
+            },
+            "floor_ceiling": {
+              "observed": 1544,
+              "consistent": 1144,
+              "ratio": 0.7409326424870466,
+              "foreground_conflicts": 400
+            },
+            "other": {
+              "observed": 965,
+              "consistent": 913,
+              "ratio": 0.9461139896373058,
+              "foreground_conflicts": 52
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.4229599403211943,
+            0.4919091774492474,
+            0.7756432632005618,
+            0.7992290471463941,
+            0.8701262958502004,
+            0.9314352932664831
+          ],
+          "query_information_eigenvalues": [
+            269.7755840210474,
+            712.8421912043566,
+            1482.07085293997,
+            17325.412978337474,
+            23633.55930982803,
+            29217.931008498857
+          ],
+          "planar_consistency_eigenvalues": [
+            0.7987290674406914,
+            0.8693095911987939,
+            0.930986635671906
+          ]
+        },
+        {
+          "case": "south_v2",
+          "pose": "truth",
+          "resolution_deg": 2.5788336693258658,
+          "groups": {
+            "all": {
+              "observed": 2771,
+              "consistent": 2235,
+              "ratio": 0.8065680259833995,
+              "foreground_conflicts": 530
+            },
+            "floor_ceiling": {
+              "observed": 1798,
+              "consistent": 1334,
+              "ratio": 0.7419354838709677,
+              "foreground_conflicts": 460
+            },
+            "other": {
+              "observed": 973,
+              "consistent": 901,
+              "ratio": 0.9260020554984584,
+              "foreground_conflicts": 70
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.4695367963961858,
+            0.586362886872843,
+            0.6813495773237067,
+            0.759556368033155,
+            0.8917327851836037,
+            0.9313768510404052
+          ],
+          "query_information_eigenvalues": [
+            259.3305702208878,
+            681.9378540300497,
+            1719.5002372187762,
+            24523.629182687582,
+            27494.388202724644,
+            45571.230230206274
+          ],
+          "planar_consistency_eigenvalues": [
+            0.6764783935293703,
+            0.8914849615255553,
+            0.9312954690707129
+          ]
+        },
+        {
+          "case": "south_v2",
+          "pose": "accepted",
+          "resolution_deg": 2.5788336693258658,
+          "groups": {
+            "all": {
+              "observed": 2771,
+              "consistent": 2219,
+              "ratio": 0.8007939372067846,
+              "foreground_conflicts": 550
+            },
+            "floor_ceiling": {
+              "observed": 1798,
+              "consistent": 1319,
+              "ratio": 0.7335928809788654,
+              "foreground_conflicts": 479
+            },
+            "other": {
+              "observed": 973,
+              "consistent": 900,
+              "ratio": 0.9249743062692704,
+              "foreground_conflicts": 71
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.416097420808601,
+            0.5785325788389517,
+            0.6752440596979927,
+            0.7602802046925763,
+            0.8900198460222495,
+            0.9301061681416497
+          ],
+          "query_information_eigenvalues": [
+            259.3305702208878,
+            681.9378540300497,
+            1719.5002372187762,
+            24523.629182687582,
+            27494.388202724644,
+            45571.230230206274
+          ],
+          "planar_consistency_eigenvalues": [
+            0.6711346820178933,
+            0.8893294800469103,
+            0.9299849801429019
+          ]
+        },
+        {
+          "case": "north_v2",
+          "pose": "truth",
+          "resolution_deg": 3.088695485754153,
+          "groups": {
+            "all": {
+              "observed": 2073,
+              "consistent": 971,
+              "ratio": 0.4684032802701399,
+              "foreground_conflicts": 858
+            },
+            "floor_ceiling": {
+              "observed": 1217,
+              "consistent": 904,
+              "ratio": 0.7428101889893179,
+              "foreground_conflicts": 250
+            },
+            "other": {
+              "observed": 856,
+              "consistent": 67,
+              "ratio": 0.07827102803738317,
+              "foreground_conflicts": 608
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.04571201985712475,
+            0.15446648204165353,
+            0.18991127544830552,
+            0.37169991616637776,
+            0.5101207619800742,
+            0.7595682985642602
+          ],
+          "query_information_eigenvalues": [
+            171.81566661220194,
+            660.4877618705939,
+            1033.0475673931699,
+            18474.499222762162,
+            20289.0330111797,
+            41073.45514971018
+          ],
+          "planar_consistency_eigenvalues": [
+            0.045718318947300676,
+            0.15458952331970852,
+            0.1904134773434315
+          ]
+        },
+        {
+          "case": "north_v2",
+          "pose": "accepted",
+          "resolution_deg": 3.088695485754153,
+          "groups": {
+            "all": {
+              "observed": 2073,
+              "consistent": 1627,
+              "ratio": 0.7848528702363724,
+              "foreground_conflicts": 446
+            },
+            "floor_ceiling": {
+              "observed": 1217,
+              "consistent": 849,
+              "ratio": 0.6976170912078883,
+              "foreground_conflicts": 368
+            },
+            "other": {
+              "observed": 856,
+              "consistent": 778,
+              "ratio": 0.9088785046728972,
+              "foreground_conflicts": 78
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.31565629413617424,
+            0.4287933280227953,
+            0.6135846117612406,
+            0.7291260137413578,
+            0.7505836859340197,
+            0.9364643370642938
+          ],
+          "query_information_eigenvalues": [
+            171.81566661220194,
+            660.4877618705939,
+            1033.0475673931699,
+            18474.499222762162,
+            20289.0330111797,
+            41073.45514971018
+          ],
+          "planar_consistency_eigenvalues": [
+            0.6102777578339352,
+            0.7440753265152734,
+            0.9363985380076856
+          ]
+        },
+        {
+          "case": "repetitive_v2",
+          "pose": "truth",
+          "resolution_deg": 3.0091652776209603,
+          "groups": {
+            "all": {
+              "observed": 2169,
+              "consistent": 985,
+              "ratio": 0.4541263254956201,
+              "foreground_conflicts": 863
+            },
+            "floor_ceiling": {
+              "observed": 1293,
+              "consistent": 845,
+              "ratio": 0.6535189481825213,
+              "foreground_conflicts": 448
+            },
+            "other": {
+              "observed": 876,
+              "consistent": 140,
+              "ratio": 0.1598173515981735,
+              "foreground_conflicts": 415
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.057299165954655965,
+            0.17744633060576645,
+            0.22085935797853895,
+            0.28247218639833255,
+            0.3482674462956185,
+            0.66683376776699
+          ],
+          "query_information_eigenvalues": [
+            116.13378204291894,
+            755.732922780051,
+            1241.0135844066403,
+            20942.389852637843,
+            24485.60688059425,
+            31665.353508796383
+          ],
+          "planar_consistency_eigenvalues": [
+            0.057356650204721756,
+            0.17872055482002433,
+            0.22169672650065905
+          ]
+        },
+        {
+          "case": "repetitive_v2",
+          "pose": "hypothesis_0",
+          "resolution_deg": 3.0091652776209603,
+          "groups": {
+            "all": {
+              "observed": 2169,
+              "consistent": 1217,
+              "ratio": 0.5610880590133702,
+              "foreground_conflicts": 530
+            },
+            "floor_ceiling": {
+              "observed": 1293,
+              "consistent": 913,
+              "ratio": 0.7061098221191029,
+              "foreground_conflicts": 380
+            },
+            "other": {
+              "observed": 876,
+              "consistent": 304,
+              "ratio": 0.3470319634703196,
+              "foreground_conflicts": 150
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.11224973832301302,
+            0.3293513419581783,
+            0.3351427399912965,
+            0.3799395553024377,
+            0.40509784984625796,
+            0.7221105526607163
+          ],
+          "query_information_eigenvalues": [
+            116.13378204291894,
+            755.732922780051,
+            1241.0135844066403,
+            20942.389852637843,
+            24485.60688059425,
+            31665.353508796383
+          ],
+          "planar_consistency_eigenvalues": [
+            0.11239583687728953,
+            0.334912248423164,
+            0.38090723398325727
+          ]
+        },
+        {
+          "case": "repetitive_v2",
+          "pose": "hypothesis_1",
+          "resolution_deg": 3.0091652776209603,
+          "groups": {
+            "all": {
+              "observed": 2169,
+              "consistent": 1051,
+              "ratio": 0.48455509451360074,
+              "foreground_conflicts": 618
+            },
+            "floor_ceiling": {
+              "observed": 1293,
+              "consistent": 944,
+              "ratio": 0.7300850734725445,
+              "foreground_conflicts": 349
+            },
+            "other": {
+              "observed": 876,
+              "consistent": 107,
+              "ratio": 0.12214611872146118,
+              "foreground_conflicts": 269
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.03343177328322368,
+            0.09150777288434372,
+            0.13844407991950977,
+            0.3403385870033394,
+            0.42537602535780294,
+            0.7523071624736984
+          ],
+          "query_information_eigenvalues": [
+            116.13378204291894,
+            755.732922780051,
+            1241.0135844066403,
+            20942.389852637843,
+            24485.60688059425,
+            31665.353508796383
+          ],
+          "planar_consistency_eigenvalues": [
+            0.03345055649497434,
+            0.09173035303230631,
+            0.13861603842407302
+          ]
+        },
+        {
+          "case": "repetitive_v2",
+          "pose": "hypothesis_2",
+          "resolution_deg": 3.0091652776209603,
+          "groups": {
+            "all": {
+              "observed": 2169,
+              "consistent": 923,
+              "ratio": 0.425541724296911,
+              "foreground_conflicts": 708
+            },
+            "floor_ceiling": {
+              "observed": 1293,
+              "consistent": 848,
+              "ratio": 0.6558391337973705,
+              "foreground_conflicts": 445
+            },
+            "other": {
+              "observed": 876,
+              "consistent": 75,
+              "ratio": 0.08561643835616438,
+              "foreground_conflicts": 263
+            }
+          },
+          "directional_consistency_eigenvalues": [
+            0.018741269141479333,
+            0.04867015523161248,
+            0.09752415634732285,
+            0.21965774135276406,
+            0.3598883974263394,
+            0.6920626528903233
+          ],
+          "query_information_eigenvalues": [
+            116.13378204291894,
+            755.732922780051,
+            1241.0135844066403,
+            20942.389852637843,
+            24485.60688059425,
+            31665.353508796383
+          ],
+          "planar_consistency_eigenvalues": [
+            0.018770493694963884,
+            0.04869876130038747,
+            0.09755304332598927
+          ]
+        }
+      ]
+    },
+    "limitation": "Offline first-raw-frame full-map audit, not exact cropped/aggregated production score. Full 6-DOF minimum support would reject a correct central query (0.423). Planar support separates the three normal accepted poses (minimum 0.61..0.80) from this wrong pose (0.112), but uses flat-scene body-Z and is not validated for arbitrary tilt, occlusions, dynamic geometry or boundary crossings. No gate change adopted."
+  },
+  "not_achieved": [
+    "Changed-scene false-lock rejection",
+    "Difficult-search half-core operation",
+    "Repeated-initialization elimination",
+    "Out-of-map and re-entry full E2E qualification",
+    "RK3588 or new DDS CPU/RAM qualification",
+    "Complete modularity cleanup"
+  ],
+  "timing_total_medians": {
+    "central_v2": {
+      "baseline": {
+        "cpu_ms": 22499.173993999997,
+        "wall_ms": 12246.543033999998
+      },
+      "locality": {
+        "cpu_ms": 21572.201387999998,
+        "wall_ms": 12350.497817
+      }
+    },
+    "repetitive_v2": {
+      "baseline": {
+        "cpu_ms": 29608.202159,
+        "wall_ms": 14353.194916999999
+      },
+      "locality": {
+        "cpu_ms": 28859.039516999997,
+        "wall_ms": 14421.080651
+      }
+    }
+  },
+  "screened_not_adopted": {
+    "serial_basins": {
+      "central_v2": {
+        "cpu_ms": 14520.907242999998,
+        "wall_ms": 6967.306088,
+        "frames": 20
+      },
+      "repetitive_v2": {
+        "cpu_ms": 16339.343571000001,
+        "wall_ms": 6844.738535,
+        "frames": 20
+      }
+    },
+    "budget_basins": {
+      "central_v2": {
+        "cpu_ms": 14878.699638999999,
+        "wall_ms": 7057.931444,
+        "frames": 20
+      },
+      "repetitive_v2": {
+        "cpu_ms": 17854.421039,
+        "wall_ms": 8724.283346,
+        "frames": 20
+      }
+    },
+    "two_workers": {
+      "central_v2": {
+        "cpu_ms": 13969.971718,
+        "wall_ms": 5769.445533,
+        "frames": 20
+      },
+      "repetitive_v2": {
+        "cpu_ms": 16372.430622,
+        "wall_ms": 6430.82661,
+        "frames": 20
+      }
+    },
+    "iterative": {
+      "central_v2": {
+        "cpu_ms": 15845.982015999998,
+        "wall_ms": 6991.651811,
+        "frames": 20
+      },
+      "repetitive_v2": {
+        "cpu_ms": 17816.112811000003,
+        "wall_ms": 7001.42724,
+        "frames": 20
+      }
+    },
+    "prefetch": {
+      "central_v2": {
+        "cpu_ms": 15709.489533000002,
+        "wall_ms": 6830.56257,
+        "frames": 20
+      },
+      "repetitive_v2": {
+        "cpu_ms": 17712.537987,
+        "wall_ms": 7178.210032,
+        "frames": 20
+      }
+    },
+    "nearest_certificate": {
+      "cpu_ms": 15491.832269000002,
+      "wall_ms": 6088.170576,
+      "frames": 20,
+      "correspondence_tests": "6/6 passed; slower in exploratory replay"
+    }
+  },
+  "screening_limitation": "Each rejected/small-gain scheduling/search variant has one exploratory pair only; no stable speedup claim. Sources and binaries remain in artifact_root, absent from production.",
+  "source_sha256": {
+    "src/compact_kdtree_builder.h": "1b2f1381adf1d9017e940112fbd9a858fe8fa43b10f5661be57aff6df9c7d003",
+    "src/point_cloud_matcher.cpp": "ccb850e51b4e2143b882671a7fa9b1ed8eb7f974a28283cfa10287f8aeb8a0c2",
+    "src/localization_atlas.cpp": "7e4906b71d0d223644d05d72b35a57a50c7765798db880314f000e07c1558c2e",
+    "test/test_localization_atlas.cpp": "09d797bc0a623d26fd7f120b79662644f46fda67d2d0ad0b9d2d69a6ee186df6",
+    "test/test_point_cloud_matcher.cpp": "4e9d8b25305f8a4d58a41ace4532fe6ac7bb83e2561f50ca17cd0678e23ce6d7",
+    "test/test_registration_search.cpp": "da86d26a6222fdd8998c9676934e41b8aa48b9a37600a1d039e3fb2bb6b8cb53"
+  },
+  "artifact_sha256": {
+    "baseline/libn3mapping_core.so": "806a4b16f625ba296f492da0d7c442eb1ea7495e43458d6f016e96f874a923ee",
+    "locality/libn3mapping_core.so": "66ba1d33a7ff6caa014c68832171a18fe0ec70c5a0e8d598c80c5812aebe84f5",
+    "replay_probe": "cbb7c626db15b3df791790a8671ae22baebbc50f37187ab9c134cdf899da241e",
+    "test_localization_episode": "31f675341e9154396b270b1c616978c0a175c6f74f02149d3f3e937ac58fac69",
+    "verify_locality.py": "7a265678c655063dc7ec1a7f2defba1ab3bbbcc8ad85a0db9048be98ca5a0d5c",
+    "full_locality.py": "1c6d4aa96f7c0e49b2493bf4b81cc1d3dd1cf7407ee8384f87d540d391a2cb10",
+    "visibility_planar_audit.py": "2fc8b09b723426c7cdade7ee80457a462361477a269187f76be67c0af80e520c",
+    "atlas_locality_probe.cpp": "911732d3b2ca368020be22bd4502105de3eacd5db3977b915599cfd19a059238",
+    "atlas_locality_probe": "535440a1e45d2b6c6a247e6ab49b4b8c9a5e1be4adb5e2027dc7fa3e93784bcd",
+    "sample_cpu.c": "6a7fe4a05d084f70386f21a40fa5714666cf3f41d3977be675fb6224a8d95c89",
+    "record_queries.py": "c7acd9bbc599a8ccb8a9c8b648713574d7b0cf184cc8346dbb56428c7079e008",
+    "final_ctest.log": "068f8da535bc0fbd738fd8a0afae189c6e85bc36570c01e4ba28562d8c9bb486"
+  }
+}

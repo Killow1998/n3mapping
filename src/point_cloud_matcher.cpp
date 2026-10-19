@@ -260,7 +260,7 @@ PointCloudMatcher::preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, dou
     compactDownsampledCloud(*ds);
     auto kdtree = std::make_shared<SmallGicpKdTree>(
         ds, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilderOMP>(
-                config_.num_threads));
+                *ds, false, config_.num_threads));
     small_gicp::estimate_normals_covariances_omp(*ds, kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
     return { ds, kdtree };
 }

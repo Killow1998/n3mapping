@@ -537,8 +537,15 @@ TEST_F(PointCloudMatcherTest, SourceRefinementDoesNotNeedTargetNormals) {
     ASSERT_TRUE(target.has_refine_level);
     ASSERT_EQ(source.refine_cloud->size(), target.refine_level.cloud->size());
     for (std::size_t i = 0; i < source.refine_cloud->size(); ++i) {
-        EXPECT_TRUE(source.refine_cloud->point(i).isApprox(target.refine_level.cloud->point(i), 1e-12));
-        EXPECT_TRUE(source.refine_cloud->cov(i).isApprox(target.refine_level.cloud->cov(i), 1e-12));
+        // Storage order is independent; compare features at the same point.
+        std::size_t target_index;
+        double distance;
+        ASSERT_EQ(target.refine_level.kdtree->nearest_neighbor_search(
+            source.refine_cloud->point(i), &target_index, &distance), 1u);
+        EXPECT_TRUE(source.refine_cloud->point(i).isApprox(
+            target.refine_level.cloud->point(target_index), 1e-12));
+        EXPECT_TRUE(source.refine_cloud->cov(i).isApprox(
+            target.refine_level.cloud->cov(target_index), 1e-12));
     }
     auto redundant_source = source;
     redundant_source.refine_cloud = target.refine_level.cloud;

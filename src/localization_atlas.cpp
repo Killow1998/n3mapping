@@ -148,7 +148,7 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
     // before building the tree or decoding the next level; Clear retains it.
     LocalizationAtlasPreparedLevel{}.Swap(&input);
     output->kdtree = std::make_shared<PointCloudMatcher::SmallGicpKdTree>(
-        cloud, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilder>{});
+        cloud, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilder>(*cloud, true));
     return true;
 }
 

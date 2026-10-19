@@ -1314,3 +1314,76 @@ bound/rounding overhead exceeds the saved distance work; this code remains only
 in the experiment directory. Reducing operation counts alone is not evidence
 of an overall performance improvement. Difficult-search half-core operation
 remains unresolved.
+
+### Target storage locality and changed-scene regression (2026-10-19)
+
+Against `f0a3590`, retained target points are now packed into their existing KD
+leaf order during construction. An in-place cycle permutation reuses the tree's
+index array; decoded normals and covariances move with their points. Fresh target
+features are estimated after packing. This reduces scattered memory reads while
+preserving tree traversal, physical tie choices, geometry and acceptance rules.
+Source storage, descriptors and public interfaces are unchanged.
+
+[Measurements and counterexample](../target_locality_20261019.json) retain three
+serial alternating A/B rounds, CPUs 0, 2, 4, 6 and PASSIVE OpenMP. Each run consumes
+the first 100 frames of the same frozen query. CPU includes all process threads.
+
+| Query | Replay CPU median before → after | CPU change | CPU change including load |
+| --- | ---: | ---: | ---: |
+| Central | 17.068 → 15.664 s | -8.23% | -4.12% |
+| Repetitive, changed scene | 24.245 → 22.461 s | -7.36% | -2.53% |
+
+Packing adds roughly 0.6 s to full-core load CPU. Median total wall time including
+load is 12.247 → 12.350 s / 14.353 → 14.421 s: cold-start latency has not improved.
+Peak replay RSS stays approximately 1.865 GiB. One Atlas-only check also has the
+same peak RSS and essentially the same retained RSS; this is not a memory-saving
+claim. Complete 346-frame timing has only one pair per case and varies by case,
+including a small CPU increase for the south query; no general steady-state or
+DDS gain is established by these measurements.
+
+All prepared records have identical unordered record checksums, and 30,000
+nearest-neighbor queries return identical coordinates, associated features and
+distances. Tests retain bit-for-bit record assertions across Atlas round trips,
+comparing complete records independent of storage order. An additional 10,000
+queries cover geometry, feature associations and duplicate-point tie choices.
+Humble CTest passes 61/61. Three synthetic episode modes, 70 frames each, have
+exactly equal non-timing fields and poses. The 1,200 frames in repeated timing
+runs and 2,768 frames in complete query A/B runs have equal decisions and work
+counts; maximum full-query pose-matrix difference is 1.43e-14.
+
+Three additional 35 s acquisitions are now closed and retained beside
+`central_v2`: `south_v2` (changed furniture), `north_v2` (reference geometry),
+and `repetitive_v2` (repeated room templates, altered room positions/shapes and
+removed landmarks). Each contains 350 scans, 7,000 IMUs, 350 truth poses and
+346 exact-stamp LIO pairs. Frontend maximum position errors are respectively
+0.0271 / 0.0365 / 0.0357 m. No simple_rbt source or installed binary was changed.
+For the full central/south/north localization queries, fixed-map alignment gives
+maximum position errors 0.02054 / 0.03019 / 0.51053 m in both versions.
+
+**The changed repetitive scene fails localization safety in both versions.** It
+locks at frame index 4 with about 58.8 m / 180 degrees error; the full query
+reaches 74.893 m position error. Registration, five-frame confirmation and the
+relative free-space veto all accept the wrong solution. This map/query mismatch
+does not establish that a correct pose can always be recovered; it does establish
+that the current logic fails to abstain. Its faster replay is a cost result for
+unchanged incorrect behavior, not a successful difficult-localization result.
+
+An offline first-frame audit finds that floor/ceiling support masks poor support
+from walls and objects. Weighting all six pose directions by their weakest
+support would also reject the correct central pose, so that proposal is excluded.
+Planar position/yaw support separates the three normal accepted poses from this
+wrong candidate in the audit, but arbitrary tilt, occlusion, dynamics and map
+boundaries remain untested. No new evidence gate is enabled. The next correctness
+step is to validate directional support and unknown-scene rejection across those
+conditions before changing acceptance or retaining hypotheses between windows.
+
+Warm RHPD generation plus retrieval remains 3.10–3.20 ms calling-thread CPU in
+these queries; initial frame-index construction is another 406–408 ms. The
+2,973 place + 8,400 heading dimensions remain unchanged, with no independent SC
+pass. Scheduling, nearest-neighbor certificate, iterative-traversal and prefetch
+prototypes were not adopted: exploratory gains were absent or insufficiently
+established. Their sources and outputs, the chosen frozen libraries, complete
+inputs and runners remain under `build/n3mapping/search_scheduling_20261018`.
+Difficult-search half-core operation, repeated-initialization elimination and
+out-of-map/re-entry qualification remain open. This stage has no new DDS or
+RK3588 qualification and does not replace the installed version.
