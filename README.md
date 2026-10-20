@@ -764,24 +764,29 @@ remain separate from that measured result.
 
 ### TODO
 
-Current localization work, updated **2026-10-19**, has repaired explicit
-odometry-source replacement and invalid-input recovery. The new source requires
-fresh confirmation, and its first authorized live output is retained. Full
-paired fixed14 and full-map movement preserve baseline behavior; map-like
-out-of-map aliases and moving tracking error still fail reliability.
-Detailed results and limits are in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#counterevidence-lifecycle-ablation--2026-10-19).
+Current localization work, updated **2026-10-19**, prioritizes **stationary
+startup** as required by Xian's downstream workflow. Preserve the original 14
+fixed-position inputs and improve startup CPU and latency on four physical
+cores. Continuing localization outside the global map is deferred pending
+Xian's decision. The highly repetitive out-of-map corridor remains a recorded
+limitation and separate stress case; repairing that movement trace does not
+block the current stationary-startup stage. Existing explicit source-replacement
+and invalid-input recovery fixes remain part of the regression baseline.
+Detailed results and limits are in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#stationary-startup-exact-free-space-queries-and-yaw-work-ablation--2026-10-19).
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
-| Reliability — moving failures now take priority | Preserve incremental candidate admission, unaffected-seed reuse, fresh confirmation and all 14 fixed-region recoveries. Source replacement and invalid-input recovery are fixed; default/Atlas/kill modes each pass 15 E2E episodes, including gradual 90° drift. The original moving input still has a 96.67 m / 180° false lock and a 4.40 m tracking excursion. Retaining rejected geometry removes the false lock and preserves recovery at 169 s, but both trials are rejected: unrestricted history blocks a later 90° reentry; history restricted to one pose mode blocks recovery after a temporary occluder disappears (30 clear observations, versus control recovery on the third). Passing full14, negative and full-map controls does not negate these failures. Next audit signed ray evidence and observation replacement before retaining historical vetoes. |
-| Search cost — continue after reliability correction | Accepted-runtime paired fixed14 control is 0.610 cores; only 01/09 pass, while 03/08/14 need 0.808/0.798/0.827. Full-map movement needs 0.625 CPU s/input s. Original partial search needs 10.415, including time spent tracking a false location. The rejected history trial needs 13.097 because it continues searching instead; its full14 needs 0.612 cores with unchanged outputs and work counts. No speedup is adopted. Initial locks consume about 59% of fixed14 CPU. Reduce repeated new/invalid-candidate and confirmation geometry; descriptor retrieval is a small fraction. Prior exact-grid, cross-solve hint and direct-confirmation ablations lack sufficient benefit or regress accuracy; details remain in the measurement record. |
-| Accuracy — retain 10 cm; separate causes | Current absolute errors do not pass 10 cm. Earlier evidence supports map bias at 09/11/14, so that map correction remains deferred. The moving query's frontend maximum is 0.447 m, while full-map localization reaches 4.40 m; investigate the added tracking error rather than treating it as established map-only bias. The plane factor has a compiled coordinate-invariance failure. A direct scalar correction improves full-map position maximum4.40→3.19m but worsens attitude maximum9.01→26.75°, so it is not adopted; ordinary tracking can accept a 7.38 m/88.6° plane fallback that fails fixed GICP quality. Local-first GICP now reduces full-map maximum error to0.546m/0.626° and needs0.553cores, but remains unaccepted: partial-map false lock persists, with more wrong geometric outputs. Correct reentry timing is preserved. Diagnose that global false lock before combining changes; no accepted accuracy improvement is claimed. |
+| Reliability — stationary startup is required | Preserve incremental candidate admission, unaffected-seed reuse, fresh confirmation and all 14 fixed-region recoveries. Source replacement and invalid-input recovery are fixed; default/Atlas/kill modes each pass 15 E2E episodes. All 14 stationary inputs find the correct region with one fifth-observation lock each. Moving out-of-map aliases and tracking excursions remain documented failures; no movement or outside-map reliability is claimed. |
+| Search cost — stationary startup improved; half core still open | One complete four-core fixed14 pair reduces CPU 253.262→214.467 s (0.613225→0.519290 cores, −15.3%), first-lock wall median 4.799→3.570 s and maximum 7.079→4.714 s. Cold seed solves fall 660→440; confirmation registrations (104) and fresh evaluations (399) stay unchanged. Exact free-space build drops about 1.56→0.714 s without changing any grid cell; default localization keeps four full-circle yaw starts instead of six. Seven of 14 cases measure ≤0.5 core in this pair; 03/08/14 still need 0.642/0.673/0.640. Further reduce static-start cold solve work while preserving new regions, competing directions and fresh confirmation. |
+| Accuracy — retain 10 cm; separate causes | Fixed14 maximum absolute error remains 0.474 m; 10 cm is not qualified. Map bias at 09/11/14 remains deferred. The startup yaw ablation changes 03/04/14 output positions by at most 0.477 mm; 04 error increases up to 0.163 mm and 14 attitude error up to 0.0000713°. Position shifts are below the existing 1 mm translation stopping scale, which is not an absolute-accuracy guarantee. All per-frame changes are recorded; no numerical acceptance gate is relaxed. Moving-tracking findings remain deferred historical limitations. |
 | Loop/map consistency — offline comparison pending | Reuse fused retrieval to propose independently registered scan-to-scan relative constraints, preserve competing-hypothesis and neighborhood checks, then compare trajectory and map consistency on frozen inputs. Preserve the baseline map and use separate outputs. The cropped localization fixture has disconnected graph components and is unsuitable for this graph-optimization experiment. No loop-consistency improvement is established yet. |
 
 All cost comparisons stay on **four physical P cores**, four registration threads,
 `OMP_WAIT_POLICY=PASSIVE`, the same map/configuration and MID360-derived **10 Hz**
-input. The goal is at most **0.5 CPU s per input second**, including initial search,
-recovery and background work; short peaks are allowed. Do not dilute search cost
+input. The goal is at most **0.5 CPU s per input second**, including stationary
+startup, subsequent tracking and background work; short peaks are allowed.
+Outside-map continuation and its recovery costs remain separate deferred evidence.
+Do not dilute search cost
 with longer stationary recordings or drop inputs to meet the average. Report
 lock/recovery latency and peak RSS alongside CPU. Current direct-core measurements
 exclude loading, frontend, simulator and DDS; full-node deployment and RK3588

@@ -176,9 +176,9 @@ struct VerifiedLoop {
     bool isValid() const { return verified && query_id >= 0 && match_id >= 0; }
 };
 
-// Descriptor yaw seeds shared by global relocalization and drift-independent
-// cross-session loop registration. Keeping the hypotheses identical prevents
-// the two global matching paths from silently developing different basins.
+// Shared descriptor phase, full-circle yaw grid and periodic deduplication.
+// Loop verification uses all generated starts. Relocalization selects its
+// proposal budget in relocalization_seed_plan.h without changing loop policy.
 inline constexpr double kDescriptorYawMergeTolerance = 1e-6;
 std::vector<double> buildDescriptorYawHypotheses(
     const LoopCandidate& candidate, const Config& config);

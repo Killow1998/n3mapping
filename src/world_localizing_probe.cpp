@@ -1,4 +1,5 @@
 #include "n3mapping/world_localizing.h"
+#include "relocalization_seed_plan.h"
 
 #include <algorithm>
 #include <chrono>
@@ -89,7 +90,7 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
     return result;
   }
 
-  const auto yaw_hypotheses = buildDescriptorYawHypotheses(candidate, config_);
+  const auto yaw_hypotheses = buildRelocalizationYawHypotheses(candidate, config_);
   for (const double yaw : yaw_hypotheses) {
     RegistrationSeedProbeAttempt attempt;
     attempt.seed_kind = "descriptor";

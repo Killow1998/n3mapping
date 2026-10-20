@@ -3263,15 +3263,15 @@
       "dense_query": {
         "adopted": false,
         "extra_query_bytes": 67200,
-        "reason": "08 kernel+24.1%,repetitive samples+8.4–13.2%; exactscoreoracle passed"
+        "reason": "08 kernel+24.1%,repetitive samples+8.4\u201313.2%; exactscoreoracle passed"
       },
       "static_linearization": {
         "adopted": false,
-        "reason": "03/08/14 CPU+4.9–5.7%,negative60+6.3%; removed pragma"
+        "reason": "03/08/14 CPU+4.9\u20135.7%,negative60+6.3%; removed pragma"
       },
       "static_objective": {
         "adopted": false,
-        "reason": "negative60 CPU only−0.1%,positive resultsmixed; removed duplicate override"
+        "reason": "negative60 CPU only\u22120.1%,positive resultsmixed; removed duplicate override"
       }
     },
     "decision": "Retain exact heading wrap; reject all three alternatives. Global CPU, accuracy and moving-coverage goals remain open.",
@@ -6070,7 +6070,7 @@
         "scope": "Historical same-input movement behavior control, not fresh paired performance. 1m/5deg bands identify gross failures, not runtime gates or 10cm acceptance. Independent fixed mapping-session alignment only."
       }
     },
-    "decision": "The current factor has a confirmed coordinate-dependence/tangent-stiffness defect. Direct scalar replacement is not safe to adopt into the current tracker: full-map maximum attitude error rises9.006→26.745deg despite position maximum4.400→3.185m and gross-frame count83→43. Stop expanding qualification; no complete14 or partial-map qualification for this candidate. Preserve production source/core and thresholds. Investigate tracking acceptance on frozen bad corrections before another proposal.",
+    "decision": "The current factor has a confirmed coordinate-dependence/tangent-stiffness defect. Direct scalar replacement is not safe to adopt into the current tracker: full-map maximum attitude error rises9.006\u219226.745deg despite position maximum4.400\u21923.185m and gross-frame count83\u219243. Stop expanding qualification; no complete14 or partial-map qualification for this candidate. Preserve production source/core and thresholds. Investigate tracking acceptance on frozen bad corrections before another proposal.",
     "artifacts": "build/n3mapping/stage_reuse_20261019/plane_objective_v1",
     "upstream_read_only_check": {
       "url": "https://raw.githubusercontent.com/koide3/small_gicp/master/include/small_gicp/factors/plane_icp_factor.hpp",
@@ -6736,5 +6736,259 @@
       "restored_core_sha256": "d1cb332821c0aafee6893bddd6d9eafbcd5ebb5dc64284d86b09932061faf80e",
       "restore_validation": "Build completes; core is byte-identical to accepted frozen core. Existing localization_episode(15episodes) and visibility_consistency CTest projects pass2/2. First launch inherited the old installed library and failed symbol lookup; corrected by prepending build library path, with both logs retained."
     }
+  },
+  "stationary_startup_optimization": {
+    "status": "ADOPTED_STATIC_STARTUP_STAGE_HALF_CORE_NOT_ACHIEVED",
+    "baseline_runtime_commit": "ceb39b5",
+    "core_sha256": "da5ea16098922c22b58c9eff2b47d7e53ae5d36cecf350ecc0c71b6f05401325",
+    "scope": "One serial alternating four-P-core full14 pair, 10 Hz original inputs. Whole-process CPU after map loading; excludes frontend, simulator and DDS. Truth observer only; first original mapping alignment, never query fit.",
+    "qualification": {
+      "ctest": "61/61 on authorized host",
+      "e2e": "15 each default/Atlas/kill",
+      "fixed14": "14/14, fifth-input lock, 292 outputs per case"
+    },
+    "full14": {
+      "baseline": {
+        "cpu_s": 253.26198958700002,
+        "input_s": 413.000005005,
+        "mean_cores": 0.6132251489535306,
+        "alignments": 764,
+        "first_lock_cpu_s": 148.252232995,
+        "first_lock_wall_min_s": 3.8178092059999997,
+        "first_lock_wall_median_s": 4.7994640385,
+        "first_lock_wall_max_s": 7.078839292,
+        "load_wall_median_s": 5.869825,
+        "load_plus_lock_wall_median_s": 10.898061171999998,
+        "peak_rss_mib": 1920.6875,
+        "half_core_positions": [
+          "01_west_corridor",
+          "09_east_shelves"
+        ],
+        "maximum_position_error_m": 0.4738748580013345,
+        "maximum_rotation_error_deg": 0.4707035924790528
+      },
+      "candidate": {
+        "cpu_s": 214.466679419,
+        "input_s": 413.000005005,
+        "mean_cores": 0.5192897743824568,
+        "alignments": 544,
+        "first_lock_cpu_s": 110.24613445400003,
+        "first_lock_wall_min_s": 2.584837678,
+        "first_lock_wall_median_s": 3.57029876,
+        "first_lock_wall_max_s": 4.714271517,
+        "load_wall_median_s": 5.88814,
+        "load_plus_lock_wall_median_s": 9.394467104,
+        "peak_rss_mib": 1920.39453125,
+        "half_core_positions": [
+          "01_west_corridor",
+          "02_east_corridor",
+          "06_south_meeting",
+          "09_east_shelves",
+          "10_northwest_meeting",
+          "11_northeast_pillars",
+          "13_south_door"
+        ],
+        "maximum_position_error_m": 0.4738748580013345,
+        "maximum_rotation_error_deg": 0.47070359247905297
+      },
+      "cpu_reduction_fraction": 0.1531825215116741
+    },
+    "exact_grid": {
+      "status": "BYTE_IDENTICAL",
+      "results": [
+        {
+          "points": 2356595,
+          "origins": 1271,
+          "cpu_s": 1.558953054,
+          "wall_s": 1.559066796,
+          "occupied": 537295,
+          "free": 2069512,
+          "fingerprint": "9365859598885414854",
+          "variant": "baseline",
+          "fixture": "full",
+          "sha256": "3f8cafbccacc69eb614e93b8528e7236dd5bfef17436792f1e4a68733af834c2",
+          "cells": 6858405
+        },
+        {
+          "points": 731940,
+          "origins": 382,
+          "cpu_s": 0.491902681,
+          "wall_s": 0.491944728,
+          "occupied": 174161,
+          "free": 790974,
+          "fingerprint": "17821203115099574616",
+          "variant": "baseline",
+          "fixture": "partial",
+          "sha256": "9041ae0c8f014008174192e33842351e2270ceec3981ea0d427133893f827aa3",
+          "cells": 2640750
+        },
+        {
+          "points": 2356595,
+          "origins": 1271,
+          "cpu_s": 0.7165534490000001,
+          "wall_s": 0.716613469,
+          "occupied": 537295,
+          "free": 2069512,
+          "fingerprint": "9365859598885414854",
+          "variant": "integrated",
+          "fixture": "full",
+          "sha256": "3f8cafbccacc69eb614e93b8528e7236dd5bfef17436792f1e4a68733af834c2",
+          "cells": 6858405
+        },
+        {
+          "points": 731940,
+          "origins": 382,
+          "cpu_s": 0.22129330700000002,
+          "wall_s": 0.221377046,
+          "occupied": 174161,
+          "free": 790974,
+          "fingerprint": "17821203115099574616",
+          "variant": "integrated",
+          "fixture": "partial",
+          "sha256": "9041ae0c8f014008174192e33842351e2270ceec3981ea0d427133893f827aa3",
+          "cells": 2640750
+        }
+      ]
+    },
+    "numeric_comparison": {
+      "maximum_output_translation_delta_m": 0.000477028715524406,
+      "maximum_position_error_increase_m": 0.00016281824646235954,
+      "maximum_rotation_error_increase_deg": 7.120789094827717e-05,
+      "note": "11 cases differ only by floating roundoff; 03/04/14 change below 0.478 mm. At04 position error increases up to0.163mm. Existing translation stopping scale is at least1mm, not a truth-accuracy guarantee. No acceptance threshold changed; outputs are not bit-identical and not every error metric improves."
+    },
+    "seed_work": {
+      "cold_initializations_before": 660,
+      "cold_initializations_after": 440,
+      "confirmation_registrations_before": 104,
+      "confirmation_registrations_after": 104,
+      "confirmation_evaluations_before": 399,
+      "confirmation_evaluations_after": 399,
+      "note": "Spatial admission counts unchanged. Four full-circle directions including opposite retained. At14 one fewer late unconfirmed mode is generated; hypothesis sets are not identical."
+    },
+    "ablation": {
+      "scope": "Four-way 30-frame screens of03/08/14; attribution, not complete-suite CPU qualification.",
+      "results": [
+        {
+          "case": "03_south_corridor",
+          "variant": "baseline",
+          "cpu_s": 15.932193771999998,
+          "first_lock_cpu_s": 15.087593700000001,
+          "first_lock_wall_s": 6.530367237,
+          "alignments": 63,
+          "free_space_wall_s": 1.609121137
+        },
+        {
+          "case": "03_south_corridor",
+          "variant": "grid_only",
+          "cpu_s": 15.832372807,
+          "first_lock_cpu_s": 14.982279492000002,
+          "first_lock_wall_s": 5.93869575,
+          "alignments": 63,
+          "free_space_wall_s": 0.723369369
+        },
+        {
+          "case": "03_south_corridor",
+          "variant": "yaw_only",
+          "cpu_s": 14.056703648000001,
+          "first_lock_cpu_s": 13.205340851999999,
+          "first_lock_wall_s": 6.137695777,
+          "alignments": 45,
+          "free_space_wall_s": 1.604035066
+        },
+        {
+          "case": "03_south_corridor",
+          "variant": "combined",
+          "cpu_s": 12.391501146,
+          "first_lock_cpu_s": 11.487324448999999,
+          "first_lock_wall_s": 5.1569580450000005,
+          "alignments": 45,
+          "free_space_wall_s": 0.733009564
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "combined",
+          "cpu_s": 9.910000437999999,
+          "first_lock_cpu_s": 8.901940084,
+          "first_lock_wall_s": 3.761423852,
+          "alignments": 50,
+          "free_space_wall_s": 0.724378639
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "yaw_only",
+          "cpu_s": 10.778475854,
+          "first_lock_cpu_s": 9.755840281000001,
+          "first_lock_wall_s": 4.765030117999999,
+          "alignments": 50,
+          "free_space_wall_s": 1.6104629540000002
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "grid_only",
+          "cpu_s": 13.217751690000002,
+          "first_lock_cpu_s": 12.186493521000001,
+          "first_lock_wall_s": 5.057115551,
+          "alignments": 72,
+          "free_space_wall_s": 0.7240848
+        },
+        {
+          "case": "08_west_shelves",
+          "variant": "baseline",
+          "cpu_s": 13.847057379000002,
+          "first_lock_cpu_s": 12.767578433000002,
+          "first_lock_wall_s": 6.018300718000001,
+          "alignments": 72,
+          "free_space_wall_s": 1.6304018020000002
+        },
+        {
+          "case": "14_north_door",
+          "variant": "baseline",
+          "cpu_s": 17.764881359,
+          "first_lock_cpu_s": 16.922359075,
+          "first_lock_wall_s": 7.225062174,
+          "alignments": 63,
+          "free_space_wall_s": 1.616871025
+        },
+        {
+          "case": "14_north_door",
+          "variant": "grid_only",
+          "cpu_s": 16.836165189,
+          "first_lock_cpu_s": 16.057065117,
+          "first_lock_wall_s": 5.868031905,
+          "alignments": 63,
+          "free_space_wall_s": 0.743902208
+        },
+        {
+          "case": "14_north_door",
+          "variant": "yaw_only",
+          "cpu_s": 13.364152233,
+          "first_lock_cpu_s": 12.602719461000001,
+          "first_lock_wall_s": 5.616445414,
+          "alignments": 43,
+          "free_space_wall_s": 1.6201782200000001
+        },
+        {
+          "case": "14_north_door",
+          "variant": "combined",
+          "cpu_s": 12.474740137000001,
+          "first_lock_cpu_s": 11.722552147000002,
+          "first_lock_wall_s": 4.828074913,
+          "alignments": 43,
+          "free_space_wall_s": 0.724891839
+        }
+      ]
+    },
+    "artifacts": {
+      "comparison": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/static_start_20261019/comparison.json",
+      "full14": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/static_start_20261019/full14_pair/results.json",
+      "grid": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/static_start_20261019/grid/exact_cells.json",
+      "ablation": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/static_start_20261019/ablation/results.json"
+    },
+    "limitations": [
+      "Single complete A/B pair, not repeated timing statistics.",
+      "No outside-map movement, hardware, full ROS-node CPU, or10cm qualification.",
+      "Seven fixed cases exceed half a core;03/08/14 remain0.642/0.673/0.640.",
+      "No RAM reduction is established. No installation, push or source-data deletion."
+    ]
   }
 }

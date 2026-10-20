@@ -1,6 +1,7 @@
 #include "n3mapping/relocalization_candidate_evaluator.h"
 #include "n3mapping/relocalization_order.h"
 #include "n3mapping/relocalization_quality.h"
+#include "relocalization_seed_plan.h"
 
 #include <algorithm>
 #include <cmath>
@@ -113,7 +114,7 @@ RelocalizationCandidateEvaluator::evaluate(
   }
   const auto &target = prepared_target.visibility_target;
 
-  const auto yaw_hypotheses = buildDescriptorYawHypotheses(candidate, config_);
+  const auto yaw_hypotheses = buildRelocalizationYawHypotheses(candidate, config_);
   const auto visibility = [&](const Eigen::Isometry3d &pose) {
     const auto start = std::chrono::steady_clock::now();
     auto result = evaluatePreparedVisibilityConsistency(*target, visibility_observation, pose,

@@ -3096,3 +3096,114 @@ the occlusion regression and decisions remain in
 are untouched. Neither a new reliability fix nor a speedup is adopted here.
 Difficult-search half-core, moving reliability, 10 cm and independent offline loop
 consistency remain unfulfilled.
+
+
+## Stationary startup: exact free-space queries and yaw-work ablation — 2026-10-19
+
+Xian clarified that stationary startup is required by the downstream workflow.
+Outside-map odometry continuation is pending a separate decision. The highly
+repetitive moving corridor remains a preserved stress-case limitation and is
+not the acceptance fixture for this stage. The original 14 stationary recordings,
+map, Atlas, 10 Hz input and four-core policy remain frozen.
+
+**Retained implementation.** Free-space ray construction uses the same FLANN
+float L2 tree, 15-point leaves, exact search and original finite-point mapping as
+PCL, but reuses one-neighbor result storage and calls the tree directly. This
+removes per-map-point query allocations and one-query OpenMP entry. Rays,
+occupancy counts, bounds, resolution and scores are unchanged. Four alternating
+isolated full-map builds take approximately1.55–1.56 CPU seconds before and 0.714 s
+after. Every occupied/free cell is byte-identical on the full 6,858,405-cell and
+partial 2,640,750-cell maps; this is 9,499,155 compared cell records.
+
+The default full-circle localization yaw grid retains descriptor phase and all
+four directions, including the opposite heading. It omits two additional
+adjacent-sector starts. Heading-only candidates and reduced grids retain their
+prior starts; loop verification keeps its original policy. One private seed-plan
+helper serves initialization, evaluation and the offline probe. No region quota,
+point selection, optimizer, iteration/acceptance gate or temporal requirement is
+changed. A full registration call still means coarse plane ICP then fine plane
+ICP, followed conditionally by GICP refinement. The previous count of three
+confirmation registrations at14 means three such calls, not three coarse levels.
+
+**Complete serial A/B.** The accepted `ceb39b5` runtime and candidate process all
+4,144 frames per variant at original 10 Hz due times, on physical P cores 0/2/4/6,
+four registration threads and PASSIVE waiting. Process CPU after loading includes
+decode, startup, tracking, output and background work; frontend, simulator and
+DDS processes are excluded. This is one full alternating pair, not repeated-run
+timing statistics. Map/Atlas hashes and the unchanged mapping-session first-pose
+truth alignment are preserved; query truth never seeds localization.
+
+| Complete14 metric | Baseline | Retained |
+| --- | ---: | ---: |
+| CPU seconds /413.000005 input seconds | 253.262 | 214.467 |
+| Mean CPU cores | 0.613225 | 0.519290 |
+| First-lock CPU, sum | 148.252s | 110.246s |
+| First-lock wall median / maximum | 4.799 / 7.079s | 3.570 / 4.714s |
+| Loading wall median | 5.870s | 5.888s |
+| Loading plus lock wall median | 10.898s | 9.394s |
+| Full registrations |764|544|
+| Cold seed initializations |660|440|
+| Confirmation registrations / evaluations |104 /399|104 /399|
+| Fixed-pose checks |523|502|
+| Loading high-water RSS |1920.688MiB|1920.395MiB|
+
+Total CPU falls 15.3%; first-lock CPU and median wall each fall 25.6%, maximum
+first-lock wall 33.4%. Runtime free-space phase median is 1.611→0.725 s, including
+grid construction and hypothesis scoring. This removes actual CPU work rather
+than moving that work into a loading-only accounting category. No RAM saving is
+established. The global mean remains above half a core, and seven positions still
+exceed it; the goal is not declared achieved.
+
+| Position | Mean cores before / after | First-lock wall seconds before / after | Full solves before / after |
+| --- | ---: | ---: | ---: |
+| 01 | 0.472 / 0.409 | 3.905 / 2.585 | 46 / 32 |
+| 02 | 0.550 / 0.476 | 4.386 / 3.167 | 39 / 27 |
+| 03 | 0.781 / 0.642 | 6.880 / 4.566 | 63 / 45 |
+| 04 | 0.640 / 0.554 | 5.012 / 3.675 | 50 / 36 |
+| 05 | 0.588 / 0.513 | 4.790 / 3.579 | 57 / 41 |
+| 06 | 0.544 / 0.460 | 4.809 / 3.178 | 57 / 41 |
+| 07 | 0.594 / 0.518 | 4.520 / 3.712 | 58 / 42 |
+| 08 | 0.812 / 0.673 | 6.296 / 3.799 | 72 / 50 |
+| 09 | 0.443 / 0.386 | 3.818 / 2.741 | 39 / 29 |
+| 10 | 0.522 / 0.455 | 4.300 / 2.909 | 57 / 41 |
+| 11 | 0.602 / 0.497 | 4.924 / 3.562 | 60 / 42 |
+| 12 | 0.654 / 0.560 | 5.239 / 3.716 | 60 / 44 |
+| 13 | 0.558 / 0.486 | 4.576 / 3.478 | 43 / 31 |
+| 14 | 0.826 / 0.640 | 7.079 / 4.714 | 63 / 43 |
+
+**Reliability and numerical comparison.** All 14 find the correct region once on
+the fifth input, with 292 emitted poses each, zero coast outputs and identical
+per-frame state/decision/seed/support identities. Spatial admission counts and
+fresh confirmation counts remain. At 14 the final newly admitted region generates
+one fewer unconfirmed mode; hypothesis sets are not claimed identical. Eleven
+positions' emitted transforms differ only by floating roundoff. 03/04/14 change
+by at most 0.477029 mm; 04 position error increases up to 0.162818 mm, 03 up to 0.001644 mm,
+and 14 attitude error up to 0.000071208°. Overall maximum position error remains
+0.473874858 m and maximum attitude error 0.470703592°. The position shifts lie
+below the existing at-least 1 mm translation stopping scale; that scale is not a
+truth-accuracy bound. This is not bit-identical output or proof that every error
+metric improves. Numeric acceptance gates are unchanged and 10 cm remains open.
+
+**Ablation and closeout.** Four-way 30-frame prefixes at 03/08/14 compare unchanged,
+grid-only, yaw-only and combined variants. Grid-only preserves the original
+states, poses and solve counts; yaw-only and combined agree in states/poses and
+reduced solve counts. Individual prefix timings are attribution, not whole-suite
+qualification or additive CPU components. Raw results are in `ablation/results.json`.
+The shared core passes 61/61 CTest projects and 15 E2E episodes in each of default,
+Atlas and kill modes. The first unconfigured sandbox test run failed on the ROS
+log directory and blocked transport; the authorized host rerun uses a workspace
+ROS log directory and passes. The earlier unsourced ament build failure and a
+scratch probe command-path error are retained; neither was a runtime regression.
+
+Only the concrete grid-query implementation and one private yaw policy remain;
+there are no new runtime settings, map formats, cache owners or permanent tests.
+Existing lifecycle/ambiguity E2E checks were reused. Core SHA256:
+`da5ea16098922c22b58c9eff2b47d7e53ae5d36cecf350ecc0c71b6f05401325`. Frozen matching inputs/binaries, cell dumps,
+complete traces, stage screens, four-way ablation and commands remain under
+`build/n3mapping/static_start_20261019`. No source data were deleted, installed
+binaries replaced, simulator changed or remote branch pushed.
+
+Compact results are in `stationary_startup_optimization` of
+[`../search_cost_20261019.json`](../search_cost_20261019.json). Continue static-start
+cold-solve cost work, especially 03/08/14; half-core per difficult input, 10 cm,
+hardware/full-node resource use and offline loop consistency remain unqualified.

@@ -93,7 +93,7 @@ makeRelocalizationSeedPlan(const std::vector<LoopCandidate> &candidates,
         std::min<std::size_t>(basin.members.size(), kRelocPerBasinVerifyCount);
     for (std::size_t i = 0; i < count; ++i) {
       for (const auto yaw :
-           buildDescriptorYawHypotheses(basin.members[i], config))
+           buildRelocalizationYawHypotheses(basin.members[i], config))
         seeds.emplace_back(basin.members[i].match_id, yaw);
     }
   }

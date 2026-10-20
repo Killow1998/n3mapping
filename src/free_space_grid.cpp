@@ -6,7 +6,9 @@
 #include <cmath>
 #include <limits>
 
-#include <pcl/kdtree/kdtree_flann.h>
+#include <flann/algorithms/dist.h>
+#include <flann/algorithms/kdtree_single_index.h>
+#include <flann/util/result_set.h>
 
 namespace n3mapping {
 
@@ -83,32 +85,41 @@ bool FreeSpaceGrid::build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
   // Ray origins: the nearest position the map was observed from. This is an
   // approximation of the true per-point observation frame, and it is the same
   // approximation the offline validation used.
-  pcl::PointCloud<pcl::PointXYZ>::Ptr origin_cloud(
-      new pcl::PointCloud<pcl::PointXYZ>);
-  origin_cloud->points.reserve(observation_origins.size());
-  for (const auto &o : observation_origins) {
-    origin_cloud->points.emplace_back(static_cast<float>(o.x()),
-                                      static_cast<float>(o.y()),
-                                      static_cast<float>(o.z()));
+  // Use the same float coordinates, L2 distance and 15-point leaves as
+  // KdTreeFLANN. Reuse its one-neighbor result storage instead of allocating
+  // a query vector and entering a one-query OpenMP region for every map point.
+  std::vector<float> coordinates;
+  std::vector<std::size_t> origin_indices;
+  coordinates.reserve(observation_origins.size() * 3);
+  origin_indices.reserve(observation_origins.size());
+  for (std::size_t i = 0; i < observation_origins.size(); ++i) {
+    const auto point = observation_origins[i].cast<float>().eval();
+    if (!point.allFinite()) continue;
+    origin_indices.push_back(i);
+    for (int axis = 0; axis < 3; ++axis) coordinates.push_back(point[axis]);
   }
-  origin_cloud->width = origin_cloud->points.size();
-  origin_cloud->height = 1;
-  pcl::KdTreeFLANN<pcl::PointXYZ> origin_tree;
-  origin_tree.setInputCloud(origin_cloud);
+  if (origin_indices.empty()) return false;
+  flann::KDTreeSingleIndex<flann::L2_Simple<float>> origin_tree(
+      flann::Matrix<float>(coordinates.data(), origin_indices.size(), 3),
+      flann::KDTreeSingleIndexParams(15));
+  origin_tree.buildIndex();
+  flann::KNNSimpleResultSet<float> nearest(1);
+  const flann::SearchParams search(-1, 0.0f);
 
   free_.assign(cells, false);
-  std::vector<int> nn_index(1);
-  std::vector<float> nn_dist_sq(1);
   for (const auto &pt : map_cloud.points) {
     if (!std::isfinite(pt.x) || !std::isfinite(pt.y) || !std::isfinite(pt.z))
       continue;
     const Eigen::Vector3d end(pt.x, pt.y, pt.z);
-    pcl::PointXYZ probe(pt.x, pt.y, pt.z);
-    if (origin_tree.nearestKSearch(probe, 1, nn_index, nn_dist_sq) < 1)
-      continue;
-    if (nn_dist_sq[0] > max_ray_length * max_ray_length)
-      continue;
-    const Eigen::Vector3d start = observation_origins[nn_index[0]];
+    const float probe[3] = {pt.x, pt.y, pt.z};
+    nearest.clear();
+    origin_tree.findNeighbors(nearest, probe, search);
+    if (nearest.size() == 0) continue;
+    std::size_t nearest_index = 0;
+    float nearest_distance = 0.0f;
+    nearest.copy(&nearest_index, &nearest_distance, 1, true);
+    if (nearest_distance > max_ray_length * max_ray_length) continue;
+    const Eigen::Vector3d start = observation_origins[origin_indices[nearest_index]];
     const Eigen::Vector3d delta = end - start;
     const double length = delta.norm();
     if (length < resolution_)
