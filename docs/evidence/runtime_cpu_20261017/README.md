@@ -3207,3 +3207,109 @@ Compact results are in `stationary_startup_optimization` of
 [`../search_cost_20261019.json`](../search_cost_20261019.json). Continue static-start
 cold-solve cost work, especially 03/08/14; half-core per difficult input, 10 cm,
 hardware/full-node resource use and offline loop consistency remain unqualified.
+
+
+## Source storage ablation and additional stationary headings — 2026-10-19
+
+**The source-storage candidate is withdrawn. Accepted runtime remains `54b602f`**
+and its rebuilt core is byte-identical to the frozen accepted library
+`da5ea16098922c22b58c9eff2b47d7e53ae5d36cecf350ecc0c71b6f05401325`.
+There is no retained runtime change or new test target from this stage.
+
+The experiment reused the existing compact KD-tree builder for source covariance
+preparation in both prepared-cloud registration and direct keyframe GICP. It
+preserved every sampled point and all optimizer/gate settings, but changed the
+source traversal order. All observed geometry/decision comparisons pass; CPU
+and cold latency nevertheless do not improve together.
+
+### Complete native four-core comparison
+
+The final control rebuild uses the same compiler flags and unchanged shared
+objects as the candidate, replacing only the two source-preparation objects with
+pre-change source. Both matching cores/headers/probes are frozen. The original
+14 inputs each retain all 296 frames at 10 Hz, with four physical P cores
+`0,2,4,6`, four registration threads and `OMP_WAIT_POLICY=PASSIVE`.
+This is one serial alternating pair, not repeated-run statistics.
+
+| Metric | Control | Withdrawn candidate |
+| --- | ---: | ---: |
+| Process CPU / 413 input s | 214.296 s | 209.094 s |
+| Mean CPU demand | 0.518876 cores | 0.506281 cores |
+| First-lock wall median, after loading | 3.484 s | 3.371 s |
+| First-lock wall maximum, after loading | 4.660 s | 5.092 s |
+| Full registrations / cold seeds / confirmation registrations | 544 / 440 / 104 | 544 / 440 / 104 |
+| Fresh confirmation evaluations / fixed-pose evaluations | 399 / 502 | 399 / 502 |
+| Loading-inclusive peak RSS | 1912.176 MiB | 1912.164 MiB |
+
+CPU falls 2.427%, without reducing solve counts. However, 03 takes
+4.660→5.092 s and 14 takes 4.650→5.017 s to first lock in this pair.
+A subsequent four-core **ABBA five-input** 03 repeat keeps the same fifth-input
+lock and emitted pose, but mean first-lock wall is **4.706→5.159 s** and CPU is
+**11.217→11.440 s**. These prefixes measure startup only, not full-episode mean
+cores. The available evidence does not justify adopting the CPU saving at this
+startup cost. Neither universal latency regression nor its internal scheduling
+cause is inferred from this small repeat.
+
+Both complete variants have one fifth-input lock, 292 outputs and no coast per
+position. All 4,144 behavioral rows per variant agree, including seed/support
+identities. Maximum output translation difference is 1.43e-14 m; largest
+same-frame position/attitude error increases are 3.39e-15 m/6.97e-14 degrees.
+Maximum absolute position error remains 0.473874858 m, and maximum attitude error
+0.470703592 degrees. This establishes output agreement on these inputs, not 10 cm
+accuracy. Loading, frontend, simulator and DDS remain outside the replay CPU
+budget; loading-inclusive RSS is reported separately. No RAM saving is claimed.
+
+### Six independent additional stationary recordings
+
+The frozen new plan covers 03, 08, 14 with **+45° and +180°** starting headings,
+chosen before evaluation. These are new CPU-simulator/LiDAR/IMU/FAST_LIO runs,
+not rotations of existing clouds. Each closed 30 s acquisition has 300 scans,
+6,000 IMU messages, 300 truth messages and 296 exact-stamp frontend pairs. The
+simulator, adapter and FAST_LIO hashes match the original fixed14 recordings;
+all six acquisition checks pass. Truth remains observer/scoring-only, and
+localization scores use the same original mapping-session first-pose alignment.
+
+Accepted control and withdrawn candidate both lock at the fifth input on all
+six recordings, with 292 outputs per recording and no behavioral-row differences.
+Maximum same-frame output translation difference is 1.78e-15 m. Maximum absolute
+errors are 0.362141 m and 0.443769 degrees. The **accepted baseline** therefore now
+has 20 qualified stationary position/heading combinations: original 14 plus
+these six. This adds headings at three positions; it does not give every
+position multiple headings or add movement/hardware coverage.
+
+The six-case CPU means are 0.617319/0.595876 cores (control/withdrawn candidate),
+reported separately from the original 14. No extra recordings or longer duration
+are used to dilute the original 14 cost. Half core and 10 cm remain unqualified.
+
+### Ablation, cleanup and next action
+
+- Complete four-way 03/08/14 source-feature/storage ablation preserves decisions
+  and emitted poses to floating roundoff. Packing reduces CPU in that component
+  experiment, but the final native pair and latency repeat govern withdrawal.
+  Extra feature-estimator code adds little benefit over that candidate and is
+  not retained.
+- Direct coarse-to-GICP with full fallback costs more CPU in the uncontaminated
+  08/14 prefix pairs. The initial 03 timing overlapped a compilation and is
+  excluded from performance claims. That shortcut is not retained.
+- Forced AVX2 and AVX2/FMA kernel screens preserve compared output poses but do
+  not show a consistent CPU benefit. No architecture dispatch, allocator macro
+  or build option is added to production.
+- The experimental candidate passes 61/61 host CTest projects and 15 episodes each
+  in default/Atlas/kill modes. After withdrawal, runtime sources and the built
+  library exactly match the previously qualified accepted baseline. Tests are
+  not broadened again for documentation-only changes.
+
+The useful lesson is to qualify both whole-episode CPU and cold latency before
+adopting a layout change; exact geometry and lower CPU did not establish faster
+startup. Preserve the accepted source order. Next inspect repeated multiscale
+registration after an established lock, keeping cold searches, fresh evidence,
+existing acceptance gates and output accuracy intact. Map-dominated errors,
+10 cm, difficult average half core and offline loop consistency stay open.
+
+Compact evidence and hashes:
+[`../search_cost_20261019.json`](../search_cost_20261019.json), key
+`stationary_source_storage_ablation`. Full native pairs, four-way ablation,
+startup repeats, frozen source/binary identities and rejected trials remain in
+`build/n3mapping/static_search_followup_20261019`. New closed bags/manifests are
+under `map/sprobo_20261018/fixed_focus_headings_20261019`. Original inputs remain intact.
+No installation or remote publication was performed.
