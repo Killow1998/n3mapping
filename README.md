@@ -764,24 +764,27 @@ remain separate from that measured result.
 
 ### TODO
 
-Current localization work, updated **2026-10-19**, prioritizes **stationary
-startup** as required by Xian's downstream workflow. Preserve the original 14
-fixed-position inputs and improve startup CPU and latency on four physical
-cores. Continuing localization outside the global map is deferred pending
-Xian's decision. The highly repetitive out-of-map corridor remains a recorded
-limitation and separate stress case; repairing that movement trace does not
-block the current stationary-startup stage. Existing explicit source-replacement
-and invalid-input recovery fixes remain part of the regression baseline.
-Detailed results and limits are in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md#source-storage-ablation-and-additional-stationary-headings--2026-10-19); the [accepted startup implementation](docs/evidence/runtime_cpu_20261017/README.md#stationary-startup-exact-free-space-queries-and-yaw-work-ablation--2026-10-19) remains unchanged.
+Current work, updated **2026-10-20**, closes the accepted performance changes as
+maintenance version **1.0.1**. Xian has paused further performance optimization;
+the next priorities are **relocalization accuracy** and **online loop closure
+during mapping and map extension**. Offline replay is a validation method for
+that online behavior. Stationary startup remains required by Xian's downstream
+workflow. Continuing localization outside the global map is deferred pending
+Xian's decision; the highly repetitive out-of-map corridor and moving tracking
+excursions remain recorded limitations. Preserve the explicit source-replacement
+and invalid-input recovery fixes and the original fixed inputs.
+Detailed results and limits are in the [measurement record](docs/evidence/runtime_cpu_20261017/README.md);
+the [accepted startup ablation](docs/evidence/runtime_cpu_20261017/README.md#stationary-startup-exact-free-space-queries-and-yaw-work-ablation--2026-10-19)
+remains the performance baseline.
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
 | Reliability — stationary startup is required | Preserve incremental candidate admission, unaffected-seed reuse and fresh confirmation. The original 14 inputs and six independent +45°/+180° recordings at 03/08/14 each lock at the fifth input with 292 outputs: 20 stationary position/heading combinations. Source replacement and invalid-input recovery remain fixed. Existing default/Atlas/kill regressions each cover 15 episodes. Moving out-of-map aliases and tracking excursions remain documented failures; no new movement or hardware qualification is claimed. |
-| Search cost — half core remains open | Accepted runtime stays at `54b602f`. A fresh complete four-core control measures 214.296 CPU s / 413 input s (0.518876 cores), first-lock wall median 3.484 s / maximum 4.660 s, 440 cold seeds and 104 confirmation registrations. 03/08/14 need 0.641/0.668/0.639 cores. Source reordering was withdrawn after startup regression. [Direct fine tracking](docs/evidence/runtime_cpu_20261017/README.md#warm-tracking-solver-ablation--2026-10-19) was rejected after a reproduced movement attitude regression; restricting it to the stopping scale eliminated no full solves in the three focus prefixes. Next test exact correspondence reuse while preserving solver stages, cold searches and fresh evidence. |
-| Accuracy — retain 10 cm; separate causes | Fixed14 maximum absolute error remains 0.474 m; 10 cm is not qualified. Map bias at 09/11/14 remains deferred. The startup yaw ablation changes 03/04/14 output positions by at most 0.477 mm; 04 error increases up to 0.163 mm and 14 attitude error up to 0.0000713°. Position shifts are below the existing 1 mm translation stopping scale, which is not an absolute-accuracy guarantee. All per-frame changes are recorded; no numerical acceptance gate is relaxed. Moving-tracking findings remain deferred historical limitations. |
-| Loop/map consistency — offline comparison pending | Reuse fused retrieval to propose independently registered scan-to-scan relative constraints, preserve competing-hypothesis and neighborhood checks, then compare trajectory and map consistency on frozen inputs. Preserve the baseline map and use separate outputs. The cropped localization fixture has disconnected graph components and is unsuitable for this graph-optimization experiment. No loop-consistency improvement is established yet. |
+| Accuracy — next priority; retain 10 cm | Fixed14 maximum absolute error remains 0.474 m; 10 cm is not qualified. Map bias at 09/11/14 remains deferred. The startup yaw ablation changes 03/04/14 output positions by at most 0.477 mm; 04 error increases up to 0.163 mm and 14 attitude error up to 0.0000713°. Position shifts are below the existing 1 mm translation stopping scale, which is not an absolute-accuracy guarantee. All per-frame changes are recorded; no numerical acceptance gate is relaxed. Moving-tracking findings remain deferred historical limitations. |
+| Online loop/map consistency — next priority | Improve the existing mapping and map-extension loop path. Reuse fused retrieval to propose independently registered scan-to-scan relative constraints; preserve competing-hypothesis and neighborhood checks. Validate the online decisions and resulting trajectory/map consistency by replaying frozen complete connected mapping inputs, with separate baseline and candidate outputs. The cropped localization fixture has disconnected graph components and is unsuitable for this graph-optimization comparison. No loop-consistency improvement is established yet. |
+| Search cost — paused; half core remains open | Retain the accepted `54b602f` algorithm and its original 15.3% paired CPU reduction. The standalone 1.0.1 full14 replay measures 214.962 CPU s / 413 input s (0.520488 cores), first-lock wall median 3.348 s / maximum 5.383 s. 03/08/14 need 0.663/0.673/0.654 cores. The 440 cold seeds and 104 confirmation registrations are unchanged. This is a release behavior check, without a new paired speedup claim. Source reordering, direct fine tracking, exact-neighbor certificates and registration-kernel experiments are not retained: they regress latency/accuracy or lack consistent overall CPU benefit. |
 
-All cost comparisons stay on **four physical P cores**, four registration threads,
+The deferred performance target retains **four physical P cores**, four registration threads,
 `OMP_WAIT_POLICY=PASSIVE`, the same map/configuration and MID360-derived **10 Hz**
 input. The goal is at most **0.5 CPU s per input second**, including stationary
 startup, subsequent tracking and background work; short peaks are allowed.
@@ -804,8 +807,9 @@ keep module responsibilities explicit. Prefer small cohesive files over added
 layers or mechanical splitting. Run the relevant observable-behavior E2E checks,
 record verified results and remaining gaps here and in the existing measurement
 record, then make the authorized local commit before continuing. Frontend
-selection and unrelated new features stay outside scope; loop-consistency work
-starts as an offline comparison, without adding a new online capability.
+selection and unrelated new features stay outside scope. Loop-consistency work
+targets the existing online mapping/map-extension behavior; frozen replay must
+check both loop constraints and their effect on the graph and map.
 
 Other pending work:
 

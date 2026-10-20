@@ -427,18 +427,5 @@ TEST_F(PointCloudMatcherTest, InformationMatrixOutput) {
     }
 }
 
-// 测试配准设置修改
-TEST_F(PointCloudMatcherTest, ModifySettings) {
-    small_gicp::RegistrationSetting new_settings;
-    new_settings.max_iterations = 50;
-    new_settings.max_correspondence_distance = 3.0;
-    
-    matcher_->setSettings(new_settings);
-    
-    auto updated_settings = matcher_->getSettings();
-    EXPECT_EQ(updated_settings.max_iterations, 50);
-    EXPECT_DOUBLE_EQ(updated_settings.max_correspondence_distance, 3.0);
-}
-
 }  // namespace test
 }  // namespace n3mapping

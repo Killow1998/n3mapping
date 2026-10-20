@@ -272,10 +272,6 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   debug_event.inlier_ratio = match_result.inlier_ratio;
   debug_event.retry_used = retry_used;
 
-  double scale = config_.gicp_fitness_threshold * 0.5;
-  double current_confidence = std::exp(-match_result.fitness_score / scale);
-  current_confidence = std::max(0.0, std::min(1.0, current_confidence));
-
   const bool icp_ok =
       hasValidRegistrationResult(match_result) &&
       match_result.fitness_score < config_.gicp_fitness_threshold &&
@@ -397,7 +393,9 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
       hasValidRegistrationResult(match_result) &&
       match_result.fitness_score < config_.gicp_fitness_threshold &&
       match_result.inlier_ratio >= config_.reloc_min_inlier_ratio;
-  current_confidence = std::clamp(std::exp(-match_result.fitness_score / scale), 0.0, 1.0);
+  const double scale = config_.gicp_fitness_threshold * 0.5;
+  const double current_confidence =
+      std::clamp(std::exp(-match_result.fitness_score / scale), 0.0, 1.0);
   debug_event.fitness_score = match_result.fitness_score;
   debug_event.inlier_ratio = match_result.inlier_ratio;
   const bool accepted_icp = icp_ok && selected_quality_ok && strict_geometry_ok;

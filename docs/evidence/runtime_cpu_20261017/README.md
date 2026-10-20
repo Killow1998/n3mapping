@@ -10,18 +10,15 @@ Current task order and acceptance boundaries are maintained in the
 [project TODO](../../../README.md#todo). The dated sections below preserve the
 scope and evidence of each completed experiment.
 
-Latest accepted stage: [odometry source lifecycle and fresh confirmation](#odometry-source-lifecycle-and-fresh-confirmation--2026-10-19)
-fixes explicit source replacement and invalid-input recovery, with 61/61 checks,
-15 E2E episodes in three modes, complete paired fixed14 and full-map movement
-controls. This does not fix the newly measured map-like out-of-map alias or
-moving tracking excursion. Difficult-search half-core, 10 cm and independent
-offline loop consistency remain open. Earlier optimization and rejected-trial
-evidence is preserved in the dated sections below. The subsequent
-[cross-solve hint ablation](#cross-solve-correspondence-hint-ablation--2026-10-19)
-was rejected for lack of CPU benefit. The subsequent
-[confirmation ablation and matcher split](#confirmation-refinement-ablation--2026-10-19)
-retains only a behavior-preserving responsibility split; none of its confirmation
-refinement candidates is adopted.
+Current stage: [maintenance release 1.0.1](#maintenance-release-closeout--2026-10-20)
+consolidates the [accepted stationary startup work](#stationary-startup-exact-free-space-queries-and-yaw-work-ablation--2026-10-19),
+source-lifecycle recovery, incremental candidates and fresh confirmation. Xian
+has paused performance research; difficult average half core remains unqualified.
+The next priorities are relocalization accuracy and online loop closure during
+mapping/map extension. Replay validates that online behavior. The 10 cm target,
+loop-consistency improvement, moving aliases and tracking excursions remain
+unqualified. Earlier experiments and rejected trials retain their dated scope
+below; they are not pending implementation tasks.
 
 ## Measurement boundaries
 
@@ -3349,3 +3346,129 @@ reuse next. Raw prototypes, E2E and per-frame results remain in
 [`../search_cost_20261019.json`](../search_cost_20261019.json), key
 `warm_tracking_ablation_20261019`. The existing full-map motion failure, difficult
 half-core goal, 10 cm accuracy and offline loop consistency remain open.
+
+## Registration kernel ablations — 2026-10-19, closed 2026-10-20
+
+**None retained.** These are 30-frame 03/08/14 screening pairs against the
+accepted runtime, not another complete-input performance qualification.
+
+| Experiment | Evidence and decision |
+| --- | --- |
+| Exact-neighbor certificates | 327,960 exact-neighbor checks, 29 matcher tests and 15 default E2E episodes pass. Prefix states/poses agree to roundoff, but first-lock CPU increases 7.1–12.4%; maintaining the certificate costs more than the avoided traversal. Rejected. |
+| Block normal equations | 67,882 valid point factors preserve the vector-plane/GICP objective within floating tolerance; 15 default E2E and 28/29 matcher tests pass. Algebraic reassociation fails the existing strict single-thread equality check; production tolerances are unchanged. Prefix first-lock CPU changes by −1.34%/+2.35%/+0.05% at 03/08/14, without consistent benefit. Rejected. |
+| Tight target AABB traversal | Independent exact-search checks, all 29 matcher tests and 15 default E2E episodes pass. Prefix states/poses agree to roundoff, but first-lock CPU increases 21.95%/6.19%/3.43%. Rejected. |
+
+An observer-only OpenMP attribution run covers five unpaced cold inputs per
+focus position. All linearization regions together consume about 74–79% of
+process CPU; these regions include nearest-neighbor queries and normal-equation
+construction, so the measurement does not separate their costs. Serial work is
+outside the region totals. This instrumented result is diagnostic evidence, not
+a speedup or average-core qualification. No profiler, experimental kernel,
+runtime switch, public API or permanent test enters production.
+
+Raw artifacts remain in `build/n3mapping/exact_correspondence_20261019` and
+`build/n3mapping/registration_kernel_20261019`. Compact results are in
+[`../search_cost_20261019.json`](../search_cost_20261019.json), key
+`registration_kernel_ablation_20261019`. Xian has paused further performance
+research; none of these trials is a pending implementation task.
+
+## Maintenance release closeout — 2026-10-20
+
+Version **1.0.1** consolidates the accepted performance work. It preserves the
+accepted `54b602f` search/registration algorithm and all numerical gates. The
+original complete paired experiment remains the performance claim:
+0.613225→0.519290 cores (15.3% lower process CPU), first-lock median
+4.799→3.570 s on four physical P cores. A subsequent accepted control measures
+0.518876 cores; these independent timings are not another cleanup speedup.
+Loading, frontend, simulator and DDS remain outside that CPU scope. The
+difficult average-half-core target is **paused and unqualified**.
+
+### Responsibilities and retained behavior
+
+- Keep the existing seed-plan declaration and move its implementation into
+  `src/relocalization_seed_plan.cpp` (58 lines). Initialization shrinks from
+  321 to 271 lines; both ROS wrappers use the same shared-core source list.
+  There is no added class, runtime owner or configurable policy.
+- Retain the candidate evaluator's bounded pose proposals, target provider's
+  prepared map geometry, per-observation prepared source/visibility data and
+  hypothesis manager's fresh confirmation. Cached proposals cannot serve as
+  fresh geometric evidence. Source/map lifecycle boundaries remain explicit.
+- Retain the matcher preparation/alignment split and private exact-search and
+  reduction components. Do not generalize rejected experiments into optional
+  paths or mechanically split cohesive code solely to lower line counts.
+- Remove one tracking-confidence calculation whose result was overwritten
+  after the selected pose's final geometry check. Calculate confidence once
+  from the selected result; keep the final geometry check and its gates.
+- Remove the matcher test that only read back settings it had just written.
+  Keep tests of actual prepared/raw registration, known transforms, explicit
+  registration settings, quality/information, candidate admission and recovery,
+  plus the existing full localization E2E episodes.
+
+The closeout uses the existing behavioral suites and complete frozen inputs.
+Raw logs and frozen release artifacts are in
+`build/n3mapping/performance_closeout_20261020`; final qualification is recorded
+below and in the existing structured evidence record. No additional test
+framework, fixture hierarchy or runtime diagnostic system is introduced.
+
+### Release qualification
+
+- Release build and **61/61 host CTest projects pass**. Existing default, Atlas
+  and kill modes each pass **15 E2E episodes**; default is included in CTest.
+- Complete original14 and six additional headings process **5,920 inputs** and
+  emit **5,840 poses**. Every case locks at the fifth input and emits 292 poses,
+  with no coasted outputs. Compare against the frozen accepted controls: zero
+  differences in per-frame decisions, states, identities or relocalization work
+  counters. Maximum output translation/attitude differences are
+  **1.43e-14 m / 1.15e-13 degrees**. Original14 absolute error maxima remain
+  **0.473875 m / 0.470704 degrees**; extra-heading maxima remain
+  **0.362141 m / 0.443769 degrees**. This establishes behavior preservation,
+  without qualifying 10 cm or new motion/hardware cases.
+- The standalone release original14 run uses **214.962 CPU s / 413.000005 input s
+  = 0.520488 cores**; first-lock wall median/max are **3.348/5.383 s**, peak RSS
+  **1920.590 MiB**. Six additional headings are reported separately:
+  **109.953 CPU s / 176.999990 input s = 0.621204 cores**, first-lock median/max
+  **4.195/5.466 s**, peak RSS **1920.375 MiB**. These runs use four physical
+  P cores, four threads, PASSIVE and original 10 Hz inputs, without input dropping
+  or averaging across extended duration. Historical controls support behavior
+  comparison; these timings do not establish another paired speedup/regression.
+- Core SHA256:
+  `085b164ebef30f792bc6b67e611cee85bac6d36e0a8b02b17b60a63868c0f8e3`.
+  Probe SHA256:
+  `c2cda70541c6d6168731250f46dd1637074d603df97cb1f8ff26ec8e22bbf9fc`.
+  Public headers match the frozen accepted probe; source and artifact hashes
+  are preserved in the normal build directory. Map and Atlas hashes remain
+  `fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb`
+  and `2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac`.
+- The summary script initially assumed one detailed search-cost record for
+  every input. The actual detailed stream covers the five searching observations
+  per case; the CSV covers all 296 inputs. Corrected comparison matches actual
+  search-frame IDs and exact counters. Both summary logs are retained. No
+  production logger or test threshold was changed to pass this check.
+
+Structured evidence is in
+[`../search_cost_20261019.json`](../search_cost_20261019.json), key
+`performance_release_closeout_20261020`. Complete raw traces, manifests and
+`qualification.json` remain in `build/n3mapping/performance_closeout_20261020`.
+
+### Next priorities and acceptance boundaries
+
+Xian's next priorities are **relocalization accuracy** and **online loop closure
+during mapping and map extension**. Replay is a way to validate that online
+behavior. Start by separating map-dominated error from algorithm error using
+the existing independent alignment and offline truth-near registration oracle;
+truth remains unavailable to runtime retrieval and registration. The 10 cm
+requirement is retained and has not passed.
+
+For the existing online loop path, independently register raw scans to obtain
+relative constraints, then validate loop decisions and graph/map effects on
+complete connected mapping/map-extension inputs. A pose already localized
+against the map is not an independent loop measurement. Preserve the original
+map and use separate baseline/candidate outputs. The disconnected cropped
+localization fixture is unsuitable for this graph comparison. No improvement
+in map consistency is claimed by the maintenance release.
+
+Stationary startup remains required. Outside-map continuation is deferred;
+recorded moving aliases and tracking excursions remain limitations. This
+closeout adds no motion, real-hardware, complete ROS-node CPU or Noetic-build
+qualification. All original data and rejected trial artifacts are preserved.
+The installed program and remote branch are not replaced by this release.

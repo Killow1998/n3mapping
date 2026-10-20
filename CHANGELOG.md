@@ -1,6 +1,18 @@
 # Changelog
 
-## [Unreleased] - 2026-05-19
+## [1.0.1] - 2026-10-20
+
+### Maintenance
+
+- Consolidate the accepted localization performance and reliability work: incremental candidate admission, bounded seed-proposal reuse, fresh continuous confirmation, prepared registration/visibility data, exact free-space queries and full-circle relocalization yaw planning.
+- Keep solver stages and numerical acceptance gates. The original 14-position paired benchmark reduces process CPU by 15.3% (0.613225 to 0.519290 cores) and first-lock median wall time from 4.799 to 3.570 s on four physical P cores. Loading, frontend, simulator and DDS are excluded; difficult half-core operation remains unqualified.
+- Keep seed planning in its own implementation file, remove an overwritten tracking-confidence calculation, and remove a settings-readback test that did not exercise registration behavior. Preserve behavioral regression and E2E coverage.
+- Withdraw source-layout, direct fine-tracking, neighbor-certificate and registration-kernel experiments that lack consistent overall benefit or regress accuracy/latency. Retain their evidence, without adding runtime switches or abstractions.
+- Pause further performance research. The next priorities are relocalization accuracy and the existing online loop path during mapping/map extension. The 10 cm requirement and loop-consistency improvement remain unqualified; offline replay will validate online behavior.
+
+Validation and artifact identities are recorded in the [maintenance closeout](docs/evidence/runtime_cpu_20261017/README.md#maintenance-release-closeout--2026-10-20).
+
+## Development notes - 2026-05-19
 
 ### Architecture
 

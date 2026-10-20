@@ -44,6 +44,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/relocalization_hypothesis_manager.cpp
   ${N3MAPPING_ROOT}/src/relocalization_place_index.cpp
   ${N3MAPPING_ROOT}/src/relocalization_query_builder.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_seed_plan.cpp
   ${N3MAPPING_ROOT}/src/relocalization_target_provider.cpp
   ${N3MAPPING_ROOT}/src/tracking_target_cache.cpp
   ${N3MAPPING_ROOT}/src/tracking_target_prefetch.cpp

@@ -2852,10 +2852,11 @@
   },
   "retained_change": "Within the existing candidate evaluator, replace previous-plan seed list with per-seed last-seen epoch; expire after32 absent plans. Store proposals only, require current geometry and cold retry on failure, preserve rejection invalidation/map reset. No extra map metadata, configuration, or descriptor change.",
   "goal_status": {
-    "fixed14_and_existing_e2e": "passed; broader moving out/reentry acquisition remains pending",
-    "difficult_search_half_core": "not met:567.986CPU_s versus17.25CPU_s budget for34.5input_s",
-    "absolute_10cm": "not met; max0.473875m on current map, map correction deferred",
-    "offline_loop_consistency": "pending; no improvement claimed"
+    "maintenance_release": "Completed local1.0.1 maintenance closeout; no new features or numerical gate changes.",
+    "reliability": "Fresh complete original14+six independent headings:5920 inputs,5840 outputs; all fifth-input lock, exact behavioral/work-counter agreement and roundoff-equivalent poses against frozen accepted controls.61 CTest and default/Atlas/kill15 E2E each pass. Moving and hardware limitations remain.",
+    "difficult_search_half_core": "Paused by Xian, not achieved. Standalone release original14 mean0.520488; focus03/08/14=0.662865,0.672874,0.653802. Short peaks allowed; no denominator/input changes.",
+    "absolute_10cm": "Next priority; not qualified. Separate algorithm error from map bias; retain independent fixed alignment and observer-only truth.",
+    "online_loop_consistency": "Next priority: existing online mapping and map-extension loop closure. Replay validates online decisions and graph/map effects, not a separate offline-only product target. No improvement claimed."
   },
   "heading_wrap_followup": {
     "date": "2026-10-19",
@@ -3263,15 +3264,15 @@
       "dense_query": {
         "adopted": false,
         "extra_query_bytes": 67200,
-        "reason": "08 kernel+24.1%,repetitive samples+8.4\u201313.2%; exactscoreoracle passed"
+        "reason": "08 kernel+24.1%,repetitive samples+8.4–13.2%; exactscoreoracle passed"
       },
       "static_linearization": {
         "adopted": false,
-        "reason": "03/08/14 CPU+4.9\u20135.7%,negative60+6.3%; removed pragma"
+        "reason": "03/08/14 CPU+4.9–5.7%,negative60+6.3%; removed pragma"
       },
       "static_objective": {
         "adopted": false,
-        "reason": "negative60 CPU only\u22120.1%,positive resultsmixed; removed duplicate override"
+        "reason": "negative60 CPU only−0.1%,positive resultsmixed; removed duplicate override"
       }
     },
     "decision": "Retain exact heading wrap; reject all three alternatives. Global CPU, accuracy and moving-coverage goals remain open.",
@@ -6070,7 +6071,7 @@
         "scope": "Historical same-input movement behavior control, not fresh paired performance. 1m/5deg bands identify gross failures, not runtime gates or 10cm acceptance. Independent fixed mapping-session alignment only."
       }
     },
-    "decision": "The current factor has a confirmed coordinate-dependence/tangent-stiffness defect. Direct scalar replacement is not safe to adopt into the current tracker: full-map maximum attitude error rises9.006\u219226.745deg despite position maximum4.400\u21923.185m and gross-frame count83\u219243. Stop expanding qualification; no complete14 or partial-map qualification for this candidate. Preserve production source/core and thresholds. Investigate tracking acceptance on frozen bad corrections before another proposal.",
+    "decision": "The current factor has a confirmed coordinate-dependence/tangent-stiffness defect. Direct scalar replacement is not safe to adopt into the current tracker: full-map maximum attitude error rises9.006→26.745deg despite position maximum4.400→3.185m and gross-frame count83→43. Stop expanding qualification; no complete14 or partial-map qualification for this candidate. Preserve production source/core and thresholds. Investigate tracking acceptance on frozen bad corrections before another proposal.",
     "artifacts": "build/n3mapping/stage_reuse_20261019/plane_objective_v1",
     "upstream_read_only_check": {
       "url": "https://raw.githubusercontent.com/koide3/small_gicp/master/include/small_gicp/factors/plane_icp_factor.hpp",
@@ -7410,5 +7411,219 @@
       ]
     },
     "decision": "Do not adopt direct fine-GICP. Lower position maximum does not offset a new attitude failure. Narrowing eligibility until it always falls back is not a CPU improvement. No production source/API/config or installed binary changed."
+  },
+  "registration_kernel_ablation_20261019": {
+    "status": "CLOSED_REJECTED_NO_PRODUCTION_EDITS",
+    "date": "2026-10-20",
+    "baseline_runtime_commit": "54b602f",
+    "baseline_core_sha256": "da5ea16098922c22b58c9eff2b47d7e53ae5d36cecf350ecc0c71b6f05401325",
+    "scope": "Existing objective, exact correspondences, complete solver stages and gates; 30-frame focus-prefix screens only, not complete-input CPU qualification.",
+    "exact_neighbor_certificate": {
+      "artifacts": "build/n3mapping/exact_correspondence_20261019",
+      "validation": "327960 exact-neighbor checks, 116697 certificate hits; 29 matcher and 15 default E2E tests pass; prefix states/poses preserved to roundoff.",
+      "screen": {
+        "03_south_corridor": {
+          "baseline_first_lock_cpu_s": 11.181693414999998,
+          "trial_first_lock_cpu_s": 12.390835506,
+          "first_lock_cpu_change_fraction": 0.10813586512557793,
+          "baseline_tail_cpu_s": 0.837753718,
+          "trial_tail_cpu_s": 0.8062692130000032
+        },
+        "08_west_shelves": {
+          "baseline_first_lock_cpu_s": 8.903482634,
+          "trial_first_lock_cpu_s": 9.535643378,
+          "first_lock_cpu_change_fraction": 0.07100151367577778,
+          "baseline_tail_cpu_s": 1.0240408439999993,
+          "trial_tail_cpu_s": 1.0284844350000002
+        },
+        "14_north_door": {
+          "baseline_first_lock_cpu_s": 11.743243902999998,
+          "trial_first_lock_cpu_s": 13.202375107,
+          "first_lock_cpu_change_fraction": 0.1242528228190205,
+          "baseline_tail_cpu_s": 0.7514729310000002,
+          "trial_tail_cpu_s": 0.729184781
+        }
+      },
+      "decision": "Rejected: first-lock CPU grows 7.1-12.4%; certificate maintenance outweighs avoided traversal."
+    },
+    "block_factor_equations": {
+      "artifacts": "build/n3mapping/registration_kernel_20261019/screen",
+      "validation": "67882 valid point factors preserve objective within FP tolerance; 15 default E2E and 28/29 matcher tests pass. Strict one-thread bit-equality regression fails due to algebraic order; production test tolerances unchanged.",
+      "screen": {
+        "03_south_corridor": {
+          "baseline_first_lock_cpu_s": 11.294077829999999,
+          "trial_first_lock_cpu_s": 11.142717876999999,
+          "first_lock_cpu_change_fraction": -0.01340170975251731,
+          "baseline_tail_cpu_s": 0.8438233940000027,
+          "trial_tail_cpu_s": 0.8289482459999999
+        },
+        "08_west_shelves": {
+          "baseline_first_lock_cpu_s": 8.904202515000001,
+          "trial_first_lock_cpu_s": 9.113370674999999,
+          "first_lock_cpu_change_fraction": 0.023490948195263206,
+          "baseline_tail_cpu_s": 1.0362601959999993,
+          "trial_tail_cpu_s": 1.0084222080000036
+        },
+        "14_north_door": {
+          "baseline_first_lock_cpu_s": 11.670667111999999,
+          "trial_first_lock_cpu_s": 11.676916663,
+          "first_lock_cpu_change_fraction": 0.0005354921822400271,
+          "baseline_tail_cpu_s": 0.7554293160000015,
+          "trial_tail_cpu_s": 0.7519601980000007
+        }
+      },
+      "decision": "Rejected: focus-prefix CPU benefit is inconsistent; no full-input qualification or production change."
+    },
+    "tight_target_aabb": {
+      "artifacts": "build/n3mapping/registration_kernel_20261019/box_screen",
+      "validation": "6 independent exact-search checks, 29 matcher and 15 default E2E tests pass; focus-prefix states/poses preserved to roundoff.",
+      "screen": {
+        "03_south_corridor": {
+          "baseline_first_lock_cpu_s": 11.222234747999998,
+          "trial_first_lock_cpu_s": 13.685919977000001,
+          "first_lock_cpu_change_fraction": 0.2195360624976299,
+          "baseline_tail_cpu_s": 0.8371882479999986,
+          "trial_tail_cpu_s": 0.8783895269999994
+        },
+        "08_west_shelves": {
+          "baseline_first_lock_cpu_s": 8.874794146000001,
+          "trial_first_lock_cpu_s": 9.423944429999999,
+          "first_lock_cpu_change_fraction": 0.06187752357585752,
+          "baseline_tail_cpu_s": 1.0254722870000006,
+          "trial_tail_cpu_s": 1.142556614000001
+        },
+        "14_north_door": {
+          "baseline_first_lock_cpu_s": 11.733953420999999,
+          "trial_first_lock_cpu_s": 12.136717793999999,
+          "first_lock_cpu_change_fraction": 0.03432469505794877,
+          "baseline_tail_cpu_s": 0.75522667,
+          "trial_tail_cpu_s": 0.7840673800000004
+        }
+      },
+      "decision": "Rejected: first-lock CPU grows on all three focus prefixes."
+    },
+    "cpu_attribution": {
+      "artifacts": "build/n3mapping/registration_kernel_20261019/omp_profile",
+      "scope": "Instrumented unpaced five-input cold starts; exclusive OpenMP worker thread CPU only, not a performance comparison. Linearization includes neighbor search and normal equations; no claim separating them. Serial work is outside region totals.",
+      "cases": [
+        {
+          "case": "03_south_corridor",
+          "whole_process_cpu_s": 11.361269915000001,
+          "omp_cpu_s": 8.72180908,
+          "linearization_cpu_s": 8.383944866,
+          "linearization_fraction_of_process_cpu": 0.7379408225246799,
+          "state_differences": 0
+        },
+        {
+          "case": "08_west_shelves",
+          "whole_process_cpu_s": 8.894546987000002,
+          "omp_cpu_s": 6.631487895000001,
+          "linearization_cpu_s": 6.473709432000001,
+          "linearization_fraction_of_process_cpu": 0.7278290216985505,
+          "state_differences": 0
+        },
+        {
+          "case": "14_north_door",
+          "whole_process_cpu_s": 12.115002660000002,
+          "omp_cpu_s": 9.864816484999999,
+          "linearization_cpu_s": 9.582301873,
+          "linearization_fraction_of_process_cpu": 0.7909450903083829,
+          "state_differences": 0
+        }
+      ]
+    },
+    "closeout": "Xian paused performance research. No experimental headers, runtime flags, APIs or permanent tests are retained. Preserve raw artifacts; proceed to maintenance closeout and then accuracy/online mapping and map-extension loop closure."
+  },
+  "updated": "2026-10-20",
+  "performance_release_closeout_20261020": {
+    "status": "COMPLETE_LOCAL_MAINTENANCE_RELEASE",
+    "version": "1.0.1",
+    "parent_commit": "5017e60",
+    "accepted_algorithm_commit": "54b602f",
+    "baseline_core_sha256": "da5ea16098922c22b58c9eff2b47d7e53ae5d36cecf350ecc0c71b6f05401325",
+    "release_core_sha256": "085b164ebef30f792bc6b67e611cee85bac6d36e0a8b02b17b60a63868c0f8e3",
+    "source_changes": [
+      "Move the existing seed planner verbatim into its own shared-core implementation; initialization321->271 lines, planner58 lines; no added API or owner.",
+      "Calculate tracking confidence once after the selected result quality check; remove the overwritten calculation without changing gates.",
+      "Remove one settings-readback-only matcher test; keep observable registration/recovery and E2E coverage.",
+      "Synchronize Humble and Noetic package metadata to1.0.1; update current tasks to accuracy and existing online mapping/map-extension loop closure."
+    ],
+    "tests": {
+      "ctest_projects": {
+        "passed": 61,
+        "failed": 0
+      },
+      "existing_e2e": {
+        "default": 15,
+        "Atlas": 15,
+        "kill": 15,
+        "default_included_in_ctest": true
+      },
+      "complete_input_combinations": 20,
+      "input_frames": 5920,
+      "outputs": 5840,
+      "all_first_lock_frame_zero_based": 4,
+      "behavioral_differences": 0,
+      "relocalization_work_counter_differences": 0,
+      "coasted_outputs": 0,
+      "maximum_output_translation_difference_m": 1.4210990239827336e-14,
+      "maximum_output_rotation_difference_deg": 1.145007003996519e-13
+    },
+    "scope": "Complete original14 plus six independent headings at 10 Hz, four P cores/four threads/PASSIVE; compare observable behavior and fresh-work counters against frozen accepted 54b602f controls. Historical controls establish behavior equivalence, not a new timing speedup.",
+    "truth": "Observer/scoring only; unchanged first original mapping-session alignment. No query fit or truth seeding.",
+    "original14_release_run": {
+      "frames": 4144,
+      "outputs": 4088,
+      "maximum_translation_difference_m": 1.4210990239827336e-14,
+      "maximum_rotation_difference_deg": 1.145007003996519e-13,
+      "maximum_absolute_position_error_m": 0.4738748580013345,
+      "maximum_absolute_rotation_error_deg": 0.47070359247905297,
+      "cpu_s": 214.961515833,
+      "input_s": 413.000005005,
+      "mean_cores": 0.5204879254914235,
+      "first_lock_wall_median_s": 3.3482972149999997,
+      "first_lock_wall_max_s": 5.383102878,
+      "peak_rss_mib": 1920.58984375,
+      "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+      "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac"
+    },
+    "six_additional_headings_release_run": {
+      "frames": 1776,
+      "outputs": 1752,
+      "maximum_translation_difference_m": 1.7772239894833365e-15,
+      "maximum_rotation_difference_deg": 7.633346730161388e-14,
+      "maximum_absolute_position_error_m": 0.36214047078598394,
+      "maximum_absolute_rotation_error_deg": 0.443768110167959,
+      "cpu_s": 109.953020538,
+      "input_s": 176.99998999000002,
+      "mean_cores": 0.6212035409957483,
+      "first_lock_wall_median_s": 4.194569614500001,
+      "first_lock_wall_max_s": 5.465759793,
+      "peak_rss_mib": 1920.375,
+      "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+      "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac"
+    },
+    "focus_mean_cores": {
+      "03_south_corridor": 0.6628650688135593,
+      "08_west_shelves": 0.6728737996610169,
+      "14_north_door": 0.6538018738549702
+    },
+    "timing_interpretation": "One standalone release replay, not a new paired performance comparison. Retain the previously accepted15.3% paired complete-original14 process CPU result; do not compare historical wall timings as a new speedup or regression.",
+    "raw_directory": "build/n3mapping/performance_closeout_20261020",
+    "qualification_sha256": "1cc37b0aa842f3bfb6c83ee28c78aaa237f79eedbe0b3245ff1fa096d0bb4159",
+    "replay_probe_sha256": "c2cda70541c6d6168731250f46dd1637074d603df97cb1f8ff26ec8e22bbf9fc",
+    "replay_probe_source_sha256": "73cebf902cc10974cb1fd8937fc1d07aebae31c98eafff8044479bce7333b787",
+    "harness_correction": "Initial summary assumed296 detailed cost records per case; actual detailed stream has5 search observations while CSV covers296 inputs. Compare actual frame IDs, then exact counters. Initial failure and corrected qualification logs preserved; no runtime/test-threshold adjustment.",
+    "next_priorities": [
+      "Relocalization accuracy: retain10cm, separate map-dominated from algorithm error using fixed alignment and observer-only truth.",
+      "Existing online loop closure during mapping/map extension: independent scan-relative constraints; validate decisions and graph/map effects through complete connected input replay."
+    ],
+    "boundaries": [
+      "No new feature, runtime configuration, registration gate, map or input change.",
+      "Half-core performance and 10 cm remain unqualified; performance research paused by Xian.",
+      "No new moving, complete ROS-node, hardware or Noetic-build qualification.",
+      "Next: relocalization accuracy and existing online loop closure during mapping/map extension; replay validates online behavior."
+    ],
+    "deployment": "Local source/build only; no installation, remote push or tag. Original data and rejected experiments preserved."
   }
 }
