@@ -2985,3 +2985,114 @@ prior-veto identity and`diagnosis.json` are preserved in
 `build/n3mapping/stage_reuse_20261019/false_lock_v1`. This evidence-only stage
 reuses existing validation rather than rerunning unrelated suites. Four goal
 stages remain open at their documented gaps.
+
+
+## Counterevidence lifecycle ablation — 2026-10-19
+
+The first integrated candidate retains one observation that actually failed the
+existing directional geometry gate. It recomputes support under a proposed pose,
+conditioning on map-covered bearings; missing or rank-deficient historical map
+coverage is neutral. No old likelihood or confirmation count is reused. The
+additional matrices share the existing nearest-return projection, and the stored
+range/Jacobian buffers peak at 386880 bytes; no raw cloud is retained.
+
+This **unscoped candidate is rejected**, despite passing 61/61 CTest projects,
+default/Atlas/kill 15 episodes each, all 14 fixed regions, the complete negative
+input and both complete movement inputs. Those existing episodes did not combine
+occupied counterevidence with later odometry drift.
+
+On the original partial-map 2236-frame input, it removes the false frame 922 lock
+while preserving the correct frame 1686 recovery. Gross published errors fall
+849→85 frames, geometric-authority errors 496→83, with no new gross errors.
+Maximum remaining error is 4.401 m / 8.999°, from the existing later tracking failure.
+Process CPU is 2934.423 s / 223.5 input s = 13.1294 CPU s/input s, wall 963.632 s; this is
+backlog demand on four cores, not execution on 13 cores. The extra cost largely
+comes from continuing the search instead of tracking the false location.
+Nine historical checks total 56.988 ms. These numbers are not an accepted speedup.
+
+Its full14 outputs preserve accepted state, seed/support, decisions and work
+counts, with maximum matrix difference 7.11e-15; all first locks remain frame 4.
+Process CPU totals 253.215 s / 413.000005 s = 0.613112 cores. The 346-frame negative remains
+zero-lock/zero-output with 1402 registrations and 566.690 CPU s. Full-map movement
+preserves the original 83 gross geometric / 85 gross published errors and needs
+139.382 CPU s. These compare against historical same-input controls, not newly
+paired performance measurements.
+
+The discriminating lifecycle test replays the exact original raw prefix 0–837,
+including its actual rejected observation, then presents the independently
+reconstructed correct reentry scan with an unreported 90° odometry yaw offset.
+Prefix decisions, locks and registration counts match the complete original
+replay. The unscoped history blocks all six fresh confirmation windows over 30
+reentry observations. An independent nearest-return audit explains why: the old
+scan back-projects into a different mapped location, where its known-direction
+support is 0.0124372. This is not evidence against the new current location.
+Two earlier shortened fixtures never captured counterevidence and are recorded
+as inconclusive, not passing tests.
+
+The revised candidate binds the saved rejection to its actual physical pose.
+The existing decision policy owns pose equivalence; the saved observation can
+veto only that same mode, with a fresh geometry evaluation. Other modes still
+require all existing current-registration, directional, free-space and temporal
+gates. History clears on source/map/localization lifecycle changes. No new
+configuration, acceptance thresholds, seed blacklist or candidate-group reset
+is introduced. Current/historical geometry moves into a 98-line translation unit,
+reducing the main relocalization implementation from 531 to 511 lines.
+
+The revised core `2c3c0091…3e872abb5037a4b8` passes 61/61 and all 45 existing E2E
+episodes. The occupied-history 90° stress now recovers on the first complete new
+confirmation window; output differs from the original correct reference by
+4.773e-6m/7.180e-5°. The reference only scores output and never seeds estimation.
+This abrupt-offset fixture is an untimed behavioral stress, not a gradual-drift
+or accuracy qualification.
+
+The revised candidate also completes the original 2236-frame partial-map replay:
+locks 4/1686, 2232 published poses, gross published 849→85 and geometric 496→83, no
+new gross errors or per-frame error increases beyond floating roundoff. Its
+state/work-count fields match the unscoped original-input trial, matrices within
+1.42e-14. Nine history checks, eight within the retained mode, total 60.775 ms;
+this timer includes target lookup/preparation and projection. It must not be
+added to the enclosing process time as if it were a separate cost.
+
+| Revised candidate, complete four-core inputs | Process CPU s | CPU s/input s | Behavior |
+| --- | ---: | ---: | --- |
+| Partial map, 2236 frames / 223.5 s |2927.213|13.097152|False lock 922 removed; correct recovery 1686 retained|
+| All 14 fixed regions, 4144 frames / 413.000005 s |252.649|0.611740|Every region locks at frame 4, 292 outputs / 296 frames; baseline states/work counts preserved|
+| Repetitive negative, 346 frames / 34.5 s |570.442|16.534540|Zero locks/output; 1402 registrations, baseline decisions preserved|
+| Full map, 2236 frames / 223.5 s |139.529|0.624291|Baseline states/work counts and output matrices within 2.84e-14|
+
+Only 01/09 fixed regions meet half-core; 03/08/14 need 0.768/0.797/0.817 cores. Partial
+wall time is 964.582 s; full-map wall 223.508 s. Peak RSS, including loading, is
+780.078 MiB partial and 1903.949 MiB full. The full map still has 83 gross geometric
+and 85 gross published errors, max 4.400 m / 9.006°. These are historical same-input
+behavior controls, not fresh paired speedup claims. Complete prefix 0–837 also
+preserves the unscoped trial's decisions, admissions and registration counts.
+
+**The mode-scoped candidate is rejected too.** An additional behavior probe uses
+the unchanged existing E2E scene/configuration and Atlas. For three observations,
+above-floor returns move to 85% of their original range on the same bearings,
+representing a temporary nearer occluder. The original clear cloud is then
+restored at the same pose. No private state or acceptance settings are changed.
+The candidate captures an actual directional rejection with known support
+0.0525102. All ten subsequent confirmation windows have current support 1.0 but
+are vetoed by that old observation: no recovery over 30 clear observations. The
+accepted-runtime control, compiled against its own matching headers, locks on
+the third clear observation, at 0.000034964 m / 0.0014743° reference error. Reference
+poses score results only. Failure outputs without a valid lock are not treated
+as published position errors.
+
+This exposes a semantic defect: lack of agreement, especially a nearer unmodeled
+surface, is not necessarily durable evidence against a place. Limiting history
+to the same pose mode fixes the 90° case but does not resolve observation lifetime.
+Before another retention trial, distinguish mapped foreground intersecting an
+observed free ray from temporary foreground occlusion, and examine when a new
+observation supersedes an old one. Do not tune a cutoff to these two traces.
+
+All trial source changes, additional runtime state/API/log fields and the added
+geometry test are withdrawn from the main source after checking byte-for-byte
+frozen ownership. Raw matching-core/header sources, complete replay records,
+the occlusion regression and decisions remain in
+`build/n3mapping/stage_reuse_20261019/counterevidence_integrated` and
+`counterevidence_mode_v2`. Accepted source remains `ceb39b5`; installed binaries
+are untouched. Neither a new reliability fix nor a speedup is adopted here.
+Difficult-search half-core, moving reliability, 10 cm and independent offline loop
+consistency remain unfulfilled.

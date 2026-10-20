@@ -3263,15 +3263,15 @@
       "dense_query": {
         "adopted": false,
         "extra_query_bytes": 67200,
-        "reason": "08 kernel+24.1%,repetitive samples+8.4\u201313.2%; exactscoreoracle passed"
+        "reason": "08 kernel+24.1%,repetitive samples+8.4–13.2%; exactscoreoracle passed"
       },
       "static_linearization": {
         "adopted": false,
-        "reason": "03/08/14 CPU+4.9\u20135.7%,negative60+6.3%; removed pragma"
+        "reason": "03/08/14 CPU+4.9–5.7%,negative60+6.3%; removed pragma"
       },
       "static_objective": {
         "adopted": false,
-        "reason": "negative60 CPU only\u22120.1%,positive resultsmixed; removed duplicate override"
+        "reason": "negative60 CPU only−0.1%,positive resultsmixed; removed duplicate override"
       }
     },
     "decision": "Retain exact heading wrap; reject all three alternatives. Global CPU, accuracy and moving-coverage goals remain open.",
@@ -6070,7 +6070,7 @@
         "scope": "Historical same-input movement behavior control, not fresh paired performance. 1m/5deg bands identify gross failures, not runtime gates or 10cm acceptance. Independent fixed mapping-session alignment only."
       }
     },
-    "decision": "The current factor has a confirmed coordinate-dependence/tangent-stiffness defect. Direct scalar replacement is not safe to adopt into the current tracker: full-map maximum attitude error rises9.006\u219226.745deg despite position maximum4.400\u21923.185m and gross-frame count83\u219243. Stop expanding qualification; no complete14 or partial-map qualification for this candidate. Preserve production source/core and thresholds. Investigate tracking acceptance on frozen bad corrections before another proposal.",
+    "decision": "The current factor has a confirmed coordinate-dependence/tangent-stiffness defect. Direct scalar replacement is not safe to adopt into the current tracker: full-map maximum attitude error rises9.006→26.745deg despite position maximum4.400→3.185m and gross-frame count83→43. Stop expanding qualification; no complete14 or partial-map qualification for this candidate. Preserve production source/core and thresholds. Investigate tracking acceptance on frozen bad corrections before another proposal.",
     "artifacts": "build/n3mapping/stage_reuse_20261019/plane_objective_v1",
     "upstream_read_only_check": {
       "url": "https://raw.githubusercontent.com/koide3/small_gicp/master/include/small_gicp/factors/plane_icp_factor.hpp",
@@ -6595,5 +6595,146 @@
     ],
     "next": "Isolate bounded retention of an actual previously rejected geometric observation across confirmation windows. Reevaluate its geometry for each new physical pose; missing map coverage is neutral. Clear on source/map/lifecycle replacement. Veto only: do not eliminate competitors or create a permanent seed blacklist. Qualify existing recovery/90deg drift E2E and full partial/full movement before full14 four-core paired comparison.",
     "artifacts": "build/n3mapping/stage_reuse_20261019/false_lock_v1"
+  },
+  "counterevidence_lifecycle_ablation": {
+    "status": "both_candidates_rejected_no_runtime_adoption",
+    "accepted_runtime_commit": "ceb39b5fe114c0928ef61d15208531fea3715dcc",
+    "scope": "Four physical P cores0/2/4/6,4registration threads,PASSIVE,original input/config/gates. Historical same-input controls, not fresh paired speedup evidence. Direct process CPU includes decode/output/workers/background, excludes loading/frontend/simulator/DDS; RSS includes loading.",
+    "unscoped": {
+      "core_sha256": "f0d4a6ca29727d28b0a122bdc2f8d40e1be3fc856fe70e3e3a56dbe1be1f6296",
+      "rejection": "Occupied-history unreported90degree yaw stress cannot recover in30observations despite existing suites and complete original inputs passing. Six historical vetoes; old known directional support0.0124372.",
+      "artifacts": "build/n3mapping/stage_reuse_20261019/counterevidence_integrated"
+    },
+    "mode_scoped": {
+      "core_sha256": "2c3c00918cd6a77cfcc45c77bfb33f4739be940a5d9cf5eb3e872abb5037a4b8",
+      "validation": [
+        "61/61 CTest",
+        "default/Atlas/kill15each"
+      ],
+      "active_history_yaw90": {
+        "captured": true,
+        "recovered": true,
+        "prefix_frames": 838,
+        "prefix_behavior_differences": 0,
+        "reference_position_delta_m": 4.7727040397830015e-06,
+        "reference_rotation_delta_deg": 7.180107915590024e-05,
+        "scope": "Untimed abrupt-offset behavioral stress; reference only scores output; not gradual drift or10cm qualification."
+      },
+      "full14": {
+        "frames": 4144,
+        "input_s": 413.000005005,
+        "cpu_s": 252.64863604299998,
+        "mean_cores": 0.6117400314315766,
+        "all_behavior_preserved": true,
+        "first_lock_frame_each": 4,
+        "outputs_each": 292,
+        "maximum_output_matrix_delta": 1.4210854715202004e-14,
+        "per_case_cores": {
+          "01_west_corridor": 0.47206401073492793,
+          "02_east_corridor": 0.5576941729403615,
+          "03_south_corridor": 0.7680660081016949,
+          "04_north_corridor": 0.6553860921765218,
+          "05_southwest_office": 0.5846249553220338,
+          "06_south_meeting": 0.5376374145423729,
+          "07_south_pillars": 0.5979829987457627,
+          "08_west_shelves": 0.7969930411864407,
+          "09_east_shelves": 0.4427568658305085,
+          "10_northwest_meeting": 0.515283889559322,
+          "11_northeast_pillars": 0.6001997655254238,
+          "12_north_office": 0.6514983919661017,
+          "13_south_door": 0.5670820892120049,
+          "14_north_door": 0.8170907098122373
+        }
+      },
+      "partial": {
+        "frames": 2236,
+        "cpu_s": 2927.2134420230004,
+        "input_s": 223.5,
+        "mean_cores": 13.097151865874721,
+        "wall_s": 964.582074477,
+        "locks": [
+          4,
+          1686
+        ],
+        "outputs": 2232,
+        "alignments": 8784,
+        "peak_rss_mib": 780.078125
+      },
+      "negative": {
+        "frames": 346,
+        "cpu_s": 570.44161836,
+        "input_s": 34.5,
+        "mean_cores": 16.534539662608697,
+        "wall_s": 211.185360176,
+        "locks": [],
+        "outputs": 0,
+        "alignments": 1402,
+        "peak_rss_mib": 1903.83203125
+      },
+      "full": {
+        "frames": 2236,
+        "cpu_s": 139.52911828599997,
+        "input_s": 223.5,
+        "mean_cores": 0.6242913569843399,
+        "wall_s": 223.508433092,
+        "locks": [
+          4
+        ],
+        "outputs": 2232,
+        "alignments": 46,
+        "peak_rss_mib": 1903.94921875
+      },
+      "partial_behavior": {
+        "gross_live_before": 849,
+        "gross_live_after": 85,
+        "gross_geometry_before": 496,
+        "gross_geometry_after": 83,
+        "new_gross_live": 0,
+        "new_gross_geometry": 0,
+        "remaining_position_max_m": 4.400840361865279,
+        "remaining_rotation_max_deg": 8.999362511923279,
+        "reference_control": "Original same-input movement; every per-frame error increase is within floating roundoff."
+      },
+      "history_cost": {
+        "comparison_to_unscoped_original_movement": {
+          "behavior_differences": [],
+          "maximum_output_matrix_delta": 1.4210854715202004e-14
+        },
+        "historical_checks": 9,
+        "same_mode_checks": 8,
+        "captures": 5,
+        "historical_total_ms": 60.774598,
+        "historical_max_ms": 10.53281,
+        "saved_buffer_max_bytes": 386880,
+        "source_identity_unchanged": true
+      },
+      "occlusion_rejection": {
+        "scene": "Existing localization_episode scene/config, Atlas, same pose, above-floor returns moved to85percent range on the same bearings. Original clear cloud then restored; no gate/private-state changes.",
+        "occluded_frames": 3,
+        "retained_actual_rejection": true,
+        "candidate_clear_frames": 30,
+        "candidate_historical_vetoes": 10,
+        "candidate_recovered": false,
+        "control_recovered": true,
+        "control_clear_lock_observation": 2,
+        "control_position_error_m": 3.496398484467648e-05,
+        "control_rotation_error_deg": 0.0014743173753408397,
+        "old_known_support": 0.05251021660107678,
+        "current_clear_support": 1.0
+      },
+      "artifacts": "build/n3mapping/stage_reuse_20261019/counterevidence_mode_v2"
+    },
+    "closeout": {
+      "runtime_state": "Owned trial source/API/cache/log/test changes restored to HEAD after checking frozen hashes; no installation/push/data deletion. Temporary probe fixtures remain in ignored evidence directory.",
+      "next": "Independently audit signed directional ray evidence and observation supersession before another retention candidate. Nearer transient returns must not become permanent place counterevidence.",
+      "goals_unfulfilled": [
+        "moving reliability",
+        "difficult search half-core",
+        "10cm accuracy",
+        "independent offline loop consistency"
+      ],
+      "restored_core_sha256": "d1cb332821c0aafee6893bddd6d9eafbcd5ebb5dc64284d86b09932061faf80e",
+      "restore_validation": "Build completes; core is byte-identical to accepted frozen core. Existing localization_episode(15episodes) and visibility_consistency CTest projects pass2/2. First launch inherited the old installed library and failed symbol lookup; corrected by prepending build library path, with both logs retained."
+    }
   }
 }
