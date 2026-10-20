@@ -26,60 +26,6 @@ std::string consensusRejectReason(const VerifiedLoop& loop) {
     return {};
 }
 
-bool graphTrialYawInconsistent(
-    const LoopGraphTrialDiagnostics& diagnostics) {
-    constexpr double kConstraintRotationDegradationRad = 0.05;
-    if (!diagnostics.success) {
-        return false;
-    }
-    return std::isfinite(diagnostics.existing_loop_residual_delta) &&
-           diagnostics.existing_loop_residual_delta >
-               kConstraintRotationDegradationRad;
-}
-
-bool graphTrialTranslationInconsistent(
-    const LoopGraphTrialDiagnostics& diagnostics) {
-    constexpr double kConstraintDegradationM = 0.05;
-    if (!diagnostics.success) {
-        return false;
-    }
-    return (std::isfinite(diagnostics.existing_loop_residual_delta) &&
-            diagnostics.existing_loop_residual_delta >
-                kConstraintDegradationM) ||
-           (std::isfinite(diagnostics.odom_residual_delta) &&
-            diagnostics.odom_residual_delta > kConstraintDegradationM);
-}
-
-void assignGraphTrialDiagnostics(
-    VerifiedLoop* loop, const LoopGraphTrialDiagnostics& diagnostics) {
-    if (!loop) {
-        return;
-    }
-    loop->graph_trial_success = diagnostics.success;
-    loop->graph_trial_residual_x_after = diagnostics.residual_x_after;
-    loop->graph_trial_residual_y_after = diagnostics.residual_y_after;
-    loop->graph_trial_residual_z_after = diagnostics.residual_z_after;
-    loop->graph_trial_residual_roll_after = diagnostics.residual_roll_after;
-    loop->graph_trial_residual_pitch_after = diagnostics.residual_pitch_after;
-    loop->graph_trial_residual_yaw_after = diagnostics.residual_yaw_after;
-    loop->graph_trial_residual_translation_norm_after =
-        diagnostics.residual_translation_norm_after;
-    loop->graph_trial_residual_rotation_norm_after =
-        diagnostics.residual_rotation_norm_after;
-    loop->graph_trial_mean_pose_update_translation =
-        diagnostics.mean_pose_update_translation;
-    loop->graph_trial_max_pose_update_translation =
-        diagnostics.max_pose_update_translation;
-    loop->graph_trial_mean_pose_update_rotation =
-        diagnostics.mean_pose_update_rotation;
-    loop->graph_trial_max_pose_update_rotation =
-        diagnostics.max_pose_update_rotation;
-    loop->graph_trial_existing_loop_residual_delta =
-        diagnostics.existing_loop_residual_delta;
-    loop->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
-    loop->graph_trial_consistency_score = diagnostics.consistency_score;
-    loop->graph_trial_recommendation = diagnostics.recommendation;
-}
 
 }  // namespace
 
@@ -155,7 +101,7 @@ LoopVerificationPipeline::evaluateConstraints(
         const auto committed_edges = optimizer_.getEdges();
         result.graph_trial = computeLoopGraphTrialDiagnostics(
             config_, poses_before, committed_edges, {result.edge});
-        assignGraphTrialDiagnostics(&result.loop, result.graph_trial);
+        assignLoopGraphTrialDiagnostics(&result.loop, result.graph_trial);
 
         // This alternative measurement trial is diagnostic only. The actual
         // candidate trial above remains mandatory for every constraint decision.
@@ -170,19 +116,10 @@ LoopVerificationPipeline::evaluateConstraints(
             result.has_consensus_estimator_trial = true;
         }
 
-        if (context.cross_session && !result.graph_trial.success) {
+        if (const auto reason = loopGraphTrialRejectReason(
+                result.graph_trial, context.cross_session); !reason.empty()) {
             result.reject_stage = "graph_trial";
-            result.reject_reason = "graph_trial_unavailable";
-            continue;
-        }
-        if (graphTrialYawInconsistent(result.graph_trial)) {
-            result.reject_stage = "graph_trial";
-            result.reject_reason = "graph_inconsistent_yaw";
-            continue;
-        }
-        if (graphTrialTranslationInconsistent(result.graph_trial)) {
-            result.reject_stage = "graph_trial";
-            result.reject_reason = "graph_inconsistent_translation";
+            result.reject_reason = reason;
             continue;
         }
 

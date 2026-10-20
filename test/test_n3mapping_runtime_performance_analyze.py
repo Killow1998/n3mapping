@@ -256,7 +256,7 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
                     runtime_record_v2(
                         1, 10.0, mode="mapping", callback_total_ms=80.0
                     ),
-                    loop_record(1, queued=0),
+                    dict(loop_record(1, queued=0), worker_wall_ms=12.0, graph_rebase_count=1),
                     runtime_record_v2(
                         2, 10.1, mode="mapping", callback_total_ms=120.0
                     ),
@@ -276,11 +276,13 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             self.assertEqual(report["status"], "PROFILE_READY")
             self.assertEqual(report["mode"], "mapping")
             self.assertEqual(report["counts"]["steady_state_runtime_frames"], 2)
-            self.assertEqual(report["counts"]["loop_work_cycles"], 1)
+            self.assertEqual(report["counts"]["loop_work_cycles"], 2)
+            self.assertEqual(report["counts"]["loop_graph_rebases"], 1)
+            self.assertEqual(report["loop_cycle_timing_ms"]["worker_wall_ms"]["max"], 12.0)
             self.assertEqual(report["counts"]["loop_detected_candidates"], 2)
             self.assertEqual(report["counts"]["processed_input_rate"], 1.0)
             self.assertEqual(report["counts"]["expected_frame_count_source"], "explicit")
-            self.assertEqual(report["loop_work_cycle_timing_ms"]["total_ms"]["p95"], 45.0)
+            self.assertEqual(report["loop_work_cycle_timing_ms"]["total_ms"]["max"], 45.0)
 
     def test_v2_localization_uses_only_post_lock_tracking_window(self) -> None:
         with tempfile.TemporaryDirectory() as raw_dir:

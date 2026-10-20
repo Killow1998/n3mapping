@@ -735,6 +735,40 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingIgnoresExtensionKeyframes) {
   EXPECT_NE(result.matched_keyframe_id, extension_id);
 }
 
+TEST_F(WorldLocalizingTest, LoadedMapTrackingRecoversOnlyWithFreshGeometry) {
+  config_.reloc_max_track_failures = 1;
+  buildTestMap(6, 2.0);
+  for (const auto &keyframe : keyframe_manager_->getAllKeyframes())
+    keyframe->is_from_loaded_map = true;
+  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+  reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation().x() = 8.0;
+  const auto cloud = generateCorridorCloud(pose);
+  ASSERT_TRUE(reloc.trackLoadedMap(cloud, pose).success);
+  const auto trusted = reloc.getMapToOdomTransform();
+
+  auto unrelated = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>(*cloud);
+  for (auto &point : *unrelated) point.z += 100.0f;
+  for (int i = 0; i < 4; ++i) {
+    const auto rejected = reloc.trackLoadedMap(unrelated, pose);
+    EXPECT_FALSE(rejected.success);
+    EXPECT_TRUE(reloc.getMapToOdomTransform().isApprox(trusted));
+    if (i > 0) EXPECT_EQ(rejected.state, RelocalizationState::LOST);
+  }
+  ASSERT_FALSE(reloc.isRelocalized());
+  const auto recovered = reloc.trackLoadedMap(cloud, pose);
+  ASSERT_TRUE(recovered.success) << recovered.decision;
+  EXPECT_EQ(recovered.state, RelocalizationState::FULL_6DOF_LOCKED);
+  EXPECT_EQ(recovered.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
+  EXPECT_TRUE(reloc.isRelocalized());
+  EXPECT_LT((recovered.pose_in_map.translation() - pose.translation()).norm(), 0.25);
+  reloc.resetLocalizationState();
+  const auto without_prior = reloc.trackLoadedMap(cloud, pose);
+  EXPECT_FALSE(without_prior.success);
+  EXPECT_EQ(without_prior.decision, "loaded_map_prior_missing");
+}
+
 TEST_F(WorldLocalizingTest, LoadedMapTrackingAcceptsLocalGeometricEvidence) {
   const std::filesystem::path dir = std::filesystem::temp_directory_path() /
                                     "n3mapping_loaded_map_perf_debug";
@@ -1092,6 +1126,37 @@ TEST_F(WorldLocalizingTest,
 }
 
 TEST_F(WorldLocalizingTest,
+       LoadedTargetEvictionPreservesReferenceCropAfterGraphCorrection) {
+  buildTestMap(6, 2.0);
+  for (const auto &keyframe : keyframe_manager_->getAllKeyframes())
+    keyframe->is_from_loaded_map = true;
+  TrackingTargetCache cache(config_, *keyframe_manager_, *matcher_);
+  const auto first = cache.acquireLoaded(0);
+  ASSERT_TRUE(first.miss);
+  ASSERT_NE(first.visibility_cloud, nullptr);
+  ASSERT_FALSE(first.visibility_cloud->empty());
+  const auto original = *first.visibility_cloud;
+
+  Eigen::Isometry3d corrected = Eigen::Isometry3d::Identity();
+  corrected.translation().x() = 100.0;
+  keyframe_manager_->updateOptimizedPoses({{0, corrected}});
+  // Evict the target without replacing the loaded reference map. A cold
+  // lookup must use the same crop as a hit, despite later graph corrections.
+  for (int64_t id = 1; id < 6; ++id)
+    ASSERT_TRUE(cache.acquireLoaded(id).miss);
+  const auto rebuilt = cache.acquireLoaded(0);
+  ASSERT_TRUE(rebuilt.miss);
+  ASSERT_NE(rebuilt.visibility_cloud, nullptr);
+  ASSERT_EQ(rebuilt.visibility_cloud->size(), original.size());
+  for (std::size_t i = 0; i < original.size(); ++i) {
+    EXPECT_FLOAT_EQ((*rebuilt.visibility_cloud)[i].x, original[i].x);
+    EXPECT_FLOAT_EQ((*rebuilt.visibility_cloud)[i].y, original[i].y);
+    EXPECT_FLOAT_EQ((*rebuilt.visibility_cloud)[i].z, original[i].z);
+    EXPECT_FLOAT_EQ((*rebuilt.visibility_cloud)[i].intensity, original[i].intensity);
+  }
+}
+
+TEST_F(WorldLocalizingTest,
        LoadedMapPreparedTargetCacheKeepsLoadedGenerationImmutable) {
   buildTestMap(6, 2.0);
   for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
@@ -1112,7 +1177,7 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 1u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
   EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
-  // One foreground anchor plus three asynchronously prefetched alternatives.
+  // Only requested anchors occupy the bounded cache.
   EXPECT_LE(diag.loaded_map_target_cache_entries, 4u);
 
   Eigen::Isometry3d extension_pose = Eigen::Isometry3d::Identity();
@@ -1153,42 +1218,6 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 0u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 0u);
   EXPECT_EQ(diag.loaded_map_target_cache_entries, 0u);
-}
-
-TEST_F(WorldLocalizingTest,
-       LoadedMapPrefetchStopsAfterCachedNearestAlternatives) {
-  buildTestMap(8, 2.0);
-  for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {
-    ASSERT_NE(keyframe, nullptr);
-    keyframe->is_from_loaded_map = true;
-  }
-
-  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
-                        *matcher_);
-  Eigen::Vector3d query_position(8.0, 0.0, 0.0);
-  reloc.warmLoadedMapTrackingTargets(4, query_position, true);
-
-  WorldLocalizing::WorldLocalizingCacheDiagnostics diag =
-      reloc.cacheDiagnostics();
-
-  ASSERT_EQ(diag.loaded_map_target_prefetch_pending, 0u);
-  ASSERT_EQ(diag.loaded_map_target_prefetch_queue_entries, 0u);
-  ASSERT_EQ(diag.loaded_map_target_prefetch_requests, 3u);
-  EXPECT_EQ(diag.loaded_map_target_cache_entries, 4u);
-  ASSERT_GE(diag.loaded_map_target_prefetch_workers, 1u);
-  EXPECT_LE(diag.loaded_map_target_prefetch_workers, 2u);
-  EXPECT_LE(diag.loaded_map_target_prefetch_workers *
-                diag.loaded_map_target_prefetch_threads_per_worker,
-            static_cast<std::size_t>(config_.num_threads));
-
-  // A repeated request at the same pose must find the entire three-neighbor
-  // frontier cached. The historical bug skipped those cached slots, walked on
-  // to three farther anchors, and restarted an endless eviction cycle.
-  reloc.warmLoadedMapTrackingTargets(4, query_position);
-  diag = reloc.cacheDiagnostics();
-  EXPECT_EQ(diag.loaded_map_target_prefetch_requests, 3u);
-  EXPECT_EQ(diag.loaded_map_target_prefetch_pending, 0u);
-  EXPECT_EQ(diag.loaded_map_target_prefetch_queue_entries, 0u);
 }
 
 TEST_F(WorldLocalizingTest, Reset) {

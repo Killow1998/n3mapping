@@ -10,15 +10,15 @@ Current task order and acceptance boundaries are maintained in the
 [project TODO](../../../README.md#todo). The dated sections below preserve the
 scope and evidence of each completed experiment.
 
-Current stage: [maintenance release 1.0.1](#maintenance-release-closeout--2026-10-20)
-consolidates the [accepted stationary startup work](#stationary-startup-exact-free-space-queries-and-yaw-work-ablation--2026-10-19),
-source-lifecycle recovery, incremental candidates and fresh confirmation. Xian
-has paused performance research; difficult average half core remains unqualified.
-The next priorities are relocalization accuracy and online loop closure during
-mapping/map extension. Replay validates that online behavior. The 10 cm target,
-loop-consistency improvement, moving aliases and tracking excursions remain
-unqualified. Earlier experiments and rejected trials retain their dated scope
-below; they are not pending implementation tasks.
+Current stage: [extension recovery and asynchronous online loops](#extension-recovery-and-asynchronous-online-loops--2026-10-20)
+repairs strict tracking recovery, shares immutable loaded-map preparation and
+separates mapping-loop geometry/graph work from the owner. Recorded replays
+verify the delivered behavior. The [maintenance release 1.0.1](#maintenance-release-closeout--2026-10-20)
+stationary-search work remains unchanged; further static-search performance
+research is paused. Local repeat-visit consistency improves with existing
+loops, while 10 cm absolute accuracy, difficult average half core, moving
+aliases and full-node/hardware timing remain unqualified. Earlier rejected
+trials retain their dated scope below; they are not pending implementation tasks.
 
 ## Measurement boundaries
 
@@ -3748,3 +3748,216 @@ comparison. Old archived timing is not represented as freshly reconstructed raw
 data. Launchers now reject an existing output directory and verify the manifest
 before starting. Initial missing-library and missing-TBB-link diagnostic
 attempts are also retained alongside their successful corrected commands.
+
+## Extension recovery and asynchronous online loops — 2026-10-20
+
+Baseline: `168d241` records the preceding rejection; runtime before this stage
+was `c924a3d`. This stage fixes the rejected candidate's behavioral regression
+before adopting the preparation changes. Raw inputs, variants, commands, source
+identities and full-route outputs are retained under
+`build/n3mapping/extension_recovery_20261020`. The structured report is the
+`recovery_async` section of [online_loop_20261020.json](../online_loop_20261020.json).
+
+### What actually caused frames 502 and 504 to be lost
+
+The previous stage's “nonconvergent” interpretation was incorrect. The initial
+ICP proposal passed. Visibility then preferred the odometry prediction, and
+the code unconditionally replaced that valid proposal with a fixed-pose
+evaluation whose residual failed the original quality gate. That evaluation
+reports `converged=false`; the old warning made it look like an ICP failure.
+Selection now requires the prediction itself to pass the same residual/inlier
+gates before it can replace a valid endpoint. The endpoint still has to pass
+the unchanged loaded-map geometry, visibility and motion gates.
+
+Strict extension also had no recovery entry after the failure limit: its owner
+kept calling tracking, but tracking returned before any fresh registration.
+Strict tracking now continues testing the loaded reference after LOST. It
+retains the failure state until current geometry passes, suppresses failed
+outputs and graph writes, and excludes new extension frames from reference
+evidence. Resetting the prior does not grant an identity-map pose. Ordinary
+localization keeps its existing handoff to global search.
+
+Warnings distinguish optimizer convergence from selected-pose evaluation.
+Loaded-map preparation reports wall time, process CPU during preparation,
+point count and estimated target bytes. Async loop logs distinguish owner
+time, worker time, queue age, snapshot/commit time, graph catch-up and stale
+map work. The analyzer includes completed worker events even when no new
+keyframe was queued in that poll.
+
+### Full-route extension and preparation ablation
+
+All runs use the independent `reentry_20261019/query` recording: 2,236 inputs,
+223.5 s, the unchanged loaded coverage map, four physical P cores 0/2/4/6,
+four registration threads and `OMP_WAIT_POLICY=PASSIVE`. No truth enters
+initialization, tracking or constraints. Complete input is processed without
+dropping scans.
+
+| Variant | Successful outputs | New keyframes | Process CPU s | Wall s, unpaced | Peak RSS GiB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Recovery fix, per-anchor prepared targets | 2,232 | 231 | 896.733 | 300.195 | 2.992 |
+| One prepared loaded-map target | 2,232 | 231 | 186.493 | 85.102 | 1.863 |
+| Shared target plus pose interpolation — rejected | 2,232 | 231 | 202.667 | 93.129 | 1.831 |
+
+The first four inputs are normal startup confirmation; all inputs 4–2235
+succeed. Every one of the old production version's 500 successful outputs is
+retained, including 502/504. The old implementation's failed, cheap tail is
+not used as a performance control.
+
+Per-anchor preparation consumed about 214.2 of 279.5 s of tracking wall time.
+The loaded map is immutable, so changing the nearest anchor does not require
+another normal/covariance pyramid or search tree. One shared prepared target
+removes that repetition; four local raw crops remain for visibility checks.
+Crop centers are frozen with the original loaded geometry, never taken from
+a later graph pose. Speculative prefetch workers, their queues and worker-only
+tests are removed, along with redundant warming after each keyframe commit.
+Map replacement invalidates this target; session reset can reuse it.
+
+Compared with the already-reliable per-anchor control, process CPU falls
+**79.2%** and peak RSS **37.7%**. This has a cold-start tradeoff: the first five
+inputs take 55.33 CPU s / 19.27 s processing wall time for the shared target,
+versus 48.47 CPU s / 16.90 s for per-anchor preparation. Whole-route compute
+is **0.834 cores**, or about **0.586** after excluding the first five inputs.
+Neither number qualifies the complete extension half-core target. The shared
+target's memory scales with loaded-map size; this result applies to the
+tested approximately 100×100 m map, not arbitrary map sizes.
+
+The interpolation experiment searched between the prediction and the valid
+ICP endpoint using unchanged residual gates and fresh visibility. It matched
+the shared-target outputs on the old 500-frame subset, but worsened complete
+route position RMSE from 0.299208 to 0.312180 m and increased CPU. Its helper
+and path were removed; no new option or compatibility branch remains.
+
+### Accuracy stays separate from availability and speed
+
+The original single fixed map alignment is used throughout.
+
+| Position/rotation metric | Old production, 500 accepted frames | Shared target, same 500 frames |
+| --- | ---: | ---: |
+| Position RMSE | 0.116524 m | 0.113938 m |
+| Position p95 / maximum | 0.245743 / 0.268880 m | 0.241243 / 0.264347 m |
+| Rotation RMSE | 0.132752° | 0.138081° |
+| Rotation p95 / maximum | 0.182915 / 0.309441° | 0.188536 / 0.321095° |
+
+Position metrics improve; angle metrics change slightly upward. Numerical
+acceptance gates were not relaxed, but this is **not** an improvement of every
+accuracy metric. Full-route position RMSE is 0.299208 m, p95 0.506534 m,
+maximum 0.546976 m; rotation RMSE is 0.348833°. The 10 cm request remains open.
+
+A separate observer finds strong alignment of query error with nearby loaded
+map-keyframe error: vector cosine 0.98336 over 2,066 observations within 2 m.
+Subtracting the neighboring map error gives 0.05618 m diagnostic residual RMSE;
+this is neither an estimator input nor independent 10 cm qualification.
+Even fitting one rigid alignment from map keyframes alone leaves 0.19381 m
+map RMSE, so the discrepancy is not solely a global frame offset. No truth
+compensation or map rewrite was applied.
+
+### Online mapping-loop ownership and validation
+
+Both ROS adapters now poll the shared asynchronous core API for mapping.
+Retrieval stays with the serialized owner. One isolated worker copies graph
+and keyframe metadata, shares immutable cloud payloads, then runs the existing
+geometric verification, same-query consensus, graph admission and solve.
+No worker reads or writes the live mutable session.
+
+Commit requires the same map generation and revision. If input appended graph
+state meanwhile, the worker snapshots the current graph, rechecks admission
+and solves with the retained independently measured constraints. Registration
+does not repeat. The short owner commit swaps the completed graph and refreshes
+poses; old-map results are discarded. Saving drains all outstanding work.
+Strict extension continues its necessary loaded-map tracking and graph update
+inline, without a duplicate global loop search.
+
+The original 968-line orchestration is split into 141-line owner orchestration,
+125-line async ownership, a 436-line shared processing implementation and
+460-line diagnostics. Admission policy is shared by initial verification and
+graph catch-up. No additional generic scheduler or solver abstraction is added.
+
+The full mapping input contains 13,791 pairs over 1,379 s. Synchronous and
+asynchronous runs retain 13,723 outputs, 1,271 keyframes and the same 195 loop
+pairs. The synchronous refactor reproduces the previous implementation below
+1e-8 m. Async measurement-matrix changes are below 6.85e-7; delayed correction
+and graph update order need not reproduce every pose bit-for-bit.
+
+The asynchronous 10 Hz replay consumes 160.525 total CPU s (**0.1164 cores**),
+including worker draining. Owner frame-plus-poll work has p99 12.643 ms and
+maximum 31.214 ms, with zero 100 ms overruns. Maximum pending count is one,
+worker duration 2.941 s and observed queue age 2.986 s. There are 13 graph
+catch-ups and no stale-map jobs on this recording. The maximum snapshot and
+commit intervals are 3.558 / 3.589 ms. RSS is 698.1 MiB.
+
+The independent 1,811 revisit pairs keep relative translation RMSE around
+3.45 cm, versus 6.63 cm with loops disabled. Final map absolute position RMSE
+is 0.285855 m versus 0.286626 m synchronously; online position RMSE changes
+0.245853→0.246058 m. Asynchrony preserves the useful loop effect, without
+claiming to solve the map's remaining global distortion.
+
+The matched 10 Hz control uses the same input/configuration and frozen library
+for both policies:
+
+| Mapping policy | CPU s | CPU/input second | Owner p99 / maximum ms | Owner >100 ms | Max input pacing lag s | Peak RSS MiB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Synchronous | 158.866 | 0.1152 | 105.821 / 2513.947 | 140 | 2.414 | 564.3 |
+| Asynchronous | 160.525 | 0.1164 | 12.643 / 31.214 | 0 | 0.00533 | 698.1 |
+
+Asynchrony adds about 1.04% total CPU and 23.7% peak RSS on this run; its
+demonstrated benefit is owner latency and input continuity, not a CPU
+speedup. The single pending job remains bounded on this recording. Other
+workloads can accumulate pending queries; queue age is observable, and no
+input-dropping or hard real-time guarantee is implied.
+
+Final-binary paced extension results and source provenance follow below.
+Core timing excludes
+loading, final serialization, frontend, simulator, DDS and publication; it
+does not establish whole-node deadlines or RK3588 performance.
+
+### Final build, paced extension and closeout
+
+The final frozen binary processes the same independent 2,236 inputs at 10 Hz:
+**2,232 successful outputs**, 231 new keyframes, total CPU **188.982 s**,
+wall **223.522 s**, peak RSS **1.868 GiB**. Decisions are identical to the
+shared-target ablation, with maximum output-position difference below 8e-13 m;
+saved keyframes and dense trajectory differ below 4e-12 m.
+
+Including initialization, this requires **0.846 cores**; after the first five
+inputs, about **0.600 cores**. Those first five consume 55.148 CPU s and
+19.031 s processing wall time, producing a maximum observed input lag of
+18.532 s. No input is dropped to catch up. Subsequent callback p99 is
+64.741 ms and maximum 92.466 ms, with no additional >100 ms callback.
+The final map has one connected component, 1,502 keyframes, 1,500 odometry
+edges, 425 loop/tracking edges and one session anchor. Its original 195 loops
+and the 230 additional tracking constraints are distinct from the mapping
+worker's accepted-loop event counter, which remains zero for strict extension.
+
+The new one-time preparation log records 2,356,595 loaded-map points,
+2,477 ms wall / 8,006 ms process CPU during preparation and estimated
+prepared-target storage of 1,385,057,512 bytes. This interval is part of
+initialization, not a cost repeated at every anchor.
+
+Final runtime source passes the Humble Release build and host CTest **61/61**
+(36.39 s). The strengthened existing save test and two async lifecycle tests
+pass **3/3** after that suite. Coverage explicitly checks fresh-geometry
+recovery, crop eviction after graph pose changes, preservation of appended
+keyframes, rejection of replaced-map work and saving pending loops together
+with their corrected dense trajectory. An initial extra save assertion wrongly
+assumed a consistent synthetic loop must visibly move the pose; the corrected
+test checks the persisted loop edge and trajectory instead. Both attempts are
+retained. The independent motion replay supplies the behavioral evidence that
+the earlier synthetic suite alone missed.
+
+Final core SHA256:
+`c7230465ca44f9e368d682abaaa3f0db8d03e291520a74b042fa4a72dfa00896`.
+Full mapping controls use the earlier frozen `qualified` library; later source
+changes restore snapshot loaded-map flags, finish drain/stale-job statistics
+and modify extension preparation/diagnostics. The restored flag is consulted
+by cross-session gates, not that mapping path. Final extension uses the final
+library. Each run's exact source/binary identity is retained; they are not
+represented as a single binary measurement.
+
+`qualify.py` checks original map/atlas/manifest hashes, current runtime-source
+and built-library identity, successful-frame continuity, unchanged mapping
+decisions, graph connectivity, numeric comparisons and recorded test outcomes.
+It passes. README ownership/TODO, CHANGELOG, this record, the existing JSON
+and workspace worklog were reconciled with `organized-proj`. No original
+map/bag was changed; no simulator modification, installation, push or tag was
+performed. All replay processes completed. Full-node timing, hardware, the
+half-core extension budget and 10 cm absolute accuracy remain open.

@@ -1,3 +1,4 @@
+#include "n3mapping/loop_detector.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
 
 #include <algorithm>
@@ -203,6 +204,51 @@ LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
         diagnostics.recommendation = "trial_exception";
     }
     return diagnostics;
+}
+
+std::string loopGraphTrialRejectReason(
+    const LoopGraphTrialDiagnostics& diagnostics, bool require_success) {
+    if (!diagnostics.success)
+        return require_success ? "graph_trial_unavailable" : "";
+    constexpr double kExistingConstraintDegradation = 0.05;
+    if (std::isfinite(diagnostics.existing_loop_residual_delta) &&
+        diagnostics.existing_loop_residual_delta > kExistingConstraintDegradation)
+        return "graph_inconsistent_yaw";
+    if (std::isfinite(diagnostics.odom_residual_delta) &&
+        diagnostics.odom_residual_delta > kExistingConstraintDegradation)
+        return "graph_inconsistent_translation";
+    return {};
+}
+
+void assignLoopGraphTrialDiagnostics(
+    VerifiedLoop* loop, const LoopGraphTrialDiagnostics& diagnostics) {
+    if (!loop) {
+        return;
+    }
+    loop->graph_trial_success = diagnostics.success;
+    loop->graph_trial_residual_x_after = diagnostics.residual_x_after;
+    loop->graph_trial_residual_y_after = diagnostics.residual_y_after;
+    loop->graph_trial_residual_z_after = diagnostics.residual_z_after;
+    loop->graph_trial_residual_roll_after = diagnostics.residual_roll_after;
+    loop->graph_trial_residual_pitch_after = diagnostics.residual_pitch_after;
+    loop->graph_trial_residual_yaw_after = diagnostics.residual_yaw_after;
+    loop->graph_trial_residual_translation_norm_after =
+        diagnostics.residual_translation_norm_after;
+    loop->graph_trial_residual_rotation_norm_after =
+        diagnostics.residual_rotation_norm_after;
+    loop->graph_trial_mean_pose_update_translation =
+        diagnostics.mean_pose_update_translation;
+    loop->graph_trial_max_pose_update_translation =
+        diagnostics.max_pose_update_translation;
+    loop->graph_trial_mean_pose_update_rotation =
+        diagnostics.mean_pose_update_rotation;
+    loop->graph_trial_max_pose_update_rotation =
+        diagnostics.max_pose_update_rotation;
+    loop->graph_trial_existing_loop_residual_delta =
+        diagnostics.existing_loop_residual_delta;
+    loop->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
+    loop->graph_trial_consistency_score = diagnostics.consistency_score;
+    loop->graph_trial_recommendation = diagnostics.recommendation;
 }
 
 }  // namespace n3mapping

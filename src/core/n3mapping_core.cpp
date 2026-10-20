@@ -1,4 +1,5 @@
 #include "n3mapping/core/n3mapping_core.h"
+#include "loop_closure_async.h"
 
 #include <algorithm>
 #include <chrono>
@@ -303,6 +304,8 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   // geometry continuously. A constant relocalization transform only carries
   // the session LIO's time-varying drift into the resumed map. This strict
   // path never falls back to a new global search or to self-created frames.
+  // Loss suppresses output and graph writes, but does not disable subsequent
+  // loaded-map registration when usable geometry returns.
   performance.tracking_attempted = true;
   const auto tracking_started = timingStarted();
   const RelocResult tracking = localizer.trackLoadedMap(
@@ -457,6 +460,7 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
 }
 
 bool N3MappingCore::saveMap(const std::string &map_path) {
+  if (async_loops_) processPendingLoopClosures();
   if (!refreshSubmapPoses("save_map")) {
     return false;
   }

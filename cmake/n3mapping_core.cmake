@@ -7,6 +7,9 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_localization.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_loop_closure.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_loop_async.cpp
+  ${N3MAPPING_ROOT}/src/core/loop_closure_processing.cpp
+  ${N3MAPPING_ROOT}/src/core/loop_closure_diagnostics.cpp
   ${N3MAPPING_ROOT}/src/core/run_mode.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
   ${N3MAPPING_ROOT}/src/core/realtime_output.cpp
@@ -35,6 +38,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
   ${N3MAPPING_ROOT}/src/graph_factor_noise.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
+  ${N3MAPPING_ROOT}/src/graph_optimizer_snapshot.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp
@@ -49,7 +53,6 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/relocalization_seed_plan.cpp
   ${N3MAPPING_ROOT}/src/relocalization_target_provider.cpp
   ${N3MAPPING_ROOT}/src/tracking_target_cache.cpp
-  ${N3MAPPING_ROOT}/src/tracking_target_prefetch.cpp
   ${N3MAPPING_ROOT}/src/world_localizing.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_relocalization.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_initialization.cpp

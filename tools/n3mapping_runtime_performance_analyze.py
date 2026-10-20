@@ -40,6 +40,7 @@ RUNTIME_TIMINGS = (
     "callback_total_ms",
 )
 LOOP_TIMINGS = ("lock_wait_ms", "core_ms", "publish_ms", "total_ms")
+ASYNC_LOOP_TIMINGS = ("worker_wall_ms", "oldest_pending_age_ms", "snapshot_ms", "commit_ms")
 TRACKING_TIMINGS = (
     "tracking_total_ms",
     "nearest_keyframe_ms",
@@ -892,7 +893,8 @@ def analyze(
             )
 
     work_loop_cycles = [
-        row for row in loop_cycles if row.get("queued_keyframe_count", 0) > 0
+        row for row in loop_cycles
+        if row.get("queued_keyframe_count", 0) > 0 or row.get("worker_wall_ms", 0) > 0
     ]
     if errors:
         status = INVALID
@@ -921,11 +923,11 @@ def analyze(
     }
     loop_stats = {
         field: stats((row.get(field) for row in loop_cycles), len(loop_cycles))
-        for field in LOOP_TIMINGS
+        for field in LOOP_TIMINGS + ASYNC_LOOP_TIMINGS
     }
     work_loop_stats = {
         field: stats((row.get(field) for row in work_loop_cycles), len(work_loop_cycles))
-        for field in LOOP_TIMINGS
+        for field in LOOP_TIMINGS + ASYNC_LOOP_TIMINGS
     }
     budget_overrun = [
         float(row["callback_total_ms"]) - sensor_period_ms
@@ -1112,6 +1114,8 @@ def analyze(
             "callback_interarrival_slower_than_sensor": sum(
                 value > 0.0 for value in schedule_lag
             ),
+            "loop_graph_rebases": sum(row.get("graph_rebase_count", 0) for row in loop_cycles),
+            "loop_stale_jobs": sum(row.get("stale_job_count", 0) for row in loop_cycles),
             "loop_cycles": len(loop_cycles),
             "loop_work_cycles": len(work_loop_cycles),
             "loop_queued_keyframes": sum(

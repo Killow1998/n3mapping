@@ -405,7 +405,7 @@ class N3MappingNoeticNode {
         bool needs_global_map_rebuild = false;
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            const auto result = core_->processPendingLoopClosures();
+            const auto result = core_->processPendingLoopClosuresAsync();
             if (!result.accepted_loops.empty()) {
                 publishLoopMarkers(result.accepted_loops);
             }

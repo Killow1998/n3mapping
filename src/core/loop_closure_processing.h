@@ -1,0 +1,23 @@
+// Geometry and graph work shared by synchronous replay and the isolated worker.
+#pragma once
+#include <chrono>
+#include "n3mapping/core/n3mapping_core.h"
+namespace n3mapping {
+struct DetectedLoopQuery {
+  int64_t id = -1;
+  std::vector<LoopCandidate> candidates;
+  std::chrono::steady_clock::time_point enqueued =
+      std::chrono::steady_clock::now();
+};
+struct LoopClosureOutcome {
+  CoreLoopClosureResult summary;
+  std::vector<LoopDebugCandidateEvent> candidates;
+  std::vector<LoopDebugOptimizationEvent> optimizations;
+};
+LoopClosureOutcome processLoopCandidates(
+    const Config& config, KeyframeManager& keyframes, PointCloudMatcher& matcher,
+    GraphOptimizer& optimizer, LoopClosureManager& manager,
+    const std::vector<DetectedLoopQuery>& queries);
+void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
+                       LoopClosureManager& manager, LoopClosureOutcome& outcome);
+} // namespace n3mapping

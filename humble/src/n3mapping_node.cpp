@@ -944,7 +944,7 @@ class N3MappingNode : public rclcpp::Node
             const auto core_started = performance_enabled
               ? PerformanceClock::now()
               : PerformanceClock::time_point{};
-            const auto result = n3mapping_core_->processPendingLoopClosures();
+            const auto result = n3mapping_core_->processPendingLoopClosuresAsync();
             if (performance_enabled) {
                 performance_event.core_ms = elapsed_ms(core_started);
                 performance_event.queued_keyframe_count =
@@ -957,6 +957,14 @@ class N3MappingNode : public rclcpp::Node
                   result.accepted_loops.size();
                 performance_event.edge_count = result.edge_count;
                 performance_event.optimized = result.optimized;
+                performance_event.async_pending = result.async_pending;
+                performance_event.pending_query_count = result.pending_query_count;
+                performance_event.graph_rebase_count = result.graph_rebase_count;
+                performance_event.stale_job_count = result.stale_job_count;
+                performance_event.worker_wall_ms = result.worker_wall_ms;
+                performance_event.oldest_pending_age_ms = result.oldest_pending_age_ms;
+                performance_event.snapshot_ms = result.snapshot_ms;
+                performance_event.commit_ms = result.commit_ms;
             }
             const auto publish_started = performance_enabled
               ? PerformanceClock::now()

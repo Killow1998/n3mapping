@@ -258,6 +258,9 @@ class GraphOptimizer : public LoopOptimizerInterface
                    const std::vector<EdgeInfo>& edges,
                    const std::vector<FloorAttitudeConstraint>& floor_constraints);
     void swapWith(GraphOptimizer& other);
+    // Owner-thread snapshot for an isolated loop solve. Factors are immutable;
+    // estimates and staging state belong exclusively to the returned optimizer.
+    std::unique_ptr<GraphOptimizer> cloneCommitted() const;
 
     /**
      * @brief 获取所有边

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <utility>
 #include <chrono>
+#include <ctime>
+#include <glog/logging.h>
 
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/pcl_compat.h"
@@ -19,23 +21,7 @@ TrackingTargetCache::TrackingTargetCache(const Config &config,
                                         KeyframeManager &keyframe_manager,
                                         PointCloudMatcher &matcher)
     : config_(config), keyframe_manager_(keyframe_manager), matcher_(matcher),
-      loaded_map_(pcl::make_shared<PointCloudT>()) {
-  worker_count_ = std::min(kMaxWorkers,
-                          static_cast<std::size_t>(std::max(1, config_.num_threads)));
-  threads_per_worker_ = std::max(
-      1, config_.num_threads / static_cast<int>(worker_count_));
-}
-
-TrackingTargetCache::~TrackingTargetCache() {
-  {
-    std::lock_guard<std::mutex> lock(loaded_mutex_);
-    stop_ = true;
-  }
-  prefetch_cv_.notify_all();
-  for (auto &thread : prefetch_threads_) {
-    if (thread.joinable()) thread.join();
-  }
-}
+      loaded_map_(pcl::make_shared<PointCloudT>()) {}
 
 bool TrackingTargetCache::usable(const PointCloudMatcher::PreparedTarget &target) {
   return target.plane_levels.size() >= 2 &&
@@ -43,16 +29,6 @@ bool TrackingTargetCache::usable(const PointCloudMatcher::PreparedTarget &target
                      [](const PointCloudMatcher::PreparedTargetLevel &level) {
                        return level.cloud && level.kdtree && level.cloud->size() >= 10;
                      });
-}
-
-bool TrackingTargetCache::matches(const LoadedEntry &entry, int64_t anchor_id,
-                                   const KeyframeMapRevision &revision,
-                                   std::size_t count) {
-  return entry.anchor_id == anchor_id &&
-         entry.revision.generation == revision.generation &&
-         entry.revision.pose_revision == revision.pose_revision &&
-         entry.loaded_keyframe_count == count && entry.target &&
-         usable(*entry.target);
 }
 
 TrackingTargetCache::TargetResult
@@ -135,17 +111,6 @@ void TrackingTargetCache::clearLocal(bool reset_statistics) {
   }
 }
 
-void TrackingTargetCache::invalidateLoaded() {
-  {
-    std::lock_guard<std::mutex> lock(loaded_mutex_);
-    loaded_entries_.clear();
-    prefetch_queue_.clear();
-    prefetch_pending_.clear();
-    ++epoch_;
-  }
-  prefetch_cv_.notify_all();
-}
-
 void TrackingTargetCache::rebuildLoadedMapIfNeeded() {
   const KeyframeMapRevision revision = keyframe_manager_.revision();
   std::vector<Keyframe::Ptr> loaded_keyframes;
@@ -158,8 +123,13 @@ void TrackingTargetCache::rebuildLoadedMapIfNeeded() {
     // Keep the loaded reference immutable across extension graph corrections.
     return;
   }
-  invalidateLoaded();
+  loaded_entries_.clear();
+  loaded_prepared_.reset();
   loaded_map_ = LocalizationAtlas::buildGlobalMap(config_, loaded_keyframes);
+  loaded_anchor_positions_.clear();
+  for (const auto &keyframe : loaded_keyframes)
+    loaded_anchor_positions_.emplace(keyframe->id,
+                                     keyframe->pose_optimized.translation());
   loaded_keyframe_count_ = loaded_keyframes.size();
   loaded_revision_ = revision;
 }
@@ -179,71 +149,58 @@ TrackingTargetCache::TargetResult
 TrackingTargetCache::acquireLoadedFromSnapshot(int64_t anchor_id) {
   TargetResult result;
   const auto lookup_started = Clock::now();
-  const auto revision = loaded_revision_;
-  const auto count = loaded_keyframe_count_;
-  std::uint64_t build_epoch = 0;
-  {
-    std::lock_guard<std::mutex> lock(loaded_mutex_);
-    const auto found = std::find_if(loaded_entries_.begin(), loaded_entries_.end(),
-                                    [&](const LoadedEntry &entry) {
-      return matches(entry, anchor_id, revision, count);
-    });
-    if (found != loaded_entries_.end()) {
-      ++loaded_hits_;
-      result.hit = true;
-      if (found != loaded_entries_.begin()) {
-        auto entry = std::move(*found);
-        loaded_entries_.erase(found);
-        loaded_entries_.push_front(std::move(entry));
-      }
-      result.target = loaded_entries_.front().target;
-      result.visibility_cloud = loaded_entries_.front().visibility_cloud;
-      result.submap_points = result.visibility_cloud ? result.visibility_cloud->size() : 0;
-      result.target_prepare_ms = elapsedMs(lookup_started);
-      return result;
+  const auto found = std::find_if(loaded_entries_.begin(), loaded_entries_.end(),
+                                [&](const LoadedEntry &entry) {
+    return entry.anchor_id == anchor_id;
+  });
+  if (found != loaded_entries_.end()) {
+    ++loaded_hits_;
+    result.hit = true;
+    if (found != loaded_entries_.begin()) {
+      auto entry = std::move(*found);
+      loaded_entries_.erase(found);
+      loaded_entries_.push_front(std::move(entry));
     }
-    build_epoch = epoch_;
+    result.target = loaded_prepared_;
+    result.visibility_cloud = loaded_entries_.front().visibility_cloud;
+    result.submap_points = result.visibility_cloud ? result.visibility_cloud->size() : 0;
+    result.target_prepare_ms = elapsedMs(lookup_started);
+    return result;
   }
 
-  const auto anchor = keyframe_manager_.getKeyframe(anchor_id);
+  const auto anchor = loaded_anchor_positions_.find(anchor_id);
   const auto build_started = Clock::now();
-  if (anchor) {
+  if (anchor != loaded_anchor_positions_.end()) {
     result.visibility_cloud = LocalizationAtlas::cropGlobalMap(
-        config_, loaded_map_, anchor->pose_optimized.translation());
+        config_, loaded_map_, anchor->second);
   }
   result.submap_build_ms = elapsedMs(build_started);
   result.submap_points = result.visibility_cloud ? result.visibility_cloud->size() : 0;
   if (result.submap_points == 0) return result;
   result.miss = true;
-  {
-    std::lock_guard<std::mutex> lock(loaded_mutex_);
-    ++loaded_misses_;
+  ++loaded_misses_;
+  // The map does not change when a different anchor becomes nearest. Build
+  // its exact-search trees and normal/covariance levels once per generation.
+  // Local raw crops remain available for the independent visibility gate.
+  if (!loaded_prepared_) {
+    const auto prepare_started = Clock::now();
+    const auto cpu_started = std::clock();
+    loaded_prepared_ = std::make_shared<const PointCloudMatcher::PreparedTarget>(
+        matcher_.prepareTargetCloud(loaded_map_));
+    result.target_prepare_ms = elapsedMs(prepare_started);
+    LOG(INFO) << "[LoadedMapTarget] generation=" << loaded_revision_.generation
+              << " points=" << loaded_map_->size()
+              << " prepare_ms=" << result.target_prepare_ms
+              << " process_cpu_ms_during_prepare="
+              << 1000.0 * (std::clock() - cpu_started) / CLOCKS_PER_SEC
+              << " estimated_bytes="
+              << estimatePreparedTargetMemoryBytes(*loaded_prepared_);
   }
-  const auto prepare_started = Clock::now();
-  result.target = std::make_shared<const PointCloudMatcher::PreparedTarget>(
-      matcher_.prepareTargetCloud(result.visibility_cloud));
-  result.target_prepare_ms = elapsedMs(prepare_started);
+  result.target = loaded_prepared_;
   if (!usable(*result.target)) return result;
 
-  std::lock_guard<std::mutex> lock(loaded_mutex_);
-  if (build_epoch != epoch_) return result;
-  const auto existing = std::find_if(loaded_entries_.begin(), loaded_entries_.end(),
-                                     [&](const LoadedEntry &entry) {
-    return matches(entry, anchor_id, revision, count);
-  });
-  if (existing != loaded_entries_.end()) {
-    // A worker may publish the same key during the foreground fallback. The
-    // foreground access must still promote that immutable entry to MRU.
-    if (existing != loaded_entries_.begin()) {
-      auto entry = std::move(*existing);
-      loaded_entries_.erase(existing);
-      loaded_entries_.push_front(std::move(entry));
-    }
-  } else {
-    loaded_entries_.push_front({anchor_id, count, revision, result.target,
-                               result.visibility_cloud});
-    while (loaded_entries_.size() > kLoadedEntries) loaded_entries_.pop_back();
-  }
+  loaded_entries_.push_front({anchor_id, result.visibility_cloud});
+  while (loaded_entries_.size() > kLoadedEntries) loaded_entries_.pop_back();
   return result;
 }
 
@@ -256,13 +213,13 @@ TrackingTargetCache::loadedVisibilityTarget(const Eigen::Vector3d &center) {
 void TrackingTargetCache::clearMap() {
   clearLocal(true);
   loaded_map_ = pcl::make_shared<PointCloudT>();
+  loaded_prepared_.reset();
+  loaded_anchor_positions_.clear();
   loaded_keyframe_count_ = 0;
   loaded_revision_ = {};
-  invalidateLoaded();
-  std::lock_guard<std::mutex> lock(loaded_mutex_);
+  loaded_entries_.clear();
   loaded_hits_ = 0;
   loaded_misses_ = 0;
-  prefetch_requests_ = 0;
 }
 
 TrackingTargetCache::Diagnostics TrackingTargetCache::diagnostics() const {
@@ -271,15 +228,9 @@ TrackingTargetCache::Diagnostics TrackingTargetCache::diagnostics() const {
   result.local_misses = local_misses_;
   result.local_bytes = local_bytes_;
   result.local_entries = local_entries_.size();
-  std::lock_guard<std::mutex> lock(loaded_mutex_);
   result.loaded_hits = loaded_hits_;
   result.loaded_misses = loaded_misses_;
   result.loaded_entries = loaded_entries_.size();
-  result.prefetch_requests = prefetch_requests_;
-  result.prefetch_pending = prefetch_pending_.size();
-  result.prefetch_queued = prefetch_queue_.size();
-  result.prefetch_workers = prefetch_threads_.size();
-  result.prefetch_threads_per_worker = static_cast<std::size_t>(threads_per_worker_);
   return result;
 }
 

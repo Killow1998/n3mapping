@@ -75,6 +75,14 @@ struct RuntimePerformanceLoopEvent {
   std::size_t accepted_loop_count = 0;
   std::size_t edge_count = 0;
   bool optimized = false;
+  bool async_pending = false;
+  std::size_t pending_query_count = 0;
+  std::size_t graph_rebase_count = 0;
+  std::size_t stale_job_count = 0;
+  double worker_wall_ms = 0.0;
+  double oldest_pending_age_ms = 0.0;
+  double snapshot_ms = 0.0;
+  double commit_ms = 0.0;
   double lock_wait_ms = std::numeric_limits<double>::quiet_NaN();
   double core_ms = std::numeric_limits<double>::quiet_NaN();
   double publish_ms = std::numeric_limits<double>::quiet_NaN();

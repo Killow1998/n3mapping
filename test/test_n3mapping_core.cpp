@@ -562,7 +562,67 @@ TEST(N3MappingCoreTest, PendingLoopClosureRejectsCandidateBeyondPredictionRange)
     EXPECT_TRUE(result.accepted_loops.empty());
 }
 
-TEST(N3MappingCoreTest, DenseTrajectorySavedAfterLoopClosureMatchesFinalKeyframePose)
+TEST(N3MappingCoreTest, AsyncLoopCommitRetainsKeyframesAppendedDuringGeometry)
+{
+    N3MappingCore core(makeCoreTestConfig());
+    ASSERT_TRUE(core.processMappingFrame(
+        makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = 1.0;
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose)).accepted_keyframe);
+    const auto dispatched = core.processPendingLoopClosuresAsync();
+    ASSERT_TRUE(dispatched.async_pending);
+    EXPECT_FALSE(dispatched.optimized);
+    // Even a worker that finishes immediately cannot mutate the owner graph.
+    EXPECT_TRUE(core.getOptimizedPoses().at(1).isApprox(pose, 1e-9));
+    pose.translation().x() = 2.0;
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(3000000000, pose)).accepted_keyframe);
+    const auto completed = core.processPendingLoopClosures();
+    EXPECT_TRUE(completed.optimized);
+    EXPECT_FALSE(completed.async_pending);
+    EXPECT_GE(completed.graph_rebase_count, 1U);
+    EXPECT_GE(completed.edge_count, 1U);
+    EXPECT_EQ(core.getOptimizedPoses().size(), 3U);
+    EXPECT_EQ(core.getAllKeyframes().size(), 3U);
+    ASSERT_NE(core.getKeyframe(2), nullptr);
+    EXPECT_TRUE(core.getKeyframe(2)->pose_odom.isApprox(pose));
+    EXPECT_TRUE(core.getKeyframe(2)->pose_optimized.isApprox(
+        core.getOptimizedPoses().at(2), 1e-9));
+}
+
+TEST(N3MappingCoreTest, AsyncLoopFromReplacedMapCannotCommit)
+{
+    const auto dir = std::filesystem::temp_directory_path() /
+                     "n3mapping_async_map_replacement";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const auto path = dir / "map.pbstream";
+    const auto config = makeCoreTestConfig();
+    N3MappingCore replacement(config);
+    auto pose = Eigen::Isometry3d::Identity();
+    pose.translation().y() = 20.0;
+    ASSERT_TRUE(replacement.processMappingFrame(makeFrame(1000000000, pose)).accepted_keyframe);
+    ASSERT_TRUE(replacement.saveMap(path.string()));
+
+    N3MappingCore core(config);
+    ASSERT_TRUE(core.processMappingFrame(
+        makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
+    pose = Eigen::Isometry3d::Identity();
+    pose.translation().x() = 1.0;
+    ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose)).accepted_keyframe);
+    ASSERT_TRUE(core.processPendingLoopClosuresAsync().async_pending);
+    ASSERT_TRUE(core.loadMap(path.string()));
+    const auto before = core.getOptimizedPoses();
+    const auto completed = core.processPendingLoopClosures();
+    EXPECT_EQ(completed.stale_job_count, 1U);
+    EXPECT_FALSE(completed.optimized);
+    EXPECT_TRUE(completed.accepted_loops.empty());
+    ASSERT_EQ(core.getOptimizedPoses().size(), 1U);
+    EXPECT_TRUE(core.getOptimizedPoses().at(0).isApprox(before.at(0)));
+    std::filesystem::remove_all(dir);
+}
+
+TEST(N3MappingCoreTest, SavingDrainsAsyncLoopsAndPreservesCorrectedDenseTrajectory)
 {
     Config config = makeCoreTestConfig();
     const std::filesystem::path dir =
@@ -583,15 +643,25 @@ TEST(N3MappingCoreTest, DenseTrajectorySavedAfterLoopClosureMatchesFinalKeyframe
     ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, second_pose)).accepted_keyframe);
     ASSERT_EQ(core.getDenseOptimizedTrajectory().size(), 3U);
 
-    const auto result = core.processPendingLoopClosures();
-    ASSERT_TRUE(result.optimized);
+    ASSERT_TRUE(core.processPendingLoopClosuresAsync().async_pending);
+    EXPECT_TRUE(core.getOptimizedPoses().at(1).isApprox(second_pose, 1e-9));
 
+    // Saving must drain and commit outstanding geometry before serializing
+    // either keyframes or the trajectory anchored to them.
+    ASSERT_TRUE(core.saveMap(map_path.string()));
     const auto final_kf = core.getKeyframe(1);
     ASSERT_NE(final_kf, nullptr);
-    ASSERT_TRUE(core.saveMap(map_path.string()));
+    N3Map persisted;
+    std::ifstream input(map_path, std::ios::binary);
+    ASSERT_TRUE(persisted.ParseFromIstream(&input));
+    EXPECT_GT(std::count_if(persisted.edges().begin(), persisted.edges().end(),
+        [](const EdgeProto& edge) { return edge.type() == EdgeProto::LOOP; }), 0);
 
     N3MappingCore loaded(config);
     ASSERT_TRUE(loaded.loadMap(map_path.string()));
+    ASSERT_NE(loaded.getKeyframe(1), nullptr);
+    EXPECT_TRUE(loaded.getKeyframe(1)->pose_optimized.isApprox(
+        final_kf->pose_optimized, 1e-9));
     const auto dense = loaded.getDenseOptimizedTrajectory();
     ASSERT_EQ(dense.size(), 3U);
 

@@ -134,11 +134,6 @@ public:
     std::size_t loaded_map_target_cache_hits = 0;
     std::size_t loaded_map_target_cache_misses = 0;
     std::size_t loaded_map_target_cache_entries = 0;
-    std::size_t loaded_map_target_prefetch_requests = 0;
-    std::size_t loaded_map_target_prefetch_pending = 0;
-    std::size_t loaded_map_target_prefetch_queue_entries = 0;
-    std::size_t loaded_map_target_prefetch_workers = 0;
-    std::size_t loaded_map_target_prefetch_threads_per_worker = 0;
   };
   WorldLocalizingCacheDiagnostics cacheDiagnostics() const;
   void setMapToOdomTransform(const Eigen::Isometry3d &T_map_odom);
@@ -155,12 +150,8 @@ public:
   VisibilityConsistencyResult
   evaluateLoadedMapPoseVisibility(const PointCloudT::Ptr &query_cloud,
                                   const Eigen::Isometry3d &T_map_lidar);
-  // Warm the immutable loaded-map target for an extension anchor and prefetch
-  // nearby alternatives. A later tracking callback still prepares the exact
-  // loaded-generation target synchronously on any cache miss.
-  void warmLoadedMapTrackingTargets(int64_t anchor_id,
-                                    const Eigen::Vector3d &query_position,
-                                    bool wait_for_prefetch = false);
+  // Prepare only the immutable target of the committed extension anchor.
+  void warmLoadedMapTrackingTarget(int64_t anchor_id);
 
 private:
   using RelocHypothesis = RelocalizationHypothesis;

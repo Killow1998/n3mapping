@@ -2,13 +2,23 @@
 
 ## Unreleased
 
-- Record a loaded-reference crop-identity defect and a demand-only preparation
-  candidate. Its CPU/RAM benefit is substantial, but an independent movement
-  comparison loses two previously accepted frames, so the candidate is not
-  retained. Runtime remains at the accepted loop-verification implementation.
+- Fix strict extension becoming permanently LOST and a valid ICP proposal being
+  overwritten by a prediction that fails the original quality gate. Fresh
+  geometry is still required before publishing or adding a keyframe.
+- Keep loaded-reference crop centers consistent with frozen map geometry.
+  Share one prepared registration target per loaded map, retain local raw
+  visibility crops, and remove speculative preparation workers. Complete
+  independent motion retains all 500 old successful frames and now delivers
+  all 2,232 post-initialization outputs. Against the reliable per-anchor
+  control, CPU falls 896.7→186.5 s and peak RSS 2.99→1.86 GiB.
+- Run online mapping-loop geometry and graph solving on an isolated worker.
+  Keep retrieval with the owner, preserve graph updates arriving during a
+  solve, reject obsolete map generations and drain pending work before saving.
+  Humble and Noetic use the common implementation; strict extension tracking
+  constraints remain inline. Add queue/worker/snapshot/commit diagnostics.
 - Add complete loop-on/off consistency evidence: repeated visits improve, but
-  final map absolute error remains above 10 cm. Asynchronous backend loop
-  processing is planned and has not been implemented.
+  final map absolute error remains above 10 cm. The complete 10 Hz asynchronous
+  replay preserves 195 loops and 13,723 outputs without a 100 ms owner overrun.
 - Batch online loop-neighborhood verification by target geometry, preparing one
   target at a time while retaining each candidate's independent solves and
   consensus. Split registration and graph admission into separate implementation
@@ -22,11 +32,15 @@
 - Four-core causal replay preserves 195 loops and 13,723 mapping outputs from
   13,791 inputs. Mapping-loop CPU falls 20.0%, with unchanged numerical gates and
   pose differences below 1e-8 m/rad. Full CTest: 61/61.
-- The 10 cm absolute-accuracy goal, complete-route extension recovery and
-  real-time backend throughput remain open.
+- Reject pose interpolation after full-route ablation: it adds CPU and worsens
+  position error despite matching the short-prefix results. Retain behavioral
+  recovery, stale-map, graph-tail and save/drain coverage.
+- The 10 cm absolute-accuracy goal, extension half-core budget, cold startup
+  latency and complete ROS-node throughput remain open. Common-frame extension
+  position error improves, while rotation RMSE changes 0.133→0.138°.
 
 See the [online-loop evidence](docs/evidence/runtime_cpu_20261017/README.md#online-loop-verification-and-accuracy-follow-up--2026-10-20)
-and [consistency/extension follow-up](docs/evidence/runtime_cpu_20261017/README.md#map-consistency-extension-targets-and-asynchronous-boundaries--2026-10-20).
+and [recovery/asynchronous-loop qualification](docs/evidence/runtime_cpu_20261017/README.md#extension-recovery-and-asynchronous-online-loops--2026-10-20).
 
 ## [1.0.1] - 2026-10-20
 

@@ -173,11 +173,8 @@ bool MappingResuming::performInitialRelocalization(
     if (next_session_id == kInvalidMapSessionId) return false;
     world_localizing_.setMapToOdomTransform(T_map_odom);
 
-    // The lock callback is outside the steady-state tracking window. Prepare
-    // the authoritative anchor here and give nearby prefetches a head start so
-    // the first tracking callbacks do not pay an avoidable target-build miss.
-    world_localizing_.warmLoadedMapTrackingTargets(
-        result.matched_keyframe_id, result.pose_in_map.translation(), true);
+    // Prepare the authoritative anchor before the first tracking callback.
+    world_localizing_.warmLoadedMapTrackingTarget(result.matched_keyframe_id);
 
     const Eigen::Vector3d rpy_deg = rotationRpyDegrees(T_map_odom);
     LOG(INFO) << "[MappingResuming] Relocalization anchor id="
@@ -364,23 +361,12 @@ int64_t MappingResuming::processNewKeyframe(
 
         const auto optimized_poses = optimizer_.getOptimizedPoses();
         const auto optimized_current = optimized_poses.find(new_kf_id);
-        Eigen::Isometry3d committed_pose_in_map = pose_in_map;
         if (optimized_current != optimized_poses.end()) {
-            committed_pose_in_map = optimized_current->second;
             const Eigen::Isometry3d corrected_map_odom =
                 optimized_current->second * odom_pose.inverse();
             if (isFiniteTransform(corrected_map_odom)) {
                 world_localizing_.setMapToOdomTransform(corrected_map_odom);
             }
-        }
-
-        const int64_t loaded_reference_id =
-            is_first_new_keyframe ? relocalization_anchor_keyframe_id_
-                                  : loaded_tracking_match_id;
-        if (loaded_reference_id >= 0 &&
-            isFiniteTransform(committed_pose_in_map)) {
-            world_localizing_.warmLoadedMapTrackingTargets(
-                loaded_reference_id, committed_pose_in_map.translation());
         }
 
         // From this point the graph and keyframe are committed. Descriptor

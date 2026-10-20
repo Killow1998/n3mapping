@@ -83,7 +83,18 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   result.pose_in_map = predicted_pose;
   debug_event.predicted_pose = predicted_pose;
 
-  if (consecutive_track_failures_ > config_.reloc_max_track_failures) {
+  if (strict_loaded_map && !has_ever_relocalized_) {
+    result.state = RelocalizationState::SEARCHING;
+    result.pose_source = PoseSource::NONE;
+    finish_tracking_debug("loaded_map_prior_missing");
+    return result;
+  }
+
+  // Ordinary localization hands LOST back to its global search owner.
+  // Extension has no such handoff: keep testing the loaded reference locally,
+  // without publishing prediction-only poses or resetting the loss counter.
+  if (!strict_loaded_map &&
+      consecutive_track_failures_ > config_.reloc_max_track_failures) {
     is_relocalized_ = false;
     result.state = RelocalizationState::LOST;
     result.pose_source = PoseSource::NONE;
@@ -220,7 +231,6 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   if (strict_loaded_map) {
     debug_event.loaded_map_target_cache_hit = tracking_target.hit;
     debug_event.loaded_map_target_cache_miss = tracking_target.miss;
-    tracking_targets_->prefetchLoaded(predicted_pose.translation(), nearest_kf_id);
   } else {
     debug_event.localization_target_cache_enabled = tracking_target.enabled;
     debug_event.localization_target_cache_hit = tracking_target.hit;
@@ -266,6 +276,15 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         (!hasValidRegistrationResult(match_result) ||
          retry.fitness_score < match_result.fitness_score))
       match_result = retry;
+  }
+  if (icp_failed) {
+    for (const auto& stage : match_result.stages) {
+      VLOG(1) << "Tracking stage=" << stage.stage
+              << " termination=" << matchTerminationName(stage.termination)
+              << " iterations=" << stage.iterations
+              << " fitness=" << stage.fitness_score
+              << " inlier=" << stage.inlier_ratio;
+    }
   }
   debug_event.icp_converged = match_result.converged;
   debug_event.fitness_score = match_result.fitness_score;
@@ -360,11 +379,19 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         // ICP is a local proposal, not authority to slide along a repeated
         // surface. Retain the prediction when the immutable loaded map
         // explains it better than the optimizer endpoint.
-        match_result = matcher_.evaluatePreparedPose(
+        auto predicted_match = matcher_.evaluatePreparedPose(
             *prepared_target, prepared_source, predicted_pose,
             match_result.metric);
-        visibility = predicted_visibility;
-        debug_event.visibility_selected_pose_source = "motion_prediction";
+        // Visibility ranks geometrically admissible poses. A prediction with
+        // better ray agreement must not replace a valid endpoint if its own
+        // residuals fail the very same quality gate.
+        if (hasValidRegistrationResult(predicted_match) &&
+            predicted_match.fitness_score < config_.gicp_fitness_threshold &&
+            predicted_match.inlier_ratio >= config_.reloc_min_inlier_ratio) {
+          match_result = std::move(predicted_match);
+          visibility = predicted_visibility;
+          debug_event.visibility_selected_pose_source = "motion_prediction";
+        }
       }
       debug_event.visibility_ms = elapsed_ms(visibility_started);
     }
@@ -450,6 +477,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
     last_matched_id_ = nearest_kf_id;
     last_odom_pose_ = odom_pose;
+    is_relocalized_ = true;
     has_ever_relocalized_ = true;
     consecutive_track_failures_ = 0;
 
@@ -465,7 +493,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     if (consecutive_track_failures_ <= 3 ||
         consecutive_track_failures_ % 5 == 0) {
       LOG(WARNING) << "Tracking failed (x" << consecutive_track_failures_
-                   << "): converged=" << match_result.converged
+                   << "): optimizer_converged=" << debug_event.icp_converged
+                   << " selected_pose="
+                   << debug_event.visibility_selected_pose_source
+                   << " evaluation="
+                   << matchTerminationName(match_result.termination)
                    << " fitness=" << match_result.fitness_score
                    << " inlier=" << match_result.inlier_ratio
                    << " nearest_kf=" << nearest_kf_id
@@ -493,9 +525,10 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     result.pose_in_map = predicted_pose;
     result.confidence = 0.2;
     last_odom_pose_ = odom_pose;
-    finish_tracking_debug(strict_loaded_map && icp_ok && !strict_geometry_ok
-                              ? "loaded_map_tracking_geometry_gate_failed"
-                              : "icp_gate_failed");
+    finish_tracking_debug(
+        !icp_ok ? "icp_gate_failed"
+                : (!selected_quality_ok ? "tracking_selected_pose_quality_gate_failed"
+                                       : "loaded_map_tracking_geometry_gate_failed"));
   }
 
   return result;

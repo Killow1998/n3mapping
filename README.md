@@ -693,15 +693,25 @@ Localization changes should follow the existing ownership boundaries:
 | Session state, reset and map replacement | `WorldLocalizing` |
 | Query history and place retrieval | `RelocalizationQueryBuilder`, `RelocalizationPlaceIndex` |
 | Candidate registration and temporal acceptance | Candidate evaluator, hypothesis manager and decision policy |
-| Tracking targets, bounded caches and prefetch worker lifetime | `TrackingTargetCache` |
+| Tracking targets, bounded local caches and the immutable loaded-map target | `TrackingTargetCache` |
+| Online loop retrieval, isolated geometry/graph work and revision-checked commit | `N3MappingCore` loop orchestration and shared loop-processing implementation |
 | Trusted corrections and live pose/cloud projection | `core::RealtimeOutput` |
 
 Search, tracking, map evidence and offline probes have separate implementation
 files. Session reset preserves map-derived tracking targets; map replacement
-invalidates their generation and queued work. Loaded-map cache entries retain
-the exact raw visibility crop with its prepared registration target. Prefetch
-workers start only when loaded-map tracking requests them; worker diagnostics
-report the number started.
+invalidates their generation and queued work. Loaded-map tracking prepares one
+registration target per frozen map generation, with a four-entry cache of exact
+raw visibility crops. Crop centers belong to that same frozen geometry.
+Speculative target-preparation threads have been removed.
+
+Mapping-loop retrieval stays with the serialized owner. Geometry verification
+and graph solving use an isolated snapshot; the owner commits only a matching
+map generation and revision. If keyframes arrive during a solve, the worker
+rechecks graph admission and solves the current graph with the already-measured
+constraints, preserving the new tail without repeating registration. Saving
+drains pending loop work. Strict map extension still verifies loaded-map
+geometry and commits its tracking constraint inline; it does not enqueue a
+second global loop search for the same frame.
 
 The deterministic `test_localization_episode` passes actual saved/loaded maps
 through the production core and live-output owner. It covers initialization,
@@ -727,10 +737,16 @@ The [2026-10-17 optimization evidence](docs/evidence/localization_optimization_2
 records 61 passing CTest projects and 36 ablation runs with identical public
 outputs. It shows reduced repeated work and a prefetch tail-latency benefit in
 these synthetic scenes; whole-process runtime remains essentially unchanged.
-The 2026-10-20 recorded extension ablation shows substantial CPU savings
-from a fixed-crop, demand-only candidate. It is not retained: the independent
-full-motion comparison produces two fewer successful frames than the current
-production version. See the measured follow-up before revisiting this policy.
+The later 2026-10-20 recorded extension study supersedes that synthetic prefetch
+result. The initially rejected candidate exposed a pose-selection bug: a valid
+ICP result could be replaced by a prediction that failed the quality gate.
+After fixing selection and strict tracking recovery, the complete independent
+motion recording succeeds on all 2,232 post-initialization inputs. Sharing one
+loaded-map target reduces CPU from 896.7 to 186.5 s versus the reliable
+per-anchor control, and peak RSS from 2.99 to 1.86 GiB. The comparison includes
+the whole route; rejected tails are not counted as cheap successful tracking.
+See the [recovery and asynchronous-loop evidence](docs/evidence/runtime_cpu_20261017/README.md#extension-recovery-and-asynchronous-online-loops--2026-10-20)
+for timing scope, accuracy changes and remaining limits.
 
 Registration uses the existing correspondence-distance gate to bound exact
 nearest-neighbor search. It preserves accepted neighbors, equality at the gate,
@@ -787,8 +803,8 @@ remains the performance baseline.
 | Reliability — stationary startup is required | Preserve incremental candidate admission, unaffected-seed reuse and fresh confirmation. The original 14 inputs and six independent +45°/+180° recordings at 03/08/14 each lock at the fifth input with 292 outputs: 20 stationary position/heading combinations. Source replacement and invalid-input recovery remain fixed. Existing default/Atlas/kill regressions each cover 15 episodes. Moving out-of-map aliases and tracking excursions remain documented failures; no new movement or hardware qualification is claimed. |
 | Accuracy — active; retain 10 cm | Fixed14 maximum absolute error remains 0.474 m; 10 cm is not qualified. Fresh truth-initialized ICP diagnostics at all 14 first-lock frames differ from normal localization by at most 1.13 cm; 11 still has about 47.1 cm error even from truth initialization. Together with the saved-keyframe audit, this supports map bias as the dominant error, without establishing a global optimizer optimum. Address map consistency rather than fitting query poses or compensating the descriptor. |
 | Online loop/map consistency — active | A fresh 13,791-frame loop-on/off comparison shows improved repeat-visit consistency: 1,811 independently selected revisit pairs have relative translation RMSE 6.63→3.45 cm. Final map-keyframe absolute RMSE only improves 29.11→28.66 cm, and its position p95 worsens slightly. The earlier 20.0% loop-CPU optimization preserves the 195 loops; it did not create this accuracy gain. Frozen-graph rotation-weight diagnostics do not reach 10 cm and are not adopted. Constraint calibration and coverage remain open. |
-| Online extension cost — useful candidate, not retained | A cache miss can recrop the frozen loaded map around a newer graph pose. A fixed-crop, demand-only candidate lowers 300-frame CPU 191.4→123.7 s, but still needs 41.0 s for 29.9 s input. Prefetch ablation after fixing crop identity preserves outputs and isolates its CPU cost. Against the old production version, however, independent full motion gives 498 successful outputs versus 500 and misses previously accepted frames 502/504. Preserve `c924a3d`; investigate this convergence sensitivity before adopting the candidate. Complete-route extension/recovery and live throughput remain unqualified. |
-| Asynchronous online loops — implementation pending | Humble's backend frame and loop callbacks share a serial executor and `data_mutex_`; live output already has separate owners. Split prompt keyframe retrieval from background geometry verification and graph optimization. Use immutable inputs and generation checks, then a short correction commit; preserve graph updates arriving during a solve. Merely adding a worker around the existing locked callback would still block mapping. |
+| Online extension — recovery fixed; half core remains open | Retain valid ICP when a visibility-preferred prediction fails the original quality gate. Strict tracking continues testing fresh loaded-map geometry after LOST; it never publishes prediction alone or accepts newly created frames as reference evidence. The independent 2,236-input recording now gives 2,232 outputs and 231 new keyframes, retaining every previous successful frame. One prepared loaded-map target replaces repeated per-anchor preparation: CPU 896.7→186.5 s and RSS 2.99→1.86 GiB on the same complete reliable route. Final 10 Hz replay requires 0.846 cores including startup, about 0.600 after the first five inputs; cold initialization and the complete-node budget remain open. Shared-500 position RMSE improves 11.65→11.39 cm; rotation RMSE changes 0.133→0.138°, so this is not an all-metric accuracy improvement. |
+| Asynchronous online mapping loops — implemented and replay-verified | Humble and Noetic adapters poll an isolated geometry/graph worker. Snapshot generation/revision checks protect replacement maps and newly appended nodes; graph catch-up reuses measured constraints. Complete 10 Hz replay preserves 13,723 outputs, 1,271 keyframes and 195 loops; owner work stays below 100 ms on this input. Queue age, worker duration, snapshot/commit time, catch-ups and stale jobs are logged. Strict extension tracking remains inline. Full ROS-node timing, publication costs and independent Noetic build qualification remain open. |
 | Search cost — paused; half core remains open | Retain the accepted `54b602f` algorithm and its original 15.3% paired CPU reduction. The standalone 1.0.1 full14 replay measures 214.962 CPU s / 413 input s (0.520488 cores), first-lock wall median 3.348 s / maximum 5.383 s. 03/08/14 need 0.663/0.673/0.654 cores. The 440 cold seeds and 104 confirmation registrations are unchanged. This is a release behavior check, without a new paired speedup claim. Source reordering, direct fine tracking, exact-neighbor certificates and registration-kernel experiments are not retained: they regress latency/accuracy or lack consistent overall CPU benefit. |
 
 The deferred performance target retains **four physical P cores**, four registration threads,

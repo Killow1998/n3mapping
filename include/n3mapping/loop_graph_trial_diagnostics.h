@@ -39,4 +39,13 @@ LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
     const std::vector<EdgeInfo>& committed_edges,
     const std::vector<EdgeInfo>& candidate_edges);
 
+struct VerifiedLoop;
+void assignLoopGraphTrialDiagnostics(
+    VerifiedLoop* loop, const LoopGraphTrialDiagnostics& diagnostics);
+
+// The same admission policy is used initially and after an asynchronous
+// solve catches up with graph additions. Empty means no graph rejection.
+std::string loopGraphTrialRejectReason(
+    const LoopGraphTrialDiagnostics& diagnostics, bool require_success = false);
+
 }  // namespace n3mapping

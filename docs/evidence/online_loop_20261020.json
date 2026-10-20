@@ -1578,5 +1578,1017 @@
       "crop_before_loaded.log": "fd16aa109b986237997b25987989c1400d8c1a308d2e80d50b7171ebed3a994e",
       "crop_after.log": "c89b06cff6b9ba20598e762061ec738925dca3a6ea973d9951be0f2fcb08e17c"
     }
+  },
+  "recovery_async": {
+    "base_commit": "168d241",
+    "scope": "Four physical P cores 0/2/4/6, four registration threads, PASSIVE. Complete causal core replays; no dropped inputs. Runtime CPU includes worker draining, excludes map loading/saving, frontend, simulator, DDS and map publication. Truth only in scoring with the original fixed alignment. Subphase process CPU overlaps background work in async mode; use total runtime_cpu_s.",
+    "artifacts": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/extension_recovery_20261020",
+    "inputs": {
+      "map": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream",
+        "sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb"
+      },
+      "atlas": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream.localization_atlas.pb",
+        "sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac"
+      },
+      "mapping_manifest": {
+        "path": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/online_loop_20261020/manifest/frames.csv",
+        "sha256": "2c9c0619e548d69d3ec69b08c3475881497a8bf9276e425a562a8aed641bb925"
+      },
+      "motion_manifest": {
+        "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query/manifest/frames.csv",
+        "sha256": "2422a44c5560990ab1ac76bc4719b9c4ecc2880b7d3890fa33560270dd0f3fcf"
+      }
+    },
+    "variants": {
+      "qualified": {
+        "sources": {
+          "cmake/n3mapping_core.cmake": "57b1f4882c895e61ba851c9efe4fa25cd4026ee977a19e39dda8f0aa5d4d04bc",
+          "humble/src/n3mapping_node.cpp": "4e25bc78c50148a96ef4bba4dd2ca56963c5074032bae4d2e2fff46fdd9ac539",
+          "include/n3mapping/core/n3mapping_core.h": "4897db6bf7b2cde0ba2f6fa70b1dd9cbee5512036e078030ac3fcb3dae645a2f",
+          "include/n3mapping/graph_optimizer.h": "d69a2858c17a679271769985603f4d7aa1c6126d2c615ea24898caba9b2f743d",
+          "include/n3mapping/loop_graph_trial_diagnostics.h": "f83853eaf60916fb49daad7098521b32e925107d6af5dd6ddf36ec9e74f82895",
+          "include/n3mapping/runtime_performance_debug_logger.h": "ed00488a89c9cb2925f48a22c623694e7b62a34c4711018b9546306133cb514d",
+          "include/n3mapping/tracking_target_cache.h": "d8d26fc2a95fa526db893421c0d0ceab63b03bb77e98526a29bab6466d5cbb2a",
+          "include/n3mapping/world_localizing.h": "3443483eff298ad044c959885cf459e914f5d0ca415c54ba2d37dae4692347a4",
+          "noetic/src/n3mapping_noetic_node.cpp": "b0d2d17d3b1a8e9dd711d8a2a299d1db13433e9418bb057f86043c28ee78234d",
+          "src/core/n3mapping_core.cpp": "15b733dc63144422d0d7262580be89ec6109ac0047ae85ff82c4b8f03af93925",
+          "src/core/n3mapping_loop_closure.cpp": "83c2d4528842145c701e3437b5626b5309981841d04dfd5ec9ae85d8f66ec636",
+          "src/loop_constraint_pipeline.cpp": "bfd019abfc9024992fdf6eab60cb1c9c2fbe092ab1affeace27c9e4e64e8c4ee",
+          "src/loop_graph_trial_diagnostics.cpp": "0ebea4e1c68ed1f5dc0f6ba5cbe4f2dc8d5c177fab2b27d7671b7588de7e7a70",
+          "src/mapping_resuming.cpp": "df723c8530e0466781606b2d9c9348593c8968e6a488ddc49a0ec32c10c44cf9",
+          "src/runtime_performance_debug_logger.cpp": "bac5530c9ba302363a09915c78ec2122afc040c900f4188ee8f7f2617f6effa3",
+          "src/tracking_target_cache.cpp": "dbc53298d9ff07b09099b25f1770f365b4ef83af87e972725f4767cfa63822a2",
+          "src/tracking_target_prefetch.cpp": null,
+          "src/world_localizing.cpp": "5f239fd0c43c521df0948988d476835f6233153f3e0e15bf2599a9cf0da7d9b8",
+          "src/world_localizing_tracking.cpp": "9b14af5f9d0208daaddfbf0258a77ec99449e926e2f789e77e6561cd0ccd798d",
+          "test/test_n3mapping_core.cpp": "7669e28b980e31ac8148726ecb639b562a78deccc4bdba10e0d51ccf3ebb9e27",
+          "test/test_n3mapping_runtime_performance_analyze.py": "f4b85a7673e221c6c185572c867d9dfe4cdc903337232dc74b7a6aedf48ad8ac",
+          "test/test_world_localizing.cpp": "900af6a5f810b0f538c2cc297aba3a91ccc949af30687a028b457596270fed1f",
+          "tools/n3mapping_runtime_performance_analyze.py": "75735801fa29b7975f26ce9d29e5f949ed4d876cf292623e84dedf395640d8e9",
+          "src/core/loop_closure_async.h": "98ecdf8be77a88a9a000f3ee4c1c0f6242b26ab3a9fa03c09546261e690d9b07",
+          "src/core/loop_closure_diagnostics.cpp": "7e7ea3b41e37b06158b7fea566bc1517f065ae09a29772bedb9ca88920037a5f",
+          "src/core/loop_closure_diagnostics.h": "ed2a404e655b4658bb898fadc4832c50feb79e603c21450b4071c13a16d1fc2d",
+          "src/core/loop_closure_processing.cpp": "f621e06e2bed43805ab8ca25bc0e99b0cc633c5a479119af4fe5c62eea8ea5ad",
+          "src/core/loop_closure_processing.h": "531f34ef974e7a519ba0774b2aa0d81be1ce80b5bb3d9f0384f8a3085cffd751",
+          "src/core/n3mapping_loop_async.cpp": "45056e5a46aa2bdb6ea3202f6a810db291f81baad92a270074981e53cb991520",
+          "src/graph_optimizer_snapshot.cpp": "d5a924977654672f60c75ed2a7ae38ee4e9721b56097b18e76ade33877b84491"
+        },
+        "core_sha256": "bdb387d8bfc190cb11f34cbbc4fced30fe4a188d879ccfec149266c7fe1a1da7"
+      },
+      "shared_supported": {
+        "base_commit": "168d241065c0181f8f4eebc8154f8e4d8e2ca883",
+        "sources": {
+          "cmake/n3mapping_core.cmake": "57b1f4882c895e61ba851c9efe4fa25cd4026ee977a19e39dda8f0aa5d4d04bc",
+          "humble/src/n3mapping_node.cpp": "4e25bc78c50148a96ef4bba4dd2ca56963c5074032bae4d2e2fff46fdd9ac539",
+          "include/n3mapping/core/n3mapping_core.h": "4897db6bf7b2cde0ba2f6fa70b1dd9cbee5512036e078030ac3fcb3dae645a2f",
+          "include/n3mapping/graph_optimizer.h": "d69a2858c17a679271769985603f4d7aa1c6126d2c615ea24898caba9b2f743d",
+          "include/n3mapping/loop_graph_trial_diagnostics.h": "f83853eaf60916fb49daad7098521b32e925107d6af5dd6ddf36ec9e74f82895",
+          "include/n3mapping/runtime_performance_debug_logger.h": "ed00488a89c9cb2925f48a22c623694e7b62a34c4711018b9546306133cb514d",
+          "include/n3mapping/tracking_target_cache.h": "920c071f3826f684eecac6978d690ce9cade32bb68caed06349b5a3a38c92106",
+          "include/n3mapping/world_localizing.h": "3443483eff298ad044c959885cf459e914f5d0ca415c54ba2d37dae4692347a4",
+          "noetic/src/n3mapping_noetic_node.cpp": "b0d2d17d3b1a8e9dd711d8a2a299d1db13433e9418bb057f86043c28ee78234d",
+          "src/core/n3mapping_core.cpp": "15b733dc63144422d0d7262580be89ec6109ac0047ae85ff82c4b8f03af93925",
+          "src/core/n3mapping_loop_closure.cpp": "83c2d4528842145c701e3437b5626b5309981841d04dfd5ec9ae85d8f66ec636",
+          "src/loop_constraint_pipeline.cpp": "bfd019abfc9024992fdf6eab60cb1c9c2fbe092ab1affeace27c9e4e64e8c4ee",
+          "src/loop_graph_trial_diagnostics.cpp": "0ebea4e1c68ed1f5dc0f6ba5cbe4f2dc8d5c177fab2b27d7671b7588de7e7a70",
+          "src/mapping_resuming.cpp": "df723c8530e0466781606b2d9c9348593c8968e6a488ddc49a0ec32c10c44cf9",
+          "src/runtime_performance_debug_logger.cpp": "bac5530c9ba302363a09915c78ec2122afc040c900f4188ee8f7f2617f6effa3",
+          "src/tracking_target_cache.cpp": "ac583837755da1a460ccd4a66ecb0a128899437e59756d63f72024b1ac41ce61",
+          "src/tracking_target_prefetch.cpp": null,
+          "src/world_localizing.cpp": "5f239fd0c43c521df0948988d476835f6233153f3e0e15bf2599a9cf0da7d9b8",
+          "src/world_localizing_tracking.cpp": "39585c58027359bb6005374c714f24e44fa0b6f5028731b012cb177111b27a6f",
+          "test/test_n3mapping_core.cpp": "7669e28b980e31ac8148726ecb639b562a78deccc4bdba10e0d51ccf3ebb9e27",
+          "test/test_n3mapping_runtime_performance_analyze.py": "f4b85a7673e221c6c185572c867d9dfe4cdc903337232dc74b7a6aedf48ad8ac",
+          "test/test_world_localizing.cpp": "900af6a5f810b0f538c2cc297aba3a91ccc949af30687a028b457596270fed1f",
+          "tools/n3mapping_runtime_performance_analyze.py": "75735801fa29b7975f26ce9d29e5f949ed4d876cf292623e84dedf395640d8e9",
+          "src/core/loop_closure_async.h": "98ecdf8be77a88a9a000f3ee4c1c0f6242b26ab3a9fa03c09546261e690d9b07",
+          "src/core/loop_closure_diagnostics.cpp": "7e7ea3b41e37b06158b7fea566bc1517f065ae09a29772bedb9ca88920037a5f",
+          "src/core/loop_closure_diagnostics.h": "ed2a404e655b4658bb898fadc4832c50feb79e603c21450b4071c13a16d1fc2d",
+          "src/core/loop_closure_processing.cpp": "f621e06e2bed43805ab8ca25bc0e99b0cc633c5a479119af4fe5c62eea8ea5ad",
+          "src/core/loop_closure_processing.h": "531f34ef974e7a519ba0774b2aa0d81be1ce80b5bb3d9f0384f8a3085cffd751",
+          "src/core/n3mapping_loop_async.cpp": "a3f2e78fecd7d03e5a1e28273cca87c06d3aaeca60ac58fcb6702faef387cae4",
+          "src/graph_optimizer_snapshot.cpp": "d5a924977654672f60c75ed2a7ae38ee4e9721b56097b18e76ade33877b84491"
+        },
+        "core_sha256": "2c6263f5c09346705d343c14248f4819fa879023e76780a4d45b3746251da9c9"
+      },
+      "shared_simple": {
+        "base_commit": "168d241065c0181f8f4eebc8154f8e4d8e2ca883",
+        "sources": {
+          "cmake/n3mapping_core.cmake": "57b1f4882c895e61ba851c9efe4fa25cd4026ee977a19e39dda8f0aa5d4d04bc",
+          "humble/src/n3mapping_node.cpp": "4e25bc78c50148a96ef4bba4dd2ca56963c5074032bae4d2e2fff46fdd9ac539",
+          "include/n3mapping/core/n3mapping_core.h": "4897db6bf7b2cde0ba2f6fa70b1dd9cbee5512036e078030ac3fcb3dae645a2f",
+          "include/n3mapping/graph_optimizer.h": "d69a2858c17a679271769985603f4d7aa1c6126d2c615ea24898caba9b2f743d",
+          "include/n3mapping/loop_graph_trial_diagnostics.h": "f83853eaf60916fb49daad7098521b32e925107d6af5dd6ddf36ec9e74f82895",
+          "include/n3mapping/runtime_performance_debug_logger.h": "ed00488a89c9cb2925f48a22c623694e7b62a34c4711018b9546306133cb514d",
+          "include/n3mapping/tracking_target_cache.h": "920c071f3826f684eecac6978d690ce9cade32bb68caed06349b5a3a38c92106",
+          "include/n3mapping/world_localizing.h": "3443483eff298ad044c959885cf459e914f5d0ca415c54ba2d37dae4692347a4",
+          "noetic/src/n3mapping_noetic_node.cpp": "b0d2d17d3b1a8e9dd711d8a2a299d1db13433e9418bb057f86043c28ee78234d",
+          "src/core/n3mapping_core.cpp": "15b733dc63144422d0d7262580be89ec6109ac0047ae85ff82c4b8f03af93925",
+          "src/core/n3mapping_loop_closure.cpp": "83c2d4528842145c701e3437b5626b5309981841d04dfd5ec9ae85d8f66ec636",
+          "src/loop_constraint_pipeline.cpp": "bfd019abfc9024992fdf6eab60cb1c9c2fbe092ab1affeace27c9e4e64e8c4ee",
+          "src/loop_graph_trial_diagnostics.cpp": "0ebea4e1c68ed1f5dc0f6ba5cbe4f2dc8d5c177fab2b27d7671b7588de7e7a70",
+          "src/mapping_resuming.cpp": "df723c8530e0466781606b2d9c9348593c8968e6a488ddc49a0ec32c10c44cf9",
+          "src/runtime_performance_debug_logger.cpp": "bac5530c9ba302363a09915c78ec2122afc040c900f4188ee8f7f2617f6effa3",
+          "src/tracking_target_cache.cpp": "ac583837755da1a460ccd4a66ecb0a128899437e59756d63f72024b1ac41ce61",
+          "src/tracking_target_prefetch.cpp": null,
+          "src/world_localizing.cpp": "5f239fd0c43c521df0948988d476835f6233153f3e0e15bf2599a9cf0da7d9b8",
+          "src/world_localizing_tracking.cpp": "9b14af5f9d0208daaddfbf0258a77ec99449e926e2f789e77e6561cd0ccd798d",
+          "test/test_n3mapping_core.cpp": "7669e28b980e31ac8148726ecb639b562a78deccc4bdba10e0d51ccf3ebb9e27",
+          "test/test_n3mapping_runtime_performance_analyze.py": "f4b85a7673e221c6c185572c867d9dfe4cdc903337232dc74b7a6aedf48ad8ac",
+          "test/test_world_localizing.cpp": "900af6a5f810b0f538c2cc297aba3a91ccc949af30687a028b457596270fed1f",
+          "tools/n3mapping_runtime_performance_analyze.py": "75735801fa29b7975f26ce9d29e5f949ed4d876cf292623e84dedf395640d8e9",
+          "src/core/loop_closure_async.h": "98ecdf8be77a88a9a000f3ee4c1c0f6242b26ab3a9fa03c09546261e690d9b07",
+          "src/core/loop_closure_diagnostics.cpp": "7e7ea3b41e37b06158b7fea566bc1517f065ae09a29772bedb9ca88920037a5f",
+          "src/core/loop_closure_diagnostics.h": "ed2a404e655b4658bb898fadc4832c50feb79e603c21450b4071c13a16d1fc2d",
+          "src/core/loop_closure_processing.cpp": "f621e06e2bed43805ab8ca25bc0e99b0cc633c5a479119af4fe5c62eea8ea5ad",
+          "src/core/loop_closure_processing.h": "531f34ef974e7a519ba0774b2aa0d81be1ce80b5bb3d9f0384f8a3085cffd751",
+          "src/core/n3mapping_loop_async.cpp": "a3f2e78fecd7d03e5a1e28273cca87c06d3aaeca60ac58fcb6702faef387cae4",
+          "src/graph_optimizer_snapshot.cpp": "d5a924977654672f60c75ed2a7ae38ee4e9721b56097b18e76ade33877b84491"
+        },
+        "core_sha256": "7933b4f7944062ed996f7ead679e859a4aa0d005dca99a1ec9468d1ea056bd50"
+      },
+      "final": {
+        "base_commit": "168d241065c0181f8f4eebc8154f8e4d8e2ca883",
+        "sources": {
+          "CHANGELOG.md": "b7b2495e5283aebb40ae695ed164676f827f72f67ca2f56e965b8d4c0e65a81c",
+          "README.md": "e4a84cdb84fb295174060f5aa0ebde75eeb438f7181d93974c27d721785c48d4",
+          "cmake/n3mapping_core.cmake": "57b1f4882c895e61ba851c9efe4fa25cd4026ee977a19e39dda8f0aa5d4d04bc",
+          "humble/src/n3mapping_node.cpp": "4e25bc78c50148a96ef4bba4dd2ca56963c5074032bae4d2e2fff46fdd9ac539",
+          "include/n3mapping/core/n3mapping_core.h": "4897db6bf7b2cde0ba2f6fa70b1dd9cbee5512036e078030ac3fcb3dae645a2f",
+          "include/n3mapping/graph_optimizer.h": "d69a2858c17a679271769985603f4d7aa1c6126d2c615ea24898caba9b2f743d",
+          "include/n3mapping/loop_graph_trial_diagnostics.h": "f83853eaf60916fb49daad7098521b32e925107d6af5dd6ddf36ec9e74f82895",
+          "include/n3mapping/runtime_performance_debug_logger.h": "ed00488a89c9cb2925f48a22c623694e7b62a34c4711018b9546306133cb514d",
+          "include/n3mapping/tracking_target_cache.h": "920c071f3826f684eecac6978d690ce9cade32bb68caed06349b5a3a38c92106",
+          "include/n3mapping/world_localizing.h": "3443483eff298ad044c959885cf459e914f5d0ca415c54ba2d37dae4692347a4",
+          "noetic/src/n3mapping_noetic_node.cpp": "b0d2d17d3b1a8e9dd711d8a2a299d1db13433e9418bb057f86043c28ee78234d",
+          "src/core/n3mapping_core.cpp": "15b733dc63144422d0d7262580be89ec6109ac0047ae85ff82c4b8f03af93925",
+          "src/core/n3mapping_loop_closure.cpp": "d8b6b74b3c3b259a1f87149f45f446cee70a5b260554779ed5e2e093952e0841",
+          "src/loop_constraint_pipeline.cpp": "bfd019abfc9024992fdf6eab60cb1c9c2fbe092ab1affeace27c9e4e64e8c4ee",
+          "src/loop_graph_trial_diagnostics.cpp": "0ebea4e1c68ed1f5dc0f6ba5cbe4f2dc8d5c177fab2b27d7671b7588de7e7a70",
+          "src/mapping_resuming.cpp": "29bd81bb1fa1745a06c86b05ee87c759985cb2fcc2ab7b012b2b00bf68d53834",
+          "src/runtime_performance_debug_logger.cpp": "bac5530c9ba302363a09915c78ec2122afc040c900f4188ee8f7f2617f6effa3",
+          "src/tracking_target_cache.cpp": "96c86a3553c8f0b91c6ee6bdc609495a838f0c6f93b0ef292522ef5bd5f15b6b",
+          "src/tracking_target_prefetch.cpp": null,
+          "src/world_localizing.cpp": "5f239fd0c43c521df0948988d476835f6233153f3e0e15bf2599a9cf0da7d9b8",
+          "src/world_localizing_tracking.cpp": "a717b3e4530524a3ef47e21ea66a6d22f00ae312f2c6c53829f529ea49b25103",
+          "test/test_n3mapping_core.cpp": "44bea1e7539cdd5a26bf173fc0276ef79ff0ac0a7976b7f8ae4325d9bf1829a9",
+          "test/test_n3mapping_runtime_performance_analyze.py": "f4b85a7673e221c6c185572c867d9dfe4cdc903337232dc74b7a6aedf48ad8ac",
+          "test/test_world_localizing.cpp": "900af6a5f810b0f538c2cc297aba3a91ccc949af30687a028b457596270fed1f",
+          "tools/n3mapping_runtime_performance_analyze.py": "75735801fa29b7975f26ce9d29e5f949ed4d876cf292623e84dedf395640d8e9",
+          "src/core/loop_closure_async.h": "98ecdf8be77a88a9a000f3ee4c1c0f6242b26ab3a9fa03c09546261e690d9b07",
+          "src/core/loop_closure_diagnostics.cpp": "7e7ea3b41e37b06158b7fea566bc1517f065ae09a29772bedb9ca88920037a5f",
+          "src/core/loop_closure_diagnostics.h": "ed2a404e655b4658bb898fadc4832c50feb79e603c21450b4071c13a16d1fc2d",
+          "src/core/loop_closure_processing.cpp": "f621e06e2bed43805ab8ca25bc0e99b0cc633c5a479119af4fe5c62eea8ea5ad",
+          "src/core/loop_closure_processing.h": "531f34ef974e7a519ba0774b2aa0d81be1ce80b5bb3d9f0384f8a3085cffd751",
+          "src/core/n3mapping_loop_async.cpp": "25e1eed463d35e51a6d41120e0306cff87a0d7529c6fcce9ad3cc971c0f73d30",
+          "src/graph_optimizer_snapshot.cpp": "d5a924977654672f60c75ed2a7ae38ee4e9721b56097b18e76ade33877b84491"
+        },
+        "core_sha256": "c7230465ca44f9e368d682abaaa3f0db8d03e291520a74b042fa4a72dfa00896"
+      }
+    },
+    "mapping": {
+      "mapping_sync": {
+        "summary": {
+          "frames": 13791,
+          "keyframes": 1271,
+          "successful_frames": 13723,
+          "accepted_loops": 195,
+          "mapping_cpu_s": 12.32719590499966,
+          "loop_cpu_s": 141.2267116720009,
+          "runtime_cpu_s": 155.068174204,
+          "runtime_wall_s": 58.252183927,
+          "source_duration_s": 1379,
+          "max_pacing_lag_s": 0,
+          "peak_rss_kib": 578148,
+          "paced": false
+        },
+        "latency": {
+          "owner_ms_p99": 93.90720660000032,
+          "owner_ms_max": 2493.7357199999997,
+          "owner_over_100ms": 136,
+          "loop_callback_ms_max": 2483.1846729999997,
+          "queue_max": 0,
+          "queue_age_ms_max": 0.0,
+          "snapshot_ms_max": 0.0,
+          "commit_ms_max": 0.0,
+          "graph_rebases": 0,
+          "stale_jobs": 0,
+          "worker_ms_max": 0.0
+        },
+        "graph": {
+          "keyframes": 1271,
+          "edges_by_type": {
+            "0": 1270,
+            "1": 195
+          },
+          "connected_components": 1
+        },
+        "variant": "qualified"
+      },
+      "mapping_sync_paced": {
+        "summary": {
+          "frames": 13791,
+          "keyframes": 1271,
+          "successful_frames": 13723,
+          "accepted_loops": 195,
+          "mapping_cpu_s": 14.542938051000403,
+          "loop_cpu_s": 141.82840189800052,
+          "runtime_cpu_s": 158.865517362,
+          "runtime_wall_s": 1379.00010729,
+          "source_duration_s": 1379,
+          "max_pacing_lag_s": 2.414242519999789,
+          "peak_rss_kib": 577844,
+          "paced": true
+        },
+        "latency": {
+          "owner_ms_p99": 105.82131830000084,
+          "owner_ms_max": 2513.9470829999996,
+          "owner_over_100ms": 140,
+          "loop_callback_ms_max": 2502.038446,
+          "queue_max": 0,
+          "queue_age_ms_max": 0.0,
+          "snapshot_ms_max": 0.0,
+          "commit_ms_max": 0.0,
+          "graph_rebases": 0,
+          "stale_jobs": 0,
+          "worker_ms_max": 0.0
+        },
+        "graph": {
+          "keyframes": 1271,
+          "edges_by_type": {
+            "0": 1270,
+            "1": 195
+          },
+          "connected_components": 1
+        },
+        "variant": "qualified"
+      },
+      "mapping_async_paced": {
+        "summary": {
+          "frames": 13791,
+          "keyframes": 1271,
+          "successful_frames": 13723,
+          "accepted_loops": 195,
+          "mapping_cpu_s": 14.995890908000183,
+          "loop_cpu_s": 0.9710075210000759,
+          "runtime_cpu_s": 160.524769757,
+          "runtime_wall_s": 1379.000150585,
+          "source_duration_s": 1379,
+          "max_pacing_lag_s": 0.005327974000010727,
+          "peak_rss_kib": 714836,
+          "paced": true
+        },
+        "latency": {
+          "owner_ms_p99": 12.642616900000004,
+          "owner_ms_max": 31.214249,
+          "owner_over_100ms": 0,
+          "loop_callback_ms_max": 8.040164,
+          "queue_max": 1,
+          "queue_age_ms_max": 2986.396597,
+          "snapshot_ms_max": 3.55843,
+          "commit_ms_max": 3.589472,
+          "graph_rebases": 13,
+          "stale_jobs": 0,
+          "worker_ms_max": 2940.564548
+        },
+        "graph": {
+          "keyframes": 1271,
+          "edges_by_type": {
+            "0": 1270,
+            "1": 195
+          },
+          "connected_components": 1
+        },
+        "variant": "qualified"
+      }
+    },
+    "mapping_comparisons": {
+      "sync_vs_previous": {
+        "frames.csv": {
+          "rows": 13791,
+          "decision_differences": [],
+          "max_translation_m": 7.064590648379558e-11,
+          "max_rotation_deg": 1.1109887113612622e-10,
+          "max_matrix_component": 7.063612195157276e-11
+        },
+        "keyframes.csv": {
+          "rows": 1271,
+          "decision_differences": [],
+          "max_translation_m": 8.163049480021564e-11,
+          "max_rotation_deg": 1.2825894306647047e-10,
+          "max_matrix_component": 6.931977908353204e-11
+        },
+        "dense.csv": {
+          "rows": 13723,
+          "decision_differences": [],
+          "max_translation_m": 8.177909648932024e-11,
+          "max_rotation_deg": 1.282360166644308e-10,
+          "max_matrix_component": 7.063551132890922e-11
+        },
+        "accepted_loops.csv": {
+          "rows": 195,
+          "decision_differences": [],
+          "max_translation_m": 6.430106255946065e-11,
+          "max_rotation_deg": 9.009813463563088e-11,
+          "max_matrix_component": 6.42942366013699e-11
+        }
+      },
+      "sync_paced_vs_unpaced": {
+        "frames.csv": {
+          "rows": 13791,
+          "decision_differences": [],
+          "max_translation_m": 1.171180828948412e-10,
+          "max_rotation_deg": 1.6231629855929658e-10,
+          "max_matrix_component": 1.171166080782271e-10
+        },
+        "keyframes.csv": {
+          "rows": 1271,
+          "decision_differences": [],
+          "max_translation_m": 1.3079999182519332e-10,
+          "max_rotation_deg": 1.3914748258444114e-10,
+          "max_matrix_component": 1.1504028979425485e-10
+        },
+        "dense.csv": {
+          "rows": 13723,
+          "decision_differences": [],
+          "max_translation_m": 1.308985745471564e-10,
+          "max_rotation_deg": 1.3914760700356525e-10,
+          "max_matrix_component": 1.1711630276689533e-10
+        },
+        "accepted_loops.csv": {
+          "rows": 195,
+          "decision_differences": [],
+          "max_translation_m": 1.0934378132212418e-10,
+          "max_rotation_deg": 1.441426689463098e-10,
+          "max_matrix_component": 1.0933254301903617e-10
+        }
+      },
+      "async_vs_sync_paced": {
+        "frames.csv": {
+          "rows": 13791,
+          "decision_differences": [],
+          "max_translation_m": 0.17188990034447824,
+          "max_rotation_deg": 0.31035721723348425,
+          "max_matrix_component": 0.1581120762219328
+        },
+        "keyframes.csv": {
+          "rows": 1271,
+          "decision_differences": [],
+          "max_translation_m": 0.0032505670227893904,
+          "max_rotation_deg": 0.002477284583846444,
+          "max_matrix_component": 0.0028108597301333676
+        },
+        "dense.csv": {
+          "rows": 13723,
+          "decision_differences": [],
+          "max_translation_m": 0.0032505751012361214,
+          "max_rotation_deg": 0.0024772845838464228,
+          "max_matrix_component": 0.0028109730218948414
+        },
+        "accepted_loops.csv": {
+          "rows": 195,
+          "decision_differences": [],
+          "max_translation_m": 6.856884093917942e-07,
+          "max_rotation_deg": 3.6000634617576896e-06,
+          "max_matrix_component": 6.849367865102707e-07
+        }
+      }
+    },
+    "extension": {
+      "motion_recovery": {
+        "variant": "recovery_candidate",
+        "summary": {
+          "frames": 2236,
+          "keyframes": 231,
+          "successful_frames": 2232,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 896.2632355019989,
+          "loop_cpu_s": 0.0004980330000137201,
+          "runtime_cpu_s": 896.7331892130001,
+          "runtime_wall_s": 300.194991112,
+          "source_duration_s": 223.5,
+          "max_pacing_lag_s": 0,
+          "peak_rss_kib": 3136936,
+          "paced": false
+        },
+        "graph": {
+          "keyframes": 1502,
+          "edges_by_type": {
+            "0": 1500,
+            "1": 425,
+            "2": 1
+          },
+          "connected_components": 1
+        },
+        "first_five_cpu_s": 48.466008987,
+        "average_cores_including_startup": 4.012229034510067,
+        "remaining_cpu_per_input_second": 3.8038887005650226,
+        "missing_old_successes": []
+      },
+      "motion_shared_supported": {
+        "variant": "shared_supported",
+        "summary": {
+          "frames": 2236,
+          "keyframes": 231,
+          "successful_frames": 2232,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 202.20482635899978,
+          "loop_cpu_s": 0.0007810660005027614,
+          "runtime_cpu_s": 202.667313615,
+          "runtime_wall_s": 93.129292259,
+          "source_duration_s": 223.5,
+          "max_pacing_lag_s": 0,
+          "peak_rss_kib": 1920332,
+          "paced": false
+        },
+        "graph": {
+          "keyframes": 1502,
+          "edges_by_type": {
+            "0": 1500,
+            "1": 425,
+            "2": 1
+          },
+          "connected_components": 1
+        },
+        "first_five_cpu_s": 55.17204995299999,
+        "average_cores_including_startup": 0.9067888752348994,
+        "remaining_cpu_per_input_second": 0.6614137383946189,
+        "missing_old_successes": []
+      },
+      "motion_shared_simple": {
+        "variant": "shared_simple",
+        "summary": {
+          "frames": 2236,
+          "keyframes": 231,
+          "successful_frames": 2232,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 186.0385274839999,
+          "loop_cpu_s": 0.0006523619996912089,
+          "runtime_cpu_s": 186.49266554300002,
+          "runtime_wall_s": 85.102253904,
+          "source_duration_s": 223.5,
+          "max_pacing_lag_s": 0,
+          "peak_rss_kib": 1953980,
+          "paced": false
+        },
+        "graph": {
+          "keyframes": 1502,
+          "edges_by_type": {
+            "0": 1500,
+            "1": 425,
+            "2": 1
+          },
+          "connected_components": 1
+        },
+        "first_five_cpu_s": 55.33438974900002,
+        "average_cores_including_startup": 0.8344190852035794,
+        "remaining_cpu_per_input_second": 0.5881537031121076,
+        "missing_old_successes": []
+      },
+      "motion_final_paced": {
+        "variant": "final",
+        "summary": {
+          "frames": 2236,
+          "keyframes": 231,
+          "successful_frames": 2232,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 188.46092906900006,
+          "loop_cpu_s": 0.0004995630003072904,
+          "runtime_cpu_s": 188.981879039,
+          "runtime_wall_s": 223.522266492,
+          "source_duration_s": 223.5,
+          "max_pacing_lag_s": 18.532211156,
+          "peak_rss_kib": 1959072,
+          "paced": true
+        },
+        "graph": {
+          "keyframes": 1502,
+          "edges_by_type": {
+            "0": 1500,
+            "1": 425,
+            "2": 1
+          },
+          "connected_components": 1
+        },
+        "first_five_cpu_s": 55.148188174000005,
+        "average_cores_including_startup": 0.8455565057673379,
+        "remaining_cpu_per_input_second": 0.6001510801121076,
+        "missing_old_successes": []
+      }
+    },
+    "extension_final_vs_shared_simple": {
+      "frames.csv": {
+        "rows": 2236,
+        "decision_differences": [],
+        "max_translation_m": 7.967136660609671e-13,
+        "max_rotation_deg": 3.2895513656276578e-12,
+        "max_matrix_component": 7.389644451905042e-13
+      },
+      "keyframes.csv": {
+        "rows": 1502,
+        "decision_differences": [],
+        "max_translation_m": 3.278859060373085e-12,
+        "max_rotation_deg": 2.912051673807866e-12,
+        "max_matrix_component": 3.0795366257052592e-12
+      },
+      "dense.csv": {
+        "rows": 16023,
+        "decision_differences": [],
+        "max_translation_m": 3.5509321169190623e-12,
+        "max_rotation_deg": 3.025627599887981e-12,
+        "max_matrix_component": 3.2081004519568523e-12
+      },
+      "accepted_loops.csv": {
+        "rows": 0,
+        "decision_differences": [],
+        "max_translation_m": 0.0,
+        "max_rotation_deg": 0.0,
+        "max_matrix_component": 0.0
+      }
+    },
+    "mapping_consistency": {
+      "alignment": {
+        "stamp_ns": 7299995002,
+        "translation": [
+          -43.981804569062675,
+          0.013493989897703453,
+          0.6566722602620779
+        ],
+        "quaternion_xyzw": [
+          1.2163132549912854e-05,
+          -0.00045452323389096505,
+          0.00015331460290557127,
+          -0.9999998848776538
+        ]
+      },
+      "scope": "Same complete input and qualified candidate binary. Synchronous and asynchronous 10 Hz runs, plus synchronous unpaced numerical control. Fixed original alignment; truth only in scoring. Compare the paced pair for latency and CPU. Final optimized keyframes assess saved-map poses; online outputs assess causal pose delivery.",
+      "mapping_sync": {
+        "summary": {
+          "frames": 13791,
+          "keyframes": 1271,
+          "successful_frames": 13723,
+          "accepted_loops": 195,
+          "mapping_cpu_s": 12.32719590499966,
+          "loop_cpu_s": 141.2267116720009,
+          "runtime_cpu_s": 155.068174204,
+          "runtime_wall_s": 58.252183927,
+          "source_duration_s": 1379,
+          "max_pacing_lag_s": 0,
+          "peak_rss_kib": 578148,
+          "paced": false
+        },
+        "online": {
+          "position_m": {
+            "rmse": 0.24585254688052458,
+            "median": 0.20062248869675747,
+            "p95": 0.4381435565223404,
+            "maximum": 0.697021636804257
+          },
+          "rotation_deg": {
+            "rmse": 0.3276578265737511,
+            "median": 0.31607197315980484,
+            "p95": 0.4993402840736518,
+            "maximum": 1.1023060438737853
+          }
+        },
+        "saved_keyframes": {
+          "position_m": {
+            "rmse": 0.2866258078015324,
+            "median": 0.2184727217623955,
+            "p95": 0.5395832106237919,
+            "maximum": 0.7205224304847963
+          },
+          "rotation_deg": {
+            "rmse": 0.32388932899775447,
+            "median": 0.29735202527360755,
+            "p95": 0.503745145486482,
+            "maximum": 1.0793869075375642
+          }
+        },
+        "saved_dense": {
+          "position_m": {
+            "rmse": 0.28483042104677814,
+            "median": 0.2192905950970359,
+            "p95": 0.5388546022783688,
+            "maximum": 0.7252035543215487
+          },
+          "rotation_deg": {
+            "rmse": 0.3231362395730379,
+            "median": 0.2972625683302902,
+            "p95": 0.49843062564061663,
+            "maximum": 1.0793869075366964
+          }
+        },
+        "independent_revisits": {
+          "pair_count": 1811,
+          "definition": "Ground-truth positions within 3m and time separation >=30s; same keyframe IDs for both runs, independent of detected loop list",
+          "relative_translation_m": {
+            "rmse": 0.03447313226718819,
+            "median": 0.023932625766008662,
+            "p95": 0.06392281614916473,
+            "maximum": 0.14745650878737915
+          },
+          "relative_rotation_deg": {
+            "rmse": 0.17436725921874102,
+            "median": 0.126610790637148,
+            "p95": 0.31408411980669926,
+            "maximum": 0.5071176646758289
+          }
+        }
+      },
+      "mapping_sync_paced": {
+        "summary": {
+          "frames": 13791,
+          "keyframes": 1271,
+          "successful_frames": 13723,
+          "accepted_loops": 195,
+          "mapping_cpu_s": 14.542938051000403,
+          "loop_cpu_s": 141.82840189800052,
+          "runtime_cpu_s": 158.865517362,
+          "runtime_wall_s": 1379.00010729,
+          "source_duration_s": 1379,
+          "max_pacing_lag_s": 2.414242519999789,
+          "peak_rss_kib": 577844,
+          "paced": true
+        },
+        "online": {
+          "position_m": {
+            "rmse": 0.24585254688133984,
+            "median": 0.20062248869674998,
+            "p95": 0.43814355652373427,
+            "maximum": 0.6970216368056816
+          },
+          "rotation_deg": {
+            "rmse": 0.32765782657388104,
+            "median": 0.3160719731593076,
+            "p95": 0.4993402840760677,
+            "maximum": 1.1023060438738874
+          }
+        },
+        "saved_keyframes": {
+          "position_m": {
+            "rmse": 0.2866258078084442,
+            "median": 0.2184727217252862,
+            "p95": 0.5395832106427993,
+            "maximum": 0.7205224305124383
+          },
+          "rotation_deg": {
+            "rmse": 0.3238893290139426,
+            "median": 0.2973520253393332,
+            "p95": 0.5037451455773931,
+            "maximum": 1.0793869075495157
+          }
+        },
+        "saved_dense": {
+          "position_m": {
+            "rmse": 0.2848304210541533,
+            "median": 0.21929059506038712,
+            "p95": 0.5388546022948463,
+            "maximum": 0.7252035543480918
+          },
+          "rotation_deg": {
+            "rmse": 0.32313623958958454,
+            "median": 0.29726256833090126,
+            "p95": 0.4984306255786286,
+            "maximum": 1.0793869075486506
+          }
+        },
+        "independent_revisits": {
+          "pair_count": 1811,
+          "definition": "Ground-truth positions within 3m and time separation >=30s; same keyframe IDs for both runs, independent of detected loop list",
+          "relative_translation_m": {
+            "rmse": 0.03447313226526892,
+            "median": 0.023932625819212402,
+            "p95": 0.06392281614725934,
+            "maximum": 0.14745650878556646
+          },
+          "relative_rotation_deg": {
+            "rmse": 0.1743672592298979,
+            "median": 0.12661079063863254,
+            "p95": 0.3140841198736445,
+            "maximum": 0.5071176648071233
+          }
+        }
+      },
+      "mapping_async_paced": {
+        "summary": {
+          "frames": 13791,
+          "keyframes": 1271,
+          "successful_frames": 13723,
+          "accepted_loops": 195,
+          "mapping_cpu_s": 14.995890908000183,
+          "loop_cpu_s": 0.9710075210000759,
+          "runtime_cpu_s": 160.524769757,
+          "runtime_wall_s": 1379.000150585,
+          "source_duration_s": 1379,
+          "max_pacing_lag_s": 0.005327974000010727,
+          "peak_rss_kib": 714836,
+          "paced": true
+        },
+        "online": {
+          "position_m": {
+            "rmse": 0.2460576336908173,
+            "median": 0.20062248869675797,
+            "p95": 0.43814355652092646,
+            "maximum": 0.69702163680419
+          },
+          "rotation_deg": {
+            "rmse": 0.327959589516256,
+            "median": 0.31612843028238474,
+            "p95": 0.4984528561596002,
+            "maximum": 1.1023060438742935
+          }
+        },
+        "saved_keyframes": {
+          "position_m": {
+            "rmse": 0.28585456758609706,
+            "median": 0.21826060001006117,
+            "p95": 0.5382756590819471,
+            "maximum": 0.7189034005519845
+          },
+          "rotation_deg": {
+            "rmse": 0.3233949434379082,
+            "median": 0.2969107892320306,
+            "p95": 0.5029279589515041,
+            "maximum": 1.0787695034564895
+          }
+        },
+        "saved_dense": {
+          "position_m": {
+            "rmse": 0.28404978410215015,
+            "median": 0.21901588615185535,
+            "p95": 0.5375675874718593,
+            "maximum": 0.7236120562604589
+          },
+          "rotation_deg": {
+            "rmse": 0.3226265540952421,
+            "median": 0.29648617923476456,
+            "p95": 0.49816311063372926,
+            "maximum": 1.0787695034556457
+          }
+        },
+        "independent_revisits": {
+          "pair_count": 1811,
+          "definition": "Ground-truth positions within 3m and time separation >=30s; same keyframe IDs for both runs, independent of detected loop list",
+          "relative_translation_m": {
+            "rmse": 0.034486954949743,
+            "median": 0.023955742027472002,
+            "p95": 0.0639559731383534,
+            "maximum": 0.14745627452509136
+          },
+          "relative_rotation_deg": {
+            "rmse": 0.17419271679750012,
+            "median": 0.1266155534290555,
+            "p95": 0.3139959984130272,
+            "maximum": 0.5050044104521046
+          }
+        }
+      }
+    },
+    "extension_accuracy": {
+      "fixed_alignment": {
+        "stamp_ns": 7299995002,
+        "translation": [
+          -43.981804569062675,
+          0.013493989897703453,
+          0.6566722602620779
+        ],
+        "quaternion_xyzw": [
+          1.2163132549912854e-05,
+          -0.00045452323389096505,
+          0.00015331460290557127,
+          -0.9999998848776538
+        ]
+      },
+      "new": {
+        "position_m": {
+          "count": 2232,
+          "rmse": 0.2992080845374185,
+          "p95": 0.5065343588891398,
+          "maximum": 0.5469756902436812
+        },
+        "rotation_deg": {
+          "count": 2232,
+          "rmse": 0.34883271513282554,
+          "p95": 0.5105437392014891,
+          "maximum": 0.6770469340256756
+        }
+      },
+      "previous_on_its_500_accepted_frames": {
+        "position_m": {
+          "count": 500,
+          "rmse": 0.116523957448791,
+          "p95": 0.24574263404752805,
+          "maximum": 0.2688803621991349
+        },
+        "rotation_deg": {
+          "count": 500,
+          "rmse": 0.1327522849850376,
+          "p95": 0.18291491137900842,
+          "maximum": 0.3094408681710715
+        }
+      },
+      "new_on_the_same_500_frames": {
+        "position_m": {
+          "count": 500,
+          "rmse": 0.11393822236271421,
+          "p95": 0.24124348570195944,
+          "maximum": 0.2643470032832735
+        },
+        "rotation_deg": {
+          "count": 500,
+          "rmse": 0.13808130693616977,
+          "p95": 0.18853607920908672,
+          "maximum": 0.3210953613063715
+        }
+      },
+      "missing_previous_outputs": [],
+      "rejected_frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "nearby_map_error_observer": {
+        "scope": "Diagnostic correlation only. Compare query error with the spatially nearest loaded keyframe error in truth coordinates, within 2m. Not an independent algorithm-accuracy qualification and never input to estimation.",
+        "count": 2066,
+        "loaded_map_absolute_position_m": {
+          "count": 1271,
+          "rmse": 0.2866258078024055,
+          "p95": 0.5395832106242507,
+          "maximum": 0.7205224304851606
+        },
+        "query_position_m": {
+          "count": 2066,
+          "rmse": 0.3091932584663964,
+          "p95": 0.5096717976317431,
+          "maximum": 0.5469756902436812
+        },
+        "query_minus_nearby_map_error_m": {
+          "count": 2066,
+          "rmse": 0.05617733761598885,
+          "p95": 0.10715329342515044,
+          "maximum": 0.18056984171006063
+        },
+        "error_vector_cosine": 0.9833597056161173
+      }
+    },
+    "map_gauge_diagnostic": {
+      "scope": "Diagnostic only: one rigid fit uses the loaded-map keyframe positions and truth, never query poses. Existing fixed-first-frame qualification remains unchanged. This separates a possible gauge/alignment offset from non-rigid map distortion, and is not a delivered calibration.",
+      "fit_translation": [
+        -43.88627855822212,
+        0.11184762375225042,
+        0.7375639795527479
+      ],
+      "fit_quaternion_xyzw": [
+        0.001298906730549798,
+        0.0019030589352996364,
+        0.0002956196370902509,
+        0.9999973019048722
+      ],
+      "map_position_m": {
+        "rmse": 0.19381064020795194,
+        "p95": 0.3552233565641384,
+        "max": 0.5242555479196962
+      },
+      "map_rotation_deg": {
+        "rmse": 0.27275374603042124,
+        "p95": 0.43397070173944047,
+        "max": 0.8552259457240706
+      },
+      "rotation_change_from_original_alignment_deg": 0.2297184899882828,
+      "independent_query_with_map_only_fit_position_m": {
+        "rmse": 0.18526347140737995,
+        "p95": 0.32808349351822136,
+        "max": 0.367914508090764
+      }
+    },
+    "ablation": {
+      "rejected": "Prediction-to-ICP pose interpolation",
+      "reason": "Same first 500 outputs, but full-route CPU 186.493\u2192202.667 s and position RMSE 0.299208\u21920.312180 m. Removed implementation.",
+      "accuracy": {
+        "fixed_alignment": {
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "new": {
+          "position_m": {
+            "count": 2232,
+            "rmse": 0.31217976264522174,
+            "p95": 0.5301647779644295,
+            "maximum": 0.5700087627125084
+          },
+          "rotation_deg": {
+            "count": 2232,
+            "rmse": 0.35541734987348494,
+            "p95": 0.5531514460542402,
+            "maximum": 0.6713671696002375
+          }
+        },
+        "previous_on_its_500_accepted_frames": {
+          "position_m": {
+            "count": 500,
+            "rmse": 0.116523957448791,
+            "p95": 0.24574263404752805,
+            "maximum": 0.2688803621991349
+          },
+          "rotation_deg": {
+            "count": 500,
+            "rmse": 0.1327522849850376,
+            "p95": 0.18291491137900842,
+            "maximum": 0.3094408681710715
+          }
+        },
+        "new_on_the_same_500_frames": {
+          "position_m": {
+            "count": 500,
+            "rmse": 0.11393822236267909,
+            "p95": 0.24124348570185217,
+            "maximum": 0.26434700328318717
+          },
+          "rotation_deg": {
+            "count": 500,
+            "rmse": 0.13808130693609907,
+            "p95": 0.18853607920888027,
+            "maximum": 0.3210953613063787
+          }
+        },
+        "missing_previous_outputs": [],
+        "rejected_frames": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "nearby_map_error_observer": {
+          "scope": "Diagnostic correlation only. Compare query error with the spatially nearest loaded keyframe error in truth coordinates, within 2m. Not an independent algorithm-accuracy qualification and never input to estimation.",
+          "count": 2066,
+          "loaded_map_absolute_position_m": {
+            "count": 1271,
+            "rmse": 0.2866258078024055,
+            "p95": 0.5395832106242507,
+            "maximum": 0.7205224304851606
+          },
+          "query_position_m": {
+            "count": 2066,
+            "rmse": 0.32221088455481245,
+            "p95": 0.5323963901196282,
+            "maximum": 0.5700087627125084
+          },
+          "query_minus_nearby_map_error_m": {
+            "count": 2066,
+            "rmse": 0.06856051353982925,
+            "p95": 0.11275624448614394,
+            "maximum": 0.18131019172898397
+          },
+          "error_vector_cosine": 0.977601910845582
+        }
+      }
+    },
+    "provenance_notes": [
+      "The three complete mapping controls use frozen qualified/libn3mapping_core.so. After that freeze, final changes restore original loaded-map flags in snapshots, complete drain/stale-job statistics, and change extension targets/recovery diagnostics. Loaded-map flags are only read by cross-session gates, not this mapping verification path.",
+      "The full extension target ablation uses the frozen libraries named per run. The final 10 Hz extension replay uses final/libn3mapping_core.so and the current source.",
+      "The final CTest suite covers the final runtime source. A subsequent change strengthens the existing dense-trajectory test to verify pending async loops are saved; its three focused save/rebase/stale-map checks pass. The initial failed extra assertion assumed a consistent synthetic loop must visibly move a pose; it was replaced by checking the persisted LOOP edge and corrected trajectory."
+    ],
+    "limits": [
+      "10 cm absolute accuracy is not qualified. Shared-500 position metrics improve but rotation RMSE rises from 0.132752 to 0.138081 degrees; no all-metric accuracy claim.",
+      "Extension including cold startup still exceeds half core. Static search performance research remains paused, and no new static14 timing claim is made.",
+      "Asynchrony is deployed for mapping-loop work in the ROS adapters. Strict extension registration and its tracking constraint remain inline; duplicate global retrieval is not added.",
+      "Map replacement, new graph tail and save/drain have behavioral coverage. Full ROS-node publication/DDS timing, independent Noetic build, physical MID360 and RK3588 remain unqualified.",
+      "Shared target memory scales with loaded-map size. This is the recorded approximately 100x100m map, not a general map-size memory bound."
+    ],
+    "validation": {
+      "ctest": "61/61",
+      "additional_save_and_async_tests": "3/3",
+      "humble_release_build": "passed",
+      "independent_noetic_build": "not run"
+    },
+    "final_extension_latency": {
+      "post_first_five_callback_ms_p99": 64.74058759999981,
+      "max": 92.466031,
+      "over_100ms": 0,
+      "first_five_wall_sum_s": 19.030897488
+    },
+    "runtime_changes_retained": true,
+    "evidence_tools_sha256": {
+      "qualify.py": "983dfebf3256048da3ea7baa70579ba749182ff17f27c8fd35629b026e146c79",
+      "score_mapping.py": "a24a6fc5a27b44ca61370f473af03c005eda66fa38b5d062c0d06d523103c0ce",
+      "score_variant.py": "bf86ba911d17426be5dba7709030c0b6ca03ee9bb1adf03a989a3b5df7143369",
+      "online_replay.cpp": "02f26c31ac4c6edd6993ffb005f5b6fd745e23118095e9946d23d456e4b0406e",
+      "extension_replay_final.cpp": "d5fc65d09a1232b30d0a835110e747cbd4d1e362b9fee2a6163c6050cd5cd1bf",
+      "mapping_config.inc": "8e45cbdacfd9fde30339e3a1d673891d1873dc20a963db8c16d81150e05f5d92"
+    }
   }
 }

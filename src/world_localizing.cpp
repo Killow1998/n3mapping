@@ -120,11 +120,6 @@ WorldLocalizing::cacheDiagnostics() const {
   d.loaded_map_target_cache_hits = tracking.loaded_hits;
   d.loaded_map_target_cache_misses = tracking.loaded_misses;
   d.loaded_map_target_cache_entries = tracking.loaded_entries;
-  d.loaded_map_target_prefetch_requests = tracking.prefetch_requests;
-  d.loaded_map_target_prefetch_pending = tracking.prefetch_pending;
-  d.loaded_map_target_prefetch_queue_entries = tracking.prefetch_queued;
-  d.loaded_map_target_prefetch_workers = tracking.prefetch_workers;
-  d.loaded_map_target_prefetch_threads_per_worker = tracking.prefetch_threads_per_worker;
   return d;
 }
 
@@ -178,14 +173,10 @@ bool WorldLocalizing::localizationAtlasLoaded() const {
   return localization_atlas_ && localization_atlas_->loaded();
 }
 
-void WorldLocalizing::warmLoadedMapTrackingTargets(
-    int64_t anchor_id, const Eigen::Vector3d &query_position,
-    bool wait_for_prefetch) {
-  if (anchor_id < 0 || !query_position.allFinite()) {
-    return;
-  }
+void WorldLocalizing::warmLoadedMapTrackingTarget(int64_t anchor_id) {
+  if (anchor_id < 0) return;
   std::lock_guard<std::mutex> lock(mutex_);
-  tracking_targets_->warmLoaded(anchor_id, query_position, wait_for_prefetch);
+  tracking_targets_->acquireLoaded(anchor_id);
 }
 
 VisibilityConsistencyResult WorldLocalizing::evaluateLoadedMapPoseVisibility(

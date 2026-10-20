@@ -214,6 +214,14 @@ bool RuntimePerformanceDebugLogger::append(
              event.accepted_loop_count);
   appendSize(record, &first, "edge_count", event.edge_count);
   appendBool(record, &first, "optimized", event.optimized);
+  appendBool(record, &first, "async_pending", event.async_pending);
+  appendSize(record, &first, "pending_query_count", event.pending_query_count);
+  appendSize(record, &first, "graph_rebase_count", event.graph_rebase_count);
+  appendSize(record, &first, "stale_job_count", event.stale_job_count);
+  appendNumber(record, &first, "worker_wall_ms", event.worker_wall_ms);
+  appendNumber(record, &first, "oldest_pending_age_ms", event.oldest_pending_age_ms);
+  appendNumber(record, &first, "snapshot_ms", event.snapshot_ms);
+  appendNumber(record, &first, "commit_ms", event.commit_ms);
   appendNumber(record, &first, "lock_wait_ms", event.lock_wait_ms);
   appendNumber(record, &first, "core_ms", event.core_ms);
   appendNumber(record, &first, "publish_ms", event.publish_ms);

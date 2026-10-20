@@ -19,6 +19,10 @@
 
 namespace n3mapping {
 
+struct DetectedLoopQuery;
+struct LoopClosureOutcome;
+struct AsyncLoopState;
+
 struct CoreLoopClosureResult {
     bool optimized = false;
     std::size_t queued_keyframe_count = 0;
@@ -36,6 +40,14 @@ struct CoreLoopClosureResult {
     double mean_pose_update_rotation = 0.0;
     double max_pose_update_rotation = 0.0;
     std::vector<VerifiedLoop> accepted_loops;
+    bool async_pending = false;
+    std::size_t pending_query_count = 0;
+    std::size_t graph_rebase_count = 0;
+    std::size_t stale_job_count = 0;
+    double worker_wall_ms = 0.0;
+    double oldest_pending_age_ms = 0.0;
+    double snapshot_ms = 0.0;
+    double commit_ms = 0.0;
 };
 
 class N3MappingCore {
@@ -53,6 +65,9 @@ class N3MappingCore {
     core::BackendOutput processMapExtensionFrame(const core::LioFrame& frame);
     core::BackendOutput processFrame(CoreRunMode mode, const core::LioFrame& frame);
     CoreLoopClosureResult processPendingLoopClosures();
+    // Owner-thread polling: retrieval stays prompt; an isolated worker performs
+    // geometry and graph solves. No worker mutates the live session.
+    CoreLoopClosureResult processPendingLoopClosuresAsync();
 
     bool loadMap(const std::string& map_path);
     bool saveMap(const std::string& map_path);
@@ -82,6 +97,9 @@ class N3MappingCore {
 
   private:
     using PointCloud = core::LioFrame::PointCloud;
+    std::vector<DetectedLoopQuery> detectPendingLoopCandidates(CoreLoopClosureResult& result);
+    void publishLoopOutcome(const LoopClosureOutcome& outcome);
+    CoreLoopClosureResult advanceAsyncLoopClosures(bool wait);
 
     core::BackendOutput makeOutput(bool success,
                                    const Eigen::Isometry3d& pose,
@@ -109,6 +127,7 @@ class N3MappingCore {
     Config config_;
     const WorldCloudOutput world_cloud_output_;
     std::unique_ptr<core::N3MappingSession> session_;
+    std::unique_ptr<AsyncLoopState> async_loops_;
     mutable std::mutex loop_queue_mutex_;
     mutable std::mutex loop_debug_mutex_;
     std::vector<int64_t> loop_detection_queue_;
