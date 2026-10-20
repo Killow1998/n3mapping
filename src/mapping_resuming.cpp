@@ -566,9 +566,9 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     // correspondence. Gate every bounded candidate with independent neighbor
     // evidence first; otherwise one attractive alias can be selected, fail
     // consensus, and suppress a valid candidate from the same query.
-    for (const auto& loop : valid_loops) {
-        auto constraint = verification_pipeline.evaluateConstraint(
-            loop, LoopEdgeDirection::MatchToQuery, constraint_context);
+    for (auto& constraint : verification_pipeline.evaluateConstraints(
+             valid_loops, LoopEdgeDirection::MatchToQuery, constraint_context)) {
+        const auto& loop = constraint.loop;
         VLOG(1) << "[MappingResuming] Cross-session consensus query="
                 << loop.query_id << " match=" << loop.match_id
                 << " decision="

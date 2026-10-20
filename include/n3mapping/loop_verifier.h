@@ -39,14 +39,13 @@ public:
                                            const core::LioFrame::PointCloud::Ptr& target_in_match_frame,
                                            PointCloudMatcher& matcher) const;
 
-    LoopVerification verifyPreparedQueryToMatch(
+    LoopVerification verifyQueryToMatchResult(
         const LoopCandidate& candidate,
         const Keyframe::Ptr& query_keyframe,
         const Keyframe::Ptr& match_keyframe,
         const core::LioFrame::PointCloud::Ptr& source_in_query_frame,
         const core::LioFrame::PointCloud::Ptr& target_in_match_frame,
-        const Eigen::Isometry3d& initial_match_query,
-        PointCloudMatcher& matcher) const;
+        const MatchResult& match_result) const;
 
     static Eigen::Isometry3d measurementResidual(const Eigen::Isometry3d& predicted_match_query,
                                                  const Eigen::Isometry3d& measured_match_query);

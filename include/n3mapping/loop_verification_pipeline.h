@@ -70,8 +70,8 @@ public:
         const LoopCandidate& candidate,
         const LoopVerificationContext& context = {}) const;
 
-    LoopConstraintPipelineResult evaluateConstraint(
-        const VerifiedLoop& loop,
+    std::vector<LoopConstraintPipelineResult> evaluateConstraints(
+        const std::vector<VerifiedLoop>& loops,
         LoopEdgeDirection direction,
         const LoopConstraintContext& context = {}) const;
 

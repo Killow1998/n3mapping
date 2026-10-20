@@ -114,79 +114,6 @@ Keyframe::PointCloudT::Ptr prepareLoopIcpCloud(
         prepared, static_cast<std::size_t>(config.loop_icp_max_points));
 }
 
-std::string consensusRejectReason(const VerifiedLoop& loop) {
-    if (loop.consensus_estimator_recommendation ==
-            "insufficient_estimator_support" &&
-        loop.vertical_hypothesis_edge_recommendation == "planar_xy_yaw") {
-        return "consensus_insufficient_planar";
-    }
-
-    constexpr double kLargeConsensusMeasurementDeltaM = 5.0;
-    if (loop.consensus_estimator_recommendation ==
-            "unstable_consensus_measurement" &&
-        std::isfinite(loop.consensus_estimator_measurement_delta_translation) &&
-        loop.consensus_estimator_measurement_delta_translation >=
-            kLargeConsensusMeasurementDeltaM) {
-        return "consensus_unstable_large_delta";
-    }
-    return {};
-}
-
-bool graphTrialYawInconsistent(
-    const LoopGraphTrialDiagnostics& diagnostics) {
-    constexpr double kConstraintRotationDegradationRad = 0.05;
-    if (!diagnostics.success) {
-        return false;
-    }
-    return std::isfinite(diagnostics.existing_loop_residual_delta) &&
-           diagnostics.existing_loop_residual_delta >
-               kConstraintRotationDegradationRad;
-}
-
-bool graphTrialTranslationInconsistent(
-    const LoopGraphTrialDiagnostics& diagnostics) {
-    constexpr double kConstraintDegradationM = 0.05;
-    if (!diagnostics.success) {
-        return false;
-    }
-    return (std::isfinite(diagnostics.existing_loop_residual_delta) &&
-            diagnostics.existing_loop_residual_delta >
-                kConstraintDegradationM) ||
-           (std::isfinite(diagnostics.odom_residual_delta) &&
-            diagnostics.odom_residual_delta > kConstraintDegradationM);
-}
-
-void assignGraphTrialDiagnostics(
-    VerifiedLoop* loop, const LoopGraphTrialDiagnostics& diagnostics) {
-    if (!loop) {
-        return;
-    }
-    loop->graph_trial_success = diagnostics.success;
-    loop->graph_trial_residual_x_after = diagnostics.residual_x_after;
-    loop->graph_trial_residual_y_after = diagnostics.residual_y_after;
-    loop->graph_trial_residual_z_after = diagnostics.residual_z_after;
-    loop->graph_trial_residual_roll_after = diagnostics.residual_roll_after;
-    loop->graph_trial_residual_pitch_after = diagnostics.residual_pitch_after;
-    loop->graph_trial_residual_yaw_after = diagnostics.residual_yaw_after;
-    loop->graph_trial_residual_translation_norm_after =
-        diagnostics.residual_translation_norm_after;
-    loop->graph_trial_residual_rotation_norm_after =
-        diagnostics.residual_rotation_norm_after;
-    loop->graph_trial_mean_pose_update_translation =
-        diagnostics.mean_pose_update_translation;
-    loop->graph_trial_max_pose_update_translation =
-        diagnostics.max_pose_update_translation;
-    loop->graph_trial_mean_pose_update_rotation =
-        diagnostics.mean_pose_update_rotation;
-    loop->graph_trial_max_pose_update_rotation =
-        diagnostics.max_pose_update_rotation;
-    loop->graph_trial_existing_loop_residual_delta =
-        diagnostics.existing_loop_residual_delta;
-    loop->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
-    loop->graph_trial_consistency_score = diagnostics.consistency_score;
-    loop->graph_trial_recommendation = diagnostics.recommendation;
-}
-
 bool betterRegistration(
     const LoopVerification& candidate,
     const VisibilityConsistencyResult& candidate_visibility,
@@ -324,15 +251,21 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
             buildDescriptorYawHypotheses(candidate, config_);
         result.registration_hypothesis_count =
             static_cast<int>(yaw_hypotheses.size());
+        const auto prepared_target =
+            matcher_.prepareTargetCloud(result.target_registration_cloud);
+        const auto prepared_source =
+            matcher_.prepareSourceCloud(result.source_registration_cloud);
         bool has_verification = false;
         VisibilityConsistencyResult selected_visibility;
         for (double yaw : yaw_hypotheses) {
             Eigen::Isometry3d initial = Eigen::Isometry3d::Identity();
             initial.linear() = Eigen::AngleAxisd(
                 yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
-            auto verification = loop_verifier_.verifyPreparedQueryToMatch(
+            const auto registration =
+                matcher_.alignPrepared(prepared_target, prepared_source, initial);
+            auto verification = loop_verifier_.verifyQueryToMatchResult(
                 candidate, query, match, result.source_registration_cloud,
-                result.target_registration_cloud, initial, matcher_);
+                result.target_registration_cloud, registration);
             const auto visibility = pose_visibility(verification);
             if (betterRegistration(
                     verification, visibility, result.verification,
@@ -395,98 +328,6 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
         result.reject_stage = "loop_referee";
         result.reject_reason = "loop_referee";
     }
-    return result;
-}
-
-LoopConstraintPipelineResult LoopVerificationPipeline::evaluateConstraint(
-    const VerifiedLoop& input_loop, LoopEdgeDirection direction,
-    const LoopConstraintContext& context) const {
-    LoopConstraintPipelineResult result;
-    result.loop = input_loop;
-    if (!result.loop.verified) {
-        result.reject_stage = "selection";
-        result.reject_reason = "loop_not_verified";
-        return result;
-    }
-
-    const auto query = keyframe_manager_.getKeyframe(result.loop.query_id);
-    const auto match = keyframe_manager_.getKeyframe(result.loop.match_id);
-    if (!query || !match) {
-        result.reject_stage = "input";
-        result.reject_reason = "missing_keyframe";
-        return result;
-    }
-    if (context.cross_session &&
-        (query->is_from_loaded_map || !match->is_from_loaded_map)) {
-        result.reject_stage = "session_boundary";
-        result.reject_reason = "constraint_not_loaded_map_to_new_session";
-        return result;
-    }
-
-    result.consensus = consensus_verifier_.evaluate(
-        keyframe_manager_, matcher_, result.loop,
-        std::max(2, config_.gicp_submap_size), context.cross_session);
-    assignLoopConsensus(&result.loop, result.consensus);
-    if (context.cross_session &&
-        result.consensus.decision != LoopConsensusDecision::Commit) {
-        result.reject_stage = "consensus";
-        result.reject_reason =
-            result.consensus.decision == LoopConsensusDecision::Reject
-                ? (result.consensus.reason.empty()
-                       ? "neighborhood_contradiction"
-                       : result.consensus.reason)
-                : "session_merge_consensus_deferred";
-        return result;
-    }
-    if (const std::string reason = consensusRejectReason(result.loop);
-        !reason.empty()) {
-        result.reject_stage = "consensus";
-        result.reject_reason = reason;
-        return result;
-    }
-
-    const auto edges = loop_closure_manager_.buildLoopEdges(
-        {result.loop}, direction);
-    if (edges.empty()) {
-        result.reject_stage = "edge_build";
-        result.reject_reason = "edge_build_empty";
-        return result;
-    }
-    result.edge = edges.front();
-    result.has_edge = true;
-
-    const auto poses_before = optimizer_.getOptimizedPoses();
-    const auto committed_edges = optimizer_.getEdges();
-    result.graph_trial = computeLoopGraphTrialDiagnostics(
-        config_, poses_before, committed_edges, {result.edge});
-    assignGraphTrialDiagnostics(&result.loop, result.graph_trial);
-
-    if (result.consensus.estimator_pair_count >= 3) {
-        EdgeInfo estimator_edge = result.edge;
-        estimator_edge.measurement =
-            result.consensus.estimator_measurement_match_query;
-        result.consensus_estimator_trial = computeLoopGraphTrialDiagnostics(
-            config_, poses_before, committed_edges, {estimator_edge});
-        result.has_consensus_estimator_trial = true;
-    }
-
-    if (context.cross_session && !result.graph_trial.success) {
-        result.reject_stage = "graph_trial";
-        result.reject_reason = "graph_trial_unavailable";
-        return result;
-    }
-    if (graphTrialYawInconsistent(result.graph_trial)) {
-        result.reject_stage = "graph_trial";
-        result.reject_reason = "graph_inconsistent_yaw";
-        return result;
-    }
-    if (graphTrialTranslationInconsistent(result.graph_trial)) {
-        result.reject_stage = "graph_trial";
-        result.reject_reason = "graph_inconsistent_translation";
-        return result;
-    }
-
-    result.accepted = true;
     return result;
 }
 

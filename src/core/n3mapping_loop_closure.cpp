@@ -839,10 +839,9 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
     std::vector<VerifiedLoop> gated_loops;
     gated_loops.reserve(candidate_loops.size());
 
-    for (const auto &loop : candidate_loops) {
-      auto gate = verification_pipeline.evaluateConstraint(
-          loop, LoopEdgeDirection::MatchToQuery);
-      const auto key = std::make_pair(loop.query_id, loop.match_id);
+    for (const auto &gate : verification_pipeline.evaluateConstraints(
+             candidate_loops, LoopEdgeDirection::MatchToQuery)) {
+      const auto key = std::make_pair(gate.loop.query_id, gate.loop.match_id);
       consensus_by_pair[key] = gate.consensus;
       if (gate.has_edge) {
         graph_trial_by_pair[key] = gate.graph_trial;

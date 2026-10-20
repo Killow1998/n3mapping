@@ -3472,3 +3472,131 @@ recorded moving aliases and tracking excursions remain limitations. This
 closeout adds no motion, real-hardware, complete ROS-node CPU or Noetic-build
 qualification. All original data and rejected trial artifacts are preserved.
 The installed program and remote branch are not replaced by this release.
+
+## Online loop verification and accuracy follow-up — 2026-10-20
+
+This stage starts from `bb3f614` / 1.0.1. It changes the existing **online
+mapping and map-extension** backend. Recorded input validates the same runtime
+methods; no offline-only loop-closing product or new acceptance threshold is
+introduced. Stationary relocalization performance research remains paused.
+The machine-readable [qualification](../online_loop_20261020.json) contains
+per-run results, identities and all 14 oracle diagnostics. Reproducible inputs,
+frozen libraries, probes and raw outputs are under
+`build/n3mapping/online_loop_20261020/` in the parent workspace.
+
+The original `map/sprobo_20261018/coverage_v2` recording contains 13,791 exact
+cloud/odometry pairs, about 1.27 km over 1,379 s. Its saved graph has 1,271 nodes,
+1,270 odometry edges, 195 loop edges and one connected component. This complete
+graph is suitable for the comparison. Mapping replay starts empty and consumes
+each frame before running pending loops; future map keyframes and truth never
+enter the estimator. All runs use physical P cores 0/2/4/6, four registration
+threads and PASSIVE OpenMP.
+
+### Retained changes and ablations
+
+- Group independent neighborhood registrations by target. Prepare each target
+  once, process its requested pairs, then release it. All 328 neighbor solves
+  remain, but target preparations fall from 328 to 143. Each central candidate
+  retains its own measurements, consensus and graph gates.
+- Reuse source/target preparation across cross-session yaw hypotheses. Seeds,
+  registration settings, visibility checks and selection remain unchanged.
+  Existing cross-session tests cover this branch. The real-data extension
+  prefix below follows loaded-map tracking and therefore does not measure this
+  recovery branch's speedup.
+- Keep every candidate's actual graph trial. The alternative
+  consensus-measurement trial is solely for the mapping debug stream and now
+  runs only for that enabled consumer: 260 trials become 195 with debug off.
+- Repair zero-correspondence neighborhood confirmation. An optimizer can report
+  convergence without any corresponding points. Such a result now contributes
+  neither support nor contradiction; insufficient evidence defers. The frozen
+  pre-fix `candidate_v2` fails the regression and the final library passes.
+- Reject the initial 128 MiB neighbor-target cache: 301 preparations remained,
+  CPU benefit was only 4.8%, and peak RSS grew from 566.4 to 700.0 MiB. The
+  retained grouping has no persistent cache or invalidation mechanism.
+
+Neighborhood registration now lives in `loop_consensus_registration.cpp`
+(182 lines), while consensus statistics remain in `loop_consensus_verifier.cpp`
+(401, previously 549). Graph admission moves to `loop_constraint_pipeline.cpp`
+(194); `loop_verification_pipeline.cpp` is 334 lines, previously 493. Mapping
+and extension share both paths. Core/ROS interfaces, map format, thresholds,
+source point clouds and solver stages are unchanged.
+
+### Complete mapping replay
+
+| Metric | 1.0.1 baseline | Final |
+| --- | ---: | ---: |
+| Loop processing CPU | 179.183 s | 143.368 s |
+| Total backend processing CPU | 192.985 s | 157.280 s |
+| CPU / recorded input duration | 0.139946 cores | 0.114053 cores |
+| Maximum candidate-cycle wall time | 4.468 s | 2.496 s |
+| Peak process RSS | 566.4 MiB | 565.5 MiB |
+| Input / successful outputs | 13,791 / 13,723 | 13,791 / 13,723 |
+| Keyframes / accepted loop edges | 1,271 / 195 | 1,271 / 195 |
+
+Loop CPU decreases **20.0%**, total processing CPU **18.5%**. Every per-frame
+decision, candidate count and accepted loop identity matches. Maximum online
+position difference is `1.65e-11 m`; all final graph/dense trajectory comparisons
+are below `1e-8 m/rad`. The zero-correspondence fix does not remove a valid
+positive loop in this input. Final CTest is **61/61**, including the existing
+localization episodes, mapping/resuming checks and the strengthened neighborhood
+regression. The actual candidate graph trial is exercised with debug both on
+and off; debug does not change its accepted measurement.
+
+These are serial, unpaced, causal core runs. CPU divided by source duration
+measures the computation required, not delivered ROS throughput. Loading,
+serialization, FAST_LIO, DDS, simulator and global-map publication are excluded.
+A 2.496 s candidate cycle can still delay the shared backend callback; this
+does not qualify a live 10 Hz deadline or difficult relocalization's half-core
+target.
+
+### Accuracy evidence and remaining work
+
+Using the original single mapping alignment, the online trajectory remains
+at **0.24585 m position RMSE / 0.69702 m maximum**. Point-cloud loop relative
+measurements have **0.01709 m translation RMSE / 0.11952 m maximum** and
+**0.07040° rotation RMSE**. Accurate relative measurements alone do not prove
+global map consistency: investigate graph weighting, robust influence and loop
+coverage before changing them.
+
+A fresh five-scan oracle at every fixed14 location uses truth only as an
+explicit diagnostic initial pose. At each first-lock frame, normal localization
+and oracle ICP differ by at most **0.011274 m / 0.04656°**. At 11, both have
+about **0.47122 m** absolute error. Together with the earlier saved-keyframe
+truth audit, this supports map distortion dominating the large absolute errors.
+It does not establish a global registration optimum or 10 cm qualification.
+No query alignment, truth-based map transport or map replacement is applied.
+
+### Loaded-map extension cost remains open
+
+A causal 300-frame revisit of the saved map produces 296 outputs, 24 new
+keyframes, one session anchor and 23 loaded-map tracking loop edges. It reuses
+the original acquisition and is **not an independently recorded extension**.
+The descriptor-candidate recovery branch is not entered in this prefix.
+
+| Processing of 29.9 s input | Baseline | Final | Build-only no-prefetch ablation |
+| --- | ---: | ---: | ---: |
+| Process CPU | 185.108 s | 173.001 s | 125.604 s |
+| Wall time | 54.145 s | 51.787 s | 43.522 s |
+| Peak RSS | 2,346.4 MiB | 2,293.8 MiB | 1,818.6 MiB |
+| Foreground target hits / misses | 257 / 38 | 263 / 32 | 247 / 48 |
+
+Use the **clean runs without profiling interposition** for these results.
+Asynchronous prefetch makes process-CPU scopes overlap; the initial collector
+also lacked synchronization for concurrent wrapped callers. Those first
+extension profiles are retained but excluded from qualification. The mapping
+profiler has one wrapped caller, with OpenMP work below each wrapped function.
+
+The normal extension algorithm on this path was unchanged; cache scheduling
+varies, so the baseline/final CPU difference is **not an attributed speedup**.
+Their per-frame decisions match, with up to 0.0445 mm / 0.000199° pose changes.
+Output maximum absolute error is about 2.86 cm on this short starting segment.
+Turning off prefetch reduces work but shifts outputs by up to **6.25 mm /
+0.02975°**, and the segment still takes longer than its input duration.
+That ablation is **not retained**. The next cost work should audit target
+preparation, which prefetched targets are actually consumed, and whether target
+identity stays consistent as graph poses change. Independent continuation data
+and complete-route accuracy remain required before adopting a policy change.
+
+Final frozen core SHA256:
+`21faf3fcb7c7cd4fecbd37ad3300f07ad69334c6306bf4414a331fef847ed9eb`.
+No installed program, original map/bag, remote branch or release tag is changed.

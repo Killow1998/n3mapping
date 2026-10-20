@@ -75,11 +75,12 @@ class LoopConsensusVerifier {
 public:
     explicit LoopConsensusVerifier(const Config& config);
 
-    LoopConsensusResult evaluate(const KeyframeManager& keyframes,
-                                 PointCloudMatcher& matcher,
-                                 const VerifiedLoop& central_loop,
-                                 int half_window = 2,
-                                 bool cross_session = false) const;
+    // The caller holds the map unchanged for this batch. Grouping independent
+    // neighbor solves by target avoids retaining a long-lived geometry cache.
+    std::vector<LoopConsensusResult> evaluate(
+        const KeyframeManager& keyframes, PointCloudMatcher& matcher,
+        const std::vector<VerifiedLoop>& central_loops,
+        int half_window = 2, bool cross_session = false) const;
 
     static Eigen::Isometry3d predictNeighborTransform(const Eigen::Isometry3d& T_world_query,
                                                       const Eigen::Isometry3d& T_world_match,

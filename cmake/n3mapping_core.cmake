@@ -25,11 +25,13 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
   ${N3MAPPING_ROOT}/src/loop_verifier.cpp
   ${N3MAPPING_ROOT}/src/loop_verification_pipeline.cpp
+  ${N3MAPPING_ROOT}/src/loop_constraint_pipeline.cpp
   ${N3MAPPING_ROOT}/src/loop_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/loop_heightmap_diagnostics.cpp
   ${N3MAPPING_ROOT}/src/loop_graph_trial_diagnostics.cpp
   ${N3MAPPING_ROOT}/src/loop_segment_consistency.cpp
   ${N3MAPPING_ROOT}/src/loop_consensus_verifier.cpp
+  ${N3MAPPING_ROOT}/src/loop_consensus_registration.cpp
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
   ${N3MAPPING_ROOT}/src/graph_factor_noise.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp

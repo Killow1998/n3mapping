@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- Batch online loop-neighborhood verification by target geometry, preparing one
+  target at a time while retaining each candidate's independent solves and
+  consensus. Split registration and graph admission into separate implementation
+  files shared by mapping and map extension.
+- Reuse prepared source/target geometry across cross-session yaw hypotheses.
+  Keep candidate graph trials; run the alternative consensus-measurement graph
+  trial only when its mapping debug consumer is enabled.
+- Treat zero-correspondence registration as absent neighborhood evidence, even
+  if the optimizer reports convergence. It supplies neither confirmation nor
+  contradiction.
+- Four-core causal replay preserves 195 loops and 13,723 mapping outputs from
+  13,791 inputs. Mapping-loop CPU falls 20.0%, with unchanged numerical gates and
+  pose differences below 1e-8 m/rad. Full CTest: 61/61.
+- The 10 cm absolute-accuracy goal and map-consistency improvement remain open.
+  Loaded-map continuous tracking is still expensive; a prefetch ablation is
+  recorded without changing its production policy.
+
+See the [online-loop evidence](docs/evidence/runtime_cpu_20261017/README.md#online-loop-verification-and-accuracy-follow-up--2026-10-20).
+
 ## [1.0.1] - 2026-10-20
 
 ### Maintenance

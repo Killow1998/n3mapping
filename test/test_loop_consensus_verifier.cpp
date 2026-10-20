@@ -189,7 +189,7 @@ TEST(LoopConsensusVerifierTest,
     PointCloudMatcher matcher(config);
 
     const auto result = LoopConsensusVerifier(config).evaluate(
-        keyframes, matcher, loop, 5, true);
+        keyframes, matcher, {loop}, 5, true).front();
 
     EXPECT_EQ(result.decision, LoopConsensusDecision::Defer);
     EXPECT_EQ(result.valid_pair_count, 1);
@@ -232,7 +232,7 @@ TEST(LoopConsensusVerifierTest,
     PointCloudMatcher matcher(config);
 
     const auto result = LoopConsensusVerifier(config).evaluate(
-        keyframes, matcher, loop, 5, true);
+        keyframes, matcher, {loop}, 5, true).front();
 
     EXPECT_EQ(result.decision, LoopConsensusDecision::Commit);
     EXPECT_EQ(result.valid_pair_count, 4);
@@ -241,6 +241,40 @@ TEST(LoopConsensusVerifierTest,
             EXPECT_EQ(pair.match_neighbor_id, 5);
         }
     }
+
+    // Sharing a target must not share a candidate's measurements or votes.
+    auto shifted_loop = loop;
+    shifted_loop.T_measured_match_query = pose(4.0, 0.0, 0.0);
+    const auto shifted = LoopConsensusVerifier(config).evaluate(
+        keyframes, matcher, {shifted_loop}, 5, true).front();
+    EXPECT_EQ(shifted.decision, LoopConsensusDecision::Defer);
+    EXPECT_EQ(shifted.valid_pair_count, 0);
+    EXPECT_EQ(shifted.estimator_pair_count, 0);
+    EXPECT_EQ(shifted.contradiction_count, 0);
+    for (const auto& pair : shifted.pairs) {
+        if (pair.query_neighbor_id >= 100 && pair.query_neighbor_id <= 103) {
+            EXPECT_FALSE(pair.valid);
+            EXPECT_EQ(pair.inlier_ratio, 0.0);
+            EXPECT_EQ(pair.reject_reason, "no_neighbor_correspondences");
+        }
+    }
+    const auto batch = LoopConsensusVerifier(config).evaluate(
+        keyframes, matcher, {shifted_loop, loop}, 5, true);
+    ASSERT_EQ(batch.size(), 2u);
+    EXPECT_EQ(batch[0].decision, shifted.decision);
+    EXPECT_TRUE(batch[0].estimator_measurement_match_query.isApprox(
+        shifted.estimator_measurement_match_query, 1.0e-12));
+    EXPECT_EQ(batch[0].valid_pair_count, 0);
+    EXPECT_EQ(batch[1].valid_pair_count, 4);
+    EXPECT_EQ(batch[1].decision, result.decision);
+    ASSERT_EQ(batch[1].pairs.size(), result.pairs.size());
+    for (std::size_t i = 0; i < result.pairs.size(); ++i) {
+        EXPECT_EQ(batch[1].pairs[i].valid, result.pairs[i].valid);
+        EXPECT_EQ(batch[1].pairs[i].converged, result.pairs[i].converged);
+        EXPECT_TRUE(batch[1].pairs[i].estimated_match_query.isApprox(
+            result.pairs[i].estimated_match_query, 1.0e-12));
+    }
 }
+
 
 }  // namespace n3mapping

@@ -251,10 +251,12 @@ TEST(LoopVerifierEvidenceTest, PreparedPathUsesConfiguredSerializableInformation
     candidate.match_id = target->id;
 
     PointCloudMatcher matcher(config);
+    const auto registration = matcher.alignCloud(
+        target->cloud, source->cloud, Eigen::Isometry3d::Identity());
     const LoopVerification verification =
-        LoopVerifier(config).verifyPreparedQueryToMatch(
+        LoopVerifier(config).verifyQueryToMatchResult(
             candidate, source, target, source->cloud, target->cloud,
-            Eigen::Isometry3d::Identity(), matcher);
+            registration);
 
     ASSERT_TRUE(verification.loop.verified);
     const auto& information = verification.loop.information;
@@ -269,9 +271,9 @@ TEST(LoopVerifierEvidenceTest, PreparedPathUsesConfiguredSerializableInformation
 
     config.loop_use_icp_information = true;
     const LoopVerification icp_information =
-        LoopVerifier(config).verifyPreparedQueryToMatch(
+        LoopVerifier(config).verifyQueryToMatchResult(
             candidate, source, target, source->cloud, target->cloud,
-            Eigen::Isometry3d::Identity(), matcher);
+            registration);
     EXPECT_TRUE(icp_information.loop.information.isApprox(
         icp_information.loop.information.transpose(), 1e-12));
 }
@@ -394,14 +396,59 @@ TEST(LoopVerificationPipelineTest,
     loop.query_id = query->id;
     loop.match_id = match->id;
     loop.verified = true;
-    const auto result = pipeline.evaluateConstraint(
-        loop, LoopEdgeDirection::MatchToQuery, {true});
+    const auto result = pipeline.evaluateConstraints(
+        {loop}, LoopEdgeDirection::MatchToQuery, {true}).front();
 
     EXPECT_FALSE(result.accepted);
     EXPECT_FALSE(result.has_edge);
     EXPECT_EQ(result.consensus.decision, LoopConsensusDecision::Defer);
     EXPECT_EQ(result.reject_stage, "consensus");
     EXPECT_EQ(result.reject_reason, "session_merge_consensus_deferred");
+}
+
+TEST(LoopVerificationPipelineTest, DebugTrialDoesNotChangeConstraintDecision)
+{
+    Config config;
+    config.num_threads = 1;
+    KeyframeManager keyframes(config);
+    const auto cloud = makeRegistrationCloud();
+    std::vector<Keyframe::Ptr> frames;
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
+    std::vector<EdgeInfo> edges;
+    for (int64_t id = 0; id <= 80; ++id) {
+        frames.push_back(Keyframe::create(
+            id, static_cast<double>(id), Eigen::Isometry3d::Identity(), cloud));
+        nodes.emplace_back(id, Eigen::Isometry3d::Identity());
+        if (id > 0) edges.emplace_back(id - 1, id,
+            Eigen::Isometry3d::Identity(), Eigen::Matrix<double, 6, 6>::Identity(),
+            EdgeType::ODOMETRY);
+    }
+    ASSERT_TRUE(keyframes.loadKeyframes(frames));
+    PointCloudMatcher matcher(config);
+    GraphOptimizer optimizer(config);
+    ASSERT_TRUE(optimizer.loadGraph(nodes, edges));
+    LoopClosureManager manager(config);
+    VerifiedLoop loop;
+    loop.query_id = 80;
+    loop.match_id = 10;
+    loop.verified = true;
+    loop.fitness_score = 0.0;
+    loop.inlier_ratio = 1.0;
+    const auto quiet = LoopVerificationPipeline(
+        config, keyframes, matcher, optimizer, manager).evaluateConstraints(
+            {loop}, LoopEdgeDirection::MatchToQuery).front();
+    config.loop_debug_enable = true;
+    const auto debug = LoopVerificationPipeline(
+        config, keyframes, matcher, optimizer, manager).evaluateConstraints(
+            {loop}, LoopEdgeDirection::MatchToQuery).front();
+    ASSERT_TRUE(quiet.accepted);
+    EXPECT_TRUE(debug.accepted);
+    EXPECT_TRUE(quiet.graph_trial.success);
+    EXPECT_FALSE(quiet.has_consensus_estimator_trial);
+    EXPECT_TRUE(debug.has_consensus_estimator_trial);
+    EXPECT_TRUE(debug.consensus_estimator_trial.success);
+    EXPECT_TRUE(quiet.edge.measurement.isApprox(debug.edge.measurement, 1.0e-12));
+    EXPECT_EQ(optimizer.getEdges().size(), edges.size());  // Trials do not commit.
 }
 
 TEST(PointCloudMatcherEvidenceTest, ClassifiesTermination)

@@ -182,14 +182,13 @@ LoopVerification LoopVerifier::verifyPreparedSubmaps(
         match_result.T_target_source);
 }
 
-LoopVerification LoopVerifier::verifyPreparedQueryToMatch(
+LoopVerification LoopVerifier::verifyQueryToMatchResult(
     const LoopCandidate& candidate,
     const Keyframe::Ptr& query_keyframe,
     const Keyframe::Ptr& match_keyframe,
     const core::LioFrame::PointCloud::Ptr& source_in_query_frame,
     const core::LioFrame::PointCloud::Ptr& target_in_match_frame,
-    const Eigen::Isometry3d& initial_match_query,
-    PointCloudMatcher& matcher) const
+    const MatchResult& match_result) const
 {
     if (!query_keyframe || !match_keyframe || !source_in_query_frame ||
         source_in_query_frame->empty() || !target_in_match_frame ||
@@ -201,8 +200,6 @@ LoopVerification LoopVerifier::verifyPreparedQueryToMatch(
         return verification;
     }
 
-    const MatchResult match_result = matcher.alignCloud(
-        target_in_match_frame, source_in_query_frame, initial_match_query);
     return finalizePreparedRegistration(
         candidate, query_keyframe, match_keyframe, source_in_query_frame,
         target_in_match_frame, match_result, match_result.T_target_source,
