@@ -5,6 +5,7 @@ set(N3MAPPING_CORE_SOURCES
   ${PROTO_SRCS}
   ${N3MAPPING_ROOT}/src/config.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_constraints.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_localization.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_loop_closure.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_loop_async.cpp

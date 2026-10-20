@@ -276,7 +276,12 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
                 return result;
             }
             auto ls = setting;
-            if (res > base_res * 1.01) ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
+            // A caller may deliberately restrict tracking correspondences.
+            // Preserve that bound at every scale; only the normal broad solve
+            // expands its coarse radius to support a distant initialization.
+            if (res > base_res * 1.01 &&
+                setting.max_correspondence_distance >= setting_.max_correspondence_distance)
+                ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
             auto rr = registration_detail::align(*target_level->cloud, *source_level->cloud,
                                         *target_level->kdtree, T, ls);
             T = rr.T_target_source;

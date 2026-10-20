@@ -10,6 +10,22 @@ namespace test {
 
 using PointCloudMatcherTest = RegistrationFixture;
 
+TEST_F(PointCloudMatcherTest, BoundedTrackingCannotAcquireADistantParallelSurface) {
+    config_.icp_refine_use_gicp = false;
+    PointCloudMatcher matcher(config_);
+    const auto cloud = createPlaneCloud(3000, 8.0, 0.0);
+    const auto target = matcher.prepareTargetCloud(cloud);
+    const auto source = matcher.prepareSourceCloud(
+        transformCloud(cloud, createPose(0.0, 0.0, 1.0)));
+    auto bounded = matcher.getSettings();
+    bounded.max_correspondence_distance = 0.3;
+    const auto result = matcher.alignPrepared(
+        target, source, Eigen::Isometry3d::Identity(), bounded);
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.num_inliers, 0u);
+    EXPECT_LT(result.T_target_source.translation().norm(), 1e-9);
+}
+
 // 测试预处理功能
 TEST_F(PointCloudMatcherTest, PreprocessPointCloud) {
     auto cloud = createPlaneCloud(1000);

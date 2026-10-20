@@ -8760,5 +8760,741 @@
         "Previously recorded partial-map global alias remains unresolved."
       ]
     }
+  },
+  "loop_calibration": {
+    "passed": true,
+    "base_commit": "1ab5150",
+    "scope": "Four-core accuracy and reliability; unpaced replays may contend. No new speed, half-core, async throughput, full ROS-node, Noetic or hardware claim.",
+    "core_sha256": "aa5f22048754dc3bd77ddec0c5a86c7ae240f18e727521b291b07978ab52c6aa",
+    "source_identity": {
+      "point_cloud_matcher_alignment.cpp": "8ddcfda42c806ff7d59e376d669960f44ebb08a6ed589cc8d306d713805d1c30",
+      "compile.json": "3975b2ff597bc1fb98563022d0434746253f5a69bf393fe4884b31cc2d14fea8",
+      "replay_probe": "5317e19f3289f25f5edebf441fe50a98e0ea577ba40b832a16269f1b0859e655",
+      "world_localizing_tracking_registration.cpp": "d480a248816770f833c2f844d0e77168539fe9845cc93750edad3aa32820d0bc",
+      "libn3mapping_core.so": "aa5f22048754dc3bd77ddec0c5a86c7ae240f18e727521b291b07978ab52c6aa",
+      "world_localizing_tracking.cpp": "bd14217a13e262d044a29101eeeaad40719391dc5695f9bd1699aea95e69096b",
+      "replay_probe.cpp": "73cebf902cc10974cb1fd8937fc1d07aebae31c98eafff8044479bce7333b787",
+      "source/cmake/n3mapping_core.cmake": "87b0c35100483c815fa94706b94a766711f3b4e04d3d8ee3ac6504be9115d8c6",
+      "source/include/n3mapping/keyframe_manager.h": "a23945c8e8f46a7ae14c62935d8191b06c05339f80bd22d02ceb87975a9cf3aa",
+      "source/include/n3mapping/world_localizing.h": "59f06fbef8368824234a80154d6d6e48f725860d21ebe4af46fee80f360b20e4",
+      "source/src/point_cloud_matcher_alignment.cpp": "8ddcfda42c806ff7d59e376d669960f44ebb08a6ed589cc8d306d713805d1c30",
+      "source/src/graph_factor_noise.cpp": "7aec63db94fd0f3dfdbcb6f66c19c4f5f30035125e795d8ddb50cea2890a5843",
+      "source/src/world_localizing_tracking_registration.cpp": "d480a248816770f833c2f844d0e77168539fe9845cc93750edad3aa32820d0bc",
+      "source/src/loop_consensus_registration.cpp": "7991f0c03379209b16091843b28bc04a0b8079e1f9b786d89a237a728ca408fd",
+      "source/src/constraint_refinement.h": "d05092dfe84ec9dd58761b8e25adad911f3b5625029d6cb010daf1c48445c1a3",
+      "source/src/keyframe_manager.cpp": "83fdc9db1e12df4404c0963863168b2e92646bab85e985062580cd4a8a14a205",
+      "source/src/loop_constraint_pipeline.cpp": "05ff16eb0207188633209be8c7a59aa03ccefd11a99589bebeb041ac649e74ad",
+      "source/src/world_localizing_tracking.cpp": "bd14217a13e262d044a29101eeeaad40719391dc5695f9bd1699aea95e69096b",
+      "source/src/loop_verification_pipeline.cpp": "a58f6cb93cb53fb5523c17c5267c25c649e50ef07cbe4dfdaedd328bf5c60b3d",
+      "source/src/tracking_pose_correction.h": "76479857145673c1b36645613124c088b981b4e75780eec2ce89210e85ac77ed",
+      "source/src/core/loop_closure_processing.cpp": "2e0606f585cb575a6ca25caa3572ee1490f3f476cda5c171dd59c90e9c7ed0cb",
+      "source/src/core/n3mapping_constraints.cpp": "1d572b170aea05ab72e5992b0252826bd48141cdb470190e07850a61cfb61555",
+      "source/src/core/n3mapping_core.cpp": "ffbae8b8682245ce6496ba7410d5a6733f63fec29d9807c268d9656742ed936f",
+      "source/test/test_loop_closure_manager.cpp": "79abb18235eedfb4c7aeb39b7ad7fd78bddb7d30f3d4a9fa66dc89205ae33e68",
+      "source/test/test_submap_graph_trial.cpp": "c5455b1e26bc295e093a974cdcd458dd1d040e937eff098e0ff08e48116b09f0",
+      "source/test/test_point_cloud_matcher.cpp": "d82fa9cb0aeae04c143febfd7a69d32a9063f1e2afaa7c03a77949d5e3ed4214",
+      "source/test/test_loop_consensus_verifier.cpp": "f9ff7583f92f84e352d3d1f7f1ebed4138856cc07d95deedd68daa19ee71e2f5"
+    },
+    "inputs": {
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream.localization_atlas.pb": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+      "build/n3mapping/online_loop_20261020/manifest/frames.csv": "2c9c0619e548d69d3ec69b08c3475881497a8bf9276e425a562a8aed641bb925",
+      "src/n3mapping/map/sprobo_20261018/reentry_20261019/query/manifest/frames.csv": "2422a44c5560990ab1ac76bc4719b9c4ecc2880b7d3890fa33560270dd0f3fcf"
+    },
+    "selected_map": "build/n3mapping/loop_calibration_20261020/eval_maps/map_independent_neighbors/map/n3map.pbstream",
+    "selected_map_sha256": "39cd5276c9f47aab8deba5f85c72bba23b6dd602d9429893a5b3358cf6673862",
+    "selected_atlas_sha256": "496b5aec1f73eff75bcc637581a36ae359fc781c5243ad20c1fa3e0041e4a288",
+    "mapping_profile": {
+      "loop_use_icp_information": true,
+      "mapped_parameters_checked": 147,
+      "mapped_parameter_differences": [],
+      "main_yaml_sha256": "f828ef0df090b72f803fd1ed8666a17c0cfb4954069e25ea8594ed6be55d5ef7",
+      "changed_numerical_thresholds": false
+    },
+    "fixed14": {
+      "frames": 4144,
+      "outputs": 4088,
+      "successful_frames": 4088,
+      "all_locked_frame4": true,
+      "position_rmse_m": 0.04398564551156585,
+      "position_max_m": 0.09035172655462219,
+      "all_positions_improve_rmse_and_max_position_and_angle": true,
+      "all_outputs_below_10cm": true,
+      "positions": [
+        {
+          "id": "01_west_corridor",
+          "position_m": {
+            "rmse": 0.0025194572130705904,
+            "median": 0.0020189069019857725,
+            "p95": 0.004088788602044024,
+            "maximum": 0.00813625695836469
+          },
+          "rotation_deg": {
+            "rmse": 0.01101366780701946,
+            "median": 0.009679173369271394,
+            "p95": 0.018737497456657475,
+            "maximum": 0.02669823792686738
+          },
+          "original_position_m": {
+            "rmse": 0.006902225925288401,
+            "median": 0.006680606700332636,
+            "p95": 0.008965359612029534,
+            "maximum": 0.01193177676609582
+          },
+          "original_rotation_deg": {
+            "rmse": 0.0507253717447457,
+            "median": 0.051607716450877146,
+            "p95": 0.06265439987168334,
+            "maximum": 0.06948251706120596
+          }
+        },
+        {
+          "id": "02_east_corridor",
+          "position_m": {
+            "rmse": 0.02710961086126605,
+            "median": 0.027047515770457175,
+            "p95": 0.02791704484821559,
+            "maximum": 0.03314023151005232
+          },
+          "rotation_deg": {
+            "rmse": 0.034716613753526804,
+            "median": 0.034489787222285836,
+            "p95": 0.040776897712000465,
+            "maximum": 0.05101196081913163
+          },
+          "original_position_m": {
+            "rmse": 0.3972435463317167,
+            "median": 0.39725199094823377,
+            "p95": 0.39823714164984236,
+            "maximum": 0.3987283128906642
+          },
+          "original_rotation_deg": {
+            "rmse": 0.45947250489536157,
+            "median": 0.45930084103504193,
+            "p95": 0.46528357638061885,
+            "maximum": 0.47070359247905297
+          }
+        },
+        {
+          "id": "03_south_corridor",
+          "position_m": {
+            "rmse": 0.035302922406934924,
+            "median": 0.03538084388850322,
+            "p95": 0.03665979110746731,
+            "maximum": 0.036966352384411344
+          },
+          "rotation_deg": {
+            "rmse": 0.07258799945910223,
+            "median": 0.07242351952354326,
+            "p95": 0.07619111473260329,
+            "maximum": 0.08989920898538374
+          },
+          "original_position_m": {
+            "rmse": 0.14968159427370553,
+            "median": 0.1498534933822439,
+            "p95": 0.15028884776023946,
+            "maximum": 0.15045624556207124
+          },
+          "original_rotation_deg": {
+            "rmse": 0.23192951436972523,
+            "median": 0.2318557107364466,
+            "p95": 0.23589324888707378,
+            "maximum": 0.24789130426919218
+          }
+        },
+        {
+          "id": "04_north_corridor",
+          "position_m": {
+            "rmse": 0.05337935269177136,
+            "median": 0.05339899863445079,
+            "p95": 0.05468230290980403,
+            "maximum": 0.05531033865440762
+          },
+          "rotation_deg": {
+            "rmse": 0.15217320199771167,
+            "median": 0.15250044303986843,
+            "p95": 0.15935008117256722,
+            "maximum": 0.1628449376010688
+          },
+          "original_position_m": {
+            "rmse": 0.2751074780458475,
+            "median": 0.2748490683878437,
+            "p95": 0.27651497543205716,
+            "maximum": 0.2940771531572092
+          },
+          "original_rotation_deg": {
+            "rmse": 0.3564890895973401,
+            "median": 0.35665145413293986,
+            "p95": 0.3597210448278688,
+            "maximum": 0.37286170383981776
+          }
+        },
+        {
+          "id": "05_southwest_office",
+          "position_m": {
+            "rmse": 0.0336895140338171,
+            "median": 0.03332597914330029,
+            "p95": 0.035868226503078915,
+            "maximum": 0.0363871299151526
+          },
+          "rotation_deg": {
+            "rmse": 0.09568366800850396,
+            "median": 0.09573653171338654,
+            "p95": 0.1029216006954009,
+            "maximum": 0.10909978185648667
+          },
+          "original_position_m": {
+            "rmse": 0.06117605795220423,
+            "median": 0.06103514882487927,
+            "p95": 0.06278958620853008,
+            "maximum": 0.06346627084910487
+          },
+          "original_rotation_deg": {
+            "rmse": 0.21845901105703788,
+            "median": 0.2186247748428332,
+            "p95": 0.22706971244231217,
+            "maximum": 0.24529548997670592
+          }
+        },
+        {
+          "id": "06_south_meeting",
+          "position_m": {
+            "rmse": 0.04438457894946369,
+            "median": 0.044221773698328144,
+            "p95": 0.046011726569467525,
+            "maximum": 0.04646727449482563
+          },
+          "rotation_deg": {
+            "rmse": 0.07080458429527298,
+            "median": 0.07026887372672753,
+            "p95": 0.07859811655411217,
+            "maximum": 0.11233478913620851
+          },
+          "original_position_m": {
+            "rmse": 0.06252216093341251,
+            "median": 0.06298158288169034,
+            "p95": 0.06405957614413874,
+            "maximum": 0.06429245539775003
+          },
+          "original_rotation_deg": {
+            "rmse": 0.3085501372408611,
+            "median": 0.3085090508310552,
+            "p95": 0.31574035408883855,
+            "maximum": 0.32116062985488675
+          }
+        },
+        {
+          "id": "07_south_pillars",
+          "position_m": {
+            "rmse": 0.031092451374608903,
+            "median": 0.030554413913087386,
+            "p95": 0.035090978885122755,
+            "maximum": 0.0369568414015503
+          },
+          "rotation_deg": {
+            "rmse": 0.05235122783707425,
+            "median": 0.05208627884095976,
+            "p95": 0.06588620814192572,
+            "maximum": 0.08799438856018123
+          },
+          "original_position_m": {
+            "rmse": 0.2076851146338096,
+            "median": 0.20895247579228243,
+            "p95": 0.2104297544866777,
+            "maximum": 0.21091592483365537
+          },
+          "original_rotation_deg": {
+            "rmse": 0.17616107574065387,
+            "median": 0.1756869714609834,
+            "p95": 0.18760222946117242,
+            "maximum": 0.21466713181836256
+          }
+        },
+        {
+          "id": "08_west_shelves",
+          "position_m": {
+            "rmse": 0.006272610890717608,
+            "median": 0.006136599375868185,
+            "p95": 0.007870727108946023,
+            "maximum": 0.009241041221718784
+          },
+          "rotation_deg": {
+            "rmse": 0.0183878215627721,
+            "median": 0.01629558477055066,
+            "p95": 0.029710749698619653,
+            "maximum": 0.04803179077521377
+          },
+          "original_position_m": {
+            "rmse": 0.07674991653495214,
+            "median": 0.07719399145574748,
+            "p95": 0.0785890602031102,
+            "maximum": 0.07985198583582241
+          },
+          "original_rotation_deg": {
+            "rmse": 0.26854351400002247,
+            "median": 0.2716438118687171,
+            "p95": 0.2904504187981153,
+            "maximum": 0.3031473281151902
+          }
+        },
+        {
+          "id": "09_east_shelves",
+          "position_m": {
+            "rmse": 0.029858056353922826,
+            "median": 0.029802477734482604,
+            "p95": 0.030985561411405054,
+            "maximum": 0.033150141592451485
+          },
+          "rotation_deg": {
+            "rmse": 0.042670701407637485,
+            "median": 0.04201420454220778,
+            "p95": 0.05376452943963414,
+            "maximum": 0.060356202651159485
+          },
+          "original_position_m": {
+            "rmse": 0.46045607428663116,
+            "median": 0.4605981797184213,
+            "p95": 0.46154705848528266,
+            "maximum": 0.46189817669894156
+          },
+          "original_rotation_deg": {
+            "rmse": 0.4086629676597099,
+            "median": 0.4087165158162256,
+            "p95": 0.41798955631989143,
+            "maximum": 0.42382044695309046
+          }
+        },
+        {
+          "id": "10_northwest_meeting",
+          "position_m": {
+            "rmse": 0.00847007405489118,
+            "median": 0.007963096733779634,
+            "p95": 0.01072160181978131,
+            "maximum": 0.011451637700562643
+          },
+          "rotation_deg": {
+            "rmse": 0.02571651711245782,
+            "median": 0.025612440211748938,
+            "p95": 0.03347592788292817,
+            "maximum": 0.04195253482962216
+          },
+          "original_position_m": {
+            "rmse": 0.08809557735130848,
+            "median": 0.08811076486489805,
+            "p95": 0.08891967627864787,
+            "maximum": 0.0894100562819517
+          },
+          "original_rotation_deg": {
+            "rmse": 0.07115791501631609,
+            "median": 0.071261047152375,
+            "p95": 0.07817920554728189,
+            "maximum": 0.08631450828686611
+          }
+        },
+        {
+          "id": "11_northeast_pillars",
+          "position_m": {
+            "rmse": 0.029313466976251888,
+            "median": 0.029388774951962356,
+            "p95": 0.03015975622716372,
+            "maximum": 0.033213933343348864
+          },
+          "rotation_deg": {
+            "rmse": 0.061345457358729615,
+            "median": 0.06147905118601199,
+            "p95": 0.06649676220715374,
+            "maximum": 0.09525823503669187
+          },
+          "original_position_m": {
+            "rmse": 0.47198091470513387,
+            "median": 0.47238533413528655,
+            "p95": 0.47331529447774345,
+            "maximum": 0.4738748580013345
+          },
+          "original_rotation_deg": {
+            "rmse": 0.4352633152589566,
+            "median": 0.4351929038163718,
+            "p95": 0.443853094596675,
+            "maximum": 0.4527214424993136
+          }
+        },
+        {
+          "id": "12_north_office",
+          "position_m": {
+            "rmse": 0.08950441459922841,
+            "median": 0.08948946442055677,
+            "p95": 0.09008169618441168,
+            "maximum": 0.09035172655462219
+          },
+          "rotation_deg": {
+            "rmse": 0.10345470577883396,
+            "median": 0.10386196408906627,
+            "p95": 0.11046959787727774,
+            "maximum": 0.11635839932198903
+          },
+          "original_position_m": {
+            "rmse": 0.298852321586018,
+            "median": 0.29867314823316427,
+            "p95": 0.3007024303859563,
+            "maximum": 0.30189123407886204
+          },
+          "original_rotation_deg": {
+            "rmse": 0.3593664677506658,
+            "median": 0.35850900839230737,
+            "p95": 0.36923140128487636,
+            "maximum": 0.4076622700269433
+          }
+        },
+        {
+          "id": "13_south_door",
+          "position_m": {
+            "rmse": 0.060402083153413985,
+            "median": 0.06031848902207414,
+            "p95": 0.061525021136914396,
+            "maximum": 0.07642364282205309
+          },
+          "rotation_deg": {
+            "rmse": 0.06124287780930564,
+            "median": 0.05955284062865514,
+            "p95": 0.07016737886116657,
+            "maximum": 0.12980274864400976
+          },
+          "original_position_m": {
+            "rmse": 0.24093109897176382,
+            "median": 0.2412618367321836,
+            "p95": 0.242281030937915,
+            "maximum": 0.24273532520228547
+          },
+          "original_rotation_deg": {
+            "rmse": 0.20352088165035473,
+            "median": 0.204109709208457,
+            "p95": 0.20999682633657463,
+            "maximum": 0.2177157490463452
+          }
+        },
+        {
+          "id": "14_north_door",
+          "position_m": {
+            "rmse": 0.06823745722741369,
+            "median": 0.06832175687464523,
+            "p95": 0.06918974606142327,
+            "maximum": 0.07138605091644708
+          },
+          "rotation_deg": {
+            "rmse": 0.142215458847062,
+            "median": 0.1419261111700038,
+            "p95": 0.1492112841285104,
+            "maximum": 0.1541258746008133
+          },
+          "original_position_m": {
+            "rmse": 0.35993886385815915,
+            "median": 0.35985914897432236,
+            "p95": 0.36128341995502766,
+            "maximum": 0.3680910506930963
+          },
+          "original_rotation_deg": {
+            "rmse": 0.4086396907298902,
+            "median": 0.40800219248414676,
+            "p95": 0.41315455268822177,
+            "maximum": 0.447518043892768
+          }
+        }
+      ]
+    },
+    "motion": {
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "sources": {
+        "0": 4,
+        "2": 2227,
+        "1": 5
+      }
+    },
+    "motion_accuracy": {
+      "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+      "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+      "topic": "/n3mapping/odometry",
+      "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/loop_calibration_20261020/published_motion/frames.csv",
+      "probe_status": {
+        "input_frames": 2236,
+        "successful_frames": 2232,
+        "published_without_backend_success": 0
+      },
+      "alignment": {
+        "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+        "stamp_ns": 7299995002,
+        "translation": [
+          -43.981804569062675,
+          0.013493989897703453,
+          0.6566722602620779
+        ],
+        "quaternion_xyzw": [
+          1.2163132549912854e-05,
+          -0.00045452323389096505,
+          0.00015331460290557127,
+          -0.9999998848776538
+        ]
+      },
+      "evaluated_poses": 2232,
+      "first_output_sim_s": 0.799989997,
+      "first_output_position_error_m": 0.003294054728466548,
+      "first_output_rotation_error_deg": 0.008028156695099428,
+      "position_error_m": {
+        "rmse": 0.050554361673096584,
+        "median": 0.035730302150070295,
+        "p95": 0.10426521525841505,
+        "maximum": 0.17275334777216184
+      },
+      "rotation_error_deg": {
+        "rmse": 0.08935880209794653,
+        "median": 0.05183161121275147,
+        "p95": 0.15898745405860903,
+        "maximum": 0.544999804838328
+      },
+      "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+    },
+    "motion_audit": {
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "within_10cm": 2040,
+      "gross_outputs": 0,
+      "gross_geometric": 0,
+      "first_gross": null,
+      "last_gross": null
+    },
+    "original_map_motion": {
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "sources": {
+        "0": 4,
+        "2": 2230,
+        "1": 2
+      },
+      "accuracy": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/loop_calibration_20261020/published_original_motion/frames.csv",
+        "probe_status": {
+          "input_frames": 2236,
+          "successful_frames": 2232,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 2232,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.01193177676609592,
+        "first_output_rotation_error_deg": 0.030114808917120383,
+        "position_error_m": {
+          "rmse": 0.29621929733780883,
+          "median": 0.22995933333500518,
+          "p95": 0.5264343192683868,
+          "maximum": 0.5463684610525865
+        },
+        "rotation_error_deg": {
+          "rmse": 0.3431174314999784,
+          "median": 0.3389650451470525,
+          "p95": 0.5220686165062615,
+          "maximum": 0.6261998001939137
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    "partial_map_negative": {
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4,
+        922,
+        1686
+      ],
+      "within_10cm": 558,
+      "gross_outputs": 764,
+      "gross_geometric": 409,
+      "first_gross": {
+        "frame": 922,
+        "stamp_s": 92.599995002,
+        "position_m": 96.66944633134624,
+        "rotation_deg": 179.99944024438184,
+        "geometric": true,
+        "gross": true
+      },
+      "last_gross": {
+        "frame": 1685,
+        "stamp_s": 168.899989997,
+        "position_m": 62.584656602632066,
+        "rotation_deg": 174.9348896477187,
+        "geometric": false,
+        "gross": true
+      },
+      "new_wrong_geometric_frames": [],
+      "new_wrong_output_frames": [],
+      "known_global_alias_resolved": false
+    },
+    "mapping": {
+      "position_m": {
+        "rmse": 0.04441096069062952,
+        "median": 0.03148567461660654,
+        "p95": 0.08977402496891718,
+        "maximum": 0.12755712784346565
+      },
+      "rotation_deg": {
+        "rmse": 0.06629868761675967,
+        "median": 0.05274666148946269,
+        "p95": 0.12413403514841889,
+        "maximum": 0.19126968881970813
+      },
+      "independent_revisits": {
+        "count": 1811,
+        "relative_translation_m": {
+          "rmse": 0.0047805709634613815,
+          "median": 0.0027456230866046843,
+          "p95": 0.010067364427192627,
+          "maximum": 0.01821395863985675
+        },
+        "relative_rotation_deg": {
+          "rmse": 0.01861889242682166,
+          "median": 0.009696849274000939,
+          "p95": 0.038403593344289395,
+          "maximum": 0.07005287483839275
+        }
+      },
+      "loop_measurement_error_m": {
+        "rmse": 0.007662115345328592,
+        "median": 0.001777839515600678,
+        "p95": 0.014423150359002837,
+        "maximum": 0.10742776674846363
+      },
+      "loop_measurement_error_deg": {
+        "rmse": 0.01670598090483385,
+        "median": 0.006043399700482994,
+        "p95": 0.02870945784957776,
+        "maximum": 0.14458298418501817
+      },
+      "long_gap_loops": 130
+    },
+    "graph_integrity": {
+      "keyframes": 1271,
+      "odometry_edges": 1270,
+      "loop_edges": 423,
+      "disconnected_nodes": [],
+      "invalid_edges": [],
+      "runtime_errors": [],
+      "passed": true
+    },
+    "post_calibration_log_audit": {
+      "saved_loop_edges": 423,
+      "matched_logs": 423,
+      "missing": [],
+      "max_diagonal_delta": 0.0
+    },
+    "mapping_source_equivalent_to_completed_replay": true,
+    "extension_replayed_with_final_core": true,
+    "extension": {
+      "frames": 2236,
+      "successes": 2232,
+      "behavior_differences": [],
+      "max_output_matrix_delta": 1.119382364578314e-12
+    },
+    "tests": {
+      "ctest": "61/61",
+      "atlas": "15/15",
+      "kill": "15/15",
+      "old_implementation_behavioral_regressions": "4/4 fail",
+      "fixed_implementation_behavioral_regressions": "4/4 pass"
+    },
+    "supporting_source_sha256": {
+      "config/n3mapping.yaml": "f828ef0df090b72f803fd1ed8666a17c0cfb4954069e25ea8594ed6be55d5ef7",
+      "test/test_n3mapping_product_bundle.py": "778e005f215358e51220848297df7c826f9c2d489e55f819f74ba973c8060f25",
+      "tools/n3mapping_sprobo_fixed_eval.py": "a4775abf8526c64a88ef65d3766425f0c7a476983d2761aa86f2d3ff050aadc9",
+      "tools/n3mapping_sprobo_score.py": "5825c7cd7e2d7cf00f88a3fc06fed4800fd7233ff0e7ef39ce5efa435130fb0c"
+    },
+    "actual_full_route_10cm_passed": false,
+    "uncertainty_universally_calibrated": false,
+    "original_map_replaced": false,
+    "remaining_error_diagnostic": {
+      "diagnostic_only": true,
+      "estimator_uses_truth": false,
+      "method": "Apply supporting keyframe's known pose-error transform to each emitted query pose.",
+      "worst_frame": {
+        "frame": 2048,
+        "stamp_s": 205.199995002,
+        "support": 455,
+        "position_error_m": 0.17275334777216184,
+        "after_support_rigid_correction_m": 0.17834068001976405
+      },
+      "outputs_over_10cm": 192,
+      "corrected_outputs_over_10cm": 54,
+      "limitation": "This removes only the keyframe's rigid pose error. It does not remove within-cloud or assembled-map deformation and does not prove a single cause."
+    },
+    "uncertainty_coverage_diagnostic": {
+      "loop_count": 423,
+      "diagnostic_reference": "6-DoF chi-square thresholds; correlated non-Gaussian measurements are not assumed independently calibrated",
+      "levels": [
+        {
+          "nominal": 0.5,
+          "threshold": 5.348120627447118,
+          "inside": 340,
+          "empirical_fraction": 0.8037825059101655
+        },
+        {
+          "nominal": 0.9,
+          "threshold": 10.644640675668422,
+          "inside": 382,
+          "empirical_fraction": 0.9030732860520094
+        },
+        {
+          "nominal": 0.95,
+          "threshold": 12.591587243743977,
+          "inside": 391,
+          "empirical_fraction": 0.9243498817966903
+        },
+        {
+          "nominal": 0.99,
+          "threshold": 16.811893829770927,
+          "inside": 399,
+          "empirical_fraction": 0.9432624113475178
+        }
+      ]
+    },
+    "rejected_coverage_checkpoint": {
+      "qualified": false,
+      "complete": true,
+      "baseline_wrong_geometry": 409,
+      "candidate_wrong_geometry": 406,
+      "added_wrong_geometry": [
+        1320
+      ],
+      "removed_wrong_geometry": [
+        1294,
+        1297,
+        1319,
+        1324
+      ],
+      "reason": "New-candidate rejection suppressed the original retry result; totals alone do not establish no regression."
+    }
   }
 }

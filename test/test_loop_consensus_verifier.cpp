@@ -163,6 +163,31 @@ TEST(LoopConsensusVerifierTest, EstimatesConsensusMeasurementFromNeighborPairs)
 }
 
 TEST(LoopConsensusVerifierTest,
+     ShortSpatialLoopStillMeasuresDistinctNeighborScans)
+{
+    Config config = consensusConfig();
+    config.num_threads = 1;
+    config.sc_num_exclude_recent = 50;
+    KeyframeManager keyframes(config);
+    const auto cloud = registrationCloud();
+    std::vector<Keyframe::Ptr> frames;
+    for (int64_t id = 0; id <= 10; ++id) {
+        frames.push_back(Keyframe::create(
+            id, static_cast<double>(id), Eigen::Isometry3d::Identity(), cloud));
+    }
+    keyframes.loadKeyframes(frames);
+    VerifiedLoop loop;
+    loop.query_id = 10;
+    loop.match_id = 3;
+    loop.verified = true;
+    PointCloudMatcher matcher(config);
+    const auto result = LoopConsensusVerifier(config).evaluate(
+        keyframes, matcher, {loop}, 3).front();
+    EXPECT_EQ(result.valid_pair_count, 3);
+    EXPECT_EQ(result.estimator_pair_count, 3);
+}
+
+TEST(LoopConsensusVerifierTest,
      CrossSessionDoesNotCountLoadedMapFramesAsQueryNeighbors)
 {
     Config config = consensusConfig();

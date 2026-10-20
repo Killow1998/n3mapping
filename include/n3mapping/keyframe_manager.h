@@ -69,7 +69,9 @@ public:
 
     Keyframe::PointCloudT::Ptr buildLocalSubmap(int64_t center_id, int submap_size) const;
 
-    Keyframe::PointCloudT::Ptr buildSubmapInRootFrame(int64_t center_id, int range, int64_t root_id) const;
+    Keyframe::PointCloudT::Ptr buildSubmapInRootFrame(
+        int64_t center_id, int range, int64_t root_id,
+        int64_t excluded_keyframe_id = -1) const;
     Keyframe::PointCloudT::Ptr buildCausalSubmapInRootFrame(int64_t center_id, int range, int64_t root_id) const;
 
 private:

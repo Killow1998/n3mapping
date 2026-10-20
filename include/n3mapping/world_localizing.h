@@ -194,7 +194,9 @@ private:
   MatchResult registerTracking(
       const PointCloudMatcher::PreparedTarget* target,
       const PointCloudMatcher::PreparedSource& source,
-      const Eigen::Isometry3d& prediction, bool strict_loaded_map,
+      const PointCloudT& query_cloud,
+      const Eigen::Isometry3d& prediction, const Eigen::Isometry3d& odom_pose,
+      bool strict_loaded_map,
       RelocTrackingDebugEvent& diagnostics);
   int64_t findNearestKeyframe(const Eigen::Isometry3d &pose) const;
   int64_t findNearestLoadedKeyframe(const Eigen::Isometry3d &pose) const;

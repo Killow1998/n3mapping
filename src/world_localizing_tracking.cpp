@@ -8,6 +8,7 @@
 #include <iterator>
 #include <set>
 #include "n3mapping/tracking_target_cache.h"
+#include "tracking_pose_correction.h"
 
 namespace n3mapping {
 RelocResult
@@ -243,8 +244,8 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   const auto source_prepare_started = timing_started();
   const auto prepared_source = matcher_.prepareSourceCloud(cloud);
   debug_event.source_prepare_ms = elapsed_ms(source_prepare_started);
-  auto match_result = registerTracking(prepared_target, prepared_source,
-                                       predicted_pose, strict_loaded_map, debug_event);
+  auto match_result = registerTracking(prepared_target, prepared_source, *cloud,
+                                       predicted_pose, odom_pose, strict_loaded_map, debug_event);
   const bool retry_used = debug_event.retry_used;
 
   const bool icp_ok =
@@ -386,43 +387,9 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   const bool accepted_icp = icp_ok && selected_quality_ok && strict_geometry_ok;
 
   if (accepted_icp) {
-    Eigen::Isometry3d T_map_odom_icp =
-        match_result.T_target_source * odom_pose.inverse();
-
-    double alpha = 1.0;
-    if (!strict_loaded_map && delta_translation <= 0.5) {
-      alpha = std::min(current_confidence * 0.3, 0.2);
-    } else if (!strict_loaded_map && delta_translation <= 2.0) {
-      alpha = std::min(current_confidence * 0.15, 0.1);
-    } else if (!strict_loaded_map) {
-      alpha = std::min(current_confidence * 0.08, 0.05);
-    }
-    if (!strict_loaded_map) {
-      alpha = std::max(alpha, 0.01);
-    }
-
-    if (strict_loaded_map) {
-      T_map_odom_ = T_map_odom_icp;
-    } else {
-      Eigen::Vector3d t_current = T_map_odom_.translation();
-      Eigen::Vector3d t_target = T_map_odom_icp.translation();
-      Eigen::Vector3d t_new = t_current + alpha * (t_target - t_current);
-
-      double alpha_z = alpha * 0.3;
-      t_new.z() = t_current.z() + alpha_z * (t_target.z() - t_current.z());
-
-      Eigen::Quaterniond q_current(T_map_odom_.rotation());
-      Eigen::Quaterniond q_target(T_map_odom_icp.rotation());
-      // slerp assumes unit inputs and uses a linear branch for close rotations.
-      // Keep the correction on SO(3); repeated conversion otherwise amplifies
-      // roundoff until a stationary tracked pose fails the rigid-pose guard.
-      q_current.normalize();
-      q_target.normalize();
-      const Eigen::Quaterniond q_new = q_current.slerp(alpha, q_target).normalized();
-
-      T_map_odom_.translation() = t_new;
-      T_map_odom_.linear() = q_new.toRotationMatrix();
-    }
+    T_map_odom_ = trackingPoseCorrection(
+        T_map_odom_, odom_pose, match_result.T_target_source,
+        current_confidence, strict_loaded_map);
 
     result.success = true;
     result.state = RelocalizationState::FULL_6DOF_LOCKED;
@@ -442,7 +409,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     VLOG(1) << (strict_loaded_map ? "Loaded-map tracking OK: fitness="
                                   : "Tracking OK: fitness=")
             << match_result.fitness_score << " conf=" << current_confidence
-            << " alpha=" << alpha << " delta_t=" << delta_translation
+            << " delta_t=" << delta_translation
             << " delta_r=" << delta_rotation
             << " visibility_logodds=" << visibility.evidence_log_odds;
     finish_tracking_debug("");

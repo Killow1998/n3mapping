@@ -5,9 +5,49 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+#include <Eigen/Cholesky>
+#include <gtsam/geometry/Pose3.h>
+#include "n3mapping/n3map_proto_utils.h"
 
 namespace n3mapping {
 namespace {
+void accountForNeighborDisagreement(
+    const Config& config, const LoopConsensusResult& consensus,
+    VerifiedLoop* loop) {
+    if (!config.loop_use_icp_information ||
+        loop->edge_mode != LoopEdgeMode::Full6Dof) return;
+    using Matrix6 = Eigen::Matrix<double, 6, 6>;
+    Matrix6 scatter = Matrix6::Zero();
+    int count = 0;
+    for (const auto& pair : consensus.pairs) {
+        if (!pair.valid || !pair.converged || !pair.has_estimated_measurement ||
+            !std::isfinite(pair.fitness_score) || !std::isfinite(pair.inlier_ratio) ||
+            pair.fitness_score >= config.loop_fitness_threshold ||
+            pair.inlier_ratio < config.loop_min_inlier_ratio) continue;
+        const Eigen::Isometry3d delta =
+            loop->T_measured_match_query.inverse() * pair.estimated_match_query;
+        const auto tangent = gtsam::Pose3::Logmap(gtsam::Pose3(delta.matrix()));
+        Eigen::Matrix<double, 6, 1> residual;
+        residual << tangent.tail<3>(), tangent.head<3>();
+        if (!residual.allFinite()) continue;
+        scatter.noalias() += residual * residual.transpose();
+        ++count;
+    }
+    if (count < 3) return;
+    // Neighbor estimates share scans and odometry. Their second moment is an
+    // uncertainty floor, not independent information to multiply by their count.
+    const Eigen::LDLT<Matrix6> initial(loop->information);
+    if (initial.info() != Eigen::Success || !initial.isPositive()) return;
+    const Matrix6 covariance = initial.solve(Matrix6::Identity()) + scatter / count;
+    const Eigen::LDLT<Matrix6> calibrated(covariance);
+    if (calibrated.info() != Eigen::Success || !calibrated.isPositive()) return;
+    const Matrix6 candidate = calibrated.solve(Matrix6::Identity());
+    const Matrix6 information = 0.5 * (candidate + candidate.transpose());
+    std::string error;
+    if (isValidInformationMatrix(information, &error))
+        loop->information = information;
+}
+
 std::string consensusRejectReason(const VerifiedLoop& loop) {
     if (loop.consensus_estimator_recommendation ==
             "insufficient_estimator_support" &&
@@ -86,6 +126,7 @@ LoopVerificationPipeline::evaluateConstraints(
             result.reject_reason = reason;
             continue;
         }
+        accountForNeighborDisagreement(config_, result.consensus, &result.loop);
 
         const auto edges = loop_closure_manager_.buildLoopEdges(
             {result.loop}, direction);

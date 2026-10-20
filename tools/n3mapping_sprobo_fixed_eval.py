@@ -89,6 +89,8 @@ def main():
             lock = next((row for row in rows if row["lock"] == "1"), None)
             result = dict(id=position["id"], variant=variant.name, returncode=status,
                           frames=len(rows), outputs=sum(row["live"] == "1" for row in rows),
+                          successful_frames=sum(row["success"] == "1" for row in rows),
+                          lock_frames=[int(row["frame"]) for row in rows if row["lock"] == "1"],
                           manifest_sha256=sha256(query / "manifest/frames.csv"),
                           csv=str(destination), first_lock_frame=int(lock["frame"]) if lock else None,
                           first_lock_wall_s=float(lock["cumulative_wall_ms"]) / 1000 if lock else None,

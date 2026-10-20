@@ -86,6 +86,7 @@ LoopClosureOutcome processLoopCandidates(
     std::vector<VerifiedLoop> verified_loops;
     verified_loops.reserve(candidates.size());
     std::vector<LoopDebugCandidateEvent> debug_events;
+    std::map<std::pair<int64_t, int64_t>, EdgeInfo> edge_by_pair;
     std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics>
         graph_trial_by_pair;
     std::map<std::pair<int64_t, int64_t>, LoopGraphTrialDiagnostics>
@@ -109,6 +110,8 @@ LoopClosureOutcome processLoopCandidates(
           for (auto &event : debug_events) {
             const std::pair<int64_t, int64_t> key(event.candidate.query_id,
                                                   event.candidate.match_id);
+            if (const auto edge = edge_by_pair.find(key); edge != edge_by_pair.end())
+              event.loop_information = edge->second.information;
             auto trial_it = graph_trial_by_pair.find(key);
             if (trial_it != graph_trial_by_pair.end()) {
               assignGraphTrialDiagnostics(&event, trial_it->second);
@@ -308,7 +311,6 @@ LoopClosureOutcome processLoopCandidates(
     }
 
     const auto poses_before = optimizer.getOptimizedPoses();
-    std::map<std::pair<int64_t, int64_t>, EdgeInfo> edge_by_pair;
     std::vector<VerifiedLoop> gated_loops;
     gated_loops.reserve(candidate_loops.size());
 
@@ -317,6 +319,7 @@ LoopClosureOutcome processLoopCandidates(
       const auto key = std::make_pair(gate.loop.query_id, gate.loop.match_id);
       consensus_by_pair[key] = gate.consensus;
       if (gate.has_edge) {
+        edge_by_pair[key] = gate.edge;
         graph_trial_by_pair[key] = gate.graph_trial;
       }
       if (gate.has_consensus_estimator_trial) {
@@ -332,7 +335,6 @@ LoopClosureOutcome processLoopCandidates(
                                         : gate.reject_reason;
         continue;
       }
-      edge_by_pair[key] = gate.edge;
       gated_loops.push_back(gate.loop);
     }
 

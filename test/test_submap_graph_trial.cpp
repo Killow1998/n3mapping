@@ -2,6 +2,7 @@
 
 #include "n3mapping/graph_factor_noise.h"
 
+#include <gtsam/nonlinear/PriorFactor.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -357,6 +358,68 @@ TEST(SubmapGraphTrialTest,
     EXPECT_FALSE(loop_fallback.explicit_information);
     EXPECT_TRUE(loop_fallback.fallback);
     EXPECT_TRUE(loop_fallback.robust);
+}
+
+TEST(SubmapGraphTrialTest,
+     RobustFactorCostAndLinearizationUseTheSameResidual) {
+    Config config;
+    config.use_robust_kernel = true;
+    config.robust_kernel_delta = 1.3;
+    auto info = information(4.0, 9.0);
+    info(0, 5) = info(5, 0) = 1.2;
+
+    for (const auto* kernel : {"Cauchy", "Huber"}) {
+        config.robust_kernel_type = kernel;
+        for (const auto& selection : {
+                 makeFullGraphFactorNoise(
+                     info, config, GraphFactorNoiseRole::ODOMETRY, true),
+                 makeXYYawGraphFactorNoise(info, config, true)}) {
+            const auto& noise = selection.model;
+            const auto dimension = noise->dim();
+            const gtsam::Vector zero = gtsam::Vector::Zero(dimension);
+            const gtsam::PriorFactor<gtsam::Vector> factor(0, zero, noise);
+            auto cost = [&](const gtsam::Vector& residual) {
+                gtsam::Values values;
+                values.insert(0, residual);
+                return factor.error(values);
+            };
+            for (const double scale : {0.05, 2.0, 20.0}) {
+                SCOPED_TRACE(::testing::Message()
+                             << kernel << ", dimension=" << dimension
+                             << ", scale=" << scale);
+                const gtsam::Vector residual =
+                    scale * gtsam::Vector::LinSpaced(dimension, 0.2, 1.0);
+                gtsam::Matrix jacobian =
+                    gtsam::Matrix::Identity(dimension, dimension);
+                gtsam::Vector whitened = residual;
+                noise->WhitenSystem(jacobian, whitened);
+                const gtsam::Vector linearized_gradient =
+                    jacobian.transpose() * whitened;
+                for (size_t axis = 0; axis < dimension; ++axis) {
+                    auto plus = residual.eval();
+                    auto minus = residual.eval();
+                    constexpr double step = 1e-5;
+                    plus(axis) += step;
+                    minus(axis) -= step;
+                    EXPECT_NEAR((cost(plus) - cost(minus)) / (2 * step),
+                                linearized_gradient(axis), 1e-7);
+                }
+            }
+        }
+    }
+    config.robust_kernel_type = "Cauchy";
+    config.robust_kernel_delta = 1.0;
+    const auto noise = makeFullGraphFactorNoise(
+        Eigen::Matrix<double, 6, 6>::Identity(), config,
+        GraphFactorNoiseRole::ODOMETRY, true);
+    const gtsam::Vector zero = gtsam::Vector::Zero(6);
+    gtsam::Vector residual = zero;
+    residual(0) = 2.0;
+    gtsam::Values values;
+    values.insert(0, residual);
+    EXPECT_NEAR(gtsam::PriorFactor<gtsam::Vector>(0, zero, noise.model)
+                    .error(values),
+                0.5 * std::log(5.0), 1e-12);
 }
 
 TEST(SubmapGraphTrialTest,

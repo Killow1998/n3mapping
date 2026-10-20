@@ -1,11 +1,25 @@
 #include "n3mapping/graph_factor_noise.h"
 
+#include <boost/make_shared.hpp>
 #include <cmath>
 
 namespace n3mapping {
 namespace {
 
 using Matrix6d = Eigen::Matrix<double, 6, 6>;
+
+class GraphRobustNoise final : public gtsam::noiseModel::Robust {
+public:
+    using gtsam::noiseModel::Robust::Robust;
+
+    double squaredMahalanobisDistance(const gtsam::Vector& residual)
+        const override {
+        // Factor error applies the robust loss to this distance. Robust::whiten
+        // also applies IRLS weights, so using it here would downweight twice
+        // and make the nonlinear objective disagree with linearization.
+        return noise()->squaredMahalanobisDistance(residual);
+    }
+};
 
 Matrix6d informationToGtsamOrder(const Matrix6d& information) {
     Matrix6d reordered;
@@ -37,7 +51,7 @@ gtsam::noiseModel::Base::shared_ptr wrapRobust(
     }
     if (!estimator) return base;
     if (wrapped) *wrapped = true;
-    return gtsam::noiseModel::Robust::Create(estimator, base);
+    return boost::make_shared<GraphRobustNoise>(estimator, base);
 }
 
 }  // namespace

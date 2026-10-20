@@ -281,6 +281,36 @@ TEST(LoopVerifierEvidenceTest, PreparedPathUsesConfiguredSerializableInformation
 }
 
 TEST(LoopVerificationPipelineTest,
+     QueryScanCannotSupplyItsOwnTargetEvidence)
+{
+    Config config;
+    config.num_threads = 1;
+    config.gicp_submap_size = 5;
+    const auto query_cloud = makeRegistrationCloud();
+    auto unrelated = pcl::make_shared<Keyframe::PointCloudT>(*query_cloud);
+    for (auto& point : *unrelated) point.x += 50.0f;
+    KeyframeManager keyframes(config);
+    keyframes.loadKeyframes({
+        Keyframe::create(0, 1.0, Eigen::Isometry3d::Identity(), unrelated),
+        Keyframe::create(5, 2.0, Eigen::Isometry3d::Identity(), query_cloud)});
+    PointCloudMatcher matcher(config);
+    GraphOptimizer optimizer(config);
+    LoopClosureManager manager(config);
+    LoopVerificationPipeline pipeline(
+        config, keyframes, matcher, optimizer, manager);
+    LoopCandidate candidate;
+    candidate.query_id = 5;
+    candidate.match_id = 0;
+    candidate.source_flags = LoopCandidate::SOURCE_SPATIAL;
+    candidate.spatial_score = 1.0;
+
+    const auto result = pipeline.evaluate(candidate, {});
+    EXPECT_TRUE(result.registration_attempted);
+    EXPECT_FALSE(result.loop.verified);
+    EXPECT_EQ(result.verification.match_result.num_inliers, 0u);
+}
+
+TEST(LoopVerificationPipelineTest,
      SmallRollCorrectionIsNotAHalfTurn)
 {
     Config config;

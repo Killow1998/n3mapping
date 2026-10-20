@@ -201,6 +201,9 @@ class ProductBundleTest(unittest.TestCase):
             differences,
             {
                 "mode": ('"mapping"', '"localization"'),
+                # Mapping uses calibrated loop information; the frozen
+                # localization profile does not create mapping loop edges.
+                "loop_use_icp_information": ("true", "false"),
                 "reloc_atlas_enable": ("false", "true"),
                 "save_global_map_on_shutdown": ("true", "false"),
             },

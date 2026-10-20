@@ -11,6 +11,7 @@
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/loop_referee.h"
 #include "n3mapping/loop_segment_consistency.h"
+#include "constraint_refinement.h"
 
 namespace n3mapping {
 namespace {
@@ -209,7 +210,7 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
     result.target_registration_cloud =
         keyframe_manager_.buildSubmapInRootFrame(
             candidate.match_id, config_.gicp_submap_size,
-            candidate.match_id);
+            candidate.match_id, candidate.query_id);
     if (!result.source_registration_cloud ||
         result.source_registration_cloud->empty() ||
         !result.target_registration_cloud ||
@@ -283,6 +284,38 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
         result.pose_visibility = pose_visibility(result.verification);
     }
     result.pose_visibility_evaluated = evaluate_visibility;
+    auto broad_loop = loop_closure_manager_.applyEdgeModel(result.verification.loop);
+    if (broad_loop.verified) {
+        assignLoopSegmentConsistency(&broad_loop,
+            computeLoopSegmentConsistency(config_, keyframe_manager_, broad_loop));
+        broad_loop.verified = LoopReferee::evaluate(makeSegmentAwareLoopFeatures(
+            config_, candidate, broad_loop,
+            result.verification.icp_translation_norm)).decision == LoopDecision::Accept;
+    }
+    if (broad_loop.verified && config_.icp_refine_use_gicp) {
+        // Neighbor scans provide coverage for admission, but their estimated
+        // relative poses can blur the target. Refine on the two original scans
+        // only after that broad observation has passed, and require the refined
+        // endpoint to retain the original submap's geometric support.
+        const auto source = matcher_.prepareSourceCloud(query->cloud);
+        const auto target = matcher_.prepareTargetCloud(match->cloud);
+        const auto refined = refineConstraint(config_, matcher_, target, source,
+            result.verification.T_measured_match_query);
+        if (refined.success) {
+            const auto submap = matcher_.prepareTargetCloud(result.target_registration_cloud);
+            const auto supported = matcher_.evaluatePreparedPose(
+                submap, source, refined.T_target_source, refined.metric);
+            if (supported.num_inliers > 0 &&
+                supported.fitness_score < config_.loop_fitness_threshold &&
+                supported.inlier_ratio >= config_.loop_min_inlier_ratio) {
+                result.verification = loop_verifier_.verifyQueryToMatchResult(
+                    candidate, query, match, query->cloud, match->cloud, refined);
+                result.source_registration_cloud = query->cloud;
+                result.target_registration_cloud = match->cloud;
+                result.pose_visibility = pose_visibility(result.verification);
+            }
+        }
+    }
     result.loop = result.verification.loop;
     if (!result.loop.verified) {
         result.reject_stage = "registration";

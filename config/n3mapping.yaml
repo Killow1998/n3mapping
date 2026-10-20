@@ -63,7 +63,8 @@ n3mapping_node:
     loop_fitness_threshold: 0.2
     loop_max_icp_translation: 2.0
     loop_max_icp_rotation: 0.5
-    loop_use_icp_information: false
+    # Relative-pose information includes disagreement between neighbor estimates.
+    loop_use_icp_information: true
     loop_icp_prefilter_voxel_size: 0.2
     loop_icp_max_points: 50000
     loop_debug_enable: false

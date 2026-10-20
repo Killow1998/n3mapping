@@ -327,7 +327,9 @@ Keyframe::PointCloudT::Ptr KeyframeManager::buildLocalSubmap(int64_t center_id, 
     return submap;
 }
 
-Keyframe::PointCloudT::Ptr KeyframeManager::buildSubmapInRootFrame(int64_t center_id, int range, int64_t root_id) const {
+Keyframe::PointCloudT::Ptr KeyframeManager::buildSubmapInRootFrame(
+    int64_t center_id, int range, int64_t root_id,
+    int64_t excluded_keyframe_id) const {
     std::lock_guard<std::mutex> lock(mutex_);
     auto submap = pcl::make_shared<Keyframe::PointCloudT>();
 
@@ -337,6 +339,7 @@ Keyframe::PointCloudT::Ptr KeyframeManager::buildSubmapInRootFrame(int64_t cente
     Eigen::Matrix4f T_root_inv = root_it->second->pose_optimized.matrix().cast<float>().inverse();
 
     for (int64_t id = center_id - range; id <= center_id + range; ++id) {
+        if (id == excluded_keyframe_id) continue;
         auto it = keyframes_.find(id);
         if (it == keyframes_.end()) continue;
         auto kf = it->second;

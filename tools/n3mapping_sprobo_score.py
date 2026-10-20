@@ -62,12 +62,18 @@ def score(mapping_dir, query_dir, topic="/n3mapping/odometry", probe_csv=None):
     world_from_map_r = anchor_r[0] * Rotation.from_quat(anchor[0, 4:]).inv()
     world_from_map_p = anchor_p[0] - world_from_map_r.apply(anchor[0, 1:4])
     query, query_imu = read_run(query_dir)
+    probe_status = None
     if probe_csv:
         rows = []
+        probe_status = dict(input_frames=0, successful_frames=0,
+                            published_without_backend_success=0)
         with probe_csv.open() as stream:
             for row in csv.DictReader(stream):
+                probe_status["input_frames"] += 1
+                probe_status["successful_frames"] += row["success"] == "1"
                 if row["live"] != "1":
                     continue
+                probe_status["published_without_backend_success"] += row["success"] != "1"
                 prefix = "output_pose" if "output_pose0" in row else "pose"
                 if prefix == "pose" and row["success"] != "1":
                     raise ValueError("Probe has coasted outputs; backend pose alone cannot score them")
@@ -92,6 +98,7 @@ def score(mapping_dir, query_dir, topic="/n3mapping/odometry", probe_csv=None):
 
     return dict(mapping=str(mapping_dir.resolve()), query=str(query_dir.resolve()), topic=topic,
         probe_csv=str(probe_csv.resolve()) if probe_csv else None,
+        probe_status=probe_status,
         alignment=dict(source="first mapping pose on "+topic+" only; no query fitting",
                        stamp_ns=int(anchor[0, 0]), translation=world_from_map_p.tolist(),
                        quaternion_xyzw=world_from_map_r.as_quat().tolist()),

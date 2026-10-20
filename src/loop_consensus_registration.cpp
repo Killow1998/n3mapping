@@ -50,7 +50,7 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
     const std::vector<VerifiedLoop>& central_loops,
     int half_window, bool cross_session) const {
     std::vector<std::vector<LoopConsensusPairEvidence>> pairs(central_loops.size());
-    std::map<int64_t, std::vector<NeighborTask>> tasks_by_target;
+    std::map<std::pair<int64_t, int64_t>, std::vector<NeighborTask>> tasks_by_target;
     const auto all_keyframes = keyframes.getAllKeyframes();
     const int local_id_radius = std::max(12, 6 * half_window);
     for (std::size_t loop_index = 0; loop_index < central_loops.size(); ++loop_index) {
@@ -99,9 +99,8 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
                 evidence.match_neighbor_id = central_loop.match_id + offset;
                 match_neighbor = keyframes.getKeyframe(evidence.match_neighbor_id);
                 if (!match_neighbor ||
-                    std::abs(evidence.query_neighbor_id - evidence.match_neighbor_id) <
-                        config_.sc_num_exclude_recent) {
-                    evidence.reject_reason = "missing_or_recent_neighbor";
+                    evidence.query_neighbor_id == evidence.match_neighbor_id) {
+                    evidence.reject_reason = "missing_or_same_neighbor";
                     continue;
                 }
                 predicted = predictNeighborTransform(
@@ -113,7 +112,13 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
                 evidence.reject_reason = "session_boundary_neighbor";
                 continue;
             }
-            tasks_by_target[match_neighbor->id].push_back({
+            // A short spatial revisit is still a distinct observation. The
+            // descriptor's temporal exclusion is not a geometry veto, but the
+            // query scan itself must never enter its registration target.
+            const int64_t excluded =
+                std::abs(query_neighbor->id - match_neighbor->id) <=
+                    config_.gicp_submap_size ? query_neighbor->id : -1;
+            tasks_by_target[{match_neighbor->id, excluded}].push_back({
                 loop_index, loop_pairs.size() - 1, query, match,
                 query_neighbor, match_neighbor, predicted});
         }
@@ -121,9 +126,10 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
 
     // Only one prepared target is resident. Solves and evidence remain per
     // central candidate; changing execution order cannot pool their votes.
-    for (const auto& [target_id, tasks] : tasks_by_target) {
+    for (const auto& [target_key, tasks] : tasks_by_target) {
+        const auto [target_id, excluded] = target_key;
         const auto target = keyframes.buildSubmapInRootFrame(
-            target_id, config_.gicp_submap_size, target_id);
+            target_id, config_.gicp_submap_size, target_id, excluded);
         PointCloudMatcher::PreparedTarget prepared_target;
         bool prepared = false;
         for (const auto& task : tasks) {

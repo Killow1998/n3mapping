@@ -2,22 +2,42 @@
 
 ## Unreleased
 
+- Calibrate mapping constraints using original scan-pair refinement and neighbor
+  disagreement in the relative-pose covariance. Exclude query self-evidence and
+  restore distinct short-revisit neighbor measurements. Main mapping YAML uses
+  the tested ICP-information mode; numerical gates and the frozen localization
+  profile are retained.
+- Correct robust nonlinear cost versus IRLS linearization and log the actual
+  post-calibration edge information. Share fine constraint refinement and split
+  adjacent-constraint construction out of the main core.
+- Admit bounded/original-scan tracking recovery only after complete fine,
+  motion, global-coverage and published-pose ray checks. A rejected candidate
+  cannot suppress the original retry. Complete partial-map replay adds no wrong output or geometric
+  confirmation; the existing ambiguous global lock remains unresolved.
+- All original 14 stationary recordings now stay below 10 cm on the causal
+  rebuilt map: 4.40 cm pooled RMSE / 9.04 cm maximum, with every position and
+  angular RMSE/maximum improved. Complete independent motion has one
+  initialization, five geometry failures, 5.06 cm RMSE and 17.28 cm maximum.
+  Its remaining 192 outputs above 10 cm keep full-route acceptance open.
+  Full CTest passes 61/61; default/Atlas/kill each pass 15/15.
+  See the [complete qualification](docs/evidence/runtime_cpu_20261017/README.md#independent-constraint-calibration-and-tracking-recovery--2026-10-20).
+
 - Correct loop information coordinates when a pretransformed source estimates a
   correction and when a full-six-DoF edge is reversed. Two physical residual
   regressions fail on the old core and pass on the repair. Original fixed14,
   independent motion, strict extension and default causal mapping retain their
   behavior; full CTest passes 61/61.
-- Attribute stationary 05's previous accuracy regression to local map motion,
+- Earlier diagnostic stages attribute stationary 05's accuracy regression to local map motion,
   with only 0.162 mm residual after diagnostic transport. Complete map/query
   ablations reach 10.86 cm pooled fixed14 RMSE but still regress individual
-  position/angular metrics; withdraw candidate algorithms and preserve the
-  original map and defaults. Correct information coordinates do not certify
-  covariance calibration or 10 cm accuracy.
+  position/angular metrics; those candidates were withdrawn. The subsequent
+  calibration above supersedes that candidate-only result. Correct information
+  coordinates do not certify covariance calibration or 10 cm accuracy.
 
 - Fix ordinary tracking accepting a distant coarse registration without fine
   geometric confirmation. Enforce existing motion limits and recheck suspicious,
   otherwise admissible proposals with prepared fine GICP from the prediction.
-  Reject failed rechecks; do not rescue failed broad geometry into new authority.
+  Reject failed rechecks; new recovery authority additionally requires full-map coverage.
   Complete original fixed14 behavior and strict-extension outputs are preserved.
   The full-map motion recording has no remaining >1 m / >5° output; the separate
   aliased partial-map global lock remains unresolved.
@@ -25,7 +45,7 @@
   and diagnostics. Small roll corrections no longer become false half-turns.
   Complete causal mapping increases accepted loops 195→398 and improves revisit
   translation RMSE 3.45→2.61 cm. Rebuilt-map accuracy still has local regressions;
-  no candidate map or calibrated numerical defaults are promoted.
+  the subsequent calibration above addresses those local regressions.
 - Add research-only map × deskew ablation tools and complete four-core accuracy
   evidence. Independent authored geometry and a mapping-only known-trajectory
   control isolate map bias from within-scan deskew error on this fixture.

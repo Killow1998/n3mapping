@@ -4475,3 +4475,216 @@ partial-map alias limitation remain in force. Next work should reconcile
 independent pair measurements with calibrated, correlated map uncertainty and
 repeat the complete accuracy boundary; neither this fixture nor these ablations
 prove that FAST_LIO has reached an accuracy ceiling.
+
+## Independent constraint calibration and tracking recovery — 2026-10-20
+
+This stage starts at `1ab5150`, addressing stationary 06, angular regressions
+at 10/11 and increased moving geometry failures. Raw inputs, the original map
+and Atlas remain unchanged. Commands, frozen cores, rejected variants and full
+CSV outputs are retained in
+`build/n3mapping/loop_calibration_20261020/` relative to the workspace.
+All full-data replays use physical P cores `0,2,4,6`, four registration
+threads and passive OpenMP waiting. These are unpaced correctness experiments;
+some overlap on the same cores. Their times do not qualify a new performance
+improvement, a half-core budget or asynchronous live-node throughput.
+
+### Error attribution and retained measurement changes
+
+The previous pair-refinement candidate's 06/10/11 output changes follow the
+nearby map deformation. Transport by the respective supporting map-frame
+changes leaves only **1.864 / 1.156 / 0.897 mm** position RMSE and approximately
+**0.0044 / 0.0052 / 0.0047°** angular RMSE. No per-position compensation or
+query-truth adjustment is used.
+
+- Refine adjacent mapping constraints and already-admitted loop constraints
+  against the two original scans. This avoids using an assembled target's
+  internal pose errors as the final measurement. Loop admission still requires
+  broad geometry, the existing referee and segment checks; a refined endpoint
+  must retain broad-submap support and pass the normal checks again. Adjacent
+  refinement retains the original LIO measurement when fine geometry fails.
+  Raw LIO poses and configured odometry uncertainty are unchanged.
+- Exclude the query scan from its own loop target. With the existing short
+  spatial revisit gap and target radius, the old target could contain that
+  exact source scan. The behavioral regression changes from 363 self-inliers
+  and acceptance to zero inliers and rejection.
+- Distinct neighboring scans of a short spatial revisit now supply geometry
+  evidence. The descriptor's recent-frame exclusion no longer silently removes
+  all those measurements. Source exclusion also applies to these targets;
+  target grouping includes the excluded ID. The regression changes from zero
+  measured neighbors to three.
+- In the existing full-six-DoF ICP-information mode, add the second moment of
+  valid neighboring relative-pose disagreements to the measurement covariance.
+  Residuals use the measurement's right tangent frame. At least three converged,
+  quality-passing neighbors are required. Correlated neighboring scans do not
+  earn an additional division by their count. The resulting information must
+  remain finite and positive definite before it is used.
+- Correct robust factor cost evaluation in the local GTSAM integration:
+  nonlinear loss must see the underlying Gaussian Mahalanobis distance, before
+  IRLS weighting. The old implementation downweighted twice. Actual Cauchy and
+  Huber factors now have numerical cost gradients consistent with their
+  linearization, in both six- and three-dimensional cases. This repair alone
+  preserves the causal iSAM2 map; the accuracy gain is not attributed to it.
+
+The shared fine-registration helper is 29 lines; adjacent-constraint construction
+is a separate 37-line implementation. Mapping and extension retain their common
+verification pipeline. No new worker, cache, descriptor mode or numerical threshold value was
+introduced. The main mapping YAML selects the existing
+`loop_use_icp_information: true` mode used by the calibrated map; the frozen
+`product_v1.yaml` localization performance profile is preserved.
+
+### Causal mapping and uncertainty evidence
+
+The complete common online mapping pipeline consumes **13,791** estimated-LIO
+inputs, produces **13,723** successful frames and saves **1,271** connected
+keyframes, **1,270** odometry edges and **423** loops. There are **130** loop
+pairs separated by at least 100 keyframes, versus 121 in the retained baseline.
+No saved loop measurement exceeds 1 m or 5° truth error. Truth is used by the
+scorer only; the estimator starts without a completed map.
+
+| Metric | Retained baseline | Calibrated map |
+| --- | ---: | ---: |
+| Final map position RMSE | 27.665 cm | 4.441 cm |
+| Independent revisit position RMSE, 1,811 pairs | 2.611 cm | 0.478 cm |
+| Independent revisit rotation RMSE | 0.17779° | 0.01862° |
+| Loop-measurement position RMSE | — | 0.766 cm |
+| Loop-measurement rotation RMSE | — | 0.01671° |
+
+The final mapping refactor reproduces the selected map's 1,271 poses and
+423 measured loops within **4.54e-11** and **2.58e-11** matrix-element
+differences. All graph connectivity and information checks pass.
+The debug log now records post-calibration edge information, including graph
+trial rejections. For all 423 saved loops, the six logged information diagonals
+match serialization exactly.
+
+Loop truth-normalized squared error has median **1.415**, p95 **19.223** and
+maximum **195.133**. This is evidence of remaining uncertainty tails, not proof
+of a universally calibrated covariance model. Neighbor estimates are correlated,
+and the model does not claim independent information from every scan.
+
+### Complete stationary and moving accuracy
+
+Using the calibrated map, normal descriptor search and stationary initialization,
+all original 14 recordings retain frame-4 locks and **4,088 successful outputs
+from 4,144 inputs**. Every output is below 10 cm: pooled position RMSE
+**4.399 cm**, maximum **9.035 cm**. Every position improves both position and
+angular RMSE and maximum relative to the original map.
+
+| Requested regression | Original retained baseline | Previous rejected pair candidate | Final calibrated result |
+| --- | ---: | ---: | ---: |
+| 06 position RMSE | 6.252 cm | 6.547 cm | 4.438 cm |
+| 10 angular RMSE | 0.07116° | 0.22197° | 0.02572° |
+| 11 angular RMSE | 0.43526° | 0.47708° | 0.06135° |
+| Independent-route geometry failures | 6 | 12 | 5 |
+
+The complete 2,236-input independent route retains **2,232 successful outputs**,
+one initialization, 2,227 geometry-confirmed and five coasting outputs.
+Position RMSE/max are **5.055 / 17.275 cm**, rotation RMSE/max
+**0.08936 / 0.54500°**. All published poses, including coasted poses, are scored;
+none exceeds 1 m or 5°. **2,040/2,232** outputs meet 10 cm, so the complete
+moving-route requirement remains open.
+
+![Stationary and independent-route accuracy](loop_calibration_20261020.png)
+
+The worst frame is at **205.2 s**, supported by keyframe 455. A diagnostic
+correction using that keyframe's true rigid pose still leaves **17.834 cm**
+error. Across the route this correction reduces outputs over 10 cm from 192
+to 54, but it does not remove within-cloud or assembled-map distortion.
+The remaining peak therefore cannot be assigned solely to a rigid map offset,
+nor does this diagnostic prove a single frontend or registration cause.
+
+### Recovery ablations and qualification boundary
+
+Explicitly bounded tracking must retain its fine correspondence radius even
+at a coarser plane-ICP scale. The old automatic radius expansion could acquire
+a parallel surface a metre away despite the caller's 30 cm bound; the
+behavioral regression now rejects that surface.
+
+Correct local fits sometimes explain only about one third of a time-local
+submap, while the frozen full map explains almost the entire scan. Tightening
+the local acceptance ratio to the loop threshold rejects valid recovery and
+causes repeated initialization. Removing the original-scan fallback has the
+same failure. Conversely, unrestricted bounded/raw recovery adds **129**
+wrong geometry confirmations in the already-aliased partial-map recording.
+Both extremes are rejected.
+
+New bounded or original-scan recovery therefore retains the normal local
+convergence/fitness checks and additionally requires the final refined pose
+to satisfy the existing **70%** global-map coverage threshold within the
+existing **30 cm** fine correspondence radius. This is a fixed-pose coverage
+check on the prepared Atlas, not another optimization.
+
+The first complete coverage-check checkpoint reduces wrong geometry
+confirmations from 409 to 406 but introduces one at frame 1320 after a rejected
+frame expands the next local target. It is not treated as a passed negative
+test merely because the total is smaller. Qualification of the recovery after
+such a gap also fails at that frame and is stopped with its prefix retained.
+Always preferring the original wide retry is rejected too: its complete motion
+replay raises the angular maximum to 2.471°.
+
+
+The retained solution completes candidate validation **before** replacing the
+original result. A new bounded proposal must be fine GICP, remain within the
+existing fine translation radius and motion bounds, and pass the full-map
+coverage check. The actual smoothed output must also pass first-return ray
+consistency at the same existing 70% ratio. Admission and publication share
+the map-to-odometry correction computation. Otherwise the original wider retry
+still runs. Original-scan fallback also passes its complete checks before selection. Rejected proposals
+cannot cancel another path's admissible result. This keeps proposal evaluation
+separate from state commitment without adding persistent recovery state.
+
+A point-coverage-only version still adds a wrong confirmation at frame 1329:
+an earlier changed proposal at frame 1292 has 70.8% nearby endpoints but only
+51.8% first-return agreement with 99.1% known bearings. Checking visibility only
+at raw ICP endpoints rejects correct-route recovery too, producing 104 backend
+failures and a second initialization. That version is rejected. The retained
+version checks the pose actually published, after smoothing, while preserving
+the optimizer endpoint's geometry and full-map coverage requirements.
+
+The final full partial-map negative replay consumes 2,236 inputs and retains
+2,232 published outputs and lock frames **4/922/1686**. It adds **zero** wrong
+output frames and **zero** wrong geometry-confirmed frames relative to the
+retained baseline; wrong geometry confirmations are **409→409**.
+The pre-existing false global lock from frames 922–1685 remains unresolved:
+764 wrong published outputs remain. This is a non-expansion check in the
+excluded ambiguous area, not a successful outside-map localization result.
+
+### Final verification and delivery scope
+
+Final core SHA-256:
+`aa5f22048754dc3bd77ddec0c5a86c7ae240f18e727521b291b07978ab52c6aa`.
+`qualify_stage.py` verifies frozen source/core identity, the original map/Atlas
+and manifests, all 14 pointwise accuracy boundaries, complete motion and
+negative replays, graph connectivity and serialized information.
+`published14`, `published_motion` and `published_partial` are the final replay
+directories.
+The selected map is
+`eval_maps/map_independent_neighbors/map/n3map.pbstream` under the stage build
+directory. The original map is preserved.
+
+- Full Humble/core/tools build and **61/61 CTest** pass. Default/Atlas/kill
+  profiles each pass **15/15** episodes. Four behavioral regressions expose
+  robust-cost inconsistency, source self-inclusion, skipped distinct neighbors
+  and correspondence-radius widening on the old implementation.
+- Main mapping parameters match the tested harness for all 147 mapped values.
+  The product-profile test explicitly records the intended mapping-only
+  information-mode difference; its initial failed expectation and successful
+  correction are retained. Numerical quality thresholds and the frozen
+  localization profile remain unchanged.
+- Complete strict extension retains 2,232 successes and 231 new keyframes;
+  behavior is unchanged and maximum output-matrix difference is below
+  1e-11. Strict extension is fully replayed with the final core; unchanged
+  mapping implementation files match the completed causal mapping run.
+- Scoring separately reports input count, backend-success count and published
+  poses without backend success. Earlier failing candidates could publish all
+  poses while losing backend tracking on 104 frames. No such frames remain in
+  the final full-map route.
+- The final core also completes independent motion on the preserved original
+  map: 2,232 successes, one initialization, two geometry failures versus six.
+  Position/angular RMSE and maxima do not regress. Its position RMSE remains
+  29.622 cm; the larger accuracy gain above requires the rebuilt calibrated map.
+
+The common causal online pipeline was exercised synchronously; current
+asynchronous owner/worker throughput, full ROS publication, Noetic builds and
+hardware are not newly qualified. No install, push or original-data replacement
+is performed. Full-route 10 cm accuracy, residual constraint uncertainty tails
+and the known partial-map global alias remain open.
