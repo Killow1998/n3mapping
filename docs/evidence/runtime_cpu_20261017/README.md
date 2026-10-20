@@ -4172,3 +4172,170 @@ geometrically accepted tracking excursion. For map accuracy, investigate
 independent loop coverage and residual map deformation with fixed evaluation
 data; do not tune descriptors or fit truth compensation to remove map bias.
 This stage does not establish that FAST_LIO has reached its accuracy limit.
+
+## Tracking admission, loop angle branches and map deformation — 2026-10-20
+
+This follow-up starts from `a3ab8b7`. The final core is
+`e6024beff19657bc26c9636fdb139ff6954011f903edb523196be8a5a7c5cf9b`.
+Raw commands, frozen variants, complete CSVs, rejected experiments and
+`qualification.json` are in the workspace's
+`build/n3mapping/tracking_geometry_20261020`. The structured record is
+[`online_loop_20261020.json`](../online_loop_20261020.json), key
+`tracking_geometry`. Original maps, atlases, bags, configuration values and
+fixed scoring alignment are preserved. Truth is confined to reference-map
+construction and independent scoring; query truth never enters localization.
+All registration/replay work uses four physical P cores `0,2,4,6`, four matcher
+threads and `OMP_WAIT_POLICY=PASSIVE`.
+
+### Repair and rejected alternatives
+
+At frame 2016, the original ordinary tracker accepted a coarse plane endpoint
+**7.381 m / 1.547 rad** from its prediction. Its fitness was 0.1353 with 88%
+inliers, but the displacement bypassed fine GICP eligibility. Ordinary tracking
+also ignored the existing motion limits, which were enforced only for strict
+extension. Smoothing then carried the incorrect correction into the published
+trajectory. The original prediction at that instant was only about
+9.8 cm / 0.34° from truth.
+
+Ordinary tracking now enforces the existing motion bounds and, when GICP
+refinement is configured, requires fine GICP evidence. Otherwise admissible
+proposals that lack this evidence or leave the fine correspondence radius are
+rechecked from the original prediction on the already prepared loaded atlas
+(local prepared target if no atlas is loaded). This uses the existing 5 cm
+level, 30 cm correspondence radius and a 50-iteration budget equal to the
+existing 30+20 stages. Failed rechecks cannot fall through to the suspicious
+endpoint; convergence, fitness, inlier and motion gates still apply.
+Strict extension keeps its existing separate policy.
+
+Complete-route ablations explain why a rejection gate alone is insufficient:
+
+| Variant | Original-map position RMSE / max, m | Decision |
+| --- | ---: | --- |
+| Original | 0.712755 / 4.399767 | Baseline failure |
+| Motion gate alone | 4.205 / 20.027 | Reject: subsequent global reinitialization locks incorrectly |
+| Local fine recheck on large coarse corrections | 0.298809 / 0.670607 | Insufficient; reference route still reaches 1.65 m |
+| Fine certificate with local target | 0.297818 / 0.546368 | Insufficient; reference route still reaches 53 cm |
+| Atlas recheck including failed broad proposals | 0.296226 / 0.546368 | Reject: expands wrong geometric authority in the partial-map alias |
+| Guarded atlas recheck, final | 0.296236 / 0.546368 | Retain for full-map tracking |
+
+The partial-map stress retains the known aliased global lock at frame 922 and
+correct recovery at 1686. Unrestricted recovery added **123** wrong geometric
+confirmations inside that interval, despite removing the later full-map
+excursion; it was rejected. Final guarded recovery adds **zero**, with wrong
+geometric confirmations in that interval falling 413→409. Its 764 gross-error
+outputs still make this partial-map route a failure. This is a no-expansion
+check, not a claim that outside-map ambiguity has been solved.
+
+### Complete localization and extension verification
+
+The final original-map fixed14 replay processes 4,144 inputs, emits 4,088 poses
+and locks all 14 cases at frame 4. Decisions, seed work and support remain
+identical to baseline; maximum output-matrix difference is `1.43e-14`.
+Position RMSE remains **27.151 cm**, maximum **47.387 cm**; five locations have
+every output within 10 cm. Existing default/Atlas/kill behavioral episodes each
+pass 15/15. Strict extension retains all 2,232 successful outputs from 2,236
+inputs and 231 new keyframes, with unchanged decisions and matrix differences
+below `8.2e-13`.
+
+Every independent full-map motion replay consumes 2,236 inputs, publishes 2,232
+poses and initializes only once. Coasted outputs are included in accuracy.
+
+| Map / runtime | Position RMSE / max, cm | Rotation RMSE / max, degrees | Outputs >1 m or >5° | Outputs within 10 cm |
+| --- | ---: | ---: | ---: | ---: |
+| Original / old tracker | 71.276 / 439.977 | 1.156827 / 9.005996 | 85 | — |
+| Original / final tracker | 29.624 / 54.637 | 0.344129 / 0.626200 | 0 | 526 |
+| Known-mapping-trajectory reference / final tracker | 1.278 / 9.200 | 0.021383 / 0.176835 | 0 | 2,232 |
+| Joint calibrated candidate / final tracker | 19.994 / 40.878 | 0.290802 / 0.600027 | 0 | 1,120 |
+
+The accurate reference is **truth-assisted diagnostic map construction**, using
+only the mapping recording, not query truth. Its complete-route result shows
+pipeline capacity with accurate reference geometry; it is not production
+10 cm qualification. Original-map residual error remains substantially larger.
+
+![Tracking repair and map candidates](tracking_loop_accuracy_20261020.png)
+
+### Independent loop coverage and remaining map deformation
+
+The old `eulerAngles(0,1,2)` branch represented some tiny negative roll
+corrections with three angles near π. The yaw referee rejected 263 candidates
+as half-turns; all had physical yaw below the existing gate, and 256 had total
+rotation below one degree. One shared canonical ZYX roll/pitch/yaw calculation
+now serves admission, segment/consensus calculations and diagnostics. Numerical
+thresholds and candidate budgets are unchanged; genuine half-turn rejection
+remains covered by the existing behavioral test.
+
+Complete causal mapping uses the original 13,791 LIO inputs, rather than a
+finished map or truth-corrected graph. Every variant emits 13,723 successful
+frames and saves 1,271 keyframes. The 1,811 revisit pairs are independently
+selected and fixed across comparisons.
+
+| Mapping variant | Loops / gap ≥100 keyframes | Absolute position RMSE, cm | Revisit translation RMSE, cm | Revisit rotation RMSE, degrees |
+| --- | ---: | ---: | ---: | ---: |
+| Original | 195 / 67 | 28.663 | 3.447 | 0.174367 |
+| Corrected angles, original weights | 398 / 121 | 27.665 | 2.611 | 0.177790 |
+| Corrected angles, rotation-only calibration | 399 / 123 | 20.841 | 2.819 | 0.106536 |
+| Corrected angles, joint calibration | 401 / 123 | 20.033 | 2.481 | 0.105622 |
+
+Original-weight coverage retains 191 old pairs, removes four and adds 207;
+query nodes with accepted loops increase 71→136. The independently scored
+loop measurements have 1.475 cm / 0.0662° RMSE, with no >1 m / >5° edge on
+this fixture. More loops do not imply universal improvement: original-weight
+map rotation RMSE changes 0.323889→0.324581°, and revisit rotation also rises.
+Both rebuilt maps were therefore tested on all original 14 recordings and
+the independent motion route.
+
+| Map | Fixed14 position RMSE / max, cm | All outputs ≤10 cm | No-regression limitation |
+| --- | ---: | ---: | --- |
+| Original | 27.151 / 47.387 | 5/14 | Existing map bias |
+| Corrected angles, original weights | 25.890 / 44.511 | 5/14 | 05 and 12 position worsen by 14.1 and 20.9 mm; some angular metrics worsen |
+| Joint calibration | 17.796 / 33.409 | 5/14 | 05 position RMSE changes 6.118→6.511 cm; all 14 angular RMSEs improve |
+
+Joint calibration is the existing experiment-only
+XY/Z/rotation sigma profile **0.03 m / 0.03 m / 0.003 rad**. It is not added as a
+production default or chosen by fitting individual evaluation points.
+Even after a whole-map best rigid fit used solely for diagnosis, residual
+position RMSE is 19.38 cm original, 18.72 cm with corrected angles and 15.33 cm
+joint-calibrated. Non-rigid deformation remains; a global coordinate offset
+cannot explain it all.
+
+**Neither rebuilt map satisfies the requested all-position no-regression or
+10 cm requirement.** Preserve the original map and default weights. The angle
+calculation bug is corrected in code, but its effect on new mapping is not a
+blanket accuracy qualification. Next examine residual deformation and
+independently estimated constraint uncertainty; do not fit query truth into
+the estimator or declare FAST_LIO at its accuracy limit.
+
+### Code and evidence boundaries
+
+Tracking registration/retry/recheck orchestration moves to a focused private
+implementation file; state transitions stay in the existing tracker. Prepared
+geometry is reused, without another cache, worker, runtime switch or compatibility
+path. One small rotation helper replaces repeated branch-sensitive calculations.
+Two behavioral regressions fail against the old core and pass the repair:
+ordinary tracking cannot absorb corrections beyond configured motion limits,
+and a small roll correction must not be rejected as a half-turn.
+
+Humble core/node/tools build and final CTest **61/61** pass. The final test
+launcher explicitly selects both the frozen core and current build-directory
+wrapper/resource libraries. An earlier run omitted the latter and mixed in old
+installed libraries, causing three test failures; failed logs remain retained.
+Correcting library selection resolves them. Formal replay probes always used
+their frozen core and were unaffected.
+
+The isolated original-map fixed14 control runs at 10 Hz. Final tracking also has
+a separate isolated complete 10 Hz motion replay, recorded as
+`final_motion_paced`: **135.726 CPU s / 223.5 input s = 0.6073 cores**,
+223.507 s wall time, with decisions unchanged and matrix differences below
+`1.43e-14` against the unpaced final replay. Initial lock completes at 2.580 s
+of replay wall time; startup produces up to 2.080 s input lag. After the first
+five inputs, callback p99/max are 109.56/142.69 ms. Map loading, frontend,
+simulator and DDS/publication are excluded. This remains above half a core
+and is not a new paired speedup claim.
+Other ablations and map-candidate replays are unpaced
+correctness experiments; some overlap on the same four cores. Their wall/CPU
+numbers do not establish latency improvements, a half-core result or new
+asynchronous throughput qualification. Mapping experiments exercise the causal
+common online-loop pipeline synchronously; the prior paced asynchronous-worker
+qualification remains separate. No independent Noetic build, full ROS/DDS-node
+timing, live hardware or RK3588 qualification is claimed. No install or push is
+performed; raw experiments and original inputs remain available.

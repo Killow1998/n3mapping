@@ -279,6 +279,41 @@ TEST(LoopVerifierEvidenceTest, PreparedPathUsesConfiguredSerializableInformation
 }
 
 TEST(LoopVerificationPipelineTest,
+     SmallRollCorrectionIsNotAHalfTurn)
+{
+    Config config;
+    config.num_threads = 1;
+    const auto cloud = makeRegistrationCloud();
+    for (double roll : {-0.01, 0.01}) {
+        KeyframeManager keyframes(config);
+        auto predicted = Eigen::Isometry3d::Identity();
+        predicted.linear() =
+            Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()).toRotationMatrix();
+        auto match = Keyframe::create(
+            0, 1.0, Eigen::Isometry3d::Identity(), cloud);
+        auto query = Keyframe::create(10, 2.0, predicted, cloud);
+        keyframes.loadKeyframes({match, query});
+        PointCloudMatcher matcher(config);
+        GraphOptimizer optimizer(config);
+        LoopClosureManager manager(config);
+        LoopVerificationPipeline pipeline(
+            config, keyframes, matcher, optimizer, manager);
+        LoopCandidate candidate;
+        candidate.query_id = query->id;
+        candidate.match_id = match->id;
+        candidate.source_flags = LoopCandidate::SOURCE_RHPD;
+        candidate.descriptor_score = 1.0;
+
+        const auto result = pipeline.evaluate(candidate, {});
+        ASSERT_TRUE(result.registration_attempted);
+        EXPECT_LT(result.verification.icp_rotation_norm, 0.02);
+        EXPECT_TRUE(result.loop.verified) << result.reject_reason;
+        EXPECT_TRUE(result.verification.T_measured_match_query.isApprox(
+            Eigen::Isometry3d::Identity(), 0.005));
+    }
+}
+
+TEST(LoopVerificationPipelineTest,
      CrossSessionRejectsNewSessionMatchBeforeRegistration)
 {
     Config config;

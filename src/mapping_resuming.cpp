@@ -1,3 +1,4 @@
+#include "n3mapping/rotation_utils.h"
 // MappingResuming: map extension — load existing map, relocalize, add new keyframes, detect cross-loops.
 #include "n3mapping/mapping_resuming.h"
 
@@ -50,7 +51,7 @@ bool validNoise(double position_sigma, double rotation_sigma) {
 }
 
 Eigen::Vector3d rotationRpyDegrees(const Eigen::Isometry3d& pose) {
-    return pose.rotation().eulerAngles(0, 1, 2) * (180.0 / M_PI);
+    return canonicalRollPitchYaw(pose) * (180.0 / M_PI);
 }
 
 class ScopedElapsedMilliseconds {

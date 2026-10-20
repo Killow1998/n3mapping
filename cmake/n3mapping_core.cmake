@@ -58,6 +58,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/world_localizing_initialization.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_confirmation.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_tracking.cpp
+  ${N3MAPPING_ROOT}/src/world_localizing_tracking_registration.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_evidence.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_probe.cpp
   ${N3MAPPING_ROOT}/src/free_space_grid.cpp

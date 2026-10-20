@@ -2,12 +2,25 @@
 
 ## Unreleased
 
+- Fix ordinary tracking accepting a distant coarse registration without fine
+  geometric confirmation. Enforce existing motion limits and recheck suspicious,
+  otherwise admissible proposals with prepared fine GICP from the prediction.
+  Reject failed rechecks; do not rescue failed broad geometry into new authority.
+  Complete original fixed14 behavior and strict-extension outputs are preserved.
+  The full-map motion recording has no remaining >1 m / >5° output; the separate
+  aliased partial-map global lock remains unresolved.
+- Use canonical physical roll/pitch/yaw for loop admission, segment consensus
+  and diagnostics. Small roll corrections no longer become false half-turns.
+  Complete causal mapping increases accepted loops 195→398 and improves revisit
+  translation RMSE 3.45→2.61 cm. Rebuilt-map accuracy still has local regressions;
+  no candidate map or calibrated numerical defaults are promoted.
 - Add research-only map × deskew ablation tools and complete four-core accuracy
   evidence. Independent authored geometry and a mapping-only known-trajectory
   control isolate map bias from within-scan deskew error on this fixture.
   Normal reference-map localization passes all 14 stationary recordings below
-  10 cm, but retains a short moving tracking excursion; production accuracy is
-  not qualified by truth-assisted reference construction.
+  10 cm; the subsequent tracking repair brings all 2,232 independent motion
+  outputs below 10 cm on that reference too. Production accuracy is not
+  qualified by truth-assisted reference construction.
 - Evaluate loop covariance calibration through complete causal online mapping,
   all 14 original recordings, independent motion and strict extension.
   Reject promotion despite lower position RMSE: stationary 08 and moving-route
@@ -53,7 +66,9 @@
 See the [online-loop evidence](docs/evidence/runtime_cpu_20261017/README.md#online-loop-verification-and-accuracy-follow-up--2026-10-20)
 and [recovery/asynchronous-loop qualification](docs/evidence/runtime_cpu_20261017/README.md#extension-recovery-and-asynchronous-online-loops--2026-10-20).
 The subsequent [reference-map, deskew and loop-calibration ablation](docs/evidence/runtime_cpu_20261017/README.md#reference-map-deskew-and-loop-calibration-ablation--2026-10-20)
-separates stationary map bias from the remaining moving tracking failure.
+separates stationary map bias from the moving tracking failure; the
+[tracking and loop-angle follow-up](docs/evidence/runtime_cpu_20261017/README.md#tracking-admission-loop-angle-branches-and-map-deformation--2026-10-20)
+records its repair, rejected recovery variants and rebuilt-map accuracy limits.
 
 ## [1.0.1] - 2026-10-20
 

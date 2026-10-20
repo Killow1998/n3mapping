@@ -1,3 +1,4 @@
+#include "n3mapping/rotation_utils.h"
 #include "loop_closure_diagnostics.h"
 #include "n3mapping/cloud_utils.h"
 
@@ -8,7 +9,7 @@ double rotationAngle(const Eigen::Isometry3d &transform) {
 }
 
 Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d &transform) {
-  return transform.rotation().eulerAngles(0, 1, 2);
+  return canonicalRollPitchYaw(transform);
 }
 
 

@@ -1,3 +1,4 @@
+#include "n3mapping/rotation_utils.h"
 #include "n3mapping/loop_segment_consistency.h"
 
 #include <algorithm>
@@ -19,11 +20,6 @@ double normalizeAngle(double angle)
         angle += 2.0 * M_PI;
     }
     return angle;
-}
-
-Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
-{
-    return transform.rotation().eulerAngles(0, 1, 2);
 }
 
 double median(std::vector<double> values)
@@ -143,7 +139,7 @@ DirectionStats evaluateDirection(const Config& config,
 
         const Eigen::Isometry3d residual =
             match_neighbor->pose_optimized.inverse() * expected_match_neighbor;
-        const Eigen::Vector3d rpy = rollPitchYaw(residual);
+        const Eigen::Vector3d rpy = canonicalRollPitchYaw(residual);
         const double translation_error = residual.translation().norm();
         const double yaw_error = std::abs(normalizeAngle(rpy.z()));
         const double z_error = std::abs(residual.translation().z());

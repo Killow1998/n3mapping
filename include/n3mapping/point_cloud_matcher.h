@@ -126,6 +126,9 @@ public:
     MatchResult alignPrepared(const PreparedTarget& target,
                               const PreparedSource& source,
                               const Eigen::Isometry3d& init_guess = Eigen::Isometry3d::Identity());
+    // Explicit GICP settings run only the prepared covariance level; the
+    // requested resolution must match it. The default plane settings retain
+    // the coarse/fine cascade and optional GICP refinement.
     MatchResult alignPrepared(const PreparedTarget& target,
                               const PreparedSource& source,
                               const Eigen::Isometry3d& init_guess,

@@ -1,3 +1,4 @@
+#include "n3mapping/rotation_utils.h"
 #include "n3mapping/loop_debug_logger.h"
 
 #include <cmath>
@@ -134,15 +135,10 @@ const char* candidateSourceName(LoopCandidate::Source source)
     }
 }
 
-Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
-{
-    return transform.rotation().eulerAngles(0, 1, 2);
-}
-
 void appendResidual(std::ostream& os, bool* first, const Eigen::Isometry3d& residual)
 {
     const Eigen::Vector3d translation = residual.translation();
-    const Eigen::Vector3d rpy = rollPitchYaw(residual);
+    const Eigen::Vector3d rpy = canonicalRollPitchYaw(residual);
     appendNumber(os, first, "residual_x", translation.x());
     appendNumber(os, first, "residual_y", translation.y());
     appendNumber(os, first, "residual_z", translation.z());
@@ -157,7 +153,7 @@ void appendTransformAxes(std::ostream& os,
                          const Eigen::Isometry3d& transform)
 {
     const Eigen::Vector3d translation = transform.translation();
-    const Eigen::Vector3d rpy = rollPitchYaw(transform);
+    const Eigen::Vector3d rpy = canonicalRollPitchYaw(transform);
     const std::string x_key = std::string(prefix) + "_x";
     const std::string y_key = std::string(prefix) + "_y";
     const std::string z_key = std::string(prefix) + "_z";

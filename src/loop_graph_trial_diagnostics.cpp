@@ -1,3 +1,4 @@
+#include "n3mapping/rotation_utils.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
 
@@ -16,7 +17,7 @@ double rotationAngle(const Eigen::Isometry3d& transform)
 
 Eigen::Vector3d rollPitchYawAbs(const Eigen::Isometry3d& transform)
 {
-    return transform.rotation().eulerAngles(0, 1, 2).cwiseAbs();
+    return canonicalRollPitchYaw(transform).cwiseAbs();
 }
 
 double safeFinite(double value, double fallback = 0.0)

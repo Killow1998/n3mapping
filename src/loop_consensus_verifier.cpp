@@ -1,3 +1,4 @@
+#include "n3mapping/rotation_utils.h"
 #include "n3mapping/loop_consensus_verifier.h"
 
 #include <algorithm>
@@ -23,11 +24,6 @@ double normalizeAngle(double angle)
         angle += 2.0 * M_PI;
     }
     return angle;
-}
-
-Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform)
-{
-    return transform.rotation().eulerAngles(0, 1, 2);
 }
 
 double median(std::vector<double> values)
@@ -160,12 +156,12 @@ void estimateConsensusMeasurement(const Config& config,
     yaw_errors.reserve(estimates.size());
     inliers.reserve(estimates.size());
     const Eigen::Isometry3d& medoid = estimates[medoid_index];
-    const Eigen::Vector3d medoid_rpy = rollPitchYaw(medoid);
+    const Eigen::Vector3d medoid_rpy = canonicalRollPitchYaw(medoid);
     for (const auto& estimate : estimates) {
         const TransformResidual residual = transformResidual(medoid, estimate);
         const double z_error = std::abs(estimate.translation().z() - medoid.translation().z());
         const double yaw_error =
-            std::abs(normalizeAngle(rollPitchYaw(estimate).z() - medoid_rpy.z()));
+            std::abs(normalizeAngle(canonicalRollPitchYaw(estimate).z() - medoid_rpy.z()));
         translation_errors.push_back(residual.translation);
         z_errors.push_back(z_error);
         yaw_errors.push_back(yaw_error);
@@ -196,7 +192,7 @@ void estimateConsensusMeasurement(const Config& config,
     result->estimator_measurement_match_query.translation() = mean_translation;
     result->estimator_measurement_match_query.linear() = mean_rotation.toRotationMatrix();
 
-    const Eigen::Vector3d mean_rpy = rollPitchYaw(result->estimator_measurement_match_query);
+    const Eigen::Vector3d mean_rpy = canonicalRollPitchYaw(result->estimator_measurement_match_query);
     result->estimator_translation_median = mean_translation.norm();
     result->estimator_z_median = mean_translation.z();
     result->estimator_yaw_median = mean_rpy.z();

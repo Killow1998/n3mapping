@@ -709,6 +709,34 @@ TEST_F(WorldLocalizingTest, TrackLocalization) {
   EXPECT_EQ(track_result.decision, "tracking_geometric");
 }
 
+TEST_F(WorldLocalizingTest, TrackingCannotAbsorbCorrectionBeyondMotionLimits) {
+  config_.reloc_track_max_translation = 0.01;
+  config_.reloc_track_max_rotation = 0.001;
+  config_.icp_refine_use_gicp = false;
+  matcher_ = std::make_unique<PointCloudMatcher>(config_);
+  buildTestMap(10, 2.0);
+  Eigen::Isometry3d observed = Eigen::Isometry3d::Identity();
+  observed.translation().x() = 8.0;
+  const auto cloud = generateCorridorCloud(observed);
+
+  for (bool rotation_error : {false, true}) {
+    WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+    reloc.setMapToOdomTransform(Eigen::Isometry3d::Identity());
+    auto prediction = observed;
+    if (rotation_error)
+      prediction.linear() = Eigen::AngleAxisd(0.08, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    else
+      prediction.translation().y() += 0.25;
+
+    const auto result = reloc.trackLocalization(cloud, prediction);
+    EXPECT_EQ(result.state, RelocalizationState::RECENTLY_LOST);
+    EXPECT_EQ(result.pose_source, PoseSource::ODOM_PREDICTED);
+    EXPECT_EQ(result.decision, "tracking_motion_gate_failed");
+    EXPECT_TRUE(result.pose_in_map.isApprox(prediction, 1e-12));
+    EXPECT_TRUE(reloc.getMapToOdomTransform().matrix().isIdentity(1e-12));
+  }
+}
+
 TEST_F(WorldLocalizingTest, LoadedMapTrackingIgnoresExtensionKeyframes) {
   buildTestMap(5, 2.0);
   for (const auto &keyframe : keyframe_manager_->getAllKeyframes()) {

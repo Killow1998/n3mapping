@@ -1,3 +1,4 @@
+#include "n3mapping/rotation_utils.h"
 #include "n3mapping/loop_verification_pipeline.h"
 
 #include <algorithm>
@@ -13,10 +14,6 @@
 
 namespace n3mapping {
 namespace {
-
-Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform) {
-    return transform.rotation().eulerAngles(0, 1, 2);
-}
 
 double unitScoreBelow(double value, double limit) {
     if (!std::isfinite(value) || limit <= 0.0) {
@@ -60,7 +57,7 @@ LoopFeatures makeSegmentAwareLoopFeatures(const Config& config,
     features.predicted_translation_norm =
         loop.T_pred_match_query.translation().norm();
     features.icp_correction_yaw_abs =
-        std::abs(rollPitchYaw(loop.T_icp_correction_match).z());
+        std::abs(canonicalRollPitchYaw(loop.T_icp_correction_match).z());
     features.segment_translation_median = loop.segment_translation_median;
     return features;
 }

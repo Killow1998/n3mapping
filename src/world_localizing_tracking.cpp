@@ -5,9 +5,9 @@
 #include <cmath>
 #include <limits>
 #include <glog/logging.h>
-#include "n3mapping/tracking_target_cache.h"
 #include <iterator>
 #include <set>
+#include "n3mapping/tracking_target_cache.h"
 
 namespace n3mapping {
 RelocResult
@@ -243,53 +243,9 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   const auto source_prepare_started = timing_started();
   const auto prepared_source = matcher_.prepareSourceCloud(cloud);
   debug_event.source_prepare_ms = elapsed_ms(source_prepare_started);
-  const auto registration_started = timing_started();
-  MatchResult match_result;
-  if (prepared_target) {
-    match_result =
-        matcher_.alignPrepared(*prepared_target, prepared_source, predicted_pose);
-  }
-  debug_event.registration_ms = elapsed_ms(registration_started);
-  bool retry_used = false;
-
-  // If ICP failed with standard params and we have recent failures, retry with
-  // wider search
-  const bool icp_failed =
-      !hasValidRegistrationResult(match_result) ||
-      match_result.fitness_score >= config_.gicp_fitness_threshold ||
-      match_result.inlier_ratio < config_.reloc_min_inlier_ratio;
-  if (icp_failed &&
-      consecutive_track_failures_ < config_.reloc_track_retry_max_failures) {
-    auto saved = matcher_.getSettings();
-    auto wide = saved;
-    wide.max_correspondence_distance = saved.max_correspondence_distance *
-                                       config_.reloc_track_retry_corr_scale;
-    wide.max_iterations = config_.reloc_track_retry_max_iterations;
-    const auto retry_started = timing_started();
-    auto retry = prepared_target
-                     ? matcher_.alignPrepared(*prepared_target, prepared_source,
-                                              predicted_pose, wide)
-                     : MatchResult{};
-    debug_event.retry_registration_ms = elapsed_ms(retry_started);
-    retry_used = true;
-    if (hasValidRegistrationResult(retry) &&
-        (!hasValidRegistrationResult(match_result) ||
-         retry.fitness_score < match_result.fitness_score))
-      match_result = retry;
-  }
-  if (icp_failed) {
-    for (const auto& stage : match_result.stages) {
-      VLOG(1) << "Tracking stage=" << stage.stage
-              << " termination=" << matchTerminationName(stage.termination)
-              << " iterations=" << stage.iterations
-              << " fitness=" << stage.fitness_score
-              << " inlier=" << stage.inlier_ratio;
-    }
-  }
-  debug_event.icp_converged = match_result.converged;
-  debug_event.fitness_score = match_result.fitness_score;
-  debug_event.inlier_ratio = match_result.inlier_ratio;
-  debug_event.retry_used = retry_used;
+  auto match_result = registerTracking(prepared_target, prepared_source,
+                                       predicted_pose, strict_loaded_map, debug_event);
+  const bool retry_used = debug_event.retry_used;
 
   const bool icp_ok =
       hasValidRegistrationResult(match_result) &&
@@ -309,6 +265,10 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     registration_delta_translation = registration_delta.translation().norm();
     registration_delta_rotation =
         Eigen::AngleAxisd(registration_delta.rotation()).angle();
+    debug_event.visibility_registration_delta_translation_m =
+        registration_delta_translation;
+    debug_event.visibility_registration_delta_rotation_rad =
+        registration_delta_rotation;
     if (strict_loaded_map) {
       const auto visibility_started = timing_started();
       const auto visibility_observation = prepareVisibilityObservation(
@@ -353,10 +313,6 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
             registration_visibility.consistency_ratio;
         debug_event.visibility_registration_evidence_log_odds =
             registration_visibility.evidence_log_odds;
-        debug_event.visibility_registration_delta_translation_m =
-            registration_delta_translation;
-        debug_event.visibility_registration_delta_rotation_rad =
-            registration_delta_rotation;
       }
 
       const bool endpoint_fast_taken =
@@ -409,17 +365,19 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
       registration_visibility.evidence_log_odds > 0.0;
 
   const bool strict_geometry_ok =
-      !strict_loaded_map ||
-      (delta_translation <= config_.reloc_track_max_translation &&
-       delta_rotation <= config_.reloc_track_max_rotation && visibility.valid &&
-       visibility.evidence_log_odds > 0.0);
+      delta_translation <= config_.reloc_track_max_translation &&
+      delta_rotation <= config_.reloc_track_max_rotation &&
+      (!strict_loaded_map ||
+       (visibility.valid && visibility.evidence_log_odds > 0.0));
 
   // The proposal's convergence remains necessary, but its quality cannot
   // certify a different selected pose. Recompute confidence from that pose.
   const bool selected_quality_ok =
       hasValidRegistrationResult(match_result) &&
       match_result.fitness_score < config_.gicp_fitness_threshold &&
-      match_result.inlier_ratio >= config_.reloc_min_inlier_ratio;
+      match_result.inlier_ratio >= config_.reloc_min_inlier_ratio &&
+      (strict_loaded_map || !config_.icp_refine_use_gicp ||
+       match_result.metric.type == small_gicp::RegistrationSetting::GICP);
   const double scale = config_.gicp_fitness_threshold * 0.5;
   const double current_confidence =
       std::clamp(std::exp(-match_result.fitness_score / scale), 0.0, 1.0);
@@ -528,7 +486,9 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     finish_tracking_debug(
         !icp_ok ? "icp_gate_failed"
                 : (!selected_quality_ok ? "tracking_selected_pose_quality_gate_failed"
-                                       : "loaded_map_tracking_geometry_gate_failed"));
+                                       : (strict_loaded_map
+                                              ? "loaded_map_tracking_geometry_gate_failed"
+                                              : "tracking_motion_gate_failed")));
   }
 
   return result;

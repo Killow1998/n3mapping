@@ -210,6 +210,34 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
     const Eigen::Isometry3d& init_guess,
     const small_gicp::RegistrationSetting& setting) {
     MatchResult result;
+    // An explicit GICP request is a local solve on the already prepared
+    // covariance level. Do not run the broad plane cascade first.
+    if (setting.type == small_gicp::RegistrationSetting::GICP) {
+        const auto& level = target.refine_level;
+        if (!isFiniteRigidPose(init_guess) || !target.has_refine_level ||
+            !source.has_refine_cloud || !level.cloud || !level.kdtree ||
+            !source.refine_cloud || level.cloud->size() < 10 ||
+            source.refine_cloud->size() < 10 ||
+            std::abs(level.resolution - setting.downsampling_resolution) > 1e-9)
+            return result;
+        try {
+            const auto rr = registration_detail::align(
+                *level.cloud, *source.refine_cloud, *level.kdtree, init_guess, setting);
+            const auto stage = makeStageResult("local_gicp", level.resolution, rr,
+                source.refine_cloud->size(), setting.max_iterations);
+            result.stages.push_back(stage);
+            result.T_target_source = rr.T_target_source;
+            result.metric = {setting.type, level.resolution, setting.max_correspondence_distance};
+            copyStageToMatch(stage, &result);
+            copyInformation(rr.H, &result.information);
+            result.success = result.converged &&
+                result.fitness_score < config_.gicp_fitness_threshold &&
+                result.inlier_ratio >= config_.reloc_min_inlier_ratio;
+        } catch (const std::exception& error) {
+            LOG(ERROR) << "[PointCloudMatcher] local GICP exception: " << error.what();
+        }
+        return result;
+    }
     if (target.plane_levels.empty() || source.plane_levels.empty()) return result;
 
     try {
