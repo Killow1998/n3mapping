@@ -3313,3 +3313,39 @@ startup repeats, frozen source/binary identities and rejected trials remain in
 `build/n3mapping/static_search_followup_20261019`. New closed bags/manifests are
 under `map/sprobo_20261018/fixed_focus_headings_20261019`. Original inputs remain intact.
 No installation or remote publication was performed.
+
+## Warm tracking solver ablation — 2026-10-19
+
+**Rejected; accepted runtime remains `54b602f`.** Running fine GICP directly after
+the existing fixed-pose planar eligibility check reduces post-lock CPU in three
+30-frame focus prefixes. Three convergence variants pass all 15 default E2E
+episodes. The original-criteria variant also preserves lock/state/identity fields
+in 30-frame prefixes of all 14 positions and six additional headings; maximum
+output displacement is 0.605289 mm and same-frame position-error increase is
+0.598798 mm. These prefixes are screening, not complete-input CPU qualification.
+
+The complete 2236-frame full-map movement check rejects that proposal. Maximum
+position error improves 4.399767→2.078988 m, but maximum attitude error increases
+9.005996→16.641453 degrees, with a same-frame increase of 11.178611 degrees.
+There is one newly gross geometric frame and 46 removed gross frames under the
+diagnostic 1 m/5 degree bands; those bands are not runtime or 10 cm acceptance
+gates. A fresh current-baseline replay reproduces every historical state field
+and poses within 1.46e-14 m, establishing that the regression is not explained by
+the reference version. Both movement runs are unpaced behavior checks; no
+paired performance claim is made.
+
+A narrower experiment requires both odometry increment and proposed correction
+to lie within the existing optimizer stopping scales. It preserves the movement
+state fields, with 5 direct results and 9 fallbacks among 14 eligible calls.
+At 03/08/14 all 6/8/9 eligible calls fall back: no full solve is eliminated in
+those stationary prefixes. This version is also rejected. Passing through the
+original solver everywhere is not an effective optimization.
+
+No production code, public interface, acceptance gate, test target or installed
+binary changes. The shared-core library remains byte-identical to the accepted
+artifact. Preserve complete solver stages and investigate exact correspondence
+reuse next. Raw prototypes, E2E and per-frame results remain in
+`build/n3mapping/warm_tracking_20261019`; compact evidence is in
+[`../search_cost_20261019.json`](../search_cost_20261019.json), key
+`warm_tracking_ablation_20261019`. The existing full-map motion failure, difficult
+half-core goal, 10 cm accuracy and offline loop consistency remain open.

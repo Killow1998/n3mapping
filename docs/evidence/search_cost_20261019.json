@@ -7303,5 +7303,112 @@
       "Feature scratch/bounded-kNN/static20 prototypes: no material extra whole-episode gain over the storage trial; no estimator abstraction retained.",
       "Forced AVX2 and AVX2/FMA kernels: no consistent CPU improvement; no dispatch/build configuration retained."
     ]
+  },
+  "warm_tracking_ablation_20261019": {
+    "status": "rejected; runtime remains 54b602f",
+    "raw_directory": "build/n3mapping/warm_tracking_20261019",
+    "scope": "Three existing-criteria scales pass 15 default E2E episodes each; same-epsilon broad path screened on 30-frame prefixes of original14 plus six additional headings. Complete 2236-frame movement behavior check, unpaced, no performance claim.",
+    "broad_stationary_prefixes": {
+      "count": 20,
+      "state_differences": 0,
+      "max_pose_translation_delta_m": 0.0006052887996216791,
+      "max_position_error_increase_m": 0.0005987981114821822
+    },
+    "broad_movement": {
+      "frames": 2236,
+      "baseline_position_max_m": 4.39976699055811,
+      "candidate_position_max_m": 2.0789878119718375,
+      "baseline_rotation_max_deg": 9.005995633219001,
+      "candidate_rotation_max_deg": 16.641453256594872,
+      "max_rotation_error_increase_deg": 11.178611441696244,
+      "new_gross_frames": [
+        2051
+      ],
+      "removed_gross_frames": [
+        2019,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025,
+        2026,
+        2035,
+        2066,
+        2067,
+        2068,
+        2069,
+        2070,
+        2071,
+        2072,
+        2073,
+        2074,
+        2075,
+        2076,
+        2077,
+        2078,
+        2079,
+        2080,
+        2081,
+        2082,
+        2083,
+        2084,
+        2085,
+        2086,
+        2087,
+        2088,
+        2089,
+        2090,
+        2091,
+        2092,
+        2093,
+        2094,
+        2095,
+        2096,
+        2097,
+        2098,
+        2099,
+        2100,
+        2101,
+        2102,
+        2103
+      ],
+      "warm_counts": [
+        2231,
+        2198,
+        33
+      ]
+    },
+    "fresh_baseline_historical_equivalence": {
+      "state_differences": 0,
+      "max_pose_translation_delta_m": 1.451231796669795e-14
+    },
+    "narrowed_focus_counts": {
+      "03_south_corridor": [
+        6,
+        0,
+        6
+      ],
+      "08_west_shelves": [
+        8,
+        0,
+        8
+      ],
+      "14_north_door": [
+        9,
+        0,
+        9
+      ]
+    },
+    "narrowed_movement": {
+      "state_differences": [],
+      "max_translation_delta_m": 3.7523095161895675e-06,
+      "max_rotation_error_increase_deg": 3.1229183768598234e-05,
+      "warm_counts": [
+        14,
+        5,
+        9
+      ]
+    },
+    "decision": "Do not adopt direct fine-GICP. Lower position maximum does not offset a new attitude failure. Narrowing eligibility until it always falls back is not a CPU improvement. No production source/API/config or installed binary changed."
   }
 }
