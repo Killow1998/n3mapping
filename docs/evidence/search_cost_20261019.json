@@ -6535,5 +6535,65 @@
     "limitation": "Historical movement controls; no fresh paired cost claim. Wrong geometric authority persists longer despite unchanged wrong-output interval and correct recovery. No full14/negative qualification expanded; no accepted gain, half-core,10cm or reliability claim.",
     "artifacts": "build/n3mapping/stage_reuse_20261019/local_tracking_v1",
     "next": "Diagnose accepted false global lock before combining local tracking optimization."
+  },
+  "moving_false_lock_diagnosis": {
+    "status": "DIAGNOSIS_COMPLETE_NO_RUNTIME_CHANGE",
+    "core_sha256": "d1cb332821c0aafee6893bddd6d9eafbcd5ebb5dc64284d86b09932061faf80e",
+    "trace": {
+      "frames": 923,
+      "state_differences": [],
+      "maximum_output_matrix_delta": 7.105427357601002e-15,
+      "locks": [
+        4,
+        922
+      ],
+      "scope": "Diagnostic equivalence, not a timing benchmark."
+    },
+    "false_lock": {
+      "frame": 922,
+      "input_s": 92.599995002,
+      "seed": 12,
+      "support": 403,
+      "original_converged": true,
+      "original_iterations": 3,
+      "original_fitness": 0.004653842822172157,
+      "original_inlier_ratio": 0.9882910143402184,
+      "observations": 5,
+      "confirmation_motion_m": 0.48630450793843516,
+      "mean_visibility": 0.9048960793119285,
+      "margin": 0.55678875846501,
+      "runner_up_seed": 1038
+    },
+    "history": {
+      "samples_per_candidate": 8,
+      "ages_input_seconds": [
+        0,
+        1,
+        2,
+        5,
+        10,
+        20,
+        40,
+        60
+      ],
+      "conclusion": "Blind historical matching rejects correct reentry too. Separate unknown coverage from known directional mismatch; all19 independently reconstructed ray-count triples exactly match production."
+    },
+    "previous_veto": {
+      "old_veto_query_timestamp": 84.09998999700001,
+      "previous_seed": 413,
+      "previous_support": 409,
+      "old_veto_vs_later_false_prediction_translation_m": 0.027068247224060583,
+      "old_veto_vs_later_false_prediction_rotation_deg": 0.1220258028459608,
+      "query_metadata_matches_original": true
+    },
+    "limitations": [
+      "No universal distinguishability or reliability guarantee inferred from this single alias.",
+      "No score threshold changed; no truth used by diagnostic geometry or historical propagation.",
+      "The conditional known-information ratio is exploratory and is not the production lock gate.",
+      "Existing persistence previously delayed a real positive lock55to beyond100; do not enable it wholesale.",
+      "No online historical veto, new cache/API/test, speedup or absolute accuracy improvement has been adopted."
+    ],
+    "next": "Isolate bounded retention of an actual previously rejected geometric observation across confirmation windows. Reevaluate its geometry for each new physical pose; missing map coverage is neutral. Clear on source/map/lifecycle replacement. Veto only: do not eliminate competitors or create a permanent seed blacklist. Qualify existing recovery/90deg drift E2E and full partial/full movement before full14 four-core paired comparison.",
+    "artifacts": "build/n3mapping/stage_reuse_20261019/false_lock_v1"
   }
 }

@@ -2910,3 +2910,78 @@ not repeat unrelated tests. All replay processes have exited. Next inspect the
 false lock's actual selected geometry, visibility, competitors and confirmation
 history; moving reliability, difficult-search half-core,10cm and offline loop
 consistency remain open.
+
+
+## Moving false-lock diagnosis and historical counterevidence — 2026-10-19
+
+A complete-history observer runs the accepted core through frame922 (923 inputs)
+with original timestamps and debug logging. It preserves every compared
+state/decision/work-count field and emitted matrices within7.11e-15, with locks
+at4 and922. This unpaced diagnostic is not a performance benchmark.
+
+The false lock is not an unconverged proposal: seed12/support403 reports convergence
+with iteration counter3 and fitness0.00465384 and98.8291%inliers. Five
+observations span0.4863m; average visibility consistency is90.4896%, and the
+runner-up visibility margin0.556789 passes the unchanged0.35 gate. There is no
+missing fresh-registration check in this event.
+
+A separate executable loads the same frozen Atlas, reconstructs queries with
+the original builder, and measures the already emitted poses. Query metadata
+matches the original trace at4/922; fixed geometry and independent free-space
+reconstruction reproduce the original evidence. These checks do not run an
+optimizer or claim convergence. No truth enters the executable.
+
+| Fixed-pose evidence | Initial correct lock4 | False lock922 | Correct recovery1686 |
+| --- | ---: | ---: | ---: |
+| Fresh GICP fitness |0.0128613|0.00463223|0.0329607|
+| GICP inlier ratio |99.7876%|98.8291%|90.9086%|
+| GICP quality passes |yes|yes|yes|
+| Free-space score |0.929899|0.951564|0.685493|
+| Occupied fraction among known cells |98.2039%|98.2990%|91.0940%|
+| Current nearest-return consistency |94.2459%|91.7262%|86.7761%|
+| Current minimum planar support |0.882600|0.577255|0.629311|
+
+The alias scores better than the true return on several scalar metrics. An
+absolute free-space cutoff or another ICP pass is therefore not supported as a
+fix. The partial map omits the true location while containing a strong repeated
+geometric match; the accepted tracker subsequently strengthens this wrong mode.
+
+An offline history audit propagates each emitted candidate backward using only
+recorded odometry, at0/1/2/5/10/20/40/60 input-second offsets. Blindly requiring
+all old scans to match would also reject correct recovery: its old observations
+were legitimately outside map coverage. Independent nearest-return decomposition
+reproduces all original known/matching/foreground-conflict bin counts for19
+cases. Conditioning planar information on known rays separates some2–5s old
+samples (wrong minimum support0.456/0.437 versus correct0.601/0.600), but it is
+not universally sufficient: at10s the correct value also falls below0.5.
+These exploratory ratios are not added to the production gate.
+
+A more concrete lifecycle finding uses an observation the runtime already
+rejected. At84.1s (frame837), seed413/support409 fails the existing directional
+check with support0.467692. Its reconstructed physical mode differs from the
+later false lock propagated backward by only2.707cm/0.1220degrees, despite the
+changed descriptor seed. Product persistence is disabled; `finishWindow` clears
+hypotheses and query history later evicts that observation. The same scan under
+the later wrong transform still has support0.465547 (known-only exploratory
+support0.492037), so the old contradiction did not disappear. Under the correct
+reentry transform it has zero known bearings: lack of historical map coverage,
+not contradictory geometry. Reconstructed frame837 query metadata also matches.
+
+This supports testing **bounded retention of actual rejected geometry across
+windows**, not enabling all historical-score persistence. Earlier evidence
+already shows that wholesale persistence delays a real positive from55 to more
+than100 observations. A future trial must reevaluate a stored observation for
+the proposed physical pose, treat unknown coverage as neutral, clear it on
+source/map/lifecycle replacement, and only veto. It must not blacklist seed IDs,
+eliminate competing poses to create artificial margins, reuse old scans as new
+confirmation, or assume drift can never occur. One historical counterexample is
+not a complete reliability proof; gradual90degree recovery and complete moving
+inputs remain mandatory before adoption.
+
+All diagnostics have exited. Production remains`ceb39b5`/`d1cb3328…faf80e`;
+there is no new runtime cache, interface, test, threshold, installation or push.
+Observers, raw logs, matching executables, geometry/history/ray decomposition,
+prior-veto identity and`diagnosis.json` are preserved in
+`build/n3mapping/stage_reuse_20261019/false_lock_v1`. This evidence-only stage
+reuses existing validation rather than rerunning unrelated suites. Four goal
+stages remain open at their documented gaps.
