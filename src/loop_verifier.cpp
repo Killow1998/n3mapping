@@ -7,6 +7,7 @@
 
 #include "n3mapping/loop_heightmap_diagnostics.h"
 #include "n3mapping/n3map_proto_utils.h"
+#include "n3mapping/pose_uncertainty.h"
 
 namespace n3mapping {
 namespace {
@@ -78,7 +79,8 @@ LoopVerifier::LoopVerifier(const Config& config) : config_(config)
 }
 
 void LoopVerifier::finalizeRegistrationEvidence(
-    LoopVerification* verification) const
+    LoopVerification* verification,
+    const Eigen::Matrix<double, 6, 6>& measurement_information) const
 {
     if (!verification) {
         return;
@@ -94,7 +96,7 @@ void LoopVerifier::finalizeRegistrationEvidence(
     // enter GTSAM or the serialized map. The default product path deliberately
     // uses configured loop noise instead of this Hessian.
     const Eigen::Matrix<double, 6, 6> symmetric_icp_information =
-        0.5 * (match.information + match.information.transpose());
+        0.5 * (measurement_information + measurement_information.transpose());
     std::string icp_information_error;
     const bool icp_information_valid =
         isValidInformationMatrix(symmetric_icp_information,
@@ -235,7 +237,16 @@ LoopVerification LoopVerifier::finalizePreparedRegistration(
     loop.T_icp_correction_match = verification.T_icp_correction_match;
     loop.T_measured_match_query = verification.T_measured_match_query;
     loop.T_measurement_residual = verification.T_measurement_residual;
-    finalizeRegistrationEvidence(&verification);
+    // A pretransformed source estimates a correction C, whereas the graph
+    // consumes Z = C * predicted. Transport its Hessian to the measurement's
+    // right tangent before using it as information or comparing its axes.
+    const Eigen::Isometry3d right_transform =
+        cloud_alignment.inverse() * measured_match_query;
+    const Eigen::Matrix<double, 6, 6> measurement_information =
+        right_transform.matrix().isIdentity(1e-12)
+            ? match_result.information
+            : rightComposedInformation(match_result.information, right_transform);
+    finalizeRegistrationEvidence(&verification, measurement_information);
 
     // Computed for every candidate the registration quality admits, so the
     // referee downstream sees them. Previously this was gated on `converged`,

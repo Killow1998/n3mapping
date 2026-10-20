@@ -4339,3 +4339,139 @@ common online-loop pipeline synchronously; the prior paced asynchronous-worker
 qualification remains separate. No independent Noetic build, full ROS/DDS-node
 timing, live hardware or RK3588 qualification is claimed. No install or push is
 performed; raw experiments and original inputs remain available.
+
+## Constraint uncertainty and stationary 05 attribution — 2026-10-20
+
+The retained change repairs two information-frame errors. It does **not** promote
+an experimental map or certify 10 cm accuracy. Numerical defaults, acceptance
+thresholds, the original map and its Atlas remain unchanged. Structured results
+are under `constraint_uncertainty` in
+[the online-loop record](../online_loop_20261020.json); raw frozen cores, source
+snapshots, commands, scores and rejected trials are in
+`build/n3mapping/constraint_uncertainty_20261020/` relative to the workspace.
+
+### Why 05 regressed
+
+The preceding joint-weight map changed 05 position RMSE from **6.118 to 6.511 cm**.
+Its signed XYZ bias changed from `[8.65, -55.42, -24.32]` to
+`[26.77, -57.85, -13.08]` mm. Applying the old-to-new rigid displacement of nearby
+mapping keyframe 369 to the original localization outputs explains the new
+outputs to **0.162 mm position RMSE**. This is a diagnostic attribution; it is
+not applied to the map or query estimator. Localization followed a displaced
+local map, rather than introducing centimetres of new registration noise.
+
+Fixed-graph deletion experiments separate six newly admitted nearby constraints
+from 201 newly admitted remote constraints. Both redistribute the map around 05;
+removing all 207 approximately restores the original result. Nearby constraints
+do not contain a gross wrong measurement on this recording. Neither deleting
+constraints by location nor fitting an offset to 05 is retained as a solution.
+
+### Retained uncertainty corrections
+
+small_gicp's Hessian uses right pose perturbations. N3Mapping reorders these to
+`(translation, rotation)`. For an already transformed source, registration
+estimates correction `C`, but the graph stores `Z = C * P`. The information must
+therefore become `Ad(P)^T * H_C * Ad(P)`. Previously it was copied unchanged.
+Full-six-DoF reverse edges also need their information transported when `Z` is
+replaced by `Z.inverse()`. The legacy reduced XY/yaw residual is unchanged.
+
+A single Eigen helper implements this shared coordinate operation. Two tests
+check the physical whitened error through independent GTSAM `Logmap` residuals:
+**both fail against the old core and pass against the repair**. There is no new
+worker, configuration switch, descriptor, compatibility layer or tuning profile.
+The repair gives the matrix the correct meaning; it does not establish that an
+ICP Hessian is a statistically calibrated covariance.
+
+### Complete causal map and query ablations
+
+Every valid mapping candidate consumes the same 13,791 estimated LIO inputs,
+produces 13,723 successful frames and saves 1,271 keyframes. Mapping truth and
+query truth are absent from the estimator. Scoring uses the same single original
+mapping alignment throughout. All original 14 stationary recordings and the
+independent 2,236-frame route are completed for the three candidates below.
+
+| Map / experiment | Fixed14 position RMSE / max, cm | 05 RMSE, cm | Positions with every output ≤10 cm | Independent-route position RMSE / max, cm |
+| --- | ---: | ---: | ---: | ---: |
+| Original retained | 27.151 / 47.387 | 6.118 | 5/14 | 29.624 / 54.637 |
+| Correct-frame raw ICP information | 15.545 / 29.437 | 5.333 | 6/14 | 16.947 / 35.585 |
+| Broad admission + independent scan-pair refinement | 10.858 / 19.197 | 4.674 | 8/14 | 15.111 / 34.239 |
+| Pair refinement + configured-noise fallback | 13.789 / 27.727 | 3.948 | 9/14 | 17.289 / 37.868 |
+
+![Complete fixed14 position and angular regressions](constraint_uncertainty_20261020.png)
+
+All variants lock at frame 4 and retain 4,088 stationary and 2,232 motion outputs.
+None has a >1 m / >5° motion output on this full-map recording. They nevertheless
+fail the requested no-regression boundary:
+
+- Raw ICP information worsens 06 position by **28.9 mm** and 10/12 angular RMSE.
+- Pair refinement worsens 06 position by **2.95 mm**, 10 angular RMSE by
+  **0.151°** and 11 by **0.042°**. Motion geometry fails on 12 frames versus six
+  in the baseline; output remains available through the existing coasting path.
+  Motion maximum angular error rises **0.626→0.726°**.
+- Configured-noise fallback improves the motion angular maximum to **0.498°**
+  and reduces geometric failures to five, but 06 position worsens **3.48 mm**
+  and stationary 03/06/10/12 angular RMSE still regresses. It is not a universal
+  improvement despite the better 05 result.
+
+The pair experiment preserves original multi-scan admission and referee checks,
+then refines the original scan pair and rechecks the endpoint against the broad
+submap before the usual neighborhood and graph trials. Compared with the final
+unchanged-weight map, measured loop position median improves **7.21→2.11 mm**
+and angular median **0.0290→0.00736°**. Its 407 loops include 125 long-gap pairs;
+map position RMSE is 14.813 cm and independent revisit translation/rotation
+RMSE is **2.251 cm / 0.0845°**. Better measurements alone do not eliminate the
+remaining global deformation or the local query regressions.
+
+The raw-information loop truth-normalized squared error has median/p95
+**42.5/417**; pair refinement changes this to **3.22/182**. Using configured
+noise where the independent pair cannot support refinement changes it to
+**0.800/14.47**. These are diagnostic statistics on the mapping recording, not
+parameters fitted to evaluation truth. A point Hessian conditions on fixed
+point geometry; assembled targets also contain estimated scan poses and shared
+errors. This uncertainty and correlation still require a validated model.
+
+Other full-route ablations are retained as negative evidence: changing the source
+voxelization frame gives no useful accuracy gain; anisotropic axis scaling does
+not improve the joint-weight map; replacing the multi-scan target with one scan
+admits a **1.026 m** wrong loop. Thus the latter's lower aggregate map error is
+not acceptable. Fixed-measurement kernel/floor/correlation and LM convergence
+experiments do not qualify an alternative online map. No such algorithm or
+weight experiment remains in the worktree.
+
+One assembled-target covariance experiment exposes a separate numerical failure:
+GTSAM reports an indeterminate system at node 880, then mapping continues to
+save **390 disconnected keyframes**. Consuming all inputs and producing an
+output CSV did not make that map valid. It is explicitly rejected, with its
+original failure logs retained. Graph connectivity and error logs now accompany
+these experiment qualifications; runtime transactional failure handling for
+this case is still unqualified, not claimed fixed by the information repair.
+
+### Final retained-code verification
+
+Final core SHA-256 is
+`2e0689d1212a369b807455bdd9eb3bb3eba4b30b165efd74ceb7c908ad9d9666`.
+`qualify.py` checks frozen source/core identity, original map/Atlas/manifests,
+configuration preservation, completed replays and the behavioral regressions.
+
+- Original fixed14: **4,144 inputs / 4,088 outputs**, all locks at frame 4;
+  decisions unchanged, maximum output-matrix difference **1.43e-14**.
+- Independent route: **2,236 inputs / 2,232 outputs**, one initialization,
+  2,226 geometric outputs and six coasting outputs; decisions unchanged and
+  maximum matrix difference **1.43e-14**. No new accuracy improvement is claimed
+  for the retained code on the existing map.
+- Strict extension: **2,236 inputs / 2,232 successes / 231 new keyframes**;
+  decisions unchanged, maximum matrix difference **9.03e-13**.
+- Final default causal mapping: all **398** loop pairs unchanged from the
+  preceding canonical-angle core, **1,270 odometry edges / 1,271 connected
+  nodes**, no graph errors. Pose-matrix differences remain below **1.39e-10**.
+- Full Humble build and **61/61 CTest** pass; Atlas and kill profiles each pass
+  **15/15** episodes. No install or push is performed.
+
+All processing uses four physical P cores `0,2,4,6`, four matcher threads and
+passive OpenMP waiting. These are unpaced correctness runs; some overlap on the
+same cores. Their recorded CPU/wall times establish neither a new speedup nor
+live/ROS/RK3588 qualification. The earlier isolated performance measurements and
+partial-map alias limitation remain in force. Next work should reconcile
+independent pair measurements with calibrated, correlated map uncertainty and
+repeat the complete accuracy boundary; neither this fixture nor these ablations
+prove that FAST_LIO has reached an accuracy ceiling.

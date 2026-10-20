@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Correct loop information coordinates when a pretransformed source estimates a
+  correction and when a full-six-DoF edge is reversed. Two physical residual
+  regressions fail on the old core and pass on the repair. Original fixed14,
+  independent motion, strict extension and default causal mapping retain their
+  behavior; full CTest passes 61/61.
+- Attribute stationary 05's previous accuracy regression to local map motion,
+  with only 0.162 mm residual after diagnostic transport. Complete map/query
+  ablations reach 10.86 cm pooled fixed14 RMSE but still regress individual
+  position/angular metrics; withdraw candidate algorithms and preserve the
+  original map and defaults. Correct information coordinates do not certify
+  covariance calibration or 10 cm accuracy.
+
 - Fix ordinary tracking accepting a distant coarse registration without fine
   geometric confirmation. Enforce existing motion limits and recheck suspicious,
   otherwise admissible proposals with prepared fine GICP from the prediction.

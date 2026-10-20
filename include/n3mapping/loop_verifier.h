@@ -55,7 +55,9 @@ private:
     // information semantics. Keeping this in one place prevents either Mapping
     // or Map Extension from bypassing loop_use_icp_information and the product
     // loop thresholds.
-    void finalizeRegistrationEvidence(LoopVerification* verification) const;
+    void finalizeRegistrationEvidence(
+        LoopVerification* verification,
+        const Eigen::Matrix<double, 6, 6>& measurement_information) const;
     LoopVerification finalizePreparedRegistration(
         const LoopCandidate& candidate,
         const Keyframe::Ptr& query_keyframe,

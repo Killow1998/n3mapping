@@ -1,5 +1,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <gtsam/geometry/Pose3.h>
+#include <pcl/common/transforms.h>
 
 #include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_referee.h"
@@ -311,6 +313,41 @@ TEST(LoopVerificationPipelineTest,
         EXPECT_TRUE(result.verification.T_measured_match_query.isApprox(
             Eigen::Isometry3d::Identity(), 0.005));
     }
+}
+
+TEST(LoopVerifierEvidenceTest, PretransformedSourceKeepsMeasurementUncertainty)
+{
+    Config config;
+    config.num_threads = 1;
+    config.loop_use_icp_information = true;
+    auto query_pose = poseAt(3.0, -2.0, 0.4);
+    const auto raw = makeRegistrationCloud();
+    auto transformed = std::make_shared<Keyframe::PointCloudT>();
+    pcl::transformPointCloud(*raw, *transformed, query_pose.matrix().cast<float>());
+    const auto match = Keyframe::create(0, 1.0, Eigen::Isometry3d::Identity(), transformed);
+    const auto query = Keyframe::create(10, 2.0, query_pose, raw);
+    LoopCandidate candidate;
+    candidate.query_id = query->id;
+    candidate.match_id = match->id;
+    PointCloudMatcher matcher(config);
+    const auto result = LoopVerifier(config).verifyPreparedSubmaps(
+        candidate, query, match, transformed, transformed, matcher);
+    ASSERT_TRUE(result.loop.verified);
+    const gtsam::Pose3 prediction(query_pose.matrix());
+    const gtsam::Pose3 correction(result.match_result.T_target_source.matrix());
+    const gtsam::Pose3 measurement(result.T_measured_match_query.matrix());
+    gtsam::Vector6 perturbation;
+    perturbation << 0.001, -0.002, 0.003, 0.01, 0.02, -0.03;
+    const auto displaced = measurement * gtsam::Pose3::Expmap(perturbation);
+    const gtsam::Vector6 correction_error =
+        gtsam::Pose3::Logmap(correction.between(displaced * prediction.inverse()));
+    Eigen::Matrix<double, 6, 1> measurement_error, raw_error;
+    measurement_error << perturbation.tail<3>(), perturbation.head<3>();
+    raw_error << correction_error.tail<3>(), correction_error.head<3>();
+    const double expected =
+        raw_error.dot(result.match_result.information * raw_error);
+    EXPECT_NEAR(measurement_error.dot(result.loop.information * measurement_error),
+                expected, expected * 1e-9);
 }
 
 TEST(LoopVerificationPipelineTest,
@@ -879,6 +916,30 @@ TEST(LoopClosureManagerTest, BuildLoopEdgesRespectsDirection)
     EXPECT_EQ(edges_mq.front().from_id, 2);
     EXPECT_EQ(edges_mq.front().to_id, 1);
     EXPECT_TRUE(edges_mq.front().measurement.isApprox(loop.T_match_query, 1e-9));
+}
+
+TEST(LoopClosureManagerTest, ReversingFullEdgePreservesWhitenedError)
+{
+    LoopClosureManager manager(Config{});
+    VerifiedLoop loop;
+    loop.query_id = 1;
+    loop.match_id = 2;
+    loop.verified = true;
+    loop.T_match_query = poseAt(3.0, -2.0, 0.4);
+    loop.information.diagonal() << 100.0, 200.0, 300.0, 1000.0, 2000.0, 3000.0;
+    const auto reverse =
+        manager.buildLoopEdges({loop}, LoopEdgeDirection::QueryToMatch).front();
+    const gtsam::Pose3 measurement(loop.T_match_query.matrix());
+    gtsam::Vector6 perturbation;
+    perturbation << 0.001, -0.002, 0.003, 0.01, 0.02, -0.03;
+    const auto predicted = measurement * gtsam::Pose3::Expmap(perturbation);
+    const gtsam::Vector6 inverse_error =
+        gtsam::Pose3::Logmap(measurement.inverse().between(predicted.inverse()));
+    Eigen::Matrix<double, 6, 1> forward_error, reverse_error;
+    forward_error << perturbation.tail<3>(), perturbation.head<3>();
+    reverse_error << inverse_error.tail<3>(), inverse_error.head<3>();
+    EXPECT_NEAR(forward_error.dot(loop.information * forward_error),
+                reverse_error.dot(reverse.information * reverse_error), 1e-10);
 }
 
 TEST(LoopClosureManagerTest, ApplyEdgeModelKeepsFull6DofWhenVerticalResidualIsObservable)

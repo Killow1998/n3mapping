@@ -1,4 +1,5 @@
 #include "n3mapping/loop_closure_manager.h"
+#include "n3mapping/pose_uncertainty.h"
 
 #include <algorithm>
 #include <cmath>
@@ -257,12 +258,18 @@ LoopClosureManager::buildLoopEdges(const std::vector<VerifiedLoop>& loops, LoopE
             edge.from_id = loop.query_id;
             edge.to_id = loop.match_id;
             edge.measurement = loop.T_match_query.inverse();
+            // Inverting the measurement also changes its right tangent:
+            // delta_inverse = -Ad(Z) delta. The sign cancels in information.
+            edge.information =
+                loop.edge_mode == LoopEdgeMode::Full6Dof
+                    ? rightComposedInformation(loop.information, edge.measurement)
+                    : loop.information;
         } else {
             edge.from_id = loop.match_id;
             edge.to_id = loop.query_id;
             edge.measurement = loop.T_match_query;
+            edge.information = loop.information;
         }
-        edge.information = loop.information;
         edge.type = EdgeType::LOOP;
         if (loop.edge_mode == LoopEdgeMode::XYYaw || loop.edge_mode == LoopEdgeMode::VerticalNeutral) {
             edge.constraint_mode = EdgeConstraintMode::XY_YAW;
