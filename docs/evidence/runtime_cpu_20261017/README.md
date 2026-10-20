@@ -3600,3 +3600,151 @@ and complete-route accuracy remain required before adopting a policy change.
 Final frozen core SHA256:
 `21faf3fcb7c7cd4fecbd37ad3300f07ad69334c6306bf4414a331fef847ed9eb`.
 No installed program, original map/bag, remote branch or release tag is changed.
+
+## Map consistency, extension targets and asynchronous boundaries — 2026-10-20
+
+This follow-up starts from `c924a3d`. Raw commands, inputs, frozen libraries,
+source identities and observers are under
+`build/n3mapping/online_loop_followup_20261020/`. The structured record is the
+`followup` section of [online-loop qualification](../online_loop_20261020.json).
+All recorded comparisons use cores 0/2/4/6 and four registration threads.
+
+### What the existing online loops improve
+
+Fresh causal runs consume all 13,791 original mapping inputs with loop
+processing enabled or disabled. Both use the frozen `c924a3d` library and one
+original mapping alignment. Truth is available only to the observer.
+
+| Metric | Loops off | Loops on |
+| --- | ---: | ---: |
+| Online output position RMSE | 28.777 cm | 24.585 cm |
+| Final map-keyframe position RMSE | 29.107 cm | 28.663 cm |
+| Final map-keyframe position p95 | 52.924 cm | 53.958 cm |
+| Final map-keyframe position maximum | 72.906 cm | 72.052 cm |
+| Independent revisit relative translation RMSE | 6.629 cm | 3.447 cm |
+| Independent revisit relative translation p95 | 11.388 cm | 6.392 cm |
+| Independent revisit relative translation maximum | 14.590 cm | 14.746 cm |
+
+The revisit observer selects the same 1,811 keyframe pairs by ground-truth
+distance at most 3 m and time separation at least 30 s. Pair selection is
+independent of the detected loop list. These are pose/relative-transform
+measurements, not direct point-cloud surface-thickness measurements.
+
+Thus loops improve local repeat-visit consistency substantially, while global
+map placement improves little and some tail metrics worsen. The prior 20%
+CPU optimization retained those loops; it did not introduce the accuracy gain.
+The fresh loop-on run accepts 195 edges and reproduces the previous online
+position RMSE of 0.24585255 m.
+
+Frozen-graph diagnostics keep all measured edges, initial poses, robust policy
+and iteration settings. Relative to a no-change bulk-solve control at
+28.663 cm absolute keyframe RMSE, multiplying only loop rotational information
+by 100 or 10,000 gives 27.894 or 24.578 cm. These are sensitivity experiments,
+not calibrated runtime settings, and neither reaches 10 cm. Runtime weights
+are unchanged. The saved graph has 195 loops, median endpoint ID separation
+18; 67 span more than 50 IDs. Constraint weighting and spatial/temporal coverage
+need independent validation rather than selecting a parameter from truth error.
+
+### Loaded-reference identity repair and prefetch ablation
+
+The accepted target cache keeps a frozen global cloud but uses the latest graph pose
+to recrop a missing anchor. Cache hits used an older crop. Therefore eviction
+or prefetch timing could change the geometry of the same target key.
+
+The candidate takes crop centers from the same loaded-map snapshot as the points.
+The regression shifts an optimized anchor, evicts its target, then requests it
+again. The old library fails; the fixed library reproduces every original
+point. Existing map replacement and raw/prepared-coherence tests remain.
+
+With this repair in place, removing speculative preparation preserves all
+decisions and output poses to floating-point precision on both recorded inputs.
+The candidate implementation removes the workers, request queue, pending/epoch
+bookkeeping, worker-only diagnostics and the obsolete scheduling test. It
+retains the four-entry demand cache, exact raw visibility crop, full solver
+stages, quality gates and committed-anchor warmup. `tracking_target_cache.cpp`
+shrinks from 286 to 219 lines, its header from 149 to 101; the 138-line prefetch
+implementation is removed. Ordinary localization uses its existing local cache.
+
+| Same-input processing | Fixed crop + prefetch | Candidate demand-only |
+| --- | ---: | ---: |
+| Original-map revisit, 300 inputs: CPU | 183.997 s | 123.734 s |
+| Original-map revisit: wall / peak RSS | 54.245 s / 2636.7 MiB | 41.021 s / 1821.6 MiB |
+| Independent motion, 2,236 inputs: CPU | 599.186 s | 321.232 s |
+| Independent motion: wall / peak RSS | 162.125 s / 4391.9 MiB | 102.656 s / 2933.4 MiB |
+
+The build-only no-prefetch control separately measures 125.218 / 321.842 CPU s.
+Its poses match the fixed-prefetch control within `3.87e-13 m / 2.03e-12°`;
+candidate source cleanup matches that control within `6.25e-13` matrix components.
+The fresh pre-repair 300-frame control costs 191.350 CPU s. Its position
+differences from the fixed geometry reach 6.25 mm, so crop repair itself is
+not described as a numerically identical optimization.
+
+**The candidate is not retained.** An additional full-motion control with the
+old production `c924a3d` library produces **500** successful outputs, versus
+**498** in the fixed-crop candidate. Prefetch on/off after the crop fix is
+equivalent, but the crop fix itself removes accepted outputs at frames 502/504.
+The old version first rejects frame 503 and recovers for frame 504 before
+failing persistently from 505. The candidate first rejects frame 502 and does
+not recover.
+This violates the no-reliability-regression requirement. All candidate source,
+libraries and traces are frozen for diagnosis; runtime source and build are
+restored to `c924a3d`. CPU savings are demonstrated candidate results, not a
+delivered production improvement.
+
+The candidate's 300-frame revisit still takes 41.0 s for 29.9 s of input:
+real-time throughput is not qualified. Both fixed-crop policies yield the same
+498 successful outputs (frames 4–501), 49 new keyframes, then six nonconvergent tracking
+attempts and persistent loss from frame 502. The successful outputs have
+11.432 cm position RMSE / 26.339 cm maximum. The long rejected tail must not
+be used to claim a low average core requirement or full-route success.
+In `trackLocalizationImpl`, exceeding the failure limit returns before any
+new registration; the extension state continues calling that strict tracker.
+This recovery gap is unchanged by the prefetch ablation and remains open.
+
+CPU intervals cover backend input processing and concurrent work during that
+interval, excluding load/save, frontend, DDS, simulator and any worker work
+after the interval. None of these unpaced direct-core tests proves live ROS
+deadline behavior. No truth enters runtime initialization, tracking or graph
+constraints.
+
+### Asynchronous loop processing: boundary established, implementation pending
+
+Humble runs backend frames and loop timer callbacks on the same serial executor;
+both also hold `data_mutex_`. Live odometry/cloud output already has independent
+owners. Moving the whole existing loop callback to another thread while keeping
+that lock would still block mapping.
+
+The next implementation should preserve prompt keyframe retrieval, then move
+independent geometric verification and graph solving to a bounded background
+path using immutable input snapshots. A short commit must check map/session
+generation, retain nodes/edges appended during solving, and publish a coherent
+correction. New input must not be overwritten by an older optimized pose set;
+map replacement must invalidate old work. Verification remains necessary before
+a candidate becomes a committed loop. CPU budgeting, queue age, solve latency
+and commit lock time need measurement; asynchrony alone does not reduce CPU.
+No asynchronous backend implementation is claimed in this stage.
+
+Candidate Humble build and host CTest pass **61/61**, including the production
+localization/mapping/extension episodes. This did not cover the two-frame
+recorded-data regression. Frozen candidate core SHA256:
+`312d60bb9c6a32573615a613a783ad1d560ed75c54eeea9d0e8e009dad53a185`.
+The accepted runtime remains `c924a3d`, core SHA256
+`21faf3fcb7c7cd4fecbd37ad3300f07ad69334c6306bf4414a331fef847ed9eb`.
+No standalone Noetic build, hardware or complete successful extension
+qualification is added. Installation, remote branch and original map/bags are
+unchanged.
+
+### Replay-artifact recovery
+
+The first follow-up launcher put the output directory in the manifest argument.
+It read zero frames and overwrote the previous stage's `final_full` CSV/summary
+files before returning failure. The previously committed structured qualification,
+frozen library, profiles and saved map survive; original map/atlas, bag and
+manifest/PCDs were unaffected. The invalid attempt is retained under
+`invalid_mapping_attempt`, and the old directory has a recovery notice.
+
+The fresh protected `loops_off` / `loops_on` runs above replace that missing raw
+comparison. Old archived timing is not represented as freshly reconstructed raw
+data. Launchers now reject an existing output directory and verify the manifest
+before starting. Initial missing-library and missing-TBB-link diagnostic
+attempts are also retained alongside their successful corrected commands.

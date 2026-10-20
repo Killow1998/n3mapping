@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Record a loaded-reference crop-identity defect and a demand-only preparation
+  candidate. Its CPU/RAM benefit is substantial, but an independent movement
+  comparison loses two previously accepted frames, so the candidate is not
+  retained. Runtime remains at the accepted loop-verification implementation.
+- Add complete loop-on/off consistency evidence: repeated visits improve, but
+  final map absolute error remains above 10 cm. Asynchronous backend loop
+  processing is planned and has not been implemented.
 - Batch online loop-neighborhood verification by target geometry, preparing one
   target at a time while retaining each candidate's independent solves and
   consensus. Split registration and graph admission into separate implementation
@@ -15,11 +22,11 @@
 - Four-core causal replay preserves 195 loops and 13,723 mapping outputs from
   13,791 inputs. Mapping-loop CPU falls 20.0%, with unchanged numerical gates and
   pose differences below 1e-8 m/rad. Full CTest: 61/61.
-- The 10 cm absolute-accuracy goal and map-consistency improvement remain open.
-  Loaded-map continuous tracking is still expensive; a prefetch ablation is
-  recorded without changing its production policy.
+- The 10 cm absolute-accuracy goal, complete-route extension recovery and
+  real-time backend throughput remain open.
 
-See the [online-loop evidence](docs/evidence/runtime_cpu_20261017/README.md#online-loop-verification-and-accuracy-follow-up--2026-10-20).
+See the [online-loop evidence](docs/evidence/runtime_cpu_20261017/README.md#online-loop-verification-and-accuracy-follow-up--2026-10-20)
+and [consistency/extension follow-up](docs/evidence/runtime_cpu_20261017/README.md#map-consistency-extension-targets-and-asynchronous-boundaries--2026-10-20).
 
 ## [1.0.1] - 2026-10-20
 

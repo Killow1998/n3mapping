@@ -205,7 +205,8 @@
           "p95": 0.4993402840736038,
           "maximum": 1.1023060438740995
         }
-      }
+      },
+      "raw_output_status": "Original CSV/summary files were accidentally overwritten by the first follow-up launch. These numeric metrics survive in this previously committed report; fresh replacement raw results are online_loop_followup_20261020/loops_on with new timing. See followup.artifact_recovery."
     },
     "baseline_extension_clean": {
       "frames": 300,
@@ -799,5 +800,783 @@
     "empty_correspondence_after_fix.log": "de4cb11d18bc3443d3dda5a99d0936c0ad7d1b61035d60f9967e4760b94eb39e",
     "ctest_final.log": "44eba56ed0cc533e3603de4a4e8da658cfce6bc47ed8078440e54a7f5ce82d28",
     "qualify.py": "2376c3eb416c21eb16ebfe2ad22ce9df7caf79346f607b0a659cc1ad0236ca22"
+  },
+  "followup": {
+    "base_commit": "c924a3d",
+    "candidate_retained": false,
+    "rejection_reason": "Independent movement: old production 500 successful outputs versus candidate 498; the crop repair misses previously accepted frames 502/504 (old first rejects 503; candidate first rejects 502). No reliability regression is allowed.",
+    "scope": "Four physical P cores 0/2/4/6; four registration threads; PASSIVE. Causal direct-core processing, truth only scoring. Loop-on/off validates existing online loops; frozen-graph weighting is diagnostic only. No asynchronous loop backend has been implemented.",
+    "mapping_consistency": {
+      "alignment": {
+        "stamp_ns": 7299995002,
+        "translation": [
+          -43.981804569062675,
+          0.013493989897703453,
+          0.6566722602620779
+        ],
+        "quaternion_xyzw": [
+          1.2163132549912854e-05,
+          -0.00045452323389096505,
+          0.00015331460290557127,
+          -0.9999998848776538
+        ]
+      },
+      "scope": "Same complete input and c924a3d binary. Loop processing on/off, fixed original alignment; truth only in scoring. Final optimized keyframes assess saved-map poses; online outputs assess causal pose delivery.",
+      "loops_off": {
+        "summary": {
+          "frames": 13791,
+          "keyframes": 1271,
+          "successful_frames": 13723,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 9.165391570000041,
+          "loop_cpu_s": 0.0021166019999402583,
+          "runtime_cpu_s": 10.655536482,
+          "runtime_wall_s": 9.684186532,
+          "source_duration_s": 1379,
+          "max_pacing_lag_s": 0,
+          "peak_rss_kib": 518696,
+          "paced": false
+        },
+        "online": {
+          "position_m": {
+            "rmse": 0.2877721351499796,
+            "median": 0.2323273687058627,
+            "p95": 0.5168603129184546,
+            "maximum": 0.7344721542496198
+          },
+          "rotation_deg": {
+            "rmse": 0.3285392032266733,
+            "median": 0.2716481868955048,
+            "p95": 0.6111731604645912,
+            "maximum": 1.0974124624673556
+          }
+        },
+        "saved_keyframes": {
+          "position_m": {
+            "rmse": 0.29106717264747045,
+            "median": 0.2324570971632978,
+            "p95": 0.529237280166011,
+            "maximum": 0.7290612978658703
+          },
+          "rotation_deg": {
+            "rmse": 0.33016144752726373,
+            "median": 0.2691849104551256,
+            "p95": 0.6329465426467606,
+            "maximum": 1.09741246246733
+          }
+        },
+        "saved_dense": {
+          "position_m": {
+            "rmse": 0.287772135149708,
+            "median": 0.2323273687058623,
+            "p95": 0.5168603129184465,
+            "maximum": 0.7344721542496222
+          },
+          "rotation_deg": {
+            "rmse": 0.3285392032267034,
+            "median": 0.2716481868955193,
+            "p95": 0.6111731604645889,
+            "maximum": 1.09741246246733
+          }
+        },
+        "independent_revisits": {
+          "pair_count": 1811,
+          "definition": "Ground-truth positions within 3m and time separation >=30s; same keyframe IDs for both runs, independent of detected loop list",
+          "relative_translation_m": {
+            "rmse": 0.06629185807951679,
+            "median": 0.058166765197318254,
+            "p95": 0.11388410433920897,
+            "maximum": 0.14590275909693015
+          },
+          "relative_rotation_deg": {
+            "rmse": 0.183274931650881,
+            "median": 0.13590971191512816,
+            "p95": 0.3421621933392278,
+            "maximum": 0.5497415376839628
+          }
+        }
+      },
+      "loops_on": {
+        "summary": {
+          "frames": 13791,
+          "keyframes": 1271,
+          "successful_frames": 13723,
+          "accepted_loops": 195,
+          "mapping_cpu_s": 12.238063349000257,
+          "loop_cpu_s": 143.07041746099978,
+          "runtime_cpu_s": 156.838066986,
+          "runtime_wall_s": 60.034050481,
+          "source_duration_s": 1379,
+          "max_pacing_lag_s": 0,
+          "peak_rss_kib": 579620,
+          "paced": false
+        },
+        "online": {
+          "position_m": {
+            "rmse": 0.24585254688075112,
+            "median": 0.20062248869675578,
+            "p95": 0.4381435565215766,
+            "maximum": 0.6970216368048082
+          },
+          "rotation_deg": {
+            "rmse": 0.32765782657402615,
+            "median": 0.31607197315862645,
+            "p95": 0.49934028407336695,
+            "maximum": 1.1023060438742356
+          }
+        },
+        "saved_keyframes": {
+          "position_m": {
+            "rmse": 0.28662580780626074,
+            "median": 0.21847272174048482,
+            "p95": 0.5395832106360807,
+            "maximum": 0.7205224305030689
+          },
+          "rotation_deg": {
+            "rmse": 0.3238893290082708,
+            "median": 0.2973520253150696,
+            "p95": 0.5037451455433123,
+            "maximum": 1.0793869075452498
+          }
+        },
+        "saved_dense": {
+          "position_m": {
+            "rmse": 0.28483042105177303,
+            "median": 0.21929059507544163,
+            "p95": 0.5388546022891331,
+            "maximum": 0.7252035543390735
+          },
+          "rotation_deg": {
+            "rmse": 0.32313623958379717,
+            "median": 0.2972625683303921,
+            "p95": 0.4984306256014206,
+            "maximum": 1.0793869075443927
+          }
+        },
+        "independent_revisits": {
+          "pair_count": 1811,
+          "definition": "Ground-truth positions within 3m and time separation >=30s; same keyframe IDs for both runs, independent of detected loop list",
+          "relative_translation_m": {
+            "rmse": 0.034473132266037154,
+            "median": 0.023932625796223773,
+            "p95": 0.06392281614771704,
+            "maximum": 0.1474565087859938
+          },
+          "relative_rotation_deg": {
+            "rmse": 0.17436725922599017,
+            "median": 0.12661079063785477,
+            "p95": 0.3140841198474008,
+            "maximum": 0.5071176647573344
+          }
+        }
+      }
+    },
+    "graph_weight_sensitivity": {
+      "original": {
+        "position_m": {
+          "rmse": 0.28662580780626074,
+          "median": 0.21847272174048482,
+          "p95": 0.5395832106360807,
+          "maximum": 0.7205224305030689
+        },
+        "rotation_deg": {
+          "rmse": 0.3238893290083502,
+          "median": 0.297352025315081,
+          "p95": 0.5037451455433122,
+          "maximum": 1.0793869075435178
+        }
+      },
+      "rotation_100": {
+        "position_m": {
+          "rmse": 0.2789412086781843,
+          "median": 0.2070230513945988,
+          "p95": 0.5356327383495294,
+          "maximum": 0.7157871493776785
+        },
+        "rotation_deg": {
+          "rmse": 0.31104810022134527,
+          "median": 0.2723545085852604,
+          "p95": 0.5005853064843826,
+          "maximum": 1.06737184675011
+        }
+      },
+      "rotation_10000": {
+        "position_m": {
+          "rmse": 0.24578195220012247,
+          "median": 0.17145282992206476,
+          "p95": 0.47798752481017015,
+          "maximum": 0.6601182300433462
+        },
+        "rotation_deg": {
+          "rmse": 0.3026282293487091,
+          "median": 0.24213709238934183,
+          "p95": 0.5246994313175171,
+          "maximum": 1.075781362655626
+        }
+      }
+    },
+    "runs": {
+      "extension_baseline": {
+        "frames": 300,
+        "keyframes": 24,
+        "successful_frames": 296,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 191.12819663100018,
+        "loop_cpu_s": 8.820700013245641e-05,
+        "runtime_cpu_s": 191.350370924,
+        "runtime_wall_s": 55.952091994,
+        "source_duration_s": 29.899994995,
+        "max_pacing_lag_s": 0,
+        "peak_rss_kib": 2519960,
+        "paced": false,
+        "peak_rss_mib": 2460.8984375,
+        "accuracy": {
+          "successful_outputs": 296,
+          "position_rmse_m": 0.015042234816864489,
+          "position_max_m": 0.02858346828087493,
+          "rotation_rmse_deg": 0.09358421730901542,
+          "rotation_max_deg": 0.21834229345884343,
+          "first_output_frame": 4,
+          "last_output_frame": 299
+        },
+        "foreground_target_hits": 252,
+        "foreground_target_misses": 43,
+        "decision_counts": {
+          "accepted": 1,
+          "initial_relocalization_rejected": 4,
+          "loaded_map_tracking_geometric": 295
+        },
+        "saved_keyframes": 1295,
+        "saved_edge_types": {
+          "0": 1293,
+          "1": 218,
+          "2": 1
+        }
+      },
+      "extension_crop_fixed": {
+        "frames": 300,
+        "keyframes": 24,
+        "successful_frames": 296,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 183.80858766099982,
+        "loop_cpu_s": 8.811300007138811e-05,
+        "runtime_cpu_s": 183.99688854599998,
+        "runtime_wall_s": 54.24499779,
+        "source_duration_s": 29.899994995,
+        "max_pacing_lag_s": 0,
+        "peak_rss_kib": 2699972,
+        "paced": false,
+        "peak_rss_mib": 2636.69140625,
+        "accuracy": {
+          "successful_outputs": 296,
+          "position_rmse_m": 0.015086456313193101,
+          "position_max_m": 0.02857243955003502,
+          "rotation_rmse_deg": 0.09358950860217558,
+          "rotation_max_deg": 0.21834281957215998,
+          "first_output_frame": 4,
+          "last_output_frame": 299
+        },
+        "foreground_target_hits": 257,
+        "foreground_target_misses": 38,
+        "decision_counts": {
+          "accepted": 1,
+          "initial_relocalization_rejected": 4,
+          "loaded_map_tracking_geometric": 295
+        },
+        "saved_keyframes": 1295,
+        "saved_edge_types": {
+          "0": 1293,
+          "1": 218,
+          "2": 1
+        }
+      },
+      "extension_fixed_no_prefetch": {
+        "frames": 300,
+        "keyframes": 24,
+        "successful_frames": 296,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 125.15742610400002,
+        "loop_cpu_s": 7.893100000089248e-05,
+        "runtime_cpu_s": 125.217683227,
+        "runtime_wall_s": 43.891634605,
+        "source_duration_s": 29.899994995,
+        "max_pacing_lag_s": 0,
+        "peak_rss_kib": 1872516,
+        "paced": false,
+        "peak_rss_mib": 1828.62890625,
+        "accuracy": {
+          "successful_outputs": 296,
+          "position_rmse_m": 0.015086456313192857,
+          "position_max_m": 0.028572439550033323,
+          "rotation_rmse_deg": 0.09358950860217684,
+          "rotation_max_deg": 0.21834281957216037,
+          "first_output_frame": 4,
+          "last_output_frame": 299
+        },
+        "foreground_target_hits": 247,
+        "foreground_target_misses": 48,
+        "decision_counts": {
+          "accepted": 1,
+          "initial_relocalization_rejected": 4,
+          "loaded_map_tracking_geometric": 295
+        },
+        "saved_keyframes": 1295,
+        "saved_edge_types": {
+          "0": 1293,
+          "1": 218,
+          "2": 1
+        }
+      },
+      "extension_final": {
+        "frames": 300,
+        "keyframes": 24,
+        "successful_frames": 296,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 123.67393982699998,
+        "loop_cpu_s": 7.537600017570867e-05,
+        "runtime_cpu_s": 123.733607714,
+        "runtime_wall_s": 41.020595995,
+        "source_duration_s": 29.899994995,
+        "max_pacing_lag_s": 0,
+        "peak_rss_kib": 1865364,
+        "paced": false,
+        "peak_rss_mib": 1821.64453125,
+        "accuracy": {
+          "successful_outputs": 296,
+          "position_rmse_m": 0.01508645631319329,
+          "position_max_m": 0.028572439550030762,
+          "rotation_rmse_deg": 0.09358950860217835,
+          "rotation_max_deg": 0.21834281957215879,
+          "first_output_frame": 4,
+          "last_output_frame": 299
+        },
+        "foreground_target_hits": 247,
+        "foreground_target_misses": 48,
+        "decision_counts": {
+          "accepted": 1,
+          "initial_relocalization_rejected": 4,
+          "loaded_map_tracking_geometric": 295
+        },
+        "saved_keyframes": 1295,
+        "saved_edge_types": {
+          "0": 1293,
+          "1": 218,
+          "2": 1
+        }
+      },
+      "motion_previous": {
+        "frames": 2236,
+        "keyframes": 49,
+        "successful_frames": 500,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 596.4038190160022,
+        "loop_cpu_s": 0.0004319659990663638,
+        "runtime_cpu_s": 597.538682328,
+        "runtime_wall_s": 161.548730745,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 0,
+        "peak_rss_kib": 4325504,
+        "paced": false,
+        "peak_rss_mib": 4224.125,
+        "accuracy": {
+          "successful_outputs": 500,
+          "position_rmse_m": 0.116523957448791,
+          "position_max_m": 0.2688803621991349,
+          "rotation_rmse_deg": 0.1327522849850376,
+          "rotation_max_deg": 0.3094408681710715,
+          "first_output_frame": 4,
+          "last_output_frame": 504
+        },
+        "foreground_target_hits": 416,
+        "foreground_target_misses": 90,
+        "decision_counts": {
+          "accepted": 1,
+          "icp_gate_failed": 7,
+          "initial_relocalization_rejected": 4,
+          "loaded_map_tracking_geometric": 499,
+          "max_track_failures": 1725
+        },
+        "saved_keyframes": 1320,
+        "saved_edge_types": {
+          "0": 1318,
+          "1": 243,
+          "2": 1
+        },
+        "performance_caveat": "Only 500 successful outputs; the lost tail must not qualify full-route success or dilute average core demand. CPU excludes any asynchronous work after processing interval."
+      },
+      "motion_crop_fixed": {
+        "frames": 2236,
+        "keyframes": 49,
+        "successful_frames": 498,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 593.8685546419997,
+        "loop_cpu_s": 0.00044858999701702373,
+        "runtime_cpu_s": 599.185710319,
+        "runtime_wall_s": 162.125337193,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 0,
+        "peak_rss_kib": 4497320,
+        "paced": false,
+        "peak_rss_mib": 4391.9140625,
+        "accuracy": {
+          "successful_outputs": 498,
+          "position_rmse_m": 0.11431935828043067,
+          "position_max_m": 0.263389009247595,
+          "rotation_rmse_deg": 0.1292892714736266,
+          "rotation_max_deg": 0.3233079795996384,
+          "first_output_frame": 4,
+          "last_output_frame": 501
+        },
+        "foreground_target_hits": 413,
+        "foreground_target_misses": 90,
+        "decision_counts": {
+          "accepted": 1,
+          "icp_gate_failed": 6,
+          "initial_relocalization_rejected": 4,
+          "loaded_map_tracking_geometric": 497,
+          "max_track_failures": 1728
+        },
+        "saved_keyframes": 1320,
+        "saved_edge_types": {
+          "0": 1318,
+          "1": 243,
+          "2": 1
+        },
+        "performance_caveat": "Only 498 successful outputs; the lost tail must not qualify full-route success or dilute average core demand. CPU excludes any asynchronous work after processing interval."
+      },
+      "motion_fixed_no_prefetch": {
+        "frames": 2236,
+        "keyframes": 49,
+        "successful_frames": 498,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 321.56454830799936,
+        "loop_cpu_s": 0.00043731699935634083,
+        "runtime_cpu_s": 321.84206430200004,
+        "runtime_wall_s": 103.879710308,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 0,
+        "peak_rss_kib": 2989020,
+        "paced": false,
+        "peak_rss_mib": 2918.96484375,
+        "accuracy": {
+          "successful_outputs": 498,
+          "position_rmse_m": 0.11431935828045191,
+          "position_max_m": 0.2633890092476219,
+          "rotation_rmse_deg": 0.12928927147368546,
+          "rotation_max_deg": 0.32330797959963187,
+          "first_output_frame": 4,
+          "last_output_frame": 501
+        },
+        "foreground_target_hits": 398,
+        "foreground_target_misses": 105,
+        "decision_counts": {
+          "accepted": 1,
+          "icp_gate_failed": 6,
+          "initial_relocalization_rejected": 4,
+          "loaded_map_tracking_geometric": 497,
+          "max_track_failures": 1728
+        },
+        "saved_keyframes": 1320,
+        "saved_edge_types": {
+          "0": 1318,
+          "1": 243,
+          "2": 1
+        },
+        "performance_caveat": "Only 498 successful outputs; the lost tail must not qualify full-route success or dilute average core demand. CPU excludes any asynchronous work after processing interval."
+      },
+      "motion_final": {
+        "frames": 2236,
+        "keyframes": 49,
+        "successful_frames": 498,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 320.9569226519996,
+        "loop_cpu_s": 0.0004448279999849092,
+        "runtime_cpu_s": 321.231880381,
+        "runtime_wall_s": 102.656034427,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 0,
+        "peak_rss_kib": 3003844,
+        "paced": false,
+        "peak_rss_mib": 2933.44140625,
+        "accuracy": {
+          "successful_outputs": 498,
+          "position_rmse_m": 0.1143193582804559,
+          "position_max_m": 0.26338900924763936,
+          "rotation_rmse_deg": 0.12928927147367847,
+          "rotation_max_deg": 0.3233079795996389,
+          "first_output_frame": 4,
+          "last_output_frame": 501
+        },
+        "foreground_target_hits": 398,
+        "foreground_target_misses": 105,
+        "decision_counts": {
+          "accepted": 1,
+          "icp_gate_failed": 6,
+          "initial_relocalization_rejected": 4,
+          "loaded_map_tracking_geometric": 497,
+          "max_track_failures": 1728
+        },
+        "saved_keyframes": 1320,
+        "saved_edge_types": {
+          "0": 1318,
+          "1": 243,
+          "2": 1
+        },
+        "performance_caveat": "Only 498 successful outputs; the lost tail must not qualify full-route success or dilute average core demand. CPU excludes any asynchronous work after processing interval."
+      }
+    },
+    "comparisons": {
+      "extension_baseline__extension_final": {
+        "frames.csv": {
+          "rows": 300,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 0.006245490475491881,
+          "max_rotation_deg": 0.029748436305458675,
+          "max_matrix_component": 0.004764875743641102
+        },
+        "keyframes.csv": {
+          "rows": 1295,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 0.002766711093247515,
+          "max_rotation_deg": 0.0015555613883179262,
+          "max_matrix_component": 0.002418501955394007
+        },
+        "dense.csv": {
+          "rows": 14087,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 0.006333654655373425,
+          "max_rotation_deg": 0.029698022036796584,
+          "max_matrix_component": 0.004764071682839457
+        }
+      },
+      "extension_crop_fixed__extension_fixed_no_prefetch": {
+        "frames.csv": {
+          "rows": 300,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 3.6235289975001384e-14,
+          "max_rotation_deg": 2.032564456786502e-13,
+          "max_matrix_component": 3.552713678800501e-14
+        },
+        "keyframes.csv": {
+          "rows": 1295,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 1.0718205320460328e-12,
+          "max_rotation_deg": 6.191489229536866e-13,
+          "max_matrix_component": 1.0589307208874743e-12
+        },
+        "dense.csv": {
+          "rows": 14087,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 1.0723238385085838e-12,
+          "max_rotation_deg": 6.284791137721772e-13,
+          "max_matrix_component": 1.0591388877045915e-12
+        }
+      },
+      "extension_fixed_no_prefetch__extension_final": {
+        "frames.csv": {
+          "rows": 300,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 5.440355545270178e-14,
+          "max_rotation_deg": 3.9178287255139854e-13,
+          "max_matrix_component": 5.062616992290714e-14
+        },
+        "keyframes.csv": {
+          "rows": 1295,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 5.068932019781324e-13,
+          "max_rotation_deg": 5.027911283492895e-13,
+          "max_matrix_component": 3.5332847758695607e-13
+        },
+        "dense.csv": {
+          "rows": 14087,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 5.148863751648977e-13,
+          "max_rotation_deg": 5.027578635071105e-13,
+          "max_matrix_component": 3.535505221918811e-13
+        }
+      },
+      "motion_previous__motion_final": {
+        "frames.csv": {
+          "rows": 2236,
+          "decision_difference_count": 2,
+          "decision_differences_first20": [
+            [
+              502,
+              "success",
+              "1",
+              "0"
+            ],
+            [
+              504,
+              "success",
+              "1",
+              "0"
+            ]
+          ],
+          "max_translation_m": 0.020475339079165118,
+          "max_rotation_deg": 0.168761966752954,
+          "max_matrix_component": 0.01564291129259132
+        },
+        "keyframes.csv": {
+          "rows": 1320,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 0.010860425285372946,
+          "max_rotation_deg": 0.009219362540798056,
+          "max_matrix_component": 0.009380411634971525
+        },
+        "dense.csv": {
+          "left_rows": 14291,
+          "right_rows": 14289,
+          "left_only": [
+            "50.799995002000003"
+          ],
+          "right_only": [],
+          "max_translation_m": 71.18150889395312,
+          "max_rotation_deg": 90.11397154515868,
+          "max_matrix_component": 55.98721429525064
+        }
+      },
+      "motion_crop_fixed__motion_fixed_no_prefetch": {
+        "frames.csv": {
+          "rows": 2236,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 3.8662089876707345e-13,
+          "max_rotation_deg": 2.0246157605997625e-12,
+          "max_matrix_component": 3.8378675237815685e-13
+        },
+        "keyframes.csv": {
+          "rows": 1320,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 7.516861706174212e-11,
+          "max_rotation_deg": 7.45441420068586e-11,
+          "max_matrix_component": 7.034373084024992e-11
+        },
+        "dense.csv": {
+          "rows": 14289,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 7.506792937438531e-11,
+          "max_rotation_deg": 7.456959701939687e-11,
+          "max_matrix_component": 7.02407021435647e-11
+        }
+      },
+      "motion_fixed_no_prefetch__motion_final": {
+        "frames.csv": {
+          "rows": 2236,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 6.245223265182194e-13,
+          "max_rotation_deg": 2.004836878222702e-12,
+          "max_matrix_component": 6.242679984058697e-13
+        },
+        "keyframes.csv": {
+          "rows": 1320,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 7.534813940132148e-11,
+          "max_rotation_deg": 5.108341277762819e-11,
+          "max_matrix_component": 7.056755180201435e-11
+        },
+        "dense.csv": {
+          "rows": 14289,
+          "decision_difference_count": 0,
+          "decision_differences_first20": [],
+          "max_translation_m": 7.524893311515828e-11,
+          "max_rotation_deg": 5.1085032798451844e-11,
+          "max_matrix_component": 7.046097039165033e-11
+        }
+      }
+    },
+    "mapping_replay_recovery_comparison": {
+      "frames.csv": {
+        "rows": 13791,
+        "decision_difference_count": 0,
+        "decision_differences_first20": [],
+        "max_translation_m": 2.04977015173485e-11,
+        "max_rotation_deg": 2.4353170175047156e-11,
+        "max_matrix_component": 2.048658465092501e-11
+      },
+      "keyframes.csv": {
+        "rows": 1271,
+        "decision_difference_count": 0,
+        "decision_differences_first20": [],
+        "max_translation_m": 2.47769521337657e-11,
+        "max_rotation_deg": 2.3826513638147276e-11,
+        "max_matrix_component": 2.0131299405257153e-11
+      },
+      "dense.csv": {
+        "rows": 13723,
+        "decision_difference_count": 0,
+        "decision_differences_first20": [],
+        "max_translation_m": 2.4881143898945768e-11,
+        "max_rotation_deg": 2.3826430289255678e-11,
+        "max_matrix_component": 2.048614056171516e-11
+      }
+    },
+    "candidate_identity": {
+      "base_commit": "c924a3d",
+      "core_sha256": "312d60bb9c6a32573615a613a783ad1d560ed75c54eeea9d0e8e009dad53a185",
+      "sources": {
+        "cmake/n3mapping_core.cmake": "9d4261a2bcdc5de12794eb526b871c5de3bb20a404fec884f12c7e795099e5ec",
+        "include/n3mapping/tracking_target_cache.h": "d8d26fc2a95fa526db893421c0d0ceab63b03bb77e98526a29bab6466d5cbb2a",
+        "include/n3mapping/world_localizing.h": "3443483eff298ad044c959885cf459e914f5d0ca415c54ba2d37dae4692347a4",
+        "src/mapping_resuming.cpp": "df723c8530e0466781606b2d9c9348593c8968e6a488ddc49a0ec32c10c44cf9",
+        "src/tracking_target_cache.cpp": "dbc53298d9ff07b09099b25f1770f365b4ef83af87e972725f4767cfa63822a2",
+        "src/tracking_target_prefetch.cpp": null,
+        "src/world_localizing.cpp": "5f239fd0c43c521df0948988d476835f6233153f3e0e15bf2599a9cf0da7d9b8",
+        "src/world_localizing_tracking.cpp": "273429bcbae6dc739d0a0ea7028263a6a858444e7a17d434457d7b15c8f11a12",
+        "test/test_world_localizing.cpp": "113379b57063e36b68cfb863c59af5cff05336b1721c9352c1df6c5beaf1ae0b"
+      }
+    },
+    "restored_core_sha256": "21faf3fcb7c7cd4fecbd37ad3300f07ad69334c6306bf4414a331fef847ed9eb",
+    "validation": {
+      "restored_checks_passed": 2,
+      "candidate_ctest_passed": 61,
+      "crop_regression_failed_before": true,
+      "crop_regression_passed_after": true,
+      "candidate_snapshot_matches_frozen_source": true,
+      "runtime_restored_to_c924a3d": true
+    },
+    "map_sha256": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+    "atlas_sha256": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+    "artifact_recovery": {
+      "note": "An incorrect argv index replaced MANIFEST instead of OUTPUT on the first loops-off attempt. It consumed zero input and exited 3. The previous stage final_full config and CSV/summary outputs were truncated; their previously generated structured qualification survives in previous_qualification_archive.json. Original map, atlas, input manifest/PCDs, bag, frozen libraries, profiles, other runs and previous saved map were not modified. Fresh paired loops_off/loops_on runs below use new directories with overwrite protection. Do not rerun the previous qualifier against the truncated final_full CSVs.\n",
+      "old_archived_qualification_sha256": "e82160ca593e9419c5f2690ba3cfcc9ec26e47115c4e6e3c28bb0a595944178c",
+      "replacement_raw_runs": [
+        "loops_off",
+        "loops_on"
+      ],
+      "old_final_full_csvs_valid": false
+    },
+    "limits": [
+      "10 cm absolute accuracy not qualified.",
+      "Complete successful map extension/recovery not qualified; tracking remains lost after frame 502 on the independent recording.",
+      "Asynchronous loop verification/graph processing is a scoped design, not an implemented change.",
+      "Processing CPU excludes loading, final serialization, frontend, DDS, simulator, global-map publication and any asynchronous work after the measured interval.",
+      "No new real hardware, live ROS 10 Hz deadline or standalone Noetic build qualification.",
+      "Loop weight sensitivity is not adopted and does not establish calibrated uncertainty."
+    ],
+    "artifacts": {
+      "score_mapping.py": "4f034a6525e9e039b34553d50b938c969dea006915a82e9d56f8692ec257280a",
+      "graph_ablation.cpp": "89bbe388da3cb61850efc0c60ba46e32cbb574376aecfe72bcc0428c2f0cf35f",
+      "run_final_extension.py": "941da601026d8a33e07312fc63dfb16cda611e44c1e0f01f522c3e06b0e4cf61",
+      "qualify.py": "5df66a3462cdc4fd9141ff7f6dce58382a0c7af88569ed709c5fa1c0f8519329",
+      "ctest_final.log": "ac19d87c59a817ca30ff88a72d29160cf0669c26ee1f582083529dcd6c01f878",
+      "ctest_restore.log": "0b5aa074b702d95d8241ca5349bb994d3186184477ad34709fadf7f992a8f507",
+      "crop_before_loaded.log": "fd16aa109b986237997b25987989c1400d8c1a308d2e80d50b7171ebed3a994e",
+      "crop_after.log": "c89b06cff6b9ba20598e762061ec738925dca3a6ea973d9951be0f2fcb08e17c"
+    }
   }
 }
