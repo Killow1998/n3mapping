@@ -219,6 +219,18 @@ set_target_properties(n3mapping_relocalization_manifest_eval PROPERTIES
 )
 
 if(N3MAPPING_BUILD_RESEARCH_TOOLS)
+  add_executable(n3mapping_registration_cross_eval
+    ${N3MAPPING_ROOT}/tools/n3mapping_registration_cross_eval.cpp
+  )
+  target_link_libraries(n3mapping_registration_cross_eval
+    n3mapping_core
+    ${PCL_LIBRARIES}
+    glog::glog
+  )
+  set_target_properties(n3mapping_registration_cross_eval PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
+  )
+
   add_executable(n3mapping_synthetic_relocalization_eval
     ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_eval.cpp
   )

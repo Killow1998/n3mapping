@@ -3961,3 +3961,214 @@ and workspace worklog were reconciled with `organized-proj`. No original
 map/bag was changed; no simulator modification, installation, push or tag was
 performed. All replay processes completed. Full-node timing, hardware, the
 half-core extension budget and 10 cm absolute accuracy remain open.
+
+## Reference map, deskew and loop-calibration ablation — 2026-10-20
+
+**Decision: diagnosis completed; calibration candidate not promoted; 10 cm
+production accuracy remains unqualified.** This stage starts from `e2f794c`.
+It changes diagnostic tools and constraint documentation, not runtime logic,
+numerical defaults, acceptance gates or the byte-frozen product profile.
+The record below includes the unsuccessful motion results.
+
+All primary registration and E2E comparisons use physical P cores **0/2/4/6**,
+four matcher threads and `OMP_WAIT_POLICY=PASSIVE`. All query replays use frozen
+core SHA256 `c7230465ca44f9e368d682abaaa3f0db8d03e291520a74b042fa4a72dfa00896`.
+Original maps, atlases, bags and manifests remain unchanged. The normal build
+directory `build/n3mapping/accuracy_ablation_20261020` retains commands,
+frozen harnesses, generated fixtures, rejected maps and complete CSV results;
+the [structured record](../online_loop_20261020.json) has an `accuracy_ablation`
+entry with identities and summaries.
+
+### Establishing independent controls
+
+Replay the recorded **applied** commands through the frozen native simulator
+helper at 200 Hz. All available recorded truth samples match exactly: 13,794
+mapping samples, 2,239 independent-route samples and 300 at each of 14 stationary
+locations. This reconstructs the native sensor trajectory without changing
+the simulator, FAST_LIO or the recordings. Twelve raw scans, 238,555 points,
+agree with independently authored oriented-box surfaces to a maximum
+`4.516e-6 m`. The existing 10 Hz truth interpolation differs from native
+scan-end truth by at most `7.109e-6 m` on mapping and `4.387e-6 m` on the route.
+Neither explains the observed decimetre error. These are fixture-specific
+checks, not a blanket claim about every simulator sensor or real hardware.
+
+The factorial registration control changes two inputs independently:
+
+- Map: the original saved global cloud versus authored box surfaces sampled
+  at 0.1 m in the original mapping frame.
+- Within-scan deskew: frozen FAST_LIO body points versus the same selected raw
+  points transformed using native sensor poses at their acquisition times.
+  Both variants retain the same five scans, FAST_LIO inter-frame aggregation,
+  point count and intensities. They do not replace inter-frame odometry.
+
+Selection is all 14 first-lock windows, every 50th independent-route frame
+(45 windows), and every 20th mapping keyframe (64 windows). The 123 windows
+produce **492 registration conditions**, all successful. Maintained fixture
+generation reproduces 246 source clouds with zero float32 payload difference.
+The maintained matcher reproduces all 236 earlier condition statuses; maximum
+pose-matrix element difference is `3.709e-5`, so the rerun is not called
+bit-identical. All scores use one original mapping-session alignment, with
+no query fit.
+
+**Truth initializes this ICP diagnostic. It is not a relocalization test.**
+
+| Position RMSE, cm | Original map + FAST_LIO | Original map + native deskew | Authored surfaces + FAST_LIO | Authored surfaces + native deskew |
+| --- | ---: | ---: | ---: | ---: |
+| 14 stationary windows | 27.091 | 27.105 | 0.563 | 0.460 |
+| 45 independent-route windows | 29.733 | 29.740 | 0.448 | 0.356 |
+| 64 mapping windows | 28.259 | 28.267 | 0.583 | 0.541 |
+
+Mapping-window deskew point RMS differences range from 0.026 to 0.923 cm;
+the largest individual point difference is 5.79 cm. Correcting deskew alone
+does not remove the original map's 27–30 cm registration bias. The independent
+surface control supports map assembly/trajectory error as the dominant source
+of stationary bias on these data. It does not prove an intrinsic FAST_LIO
+accuracy limit or global optimality of the backend.
+
+### Calibrating accepted geometric constraints
+
+The original 195 accepted loop measurements have translation RMSE **1.709 cm**
+and rotation RMSE **0.0704°** against independent relative truth. Their vertical
+component RMS is 0.140 cm. The retained profile uses standard deviations
+XY=0.05 m, Z=0.4 m and rotation=0.5 rad (28.65°); its vertical assumption came
+from a different floor dataset. Descriptor heading ambiguity is an admission
+problem, not automatically the covariance of an accepted geometric measurement.
+This mismatch motivates an experiment, not copying ideal-simulation sigmas
+into every deployment.
+
+Complete causal mapping replays preserve 13,791 inputs, 13,723 successful
+frames and 1,271 keyframes. They rerun retrieval, measurement, admission and
+optimization; they do not just reweight a frozen list of edges.
+
+| Loop standard deviations (XY m / Z m / rotation rad) | Accepted loops | Final map position RMSE, cm | 1,811 revisit pairs: relative translation RMSE, cm |
+| --- | ---: | ---: | ---: |
+| Baseline 0.05 / 0.4 / 0.5 | 195 | 28.663 | 3.447 |
+| Rotation only 0.05 / 0.4 / 0.01 | 163 | 23.632 | 4.429 |
+| Isotropic translation 0.05 / 0.05 / 0.01 | 161 | 24.486 | 4.120 |
+| Joint candidate 0.03 / 0.03 / 0.003 | 155 | 25.699 | 3.398 |
+
+Rotation-only tuning improves absolute position but damages independent
+repeat-visit consistency. The joint candidate is selected on mapping data
+before the held-out query evaluation. Selection is not retuned to 08 or any
+of the 14 evaluated locations.
+
+The joint candidate also completes the full **1,379 s, 10 Hz asynchronous
+online mapping** replay with the same successful-frame mask. Owner p99/max
+work is 12.583/38.665 ms, with no 100 ms overruns; maximum pending jobs is one.
+Total CPU is 136.930 s including the worker. This is not a new matched CPU
+speedup claim: accepted loops change, and long-gap loops (keyframe ID gap at
+least 100) fall from 67 to 28. Coverage preservation is not established.
+Final map position RMSE is 25.699 cm. Frozen-edge reweighting also fails 10 cm;
+raising the optimizer iteration budget from 10 to 100 changes no pose element.
+Uniformly weakening odometry information by nine is another rejected
+sensitivity check, not an estimated correlation model.
+
+### Complete stationary and independent-route evaluation
+
+The additional reference-map control uses all **13,791 original FAST_LIO cloud
+inputs** and independently known mapping poses, with loops disabled. It does
+not use query geometry or query truth to build the map. This produces 1,272
+keyframes, versus 1,271 in the original map; keyframe selection is not claimed
+identical. Queries on all three maps run normal retrieval, initialization,
+confirmation and tracking, with **no truth seed**.
+
+| Complete original 14 recordings | Locks | Outputs | Pooled position RMSE, cm | Maximum position error, cm | Locations whose every output is within 10 cm |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Original map | 14/14 | 4,088 | 27.151 | 47.387 | 5/14 |
+| Joint candidate map | 14/14 | 4,088 | 23.493 | 41.719 | 5/14 |
+| Known-mapping-trajectory reference | 14/14 | 4,088 | 0.378 | 2.063 | 14/14 |
+
+All 14 candidate position RMSEs improve, but 08 rotation RMSE changes
+**0.268544→0.280901°**. The reference result demonstrates stationary pipeline
+capacity on an accurate diagnostic map; its truth-assisted map construction
+does not qualify a deployable 10 cm system.
+
+![Stationary accuracy and map by deskew ablation](accuracy_ablation_20261020.png)
+
+The independent motion recording is scored in full, including coasted outputs.
+All variants consume 2,236 inputs and emit 2,232 poses, with only the initial
+lock at frame 4. Continuous output alone is not a reliability pass.
+
+| Normal localization on independent motion | Position RMSE / max, m | Rotation RMSE / max, degrees | Gross-error outputs (>1 m or >5°) |
+| --- | ---: | ---: | ---: |
+| Original map | 0.712755 / 4.399767 | 1.156827 / 9.005996 | 85 |
+| Joint candidate map | 0.495654 / 3.756239 | 1.764503 / 15.745253 | 51 |
+| Known-mapping-trajectory reference | 0.647303 / 4.457939 | 0.883687 / 7.281795 | 84 |
+
+The original map reproduces the previously documented tracking excursion at
+frames 2019–2103 (202.30–210.70 s): 83 geometric and two coasted outputs.
+The reference map still has 84 gross-error outputs at frames 2021–2104
+(202.50–210.80 s), all marked `tracking_geometric`. Its other observations
+are much better—2,130/2,232 outputs are within 10 cm—but the entire route
+does not pass. This isolates a remaining tracking/admission failure from
+static map bias; it is not a new global-search lock. The exact local-match
+failure mechanism still needs investigation.
+
+![Complete independent motion error](motion_accuracy_20261020.png)
+
+The strict-extension candidate is also replayed at 10 Hz because the loop Z
+sigma is currently shared with loaded-map tracking. Against the retained
+same-core, same-input paced baseline, both emit 2,232/2,236 frames and add
+231 keyframes. Position RMSE improves **29.921→27.332 cm**, maximum
+54.698→51.252 cm; rotation RMSE improves 0.348833→0.262247°.
+Candidate CPU is 193.410 s/223.5 input s (0.865 cores), versus the earlier
+188.982 s baseline. The candidate uses both the rebuilt map and changed
+constraint sigmas, so this is a complete-policy comparison, not an isolated
+weight-effect claim. Cold initialization remains slow. No extension half-core
+or 10 cm qualification is made.
+
+Baseline/candidate query replays are paced at 10 Hz. The reference controls
+are unpaced and are **accuracy controls only**, not comparable latency/CPU
+measurements. The original map is preserved; no reference or rejected candidate
+is installed as the production map.
+
+### Maintained tools and next action
+
+- [`n3mapping_sprobo_accuracy_prepare.py`](../../../tools/n3mapping_sprobo_accuracy_prepare.py)
+  prepares the factorial inputs with independently verified native CSVs.
+  [`sprobo_accuracy_geometry.py`](../../../tools/sprobo_accuracy_geometry.py)
+  holds the focused geometry and read-only raw-bag reader. Its preprocessing
+  matches this frozen Livox fixture (filter 2, blind 0.2 m, four lines);
+  it is not a general FAST_LIO preprocessing adapter.
+- [`n3mapping_registration_cross_eval.cpp`](../../../tools/n3mapping_registration_cross_eval.cpp)
+  runs the four diagnostic conditions using the production matcher. It refuses
+  to overwrite results, validates the explicit truth seed and keeps prepared
+  targets immutable. The executable is opt-in under
+  `N3MAPPING_BUILD_RESEARCH_TOOLS`, in both wrapper build descriptions.
+- No additional runtime mode, generic framework or implementation-mirroring
+  unit tests were added. Real recordings verify the tools: regenerated
+  source payloads, all 492 conditions, 42 complete stationary replays,
+  three complete normal-motion replays and strict extension. Final helper
+  smoke checks reproduce a five-scan window exactly and pass all four matcher
+  conditions. Humble core/node and research-target compilation pass. Restoring
+  the original research-tools-OFF build reproduces the frozen production core
+  SHA256 exactly; seven focused configuration/module-contract checks pass on
+  the host with that library explicitly selected. This is not an independent
+  Noetic build or live ROS/DDS/hardware timing qualification.
+
+Example after preparing independently audited `native/<run>/poses.csv` files
+in the evidence directory (`W` denotes the workspace, `S` a fresh output root):
+
+```bash
+python3 "$W/src/n3mapping/tools/n3mapping_sprobo_accuracy_prepare.py" \
+  --mapping "$W/src/n3mapping/map/sprobo_20261018/coverage_v2" \
+  --fixed-dataset "$W/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2" \
+  --route "$W/src/n3mapping/map/sprobo_20261018/reentry_20261019/query" \
+  --native-root "$S/native" \
+  --alignment-json "$W/build/n3mapping/online_loop_20261020/baseline_accuracy.json" \
+  --output "$S/cross"
+# Configure the selected wrapper with -DN3MAPPING_BUILD_RESEARCH_TOOLS=ON,
+# then build the n3mapping_registration_cross_eval target.
+OMP_WAIT_POLICY=PASSIVE OMP_NUM_THREADS=4 taskset -c 0,2,4,6 \
+  "$W/build/n3mapping/n3mapping_registration_cross_eval" \
+  "$W/src/n3mapping/map/sprobo_20261018/coverage_v2/map/global_map.pcd" \
+  "$S/cross/reference.pcd" "$S/cross/jobs.json" "$S/cross/results.csv"
+```
+
+**Do not promote the calibrated weights:** stationary and moving angular
+regressions violate the requested no-regression boundary, even though position
+RMSE improves. Keep the runtime baseline, and next isolate the 202–211 s
+geometrically accepted tracking excursion. For map accuracy, investigate
+independent loop coverage and residual map deformation with fixed evaluation
+data; do not tune descriptors or fit truth compensation to remove map bias.
+This stage does not establish that FAST_LIO has reached its accuracy limit.

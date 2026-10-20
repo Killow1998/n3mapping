@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Add research-only map × deskew ablation tools and complete four-core accuracy
+  evidence. Independent authored geometry and a mapping-only known-trajectory
+  control isolate map bias from within-scan deskew error on this fixture.
+  Normal reference-map localization passes all 14 stationary recordings below
+  10 cm, but retains a short moving tracking excursion; production accuracy is
+  not qualified by truth-assisted reference construction.
+- Evaluate loop covariance calibration through complete causal online mapping,
+  all 14 original recordings, independent motion and strict extension.
+  Reject promotion despite lower position RMSE: stationary 08 and moving-route
+  rotation regress. Preserve numerical defaults, quality gates and the frozen
+  product profile; clarify constraint units and dataset-specific assumptions.
 - Fix strict extension becoming permanently LOST and a valid ICP proposal being
   overwritten by a prediction that fails the original quality gate. Fresh
   geometry is still required before publishing or adding a keyframe.
@@ -41,6 +52,8 @@
 
 See the [online-loop evidence](docs/evidence/runtime_cpu_20261017/README.md#online-loop-verification-and-accuracy-follow-up--2026-10-20)
 and [recovery/asynchronous-loop qualification](docs/evidence/runtime_cpu_20261017/README.md#extension-recovery-and-asynchronous-online-loops--2026-10-20).
+The subsequent [reference-map, deskew and loop-calibration ablation](docs/evidence/runtime_cpu_20261017/README.md#reference-map-deskew-and-loop-calibration-ablation--2026-10-20)
+separates stationary map bias from the remaining moving tracking failure.
 
 ## [1.0.1] - 2026-10-20
 

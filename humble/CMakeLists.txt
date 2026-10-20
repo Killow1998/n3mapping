@@ -188,6 +188,15 @@ target_link_libraries(n3mapping_relocalization_manifest_eval
 )
 
 if(N3MAPPING_BUILD_RESEARCH_TOOLS)
+  add_executable(n3mapping_registration_cross_eval
+    ${N3MAPPING_ROOT}/tools/n3mapping_registration_cross_eval.cpp
+  )
+  target_link_libraries(n3mapping_registration_cross_eval
+    n3mapping_core
+    ${PCL_LIBRARIES}
+    glog::glog
+  )
+
   add_executable(n3mapping_synthetic_relocalization_eval
     ${N3MAPPING_ROOT}/tools/n3mapping_synthetic_relocalization_eval.cpp
   )

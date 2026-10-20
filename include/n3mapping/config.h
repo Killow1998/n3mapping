@@ -58,20 +58,23 @@ struct Config {
     double prior_noise_rotation = 0.01;
     double odom_noise_position = 0.01;
     double odom_noise_rotation = 0.001;
+    // Standard deviations of verified relative-pose measurements: metres and
+    // radians, respectively. Retrieval/yaw ambiguity is an admission concern;
+    // it is not the covariance of an accepted geometric registration.
     double loop_noise_position = 0.05;
     double loop_noise_rotation = 0.5;
     // Continuous extension tracking is local, initialized from the preceding
     // frame, and accepted only when immutable loaded-map geometry agrees. Its
-    // orientation constraint therefore needs a tighter model than a global
-    // descriptor loop, whose yaw can be ambiguous by design.
+    // horizontal and orientation sigmas are calibrated separately from loops.
+    // The vertical sigma is still shared below.
     double loaded_map_tracking_noise_position = 0.05;
     double loaded_map_tracking_noise_rotation = 0.01;
-    // Height is the axis a loop registers worst. Measured against the floor on
-    // 0723, a loop's z correction carries a median error of 0.407 m while the
-    // same edge's horizontal agreement has no reason to be as poor: a floor is
-    // one plane seen edge-on, whereas walls and furniture pin x and y from
-    // several directions. Non-positive means "use loop_noise_position", which
-    // is the isotropic behaviour everything was measured against.
+    // Retained from the 0723 floor audit (median z error 0.407 m). This is a
+    // dataset calibration, not a universal LiDAR limitation: the enclosed
+    // SpRobo fixture has strong vertical geometry. Do not transfer its ideal
+    // sensor calibration to real bags without an independent validation.
+    // Non-positive means "use loop_noise_position". Strict extension currently
+    // also uses this vertical sigma; changing it requires extension replay.
     double loop_noise_position_z = 0.4;
     // Redistributes each loop edge's weight between axes according to its own
     // registration Hessian, keeping the geometric mean where the configured

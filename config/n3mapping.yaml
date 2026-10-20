@@ -49,6 +49,8 @@ n3mapping_node:
     prior_noise_rotation: 0.01
     odom_noise_position: 0.01
     odom_noise_rotation: 0.001
+    # Standard deviations of accepted geometric measurements: metres / radians.
+    # The ideal SpRobo calibration is diagnostic, not a replacement for this profile.
     loop_noise_position: 0.05
     loop_noise_position_z: 0.4
     loop_noise_rotation: 0.5
