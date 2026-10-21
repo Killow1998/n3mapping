@@ -24283,7 +24283,8 @@
       "No hardware, Noetic runtime or full-node CPU qualification."
     ],
     "artifacts": "build/n3mapping/recovery_relock_20261021/qualification.json",
-    "report": "docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21"
+    "report": "docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21",
+    "constraint_source_correction": "See repeat_consistency: the 230/230/343 new extension edges are loaded-map tracking constraints; the second 230 are exact acquisition self-matches. Raw baseline NIS remains descriptive; do not pool sources or use raw-pair floors to calibrate tracking."
   },
   "search_uncertainty": {
     "base_commit": "5ffac081d24ba16f28b37fb146eeb27bf7ca5c67",
@@ -24689,7 +24690,8 @@
       "Loop covariance calibration remains open; no unqualified production weighting adopted.",
       "Online mapping and strict extension tracking/geometry are unchanged. Extension startup shares the modified confirmation; covered by current regressions and localization replays, but no complete mapping/extension resource rerun in this stage.",
       "No hardware, full-node or independent Noetic runtime qualification."
-    ]
+    ],
+    "constraint_source_correction": "See repeat_consistency: the 230/230/343 new extension edges are loaded-map tracking constraints; the second 230 are exact acquisition self-matches. Raw baseline NIS remains descriptive; do not pool sources or use raw-pair floors to calibrate tracking."
   },
   "search_bias": {
     "base_commit": "dea2b7fdf96605b00f8c1a066d4faf800ba7b325",
@@ -24917,5 +24919,171 @@
       "Full online mapping/extension resource qualification was not repeated; matcher equivalence, regressions and a real checkpoint were checked.",
       "No hardware/full ROS node CPU or independent Noetic runtime qualification."
     ]
+  },
+  "repeat_consistency": {
+    "base_commit": "d5641073d009b9e359910e8c56d3cee5bb0506a4",
+    "scope": "Repeatability and measurement-source audit; runtime change limited to configuration logging and an edge-type comment. No uncertainty weights, gates or estimator changes.",
+    "inherited_edges": [
+      {
+        "parent": "mapping_final",
+        "child": "extension_first",
+        "edges": 428,
+        "changed_information_or_mode": 0,
+        "measurement_matrix_delta": {
+          "count": 428,
+          "median": 6.938893903907228e-18,
+          "p95": 2.220446049250313e-16,
+          "maximum": 3.885780586188048e-16
+        }
+      },
+      {
+        "parent": "extension_first",
+        "child": "extension_second",
+        "edges": 658,
+        "changed_information_or_mode": 0,
+        "measurement_matrix_delta": {
+          "count": 658,
+          "median": 2.168404344971009e-19,
+          "p95": 2.220446049250313e-16,
+          "maximum": 6.661338147750939e-16
+        }
+      },
+      {
+        "parent": "mapping_final",
+        "child": "extension_new",
+        "edges": 428,
+        "changed_information_or_mode": 0,
+        "measurement_matrix_delta": {
+          "count": 428,
+          "median": 6.938893903907228e-18,
+          "p95": 2.220446049250313e-16,
+          "maximum": 3.885780586188048e-16
+        }
+      }
+    ],
+    "repeatability": {
+      "mapping_final": {
+        "pairs": 428,
+        "solves": 856,
+        "decisions_equal": true,
+        "pose_component_delta": 4.440892098500626e-16,
+        "information_absolute_delta": 1.1175870895385742e-07,
+        "information_relative_delta": 2.636066549412872e-15,
+        "fitness_delta": 2.9976021664879227e-15
+      },
+      "extension_first": {
+        "pairs": 230,
+        "solves": 460,
+        "decisions_equal": true,
+        "pose_component_delta": 9.71445146547012e-17,
+        "information_absolute_delta": 1.043081283569336e-07,
+        "information_relative_delta": 1.9670016268544395e-15,
+        "fitness_delta": 3.8163916471489756e-17
+      },
+      "extension_second": {
+        "pairs": 230,
+        "solves": 460,
+        "decisions_equal": true,
+        "pose_component_delta": 2.7392569058171242e-17,
+        "information_absolute_delta": 2.384185791015625e-07,
+        "information_relative_delta": 2.202972670867329e-15,
+        "fitness_delta": 2.2743023980590056e-23
+      },
+      "extension_new": {
+        "pairs": 343,
+        "solves": 686,
+        "decisions_equal": true,
+        "pose_component_delta": 8.881784197001252e-16,
+        "information_absolute_delta": 9.685754776000977e-08,
+        "information_relative_delta": 2.2819520817728106e-15,
+        "fitness_delta": 4.336808689942018e-17
+      }
+    },
+    "acquisition_classes": {
+      "mapping_final": {
+        "same_acquisition_pairs": 0,
+        "distinct_acquisition_pairs": 428
+      },
+      "extension_first": {
+        "same_acquisition_pairs": 0,
+        "distinct_acquisition_pairs": 230
+      },
+      "extension_second": {
+        "same_acquisition_pairs": 230,
+        "distinct_acquisition_pairs": 0
+      },
+      "extension_new": {
+        "same_acquisition_pairs": 0,
+        "distinct_acquisition_pairs": 343
+      }
+    },
+    "source_check": {
+      "unchanged_source_files": 332,
+      "changed": [
+        "include/n3mapping/graph_optimizer.h",
+        "src/config.cpp"
+      ],
+      "final_sha256": {
+        "include/n3mapping/graph_optimizer.h": "21659254ea630c644224ab4a69dfb83f875f77e47c06a4fad78887e0ce0c8a27",
+        "src/config.cpp": "9001359b267a18447a7c8aa29b5e96a8f39f91cb98db5d14af572c82b4f8f803"
+      }
+    },
+    "repeat_core_sha256": "3c012dd52890ea01f3c01f91577675a248e3c8620baa4db80fed2f1b6144df98",
+    "final_core_sha256": "a167b586b8ef7d4fd27fbccd0918f2725a09cb4b52f9cbaabf6496c8b2b60d0d",
+    "validation": {
+      "build": "core and existing test_config",
+      "ctest_targets": [
+        "test_config"
+      ],
+      "source_changes": "Config::toString only; EdgeType comment only"
+    },
+    "limitations": [
+      "Raw-pair repeats verify frozen-input numerical reproducibility, not causal asynchronous full-system determinism.",
+      "Loaded-map tracking is a different estimator from raw-pair loop refinement. Raw-pair information ratios cannot calibrate its fixed covariance.",
+      "Exact copied scans are not independent uncertainty samples. Distinct acquisitions can still share endpoints and odometry.",
+      "Original mapping scan-level deskew bias and statistical calibration remain open.",
+      "Original14 and both routes were not rerun for this logging-only change; their d564107 qualification is retained, not reported as newly executed."
+    ],
+    "artifacts": "build/n3mapping/repeat_consistency_20261021/qualification.json",
+    "artifact_sha256": "fa3f90f0dabb44d922aa77842ea89122dee1c6374a0f610b779a13373f10b756",
+    "measurement_sources": {
+      "extension_first": {
+        "new_edges": 230,
+        "source": "loaded_map_tracking",
+        "all_saved_pairs_matched_runtime_commit_log": true,
+        "information_absolute_delta": 5.684341886080802e-14,
+        "explicit_geometric_cross_loop_edges": 0,
+        "icp_information_configured": true
+      },
+      "extension_second": {
+        "new_edges": 230,
+        "source": "loaded_map_tracking",
+        "all_saved_pairs_matched_runtime_commit_log": true,
+        "information_absolute_delta": 5.684341886080802e-14,
+        "explicit_geometric_cross_loop_edges": 0,
+        "icp_information_configured": true
+      },
+      "extension_new": {
+        "new_edges": 343,
+        "source": "loaded_map_tracking",
+        "all_saved_pairs_matched_runtime_commit_log": true,
+        "information_absolute_delta": 5.684341886080802e-14,
+        "explicit_geometric_cross_loop_edges": 0,
+        "icp_information_configured": true
+      }
+    },
+    "tracking_sigmas": {
+      "translation_m": [
+        0.05,
+        0.05,
+        0.4
+      ],
+      "rotation_rad": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    "calibration_correction": "New extension edges are fixed-noise loaded-map tracking constraints, not ICP-weighted geometric loops. Second-extension exact copied scans are excluded from independent calibration. Raw-pair covariance floors do not reproduce the loaded-map tracking estimator."
   }
 }

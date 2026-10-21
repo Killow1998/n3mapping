@@ -6053,8 +6053,13 @@ Session-separated scoring matters: the two extension maps inherit the same
 428 mapping loops. Their 230/230 repeated-extension and 343 fresh-extension
 new constraints have baseline maximum NIS 0.555/0.041/2.828, respectively, with
 zero exceedances; counting inherited loops again would fake independent
-validation. Uniformly inflating all covariance would worsen conservatism in
-those new sessions.
+validation. The subsequent [source audit](#repeated-input-determinism-and-constraint-source-correction--2026-10-21)
+identifies all these new edges as loaded-map tracking constraints with fixed
+noise, not ICP-weighted geometric loops. The second 230 are exact acquisition
+self-matches and cannot establish independent calibration. These NIS values
+remain descriptive; they do not show one estimator changing its uncertainty
+model between runs. Raw-pair covariance floors applied to those tracking edges
+do not reproduce their loaded-map estimator and are not calibration evidence.
 
 A diagnostic screen of 17 selected loop pairs performs 136 half-voxel-phase
 registrations. It was selected retrospectively from observer residuals and is
@@ -6206,8 +6211,10 @@ raw-pair results are never substituted into the map. NIS uses the original
 stored information and a nominal six-dimensional threshold, not independent
 Gaussian coverage or a fitted confidence guarantee.
 
-Production loop weights remain unchanged. The previous new-session constraints
-were already conservative, so a global floor is unsupported. Further calibration
+Production loop weights remain unchanged. The new-session constraints use
+fixed tracking noise, as the subsequent [source audit](#repeated-input-determinism-and-constraint-source-correction--2026-10-21)
+establishes; they must not be pooled with ICP-weighted loops for calibration.
+Further geometric-loop calibration
 must address directional within-scan motion uncertainty and shared endpoint
 correlations. Current-source inspection also finds that neither ROS adapter
 copies odometry covariance into `LioFrame`. FAST_LIO's current source publishes
@@ -6228,3 +6235,78 @@ numbers remain historical. Remaining work is 03's cold-seed geometry and
 visibility cost, a runtime-observable motion uncertainty model, and subsequent
 online calibration/extension qualification. No acceptance threshold is relaxed;
 no installation, push or input replacement occurs.
+
+
+## Repeated-input determinism and constraint-source correction — 2026-10-21
+
+Base `d564107`. Complete evidence and reproducible probes are in
+`build/n3mapping/repeat_consistency_20261021/qualification.json`. This stage
+corrects the interpretation of the preceding uncertainty comparisons. It changes
+only configuration logging and the `EdgeType::LOOP` comment; production weights,
+registration, acceptance gates and saved maps remain unchanged.
+
+**Same saved constraint.** The 428 inherited mapping edges retain byte-identical
+information and constraint mode in both extension branches. All 658 edges from
+the first extension also retain those values in the second. Maximum measurement
+matrix difference is 6.67e-16 from rotation serialization. There is no observed
+reweighting of an old edge merely because it was saved, loaded or inherited.
+
+**Same frozen computation.** On physical P cores 0,2,4,6 with four threads,
+1,231 raw pairs are each independently prepared and solved twice: 428 mapping,
+230 first-extension, 230 second-extension and 343 fresh-extension pairs.
+All 2,462 solves preserve paired success, convergence, iteration and inlier
+results. Maximum pose-component difference is 8.89e-16; maximum information
+relative difference is 2.64e-15 (absolute 2.39e-7 for large matrix entries).
+These verify numerical repeatability on frozen raw inputs, seeds and settings;
+they do not claim bitwise asynchronous-system determinism or reproduce the
+tracking estimator by registering two raw scans.
+
+**Different measurement sources were mixed.** All 230/230/343 new saved edges
+match the corresponding original runtime `Committed loaded-map tracking loop`
+log pairs exactly. Every information matrix equals the fixed tracking matrix
+within 5.69e-14. All runs enabled `N3M_USE_ICP_INFO=1`; configuration drift does
+not explain the difference. The tracking insertion path intentionally uses
+`trackingInformation(config)` independently of geometric-loop information mode.
+
+| Source | Weight used by these runs | Calibration interpretation |
+| --- | --- | --- |
+| Original mapping geometric loops | ICP information plus eligible neighbor disagreement | Must account for scan-level deskew bias and correlations |
+| Loaded-map tracking additions | Fixed standard deviations: XY 0.05 m, Z 0.4 m, rotation 0.01 rad | Must calibrate against the actual loaded-map tracking estimator |
+| Second-extension exact copied observations | Same fixed tracking model | Operational replay evidence; excluded from independent calibration |
+
+`EdgeType::LOOP` chooses a robust graph factor and includes both sources. It
+cannot identify the measurement model. In particular, the tracking edge's
+reference keyframe is an anchor for the tracked pose; its raw cloud alone is
+not the full tracking target. The earlier new-session raw-pair covariance-floor
+diagnostics are mismatched estimator proxies, not calibration of actual tracking
+uncertainty. Their raw results are retained, with this correction. The genuine
+saved-measurement NIS statistics remain descriptive but must be grouped by
+measurement source; they do not demonstrate one estimator changing from
+optimistic to conservative on repeated evaluation.
+
+**Repeated acquisition is not another independent trial.** All 231 keyframes
+appended during the second extension have identical timestamp, cloud bytes and
+raw odometry to a first-extension keyframe. Its 230 new tracking edges connect
+each such copy to the same original acquisition. Their small errors therefore
+cannot establish confidence coverage for fresh data. No identical two-endpoint
+raw measurement is being compared before/after: the selected reference changed
+from original-map scans to first-extension copies. The original 428, first 230
+and fresh 343 pairs have distinct endpoint acquisitions, but still share map,
+trajectory and sometimes endpoint noise; distinct does not imply independent.
+
+**Repair and scope.** `Config::toString()` now exposes the geometric-loop
+information mode, neighbor-disagreement setting, configured-noise axis weighting
+and the separate fixed tracking noise. The printed Z sigma follows the actual
+positive-Z-or-XY fallback. The graph enum comment documents its scope; no new
+format, option, noise floor or estimator path is introduced. Core build and the
+existing `test_config` target pass. Source hashes verify that only this summary
+and the enum comment changed among the 334 frozen source/test/config files.
+Original14 and the two routes retain their preceding qualification; they are
+not reported as rerun for a logging-only change.
+
+The earlier wording that combined all new extension constraints as evidence of
+conservative geometric-loop uncertainty was too broad. Further work must use
+separate, source-matched calibration for geometric loops and loaded-map
+tracking, exclude copied acquisitions, and preserve directional/shared-endpoint
+noise. The original mapping deskew bias remains real; numerical consistency
+and corrected reporting do not resolve its runtime compensation or calibration.

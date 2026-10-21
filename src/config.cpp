@@ -216,6 +216,8 @@ std::string runtimeConfigCanonical(const Config& config) {
 
 std::string Config::toString() const {
     std::ostringstream oss;
+    const double effective_loop_z = loop_noise_position_z > 0.0
+        ? loop_noise_position_z : loop_noise_position;
     oss << "========== N3Mapping Configuration ==========\n";
     oss << "Mode: " << mode << " | Map path: " << map_path << "\n";
     oss << "Frames: world=" << world_frame << " body=" << body_frame << "\n";
@@ -236,11 +238,18 @@ std::string Config::toString() const {
     oss << "Odom noise: pos=" << odom_noise_position
         << " rot=" << odom_noise_rotation
         << " | Loop noise: pos=" << loop_noise_position
+        << " z=" << effective_loop_z
         << " rot=" << loop_noise_rotation << "\n";
-    oss << "Loaded-map tracking noise: pos="
+    oss << "Loop information: "
+        << (loop_use_icp_information ? "ICP with configured fallback" : "configured noise")
+        << " | full-6DoF neighbor disagreement="
+        << (loop_use_icp_information ? "ON" : "OFF")
+        << " | configured-noise axis weighting="
+        << (loop_axis_weighting_enable ? "ON" : "OFF") << "\n";
+    oss << "Loaded-map tracking noise (fixed, independent of loop information mode): pos="
         << loaded_map_tracking_noise_position
         << " rot=" << loaded_map_tracking_noise_rotation
-        << " z=" << loop_noise_position_z << "\n";
+        << " z=" << effective_loop_z << " (position m, rotation rad)\n";
     oss << "Robust kernel: " << (use_robust_kernel ? "ON" : "OFF")
         << " type=" << robust_kernel_type
         << " delta=" << robust_kernel_delta << "\n";

@@ -28,7 +28,7 @@ namespace n3mapping {
 enum class EdgeType
 {
     ODOMETRY, ///< 里程计约束
-    LOOP,     ///< 回环约束
+    LOOP,     ///< Robust geometric edge, including loaded-map tracking; not a measurement-source tag.
     SESSION_ANCHOR  ///< cross-session anchor constraint
 };
 

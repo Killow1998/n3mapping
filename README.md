@@ -824,6 +824,13 @@ remains the performance baseline.
 | Asynchronous online mapping loops — complete causal qualification | Mapping averages 0.413 cores including background drain; maximum live error 9.289 cm. Full-node/hardware and independent Noetic compilation remain open. |
 | Search cost — 03 half-core remains open | Exact occupied bounds and Atlas crop retention: paired three-repeat medians 03 0.569→0.552, 14 0.468→0.448 cores. Full original14 0.407; old/new routes 0.244/0.324. All decisions retained; pose differences below 6e-14 matrix units. [Scope, timing ranges and ablations](docs/evidence/runtime_cpu_20261017/README.md#occupied-search-bounds-and-scan-level-loop-bias--2026-10-21). |
 
+For uncertainty audits, `LOOP` identifies a robust graph edge, not its measurement
+source. The audited extension additions are loaded-map tracking constraints with
+fixed noise; geometric loops use their configured information model. The second
+replayed extension's 230 exact scan-copy matches are excluded from independent
+calibration. The [source/repeatability audit](docs/evidence/runtime_cpu_20261017/README.md#repeated-input-determinism-and-constraint-source-correction--2026-10-21)
+corrects the earlier mixed comparison; startup logs now expose both noise models.
+
 The performance target retains **four physical P cores**, four registration threads,
 `OMP_WAIT_POLICY=PASSIVE`, the same map/configuration and MID360-derived **10 Hz**
 input. The goal is at most **0.5 CPU s per input second**, including stationary

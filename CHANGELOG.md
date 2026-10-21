@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Expose geometric-loop information mode and fixed loaded-map tracking noise
+  in the configuration summary, including the effective vertical-noise fallback.
+  Correct uncertainty evidence to distinguish those constraint sources and
+  exclude exact acquisition self-matches from independent calibration. Saved
+  weights and registration behavior are unchanged; see the [repeat/source audit](docs/evidence/runtime_cpu_20261017/README.md#repeated-input-determinism-and-constraint-source-correction--2026-10-21).
+
 - Prune exact correspondence search using occupied subtree bounds and retain
   Atlas visibility crops under the existing byte budget. Four-core, three-repeat
   03 medians: 0.569→0.552 cores; startup CPU 10.359→9.199 s. Original14 and both
