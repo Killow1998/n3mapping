@@ -32,17 +32,20 @@ void expectSameCorrespondence(const Search::Tree& tree,
   double reference_distance = 0.0, actual_distance = 0.0;
   const bool reference = tree.nearest_neighbor_search(
       query, &reference_index, &reference_distance) && reference_distance <= gate_squared;
+  const registration_detail::SearchBounds bounds(tree);
   // Exercise both useful and stale hints, including a different equal-distance
   // point and an out-of-range index. A hint must never choose the answer.
   for (const std::size_t hint : {std::numeric_limits<std::size_t>::max(),
                                  std::size_t{0}, tree.points->size() - 1,
                                  reference_index, tree.points->size()}) {
-    const bool actual = Search(tree, gate_squared).withHint(hint).nearest(
-        query, &actual_index, &actual_distance);
-    ASSERT_EQ(actual, reference);
-    if (reference) {
-      EXPECT_EQ(actual_index, reference_index);
-      EXPECT_DOUBLE_EQ(actual_distance, reference_distance);
+    for (const auto* occupied : {static_cast<const registration_detail::SearchBounds*>(nullptr), &bounds}) {
+      const bool actual = Search(tree, gate_squared, occupied).withHint(hint).nearest(
+          query, &actual_index, &actual_distance);
+      ASSERT_EQ(actual, reference);
+      if (reference) {
+        EXPECT_EQ(actual_index, reference_index);
+        EXPECT_DOUBLE_EQ(actual_distance, reference_distance);
+      }
     }
   }
 }
@@ -116,6 +119,7 @@ TEST(RegistrationSearch, PreservesNeighborsAtFloatingPointSplitBoundaries) {
 TEST(RegistrationSearch, PreservesOptimizerPoseQualityAndInformation) {
   const auto target = randomCloud();
   const Search::Tree tree(target);
+  const registration_detail::SearchBounds bounds(tree);
   small_gicp::estimate_normals_covariances_omp(*target, tree, 20, 1);
   const Cloud source = *target;
   for (const int threads : {1, 4}) {
@@ -130,7 +134,7 @@ TEST(RegistrationSearch, PreservesOptimizerPoseQualityAndInformation) {
         Eigen::Isometry3d initial = Eigen::Isometry3d::Identity();
         initial.translation() = Eigen::Vector3d(offset, -0.5 * offset, 0.2 * offset);
         const auto expected = small_gicp::align(*target, source, tree, initial, setting);
-        const auto actual = registration_detail::align(*target, source, tree, initial, setting);
+        const auto actual = registration_detail::align(*target, source, tree, initial, setting, &bounds);
         EXPECT_EQ(actual.converged, expected.converged);
         EXPECT_EQ(actual.iterations, expected.iterations);
         EXPECT_EQ(actual.num_inliers, expected.num_inliers);

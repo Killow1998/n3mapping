@@ -5,6 +5,7 @@
 #include <cmath>
 #include <limits>
 #include <small_gicp/registration/registration_helper.hpp>
+#include "registration_bounds.h"
 
 namespace n3mapping::registration_detail {
 
@@ -15,8 +16,9 @@ class CorrespondenceSearch {
  public:
   using Tree = small_gicp::KdTree<small_gicp::PointCloud>;
 
-  CorrespondenceSearch(const Tree& tree, double max_distance_squared)
-      : tree_(tree),
+  CorrespondenceSearch(const Tree& tree, double max_distance_squared,
+                       const SearchBounds* bounds = nullptr)
+      : tree_(tree), bounds_(bounds),
         search_limit_(std::isfinite(max_distance_squared)
             ? std::min(std::numeric_limits<double>::max(),
                 std::nextafter(max_distance_squared,
@@ -63,6 +65,7 @@ class CorrespondenceSearch {
   void visit(small_gicp::NodeIndexType node_index, const Eigen::Vector4d& query,
              std::size_t* index, double* distance_squared,
              const std::array<double, 3>& cell_distance_squared) const {
+    if (bounds_ && bounds_->outside(node_index, query, *distance_squared)) return;
     const auto& tree = tree_.kdtree;
     const auto& node = tree.nodes[node_index];
     if (node.left == small_gicp::INVALID_NODE) {
@@ -95,13 +98,15 @@ class CorrespondenceSearch {
   }
 
   const Tree& tree_;
+  const SearchBounds* bounds_;
   double search_limit_;
 };
 
 small_gicp::RegistrationResult align(
     const small_gicp::PointCloud& target, const small_gicp::PointCloud& source,
     const CorrespondenceSearch::Tree& tree, const Eigen::Isometry3d& initial_pose,
-    const small_gicp::RegistrationSetting& setting);
+    const small_gicp::RegistrationSetting& setting,
+    const SearchBounds* bounds = nullptr);
 
 }  // namespace n3mapping::registration_detail
 

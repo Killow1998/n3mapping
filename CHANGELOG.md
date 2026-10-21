@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Prune exact correspondence search using occupied subtree bounds and retain
+  Atlas visibility crops under the existing byte budget. Four-core, three-repeat
+  03 medians: 0.569→0.552 cores; startup CPU 10.359→9.199 s. Original14 and both
+  routes retain every decision and their error maxima; 69 CTest targets, 1,712
+  paired registration solves and a real checkpoint pass. Half-core remains open;
+  see [timing and limits](docs/evidence/runtime_cpu_20261017/README.md#occupied-search-bounds-and-scan-level-loop-bias--2026-10-21).
+- Trace the worst audited mapping-loop bias to both endpoint scans' deskew:
+  16.757→0.495 mm in an observer-only cross-ablation. Record the shared scan-bias
+  ambiguity before further uncertainty calibration; production weights remain
+  unchanged. Remove unsuccessful arithmetic/traversal variants from production.
+
 - Resume fresh relocalization confirmation at its accepted geometric scale,
   retrying the full cascade for failed or large local corrections. Original14
   and both independent routes preserve all decisions and outputs; all 69 CTest

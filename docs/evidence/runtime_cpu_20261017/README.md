@@ -6076,3 +6076,155 @@ startup shares the modified confirmation and is covered by current regressions
 and localization replays, but no complete online mapping/extension resource
 benchmark is rerun in this stage.
 Noetic runtime, full-node CPU and real hardware remain separate qualifications.
+
+
+## Occupied search bounds and scan-level loop bias — 2026-10-21
+
+Base `dea2b7f`; final core
+`3c012dd52890ea01f3c01f91577675a248e3c8620baa4db80fed2f1b6144df98`.
+`build/n3mapping/search_bias_20261021/qualification.json` records the frozen
+334 source/test/config files, map/Atlas identities, all 10,046 raw input clouds,
+three final paired timing repeats, per-frame comparisons and checkpoint audit.
+The sibling `qualify_variant.py`, `repeat_focus.py`, `qualify_results.py` and
+probe sources retain the reproduction procedure. All 69 CTest targets pass on
+this final core, including host ROS/DDS checks on domain 223.
+
+**Two retained optimizations.** Immutable KD-tree nodes now store actual occupied
+bounds. Outward-rounded float bounds and guarded double distance comparisons
+skip only branches that cannot contain an accepted neighbor. Existing point
+order, distance gate, nearest-neighbor ties, factors, solver iterations and
+acceptance tests remain unchanged. Bounds are reconstructed when preparing or
+loading targets; no map/Atlas format changes. The private implementation is
+64 lines. Its storage is included in the existing saturating memory estimate.
+
+Atlas-backed search entries share registration geometry and retain visibility
+crops. Their old eight-entry cap repeatedly evicted useful crops despite room
+in the 128 MiB budget. Only these shared-Atlas entries now use the byte limit;
+independent local targets retain their entry cap. Entry metadata is counted,
+and revision/epoch invalidation remains unchanged. Across the three final
+03 repeats, target builds fall 36/36/37→17/17/17 and cache hits 9/9/8→28/28/28.
+Retained crop bytes rise from 32.00 to 68.01 MiB, within the unchanged budget;
+this is a compute/memory tradeoff, not a RAM reduction. All repeats retain
+45 registrations, nine confirmation registrations, 46 fixed-pose evaluations
+and 118 visibility evaluations. No candidate or fresh observation is omitted.
+
+**Four-core timing.** Measurements run sequentially on physical P cores 0,2,4,6,
+with four registration threads and passive OpenMP. The following are medians
+of three alternating-order, complete-input pairs against the immediately previous
+core. CPU is process CPU / unchanged complete input duration; loading/saving,
+FAST_LIO, DDS and the simulator are excluded. First-lock wall time measures
+processing, excludes loading, and is not the sensor-time frame-4 lock latency.
+
+| Point | Average cores before → after | Startup CPU s | Startup wall s |
+| --- | --- | --- | --- |
+| 03 | 0.5691 → 0.5522 | 10.359 → 9.199 | 4.588 → 4.343 |
+| 14 | 0.4680 → 0.4477 | 8.170 → 7.050 | 3.670 → 3.222 |
+
+03 ranges are 0.5458–0.5731 before and 0.5282–0.5542 after. Its third paired
+repeat regresses slightly, and its full-suite result is 0.5418 cores. **03 is
+still above half a core.** Neither the 14-point average nor a longer input is
+used to hide this. 14 ranges are 0.4673–0.4779 before and 0.4369–0.4479 after.
+These finite workload measurements do not establish a universal speedup.
+First-lock CPU improves more than whole-input CPU; steady tracking remains part
+of the denominator. Search-only average occupancy is not below half a core.
+
+| Final complete input | Outputs / locks | Position RMSE / maximum cm | Average cores | Peak RSS GiB |
+| --- | --- | --- | --- | --- |
+| Original14 | 4,088 / all 14 at frame 4 | 0.840 / 2.481 | 0.40674 | 1.246 |
+| Original independent route | 2,232 / frame 4 | 0.968 / 7.933 | 0.24363 | 1.271 |
+| Fresh independent route | 3,662 / frames 4, 1938 | 0.852 / 3.247 | 0.32406 | 1.272 |
+
+The preceding complete-suite CPU values were 0.42561 / 0.24045 / 0.35941 cores:
+the old route's small increase is retained, not reported as an improvement.
+All position maxima above are unchanged. Every input retains its success,
+lock, state, output source, decision, seed, support, matched keyframe, live
+hypothesis, candidate and alignment fields. Maximum published matrix-component
+difference is 5.69e-14. All outputs remain below 10 cm with the original fixed
+mapping alignment; the fresh route still has 59 propagated outputs during
+insufficient geometric support. RAM includes loading and is essentially
+unchanged. This is simulation/direct-core qualification, not deployed-node or
+RK3588 acceptance.
+
+**Ablations and cleanup.** Compact 3D factor arithmetic has mixed/slower timing
+and introduces avoidable rounding differences; it is removed. Far-child-only
+bound checks are rejected in favor of the measured all-node path. Three
+order-balanced prototype repeats compare bounds on every path against disabling
+them for loaded-map tracking. The latter is retained: tracking shares the same
+clouds/trees but uses its existing hint/split-cell search, avoiding unnecessary
+box checks once correspondences are close. No runtime switch or alternate
+factor implementation remains. The earlier overlapping diagnostic/timing run is
+explicitly marked invalid; it is not evidence for the final performance claim.
+Existing correspondence-oracle and target-cache tests are extended, without
+adding implementation-mirroring suites or a new cache abstraction.
+
+**Mapping bias: source/target deskew cross-ablation.** All 428 stored mapping
+loop pairs are replayed from their saved measurement, with four combinations
+of FAST_LIO and native-trajectory deskew. All 427 endpoint scan clouds are
+checked against the original saved clouds. Actual point timestamps, extrinsics
+and the same raw returns are retained. Native trajectory is observer-only
+truth; it never enters production registration, pose estimation or weighting.
+The maximum difference between native and interpolated recorded truth at the
+scan poses is 3.13 micrometres, too small to explain the audited bias.
+
+For the previously worst NIS constraint, edge 4→412:
+
+| Deskew replacement | Translation error mm | Nominal truth NIS |
+| --- | --- | --- |
+| Neither endpoint | 16.757 | 226.423 |
+| Query only | 8.722 | 60.567 |
+| Target only | 7.894 | 53.441 |
+| Both endpoints | 0.495 | 0.202 |
+
+All four converge with similar overlap. Together with the preceding iteration
+and voxel-phase ablations, this identifies both scans' deskew as the dominant
+source for this constraint. It does not yet distinguish the frontend's timing
+and motion-state estimation contributions, nor prove every biased loop has the
+same cause.
+
+Known same-return pairs permit an independent best-rigid fit between FAST_LIO
+and native-deskew clouds. The frame-4 / frame-412 rigid translation components
+are 10.018 / 8.323 mm and explain 82.3% / 83.4% of squared deskew error. Composing
+these endpoint components predicts the loop's bias to about 1.65 mm residual.
+If `native_points = A_i * fastlio_points`, raw registration approximately
+measures `A_i^-1 * T_i^-1 * T_j * A_j`. The shared endpoint terms cancel around
+cycles: an internally consistent pose graph can still estimate biased body
+poses. Increasing point count, fitting residuals more closely, or checking only
+optimized loop residuals cannot observe that entire scan-level component.
+
+![Endpoint deskew ablation and rigid scan-bias prediction](loop_deskew_bias_20261021.png)
+
+**Uncertainty calibration boundary.** The 309 pairs passing all four raw-pair
+checks have diagnostic position RMSE 3.460→2.420 mm, NIS p95 11.054→0.551 and
+nominal-95% exceedances 12→0 with both scans replaced. The separately recorded
+369 baseline-stationary pairs show the same reduction in the high-NIS tail.
+Neither subset is a newly accepted production loop set: raw-pair checks omit
+original submap support, and the stationarity subset is diagnostic. Naively
+forcing raw-pair refinement on all 428 saved constraints produces approximately
+15 cm outliers, including with native deskew, because some saved constraints
+retain submap-supported solutions. Those failures are retained in the audit;
+raw-pair results are never substituted into the map. NIS uses the original
+stored information and a nominal six-dimensional threshold, not independent
+Gaussian coverage or a fitted confidence guarantee.
+
+Production loop weights remain unchanged. The previous new-session constraints
+were already conservative, so a global floor is unsupported. Further calibration
+must address directional within-scan motion uncertainty and shared endpoint
+correlations. Current-source inspection also finds that neither ROS adapter
+copies odometry covariance into `LioFrame`. FAST_LIO's current source publishes
+before filling the current covariance; this is a separate interface finding,
+not proof about the recording binary or the cause of the geometric bias.
+Absolute frontend pose covariance alone is not within-scan relative motion
+uncertainty. Source hashes and limitations are in
+`motion_uncertainty_interface_audit.json`; FAST_LIO is unchanged.
+
+**Regression and remaining work.** All 1,712 before/after diagnostic solves
+preserve convergence, iterations and inlier ratio; maximum pose-component
+difference is 8.89e-16 and information-matrix absolute difference 2.31e-7.
+A real 1,271-keyframe / 1,698-edge checkpoint preserves raw clouds, odometry,
+information and moments; Atlas point difference is zero. This verifies the
+shared matcher's numerical behavior and save/reload path. Complete online
+mapping/extension resource runs are not repeated here, so their prior resource
+numbers remain historical. Remaining work is 03's cold-seed geometry and
+visibility cost, a runtime-observable motion uncertainty model, and subsequent
+online calibration/extension qualification. No acceptance threshold is relaxed;
+no installation, push or input replacement occurs.

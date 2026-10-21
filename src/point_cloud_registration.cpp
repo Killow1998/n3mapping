@@ -31,7 +31,7 @@ template <typename Factor>
 small_gicp::RegistrationResult alignWithFactor(
     const small_gicp::PointCloud& target, const small_gicp::PointCloud& source,
     const CorrespondenceSearch::Tree& tree, const Eigen::Isometry3d& initial_pose,
-    const small_gicp::RegistrationSetting& setting) {
+    const small_gicp::RegistrationSetting& setting, const SearchBounds* bounds) {
   small_gicp::Registration<HintedFactor<Factor>, RegistrationReduction> registration;
   registration.reduction.num_threads = setting.num_threads;
   registration.rejector.max_dist_sq =
@@ -40,7 +40,7 @@ small_gicp::RegistrationResult alignWithFactor(
   registration.criteria.translation_eps = setting.translation_eps;
   registration.optimizer.max_iterations = setting.max_iterations;
   registration.optimizer.verbose = setting.verbose;
-  const CorrespondenceSearch search(tree, registration.rejector.max_dist_sq);
+  const CorrespondenceSearch search(tree, registration.rejector.max_dist_sq, bounds);
   return registration.align(TargetView{target}, source, search, initial_pose);
 }
 }  // namespace
@@ -48,14 +48,14 @@ small_gicp::RegistrationResult alignWithFactor(
 small_gicp::RegistrationResult align(
     const small_gicp::PointCloud& target, const small_gicp::PointCloud& source,
     const CorrespondenceSearch::Tree& tree, const Eigen::Isometry3d& initial_pose,
-    const small_gicp::RegistrationSetting& setting) {
+    const small_gicp::RegistrationSetting& setting, const SearchBounds* bounds) {
   switch (setting.type) {
     case small_gicp::RegistrationSetting::ICP:
-      return alignWithFactor<small_gicp::ICPFactor>(target, source, tree, initial_pose, setting);
+      return alignWithFactor<small_gicp::ICPFactor>(target, source, tree, initial_pose, setting, bounds);
     case small_gicp::RegistrationSetting::PLANE_ICP:
-      return alignWithFactor<small_gicp::PointToPlaneICPFactor>(target, source, tree, initial_pose, setting);
+      return alignWithFactor<small_gicp::PointToPlaneICPFactor>(target, source, tree, initial_pose, setting, bounds);
     case small_gicp::RegistrationSetting::GICP:
-      return alignWithFactor<small_gicp::GICPFactor>(target, source, tree, initial_pose, setting);
+      return alignWithFactor<small_gicp::GICPFactor>(target, source, tree, initial_pose, setting, bounds);
     default:
       return small_gicp::align(target, source, tree, initial_pose, setting);
   }

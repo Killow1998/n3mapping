@@ -227,7 +227,14 @@ void TrackingTargetCache::installLoadedReference(
     const PointCloudMatcher::PreparedTarget& target) {
   clearMap();
   loaded_map_ = cloud;
-  loaded_prepared_ = std::make_shared<const PointCloudMatcher::PreparedTarget>(target);
+  // Occupied bounds pay off for distant search seeds. Tracking starts inside
+  // an established correspondence basin, where another box test costs more
+  // than the split-cell/hint search. Share exactly the same geometry and trees.
+  auto tracking_target = target;
+  for (auto& level : tracking_target.plane_levels) level.search_bounds.reset();
+  tracking_target.refine_level.search_bounds.reset();
+  loaded_prepared_ = std::make_shared<const PointCloudMatcher::PreparedTarget>(
+      std::move(tracking_target));
   for (const auto& frame : keyframe_manager_.getAllKeyframes())
     if (frame && frame->is_from_loaded_map) {
       loaded_anchor_positions_.emplace(frame->id, frame->pose_optimized.translation());

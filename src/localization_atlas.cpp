@@ -3,6 +3,7 @@
 
 #include "localization_atlas.pb.h"
 #include "compact_kdtree_builder.h"
+#include "registration_bounds.h"
 #include "point_cloud_target_view.h"
 
 #include <array>
@@ -174,6 +175,7 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
     LocalizationAtlasPreparedLevel{}.Swap(&input);
     output->kdtree = std::make_shared<PointCloudMatcher::SmallGicpKdTree>(
         cloud, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilder>(*cloud, true));
+    output->search_bounds = std::make_shared<registration_detail::SearchBounds>(*output->kdtree);
     return true;
 }
 

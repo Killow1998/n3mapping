@@ -24690,5 +24690,232 @@
       "Online mapping and strict extension tracking/geometry are unchanged. Extension startup shares the modified confirmation; covered by current regressions and localization replays, but no complete mapping/extension resource rerun in this stage.",
       "No hardware, full-node or independent Noetic runtime qualification."
     ]
+  },
+  "search_bias": {
+    "base_commit": "dea2b7fdf96605b00f8c1a066d4faf800ba7b325",
+    "cpu_scope": "Four physical P cores 0,2,4,6, four registration threads, passive OpenMP. Process CPU / unchanged complete input duration; excludes loading/saving, FAST_LIO, DDS and simulator. RSS includes loading.",
+    "truth_scope": "Original first-mapping alignment; no query fitting. Native deskew and same-point rigid fits are observer-only diagnostics.",
+    "artifacts": "build/n3mapping/search_bias_20261021/qualification.json",
+    "artifact_sha256": "07f2c89b3802fae78ee32c25a093d1fe030e63646491e2379e59b3d31f977f00",
+    "verification": {
+      "core_sha256": "3c012dd52890ea01f3c01f91577675a248e3c8620baa4db80fed2f1b6144df98",
+      "production_source_files": 334,
+      "ctest_targets": 69,
+      "map_sha256": "153eb3356e8cf2d4891f7240834652e75cdb49bf173dbd25d9f6c2945483746e",
+      "atlas_sha256": "83f4ee22fec54bd3c20650ebfb1163daad4769c0b9126e35858c96a8c3e832e3",
+      "raw_clouds_verified": 10046
+    },
+    "focus": {
+      "03_south_corridor": {
+        "medians": {
+          "previous": {
+            "cores": 0.5691212580677966,
+            "lock_cpu_s": 10.358995762000001,
+            "lock_wall_s": 4.587833079,
+            "peak_rss_mib": 1275.921875
+          },
+          "final": {
+            "cores": 0.5522308887457628,
+            "lock_cpu_s": 9.199341954,
+            "lock_wall_s": 4.343378885,
+            "peak_rss_mib": 1275.8984375
+          }
+        },
+        "core_ranges": {
+          "previous": [
+            0.545794256338983,
+            0.5730815409830509
+          ],
+          "final": [
+            0.5282352663389831,
+            0.5542365947118643
+          ]
+        }
+      },
+      "14_north_door": {
+        "medians": {
+          "previous": {
+            "cores": 0.467967690977007,
+            "lock_cpu_s": 8.170053674,
+            "lock_wall_s": 3.6695913829999998,
+            "peak_rss_mib": 1275.9296875
+          },
+          "final": {
+            "cores": 0.4476718649627904,
+            "lock_cpu_s": 7.049684939,
+            "lock_wall_s": 3.221878054,
+            "peak_rss_mib": 1276.125
+          }
+        },
+        "core_ranges": {
+          "previous": [
+            0.4673467860315029,
+            0.4779299890495053
+          ],
+          "final": [
+            0.4368596414073727,
+            0.4478564177450382
+          ]
+        }
+      }
+    },
+    "work_counts": {
+      "previous": {
+        "target_builds": 36,
+        "target_preparations": 0,
+        "cache_hits": 9,
+        "cache_misses": 36,
+        "alignments": 45,
+        "confirmation_registrations": 9,
+        "fixed_pose_evaluations": 46,
+        "visibility_evaluations": 118,
+        "candidates": 9,
+        "max_cache_bytes": 33555840,
+        "max_cache_entries": 8
+      },
+      "final": {
+        "target_builds": 17,
+        "target_preparations": 0,
+        "cache_hits": 28,
+        "cache_misses": 17,
+        "alignments": 45,
+        "confirmation_registrations": 9,
+        "fixed_pose_evaluations": 46,
+        "visibility_evaluations": 118,
+        "candidates": 9,
+        "max_cache_bytes": 71309288,
+        "max_cache_entries": 17
+      }
+    },
+    "work_count_repeat_note": "03 target builds previous 36/36/37, final 17/17/17; all timing pairs and counts in qualification.json.",
+    "original14": {
+      "outputs": 4088,
+      "average_cores": 0.40674183036866135,
+      "position_rmse_m": 0.008396573274656963,
+      "maximum_m": 0.024809060907976216,
+      "peak_rss_mib": 1276.2265625
+    },
+    "motion": {
+      "old": {
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "average_cores": 0.24362733460402683,
+        "peak_rss_mib": 1301.59375,
+        "position_rmse_m": 0.009681592239874118,
+        "position_maximum_m": 0.07932836946644896,
+        "above_10cm": 0
+      },
+      "new": {
+        "outputs": 3662,
+        "locks": [
+          4,
+          1938
+        ],
+        "average_cores": 0.32406468505320596,
+        "peak_rss_mib": 1302.04296875,
+        "position_rmse_m": 0.008524168842742723,
+        "position_maximum_m": 0.03246851633697081,
+        "above_10cm": 0
+      }
+    },
+    "max_output_matrix_component_delta": 5.684341886080802e-14,
+    "loop_bias": {
+      "scope": "Diagnostic source/target deskew factorial. Raw-pair reoptimization may differ from saved submap-supported production measurements and is never substituted into the map.",
+      "pairs": 428,
+      "solves": 1712,
+      "worst_prior_edge": [
+        4,
+        412
+      ],
+      "worst_edge_deskew_ablation": {
+        "fastlio_fastlio": {
+          "translation_m": 0.01675675231375956,
+          "rotation_deg": 0.04067935590470374,
+          "nis": 226.42299689204845
+        },
+        "fastlio_native": {
+          "translation_m": 0.008721724467446824,
+          "rotation_deg": 0.027610693127164253,
+          "nis": 60.567076290786964
+        },
+        "native_fastlio": {
+          "translation_m": 0.007894040247238238,
+          "rotation_deg": 0.020661620152755817,
+          "nis": 53.440535973025405
+        },
+        "native_native": {
+          "translation_m": 0.0004949677234663075,
+          "rotation_deg": 0.0023889134942258494,
+          "nis": 0.2021174957608497
+        }
+      },
+      "all_four_pass_raw_pair_gates": {
+        "fastlio_fastlio": {
+          "count": 309,
+          "rmse_m": 0.0034600782038683945,
+          "max_m": 0.02526331724574953,
+          "nis_median": 1.1119417605076054,
+          "nis_p95": 11.053620697377022,
+          "nis_maximum": 226.42299689204845,
+          "above_nominal_95": 12
+        },
+        "native_native": {
+          "count": 309,
+          "rmse_m": 0.002420212314167711,
+          "max_m": 0.024259128255261837,
+          "nis_median": 0.08759724663001858,
+          "nis_p95": 0.5513014038730905,
+          "nis_maximum": 2.2492192499147405,
+          "above_nominal_95": 0
+        }
+      },
+      "production_weights_changed": false,
+      "interpretation": "Shared scan-level motion bias can cancel around pose-graph cycles. Truth-assisted deskew is a diagnostic, not a production fix. All raw pairs, failed refinement cases, stationary subset and current-source covariance interface audit are retained in the full artifact."
+    },
+    "loop_numerical_equivalence": {
+      "loops": 428,
+      "solves": 1712,
+      "comparison": "Same initial poses, fine GICP, raw source/target pairs, four threads. Observer-only deskew combinations, not new accepted production loops.",
+      "discrete_differences": {
+        "converged": 0,
+        "iterations": 0,
+        "target": 0,
+        "source": 0
+      },
+      "max_absolute_difference": {
+        "inlier_ratio": 0.0,
+        "fitness": 5.329070518200751e-15,
+        "pose": 8.881784197001252e-16,
+        "information": 2.3096799850463867e-07
+      },
+      "baseline_sha256": "8ad7e91134ceb7c8bcd5e37348c652db1d335ee2f0db847d32a190a8c9fbf166",
+      "final_sha256": "92d82428063b7e572878e5ff9185b49a7a4748a561938357e4542109349cf625"
+    },
+    "checkpoint": {
+      "atlas_point_error_m": 0.0,
+      "atlas_points": 2095987,
+      "edge_error": 6.473657049493588e-16,
+      "edges": 1698,
+      "graph_pose_error": 2.701289589270864e-15,
+      "keyframe_pose_error": 2.701289589270864e-15,
+      "keyframes": 1271,
+      "observations": 19415,
+      "plane_error": 1.1102230246251565e-16,
+      "planes": 770,
+      "raw_clouds_odometry_information_and_moments_preserved": true,
+      "raw_pose_error": 1.1322165218767588e-15,
+      "reload_pose_error": 1.3414884610104311e-15
+    },
+    "limitations": [
+      "Report 03 individually; neither an average over all14 nor longer input dilutes its search cost.",
+      "59 new-route outputs remain propagated during insufficient reference geometry; no new map support has been fabricated.",
+      "Repeated timings are finite workload evidence, not a universal performance guarantee.",
+      "Native deskew identifies bias but is not a production fix. Scan-level motion uncertainty and correlations remain uncalibrated.",
+      "Raw-pair diagnostic reoptimization is not a substitute for saved submap-supported production constraints.",
+      "Full online mapping/extension resource qualification was not repeated; matcher equivalence, regressions and a real checkpoint were checked.",
+      "No hardware/full ROS node CPU or independent Noetic runtime qualification."
+    ]
   }
 }

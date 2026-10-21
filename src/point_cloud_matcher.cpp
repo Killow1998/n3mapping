@@ -1,6 +1,7 @@
 // Point-cloud preparation, bounded storage estimates and matcher orchestration.
 #include "n3mapping/point_cloud_matcher.h"
 #include "compact_kdtree_builder.h"
+#include "registration_bounds.h"
 #include "point_cloud_sampling.h"
 #include "point_cloud_features.h"
 #include "point_cloud_feature_reuse.h"
@@ -41,6 +42,9 @@ std::size_t preparedLevelMemoryBytes(
         level.cloud->normals.capacity(), sizeof(Eigen::Vector4d)));
     bytes = saturatedAdd(bytes, saturatedMultiply(
         level.cloud->covs.capacity(), sizeof(Eigen::Matrix4d)));
+    if (level.search_bounds) bytes = saturatedAdd(bytes,
+        saturatedAdd(sizeof(*level.search_bounds), saturatedMultiply(
+            level.search_bounds->nodes.capacity(), sizeof(registration_detail::SearchBounds::Box))));
     return saturatedAdd(bytes, saturatedMultiply(
         level.cloud->size(), kTreeBytesPerPoint));
 }
@@ -172,13 +176,15 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
         prepared.plane_levels.reserve(resolutions.size());
         for (double resolution : resolutions) {
             auto [points, kdtree] = prepareTargetGeometry(cloud, resolution);
-            prepared.plane_levels.push_back({ resolution, points, kdtree });
+            prepared.plane_levels.push_back({ resolution, points, kdtree,
+                kdtree ? std::make_shared<registration_detail::SearchBounds>(*kdtree) : nullptr });
         }
 
         if (config_.icp_refine_use_gicp) {
             const double resolution = config_.icp_refine_downsampling_resolution;
             auto [points, kdtree] = prepareTargetGeometry(cloud, resolution);
-            prepared.refine_level = { resolution, points, kdtree };
+            prepared.refine_level = { resolution, points, kdtree,
+                kdtree ? std::make_shared<registration_detail::SearchBounds>(*kdtree) : nullptr };
             prepared.has_refine_level = true;
         }
         const auto& plane = prepared.plane_levels.back();

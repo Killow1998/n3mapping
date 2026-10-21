@@ -278,6 +278,22 @@ TEST(RelocTargetProviderTest, LegacyUsesLoadedGlobalAtlasForRegistration) {
   indexed_request.build_fallback_target = {};
   EXPECT_FALSE(fixture.provider->getTarget(indexed_request).valid());
 
+  // An active Atlas working set can exceed the old local-target entry count
+  // while remaining well below the unchanged 128 MiB byte budget.
+  fixture.provider->clear();
+  indexed_request.crop_center = Eigen::Vector3d::Zero();
+  for (int id = 0; id < 12; ++id) {
+    indexed_request.anchor_id = id;
+    EXPECT_TRUE(fixture.provider->getTarget(indexed_request).valid());
+  }
+  EXPECT_EQ(fixture.provider->diagnostics().cache_entries, 12u);
+  EXPECT_LT(fixture.provider->diagnostics().cache_total_bytes, 128u * 1024 * 1024);
+  indexed_request.anchor_id = 0;
+  EXPECT_TRUE(fixture.provider->getTarget(indexed_request).metrics.cache_hit);
+  ++indexed_request.map_revision.pose_revision;
+  EXPECT_TRUE(fixture.provider->getTarget(indexed_request).metrics.cache_miss);
+  EXPECT_EQ(fixture.provider->diagnostics().cache_entries, 1u);
+
   std::error_code cleanup_error;
   std::filesystem::remove_all(directory, cleanup_error);
 }

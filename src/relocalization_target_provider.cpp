@@ -197,9 +197,15 @@ private:
                        PreparedRelocTarget *result) {
     auto *metrics = &result->metrics;
     const bool legacy = mode_ == RelocTargetMode::LEGACY_GLOBAL_ATLAS;
+    const bool use_atlas = legacy && localization_atlas_.loaded();
     const std::size_t max_bytes = legacy ? kSearchCacheBytes :
         static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_bytes));
-    const std::size_t max_entries = legacy ? kSearchCacheEntries :
+    // Atlas entries share registration geometry and retain only visibility
+    // crops. The old eight-local-target cap evicted active crops far below the
+    // byte budget, rebuilding them at each confirmation. Bound these by bytes;
+    // independently prepared local targets keep both of their existing limits.
+    const std::size_t max_entries = legacy ?
+        (use_atlas ? std::numeric_limits<std::size_t>::max() : kSearchCacheEntries) :
         static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_entries));
     metrics->effective_max_bytes = max_bytes;
     metrics->effective_max_entries = max_entries;
@@ -229,7 +235,6 @@ private:
       build_epoch = epoch_;
     }
 
-    const bool use_atlas = legacy && localization_atlas_.loaded();
     bool retainable = true;
     if (use_atlas && request.visibility_from_atlas) {
       const auto started = Clock::now();
@@ -264,9 +269,13 @@ private:
         ? sizeof(*prepared) + prepared->plane_levels.capacity() *
               sizeof(PointCloudMatcher::PreparedTargetLevel)
         : estimatePreparedTargetMemoryBytes(*prepared);
-    const std::size_t entry_bytes = prepared_bytes >
+    const std::size_t payload_bytes = prepared_bytes >
         std::numeric_limits<std::size_t>::max() - crop_bytes
         ? std::numeric_limits<std::size_t>::max() : prepared_bytes + crop_bytes;
+    constexpr std::size_t metadata_bytes = sizeof(CacheEntry) + 2 * sizeof(void*);
+    const std::size_t entry_bytes = payload_bytes >
+        std::numeric_limits<std::size_t>::max() - metadata_bytes
+        ? std::numeric_limits<std::size_t>::max() : payload_bytes + metadata_bytes;
     metrics->cache_entry_bytes = entry_bytes;
 
     std::lock_guard<std::mutex> lock(mutex_);

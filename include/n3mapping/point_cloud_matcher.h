@@ -20,6 +20,7 @@
 #include "n3mapping/keyframe.h"
 
 namespace n3mapping {
+namespace registration_detail { struct SearchBounds; }
 
 enum class MatchTermination {
     Invalid,
@@ -82,6 +83,7 @@ public:
         double resolution = 0.0;
         SmallGicpCloud::Ptr cloud;
         std::shared_ptr<SmallGicpKdTree> kdtree;
+        std::shared_ptr<const registration_detail::SearchBounds> search_bounds = nullptr;
     };
 
     struct PreparedSourceLevel {
