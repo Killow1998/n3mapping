@@ -832,6 +832,23 @@ association and directional uncertainty, preserve independent odometry, and
 qualify bounded background solving plus consistent map/Atlas updates in both
 mapping and extension. A smaller internal residual alone is not acceptance.
 
+The subsequent [oriented shared-plane comparison](docs/evidence/runtime_cpu_20261017/README.md#oriented-shared-plane-geometry-and-directional-information--2026-10-20)
+shows a substantially better candidate: map trajectory RMSE 4.44→0.61 cm,
+independent surface RMSE 21.69→3.61 mm, complete fixed14 RMSE/maximum
+0.74/2.41 cm and moving RMSE/maximum 1.92/15.28 cm. All six causal snapshots
+also improve without future data. Association fixes provide the main accuracy
+gain; connected-plane aggregation reduces 317,867 observations to 20,242 and
+snapshot processing to about 1.38 s / 396 MiB. The maintained research tool
+is `n3mapping_planar_geometry_eval`, behind `N3MAPPING_BUILD_RESEARCH_TOOLS`.
+It writes CSV/JSON and rejects unsupported planar/session/floor factors.
+The default map remains unchanged: 01/08 have small individual regressions,
+moving angular maximum increases 0.545→0.601°, and 18 outputs still exceed
+10 cm. The one-centimetre geometry noise floor is an explicit model assumption,
+not a statistically calibrated covariance. Plane constraints are not yet
+persisted or fed back into the online worker; saving only corrected poses
+cannot qualify map loading or extension. Full Atlas rebuilding and same-revision
+commit/publication remain part of the online integration task.
+
 Retain existing interfaces and numeric acceptance gates. Compare actual emitted
 poses, lock decisions and input/output continuity on the same full inputs for
 release decisions; short prefixes are screening evidence. Use the existing E2E

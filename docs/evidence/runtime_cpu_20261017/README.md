@@ -4862,3 +4862,232 @@ point. Causal mapping and map-extension replays must separately measure queue
 age, commit cost, memory and output continuity before promotion. A map-wide
 batch result cannot qualify that path. Complete moving 10 cm accuracy,
 geometric-backend online integration and its CPU budget remain open.
+
+## Oriented shared-plane geometry and directional information — 2026-10-20
+
+**Outcome:** a candidate global map now improves independent trajectory,
+surface and localization measurements. The production localization algorithm,
+thresholds and default map remain frozen at `1d0c022`. This stage retains a
+research evaluation tool and exposes the existing correct robust-noise wrapper;
+it does not claim a qualified online geometric backend or complete 10 cm motion.
+The experiment directory is `build/n3mapping/geometry_consistency_20261020`.
+Structured results are in `docs/evidence/online_loop_20261020.json`, field
+`connected_plane_geometry`; `qualify_stage.py` verifies identities, complete
+recordings and preserved raw clouds/odometry/edges.
+
+![Frozen geometry comparison](connected_plane_geometry_20261020.png)
+
+### Association and directional information
+
+A voxel is a spatial search bucket, not evidence that every point belongs to
+one surface. The new association retains the sensor-facing sign of each local
+normal and separates incompatible normal/offset groups inside a voxel. It
+therefore avoids merging observations of opposite wall faces merely because
+they occupy the same cell. The model uses original body-frame scan moments,
+not registration output poses as additional independent measurements.
+
+The experiment uses 1 m cells, at least six points per local patch and three
+observing scans. Planarity requires a middle covariance eigenvalue of at least
+0.0025 m² and a smallest eigenvalue below both 0.0004 m² and 2% of the middle
+one. Association requires normals within 5° and offsets within 0.1 m.
+Neighboring cells merge only with signed normals within 2° and compatible
+plane offsets; the entire connected component is checked again before merging.
+Seven inconsistent components are refused on this map. A scan's merged points
+are rechecked for planarity and normal compatibility.
+
+Each accepted physical surface has one shared plane variable. Each scan
+contributes one moment factor to that surface. For centroid `mu` and covariance
+`C`, its squared residual is exactly the mean point-to-plane squared distance:
+
+```text
+[nᵀ(R mu + t - origin) - d]² + nᵀ R C Rᵀ n
+```
+
+The four residual entries consist of the centroid distance and three covariance
+square-root projections. Local plane origins avoid large global-coordinate
+lever arms without adding a fixed plane prior. Plane orientation and offset
+remain unknowns in the same optimization as every keyframe pose. Original
+1,270 odometry and 423 loop factors retain their measurements and information;
+there is one common pose gauge, no window-by-window anchoring and no replacement
+of measured edges by optimized poses with recycled information.
+
+This model contributes zero information along the plane tangents and for
+rotation about its normal. It retains cross-scan dependence through the shared
+plane. Repeating the same scan's points 17 times produces exactly the same
+moment residual. Synthetic physical checks measure tangent/normal-axis null
+responses below 6e-17 and agreement with direct mean squared point distance
+within 7e-18. On the real map, analytic versus numerical Jacobians agree within
+2.83e-10. These establish physical directions, **not statistical covariance
+calibration**. The 1 cm floor combined with within-plane scatter is an explicit
+conservative model hypothesis. Correlations between different surfaces from
+one scan, and between LiDAR-derived odometry, loops and plane observations,
+are not yet calibrated. No calibrated pose-confidence coverage is claimed.
+
+The first experiment mistakenly used GTSAM's uncorrected robust wrapper,
+reintroducing the cost-versus-IRLS disagreement fixed in the preceding graph
+stage. The retained implementation reuses `makeGraphRobustNoise` from the
+existing graph-noise code. The complete results below are rerun with this
+correction. A deliberately unfixed four-dimensional control fails the gradient
+check with relative discrepancy 10.89; the corrected synthetic factor is below
+5.75e-10 and the real factor below 3.05e-8. Earlier uncorrected results remain
+in the experiment directory and do not supply the acceptance numbers.
+
+### Ablation: association fixes accuracy; aggregation controls cost
+
+All rows below use the corrected robust objective, the same original map,
+original fixed world alignment and no truth in association or optimization.
+The unmerged model's failure is not hidden by evaluating only its small median.
+
+| Model | Map position RMSE / maximum | Independent surface RMSE | Plane variables / observations |
+| --- | --- | --- | --- |
+| Existing calibrated pose graph | 4.441 / 12.756 cm | 21.694 mm | — |
+| Shared voxel planes, without signed surface separation | 7.431 / 23.895 cm | 31.654 mm | 16,303 / 313,542 |
+| Signed surface separation, without connected aggregation | 0.631 / 2.007 cm | 3.360 mm | 16,895 / 317,867 |
+| Signed separation + connected aggregation + original graph | **0.608 / 1.608 cm** | **3.608 mm** | **850 / 20,242** |
+| Same aggregated geometry, removing old loop factors | 0.702 / 2.221 cm | 3.703 mm | 850 / 20,242 |
+
+Correcting association supplies the main accuracy gain. Aggregation is a
+substantial compute reduction with small accuracy tradeoffs, not a claim that
+all metrics improve against the unmerged signed model. Removing measured loops
+slightly improves some angular statistics but worsens position and surface
+accuracy; there is no basis to discard the original graph constraints.
+The chosen combined model improves map angular RMSE 0.06630→0.01486° and
+independent revisit translation RMSE 4.781→4.226 mm across the same 1,811 pairs.
+Surface scoring uses the same 633,185 original point indices and independent
+authored scene surfaces. No closest-pose alignment or per-query fitting is used.
+
+The final tool is independently implemented from point moments and analytic
+plane residuals. It does not contain the previous BALM experiment's copied
+kernel. The research references remain [BALM](https://arxiv.org/abs/2209.08854)
+and [adaptive plane extraction](https://arxiv.org/abs/2305.00287); this code
+and its association choices are not a reproduction of either full pipeline.
+
+### Complete frozen-localization evaluation
+
+Both signed models receive a full Atlas rebuild and complete original 14-bag
+and independent-route replay. The core is frozen at SHA256
+`7d6899b34a042232a5c9e59c879fdff1470f7bc446f375e6f0ad5b52efec4f75`.
+All runs use CPUs `0,2,4,6`, four registration threads and passive OpenMP waiting.
+Truth is used only by the observer/scoring scripts.
+
+| Map | Full14 position RMSE / maximum | Moving position RMSE / maximum | Moving angular maximum | Moving outputs ≤10 cm |
+| --- | --- | --- | --- | --- |
+| Accepted pose graph | 4.399 / 9.035 cm | 5.055 / 17.275 cm | 0.5450° | 2,040 / 2,232 |
+| Signed planes, unmerged | 0.690 / 2.934 cm | 1.924 / 15.415 cm | 0.5809° | 2,214 / 2,232 |
+| Signed planes, aggregated | **0.739 / 2.409 cm** | **1.921 / 15.284 cm** | **0.6013°** | **2,214 / 2,232** |
+
+Every variant processes 4,144 stationary inputs with 4,088 successful outputs,
+14/14 frame-4 locks, and 2,236 moving inputs with 2,232 successful outputs,
+one frame-4 lock and five geometric failures. Both new complete motion runs
+have zero outputs exceeding 1 m or 5°. This does not repair the known separate
+partial-map global ambiguity; no new qualification is claimed for that fixture.
+
+Aggregated geometry improves moving angular RMSE from 0.08936° to 0.04167°,
+but the maximum increases. Both signed models also have small individual
+regressions at 01 and 08. For the aggregated model, 01 position RMSE changes
+2.519→2.539 mm and maximum 8.136→8.335 mm; angular RMSE is
+0.01101→0.01319°. At 08, position maximum changes 9.241→10.423 mm and angular
+RMSE/maximum 0.01839/0.04803→0.02207/0.05855°. These are explicitly retained,
+not dismissed by the improvement in the pooled score.
+
+The aggregated motion maximum is frame 2047, 205.10 s, with 15.284 cm and
+0.6013°. Eighteen outputs still exceed 10 cm. The unmerged signed model retains
+the same count and a similar peak, so aggregation alone does not explain this
+remaining tail. The earlier same-scan target-selection diagnosis remains a
+separate localization issue. The present stage freezes that algorithm rather
+than silently modifying its acceptance policy.
+
+### Causal snapshots and cost
+
+The original 13,791-frame mapping replay completes with 13,723 successful
+frames, 1,271 keyframes and 423 loops. Accepted loop frame/query/match identities
+match the previous replay exactly; final optimized matrices differ by at most
+5.47e-11. Immutable maps are saved after actual accepted loops near six
+keyframe-count thresholds. Each snapshot contains only observations available
+by its recorded time, and original clouds match the final-map prefix exactly.
+Geometry is evaluated on those maps **without feeding its corrections back
+into the runtime**.
+
+| Available keyframes | Mapping time | Map trajectory RMSE, graph → geometry | Surface RMSE, graph → geometry |
+| --- | --- | --- | --- |
+| 203 | 202.9 s | 6.620 → 0.871 cm | 32.946 → 5.154 mm |
+| 403 | 429.1 s | 3.309 → 0.748 cm | 16.959 → 4.768 mm |
+| 618 | 682.6 s | 3.003 → 0.661 cm | 15.119 → 4.173 mm |
+| 828 | 925.6 s | 3.497 → 0.673 cm | 17.890 → 4.031 mm |
+| 1,013 | 1,135.4 s | 4.440 → 0.658 cm | 24.352 → 4.013 mm |
+| 1,203 | 1,314.3 s | 4.322 → 0.655 cm | 21.113 → 3.932 mm |
+
+The first snapshot has no pairs meeting the independent revisit separation
+rule; its revisit metric is `null`, not zero or a passed revisit test. The
+initial scorer error on this empty set is preserved, then corrected locally.
+All six snapshot geometry evaluations improve map position and surface RMSE.
+This demonstrates usefulness with causal data, not successful online feedback.
+
+The maintained tool exactly reproduces all 1,271 fully evaluated candidate
+pose matrices. Its isolated complete invocation takes **1.38 CPU seconds /
+1.38 s elapsed / 395.8 MiB RSS**, including map loading. In-tool association
+is 0.673 s, connected merging 0.043 s, factor construction/audit 0.015 s and
+optimization 0.492 s. It uses one TBB solver thread within the four-core
+allowance. The initial parallel solver trial crashed; subsequent runs use the
+same serial TBB policy as existing graph loading. This does not establish a new
+root cause for that crash or a four-thread solver speedup.
+
+Signed geometry without aggregation requires about **9.70 CPU seconds /
+2,614.5 MiB RSS**. Aggregation removes 93.6% of observation factors and 95.0%
+of plane variables, reducing this snapshot's compute and memory substantially.
+These single complete-map measurements establish the size/cost difference;
+they are not a steady online duty-cycle qualification.
+
+A complete Atlas rebuild is separate: **13.62 CPU seconds / 8.88 s elapsed /
+2.05 GiB RSS**. The aggregated map's full14 direct-core replay needs about
+0.459 CPU seconds per input second and moving replay about 0.572, versus
+0.470 and 0.571 for the baseline. The small replay differences establish no
+speedup. They exclude loading, frontend, DDS, simulator and publication; some
+supporting audits ran during replay. Causal mapping timing likewise includes
+snapshot serialization and overlaps some supporting work, so it is not a new
+paired timing result. None of these measurements certifies full-node half core.
+
+### Retained implementation and online boundary
+
+`tools/n3mapping_planar_geometry_eval.cpp` is a 199-line driver. Association,
+connected aggregation, moment-factor math and a physical derivative audit are
+separate private modules, each at most 126 lines. The only core change is a
+public entry to its existing robust-noise wrapper. The tool is opt-in through
+`N3MAPPING_BUILD_RESEARCH_TOOLS`; no new runtime mode, map format or localization
+configuration is introduced. Failed/unqualified ablation modes stay outside
+the maintained tool.
+
+Build the research target in the existing Humble build after sourcing ROS and
+the workspace, then use a new output directory:
+
+```bash
+cmake -S src/n3mapping/humble -B build/n3mapping -DN3MAPPING_BUILD_RESEARCH_TOOLS=ON
+cmake --build build/n3mapping --target n3mapping_planar_geometry_eval -j4
+LD_LIBRARY_PATH="$PWD/build/n3mapping:$LD_LIBRARY_PATH" \
+  taskset -c 0,2,4,6 build/n3mapping/n3mapping_planar_geometry_eval MAP.pbstream NEW_OUTPUT_DIRECTORY
+```
+
+The tool emits `keyframes.csv` and `report.json`; it never writes a map or
+installs a candidate. It assumes default mapping prior/kernel settings and
+stored full-six-DoF information. Planar, session-anchor and floor-attitude
+factors are explicitly rejected rather than silently omitted. Packed-cloud,
+dangling-edge, unsupported-factor and existing-output guards are exercised.
+Humble builds successfully; three relevant CTest targets pass, including 27
+graph GTest cases. An initial missing ROS environment and unwritable default
+ROS log directory are corrected by sourcing ROS and selecting a writable test
+log directory, without changing tests. Noetic wiring is updated but not built.
+The final core also completes the full independent route on the accepted map:
+all decisions are unchanged and output matrices differ by at most 1.43e-14.
+
+Promotion is deliberately withheld. Exported candidate maps are poses-only
+diagnostics; the existing loader reconstructs the stored pose graph without
+plane factors and can undo these corrections. Dense trajectories in those
+experimental maps are interpolated diagnostic transports, not independently
+qualified continuous trajectories. The next implementation must retain or
+rebuild geometric constraints, keep graph/poses/Atlas on one revision, and
+handle new keyframes and loaded-map sessions through the existing asynchronous
+worker. Actual mapping and strict-extension replays must then measure stale
+jobs, queue age, owner commit/publication cost, memory and output continuity.
+The noise-scale/correlation calibration, individual precision regressions and
+moving 10 cm tail remain explicit acceptance work. No original map/bag is
+replaced, and nothing is installed or pushed.

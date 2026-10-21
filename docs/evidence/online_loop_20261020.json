@@ -10042,5 +10042,1514 @@
       }
     },
     "next_online_gate": "Independent plane associations and directional uncertainty with preserved odometry, then bounded background work and consistent map/Atlas revisions; separately qualify causal mapping and extension"
+  },
+  "connected_plane_geometry": {
+    "base_commit": "1d0c022",
+    "cpus": "0,2,4,6",
+    "registration_threads": 4,
+    "solver_tbb_threads": 1,
+    "scope": {
+      "base_commit": "1d0c022",
+      "scope": "Geometry association and directional uncertainty; preserve current localization and full map inputs; map/trajectory accuracy before promotion",
+      "cpus": "0,2,4,6",
+      "threads": 4,
+      "truth": "Observer/scoring only, never association or optimization",
+      "frozen_core_sha256": "7d6899b34a042232a5c9e59c879fdff1470f7bc446f375e6f0ad5b52efec4f75",
+      "map": "build/n3mapping/loop_calibration_20261020/eval_maps/map_independent_neighbors/map/n3map.pbstream",
+      "experiments": [
+        "scan-consistent shared planar landmarks plus unchanged pose graph",
+        "same geometry replacing old loop factors, retaining original odometry"
+      ],
+      "predeclared": {
+        "voxel_m": 1,
+        "minimum_points": 6,
+        "minimum_scans": 3,
+        "plane_rms_max_m": 0.02,
+        "normal_agreement_deg": 5,
+        "centroid_agreement_m": 0.1,
+        "uncertainty_floor_m": 0.01
+      },
+      "limitations": [
+        "No per-location tuning or truth associations",
+        "Conservative model floor is an explicit hypothesis, not yet statistical covariance calibration",
+        "No runtime or online qualification from batch solving"
+      ]
+    },
+    "frozen_localization_core_sha256": "7d6899b34a042232a5c9e59c879fdff1470f7bc446f375e6f0ad5b52efec4f75",
+    "retained_core_sha256": "f9f3477ae67f2c9bc6cf7faf077d07a272445580b1457d6107a41f42aa9c5d20",
+    "tool_sha256": "4433c4624dc5390cd932baabfcba1c18d7ea33f6b7c369cb9a639c3d753c20d6",
+    "accepted_source_map_sha256": "39cd5276c9f47aab8deba5f85c72bba23b6dd602d9429893a5b3358cf6673862",
+    "original_inputs": {
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream.localization_atlas.pb": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+      "build/n3mapping/online_loop_20261020/manifest/frames.csv": "2c9c0619e548d69d3ec69b08c3475881497a8bf9276e425a562a8aed641bb925",
+      "src/n3mapping/map/sprobo_20261018/reentry_20261019/query/manifest/frames.csv": "2422a44c5560990ab1ac76bc4719b9c4ecc2880b7d3890fa33560270dd0f3fcf"
+    },
+    "source_sha256": {
+      "src/n3mapping/tools/n3mapping_planar_geometry_eval.cpp": "8909254b4f99a33b6efc15c4dd927b47a86f11a52e9a3e31462f6c8fcab626f9",
+      "src/n3mapping/tools/planar_geometry/association.cpp": "5e1c7f9f8793381e37757b694926daa249135d4340e0537370db99a8d0ad770f",
+      "src/n3mapping/tools/planar_geometry/association.h": "f53e387caaac5f491236fa19e1d03d358319da715fdd3201a937d4232bf1abb4",
+      "src/n3mapping/tools/planar_geometry/factor_audit.h": "4e9200b53eb3158627bfc9a8f8805c58c4a011c6294f76e896c41f5e4b45e767",
+      "src/n3mapping/tools/planar_geometry/merging.cpp": "06a71aecc073e4e2a0a6ecf206c755955572cb24810e6856b242d72111c1280c",
+      "src/n3mapping/tools/planar_geometry/moment_factor.h": "5c2bf23b694e05cb57a3641b7ab0704892cda17327625599a58376497d09a4dc",
+      "src/n3mapping/include/n3mapping/graph_factor_noise.h": "f98aa0b7120c6c415e4cd9dddfb24dd910883cd0c372e3fd750dacbdec845f83",
+      "src/n3mapping/src/graph_factor_noise.cpp": "aedd78ae5a61ff30048ea2aa3e6b1c5652f8f4f177fafaeeaa33f0b17d7d9d94"
+    },
+    "comparison": {
+      "pgo": {
+        "fixed14": {
+          "frames": 4144,
+          "outputs": 4088,
+          "locks": "14/14 at frame 4",
+          "position_rmse_m": 0.04398564551156586,
+          "position_max_m": 0.09035172655462219,
+          "cpu_seconds_per_input_second": 0.46975311040166023,
+          "peak_rss_mib": 1802.53125
+        },
+        "motion": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "position_m": {
+            "rmse": 0.050554361673096584,
+            "median": 0.03573030215007031,
+            "p95": 0.10426521525841505,
+            "maximum": 0.1727533477721618
+          },
+          "angle_deg": {
+            "rmse": 0.08935880209794653,
+            "median": 0.051831611212751455,
+            "p95": 0.15898745405860903,
+            "maximum": 0.5449998048383281
+          },
+          "within_10cm": 2040,
+          "cpu_s": 127.60103184900001,
+          "cpu_seconds_per_input_second": 0.5709218427248323,
+          "wall_s_unpaced": 40.563747979
+        },
+        "retained": true
+      },
+      "merged_robust": {
+        "map_sha256": "c05502520b84a2d0990b0e33e2a5ba6ebf168436c2e5c06502c0542332deba79",
+        "clouds_odometry_and_edges_preserved": true,
+        "map_accuracy": {
+          "position_m": {
+            "rmse": 0.006083207219801309,
+            "median": 0.005253128436832043,
+            "p95": 0.010161854725247136,
+            "maximum": 0.016078734015809712
+          },
+          "rotation_deg": {
+            "rmse": 0.014860277875006602,
+            "median": 0.011224490225345909,
+            "p95": 0.02708860485605409,
+            "maximum": 0.06734209047191902
+          },
+          "independent_revisits": {
+            "count": 1811,
+            "relative_translation_m": {
+              "rmse": 0.004225978523634447,
+              "median": 0.0023554060830844855,
+              "p95": 0.00862861937907114,
+              "maximum": 0.017272138285075393
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.016805328145710913,
+              "median": 0.007265265008679684,
+              "p95": 0.03909088797299906,
+              "maximum": 0.06766007627585194
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.0036077847138299077,
+            "median": 0.002338930840815573,
+            "p95": 0.007366288708683781,
+            "maximum": 0.025654147651698628,
+            "points": 633185,
+            "incomplete_over_2m": 0
+          }
+        },
+        "fixed14": {
+          "frames": 4144,
+          "outputs": 4088,
+          "locks": "14/14 at frame 4",
+          "position_rmse_m": 0.007391302996578828,
+          "position_max_m": 0.02408790374141809,
+          "individual_regressions": [
+            {
+              "id": "01_west_corridor",
+              "metrics": {
+                "position_error_m_rmse": [
+                  0.0025194572130705834,
+                  0.0025392450449258264
+                ],
+                "position_error_m_maximum": [
+                  0.008136256958364629,
+                  0.008334717180693021
+                ],
+                "rotation_error_deg_rmse": [
+                  0.011013667807019454,
+                  0.013189336471571786
+                ]
+              }
+            },
+            {
+              "id": "08_west_shelves",
+              "metrics": {
+                "position_error_m_maximum": [
+                  0.009241041221718784,
+                  0.010422571873848652
+                ],
+                "rotation_error_deg_rmse": [
+                  0.018387821562772244,
+                  0.022071631166133067
+                ],
+                "rotation_error_deg_maximum": [
+                  0.04803179077521377,
+                  0.05854965163442819
+                ]
+              }
+            }
+          ],
+          "cpu_seconds_per_input_second": 0.4590572806378168,
+          "peak_rss_mib": 1749.015625
+        },
+        "motion": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "position_m": {
+            "rmse": 0.019210992049410115,
+            "median": 0.005383172453971983,
+            "p95": 0.03697850821701049,
+            "maximum": 0.1528375113643375
+          },
+          "angle_deg": {
+            "rmse": 0.041666342291711934,
+            "median": 0.014422665013875284,
+            "p95": 0.04279456632372845,
+            "maximum": 0.6013299999827085
+          },
+          "audit": {
+            "frames": 2236,
+            "outputs": 2232,
+            "locks": [
+              4
+            ],
+            "within_10cm": 2214,
+            "gross_outputs": 0,
+            "gross_geometric": 0,
+            "first_gross": null,
+            "last_gross": null
+          },
+          "decisions": {
+            "temporal_window_pending": 4,
+            "accepted": 1,
+            "tracking_geometric": 2226,
+            "icp_gate_failed": 5
+          },
+          "cpu_s": 127.867391976,
+          "cpu_seconds_per_input_second": 0.5721136106308724,
+          "wall_s_unpaced": 40.639426957000005
+        },
+        "release_qualified": false,
+        "online_feedback_qualified": false
+      },
+      "oriented_only_robust": {
+        "map_sha256": "8f962dede038322d489e54c2a7593751869cd02c49c7fc1e8e8679e943143280",
+        "clouds_odometry_and_edges_preserved": true,
+        "map_accuracy": {
+          "position_m": {
+            "rmse": 0.006309260980255752,
+            "median": 0.005766813616648473,
+            "p95": 0.009884568538145627,
+            "maximum": 0.02006884146192762
+          },
+          "rotation_deg": {
+            "rmse": 0.012784232396193466,
+            "median": 0.009219214636762748,
+            "p95": 0.024321980954837986,
+            "maximum": 0.06361951142297471
+          },
+          "independent_revisits": {
+            "count": 1811,
+            "relative_translation_m": {
+              "rmse": 0.0041379436060471645,
+              "median": 0.0022158321631490997,
+              "p95": 0.008514550576999468,
+              "maximum": 0.01725592613738899
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.015437612846603188,
+              "median": 0.0037996070771655842,
+              "p95": 0.036524773847642744,
+              "maximum": 0.06119485369268911
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.003359533026845285,
+            "median": 0.0021888007202846838,
+            "p95": 0.006552329958464058,
+            "maximum": 0.022766038063251837,
+            "points": 633185,
+            "incomplete_over_2m": 0
+          }
+        },
+        "fixed14": {
+          "frames": 4144,
+          "outputs": 4088,
+          "locks": "14/14 at frame 4",
+          "position_rmse_m": 0.006899398275998079,
+          "position_max_m": 0.029341805435281157,
+          "individual_regressions": [
+            {
+              "id": "01_west_corridor",
+              "metrics": {
+                "position_error_m_rmse": [
+                  0.0025194572130705834,
+                  0.0025321706559772055
+                ],
+                "position_error_m_maximum": [
+                  0.008136256958364629,
+                  0.008277917189608476
+                ],
+                "rotation_error_deg_rmse": [
+                  0.011013667807019454,
+                  0.011719360881817114
+                ],
+                "rotation_error_deg_maximum": [
+                  0.026698237926867187,
+                  0.027183341396676088
+                ]
+              }
+            },
+            {
+              "id": "08_west_shelves",
+              "metrics": {
+                "position_error_m_maximum": [
+                  0.009241041221718784,
+                  0.009612183864569461
+                ],
+                "rotation_error_deg_rmse": [
+                  0.018387821562772244,
+                  0.019057496467959924
+                ],
+                "rotation_error_deg_maximum": [
+                  0.04803179077521377,
+                  0.05186189494847579
+                ]
+              }
+            }
+          ],
+          "cpu_seconds_per_input_second": 0.46189621762278316,
+          "peak_rss_mib": 1737.609375
+        },
+        "motion": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "position_m": {
+            "rmse": 0.01923993792494471,
+            "median": 0.005511002777962789,
+            "p95": 0.03372065411613313,
+            "maximum": 0.15414590902805647
+          },
+          "angle_deg": {
+            "rmse": 0.04007257422395182,
+            "median": 0.012776146815324827,
+            "p95": 0.04186331363184241,
+            "maximum": 0.5809432274746137
+          },
+          "audit": {
+            "frames": 2236,
+            "outputs": 2232,
+            "locks": [
+              4
+            ],
+            "within_10cm": 2214,
+            "gross_outputs": 0,
+            "gross_geometric": 0,
+            "first_gross": null,
+            "last_gross": null
+          },
+          "decisions": {
+            "temporal_window_pending": 4,
+            "accepted": 1,
+            "tracking_geometric": 2226,
+            "icp_gate_failed": 5
+          },
+          "cpu_s": 127.047989066,
+          "cpu_seconds_per_input_second": 0.5684473783713646,
+          "wall_s_unpaced": 39.886689691
+        },
+        "release_qualified": false,
+        "online_feedback_qualified": false
+      }
+    },
+    "map_baseline": {
+      "position_m": {
+        "rmse": 0.044410960699380046,
+        "median": 0.031485674621759524,
+        "p95": 0.08977402498508719,
+        "maximum": 0.12755712786132187
+      },
+      "rotation_deg": {
+        "rmse": 0.06629868762935272,
+        "median": 0.0527466615157736,
+        "p95": 0.1241340351617183,
+        "maximum": 0.19126968884831544
+      },
+      "independent_revisits": {
+        "count": 1811,
+        "relative_translation_m": {
+          "rmse": 0.004780570963592838,
+          "median": 0.002745623086572408,
+          "p95": 0.010067364427385778,
+          "maximum": 0.01821395863985154
+        },
+        "relative_rotation_deg": {
+          "rmse": 0.018618892426891197,
+          "median": 0.009696849274423092,
+          "p95": 0.03840359334438089,
+          "maximum": 0.07005287482158189
+        }
+      }
+    },
+    "surface_baseline": {
+      "scope": "Independent scene surface audit with the original fixed mapping alignment",
+      "results": {
+        "pgo": {
+          "points": 633185,
+          "selection": "Every 20th original point in every map keyframe, same indices for all variants",
+          "incomplete_over_2m": 0,
+          "rmse_m": 0.021693989785455413,
+          "median_m": 0.006440711689981532,
+          "p95_m": 0.04850739236631792,
+          "maximum_m": 0.1560975044175464,
+          "within_1cm": 407130,
+          "within_5cm": 603411
+        },
+        "joint": {
+          "points": 633185,
+          "selection": "Every 20th original point in every map keyframe, same indices for all variants",
+          "incomplete_over_2m": 0,
+          "rmse_m": 0.02191475357016321,
+          "median_m": 0.006528024946894112,
+          "p95_m": 0.048488832414513176,
+          "maximum_m": 0.23845462486043276,
+          "within_1cm": 408343,
+          "within_5cm": 603027
+        },
+        "propagated": {
+          "points": 633185,
+          "selection": "Every 20th original point in every map keyframe, same indices for all variants",
+          "incomplete_over_2m": 0,
+          "rmse_m": 0.08366241959766342,
+          "median_m": 0.009212595294611076,
+          "p95_m": 0.20931723116121065,
+          "maximum_m": 0.49978075854024495,
+          "within_1cm": 330214,
+          "within_5cm": 492968
+        }
+      }
+    },
+    "ablations": {
+      "unmerged_robust": {
+        "accuracy": {
+          "position_m": {
+            "rmse": 0.07430869153025986,
+            "median": 0.006449134506293249,
+            "p95": 0.19669994130574708,
+            "maximum": 0.23895114878409832
+          },
+          "rotation_deg": {
+            "rmse": 0.06770614821668673,
+            "median": 0.01264364742249444,
+            "p95": 0.13243854067351352,
+            "maximum": 0.14810002952459442
+          },
+          "independent_revisits": {
+            "count": 1811,
+            "relative_translation_m": {
+              "rmse": 0.004134919646654079,
+              "median": 0.002201656441205282,
+              "p95": 0.008595846623095114,
+              "maximum": 0.017247813796731255
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.01567260030345317,
+              "median": 0.004453510741579066,
+              "p95": 0.036938428668062656,
+              "maximum": 0.06122426678676338
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.03165350977277129,
+            "median": 0.002345775706376424,
+            "p95": 0.06099239330508876,
+            "maximum": 0.2206665213465598,
+            "points": 633185,
+            "incomplete_over_2m": 0
+          }
+        },
+        "report": {
+          "association_outliers": 6687,
+          "final_cost": 5261.4725094951355,
+          "initial_cost": 25215.06577419799,
+          "iterations": 5,
+          "jacobian_max_abs": 4.125677403876704e-10,
+          "landmarks": 16303,
+          "loop_edges": 423,
+          "max_pose_change_m": 0.12064161817767245,
+          "mode": "add",
+          "nonplanar_patches": 120444,
+          "observations": 313542,
+          "odometry_edges": 1270,
+          "raw_patches": 447637,
+          "robust_cost_gradient_relative_max": 3.229322809161772e-09,
+          "solve_wall_s": 8.86295849,
+          "tangent_translation_information_norm": 1.7156991517146452e-17,
+          "truth_used": false,
+          "wall_s": 9.896235074
+        },
+        "resources": {
+          "user_s": 9.37,
+          "system_s": 0.7,
+          "peak_rss_kib": 2255032.0,
+          "cpu_s": 10.069999999999999
+        }
+      },
+      "oriented_only_robust": {
+        "accuracy": {
+          "position_m": {
+            "rmse": 0.006309260980255752,
+            "median": 0.005766813616648473,
+            "p95": 0.009884568538145627,
+            "maximum": 0.02006884146192762
+          },
+          "rotation_deg": {
+            "rmse": 0.012784232396193466,
+            "median": 0.009219214636762748,
+            "p95": 0.024321980954837986,
+            "maximum": 0.06361951142297471
+          },
+          "independent_revisits": {
+            "count": 1811,
+            "relative_translation_m": {
+              "rmse": 0.0041379436060471645,
+              "median": 0.0022158321631490997,
+              "p95": 0.008514550576999468,
+              "maximum": 0.01725592613738899
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.015437612846603188,
+              "median": 0.0037996070771655842,
+              "p95": 0.036524773847642744,
+              "maximum": 0.06119485369268911
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.003359533026845285,
+            "median": 0.0021888007202846838,
+            "p95": 0.006552329958464058,
+            "maximum": 0.022766038063251837,
+            "points": 633185,
+            "incomplete_over_2m": 0
+          }
+        },
+        "report": {
+          "association_outliers": 4,
+          "final_cost": 5077.912360411407,
+          "initial_cost": 23011.962209923153,
+          "iterations": 5,
+          "jacobian_max_abs": 4.125677403876704e-10,
+          "landmarks": 16895,
+          "loop_edges": 423,
+          "max_pose_change_m": 0.12634379259190864,
+          "mode": "oriented_only",
+          "nonplanar_patches": 120444,
+          "observations": 317867,
+          "odometry_edges": 1270,
+          "raw_patches": 447637,
+          "robust_cost_gradient_relative_max": 3.229322809161772e-09,
+          "solve_wall_s": 8.473861087,
+          "tangent_translation_information_norm": 1.7156991517146452e-17,
+          "truth_used": false,
+          "wall_s": 9.513105093
+        },
+        "resources": {
+          "user_s": 9.06,
+          "system_s": 0.64,
+          "peak_rss_kib": 2677292.0,
+          "cpu_s": 9.700000000000001
+        }
+      },
+      "merged_drop_loops_robust": {
+        "accuracy": {
+          "position_m": {
+            "rmse": 0.00701638612079709,
+            "median": 0.006171564013436558,
+            "p95": 0.011360937277111335,
+            "maximum": 0.022207313303817887
+          },
+          "rotation_deg": {
+            "rmse": 0.012795236162915936,
+            "median": 0.007998033577777591,
+            "p95": 0.02615596979523265,
+            "maximum": 0.0630785317994586
+          },
+          "independent_revisits": {
+            "count": 1811,
+            "relative_translation_m": {
+              "rmse": 0.0042144323514346806,
+              "median": 0.0023717188346901513,
+              "p95": 0.008583105564124633,
+              "maximum": 0.017342405176671988
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.01713710273257995,
+              "median": 0.007203213267792395,
+              "p95": 0.03972354830789049,
+              "maximum": 0.06724205313105126
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.0037027109447324955,
+            "median": 0.002781760628801061,
+            "p95": 0.006627779684680037,
+            "maximum": 0.027249263297264376,
+            "points": 633185,
+            "incomplete_over_2m": 0
+          }
+        },
+        "report": {
+          "association_outliers": 4,
+          "final_cost": 1356.6259450672478,
+          "initial_cost": 3863.272481863583,
+          "iterations": 4,
+          "jacobian_max_abs": 2.8252523064098423e-10,
+          "landmarks": 850,
+          "largest_merged_component": 7761,
+          "loop_edges": 0,
+          "max_pose_change_m": 0.12419757551063726,
+          "merged_components_refused": 7,
+          "mode": "merged_replace_loops",
+          "nonplanar_patches": 120444,
+          "observations": 20242,
+          "odometry_edges": 1270,
+          "raw_patches": 447637,
+          "robust_cost_gradient_relative_max": 3.045291774306236e-08,
+          "solve_wall_s": 0.238490299,
+          "tangent_translation_information_norm": 5.2042726009660234e-18,
+          "truth_used": false,
+          "unmerged_landmarks": 16895,
+          "wall_s": 1.094062297
+        },
+        "resources": {
+          "user_s": 1.0,
+          "system_s": 0.12,
+          "peak_rss_kib": 405212.0,
+          "cpu_s": 1.12
+        }
+      },
+      "merged_robust": {
+        "accuracy": {
+          "position_m": {
+            "rmse": 0.006083207219801309,
+            "median": 0.005253128436832043,
+            "p95": 0.010161854725247136,
+            "maximum": 0.016078734015809712
+          },
+          "rotation_deg": {
+            "rmse": 0.014860277875006602,
+            "median": 0.011224490225345909,
+            "p95": 0.02708860485605409,
+            "maximum": 0.06734209047191902
+          },
+          "independent_revisits": {
+            "count": 1811,
+            "relative_translation_m": {
+              "rmse": 0.004225978523634447,
+              "median": 0.0023554060830844855,
+              "p95": 0.00862861937907114,
+              "maximum": 0.017272138285075393
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.016805328145710913,
+              "median": 0.007265265008679684,
+              "p95": 0.03909088797299906,
+              "maximum": 0.06766007627585194
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.0036077847138299077,
+            "median": 0.002338930840815573,
+            "p95": 0.007366288708683781,
+            "maximum": 0.025654147651698628,
+            "points": 633185,
+            "incomplete_over_2m": 0
+          }
+        },
+        "report": {
+          "association_outliers": 4,
+          "final_cost": 1388.699636072547,
+          "initial_cost": 3871.836310194392,
+          "iterations": 6,
+          "jacobian_max_abs": 2.8252523064098423e-10,
+          "landmarks": 850,
+          "largest_merged_component": 7761,
+          "loop_edges": 423,
+          "max_pose_change_m": 0.12362896215145396,
+          "merged_components_refused": 7,
+          "mode": "merged_add",
+          "nonplanar_patches": 120444,
+          "observations": 20242,
+          "odometry_edges": 1270,
+          "raw_patches": 447637,
+          "robust_cost_gradient_relative_max": 3.045291774306236e-08,
+          "solve_wall_s": 0.435751869,
+          "tangent_translation_information_norm": 5.2042726009660234e-18,
+          "truth_used": false,
+          "unmerged_landmarks": 16895,
+          "wall_s": 1.292211598
+        },
+        "resources": {
+          "user_s": 1.18,
+          "system_s": 0.13,
+          "peak_rss_kib": 405508.0,
+          "cpu_s": 1.31
+        }
+      }
+    },
+    "maintained_tool": {
+      "report": {
+        "association_outliers": 4,
+        "association_wall_s": 0.67334752,
+        "final_cost": 1388.699636072547,
+        "geometry_factors_wall_s": 0.014504217,
+        "initial_cost": 3871.836310194392,
+        "iterations": 6,
+        "jacobian_max_abs": 2.8252523064098423e-10,
+        "landmarks": 850,
+        "largest_merged_component": 7761,
+        "loop_edges": 423,
+        "max_pose_change_m": 0.12362896215145396,
+        "merged_components_refused": 7,
+        "merging_wall_s": 0.042807988,
+        "mode": "shared_connected_planes",
+        "nonplanar_patches": 120444,
+        "observations": 20242,
+        "odometry_edges": 1270,
+        "online_feedback_qualified": false,
+        "raw_patches": 447637,
+        "robust_cost_gradient_relative_max": 3.045291774306236e-08,
+        "solve_wall_s": 0.491569466,
+        "tangent_translation_information_norm": 5.2042726009660234e-18,
+        "truth_used": false,
+        "unmerged_landmarks": 16895,
+        "wall_s": 1.332668519
+      },
+      "resources": {
+        "user_s": 1.21,
+        "system_s": 0.17,
+        "peak_rss_kib": 405252.0,
+        "cpu_s": 1.38
+      },
+      "output_equivalence": {
+        "maximum_matrix_delta": 0.0,
+        "complete_keyframes": 1271
+      }
+    },
+    "retained_runtime_equivalence": {
+      "frames": 2236,
+      "outputs": 2232,
+      "decisions_identical": true,
+      "decision_columns": [
+        "success",
+        "live",
+        "lock",
+        "state",
+        "pose_source",
+        "decision",
+        "seed",
+        "support",
+        "matched"
+      ],
+      "maximum_matrix_delta": 1.4210854715202004e-14
+    },
+    "physical_and_negative_control": {
+      "control_exception": "Robust objective and IRLS gradient disagree",
+      "correct_shared_noise": {
+        "jacobian_max_abs": 1.1597423021925124e-10,
+        "robust_cost_gradient_relative_max": 5.742685470538561e-10,
+        "tangent_translation_information_norm": 4.769974182978984e-17
+      },
+      "direct_mean_squared_distance_delta": 6.7220534694101275e-18,
+      "replicating_points_residual_max_delta": 0.0,
+      "rotation_about_normal_information_norm": 5.551115123125783e-17,
+      "truth_used": false,
+      "unfixed_control": {
+        "jacobian_max_abs": 1.1597423021925124e-10,
+        "robust_cost_gradient_relative_max": 10.888888903649864,
+        "tangent_translation_information_norm": 4.769974182978984e-17
+      }
+    },
+    "causal_replay": {
+      "frames": 13791,
+      "keyframes": 1271,
+      "successful_frames": 13723,
+      "accepted_loops": 423,
+      "mapping_cpu_s": 60.61100655599761,
+      "loop_cpu_s": 415.2873480509971,
+      "runtime_cpu_s": 477.42978970900003,
+      "runtime_wall_s": 166.152283521,
+      "source_duration_s": 1379,
+      "max_pacing_lag_s": 0,
+      "peak_rss_kib": 698140,
+      "paced": false
+    },
+    "causal_provenance": {
+      "snapshots": [
+        {
+          "keyframes": 203,
+          "map_sha256": "2dc974f2cac1ab64317df4a2df9099c9ee99cc25216d57520348ec8a175c3289",
+          "maximum_keyframe_time": 202.89999500200003,
+          "snapshot_stamp_s": 202.89999500200003,
+          "clouds_equal_final_prefix": true,
+          "causal": true
+        },
+        {
+          "keyframes": 403,
+          "map_sha256": "b4f545117cac1892db43ab45754b27149931cbe4447b1c27710df92c1634abca",
+          "maximum_keyframe_time": 429.099995002,
+          "snapshot_stamp_s": 429.099995002,
+          "clouds_equal_final_prefix": true,
+          "causal": true
+        },
+        {
+          "keyframes": 618,
+          "map_sha256": "65edacd0a0c3697e168bf0ef14b77bd4319078fbe1ac46de87d9075e68e9b8e1",
+          "maximum_keyframe_time": 682.599995002,
+          "snapshot_stamp_s": 682.599995002,
+          "clouds_equal_final_prefix": true,
+          "causal": true
+        },
+        {
+          "keyframes": 828,
+          "map_sha256": "3e229652c3f1d5d0d2985e19f6b0530582a7f9b711e18c73cb7d47022421964e",
+          "maximum_keyframe_time": 925.599995002,
+          "snapshot_stamp_s": 925.599995002,
+          "clouds_equal_final_prefix": true,
+          "causal": true
+        },
+        {
+          "keyframes": 1013,
+          "map_sha256": "ac265f5d5bc579df061ccd8709533c976b88c58e5bb703a25af2b3c52dfdebe0",
+          "maximum_keyframe_time": 1135.3999899970001,
+          "snapshot_stamp_s": 1135.3999899970001,
+          "clouds_equal_final_prefix": true,
+          "causal": true
+        },
+        {
+          "keyframes": 1203,
+          "map_sha256": "8571c0bede29240589e2196a27d623518094c594c4e8f40be968eb82bfb3d0fb",
+          "maximum_keyframe_time": 1314.299995002,
+          "snapshot_stamp_s": 1314.299995002,
+          "clouds_equal_final_prefix": true,
+          "causal": true
+        }
+      ],
+      "accepted_loop_identity_equal": true,
+      "accepted_loops": 423,
+      "final_pose_matrix_max_delta": 5.46016565294849e-11,
+      "geometry_feedback_into_runtime": false
+    },
+    "causal_snapshots": [
+      {
+        "keyframes": 203,
+        "time_s": 202.89999500200003,
+        "baseline": {
+          "position_m": {
+            "rmse": 0.06619692424062672,
+            "median": 0.05551288314743819,
+            "p95": 0.09973699722930583,
+            "maximum": 0.10864998427358237
+          },
+          "rotation_deg": {
+            "rmse": 0.09471312523792796,
+            "median": 0.08408372445411416,
+            "p95": 0.15875968831932974,
+            "maximum": 0.17675092808853263
+          },
+          "independent_revisits": {
+            "count": 0,
+            "relative_translation_m": null,
+            "relative_rotation_deg": null
+          },
+          "surface_distance_m": {
+            "rmse": 0.03294636269072671,
+            "median": 0.013583656146073514,
+            "p95": 0.08273330171043759,
+            "maximum": 0.11561002408873974,
+            "points": 101148,
+            "incomplete_over_2m": 0
+          }
+        },
+        "geometry": {
+          "position_m": {
+            "rmse": 0.008705358592967288,
+            "median": 0.008981668560692919,
+            "p95": 0.011024220352869705,
+            "maximum": 0.012295003624816378
+          },
+          "rotation_deg": {
+            "rmse": 0.015190755444797071,
+            "median": 0.012724323495469663,
+            "p95": 0.021498181451598677,
+            "maximum": 0.06165909055669403
+          },
+          "independent_revisits": {
+            "count": 0,
+            "relative_translation_m": null,
+            "relative_rotation_deg": null
+          },
+          "surface_distance_m": {
+            "rmse": 0.005154138290320482,
+            "median": 0.0034251586221287766,
+            "p95": 0.008800506893515142,
+            "maximum": 0.013740253362828886,
+            "points": 101148,
+            "incomplete_over_2m": 0
+          }
+        },
+        "solver": {
+          "association_outliers": 1,
+          "final_cost": 157.57662982668626,
+          "initial_cost": 260.0763243721247,
+          "iterations": 6,
+          "jacobian_max_abs": 5.822627935359037e-10,
+          "landmarks": 172,
+          "largest_merged_component": 1459,
+          "loop_edges": 48,
+          "max_pose_change_m": 0.10745777957539003,
+          "merged_components_refused": 2,
+          "mode": "merged_add",
+          "nonplanar_patches": 16231,
+          "observations": 2655,
+          "odometry_edges": 202,
+          "raw_patches": 60895,
+          "robust_cost_gradient_relative_max": 1.9917114069123443e-08,
+          "solve_wall_s": 0.041912112,
+          "tangent_translation_information_norm": 1.734928656333304e-18,
+          "truth_used": false,
+          "unmerged_landmarks": 3130,
+          "wall_s": 0.165525145
+        },
+        "resources": {
+          "user_s": 0.16,
+          "system_s": 0.02,
+          "peak_rss_kib": 97916.0,
+          "cpu_s": 0.18
+        }
+      },
+      {
+        "keyframes": 403,
+        "time_s": 429.099995002,
+        "baseline": {
+          "position_m": {
+            "rmse": 0.033089763687091024,
+            "median": 0.029772562257455542,
+            "p95": 0.04796115156742147,
+            "maximum": 0.06475142786844326
+          },
+          "rotation_deg": {
+            "rmse": 0.05728942000064447,
+            "median": 0.055169908538205074,
+            "p95": 0.07843721666426688,
+            "maximum": 0.12388625161382866
+          },
+          "independent_revisits": {
+            "count": 140,
+            "relative_translation_m": {
+              "rmse": 0.004752680923201081,
+              "median": 0.002669737736809527,
+              "p95": 0.009470369278638303,
+              "maximum": 0.018213958647036878
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.017767043607260655,
+              "median": 0.008538088183254175,
+              "p95": 0.0346426514994931,
+              "maximum": 0.04463887884647437
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.016959078794226732,
+            "median": 0.00792346714617434,
+            "p95": 0.037677067120536,
+            "maximum": 0.06525200079775004,
+            "points": 200683,
+            "incomplete_over_2m": 0
+          }
+        },
+        "geometry": {
+          "position_m": {
+            "rmse": 0.007476610643879259,
+            "median": 0.006826948537361314,
+            "p95": 0.01075241215055776,
+            "maximum": 0.013811920983586369
+          },
+          "rotation_deg": {
+            "rmse": 0.016273953599924403,
+            "median": 0.013146484501494894,
+            "p95": 0.027233014930021934,
+            "maximum": 0.06134480193305559
+          },
+          "independent_revisits": {
+            "count": 140,
+            "relative_translation_m": {
+              "rmse": 0.003452365982705983,
+              "median": 0.0013352382248749467,
+              "p95": 0.0062469542464235524,
+              "maximum": 0.014545013875107272
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.012803892010115623,
+              "median": 0.0057174938336196635,
+              "p95": 0.02813622612167479,
+              "maximum": 0.03736152136098984
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.0047682757934880355,
+            "median": 0.0033202514079150036,
+            "p95": 0.009281487711181086,
+            "maximum": 0.019928143549559157,
+            "points": 200683,
+            "incomplete_over_2m": 0
+          }
+        },
+        "solver": {
+          "association_outliers": 2,
+          "final_cost": 397.7608940736561,
+          "initial_cost": 748.1983284604468,
+          "iterations": 7,
+          "jacobian_max_abs": 5.7902327377235e-10,
+          "landmarks": 356,
+          "largest_merged_component": 2864,
+          "loop_edges": 136,
+          "max_pose_change_m": 0.06092493827968385,
+          "merged_components_refused": 4,
+          "mode": "merged_add",
+          "nonplanar_patches": 36649,
+          "observations": 6373,
+          "odometry_edges": 402,
+          "raw_patches": 137231,
+          "robust_cost_gradient_relative_max": 2.0620587459774242e-08,
+          "solve_wall_s": 0.122739517,
+          "tangent_translation_information_norm": 4.6798570335800094e-20,
+          "truth_used": false,
+          "unmerged_landmarks": 5964,
+          "wall_s": 0.38617336
+        },
+        "resources": {
+          "user_s": 0.36,
+          "system_s": 0.04,
+          "peak_rss_kib": 157808.0,
+          "cpu_s": 0.39999999999999997
+        }
+      },
+      {
+        "keyframes": 618,
+        "time_s": 682.599995002,
+        "baseline": {
+          "position_m": {
+            "rmse": 0.030029666631257577,
+            "median": 0.025789331767761853,
+            "p95": 0.05080600016217778,
+            "maximum": 0.08255027304854473
+          },
+          "rotation_deg": {
+            "rmse": 0.05212575192836735,
+            "median": 0.050577556683202504,
+            "p95": 0.07828397758616121,
+            "maximum": 0.12711183103883128
+          },
+          "independent_revisits": {
+            "count": 415,
+            "relative_translation_m": {
+              "rmse": 0.004913586919308818,
+              "median": 0.002757921974332687,
+              "p95": 0.009785623520503965,
+              "maximum": 0.018213958639833244
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.018834275250448056,
+              "median": 0.009544169861364915,
+              "p95": 0.03990250296246502,
+              "maximum": 0.049401640142899834
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.015118838084798471,
+            "median": 0.004589200393929682,
+            "p95": 0.03667232807496887,
+            "maximum": 0.09404353682445094,
+            "points": 307841,
+            "incomplete_over_2m": 0
+          }
+        },
+        "geometry": {
+          "position_m": {
+            "rmse": 0.006605749415359765,
+            "median": 0.005346628919545096,
+            "p95": 0.011464480383942209,
+            "maximum": 0.014781285157783729
+          },
+          "rotation_deg": {
+            "rmse": 0.014941926261501995,
+            "median": 0.01154521399519065,
+            "p95": 0.026883289122292025,
+            "maximum": 0.0588361965647931
+          },
+          "independent_revisits": {
+            "count": 415,
+            "relative_translation_m": {
+              "rmse": 0.004398128105182576,
+              "median": 0.002073561399911347,
+              "p95": 0.008489957629851011,
+              "maximum": 0.016838100511541963
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.017143433609310997,
+              "median": 0.007501062109394104,
+              "p95": 0.03876640527294221,
+              "maximum": 0.05239488819052691
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.00417293849660544,
+            "median": 0.001860583195414739,
+            "p95": 0.008985924499394476,
+            "maximum": 0.023677940728911717,
+            "points": 307841,
+            "incomplete_over_2m": 0
+          }
+        },
+        "solver": {
+          "association_outliers": 3,
+          "final_cost": 728.7740842867973,
+          "initial_cost": 1495.2919077931092,
+          "iterations": 7,
+          "jacobian_max_abs": 5.748324038989949e-10,
+          "landmarks": 542,
+          "largest_merged_component": 4172,
+          "loop_edges": 212,
+          "max_pose_change_m": 0.0763284263063039,
+          "merged_components_refused": 7,
+          "mode": "merged_add",
+          "nonplanar_patches": 58622,
+          "observations": 10856,
+          "odometry_edges": 617,
+          "raw_patches": 218194,
+          "robust_cost_gradient_relative_max": 4.0900156740575344e-08,
+          "solve_wall_s": 0.291922551,
+          "tangent_translation_information_norm": 1.7359892338379007e-18,
+          "truth_used": false,
+          "unmerged_landmarks": 8862,
+          "wall_s": 0.711206432
+        },
+        "resources": {
+          "user_s": 0.66,
+          "system_s": 0.08,
+          "peak_rss_kib": 221156.0,
+          "cpu_s": 0.74
+        }
+      },
+      {
+        "keyframes": 828,
+        "time_s": 925.599995002,
+        "baseline": {
+          "position_m": {
+            "rmse": 0.03497027247624864,
+            "median": 0.030827340803729716,
+            "p95": 0.06244338881829979,
+            "maximum": 0.07598348253939
+          },
+          "rotation_deg": {
+            "rmse": 0.05110241112280715,
+            "median": 0.04839621570624163,
+            "p95": 0.09072055342946278,
+            "maximum": 0.13646812884615453
+          },
+          "independent_revisits": {
+            "count": 597,
+            "relative_translation_m": {
+              "rmse": 0.005743239428239084,
+              "median": 0.0033111490115941564,
+              "p95": 0.011559177257575036,
+              "maximum": 0.02278235700183513
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.022110433725646146,
+              "median": 0.011159553922017989,
+              "p95": 0.04259934198816323,
+              "maximum": 0.08541333214784977
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.017889821571401888,
+            "median": 0.005672523485376946,
+            "p95": 0.0394688196062407,
+            "maximum": 0.07419464770705275,
+            "points": 412610,
+            "incomplete_over_2m": 0
+          }
+        },
+        "geometry": {
+          "position_m": {
+            "rmse": 0.006728276867621599,
+            "median": 0.005991665967232338,
+            "p95": 0.011371562567780935,
+            "maximum": 0.017266580667211873
+          },
+          "rotation_deg": {
+            "rmse": 0.015143631928184546,
+            "median": 0.0115466071033067,
+            "p95": 0.029074308735510417,
+            "maximum": 0.05883595527539021
+          },
+          "independent_revisits": {
+            "count": 597,
+            "relative_translation_m": {
+              "rmse": 0.004693408077697848,
+              "median": 0.0026903135135790046,
+              "p95": 0.00943689316759866,
+              "maximum": 0.01683808827646367
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.01960122374550757,
+              "median": 0.008512656616512333,
+              "p95": 0.04087825821257878,
+              "maximum": 0.06739508176341878
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.004031097547403392,
+            "median": 0.0022994077848384337,
+            "p95": 0.008467226837470091,
+            "maximum": 0.023668644486643964,
+            "points": 412610,
+            "incomplete_over_2m": 0
+          }
+        },
+        "solver": {
+          "association_outliers": 3,
+          "final_cost": 987.2737624261626,
+          "initial_cost": 2553.9407781268546,
+          "iterations": 6,
+          "jacobian_max_abs": 5.472329256406283e-10,
+          "landmarks": 658,
+          "largest_merged_component": 5174,
+          "loop_edges": 270,
+          "max_pose_change_m": 0.07591330978096303,
+          "merged_components_refused": 8,
+          "mode": "merged_add",
+          "nonplanar_patches": 79983,
+          "observations": 14435,
+          "odometry_edges": 827,
+          "raw_patches": 293007,
+          "robust_cost_gradient_relative_max": 4.001473805081979e-08,
+          "solve_wall_s": 0.256430116,
+          "tangent_translation_information_norm": 3.469825392293493e-18,
+          "truth_used": false,
+          "unmerged_landmarks": 11318,
+          "wall_s": 0.807632349
+        },
+        "resources": {
+          "user_s": 0.76,
+          "system_s": 0.07,
+          "peak_rss_kib": 280392.0,
+          "cpu_s": 0.8300000000000001
+        }
+      },
+      {
+        "keyframes": 1013,
+        "time_s": 1135.3999899970001,
+        "baseline": {
+          "position_m": {
+            "rmse": 0.04440455600531494,
+            "median": 0.03703645116505521,
+            "p95": 0.07784759501751683,
+            "maximum": 0.11652579898455667
+          },
+          "rotation_deg": {
+            "rmse": 0.0713461189049458,
+            "median": 0.052881852963062886,
+            "p95": 0.15657501010788033,
+            "maximum": 0.19336602927392896
+          },
+          "independent_revisits": {
+            "count": 620,
+            "relative_translation_m": {
+              "rmse": 0.005798270203182642,
+              "median": 0.0033654493859844982,
+              "p95": 0.011543137362761953,
+              "maximum": 0.02278235700183513
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.022696840847291917,
+              "median": 0.011614103222114449,
+              "p95": 0.04405961128337899,
+              "maximum": 0.08541333214784977
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.024351819374235605,
+            "median": 0.00859991797542111,
+            "p95": 0.0508407812127932,
+            "maximum": 0.12154193458932525,
+            "points": 504714,
+            "incomplete_over_2m": 0
+          }
+        },
+        "geometry": {
+          "position_m": {
+            "rmse": 0.006584026739365617,
+            "median": 0.005528471133864624,
+            "p95": 0.011584864750033423,
+            "maximum": 0.016406766363000574
+          },
+          "rotation_deg": {
+            "rmse": 0.016008910228309723,
+            "median": 0.012281314014736026,
+            "p95": 0.029572794085878644,
+            "maximum": 0.06771076165126017
+          },
+          "independent_revisits": {
+            "count": 620,
+            "relative_translation_m": {
+              "rmse": 0.004747020492196226,
+              "median": 0.002700634775564977,
+              "p95": 0.009864431519271143,
+              "maximum": 0.016838113858378446
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.02018378088746947,
+              "median": 0.008800283920276625,
+              "p95": 0.0421390028995894,
+              "maximum": 0.06744510291997727
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.0040128587330475396,
+            "median": 0.00235198544108782,
+            "p95": 0.00848289253393596,
+            "maximum": 0.023706795775024214,
+            "points": 504714,
+            "incomplete_over_2m": 0
+          }
+        },
+        "solver": {
+          "association_outliers": 3,
+          "final_cost": 1161.7595332368226,
+          "initial_cost": 4312.079843429065,
+          "iterations": 6,
+          "jacobian_max_abs": 5.484441789604944e-10,
+          "landmarks": 874,
+          "largest_merged_component": 6796,
+          "loop_edges": 297,
+          "max_pose_change_m": 0.11756892270898331,
+          "merged_components_refused": 10,
+          "mode": "merged_add",
+          "nonplanar_patches": 99195,
+          "observations": 18127,
+          "odometry_edges": 1012,
+          "raw_patches": 367005,
+          "robust_cost_gradient_relative_max": 3.915300065063243e-08,
+          "solve_wall_s": 0.344297861,
+          "tangent_translation_information_norm": 4.616329562535937e-20,
+          "truth_used": false,
+          "unmerged_landmarks": 14608,
+          "wall_s": 1.028387045
+        },
+        "resources": {
+          "user_s": 0.95,
+          "system_s": 0.11,
+          "peak_rss_kib": 336904.0,
+          "cpu_s": 1.06
+        }
+      },
+      {
+        "keyframes": 1203,
+        "time_s": 1314.299995002,
+        "baseline": {
+          "position_m": {
+            "rmse": 0.04321776322545974,
+            "median": 0.03913250918433634,
+            "p95": 0.07192702377550045,
+            "maximum": 0.1009436441588647
+          },
+          "rotation_deg": {
+            "rmse": 0.06260332471335703,
+            "median": 0.05222391260921499,
+            "p95": 0.12480427762127595,
+            "maximum": 0.18287783790390996
+          },
+          "independent_revisits": {
+            "count": 983,
+            "relative_translation_m": {
+              "rmse": 0.005351188348489061,
+              "median": 0.0030257125005893554,
+              "p95": 0.011094534656298212,
+              "maximum": 0.022782357003721006
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.020457380548606564,
+              "median": 0.010466491738266605,
+              "p95": 0.0424827256647079,
+              "maximum": 0.08541333215595527
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.021113169634074593,
+            "median": 0.00788750691851306,
+            "p95": 0.047323299567438824,
+            "maximum": 0.12796863093618924,
+            "points": 599388,
+            "incomplete_over_2m": 0
+          }
+        },
+        "geometry": {
+          "position_m": {
+            "rmse": 0.006554517867678924,
+            "median": 0.005892307299932754,
+            "p95": 0.010827483294792148,
+            "maximum": 0.016205414669306636
+          },
+          "rotation_deg": {
+            "rmse": 0.015467645124541036,
+            "median": 0.011771628837468929,
+            "p95": 0.02902822952143225,
+            "maximum": 0.06845255965585961
+          },
+          "independent_revisits": {
+            "count": 983,
+            "relative_translation_m": {
+              "rmse": 0.004568710387337713,
+              "median": 0.002595820807741899,
+              "p95": 0.009674254554301745,
+              "maximum": 0.01698241350872434
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.018178333082294332,
+              "median": 0.007848129473994893,
+              "p95": 0.04076356507810778,
+              "maximum": 0.06753207877168613
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.0039316411018130125,
+            "median": 0.0026820419723174727,
+            "p95": 0.008023900953342959,
+            "maximum": 0.02366714497898781,
+            "points": 599388,
+            "incomplete_over_2m": 0
+          }
+        },
+        "solver": {
+          "association_outliers": 3,
+          "final_cost": 1236.259625254993,
+          "initial_cost": 3717.133246222302,
+          "iterations": 6,
+          "jacobian_max_abs": 5.525087054536471e-10,
+          "landmarks": 862,
+          "largest_merged_component": 7706,
+          "loop_edges": 351,
+          "max_pose_change_m": 0.0971747597157353,
+          "merged_components_refused": 7,
+          "mode": "merged_add",
+          "nonplanar_patches": 114355,
+          "observations": 19047,
+          "odometry_edges": 1202,
+          "raw_patches": 421849,
+          "robust_cost_gradient_relative_max": 4.10028618974545e-08,
+          "solve_wall_s": 0.362816135,
+          "tangent_translation_information_norm": 3.469774092924845e-18,
+          "truth_used": false,
+          "unmerged_landmarks": 16597,
+          "wall_s": 1.157329294
+        },
+        "resources": {
+          "user_s": 1.08,
+          "system_s": 0.1,
+          "peak_rss_kib": 382580.0,
+          "cpu_s": 1.1800000000000002
+        }
+      }
+    ],
+    "atlas_rebuild": {
+      "user_s": 11.67,
+      "system_s": 1.95,
+      "peak_rss_kib": 2147824.0,
+      "cpu_s": 13.62
+    },
+    "tests": {
+      "humble_build": true,
+      "ctest_targets_passed": 3,
+      "graph_gtest_cases_passed": 27,
+      "noetic_built": false,
+      "physical_negative_control_detects_old_robust_error": true,
+      "environment_retries": "First missing ROS Python environment, then read-only default log directory; sourced ROS and set ROS_LOG_DIR inside build. No test changes.",
+      "input_and_output_guards": {
+        "planar": {
+          "returncode": 1,
+          "reason": "This research driver does not reconstruct planar/session factors"
+        },
+        "session": {
+          "returncode": 1,
+          "reason": "This research driver does not reconstruct planar/session factors"
+        },
+        "floor": {
+          "returncode": 1,
+          "reason": "Expected at least three keyframes and no unsupported attitude factors"
+        },
+        "packed_cloud": {
+          "returncode": 1,
+          "reason": "Malformed packed keyframe cloud"
+        },
+        "dangling": {
+          "returncode": 1,
+          "reason": "Dangling graph edge"
+        },
+        "help": {
+          "returncode": 0,
+          "text": "MAP.pbstream OUTPUT_DIRECTORY\nResearch-only joint pose/plane solve; writes CSV/JSON, never installs or overwrites maps.\nUses stored six-DoF edge information and the default mapping Cauchy kernel; unsupported factor types are rejected.\n"
+        },
+        "overwrite_rejected": true
+      }
+    },
+    "limitations": [
+      "No geometry feedback into the online runtime or extension qualification",
+      "Poses-only diagnostic maps do not persist plane constraints; graph reload may undo corrections",
+      "One-centimetre geometry floor is a model assumption, not statistical covariance calibration",
+      "Graph and plane measurements share LiDAR data; residual cross-correlation is not calibrated",
+      "Single simulated fixture, same development validation inputs; no hardware qualification",
+      "Known partial-map global ambiguity remains; no new partial-map reliability claim",
+      "Full Atlas rebuilding, publication and revision commit cost remain separate online work"
+    ],
+    "full_route_10cm_passed": false,
+    "all_metric_nonregression": false,
+    "default_map_replaced": false,
+    "runtime_algorithm_changed": false,
+    "online_geometry_qualified": false,
+    "installed": false,
+    "pushed": false
   }
 }

@@ -56,6 +56,11 @@ gtsam::noiseModel::Base::shared_ptr wrapRobust(
 
 }  // namespace
 
+gtsam::noiseModel::Base::shared_ptr makeGraphRobustNoise(
+    const gtsam::noiseModel::Base::shared_ptr& base, const Config& config) {
+    return wrapRobust(base, config, true, nullptr);
+}
+
 gtsam::noiseModel::Gaussian::shared_ptr makeExplicitFullGraphFactorNoise(
     const Eigen::Matrix<double, 6, 6>& information) {
     if (information.isZero(1e-10)) return nullptr;

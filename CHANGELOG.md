@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Add an opt-in shared-plane geometry evaluation tool with oriented association,
+  per-scan moments, connected-surface aggregation and the existing consistent
+  robust-noise implementation. Frozen four-core full14 and independent-route
+  comparisons demonstrate lower map and localization error, while retaining
+  all lock/output counts. Directional null-space and robust-gradient controls
+  pass; causal mapping snapshots also improve without future observations.
+  Individual angular regressions, the 15.28 cm moving peak, statistical
+  uncertainty calibration and online/extension integration remain open.
+  No default algorithm, map or runtime mode changes. See the
+  [geometry association evidence](docs/evidence/runtime_cpu_20261017/README.md#oriented-shared-plane-geometry-and-directional-information--2026-10-20).
+
 - Log raw tracking registration and visibility-selected endpoints before
   correction smoothing, with explicit validity flags. Frozen four-core
   map-only comparisons reject the tested joint-geometry and propagation

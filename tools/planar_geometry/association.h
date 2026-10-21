@@ -1,0 +1,29 @@
+// Research geometry shared by complete maps and causal mapping snapshots.
+#pragma once
+#include "moment_factor.h"
+#include "n3mapping/n3map_proto_utils.h"
+#include <array>
+#include <gtsam/geometry/Pose3.h>
+#include <json/json.h>
+#include <vector>
+namespace n3mapping::planar_geometry {
+using Cell = std::array<int, 3>;
+struct Patch {
+  int index;
+  Moment moment;
+  Eigen::Vector3d center, normal;
+  double variance;
+};
+struct Plane {
+  Eigen::Vector3d normal, origin;
+  double offset, sigma;
+  std::vector<Patch> patches;
+};
+double median(std::vector<double> values);
+std::vector<Plane> associate(const N3Map &map,
+                             const std::vector<gtsam::Pose3> &poses,
+                             Json::Value &audit);
+std::vector<Plane> mergePlanes(std::vector<Plane> input,
+                               const std::vector<gtsam::Pose3> &poses,
+                               Json::Value &audit);
+} // namespace n3mapping::planar_geometry

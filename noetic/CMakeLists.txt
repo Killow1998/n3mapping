@@ -219,6 +219,17 @@ set_target_properties(n3mapping_relocalization_manifest_eval PROPERTIES
 )
 
 if(N3MAPPING_BUILD_RESEARCH_TOOLS)
+  add_executable(n3mapping_planar_geometry_eval
+    ${N3MAPPING_ROOT}/tools/n3mapping_planar_geometry_eval.cpp
+    ${N3MAPPING_ROOT}/tools/planar_geometry/association.cpp
+    ${N3MAPPING_ROOT}/tools/planar_geometry/merging.cpp
+  )
+  target_include_directories(n3mapping_planar_geometry_eval PRIVATE ${JSONCPP_INCLUDE_DIRS})
+  target_link_libraries(n3mapping_planar_geometry_eval n3mapping_core ${JSONCPP_LIBRARIES} TBB::tbb)
+  set_target_properties(n3mapping_planar_geometry_eval PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
+  )
+
   add_executable(n3mapping_registration_cross_eval
     ${N3MAPPING_ROOT}/tools/n3mapping_registration_cross_eval.cpp
   )
