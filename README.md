@@ -135,6 +135,10 @@ original `pbstream`; the map itself does not need conversion. To preserve an old
 cache, use `--output /path/to/new_atlas.pb` and set `reloc_atlas_path` accordingly.
 Use `--force` to explicitly replace an existing cache. The 1 GiB cache limit
 and matching map/configuration fingerprints still apply.
+At runtime, the two point-to-plane levels retain coordinates and normals only;
+the fine GICP level retains full covariances. Existing v2 caches remain readable.
+Saving reconstructs the unused plane-level covariance from its normal using the
+same small_gicp eigenvalue model, without changing the on-disk layout.
 
 ### 2.4 Runtime Outputs And Services
 
@@ -706,12 +710,21 @@ Speculative target-preparation threads have been removed.
 
 Mapping-loop retrieval stays with the serialized owner. Geometry verification
 and graph solving use an isolated snapshot; the owner commits only a matching
-map generation and revision. If keyframes arrive during a solve, the worker
-rechecks graph admission and solves the current graph with the already-measured
-constraints, preserving the new tail without repeating registration. Saving
-drains pending loop work. Strict map extension still verifies loaded-map
-geometry and commits its tracking constraint inline; it does not enqueue a
-second global loop search for the same frame.
+map generation and revision. Appended keyframes catch up through a conditioned
+tail solve. A conflicting graph revision requires readmission and re-solving,
+while retaining measured registration evidence. Saving drains pending loop
+work. Strict map extension verifies loaded-map geometry and commits its tracking
+constraint inline. This append solve preserves the Atlas-verified live pose;
+the worker later installs the optimized reference and its coordinate correction
+together.
+
+`loop_geometry_cpu_budget` defaults to **0.5** CPU seconds per wall second for
+background extension geometry; **0** disables pacing. It leaves ordinary mapping
+loop processing unchanged. Successive extension requests coalesce while every
+measured constraint remains in the graph. The interval uses process CPU during
+the job, including parallel feature work and concurrent foreground work, as a
+conservative upper bound. It is not a cap on total node CPU. Pending age retains
+the oldest request time; saving bypasses pacing to finish outstanding work.
 
 The deterministic `test_localization_episode` passes actual saved/loaded maps
 through the production core and live-output owner. It covers initialization,
@@ -801,11 +814,11 @@ remains the performance baseline.
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
-| Reliability — stationary startup retained | Preserve incremental candidate admission, unaffected-seed reuse and fresh confirmation. All original 14 recordings retain frame-4 locks, 4,144 inputs and 4,088 successful outputs. Default/Atlas/kill profiles each pass 15 episodes. New tracking recovery passes fine geometry, motion, full-map coverage and published-pose ray consistency before replacing an existing proposal; a rejected candidate cannot suppress the original retry. Complete full-map motion has one initialization, 2,232 successes and five geometry failures versus six in the retained baseline. The partial-map global alias remains; complete negative replay adds no wrong output or geometry-confirmed frames. |
-| Accuracy — centimetre-scale overall; full-motion 10 cm remains open | The online joint-geometry map gives fixed14 pooled RMSE/maximum **0.765/2.417 cm**, preserving all 4,088 outputs and frame-4 locks. Independent motion gives **2.016/16.512 cm**, p95 **3.602 cm**, one lock and 2,232 outputs; 22 exceed 10 cm. Some angular maxima regress. After extension, fixed14 remains 14/14 with **0.979/2.546 cm**. See the [complete online evidence](docs/evidence/runtime_cpu_20261017/README.md#asynchronous-joint-geometry-mapping-extension-and-checkpoints--2026-10-21). |
-| Online loop/map consistency — shared geometry integrated | Jointly optimize admitted relative constraints, original odometry and signed shared-plane moments. Complete causal mapping retains 13,791 inputs, 13,723 outputs and 1,271 keyframes, with 430 loop constraints. Final map RMSE/maximum is **0.647/1.798 cm**, surface RMSE **3.732 mm**. Format **2.9.0** retains plane constraints, original gauge and dense correction provenance; real map/Atlas/save/reload audits pass. The 1 cm noise floor remains a model assumption, not calibrated covariance. |
-| Online extension — async geometry and reload verified; compute remains high | Full strict extension preserves 2,232 outputs and adds 231 keyframes. Live RMSE/p95/maximum is **3.229/7.048/21.505 cm**; refined new-keyframe RMSE/maximum is **0.805/2.130 cm**. Loaded-only Atlas and tracking reference update together. Average **2.036 cores**, runtime peak **4.186 GiB**, queue depth at most two. Large failed plane groups expand the factor count; Atlas rebuilding also costs time. All 14 original positions still lock after extension and saving. |
-| Asynchronous online mapping loops — complete causal qualification | Four-core 10 Hz replay consumes **0.412 cores** including background work, runtime peak **1.027 GiB**, queue depth at most one and entire owner loop callback maximum **19.06 ms**. Newly appended frames catch up without rerunning ICP or the global solve. Repeated rigid-transform transport, stale-map protection and overlapping-session trajectory checkpoints have regression coverage. Full-node DDS/publication and independent Noetic build qualification remain open. |
+| Reliability — stationary startup and continuous output retained | Both final full14 suites retain frame-4 locks and all 4,088 outputs. Independent motion retains one initialization and 2,232 outputs; stricter recovery admits only globally supported geometry (11 rejected observations, continuous trusted projection). The recorded partial-map alias remains outside this full-map acceptance. |
+| Accuracy — tested localization motion below 10 cm; mapping tail remains open | Same-map moving RMSE/maximum improves 2.016/16.512→0.865/7.744 cm. Rebuilt-map motion is 0.913/7.742 cm. Original14 RMSE/maximum is 0.800/2.416 cm; after extension 1.004/2.667 cm. Small map/static metric regressions remain. See the [complete refinement evidence](docs/evidence/runtime_cpu_20261017/README.md#tracking-authority-plane-partition-and-extension-budget--2026-10-21). |
+| Online loop/map consistency — shared geometry and checkpoints verified | Full causal mapping retains 13,791 inputs, 13,723 outputs, 1,271 keyframes and 431 loops. Final map RMSE/maximum 0.696/1.951 cm; surface RMSE 3.899 mm. Real map/Atlas/trajectory save/reload audits pass. The 1 cm geometry noise floor remains a model assumption. |
+| Online extension — accuracy and resource cost improved; half-core open | Full extension retains 2,232 outputs and 231 new keyframes. Live RMSE/maximum 0.836/4.278 cm; average 0.887 cores, runtime peak 2.244 GiB. Budgeted geometry coalesces requests while retaining constraints; maximum oldest-request age 32.73 s. Verified live poses remain authoritative until the optimized reference commits. |
+| Asynchronous online mapping loops — complete causal qualification | Four-core 10 Hz replay uses 0.392 cores including background work, runtime peak 0.957 GiB, queue depth one and no global rebases. Online mapping maximum 11.659 cm still leaves ten frames over 10 cm. Full-node DDS/publication and independent Noetic build qualification remain open. |
 | Search cost — paused; half core remains open | Retain the accepted `54b602f` algorithm and its original 15.3% paired CPU reduction. The standalone 1.0.1 full14 replay measures 214.962 CPU s / 413 input s (0.520488 cores), first-lock wall median 3.348 s / maximum 5.383 s. 03/08/14 need 0.663/0.673/0.654 cores. The 440 cold seeds and 104 confirmation registrations are unchanged. This is a release behavior check, without a new paired speedup claim. Source reordering, direct fine tracking, exact-neighbor certificates and registration-kernel experiments are not retained: they regress latency/accuracy or lack consistent overall CPU benefit. |
 
 The deferred performance target retains **four physical P cores**, four registration threads,
@@ -849,8 +862,11 @@ now persists those constraints and feeds them back through the isolated worker.
 removes constraints already saved in a loaded map. Map, Atlas and dense trajectory
 provenance share the committed checkpoint. Original-map RMSE changes from
 0.647 to 0.907 cm after incorporating the new session, so universal metric
-improvement is not claimed. Extension factor growth and full Atlas rebuilding
-remain the main compute follow-up, with complete fixed14 and moving evidence retained.
+improvement is not claimed. The [subsequent refinement](docs/evidence/runtime_cpu_20261017/README.md#tracking-authority-plane-partition-and-extension-budget--2026-10-21) partitions failed plane groups and paces
+extension geometry, reducing whole-extension CPU/RAM while preserving every tested
+output. Full Atlas rebuilding remains CPU work; its memory footprint is reduced.
+The tested moving localization route is now below 10 cm, while online mapping
+still has ten frames above it and small map/static regressions remain visible.
 
 Retain existing interfaces and numeric acceptance gates. Compare actual emitted
 poses, lock decisions and input/output continuity on the same full inputs for

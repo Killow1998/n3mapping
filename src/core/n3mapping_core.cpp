@@ -390,13 +390,8 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
       performance.post_commit_refresh_ms =
           elapsedMilliseconds(refresh_started);
     }
-    if (session_->graphOptimizer().hasNode(keyframe_id)) {
-      try {
-        pose_map = session_->graphOptimizer().getOptimizedPose(keyframe_id);
-      } catch (const std::exception &) {
-        pose_map = localizer.getMapToOdomTransform() * frame.T_world_lidar;
-      }
-    }
+    // Publish the same Atlas-verified pose as on non-keyframes. The new graph
+    // node remains an estimate for joint optimization, not tracking authority.
   }
 
   auto output = make_output(keyframe_id >= 0, pose_map,

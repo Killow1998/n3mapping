@@ -32,7 +32,7 @@ struct CompactKdTreeBuilder : Builder {
       Eigen::Matrix4d covariance;
       if (features_ready_) {
         normal = points_.normal(first);
-        covariance = points_.cov(first);
+        if (!points_.covs.empty()) covariance = points_.cov(first);
       }
       auto current = first;
       while (tree.indices[current] != first) {
@@ -40,7 +40,7 @@ struct CompactKdTreeBuilder : Builder {
         points_.point(current) = points_.point(next);
         if (features_ready_) {
           points_.normal(current) = points_.normal(next);
-          points_.cov(current) = points_.cov(next);
+          if (!points_.covs.empty()) points_.cov(current) = points_.cov(next);
         }
         tree.indices[current] = current;
         current = next;
@@ -48,7 +48,7 @@ struct CompactKdTreeBuilder : Builder {
       points_.point(current) = point;
       if (features_ready_) {
         points_.normal(current) = normal;
-        points_.cov(current) = covariance;
+        if (!points_.covs.empty()) points_.cov(current) = covariance;
       }
       tree.indices[current] = current;
     }

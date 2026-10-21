@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "n3mapping/core/realtime_odometry.h"
+#include "../src/tracking_pose_correction.h"
 
 namespace n3mapping::core {
 namespace {
@@ -14,6 +15,22 @@ Eigen::Isometry3d translated(double x) {
   auto pose = Eigen::Isometry3d::Identity();
   pose.translation().x() = x;
   return pose;
+}
+
+TEST(RealtimeProjectionContract, TrackingCorrectionIsIndependentOfOdometryOrigin) {
+  Eigen::Isometry3d odom = translated(20), current = translated(3);
+  const Eigen::Isometry3d prediction = current * odom;
+  auto endpoint = prediction;
+  endpoint.linear() = Eigen::AngleAxisd(.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
+  const Eigen::Isometry3d actual = trackingPoseCorrection(current, odom, endpoint, .9, false) * odom;
+  EXPECT_LT((actual.translation() - prediction.translation()).norm(), 1e-12);
+  auto origin = translated(500);
+  origin.translation().y() = -200;
+  origin.linear() = Eigen::AngleAxisd(.6, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+  const Eigen::Isometry3d moved_odom = origin * odom;
+  const Eigen::Isometry3d changed = trackingPoseCorrection(
+      current * origin.inverse(), moved_odom, endpoint, .9, false) * moved_odom;
+  EXPECT_LT((actual.matrix() - changed.matrix()).norm(), 1e-10);
 }
 
 TEST(RealtimeProjectionContract, OdomThenDelayedCorrectionThenCloudSharesGeometry) {

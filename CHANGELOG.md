@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Fix tracking recovery's missing global-fitness check, make pose smoothing
+  invariant to odometry origin, and preserve Atlas-verified extension output
+  across conditioned graph append solves.
+- Partition incoherent plane groups without relaxing geometry gates; budget and
+  coalesce extension refinement while retaining all constraints. Reduce point
+  preparation allocations and retain only required features at each Atlas level.
+- Complete four-core full mapping, two original14 suites, independent motion,
+  extension, real checkpoint/reload and budget-off ablation. Moving maximum
+  16.512→7.744 cm on the same map; extension maximum
+  21.505→4.278 cm, CPU 2.036→0.887 cores,
+  runtime RSS 4.186→2.244 GiB. Maximum pending correction age
+  32.73 s; whole-extension half-core and all-frame
+  mapping below 10 cm remain open. Small map/static regressions are recorded.
+  All 69 CTest targets pass. See the [refinement evidence](docs/evidence/runtime_cpu_20261017/README.md#tracking-authority-plane-partition-and-extension-budget--2026-10-21).
+
 - Integrate shared-plane joint optimization into asynchronous mapping and strict
   extension. Catch up appended frames without repeated registration/global solves;
   install optimized map/Atlas/tracking references together. Format 2.9.0 retains
@@ -11,9 +26,10 @@
   session, including overlapping timestamps. Share Atlas preparation at load.
 - Complete four-core paced mapping, original fixed14, independent motion, strict
   extension, reload continuation and another full fixed14 on the extended map.
-  Mapping averages 0.412 cores; extension remains heavier at 2.036 cores and
-  4.186 GiB runtime RSS. Both fixed14 runs retain every output. Complete motion
-  below 10 cm and improvement in every metric remain unqualified. Real checkpoint
+  That integration baseline averaged 0.412 mapping cores and 2.036 extension
+  cores, with 4.186 GiB extension runtime RSS. Both fixed14 runs retained every
+  output. At that stage, complete motion below 10 cm and improvement in every
+  metric remained unqualified. Real checkpoint
   Atlas points match exactly; all 69 CTest targets pass across final runs.
   See the [online integration evidence](docs/evidence/runtime_cpu_20261017/README.md#asynchronous-joint-geometry-mapping-extension-and-checkpoints--2026-10-21).
 

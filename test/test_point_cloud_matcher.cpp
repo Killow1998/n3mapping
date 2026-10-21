@@ -50,7 +50,8 @@ TEST_F(PointCloudMatcherTest, CompactTargetsPreserveSerialNeighborsAndFeatures) 
         ASSERT_NE(level.kdtree, nullptr);
         EXPECT_EQ(level.cloud->points.capacity(), level.cloud->size());
         EXPECT_EQ(level.cloud->normals.capacity(), level.cloud->size());
-        EXPECT_EQ(level.cloud->covs.capacity(), level.cloud->size());
+        EXPECT_TRUE(level.cloud->covs.empty() ||
+                    level.cloud->covs.capacity() == level.cloud->size());
         PointCloudMatcher::SmallGicpKdTree serial(level.cloud);
         for (std::size_t i = 0; i < level.cloud->size(); i += 13) {
             std::array<std::size_t, 20> actual{}, expected{};
@@ -66,7 +67,14 @@ TEST_F(PointCloudMatcherTest, CompactTargetsPreserveSerialNeighborsAndFeatures) 
             reference, serial.kdtree, config_.gicp_num_neighbors, 1);
         for (std::size_t i = 0; i < reference.size(); ++i) {
             EXPECT_TRUE(reference.normal(i).isApprox(level.cloud->normal(i), 1e-12));
-            EXPECT_TRUE(reference.cov(i).isApprox(level.cloud->cov(i), 1e-12));
+            if (!level.cloud->covs.empty())
+                EXPECT_TRUE(reference.cov(i).isApprox(level.cloud->cov(i), 1e-12));
+            else {
+                const auto normal = level.cloud->normal(i).head<3>();
+                const Eigen::Matrix3d reconstructed = Eigen::Matrix3d::Identity() -
+                    .999 * normal * normal.transpose();
+                EXPECT_TRUE((reference.cov(i).topLeftCorner<3, 3>().isApprox(reconstructed, 1e-12)));
+            }
         }
     }
 }

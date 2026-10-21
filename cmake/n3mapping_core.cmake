@@ -48,6 +48,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/graph_optimizer_append.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/association.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/merging.cpp
+  ${N3MAPPING_ROOT}/src/planar_geometry/plane_partition.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/builder.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/serialization.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp

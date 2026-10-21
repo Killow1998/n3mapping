@@ -83,6 +83,7 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
     get("loop_debug_vertical_hypotheses_enable", config->loop_debug_vertical_hypotheses_enable);
     gets("loop_debug_path", config->loop_debug_path);
     get("loop_geometry_enable", config->loop_geometry_enable);
+    get("loop_geometry_cpu_budget", config->loop_geometry_cpu_budget);
     get("loop_spatial_candidates_enable", config->loop_spatial_candidates_enable);
     get("loop_spatial_candidate_radius", config->loop_spatial_candidate_radius);
     get("loop_spatial_candidate_max_candidates", config->loop_spatial_candidate_max_candidates);

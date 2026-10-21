@@ -52,13 +52,15 @@ MatchResult WorldLocalizing::registerTracking(
          config_.icp_refine_max_correspondence_distance});
     debug_event.retry_registration_ms += elapsed_ms(started);
     const bool supported = hasValidRegistrationResult(coverage) &&
+        coverage.fitness_score < config_.gicp_fitness_threshold &&
         coverage.inlier_ratio >= config_.loop_min_inlier_ratio;
     VLOG(1) << "Tracking recovery map coverage=" << coverage.inlier_ratio
+            << " fitness=" << coverage.fitness_score
             << " accepted=" << supported;
     if (!supported) return false;
     // The optimizer endpoint already passed geometric quality and coverage.
-    // Independently check the actual pose we would publish: smoothing occurs
-    // in map-to-odometry and can differ materially from the raw ICP endpoint.
+    // Independently check the actual filtered body pose we would publish,
+    // which can differ materially from the raw ICP endpoint.
     const double confidence = std::clamp(
         std::exp(-candidate.fitness_score / (config_.gicp_fitness_threshold * 0.5)),
         0.0, 1.0);

@@ -100,6 +100,8 @@ struct Config {
     bool loop_debug_vertical_hypotheses_enable = false;
     std::string loop_debug_path = "";
     bool loop_geometry_enable = true;
+    // Extension-only background CPU share; 0 disables pacing. Save drains all work.
+    double loop_geometry_cpu_budget = 0.5;
     bool loop_spatial_candidates_enable = true;
     double loop_spatial_candidate_radius = 15.0;
     int loop_spatial_candidate_max_candidates = 5;

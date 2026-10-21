@@ -559,6 +559,8 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     ASSERT_EQ(extension.processNewKeyframe(
                   11.0, second_odom, loaded->cloud, 0, second_tracked),
               2);
+    EXPECT_TRUE((relocalization.getMapToOdomTransform() * second_odom)
+                    .matrix().isApprox(second_tracked.matrix(), 1e-12));
 
     EXPECT_NEAR(optimizer.getOptimizedPose(2).translation().x(), 10.0, 0.2);
     EXPECT_NEAR(Eigen::AngleAxisd(

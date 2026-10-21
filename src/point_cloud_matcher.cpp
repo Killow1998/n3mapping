@@ -1,6 +1,8 @@
 // Point-cloud preparation, bounded storage estimates and matcher orchestration.
 #include "n3mapping/point_cloud_matcher.h"
 #include "compact_kdtree_builder.h"
+#include "point_cloud_sampling.h"
+#include "point_cloud_features.h"
 
 #include <glog/logging.h>
 #include <omp.h>
@@ -40,16 +42,6 @@ std::size_t preparedLevelMemoryBytes(
         level.cloud->covs.capacity(), sizeof(Eigen::Matrix4d)));
     return saturatedAdd(bytes, saturatedMultiply(
         level.cloud->size(), kTreeBytesPerPoint));
-}
-
-void compactDownsampledCloud(PointCloudMatcher::SmallGicpCloud& cloud) {
-    // small_gicp reserves all three arrays for the full input, then shrinks
-    // their sizes only. Features are not computed yet; do not copy them.
-    cloud.points.shrink_to_fit();
-    if (cloud.normals.capacity() > cloud.size())
-        std::vector<Eigen::Vector4d>(cloud.size()).swap(cloud.normals);
-    if (cloud.covs.capacity() > cloud.size())
-        std::vector<Eigen::Matrix4d>(cloud.size()).swap(cloud.covs);
 }
 
 bool isSmallGicpVoxelCoordSafe(const pcl::PointXYZI& pt, double leaf_size) {
@@ -136,17 +128,23 @@ PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::convertToSmallGicp(con
 }
 
 std::pair<PointCloudMatcher::SmallGicpCloud::Ptr, std::shared_ptr<PointCloudMatcher::SmallGicpKdTree>>
-PointCloudMatcher::preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution) {
+PointCloudMatcher::preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution,
+                                             bool with_covariances) {
     if (!cloud || cloud->empty()) return { std::make_shared<SmallGicpCloud>(), nullptr };
     auto raw = convertToSmallGicp(cloud, downsampling_resolution);
     if (raw->empty()) return { raw, nullptr };
-    auto ds = small_gicp::voxelgrid_sampling_omp<SmallGicpCloud>(*raw, downsampling_resolution, config_.num_threads);
+    auto ds = registration_detail::sampleCoordinates(*raw, downsampling_resolution, config_.num_threads);
     if (ds->empty()) return { ds, nullptr };
-    compactDownsampledCloud(*ds);
+    raw.reset();
     auto kdtree = std::make_shared<SmallGicpKdTree>(
         ds, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilderOMP>(
                 *ds, false, config_.num_threads));
-    small_gicp::estimate_normals_covariances_omp(*ds, kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
+    if (with_covariances)
+        registration_detail::estimateFeatures<small_gicp::NormalCovarianceSetter<SmallGicpCloud>>(
+            *ds, kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
+    else
+        registration_detail::estimateFeatures<small_gicp::NormalSetter<SmallGicpCloud>>(
+            *ds, kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
     return { ds, kdtree };
 }
 
@@ -154,9 +152,8 @@ PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::preprocessSourcePointC
     if (!cloud || cloud->empty()) return std::make_shared<SmallGicpCloud>();
     auto raw = convertToSmallGicp(cloud, downsampling_resolution);
     if (raw->empty()) return raw;
-    auto ds = small_gicp::voxelgrid_sampling_omp<SmallGicpCloud>(
+    auto ds = registration_detail::sampleCoordinates(
         *raw, downsampling_resolution, config_.num_threads);
-    compactDownsampledCloud(*ds);
     return ds;
 }
 
@@ -175,7 +172,7 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
         const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
         prepared.plane_levels.reserve(resolutions.size());
         for (double resolution : resolutions) {
-            auto [points, kdtree] = preprocessTargetPointCloud(cloud, resolution);
+            auto [points, kdtree] = preprocessTargetPointCloud(cloud, resolution, false);
             prepared.plane_levels.push_back({ resolution, points, kdtree });
         }
 
@@ -212,7 +209,7 @@ PointCloudMatcher::PreparedSource PointCloudMatcher::prepareSourceCloud(
             if (!points->empty()) {
                 SmallGicpKdTree tree(
                     points, small_gicp::KdTreeBuilderOMP(config_.num_threads));
-                small_gicp::estimate_covariances_omp(*points, tree.kdtree,
+                registration_detail::estimateFeatures<small_gicp::CovarianceSetter<SmallGicpCloud>>(*points, tree.kdtree,
                     config_.gicp_num_neighbors, config_.num_threads);
             }
             prepared.refine_cloud = points;

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <utility>
+#include <ctime>
 
 namespace n3mapping {
 namespace {
@@ -36,17 +37,22 @@ AsyncLoopJob::AsyncLoopJob(const Config& config, const KeyframeManager& source,
 
 void AsyncLoopJob::run() {
   const auto start = LoopClock::now();
+  started = start;
+  const auto cpu_start = std::clock();
   if (!query.geometry_only)
     outcome = processLoopCandidates(config, keyframes, matcher, *graph, manager, {query});
   optimizeGeometry();
   worker_wall_ms += elapsedMs(start);
+  cpu_upper_ms += 1000.0 * (std::clock() - cpu_start) / CLOCKS_PER_SEC;
 }
 
 void AsyncLoopJob::rebase() {
   const auto start = LoopClock::now();
+  const auto cpu_start = std::clock();
   if (!query.geometry_only) rebaseLoopOutcome(config, *graph, manager, outcome);
   optimizeGeometry();
   worker_wall_ms += elapsedMs(start);
+  cpu_upper_ms += 1000.0 * (std::clock() - cpu_start) / CLOCKS_PER_SEC;
   ++graph_rebase_count;
 }
 
@@ -90,14 +96,18 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
   const auto revision = session_->keyframeManager().revision();
   if (state.generation != revision.generation) {
     state.pending.clear();
+    state.next_geometry_start = {};
     state.generation = revision.generation;
   }
   for (auto& query : detectPendingLoopCandidates(result)) {
     // Strict extension constraints are already in the live graph. One latest
     // geometry request covers all of them; no verified measurement is dropped.
-    if (query.geometry_only)
+    if (query.geometry_only) {
+      for (const auto& pending : state.pending)
+        if (pending.geometry_only) query.enqueued = std::min(query.enqueued, pending.enqueued);
       state.pending.erase(std::remove_if(state.pending.begin(), state.pending.end(),
           [](const auto& pending) { return pending.geometry_only; }), state.pending.end());
+    }
     state.pending.push_back(std::move(query));
   }
 
@@ -107,6 +117,17 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
     try {
       state.future.get();
       completed = true;
+      if (state.job->query.geometry_only &&
+          state.job->revision.generation == revision.generation &&
+          config_.loop_geometry_cpu_budget > 0) {
+        // Process CPU includes the concurrent owner and is a conservative
+        // upper bound for this job, including its OpenMP feature workers.
+        // All incoming constraints remain in the graph; only requests coalesce.
+        const auto interval = std::chrono::duration<double, std::milli>(
+            state.job->cpu_upper_ms / config_.loop_geometry_cpu_budget);
+        state.next_geometry_start = state.job->started +
+            std::chrono::duration_cast<LoopClock::duration>(interval);
+      }
     } catch (const std::exception& error) {
       std::cerr << "Isolated loop processing failed: " << error.what() << '\n';
     }
@@ -135,6 +156,8 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
           session_->graphOptimizer().cloneCommitted(), previous->query);
       state.job->outcome = std::move(previous->outcome);
       state.job->worker_wall_ms = previous->worker_wall_ms;
+      state.job->cpu_upper_ms = previous->cpu_upper_ms;
+      state.job->started = previous->started;
       state.job->graph_rebase_count = previous->graph_rebase_count;
       result.snapshot_ms += elapsedMs(start) + catchup_ms;
       auto* job = state.job.get();
@@ -179,12 +202,15 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
                   << " total_max_t=" << result.max_pose_update_translation
                   << " atlas_ms=" << result.atlas_prepare_ms
                   << " worker_ms=" << result.worker_wall_ms
+                  << " cpu_upper_ms=" << job.cpu_upper_ms
                   << " commit_ms=" << result.commit_ms
                   << " rebases=" << result.graph_rebase_count;
       state.job.reset();
     }
   }
-  if (!state.job && !state.pending.empty()) {
+  if (!state.job && !state.pending.empty() &&
+      (wait || !state.pending.front().geometry_only ||
+       LoopClock::now() >= state.next_geometry_start)) {
     const auto start = LoopClock::now();
     auto query = std::move(state.pending.front());
     state.pending.pop_front();

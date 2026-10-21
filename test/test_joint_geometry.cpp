@@ -4,12 +4,50 @@
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/world_localizing.h"
+#include "../src/planar_geometry/association.h"
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>
 
 namespace n3mapping {
 namespace {
+TEST(PlaneAssociationTest, LocalBridgesDoNotExplodeOrFuseDistinctSurfaces) {
+  using namespace planar_geometry;
+  std::vector<Plane> cells;
+  std::vector<gtsam::Pose3> poses(3, gtsam::Pose3(gtsam::Rot3(), {0., 0., 2.}));
+  int input_points = 0;
+  for (int x = 0; x < 45; ++x) {
+    const double height = x < 20 ? 0. : x < 25 ? .06 * (x - 19) : .3;
+    Plane plane{Eigen::Vector3d::UnitZ(), Eigen::Vector3d(x + .5, .5, .5),
+                height - .5, .01, {}};
+    for (int scan = 0; scan < 3; ++scan) {
+      Moment m;
+      for (int u = 0; u < 5; ++u) for (int v = 0; v < 5; ++v)
+        m.add(Eigen::Vector3d(x + .2 + .1*u, .2 + .1*v, height - 2.));
+      plane.patches.push_back({scan, m, poses[scan].transformFrom(m.mean()),
+                               Eigen::Vector3d::UnitZ(), 0.});
+      input_points += m.count;
+    }
+    cells.push_back(std::move(plane));
+  }
+  Json::Value audit;
+  const auto merged = mergePlanes(cells, poses, audit);
+  EXPECT_GT(audit["merged_components_refused"].asInt(), 0);
+  EXPECT_LT(merged.size(), cells.size() / 2);
+  int output_points = 0;
+  for (const auto& plane : merged) {
+    for (const auto& patch : plane.patches) {
+      output_points += patch.moment.count;
+      // Distinct horizontal floors may not become a tilted compromise.
+      Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigen(patch.moment.covariance());
+      EXPECT_LT(eigen.eigenvalues()[0], .0004 + 1e-10);
+      EXPECT_LT(patch.moment.covariance()(2, 2), .01 + 1e-10);
+      EXPECT_GT(plane.normal.dot(Eigen::Vector3d::UnitZ()), .999);
+    }
+  }
+  EXPECT_EQ(output_points, input_points);
+}
+
 Eigen::Isometry3d pose(double x, double z = 0) {
   Eigen::Isometry3d value = Eigen::Isometry3d::Identity();
   value.translation() = Eigen::Vector3d(x, 0, z);

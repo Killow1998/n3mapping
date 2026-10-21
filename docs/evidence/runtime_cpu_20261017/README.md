@@ -5248,3 +5248,126 @@ Remaining limits are full-motion 10 cm, statistically calibrated geometric
 uncertainty, the recorded partial-map alias, full-node/hardware qualification,
 and extension CPU/RAM. The current integration establishes consistent online
 feedback and checkpoint behavior; these limits remain visible for the next stage.
+
+
+## Tracking authority, plane partition and extension budget — 2026-10-21
+
+Baseline is `c14a367`. All final recordings use one frozen core
+`d1d7387398ab684c61ba72b831ec24840a70150b0e6b1268c2db3c226d44bfbe`, four physical P cores `0,2,4,6`,
+four registration threads and passive OpenMP. Raw recordings, frozen sources,
+commands, ablations and `qualification.json` are under
+`build/n3mapping/geometry_refinement_20261021/`. The original first-mapping-pose
+alignment is fixed; truth is used by observers only. Mapping and extension replay
+the complete input at 10 Hz, including all background work and final drain.
+Localization replay runs unpaced and reports CPU against the original input
+duration. Loading, FAST_LIO, simulator, DDS and publication are excluded from CPU;
+RSS is process high-water and can include loading. Save cost is reported separately.
+
+**Three accuracy repairs.** A local recovery could fit a nearby wrong surface
+with high global coverage, while its already-computed global GICP fitness was
+4.16–4.97 against the existing 0.3 threshold. Apply that quality gate to recovery
+admission. A complete gate-only replay reduces the moving maximum from 16.512
+to 9.286 cm, with 2,232 outputs retained. Second, blend correction at the observed
+robot pose and transform back to map-to-odometry; separately blending correction
+translation/rotation created a lever-arm error dependent on the arbitrary odometry
+origin. Third, a conditioned extension append solve must not overwrite an
+Atlas-verified live pose. One audited keyframe changed a 0.73 cm registration into
+a 14.29 cm output. Retain the verified pose until the worker commits the optimized
+reference and its coordinate correction together. Existing gains and numerical
+registration thresholds remain; global recovery admission becomes stricter.
+
+**Three resource changes.** Partition an incoherent connected plane group by
+its dominant signed-normal/offset discrepancy, then restore spatial connectivity.
+Retain the original 2-degree/0.1 m and per-scan eigenvalue gates. If a recovered
+subgroup cannot retain all original observations, keep its original cells.
+On the same saved extension map, 8,640 planes/219,289 observations become
+1,499/51,173; the 17,449 unmerged candidates and raw patch set are unchanged.
+The first partition-only diagnostic ran more jobs as jobs finished sooner; it
+overlapped other experiments and is not a clean CPU comparison.
+
+Extension geometry now coalesces requests at `loop_geometry_cpu_budget=0.5`.
+All measured constraints stay in the graph. Process CPU during a job provides a
+conservative upper bound including concurrent owner and OpenMP work; this is
+not a total-node half-core cap. Generation changes reset the deadline, coalescing
+retains the oldest enqueue time, and save drains pending work without pacing.
+Mapping loop detection and processing are unchanged by this budget.
+
+Point preparation allocates coordinates before downsampling and neighbor scratch
+once per worker. Point-to-plane targets keep normals without unused covariances;
+fine GICP retains full covariance. The existing v2 Atlas layout is preserved by
+reconstructing the unused plane covariance from its normal. Finite payload checks
+still cover every serialized entry. ABBA on the same map measures peak RSS
+1.598→1.289 GiB (about −19.3%), CPU 8.369→8.389 s and wall 3.293→3.602 s.
+This is a memory benefit, not demonstrated CPU/latency acceleration. Point counts
+match at all levels; sampled normals/fine covariances match the original evaluator
+exactly, and analytic plane covariance has a 1e-12 unit comparison.
+
+| Complete four-core workload | Previous stage | Final frozen candidate |
+| --- | --- | --- |
+| Independent motion on the same reference, RMSE / maximum | 2.016 / 16.512 cm | 0.865 / 7.744 cm |
+| Independent motion on rebuilt map, RMSE / maximum | 2.016 / 16.512 cm | 0.913 / 7.742 cm |
+| Strict extension live RMSE / maximum | 3.229 / 21.505 cm | 0.836 / 4.278 cm |
+| Extension average CPU / runtime peak RSS | 2.036 cores / 4.186 GiB | 0.887 cores / 2.244 GiB |
+| Extension save CPU / wall / high-water RSS | 9.154 s / 4.323 s / 4.748 GiB | 8.401 s / 3.751 s / 2.863 GiB |
+| Original 14 points, pooled RMSE / maximum | 0.765 / 2.417 cm | 0.800 / 2.416 cm |
+| Original 14 after extension, RMSE / maximum | 0.979 / 2.546 cm | 1.004 / 2.667 cm |
+| Mapping average CPU / runtime peak RSS | 0.412 cores / 1.027 GiB | 0.392 cores / 0.957 GiB |
+
+Both full14 runs retain 4,144 inputs, 4,088 outputs and 14/14 frame-4 locks.
+CPU averages are 0.462/0.452 cores;
+peak RSS is 1.425/1.538 GiB.
+Median unpaced first-lock wall time is 3.294/
+3.246 s; this is not a paired startup speedup claim.
+Both independent motion checks retain one lock and 2,232/2,236 outputs, all within
+10 cm. Geometry rejections increase 4→11, with trusted projection continuity;
+the same-reference gate-only variant had nine. Strict extension retains 231 new
+keyframes and all 2,232 outputs; zero exceed 10 cm.
+
+The paced extension makes 11 geometry commits, with queue
+depth 2, zero graph rebases and maximum oldest-request
+age 32.729 s. Maximum foreground loop callback
+is 63.933 ms. CPU is 198.251 s / 223.5
+input seconds, including the final drain (runtime wall 228.472 s).
+Disabling only the budget, while still pacing the same input at 10 Hz, produces
+44 commits, 2.248 cores,
+2.304 GiB, oldest-request age
+12.702 s, live RMSE/maximum
+0.821/4.273 cm
+and 2232 outputs. This exposes the CPU/correction-latency
+tradeoff without changing registration thresholds or dropping measurements.
+The budget-off saved map has original/new-session RMSE 0.900/0.772 cm,
+versus 0.875/0.739 cm with pacing; surface RMSE is 4.802 versus 4.863 mm.
+These small differences do not support a useful accuracy gain from four times
+as many global refinement commits on this recording.
+
+**Map quality and remaining limits.** Final mapping preserves 13,791 inputs,
+13,723 outputs and 1,271 keyframes. All 430 prior loop pairs remain; one additional
+pair (492,484) has independent measurement error 1.448 cm / 0.0114 degrees.
+Mapping keyframe RMSE/maximum is 0.696/1.951 cm,
+versus 0.647/1.798 cm previously; surface RMSE is
+3.899 versus 3.732 mm.
+Online mapping still has 10 outputs above 10 cm, maximum
+11.659 cm. After extension, original/new-session
+keyframe RMSE is 0.875/
+0.739 cm and surface RMSE
+4.863 versus 4.612 mm. The small map/static
+regressions are retained; this is not improvement in every metric. Asynchronous
+scheduling and model changes are combined in the rebuilt-map comparison; the
+same-map replay isolates the tracking fixes. No statistical nonregression or
+universally calibrated uncertainty claim is made.
+
+**Consistency and closeout.** Real mapping/extension checkpoints retain raw
+clouds, odometry, edge information, shared-plane moments, sessions and dense pose
+provenance. Atlas point difference is zero. Reload continues 300 inputs/296 outputs;
+this repeated prefix tests operation, not independent accuracy. All 69 CTest
+targets pass in one final run; complete Humble and research builds pass. New
+regressions test physical origin invariance, verified-pose authority and retained
+plane observations. Private partition/sampling/feature helpers keep the new logic
+out of orchestration; no new algorithm framework is introduced.
+
+Original map/Atlas and route manifests, all14 manifests/plan and frozen final
+sources are hash-checked. No installed program, original recording or map was
+replaced; no push or patch workspace delivery. Whole-extension half-core,
+all-frame mapping below 10 cm, statistical geometry uncertainty, the previously
+recorded partial-map alias, full-node/hardware and independent Noetic compilation
+remain open. Evidence is a complete simulation replay, not hardware acceptance.

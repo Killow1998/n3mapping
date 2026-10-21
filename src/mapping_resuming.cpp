@@ -363,8 +363,13 @@ int64_t MappingResuming::processNewKeyframe(
         const auto optimized_poses = optimizer_.getOptimizedPoses();
         const auto optimized_current = optimized_poses.find(new_kf_id);
         if (optimized_current != optimized_poses.end()) {
+            // The append solve conditions old graph poses. Its compromise
+            // with odometry is not a new registration against the live Atlas.
+            // Preserve the verified tracking correction until the worker
+            // commits the optimized reference and its coordinate correction.
             const Eigen::Isometry3d corrected_map_odom =
-                optimized_current->second * odom_pose.inverse();
+                (has_tracking_constraint ? tracked_pose_in_map : optimized_current->second) *
+                odom_pose.inverse();
             if (isFiniteTransform(corrected_map_odom)) {
                 world_localizing_.setMapToOdomTransform(corrected_map_odom);
             }

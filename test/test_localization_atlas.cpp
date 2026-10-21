@@ -98,6 +98,7 @@ void expectPreparedLevelExact(
   ASSERT_NE(actual.cloud, nullptr);
   ASSERT_NE(actual.kdtree, nullptr);
   ASSERT_EQ(expected.cloud->size(), actual.cloud->size());
+  ASSERT_EQ(expected.cloud->covs.empty(), actual.cloud->covs.empty());
   // Prepared storage may be packed for tree locality on load. Compare the
   // complete records in canonical order, including duplicate coordinates and
   // their associated features; retain the bit-for-bit checks below.
@@ -108,7 +109,7 @@ void expectPreparedLevelExact(
       int order = std::memcmp(cloud.point(a).data(), cloud.point(b).data(), 4 * sizeof(double));
       if (order == 0)
         order = std::memcmp(cloud.normal(a).data(), cloud.normal(b).data(), 4 * sizeof(double));
-      if (order == 0)
+      if (order == 0 && !cloud.covs.empty())
         order = std::memcmp(cloud.cov(a).data(), cloud.cov(b).data(), 16 * sizeof(double));
       return order < 0;
     });
@@ -120,13 +121,14 @@ void expectPreparedLevelExact(
     const auto e = expected_indices[i], a = actual_indices[i];
     EXPECT_EQ(expected.cloud->point(e), actual.cloud->point(a));
     EXPECT_EQ(expected.cloud->normal(e), actual.cloud->normal(a));
-    EXPECT_EQ(expected.cloud->cov(e), actual.cloud->cov(a));
+    if (!expected.cloud->covs.empty())
+      EXPECT_EQ(expected.cloud->cov(e), actual.cloud->cov(a));
     // Effective components must survive bit-for-bit, including signed zero.
     EXPECT_EQ(std::memcmp(expected.cloud->point(e).data(),
                           actual.cloud->point(a).data(), 3 * sizeof(double)), 0);
     EXPECT_EQ(std::memcmp(expected.cloud->normal(e).data(),
                           actual.cloud->normal(a).data(), 3 * sizeof(double)), 0);
-    for (int column = 0; column < 3; ++column) {
+    for (int column = 0; !expected.cloud->covs.empty() && column < 3; ++column) {
       EXPECT_EQ(std::memcmp(expected.cloud->cov(e).col(column).data(),
                             actual.cloud->cov(a).col(column).data(),
                             3 * sizeof(double)), 0);

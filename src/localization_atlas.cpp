@@ -78,7 +78,15 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
     for (std::size_t i = 0; i < input.cloud->size(); ++i) {
         const auto& point = input.cloud->point(i);
         const auto& normal = input.cloud->normal(i);
-        const auto& covariance = input.cloud->cov(i);
+        Eigen::Matrix4d covariance = Eigen::Matrix4d::Zero();
+        if (input.cloud->covs.empty()) {
+            // Plane ICP retains normals only. Keep the existing sidecar
+            // schema using small_gicp's (0.001, 1, 1) covariance model.
+            covariance.topLeftCorner<3, 3>() = Eigen::Matrix3d::Identity() -
+                .999 * normal.head<3>() * normal.head<3>().transpose();
+        } else {
+            covariance = input.cloud->cov(i);
+        }
         if (!point.allFinite() || !normal.allFinite() || !covariance.allFinite()) {
             setError(error, "prepared target contains non-finite data");
             return false;
@@ -105,6 +113,7 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
 
 bool decodeLevel(LocalizationAtlasPreparedLevel& input,
                  PointCloudMatcher::PreparedTargetLevel* output,
+                 bool with_covariances,
                  std::string* error) {
     if (!output || input.num_points() == 0 || !std::isfinite(input.resolution()) ||
         input.resolution() <= 0.0) {
@@ -121,26 +130,29 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
     }
 
     auto cloud = std::make_shared<PointCloudMatcher::SmallGicpCloud>();
-    cloud->resize(static_cast<std::size_t>(input.num_points()));
+    cloud->points.resize(static_cast<std::size_t>(input.num_points()));
+    cloud->normals.resize(cloud->size());
+    if (with_covariances) cloud->covs.resize(cloud->size());
     for (std::size_t i = 0; i < cloud->size(); ++i) {
         cloud->point(i)[3] = 1.0;
         cloud->normal(i)[3] = 0.0;
-        cloud->cov(i).setZero();
+        Eigen::Matrix4d covariance = Eigen::Matrix4d::Zero();
         for (int axis = 0; axis < 3; ++axis) {
             cloud->point(i)[axis] = input.points(static_cast<int>(i * 3 + axis));
             cloud->normal(i)[axis] = input.normals(static_cast<int>(i * 3 + axis));
         }
         for (int row = 0; row < 3; ++row) {
             for (int column = 0; column < 3; ++column) {
-                cloud->cov(i)(row, column) =
+                covariance(row, column) =
                     input.covariances(static_cast<int>(i * 9 + row * 3 + column));
             }
         }
         if (!cloud->point(i).allFinite() || !cloud->normal(i).allFinite() ||
-            !cloud->cov(i).allFinite()) {
+            !covariance.allFinite()) {
             setError(error, "atlas prepared level contains non-finite data");
             return false;
         }
+        if (with_covariances) cloud->cov(i) = covariance;
     }
     output->resolution = input.resolution();
     output->cloud = cloud;
@@ -160,6 +172,10 @@ LocalizationAtlas::LocalizationAtlas(const Config& config, PointCloudMatcher& ma
 LocalizationAtlas::PointCloudT::Ptr LocalizationAtlas::buildGlobalMap(
     const Config& config, const std::vector<Keyframe::Ptr>& keyframes) {
     auto global_map = pcl::make_shared<PointCloudT>();
+    std::size_t point_count = 0;
+    for (const auto& keyframe : keyframes)
+        if (keyframe && keyframe->cloud) point_count += keyframe->cloud->size();
+    global_map->reserve(point_count);
     for (const auto& keyframe : keyframes) {
         if (!keyframe || !keyframe->cloud || keyframe->cloud->empty()) continue;
         PointCloudT transformed;
@@ -476,7 +492,7 @@ bool LocalizationAtlas::load(const std::string& map_path,
     for (int i = 0; i < data.plane_levels_size(); ++i) {
         if (!decodeLevel(*data.mutable_plane_levels(i),
                          &prepared_target_.plane_levels[static_cast<std::size_t>(i)],
-                         error)) {
+                         false, error)) {
             return false;
         }
         local_stats.prepared_point_count +=
@@ -484,7 +500,7 @@ bool LocalizationAtlas::load(const std::string& map_path,
     }
     prepared_target_.has_refine_level = data.refine_level_present();
     if (data.refine_level_present()) {
-        if (!decodeLevel(*data.mutable_refine_level(), &prepared_target_.refine_level, error)) {
+        if (!decodeLevel(*data.mutable_refine_level(), &prepared_target_.refine_level, true, error)) {
             return false;
         }
         local_stats.prepared_point_count += prepared_target_.refine_level.cloud->size();

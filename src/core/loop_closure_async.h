@@ -25,12 +25,15 @@ struct AsyncLoopJob {
   KeyframeMapRevision revision;
   LoopClosureOutcome outcome;
   double worker_wall_ms = 0.0;
+  double cpu_upper_ms = 0.0;
+  LoopClock::time_point started;
   std::size_t graph_rebase_count = 0;
 };
 
 struct AsyncLoopState {
   std::uint64_t generation = 0;
   std::deque<DetectedLoopQuery> pending;
+  LoopClock::time_point next_geometry_start;
   std::unique_ptr<AsyncLoopJob> job;
   // Declared last: destruction joins the isolated worker before releasing its
   // job/snapshots. No worker needs the live owner's mutex to finish.

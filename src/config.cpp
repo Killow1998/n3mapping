@@ -105,6 +105,7 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(loop_debug_vertical_hypotheses_enable);
     N3MAPPING_CONFIG_FIELD(loop_debug_path);
     N3MAPPING_CONFIG_FIELD(loop_geometry_enable);
+    N3MAPPING_CONFIG_FIELD(loop_geometry_cpu_budget);
     N3MAPPING_CONFIG_FIELD(loop_spatial_candidates_enable);
     N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_radius);
     N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_max_candidates);
@@ -253,7 +254,8 @@ std::string Config::toString() const {
         << " vertical_hypotheses=" << (loop_debug_vertical_hypotheses_enable ? "ON" : "OFF")
         << " path=" << (loop_debug_path.empty() ? "<map_save_path>/loop_debug.jsonl" : loop_debug_path) << "\n";
     oss << "Loop candidate pipeline: descriptor + spatial proposals -> ICP consistency features -> LoopReferee -> graph commit\n";
-    oss << "Joint loop geometry: " << (loop_geometry_enable ? "ON" : "OFF") << "\n";
+    oss << "Joint loop geometry: " << (loop_geometry_enable ? "ON" : "OFF")
+        << " extension_cpu_budget=" << loop_geometry_cpu_budget << "\n";
     oss << "Loop spatial candidates: " << (loop_spatial_candidates_enable ? "ON" : "OFF")
         << " radius=" << loop_spatial_candidate_radius
         << " max_candidates=" << loop_spatial_candidate_max_candidates << "\n";
@@ -415,6 +417,7 @@ bool Config::validate(std::string* error) const {
     if (!non_negative(loop_max_icp_rotation, "loop_max_icp_rotation")) return false;
     if (!non_negative(loop_icp_prefilter_voxel_size, "loop_icp_prefilter_voxel_size")) return false;
     if (!at_least(loop_icp_max_points, 0, "loop_icp_max_points")) return false;
+    if (!non_negative(loop_geometry_cpu_budget, "loop_geometry_cpu_budget")) return false;
     if (!positive(loop_spatial_candidate_radius, "loop_spatial_candidate_radius")) return false;
     if (!at_least(loop_spatial_candidate_max_candidates, 1, "loop_spatial_candidate_max_candidates")) return false;
     if (!at_least(loop_kf_gap, 0, "loop_kf_gap")) return false;
