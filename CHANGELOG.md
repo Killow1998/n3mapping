@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Reuse exactly unchanged cross-level neighborhoods and reconstruct fixed-spectrum
+  target covariance from normals. Avoid temporary covariance arrays at Atlas load;
+  retain arbitrary serialized matrices and the existing map/Atlas formats.
+- Final four-core Atlas ABBA reduces CPU 7.953→6.261 s and removes
+  264.661 MiB of covariance storage on the tested map. Full mapping, three
+  original14 suites, independent routes, extension and real checkpoints retain
+  the reliability baseline; all 69 CTest targets pass. Whole-extension half-core
+  and online mapping peaks remain open. See the [Atlas evidence](docs/evidence/runtime_cpu_20261017/README.md#exact-atlas-feature-reuse-and-compact-target-covariance--2026-10-21).
+
 - Fix tracking recovery's missing global-fitness check, make pose smoothing
   invariant to odometry origin, and preserve Atlas-verified extension output
   across conditioned graph append solves.

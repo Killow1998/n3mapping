@@ -1,5 +1,6 @@
 #include "registration_search.h"
 #include "registration_reduction.h"
+#include "point_cloud_target_view.h"
 
 #include <small_gicp/factors/gicp_factor.hpp>
 #include <small_gicp/factors/icp_factor.hpp>
@@ -40,7 +41,7 @@ small_gicp::RegistrationResult alignWithFactor(
   registration.optimizer.max_iterations = setting.max_iterations;
   registration.optimizer.verbose = setting.verbose;
   const CorrespondenceSearch search(tree, registration.rejector.max_dist_sq);
-  return registration.align(target, source, search, initial_pose);
+  return registration.align(TargetView{target}, source, search, initial_pose);
 }
 }  // namespace
 

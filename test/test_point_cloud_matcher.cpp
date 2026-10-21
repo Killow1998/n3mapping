@@ -3,6 +3,7 @@
 #include <small_gicp/util/normal_estimation_omp.hpp>
 
 #include "n3mapping/point_cloud_matcher.h"
+#include "../src/point_cloud_target_view.h"
 #include "support/registration_fixture.h"
 
 namespace n3mapping {
@@ -391,20 +392,25 @@ TEST_F(PointCloudMatcherTest, SourceRefinementDoesNotNeedTargetNormals) {
         EXPECT_TRUE(source.refine_cloud->point(i).isApprox(
             target.refine_level.cloud->point(target_index), 1e-12));
         EXPECT_TRUE(source.refine_cloud->cov(i).isApprox(
-            target.refine_level.cloud->cov(target_index), 1e-12));
+            registration_detail::TargetView{*target.refine_level.cloud}.covariance(target_index), 1e-12));
     }
     auto redundant_source = source;
-    redundant_source.refine_cloud = target.refine_level.cloud;
+    redundant_source.refine_cloud = std::make_shared<PointCloudMatcher::SmallGicpCloud>(
+        *target.refine_level.cloud);
+    auto& redundant = *redundant_source.refine_cloud;
+    redundant.covs.resize(redundant.size());
+    for (size_t i = 0; i < redundant.size(); ++i)
+        redundant.cov(i) = registration_detail::covarianceFromNormal(redundant.normal(i));
     const auto guess = createPose(0.0, 0.0, 0.05, 0.0, 0.0, 0.0);
     const auto lean = matcher_->alignPrepared(target, source, guess);
-    const auto redundant = matcher_->alignPrepared(target, redundant_source, guess);
+    const auto with_normals = matcher_->alignPrepared(target, redundant_source, guess);
     ASSERT_TRUE(lean.converged);
     ASSERT_FALSE(lean.stages.empty());
     EXPECT_EQ(lean.stages.back().stage, "refine_gicp");
-    EXPECT_EQ(lean.converged, redundant.converged);
-    EXPECT_TRUE(lean.T_target_source.isApprox(redundant.T_target_source, 1e-12));
-    EXPECT_NEAR(lean.fitness_score, redundant.fitness_score, 1e-12);
-    EXPECT_EQ(lean.num_inliers, redundant.num_inliers);
+    EXPECT_EQ(lean.converged, with_normals.converged);
+    EXPECT_TRUE(lean.T_target_source.isApprox(with_normals.T_target_source, 1e-12));
+    EXPECT_NEAR(lean.fitness_score, with_normals.fitness_score, 1e-12);
+    EXPECT_EQ(lean.num_inliers, with_normals.num_inliers);
 }
 
 TEST_F(PointCloudMatcherTest, FixedPoseEvaluationUsesObjectiveAndCorrespondenceGate) {

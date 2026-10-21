@@ -14063,5 +14063,1917 @@
       "Final rebuilt map and fixed14 have documented sub-millimetre RMSE regressions; online mapping still has ten outputs above 10cm."
     ],
     "baseline_stage": "async_joint_geometry"
+  },
+  "atlas_feature_reuse": {
+    "date": "2026-10-21",
+    "base_commit": "34598049207bb1ba6f71767c0919b483f7c93039",
+    "cpus": "0,2,4,6",
+    "registration_threads": 4,
+    "omp_wait_policy": "PASSIVE",
+    "truth": "Original first-pose alignment; truth only in observers; no query fitting",
+    "scope": "Direct core; CPU excludes loading/frontend/DDS/publication; runtime includes asynchronous worker and drain; RSS high-water includes load; save separate",
+    "artifacts": "build/n3mapping/atlas_refinement_20261021",
+    "final_binary_sha256": "a7f9609445f37bbe6df0c71dc2a28531af202d850c1181fbba9bf180b13e970c",
+    "original_inputs": {
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream": "fbf6d4863fbbedb10fbedb3b8cff832b02e2d6c37cd7139e944a863a471cf2bb",
+      "src/n3mapping/map/sprobo_20261018/coverage_v2/map/n3map.pbstream.localization_atlas.pb": "2ae52641ca7622afc60f9fa964b984b913eacbd3e78f6f1886dc7d4d01408fac",
+      "build/n3mapping/online_loop_20261020/manifest/frames.csv": "2c9c0619e548d69d3ec69b08c3475881497a8bf9276e425a562a8aed641bb925",
+      "src/n3mapping/map/sprobo_20261018/reentry_20261019/query/manifest/frames.csv": "2422a44c5560990ab1ac76bc4719b9c4ecc2880b7d3890fa33560270dd0f3fcf"
+    },
+    "fixed14_manifests_unchanged": true,
+    "frozen_sources_verified": true,
+    "mapping": {
+      "frames": 13791,
+      "keyframes": 1271,
+      "successful_frames": 13723,
+      "accepted_loops": 431,
+      "mapping_cpu_s": 58.995880976001445,
+      "loop_cpu_s": 1.8208688119995187,
+      "runtime_cpu_s": 520.1468472219999,
+      "runtime_wall_s": 1379.000190277,
+      "source_duration_s": 1379,
+      "max_pacing_lag_s": 0.018775799,
+      "peak_rss_kib": 994708,
+      "paced": true,
+      "average_cores": 0.3771913322857142,
+      "online_peak_rss_gib": 0.9486274719238281,
+      "save": {
+        "cpu_s": 6.14264,
+        "wall_s": 2.96751,
+        "peak_rss_kib": 2028864
+      },
+      "accuracy": {
+        "alignment": {
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "frames": 13791,
+        "outputs": 13723,
+        "rejected_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65,
+          66,
+          67
+        ],
+        "position_m": {
+          "count": 13723,
+          "rmse": 0.02199162466345617,
+          "median": 0.01072713930795464,
+          "p95": 0.04714270458859698,
+          "maximum": 0.11658517912448636
+        },
+        "rotation_deg": {
+          "count": 13723,
+          "rmse": 0.0602287486310763,
+          "median": 0.03542386508687752,
+          "p95": 0.11668377748302418,
+          "maximum": 0.606578229305284
+        },
+        "consecutive_displacement_error_m": {
+          "count": 13722,
+          "rmse": 0.006141594648665372,
+          "median": 0.0029666253421938276,
+          "p95": 0.010874768258193623,
+          "maximum": 0.08808304188837145
+        },
+        "above_10cm": 10,
+        "above_1m": 0,
+        "max_rotation_orthogonality_error": 5.045776481340887e-15,
+        "commits": 253,
+        "max_pending": 1,
+        "graph_rebases": 0,
+        "commit_ms": {
+          "count": 253,
+          "rmse": 2.972156645346768,
+          "median": 0.372332,
+          "p95": 5.899255999999993,
+          "maximum": 15.649681999999999
+        },
+        "max_pending_age_ms": 3982.519822
+      },
+      "owner_loop_callback_max_ms": 21.32625,
+      "worker_completions": 253,
+      "geometry_commits": 146,
+      "map_sha256": "dfa08df948b4d7c08ba73aab3f92088d8674ca1a187d38b379b1a854bd0a19a4",
+      "atlas_sha256": "c68ecfd8539c8adbb0629c6c6a9460c15b2a539531e21b8a898b4ac40683edfd"
+    },
+    "map_accuracy": {
+      "position_m": {
+        "rmse": 0.0069566408639426605,
+        "median": 0.006484036709384494,
+        "p95": 0.01100358205871962,
+        "maximum": 0.01951271815742043
+      },
+      "rotation_deg": {
+        "rmse": 0.015028287412839736,
+        "median": 0.011558618179260837,
+        "p95": 0.027236724718914473,
+        "maximum": 0.06564869153074461
+      },
+      "independent_revisits": {
+        "count": 1811,
+        "relative_translation_m": {
+          "rmse": 0.004191611477614932,
+          "median": 0.00235086473511871,
+          "p95": 0.008587956890087303,
+          "maximum": 0.017846530115408776
+        },
+        "relative_rotation_deg": {
+          "rmse": 0.01647370194448873,
+          "median": 0.006601692542291005,
+          "p95": 0.038958331586327666,
+          "maximum": 0.06321088462070398
+        }
+      },
+      "surface_distance_m": {
+        "rmse": 0.003899069217173695,
+        "median": 0.0024949678992944035,
+        "p95": 0.007723466646961478,
+        "maximum": 0.02239435034765347,
+        "points": 633185,
+        "incomplete_over_2m": 0
+      }
+    },
+    "loop_measurements": {
+      "baseline": {
+        "count": 431,
+        "translation_max_m": 0.10020105701824579,
+        "translation_rmse_m": 0.007153472830494757,
+        "rotation_max_deg": 0.14458522239086025
+      },
+      "final": {
+        "count": 431,
+        "translation_max_m": 0.10020105701824013,
+        "translation_rmse_m": 0.007153472830494724,
+        "rotation_max_deg": 0.14458522239085905
+      },
+      "added": [],
+      "removed": []
+    },
+    "independent_same_map": {
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "position_m": {
+        "rmse": 0.009133336852023364,
+        "median": 0.006539974205120662,
+        "p95": 0.014553405521031028,
+        "maximum": 0.07741860848785355
+      },
+      "rotation_deg": {
+        "rmse": 0.0220669019497249,
+        "median": 0.014841460987454112,
+        "p95": 0.04012827582738772,
+        "maximum": 0.14666748266507137
+      },
+      "cpu_s": 125.006815418,
+      "average_cores": 0.5593146103713647,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 2220,
+        "icp_gate_failed": 11
+      },
+      "peak_rss_mib": 1297.12109375,
+      "audit": {
+        "frames": 2236,
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "within_10cm": 2232,
+        "gross_outputs": 0,
+        "gross_geometric": 0,
+        "first_gross": null,
+        "last_gross": null
+      }
+    },
+    "independent_rebuilt": {
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "position_m": {
+        "rmse": 0.009133336852009677,
+        "median": 0.006539974205120662,
+        "p95": 0.014553405521031019,
+        "maximum": 0.07741860848785355
+      },
+      "rotation_deg": {
+        "rmse": 0.022066901949717145,
+        "median": 0.014841460987454105,
+        "p95": 0.04012827582738771,
+        "maximum": 0.14666748266507693
+      },
+      "cpu_s": 124.813624081,
+      "average_cores": 0.5584502196017898,
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 2220,
+        "icp_gate_failed": 11
+      },
+      "peak_rss_mib": 1304.33203125,
+      "audit": {
+        "frames": 2236,
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "within_10cm": 2232,
+        "gross_outputs": 0,
+        "gross_geometric": 0,
+        "first_gross": null,
+        "last_gross": null
+      }
+    },
+    "fixed14_same_map": {
+      "frames": 4144,
+      "outputs": 4088,
+      "locks": "14/14 at frame 4",
+      "position_rmse_m": 0.007996291218579128,
+      "position_max_m": 0.02415956578214116,
+      "rotation_rmse_deg": 0.015287445747177828,
+      "rotation_max_deg": 0.08370723952015063,
+      "cpu_s": 188.49939707000001,
+      "input_s": 413.000005005,
+      "average_cores": 0.45641499948097564,
+      "peak_rss_mib": 1304.4140625,
+      "first_lock_unpaced_wall_s": {
+        "median": 3.0666440605,
+        "maximum": 4.340246305
+      },
+      "cases": [
+        {
+          "id": "01_west_corridor",
+          "position_m": {
+            "rmse": 0.0025200085255684154,
+            "median": 0.0019899800629789195,
+            "p95": 0.00422854823599973,
+            "maximum": 0.008312200677255485
+          },
+          "rotation_deg": {
+            "rmse": 0.013795553512502176,
+            "median": 0.012551649176802498,
+            "p95": 0.022053161020689497,
+            "maximum": 0.025791387707246666
+          },
+          "average_cores": 0.37355661812375845
+        },
+        {
+          "id": "02_east_corridor",
+          "position_m": {
+            "rmse": 0.008467933358280435,
+            "median": 0.008435863926999309,
+            "p95": 0.009420539236202148,
+            "maximum": 0.010017225907047763
+          },
+          "rotation_deg": {
+            "rmse": 0.010398749071482104,
+            "median": 0.01029538682826436,
+            "p95": 0.014778119370538422,
+            "maximum": 0.02549239582069951
+          },
+          "average_cores": 0.4357757340997441
+        },
+        {
+          "id": "03_south_corridor",
+          "position_m": {
+            "rmse": 0.005706866994757213,
+            "median": 0.0055567643721342146,
+            "p95": 0.00699033193421435,
+            "maximum": 0.009853303499613811
+          },
+          "rotation_deg": {
+            "rmse": 0.017737369169418562,
+            "median": 0.01736936194965283,
+            "p95": 0.02163834158267568,
+            "maximum": 0.04119650940339366
+          },
+          "average_cores": 0.5734613986101695
+        },
+        {
+          "id": "04_north_corridor",
+          "position_m": {
+            "rmse": 0.004624018996440394,
+            "median": 0.004606502962843338,
+            "p95": 0.0055229219515452775,
+            "maximum": 0.006381293021918561
+          },
+          "rotation_deg": {
+            "rmse": 0.010926164274188839,
+            "median": 0.010590000453561035,
+            "p95": 0.013902976322848043,
+            "maximum": 0.024394578370498892
+          },
+          "average_cores": 0.5383556738125473
+        },
+        {
+          "id": "05_southwest_office",
+          "position_m": {
+            "rmse": 0.008039933211757501,
+            "median": 0.007099976028987133,
+            "p95": 0.011705226750512972,
+            "maximum": 0.01218846303544361
+          },
+          "rotation_deg": {
+            "rmse": 0.014982013674648473,
+            "median": 0.014069225380884799,
+            "p95": 0.022143222420577823,
+            "maximum": 0.041059149520423575
+          },
+          "average_cores": 0.47510652942372883
+        },
+        {
+          "id": "06_south_meeting",
+          "position_m": {
+            "rmse": 0.009748627422964262,
+            "median": 0.008964680989423405,
+            "p95": 0.013108541291210862,
+            "maximum": 0.014360605067242438
+          },
+          "rotation_deg": {
+            "rmse": 0.016539942342408524,
+            "median": 0.014529541521101934,
+            "p95": 0.023111994861728078,
+            "maximum": 0.06963629495636708
+          },
+          "average_cores": 0.41220176861016955
+        },
+        {
+          "id": "07_south_pillars",
+          "position_m": {
+            "rmse": 0.012745928678706303,
+            "median": 0.010561799460838715,
+            "p95": 0.02212626565920373,
+            "maximum": 0.02415956578214116
+          },
+          "rotation_deg": {
+            "rmse": 0.018639098903291275,
+            "median": 0.01658163424868693,
+            "p95": 0.02905697899731279,
+            "maximum": 0.050495015763234646
+          },
+          "average_cores": 0.43664164562711866
+        },
+        {
+          "id": "08_west_shelves",
+          "position_m": {
+            "rmse": 0.005163327233818951,
+            "median": 0.003796786490786301,
+            "p95": 0.009543080034419674,
+            "maximum": 0.010416797091068545
+          },
+          "rotation_deg": {
+            "rmse": 0.022184542656981568,
+            "median": 0.019625088928452585,
+            "p95": 0.034881202340463865,
+            "maximum": 0.05864209211960334
+          },
+          "average_cores": 0.4769061249830508
+        },
+        {
+          "id": "09_east_shelves",
+          "position_m": {
+            "rmse": 0.010183862522654673,
+            "median": 0.009656113177790287,
+            "p95": 0.012755558637220712,
+            "maximum": 0.013768278969826003
+          },
+          "rotation_deg": {
+            "rmse": 0.01731441646732154,
+            "median": 0.01496817239722948,
+            "p95": 0.02672037367829385,
+            "maximum": 0.045060780125850526
+          },
+          "average_cores": 0.35740506311864406
+        },
+        {
+          "id": "10_northwest_meeting",
+          "position_m": {
+            "rmse": 0.003321944568855797,
+            "median": 0.0013702425928003837,
+            "p95": 0.007242633600857404,
+            "maximum": 0.009048805260057831
+          },
+          "rotation_deg": {
+            "rmse": 0.012776164297628345,
+            "median": 0.011144384690694877,
+            "p95": 0.020816858750244322,
+            "maximum": 0.024149492555081704
+          },
+          "average_cores": 0.39493090772881356
+        },
+        {
+          "id": "11_northeast_pillars",
+          "position_m": {
+            "rmse": 0.009791085887499756,
+            "median": 0.008760244752059238,
+            "p95": 0.014062220523042082,
+            "maximum": 0.014516112239079153
+          },
+          "rotation_deg": {
+            "rmse": 0.013668219862383695,
+            "median": 0.012065489584767016,
+            "p95": 0.0204718523007642,
+            "maximum": 0.04326420725072876
+          },
+          "average_cores": 0.4562747983728813
+        },
+        {
+          "id": "12_north_office",
+          "position_m": {
+            "rmse": 0.0053159144311837134,
+            "median": 0.005388271214902777,
+            "p95": 0.006374512524385603,
+            "maximum": 0.006657813569300488
+          },
+          "rotation_deg": {
+            "rmse": 0.014167330612908414,
+            "median": 0.012787217713009377,
+            "p95": 0.02151595043242986,
+            "maximum": 0.033361506336065105
+          },
+          "average_cores": 0.4869693360338983
+        },
+        {
+          "id": "13_south_door",
+          "position_m": {
+            "rmse": 0.01200971023318971,
+            "median": 0.011227825666108948,
+            "p95": 0.01626860386372955,
+            "maximum": 0.02247143948437098
+          },
+          "rotation_deg": {
+            "rmse": 0.01595187352758064,
+            "median": 0.012379128631021237,
+            "p95": 0.022619915737311133,
+            "maximum": 0.08370723952015063
+          },
+          "average_cores": 0.44408739892686677
+        },
+        {
+          "id": "14_north_door",
+          "position_m": {
+            "rmse": 0.00559146450945271,
+            "median": 0.005580640152998018,
+            "p95": 0.00661367586927949,
+            "maximum": 0.008738946181226101
+          },
+          "rotation_deg": {
+            "rmse": 0.009839808732112933,
+            "median": 0.009404634392884942,
+            "p95": 0.014437303492561778,
+            "maximum": 0.016617679156961968
+          },
+          "average_cores": 0.5281369885313346
+        }
+      ]
+    },
+    "fixed14_rebuilt": {
+      "frames": 4144,
+      "outputs": 4088,
+      "locks": "14/14 at frame 4",
+      "position_rmse_m": 0.00799629121859115,
+      "position_max_m": 0.02415956578214105,
+      "rotation_rmse_deg": 0.015287445747211529,
+      "rotation_max_deg": 0.08370723952014332,
+      "cpu_s": 189.038231551,
+      "input_s": 413.000005005,
+      "average_cores": 0.4577196834385302,
+      "peak_rss_mib": 1316.125,
+      "first_lock_unpaced_wall_s": {
+        "median": 3.2254213105,
+        "maximum": 4.436313504
+      },
+      "cases": [
+        {
+          "id": "01_west_corridor",
+          "position_m": {
+            "rmse": 0.002520008525568416,
+            "median": 0.0019899800629789204,
+            "p95": 0.00422854823599976,
+            "maximum": 0.008312200677255492
+          },
+          "rotation_deg": {
+            "rmse": 0.013795553512502176,
+            "median": 0.012551649176802494,
+            "p95": 0.022053161020689504,
+            "maximum": 0.025791387707246607
+          },
+          "average_cores": 0.3616645814620756
+        },
+        {
+          "id": "02_east_corridor",
+          "position_m": {
+            "rmse": 0.008467933358439468,
+            "median": 0.008435863926999305,
+            "p95": 0.009420539236202155,
+            "maximum": 0.010017225907047822
+          },
+          "rotation_deg": {
+            "rmse": 0.010398749072173835,
+            "median": 0.010295386828264357,
+            "p95": 0.014778119370538427,
+            "maximum": 0.025492395853780665
+          },
+          "average_cores": 0.43673563400468324
+        },
+        {
+          "id": "03_south_corridor",
+          "position_m": {
+            "rmse": 0.005706866994757237,
+            "median": 0.0055567643721342146,
+            "p95": 0.006990331934214399,
+            "maximum": 0.00985330349961387
+          },
+          "rotation_deg": {
+            "rmse": 0.017737369169418565,
+            "median": 0.017369361949652818,
+            "p95": 0.021638341582675677,
+            "maximum": 0.04119650940339366
+          },
+          "average_cores": 0.5993656774237289
+        },
+        {
+          "id": "04_north_corridor",
+          "position_m": {
+            "rmse": 0.004624018996440392,
+            "median": 0.004606502962843338,
+            "p95": 0.0055229219515452775,
+            "maximum": 0.006381293021918561
+          },
+          "rotation_deg": {
+            "rmse": 0.01092616427418884,
+            "median": 0.010590000453561049,
+            "p95": 0.013902976322848046,
+            "maximum": 0.024394578370498892
+          },
+          "average_cores": 0.538439992708209
+        },
+        {
+          "id": "05_southwest_office",
+          "position_m": {
+            "rmse": 0.008039933211757515,
+            "median": 0.007099976028987133,
+            "p95": 0.011705226750512911,
+            "maximum": 0.0121884630354435
+          },
+          "rotation_deg": {
+            "rmse": 0.014982013674648475,
+            "median": 0.014069225380884813,
+            "p95": 0.022143222420577813,
+            "maximum": 0.041059149520423596
+          },
+          "average_cores": 0.4658538829830509
+        },
+        {
+          "id": "06_south_meeting",
+          "position_m": {
+            "rmse": 0.009748627422964241,
+            "median": 0.008964680989423405,
+            "p95": 0.013108541291210753,
+            "maximum": 0.01436060506724233
+          },
+          "rotation_deg": {
+            "rmse": 0.016539942342409505,
+            "median": 0.014529541521101932,
+            "p95": 0.023111994861709458,
+            "maximum": 0.06963629495636693
+          },
+          "average_cores": 0.41505821511864405
+        },
+        {
+          "id": "07_south_pillars",
+          "position_m": {
+            "rmse": 0.012745928678706336,
+            "median": 0.010561799460838715,
+            "p95": 0.022126265659203635,
+            "maximum": 0.02415956578214105
+          },
+          "rotation_deg": {
+            "rmse": 0.018639098903291282,
+            "median": 0.01658163424868691,
+            "p95": 0.029056978997312778,
+            "maximum": 0.05049501576323461
+          },
+          "average_cores": 0.4428576300677966
+        },
+        {
+          "id": "08_west_shelves",
+          "position_m": {
+            "rmse": 0.005163327233818934,
+            "median": 0.003796786490786301,
+            "p95": 0.009543080034419577,
+            "maximum": 0.010416797091068271
+          },
+          "rotation_deg": {
+            "rmse": 0.022184542656981568,
+            "median": 0.019625088928452595,
+            "p95": 0.03488120234046379,
+            "maximum": 0.058642092119603174
+          },
+          "average_cores": 0.47975984471186445
+        },
+        {
+          "id": "09_east_shelves",
+          "position_m": {
+            "rmse": 0.01018386252265463,
+            "median": 0.009656113177790287,
+            "p95": 0.012755558637220863,
+            "maximum": 0.013768278969826098
+          },
+          "rotation_deg": {
+            "rmse": 0.017314416467321615,
+            "median": 0.014968172397229473,
+            "p95": 0.026720373678293857,
+            "maximum": 0.045060780125850505
+          },
+          "average_cores": 0.3481621776271187
+        },
+        {
+          "id": "10_northwest_meeting",
+          "position_m": {
+            "rmse": 0.003321944568855823,
+            "median": 0.0013702425928003436,
+            "p95": 0.007242633600857404,
+            "maximum": 0.009048805260059195
+          },
+          "rotation_deg": {
+            "rmse": 0.012776164297627967,
+            "median": 0.011144384690695501,
+            "p95": 0.02081685875024431,
+            "maximum": 0.024149492555082332
+          },
+          "average_cores": 0.40380831216949153
+        },
+        {
+          "id": "11_northeast_pillars",
+          "position_m": {
+            "rmse": 0.009791085887499683,
+            "median": 0.008760244752059238,
+            "p95": 0.01406222052304204,
+            "maximum": 0.014516112239079153
+          },
+          "rotation_deg": {
+            "rmse": 0.013668219862384484,
+            "median": 0.012065489584767015,
+            "p95": 0.0204718523007642,
+            "maximum": 0.04326420725074097
+          },
+          "average_cores": 0.4581357438644068
+        },
+        {
+          "id": "12_north_office",
+          "position_m": {
+            "rmse": 0.005315914431183714,
+            "median": 0.005388271214902777,
+            "p95": 0.006374512524385603,
+            "maximum": 0.006657813569300488
+          },
+          "rotation_deg": {
+            "rmse": 0.014167330612908393,
+            "median": 0.012787217713009388,
+            "p95": 0.021515950432430594,
+            "maximum": 0.033361506336064876
+          },
+          "average_cores": 0.48003578518644063
+        },
+        {
+          "id": "13_south_door",
+          "position_m": {
+            "rmse": 0.012009710233189697,
+            "median": 0.011227825666108948,
+            "p95": 0.016268603863729445,
+            "maximum": 0.022471439484370817
+          },
+          "rotation_deg": {
+            "rmse": 0.015951873527580374,
+            "median": 0.012379128631021233,
+            "p95": 0.022619915737311126,
+            "maximum": 0.08370723952014332
+          },
+          "average_cores": 0.4425296137674333
+        },
+        {
+          "id": "14_north_door",
+          "position_m": {
+            "rmse": 0.00559146450945271,
+            "median": 0.005580640152998018,
+            "p95": 0.00661367586927949,
+            "maximum": 0.008738946181226073
+          },
+          "rotation_deg": {
+            "rmse": 0.009839808732112912,
+            "median": 0.009404634392884942,
+            "p95": 0.014437303492561778,
+            "maximum": 0.016617679156961968
+          },
+          "average_cores": 0.5356684673552313
+        }
+      ]
+    },
+    "fixed14_extended": {
+      "frames": 4144,
+      "outputs": 4088,
+      "locks": "14/14 at frame 4",
+      "position_rmse_m": 0.00961907719645543,
+      "position_max_m": 0.026105438784840153,
+      "rotation_rmse_deg": 0.01560950872374142,
+      "rotation_max_deg": 0.08273721816146805,
+      "cpu_s": 185.393744506,
+      "input_s": 413.000005005,
+      "average_cores": 0.4488952597076979,
+      "peak_rss_mib": 1426.7734375,
+      "first_lock_unpaced_wall_s": {
+        "median": 3.339508734,
+        "maximum": 4.17714816
+      },
+      "cases": [
+        {
+          "id": "01_west_corridor",
+          "position_m": {
+            "rmse": 0.002527389175844138,
+            "median": 0.001973015398564459,
+            "p95": 0.004256304464424777,
+            "maximum": 0.00833362508664709
+          },
+          "rotation_deg": {
+            "rmse": 0.01279434866199425,
+            "median": 0.011398114601325114,
+            "p95": 0.02144870889869056,
+            "maximum": 0.02496852341721506
+          },
+          "average_cores": 0.3338269794509841
+        },
+        {
+          "id": "02_east_corridor",
+          "position_m": {
+            "rmse": 0.010721196642208556,
+            "median": 0.010696463345250293,
+            "p95": 0.011667206176697673,
+            "maximum": 0.012221377262232467
+          },
+          "rotation_deg": {
+            "rmse": 0.014864734894730893,
+            "median": 0.014903476182909088,
+            "p95": 0.019557176533275232,
+            "maximum": 0.028300645044772806
+          },
+          "average_cores": 0.37833008611721775
+        },
+        {
+          "id": "03_south_corridor",
+          "position_m": {
+            "rmse": 0.0075821097309641435,
+            "median": 0.00745565355913911,
+            "p95": 0.008836935249674563,
+            "maximum": 0.01186095073675064
+          },
+          "rotation_deg": {
+            "rmse": 0.014220947501597277,
+            "median": 0.013470156256496824,
+            "p95": 0.0184450724128885,
+            "maximum": 0.03692335350253384
+          },
+          "average_cores": 0.5272812944406778
+        },
+        {
+          "id": "04_north_corridor",
+          "position_m": {
+            "rmse": 0.00468600315177833,
+            "median": 0.004701700756864331,
+            "p95": 0.005727470548340221,
+            "maximum": 0.006634365744872503
+          },
+          "rotation_deg": {
+            "rmse": 0.013658207549796535,
+            "median": 0.013245361551909491,
+            "p95": 0.017030539560165016,
+            "maximum": 0.027309874596574375
+          },
+          "average_cores": 0.4750517281231831
+        },
+        {
+          "id": "05_southwest_office",
+          "position_m": {
+            "rmse": 0.008945749314219379,
+            "median": 0.008058022104038581,
+            "p95": 0.012554624637672325,
+            "maximum": 0.013079692592588848
+          },
+          "rotation_deg": {
+            "rmse": 0.0167015976449679,
+            "median": 0.01605874970660616,
+            "p95": 0.024165821583653747,
+            "maximum": 0.04331465548710632
+          },
+          "average_cores": 0.48839494457627114
+        },
+        {
+          "id": "06_south_meeting",
+          "position_m": {
+            "rmse": 0.011099983822260722,
+            "median": 0.010389847231115738,
+            "p95": 0.014389127268031964,
+            "maximum": 0.0157320572353978
+          },
+          "rotation_deg": {
+            "rmse": 0.017165896173977877,
+            "median": 0.015301568999196291,
+            "p95": 0.02417581708436205,
+            "maximum": 0.07134152306036182
+          },
+          "average_cores": 0.41130358477966106
+        },
+        {
+          "id": "07_south_pillars",
+          "position_m": {
+            "rmse": 0.015117175102887187,
+            "median": 0.013193939024832187,
+            "p95": 0.02417589662854594,
+            "maximum": 0.026105438784840153
+          },
+          "rotation_deg": {
+            "rmse": 0.018144844952239978,
+            "median": 0.016508963491086288,
+            "p95": 0.028218171404409124,
+            "maximum": 0.04947369318169837
+          },
+          "average_cores": 0.4438956727457627
+        },
+        {
+          "id": "08_west_shelves",
+          "position_m": {
+            "rmse": 0.005113386062221615,
+            "median": 0.003786929705836822,
+            "p95": 0.009420791023255897,
+            "maximum": 0.010357965327075332
+          },
+          "rotation_deg": {
+            "rmse": 0.022054434425520474,
+            "median": 0.019427704845472862,
+            "p95": 0.034722870397903734,
+            "maximum": 0.05847196239072844
+          },
+          "average_cores": 0.500793704779661
+        },
+        {
+          "id": "09_east_shelves",
+          "position_m": {
+            "rmse": 0.012476493566063892,
+            "median": 0.011943774006678957,
+            "p95": 0.015070205702444434,
+            "maximum": 0.016108869379798687
+          },
+          "rotation_deg": {
+            "rmse": 0.017926713533900664,
+            "median": 0.015328946225480804,
+            "p95": 0.028071879386863303,
+            "maximum": 0.047030797574741615
+          },
+          "average_cores": 0.3628072704067797
+        },
+        {
+          "id": "10_northwest_meeting",
+          "position_m": {
+            "rmse": 0.0033785890883010787,
+            "median": 0.0012869054340400097,
+            "p95": 0.007387043793933344,
+            "maximum": 0.009079996501570715
+          },
+          "rotation_deg": {
+            "rmse": 0.011926826782573218,
+            "median": 0.010120744084328765,
+            "p95": 0.01947677229993689,
+            "maximum": 0.025065401187447833
+          },
+          "average_cores": 0.41058056067796606
+        },
+        {
+          "id": "11_northeast_pillars",
+          "position_m": {
+            "rmse": 0.01266702171969379,
+            "median": 0.011587797750225878,
+            "p95": 0.01716802695908237,
+            "maximum": 0.017648292575492903
+          },
+          "rotation_deg": {
+            "rmse": 0.01465560258080235,
+            "median": 0.013526289827975761,
+            "p95": 0.021284977815260436,
+            "maximum": 0.04154457884767672
+          },
+          "average_cores": 0.47259413298305075
+        },
+        {
+          "id": "12_north_office",
+          "position_m": {
+            "rmse": 0.004713440038553838,
+            "median": 0.004757336603534772,
+            "p95": 0.005607342536102464,
+            "maximum": 0.005919338454949994
+          },
+          "rotation_deg": {
+            "rmse": 0.013409873721207303,
+            "median": 0.011609111277022903,
+            "p95": 0.021503167928738125,
+            "maximum": 0.03480101467606147
+          },
+          "average_cores": 0.4903751434576271
+        },
+        {
+          "id": "13_south_door",
+          "position_m": {
+            "rmse": 0.015860886342805705,
+            "median": 0.015256114367840337,
+            "p95": 0.01977951353004682,
+            "maximum": 0.022882216585653713
+          },
+          "rotation_deg": {
+            "rmse": 0.015620240704073337,
+            "median": 0.012021694224071063,
+            "p95": 0.02220106154479744,
+            "maximum": 0.08273721816146805
+          },
+          "average_cores": 0.4377602059325481
+        },
+        {
+          "id": "14_north_door",
+          "position_m": {
+            "rmse": 0.005947022704344562,
+            "median": 0.005936885360544245,
+            "p95": 0.007080319742114613,
+            "maximum": 0.009175609459216595
+          },
+          "rotation_deg": {
+            "rmse": 0.012095147259667727,
+            "median": 0.0117776980848536,
+            "p95": 0.01647109439719582,
+            "maximum": 0.01823850123130121
+          },
+          "average_cores": 0.5515383087983311
+        }
+      ]
+    },
+    "extension": {
+      "frames": 2236,
+      "keyframes": 231,
+      "successful_frames": 2232,
+      "accepted_loops": 0,
+      "mapping_cpu_s": 125.75198170799975,
+      "loop_cpu_s": 0.49682792499996786,
+      "runtime_cpu_s": 195.539792227,
+      "runtime_wall_s": 228.193083863,
+      "source_duration_s": 223.5,
+      "max_pacing_lag_s": 1.806989688,
+      "peak_rss_kib": 2126992,
+      "paced": true,
+      "average_cores": 0.8748983992259507,
+      "online_peak_rss_gib": 2.0284576416015625,
+      "save": {
+        "cpu_s": 6.66181,
+        "wall_s": 3.38677,
+        "peak_rss_kib": 2434224
+      },
+      "accuracy": {
+        "alignment": {
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "frames": 2236,
+        "outputs": 2232,
+        "rejected_frames": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "position_m": {
+          "count": 2232,
+          "rmse": 0.008104717632394249,
+          "median": 0.0058934562380713994,
+          "p95": 0.01344362777917757,
+          "maximum": 0.04278828530542056
+        },
+        "rotation_deg": {
+          "count": 2232,
+          "rmse": 0.025952906778162217,
+          "median": 0.01249816140781368,
+          "p95": 0.04962431224388594,
+          "maximum": 0.16316674641761084
+        },
+        "consecutive_displacement_error_m": {
+          "count": 2231,
+          "rmse": 0.003259422128902041,
+          "median": 0.0014085018154410254,
+          "p95": 0.005707180999124982,
+          "maximum": 0.0401401120308107
+        },
+        "above_10cm": 0,
+        "above_1m": 0,
+        "max_rotation_orthogonality_error": 3.14949720021775e-13,
+        "commits": 13,
+        "max_pending": 2,
+        "graph_rebases": 0,
+        "commit_ms": {
+          "count": 13,
+          "rmse": 10.528542712780563,
+          "median": 9.054304,
+          "p95": 16.912291999999997,
+          "maximum": 18.30368
+        },
+        "max_pending_age_ms": 28088.083378
+      },
+      "owner_loop_callback_max_ms": 54.871506000000004,
+      "worker_completions": 13,
+      "geometry_commits": 13,
+      "map_sha256": "0e9f2a4015965ae2e9d4857da1d13544df382bb3bcfaa22d06cd737c1a88fc50",
+      "atlas_sha256": "e8cd07cd7e9530ec4c99ee8eb654ac3dd6926b458f29916bb3935eed778f553a"
+    },
+    "extension_map_accuracy": {
+      "original_mapping": {
+        "position_m": {
+          "count": 1271,
+          "rmse": 0.008449493922780563,
+          "median": 0.007411873553570807,
+          "p95": 0.014207726276741436,
+          "maximum": 0.020654662073137736
+        },
+        "rotation_deg": {
+          "count": 1271,
+          "rmse": 0.015323650174404218,
+          "median": 0.012410827063047003,
+          "p95": 0.02592789595330059,
+          "maximum": 0.061857502538912285
+        }
+      },
+      "new_session": {
+        "position_m": {
+          "count": 231,
+          "rmse": 0.007079594532142326,
+          "median": 0.005787493874395725,
+          "p95": 0.011740513395168482,
+          "maximum": 0.01957418519755977
+        },
+        "rotation_deg": {
+          "count": 231,
+          "rmse": 0.021267547552664183,
+          "median": 0.012706040145040802,
+          "p95": 0.04121063662453138,
+          "maximum": 0.09690193440499889
+        }
+      },
+      "surface_distance_m": {
+        "count": 748129,
+        "rmse": 0.0045945895575856145,
+        "median": 0.003054355041680612,
+        "p95": 0.009213554925828042,
+        "maximum": 0.023865738192112934
+      }
+    },
+    "checkpoints": {
+      "mapping": {
+        "geometry": {
+          "atlas_point_error_m": 0.0,
+          "atlas_points": 2092216,
+          "edge_error": 9.420555220026656e-16,
+          "edges": 1701,
+          "graph_pose_error": 2.010699734790171e-15,
+          "keyframe_pose_error": 2.010699734790171e-15,
+          "keyframes": 1271,
+          "observations": 19376,
+          "plane_error": 1.1102230246251565e-16,
+          "planes": 768,
+          "raw_clouds_odometry_information_and_moments_preserved": true,
+          "raw_pose_error": 1.1322165218767588e-15,
+          "reload_pose_error": 1.6690411503500186e-15
+        },
+        "trajectory": {
+          "sessions": 1,
+          "dense_poses": 13723,
+          "existing_sources_preserved": 13723,
+          "dense_position_max_m": 8.673307844181564e-14,
+          "dense_rotation_max_rad": 2.1094242211541e-15,
+          "source_pose_max": [
+            0.0,
+            1.3322698381205926e-15
+          ],
+          "all_restored_poses_have_explicit_source": true
+        }
+      },
+      "extension": {
+        "geometry": {
+          "atlas_point_error_m": 0.0,
+          "atlas_points": 2166530,
+          "edge_error": 1.0532503488856182e-15,
+          "edges": 2162,
+          "graph_pose_error": 2.3341178274826787e-15,
+          "keyframe_pose_error": 2.3341178274826787e-15,
+          "keyframes": 1502,
+          "observations": 52460,
+          "plane_error": 1.1102230246251565e-16,
+          "planes": 1561,
+          "raw_clouds_odometry_information_and_moments_preserved": true,
+          "raw_pose_error": 9.550578348924662e-16,
+          "reload_pose_error": 1.4475608198395552e-15
+        },
+        "trajectory": {
+          "sessions": 2,
+          "dense_poses": 15955,
+          "existing_sources_preserved": 15955,
+          "dense_position_max_m": 7.107674011420522e-14,
+          "dense_rotation_max_rad": 1.9984078625012587e-15,
+          "source_pose_max": [
+            0.0,
+            1.4432942486164601e-15
+          ],
+          "all_restored_poses_have_explicit_source": true
+        }
+      }
+    },
+    "ablations": {
+      "reuse_only_atlas": {
+        "baseline_a": {
+          "cpu_s": 8.189849,
+          "global_map_ms": 912.004765,
+          "levels": [
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 653909,
+              "resolution": 0.2
+            },
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 2168066,
+              "resolution": 0.1
+            },
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 2168104,
+              "resolution": 0.05
+            }
+          ],
+          "peak_rss_kib": 1306748,
+          "prepare_ms": 2288.156398,
+          "wall_s": 3.200792143
+        },
+        "candidate_a": {
+          "cpu_s": 6.41302,
+          "global_map_ms": 1264.682603,
+          "levels": [
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 653909,
+              "resolution": 0.2
+            },
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 2168066,
+              "resolution": 0.1
+            },
+            {
+              "covariance_max_error": 5.950480823224232e-16,
+              "normal_max_error": 0.0,
+              "points": 2168104,
+              "resolution": 0.05
+            }
+          ],
+          "peak_rss_kib": 1306628,
+          "prepare_ms": 1707.211452,
+          "wall_s": 2.972561694
+        },
+        "candidate_b": {
+          "cpu_s": 6.036423,
+          "global_map_ms": 892.742487,
+          "levels": [
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 653909,
+              "resolution": 0.2
+            },
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 2168066,
+              "resolution": 0.1
+            },
+            {
+              "covariance_max_error": 6.572404595483226e-16,
+              "normal_max_error": 0.0,
+              "points": 2168104,
+              "resolution": 0.05
+            }
+          ],
+          "peak_rss_kib": 1306748,
+          "prepare_ms": 1682.477024,
+          "wall_s": 2.575861589
+        },
+        "baseline_b": {
+          "cpu_s": 7.934919,
+          "global_map_ms": 857.008586,
+          "levels": [
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 653909,
+              "resolution": 0.2
+            },
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 2168066,
+              "resolution": 0.1
+            },
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 2168104,
+              "resolution": 0.05
+            }
+          ],
+          "peak_rss_kib": 1306748,
+          "prepare_ms": 2207.188459,
+          "wall_s": 3.064873109
+        }
+      },
+      "final_atlas_abba": {
+        "final_baseline_a": {
+          "cpu_s": 7.937995,
+          "global_map_ms": 877.111801,
+          "levels": [
+            {
+              "covariance_max_error": 2.863273686374883e-15,
+              "normal_max_error": 0.0,
+              "points": 653909,
+              "resolution": 0.2,
+              "stored_covariances": 0
+            },
+            {
+              "covariance_max_error": 8.399501692824725e-16,
+              "normal_max_error": 0.0,
+              "points": 2168066,
+              "resolution": 0.1,
+              "stored_covariances": 0
+            },
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 2168104,
+              "resolution": 0.05,
+              "stored_covariances": 2168104
+            }
+          ],
+          "peak_rss_kib": 1306916,
+          "prepare_ms": 2270.107122,
+          "prepared_bytes": 916247912,
+          "wall_s": 3.147864913
+        },
+        "final_a": {
+          "cpu_s": 6.534236,
+          "global_map_ms": 932.397529,
+          "levels": [
+            {
+              "covariance_max_error": 1.3033812253647122e-15,
+              "normal_max_error": 0.0,
+              "points": 653909,
+              "resolution": 0.2,
+              "stored_covariances": 0
+            },
+            {
+              "covariance_max_error": 5.939903858412769e-16,
+              "normal_max_error": 0.0,
+              "points": 2168066,
+              "resolution": 0.1,
+              "stored_covariances": 0
+            },
+            {
+              "covariance_max_error": 6.591583993652515e-16,
+              "normal_max_error": 0.0,
+              "points": 2168104,
+              "resolution": 0.05,
+              "stored_covariances": 0
+            }
+          ],
+          "peak_rss_kib": 1306592,
+          "prepare_ms": 2095.392856,
+          "prepared_bytes": 638730600,
+          "wall_s": 3.028448378
+        },
+        "final_b": {
+          "cpu_s": 5.987957,
+          "global_map_ms": 870.004666,
+          "levels": [
+            {
+              "covariance_max_error": 5.861686808958579e-16,
+              "normal_max_error": 0.0,
+              "points": 653909,
+              "resolution": 0.2,
+              "stored_covariances": 0
+            },
+            {
+              "covariance_max_error": 8.579045091259623e-16,
+              "normal_max_error": 0.0,
+              "points": 2168066,
+              "resolution": 0.1,
+              "stored_covariances": 0
+            },
+            {
+              "covariance_max_error": 6.591583993652515e-16,
+              "normal_max_error": 0.0,
+              "points": 2168104,
+              "resolution": 0.05,
+              "stored_covariances": 0
+            }
+          ],
+          "peak_rss_kib": 1306888,
+          "prepare_ms": 1670.103529,
+          "prepared_bytes": 638730600,
+          "wall_s": 2.540747774
+        },
+        "final_baseline_b": {
+          "cpu_s": 7.968979,
+          "global_map_ms": 870.366375,
+          "levels": [
+            {
+              "covariance_max_error": 5.473062145070038e-16,
+              "normal_max_error": 0.0,
+              "points": 653909,
+              "resolution": 0.2,
+              "stored_covariances": 0
+            },
+            {
+              "covariance_max_error": 5.626925295907718e-16,
+              "normal_max_error": 0.0,
+              "points": 2168066,
+              "resolution": 0.1,
+              "stored_covariances": 0
+            },
+            {
+              "covariance_max_error": 0.0,
+              "normal_max_error": 0.0,
+              "points": 2168104,
+              "resolution": 0.05,
+              "stored_covariances": 2168104
+            }
+          ],
+          "peak_rss_kib": 1306756,
+          "prepare_ms": 2189.420657,
+          "prepared_bytes": 916247912,
+          "wall_s": 3.060485777
+        }
+      },
+      "fresh_baseline_extension": {
+        "frames": 2236,
+        "keyframes": 231,
+        "successful_frames": 2232,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 127.65860559999989,
+        "loop_cpu_s": 0.4969918330000578,
+        "runtime_cpu_s": 195.46711437300002,
+        "runtime_wall_s": 228.526732934,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 1.814962288,
+        "peak_rss_kib": 2670732,
+        "paced": true,
+        "average_cores": 0.874573218671141,
+        "online_peak_rss_gib": 2.547008514404297,
+        "save": {
+          "cpu_s": 8.99454,
+          "wall_s": 4.26492,
+          "peak_rss_kib": 3227976
+        },
+        "accuracy": {
+          "alignment": {
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "frames": 2236,
+          "outputs": 2232,
+          "rejected_frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "position_m": {
+            "count": 2232,
+            "rmse": 0.007942443521547922,
+            "median": 0.006151994576954735,
+            "p95": 0.012814421088960769,
+            "maximum": 0.042803286376053205
+          },
+          "rotation_deg": {
+            "count": 2232,
+            "rmse": 0.02592968866728764,
+            "median": 0.012682541417782944,
+            "p95": 0.04896040836487673,
+            "maximum": 0.16746965614287476
+          },
+          "consecutive_displacement_error_m": {
+            "count": 2231,
+            "rmse": 0.003215763905601304,
+            "median": 0.0013611280352852468,
+            "p95": 0.0056301762137375986,
+            "maximum": 0.040140134747155776
+          },
+          "above_10cm": 0,
+          "above_1m": 0,
+          "max_rotation_orthogonality_error": 2.843498889599603e-13,
+          "commits": 11,
+          "max_pending": 2,
+          "graph_rebases": 0,
+          "commit_ms": {
+            "count": 11,
+            "rmse": 10.195159562293613,
+            "median": 9.537219,
+            "p95": 14.836588,
+            "maximum": 18.245421
+          },
+          "max_pending_age_ms": 29093.110089
+        },
+        "owner_loop_callback_max_ms": 80.89829499999999,
+        "worker_completions": 11,
+        "geometry_commits": 11,
+        "map_sha256": "b182e46a6c764bfbdf7ffa72b3e491c3938b741104e21d11929da38378279942",
+        "atlas_sha256": "00478b381906ff77c8d46ba3cb6b5b2b87198e7f012c3982a74334c814907175"
+      },
+      "reuse_only_extension": {
+        "frames": 2236,
+        "keyframes": 231,
+        "successful_frames": 2232,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 125.56135589499941,
+        "loop_cpu_s": 0.6069781299998773,
+        "runtime_cpu_s": 197.010385218,
+        "runtime_wall_s": 228.528919781,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 1.794883147,
+        "peak_rss_kib": 2589460,
+        "paced": true,
+        "average_cores": 0.8814782336375839,
+        "online_peak_rss_gib": 2.469501495361328,
+        "save": {
+          "cpu_s": 7.28748,
+          "wall_s": 4.33044,
+          "peak_rss_kib": 3170612
+        },
+        "accuracy": {
+          "alignment": {
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "frames": 2236,
+          "outputs": 2232,
+          "rejected_frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "position_m": {
+            "count": 2232,
+            "rmse": 0.007708302734200465,
+            "median": 0.005976166449644995,
+            "p95": 0.012878069311732255,
+            "maximum": 0.04271676419378665
+          },
+          "rotation_deg": {
+            "count": 2232,
+            "rmse": 0.026828187542099605,
+            "median": 0.012129525723478612,
+            "p95": 0.04731228174614395,
+            "maximum": 0.2315627612130283
+          },
+          "consecutive_displacement_error_m": {
+            "count": 2231,
+            "rmse": 0.0031727457871573435,
+            "median": 0.0014049625935658892,
+            "p95": 0.00582830594859573,
+            "maximum": 0.04014002971724295
+          },
+          "above_10cm": 0,
+          "above_1m": 0,
+          "max_rotation_orthogonality_error": 3.01158493686049e-13,
+          "commits": 13,
+          "max_pending": 2,
+          "graph_rebases": 0,
+          "commit_ms": {
+            "count": 13,
+            "rmse": 11.544453437655498,
+            "median": 10.02509,
+            "p95": 17.034891399999985,
+            "maximum": 23.298934000000003
+          },
+          "max_pending_age_ms": 26995.075002
+        },
+        "owner_loop_callback_max_ms": 77.92919900000001,
+        "worker_completions": 13,
+        "geometry_commits": 13,
+        "map_sha256": "fcccfccc8e0b95cc5c5d862ba22befe2177bc7872f70787678cae08539993986",
+        "atlas_sha256": "4736f843df91911c8a2a1eea079d69f5c004d97d6ae206ca7f592b2a096f28a0"
+      },
+      "compact_before_cleanup_extension": {
+        "frames": 2236,
+        "keyframes": 231,
+        "successful_frames": 2232,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 124.20894126699993,
+        "loop_cpu_s": 0.4510467560003786,
+        "runtime_cpu_s": 191.558868985,
+        "runtime_wall_s": 228.036120787,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 2.1031088419999997,
+        "peak_rss_kib": 2192220,
+        "paced": true,
+        "average_cores": 0.8570866621252796,
+        "online_peak_rss_gib": 2.0906639099121094,
+        "save": {
+          "cpu_s": 6.58083,
+          "wall_s": 3.2935,
+          "peak_rss_kib": 2514152
+        },
+        "accuracy": {
+          "alignment": {
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "frames": 2236,
+          "outputs": 2232,
+          "rejected_frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "position_m": {
+            "count": 2232,
+            "rmse": 0.00828906449529076,
+            "median": 0.005995561687368143,
+            "p95": 0.013425665576580278,
+            "maximum": 0.04274161476270561
+          },
+          "rotation_deg": {
+            "count": 2232,
+            "rmse": 0.02557651269819688,
+            "median": 0.012625173615970191,
+            "p95": 0.04652344795172042,
+            "maximum": 0.1650007907002968
+          },
+          "consecutive_displacement_error_m": {
+            "count": 2231,
+            "rmse": 0.003253025126921671,
+            "median": 0.0014232432848223049,
+            "p95": 0.005863907407789427,
+            "maximum": 0.040140066094414256
+          },
+          "above_10cm": 0,
+          "above_1m": 0,
+          "max_rotation_orthogonality_error": 2.9255966567881917e-13,
+          "commits": 13,
+          "max_pending": 2,
+          "graph_rebases": 0,
+          "commit_ms": {
+            "count": 13,
+            "rmse": 10.212020311780005,
+            "median": 9.089194,
+            "p95": 15.36496059999999,
+            "maximum": 20.592202
+          },
+          "max_pending_age_ms": 26117.041667
+        },
+        "owner_loop_callback_max_ms": 62.124916,
+        "worker_completions": 13,
+        "geometry_commits": 13,
+        "map_sha256": "fc0484a217393f60a4414706f5e0c19f33aa4efd16cd64e482180c63e790ffa2",
+        "atlas_sha256": "72da37a2492bfb919b80829b9ed8d2cb8294912088fd55dc529f103ec808f7fa"
+      },
+      "reduced_background_budget": {
+        "frames": 2236,
+        "keyframes": 231,
+        "successful_frames": 2232,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 119.99653877500063,
+        "loop_cpu_s": 0.4811011240000145,
+        "runtime_cpu_s": 175.1579757,
+        "runtime_wall_s": 230.225386364,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 2.026817409,
+        "peak_rss_kib": 2415644,
+        "paced": true,
+        "average_cores": 0.783704589261745,
+        "online_peak_rss_gib": 2.3037376403808594,
+        "save": {
+          "cpu_s": 6.6611,
+          "wall_s": 3.33248,
+          "peak_rss_kib": 3052760
+        },
+        "accuracy": {
+          "alignment": {
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "frames": 2236,
+          "outputs": 2232,
+          "rejected_frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "position_m": {
+            "count": 2232,
+            "rmse": 0.007944586600799886,
+            "median": 0.005963484910801805,
+            "p95": 0.01329422422558386,
+            "maximum": 0.04267921696866746
+          },
+          "rotation_deg": {
+            "count": 2232,
+            "rmse": 0.0257787089393724,
+            "median": 0.011985527810027189,
+            "p95": 0.049336641724521485,
+            "maximum": 0.16326188708804656
+          },
+          "consecutive_displacement_error_m": {
+            "count": 2231,
+            "rmse": 0.003238512512542058,
+            "median": 0.0013778261432661702,
+            "p95": 0.0057007067889896235,
+            "maximum": 0.040140018375468996
+          },
+          "above_10cm": 0,
+          "above_1m": 0,
+          "max_rotation_orthogonality_error": 2.9680070787666593e-13,
+          "commits": 10,
+          "max_pending": 2,
+          "graph_rebases": 0,
+          "commit_ms": {
+            "count": 10,
+            "rmse": 11.51292381712949,
+            "median": 9.114829,
+            "p95": 19.502841699999998,
+            "maximum": 21.517147
+          },
+          "max_pending_age_ms": 32924.453528
+        },
+        "owner_loop_callback_max_ms": 76.980934,
+        "worker_completions": 10,
+        "geometry_commits": 10,
+        "map_sha256": "df0b0675ae9e36c602681ba2cf0b3239dbd318555febcc6d4092a4c588f5ec20",
+        "atlas_sha256": "a76c978ee2e461c0120e31efd28e134aced74276526eb943b65906221ca27054"
+      }
+    },
+    "mapping_peak_decomposition": {
+      "scope": "observer-only oracle decomposition, not an online result",
+      "frames": [
+        {
+          "frame": 6748,
+          "t_s": 675.199995002,
+          "keyframe": 611,
+          "anchor_age_s": 1.7999999999998781,
+          "online_error_m": 0.10116451170195562,
+          "ideal_anchor_error_m": 0.012974799081860265,
+          "final_map_anchor_error_m": 0.018519421512515233,
+          "relative_translation_m": 0.7058039210090489
+        },
+        {
+          "frame": 6750,
+          "t_s": 675.3999950020001,
+          "keyframe": 611,
+          "anchor_age_s": 1.999999999999878,
+          "online_error_m": 0.1020314282797117,
+          "ideal_anchor_error_m": 0.01661247002288933,
+          "final_map_anchor_error_m": 0.020484698995762697,
+          "relative_translation_m": 0.6015424958547614
+        },
+        {
+          "frame": 6992,
+          "t_s": 699.599995002,
+          "keyframe": 630,
+          "anchor_age_s": 0.30000000000000004,
+          "online_error_m": 0.10434027483274907,
+          "ideal_anchor_error_m": 0.06355165599340777,
+          "final_map_anchor_error_m": 0.07321116928762712,
+          "relative_translation_m": 0.29855684219412015
+        },
+        {
+          "frame": 6993,
+          "t_s": 699.699989997,
+          "keyframe": 630,
+          "anchor_age_s": 0.399994995,
+          "online_error_m": 0.11647397761133434,
+          "ideal_anchor_error_m": 0.0772634146464396,
+          "final_map_anchor_error_m": 0.08637341719460859,
+          "relative_translation_m": 0.4040166532734399
+        },
+        {
+          "frame": 6994,
+          "t_s": 699.7999950020001,
+          "keyframe": 630,
+          "anchor_age_s": 0.5,
+          "online_error_m": 0.11617520892796435,
+          "ideal_anchor_error_m": 0.07698090208644365,
+          "final_map_anchor_error_m": 0.08608471515635233,
+          "relative_translation_m": 0.5237793211515565
+        },
+        {
+          "frame": 6995,
+          "t_s": 699.899989997,
+          "keyframe": 630,
+          "anchor_age_s": 0.5999949950000001,
+          "online_error_m": 0.11658517912450561,
+          "ideal_anchor_error_m": 0.0776698785344115,
+          "final_map_anchor_error_m": 0.0866768118256483,
+          "relative_translation_m": 0.6434309830060458
+        },
+        {
+          "frame": 6996,
+          "t_s": 699.999995002,
+          "keyframe": 630,
+          "anchor_age_s": 0.7000000000000001,
+          "online_error_m": 0.11455652706862998,
+          "ideal_anchor_error_m": 0.0767861545354358,
+          "final_map_anchor_error_m": 0.08535074779286152,
+          "relative_translation_m": 0.7637719190090008
+        },
+        {
+          "frame": 6997,
+          "t_s": 700.0999899970001,
+          "keyframe": 630,
+          "anchor_age_s": 0.799994995,
+          "online_error_m": 0.10729553935506352,
+          "ideal_anchor_error_m": 0.07135283360725075,
+          "final_map_anchor_error_m": 0.07917407061859086,
+          "relative_translation_m": 0.8880973962570411
+        },
+        {
+          "frame": 12220,
+          "t_s": 1222.3999899970001,
+          "keyframe": 1102,
+          "anchor_age_s": 0.7000000000000001,
+          "online_error_m": 0.10050778371717126,
+          "ideal_anchor_error_m": 0.09307636737510351,
+          "final_map_anchor_error_m": 0.08906098547909154,
+          "relative_translation_m": 0.7469312775966904
+        },
+        {
+          "frame": 12221,
+          "t_s": 1222.499989997,
+          "keyframe": 1102,
+          "anchor_age_s": 0.8,
+          "online_error_m": 0.10060906663109496,
+          "ideal_anchor_error_m": 0.09314999368639802,
+          "final_map_anchor_error_m": 0.08918856211855367,
+          "relative_translation_m": 0.8668456651845344
+        }
+      ]
+    },
+    "validation": {
+      "ctest_targets": 69,
+      "humble_and_research_build": true,
+      "noetic": "No independent compilation",
+      "installed": false,
+      "pushed": false
+    },
+    "limits": [
+      "Whole-extension half-core remains open",
+      "Mapping online peak repair is the next independent stage",
+      "Asynchronous measurements depend on scheduling; no universal nonregression or statistical confidence claim",
+      "Geometry 1cm noise floor is a model assumption; hardware/full-node qualification and partial-map alias remain open"
+    ]
   }
 }

@@ -7,6 +7,8 @@
 
 #include "../src/registration_search.h"
 #include "../src/compact_kdtree_builder.h"
+#include "../src/point_cloud_feature_reuse.h"
+#include "../src/point_cloud_target_view.h"
 
 namespace n3mapping::test {
 namespace {
@@ -178,6 +180,90 @@ TEST(RegistrationSearch, PackedTargetKeepsNeighborGeometryAndFeatures) {
     ASSERT_EQ(packed->normal(actual_index), original->normal(expected_index));
     ASSERT_EQ(packed->cov(actual_index), original->cov(expected_index));
   }
+}
+
+TEST(RegistrationSearch, FeatureReuseInvalidatesChangedSupportsAndKeepsUnchangedGeometry) {
+  // Insert, delete, duplicate and move points; a changed point can invalidate a
+  // neighbor's normal even when that neighbor's own coordinate did not move.
+  for (const int neighbors : {5, 20, 31}) {
+    const auto source = randomCloud();
+    const Search::Tree source_tree(source);
+    std::vector<double> radius;
+    registration_detail::estimateFeatures<small_gicp::NormalSetter<Cloud>>(
+        *source, source_tree.kdtree, neighbors, 4, &radius);
+    auto target = std::make_shared<Cloud>(*source);
+    target->points.erase(target->points.begin() + 30);
+    target->point(5).z() += .1;
+    target->points.push_back(target->point(50));
+    target->points.push_back(Eigen::Vector4d(0, 0, 0, 1));
+    std::reverse(target->points.begin(), target->points.end());
+    const Search::Tree target_tree(target);
+    const auto reused = registration_detail::reuseTargetFeatures(
+        *source, source_tree, radius, *target, target_tree, neighbors, 4);
+    EXPECT_GT(reused, target->size() / 2);
+    EXPECT_LT(reused, target->size());
+    const auto normals = target->normals;
+    std::vector<Eigen::Matrix4d> covariances;
+    for (size_t i = 0; i < target->size(); ++i)
+      covariances.push_back(registration_detail::TargetView{*target}.covariance(i));
+    small_gicp::estimate_normals_covariances_omp(*target, target_tree, neighbors, 4);
+    for (size_t i = 0; i < target->size(); ++i) {
+      EXPECT_TRUE(normals[i].isApprox(target->normal(i), 1e-10));
+      EXPECT_TRUE(covariances[i].isApprox(target->cov(i), 1e-10));
+    }
+  }
+}
+
+TEST(RegistrationSearch, FeatureReuseRecomputesTiedAndUndersizedNeighborhoods) {
+  for (const int neighbors : {5, 20}) {
+    auto source = std::make_shared<Cloud>();
+    for (int i = 0; i < 18; ++i) {
+      Eigen::Vector4d p(0, 0, 0, 1);
+      p[i % 3] = i % 2 ? 1 : -1;
+      source->points.push_back(p);
+    }
+    const Search::Tree source_tree(source);
+    std::vector<double> radius;
+    registration_detail::estimateFeatures<small_gicp::NormalSetter<Cloud>>(
+        *source, source_tree.kdtree, neighbors, 1, &radius);
+    const auto target = std::make_shared<Cloud>(*source);
+    std::reverse(target->points.begin(), target->points.end());
+    const Search::Tree target_tree(target);
+    EXPECT_EQ(registration_detail::reuseTargetFeatures(
+        *source, source_tree, radius, *target, target_tree, neighbors, 1), 0u);
+    std::vector<Eigen::Matrix4d> covariances;
+    for (size_t i = 0; i < target->size(); ++i)
+      covariances.push_back(registration_detail::TargetView{*target}.covariance(i));
+    small_gicp::estimate_normals_covariances_omp(*target, target_tree, neighbors, 1);
+    for (size_t i = 0; i < target->size(); ++i)
+      EXPECT_TRUE(covariances[i].isApprox(target->cov(i), 1e-12));
+  }
+}
+
+TEST(RegistrationSearch, CompactCovariancePreservesGicpObjectivePoseAndInformation) {
+  const auto full = randomCloud();
+  const Search::Tree tree(full);
+  small_gicp::estimate_normals_covariances_omp(*full, tree, 20, 1);
+  auto compact = *full;
+  compact.covs.clear();
+  for (size_t i = 0; i < full->size(); ++i)
+    ASSERT_TRUE(registration_detail::TargetView{compact}.covariance(i).isApprox(full->cov(i), 1e-12));
+  small_gicp::RegistrationSetting setting;
+  setting.type = small_gicp::RegistrationSetting::GICP;
+  setting.num_threads = 1;
+  for (double offset : {0.0, .1, .5}) {
+    auto seed = Eigen::Isometry3d::Identity();
+    seed.translation() = Eigen::Vector3d(offset, -.4 * offset, .2 * offset);
+    const auto expected = registration_detail::align(*full, *full, tree, seed, setting);
+    const auto actual = registration_detail::align(compact, *full, tree, seed, setting);
+    EXPECT_EQ(actual.converged, expected.converged);
+    EXPECT_EQ(actual.num_inliers, expected.num_inliers);
+    EXPECT_TRUE(actual.T_target_source.matrix().isApprox(expected.T_target_source.matrix(), 1e-10));
+    EXPECT_NEAR(actual.error, expected.error, 1e-10);
+    EXPECT_LE((actual.H - expected.H).norm(), 1e-10 * expected.H.norm());
+  }
+  full->cov(0) *= 2;
+  EXPECT_EQ(registration_detail::TargetView{*full}.covariance(0), full->cov(0));
 }
 }  // namespace
 }  // namespace n3mapping::test

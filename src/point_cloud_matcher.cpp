@@ -3,6 +3,7 @@
 #include "compact_kdtree_builder.h"
 #include "point_cloud_sampling.h"
 #include "point_cloud_features.h"
+#include "point_cloud_feature_reuse.h"
 
 #include <glog/logging.h>
 #include <omp.h>
@@ -128,8 +129,8 @@ PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::convertToSmallGicp(con
 }
 
 std::pair<PointCloudMatcher::SmallGicpCloud::Ptr, std::shared_ptr<PointCloudMatcher::SmallGicpKdTree>>
-PointCloudMatcher::preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution,
-                                             bool with_covariances) {
+PointCloudMatcher::prepareTargetGeometry(const PointCloudT::Ptr& cloud,
+                                         double downsampling_resolution) {
     if (!cloud || cloud->empty()) return { std::make_shared<SmallGicpCloud>(), nullptr };
     auto raw = convertToSmallGicp(cloud, downsampling_resolution);
     if (raw->empty()) return { raw, nullptr };
@@ -139,12 +140,15 @@ PointCloudMatcher::preprocessTargetPointCloud(const PointCloudT::Ptr& cloud, dou
     auto kdtree = std::make_shared<SmallGicpKdTree>(
         ds, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilderOMP>(
                 *ds, false, config_.num_threads));
-    if (with_covariances)
-        registration_detail::estimateFeatures<small_gicp::NormalCovarianceSetter<SmallGicpCloud>>(
-            *ds, kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
-    else
-        registration_detail::estimateFeatures<small_gicp::NormalSetter<SmallGicpCloud>>(
-            *ds, kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
+    return { ds, kdtree };
+}
+
+std::pair<PointCloudMatcher::SmallGicpCloud::Ptr, std::shared_ptr<PointCloudMatcher::SmallGicpKdTree>>
+PointCloudMatcher::preprocessPointCloud(const PointCloudT::Ptr& cloud) {
+    auto [ds, kdtree] = prepareTargetGeometry(cloud, config_.gicp_downsampling_resolution);
+    if (!kdtree) return { ds, kdtree };
+    registration_detail::estimateFeatures<small_gicp::NormalCovarianceSetter<SmallGicpCloud>>(
+        *ds, kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
     return { ds, kdtree };
 }
 
@@ -157,11 +161,6 @@ PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::preprocessSourcePointC
     return ds;
 }
 
-std::pair<PointCloudMatcher::SmallGicpCloud::Ptr, std::shared_ptr<PointCloudMatcher::SmallGicpKdTree>>
-PointCloudMatcher::preprocessPointCloud(const PointCloudT::Ptr& cloud) {
-    return preprocessTargetPointCloud(cloud, config_.gicp_downsampling_resolution);
-}
-
 PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
     const PointCloudT::Ptr& cloud) {
     PreparedTarget prepared;
@@ -172,15 +171,39 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
         const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
         prepared.plane_levels.reserve(resolutions.size());
         for (double resolution : resolutions) {
-            auto [points, kdtree] = preprocessTargetPointCloud(cloud, resolution, false);
+            auto [points, kdtree] = prepareTargetGeometry(cloud, resolution);
             prepared.plane_levels.push_back({ resolution, points, kdtree });
         }
 
         if (config_.icp_refine_use_gicp) {
             const double resolution = config_.icp_refine_downsampling_resolution;
-            auto [points, kdtree] = preprocessTargetPointCloud(cloud, resolution);
+            auto [points, kdtree] = prepareTargetGeometry(cloud, resolution);
             prepared.refine_level = { resolution, points, kdtree };
             prepared.has_refine_level = true;
+        }
+        const auto& plane = prepared.plane_levels.back();
+        auto& refine = prepared.refine_level;
+        // Avoid coordinate matching when sampling densities are very different.
+        // This is only a cost decision; actual reuse requires exact supports.
+        const bool try_reuse = plane.kdtree && refine.kdtree &&
+            plane.cloud->size() >= .95 * refine.cloud->size() &&
+            refine.cloud->size() >= .95 * plane.cloud->size();
+        std::vector<double> support_radius;
+        for (auto& level : prepared.plane_levels) {
+            if (!level.kdtree) continue;
+            registration_detail::estimateFeatures<small_gicp::NormalSetter<SmallGicpCloud>>(
+                *level.cloud, level.kdtree->kdtree, config_.gicp_num_neighbors,
+                config_.num_threads, try_reuse && &level == &plane ? &support_radius : nullptr);
+        }
+        if (try_reuse) {
+            const auto reused = registration_detail::reuseTargetFeatures(
+                *plane.cloud, *plane.kdtree, support_radius, *refine.cloud, *refine.kdtree,
+                config_.gicp_num_neighbors, config_.num_threads);
+            VLOG(1) << "[PointCloudMatcher] Reused exact feature supports: "
+                    << reused << "/" << refine.cloud->size();
+        } else if (refine.kdtree) {
+            registration_detail::estimateFeatures<small_gicp::NormalSetter<SmallGicpCloud>>(
+                *refine.cloud, refine.kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
         }
     } catch (const std::exception& e) {
         LOG(ERROR) << "[PointCloudMatcher] prepareTargetCloud exception: " << e.what();

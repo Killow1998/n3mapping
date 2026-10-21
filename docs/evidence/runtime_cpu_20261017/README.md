@@ -5371,3 +5371,91 @@ replaced; no push or patch workspace delivery. Whole-extension half-core,
 all-frame mapping below 10 cm, statistical geometry uncertainty, the previously
 recorded partial-map alias, full-node/hardware and independent Noetic compilation
 remain open. Evidence is a complete simulation replay, not hardware acceptance.
+
+
+## Exact Atlas feature reuse and compact target covariance — 2026-10-21
+
+Baseline `3459804`; frozen final core `a7f9609445f37bbe6df0c71dc2a28531af202d850c1181fbba9bf180b13e970c`.
+Full commands, sources, replay outputs and `qualification.json` are retained in
+`build/n3mapping/atlas_refinement_20261021/`. Four physical P cores `0,2,4,6`,
+four registration threads and passive OpenMP are retained. Mapping/extension
+run at the original 10 Hz; localization runs unpaced and CPU is divided by the
+unchanged input duration. Runtime CPU includes background work and final drain,
+but excludes load, frontend, simulator, DDS and publication. Save is separate;
+process RSS high-water can include loading. Truth remains observer-only with
+the original first-pose alignment.
+
+**Retained changes.** When fine plane and refine sampling have similar density,
+reuse a normal only after certifying that its query coordinate and entire KNN
+point multiset are unchanged. Deleted, inserted and duplicate coordinates
+invalidate nearby supports; ambiguous KNN boundaries recompute. Certification
+metadata is temporary and cannot survive a map revision. K, resolutions, point
+counts, registration/acceptance gates and algorithm scope are unchanged.
+The changed-neighborhood fallback shares the existing feature estimator and
+allocates scratch once per worker.
+
+The fixed covariance spectrum `(0.001,1,1)` is determined by the normal, so
+prepared GICP targets retain that normal and reconstruct `I - 0.999 n nᵀ`
+at the correspondence. Sources and public standalone preprocessing keep their
+existing required covariance data. A private target adapter serves both solve
+and fixed-pose scoring; explicitly supplied nonstandard covariances are retained.
+Atlas v2 still serializes full matrices. Loading validates every matrix but
+allocates covariance storage only if one is nonstandard, backfilling the exact
+serialized earlier entries. This removes the former temporary full allocation.
+No new descriptor, algorithm framework or map format is introduced.
+
+**Controlled Atlas ablations.** Reuse-only ABBA reduced preparation CPU about
+22.8%. Final same-map ABBA CPU is 7.953→6.261 s
+(21.3% lower); wall 3.104→2.785 s.
+Sampled normals match, reconstructed covariances differ only at floating-point
+roundoff. The removed refine covariance array is exactly 264.661 MiB for
+2,168,104 points. Prepared-cache budget estimates change 873.802→609.141 MiB;
+these include conservative tree allowances and are not measured total RSS.
+An alternate KNN implementation gave only a small CPU change and was not retained.
+Reducing the geometry budget from 0.5 to 0.4 on the reuse-only candidate reduced
+extension CPU 0.881→0.784 cores, but increased oldest-request age
+27.00→32.92 s and reduced commits 13→10; it is not the default and did not receive
+the full post-extension 14-point qualification.
+
+| Complete workload | Final result |
+| --- | --- |
+| Same-map original14 | 14/14 frame-4 locks; 4,088 outputs; RMSE / maximum 0.800 / 2.416 cm |
+| Rebuilt-map original14 | 14/14 frame-4 locks; 4,088 outputs; RMSE / maximum 0.800 / 2.416 cm |
+| Original14 after extension | 14/14 frame-4 locks; 4,088 outputs; RMSE / maximum 0.962 / 2.611 cm |
+| Independent route, rebuilt map | 2,232 outputs, one initialization; RMSE / maximum 0.913 / 7.742 cm |
+| Extension online | 2,232 outputs, 231 new keyframes; RMSE / maximum 0.810 / 4.279 cm |
+| Extension CPU / runtime RSS | 0.875 cores / 2.028 GiB |
+| Extension commit count / oldest request | 13 / 28.09 s |
+| Mapping CPU / runtime RSS | 0.377 cores / 0.949 GiB |
+| Mapping online maximum / over 10 cm | 11.659 cm / 10 frames |
+| Final map keyframe RMSE / surface RMSE | 0.696 cm / 3.899 mm |
+
+The contemporaneous baseline extension uses 0.875 cores and
+2.547 GiB, with 11 commits and
+29.09 s maximum request age. The earlier
+published baseline was 0.887 cores / 2.244 GiB; asynchronous timing changes
+snapshot overlap, job count and RSS. Report the fixed buffer saving separately;
+these runs do not establish statistical or universal metric nonregression.
+The whole-extension half-core target remains open.
+
+**Closeout.** Complete Humble/research builds and all 69 CTest targets pass on
+the final source. The first final test invocation omitted the inherited ROS
+library path and 12 executables could not start; its log is retained separately.
+The corrected driver passed all 69 in one run. Behavioral regressions cover
+changed/tied neighborhoods, GICP pose/objective/information, nonstandard Atlas
+matrices and late covariance allocation. Real mapping/extension save/reload
+checks retain raw clouds, graph information, plane moments, sessions and dense
+trajectory provenance; Atlas point difference is zero. Frozen source, original
+map and all14 manifest hashes are verified. The private reuse and covariance
+helpers replace duplication; the unused private preprocessing wrapper is removed.
+No installed program or original recording/map was replaced; no remote push.
+
+**Next accuracy experiment.** Observer-only decomposition of the original ten
+mapping peaks separates the last optimized anchor from within-keyframe odometry.
+Replacing only that anchor with its final map value would leave 1.85–8.92 cm
+at those frames; this uses future information and is not an online repair.
+Mapping geometry currently runs only after an accepted loop, whereas extension
+has geometry-only jobs. Independently ablate this trigger before adding any
+new constraint machinery. The geometry noise floor, partial-map alias,
+full-node/hardware qualification and multi-extension/long-route generalization
+remain open.

@@ -3,6 +3,7 @@
 #include "n3mapping/relocalization_state.h"
 #include "registration_search.h"
 #include "registration_reduction.h"
+#include "point_cloud_target_view.h"
 
 #include <algorithm>
 #include <array>
@@ -109,7 +110,7 @@ void evaluateFixedPoseFactors(
     reduction.num_threads = num_threads;
     const registration_detail::CorrespondenceSearch search(*target.kdtree, rejector.max_dist_sq);
     const auto [H, b, error] = reduction.linearize(
-        *target.cloud, source, search, rejector, pose, factors);
+        registration_detail::TargetView{*target.cloud}, source, search, rejector, pose, factors);
     (void)b;
     result->num_inliers = std::count_if(factors.begin(), factors.end(),
         [](const Factor& factor) { return factor.inlier(); });
@@ -130,7 +131,7 @@ MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe
     MatchResult result;
     if (!target || !source || !target->cloud || !source->cloud || target->cloud->empty() || source->cloud->empty()) return result;
     try {
-        auto [tp, tt] = preprocessTargetPointCloud(target->cloud, config_.gicp_downsampling_resolution);
+        auto [tp, tt] = preprocessPointCloud(target->cloud);
         auto sp = preprocessSourcePointCloud(source->cloud, config_.gicp_downsampling_resolution);
         if (!tt || tp->size() < 10 || sp->size() < 10) return result;
         // GICP consumes source covariances as well as target covariances.

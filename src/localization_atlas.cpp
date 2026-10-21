@@ -3,6 +3,7 @@
 
 #include "localization_atlas.pb.h"
 #include "compact_kdtree_builder.h"
+#include "point_cloud_target_view.h"
 
 #include <array>
 #include <chrono>
@@ -80,10 +81,9 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
         const auto& normal = input.cloud->normal(i);
         Eigen::Matrix4d covariance = Eigen::Matrix4d::Zero();
         if (input.cloud->covs.empty()) {
-            // Plane ICP retains normals only. Keep the existing sidecar
+            // Prepared targets retain normals only. Keep the existing sidecar
             // schema using small_gicp's (0.001, 1, 1) covariance model.
-            covariance.topLeftCorner<3, 3>() = Eigen::Matrix3d::Identity() -
-                .999 * normal.head<3>() * normal.head<3>().transpose();
+            covariance = registration_detail::covarianceFromNormal(normal);
         } else {
             covariance = input.cloud->cov(i);
         }
@@ -111,6 +111,16 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
     return true;
 }
 
+Eigen::Matrix4d decodedCovariance(const LocalizationAtlasPreparedLevel& input,
+                                  std::size_t index) {
+    Eigen::Matrix4d covariance = Eigen::Matrix4d::Zero();
+    for (int row = 0; row < 3; ++row)
+        for (int column = 0; column < 3; ++column)
+            covariance(row, column) = input.covariances(
+                static_cast<int>(index * 9 + row * 3 + column));
+    return covariance;
+}
+
 bool decodeLevel(LocalizationAtlasPreparedLevel& input,
                  PointCloudMatcher::PreparedTargetLevel* output,
                  bool with_covariances,
@@ -132,27 +142,32 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
     auto cloud = std::make_shared<PointCloudMatcher::SmallGicpCloud>();
     cloud->points.resize(static_cast<std::size_t>(input.num_points()));
     cloud->normals.resize(cloud->size());
-    if (with_covariances) cloud->covs.resize(cloud->size());
+    bool compact_covariances = with_covariances;
     for (std::size_t i = 0; i < cloud->size(); ++i) {
         cloud->point(i)[3] = 1.0;
         cloud->normal(i)[3] = 0.0;
-        Eigen::Matrix4d covariance = Eigen::Matrix4d::Zero();
+        const auto covariance = decodedCovariance(input, i);
         for (int axis = 0; axis < 3; ++axis) {
             cloud->point(i)[axis] = input.points(static_cast<int>(i * 3 + axis));
             cloud->normal(i)[axis] = input.normals(static_cast<int>(i * 3 + axis));
-        }
-        for (int row = 0; row < 3; ++row) {
-            for (int column = 0; column < 3; ++column) {
-                covariance(row, column) =
-                    input.covariances(static_cast<int>(i * 9 + row * 3 + column));
-            }
         }
         if (!cloud->point(i).allFinite() || !cloud->normal(i).allFinite() ||
             !covariance.allFinite()) {
             setError(error, "atlas prepared level contains non-finite data");
             return false;
         }
-        if (with_covariances) cloud->cov(i) = covariance;
+        if (with_covariances) {
+            if (compact_covariances && !covariance.isApprox(
+                    registration_detail::covarianceFromNormal(cloud->normal(i)), 1e-12)) {
+                // Only a nonstandard covariance needs storage. Backfill the
+                // exact serialized matrices, including any earlier entries.
+                compact_covariances = false;
+                cloud->covs.resize(cloud->size());
+                for (std::size_t j = 0; j < i; ++j)
+                    cloud->cov(j) = decodedCovariance(input, j);
+            }
+            if (!compact_covariances) cloud->cov(i) = covariance;
+        }
     }
     output->resolution = input.resolution();
     output->cloud = cloud;

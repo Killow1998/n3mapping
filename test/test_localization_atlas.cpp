@@ -210,6 +210,39 @@ TEST(LocalizationAtlasTest, RejectsChangedMapAndChangedTargetConfig) {
   EXPECT_NE(error.find("config SHA-256 mismatch"), std::string::npos);
 }
 
+TEST(LocalizationAtlasTest, KeepsExplicitCovarianceWhenItIsNotTheFixedNormalModel) {
+  TemporaryAtlasFiles files;
+  const Config config = makeConfig();
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(),
+                                  files.atlas().string(), false, nullptr, &error));
+  ASSERT_TRUE(atlas.preparedTarget().refine_level.cloud->covs.empty());
+  LocalizationAtlasData data;
+  {
+    std::ifstream stream(files.atlas(), std::ios::binary);
+    ASSERT_TRUE(data.ParseFromIstream(&stream));
+  }
+  auto* level = data.mutable_refine_level();
+  for (int i = level->covariances_size() - 9; i < level->covariances_size(); ++i)
+    level->set_covariances(i, 2 * level->covariances(i));
+  {
+    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
+    ASSERT_TRUE(data.SerializeToOstream(&stream));
+  }
+  ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  const auto& loaded = *atlas.preparedTarget().refine_level.cloud;
+  ASSERT_EQ(loaded.covs.size(), loaded.size());
+  // A change in storage order cannot hide a modified covariance model.
+  size_t changed = 0;
+  for (size_t i = 0; i < loaded.size(); ++i) {
+    if (std::abs(loaded.cov(i).trace() - 4.002) < 1e-12) ++changed;
+    else EXPECT_NEAR(loaded.cov(i).trace(), 2.001, 1e-12);
+  }
+  EXPECT_EQ(changed, 1u);
+}
+
 TEST(LocalizationAtlasTest, RejectsOldFormatAndTruncatedPreparedArrays) {
   TemporaryAtlasFiles files;
   const Config config = makeConfig();
