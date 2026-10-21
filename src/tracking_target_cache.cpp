@@ -222,6 +222,20 @@ void TrackingTargetCache::clearMap() {
   loaded_misses_ = 0;
 }
 
+void TrackingTargetCache::installLoadedReference(
+    const PointCloudT::Ptr& cloud,
+    const PointCloudMatcher::PreparedTarget& target) {
+  clearMap();
+  loaded_map_ = cloud;
+  loaded_prepared_ = std::make_shared<const PointCloudMatcher::PreparedTarget>(target);
+  for (const auto& frame : keyframe_manager_.getAllKeyframes())
+    if (frame && frame->is_from_loaded_map) {
+      loaded_anchor_positions_.emplace(frame->id, frame->pose_optimized.translation());
+      ++loaded_keyframe_count_;
+    }
+  loaded_revision_ = keyframe_manager_.revision();
+}
+
 TrackingTargetCache::Diagnostics TrackingTargetCache::diagnostics() const {
   Diagnostics result;
   result.local_hits = local_hits_;

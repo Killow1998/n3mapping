@@ -1,7 +1,8 @@
-// Research-only moment factor. A shared plane retains cross-scan dependence;
+// Shared moment factor. A shared plane retains cross-scan dependence;
 // its Jacobian contains no information along the plane's tangent directions.
 #pragma once
 #include <Eigen/Eigenvalues>
+#include "n3mapping/planar_geometry.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -9,20 +10,7 @@
 #include <gtsam/nonlinear/NonlinearFactor.h>
 
 namespace n3mapping::planar_geometry {
-struct Moment {
-  int count = 0;
-  Eigen::Vector3d sum = Eigen::Vector3d::Zero();
-  Eigen::Matrix3d square = Eigen::Matrix3d::Zero();
-  void add(const Eigen::Vector3d &p) {
-    ++count;
-    sum += p;
-    square.noalias() += p * p.transpose();
-  }
-  Eigen::Vector3d mean() const { return sum / count; }
-  Eigen::Matrix3d covariance() const {
-    return square / count - mean() * mean().transpose();
-  }
-};
+using Moment = PlaneMoment;
 
 class MomentPlaneFactor
     : public gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::OrientedPlane3> {

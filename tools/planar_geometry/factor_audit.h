@@ -1,5 +1,5 @@
 #pragma once
-#include "moment_factor.h"
+#include "../../src/planar_geometry/moment_factor.h"
 #include <gtsam/linear/JacobianFactor.h>
 #include <gtsam/nonlinear/Values.h>
 #include <json/json.h>

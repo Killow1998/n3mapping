@@ -48,6 +48,8 @@ struct CoreLoopClosureResult {
     double oldest_pending_age_ms = 0.0;
     double snapshot_ms = 0.0;
     double commit_ms = 0.0;
+    GeometryOptimizationStats geometry;
+    double atlas_prepare_ms = 0.0;
 };
 
 class N3MappingCore {

@@ -104,6 +104,7 @@ std::string runtimeConfigCanonical(const Config& config) {
     N3MAPPING_CONFIG_FIELD(loop_debug_enable);
     N3MAPPING_CONFIG_FIELD(loop_debug_vertical_hypotheses_enable);
     N3MAPPING_CONFIG_FIELD(loop_debug_path);
+    N3MAPPING_CONFIG_FIELD(loop_geometry_enable);
     N3MAPPING_CONFIG_FIELD(loop_spatial_candidates_enable);
     N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_radius);
     N3MAPPING_CONFIG_FIELD(loop_spatial_candidate_max_candidates);
@@ -252,6 +253,7 @@ std::string Config::toString() const {
         << " vertical_hypotheses=" << (loop_debug_vertical_hypotheses_enable ? "ON" : "OFF")
         << " path=" << (loop_debug_path.empty() ? "<map_save_path>/loop_debug.jsonl" : loop_debug_path) << "\n";
     oss << "Loop candidate pipeline: descriptor + spatial proposals -> ICP consistency features -> LoopReferee -> graph commit\n";
+    oss << "Joint loop geometry: " << (loop_geometry_enable ? "ON" : "OFF") << "\n";
     oss << "Loop spatial candidates: " << (loop_spatial_candidates_enable ? "ON" : "OFF")
         << " radius=" << loop_spatial_candidate_radius
         << " max_candidates=" << loop_spatial_candidate_max_candidates << "\n";

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <unordered_set>
 
 #include <Eigen/Eigenvalues>
 #include <google/protobuf/io/coded_stream.h>
@@ -374,6 +375,8 @@ bool parseDenseTrajectoryFromProto(const N3Map& map_proto,
         if (metadata->source == "none") return setError(error, "invalid dense trajectory source");
         metadata->degraded = map_proto.metadata().dense_trajectory_degraded();
         dense_trajectory->reserve(static_cast<std::size_t>(map_proto.dense_optimized_trajectory_size()));
+        std::unordered_set<int64_t> anchor_ids;
+        for (const auto& kf : keyframes) anchor_ids.insert(kf.id);
         for (int i = 0; i < map_proto.dense_optimized_trajectory_size(); ++i) {
             const auto& proto = map_proto.dense_optimized_trajectory(i);
             if (!std::isfinite(proto.timestamp()) || !isFinitePoseProto(proto.pose_world_lidar())) {
@@ -383,6 +386,22 @@ bool parseDenseTrajectoryFromProto(const N3Map& map_proto,
             pose.seq = proto.seq();
             pose.timestamp = proto.timestamp();
             pose.pose_world_lidar = poseFromProto(proto.pose_world_lidar());
+            if (proto.has_correction_source()) {
+                const auto& source = proto.correction_source();
+                if (!isFinitePoseProto(source.pose_world_lidar_raw()) ||
+                    !isFinitePoseProto(source.anchor_pose_world_lidar_raw()) ||
+                    (source.has_anchor() && !anchor_ids.count(source.anchor_keyframe_id())))
+                    return setError(error, "invalid dense trajectory correction source");
+                core::AnchoredDenseTrajectorySample sample;
+                sample.seq = pose.seq;
+                sample.timestamp = pose.timestamp;
+                sample.pose_world_lidar_raw = poseFromProto(source.pose_world_lidar_raw());
+                sample.anchor_keyframe_id = source.anchor_keyframe_id();
+                sample.anchor_pose_world_lidar_raw = poseFromProto(source.anchor_pose_world_lidar_raw());
+                sample.has_anchor = source.has_anchor();
+                sample.use_bracketing_correction = source.use_bracketing_correction();
+                pose.correction_source = sample;
+            }
             dense_trajectory->push_back(pose);
         }
         return true;

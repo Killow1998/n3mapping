@@ -589,9 +589,10 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     EXPECT_EQ(refreshed_submaps.front().keyframe_ids,
               (std::vector<int64_t>{1, 2}));
     EXPECT_TRUE(refreshed_submaps.front().closed);
-    EXPECT_GT((refreshed_submaps.front().T_map_submap.translation() -
-               first_origin_before_tracking.translation()).norm(),
-              1e-5);
+    // Foreground extension pins the new pose without moving the already
+    // published map. Global corrections belong to the asynchronous worker.
+    EXPECT_TRUE(refreshed_submaps.front().T_map_submap.isApprox(
+        first_origin_before_tracking, 1e-12));
     EXPECT_TRUE(refreshed_submaps.front().T_map_submap.isApprox(
         first_keyframe->pose_optimized, 1e-9));
     const auto projection = submap_builder.evaluatePoseProjection(

@@ -190,8 +190,6 @@ target_link_libraries(n3mapping_relocalization_manifest_eval
 if(N3MAPPING_BUILD_RESEARCH_TOOLS)
   add_executable(n3mapping_planar_geometry_eval
     ${N3MAPPING_ROOT}/tools/n3mapping_planar_geometry_eval.cpp
-    ${N3MAPPING_ROOT}/tools/planar_geometry/association.cpp
-    ${N3MAPPING_ROOT}/tools/planar_geometry/merging.cpp
   )
   target_include_directories(n3mapping_planar_geometry_eval PRIVATE ${JSONCPP_INCLUDE_DIRS})
   target_link_libraries(n3mapping_planar_geometry_eval n3mapping_core ${JSONCPP_LIBRARIES} TBB::tbb)
@@ -693,6 +691,16 @@ if(BUILD_TESTING)
   if(TARGET test_loop_detector_pbt)
     target_link_libraries(test_loop_detector_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
     ament_target_dependencies(test_loop_detector_pbt rclcpp)
+  endif()
+
+  ament_add_gtest(test_trajectory_checkpoint ${N3MAPPING_ROOT}/test/test_trajectory_checkpoint.cpp)
+  if(TARGET test_trajectory_checkpoint)
+    target_link_libraries(test_trajectory_checkpoint n3mapping_core)
+  endif()
+
+  ament_add_gtest(test_joint_geometry ${N3MAPPING_ROOT}/test/test_joint_geometry.cpp)
+  if(TARGET test_joint_geometry)
+    target_link_libraries(test_joint_geometry n3mapping_core)
   endif()
 
   ament_add_gtest(test_graph_optimizer ${N3MAPPING_ROOT}/test/test_graph_optimizer.cpp)

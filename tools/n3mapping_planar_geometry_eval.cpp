@@ -1,6 +1,7 @@
 // Research-only geometry evaluation on immutable map snapshots.
 #include "n3mapping/graph_factor_noise.h"
-#include "planar_geometry/association.h"
+#include "../src/planar_geometry/association.h"
+#include "n3mapping/n3map_proto_utils.h"
 #include "planar_geometry/factor_audit.h"
 #include <chrono>
 #include <filesystem>
@@ -116,7 +117,14 @@ int main(int argc, char **argv) {
     }
     Json::Value report;
     const auto associating = Clock::now();
-    auto planes = associate(map, poses, report);
+    std::vector<n3mapping::Keyframe::Ptr> keyframes;
+    for (const auto& k : map.keyframes()) {
+      auto frame = std::make_shared<n3mapping::Keyframe>();
+      if (!n3mapping::pointCloudFromProto(k.cloud(), &frame->cloud, &error))
+        throw std::runtime_error(error);
+      keyframes.push_back(frame);
+    }
+    auto planes = associate(keyframes, poses, report);
     const auto merging = Clock::now();
     planes = mergePlanes(std::move(planes), poses, report);
     const auto factors = Clock::now();

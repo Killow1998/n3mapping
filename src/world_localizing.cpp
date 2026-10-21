@@ -140,6 +140,19 @@ int64_t WorldLocalizing::getLastMatchedKeyframeId() const {
   return last_matched_id_;
 }
 
+void WorldLocalizing::installOptimizedReference(
+    LocalizationAtlas& atlas, const Eigen::Isometry3d& correction) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  localization_atlas_->swapData(atlas);
+  tracking_targets_->installLoadedReference(
+      localization_atlas_->globalMap(), localization_atlas_->preparedTarget());
+  T_map_odom_ = correction * T_map_odom_;
+  query_builder_.reset();
+  hypothesis_manager_.reset();
+  releaseSearchPreparation();
+  // Keep lock state, failure counters and the last raw odometry sample.
+}
+
 bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
                                             std::string *error) {
   if (!localization_atlas_) {
@@ -160,6 +173,8 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
   LocalizationAtlasStats stats;
   if (!localization_atlas_->load(map_path, atlas_path, &stats, error))
     return false;
+  tracking_targets_->installLoadedReference(
+      localization_atlas_->globalMap(), localization_atlas_->preparedTarget());
   LOG(INFO) << "[LocalizationAtlas] Loaded " << atlas_path
             << " global_points=" << stats.global_point_count
             << " prepared_points=" << stats.prepared_point_count

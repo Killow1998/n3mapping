@@ -965,6 +965,11 @@ class N3MappingNode : public rclcpp::Node
                 performance_event.oldest_pending_age_ms = result.oldest_pending_age_ms;
                 performance_event.snapshot_ms = result.snapshot_ms;
                 performance_event.commit_ms = result.commit_ms;
+                performance_event.geometry_planes = result.geometry.planes;
+                performance_event.geometry_observations = result.geometry.observations;
+                performance_event.geometry_association_ms = result.geometry.association_ms;
+                performance_event.geometry_solve_ms = result.geometry.solve_ms;
+                performance_event.atlas_prepare_ms = result.atlas_prepare_ms;
             }
             const auto publish_started = performance_enabled
               ? PerformanceClock::now()

@@ -83,6 +83,9 @@ struct RuntimePerformanceLoopEvent {
   double oldest_pending_age_ms = 0.0;
   double snapshot_ms = 0.0;
   double commit_ms = 0.0;
+  std::size_t geometry_planes = 0, geometry_observations = 0;
+  double geometry_association_ms = 0.0, geometry_solve_ms = 0.0;
+  double atlas_prepare_ms = 0.0;
   double lock_wait_ms = std::numeric_limits<double>::quiet_NaN();
   double core_ms = std::numeric_limits<double>::quiet_NaN();
   double publish_ms = std::numeric_limits<double>::quiet_NaN();

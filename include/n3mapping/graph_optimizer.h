@@ -18,6 +18,7 @@
 #include <gtsam/slam/PriorFactor.h>
 
 #include "n3mapping/config.h"
+#include "n3mapping/planar_geometry.h"
 
 namespace n3mapping {
 
@@ -256,7 +257,19 @@ class GraphOptimizer : public LoopOptimizerInterface
     // overload delegates here with an empty constraint list.
     bool loadGraph(const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes,
                    const std::vector<EdgeInfo>& edges,
-                   const std::vector<FloorAttitudeConstraint>& floor_constraints);
+                   const std::vector<FloorAttitudeConstraint>& floor_constraints,
+                   const std::vector<SharedPlane>& planes = {},
+                   bool restore_estimates = false,
+                   const Eigen::Isometry3d* prior_pose = nullptr);
+    // Replace associations transactionally; retain every original graph factor.
+    bool replaceSharedPlanes(const std::vector<SharedPlane>& planes,
+                             bool optimize, GeometryOptimizationStats& stats);
+    std::vector<SharedPlane> sharedPlanes() const;
+    Eigen::Isometry3d gaugePrior() const;
+    // Catch up an isolated solve only when the live graph has appended nodes
+    // without changing its snapshot's factors or poses. No registration repeats.
+    bool appendCommittedTail(const GraphOptimizer& live,
+                             const GraphOptimizer& snapshot);
     void swapWith(GraphOptimizer& other);
     // Owner-thread snapshot for an isolated loop solve. Factors are immutable;
     // estimates and staging state belong exclusively to the returned optimizer.
@@ -289,6 +302,7 @@ class GraphOptimizer : public LoopOptimizerInterface
     bool isOptimizationHealthy() const;
 
   private:
+    bool optimizeGeometryUpdate();
     Config config_;                           ///< 配置参数
     std::unique_ptr<gtsam::ISAM2> isam2_;     ///< iSAM2 优化器
     gtsam::NonlinearFactorGraph graph_;       ///< 因子图
@@ -298,6 +312,7 @@ class GraphOptimizer : public LoopOptimizerInterface
     gtsam::Values current_estimate_;          ///< 当前估计值
     gtsam::Values last_good_estimate_;        ///< 上一次成功的估计值 (用于回滚)
     std::vector<EdgeInfo> edges_;             ///< 所有边
+    std::vector<SharedPlane> shared_planes_;
     std::vector<EdgeInfo> pending_edges_;     ///< 待提交边
     std::set<int64_t> node_ids_;              ///< 已添加的节点 ID
     std::set<int64_t> pending_node_ids_;      ///< 待提交节点 ID

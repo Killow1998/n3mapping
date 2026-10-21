@@ -94,10 +94,20 @@ message EdgeProto {
     ConstraintMode constraint_mode = 6;
 }
 
+// Preserve the actual correction source across overlapping session clocks.
+message DenseTrajectorySource {
+    Pose3D pose_world_lidar_raw = 1;
+    int64 anchor_keyframe_id = 2;
+    Pose3D anchor_pose_world_lidar_raw = 3;
+    bool has_anchor = 4;
+    bool use_bracketing_correction = 5;
+}
+
 message DenseTrajectoryPose {
     uint64 seq = 1;
     double timestamp = 2;
     Pose3D pose_world_lidar = 3;
+    DenseTrajectorySource correction_source = 4;
 }
 
 // Floor attitude constraint (introduced in map format 2.4.0): roll/pitch observation attached
@@ -108,6 +118,22 @@ message FloorAttitudeFactorProto {
     double ny = 3;
     double nz = 4;
     double sigma_rad = 5;
+}
+
+// Shared-plane sufficient statistics (2.9.0). Coordinates remain in each
+// keyframe's sensor frame; only the nuisance plane is in the map frame.
+message PlaneObservationProto {
+    int64 node_id = 1;
+    uint32 count = 2;
+    repeated double sum = 3;       // 3
+    repeated double square = 4;    // 9, row-major second moment sum
+}
+message SharedPlaneProto {
+    repeated double normal = 1;   // 3, oriented unit normal
+    repeated double origin = 2;   // 3, local plane coordinate origin
+    double offset = 3;
+    double sigma = 4;
+    repeated PlaneObservationProto observations = 5;
 }
 
 // 地图元数据
@@ -141,4 +167,6 @@ message N3Map {
     repeated FloorAttitudeFactorProto floor_attitude_factors = 5;
     repeated MapSessionProto sessions = 6;
     repeated SubmapProto submaps = 7;
+    repeated SharedPlaneProto shared_planes = 8;
+    Pose3D graph_gauge_prior = 9;
 }

@@ -1,5 +1,6 @@
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/graph_factor_noise.h"
+#include "graph_pose_factors.h"
 
 #include <gtsam/navigation/AttitudeFactor.h>
 
@@ -14,97 +15,6 @@
 #include <tbb/global_control.h>
 
 namespace n3mapping {
-namespace {
-
-double normalizeAngle(double angle)
-{
-    while (angle > M_PI) angle -= 2.0 * M_PI;
-    while (angle < -M_PI) angle += 2.0 * M_PI;
-    return angle;
-}
-
-class Pose3XYYawFactor : public gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3> {
-  public:
-    using Base = gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3>;
-
-    Pose3XYYawFactor(gtsam::Key key1,
-                     gtsam::Key key2,
-                     const gtsam::Pose3& measured,
-                     const gtsam::SharedNoiseModel& noise_model)
-      : Base(noise_model, key1, key2)
-      , measured_(measured)
-    {
-    }
-
-    gtsam::NonlinearFactor::shared_ptr clone() const override
-    {
-        return boost::static_pointer_cast<gtsam::NonlinearFactor>(
-            gtsam::NonlinearFactor::shared_ptr(new Pose3XYYawFactor(*this)));
-    }
-
-    gtsam::Vector evaluateError(const gtsam::Pose3& pose1,
-                                const gtsam::Pose3& pose2,
-                                boost::optional<gtsam::Matrix&> H1 = boost::none,
-                                boost::optional<gtsam::Matrix&> H2 = boost::none) const override
-    {
-        if (H1) {
-            *H1 = numericalJacobian1(pose1, pose2);
-        }
-        if (H2) {
-            *H2 = numericalJacobian2(pose1, pose2);
-        }
-        return errorVector(pose1, pose2);
-    }
-
-  private:
-    gtsam::Pose3 measured_;
-
-    Eigen::Vector3d errorVector(const gtsam::Pose3& pose1, const gtsam::Pose3& pose2) const
-    {
-        const gtsam::Pose3 predicted = pose1.between(pose2);
-        Eigen::Vector3d error;
-        error << predicted.translation().x() - measured_.translation().x(),
-                 predicted.translation().y() - measured_.translation().y(),
-                 normalizeAngle(predicted.rotation().yaw() - measured_.rotation().yaw());
-        return error;
-    }
-
-    Eigen::Matrix<double, 3, 6> numericalJacobian1(const gtsam::Pose3& pose1,
-                                                  const gtsam::Pose3& pose2) const
-    {
-        return numericalJacobian(
-            [&](const gtsam::Pose3& p) { return errorVector(p, pose2); }, pose1);
-    }
-
-    Eigen::Matrix<double, 3, 6> numericalJacobian2(const gtsam::Pose3& pose1,
-                                                  const gtsam::Pose3& pose2) const
-    {
-        return numericalJacobian(
-            [&](const gtsam::Pose3& p) { return errorVector(pose1, p); }, pose2);
-    }
-
-    Eigen::Matrix<double, 3, 6> numericalJacobian(
-        const std::function<Eigen::Vector3d(const gtsam::Pose3&)>& fn,
-        const gtsam::Pose3& pose) const
-    {
-        constexpr double kDelta = 1e-5;
-        Eigen::Matrix<double, 3, 6> H;
-        H.setZero();
-        for (int i = 0; i < 6; ++i) {
-            gtsam::Vector6 d;
-            d.setZero();
-            d(i) = kDelta;
-            const Eigen::Vector3d plus = fn(pose.retract(d));
-            d(i) = -kDelta;
-            const Eigen::Vector3d minus = fn(pose.retract(d));
-            H.col(i) = (plus - minus) / (2.0 * kDelta);
-        }
-        return H;
-    }
-};
-
-} // namespace
-
 GraphOptimizer::GraphOptimizer(const Config& config)
     : config_(config)
     , has_loop_closure_(false)
@@ -156,188 +66,6 @@ void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
     needs_optimization_ = true;
 }
 
-void GraphOptimizer::addPriorFactor(int64_t id, const Eigen::Isometry3d& pose) {
-    gtsam::Key key = gtsam::Symbol('x', id);
-    gtsam::Pose3 gtsam_pose = eigenToGtsam(pose);
-    
-    // 创建先验噪声模型
-    auto noise_model = createPriorNoiseModel();
-    
-    // 添加到待提交因子；只有优化成功后才进入 committed graph。
-    new_factors_.add(gtsam::PriorFactor<gtsam::Pose3>(key, gtsam_pose, noise_model));
-    
-    // 添加待提交初始值
-    if (!hasAnyNode(id)) {
-        new_values_.insert(key, gtsam_pose);
-        pending_node_ids_.insert(id);
-    }
-    
-    needs_optimization_ = true;
-}
-
-void GraphOptimizer::addOdometryEdge(const EdgeInfo& edge) {
-    gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
-    gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
-    gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
-    
-    // 创建噪声模型
-    auto noise_model = createNoiseModel(edge.information);
-    if (!noise_model) {
-        noise_model = createOdomNoiseModel();
-    }
-    
-    // 添加到待提交因子；只有优化成功后才进入 committed graph。
-    new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
-    
-    // 如果目标节点不存在，尝试从 from 节点推导待提交初始值。
-    (void)ensureTargetInitialValue(
-        edge.from_id, edge.to_id, edge.measurement);
-    
-    // 存储待提交边信息
-    pending_edges_.push_back(edge);
-    needs_optimization_ = true;
-}
-
-bool GraphOptimizer::addSessionOdometryEdge(
-    const EdgeInfo& edge,
-    const Eigen::Isometry3d& target_initial_pose) {
-    if (edge.from_id < 0 || edge.to_id < 0 || edge.from_id == edge.to_id ||
-        !edge.measurement.matrix().allFinite() ||
-        !edge.information.allFinite() ||
-        !target_initial_pose.matrix().allFinite() ||
-        !hasAnyNode(edge.from_id) || hasAnyNode(edge.to_id)) {
-        return false;
-    }
-
-    const gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
-    const gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
-    auto noise_model = createRobustNoiseModel(
-        edge.information, config_.use_robust_kernel);
-    new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(
-        key_from, key_to, eigenToGtsam(edge.measurement), noise_model));
-    new_values_.insert(key_to, eigenToGtsam(target_initial_pose));
-    pending_node_ids_.insert(edge.to_id);
-
-    EdgeInfo odometry_edge = edge;
-    odometry_edge.type = EdgeType::ODOMETRY;
-    pending_edges_.push_back(odometry_edge);
-    needs_optimization_ = true;
-    return true;
-}
-
-
-void GraphOptimizer::addLoopEdge(const EdgeInfo& edge) {
-    gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
-    gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
-    gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
-    
-    // 创建带鲁棒核函数的噪声模型
-    auto noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
-        ? createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
-        : createRobustNoiseModel(edge.information, config_.use_robust_kernel);
-    
-    // 添加到待提交因子；只有优化成功后才进入 committed graph。
-    if (edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
-        new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
-    } else {
-        new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
-    }
-    
-    // 存储待提交边信息
-    EdgeInfo loop_edge = edge;
-    loop_edge.type = EdgeType::LOOP;
-    pending_edges_.push_back(loop_edge);
-    
-    pending_has_loop_closure_ = true;
-    needs_optimization_ = true;
-}
-
-bool GraphOptimizer::rebaseSessionAndAddLoopEdge(
-    const EdgeInfo& edge, int64_t first_session_node_id) {
-    if (needs_optimization_ || first_session_node_id < 0 ||
-        edge.from_id < 0 || edge.to_id < first_session_node_id ||
-        edge.from_id >= first_session_node_id ||
-        edge.constraint_mode != EdgeConstraintMode::FULL_6DOF ||
-        !edge.measurement.matrix().allFinite() ||
-        !edge.information.allFinite()) {
-        return false;
-    }
-
-    const auto poses = getOptimizedPoses();
-    const auto from = poses.find(edge.from_id);
-    const auto to = poses.find(edge.to_id);
-    if (from == poses.end() || to == poses.end()) {
-        return false;
-    }
-    const Eigen::Isometry3d desired_to =
-        from->second * edge.measurement;
-    const Eigen::Isometry3d correction =
-        desired_to * to->second.inverse();
-    if (!correction.matrix().allFinite()) {
-        return false;
-    }
-
-    std::vector<std::pair<int64_t, Eigen::Isometry3d>> rebased_nodes;
-    rebased_nodes.reserve(poses.size());
-    for (const auto& [id, pose] : poses) {
-        rebased_nodes.emplace_back(
-            id, id >= first_session_node_id ? correction * pose : pose);
-    }
-    auto rebuilt_edges = edges_;
-    EdgeInfo loop_edge = edge;
-    loop_edge.type = EdgeType::LOOP;
-    rebuilt_edges.push_back(loop_edge);
-    return loadGraph(rebased_nodes, rebuilt_edges,
-                     committed_floor_attitude_constraints_);
-}
-
-bool GraphOptimizer::addSessionAnchorEdge(const EdgeInfo& edge) {
-    if (edge.from_id < 0 || edge.to_id < 0 ||
-        !edge.measurement.matrix().allFinite() ||
-        !edge.information.allFinite()) {
-        return false;
-    }
-
-    gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
-    gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
-    gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
-
-    // Same robust-noise path as loop closures: a cross-session anchor is a
-    // global constraint, not an odometry chain link.
-    auto noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
-        ? createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
-        : createRobustNoiseModel(edge.information, config_.use_robust_kernel);
-
-    // Unlike a loop, the first cross-session anchor may introduce a new graph
-    // node. Reject a missing source before staging a factor or edge.
-    if (!ensureTargetInitialValue(
-            edge.from_id, edge.to_id, edge.measurement)) {
-        return false;
-    }
-
-    if (edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
-        new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
-    } else {
-        new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
-    }
-
-    EdgeInfo anchor_edge = edge;
-    anchor_edge.type = EdgeType::SESSION_ANCHOR;
-    pending_edges_.push_back(anchor_edge);
-
-    pending_has_session_anchor_ = true;
-    needs_optimization_ = true;
-    return true;
-}
-
-bool GraphOptimizer::isRobustGlobalEdge(EdgeType type) {
-    return type == EdgeType::LOOP || type == EdgeType::SESSION_ANCHOR;
-}
-
-bool GraphOptimizer::hasGlobalConstraint() const {
-    return hasLoopClosure() || has_session_anchor_ || pending_has_session_anchor_;
-}
-
 // ==================== 优化 ====================
 
 void GraphOptimizer::optimize() {
@@ -369,6 +97,11 @@ bool GraphOptimizer::incrementalOptimize() {
     if (new_factors_.empty() && new_values_.empty() && pending_edges_.empty() && pending_node_ids_.empty()) {
         return true;
     }
+
+    if (!shared_planes_.empty() ||
+        (config_.loop_geometry_enable && !node_ids_.empty() &&
+         (has_session_anchor_ || pending_has_session_anchor_)))
+        return optimizeGeometryUpdate();
 
     try {
         auto trial_isam2 = createISAM2();
@@ -475,135 +208,6 @@ bool GraphOptimizer::hasLoopClosure() const {
 
 // ==================== 序列化支持 ====================
 
-bool GraphOptimizer::loadGraph(
-    const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes,
-    const std::vector<EdgeInfo>& edges) {
-    return loadGraph(nodes, edges, {});
-}
-
-bool GraphOptimizer::loadGraph(
-    const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes,
-    const std::vector<EdgeInfo>& edges,
-    const std::vector<FloorAttitudeConstraint>& floor_constraints) {
-    GraphOptimizer temp(config_);
-
-    if (nodes.empty()) {
-        swapWith(temp);
-        return true;
-    }
-    
-    // 添加节点
-    for (const auto& [id, pose] : nodes) {
-        gtsam::Key key = gtsam::Symbol('x', id);
-        gtsam::Pose3 gtsam_pose = eigenToGtsam(pose);
-        if (temp.initial_values_.exists(key)) {
-            std::cerr << "GraphOptimizer::loadGraph() duplicate node id: " << id << std::endl;
-            return false;
-        }
-        temp.initial_values_.insert(key, gtsam_pose);
-        temp.node_ids_.insert(id);
-    }
-    
-    // 添加第一个节点的先验因子
-    int64_t first_id = nodes.front().first;
-    gtsam::Key first_key = gtsam::Symbol('x', first_id);
-    gtsam::Pose3 first_pose = temp.initial_values_.at<gtsam::Pose3>(first_key);
-    auto prior_noise = temp.createPriorNoiseModel();
-    temp.graph_.add(gtsam::PriorFactor<gtsam::Pose3>(first_key, first_pose, prior_noise));
-    
-    int64_t first_session_node_id = std::numeric_limits<int64_t>::max();
-    for (const auto& edge : edges) {
-        if (edge.type == EdgeType::SESSION_ANCHOR) {
-            first_session_node_id =
-                std::min(first_session_node_id, edge.to_id);
-        }
-    }
-
-    // 添加边
-    for (const auto& edge : edges) {
-        gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
-        gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
-        gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
-        
-        gtsam::noiseModel::Base::shared_ptr noise_model;
-        const bool robust_session_odometry =
-            edge.type == EdgeType::ODOMETRY &&
-            first_session_node_id != std::numeric_limits<int64_t>::max() &&
-            edge.from_id >= first_session_node_id &&
-            edge.to_id >= first_session_node_id;
-        if (isRobustGlobalEdge(edge.type) || robust_session_odometry) {
-            noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
-                ? temp.createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
-                : temp.createRobustNoiseModel(edge.information, config_.use_robust_kernel);
-            if (!noise_model) {
-                noise_model = temp.createLoopNoiseModel();
-            }
-            if (edge.type == EdgeType::SESSION_ANCHOR) {
-                temp.has_session_anchor_ = true;
-            } else if (edge.type == EdgeType::LOOP) {
-                temp.has_loop_closure_ = true;
-            }
-        } else {
-            noise_model = createNoiseModel(edge.information);
-            if (!noise_model) {
-                noise_model = temp.createOdomNoiseModel();
-            }
-        }
-        
-        if (isRobustGlobalEdge(edge.type) && edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
-            temp.graph_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
-        } else {
-            temp.graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
-        }
-        temp.edges_.push_back(edge);
-    }
-
-    // Load committed floor attitude constraints (validated by the
-    // serializer; defensive checks keep a bad record from breaking the
-    // load). The node must exist and the normal/sigma must be sane.
-    for (const auto& fc : floor_constraints) {
-        if (!fc.normal_body.allFinite() || fc.normal_body.norm() < 1e-6 ||
-            !std::isfinite(fc.sigma_rad) || fc.sigma_rad <= 0.0) {
-            continue;
-        }
-        gtsam::Key key = gtsam::Symbol('x', fc.node_id);
-        if (!temp.initial_values_.exists(key)) {
-            continue;
-        }
-        auto noise = gtsam::noiseModel::Isotropic::Sigma(2, fc.sigma_rad);
-        temp.graph_.add(gtsam::Pose3AttitudeFactor(
-            key, gtsam::Unit3(0.0, 0.0, 1.0), noise,
-            gtsam::Unit3(fc.normal_body.normalized())));
-        temp.committed_floor_attitude_constraints_.push_back(fc);
-        ++temp.floor_attitude_factor_count_;
-    }
-
-    // 执行优化
-    if (!temp.graph_.empty() && !temp.initial_values_.empty()) {
-        gtsam::Values optimized_estimate;
-        // The installed GTSAM uses TBB for Bayes-tree back-substitution. On
-        // large cross-linked saved graphs its parallel traversal can race a
-        // child clique against publication of its parent's result and throw
-        // std::out_of_range ("map::at"). Keep only this one-shot bulk reload
-        // solve serial; online incremental optimization and point-cloud work
-        // retain their configured parallelism.
-        tbb::global_control serial_reload_solve(
-            tbb::global_control::max_allowed_parallelism, 1);
-        if (!temp.optimizeCandidate(temp.graph_, temp.initial_values_, &optimized_estimate)) {
-            std::cerr << "GraphOptimizer::loadGraph() failed; existing graph left unchanged" << std::endl;
-            return false;
-        }
-        temp.current_estimate_ = optimized_estimate;
-        temp.last_good_estimate_ = optimized_estimate;
-    }
-
-    temp.rebuildISAM2FromCommitted();
-    temp.clearPending();
-    temp.needs_optimization_ = false;
-    swapWith(temp);
-    return true;
-}
-
 void GraphOptimizer::swapWith(GraphOptimizer& other) {
     if (this == &other) return;
     using std::swap;
@@ -616,6 +220,7 @@ void GraphOptimizer::swapWith(GraphOptimizer& other) {
     swap(current_estimate_, other.current_estimate_);
     swap(last_good_estimate_, other.last_good_estimate_);
     swap(edges_, other.edges_);
+    swap(shared_planes_, other.shared_planes_);
     swap(pending_edges_, other.pending_edges_);
     swap(node_ids_, other.node_ids_);
     swap(pending_node_ids_, other.pending_node_ids_);
@@ -643,6 +248,7 @@ void GraphOptimizer::clear() {
     current_estimate_.clear();
     last_good_estimate_.clear();
     edges_.clear();
+    shared_planes_.clear();
     pending_edges_.clear();
     node_ids_.clear();
     pending_node_ids_.clear();
@@ -830,12 +436,17 @@ void GraphOptimizer::appendPendingTo(gtsam::NonlinearFactorGraph* candidate_grap
 gtsam::Pose3 GraphOptimizer::eigenToGtsam(const Eigen::Isometry3d& pose) {
     Eigen::Matrix3d R = pose.rotation();
     Eigen::Vector3d t = pose.translation();
-    return gtsam::Pose3(gtsam::Rot3(R), gtsam::Point3(t));
+    // Isometry::inverse uses transpose. Repeated snapshot corrections otherwise
+    // amplify even 1e-15 rotation scale error geometrically. Canonicalize at the
+    // graph boundary, including float-derived registration measurements.
+    const Eigen::Quaterniond rotation = Eigen::Quaterniond(R).normalized();
+    return gtsam::Pose3(gtsam::Rot3(rotation), gtsam::Point3(t));
 }
 
 Eigen::Isometry3d GraphOptimizer::gtsamToEigen(const gtsam::Pose3& pose) {
     Eigen::Isometry3d result = Eigen::Isometry3d::Identity();
-    result.linear() = pose.rotation().matrix();
+    result.linear() = Eigen::Quaterniond(pose.rotation().matrix())
+                          .normalized().toRotationMatrix();
     result.translation() = pose.translation();
     return result;
 }

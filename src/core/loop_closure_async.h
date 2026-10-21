@@ -12,12 +12,15 @@ struct AsyncLoopJob {
                std::unique_ptr<GraphOptimizer> graph, DetectedLoopQuery query);
   void run();
   void rebase();
+  void optimizeGeometry();
 
   Config config;
   KeyframeManager keyframes;
   PointCloudMatcher matcher;
   LoopClosureManager manager;
   std::unique_ptr<GraphOptimizer> graph;
+  std::unique_ptr<GraphOptimizer> base_graph;
+  std::unique_ptr<LocalizationAtlas> atlas;
   DetectedLoopQuery query;
   KeyframeMapRevision revision;
   LoopClosureOutcome outcome;

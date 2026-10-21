@@ -222,6 +222,11 @@ bool RuntimePerformanceDebugLogger::append(
   appendNumber(record, &first, "oldest_pending_age_ms", event.oldest_pending_age_ms);
   appendNumber(record, &first, "snapshot_ms", event.snapshot_ms);
   appendNumber(record, &first, "commit_ms", event.commit_ms);
+  appendSize(record, &first, "geometry_planes", event.geometry_planes);
+  appendSize(record, &first, "geometry_observations", event.geometry_observations);
+  appendNumber(record, &first, "geometry_association_ms", event.geometry_association_ms);
+  appendNumber(record, &first, "geometry_solve_ms", event.geometry_solve_ms);
+  appendNumber(record, &first, "atlas_prepare_ms", event.atlas_prepare_ms);
   appendNumber(record, &first, "lock_wait_ms", event.lock_wait_ms);
   appendNumber(record, &first, "core_ms", event.core_ms);
   appendNumber(record, &first, "publish_ms", event.publish_ms);

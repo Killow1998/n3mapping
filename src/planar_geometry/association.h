@@ -1,7 +1,7 @@
-// Research geometry shared by complete maps and causal mapping snapshots.
+// Geometry association shared by the asynchronous backend and research audit.
 #pragma once
 #include "moment_factor.h"
-#include "n3mapping/n3map_proto_utils.h"
+#include "n3mapping/keyframe.h"
 #include <array>
 #include <gtsam/geometry/Pose3.h>
 #include <json/json.h>
@@ -20,7 +20,7 @@ struct Plane {
   std::vector<Patch> patches;
 };
 double median(std::vector<double> values);
-std::vector<Plane> associate(const N3Map &map,
+std::vector<Plane> associate(const std::vector<Keyframe::Ptr>& keyframes,
                              const std::vector<gtsam::Pose3> &poses,
                              Json::Value &audit);
 std::vector<Plane> mergePlanes(std::vector<Plane> input,

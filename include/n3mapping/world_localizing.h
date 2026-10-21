@@ -137,6 +137,8 @@ public:
   };
   WorldLocalizingCacheDiagnostics cacheDiagnostics() const;
   void setMapToOdomTransform(const Eigen::Isometry3d &T_map_odom);
+  void installOptimizedReference(LocalizationAtlas& atlas,
+                                 const Eigen::Isometry3d& pose_correction);
   int64_t getLastMatchedKeyframeId() const;
   bool loadLocalizationAtlas(const std::string &map_path,
                              std::string *error = nullptr);

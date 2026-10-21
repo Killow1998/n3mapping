@@ -99,6 +99,7 @@ struct Config {
     bool loop_debug_enable = false;
     bool loop_debug_vertical_hypotheses_enable = false;
     std::string loop_debug_path = "";
+    bool loop_geometry_enable = true;
     bool loop_spatial_candidates_enable = true;
     double loop_spatial_candidate_radius = 15.0;
     int loop_spatial_candidate_max_candidates = 5;

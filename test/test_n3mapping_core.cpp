@@ -580,7 +580,7 @@ TEST(N3MappingCoreTest, AsyncLoopCommitRetainsKeyframesAppendedDuringGeometry)
     const auto completed = core.processPendingLoopClosures();
     EXPECT_TRUE(completed.optimized);
     EXPECT_FALSE(completed.async_pending);
-    EXPECT_GE(completed.graph_rebase_count, 1U);
+    EXPECT_EQ(completed.graph_rebase_count, 0U); // Appended nodes need no full solve.
     EXPECT_GE(completed.edge_count, 1U);
     EXPECT_EQ(core.getOptimizedPoses().size(), 3U);
     EXPECT_EQ(core.getAllKeyframes().size(), 3U);

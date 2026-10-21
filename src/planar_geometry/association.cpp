@@ -9,16 +9,17 @@ double median(std::vector<double> values) {
   return *m;
 }
 
-std::vector<Plane> associate(const n3mapping::N3Map &map,
+std::vector<Plane> associate(const std::vector<Keyframe::Ptr>& keyframes,
                              const std::vector<gtsam::Pose3> &poses,
                              Json::Value &audit) {
   std::map<Cell, std::vector<Patch>> cells;
   int raw = 0, nonplanar = 0;
-  for (int i = 0; i < map.keyframes_size(); ++i) {
+  for (int i = 0; i < int(keyframes.size()); ++i) {
     std::map<Cell, Moment> scan;
-    const auto &points = map.keyframes(i).cloud().points();
-    for (int j = 0; j < points.size(); j += 4) {
-      const Eigen::Vector3d local(points[j], points[j + 1], points[j + 2]);
+    if (!keyframes[i] || !keyframes[i]->cloud) continue;
+    const auto &points = keyframes[i]->cloud->points;
+    for (const auto& point : points) {
+      const Eigen::Vector3d local(point.x, point.y, point.z);
       if (!local.allFinite())
         continue;
       const auto world = poses[i].transformFrom(local);

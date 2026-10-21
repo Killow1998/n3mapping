@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -97,12 +98,6 @@ struct BackendOutput {
   TrackingPerformance tracking_performance;
 };
 
-struct DenseTrajectoryPose {
-  uint64_t seq = 0;
-  double timestamp = 0.0;
-  Eigen::Isometry3d pose_world_lidar = Eigen::Isometry3d::Identity();
-};
-
 struct DenseTrajectoryMetadata {
   std::string source = "none";
   bool degraded = true;
@@ -116,6 +111,14 @@ struct AnchoredDenseTrajectorySample {
   Eigen::Isometry3d anchor_pose_world_lidar_raw = Eigen::Isometry3d::Identity();
   bool has_anchor = false;
   bool use_bracketing_correction = true;
+};
+
+struct DenseTrajectoryPose {
+  uint64_t seq = 0;
+  double timestamp = 0.0;
+  Eigen::Isometry3d pose_world_lidar = Eigen::Isometry3d::Identity();
+  // Checkpoint provenance; absent in legacy/export-only trajectories.
+  std::optional<AnchoredDenseTrajectorySample> correction_source;
 };
 
 } // namespace core

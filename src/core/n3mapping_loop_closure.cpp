@@ -1,5 +1,6 @@
 #include "n3mapping/core/n3mapping_core.h"
 #include "loop_closure_processing.h"
+#include "loop_closure_async.h"
 #include <algorithm>
 
 namespace n3mapping {
@@ -30,6 +31,13 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
     keyframes_to_check.swap(loop_detection_queue_); }
   result.queued_keyframe_count = keyframes_to_check.size();
   std::vector<DetectedLoopQuery> queries;
+  if (map_loaded_ && config_.loop_geometry_enable && !keyframes_to_check.empty()) {
+    DetectedLoopQuery query;
+    query.id = keyframes_to_check.back();
+    query.geometry_only = true;
+    queries.push_back(std::move(query));
+    return queries;
+  }
   for (int64_t query_id : keyframes_to_check) {
     if (query_id - last_loop_check_id_ < config_.loop_kf_gap) {
       continue;
@@ -87,6 +95,8 @@ void N3MappingCore::publishLoopOutcome(const LoopClosureOutcome& outcome) {
 }
 
 CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
+  if (config_.loop_geometry_enable && !async_loops_)
+    async_loops_ = std::make_unique<AsyncLoopState>();
   if (async_loops_) {
     CoreLoopClosureResult total;
     CoreLoopClosureResult completed;
@@ -101,6 +111,14 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
       total.worker_wall_ms += completed.worker_wall_ms;
       total.snapshot_ms += completed.snapshot_ms;
       total.commit_ms += completed.commit_ms;
+      total.geometry.association_ms += completed.geometry.association_ms;
+      total.geometry.solve_ms += completed.geometry.solve_ms;
+      total.geometry.optimized |= completed.geometry.optimized;
+      total.atlas_prepare_ms += completed.atlas_prepare_ms;
+      if (completed.geometry.optimized) {
+        total.geometry.planes = completed.geometry.planes;
+        total.geometry.observations = completed.geometry.observations;
+      }
       total.graph_rebase_count += completed.graph_rebase_count;
       total.stale_job_count += completed.stale_job_count;
       const auto pose_count = total.pose_update_count + completed.pose_update_count;

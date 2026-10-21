@@ -34,6 +34,11 @@ public:
     using PointCloudT = pcl::PointCloud<PointT>;
 
     LocalizationAtlas(const Config& config, PointCloudMatcher& matcher);
+    // Prepare an immutable in-memory reference in the worker. The owner swaps
+    // only its payload; the matcher reference never crosses ownership domains.
+    bool prepare(const std::vector<Keyframe::Ptr>& keyframes,
+                 LocalizationAtlasStats* stats = nullptr);
+    void swapData(LocalizationAtlas& other);
 
     bool compileAndSave(const std::string& map_path,
                         const std::vector<Keyframe::Ptr>& keyframes,

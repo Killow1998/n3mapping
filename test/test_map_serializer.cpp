@@ -2238,7 +2238,7 @@ TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
         std::ifstream ifs(map_file, std::ios::binary);
         ASSERT_TRUE(saved_proto.ParseFromIstream(&ifs));
     }
-    EXPECT_EQ(saved_proto.metadata().version(), "2.8.0");
+    EXPECT_EQ(saved_proto.metadata().version(), "2.9.0");
     EXPECT_EQ(saved_proto.metadata().num_session_anchor_edges(), 1u);
 
     KeyframeManager kf_loaded(config_);
@@ -2283,7 +2283,7 @@ TEST_F(MapSerializerTest, Legacy24MapStillLoadsAndFuturePatchIsRejected) {
     EXPECT_TRUE(legacy_kfs.getSessions()[0].loaded);
 
     N3Map future = legacy;
-    future.mutable_metadata()->set_version("2.8.1");
+    future.mutable_metadata()->set_version("2.9.1");
     const std::string future_file =
         config_.map_save_path + "/future_281.pbstream";
     {

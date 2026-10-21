@@ -13,6 +13,7 @@ std::unique_ptr<GraphOptimizer> GraphOptimizer::cloneCommitted() const {
     result->current_estimate_ = current_estimate_;
     result->last_good_estimate_ = last_good_estimate_;
     result->edges_ = edges_;
+    result->shared_planes_ = shared_planes_;
     result->node_ids_ = node_ids_;
     result->has_loop_closure_ = has_loop_closure_;
     result->has_session_anchor_ = has_session_anchor_;

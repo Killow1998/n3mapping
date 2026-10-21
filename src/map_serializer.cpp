@@ -1,5 +1,6 @@
 // MapSerializer: Protobuf-based map serialization/deserialization and global PCD export.
 #include "n3mapping/map_serializer.h"
+#include "planar_geometry/serialization.h"
 
 #include <cmath>
 #include <ctime>
@@ -23,7 +24,7 @@
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.8.0";
+constexpr const char* MAP_VERSION = "2.9.0";
 
 struct SemVer {
     int major = 0;
@@ -348,6 +349,15 @@ bool MapSerializer::saveMap(const std::string& filepath,
                 LOG(ERROR) << "[MapSerializer] Refuse to save non-finite dense trajectory pose seq=" << pose.seq;
                 return false;
             }
+            if (pose.correction_source) {
+                const auto& source = *pose.correction_source;
+                if (!isFinitePose(source.pose_world_lidar_raw) ||
+                    !isFinitePose(source.anchor_pose_world_lidar_raw) ||
+                    (source.has_anchor && !saved_keyframe_ids.count(source.anchor_keyframe_id))) {
+                    LOG(ERROR) << "[MapSerializer] Refuse invalid dense trajectory correction source.";
+                    return false;
+                }
+            }
         }
         meta->set_num_keyframes(keyframes.size());
         std::string dense_source = dense_trajectory_metadata.source.empty()
@@ -410,6 +420,9 @@ bool MapSerializer::saveMap(const std::string& filepath,
             floor_proto->set_nz(fc.normal_body.z());
             floor_proto->set_sigma_rad(fc.sigma_rad);
         }
+        writeSharedPlanes(optimizer.sharedPlanes(), map_proto);
+        if (optimizer.getNumNodes() > 0)
+            poseToProto(optimizer.gaugePrior(), map_proto.mutable_graph_gauge_prior());
         return atomicWriteProto(filepath, map_proto);
     } catch (...) { return false; }
 }
@@ -698,7 +711,18 @@ bool MapSerializer::loadMap(const std::string& filepath,
             floor_constraints.push_back(FloorAttitudeConstraint{
                 parsed.node_id, parsed.normal_body, parsed.sigma_rad});
         }
-        if (!temp_optimizer.loadGraph(nodes, edges, floor_constraints)) {
+        std::vector<SharedPlane> planes;
+        if (!readSharedPlanes(map_proto, planes)) return false;
+        const bool restore = map_proto.has_graph_gauge_prior();
+        if (!planes.empty() && !restore) return false;
+        if (restore && !isFinitePoseProto(map_proto.graph_gauge_prior())) return false;
+        const auto prior = restore ? poseFromProto(map_proto.graph_gauge_prior())
+                                   : Eigen::Isometry3d::Identity();
+        if (restore && !prior.matrix().allFinite()) return false;
+        // Loading restores a checkpoint, including legacy maps. Re-solving here
+        // would disagree with the saved clouds/Atlas before the first live frame.
+        if (!temp_optimizer.loadGraph(nodes, edges, floor_constraints, planes,
+                                     true, restore ? &prior : nullptr)) {
             LOG(ERROR) << "[MapSerializer] Reject map: graph optimizer failed to load graph.";
             return false;
         }
@@ -769,6 +793,16 @@ void MapSerializer::denseTrajectoryToProto(const core::DenseTrajectoryPose& pose
     proto->set_seq(pose.seq);
     proto->set_timestamp(pose.timestamp);
     poseToProto(pose.pose_world_lidar, proto->mutable_pose_world_lidar());
+    if (pose.correction_source) {
+        const auto& source = *pose.correction_source;
+        auto* saved = proto->mutable_correction_source();
+        poseToProto(source.pose_world_lidar_raw, saved->mutable_pose_world_lidar_raw());
+        poseToProto(source.anchor_pose_world_lidar_raw,
+                    saved->mutable_anchor_pose_world_lidar_raw());
+        saved->set_anchor_keyframe_id(source.anchor_keyframe_id);
+        saved->set_has_anchor(source.has_anchor);
+        saved->set_use_bracketing_correction(source.use_bracketing_correction);
+    }
 }
 
 void MapSerializer::poseToProto(const Eigen::Isometry3d& pose, n3mapping::Pose3D* proto) {

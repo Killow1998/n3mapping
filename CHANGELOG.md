@@ -2,15 +2,31 @@
 
 ## Unreleased
 
+- Integrate shared-plane joint optimization into asynchronous mapping and strict
+  extension. Catch up appended frames without repeated registration/global solves;
+  install optimized map/Atlas/tracking references together. Format 2.9.0 retains
+  plane moments, gauge and dense correction provenance across save/reload.
+- Normalize rotation matrices at graph boundaries to prevent repeated async
+  transport from amplifying numerical scale error. Isolate dense correction by
+  session, including overlapping timestamps. Share Atlas preparation at load.
+- Complete four-core paced mapping, original fixed14, independent motion, strict
+  extension, reload continuation and another full fixed14 on the extended map.
+  Mapping averages 0.412 cores; extension remains heavier at 2.036 cores and
+  4.186 GiB runtime RSS. Both fixed14 runs retain every output. Complete motion
+  below 10 cm and improvement in every metric remain unqualified. Real checkpoint
+  Atlas points match exactly; all 69 CTest targets pass across final runs.
+  See the [online integration evidence](docs/evidence/runtime_cpu_20261017/README.md#asynchronous-joint-geometry-mapping-extension-and-checkpoints--2026-10-21).
+
 - Add an opt-in shared-plane geometry evaluation tool with oriented association,
   per-scan moments, connected-surface aggregation and the existing consistent
   robust-noise implementation. Frozen four-core full14 and independent-route
   comparisons demonstrate lower map and localization error, while retaining
   all lock/output counts. Directional null-space and robust-gradient controls
   pass; causal mapping snapshots also improve without future observations.
-  Individual angular regressions, the 15.28 cm moving peak, statistical
-  uncertainty calibration and online/extension integration remain open.
-  No default algorithm, map or runtime mode changes. See the
+  That earlier research stage left individual angular regressions, the 15.28 cm
+  moving peak, statistical uncertainty calibration and online integration open;
+  it changed no runtime defaults. The integration above supplies the subsequent
+  runtime and checkpoint evidence. See the
   [geometry association evidence](docs/evidence/runtime_cpu_20261017/README.md#oriented-shared-plane-geometry-and-directional-information--2026-10-20).
 
 - Log raw tracking registration and visibility-selected endpoints before

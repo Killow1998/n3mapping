@@ -1,4 +1,6 @@
 #include "loop_closure_async.h"
+#include "loop_closure_diagnostics.h"
+#include <glog/logging.h>
 
 #include <iostream>
 #include <stdexcept>
@@ -15,6 +17,7 @@ AsyncLoopJob::AsyncLoopJob(const Config& config, const KeyframeManager& source,
     std::unique_ptr<GraphOptimizer> graph, DetectedLoopQuery query)
     : config(config), keyframes(config), matcher(config), manager(config),
       graph(std::move(graph)), query(std::move(query)), revision(source.revision()) {
+  base_graph = this->graph->cloneCommitted();
   std::vector<Keyframe::Ptr> snapshot;
   const auto originals = source.getAllKeyframes();
   for (const auto& keyframe : originals)
@@ -33,15 +36,47 @@ AsyncLoopJob::AsyncLoopJob(const Config& config, const KeyframeManager& source,
 
 void AsyncLoopJob::run() {
   const auto start = LoopClock::now();
-  outcome = processLoopCandidates(config, keyframes, matcher, *graph, manager, {query});
+  if (!query.geometry_only)
+    outcome = processLoopCandidates(config, keyframes, matcher, *graph, manager, {query});
+  optimizeGeometry();
   worker_wall_ms += elapsedMs(start);
 }
 
 void AsyncLoopJob::rebase() {
   const auto start = LoopClock::now();
-  rebaseLoopOutcome(config, *graph, manager, outcome);
+  if (!query.geometry_only) rebaseLoopOutcome(config, *graph, manager, outcome);
+  optimizeGeometry();
   worker_wall_ms += elapsedMs(start);
   ++graph_rebase_count;
+}
+
+void AsyncLoopJob::optimizeGeometry() {
+  if (!config.loop_geometry_enable ||
+      (!query.geometry_only && !outcome.summary.optimized)) return;
+  keyframes.updateOptimizedPoses(graph->getOptimizedPoses());
+  auto& stats = outcome.summary.geometry;
+  stats = {};
+  const auto planes = buildSharedPlanes(keyframes.getAllKeyframes(), stats);
+  if (planes.empty()) return;
+  if (!graph->replaceSharedPlanes(planes, true, stats))
+    throw std::runtime_error("Joint geometry rejected; live graph unchanged");
+  outcome.summary.optimized = true;
+  keyframes.updateOptimizedPoses(graph->getOptimizedPoses());
+  const auto residual = loop_diagnostics::meanLoopResidual(
+      manager.buildLoopEdges(outcome.summary.accepted_loops, LoopEdgeDirection::MatchToQuery),
+      graph->getOptimizedPoses());
+  outcome.summary.loop_residual_translation_after = residual.first;
+  outcome.summary.loop_residual_rotation_after = residual.second;
+  std::vector<Keyframe::Ptr> loaded;
+  for (const auto& frame : keyframes.getAllKeyframes())
+    if (frame->is_from_loaded_map) loaded.push_back(frame);
+  if (!loaded.empty()) {
+    const auto start = LoopClock::now();
+    atlas = std::make_unique<LocalizationAtlas>(config, matcher);
+    if (!atlas->prepare(loaded))
+      throw std::runtime_error("Optimized reference preparation failed");
+    outcome.summary.atlas_prepare_ms = elapsedMs(start);
+  }
 }
 
 CoreLoopClosureResult N3MappingCore::processPendingLoopClosuresAsync() {
@@ -57,8 +92,14 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
     state.pending.clear();
     state.generation = revision.generation;
   }
-  for (auto& query : detectPendingLoopCandidates(result))
+  for (auto& query : detectPendingLoopCandidates(result)) {
+    // Strict extension constraints are already in the live graph. One latest
+    // geometry request covers all of them; no verified measurement is dropped.
+    if (query.geometry_only)
+      state.pending.erase(std::remove_if(state.pending.begin(), state.pending.end(),
+          [](const auto& pending) { return pending.geometry_only; }), state.pending.end());
     state.pending.push_back(std::move(query));
+  }
 
   if (state.job && (wait ||
       state.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)) {
@@ -68,6 +109,15 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       completed = true;
     } catch (const std::exception& error) {
       std::cerr << "Isolated loop processing failed: " << error.what() << '\n';
+    }
+    double catchup_ms = 0;
+    if (completed && state.job->outcome.summary.optimized &&
+        state.job->revision.generation == revision.generation &&
+        state.job->revision != revision) {
+      const auto catchup_start = LoopClock::now();
+      if (state.job->graph->appendCommittedTail(session_->graphOptimizer(), *state.job->base_graph))
+        state.job->revision = revision;
+      catchup_ms = elapsedMs(catchup_start);
     }
     if (!completed || state.job->revision.generation != revision.generation) {
       result.stale_job_count = 1;
@@ -80,9 +130,13 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       // odometry, floor observations and session constraints. Only graph
       // admission/solving repeats; expensive registration evidence is retained.
       const auto start = LoopClock::now();
-      state.job->graph = session_->graphOptimizer().cloneCommitted();
-      state.job->revision = revision;
-      result.snapshot_ms += elapsedMs(start);
+      auto previous = std::move(state.job);
+      state.job = std::make_unique<AsyncLoopJob>(config_, session_->keyframeManager(),
+          session_->graphOptimizer().cloneCommitted(), previous->query);
+      state.job->outcome = std::move(previous->outcome);
+      state.job->worker_wall_ms = previous->worker_wall_ms;
+      state.job->graph_rebase_count = previous->graph_rebase_count;
+      result.snapshot_ms += elapsedMs(start) + catchup_ms;
       auto* job = state.job.get();
       state.future = std::async(std::launch::async, [job] { job->rebase(); });
     } else {
@@ -90,15 +144,43 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       const auto queued = result.queued_keyframe_count;
       const auto start = LoopClock::now();
       auto& job = *state.job;
-      if (job.outcome.summary.optimized)
+      Eigen::Isometry3d correction = Eigen::Isometry3d::Identity();
+      if (job.outcome.summary.optimized) {
+        const auto before = session_->graphOptimizer().getOptimizedPoses();
+        const auto after = job.graph->getOptimizedPoses();
+        const int64_t anchor = session_->worldLocalizing().getLastMatchedKeyframeId();
+        if (before.count(anchor) && after.count(anchor))
+          correction = after.at(anchor) * before.at(anchor).inverse();
+        auto& summary = job.outcome.summary;
+        summary.pose_update_count = 0;
+        summary.mean_pose_update_translation = summary.mean_pose_update_rotation = 0;
+        summary.max_pose_update_translation = summary.max_pose_update_rotation = 0;
+        loop_diagnostics::accumulatePoseUpdateStats(before, after, &summary);
         session_->graphOptimizer().swapWith(*job.graph);
+      }
       publishLoopOutcome(job.outcome);
+      if (job.atlas)
+        session_->worldLocalizing().installOptimizedReference(*job.atlas, correction);
       result = std::move(job.outcome.summary);
       result.detected_candidate_count = detected;
       result.queued_keyframe_count = queued;
-      result.commit_ms = elapsedMs(start);
+      result.commit_ms = elapsedMs(start) + catchup_ms;
       result.worker_wall_ms = job.worker_wall_ms;
       result.graph_rebase_count = job.graph_rebase_count;
+      if (result.geometry.optimized)
+        LOG(INFO) << "[JointGeometry] query=" << job.query.id << " planes=" << result.geometry.planes
+                  << " observations=" << result.geometry.observations
+                  << " association_ms=" << result.geometry.association_ms
+                  << " solve_ms=" << result.geometry.solve_ms
+                  << " initial_cost=" << result.geometry.initial_cost
+                  << " final_cost=" << result.geometry.final_cost
+                  << " geometry_max_t=" << result.geometry.max_translation_update_m
+                  << " geometry_max_r=" << result.geometry.max_rotation_update_rad
+                  << " total_max_t=" << result.max_pose_update_translation
+                  << " atlas_ms=" << result.atlas_prepare_ms
+                  << " worker_ms=" << result.worker_wall_ms
+                  << " commit_ms=" << result.commit_ms
+                  << " rebases=" << result.graph_rebase_count;
       state.job.reset();
     }
   }

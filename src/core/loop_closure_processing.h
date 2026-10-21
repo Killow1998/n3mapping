@@ -8,6 +8,7 @@ struct DetectedLoopQuery {
   std::vector<LoopCandidate> candidates;
   std::chrono::steady_clock::time_point enqueued =
       std::chrono::steady_clock::now();
+  bool geometry_only = false;
 };
 struct LoopClosureOutcome {
   CoreLoopClosureResult summary;

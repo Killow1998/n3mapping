@@ -5,6 +5,8 @@ set(N3MAPPING_CORE_SOURCES
   ${PROTO_SRCS}
   ${N3MAPPING_ROOT}/src/config.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_save.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_trajectory.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_constraints.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_localization.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_loop_closure.cpp
@@ -40,6 +42,14 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/graph_factor_noise.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer_snapshot.cpp
+  ${N3MAPPING_ROOT}/src/graph_optimizer_restore.cpp
+  ${N3MAPPING_ROOT}/src/graph_optimizer_factors.cpp
+  ${N3MAPPING_ROOT}/src/graph_optimizer_geometry.cpp
+  ${N3MAPPING_ROOT}/src/graph_optimizer_append.cpp
+  ${N3MAPPING_ROOT}/src/planar_geometry/association.cpp
+  ${N3MAPPING_ROOT}/src/planar_geometry/merging.cpp
+  ${N3MAPPING_ROOT}/src/planar_geometry/builder.cpp
+  ${N3MAPPING_ROOT}/src/planar_geometry/serialization.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp

@@ -244,6 +244,49 @@ std::string LocalizationAtlas::configSha256(const Config& config) {
     return digestBytes(text.data(), text.size());
 }
 
+bool LocalizationAtlas::prepare(const std::vector<Keyframe::Ptr>& keyframes,
+                                LocalizationAtlasStats* stats) {
+    clear();
+    LocalizationAtlasStats local_stats;
+    local_stats.keyframe_count = keyframes.size();
+    auto start = Clock::now();
+    global_map_ = buildGlobalMap(config_, keyframes);
+    local_stats.global_map_ms = elapsedMs(start);
+    if (!global_map_ || global_map_->empty()) {
+
+        return false;
+    }
+    local_stats.global_point_count = global_map_->size();
+    if (global_map_->size() >
+        static_cast<std::size_t>(std::numeric_limits<int>::max() / 4)) {
+
+        return false;
+    }
+
+    start = Clock::now();
+    prepared_target_ = matcher_.prepareTargetCloud(global_map_);
+    local_stats.prepare_ms = elapsedMs(start);
+    if (prepared_target_.plane_levels.size() != 2 ||
+        (config_.icp_refine_use_gicp && !prepared_target_.has_refine_level)) {
+
+        return false;
+    }
+
+    config_sha256_ = configSha256(config_);
+    loaded_ = true;
+    if (stats) *stats = local_stats;
+    return true;
+}
+
+void LocalizationAtlas::swapData(LocalizationAtlas& other) {
+    using std::swap;
+    swap(loaded_, other.loaded_);
+    swap(global_map_, other.global_map_);
+    swap(prepared_target_, other.prepared_target_);
+    swap(map_sha256_, other.map_sha256_);
+    swap(config_sha256_, other.config_sha256_);
+}
+
 bool LocalizationAtlas::compileAndSave(
     const std::string& map_path, const std::vector<Keyframe::Ptr>& keyframes,
     const std::string& atlas_path, bool overwrite,
@@ -273,28 +316,14 @@ bool LocalizationAtlas::compileAndSave(
         return false;
     }
 
-    auto start = Clock::now();
-    global_map_ = buildGlobalMap(config_, keyframes);
-    local_stats.global_map_ms = elapsedMs(start);
-    if (!global_map_ || global_map_->empty()) {
-        setError(error, "compiled global map is empty");
-        return false;
-    }
-    local_stats.global_point_count = global_map_->size();
-    if (global_map_->size() >
-        static_cast<std::size_t>(std::numeric_limits<int>::max() / 4)) {
-        setError(error, "global atlas map exceeds protobuf array limits");
-        return false;
-    }
-
-    start = Clock::now();
-    prepared_target_ = matcher_.prepareTargetCloud(global_map_);
-    local_stats.prepare_ms = elapsedMs(start);
-    if (prepared_target_.plane_levels.size() != 2 ||
-        (config_.icp_refine_use_gicp && !prepared_target_.has_refine_level)) {
+    if (!prepare(keyframes, &local_stats)) {
         setError(error, "failed to prepare global atlas target");
         return false;
     }
+    loaded_ = false;
+    map_sha256_ = fileSha256(map_path, error);
+    if (map_sha256_.empty()) return false;
+    auto start = Clock::now();
 
     LocalizationAtlasData data;
     data.set_format_version(kAtlasFormatVersion);

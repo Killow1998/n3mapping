@@ -54,6 +54,8 @@ public:
   // A map replacement invalidates all targets. Session reset deliberately
   // leaves these map-derived targets available for reuse.
   void clearMap();
+  void installLoadedReference(const PointCloudT::Ptr& cloud,
+                             const PointCloudMatcher::PreparedTarget& target);
   Diagnostics diagnostics() const;
 
 private:

@@ -5091,3 +5091,160 @@ jobs, queue age, owner commit/publication cost, memory and output continuity.
 The noise-scale/correlation calibration, individual precision regressions and
 moving 10 cm tail remain explicit acceptance work. No original map/bag is
 replaced, and nothing is installed or pushed.
+
+## Asynchronous joint geometry, mapping, extension and checkpoints — 2026-10-21
+
+**Outcome:** the shared-plane model now runs in the existing isolated loop worker
+and feeds its result back into live mapping and strict map extension. Full
+four-core causal mapping, both complete original fixed14 sets, independent motion,
+extension and reload/continue checks are complete. Map/Atlas/checkpoint consistency
+passes. Complete motion below 10 cm, all-metric non-regression, extension half-core
+and hardware qualification are **not** claimed.
+
+The retained experiment is `build/n3mapping/online_geometry_20261020`;
+`qualification.json` and `qualify_stage.py` verify full recordings, original-input
+hashes and the frozen final source. Structured evidence is
+`docs/evidence/online_loop_20261020.json`, field `async_joint_geometry`.
+All runs use CPUs `0,2,4,6`, four registration threads, passive OpenMP waiting
+and the original fixed world alignment. Truth never enters the estimator.
+
+### Runtime and persistence contract
+
+- Reuse the evaluated signed association, connected aggregation, moment factor
+  and corrected robust-noise implementation in the shared core. Existing
+  registration/acceptance gates and localization selection remain unchanged.
+  `loop_geometry_enable=true` enables new background refinement; disabling it
+  does not discard constraints already present in a loaded checkpoint.
+- Foreground append solves only new poses with committed endpoints fixed.
+  Original measured factors remain in the global graph. A worker catches up
+  appended nodes with those factors; it does not repeat their registration or
+  restart a global solve merely because new frames arrived. A genuinely changed
+  old graph still takes the existing measured-constraint rebase path.
+- Strict extension supplies its existing verified loaded-map constraints.
+  Pending geometry requests coalesce while retaining all measurements. New
+  session scans participate in geometry optimization, while live tracking Atlas
+  preparation uses loaded-reference frames only. Self-created frames therefore
+  do not become tracking evidence within that session.
+- The owner installs graph poses, reference Atlas, tracking caches and the
+  map-to-odometry correction together. Initial loading also shares the Atlas's
+  prepared target with strict tracking, eliminating duplicate preparation.
+- Format **2.9.0** stores body-frame plane moments, shared plane state, the original
+  gauge prior, and dense trajectory correction sources. Loading restores saved
+  estimates rather than silently re-solving a different graph. Dense trajectory
+  interpolation stays inside its source session, including overlapping clocks.
+  Old records without provenance retain the existing timestamp fallback; exact
+  historical provenance cannot be recovered from those records alone.
+- For geometry checkpoints, saving prepares both files from the same committed poses, publishes the
+  SHA-bound Atlas and then the map, and rolls back the Atlas on map-rename failure.
+  An intermediate or crash-mixed pair fails hash validation; this is not a claim
+  of a crash-atomic two-file filesystem transaction.
+
+### Complete results
+
+Mapping consumed all **13,791** inputs, preserved **13,723** successful outputs
+and **1,271** keyframes, and admitted **430** loop constraints. There were 253
+geometry commits, no append-triggered global rebases and at most one outstanding
+mapping query. Maximum entire owner loop callback was **19.06 ms**, including
+snapshot/commit/cleanup; commit-only maximum was 14.05 ms. Maximum pacing lag was
+6.62 ms. This is a 10 Hz direct-core replay, not a full ROS-node timing result.
+
+| Measurement | Position RMSE / maximum | Additional evidence |
+| --- | --- | --- |
+| Final mapping keyframes | **0.647 / 1.798 cm** | Surface RMSE **3.732 mm**; 1,811 independent revisit pairs, relative RMSE **4.188 mm** |
+| Mapping poses emitted online | **2.172 / 11.544 cm** | p95 **4.672 cm**; 10/13,723 outputs above 10 cm |
+| Original fixed14 on the online map | **0.765 / 2.417 cm** | 14/14 frame-4 locks; 4,144 inputs / 4,088 outputs |
+| Independent moving localization | **2.016 / 16.512 cm** | p95 **3.602 cm**; one lock, 2,236 inputs / 2,232 outputs; four geometric failures; 22 outputs above 10 cm |
+| Strict extension emitted online | **3.229 / 21.505 cm** | p95 **7.048 cm**; 2,232 outputs, 231 new keyframes; 18 outputs above 10 cm |
+| New-session keyframes after background refinement | **0.805 / 2.130 cm** | Full 231-frame new trajectory; original-map keyframes **0.907 / 2.301 cm** |
+| Original fixed14 after extension and save | **0.979 / 2.546 cm** | Again 14/14 frame-4 locks and all 4,088 outputs |
+
+Both moving evaluations have zero outputs beyond 1 m. Independent localization
+has zero outputs beyond 5°. Its angular RMSE/maximum is **0.0481 / 0.6162°**;
+the earlier calibrated pose-graph map was 0.0894 / 0.5450°, so the angular maximum
+regresses despite the lower overall errors. The batch geometry reference also
+remains slightly better on several metrics. After extension, original-map RMSE
+changes 0.647→0.907 cm and fixed14 RMSE 0.765→0.979 cm; these millimetre-scale
+regressions are recorded rather than described as universal improvement.
+Combined two-session surface RMSE is **4.612 mm**. Short absolute-error excursions
+must not be equated automatically with pose jumps.
+
+| Direct-core workload | Process CPU / input duration | Average cores | Peak runtime RSS |
+| --- | --- | --- | --- |
+| Paced online mapping, including all background work/drain | 568.144 / 1,379 s | **0.412** | **1.027 GiB** |
+| Fixed14, after map load | 192.449 / 413 s | **0.466** | **1.722 GiB** |
+| Independent localization, after map load | 129.397 / 223.5 s | **0.579** | **1.720 GiB** |
+| Paced strict extension, including final background drain | 454.966 / 223.5 s | **2.036** | **4.186 GiB** |
+| Fixed14 after extension | 187.164 / 413 s | **0.453** | **1.982 GiB** |
+
+Fixed14 first-lock unpaced wall time has median **3.038 s**, maximum **4.404 s**;
+frame index is not a claim of 0.4 s wall latency. Mapping checkpoint/Atlas save
+adds 8.470 CPU s / 3.680 s wall, with process RSS peak **2.542 GiB**. Extension save
+adds 9.154 CPU s / 4.323 s wall, with process RSS peak **4.748 GiB**. Cold loading,
+frontend, simulator, DDS and map publication are outside the runtime denominator.
+The last extension job drains at 237.829 s wall for 223.5 s input; that final work
+is included in its CPU total. Extension queue depth stays at most two, with zero
+global rebases, 26 commits, maximum owner loop callback **119.25 ms** and maximum
+pending age **14.07 s**. This phase is not a half-core result.
+
+The paced mapping binary is `e5d94b92a2a1790baf6f0d33ba519203f48920cb9a5c57a72dbc7655ac8df818`.
+The final binary is `33900058968f1b1a32b4b9b9ad7b7756a9a743351c46afa8563b853ba6cd275c`.
+Their live mapping function and async/geometry implementations are identical;
+the final changes add trajectory provenance/session isolation and cold-load
+Atlas sharing. The final binary supplies both fixed14 runs, independent motion,
+full extension, reload continuation and real-map checkpoint audits. Mapping-save
+numbers above belong to the paced binary; they are not a separate benchmark of
+the later provenance serialization. Final commit cleanup removes only trailing
+whitespace in `graph_optimizer_factors.cpp` and `graph_optimizer_restore.cpp`;
+the retained qualifier checks this exact transformation against the frozen source.
+
+### Why extension costs more
+
+The saved model grows from **958 planes / 22,494 observations** to
+**8,658 / 219,161**, while keyframes grow only 18%. An independent association
+rebuild on the final poses gives 16,739→17,449 unmerged candidates but
+913→8,640 resulting planes; the largest accepted connected component shrinks
+7,728→784 cells. In the retained algorithm, a component that fails whole-surface
+normal/offset validation falls back to its individual cells. A large failed
+component therefore causes much more work than its small refusal count suggests.
+Background solve reaches about 9.2 s and Atlas preparation about 4.0 s in the
+recorded late jobs. Follow-up should partition an inconsistent component into
+validated coherent subsets and measure incremental reference preparation;
+relaxing geometric acceptance or dropping observations is not the proposed fix.
+
+### Bugs caught, consistency checks and close-out
+
+The first paced candidate is retained as a failed control: after about 502 s,
+repeated async correction transport amplified minute rotation-matrix scale error.
+At about 580 s its determinant reached approximately 52 and position error about
+7.9 m. The same-input synchronous 540 s control stayed below 1.28 cm final-map
+error. Canonicalizing rotations at Eigen/GTSAM boundaries fixes the cause. The
+80-cycle catch-up regression fails with the old library and passes with the fix;
+the complete paced run has maximum rotation orthogonality error **4.73e-15**.
+The failed run is not used for acceptance or a speedup claim.
+
+Actual map and extended-map load/save/load audits preserve raw clouds, odometry,
+edge information, plane moments, gauge and keyframe identity. Rebuilt Atlas
+points agree **exactly**, including 2,088,496 original and 2,165,964 extended-map
+points. Graph/keyframe pose differences stay below 2.56e-15. All **15,955** extended
+trajectory sources survive; maximum dense position difference is **4.27e-14 m**.
+Reloading that map then continues for 300 inputs, producing 296 outputs and 26
+new keyframes. This repeated 30 s prefix tests continuation, not independent
+accuracy, because it was already incorporated into the saved map.
+
+The geometry implementation moved from research-only files into one shared core;
+graph factor staging, restore, append and joint solve remain separate cohesive
+files. Checkpoint writing and dense trajectory handling moved out of the main
+core. There is no duplicate runtime plane implementation or repeated ICP in
+catch-up. All **69 CTest targets** pass across the final full run and focused
+rerun: 68 passed initially; the new trajectory fixture was correctly rejected
+for omitted edge metadata counts, then corrected and passed. A former test's
+requirement that foreground extension move old submaps was replaced with the
+new explicit async boundary; its accuracy/measurement assertions remain.
+Full Humble and research-tool builds pass; Noetic has source-wrapper coverage
+only. Existing original maps/bags and the installed program were not replaced.
+No remote push or issue workspace/patch delivery was performed.
+
+Remaining limits are full-motion 10 cm, statistically calibrated geometric
+uncertainty, the recorded partial-map alias, full-node/hardware qualification,
+and extension CPU/RAM. The current integration establishes consistent online
+feedback and checkpoint behavior; these limits remain visible for the next stage.
