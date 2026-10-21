@@ -247,6 +247,10 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   auto match_result = registerTracking(prepared_target, prepared_source, *cloud,
                                        predicted_pose, odom_pose, strict_loaded_map, debug_event);
   const bool retry_used = debug_event.retry_used;
+  if (reloc_debug_enabled && hasValidRegistrationResult(match_result)) {
+    debug_event.registration_pose_valid = true;
+    debug_event.registration_pose = match_result.T_target_source;
+  }
 
   const bool icp_ok =
       hasValidRegistrationResult(match_result) &&
@@ -358,6 +362,10 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     delta_rotation = Eigen::AngleAxisd(delta.rotation()).angle();
   }
 
+  if (reloc_debug_enabled && hasValidRegistrationResult(match_result)) {
+    debug_event.selected_pose_valid = true;
+    debug_event.selected_pose = match_result.T_target_source;
+  }
   debug_event.visibility_registration_would_accept =
       strict_loaded_map && icp_ok &&
       registration_delta_translation <= config_.reloc_track_max_translation &&

@@ -9496,5 +9496,551 @@
       ],
       "reason": "New-candidate rejection suppressed the original retry result; totals alone do not establish no regression."
     }
+  },
+  "spatial_geometry_ablation": {
+    "comparison_completed": true,
+    "baseline_commit": "18a7499",
+    "frozen_core_sha256": "aa5f22048754dc3bd77ddec0c5a86c7ae240f18e727521b291b07978ab52c6aa",
+    "retained_core_sha256": "7d6899b34a042232a5c9e59c879fdff1470f7bc446f375e6f0ad5b52efec4f75",
+    "maps": {
+      "pgo": {
+        "sha256": "39cd5276c9f47aab8deba5f85c72bba23b6dd602d9429893a5b3358cf6673862",
+        "keyframes": 1271,
+        "edges": 1693,
+        "connected": true,
+        "original_clouds_odometry_information_preserved": true,
+        "retained_current_map": true,
+        "new_online_extension_qualification": false
+      },
+      "joint": {
+        "sha256": "4e4b42ffe776c76d039ead19a3693b906f8e37797d8c6eb46694997a4cb9a596",
+        "keyframes": 1271,
+        "edges": 1693,
+        "connected": true,
+        "original_clouds_odometry_information_preserved": true,
+        "retained_current_map": false,
+        "new_online_extension_qualification": false
+      },
+      "propagated": {
+        "sha256": "3357a914d2f527f6f5131cf1d1806c5080de5de6c889bc8b41e2a6616c821e89",
+        "keyframes": 1271,
+        "edges": 1693,
+        "connected": true,
+        "original_clouds_odometry_information_preserved": true,
+        "retained_current_map": false,
+        "new_online_extension_qualification": false
+      }
+    },
+    "comparison": {
+      "pgo": {
+        "fixed14": {
+          "frames": 4144,
+          "outputs": 4088,
+          "locks": "14/14 at frame 4",
+          "position_rmse_m": 0.04398564551156586,
+          "position_max_m": 0.09035172655462219,
+          "cpu_seconds_per_input_second": 0.46975311040166023,
+          "peak_rss_mib": 1802.53125
+        },
+        "motion": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "position_m": {
+            "rmse": 0.050554361673096584,
+            "median": 0.03573030215007031,
+            "p95": 0.10426521525841505,
+            "maximum": 0.1727533477721618
+          },
+          "angle_deg": {
+            "rmse": 0.08935880209794653,
+            "median": 0.051831611212751455,
+            "p95": 0.15898745405860903,
+            "maximum": 0.5449998048383281
+          },
+          "within_10cm": 2040,
+          "cpu_s": 127.60103184900001,
+          "cpu_seconds_per_input_second": 0.5709218427248323,
+          "wall_s_unpaced": 40.563747979
+        },
+        "retained": true
+      },
+      "joint": {
+        "fixed14": {
+          "frames": 4144,
+          "outputs": 4088,
+          "locks": "14/14 at frame 4",
+          "position_rmse_m": 0.05439052236485184,
+          "position_max_m": 0.14544021046271371,
+          "cpu_seconds_per_input_second": 0.4770865240972928,
+          "peak_rss_mib": 1783.9921875
+        },
+        "motion": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "position_m": {
+            "rmse": 0.05175797913781783,
+            "median": 0.03517706239303993,
+            "p95": 0.10446733844437692,
+            "maximum": 0.18094737197615507
+          },
+          "angle_deg": {
+            "rmse": 0.09467595113494177,
+            "median": 0.05103439230525547,
+            "p95": 0.15017595291200878,
+            "maximum": 0.7718899694432461
+          },
+          "within_10cm": 2039,
+          "cpu_s": 127.86062369100001,
+          "cpu_seconds_per_input_second": 0.5720833274765101,
+          "wall_s_unpaced": 40.307495302
+        },
+        "retained": false
+      },
+      "propagated": {
+        "fixed14": {
+          "frames": 4144,
+          "outputs": 4088,
+          "locks": "14/14 at frame 4",
+          "position_rmse_m": 0.20646450521802817,
+          "position_max_m": 0.4518018778689106,
+          "cpu_seconds_per_input_second": 0.466055884252761,
+          "peak_rss_mib": 1778.828125
+        },
+        "motion": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "position_m": {
+            "rmse": 0.20279843268117426,
+            "median": 0.113468280797002,
+            "p95": 0.4612635911476253,
+            "maximum": 0.49003935225344264
+          },
+          "angle_deg": {
+            "rmse": 0.27039506761859045,
+            "median": 0.1304010232037776,
+            "p95": 0.4871614185267658,
+            "maximum": 0.8094309823016891
+          },
+          "within_10cm": 956,
+          "cpu_s": 127.063348858,
+          "cpu_seconds_per_input_second": 0.5685161022729306,
+          "wall_s_unpaced": 40.211135209
+        },
+        "retained": false
+      }
+    },
+    "method": {
+      "reference": {
+        "repository": "https://github.com/hku-mars/BALM",
+        "commit": "5dc1bf927fcb65ef17f0e687f553c234d6b17365",
+        "license": "GPL-2.0; original sources and license retained in references/BALM",
+        "derivation": "Unchanged globals, VOX_HESS::push_voxel, acc_evaluate2 and evaluate_only_residual; other benchmark methods omitted. Custom association and anchored LM are experiment code, not a reproduction of the full BALM pipeline.",
+        "files": {
+          "balm_kernel.hpp": "3ca55d9dcb8a9bb0750e1f1b28a309a3ffe1b6f7a54e429a03aa55d6108c2e6d",
+          "references/BALM/include/tools.hpp": "9df866f842f4bb2c60f16dcf9b3de99050d3b36ab5a926cadf4d6da5d42ca63f",
+          "references/BALM/src/benchmark/bavoxel.hpp": "c8898b942a9a88b34abf92b491bcfb52fc72a9e9094b7713492785501914adbd"
+        }
+      },
+      "spatial_cell_m": 8,
+      "maximum_window": 24,
+      "accepted_internal_windows": 117,
+      "covered_nodes": 1250,
+      "total_nodes": 1271,
+      "propagation": "Existing intra-window edge measurements replaced by BA relative poses, original edge weights retained; uncalibrated sparse approximation",
+      "full_lemon_hba_reproduction": false,
+      "runtime_integration": false,
+      "truth_used_in_normal_localization_or_map_optimization": false
+    },
+    "map_pose_scores": {
+      "pgo": {
+        "position_m": {
+          "rmse": 0.044410960699380046,
+          "median": 0.031485674621759524,
+          "p95": 0.08977402498508719,
+          "maximum": 0.12755712786132187
+        },
+        "rotation_deg": {
+          "rmse": 0.06629868762935272,
+          "median": 0.0527466615157736,
+          "p95": 0.1241340351617183,
+          "maximum": 0.19126968884831544
+        },
+        "independent_revisits": {
+          "count": 1811,
+          "relative_translation_m": {
+            "rmse": 0.004780570963592838,
+            "median": 0.002745623086572408,
+            "p95": 0.010067364427385778,
+            "maximum": 0.01821395863985154
+          },
+          "relative_rotation_deg": {
+            "rmse": 0.018618892426891197,
+            "median": 0.009696849274423092,
+            "p95": 0.03840359334438089,
+            "maximum": 0.07005287482158189
+          }
+        }
+      },
+      "joint": {
+        "position_m": {
+          "rmse": 0.04957044362866228,
+          "median": 0.0323818515717567,
+          "p95": 0.10318544225072021,
+          "maximum": 0.24697331091913188
+        },
+        "rotation_deg": {
+          "rmse": 0.06699897225600354,
+          "median": 0.0532214278510174,
+          "p95": 0.1336136554509279,
+          "maximum": 0.17720213814754063
+        },
+        "independent_revisits": {
+          "count": 1811,
+          "relative_translation_m": {
+            "rmse": 0.006485801671496681,
+            "median": 0.003076776776168232,
+            "p95": 0.01075272143739965,
+            "maximum": 0.10004325764987837
+          },
+          "relative_rotation_deg": {
+            "rmse": 0.022387998311038715,
+            "median": 0.009355742458364036,
+            "p95": 0.0433967677303812,
+            "maximum": 0.11006181270139034
+          }
+        }
+      },
+      "propagated": {
+        "position_m": {
+          "rmse": 0.21916159138058333,
+          "median": 0.10735470923086032,
+          "p95": 0.46552553953273335,
+          "maximum": 0.6171500832316057
+        },
+        "rotation_deg": {
+          "rmse": 0.24505568598978195,
+          "median": 0.18189779969628253,
+          "p95": 0.44826963653272134,
+          "maximum": 0.5084580743870739
+        },
+        "independent_revisits": {
+          "count": 1811,
+          "relative_translation_m": {
+            "rmse": 0.005655196752926144,
+            "median": 0.0029401568684131072,
+            "p95": 0.010599482502433236,
+            "maximum": 0.03267643242650476
+          },
+          "relative_rotation_deg": {
+            "rmse": 0.024228643090737523,
+            "median": 0.008425514018640098,
+            "p95": 0.044586430197601,
+            "maximum": 0.16454885264613056
+          }
+        }
+      },
+      "graph_only_control": {
+        "position_m": {
+          "rmse": 0.04441088662129805,
+          "median": 0.03148642743254979,
+          "p95": 0.08977385085058387,
+          "maximum": 0.12755691166775512
+        },
+        "rotation_deg": {
+          "rmse": 0.06629823877488987,
+          "median": 0.05274656502193898,
+          "p95": 0.12413414330924646,
+          "maximum": 0.19126960715145125
+        },
+        "independent_revisits": {
+          "count": 1811,
+          "relative_translation_m": {
+            "rmse": 0.0047807950685521605,
+            "median": 0.002745533031199078,
+            "p95": 0.01006736548089416,
+            "maximum": 0.018213961756002976
+          },
+          "relative_rotation_deg": {
+            "rmse": 0.018619187625599967,
+            "median": 0.00969686388355388,
+            "p95": 0.03840347113584337,
+            "maximum": 0.07005614435512396
+          }
+        }
+      }
+    },
+    "surface_scores": {
+      "scope": "Independent scene surface audit with the original fixed mapping alignment",
+      "results": {
+        "pgo": {
+          "points": 633185,
+          "selection": "Every 20th original point in every map keyframe, same indices for all variants",
+          "incomplete_over_2m": 0,
+          "rmse_m": 0.021693989785455413,
+          "median_m": 0.006440711689981532,
+          "p95_m": 0.04850739236631792,
+          "maximum_m": 0.1560975044175464,
+          "within_1cm": 407130,
+          "within_5cm": 603411
+        },
+        "joint": {
+          "points": 633185,
+          "selection": "Every 20th original point in every map keyframe, same indices for all variants",
+          "incomplete_over_2m": 0,
+          "rmse_m": 0.02191475357016321,
+          "median_m": 0.006528024946894112,
+          "p95_m": 0.048488832414513176,
+          "maximum_m": 0.23845462486043276,
+          "within_1cm": 408343,
+          "within_5cm": 603027
+        },
+        "propagated": {
+          "points": 633185,
+          "selection": "Every 20th original point in every map keyframe, same indices for all variants",
+          "incomplete_over_2m": 0,
+          "rmse_m": 0.08366241959766342,
+          "median_m": 0.009212595294611076,
+          "p95_m": 0.20931723116121065,
+          "maximum_m": 0.49978075854024495,
+          "within_1cm": 330214,
+          "within_5cm": 492968
+        }
+      }
+    },
+    "endpoint_logging": {
+      "events": 2231,
+      "accepted_tracking_endpoints": 2226,
+      "max_logged_vs_reconstructed_matrix_delta": 6.252776074688882e-13,
+      "valid_counts": {
+        "registration_pose": 2231,
+        "selected_pose": 2231
+      },
+      "visibility_reselected_frames": [],
+      "peak_frame": 2048,
+      "peak_registration_pose": {
+        "x": -3.8227109757451063,
+        "y": 10.68268791347371,
+        "z": -0.01580566519180621,
+        "qx": 0.004942716324056128,
+        "qy": -0.0053707115352651675,
+        "qz": 0.7055790081774709,
+        "qw": 0.7085936693424812
+      },
+      "peak_selected_pose": {
+        "x": -3.8227109757451063,
+        "y": 10.68268791347371,
+        "z": -0.01580566519180621,
+        "qx": 0.004942716324056128,
+        "qy": -0.0053707115352651675,
+        "qz": 0.7055790081774709,
+        "qw": 0.7085936693424812
+      },
+      "peak_position_error_m": 0.19752598546253566,
+      "scope": "Instrumentation verification; no new estimator or acceptance rule"
+    },
+    "logging_behavior_equivalence": {
+      "01_west_corridor": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 2.1597307275911248e-16
+      },
+      "02_east_corridor": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 1.4210854715202004e-14
+      },
+      "03_south_corridor": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 5.898059818321144e-17
+      },
+      "04_north_corridor": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 2.42861286636753e-17
+      },
+      "05_southwest_office": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 5.551115123125783e-16
+      },
+      "06_south_meeting": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 1.7763568394002505e-15
+      },
+      "07_south_pillars": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 2.220446049250313e-16
+      },
+      "08_west_shelves": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 5.551115123125783e-16
+      },
+      "09_east_shelves": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 1.7763568394002505e-15
+      },
+      "10_northwest_meeting": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 4.163336342344337e-16
+      },
+      "11_northeast_pillars": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 4.440892098500626e-16
+      },
+      "12_north_office": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 7.105427357601002e-15
+      },
+      "13_south_door": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 5.551115123125783e-17
+      },
+      "14_north_door": {
+        "frames": 296,
+        "behavior_equal": true,
+        "max_pose_delta": 4.163336342344337e-17
+      },
+      "motion_observed": {
+        "frames": 2236,
+        "behavior_equal": true,
+        "max_pose_delta": 1.4210854715202004e-14
+      },
+      "motion_observed_debug": {
+        "frames": 2236,
+        "behavior_equal": true,
+        "max_pose_delta": 1.4210854715202004e-14
+      }
+    },
+    "cost": {
+      "joint_geometry_cpu_s": 6.25,
+      "joint_geometry_wall_s": 3.17,
+      "joint_geometry_peak_rss_mib": 265.50390625,
+      "propagation_cpu_s": 0.25,
+      "propagation_wall_s": 0.26,
+      "atlas_full_rebuild_cpu_s": 13.83,
+      "atlas_full_rebuild_wall_s": 8.92,
+      "atlas_full_rebuild_peak_rss_mib": 2137.45703125,
+      "scope": "One offline map-wide pass on four physical cores; excludes Atlas rebuild. Localization CPU/input-second is unpaced direct-core demand, excludes loading/frontend/DDS; not live average qualification",
+      "negative_replay_timing_qualified": false
+    },
+    "tests": {
+      "core_tools_sandbox": "60/61 passed; Humble live test blocked by UDP permission and timed out",
+      "humble_live_host": "1/1 passed, localhost domain 196, four cores",
+      "combined": "61/61"
+    },
+    "retained_change": "20 lines of optional tracking endpoint logging; unchanged algorithm, gates, map and configuration",
+    "full_route_10cm_passed": false,
+    "new_online_geometry_backend_qualified": false,
+    "new_online_extension_geometry_backend_qualified": false,
+    "original_inputs_replaced": false,
+    "supporting_source_sha256": {
+      "prepare_peak_cross.py": "1f6f0d3fb392d55a2679985d8b5222f2fc7e6755ad65b22c2c623816a6574cc3",
+      "balm_kernel.hpp": "3ca55d9dcb8a9bb0750e1f1b28a309a3ffe1b6f7a54e429a03aa55d6108c2e6d",
+      "map_export.cpp": "d73201b1bd77caaf8d0f17322200c927dad7d705ca246e278b0ef6de5c15a823",
+      "run_mapping.py": "a1be129b4261888176ed91442d213b003e73c90996004bde80162c363c7fa517",
+      "graph_integrity.py": "73761b1fa856eea03d67d8c9de3255b2350047e0a91f92bb6542802b41616cd4",
+      "plot_comparison.py": "3041ae14f7974953541790ee47f97bca4c50034fb0ff27f24293b9b51da92ad0",
+      "run_recovery.py": "cbe78a3d27e811d466326e18599478d80ca83c1e9f2c9e524ad630c4285e7516",
+      "score_replay.py": "4be6935a7686492d557ea44414809e7f1a9029c3863a5ce4d82d9897df20efa1",
+      "bounded_seed_eval.cpp": "10e8e1b059ea56229015f119aeaa868fd25a921cf946f0013f0095819440cf8c",
+      "run_replay.py": "c5bcf802661a493efc55e8fee105874b18e4600f5aead918a850c55b742b664f",
+      "score_map.py": "7437c756006bb3844994a7947866a80a93abdc1ec748876b1945ce3cd0a3e268",
+      "balm_experiment.cpp": "da48a846ed4ca8f4e4b777829b097303c29d839372d835f66def56f1b3ae471b",
+      "peak_seed_eval.cpp": "bd2fbd9ac08cb1539ad2922b617010b2c3d05f0094a1309c20a0a041451530ac",
+      "peak_cross_eval.cpp": "f156464b33e7c02fef1a0fea4a230e4b330b3d77e8424e8f15eff7c5901159ff",
+      "run_diagnostics.py": "67186f1b8bec89517c743b19cd3ac6cafb7f842cb888fd6f5be4d95ed9d2bc08",
+      "freeze_variant.py": "191191042ee8a1a5c6e00e38132f1f8865c27a4d08921476b98ea7aba5a3bb60",
+      "prepare_balm.py": "90e8cf556f80b8cb484235e4998007cc5fe49cba928e8b33f0a99e8dd7178792",
+      "solver_probe.cpp": "7d7869536cdd04d3420b18b0f1e9742e7a1704b5b2324ab74c64c412b6ad29c6",
+      "run_ablation.py": "a3715a1ee4d4082d7ba668cd8f050a73190fedac20753eae0e5d364b6713aa93",
+      "score_surfaces.py": "886af157d5f6c994cae6bc019015d4248316859730114560b9a0bc1603be010a",
+      "prepare_map.py": "f60d73ee8a429dc681eb019b4bb2e5a159e10440a3d7b6914f9dee817dbd538b",
+      "invert_tracking_correction.py": "9bb96d93398cb092fa410d46c29109d31f23466f423996881bd3a127e07a2379",
+      "run_observed.py": "8a9363cb8fae0715c3a56bc6ce6de0f8e60a31f7e5a095dd435dc031a9dfe9b2",
+      "map_variants.py": "4d135adbb0fc6d8cafcd5e6bbd0bf4fd8c841e0e01048fe3b8948718c5c00ab1",
+      "qualify_stage.py": "f5efda8e7afa63ac531bcf241618fbae6db40bba63c89e9d78f204cf3088a3bc",
+      "audit_observed.py": "13b14b68ccc9a268b9ffaf289cdfab947b9445f986ca06f89cd88ac81b27bdcc",
+      "audit_route.py": "0d85b3cc64392f83026d8764fa3c0023dae4172d52893bc0574f1323a51f943c"
+    },
+    "artifact_directory": "build/n3mapping/motion_accuracy_20261020",
+    "qualification": "build/n3mapping/motion_accuracy_20261020/qualification.json",
+    "peak": {
+      "frame": 2048,
+      "stamp_s": 205.199995002,
+      "fitness": 0.0036979883731887856,
+      "alpha": 0.2,
+      "delta_check_m": 9.367506770274758e-15,
+      "delta_check_rad": 1.6393136847980827e-16,
+      "support": 455,
+      "prediction_position_m": 0.16166054875076002,
+      "prediction_angle_deg": 0.4745601015258923,
+      "prediction_x_m": 0.14515443510466497,
+      "prediction_y_m": -0.04180699277583955,
+      "prediction_z_m": 0.0575890471086592,
+      "endpoint_position_m": 0.19752598546253566,
+      "endpoint_angle_deg": 0.834574100431984,
+      "endpoint_x_m": 0.19211299028791728,
+      "endpoint_y_m": -0.045135193732688705,
+      "endpoint_z_m": 0.008481048419453296,
+      "published_position_m": 0.17275334777216184,
+      "published_angle_deg": 0.5449998048383293,
+      "published_x_m": 0.1545554338164763,
+      "published_y_m": -0.0424353439305154,
+      "published_z_m": 0.06446377765682976,
+      "actual_prediction_fullmap_position_m": 0.06415341650834079,
+      "truth_seed_fullmap_position_m": 0.023960416966017844,
+      "deskew_rms_m": 0.0006099145605224024,
+      "causal_scope": "Same-scan/actual-prediction target ablations reproduce the raw fallback; no qualified whole-route repair or additive error-budget claim"
+    },
+    "rejected_recovery": {
+      "full14_complete": true,
+      "negative": {
+        "published": {
+          "old": 764,
+          "new": 764,
+          "added": [],
+          "removed": []
+        },
+        "geometric": {
+          "old": 409,
+          "new": 409,
+          "added": [],
+          "removed": []
+        }
+      },
+      "retained": false,
+      "reason": "Peak remains 16.30 cm and angular RMSE slightly regresses; do not change the frozen algorithm",
+      "motion_position_m": {
+        "rmse": 0.050490938015278215,
+        "median": 0.03573030215007031,
+        "p95": 0.10423417343153679,
+        "maximum": 0.1629564158405273
+      },
+      "motion_angle_deg": {
+        "rmse": 0.08943629013250433,
+        "median": 0.05183161121275147,
+        "p95": 0.158987454058609,
+        "maximum": 0.5379182684301058
+      }
+    },
+    "next_online_gate": "Independent plane associations and directional uncertainty with preserved odometry, then bounded background work and consistent map/Atlas revisions; separately qualify causal mapping and extension"
   }
 }

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Log raw tracking registration and visibility-selected endpoints before
+  correction smoothing, with explicit validity flags. Frozen four-core
+  map-only comparisons reject the tested joint-geometry and propagation
+  candidates; the accepted localization algorithm and map remain unchanged.
+  The 17.28 cm moving-route peak is reproduced by a low-overlap original-scan
+  fallback, while the same scan and actual prediction admit a 6.42 cm
+  full-map diagnostic fit. This diagnoses the peak without claiming a
+  qualified repair or a new online geometry backend. See the
+  [complete comparison](docs/evidence/runtime_cpu_20261017/README.md#spatial-geometry-ablation-and-motion-peak-attribution--2026-10-20).
+
 - Calibrate mapping constraints using original scan-pair refinement and neighbor
   disagreement in the relative-pose covariance. Exclude query self-evidence and
   restore distinct short-revisit neighbor measurements. Main mapping YAML uses

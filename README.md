@@ -819,6 +819,19 @@ lock/recovery latency and peak RSS alongside CPU. Current direct-core measuremen
 exclude loading, frontend, simulator and DDS; full-node deployment and RK3588
 qualification remain separate pending checks.
 
+The [frozen spatial-geometry comparison](docs/evidence/runtime_cpu_20261017/README.md#spatial-geometry-ablation-and-motion-peak-attribution--2026-10-20)
+retains the current map and localization algorithm. Complete 14-point and
+independent-route tests reject both the tested bounded joint-geometry map and
+its uncalibrated graph propagation. At the 17.28 cm moving peak, the selected
+original-scan fallback itself is 19.75 cm wrong; the same scan and actual
+prediction seed reach 6.42 cm against the existing full map. Endpoint logging
+now distinguishes optimizer output, visibility selection and publication.
+This isolates a target/registration-selection contribution, while other map
+bias remains. Before integrating online geometric refinement, validate plane
+association and directional uncertainty, preserve independent odometry, and
+qualify bounded background solving plus consistent map/Atlas updates in both
+mapping and extension. A smaller internal residual alone is not acceptance.
+
 Retain existing interfaces and numeric acceptance gates. Compare actual emitted
 poses, lock decisions and input/output continuity on the same full inputs for
 release decisions; short prefixes are screening evidence. Use the existing E2E

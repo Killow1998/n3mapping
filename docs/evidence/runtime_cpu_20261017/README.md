@@ -4688,3 +4688,177 @@ asynchronous owner/worker throughput, full ROS publication, Noetic builds and
 hardware are not newly qualified. No install, push or original-data replacement
 is performed. Full-route 10 cm accuracy, residual constraint uncertainty tails
 and the known partial-map global alias remain open.
+
+## Spatial geometry ablation and motion peak attribution — 2026-10-20
+
+The localization algorithm, parameters and acceptance gates are frozen at
+`18a7499`, core SHA-256
+`aa5f22048754dc3bd77ddec0c5a86c7ae240f18e727521b291b07978ab52c6aa`.
+The accepted calibrated map remains
+`loop_calibration_20261020/eval_maps/map_independent_neighbors/map/n3map.pbstream`
+under the build directory, SHA-256
+`39cd5276c9f47aab8deba5f85c72bba23b6dd602d9429893a5b3358cf6673862`.
+Neither experimental map is promoted. This stage completes the requested
+three-way comparison and peak diagnosis; it does not pass full-route 10 cm
+or qualify a new online geometry backend.
+
+Raw experiments, command lines, frozen sources/binaries and qualification are
+in `build/n3mapping/motion_accuracy_20261020/`. The structured stage summary is
+`spatial_geometry_ablation` in `../online_loop_20261020.json`.
+`run_ablation.py` serializes the full map-only comparison on physical P cores
+`0,2,4,6`, with four registration threads and `OMP_WAIT_POLICY=PASSIVE`.
+All original 14 stationary manifests and the complete independent route are
+used. Truth is restricted to scoring and explicitly separate diagnostics;
+neither map optimization nor normal localization receives it.
+
+### Complete map-only comparison
+
+| Map | Fixed14 pooled RMSE / maximum | Moving RMSE / maximum | Moving outputs within 10 cm | Retained |
+| --- | --- | --- | --- | --- |
+| A: current calibrated pose graph | 4.40 / 9.04 cm | 5.06 / 17.28 cm | 2,040 / 2,232 | Yes |
+| B: bounded joint geometry | 5.44 / 14.54 cm | 5.18 / 18.09 cm | 2,039 / 2,232 | No |
+| C: B plus sparse global propagation | 20.65 / 45.18 cm | 20.28 / 49.00 cm | 956 / 2,232 | No |
+
+All three retain 4,144 fixed inputs / 4,088 successful outputs, frame-4 locks
+at all 14 positions, and 2,236 moving inputs / 2,232 successful outputs with
+one initialization. Each moving run has five geometric failures and no
+published error above 1 m / 5°. Those coarse continuity checks do not excuse
+the centimetre-scale regressions. In B, position 07 worsens from 3.70 to
+14.54 cm maximum despite improvements at some other positions. Moving
+angular RMSE/max are A **0.08936/0.54500°**, B **0.09468/0.77189°**, and C
+**0.27040/0.80943°**. A reproduces the previous accepted replay numerically.
+
+![Frozen geometry comparison and peak attribution](spatial_geometry_ablation_20261020.png)
+
+The prototype uses the unchanged analytical residual, gradient and Hessian
+kernel from [BALM](https://github.com/hku-mars/BALM), commit
+`5dc1bf927fcb65ef17f0e687f553c234d6b17365`. Its GPL-2.0 source and license are
+retained with the external research checkout; no BALM code is added to the
+product. The custom association/window/solver adapter is **not** a complete
+reproduction of BALM, HBA or LEMON.
+
+B groups scans in 8 m spatial cells with at most 24 scans per window,
+interleaving long temporal visits where necessary. It jointly refines scan
+poses against shared planar geometry at 1 m and 0.5 m voxel scales. The first
+pose anchors each window. Before scoring, admissibility is bounded to 0.5 m /
+3°, at least 20 supported planes per member and at least three scans per
+plane. All 117 windows pass the prototype's internal checks, covering
+1,250/1,271 nodes. That internal result is not a product acceptance result.
+Analytical gradients agree with finite differences to 5.35e-6 relative error.
+The coarse fixed-association objective decreases from 438.45 to 393.29;
+costs across changed associations are not treated as directly comparable.
+
+Independent scene-surface scoring uses the same 633,185 raw point indices
+and original mapping alignment for every map. Surface RMSE is
+**2.169/2.191/8.366 cm** for A/B/C, with no unscored samples. Independent
+revisit relative-position RMSE is **4.78/6.49/5.66 mm**, and map-pose RMSE is
+**4.44/4.96/21.92 cm**. Thus the internal objective improvement is not
+corroborated by independent map geometry or downstream localization.
+
+C replaces existing intra-window relative measurements with B's refined
+relative poses and runs the existing global pose-graph objective. It retains
+the old edge information matrices, adds no edges and preserves connectivity,
+raw scans and raw odometry. **Those retained weights are not calibrated BA
+uncertainty.** This is an uncalibrated sparse propagation approximation, not
+LEMON's or HBA's complete constraint construction. It can transmit biased or
+weakly constrained local updates. The unchanged-graph extra-solve control
+keeps map RMSE at 4.441 cm, so another graph solve alone does not explain C's
+regression. Both experimental dense trajectories are diagnostic interpolated
+transports, explicitly degraded and unqualified for extension. These failures
+reject this implementation, not global geometric consistency as a direction.
+
+### The 205.2-second peak
+
+The frozen core is replayed with diagnostics enabled; all decisions agree
+with the normal replay and maximum output-matrix difference is below 1e-13.
+Initially missing raw endpoints are reconstructed from the exact existing
+correction filter and independently checked against logged registration
+deltas. Direct endpoint logging is then added and checked against this
+reconstruction, avoiding that inference in future investigations.
+
+At frame **2048**, supported by keyframe **455**:
+
+| Quantity / diagnostic | Position error | Evidence |
+| --- | --- | --- |
+| Actual prediction | 16.17 cm | Frozen runtime prediction |
+| Selected original-scan registration | 19.75 cm | Independently reproduced with keyframe 455 and the actual prediction |
+| Published smoothed pose | 17.28 cm | Complete moving replay |
+| Existing full-map multiscale registration | 6.42 cm | Same scan and actual prediction, separate diagnostic |
+| Existing full-map registration from a truth seed | 2.40 cm | Diagnostic attainable fit only; not accepted localization |
+
+The original-scan fit explains only **31.8%** of the query, yet its fitness is
+0.003698. The full-map diagnostic has nearly complete coverage but fitness
+0.297358. Fine-only full-map refinement reaches 6.37 cm with fitness 0.300014,
+just outside the unchanged 0.3 gate. These scores are computed on different
+targets and correspondence populations; their numerical order does not rank
+absolute pose accuracy. Temporal 11- and 21-scan targets still give about
+19 cm, and reseeding the original scan from the better full-map result still
+returns about 19.8 cm. Simply adding scans by time or changing the seed does
+not remove the target-geometry problem.
+
+The same query's native-trajectory versus FAST_LIO deskew difference is
+**0.610 mm RMS / 1.019 mm maximum**. Independent authored reference geometry
+gives about 1 mm registration error from the actual prediction with either
+deskew. This does not certify arbitrary hardware or all frontend error, but
+it rules out deskew as the main explanation for this particular 17.28 cm
+peak. The stronger attribution is the combination of target geometry,
+registration basin/selection and correction smoothing. The raw fallback
+itself is already inaccurate; smoothing is not the sole cause. Its differently
+weighted map-to-odometry translation and rotation can also make published Z
+worse than either the prediction or raw endpoint at this frame.
+
+The existing complete map contains a better fit, so the peak cannot be
+ascribed entirely to a globally deformed map. Other sampled route sections
+still have roughly 10 cm bias with complete-map registration; map consistency
+remains a separate problem. No exact additive percentage is assigned to
+these interacting error sources.
+
+A separate bounded full-map recovery trial preserves all 14 stationary runs
+and reduces moving maximum error to **16.30 cm**, but angular RMSE slightly
+regresses from **0.0893588° to 0.0894363°** and the number of outputs within
+10 cm is unchanged. It is withdrawn. Its complete partial-map negative replay
+adds no wrong published or geometric frames (764/409 remain), retaining
+locks 4/922/1686. The known ambiguous global lock remains unresolved. The
+negative replay overlaps some build/test work and supplies no timing claim.
+
+### Compute, retained change and online boundary
+
+| Four-core measurement | CPU time | Wall time | Peak RSS |
+| --- | --- | --- | --- |
+| One complete bounded geometry pass, including map load | 6.25 s | 3.17 s | 265.5 MiB |
+| Sparse propagation solve, including map load | 0.25 s | 0.26 s | 248.1 MiB |
+| Full Atlas rebuild for B | 13.83 s | 8.92 s | 2.09 GiB |
+
+The full fixed14 direct-core replay requires **0.470/0.477/0.466 CPU seconds
+per input second** for A/B/C. Independent motion requires
+**0.571/0.572/0.569**, respectively. A's fixed14 peak RSS is **1,802.5 MiB**.
+These serial unpaced replays include initialization but exclude loading,
+frontend, DDS and simulator. Loading is separately logged at about 5.2 s per
+process. They are compute-demand measurements, not a new online half-core or
+real-time latency qualification. Small timing differences do not establish a
+speedup. The map-wide optimization/rebuild is a single offline pass, not a
+per-frame cost or a measured online average.
+
+Only optional diagnostic logging is retained in product code: registration
+endpoint and visibility-selected pose before smoothing, each with a validity
+flag. No optimizer, gate, map, interface mode, worker or recovery state is
+added. Failed experiments remain outside runtime. The final core is
+`7d6899b34a042232a5c9e59c879fdff1470f7bc446f375e6f0ad5b52efec4f75`.
+Full14 and complete moving replays with this core, plus a complete debug-on
+moving replay, verify unchanged decisions and numerical output equivalence.
+The direct log checks 2,226 accepted tracking endpoints against the independent
+reconstruction, with maximum matrix-element difference 6.26e-13. All 2,231
+tracking events carry valid registration results on this fixture; result
+validity is separate from passing the acceptance gates.
+All 61 CTest targets pass across the final runs: the sandbox run passes 60/61
+but blocks UDP and times out the live-output target; the authorized localhost
+host rerun passes that target. No test thresholds are changed.
+
+The next online design gate is independent geometric evidence with calibrated
+directional uncertainty and preserved odometry information, followed by
+bounded background solving and map/Atlas updates from the same revision.
+Existing asynchronous ownership and stale-result checks are the integration
+point. Causal mapping and map-extension replays must separately measure queue
+age, commit cost, memory and output continuity before promotion. A map-wide
+batch result cannot qualify that path. Complete moving 10 cm accuracy,
+geometric-backend online integration and its CPU budget remain open.

@@ -487,6 +487,12 @@ bool RelocalizationDebugLogger::appendTracking(
   appendSize(os, &first, "query_index", event.query_index);
   appendBool(os, &first, "strict_loaded_map", event.strict_loaded_map);
   appendPose(os, &first, "predicted_pose", event.predicted_pose);
+  appendBool(os, &first, "registration_pose_valid", event.registration_pose_valid);
+  if (event.registration_pose_valid)
+    appendPose(os, &first, "registration_pose", event.registration_pose);
+  appendBool(os, &first, "selected_pose_valid", event.selected_pose_valid);
+  if (event.selected_pose_valid)
+    appendPose(os, &first, "selected_pose", event.selected_pose);
   appendInteger(os, &first, "nearest_kf_id", event.nearest_kf_id);
   appendSize(os, &first, "submap_size", event.submap_size);
   appendNumber(os, &first, "tracking_total_ms", event.tracking_total_ms);
