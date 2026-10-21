@@ -5459,3 +5459,68 @@ has geometry-only jobs. Independently ablate this trigger before adding any
 new constraint machinery. The geometry noise floor, partial-map alias,
 full-node/hardware qualification and multi-extension/long-route generalization
 remain open.
+
+
+## Geometry refresh independent of loop admission — 2026-10-21
+
+Baseline `c62d9ed`, frozen candidate core `6c00aae1a117de1391242d3142a83db6e1f5fae9f92fcd1d389a553e4a00141b`.
+Evidence is in `build/n3mapping/geometry_refresh_20261021/qualification.json`,
+with complete commands, sources, outputs, loop audits and checkpoint records.
+Four physical P cores, four registration threads, original 10 Hz mapping input,
+all inputs and numerical acceptance gates are retained. The existing localization
+algorithm is unchanged. Truth is confined to observers with the original fixed
+alignment; runtime CPU includes background work/drain, excludes load/frontend/DDS,
+and save is measured separately.
+
+**One behavioral change.** A rejected loop hypothesis does not invalidate the
+shared-plane observations already available in the graph. Run existing geometry
+refinement after each queued loop-query job when enabled, even if no loop was
+admitted. This removes one condition, with no extra detector requests, plane
+implementation or scheduler abstraction. The existing graph/Atlas transaction
+boundary, enable flag and independent loop admission remain intact.
+
+A physical regression adds a keyframe with vertical bias and valid plane returns,
+without admitting a loop. The old binary leaves its 5.67 cm height offset unchanged;
+the candidate reduces it by more than half. It also preserves the live graph until
+commit and honors the disabled flag. The old/new control is retained, and all
+69 CTest targets pass on the frozen candidate. Complete mapping, original14,
+independent motion and a real checkpoint/reload also pass.
+
+| Four-core complete workload | Baseline | Candidate |
+| --- | --- | --- |
+| Mapping online position RMSE | 2.199 cm | 1.702 cm |
+| Mapping online maximum / frames over 10 cm | 11.659 cm / 10 | 11.593 cm / 8 |
+| Mapping CPU / runtime RSS | 0.377 cores / 0.949 GiB | 0.410 cores / 0.829 GiB |
+| Geometry commits / worker completions | 146 / 253 | 253 / 253 |
+| Final map keyframe RMSE / surface RMSE | 0.696 cm / 3.899 mm | 0.688 cm / 3.869 mm |
+| Original14 RMSE / maximum | 0.800 / 2.416 cm | 0.794 / 2.420 cm |
+| Independent motion RMSE / maximum | 0.913 / 7.742 cm | 0.907 / 7.742 cm |
+
+Mapping retains 13,791 inputs, 13,723 outputs and 1,271 keyframes; maximum pacing
+lag is 5.52 ms. Original14 retains all 4,088 outputs and
+14 frame-4 locks. Independent motion retains 2,232 outputs and one initialization.
+Small individual metrics are not universally better: fixed14 maximum grows
+0.037 mm; angular maximum grows 0.083707→0.083999 degrees. Consecutive displacement
+error RMSE grows 6.140→6.213 mm, with the same 8.808 cm maximum. The main benefit is
+lower overall online mapping error, not a claim that every peak is solved.
+
+Independent loop auditing compares identical keyframe IDs/timestamps. Accepted
+pairs change 431→429, with no added pair. Removed pairs `(492,484)` and `(617,608)`
+had true relative translation errors 1.448/1.460 cm: they are **not** reclassified
+as false loops. Those queries still retain three and two accepted matches.
+Across retained/new measurements, translation RMSE improves 7.153→6.679 mm, while
+maximum changes 10.020→10.107 cm; loop noise calibration remains open. Real
+checkpoint checks retain raw clouds, graph information, plane moments, 1,271
+keyframes and all 13,723 dense pose sources; Atlas point difference is zero.
+
+**Remaining peak mechanism.** The 675 s pair is removed. Six remaining frames at
+699.6–700.1 s use keyframe 630, 0.3–0.8 s after its append; two at 1222.4–1222.5 s
+use keyframe 1102. Shared geometry has not yet corrected those anchors, while
+within-keyframe odometry contributes 6.36–9.31 cm even with an oracle anchor.
+Using the final optimized anchor would leave 7.30–8.92 cm, but that uses future
+data and is not an online solution. New mapping nodes already receive adjacent
+scan-pair refinement; simply reweighting their sole translation constraint cannot
+supply the missing independent geometry. Faster local geometric support or a
+more economical update schedule needs a separate experiment. All-frame mapping
+10 cm, statistically calibrated uncertainty and hardware/full-node coverage
+remain open. Multiple extension sessions are the next operational check.

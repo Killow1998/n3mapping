@@ -814,11 +814,11 @@ remains the performance baseline.
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
-| Reliability — stationary startup and continuous output retained | Final original14 suites on the reference, rebuilt and extended maps each retain frame-4 locks and all 4,088 outputs. Independent motion retains one initialization and 2,232 outputs. The recorded partial-map alias remains outside this full-map acceptance. |
-| Accuracy — tested localization below 10 cm; mapping tail remains open | Rebuilt-map motion RMSE/maximum 0.913/7.742 cm. Original14 maximum 2.416 cm; after extension 2.611 cm. See the [latest full evidence](docs/evidence/runtime_cpu_20261017/README.md#exact-atlas-feature-reuse-and-compact-target-covariance--2026-10-21). |
-| Online loop/map consistency — shared geometry and checkpoints verified | Full mapping retains 13,791 inputs, 13,723 outputs, 1,271 keyframes and 431 loops. Final map RMSE/maximum 0.696/1.951 cm; surface RMSE 3.899 mm. Real map/Atlas/trajectory save/reload audits pass. The 1 cm geometry noise floor remains a model assumption. |
+| Reliability — stationary startup and continuous output retained | Latest rebuilt-map original14 retains 14 frame-4 locks and all 4,088 outputs. Independent motion retains one initialization and 2,232 outputs. The prior Atlas stage also qualified original14 after extension. The partial-map alias remains outside this full-map acceptance. |
+| Accuracy — tested localization below 10 cm; mapping tail remains open | Rebuilt-map motion RMSE/maximum 0.907/7.742 cm; original14 0.794/2.420 cm. Mapping online RMSE 1.702 cm, but eight outputs still exceed 10 cm. See the [refresh evidence](docs/evidence/runtime_cpu_20261017/README.md#geometry-refresh-independent-of-loop-admission--2026-10-21). |
+| Online loop/map consistency — shared geometry and checkpoints verified | Full mapping retains 13,791 inputs, 13,723 outputs, 1,271 keyframes and 429 loops. Final map RMSE/maximum 0.688/1.931 cm; surface RMSE 3.869 mm. Real map/Atlas/trajectory reload passes; uncertainty calibration remains open. |
 | Online extension — accuracy retained, Atlas CPU/storage reduced; half-core open | Full extension retains 2,232 outputs and 231 new keyframes. Live RMSE/maximum 0.810/4.279 cm; average 0.875 cores, runtime peak 2.028 GiB. Maximum oldest-request age 28.09 s. Frozen Atlas ABBA reduces preparation CPU by 21.3%; exact covariance buffer saving is 264.661 MiB on the tested map. |
-| Asynchronous online mapping loops — complete causal qualification | Four-core 10 Hz replay uses 0.377 cores including background work, runtime peak 0.949 GiB. Online maximum 11.659 cm leaves 10 frames over 10 cm. Full-node DDS/publication and independent Noetic compilation remain open. |
+| Asynchronous online mapping loops — complete causal qualification | Geometry updates no longer depend on loop admission. Four-core 10 Hz replay uses 0.410 cores including background work; maximum online error 11.593 cm. Full-node/hardware and independent Noetic compilation remain open. |
 | Search cost — paused; half core remains open | Retain the accepted `54b602f` algorithm and its original 15.3% paired CPU reduction. The standalone 1.0.1 full14 replay measures 214.962 CPU s / 413 input s (0.520488 cores), first-lock wall median 3.348 s / maximum 5.383 s. 03/08/14 need 0.663/0.673/0.654 cores. The 440 cold seeds and 104 confirmation registrations are unchanged. This is a release behavior check, without a new paired speedup claim. Source reordering, direct fine tracking, exact-neighbor certificates and registration-kernel experiments are not retained: they regress latency/accuracy or lack consistent overall CPU benefit. |
 
 The deferred performance target retains **four physical P cores**, four registration threads,
@@ -868,7 +868,7 @@ output. The [Atlas refinement](docs/evidence/runtime_cpu_20261017/README.md#exac
 redundant target covariance storage. Full same-input tests retain reliability;
 whole-extension half-core and online mapping peaks remain open.
 The tested moving localization route is now below 10 cm, while online mapping
-still has ten frames above it and small map/static regressions remain visible.
+now has eight frames above it after the subsequent geometry-refresh stage and small map/static regressions remain visible.
 
 Retain existing interfaces and numeric acceptance gates. Compare actual emitted
 poses, lock decisions and input/output continuity on the same full inputs for

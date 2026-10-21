@@ -57,8 +57,7 @@ void AsyncLoopJob::rebase() {
 }
 
 void AsyncLoopJob::optimizeGeometry() {
-  if (!config.loop_geometry_enable ||
-      (!query.geometry_only && !outcome.summary.optimized)) return;
+  if (!config.loop_geometry_enable) return;
   keyframes.updateOptimizedPoses(graph->getOptimizedPoses());
   auto& stats = outcome.summary.geometry;
   stats = {};

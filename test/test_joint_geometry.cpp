@@ -5,6 +5,7 @@
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/world_localizing.h"
 #include "../src/planar_geometry/association.h"
+#include "../src/core/loop_closure_async.h"
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>
@@ -130,6 +131,34 @@ TEST_F(JointGeometryTest, WorkerCatchesUpNewNodesWithoutChangingItsSolvedPoses) 
   for (const auto& [id, value] : solved)
     EXPECT_EQ((value.matrix()-worker->getOptimizedPose(id).matrix()).norm(), 0);
   EXPECT_LT((worker->getOptimizedPose(3).matrix() - (solved.at(2)*pose(.2)).matrix()).norm(), 1e-12);
+}
+
+TEST_F(JointGeometryTest, SharedGeometryRefinesNewFrameWithoutLoopAdmission) {
+  graph.addOdometryEdge({2, 3, pose(.2, .04),
+      Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
+  ASSERT_TRUE(graph.incrementalOptimize());
+  const auto before = graph.getOptimizedPose(3);
+  auto keyframes = frames.getAllKeyframes();
+  const auto cloud = pcl::make_shared<Keyframe::PointCloudT>(*frames.getKeyframe(2)->cloud);
+  keyframes.push_back(Keyframe::create(3, 3, before, cloud));
+  ASSERT_TRUE(frames.loadKeyframes(keyframes));
+  DetectedLoopQuery query;
+  query.id = 3;
+  AsyncLoopJob worker(config, frames, graph.cloneCommitted(), query);
+  worker.run();
+  EXPECT_TRUE(worker.outcome.summary.geometry.optimized);
+  EXPECT_TRUE(worker.outcome.summary.accepted_loops.empty());
+  EXPECT_EQ(worker.graph->getNumEdges(), graph.getNumEdges());
+  EXPECT_LT(std::abs(worker.graph->getOptimizedPose(3).translation().z()),
+            .5 * std::abs(before.translation().z()));
+  // A background refinement cannot modify the live graph before commit.
+  EXPECT_EQ(graph.getOptimizedPose(3).matrix(), before.matrix());
+  auto disabled = config;
+  disabled.loop_geometry_enable = false;
+  AsyncLoopJob unchanged(disabled, frames, graph.cloneCommitted(), query);
+  unchanged.run();
+  EXPECT_FALSE(unchanged.outcome.summary.optimized);
+  EXPECT_EQ(unchanged.graph->getOptimizedPose(3).matrix(), before.matrix());
 }
 
 TEST_F(JointGeometryTest, WorkerRejectsChangedOldGraphTransactionally) {

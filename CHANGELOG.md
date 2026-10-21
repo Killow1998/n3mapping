@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Refresh existing shared geometry even when the current loop-query job admits
+  no loop. Preserve independent loop gates and the async commit boundary.
+- Complete four-core mapping, original14, independent route, real checkpoint
+  and 69 CTest targets. Mapping online RMSE 2.199→1.702 cm;
+  CPU 0.377→0.410 cores. Eight outputs still exceed 10 cm;
+  maximum 11.593 cm. Small metric regressions and two omitted
+  valid loop pairs are recorded in the [geometry refresh evidence](docs/evidence/runtime_cpu_20261017/README.md#geometry-refresh-independent-of-loop-admission--2026-10-21).
+
 - Reuse exactly unchanged cross-level neighborhoods and reconstruct fixed-spectrum
   target covariance from normals. Avoid temporary covariance arrays at Atlas load;
   retain arbitrary serialized matrices and the existing map/Atlas formats.
