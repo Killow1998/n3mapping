@@ -16599,5 +16599,1194 @@
         }
       ]
     }
+  },
+  "repeated_extension": {
+    "date": "2026-10-21",
+    "commit": "a16a35d",
+    "cpus": "0,2,4,6",
+    "registration_threads": 4,
+    "binary_sha256": "6c00aae1a117de1391242d3142a83db6e1f5fae9f92fcd1d389a553e4a00141b",
+    "frozen_sources_verified": true,
+    "original_inputs_verified": true,
+    "scope": "Repeated original recorded route tests session growth, resource use and save/reload; not independent-route generalization. 10Hz paced direct-core CPU includes final background drain, excludes load/frontend/DDS; save separate.",
+    "extensions": {
+      "extension_first": {
+        "frames": 2236,
+        "keyframes": 231,
+        "successful_frames": 2232,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 123.36605883199977,
+        "loop_cpu_s": 0.4512428890001452,
+        "runtime_cpu_s": 194.646707185,
+        "runtime_wall_s": 228.407389912,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 1.881094732,
+        "peak_rss_kib": 2140616,
+        "paced": true,
+        "average_cores": 0.8709024929977629,
+        "online_peak_rss_gib": 2.0414505004882812,
+        "accuracy": {
+          "alignment": {
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "frames": 2236,
+          "outputs": 2232,
+          "rejected_frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "position_m": {
+            "count": 2232,
+            "rmse": 0.008347465064598401,
+            "median": 0.0059767415299328205,
+            "p95": 0.014112606765899396,
+            "maximum": 0.042803943918213426
+          },
+          "rotation_deg": {
+            "count": 2232,
+            "rmse": 0.025869441711423115,
+            "median": 0.01259693390799357,
+            "p95": 0.0491424992615227,
+            "maximum": 0.16648063469995347
+          },
+          "consecutive_displacement_error_m": {
+            "count": 2231,
+            "rmse": 0.0033012299918319457,
+            "median": 0.0014145638232030075,
+            "p95": 0.005800991898458915,
+            "maximum": 0.04014010042635249
+          },
+          "above_10cm": 0,
+          "above_1m": 0,
+          "max_rotation_orthogonality_error": 2.9658403546010687e-13,
+          "commits": 12,
+          "max_pending": 2,
+          "graph_rebases": 0,
+          "commit_ms": {
+            "count": 12,
+            "rmse": 12.858394581607381,
+            "median": 10.0252625,
+            "p95": 20.569105149999995,
+            "maximum": 25.089911
+          },
+          "max_pending_age_ms": 29304.56142
+        },
+        "map_accuracy": {
+          "scope": "Repeated recorded route checks state/resource growth, not independent new measurements",
+          "original_mapping": {
+            "position_m": {
+              "count": 1271,
+              "rmse": 0.008136009435250068,
+              "median": 0.007122566003394715,
+              "p95": 0.013594421021728432,
+              "maximum": 0.020624665897507204
+            },
+            "rotation_deg": {
+              "count": 1271,
+              "rmse": 0.015069664886746,
+              "median": 0.012011070100115892,
+              "p95": 0.026292830053006203,
+              "maximum": 0.06143718238878085
+            }
+          },
+          "extension_1": {
+            "position_m": {
+              "count": 231,
+              "rmse": 0.00684549473868653,
+              "median": 0.005729093634103048,
+              "p95": 0.011267145466644783,
+              "maximum": 0.019020500678255624
+            },
+            "rotation_deg": {
+              "count": 231,
+              "rmse": 0.021662814378608834,
+              "median": 0.012379492965908878,
+              "p95": 0.04288957320648043,
+              "maximum": 0.0997693994714309
+            }
+          },
+          "surface_distance_m": {
+            "count": 748129,
+            "rmse": 0.004400168563135325,
+            "median": 0.002915173306491242,
+            "p95": 0.008792333329467644,
+            "maximum": 0.023718443963263253
+          }
+        },
+        "save": {
+          "cpu_s": 6.60468,
+          "wall_s": 3.29606,
+          "peak_rss_kib": 2503624
+        },
+        "geometry_commits": 12,
+        "worker_completions": 12,
+        "map_sha256": "126cf0df0c4f4100f66719f4f76fb3b666621ea282e5ffcc14f36603af6e8ce6",
+        "atlas_sha256": "6a8520840a8c76f6906b1e12ae2a41bfa3a3fccb581728632e753c2fd2765dae"
+      },
+      "extension_second": {
+        "frames": 2236,
+        "keyframes": 231,
+        "successful_frames": 2232,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 131.1947601919999,
+        "loop_cpu_s": 0.41000150000024327,
+        "runtime_cpu_s": 197.18989743699998,
+        "runtime_wall_s": 227.948904401,
+        "source_duration_s": 223.5,
+        "max_pacing_lag_s": 1.617690533,
+        "peak_rss_kib": 2348204,
+        "paced": true,
+        "average_cores": 0.8822814202997762,
+        "online_peak_rss_gib": 2.239421844482422,
+        "accuracy": {
+          "alignment": {
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "frames": 2236,
+          "outputs": 2232,
+          "rejected_frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "position_m": {
+            "count": 2232,
+            "rmse": 0.00862633902376363,
+            "median": 0.006288382674165981,
+            "p95": 0.014314458727031156,
+            "maximum": 0.0723654314639369
+          },
+          "rotation_deg": {
+            "count": 2232,
+            "rmse": 0.021334047256150516,
+            "median": 0.013394432567904745,
+            "p95": 0.04058857492462651,
+            "maximum": 0.15148711175242865
+          },
+          "consecutive_displacement_error_m": {
+            "count": 2231,
+            "rmse": 0.003485538227305354,
+            "median": 0.0012793064721915571,
+            "p95": 0.005707504969977425,
+            "maximum": 0.06956395952882596
+          },
+          "above_10cm": 0,
+          "above_1m": 0,
+          "max_rotation_orthogonality_error": 2.866331600409999e-13,
+          "commits": 14,
+          "max_pending": 2,
+          "graph_rebases": 0,
+          "commit_ms": {
+            "count": 14,
+            "rmse": 8.268339032909317,
+            "median": 7.2080044999999995,
+            "p95": 10.832582550000001,
+            "maximum": 11.224060000000001
+          },
+          "max_pending_age_ms": 22509.929913
+        },
+        "map_accuracy": {
+          "scope": "Repeated recorded route checks state/resource growth, not independent new measurements",
+          "original_mapping": {
+            "position_m": {
+              "count": 1271,
+              "rmse": 0.009245897044263016,
+              "median": 0.008304765735478035,
+              "p95": 0.014372182278825793,
+              "maximum": 0.02363383739625778
+            },
+            "rotation_deg": {
+              "count": 1271,
+              "rmse": 0.017174407880247988,
+              "median": 0.014246185487934089,
+              "p95": 0.028326495155351496,
+              "maximum": 0.06469883076475143
+            }
+          },
+          "extension_1": {
+            "position_m": {
+              "count": 231,
+              "rmse": 0.008092611374787914,
+              "median": 0.006624697500129333,
+              "p95": 0.013235382228328606,
+              "maximum": 0.021765504525355608
+            },
+            "rotation_deg": {
+              "count": 231,
+              "rmse": 0.027385224566893514,
+              "median": 0.014859650270510026,
+              "p95": 0.054706161558931495,
+              "maximum": 0.13085122046988992
+            }
+          },
+          "extension_2": {
+            "position_m": {
+              "count": 231,
+              "rmse": 0.008088634424074726,
+              "median": 0.006658111218913986,
+              "p95": 0.013230288283724736,
+              "maximum": 0.021845579830367872
+            },
+            "rotation_deg": {
+              "count": 231,
+              "rmse": 0.025644685729875646,
+              "median": 0.014856736301719931,
+              "p95": 0.051212837299019945,
+              "maximum": 0.11513041702353974
+            }
+          },
+          "surface_distance_m": {
+            "count": 863073,
+            "rmse": 0.004766933006389248,
+            "median": 0.0031968558048518364,
+            "p95": 0.009368315877924098,
+            "maximum": 0.025553984326478846
+          }
+        },
+        "save": {
+          "cpu_s": 6.81677,
+          "wall_s": 3.51319,
+          "peak_rss_kib": 2596792
+        },
+        "geometry_commits": 14,
+        "worker_completions": 14,
+        "map_sha256": "6a81e22d078fb768a7cf9378dc1b094a4ddd288fc4542fc42c8de99972edfcf6",
+        "atlas_sha256": "e0261ed3c24b22a2d76225e066ace055431fa4535520d838fb7951d7fa5a70ea"
+      }
+    },
+    "fixed14": {
+      "frames": 4144,
+      "outputs": 4088,
+      "locks": "14/14 at frame 4",
+      "position_rmse_m": 0.009598793932540877,
+      "position_max_m": 0.02521616721530791,
+      "rotation_rmse_deg": 0.01759190936871705,
+      "rotation_max_deg": 0.08480199422672337,
+      "cpu_s": 183.77454792100002,
+      "input_s": 413.000005005,
+      "average_cores": 0.44497468691017367,
+      "peak_rss_mib": 1500.515625,
+      "first_lock_unpaced_wall_s": {
+        "median": 3.247349359,
+        "maximum": 4.588850484
+      },
+      "cases": [
+        {
+          "id": "01_west_corridor",
+          "position_m": {
+            "rmse": 0.0026616805913024146,
+            "median": 0.0021399157386056506,
+            "p95": 0.004394452903472454,
+            "maximum": 0.008526825239505547
+          },
+          "rotation_deg": {
+            "rmse": 0.016105053166162637,
+            "median": 0.0150873492332839,
+            "p95": 0.02448590821396668,
+            "maximum": 0.027006594861131137
+          },
+          "average_cores": 0.3016272403947233
+        },
+        {
+          "id": "02_east_corridor",
+          "position_m": {
+            "rmse": 0.010131317728471553,
+            "median": 0.010148465207276861,
+            "p95": 0.011096323061795137,
+            "maximum": 0.011803667372792587
+          },
+          "rotation_deg": {
+            "rmse": 0.016920397679430228,
+            "median": 0.016623472421975996,
+            "p95": 0.02160139336982783,
+            "maximum": 0.030792985999929842
+          },
+          "average_cores": 0.34391056019415744
+        },
+        {
+          "id": "03_south_corridor",
+          "position_m": {
+            "rmse": 0.00725880776293415,
+            "median": 0.0071247755627722575,
+            "p95": 0.008713109896996696,
+            "maximum": 0.012188275936613473
+          },
+          "rotation_deg": {
+            "rmse": 0.020801344187803415,
+            "median": 0.020111877954986486,
+            "p95": 0.025416069906490472,
+            "maximum": 0.04235038981250732
+          },
+          "average_cores": 0.5630894301355933
+        },
+        {
+          "id": "04_north_corridor",
+          "position_m": {
+            "rmse": 0.0068865878048199585,
+            "median": 0.006923636233275687,
+            "p95": 0.007711318519885157,
+            "maximum": 0.008538784563442467
+          },
+          "rotation_deg": {
+            "rmse": 0.013977564858003808,
+            "median": 0.013528326441795729,
+            "p95": 0.017282947484176754,
+            "maximum": 0.02812332691245676
+          },
+          "average_cores": 0.42150117852926766
+        },
+        {
+          "id": "05_southwest_office",
+          "position_m": {
+            "rmse": 0.009855460298519246,
+            "median": 0.008998754429002317,
+            "p95": 0.013419131927834805,
+            "maximum": 0.013970701558698614
+          },
+          "rotation_deg": {
+            "rmse": 0.016432187803885147,
+            "median": 0.015761108865652608,
+            "p95": 0.02384229586180441,
+            "maximum": 0.042754726615715076
+          },
+          "average_cores": 0.4737054323050848
+        },
+        {
+          "id": "06_south_meeting",
+          "position_m": {
+            "rmse": 0.011049402203353865,
+            "median": 0.010381939118447925,
+            "p95": 0.01421228940614061,
+            "maximum": 0.01563389135139526
+          },
+          "rotation_deg": {
+            "rmse": 0.01833203671796465,
+            "median": 0.016672329960245945,
+            "p95": 0.024452336555906,
+            "maximum": 0.07050659580523763
+          },
+          "average_cores": 0.41016330027118647
+        },
+        {
+          "id": "07_south_pillars",
+          "position_m": {
+            "rmse": 0.014846903320060155,
+            "median": 0.013172427115380605,
+            "p95": 0.023316177660638305,
+            "maximum": 0.02521616721530791
+          },
+          "rotation_deg": {
+            "rmse": 0.020048940534292722,
+            "median": 0.0184542159266694,
+            "p95": 0.030620583605799917,
+            "maximum": 0.05313955110483169
+          },
+          "average_cores": 0.4475208989491526
+        },
+        {
+          "id": "08_west_shelves",
+          "position_m": {
+            "rmse": 0.005605173126794924,
+            "median": 0.004319485717670395,
+            "p95": 0.009978688875091226,
+            "maximum": 0.010868342159392625
+          },
+          "rotation_deg": {
+            "rmse": 0.023770426363332764,
+            "median": 0.021274203541679144,
+            "p95": 0.036902178506173645,
+            "maximum": 0.0614776292000055
+          },
+          "average_cores": 0.49587512955932195
+        },
+        {
+          "id": "09_east_shelves",
+          "position_m": {
+            "rmse": 0.011434012910241135,
+            "median": 0.011037570291404179,
+            "p95": 0.01352567180155325,
+            "maximum": 0.014457117516797712
+          },
+          "rotation_deg": {
+            "rmse": 0.02051832364084438,
+            "median": 0.018004319883813312,
+            "p95": 0.031148157151001287,
+            "maximum": 0.04975285474810416
+          },
+          "average_cores": 0.3651567789830509
+        },
+        {
+          "id": "10_northwest_meeting",
+          "position_m": {
+            "rmse": 0.0031051591672259043,
+            "median": 0.0014999859145432904,
+            "p95": 0.006760669595351123,
+            "maximum": 0.008753337531672088
+          },
+          "rotation_deg": {
+            "rmse": 0.013557789768662508,
+            "median": 0.011572067397915357,
+            "p95": 0.02190475529816246,
+            "maximum": 0.025162049604532218
+          },
+          "average_cores": 0.4203645257966102
+        },
+        {
+          "id": "11_northeast_pillars",
+          "position_m": {
+            "rmse": 0.011988347376763374,
+            "median": 0.011496575603938531,
+            "p95": 0.014726475284184293,
+            "maximum": 0.01572513872417869
+          },
+          "rotation_deg": {
+            "rmse": 0.01633016955982,
+            "median": 0.015412026713737911,
+            "p95": 0.022645953038313266,
+            "maximum": 0.03708066048261359
+          },
+          "average_cores": 0.4726914923728814
+        },
+        {
+          "id": "12_north_office",
+          "position_m": {
+            "rmse": 0.00634675802301432,
+            "median": 0.006532997934514735,
+            "p95": 0.007612625003301209,
+            "maximum": 0.007906110098687079
+          },
+          "rotation_deg": {
+            "rmse": 0.015697529797984885,
+            "median": 0.014929635897736493,
+            "p95": 0.02162148536227263,
+            "maximum": 0.03227990026115087
+          },
+          "average_cores": 0.49572533054237294
+        },
+        {
+          "id": "13_south_door",
+          "position_m": {
+            "rmse": 0.014720749765616515,
+            "median": 0.014317758506819486,
+            "p95": 0.017660089241204102,
+            "maximum": 0.01917230068831643
+          },
+          "rotation_deg": {
+            "rmse": 0.01731679457338671,
+            "median": 0.01404171873736065,
+            "p95": 0.024287161780694802,
+            "maximum": 0.08480199422672337
+          },
+          "average_cores": 0.4664286955770976
+        },
+        {
+          "id": "14_north_door",
+          "position_m": {
+            "rmse": 0.008241569384143037,
+            "median": 0.008280900017559956,
+            "p95": 0.009213252270320178,
+            "maximum": 0.011158308811294038
+          },
+          "rotation_deg": {
+            "rmse": 0.0129640249993267,
+            "median": 0.012719231179302504,
+            "p95": 0.017977139863157566,
+            "maximum": 0.01985159849486827
+          },
+          "average_cores": 0.5518855901970381
+        }
+      ]
+    },
+    "checkpoint": {
+      "geometry": {
+        "atlas_point_error_m": 0.0,
+        "atlas_points": 2173613,
+        "edge_error": 1.4475539265185335e-15,
+        "edges": 2621,
+        "graph_pose_error": 2.4525681146964056e-15,
+        "keyframe_pose_error": 2.4525681146964056e-15,
+        "keyframes": 1733,
+        "observations": 25041,
+        "plane_error": 1.1102230246251565e-16,
+        "planes": 733,
+        "raw_clouds_odometry_information_and_moments_preserved": true,
+        "raw_pose_error": 1.341488180606803e-15,
+        "reload_pose_error": 1.3414893372713912e-15
+      },
+      "trajectory": {
+        "sessions": 3,
+        "dense_poses": 18187,
+        "existing_sources_preserved": 18187,
+        "dense_position_max_m": 9.871175548870517e-14,
+        "dense_rotation_max_rad": 1.8873894899627474e-15,
+        "source_pose_max": [
+          0.0,
+          1.3322736293533875e-15
+        ],
+        "all_restored_poses_have_explicit_source": true
+      }
+    },
+    "retained_limits": [
+      "Whole extension average CPU above half core",
+      "Eight original mapping outputs still exceed 10cm",
+      "New independent route, full ROS node and hardware not qualified",
+      "Repeated observations are correlated; no uncertainty calibration claim"
+    ],
+    "causal_anchor_diagnostic": {
+      "scope": "Available-constraint batch feasibility only; not an online timing or accuracy result",
+      "alignment": {
+        "stamp_ns": 7299995002,
+        "translation": [
+          -43.981804569062675,
+          0.013493989897703453,
+          0.6566722602620779
+        ],
+        "quaternion_xyzw": [
+          1.2163132549912854e-05,
+          -0.00045452323389096505,
+          0.00015331460290557127,
+          -0.9999998848776538
+        ]
+      },
+      "loop_measurement_max_difference": 1.3322676295501878e-15,
+      "prefixes": [
+        {
+          "cpu_s": 1.52852,
+          "cutoff_frame": 6989,
+          "last_keyframe": 630,
+          "loop_edges": 215,
+          "odometry_edges": 630,
+          "rounds": [
+            {
+              "association_ms": 356.100644,
+              "final_cost": 635.8362934257648,
+              "initial_cost": 1367.731061522049,
+              "observations": 9188,
+              "planes": 415,
+              "solve_ms": 134.625625
+            },
+            {
+              "association_ms": 346.056292,
+              "final_cost": 724.7002292630834,
+              "initial_cost": 829.1312546675593,
+              "observations": 9371,
+              "planes": 425,
+              "solve_ms": 111.529321
+            },
+            {
+              "association_ms": 331.421636,
+              "final_cost": 734.1927315138109,
+              "initial_cost": 834.1779284784429,
+              "observations": 9586,
+              "planes": 431,
+              "solve_ms": 95.786272
+            }
+          ],
+          "scope": "Causal-constraint batch feasibility, not a timed online repair",
+          "truth_used": false,
+          "uses_final_optimized_poses": false,
+          "uses_saved_shared_planes": false,
+          "wall_s": 1.505015576,
+          "stages": [
+            {
+              "stage": 0,
+              "keyframes_position_m": {
+                "rmse": 0.02460080643816363,
+                "maximum": 0.06356309751317049
+              },
+              "tail_position_error_m": 0.04948776467110861,
+              "tail_rotation_error_deg": 0.01686221653019161,
+              "counterfactual_peaks": [
+                {
+                  "frame": 6992,
+                  "online_error_m": 0.1036259570626497,
+                  "prefix_anchor_error_m": 0.0907003600014731
+                },
+                {
+                  "frame": 6993,
+                  "online_error_m": 0.11581145254413092,
+                  "prefix_anchor_error_m": 0.09984947010447083
+                },
+                {
+                  "frame": 6994,
+                  "online_error_m": 0.11551418704759499,
+                  "prefix_anchor_error_m": 0.09962476915751493
+                },
+                {
+                  "frame": 6995,
+                  "online_error_m": 0.11593259920642546,
+                  "prefix_anchor_error_m": 0.09973846655841213
+                },
+                {
+                  "frame": 6996,
+                  "online_error_m": 0.11393260076463384,
+                  "prefix_anchor_error_m": 0.09659909068151941
+                },
+                {
+                  "frame": 6997,
+                  "online_error_m": 0.10671017628194968,
+                  "prefix_anchor_error_m": 0.08808083499789734
+                }
+              ]
+            },
+            {
+              "stage": 1,
+              "keyframes_position_m": {
+                "rmse": 0.006412786853306237,
+                "maximum": 0.015045022243213212
+              },
+              "tail_position_error_m": 0.011249299702636426,
+              "tail_rotation_error_deg": 0.020831172144458832,
+              "counterfactual_peaks": [
+                {
+                  "frame": 6992,
+                  "online_error_m": 0.1036259570626497,
+                  "prefix_anchor_error_m": 0.06820541887195883
+                },
+                {
+                  "frame": 6993,
+                  "online_error_m": 0.11581145254413092,
+                  "prefix_anchor_error_m": 0.08105162099987856
+                },
+                {
+                  "frame": 6994,
+                  "online_error_m": 0.11551418704759499,
+                  "prefix_anchor_error_m": 0.080824092526186
+                },
+                {
+                  "frame": 6995,
+                  "online_error_m": 0.11593259920642546,
+                  "prefix_anchor_error_m": 0.08136165976224372
+                },
+                {
+                  "frame": 6996,
+                  "online_error_m": 0.11393260076463384,
+                  "prefix_anchor_error_m": 0.07984338570299093
+                },
+                {
+                  "frame": 6997,
+                  "online_error_m": 0.10671017628194968,
+                  "prefix_anchor_error_m": 0.07342006649502386
+                }
+              ]
+            },
+            {
+              "stage": 2,
+              "keyframes_position_m": {
+                "rmse": 0.005757923204551002,
+                "maximum": 0.01466505108093206
+              },
+              "tail_position_error_m": 0.013234705976779098,
+              "tail_rotation_error_deg": 0.0094411347086177,
+              "counterfactual_peaks": [
+                {
+                  "frame": 6992,
+                  "online_error_m": 0.1036259570626497,
+                  "prefix_anchor_error_m": 0.06908554511426386
+                },
+                {
+                  "frame": 6993,
+                  "online_error_m": 0.11581145254413092,
+                  "prefix_anchor_error_m": 0.08173866804152105
+                },
+                {
+                  "frame": 6994,
+                  "online_error_m": 0.11551418704759499,
+                  "prefix_anchor_error_m": 0.08149364394310592
+                },
+                {
+                  "frame": 6995,
+                  "online_error_m": 0.11593259920642546,
+                  "prefix_anchor_error_m": 0.08199875903883821
+                },
+                {
+                  "frame": 6996,
+                  "online_error_m": 0.11393260076463384,
+                  "prefix_anchor_error_m": 0.08036960345058984
+                },
+                {
+                  "frame": 6997,
+                  "online_error_m": 0.10671017628194968,
+                  "prefix_anchor_error_m": 0.07378589001782292
+                }
+              ]
+            },
+            {
+              "stage": 3,
+              "keyframes_position_m": {
+                "rmse": 0.005311003370512483,
+                "maximum": 0.014398088129309412
+              },
+              "tail_position_error_m": 0.01368199736251636,
+              "tail_rotation_error_deg": 0.009315135527885822,
+              "counterfactual_peaks": [
+                {
+                  "frame": 6992,
+                  "online_error_m": 0.1036259570626497,
+                  "prefix_anchor_error_m": 0.07030687116830314
+                },
+                {
+                  "frame": 6993,
+                  "online_error_m": 0.11581145254413092,
+                  "prefix_anchor_error_m": 0.08297331361545837
+                },
+                {
+                  "frame": 6994,
+                  "online_error_m": 0.11551418704759499,
+                  "prefix_anchor_error_m": 0.08272167129192466
+                },
+                {
+                  "frame": 6995,
+                  "online_error_m": 0.11593259920642546,
+                  "prefix_anchor_error_m": 0.08322783194124977
+                },
+                {
+                  "frame": 6996,
+                  "online_error_m": 0.11393260076463384,
+                  "prefix_anchor_error_m": 0.0816013605855445
+                },
+                {
+                  "frame": 6997,
+                  "online_error_m": 0.10671017628194968,
+                  "prefix_anchor_error_m": 0.0750144365240061
+                }
+              ]
+            }
+          ],
+          "adjacent_edge_errors": [
+            {
+              "from_id": 626,
+              "to_id": 627,
+              "stored_translation_m": 0.0016764037380877716,
+              "raw_translation_m": 0.009177886450941848,
+              "stored_rotation_deg": 0.0031810250038310536
+            },
+            {
+              "from_id": 627,
+              "to_id": 628,
+              "stored_translation_m": 0.0005937631721965452,
+              "raw_translation_m": 0.006041346460554422,
+              "stored_rotation_deg": 0.001378796305391762
+            },
+            {
+              "from_id": 628,
+              "to_id": 629,
+              "stored_translation_m": 0.0019269785400205957,
+              "raw_translation_m": 0.04748417984536663,
+              "stored_rotation_deg": 0.00706625634566188
+            },
+            {
+              "from_id": 629,
+              "to_id": 630,
+              "stored_translation_m": 0.04040991602690418,
+              "raw_translation_m": 0.04040991602690418,
+              "stored_rotation_deg": 0.02002783555043905
+            }
+          ]
+        },
+        {
+          "cpu_s": 2.591653,
+          "cutoff_frame": 12213,
+          "last_keyframe": 1102,
+          "loop_edges": 314,
+          "odometry_edges": 1102,
+          "rounds": [
+            {
+              "association_ms": 589.15845,
+              "final_cost": 1065.4663358619553,
+              "initial_cost": 3863.8498231256094,
+              "observations": 16266,
+              "planes": 720,
+              "solve_ms": 294.02434
+            },
+            {
+              "association_ms": 569.255117,
+              "final_cost": 1314.1038898375618,
+              "initial_cost": 1527.6346521510884,
+              "observations": 16570,
+              "planes": 735,
+              "solve_ms": 163.604631
+            },
+            {
+              "association_ms": 560.902794,
+              "final_cost": 1323.8524840785237,
+              "initial_cost": 1522.8576100398398,
+              "observations": 16782,
+              "planes": 741,
+              "solve_ms": 164.144808
+            }
+          ],
+          "scope": "Causal-constraint batch feasibility, not a timed online repair",
+          "truth_used": false,
+          "uses_final_optimized_poses": false,
+          "uses_saved_shared_planes": false,
+          "wall_s": 2.54661162,
+          "stages": [
+            {
+              "stage": 0,
+              "keyframes_position_m": {
+                "rmse": 0.05394431275995646,
+                "maximum": 0.15374751603935444
+              },
+              "tail_position_error_m": 0.10605100030216082,
+              "tail_rotation_error_deg": 0.11650106302783389,
+              "counterfactual_peaks": [
+                {
+                  "frame": 12220,
+                  "online_error_m": 0.10074383505192724,
+                  "prefix_anchor_error_m": 0.18161679319119314
+                },
+                {
+                  "frame": 12221,
+                  "online_error_m": 0.10084278875287006,
+                  "prefix_anchor_error_m": 0.18178881436269104
+                }
+              ]
+            },
+            {
+              "stage": 1,
+              "keyframes_position_m": {
+                "rmse": 0.00671546244110333,
+                "maximum": 0.017216130899972752
+              },
+              "tail_position_error_m": 0.007302905917700028,
+              "tail_rotation_error_deg": 0.01658925208254079,
+              "counterfactual_peaks": [
+                {
+                  "frame": 12220,
+                  "online_error_m": 0.10074383505192724,
+                  "prefix_anchor_error_m": 0.09302643281150513
+                },
+                {
+                  "frame": 12221,
+                  "online_error_m": 0.10084278875287006,
+                  "prefix_anchor_error_m": 0.09314054722964414
+                }
+              ]
+            },
+            {
+              "stage": 2,
+              "keyframes_position_m": {
+                "rmse": 0.00671359922998973,
+                "maximum": 0.017309649138847825
+              },
+              "tail_position_error_m": 0.00656274967906578,
+              "tail_rotation_error_deg": 0.023443439240831254,
+              "counterfactual_peaks": [
+                {
+                  "frame": 12220,
+                  "online_error_m": 0.10074383505192724,
+                  "prefix_anchor_error_m": 0.09367744196956881
+                },
+                {
+                  "frame": 12221,
+                  "online_error_m": 0.10084278875287006,
+                  "prefix_anchor_error_m": 0.09377468997648104
+                }
+              ]
+            },
+            {
+              "stage": 3,
+              "keyframes_position_m": {
+                "rmse": 0.00670014371231585,
+                "maximum": 0.017413633987099456
+              },
+              "tail_position_error_m": 0.006492623597901739,
+              "tail_rotation_error_deg": 0.023542984922243656,
+              "counterfactual_peaks": [
+                {
+                  "frame": 12220,
+                  "online_error_m": 0.10074383505192724,
+                  "prefix_anchor_error_m": 0.09373296038229482
+                },
+                {
+                  "frame": 12221,
+                  "online_error_m": 0.10084278875287006,
+                  "prefix_anchor_error_m": 0.0938303269795825
+                }
+              ]
+            }
+          ],
+          "adjacent_edge_errors": [
+            {
+              "from_id": 1098,
+              "to_id": 1099,
+              "stored_translation_m": 0.0007900912146916445,
+              "raw_translation_m": 0.005819241954143377,
+              "stored_rotation_deg": 0.005440479414976891
+            },
+            {
+              "from_id": 1099,
+              "to_id": 1100,
+              "stored_translation_m": 0.0029952723866968696,
+              "raw_translation_m": 0.0008929486863042055,
+              "stored_rotation_deg": 0.004304888924481597
+            },
+            {
+              "from_id": 1100,
+              "to_id": 1101,
+              "stored_translation_m": 0.0036655182842679733,
+              "raw_translation_m": 0.0023090050856518878,
+              "stored_rotation_deg": 0.002985777363783145
+            },
+            {
+              "from_id": 1101,
+              "to_id": 1102,
+              "stored_translation_m": 0.0005801029099996563,
+              "raw_translation_m": 0.005490492720741805,
+              "stored_rotation_deg": 0.0015599159629607045
+            }
+          ]
+        }
+      ]
+    },
+    "adjacent_constraint_diagnostic": [
+      {
+        "converged": true,
+        "delta_angle_rad": 0.0016410842288950972,
+        "delta_m": 0.010530502404606857,
+        "fitness": 0.011068308015925045,
+        "from": 626,
+        "inlier_ratio": 0.7676651706502453,
+        "inliers": 7355,
+        "measurement": [
+          0.9974500424733235,
+          0.07136804963920924,
+          0.00011941800897581633,
+          1.0849805688173308,
+          -0.07136804784673585,
+          0.9974500495651492,
+          -1.9210105265393388e-05,
+          -0.027109036737331702,
+          -0.00012048448671805328,
+          1.0638490134537537e-05,
+          0.9999999926851556,
+          0.0007160414975874061,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "to": 627,
+        "valid": true,
+        "observer_translation_error_m": 0.001676403738088144
+      },
+      {
+        "converged": true,
+        "delta_angle_rad": 0.0013327550886951377,
+        "delta_m": 0.00545663996284476,
+        "fitness": 0.009332286249024425,
+        "from": 627,
+        "inlier_ratio": 0.7589416440075298,
+        "inliers": 7257,
+        "measurement": [
+          0.9982808851113387,
+          0.058610946934263684,
+          -0.0001769768091196,
+          1.0821825068445097,
+          -0.0586109524680622,
+          0.9982809001289086,
+          -2.624124194561622e-05,
+          -0.03781781777916107,
+          0.0001751345442706927,
+          3.656890958315008e-05,
+          0.9999999839953029,
+          0.00010872016095945253,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "to": 628,
+        "valid": true,
+        "observer_translation_error_m": 0.0005937631721965898
+      },
+      {
+        "converged": true,
+        "delta_angle_rad": 0.0024550010525136202,
+        "delta_m": 0.046441471403938596,
+        "fitness": 0.010900273658542913,
+        "from": 628,
+        "inlier_ratio": 0.7138243567038233,
+        "inliers": 6852,
+        "measurement": [
+          0.9999982925436055,
+          0.0014849294895430654,
+          -0.001099951946494087,
+          1.0229585740473877,
+          -0.0014845091998317713,
+          0.999998824841408,
+          0.00038281619462320526,
+          -0.0038070857922757346,
+          0.0011005191089325762,
+          -0.00038118265219730217,
+          0.9999993217785084,
+          0.0008118832200508992,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "to": 629,
+        "valid": true,
+        "observer_translation_error_m": 0.0019269785400206196
+      },
+      {
+        "converged": true,
+        "delta_angle_rad": 0.0004766346465393996,
+        "delta_m": 0.02843259404530394,
+        "fitness": 0.1270996398917748,
+        "from": 629,
+        "inlier_ratio": 0.6983809924306139,
+        "inliers": 6643,
+        "measurement": [
+          0.9903764846821813,
+          -0.13838934698697591,
+          0.0016754787624897068,
+          1.0399754142078415,
+          0.13838925898669277,
+          0.9903778998284699,
+          0.00016890371176372023,
+          0.06698790045800357,
+          -0.0016827316123764159,
+          6.459000008256487e-05,
+          0.9999985821202211,
+          -0.0009012290138304953,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "to": 630,
+        "valid": true,
+        "observer_translation_error_m": 0.019102270195967
+      },
+      {
+        "converged": true,
+        "delta_angle_rad": 0.00021670369583983928,
+        "delta_m": 0.00230911485112142,
+        "fitness": 0.007435162050095179,
+        "from": 1099,
+        "inlier_ratio": 0.7773030429345561,
+        "inliers": 7459,
+        "measurement": [
+          0.9999999974272273,
+          -7.033665269532095e-05,
+          -1.408192919979458e-05,
+          -1.076994728903239,
+          7.033633276146805e-05,
+          0.9999999972683312,
+          -2.271866812410352e-05,
+          2.501486523592316e-05,
+          1.4083527116397281e-05,
+          2.2717677594394937e-05,
+          0.9999999996427807,
+          -0.00019856321058197128,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "to": 1100,
+        "valid": true,
+        "observer_translation_error_m": 0.0029952723867004085
+      },
+      {
+        "converged": true,
+        "delta_angle_rad": 0.00025376094419978044,
+        "delta_m": 0.0053053963131358,
+        "fitness": 0.0067921933352971964,
+        "from": 1100,
+        "inlier_ratio": 0.8218342448464451,
+        "inliers": 7814,
+        "measurement": [
+          0.999999998775037,
+          4.7301002501430066e-05,
+          -1.4578808124093529e-05,
+          -1.0763368921781307,
+          -4.7300767116808706e-05,
+          0.9999999987509791,
+          1.6145591653884995e-05,
+          -0.00024201972983620056,
+          1.4579571808556719e-05,
+          -1.6144902045300624e-05,
+          0.9999999997633892,
+          0.00021523163122390604,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "to": 1101,
+        "valid": true,
+        "observer_translation_error_m": 0.0036655182842679746
+      },
+      {
+        "converged": true,
+        "delta_angle_rad": 0.0004275185156789338,
+        "delta_m": 0.005547917330997888,
+        "fitness": 0.006645603556078834,
+        "from": 1101,
+        "inlier_ratio": 0.8020629750271444,
+        "inliers": 7387,
+        "measurement": [
+          0.9999999997398492,
+          1.2642638497093413e-05,
+          -1.8985924608912876e-05,
+          -1.0799953414056114,
+          -1.2642356777886123e-05,
+          0.9999999998099973,
+          1.4838365771387646e-05,
+          0.0005795497686226224,
+          1.8986112201400085e-05,
+          -1.4838125740695533e-05,
+          0.9999999997096789,
+          2.460013450276101e-05,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "to": 1102,
+        "valid": true,
+        "observer_translation_error_m": 0.0005801029099996595
+      }
+    ],
+    "diagnostic_artifact_sha256": {
+      "build/n3mapping/geometry_refresh_20261021/causal_anchor_probe.cpp": "f6331aca6d6f99db067383bed5ac2bcb6e8c514e2c5c8a0585fc054546f78ec4",
+      "build/n3mapping/geometry_refresh_20261021/causal_anchor_probe": "86b660656939acd932e3b33e7719084787310bd3d474564d10322df37b360530",
+      "build/n3mapping/geometry_refresh_20261021/score_causal_anchor.py": "bd8fcce40f7a5875dc058e0429db526e9a7d5d271ac369abc1c2537e3249eed8",
+      "build/n3mapping/geometry_refresh_20261021/causal_anchor/score.json": "9f97c28211243a7c2560006346d00eac0a2abca1e08910d28750898edc11a2a4",
+      "build/n3mapping/geometry_refresh_20261021/adjacent_constraint_probe.cpp": "a6b53160d4280baf753e543d8bfe55c38b35dbcdd56a991b2b52568310a17416",
+      "build/n3mapping/geometry_refresh_20261021/adjacent_constraint.json": "0f3d91865885a462dcdb7c82380a6f05af38efdc84a69ebf84016df5b6b1e735",
+      "build/n3mapping/geometry_refresh_20261021/adjacent_constraint_scored.json": "4770b326b6a8488b7ab7833e1ea707a2b4e3e5f157445d3da3f0cb7e0b8e4a06",
+      "build/n3mapping/multisession_20261021/qualify_multisession.py": "e22bf2aff75b8418f58bd0aedd5cc86738edd8821d691b117b78a0ae5562f25c",
+      "build/n3mapping/multisession_20261021/collect_multisession.py": "efe958d40357d2e69b97f9365e59bb5be58a700e6eaaf7aa1cf6122be08325c4"
+    }
   }
 }

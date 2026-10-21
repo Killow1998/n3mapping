@@ -5524,3 +5524,92 @@ supply the missing independent geometry. Faster local geometric support or a
 more economical update schedule needs a separate experiment. All-frame mapping
 10 cm, statistically calibrated uncertainty and hardware/full-node coverage
 remain open. Multiple extension sessions are the next operational check.
+
+
+## Repeated extension sessions and causal peak diagnosis — 2026-10-21
+
+Frozen production source `a16a35d`, core `6c00aae1a117de1391242d3142a83db6e1f5fae9f92fcd1d389a553e4a00141b`.
+The complete record is `build/n3mapping/multisession_20261021/qualification.json`;
+causal-prefix and adjacent-registration diagnostics remain under
+`build/n3mapping/geometry_refresh_20261021/`. Source and original-input hashes
+match the preceding qualified stage. This stage changes no production code,
+configuration, acceptance gate or installed program.
+
+**Operational coverage.** Starting from the latest complete mapping checkpoint,
+run the original 223.5 s reentry recording twice, saving and reloading between
+sessions. Each pass is paced at the recorded 10 Hz on physical cores 0,2,4,6,
+with four registration threads and passive OpenMP. CPU includes final background
+drain, excludes loading/frontend/DDS; save is separate. The repeated recording
+intentionally overlaps timestamps. It tests session isolation, repeated growth,
+checkpoint integrity and resource use, **not independent new-route generalization**.
+The original14 remains a separate localization recording after both extensions.
+
+| Complete workload | First extension | Second extension |
+| --- | --- | --- |
+| Inputs / outputs / new keyframes | 2,236 / 2,232 / 231 | 2,236 / 2,232 / 231 |
+| Live position RMSE / maximum | 0.835 / 4.280 cm | 0.863 / 7.237 cm |
+| Outputs over 10 cm | 0 | 0 |
+| CPU / runtime peak RSS | 0.871 cores / 2.041 GiB | 0.882 cores / 2.239 GiB |
+| Geometry commits / maximum request age | 12 / 29.30 s | 14 / 22.51 s |
+| Save wall / whole-process peak RSS including save | 3.30 s / 2.388 GiB | 3.51 s / 2.476 GiB |
+
+Paced replay retains every scheduled input, but maximum pacing lag is
+1.88/1.62 s, including startup.
+These figures do not establish a hard per-frame real-time deadline.
+After both saves, original14 retains all 4,088 outputs and 14 frame-4 locks.
+Position RMSE/maximum is 0.960/2.522 cm;
+angular maximum is 0.084802 degrees. CPU is
+0.445 cores, peak 1500.5 MiB, and unpaced
+first-lock wall median/maximum is 3.247/
+4.589 s, excluding load.
+
+Real checkpoint/reload retains three sessions, 1,733 keyframes, 2,621 edges,
+733 shared planes, 25,041 observations and all 18,187 dense trajectory sources.
+Raw scans, odometry, information and moments are preserved. Atlas point difference
+is zero across 2,173,613 points; maximum restored dense position difference is
+9.87e-14 m. Timestamp overlap does not cross-contaminate
+session trajectory correction.
+
+**Small accuracy changes are retained.** Original-map keyframe RMSE is
+6.875 mm before extension, 8.136 mm after the first, and 9.246 mm after the second;
+maximum changes 1.931→2.063→2.363 cm. Combined surface RMSE is
+3.869→4.400→4.767 mm, measured over increasing point sets, so those surface
+numbers are not a same-point A/B. Original14 position RMSE/maximum changes
+0.794/2.420→0.960/2.522 cm. These checks retain successful localization and
+sub-10 cm accuracy, not universal improvement. Repeated observations are
+correlated; this is additional motivation to calibrate geometry/session weighting.
+It does not establish that duplicated evidence alone caused every change.
+
+**Causal accuracy diagnosis, separate from online qualification.** Rebuild two
+prefix graphs ending at keyframes 630 and 1102 from immutable original scans,
+odometry constraints and only loop edges already accepted by frames 6989/12213.
+Do not use final optimized poses, saved shared planes or truth in the solver.
+All persisted loop measurements match their accepted-event records within
+1.33e-15; truth is used only by the scoring observer.
+
+One geometry round brings those tail anchors to 1.125/0.730 cm true error.
+Substituting them in the existing odometry projection gives 6.821–8.136 cm for
+the six 699.6–700.1 s peaks and 9.303–9.314 cm for the two 1222.4–1222.5 s peaks.
+The corresponding association+solve takes about 0.491/0.883 s in this batch probe.
+That is longer than the 0.3/0.7 s from keyframe insertion to the first affected
+output. **Available observations are sufficient in these two prefixes, but
+this probe does not repair online scheduling or prove the 10 cm online target.**
+Simply running the entire global solve at each new keyframe is not justified.
+
+Exact adjacent-pair replay isolates the keyframe-630 fallback: GICP converges,
+fitness is 0.1271 (gate 0.2), but inlier ratio is 0.698381 (gate 0.7).
+The existing rule correctly rejects it under the current contract. Raw relative
+translation error is 4.041 cm; the rejected estimate is 1.910 cm. No gate is
+relaxed using truth. The keyframe-1102 pair is accepted and its relative error
+is only 0.580 mm; that peak is not the same registration-rejection mechanism.
+
+**Next scope.** Prioritize timely support for newly appended keyframes using
+already available geometry, and separately calibrate correlated observations.
+Any local-update design must preserve background graph/Atlas transactions:
+shared-plane IDs are rebuilt during global association, so pending factors must
+not silently retain obsolete plane IDs. Retain the existing localization
+algorithm and full14/independent-route release checks. Whole-extension half-core,
+eight online mapping peaks, calibrated uncertainty, longer *independently
+recorded* routes and full-node/hardware qualification remain open. All 69 CTest
+targets passed on this unchanged production source in the preceding stage;
+this evidence-only closeout does not rerun that suite.

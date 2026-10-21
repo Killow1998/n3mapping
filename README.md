@@ -814,10 +814,10 @@ remains the performance baseline.
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
-| Reliability — stationary startup and continuous output retained | Latest rebuilt-map original14 retains 14 frame-4 locks and all 4,088 outputs. Independent motion retains one initialization and 2,232 outputs. The prior Atlas stage also qualified original14 after extension. The partial-map alias remains outside this full-map acceptance. |
+| Reliability — stationary startup and continuous output retained | Rebuilt-map independent motion retains one initialization and 2,232 outputs. After two saved/reloaded extensions, original14 retains 14 frame-4 locks and all 4,088 outputs. Repeated extension inputs test state integrity, not new-route generalization; the partial-map alias remains outside full-map acceptance. |
 | Accuracy — tested localization below 10 cm; mapping tail remains open | Rebuilt-map motion RMSE/maximum 0.907/7.742 cm; original14 0.794/2.420 cm. Mapping online RMSE 1.702 cm, but eight outputs still exceed 10 cm. See the [refresh evidence](docs/evidence/runtime_cpu_20261017/README.md#geometry-refresh-independent-of-loop-admission--2026-10-21). |
 | Online loop/map consistency — shared geometry and checkpoints verified | Full mapping retains 13,791 inputs, 13,723 outputs, 1,271 keyframes and 429 loops. Final map RMSE/maximum 0.688/1.931 cm; surface RMSE 3.869 mm. Real map/Atlas/trajectory reload passes; uncertainty calibration remains open. |
-| Online extension — accuracy retained, Atlas CPU/storage reduced; half-core open | Full extension retains 2,232 outputs and 231 new keyframes. Live RMSE/maximum 0.810/4.279 cm; average 0.875 cores, runtime peak 2.028 GiB. Maximum oldest-request age 28.09 s. Frozen Atlas ABBA reduces preparation CPU by 21.3%; exact covariance buffer saving is 264.661 MiB on the tested map. |
+| Online extension — two sessions and reload verified; half-core open | Two consecutive extensions each retain 2,232 outputs and 231 new keyframes. Live maximum 4.280/7.237 cm; CPU 0.871/0.882 cores; runtime peak 2.041/2.239 GiB. Three-session map/Atlas and all 18,187 dense sources survive reload. Small map/static regressions and diagnostic limits are in the [multisession record](docs/evidence/runtime_cpu_20261017/README.md#repeated-extension-sessions-and-causal-peak-diagnosis--2026-10-21). |
 | Asynchronous online mapping loops — complete causal qualification | Geometry updates no longer depend on loop admission. Four-core 10 Hz replay uses 0.410 cores including background work; maximum online error 11.593 cm. Full-node/hardware and independent Noetic compilation remain open. |
 | Search cost — paused; half core remains open | Retain the accepted `54b602f` algorithm and its original 15.3% paired CPU reduction. The standalone 1.0.1 full14 replay measures 214.962 CPU s / 413 input s (0.520488 cores), first-lock wall median 3.348 s / maximum 5.383 s. 03/08/14 need 0.663/0.673/0.654 cores. The 440 cold seeds and 104 confirmation registrations are unchanged. This is a release behavior check, without a new paired speedup claim. Source reordering, direct fine tracking, exact-neighbor certificates and registration-kernel experiments are not retained: they regress latency/accuracy or lack consistent overall CPU benefit. |
 
@@ -868,7 +868,11 @@ output. The [Atlas refinement](docs/evidence/runtime_cpu_20261017/README.md#exac
 redundant target covariance storage. Full same-input tests retain reliability;
 whole-extension half-core and online mapping peaks remain open.
 The tested moving localization route is now below 10 cm, while online mapping
-now has eight frames above it after the subsequent geometry-refresh stage and small map/static regressions remain visible.
+now has eight frames above it after the subsequent geometry-refresh stage.
+The [causal-prefix diagnosis](docs/evidence/runtime_cpu_20261017/README.md#repeated-extension-sessions-and-causal-peak-diagnosis--2026-10-21) shows enough existing geometry in the
+two affected prefixes, but timely online correction remains unqualified.
+Repeated extension checks retain successful localization while small map/static
+regressions remain visible.
 
 Retain existing interfaces and numeric acceptance gates. Compare actual emitted
 poses, lock decisions and input/output continuity on the same full inputs for

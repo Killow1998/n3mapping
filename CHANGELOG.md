@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Qualify two saved/reloaded extensions on repeated input, original14 after both,
+  and a three-session map/Atlas/trajectory checkpoint on unchanged `a16a35d` code.
+  CPU 0.871/0.882 cores; live maximum
+  4.280/7.237 cm. Record small map/static regressions and correlated-input limits.
+- Diagnose remaining mapping peaks using causal input prefixes and exact adjacent
+  registration replay. Existing geometry can correct the tested anchors, but
+  timely online delivery remains open; no gate is relaxed. See the
+  [multisession and causal evidence](docs/evidence/runtime_cpu_20261017/README.md#repeated-extension-sessions-and-causal-peak-diagnosis--2026-10-21).
+
 - Refresh existing shared geometry even when the current loop-query job admits
   no loop. Preserve independent loop gates and the async commit boundary.
 - Complete four-core mapping, original14, independent route, real checkpoint
