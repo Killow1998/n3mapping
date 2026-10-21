@@ -56,6 +56,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp
+  ${N3MAPPING_ROOT}/src/localization_atlas_map.cpp
   ${N3MAPPING_ROOT}/src/localization_crop.cpp
   ${N3MAPPING_ROOT}/src/registration_observability.cpp
   ${N3MAPPING_ROOT}/src/relocalization_candidate_evaluator.cpp

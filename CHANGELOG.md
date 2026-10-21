@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Bound local tracking recovery at the existing voxel scale, retaining broad
+  geometric admission, full-query coverage and first-return checks. Fresh-route
+  maximum 6.436→3.913 cm and paired CPU 0.849→0.819 cores; recovery lock remains.
+- Pack temporary map assembly without changing raw clouds or voxel values.
+  Paired complete-extension runtime RSS 2.088→1.816 GiB; CPU remains comparable.
+- Complete original14 before/after repeated extension, both motion routes, three
+  extensions, real checkpoints and final-source 69-target regression/equivalence
+  checks. Remove the no-benefit seed-refresh prototype and reject unproven uniform
+  weight changes. Half-core and broad uncertainty calibration remain open; see
+  the [recovery/resource evidence](docs/evidence/runtime_cpu_20261017/README.md#recovery-geometry-compact-map-assembly-and-uncertainty-ablation--2026-10-21).
+
 - Correct newly appended mapping keyframes using committed plane support before
   background refinement; transactionally preserve observations and re-associate
   worker tails when plane indices change.

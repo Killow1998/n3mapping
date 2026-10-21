@@ -17,11 +17,9 @@
 
 #include <openssl/evp.h>
 #include <pcl/common/point_tests.h>
-#include <pcl/common/transforms.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
-#include "n3mapping/cloud_utils.h"
 #include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
@@ -183,31 +181,6 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
 
 LocalizationAtlas::LocalizationAtlas(const Config& config, PointCloudMatcher& matcher)
     : config_(config), matcher_(matcher), global_map_(pcl::make_shared<PointCloudT>()) {}
-
-LocalizationAtlas::PointCloudT::Ptr LocalizationAtlas::buildGlobalMap(
-    const Config& config, const std::vector<Keyframe::Ptr>& keyframes) {
-    auto global_map = pcl::make_shared<PointCloudT>();
-    std::size_t point_count = 0;
-    for (const auto& keyframe : keyframes)
-        if (keyframe && keyframe->cloud) point_count += keyframe->cloud->size();
-    global_map->reserve(point_count);
-    for (const auto& keyframe : keyframes) {
-        if (!keyframe || !keyframe->cloud || keyframe->cloud->empty()) continue;
-        PointCloudT transformed;
-        pcl::transformPointCloud(*keyframe->cloud, transformed,
-                                 keyframe->pose_optimized.matrix().cast<float>());
-        *global_map += transformed;
-    }
-
-    PointCloudT::Ptr downsampled;
-    const double voxel_size = std::max(1e-3, config.global_map_voxel_size);
-    if (!global_map->empty() &&
-        safeVoxelGridFilter<PointT>(global_map, voxel_size, &downsampled) &&
-        downsampled) {
-        return downsampled;
-    }
-    return global_map;
-}
 
 std::string LocalizationAtlas::defaultAtlasPath(const std::string& map_path) {
     return map_path + ".localization_atlas.pb";

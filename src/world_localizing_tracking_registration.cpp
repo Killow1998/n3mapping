@@ -49,7 +49,8 @@ MatchResult WorldLocalizing::registerTracking(
         localization_atlas_->preparedTarget(), prepared_source, candidate.T_target_source,
         {small_gicp::RegistrationSetting::GICP,
          config_.icp_refine_downsampling_resolution,
-         config_.icp_refine_max_correspondence_distance});
+         std::min(config_.icp_refine_max_correspondence_distance,
+                  candidate.metric.max_correspondence_distance)});
     debug_event.retry_registration_ms += elapsed_ms(started);
     const bool supported = hasValidRegistrationResult(coverage) &&
         coverage.fitness_score < config_.gicp_fitness_threshold &&
@@ -180,6 +181,24 @@ MatchResult WorldLocalizing::registerTracking(
               << " inlier=" << recovery.inlier_ratio
               << " iterations=" << recovery.iterations
               << " wall_ms=" << recovery_ms;
+      if (use_atlas && config_.gicp_downsampling_resolution <
+                           local.max_correspondence_distance &&
+          (!hasValidRegistrationResult(recovery) ||
+          recovery.fitness_score >= config_.gicp_fitness_threshold ||
+          recovery.inlier_ratio < config_.reloc_min_inlier_ratio)) {
+        // Try a tighter association at the existing tracking voxel scale.
+        // A thin wall's opposite face can lie inside the normal fine radius;
+        // it must not dominate otherwise supported local tracking.
+        auto narrow = local;
+        narrow.max_correspondence_distance = config_.gicp_downsampling_resolution;
+        const auto started = timing_started();
+        auto checked = matcher_.alignPrepared(recovery_target, prepared_source,
+                                               predicted_pose, narrow);
+        debug_event.retry_registration_ms += elapsed_ms(started);
+        const auto change = predicted_pose.inverse() * checked.T_target_source;
+        if (change.translation().norm() <= narrow.max_correspondence_distance &&
+            admit_recovery(checked)) recovery = std::move(checked);
+      }
       if ((!hasValidRegistrationResult(recovery) ||
            recovery.fitness_score >= config_.gicp_fitness_threshold ||
            recovery.inlier_ratio < config_.reloc_min_inlier_ratio) &&

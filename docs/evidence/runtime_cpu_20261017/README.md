@@ -5733,3 +5733,128 @@ uncertainty/correlation calibration for distinct observations, fresh-route recov
 cost, whole-extension half-core, outside-map coverage (deferred), full ROS-node
 and hardware qualification, and independent Noetic compilation. Sub-10-cm results
 here cover the complete recorded simulation cases, not arbitrary scenes or hardware.
+
+
+## Recovery geometry, compact map assembly and uncertainty ablation — 2026-10-21
+
+Source base `c5a8da7`. Retained final core
+`f8a7f3208a9b509b1b82ae939393aa515be783cfa1cc8c5141bd57b9db3e8045`;
+the full resource comparison used frozen core
+`0d2f1b4016cf14a26c8eddd9b61540e3fd923437b35f36df8b5c2811db63a34c`. Complete input/source hashes,
+commands, failed attempts, rejected variants, CSVs and checkpoint audits are at
+`build/n3mapping/recovery_resources_20261021/qualification.json` and sibling files.
+The final delta only skips an identical-parameter retry and cleans includes.
+The measured configuration has 0.1 < 0.3 m, so that guard is true; strict extension
+never enters this branch. All 69 CTest targets, both complete motion routes and
+original14 pass again on the final source. Output poses, decisions and registration
+counts match the frozen comparison within 1e-9 (`cleanup_equivalence.json`).
+
+**Retained changes.** Ordinary tracking may retry fine GICP with a correspondence
+distance at the existing tracking voxel scale, only after the established broad
+geometric admission. Its translation correction is bounded by that distance.
+The full query remains the coverage denominator; fitness, overlap, motion and
+independent first-return checks retain their thresholds. Coverage uses the same
+correspondence distance as the candidate. The strict loaded-map path is unchanged.
+No new public option, state machine, descriptor or map format is added.
+
+Global-map assembly packs temporary XYZ/intensity into 16 bytes instead of the
+32-byte padded native point. Transform arithmetic, ordering, intensity and voxel
+centroids are retained. Raw keyframes are unchanged; unsafe grids and oversized
+packed rows retain the native fallback. The implementation is isolated in
+`localization_atlas_map.cpp` (91 lines); the old Atlas unit loses its assembly code
+and unused dependencies. A behavior regression compares rotated/invalid-point
+inputs, normal voxel scales, unsafe grids and non-finite leaf sizes.
+
+**Four-core qualification.** i5-14600KF CPUs 0,2,4,6 are four distinct P cores;
+four registration threads, passive OpenMP. Mapping/extension observations remain
+10 Hz. CPU is process CPU per input second, excluding load/save, FAST_LIO, DDS and
+simulator. Runtime RSS includes loading; save peak is reported separately.
+Ground truth is observer-only, with the original first-mapping alignment and no
+query trajectory fitting. Original maps, bags and installed programs are preserved.
+
+| Complete localization workload | Position RMSE / maximum | Outputs and lock events | Average cores |
+| --- | --- | --- | --- |
+| Fresh route, paired baseline | 1.157 / 6.436 cm | 3,662; frames 4, 2002 | 0.84918 |
+| Fresh route, retained recovery | 0.806 / 3.913 cm | 3,662; frames 4, 2002 | 0.81949 |
+| Original independent route | 0.951 / 7.742 cm | 2,232; frame 4 | 0.55337 |
+| Original14 | 0.820 / 2.409 cm | 4,088; all 14 at frame 4 | 0.45360 |
+| Original14 after two extensions | 0.941 / 2.476 cm | 4,088; all 14 at frame 4 | 0.44134 |
+
+Every tested output is below 10 cm. The fresh route saves 10.882 CPU s (3.50%).
+Reported relocalization alignment calls fall 768→716. Backend loss begins at
+frame 1879 instead of 1869, but recovery remains at frame 2002: this avoids ten
+search observations, **not an earlier absolute relock**. The 123 intervening
+backend-loss observations retain trusted projected output. Whole-route half-core
+is still open. Original14's aggregate below half core does not certify each case:
+03/14 use 0.582/0.523 cores (0.530/0.534 after extension).
+The static timings use the current geometry map and are not a causal speedup
+comparison against the older 1.0.1 map/release.
+
+**RAM and its tradeoff.** A same-map assembly probe produces all 2,095,987
+XYZ/intensity values bit-identically. Peak falls 1,113,392→883,152 KiB (224.84 MiB),
+while assembly CPU increases 0.740→0.865 s; this is a memory improvement.
+The complete paired fresh-route extension lowers runtime peak
+2.088→1.816 GiB (13.0%) and save peak 2.439→2.321 GiB.
+Average CPU 0.84790→0.83878 is treated as approximately unchanged, not a robust
+speedup claim. Its live maximum remains about 8.3 cm, with all 3,662 outputs.
+
+| Retained complete extension | Position RMSE / maximum | Average cores | Runtime peak / save peak GiB |
+| --- | --- | --- | --- |
+| First original-route session | 0.853 / 4.269 cm | 0.87297 | 1.873 / 2.481 |
+| Second original-route session | 0.885 / 7.228 cm | 0.86009 | 1.987 / 2.452 |
+| Fresh independent route | 1.266 / 8.298 cm | 0.84018 | 1.813 / 2.387 |
+
+Each repeated session retains 2,232 outputs and 231 new keyframes; the fresh one
+retains 3,662 outputs and 344 new keyframes. Relative to the previous stage,
+post-extension original14 maximum changes about 2.460→2.476 cm; this small
+regression is preserved. Second-extension maximum pending correction age changes
+25.10→27.20 s (same 13 commits). Scheduling/allocator differences remain visible;
+no universal accuracy, latency or RSS bound is claimed. The three real checkpoints
+preserve raw clouds, graph information, weighted plane moments, gauge, Atlas and
+session identities. Their 13,723 / 18,187 / 17,385 dense poses retain explicit
+correction provenance and agree within 1e-9. New full mapping is not rerun:
+its online geometry path is unchanged; the prior 13,791-input qualification is
+retained, and the mapping save/reload path is exercised here.
+
+**Recovery diagnosis and rejected abstractions.** In selected failure frames,
+the worst 5% of correspondences contribute 70–92% of Mahalanobis residual.
+Nearby parallel surfaces inside the 0.3-m radius are an association explanation;
+the exact authored-surface identity is not proven by this audit. The retained
+bounded recovery improves the correction carried into the subsequent search.
+Of 252 rejected seed attempts in the diagnostic interval, 191 are distinct seeds:
+61 are repeats. This limits the benefit obtainable from exact-seed caching alone.
+A candidate that writes confirmation poses back to exact-seed cache has no
+measured recovery/accuracy benefit (0.852 cores, same locks/poses); its API,
+provenance fields and extra test logic are removed. An extra directional-witness
+variant produces no gain. A broader recovery entry gains only a tiny further
+change, so the existing broad-geometric prerequisite is retained.
+
+**Uncertainty ablation, not completed calibration.** Observer truth audits 428
+mapping loops in the serialized right-tangent convention. Pre-Cauchy NIS has
+median 1.269, p95 16.343; 28/428 exceed the nominal six-dimensional 95% threshold.
+This is a Gaussian diagnostic before robust loss on dependent observations,
+not calibrated confidence coverage. Exact repeated-acquisition geometry weights
+remain unchanged. Nine frozen-graph solves compare unit weights, uniform division
+of same-query loop information and an odometry-sized covariance floor. Same-query
+division changes mapping keyframe RMSE 7.314→7.385 mm; the floor gives 7.286 mm but
+maximum changes 20.665→21.003 mm. Multi-session changes are small and mixed.
+Both alternatives also alter the physical robust transition; these experiments
+do not reject every possible correlation model. Neither production rule is adopted.
+
+Reference-session-only plane fitting tests 6,525 repeated-route and 5,548 fresh
+observations with at least three reference observations. Median RMS/sigma is
+0.084 / 0.130, p95 0.341 / 0.345. This supports avoiding uniform downweighting of
+these well-supported planes. Associations and sigma were frozen using all
+sessions; sparse planes are excluded, so this is not prospective independent
+calibration. Sparse associations, directional loop overconfidence, repeated
+odometry information and real-sensor correlation remain open.
+
+The initial sandbox CTest failure came from the default ROS log path and DDS
+socket restrictions; its log is retained. Tests pass in the authorized host
+environment with workspace logs and isolated domain 221. No permissions or
+kernel performance policy were changed. Noetic runtime and full-node/hardware
+resource qualification remain open. Next work should address sustained local
+geometric support and the sparse/directional uncertainty cases, rather than
+relaxing acceptance or adding caches without measured benefit.
+
+![Four-core localization and extension comparison](recovery_resources_20261021.png)
