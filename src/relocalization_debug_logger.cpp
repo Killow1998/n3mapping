@@ -337,6 +337,7 @@ void appendHypotheses(
                   hypotheses[i].seed_match_id);
     appendInteger(os, &item_first, "last_match_id",
                   hypotheses[i].last_match_id);
+    appendBool(os, &item_first, "tracking_proposal", hypotheses[i].tracking_proposal);
     appendPose(os, &item_first, "pose_in_map", hypotheses[i].pose_in_map);
     appendNumber(os, &item_first, "cumulative_log_likelihood",
                  hypotheses[i].cumulative_log_likelihood);

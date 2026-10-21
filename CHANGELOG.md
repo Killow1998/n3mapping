@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Share loaded Atlas tracking targets and confirm one fresh prior-pose recovery
+  candidate without suppressing descriptor regions or inheriting old votes.
+  New-route recovery advances 6.4 input seconds; paired CPU
+  0.820→0.363 cores. Full original14 and both routes retain outputs
+  below 10 cm; all 69 CTest targets pass. Small precision tradeoffs and remaining
+  03/14 cost are explicit in the [evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21).
+- Diagnose opposite-wall reference coverage and fitted-residual overconfidence;
+  reject the slower thread split and unqualified global robust-weight changes.
+  Keep production loop weights pending directional/correlation calibration.
+
 - Bound local tracking recovery at the existing voxel scale, retaining broad
   geometric admission, full-query coverage and first-return checks. Fresh-route
   maximum 6.436→3.913 cm and paired CPU 0.849→0.819 cores; recovery lock remains.

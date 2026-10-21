@@ -14,6 +14,8 @@
 namespace n3mapping {
 
 struct RelocalizationHypothesis {
+  // Pose proposal from a previous lock; all evidence belongs to this window.
+  bool tracking_proposal = false;
   // Observation within this window when this region first acquired geometry.
   // Late arrivals must not inherit the older hypotheses' confirmation age.
   int first_observation = 1;

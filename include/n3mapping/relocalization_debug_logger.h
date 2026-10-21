@@ -52,6 +52,7 @@ struct RelocDebugBasinBestSummary {
 };
 
 struct RelocDebugHypothesisSummary {
+  bool tracking_proposal = false;
   int64_t seed_match_id = -1;
   int64_t last_match_id = -1;
   Eigen::Isometry3d pose_in_map = Eigen::Isometry3d::Identity();

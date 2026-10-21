@@ -178,6 +178,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     debug_event.hypotheses.reserve(hypothesis_manager_.size());
     for (const auto &hyp : hypothesis_manager_.hypotheses()) {
       RelocDebugHypothesisSummary summary;
+      summary.tracking_proposal = hyp.tracking_proposal;
       summary.seed_match_id = hyp.seed_match_id;
       summary.last_match_id = hyp.last_match_id;
       summary.pose_in_map = hyp.T_map_odom * odom_pose;

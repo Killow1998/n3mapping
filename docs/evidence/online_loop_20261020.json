@@ -2467,7 +2467,7 @@
     },
     "ablation": {
       "rejected": "Prediction-to-ICP pose interpolation",
-      "reason": "Same first 500 outputs, but full-route CPU 186.493→202.667 s and position RMSE 0.299208→0.312180 m. Removed implementation.",
+      "reason": "Same first 500 outputs, but full-route CPU 186.493\u2192202.667 s and position RMSE 0.299208\u21920.312180 m. Removed implementation.",
       "accuracy": {
         "fixed_alignment": {
           "stamp_ns": 7299995002,
@@ -4758,7 +4758,7 @@
       "No inferred fundamental FAST_LIO accuracy ceiling."
     ],
     "next_actions": [
-      "Isolate the accepted tracking excursion around 202–211 s with the unchanged full route.",
+      "Isolate the accepted tracking excursion around 202\u2013211 s with the unchanged full route.",
       "Investigate independent loop coverage and residual map deformation without tuning to evaluation locations."
     ],
     "maintained_sources_sha256": {
@@ -22614,5 +22614,1675 @@
       ],
       "scope": "The only runtime change skips a retry when the requested radius would be identical. Qualified localization uses 0.1 < 0.3, so the guard is true; strict extension never enters this branch. Other deltas only adjust includes. Full localization output, decisions and registration counts are compared above."
     }
+  },
+  "recovery_relock": {
+    "base_commit": "7c27b96",
+    "verification": {
+      "core_sha256": "b0b2986d673cec349a2710c7b8a6ee1471c70f77eb74f3a2fd82ecff7b82cde8",
+      "production_sources_verified": true,
+      "original_inputs_verified": true,
+      "new_independent_inputs_verified": true,
+      "independent_manifest_sha256": "533cb539c3bd260812a42bf3ee2dfb48361abf595d63d07c5e23f2741fe4b2ba",
+      "independent_pcd_set_sha256": "d0b068168d0129095c7ed1de89d210dba7faa88538062f0147712569c9e3f61b",
+      "ctest_targets": 69
+    },
+    "cpu_scope": "Four physical P cores 0,2,4,6; four registration threads; passive OpenMP. Process CPU / unchanged complete input duration. Excludes load/save, frontend, DDS and simulator; runtime RSS includes loading.",
+    "truth_scope": "Observer only; fixed first mapping alignment; no query fitting or truth input to estimator.",
+    "new_baseline": {
+      "frames": 3666,
+      "outputs": 3662,
+      "locks": [
+        4,
+        2002
+      ],
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/recovery_relock_20261021/motion_baseline_final_new/frames.csv",
+        "probe_status": {
+          "input_frames": 3666,
+          "successful_frames": 3539,
+          "published_without_backend_success": 123
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 3662,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.0017805344569888667,
+        "first_output_rotation_error_deg": 0.012399372245540708,
+        "position_error_m": {
+          "rmse": 0.008055113371356656,
+          "median": 0.006583158226598978,
+          "p95": 0.013905209323564422,
+          "maximum": 0.03913239485880487
+        },
+        "rotation_error_deg": {
+          "rmse": 0.02544672202386842,
+          "median": 0.015783795898647365,
+          "p95": 0.044158400564730665,
+          "maximum": 0.2030815720051148
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "cpu_s": 300.348135956,
+      "wall_s": 99.543784501,
+      "input_s": 366.5,
+      "peak_rss_mib": 1301.98046875,
+      "sources": {
+        "0": 127,
+        "2": 3532,
+        "1": 7
+      },
+      "decisions": {
+        "temporal_window_pending": 105,
+        "accepted": 2,
+        "tracking_geometric": 3530,
+        "icp_gate_failed": 7,
+        "ambiguous": 13,
+        "margin": 6,
+        "log_likelihood": 3
+      },
+      "above_10cm": 0,
+      "gross_outputs": 0,
+      "average_cores": 0.8195037815989087
+    },
+    "new_final": {
+      "frames": 3666,
+      "outputs": 3662,
+      "locks": [
+        4,
+        1938
+      ],
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/recovery_relock_20261021/motion_final_new/frames.csv",
+        "probe_status": {
+          "input_frames": 3666,
+          "successful_frames": 3603,
+          "published_without_backend_success": 59
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 3662,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.0017805344569889175,
+        "first_output_rotation_error_deg": 0.012399372245540705,
+        "position_error_m": {
+          "rmse": 0.00852416954529945,
+          "median": 0.006629034525469867,
+          "p95": 0.015433337229173076,
+          "maximum": 0.03246851633697082
+        },
+        "rotation_error_deg": {
+          "rmse": 0.035139059229002526,
+          "median": 0.01625046301467837,
+          "p95": 0.05739092931586709,
+          "maximum": 0.2641706757292131
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "cpu_s": 132.914913157,
+      "wall_s": 49.643508748,
+      "input_s": 366.5,
+      "peak_rss_mib": 1301.98046875,
+      "sources": {
+        "0": 63,
+        "2": 3597,
+        "1": 6
+      },
+      "decisions": {
+        "temporal_window_pending": 53,
+        "accepted": 2,
+        "tracking_geometric": 3595,
+        "icp_gate_failed": 6,
+        "ambiguous": 6,
+        "margin": 3,
+        "log_likelihood": 1
+      },
+      "above_10cm": 0,
+      "gross_outputs": 0,
+      "average_cores": 0.36266006318417465
+    },
+    "old_final": {
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/recovery_relock_20261021/motion_final_old/frames.csv",
+        "probe_status": {
+          "input_frames": 2236,
+          "successful_frames": 2232,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 2232,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.0038897995341094227,
+        "first_output_rotation_error_deg": 0.013861135338642059,
+        "position_error_m": {
+          "rmse": 0.009681591658644264,
+          "median": 0.006979514603630641,
+          "p95": 0.015181124455989969,
+          "maximum": 0.07932836946644896
+        },
+        "rotation_error_deg": {
+          "rmse": 0.023736653856814817,
+          "median": 0.015028926866236456,
+          "p95": 0.045788827359471714,
+          "maximum": 0.1414987690336749
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "cpu_s": 54.469075409999995,
+      "wall_s": 20.662432811,
+      "input_s": 223.5,
+      "peak_rss_mib": 1301.7421875,
+      "sources": {
+        "0": 4,
+        "2": 2232
+      },
+      "decisions": {
+        "temporal_window_pending": 4,
+        "accepted": 1,
+        "tracking_geometric": 2231
+      },
+      "above_10cm": 0,
+      "gross_outputs": 0,
+      "average_cores": 0.2437095096644295
+    },
+    "original14": {
+      "outputs": 4088,
+      "locks": [
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ]
+      ],
+      "average_cores": 0.4375571950775453,
+      "position_rmse_m": 0.008396593946000792,
+      "maximum_m": 0.024809060907976216,
+      "peak_rss_mib": 1276.19140625,
+      "first_lock_wall_s": [
+        2.26462909,
+        2.8792765599999997,
+        4.875717187,
+        3.2172458809999998,
+        3.260922496,
+        2.982050487,
+        2.98774837,
+        3.716443972,
+        2.500106437,
+        2.741722889,
+        3.115689121,
+        3.263048229,
+        3.454744457,
+        3.784222338
+      ],
+      "per_point": [
+        {
+          "id": "01_west_corridor",
+          "average_cores": 0.32357008642265367,
+          "position": {
+            "rmse": 0.002567882681125484,
+            "median": 0.002027958797413923,
+            "p95": 0.004283040116349461,
+            "maximum": 0.00839151539926607
+          },
+          "rotation": {
+            "rmse": 0.013026459425082635,
+            "median": 0.011966855926737902,
+            "p95": 0.02064950856538582,
+            "maximum": 0.023558266202391417
+          },
+          "lock_wall_s": 2.26462909,
+          "peak_rss_mib": 1275.6953125
+        },
+        {
+          "id": "02_east_corridor",
+          "average_cores": 0.41493063177193856,
+          "position": {
+            "rmse": 0.009941341551872075,
+            "median": 0.009978068262843965,
+            "p95": 0.010964158425480071,
+            "maximum": 0.01153868328582598
+          },
+          "rotation": {
+            "rmse": 0.01567818316056556,
+            "median": 0.015365190470786001,
+            "p95": 0.020767558044774866,
+            "maximum": 0.02747664962219783
+          },
+          "lock_wall_s": 2.8792765599999997,
+          "peak_rss_mib": 1275.91796875
+        },
+        {
+          "id": "03_south_corridor",
+          "average_cores": 0.5915840158983051,
+          "position": {
+            "rmse": 0.005793267863357936,
+            "median": 0.005647291554260593,
+            "p95": 0.007028422935069626,
+            "maximum": 0.009945601619870984
+          },
+          "rotation": {
+            "rmse": 0.012652930907129614,
+            "median": 0.011940060602555588,
+            "p95": 0.016683400155190466,
+            "maximum": 0.038207457515146294
+          },
+          "lock_wall_s": 4.875717187,
+          "peak_rss_mib": 1275.76953125
+        },
+        {
+          "id": "04_north_corridor",
+          "average_cores": 0.466929215592567,
+          "position": {
+            "rmse": 0.005082723996605528,
+            "median": 0.005099919184836207,
+            "p95": 0.005951747189876472,
+            "maximum": 0.006832645156766249
+          },
+          "rotation": {
+            "rmse": 0.011817456653349814,
+            "median": 0.011433287673445877,
+            "p95": 0.01481271427045244,
+            "maximum": 0.025482100912740394
+          },
+          "lock_wall_s": 3.2172458809999998,
+          "peak_rss_mib": 1276.02734375
+        },
+        {
+          "id": "05_southwest_office",
+          "average_cores": 0.4626260554576271,
+          "position": {
+            "rmse": 0.007814662791043153,
+            "median": 0.006873692749922914,
+            "p95": 0.011496323449571294,
+            "maximum": 0.011978096656757408
+          },
+          "rotation": {
+            "rmse": 0.016098279271654744,
+            "median": 0.015144516675293165,
+            "p95": 0.02313280950101813,
+            "maximum": 0.03981332346788779
+          },
+          "lock_wall_s": 3.260922496,
+          "peak_rss_mib": 1275.78515625
+        },
+        {
+          "id": "06_south_meeting",
+          "average_cores": 0.37858623067796615,
+          "position": {
+            "rmse": 0.009480214398782749,
+            "median": 0.008679121732550978,
+            "p95": 0.012853029580935772,
+            "maximum": 0.014112888822351665
+          },
+          "rotation": {
+            "rmse": 0.016456531375980937,
+            "median": 0.014215675963353488,
+            "p95": 0.02304784165970619,
+            "maximum": 0.06969864029799663
+          },
+          "lock_wall_s": 2.982050487,
+          "peak_rss_mib": 1275.81640625
+        },
+        {
+          "id": "07_south_pillars",
+          "average_cores": 0.44444554891525434,
+          "position": {
+            "rmse": 0.014088477151509888,
+            "median": 0.012270702622249477,
+            "p95": 0.022710212800494563,
+            "maximum": 0.024809060907976216
+          },
+          "rotation": {
+            "rmse": 0.02147886859186583,
+            "median": 0.019530328122156312,
+            "p95": 0.030831283861946304,
+            "maximum": 0.05298211931390725
+          },
+          "lock_wall_s": 2.98774837,
+          "peak_rss_mib": 1275.80859375
+        },
+        {
+          "id": "08_west_shelves",
+          "average_cores": 0.4665199226101694,
+          "position": {
+            "rmse": 0.00507915566960744,
+            "median": 0.003677125569501512,
+            "p95": 0.009506432040351362,
+            "maximum": 0.01035774813905911
+          },
+          "rotation": {
+            "rmse": 0.022292892050596494,
+            "median": 0.019832448138349883,
+            "p95": 0.03510786932701222,
+            "maximum": 0.05905340652265351
+          },
+          "lock_wall_s": 3.716443972,
+          "peak_rss_mib": 1275.78125
+        },
+        {
+          "id": "09_east_shelves",
+          "average_cores": 0.34169103210169494,
+          "position": {
+            "rmse": 0.010763009255304485,
+            "median": 0.010269254076489598,
+            "p95": 0.01318402118825035,
+            "maximum": 0.014101749169269387
+          },
+          "rotation": {
+            "rmse": 0.018778947023510066,
+            "median": 0.016368487511060667,
+            "p95": 0.02945730567491215,
+            "maximum": 0.04696436480734027
+          },
+          "lock_wall_s": 2.500106437,
+          "peak_rss_mib": 1275.9765625
+        },
+        {
+          "id": "10_northwest_meeting",
+          "average_cores": 0.39458184016949155,
+          "position": {
+            "rmse": 0.003445584570518075,
+            "median": 0.0016537381541142221,
+            "p95": 0.007331618891062684,
+            "maximum": 0.009108078883321642
+          },
+          "rotation": {
+            "rmse": 0.012776385839775055,
+            "median": 0.010993363988554232,
+            "p95": 0.020836097289751082,
+            "maximum": 0.024667599451826068
+          },
+          "lock_wall_s": 2.741722889,
+          "peak_rss_mib": 1275.94921875
+        },
+        {
+          "id": "11_northeast_pillars",
+          "average_cores": 0.4462079683050847,
+          "position": {
+            "rmse": 0.010721842653041543,
+            "median": 0.009824174022252954,
+            "p95": 0.014693589525083116,
+            "maximum": 0.01514183137951516
+          },
+          "rotation": {
+            "rmse": 0.01390288211999812,
+            "median": 0.012565258211508407,
+            "p95": 0.020955104993512757,
+            "maximum": 0.0415653453839052
+          },
+          "lock_wall_s": 3.115689121,
+          "peak_rss_mib": 1275.68359375
+        },
+        {
+          "id": "12_north_office",
+          "average_cores": 0.43677875847457626,
+          "position": {
+            "rmse": 0.005684099239581433,
+            "median": 0.005749678830311996,
+            "p95": 0.006673319421149561,
+            "maximum": 0.007026096140979405
+          },
+          "rotation": {
+            "rmse": 0.01942105005305425,
+            "median": 0.01832106685293614,
+            "p95": 0.02730847548856636,
+            "maximum": 0.0363244100369206
+          },
+          "lock_wall_s": 3.263048229,
+          "peak_rss_mib": 1276.0078125
+        },
+        {
+          "id": "13_south_door",
+          "average_cores": 0.45418865609443304,
+          "position": {
+            "rmse": 0.011889409191793376,
+            "median": 0.011155083067592147,
+            "p95": 0.01605161778735312,
+            "maximum": 0.02171273127659304
+          },
+          "rotation": {
+            "rmse": 0.01586521222291333,
+            "median": 0.012210020404380326,
+            "p95": 0.022722650920312937,
+            "maximum": 0.08384197149034019
+          },
+          "lock_wall_s": 3.454744457,
+          "peak_rss_mib": 1276.19140625
+        },
+        {
+          "id": "14_north_door",
+          "average_cores": 0.503160744124762,
+          "position": {
+            "rmse": 0.005536509085640004,
+            "median": 0.0055115574747619765,
+            "p95": 0.006625311242100416,
+            "maximum": 0.00918795477539334
+          },
+          "rotation": {
+            "rmse": 0.011232174019593944,
+            "median": 0.010935694137160654,
+            "p95": 0.01592745502944464,
+            "maximum": 0.018124911701374254
+          },
+          "lock_wall_s": 3.784222338,
+          "peak_rss_mib": 1276.19140625
+        }
+      ]
+    },
+    "baseline14": {
+      "outputs": 4088,
+      "locks": [
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ]
+      ],
+      "average_cores": 0.45360202959738943,
+      "position_rmse_m": 0.008199910398181366,
+      "maximum_m": 0.024088018120769515,
+      "peak_rss_mib": 1276.19140625,
+      "first_lock_wall_s": [
+        2.364081318,
+        3.074507976,
+        4.310468734,
+        3.207495529,
+        3.484462188,
+        3.131243914,
+        2.859389217,
+        3.63075808,
+        2.681133001,
+        2.6822613889999998,
+        3.138893758,
+        3.559523969,
+        3.257363866,
+        3.7536951170000004
+      ],
+      "per_point": [
+        {
+          "id": "01_west_corridor",
+          "average_cores": 0.361068358716852,
+          "position": {
+            "rmse": 0.002515468552921184,
+            "median": 0.0019824757956069796,
+            "p95": 0.004224404325242497,
+            "maximum": 0.008304925599261987
+          },
+          "rotation": {
+            "rmse": 0.013882703693533133,
+            "median": 0.012693159433540708,
+            "p95": 0.02212230615505288,
+            "maximum": 0.02576815119166357
+          },
+          "lock_wall_s": 2.364081318,
+          "peak_rss_mib": 1275.9453125
+        },
+        {
+          "id": "02_east_corridor",
+          "average_cores": 0.4488510839152653,
+          "position": {
+            "rmse": 0.009175944404053345,
+            "median": 0.009162599957870656,
+            "p95": 0.010127704321342933,
+            "maximum": 0.010757061706048069
+          },
+          "rotation": {
+            "rmse": 0.011323493723120803,
+            "median": 0.011013176221641462,
+            "p95": 0.015718810491887114,
+            "maximum": 0.02631597840065164
+          },
+          "lock_wall_s": 3.074507976,
+          "peak_rss_mib": 1276.015625
+        },
+        {
+          "id": "03_south_corridor",
+          "average_cores": 0.5818682095932203,
+          "position": {
+            "rmse": 0.005660683901142635,
+            "median": 0.005509339514209459,
+            "p95": 0.006927571973581867,
+            "maximum": 0.009945601619870984
+          },
+          "rotation": {
+            "rmse": 0.015529465321808392,
+            "median": 0.01492775272449088,
+            "p95": 0.019627206290838105,
+            "maximum": 0.039086882298252384
+          },
+          "lock_wall_s": 4.310468734,
+          "peak_rss_mib": 1275.92578125
+        },
+        {
+          "id": "04_north_corridor",
+          "average_cores": 0.4781902889268608,
+          "position": {
+            "rmse": 0.005084878853257009,
+            "median": 0.005091373613201161,
+            "p95": 0.005945395385231967,
+            "maximum": 0.006804682301142581
+          },
+          "rotation": {
+            "rmse": 0.010503993119131196,
+            "median": 0.010116986307286684,
+            "p95": 0.013567993277659349,
+            "maximum": 0.024449401673012582
+          },
+          "lock_wall_s": 3.207495529,
+          "peak_rss_mib": 1275.60546875
+        },
+        {
+          "id": "05_southwest_office",
+          "average_cores": 0.4740773556271186,
+          "position": {
+            "rmse": 0.00795639575932783,
+            "median": 0.007021230220175003,
+            "p95": 0.011609847479441155,
+            "maximum": 0.012112688270303821
+          },
+          "rotation": {
+            "rmse": 0.013997343550867888,
+            "median": 0.013006728699657327,
+            "p95": 0.02119800065998771,
+            "maximum": 0.04059111701164769
+          },
+          "lock_wall_s": 3.484462188,
+          "peak_rss_mib": 1276.03515625
+        },
+        {
+          "id": "06_south_meeting",
+          "average_cores": 0.42690516684745755,
+          "position": {
+            "rmse": 0.009534731429737988,
+            "median": 0.008749293634561705,
+            "p95": 0.012889675415113567,
+            "maximum": 0.014149239717498506
+          },
+          "rotation": {
+            "rmse": 0.016486665439526402,
+            "median": 0.014297218490544132,
+            "p95": 0.02313780848686014,
+            "maximum": 0.06952464221697734
+          },
+          "lock_wall_s": 3.131243914,
+          "peak_rss_mib": 1275.81640625
+        },
+        {
+          "id": "07_south_pillars",
+          "average_cores": 0.43645879345762717,
+          "position": {
+            "rmse": 0.01281614196452917,
+            "median": 0.010688277718549603,
+            "p95": 0.02209190917886113,
+            "maximum": 0.024088018120769515
+          },
+          "rotation": {
+            "rmse": 0.017983712348819392,
+            "median": 0.015745051575277988,
+            "p95": 0.02805581613479292,
+            "maximum": 0.050228206069158045
+          },
+          "lock_wall_s": 2.859389217,
+          "peak_rss_mib": 1275.73828125
+        },
+        {
+          "id": "08_west_shelves",
+          "average_cores": 0.4811883693220339,
+          "position": {
+            "rmse": 0.005146761156178554,
+            "median": 0.0037752218536494485,
+            "p95": 0.009520503460060737,
+            "maximum": 0.010401973378119081
+          },
+          "rotation": {
+            "rmse": 0.022246319926856724,
+            "median": 0.019668592687511678,
+            "p95": 0.0350228069868426,
+            "maximum": 0.05879325396374772
+          },
+          "lock_wall_s": 3.63075808,
+          "peak_rss_mib": 1276.1875
+        },
+        {
+          "id": "09_east_shelves",
+          "average_cores": 0.3538497449830509,
+          "position": {
+            "rmse": 0.010604849034261187,
+            "median": 0.010085757984545352,
+            "p95": 0.013032631995993717,
+            "maximum": 0.014019826509610941
+          },
+          "rotation": {
+            "rmse": 0.017748898460579744,
+            "median": 0.015213657105277256,
+            "p95": 0.027641657877813565,
+            "maximum": 0.045938444118023176
+          },
+          "lock_wall_s": 2.681133001,
+          "peak_rss_mib": 1275.9296875
+        },
+        {
+          "id": "10_northwest_meeting",
+          "average_cores": 0.3851960792881356,
+          "position": {
+            "rmse": 0.003389875763658382,
+            "median": 0.00147715592831096,
+            "p95": 0.0073171879007674035,
+            "maximum": 0.009108078883321706
+          },
+          "rotation": {
+            "rmse": 0.012686175506559672,
+            "median": 0.010967058918743642,
+            "p95": 0.02066453763750137,
+            "maximum": 0.0246675994518266
+          },
+          "lock_wall_s": 2.6822613889999998,
+          "peak_rss_mib": 1275.78515625
+        },
+        {
+          "id": "11_northeast_pillars",
+          "average_cores": 0.46269878589830515,
+          "position": {
+            "rmse": 0.010574744497955646,
+            "median": 0.009675831446269026,
+            "p95": 0.014591399022746886,
+            "maximum": 0.015067965336121546
+          },
+          "rotation": {
+            "rmse": 0.014096773534478305,
+            "median": 0.012741006702540516,
+            "p95": 0.021188589065770987,
+            "maximum": 0.04156534538390516
+          },
+          "lock_wall_s": 3.138893758,
+          "peak_rss_mib": 1275.76953125
+        },
+        {
+          "id": "12_north_office",
+          "average_cores": 0.49088867661016955,
+          "position": {
+            "rmse": 0.005707719150635335,
+            "median": 0.005769462628967343,
+            "p95": 0.006702947447046607,
+            "maximum": 0.00701978790257684
+          },
+          "rotation": {
+            "rmse": 0.01425684738603504,
+            "median": 0.01289920897983705,
+            "p95": 0.021766493469086316,
+            "maximum": 0.033978139566260106
+          },
+          "lock_wall_s": 3.559523969,
+          "peak_rss_mib": 1275.89453125
+        },
+        {
+          "id": "13_south_door",
+          "average_cores": 0.44644794161112045,
+          "position": {
+            "rmse": 0.011920764708539403,
+            "median": 0.01120045509329539,
+            "p95": 0.01605264300900262,
+            "maximum": 0.02171273127659304
+          },
+          "rotation": {
+            "rmse": 0.016246198814748154,
+            "median": 0.012728159114568812,
+            "p95": 0.023000969041750478,
+            "maximum": 0.08402139866382093
+          },
+          "lock_wall_s": 3.257363866,
+          "peak_rss_mib": 1275.80078125
+        },
+        {
+          "id": "14_north_door",
+          "average_cores": 0.5227395383284275,
+          "position": {
+            "rmse": 0.006123281911559676,
+            "median": 0.006135920586224649,
+            "p95": 0.007142397903975493,
+            "maximum": 0.009187954775393367
+          },
+          "rotation": {
+            "rmse": 0.010845550874974191,
+            "median": 0.010573560885687084,
+            "p95": 0.015710038797645088,
+            "maximum": 0.01791989564084291
+          },
+          "lock_wall_s": 3.7536951170000004,
+          "peak_rss_mib": 1276.19140625
+        }
+      ]
+    },
+    "costs": {
+      "baseline": {
+        "cpu_s": 300.23835332700145,
+        "search_cpu_s": 127.08461068600015,
+        "alignments": 716,
+        "confirmation_registrations": 149,
+        "cold_seeds": 483,
+        "target_prepare_wall_s": 29.43280461999999,
+        "interval_1800_2050_cpu_s": 128.2253904620003
+      },
+      "final": {
+        "cpu_s": 132.79250110599963,
+        "search_cpu_s": 51.113210403999986,
+        "alignments": 374,
+        "confirmation_registrations": 94,
+        "cold_seeds": 232,
+        "target_prepare_wall_s": 0.0007220930000000023,
+        "interval_1800_2050_cpu_s": 50.1699051079999
+      }
+    },
+    "robust_ablation": {
+      "mapping_final": {
+        "unit": {
+          "cpu_s": 0.154746,
+          "final_cost": 1570.3051353314108,
+          "initial_cost": 1570.3228544197118,
+          "mode": "unit",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.154551613,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007313816057501435,
+                "maximum": 0.020665138497439228
+              },
+              "rotation_deg": {
+                "rmse": 0.015073098713206196,
+                "maximum": 0.06576287749924255
+              }
+            }
+          }
+        },
+        "robust_sqrt6": {
+          "cpu_s": 0.155292,
+          "final_cost": 1572.1068504598454,
+          "initial_cost": 1572.3021263962642,
+          "mode": "robust_sqrt6",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.155025313,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.0073097460155399875,
+                "maximum": 0.02060152281477518
+              },
+              "rotation_deg": {
+                "rmse": 0.015071630293613004,
+                "maximum": 0.06575250960571058
+              }
+            }
+          }
+        },
+        "robust_95": {
+          "cpu_s": 0.216373,
+          "final_cost": 1572.3838141387369,
+          "initial_cost": 1572.6620829694343,
+          "mode": "robust_95",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.216183532,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007309362817967247,
+                "maximum": 0.02059278036059114
+              },
+              "rotation_deg": {
+                "rmse": 0.015071691974638453,
+                "maximum": 0.06575078577596999
+              }
+            }
+          }
+        }
+      },
+      "extension_second": {
+        "unit": {
+          "cpu_s": 0.115921,
+          "final_cost": 1880.5959573907285,
+          "initial_cost": 1880.6021070148183,
+          "mode": "unit",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.115758087,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.008794465383819785,
+                "maximum": 0.02318140953884305
+              },
+              "rotation_deg": {
+                "rmse": 0.01563073332196552,
+                "maximum": 0.06486251569267558
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.00804673020984583,
+                "maximum": 0.023168096572726605
+              },
+              "rotation_deg": {
+                "rmse": 0.029177385228693026,
+                "maximum": 0.14252323887573567
+              }
+            },
+            "2": {
+              "position_m": {
+                "rmse": 0.00800285144400546,
+                "maximum": 0.02327727595636996
+              },
+              "rotation_deg": {
+                "rmse": 0.028153298253627126,
+                "maximum": 0.13507768111219717
+              }
+            }
+          }
+        },
+        "robust_sqrt6": {
+          "cpu_s": 0.391054,
+          "final_cost": 1940.748900328788,
+          "initial_cost": 1950.0532447937635,
+          "mode": "robust_sqrt6",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.390943764,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.008518037140657025,
+                "maximum": 0.022611729927293857
+              },
+              "rotation_deg": {
+                "rmse": 0.015375070298287826,
+                "maximum": 0.06467165667849716
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.007937442597315032,
+                "maximum": 0.02277205884072865
+              },
+              "rotation_deg": {
+                "rmse": 0.029755180709354914,
+                "maximum": 0.1413805162486937
+              }
+            },
+            "2": {
+              "position_m": {
+                "rmse": 0.007917387449968442,
+                "maximum": 0.022865686196501745
+              },
+              "rotation_deg": {
+                "rmse": 0.02900629194448973,
+                "maximum": 0.1352364735676928
+              }
+            }
+          }
+        },
+        "robust_95": {
+          "cpu_s": 0.404653,
+          "final_cost": 1964.4919170545797,
+          "initial_cost": 1981.2045726763602,
+          "mode": "robust_95",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.404523372,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.008211467407276437,
+                "maximum": 0.021996182102329148
+              },
+              "rotation_deg": {
+                "rmse": 0.015127978080182741,
+                "maximum": 0.06447667721854047
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.007714732135513577,
+                "maximum": 0.023443085994697167
+              },
+              "rotation_deg": {
+                "rmse": 0.02949620514682695,
+                "maximum": 0.14042912883251837
+              }
+            },
+            "2": {
+              "position_m": {
+                "rmse": 0.007700372669364613,
+                "maximum": 0.023720591093357724
+              },
+              "rotation_deg": {
+                "rmse": 0.02884481757098525,
+                "maximum": 0.1349372450304329
+              }
+            }
+          }
+        }
+      },
+      "extension_new": {
+        "unit": {
+          "cpu_s": 0.115942,
+          "final_cost": 2060.95527968575,
+          "initial_cost": 2060.959087486447,
+          "mode": "unit",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.11574621,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007422794488815668,
+                "maximum": 0.020610467655955797
+              },
+              "rotation_deg": {
+                "rmse": 0.015084007659908352,
+                "maximum": 0.06569418614405101
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.006782660421667902,
+                "maximum": 0.01920254008837659
+              },
+              "rotation_deg": {
+                "rmse": 0.019439769355401704,
+                "maximum": 0.0884982253319587
+              }
+            }
+          }
+        },
+        "robust_sqrt6": {
+          "cpu_s": 0.401991,
+          "final_cost": 2104.0565488585644,
+          "initial_cost": 2110.482451803977,
+          "mode": "robust_sqrt6",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.401842559,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007366340374147293,
+                "maximum": 0.020446637065366112
+              },
+              "rotation_deg": {
+                "rmse": 0.015090694791007405,
+                "maximum": 0.06569684226268435
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.006825864471475989,
+                "maximum": 0.019579778431936652
+              },
+              "rotation_deg": {
+                "rmse": 0.022415884009569762,
+                "maximum": 0.15442643963932942
+              }
+            }
+          }
+        },
+        "robust_95": {
+          "cpu_s": 0.344359,
+          "final_cost": 2114.624598533856,
+          "initial_cost": 2127.6367109820308,
+          "mode": "robust_95",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.344155794,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007377367777003274,
+                "maximum": 0.020443890808294285
+              },
+              "rotation_deg": {
+                "rmse": 0.015084169670519575,
+                "maximum": 0.06570173348601711
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.006892928839472809,
+                "maximum": 0.01969103041312423
+              },
+              "rotation_deg": {
+                "rmse": 0.02390666508476948,
+                "maximum": 0.19248606553831965
+              }
+            }
+          }
+        }
+      }
+    },
+    "directional_ablation": {
+      "mapping_final": {
+        "unit": {
+          "cpu_s": 0.15546,
+          "final_cost": 1570.3051353314108,
+          "initial_cost": 1570.3228544197118,
+          "mode": "unit",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.155295708,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007313816057501435,
+                "maximum": 0.020665138497439228
+              },
+              "rotation_deg": {
+                "rmse": 0.015073098713206196,
+                "maximum": 0.06576287749924255
+              }
+            }
+          }
+        },
+        "translation_floor": {
+          "cpu_s": 0.159503,
+          "final_cost": 1564.7546379417477,
+          "initial_cost": 1567.5624932177702,
+          "mode": "translation_floor",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.159431379,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007267792333974221,
+                "maximum": 0.020500969806435433
+              },
+              "rotation_deg": {
+                "rmse": 0.015101391066408275,
+                "maximum": 0.06560897500068319
+              }
+            }
+          }
+        },
+        "rotation_floor": {
+          "cpu_s": 0.15604,
+          "final_cost": 1564.5071813010993,
+          "initial_cost": 1567.0874696426968,
+          "mode": "rotation_floor",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.155870156,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007392088592277265,
+                "maximum": 0.021228278169725185
+              },
+              "rotation_deg": {
+                "rmse": 0.015141923691194532,
+                "maximum": 0.06630459472186763
+              }
+            }
+          }
+        }
+      },
+      "extension_second": {
+        "unit": {
+          "cpu_s": 0.116929,
+          "final_cost": 1880.5959573907285,
+          "initial_cost": 1880.6021070148183,
+          "mode": "unit",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.116675755,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.008794465383819785,
+                "maximum": 0.02318140953884305
+              },
+              "rotation_deg": {
+                "rmse": 0.01563073332196552,
+                "maximum": 0.06486251569267558
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.00804673020984583,
+                "maximum": 0.023168096572726605
+              },
+              "rotation_deg": {
+                "rmse": 0.029177385228693026,
+                "maximum": 0.14252323887573567
+              }
+            },
+            "2": {
+              "position_m": {
+                "rmse": 0.00800285144400546,
+                "maximum": 0.02327727595636996
+              },
+              "rotation_deg": {
+                "rmse": 0.028153298253627126,
+                "maximum": 0.13507768111219717
+              }
+            }
+          }
+        },
+        "translation_floor": {
+          "cpu_s": 0.184504,
+          "final_cost": 1874.9625062423488,
+          "initial_cost": 1877.8059416520357,
+          "mode": "translation_floor",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.184230559,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.008692114072251289,
+                "maximum": 0.022940152589778478
+              },
+              "rotation_deg": {
+                "rmse": 0.015684621392467495,
+                "maximum": 0.06486369881391933
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.007975102491595524,
+                "maximum": 0.022912771606443467
+              },
+              "rotation_deg": {
+                "rmse": 0.029137099305487652,
+                "maximum": 0.14237663116777677
+              }
+            },
+            "2": {
+              "position_m": {
+                "rmse": 0.007929981152186356,
+                "maximum": 0.023015670083502183
+              },
+              "rotation_deg": {
+                "rmse": 0.02812264828303549,
+                "maximum": 0.13502280496062097
+              }
+            }
+          }
+        },
+        "rotation_floor": {
+          "cpu_s": 0.184636,
+          "final_cost": 1874.8686906016333,
+          "initial_cost": 1877.418688761746,
+          "mode": "rotation_floor",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.184660077,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.008808984510528837,
+                "maximum": 0.023380089394878435
+              },
+              "rotation_deg": {
+                "rmse": 0.01563795618848834,
+                "maximum": 0.06494670594576017
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.008089368533944322,
+                "maximum": 0.023435482546481572
+              },
+              "rotation_deg": {
+                "rmse": 0.029290851479478595,
+                "maximum": 0.14317324115188113
+              }
+            },
+            "2": {
+              "position_m": {
+                "rmse": 0.008046424816420126,
+                "maximum": 0.023544352729097606
+              },
+              "rotation_deg": {
+                "rmse": 0.028223120322093436,
+                "maximum": 0.13543378601871933
+              }
+            }
+          }
+        }
+      },
+      "extension_new": {
+        "unit": {
+          "cpu_s": 0.115525,
+          "final_cost": 2060.95527968575,
+          "initial_cost": 2060.959087486447,
+          "mode": "unit",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.115313509,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007422794488815668,
+                "maximum": 0.020610467655955797
+              },
+              "rotation_deg": {
+                "rmse": 0.015084007659908352,
+                "maximum": 0.06569418614405101
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.006782660421667902,
+                "maximum": 0.01920254008837659
+              },
+              "rotation_deg": {
+                "rmse": 0.019439769355401704,
+                "maximum": 0.0884982253319587
+              }
+            }
+          }
+        },
+        "translation_floor": {
+          "cpu_s": 0.1896,
+          "final_cost": 2055.332361679054,
+          "initial_cost": 2058.07327399092,
+          "mode": "translation_floor",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.189467744,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007385592501314137,
+                "maximum": 0.020493187505298008
+              },
+              "rotation_deg": {
+                "rmse": 0.015134949813842813,
+                "maximum": 0.06558928768571624
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.00670960943069248,
+                "maximum": 0.019423073959165826
+              },
+              "rotation_deg": {
+                "rmse": 0.019480577456872625,
+                "maximum": 0.08852366244165083
+              }
+            }
+          }
+        },
+        "rotation_floor": {
+          "cpu_s": 0.189664,
+          "final_cost": 2055.2644638167144,
+          "initial_cost": 2057.775687758514,
+          "mode": "rotation_floor",
+          "scope": "Frozen identical measurements and associations; changing uncertainty also changes the physical robust scale. Not an online qualification or a universal calibration.",
+          "wall_s": 0.189648842,
+          "sessions": {
+            "0": {
+              "position_m": {
+                "rmse": 0.007427885071266739,
+                "maximum": 0.020739114026947156
+              },
+              "rotation_deg": {
+                "rmse": 0.015024151693614998,
+                "maximum": 0.06607232532341521
+              }
+            },
+            "1": {
+              "position_m": {
+                "rmse": 0.0067959884468871325,
+                "maximum": 0.01914307273725904
+              },
+              "rotation_deg": {
+                "rmse": 0.01943935411166249,
+                "maximum": 0.08857088963939594
+              }
+            }
+          }
+        }
+      }
+    },
+    "loop_audit": {
+      "scope": "Observer audit of dependent accepted loop measurements. Marginal blocks retain covariance coupling. Optimizer residual is fitted, not independent calibration.",
+      "worst_truth_nis": [
+        {
+          "a": 4,
+          "b": 412,
+          "truth_nis": 226.78428729542998,
+          "truth_translation_nis": 185.57931593426827,
+          "truth_rotation_nis": 4.201075017421464,
+          "optimized_nis": 0.023992717455294507,
+          "optimized_cauchy_weight": 0.9765694452252371
+        },
+        {
+          "a": 2,
+          "b": 412,
+          "truth_nis": 78.69345816323062,
+          "truth_translation_nis": 64.20135995455563,
+          "truth_rotation_nis": 2.388891344413633,
+          "optimized_nis": 0.03186970587657392,
+          "optimized_cauchy_weight": 0.9691146026527635
+        },
+        {
+          "a": 685,
+          "b": 707,
+          "truth_nis": 74.0578565643474,
+          "truth_translation_nis": 51.43626121157632,
+          "truth_rotation_nis": 25.168442675910484,
+          "optimized_nis": 0.0008872138243490117,
+          "optimized_cauchy_weight": 0.9991135726262713
+        },
+        {
+          "a": 479,
+          "b": 502,
+          "truth_nis": 54.62985136791151,
+          "truth_translation_nis": 20.128636393591325,
+          "truth_rotation_nis": 17.604575473199066,
+          "optimized_nis": 0.06279703549601243,
+          "optimized_cauchy_weight": 0.9409134261776476
+        },
+        {
+          "a": 286,
+          "b": 312,
+          "truth_nis": 41.57735335737102,
+          "truth_translation_nis": 29.08543289830572,
+          "truth_rotation_nis": 14.07569404235207,
+          "optimized_nis": 0.003030283215474787,
+          "optimized_cauchy_weight": 0.9969788716590288
+        },
+        {
+          "a": 496,
+          "b": 527,
+          "truth_nis": 40.02383413685705,
+          "truth_translation_nis": 27.98682585389632,
+          "truth_rotation_nis": 2.0860444859384804,
+          "optimized_nis": 0.06007681608987588,
+          "optimized_cauchy_weight": 0.9433278653225613
+        },
+        {
+          "a": 606,
+          "b": 617,
+          "truth_nis": 30.315698383080072,
+          "truth_translation_nis": 10.766111658504144,
+          "truth_rotation_nis": 7.460004205436192,
+          "optimized_nis": 0.034193524079632706,
+          "optimized_cauchy_weight": 0.9669370158645474
+        },
+        {
+          "a": 662,
+          "b": 707,
+          "truth_nis": 29.208389430403685,
+          "truth_translation_nis": 4.391348703341012,
+          "truth_rotation_nis": 13.670697313048176,
+          "optimized_nis": 0.004574268844100578,
+          "optimized_cauchy_weight": 0.9954465598154689
+        },
+        {
+          "a": 500,
+          "b": 527,
+          "truth_nis": 26.717607259158275,
+          "truth_translation_nis": 20.062982766141705,
+          "truth_rotation_nis": 2.484835521000249,
+          "optimized_nis": 0.09199974877928818,
+          "optimized_cauchy_weight": 0.9157511264245877
+        },
+        {
+          "a": 498,
+          "b": 527,
+          "truth_nis": 26.30716088330269,
+          "truth_translation_nis": 19.09376062116715,
+          "truth_rotation_nis": 3.986885978980575,
+          "optimized_nis": 0.05295529255589347,
+          "optimized_cauchy_weight": 0.9497079382854402
+        },
+        {
+          "a": 200,
+          "b": 207,
+          "truth_nis": 26.08169699362301,
+          "truth_translation_nis": 23.670591252867055,
+          "truth_rotation_nis": 0.02472717834287366,
+          "optimized_nis": 0.0006768263225138149,
+          "optimized_cauchy_weight": 0.9993236314615167
+        },
+        {
+          "a": 771,
+          "b": 1187,
+          "truth_nis": 24.534358683319123,
+          "truth_translation_nis": 19.85382015990071,
+          "truth_rotation_nis": 0.7328470083644609,
+          "optimized_nis": 0.05189062302519705,
+          "optimized_cauchy_weight": 0.9506691837636488
+        }
+      ],
+      "nominal_chi6_95": 12.591587,
+      "high_truth_nis_count": 28,
+      "high_truth_nis_with_optimized_nis_below_one": 27
+    },
+    "wall_coverage": {
+      "query_frame": 1900,
+      "scene_object": "wall-1-5-4",
+      "wall_x_faces": [
+        47.9,
+        48.1
+      ],
+      "wall_y_span": [
+        -11,
+        -5
+      ],
+      "source": "fixed original mapping alignment, observer truth only",
+      "query_samples_in_roi": 4062,
+      "ground_truth_lidar_xyz": [
+        48.88505614830078,
+        -8.721245097897235,
+        0.6355985181507979
+      ],
+      "scope": "Subset of actual query points and their nearest frozen-map points; not a ray-traced ground-truth map"
+    },
+    "equivalence": {
+      "motion_final_new": {
+        "frames": 3666,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 7.105427357601002e-14
+      },
+      "motion_final_old": {
+        "frames": 2236,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 1.4210854715202004e-14
+      },
+      "01_west_corridor": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 6.557254739192331e-16
+      },
+      "02_east_corridor": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 1.4210854715202004e-14
+      },
+      "03_south_corridor": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 2.42861286636753e-17
+      },
+      "04_north_corridor": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 2.7755575615628914e-17
+      },
+      "05_southwest_office": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 4.440892098500626e-16
+      },
+      "06_south_meeting": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 1.1102230246251565e-15
+      },
+      "07_south_pillars": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 7.105427357601002e-15
+      },
+      "08_west_shelves": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 5.551115123125783e-17
+      },
+      "09_east_shelves": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 8.881784197001252e-16
+      },
+      "10_northwest_meeting": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 8.881784197001252e-16
+      },
+      "11_northeast_pillars": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 1.7763568394002505e-15
+      },
+      "12_north_office": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 3.122502256758253e-17
+      },
+      "13_south_door": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 3.552713678800501e-15
+      },
+      "14_north_door": {
+        "frames": 296,
+        "decisions_and_counts_equal": true,
+        "maximum_pose_component_delta": 1.249000902703301e-16
+      }
+    },
+    "limitations": [
+      "03/14 static case averages remain separately reported; aggregate is not every-case half-core.",
+      "Recovery still has a geometric support gap; projected outputs are not newly matched geometry.",
+      "Small position RMSE and old-route peak regressions are retained explicitly.",
+      "Loop uncertainty remains uncalibrated; frozen-graph experiments are not online qualification.",
+      "Unchanged mapping/strict extension production paths inherit prior qualification; not rerun this stage.",
+      "No hardware, Noetic runtime or full-node CPU qualification."
+    ],
+    "artifacts": "build/n3mapping/recovery_relock_20261021/qualification.json",
+    "report": "docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21"
   }
 }

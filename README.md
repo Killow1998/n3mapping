@@ -798,10 +798,9 @@ remain separate from that measured result.
 ### TODO
 
 Current work is updated **2026-10-21**. Maintenance version **1.0.1** closed the
-accepted performance changes. Further stationary-search performance research is
-paused. Current priorities are **relocalization accuracy** and **online loop
-closure during mapping and map extension**, including the cost of that online
-path. Offline replay is a validation method for
+accepted performance changes. Current priorities are **fresh-route recovery,
+difficult-search cost and directional loop uncertainty**, while preserving
+relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for
 that online behavior. Stationary startup remains required by Xian's downstream
 workflow. Continuing localization outside the global map is deferred pending
 Xian's decision; the highly repetitive out-of-map corridor remains a recorded
@@ -814,14 +813,14 @@ remains the performance baseline.
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
-| Reliability — original startup/output baseline retained | Original14 keeps all 14 frame-4 locks and 4,088 outputs before/after two extensions. Both independent routes preserve all outputs. Fresh-route backend loss shrinks 133→123 observations, but recovery still locks at frame 2002; partial-map aliasing remains outside acceptance. |
-| Accuracy — recorded simulation cases below 10 cm | Prior mapping RMSE/maximum 1.399/9.289 cm retained. Current original14 0.820/2.409 cm; original/fresh motion maxima 7.742/3.913 cm. Post-extension original14 maximum 2.476 cm. Small tradeoffs are recorded in the [recovery evidence](docs/evidence/runtime_cpu_20261017/README.md#recovery-geometry-compact-map-assembly-and-uncertainty-ablation--2026-10-21). |
-| Online loop/map consistency — checkpoints retained; calibration open | New mapping keyframes receive committed geometry. Exact repeated acquisitions share information. Three new checkpoint audits preserve graph/Atlas/dense provenance. Nine weight ablations and session-separated residual audits do not justify uniform new weights; see [calibration limits](docs/evidence/runtime_cpu_20261017/README.md#recovery-geometry-compact-map-assembly-and-uncertainty-ablation--2026-10-21). |
+| Reliability — startup and output baseline retained | Original14 keeps all 14 frame-4 locks and 4,088 outputs. Both independent routes preserve all outputs. Fresh-route recovery advances 2002→1938 (6.4 input seconds); backend-loss observations fall 123→59. Previous locks cannot break a geometric tie. Reference coverage gaps and partial-map aliasing remain explicit. |
+| Accuracy — recorded simulation cases below 10 cm | Prior mapping RMSE/maximum 1.399/9.289 cm retained. Current original14 0.840/2.481 cm; original/fresh motion maxima 7.933/3.247 cm. Small RMSE and old-route peak regressions are preserved in the [recovery evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21). |
+| Online loop/map consistency — checkpoints retained; calibration open | New keyframes receive committed geometry and exact repeated acquisitions share information. Eighteen frozen-graph robust/directional solves plus a fitted-versus-truth residual audit expose translation uncertainty concerns; no unqualified production weighting is adopted. See [limits](docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21). |
 | Online extension — RAM reduced; half-core open | Current first/second/fresh extensions use 0.873/0.860/0.840 cores and 1.873/1.987/1.813 GiB runtime RSS. The paired fresh-route memory change is 2.088→1.816 GiB with CPU approximately unchanged. All recorded outputs stay below 10 cm; [save peaks and latency tradeoffs](docs/evidence/runtime_cpu_20261017/README.md#recovery-geometry-compact-map-assembly-and-uncertainty-ablation--2026-10-21) remain explicit. |
 | Asynchronous online mapping loops — complete causal qualification | Mapping averages 0.413 cores including background drain; maximum live error 9.289 cm. Full-node/hardware and independent Noetic compilation remain open. |
-| Search cost — paused; half core remains open | Retain the accepted `54b602f` algorithm and its original 15.3% paired CPU reduction. The standalone 1.0.1 full14 replay measures 214.962 CPU s / 413 input s (0.520488 cores), first-lock wall median 3.348 s / maximum 5.383 s. 03/08/14 need 0.663/0.673/0.654 cores. The 440 cold seeds and 104 confirmation registrations are unchanged. This is a release behavior check, without a new paired speedup claim. Source reordering, direct fine tracking, exact-neighbor certificates and registration-kernel experiments are not retained: they regress latency/accuracy or lack consistent overall CPU benefit. |
+| Search cost — motion half-core achieved on these recordings; individual static cases open | Shared Atlas targets plus freshly confirmed recovery reduce paired new-route CPU 0.820→0.363 cores; original motion uses 0.244. Original14 averages 0.438, but 03/14 remain 0.592/0.503. Complete input durations are unchanged; search-only peaks are not bounded. [Ablations and resource scope](docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21). |
 
-The deferred performance target retains **four physical P cores**, four registration threads,
+The performance target retains **four physical P cores**, four registration threads,
 `OMP_WAIT_POLICY=PASSIVE`, the same map/configuration and MID360-derived **10 Hz**
 input. The goal is at most **0.5 CPU s per input second**, including stationary
 startup, subsequent tracking and background work; short peaks are allowed.

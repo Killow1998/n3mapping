@@ -77,7 +77,8 @@ WorldLocalizing::confirmRelocalization(
       continue;
     }
 
-    if (!descriptor_supports_keyframe(current_candidates, nearest_kf_id)) {
+    if (!hyp.tracking_proposal &&
+        !descriptor_supports_keyframe(current_candidates, nearest_kf_id)) {
       hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
       continue;
     }
@@ -130,10 +131,18 @@ WorldLocalizing::confirmRelocalization(
           ++cost.confirmation_evaluations;
           checked_prediction = mr;
         }
-        if (!evaluateRelocMatchQuality(mr, config_).accepted) {
+        if (!evaluateRelocMatchQuality(mr, config_).accepted ||
+            (hyp.tracking_proposal && mr.inlier_ratio < config_.loop_min_inlier_ratio)) {
           const auto align_started = std::chrono::steady_clock::now();
+          auto setting = matcher_.getSettings();
+          if (hyp.tracking_proposal) {
+            setting.type = hyp.metric.type;
+            setting.downsampling_resolution = hyp.metric.resolution;
+            setting.max_correspondence_distance = hyp.metric.max_correspondence_distance;
+            setting.max_iterations = config_.gicp_max_iterations + config_.icp_refine_max_iterations;
+          }
           mr = matcher_.alignPrepared(*prepared_target.registration_target,
-                                      prepared_query, predicted_pose);
+                                      prepared_query, predicted_pose, setting);
           cost.align_ms += std::chrono::duration<double, std::milli>(
               std::chrono::steady_clock::now() - align_started).count();
           ++cost.alignments;
@@ -176,6 +185,18 @@ WorldLocalizing::confirmRelocalization(
             ++cost.fixed_pose_evaluations;
           }
         }
+      }
+      if (hyp.tracking_proposal &&
+          (!evaluateRelocMatchQuality(mr, config_).accepted ||
+           mr.inlier_ratio < config_.loop_min_inlier_ratio ||
+           (predicted_pose.inverse() * selected_pose).translation().norm() >
+               hyp.metric.max_correspondence_distance ||
+           Eigen::AngleAxisd(predicted_pose.rotation().transpose() *
+                            selected_pose.rotation()).angle() > config_.reloc_track_max_rotation ||
+           !selected_visibility.valid ||
+           selected_visibility.consistency_ratio < config_.loop_min_inlier_ratio)) {
+        hyp.alive = false;
+        continue;
       }
       hyp.cumulative_log_likelihood +=
           computeTrackLogLikelihood(mr, predicted_pose);

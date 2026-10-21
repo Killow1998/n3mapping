@@ -658,6 +658,46 @@ TEST_F(WorldLocalizingTest, DuplicatedGeometryDoesNotClaimAUniquePlace) {
 
   EXPECT_FALSE(result.success);
   EXPECT_FALSE(reloc.isRelocalized());
+
+  // Even a previously tracked place is only a proposal after loss. Its old
+  // lock must not break a genuine geometric tie or replace fresh confirmation.
+  const auto dir = std::filesystem::temp_directory_path() /
+      ("n3mapping_recovery_tie_" + std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  std::filesystem::create_directories(dir);
+  const auto map_file = dir / "map.pbstream";
+  const auto atlas_file = dir / "map.atlas.pb";
+  { std::ofstream file(map_file); file << "recovery-tie"; }
+  const auto keyframes = keyframe_manager_->getAllKeyframes();
+  for (const auto& frame : keyframes) frame->is_from_loaded_map = true;
+  LocalizationAtlas atlas(config_, *matcher_);
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(map_file.string(), keyframes,
+      atlas_file.string(), false, nullptr, &error)) << error;
+  config_.reloc_atlas_enable = true;
+  config_.reloc_atlas_path = atlas_file.string();
+  config_.reloc_debug_enable = true;
+  config_.reloc_debug_path = (dir / "recovery.jsonl").string();
+  WorldLocalizing recovery(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+  ASSERT_TRUE(recovery.loadLocalizationAtlas(map_file.string(), &error)) << error;
+  recovery.setMapToOdomTransform(odom_pose);
+  ASSERT_EQ(recovery.trackLocalization(repeated_observation, odom_pose).pose_source,
+            PoseSource::GEOMETRICALLY_CORRECTED);
+  auto absent = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+  *absent = *repeated_observation;
+  for (auto& point : *absent) point.z += 100.0f;
+  for (int i = 0; i <= config_.reloc_max_track_failures; ++i)
+    recovery.trackLocalization(absent, odom_pose);
+  ASSERT_FALSE(recovery.isRelocalized());
+  for (int i = 0; i < 2 * config_.reloc_temporal_window_size; ++i)
+    EXPECT_FALSE(recovery.relocalize(repeated_observation, odom_pose).success);
+  const auto lines = readDebugLines(config_.reloc_debug_path);
+  EXPECT_TRUE(std::any_of(lines.begin(), lines.end(), [](const auto& line) {
+    return line.find("\"tracking_proposal\":true") != std::string::npos;
+  }));
+  recovery.resetLocalizationState();
+  EXPECT_FALSE(recovery.relocalize(repeated_observation, odom_pose).success);
+  std::filesystem::remove_all(dir);
 }
 
 TEST_F(WorldLocalizingTest, RelocalizationWindowOneCanLock) {

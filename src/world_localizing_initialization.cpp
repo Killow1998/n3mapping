@@ -17,7 +17,7 @@ void WorldLocalizing::updateRelocalizationCandidates(
   auto& basins = plan.basins;
   basins.erase(std::remove_if(basins.begin(), basins.end(), [&](const RelocalizationSeedPlan::Basin& basin) {
     for (const auto& hyp : hypothesis_manager_.hypotheses()) {
-      if (!hyp.alive) continue;
+      if (!hyp.alive || hyp.tracking_proposal) continue;
       const Eigen::Vector3d position = (hyp.T_map_odom * odom_pose).translation();
       const auto anchor = keyframe_manager_.getKeyframe(hyp.seed_match_id);
       if ((basin.center_pos - position).head<2>().norm() <= kRelocBasinAssignRadiusXY ||
@@ -29,7 +29,7 @@ void WorldLocalizing::updateRelocalizationCandidates(
     }
     return false;
   }), basins.end());
-  if (basins.empty()) return;
+  if (basins.empty() && !has_ever_relocalized_) return;
 
   cost.admitted_basins += basins.size();
   if (event) {
@@ -42,8 +42,10 @@ void WorldLocalizing::updateRelocalizationCandidates(
     }
   }
   observation.prepare(cloud, matcher_, config_, cost);
-  auto added = seedRelocalization(std::move(plan), observation.registration,
-                                 observation.visibility, odom_pose, cost, event);
+  auto added = basins.empty() ? std::vector<RelocHypothesis>{}
+      : seedRelocalization(std::move(plan), observation.registration,
+                           observation.visibility, odom_pose, cost, event);
+  appendTrackingRecovery(odom_pose, observation, cost, added);
   cost.admitted_hypotheses += added.size();
   if (starting)
     hypothesis_manager_.start(std::move(added), odom_pose);

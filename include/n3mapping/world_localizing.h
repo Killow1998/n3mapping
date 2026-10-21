@@ -158,6 +158,10 @@ public:
 private:
   using RelocHypothesis = RelocalizationHypothesis;
 
+  void appendTrackingRecovery(
+      const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,
+      RelocalizationPerformance& cost, std::vector<RelocHypothesis>& hypotheses);
+
   void updateRelocalizationCandidates(
       const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates,
       const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,

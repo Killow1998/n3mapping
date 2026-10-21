@@ -5858,3 +5858,115 @@ geometric support and the sparse/directional uncertainty cases, rather than
 relaxing acceptance or adding caches without measured benefit.
 
 ![Four-core localization and extension comparison](recovery_resources_20261021.png)
+
+
+## Shared Atlas tracking and fresh recovery confirmation — 2026-10-21
+
+Source base `7c27b96`; final frozen core `b0b2986d673cec349a2710c7b8a6ee1471c70f77eb74f3a2fd82ecff7b82cde8`. Full source/input identities,
+commands, final 14-point and two-route results, experiments and failed attempts
+are retained in `build/n3mapping/recovery_relock_20261021/qualification.json`
+and sibling artifacts. Final source passes all 69 CTest targets. Complete final
+replays reproduce prototype poses within 1e-9, with identical decisions and
+registration counts; timings are independently measured. Original map, Atlas,
+14-point inputs and both routes pass hash verification.
+
+**Retained implementation.** Ordinary localization shares the loaded Atlas
+registration target instead of rebuilding normals/search trees when the nearest
+temporal keyframe changes. Visibility remains cropped locally; ordinary and
+strict extension acceptance remain distinct. Maps without an Atlas keep the
+bounded local cache. Diagnostics now attribute hits to the actual shared cache.
+
+After geometric loss, the previously accepted transform may propose one local
+candidate. It carries no old confirmation votes and cannot suppress descriptor
+regions. Admission and every confirmation require fresh full-query coverage and
+first-return consistency at the existing loop overlap threshold, plus bounded
+fine-scale correction. Intermediate fixed-pose checks are reused only within
+the current observation; final convergence, global ambiguity, directional and
+free-space gates remain mandatory. Reset/source replacement invalidate the
+normal state. A strengthened duplicated-geometry regression exercises a real
+Atlas, prior tracking lock, loss, recovery proposal and reset; two indistinguishable
+places still cannot lock. Recovery is isolated in a 63-line private implementation;
+there is no new public option or map format.
+
+**Complete four-core comparison.** CPUs 0,2,4,6 are four physical P cores;
+four registration threads, passive OpenMP, unchanged complete 10 Hz recordings.
+CPU is process CPU / input duration, excluding load/save, FAST_LIO, DDS and
+simulator. Peak RSS includes map loading. Truth is observer-only, with the
+original first-mapping alignment and no query fitting.
+
+| Localization input | Position RMSE / maximum cm | Outputs / lock frames | Average cores | Peak RSS GiB |
+| --- | --- | --- | --- | --- |
+| New route, frozen baseline | 0.806 / 3.913 | 3,662 / 4, 2002 | 0.81950 | 1.271 |
+| New route, final | 0.852 / 3.247 | 3,662 / 4, 1938 | 0.36266 | 1.271 |
+| Original independent route, final | 0.968 / 7.933 | 2,232 / 4 | 0.24371 | 1.271 |
+| Original14, final | 0.840 / 2.481 | 4,088 / all 14 at frame 4 | 0.43756 | 1.246 |
+
+The paired new route reduces process CPU by
+55.7% (300.348→132.915 s).
+Recovery is 6.4 input seconds earlier; backend-loss observations fall 123→59.
+All published outputs remain present and below 10 cm. These remaining 59
+observations use trusted projected output, not a new geometric match.
+The prior stage's original-route CPU was 0.55337 cores; it is not a fresh paired
+baseline in this stage. Original14's aggregate below half core does not certify
+every case: **03/14 use 0.592/0.503 cores**.
+The whole-route average is also not a bound on search-only CPU or a local interval.
+
+Small precision tradeoffs are explicit: new-route RMSE 8.055→8.524 mm;
+original-route RMSE 9.513→9.682 mm and maximum 77.418→79.328 mm;
+original14 RMSE 8.200→8.397 mm and maximum 24.088→24.809 mm.
+The new-route maximum improves 39.132→32.469 mm. No universal non-regression,
+hardware accuracy or RAM reduction claim is made.
+
+**Ablation and work reduction.** Sharing the Atlas alone gives 0.564 cores,
+while recovery remains at frame 2002. Adding the fresh recovery proposal gives
+about 0.364 cores and frame 1938. In those complete runs, search CPU falls
+126.589→51.819 s, relocation alignments 716→374, cold seeds 483→232 and
+confirmation registrations 149→94. Repeated target preparation wall time falls
+28.980 s to about 0.001 s; initial Atlas loading remains separately charged.
+This reduces both repeated target work and the time spent searching after
+usable geometry returns. Splitting the thread budget among parallel basins
+changes CPU only 0.564→0.561 cores while wall time worsens 73.62→87.89 s;
+that prototype and its API changes are removed.
+
+**Why some geometric loss remains.** A fixed-truth observer audit identifies
+authored wall `wall-1-5-4`, with faces x=47.9/48.1 m and y in [-11,-5] m.
+The new scan sees the east face; the frozen map largely supports the west face.
+At frame 1900, 42.7% of raw query points lack map support within 10 cm;
+the missing-support cluster's median nearest-point x displacement is -20.37 cm.
+The authored scene objects are unchanged between acquisitions. Fourteen selected
+frames and 84 registration trials from published/truth diagnostic seeds separate
+this observation-coverage gap from poor initialization. Fine local ICP can be
+accurate while first-return support still fails. The production gate remains
+unchanged; accepting the opposite wall would not solve missing observations.
+The figure shows actual query/nearest reference points and the authored wall,
+not a complete ray-traced truth map. Truth never enters runtime recovery.
+
+![Opposite wall faces explain the missing reference support](recovery_wall_20261021.png)
+
+**Directional uncertainty: further evidence, no unqualified weight change.**
+Eighteen frozen-graph solves use identical measurements, associations and gauge
+across mapping, repeated extension and fresh extension. Increasing the Cauchy
+scale improves some repeated-session errors but raises the fresh session's
+maximum angle from 0.0885 to 0.1544/0.1925 degrees; it is not adopted.
+A translation-only covariance floor improves mapping RMSE 7.314→7.268 mm
+and repeated-session maxima, but the fresh session maximum changes
+19.203→19.423 mm. Rotation-only floors have mixed regressions. These changes
+also move the physical robust transition; they are diagnostic candidates,
+not completed probabilistic calibration or online qualification.
+
+Of 28 accepted mapping loops exceeding the nominal truth NIS threshold,
+27 have optimized residual NIS below one. The worst truth NIS is 226.78
+(translation marginal 185.58; rotation marginal 4.20), yet its fitted NIS is
+0.024 and Cauchy weight 0.977. A graph fitting a coherently biased constraint
+does not thereby validate its uncertainty. Correlation/systematic translation
+error merits separate directional modeling; residual-only reweighting is
+insufficient evidence. Dependent accepted edges do not provide independent
+Gaussian confidence coverage. Production loop weights remain unchanged.
+
+**Remaining work.** Reduce original14's 03/14 search cost, qualify recovery
+across additional observation gaps, and validate directional/correlated loop
+uncertainty prospectively. Unchanged online mapping and strict-extension paths
+inherit the prior stage's complete qualification; they are not rerun here.
+Their roughly 0.84–0.87-core extension cost remains open. Full-node/hardware,
+Noetic runtime and partial-map aliasing remain outside this acceptance.
+No installation, push, original-data replacement or acceptance relaxation occurs.

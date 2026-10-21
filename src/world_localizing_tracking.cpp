@@ -139,14 +139,18 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
   PointCloudT::Ptr submap;
   TrackingTargetCache::TargetResult tracking_target;
-  if (strict_loaded_map) {
+  const bool shared_reference = strict_loaded_map ||
+      (localization_atlas_ && localization_atlas_->loaded());
+  if (shared_reference) {
+    // A frozen Atlas already owns the complete reference geometry. Changing
+    // the nearest keyframe needs only a visibility crop, not new search trees
+    // and normals from time-adjacent scans. Acceptance remains path-specific.
     tracking_target = tracking_targets_->acquireLoaded(nearest_kf_id);
     submap = tracking_target.visibility_cloud;
     debug_event.loaded_map_cache_ms = tracking_target.loaded_map_cache_ms;
     debug_event.submap_build_ms = tracking_target.submap_build_ms;
   } else {
-    // Keep the established ordinary-localization target unchanged. The
-    // loaded-map-only target is specific to map-extension safety.
+    // Maps without a compiled Atlas retain bounded local target preparation.
     tracking_target = tracking_targets_->acquireLocal(nearest_kf_id, submap_range);
     debug_event.submap_build_ms = tracking_target.submap_build_ms;
     if (VLOG_IS_ON(1)) {
@@ -229,7 +233,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   }
 
   const auto *prepared_target = tracking_target.target.get();
-  if (strict_loaded_map) {
+  if (shared_reference) {
     debug_event.loaded_map_target_cache_hit = tracking_target.hit;
     debug_event.loaded_map_target_cache_miss = tracking_target.miss;
   } else {
