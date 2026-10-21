@@ -109,6 +109,8 @@ bool MappingResuming::initializeFromLoadedMap() {
 }
 
 bool MappingResuming::initializeFromLoadedMapNoLock() {
+    acquisitions_by_stamp_.clear();
+    reused_gate_keyframe_id_ = -1;
     original_keyframe_count_ = keyframe_manager_.size();
     if (original_keyframe_count_ == 0) {
         state_ = MappingResumingState::NOT_INITIALIZED;
@@ -177,6 +179,11 @@ bool MappingResuming::performInitialRelocalization(
     // Prepare the authoritative anchor before the first tracking callback.
     world_localizing_.warmLoadedMapTrackingTarget(result.matched_keyframe_id);
 
+    // Ordinary localization also initializes a loaded session, but never
+    // inserts observations. Prepare this index only when extension starts.
+    for (const auto& keyframe : keyframe_manager_.getAllKeyframes())
+        if (keyframe) acquisitions_by_stamp_[keyframe->timestamp].push_back(keyframe);
+
     const Eigen::Vector3d rpy_deg = rotationRpyDegrees(T_map_odom);
     LOG(INFO) << "[MappingResuming] Relocalization anchor id="
               << result.matched_keyframe_id
@@ -191,30 +198,18 @@ bool MappingResuming::performInitialRelocalization(
     current_session_source_frame_id_ = source_frame_id;
     T_map_session_initial_ = T_map_odom;
     first_new_keyframe_pending_ = true;
+    reused_gate_keyframe_id_ = -1;
 
     state_ = MappingResumingState::RELOCALIZED;
     return true;
-}
-
-bool MappingResuming::shouldAddKeyframe(
-    const Eigen::Isometry3d& pose_in_session) const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if ((state_ != MappingResumingState::RELOCALIZED &&
-         state_ != MappingResumingState::EXTENDING) ||
-        current_session_id_ == kInvalidMapSessionId ||
-        !isFiniteTransform(pose_in_session)) {
-        return false;
-    }
-    if (first_new_keyframe_pending_) return true;
-    return keyframe_manager_.shouldAddKeyframeInSession(
-        current_session_id_, pose_in_session);
 }
 
 int64_t MappingResuming::processNewKeyframe(
     double timestamp, const Eigen::Isometry3d& odom_pose,
     const PointCloudT::Ptr& cloud, int64_t loaded_tracking_match_id,
     const Eigen::Isometry3d& tracked_pose_in_map,
-    MappingResumingTiming* timing) {
+    MappingResumingTiming* timing, int64_t* reused_acquisition_id) {
+    if (reused_acquisition_id) *reused_acquisition_id = -1;
     ScopedElapsedMilliseconds total_timer(timing ? &timing->total_ms : nullptr);
     std::lock_guard<std::mutex> lock(mutex_);
     if ((state_ != MappingResumingState::RELOCALIZED &&
@@ -252,24 +247,26 @@ int64_t MappingResuming::processNewKeyframe(
         !keyframe_manager_.hasSession(current_session_id_)) {
         return -1;
     }
-    if (!is_first_new_keyframe &&
-        !keyframe_manager_.shouldAddKeyframeInSession(
-            current_session_id_, odom_pose)) {
+    if (!shouldAddKeyframeNoLock(odom_pose)) return -1;
+    const int64_t reused = reuseAcquisitionNoLock(timestamp, odom_pose, cloud);
+    if (reused >= 0) {
+        if (reused_acquisition_id) *reused_acquisition_id = reused;
         return -1;
     }
 
     EdgeInfo edge;
     edge.measurement = Eigen::Isometry3d::Identity();
     if (is_first_new_keyframe) {
-        auto anchor = keyframe_manager_.getKeyframe(
-            relocalization_anchor_keyframe_id_);
-        if (!anchor || !optimizer_.hasNode(relocalization_anchor_keyframe_id_) ||
+        const int64_t anchor_id = has_tracking_constraint && reused_gate_keyframe_id_ >= 0
+            ? loaded_tracking_match_id : relocalization_anchor_keyframe_id_;
+        auto anchor = keyframe_manager_.getKeyframe(anchor_id);
+        if (!anchor || !optimizer_.hasNode(anchor_id) ||
             !isFiniteTransform(anchor->pose_optimized) ||
             !validNoise(config_.loaded_map_tracking_noise_position,
                         config_.loaded_map_tracking_noise_rotation)) {
             return -1;
         }
-        edge.from_id = relocalization_anchor_keyframe_id_;
+        edge.from_id = anchor_id;
         edge.measurement = anchor->pose_optimized.inverse() * pose_in_map;
         edge.information = trackingInformation(config_);
         edge.type = EdgeType::SESSION_ANCHOR;
@@ -299,7 +296,8 @@ int64_t MappingResuming::processNewKeyframe(
             session.id = current_session_id_;
             session.source_frame_id = current_session_source_frame_id_;
             session.start_timestamp = timestamp;
-            session.T_map_session_initial = T_map_session_initial_;
+            session.T_map_session_initial = reused_gate_keyframe_id_ >= 0
+                ? pose_in_map * odom_pose.inverse() : T_map_session_initial_;
             if (!keyframe_manager_.addSession(session))
                 return -1;
             registered_session_now = true;
@@ -380,6 +378,8 @@ int64_t MappingResuming::processNewKeyframe(
         previous_new_keyframe_id_ = new_kf_id;
         previous_new_odom_pose_ = odom_pose;
         first_new_keyframe_pending_ = false;
+        reused_gate_keyframe_id_ = -1;
+        acquisitions_by_stamp_[timestamp].push_back(keyframe_manager_.getKeyframe(new_kf_id));
         state_ = MappingResumingState::EXTENDING;
 
         if (submap_builder_ && submap_builder_->enabled()) {
@@ -888,6 +888,8 @@ void MappingResuming::reset() {
     current_session_source_frame_id_.clear();
     T_map_session_initial_ = Eigen::Isometry3d::Identity();
     first_new_keyframe_pending_ = false;
+    acquisitions_by_stamp_.clear();
+    reused_gate_keyframe_id_ = -1;
     world_localizing_.reset();
 }
 

@@ -494,6 +494,12 @@ bool RelocalizationDebugLogger::appendTracking(
   appendBool(os, &first, "selected_pose_valid", event.selected_pose_valid);
   if (event.selected_pose_valid)
     appendPose(os, &first, "selected_pose", event.selected_pose);
+  appendBool(os, &first, "selected_information_valid", event.selected_information_valid);
+  if (event.selected_information_valid) {
+    appendMatrix(os, &first, "selected_information", event.selected_information);
+    appendString(os, &first, "selected_information_scope",
+                 "conditional_registration_right_tangent_translation_rotation");
+  }
   appendInteger(os, &first, "nearest_kf_id", event.nearest_kf_id);
   appendSize(os, &first, "submap_size", event.submap_size);
   appendNumber(os, &first, "tracking_total_ms", event.tracking_total_ms);

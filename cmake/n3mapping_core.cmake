@@ -87,6 +87,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/runtime_performance_debug_logger.cpp
   ${N3MAPPING_ROOT}/src/relocalization_performance.cpp
   ${N3MAPPING_ROOT}/src/mapping_resuming.cpp
+  ${N3MAPPING_ROOT}/src/mapping_resuming_acquisition.cpp
   ${N3MAPPING_ROOT}/src/RHPDescriptor.cpp
   ${N3MAPPING_ROOT}/src/rhpd_heading.cpp
   ${N3MAPPING_ROOT}/src/rhpd_place.cpp

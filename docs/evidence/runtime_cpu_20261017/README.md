@@ -6310,3 +6310,105 @@ separate, source-matched calibration for geometric loops and loaded-map
 tracking, exclude copied acquisitions, and preserve directional/shared-endpoint
 noise. The original mapping deskew bias remains real; numerical consistency
 and corrected reporting do not resolve its runtime compensation or calibration.
+
+
+### Acquisition identity and source-matched uncertainty — 2026-10-21
+
+**Production repair.** Repeated acquisitions now share one identity check:
+same stored timestamp, raw odometry (1e-12 serialization tolerance), and ordered
+XYZI values. IDs, sessions and optimized poses do not create new evidence.
+Shared-plane association, fitting and sigma estimation use one representative
+before fitting; existing graph-node observations are then retained with 1/n
+weights. Previously copies could move the plane before the final weights were
+divided. A deliberately uneven replay moves the old plane offset by 30.784 mm;
+the new regression preserves plane orientation, offset, sigma and total weight.
+
+Extension now reuses an exact acquisition before inserting graph nodes, odometry,
+tracking edges or geometry work. The original distance/angle sampling gate
+advances across replayed frames; subsequent fresh data still starts a properly
+anchored session. Every input is tracked and every successful output/dense sample
+is retained. The timestamp index is built only after extension relocalizes,
+not for ordinary localization. The private sampling/reuse module is 52 lines;
+no parameter, format, geometry gate or point budget changes. Pre-existing graph
+factors are preserved; this is not retrospective deletion of old duplicate edges.
+
+**Separate calibration evidence.** Tracking debug records expose the selected
+registration's valid symmetric information matrix and its right-tangent
+(translation, rotation) convention. This conditional objective curvature excludes
+map/deskew uncertainty and is not the fixed tracking-edge weight. Actual small_gicp
+point covariance uses regularized eigenvalues (1e-3,1,1); its Hessian is not a
+complete physical pose covariance. Actual full-target tracking on the two frozen
+routes gives conditional error-quadratic p95 193.70 / 76.82 and maxima 920.43 /
+1784.71; configured fixed tracking noise gives p95 0.0845 / 0.0840. These are
+descriptive comparisons, not independent chi-square coverage tests. Of adjacent
+tracking pairs, 1829/2230 and 3102/3660 share an anchor; positional lag-one
+correlations range 0.851–0.890 and 0.704–0.969. Counts cannot be treated as
+independent trials or used to divide away common uncertainty.
+
+**Rejected candidates.** A single-scan planar-thickness motion proxy improves
+the 428 geometric loops' error-quadratic p95 16.349→1.512, maximum 226.422→4.869.
+It still cannot observe a coherent rigid scan bias, and actual tracking tails
+remain 257.07 / 190.37 after adding it. Its factor 3 follows a uniform linear
+motion illustration, not a universal calibration. Frozen graph tests separately
+apply geometric-loop and tracking proxies; stronger tracking weights worsen
+the two new-session position RMSEs 7.434→11.336 mm and 6.783→7.899 mm. Removing
+overlapping tracking edges also worsens the fresh session's RMSE 6.783→6.857 mm,
+maximum 19.203→20.021 mm and angular maximum 0.08850→0.09492 degrees. Geometric-only
+reweighting does not consistently improve precision either. All raw experiments
+are retained outside production; fixed tracking noise and geometric-loop weights
+remain unchanged. Source-matched statistical calibration is still open.
+
+**Final four-core qualification.** Physical P cores 0,2,4,6, four registration
+threads, passive OpenMP, original full input duration and original first-mapping
+truth alignment. CPU excludes map load/save, frontend, simulator and DDS; peak
+RSS includes loading. Saved-map peak is recorded separately. Ground truth never
+enters a runtime estimator. Final core: `05cbdfcb89fd0532bfd3498b3fef587ea674a62d63f92cb0b3556aacfaf17cf4`.
+
+Original14 retains 4088 outputs, all first locks at frame 4, maximum
+2.481 cm and average 0.3983 cores.
+Old/new localization retain 2232/3662 outputs and locks [4]/[4,1938], maxima
+7.933/3.247 cm,
+average 0.2373/0.3159 cores. All per-frame decisions,
+candidate/registration counts and poses match the preceding qualified baseline
+within 1e-9. The new route's 59 propagated outputs without fresh geometric support
+are unchanged; 03 remains above half-core. This stage claims no ordinary-search
+performance improvement.
+
+| Paced online extension | New keyframes | Valid outputs | Average cores | Runtime peak MiB | Live position RMSE / max mm |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Exact old-route replay into first extension | 0 | 2232 | 0.4084 | 1465.3 | 8.228 / 72.162 |
+| Fresh old-route acquisition into original map | 231 | 2232 | 0.8482 | 1927.4 | 8.500 / 42.606 |
+| Fresh new-route acquisition into original map | 344 | 3662 | 0.8415 | 1878.9 | 12.673 / 83.073 |
+
+The paired plane-only replay still appended 231 duplicate keyframes and cost
+0.8565 cores / 2428.5 MiB. Full acquisition reuse
+is 0.4084 cores / 1465.3 MiB. This reduction applies to replaying
+identical stored data, not general fresh extension. Async fresh-extension metrics
+have scheduling variation; their unmodified-input predecessor and interim runs
+remain in the evidence. Against those historical same-input runs, old/new live
+position RMSE changes are +0.0627/+0.0163 mm;
+position maxima change -0.0181/-0.0448 mm,
+and angular maxima -0.000176/+0.000444 degrees.
+These small changes are retained, not claimed as exact asynchronous equivalence.
+
+The real replay audit preserves 1502 keyframes, 2159 edges, two sessions, raw clouds,
+information matrices and shared planes, adds exactly 2232 dense outputs and reuses
+231 acquisitions. Unit-normal re-normalization changes components by at most
+1.11e-16; all other plane fields and moments are exact.
+All three real save/load/Atlas checkpoints preserve raw data
+and moments, with Atlas point difference zero. All 69 CTest targets pass, including
+the old-failing plane-fit case and full-core replay/continuation/dense-output tests.
+Final sources, original map/Atlas and all 10046 input clouds are hash-verified.
+Evidence: `build/n3mapping/source_uncertainty_20261021/qualification.json`,
+`tracking_uncertainty.json`, `frozen_ablation.json`, `factor_ablation.json`,
+and `repeat_final/acquisition_reuse_audit.json`. The `final` and `acquisition_final`
+folders are retained intermediate ablations; `release_final` is the final core.
+
+**Remaining scope.** Shared endpoint/map/temporal correlations and coherent deskew
+bias still need a physically supported model; neither more point correspondences
+nor near-zero fitted residual proves independent evidence. No blanket covariance
+multiplier or new weight was adopted. Original mapping was not rerun end to end
+this stage; unique-acquisition fitting is unchanged, with regressions and full
+fresh online extensions checked. General extension half-core, full-node/RK3588
+qualification and new-route unsupported tracking frames remain open. No input
+was deleted or changed; no installation or remote push was performed.

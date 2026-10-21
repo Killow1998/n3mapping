@@ -504,6 +504,42 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     EXPECT_NEAR(odom_edge->measurement.translation().y(), 0.0, 1e-9);
 }
 
+TEST_F(MappingResumingTest, ReplayedAcquisitionAdvancesSamplingWithoutAddingInformation)
+{
+    configureSingleFrameRelocalization();
+    const auto path = createTestMap(1);
+    KeyframeManager frames(config_);
+    LoopDetector detector(config_);
+    PointCloudMatcher matcher(config_);
+    GraphOptimizer graph(config_);
+    MapSerializer serializer(config_);
+    WorldLocalizing localizer(config_, frames, detector, matcher);
+    MappingResuming extension(config_, frames, detector, matcher, graph, serializer, localizer);
+    ASSERT_TRUE(loadForExtensionTest(path, frames, detector, graph, serializer, extension));
+    const auto loaded = frames.getKeyframe(0);
+    ASSERT_TRUE(extension.performInitialRelocalization(loaded->cloud, loaded->pose_odom));
+    const auto edges = graph.getEdges().size();
+    int64_t reused = -1;
+    EXPECT_EQ(extension.processNewKeyframe(loaded->timestamp, loaded->pose_odom,
+        loaded->cloud, 0, loaded->pose_optimized, nullptr, &reused), -1);
+    EXPECT_EQ(reused, 0);
+    EXPECT_EQ(frames.size(), 1u);
+    EXPECT_EQ(graph.getEdges().size(), edges);
+    EXPECT_EQ(extension.getCrossLoopCount(), 0u);
+    EXPECT_EQ(frames.getSessions().size(), 1u);
+    auto next = loaded->pose_odom;
+    next.translation().x() += .1;
+    EXPECT_FALSE(extension.shouldAddKeyframe(next));
+    next.translation().x() += 1.;
+    EXPECT_TRUE(extension.shouldAddKeyframe(next));
+    EXPECT_EQ(extension.processNewKeyframe(2., next, loaded->cloud,
+        0, next, nullptr, &reused), 1);
+    EXPECT_EQ(reused, -1);
+    EXPECT_EQ(frames.size(), 2u);
+    EXPECT_EQ(graph.getEdges().size(), edges + 1);
+    EXPECT_EQ(graph.getEdges().back().type, EdgeType::SESSION_ANCHOR);
+}
+
 TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
 {
     configureSingleFrameRelocalization();

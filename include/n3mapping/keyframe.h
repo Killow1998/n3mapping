@@ -51,6 +51,19 @@ struct Keyframe {
     }
 
     bool isValid() const { return id >= 0 && cloud && !cloud->empty(); }
+    // Optimized poses, IDs and sessions can change without a new acquisition.
+    bool sameAcquisition(const Keyframe& other) const {
+        if (timestamp != other.timestamp || !cloud || !other.cloud ||
+            cloud->size() != other.cloud->size() ||
+            !pose_odom.matrix().isApprox(other.pose_odom.matrix(), 1e-12)) return false;
+        for (size_t i = 0; i < cloud->size(); ++i) {
+            const auto& a = cloud->at(i);
+            const auto& b = other.cloud->at(i);
+            if (a.x != b.x || a.y != b.y || a.z != b.z || a.intensity != b.intensity)
+                return false;
+        }
+        return true;
+    }
     Eigen::Vector3d getPosition() const { return pose_optimized.translation(); }
     Eigen::Matrix3d getRotation() const { return pose_optimized.rotation(); }
 };

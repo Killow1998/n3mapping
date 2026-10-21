@@ -13,16 +13,7 @@ std::vector<size_t> geometrySourceIds(const std::vector<Keyframe::Ptr>& keyframe
       auto& candidates = buckets[{frame->timestamp, frame->cloud->size()}];
       for (size_t index : candidates) {
         const auto& other = keyframes[index];
-        // Quaternion serialization can perturb a raw rotation at roundoff.
-        if (!frame->pose_odom.matrix().isApprox(other->pose_odom.matrix(), 1e-12)) continue;
-        bool identical = true;
-        for (size_t p = 0; p < frame->cloud->size(); ++p) {
-          const auto& a = frame->cloud->at(p); const auto& b = other->cloud->at(p);
-          if (a.x != b.x || a.y != b.y || a.z != b.z || a.intensity != b.intensity) {
-            identical = false; break;
-          }
-        }
-        if (identical) { source = index; break; }
+        if (frame->sameAcquisition(*other)) { source = index; break; }
       }
       if (source == i) candidates.push_back(i);
     }
@@ -42,19 +33,25 @@ std::vector<SharedPlane> buildSharedPlanes(
       throw std::invalid_argument("Invalid geometry keyframe");
     poses.emplace_back(frame->pose_optimized.matrix());
   }
-  Json::Value audit;
-  auto planes = planar_geometry::mergePlanes(
-      planar_geometry::associate(keyframes, poses, audit), poses, audit);
   const auto sources = geometrySourceIds(keyframes);
+  std::map<size_t, std::vector<size_t>> copies;
+  auto acquisitions = keyframes;
+  for (size_t i = 0; i < sources.size(); ++i) {
+    copies[sources[i]].push_back(i);
+    if (sources[i] != i) acquisitions[i].reset();
+  }
+  Json::Value audit;
+  // Replays cannot change association, plane fitting or the noise estimate.
+  // Normalize before fitting, then retain every graph node with shared weight.
+  auto planes = planar_geometry::mergePlanes(
+      planar_geometry::associate(acquisitions, poses, audit), poses, audit);
   std::vector<SharedPlane> result;
   for (const auto& plane : planes) {
-    std::map<size_t, size_t> multiplicity;
-    for (const auto& patch : plane.patches) ++multiplicity[sources.at(patch.index)];
-    if (multiplicity.size() < 3) continue;
     SharedPlane shared{plane.normal, plane.origin, plane.offset, plane.sigma, {}};
     for (const auto& patch : plane.patches)
-      shared.observations.push_back({keyframes.at(patch.index)->id, patch.moment,
-          1. / multiplicity.at(sources.at(patch.index))});
+      for (size_t i : copies.at(patch.index))
+        shared.observations.push_back({keyframes.at(i)->id, patch.moment,
+            1. / copies.at(patch.index).size()});
     stats.observations += shared.observations.size();
     result.push_back(std::move(shared));
   }

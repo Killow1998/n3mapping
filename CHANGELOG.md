@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Reuse exact acquisitions before plane fitting and extension graph insertion;
+  preserve sampling, fresh continuation and all tracking/dense outputs. Four-core
+  repeated-route CPU 0.857→0.408 cores, runtime RSS
+  2429→1465 MiB; this applies to identical replay.
+- Log actual selected tracking curvature separately from fixed edge noise.
+  Reject covariance/factor-removal ablations that regress precision. Final original14,
+  both routes, repeated/fresh online extensions, real checkpoints and 69 CTest
+  targets pass; common deskew calibration remains open. See [evidence](docs/evidence/runtime_cpu_20261017/README.md#acquisition-identity-and-source-matched-uncertainty--2026-10-21).
+
 - Expose geometric-loop information mode and fixed loaded-map tracking noise
   in the configuration summary, including the effective vertical-noise fallback.
   Correct uncertainty evidence to distinguish those constraint sources and

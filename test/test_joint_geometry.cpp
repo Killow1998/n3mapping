@@ -150,6 +150,37 @@ TEST_F(JointGeometryTest, IdenticalAcquisitionSharesInformationWithoutDroppingOb
   EXPECT_EQ(sources[2], sources[5]);
 }
 
+TEST_F(JointGeometryTest, ReplayingOneAcquisitionCannotRefitTheReferencePlane) {
+  auto originals = frames.getAllKeyframes();
+  // Distinct noisy observations are deliberately not all in the same plane.
+  originals[0]->pose_optimized.translation().z() += .025;
+  GeometryOptimizationStats stats;
+  const auto reference = buildSharedPlanes(originals, stats);
+  ASSERT_FALSE(reference.empty());
+  auto repeated = originals;
+  for (int i = 0; i < 5; ++i) {
+    auto copy = std::make_shared<Keyframe>(*originals[0]);
+    copy->id = originals.size() + i;
+    copy->session_id = i + 1;
+    // The graph estimate of a replay may differ; it is still the same data.
+    copy->pose_optimized.translation().z() += .01;
+    repeated.push_back(copy);
+  }
+  const auto planes = buildSharedPlanes(repeated, stats);
+  ASSERT_EQ(planes.size(), reference.size());
+  for (size_t i = 0; i < planes.size(); ++i) {
+    EXPECT_TRUE(planes[i].normal.isApprox(reference[i].normal, 1e-12));
+    EXPECT_TRUE(planes[i].origin.isApprox(reference[i].origin, 1e-12));
+    EXPECT_NEAR(planes[i].offset, reference[i].offset, 1e-12);
+    EXPECT_NEAR(planes[i].sigma, reference[i].sigma, 1e-12);
+    double information = 0;
+    for (const auto& observation : planes[i].observations)
+      information += observation.information_weight;
+    EXPECT_NEAR(information, reference[i].observations.size(), 1e-12);
+    EXPECT_EQ(planes[i].observations.size(), reference[i].observations.size() + 5);
+  }
+}
+
 TEST(PlaneObservationWeightTest, DuplicateCostAndInformationAreConservedForInliersAndOutliers) {
   Config config;
   PlaneMoment moment;

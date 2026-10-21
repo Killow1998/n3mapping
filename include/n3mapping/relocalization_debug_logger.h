@@ -126,6 +126,12 @@ struct RelocTrackingDebugEvent : TrackingPerformance {
   Eigen::Isometry3d registration_pose = Eigen::Isometry3d::Identity();
   bool selected_pose_valid = false;
   Eigen::Isometry3d selected_pose = Eigen::Isometry3d::Identity();
+  // Curvature returned by the selected registration, in the right
+  // (translation, rotation) tangent. Excludes map and shared deskew uncertainty;
+  // this is not the configured information of an extension tracking edge.
+  bool selected_information_valid = false;
+  Eigen::Matrix<double, 6, 6> selected_information =
+      Eigen::Matrix<double, 6, 6>::Zero();
   int64_t nearest_kf_id = -1;
   std::size_t submap_size = 0;
   // Shadow-only decomposition for a future endpoint-fast / prediction-slow

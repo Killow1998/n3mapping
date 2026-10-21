@@ -830,6 +830,11 @@ fixed noise; geometric loops use their configured information model. The second
 replayed extension's 230 exact scan-copy matches are excluded from independent
 calibration. The [source/repeatability audit](docs/evidence/runtime_cpu_20261017/README.md#repeated-input-determinism-and-constraint-source-correction--2026-10-21)
 corrects the earlier mixed comparison; startup logs now expose both noise models.
+Exact acquisition replay now reuses existing graph evidence before plane fitting
+and extension insertion, while preserving tracking and dense outputs. The
+[source-matched calibration and full regression](docs/evidence/runtime_cpu_20261017/README.md#acquisition-identity-and-source-matched-uncertainty--2026-10-21)
+keep the production weights unchanged: the tested covariance proxies and factor
+removal regressed precision. General deskew/temporal correlation remains open.
 
 The performance target retains **four physical P cores**, four registration threads,
 `OMP_WAIT_POLICY=PASSIVE`, the same map/configuration and MID360-derived **10 Hz**

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <limits>
+#include <map>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -56,12 +57,14 @@ public:
         RelocalizationPerformance* performance = nullptr);
     bool shouldAddKeyframe(
         const Eigen::Isometry3d& pose_in_session) const;
+    // Returns a new node ID, or -1; an exact replay reports its existing ID separately.
     int64_t processNewKeyframe(
         double timestamp, const Eigen::Isometry3d& odom_pose,
         const PointCloudT::Ptr& cloud, int64_t loaded_tracking_match_id = -1,
         const Eigen::Isometry3d& tracked_pose_in_map =
             Eigen::Isometry3d::Identity(),
-        MappingResumingTiming* timing = nullptr);
+        MappingResumingTiming* timing = nullptr,
+        int64_t* reused_acquisition_id = nullptr);
     int detectCrossLoops(int64_t new_keyframe_id);
     bool saveExtendedMap(const std::string& map_path);
     MappingResumingState getState() const;
@@ -74,6 +77,9 @@ public:
 
 private:
     bool initializeFromLoadedMapNoLock();
+    bool shouldAddKeyframeNoLock(const Eigen::Isometry3d& pose) const;
+    int64_t reuseAcquisitionNoLock(double timestamp, const Eigen::Isometry3d& pose,
+                                  const PointCloudT::Ptr& cloud);
     bool refreshSubmapPosesNoLock(const char* context);
 
     Config config_;
@@ -98,6 +104,8 @@ private:
     std::string current_session_source_frame_id_;
     Eigen::Isometry3d T_map_session_initial_;
     bool first_new_keyframe_pending_;
+    std::map<double, std::vector<Keyframe::Ptr>> acquisitions_by_stamp_;
+    int64_t reused_gate_keyframe_id_ = -1;
     mutable std::mutex mutex_;
 };
 

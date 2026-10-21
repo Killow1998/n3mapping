@@ -369,10 +369,11 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
 
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
   MappingResumingTiming resuming_timing;
+  int64_t reused_acquisition_id = -1;
   const int64_t keyframe_id = resuming.processNewKeyframe(
       timestamp, frame.T_world_lidar, frame.undistorted_cloud,
       tracking.matched_keyframe_id, tracking.pose_in_map,
-      performance.enabled ? &resuming_timing : nullptr);
+      performance.enabled ? &resuming_timing : nullptr, &reused_acquisition_id);
   if (performance.enabled) {
     performance.keyframe_commit_ms = resuming_timing.total_ms;
     performance.graph_update_ms = resuming_timing.graph_update_ms;
@@ -397,10 +398,10 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     // node remains an estimate for joint optimization, not tracking authority.
   }
 
-  auto output = make_output(keyframe_id >= 0, pose_map,
+  auto output = make_output(keyframe_id >= 0 || reused_acquisition_id >= 0, pose_map,
                             frame.undistorted_cloud);
   output.accepted_keyframe = keyframe_id >= 0;
-  output.keyframe_id = keyframe_id;
+  output.keyframe_id = keyframe_id >= 0 ? keyframe_id : reused_acquisition_id;
   output.relocalization_state = tracking.state;
   output.pose_source = tracking.pose_source;
   output.relocalization_decision = tracking.decision;
@@ -411,6 +412,11 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     if (auto kf = session_->keyframeManager().getKeyframe(keyframe_id)) {
       appendDenseTrajectorySample(timestamp, kf->pose_odom, keyframe_id,
                                   kf->pose_odom, false);
+    }
+  } else if (!external_dense_trajectory_recording_enabled_ && reused_acquisition_id >= 0) {
+    if (auto anchor = session_->keyframeManager().getKeyframe(tracking.matched_keyframe_id)) {
+      appendDenseTrajectorySample(timestamp, pose_map, anchor->id,
+                                  anchor->pose_optimized, false);
     }
   }
   return output;

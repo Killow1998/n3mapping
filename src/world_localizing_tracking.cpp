@@ -8,6 +8,7 @@
 #include <iterator>
 #include <set>
 #include "n3mapping/tracking_target_cache.h"
+#include "n3mapping/n3map_proto_utils.h"
 #include "tracking_pose_correction.h"
 
 namespace n3mapping {
@@ -369,6 +370,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   if (reloc_debug_enabled && hasValidRegistrationResult(match_result)) {
     debug_event.selected_pose_valid = true;
     debug_event.selected_pose = match_result.T_target_source;
+    debug_event.selected_information =
+        .5 * (match_result.information + match_result.information.transpose());
+    std::string information_error;
+    debug_event.selected_information_valid = isValidInformationMatrix(
+        debug_event.selected_information, &information_error);
   }
   debug_event.visibility_registration_would_accept =
       strict_loaded_map && icp_ok &&

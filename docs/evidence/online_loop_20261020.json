@@ -25085,5 +25085,570 @@
       ]
     },
     "calibration_correction": "New extension edges are fixed-noise loaded-map tracking constraints, not ICP-weighted geometric loops. Second-extension exact copied scans are excluded from independent calibration. Raw-pair covariance floors do not reproduce the loaded-map tracking estimator."
+  },
+  "source_uncertainty": {
+    "base_commit": "b1afadf52d82a6251b647547b4e216bba9b89295",
+    "artifact": "build/n3mapping/source_uncertainty_20261021/qualification.json",
+    "verification": {
+      "core_sha256": "05cbdfcb89fd0532bfd3498b3fef587ea674a62d63f92cb0b3556aacfaf17cf4",
+      "source_files": 335,
+      "ctest_targets": 69,
+      "map_sha256": "153eb3356e8cf2d4891f7240834652e75cdb49bf173dbd25d9f6c2945483746e",
+      "atlas_sha256": "83f4ee22fec54bd3c20650ebfb1163daad4769c0b9126e35858c96a8c3e832e3",
+      "raw_inputs": [
+        {
+          "episode": "01_west_corridor",
+          "manifest_sha256": "2febd832139abebf4edc1c20b53076263079cdb9f97c1a32622a8d57dc94c36d",
+          "pcd_set_sha256": "71f58a02b17e2f06136049d1b7712cc305b6187c3b90bb57cc7394a70df97c1e",
+          "clouds": 296
+        },
+        {
+          "episode": "02_east_corridor",
+          "manifest_sha256": "ae32a235322d1266b6bf6f6ec88682ea6f65d6f35a467814459fc41836869410",
+          "pcd_set_sha256": "ab06e578ac4082d3e953ebc259e60ceaa7009a8f7769fe6b13d1375a82b60cfd",
+          "clouds": 296
+        },
+        {
+          "episode": "03_south_corridor",
+          "manifest_sha256": "733179d895d843f0b821841342e733a199046c0ae602aea85b88360be4ad6fc1",
+          "pcd_set_sha256": "2067853c635edd2fe8c02d2cc4c65643bceef2a743d27e22dea3f2737dbfa86d",
+          "clouds": 296
+        },
+        {
+          "episode": "04_north_corridor",
+          "manifest_sha256": "32ae751300d9a871fcbf6e5183d925a9d0e7d7855e622d4c6195c7be660749ef",
+          "pcd_set_sha256": "43c5d6478c6ea31204f5bbc9bcc10d5e31bacd911777e887faae099d916e99b8",
+          "clouds": 296
+        },
+        {
+          "episode": "05_southwest_office",
+          "manifest_sha256": "554bffb0d28a28afef1a2890d5538b9863ee55f69b537529b540e8cd1c4b3a8b",
+          "pcd_set_sha256": "bdc91e8f0b085ecd5118a1b05503b51a2d3aa4d31c722630a23be58e8dbd2e1e",
+          "clouds": 296
+        },
+        {
+          "episode": "06_south_meeting",
+          "manifest_sha256": "6427f2fdb87cf3a8de97bd5af10eaf0b8d22bf33725c09dad8bcc2e114cf087d",
+          "pcd_set_sha256": "cce1e939b1c0f84d901355ed0aabfcc790128425f61042e2bc6a6f4333e482a3",
+          "clouds": 296
+        },
+        {
+          "episode": "07_south_pillars",
+          "manifest_sha256": "2e46e287af0f2d9b85c6b6712d9a147b4de5c752188edc725c83e59f7647db21",
+          "pcd_set_sha256": "ea5289ed6a9a17a791794f3b850bae7632c8e45093d33c8395036566bf163639",
+          "clouds": 296
+        },
+        {
+          "episode": "08_west_shelves",
+          "manifest_sha256": "e0e670ea0f490ae292c21c94768e0a709b5817c0a722c10f84d7dc0a7b55de0e",
+          "pcd_set_sha256": "05ee7bae7c23c4665a864f127a3a7a100b46223078a2ed5599634cb3f5e85e5f",
+          "clouds": 296
+        },
+        {
+          "episode": "09_east_shelves",
+          "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+          "pcd_set_sha256": "c4e05b1aebb34cfedbff4a8fe6405e242e508f9ad64ea772ca442d4a330b57d3",
+          "clouds": 296
+        },
+        {
+          "episode": "10_northwest_meeting",
+          "manifest_sha256": "a5576adf71a0eed91a2ec0928d8bb59c8dc9eb7c572357d7f74735a1de6ade3d",
+          "pcd_set_sha256": "d24320cbbd7c1dc1d35f73e5bbc3b1cca3d21c45956442d4f52b87b4d1611970",
+          "clouds": 296
+        },
+        {
+          "episode": "11_northeast_pillars",
+          "manifest_sha256": "78350f0bcde6576e3f67e4ecaeb47c567c011e83e167e3b329db68840bd489fb",
+          "pcd_set_sha256": "f4ff42c231115bda956249d12198fbfce634215bd8b43cf8f9e8796c5dc9e6ba",
+          "clouds": 296
+        },
+        {
+          "episode": "12_north_office",
+          "manifest_sha256": "cea9e59c53ac1673866ea369766da53e354587a94f237d77ea4286033b3a3b49",
+          "pcd_set_sha256": "4d3ba5b7b8791b869b36db3ff6ba235fb319e29c86ea35c55d1e640f4798073a",
+          "clouds": 296
+        },
+        {
+          "episode": "13_south_door",
+          "manifest_sha256": "f79b59e4788614fb32fca74b79316f501513635f41e8a19085beeb4132423a07",
+          "pcd_set_sha256": "1b009d0928aa87d6ca1f3e30ab762c7a6cbb10ec00f80bd1573ef091a0dd31f6",
+          "clouds": 296
+        },
+        {
+          "episode": "14_north_door",
+          "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+          "pcd_set_sha256": "6815aed442015720b858270ed993fd6a3bcd271a969b0c4731785319cafbad7b",
+          "clouds": 296
+        },
+        {
+          "episode": "query",
+          "manifest_sha256": "2422a44c5560990ab1ac76bc4719b9c4ecc2880b7d3890fa33560270dd0f3fcf",
+          "pcd_set_sha256": "db167e5906725a690d73e0d0c2873c621d021230398a025f5268cefadf894943",
+          "clouds": 2236
+        },
+        {
+          "episode": "independent_v2",
+          "manifest_sha256": "533cb539c3bd260812a42bf3ee2dfb48361abf595d63d07c5e23f2741fe4b2ba",
+          "pcd_set_sha256": "d0b068168d0129095c7ed1de89d210dba7faa88538062f0147712569c9e3f61b",
+          "clouds": 3666
+        }
+      ]
+    },
+    "cpu_scope": "Four physical P cores 0,2,4,6, four registration threads, passive OpenMP. Process CPU / unchanged complete input duration. Excludes load/save, frontend, simulator, DDS. Runtime peak RSS includes loading; save separately.",
+    "truth_scope": "Original first-mapping alignment only; no query alignment. Truth used solely by observers.",
+    "production_weights_changed": false,
+    "experiment_variants": {
+      "final": {
+        "core_sha256": "76a10086db64e1c6060ff48a7f0b8bc1772e2e51008e4a21f8dfe442aaf619ee",
+        "role": "Plane association fix and actual tracking-curvature logging; repeat baseline and frozen-target tracking audit."
+      },
+      "acquisition_final": {
+        "core_sha256": "164e32b47bbacf875325e9bb5a95fdf3e4ad1f018283af509a0b77a1edc89510",
+        "role": "Intermediate full acquisition reuse; index built on load."
+      },
+      "release_final": {
+        "core_sha256": "05cbdfcb89fd0532bfd3498b3fef587ea674a62d63f92cb0b3556aacfaf17cf4",
+        "role": "Final runtime; extension-only acquisition index and stronger dense-output regression."
+      }
+    },
+    "original14": {
+      "outputs": 4088,
+      "average_cores": 0.39828542739608097,
+      "maximum_m": 0.024809060907976216,
+      "peak_rss_mib": 1300.33203125,
+      "points": {
+        "01_west_corridor": {
+          "average_cores": 0.29339770632052603,
+          "maximum_m": 0.008391589522316167,
+          "lock_wall_s": 1.984232933
+        },
+        "02_east_corridor": {
+          "average_cores": 0.3857766345826422,
+          "maximum_m": 0.011538685881210892,
+          "lock_wall_s": 2.579560028
+        },
+        "03_south_corridor": {
+          "average_cores": 0.5476340887457627,
+          "maximum_m": 0.009945601619870984,
+          "lock_wall_s": 4.366175836
+        },
+        "04_north_corridor": {
+          "average_cores": 0.44508183178422256,
+          "maximum_m": 0.006832174028661432,
+          "lock_wall_s": 3.018893839
+        },
+        "05_southwest_office": {
+          "average_cores": 0.3957941378305085,
+          "maximum_m": 0.011978283880913175,
+          "lock_wall_s": 2.679532569
+        },
+        "06_south_meeting": {
+          "average_cores": 0.3642971356949153,
+          "maximum_m": 0.014112885974977252,
+          "lock_wall_s": 2.783940655
+        },
+        "07_south_pillars": {
+          "average_cores": 0.3919668210169492,
+          "maximum_m": 0.024809060907976216,
+          "lock_wall_s": 2.4767402269999996
+        },
+        "08_west_shelves": {
+          "average_cores": 0.42080383776271185,
+          "maximum_m": 0.010355671855784699,
+          "lock_wall_s": 3.1745789859999998
+        },
+        "09_east_shelves": {
+          "average_cores": 0.3213422057627119,
+          "maximum_m": 0.014101758520219387,
+          "lock_wall_s": 2.2895189289999998
+        },
+        "10_northwest_meeting": {
+          "average_cores": 0.3406472894237288,
+          "maximum_m": 0.009108078883321642,
+          "lock_wall_s": 2.2879406199999996
+        },
+        "11_northeast_pillars": {
+          "average_cores": 0.40240643264406784,
+          "maximum_m": 0.015142060267106381,
+          "lock_wall_s": 2.717108954
+        },
+        "12_north_office": {
+          "average_cores": 0.40856051989830516,
+          "maximum_m": 0.007026096141037657,
+          "lock_wall_s": 2.9282898060000004
+        },
+        "13_south_door": {
+          "average_cores": 0.4284338452436816,
+          "maximum_m": 0.02171273127659304,
+          "lock_wall_s": 2.956790731
+        },
+        "14_north_door": {
+          "average_cores": 0.4298534786299438,
+          "maximum_m": 0.009183216444252152,
+          "lock_wall_s": 3.195211088
+        }
+      }
+    },
+    "localization": {
+      "old": {
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "average_cores": 0.23730393281879195,
+        "peak_rss_mib": 1305.8203125,
+        "position": {
+          "rmse": 0.009681592239874118,
+          "median": 0.006979514603630666,
+          "p95": 0.015181124455989967,
+          "maximum": 0.07932836946645079
+        },
+        "propagated_without_fresh_geometry": 0
+      },
+      "new": {
+        "outputs": 3662,
+        "locks": [
+          4,
+          1938
+        ],
+        "average_cores": 0.31592232251841745,
+        "peak_rss_mib": 1305.78125,
+        "position": {
+          "rmse": 0.008524168842743136,
+          "median": 0.0066290345254698905,
+          "p95": 0.015433337229173076,
+          "maximum": 0.03246851633698052
+        },
+        "propagated_without_fresh_geometry": 59
+      }
+    },
+    "per_frame_equivalence": {
+      "episodes": 16,
+      "all_decisions_equal": true,
+      "maximum_pose_component_delta": 7.105427357601002e-14
+    },
+    "online": {
+      "repeat_final": {
+        "new_keyframes": 0,
+        "outputs": 2232,
+        "average_cores": 0.4083832081297539,
+        "runtime_peak_rss_mib": 1465.25390625,
+        "live_position_m": {
+          "count": 2232,
+          "rmse": 0.008228464668265082,
+          "median": 0.005770343613040194,
+          "p95": 0.014004428200174465,
+          "maximum": 0.07216244501643108
+        },
+        "live_rotation_deg": {
+          "count": 2232,
+          "rmse": 0.021056460257375786,
+          "median": 0.013305669726640875,
+          "p95": 0.03786745787373108,
+          "maximum": 0.1449746040696822
+        },
+        "saved_surface_distance_m": {
+          "count": 748129,
+          "rmse": 0.00455274220485715,
+          "median": 0.0030406445223704337,
+          "p95": 0.00912152391467033,
+          "maximum": 0.024051776692763843
+        },
+        "checkpoint": {
+          "atlas_point_error_m": 0.0,
+          "atlas_points": 2168035,
+          "edge_error": 1.13220990837065e-15,
+          "edges": 2159,
+          "graph_pose_error": 2.1812425016494477e-15,
+          "keyframe_pose_error": 2.1812425016494477e-15,
+          "keyframes": 1502,
+          "observations": 51509,
+          "plane_error": 0.0,
+          "planes": 1521,
+          "raw_clouds_odometry_information_and_moments_preserved": true,
+          "raw_pose_error": 1.341488180606803e-15,
+          "reload_pose_error": 1.404333559025495e-15
+        }
+      },
+      "fresh_old_final": {
+        "new_keyframes": 231,
+        "outputs": 2232,
+        "average_cores": 0.8482054493064878,
+        "runtime_peak_rss_mib": 1927.375,
+        "live_position_m": {
+          "count": 2232,
+          "rmse": 0.008499544890376597,
+          "median": 0.006185723170081573,
+          "p95": 0.013811750652229587,
+          "maximum": 0.042605645619200855
+        },
+        "live_rotation_deg": {
+          "count": 2232,
+          "rmse": 0.025407083465061462,
+          "median": 0.013112397118896427,
+          "p95": 0.047418385180962815,
+          "maximum": 0.1651756191302993
+        },
+        "saved_surface_distance_m": {
+          "count": 748129,
+          "rmse": 0.004293145473607151,
+          "median": 0.0027955897831298537,
+          "p95": 0.008684635855140578,
+          "maximum": 0.02381868115916977
+        },
+        "checkpoint": {
+          "atlas_point_error_m": 0.0,
+          "atlas_points": 2166455,
+          "edge_error": 9.420590938157081e-16,
+          "edges": 2159,
+          "graph_pose_error": 3.39664593184438e-15,
+          "keyframe_pose_error": 3.39664593184438e-15,
+          "keyframes": 1502,
+          "observations": 55746,
+          "plane_error": 1.1102230246251565e-16,
+          "planes": 1612,
+          "raw_clouds_odometry_information_and_moments_preserved": true,
+          "raw_pose_error": 9.550578348924662e-16,
+          "reload_pose_error": 1.3414881367937306e-15
+        }
+      },
+      "fresh_new_final": {
+        "new_keyframes": 344,
+        "outputs": 3662,
+        "average_cores": 0.8415107576261939,
+        "runtime_peak_rss_mib": 1878.91015625,
+        "live_position_m": {
+          "count": 3662,
+          "rmse": 0.012673256511767613,
+          "median": 0.005777483440849345,
+          "p95": 0.016011006910336464,
+          "maximum": 0.0830729945912358
+        },
+        "live_rotation_deg": {
+          "count": 3662,
+          "rmse": 0.052808671907381095,
+          "median": 0.01272499841556803,
+          "p95": 0.0853103807226418,
+          "maximum": 0.475772164304301
+        },
+        "saved_surface_distance_m": {
+          "count": 804464,
+          "rmse": 0.00392572194058594,
+          "median": 0.0024872676113855408,
+          "p95": 0.007650305317693011,
+          "maximum": 0.026517749530589385
+        },
+        "checkpoint": {
+          "atlas_point_error_m": 0.0,
+          "atlas_points": 2202092,
+          "edge_error": 1.3159782151601885e-15,
+          "edges": 2385,
+          "graph_pose_error": 2.112343480603419e-15,
+          "keyframe_pose_error": 2.112343480603419e-15,
+          "keyframes": 1615,
+          "observations": 24093,
+          "plane_error": 1.1102230246251565e-16,
+          "planes": 741,
+          "raw_clouds_odometry_information_and_moments_preserved": true,
+          "raw_pose_error": 9.93017638739767e-16,
+          "reload_pose_error": 1.3322689000990029e-15
+        }
+      }
+    },
+    "replay_identity": {
+      "keyframes": 1502,
+      "edges": 2159,
+      "sessions": 2,
+      "reused_acquisitions": 231,
+      "new_keyframes": 0,
+      "successful_outputs": 2232,
+      "dense_samples_before": 15955,
+      "dense_samples_after": 18187,
+      "dense_samples_added": 2232,
+      "dense_output_matrix_delta": 1.2823075934420558e-13,
+      "raw_clouds_information_and_plane_moments_unchanged": true,
+      "plane_normal_component_delta": 1.1102230246251565e-16,
+      "maximum_pose_component_changes": {
+        "raw_pose": 8.326672684688674e-16,
+        "optimized_pose": 8.881784197001252e-16,
+        "edge_measurement": 6.661338147750939e-16
+      },
+      "scope": "Exact acquisition replay only. No new independent graph information; all successful callback outputs and dense samples retained."
+    },
+    "plane_only_replay_baseline": {
+      "frames": 2236,
+      "keyframes": 231,
+      "successful_frames": 2232,
+      "accepted_loops": 0,
+      "mapping_cpu_s": 126.66082883199958,
+      "loop_cpu_s": 0.4856412789996538,
+      "runtime_cpu_s": 191.428561315,
+      "runtime_wall_s": 229.06507541,
+      "source_duration_s": 223.5,
+      "max_pacing_lag_s": 1.318205663,
+      "peak_rss_kib": 2486792,
+      "paced": true,
+      "average_cores": 0.8565036300447427
+    },
+    "fresh_extension_historical_comparison": {
+      "fresh_old_final": {
+        "baseline": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/timely_geometry_20261021/extension_first",
+        "position_rmse_delta_mm": 0.06266038219631884,
+        "position_maximum_delta_mm": -0.018083624649029018,
+        "angular_maximum_delta_deg": -0.00017638155963556335,
+        "scope": "Same original inputs and configuration; asynchronous scheduling differs. Historical accuracy comparison, not an isolated timing A/B."
+      },
+      "fresh_new_final": {
+        "baseline": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/timely_geometry_20261021/extension_new",
+        "position_rmse_delta_mm": 0.016320545659918514,
+        "position_maximum_delta_mm": -0.044801106153652404,
+        "angular_maximum_delta_deg": 0.00044448637694616266,
+        "scope": "Same original inputs and configuration; asynchronous scheduling differs. Historical accuracy comparison, not an isolated timing A/B."
+      }
+    },
+    "tracking_uncertainty": {
+      "old": {
+        "accepted": 2231,
+        "conditional": {
+          "count": 2231,
+          "mean": 32.51727226552282,
+          "median": 3.8129201406412148,
+          "p95": 193.70184312235105,
+          "max": 920.4299804446347,
+          "exceed_nominal_chi2_95": 506
+        },
+        "shape_proxy": {
+          "count": 2231,
+          "mean": 4.233853929832735,
+          "median": 0.463157381549207,
+          "p95": 7.1942879843433065,
+          "max": 257.0689838776672,
+          "exceed_nominal_chi2_95": 74
+        },
+        "configured": {
+          "count": 2231,
+          "mean": 0.02308718399557293,
+          "median": 0.0026912396584262673,
+          "p95": 0.08450108798808874,
+          "max": 2.243451864770623,
+          "exceed_nominal_chi2_95": 0
+        },
+        "scope": "Reference frozen. Same map, temporal overlap and reused anchors imply correlation; chi-square counts are descriptive, not iid coverage. Shape covariance is a rejected proxy, not a calibrated map posterior."
+      },
+      "new": {
+        "accepted": 3661,
+        "conditional": {
+          "count": 3661,
+          "mean": 22.79070342603881,
+          "median": 5.253168610605244,
+          "p95": 76.81928910881294,
+          "max": 1784.7051462740876,
+          "exceed_nominal_chi2_95": 1110
+        },
+        "shape_proxy": {
+          "count": 3661,
+          "mean": 1.7195282594147208,
+          "median": 0.5881027733240228,
+          "p95": 6.161236140257909,
+          "max": 190.36564807911012,
+          "exceed_nominal_chi2_95": 30
+        },
+        "configured": {
+          "count": 3661,
+          "mean": 0.0590706283571171,
+          "median": 0.003398165894796963,
+          "p95": 0.08398414134561957,
+          "max": 3.1531333790087674,
+          "exceed_nominal_chi2_95": 0
+        },
+        "scope": "Reference frozen. Same map, temporal overlap and reused anchors imply correlation; chi-square counts are descriptive, not iid coverage. Shape covariance is a rejected proxy, not a calibrated map posterior."
+      }
+    },
+    "tracking_temporal_correlation": {
+      "old": {
+        "tracked_frames": 2231,
+        "unique_reference_anchors": 368,
+        "adjacent_pairs_sharing_anchor": 1829,
+        "axis_lag1_correlations": [
+          0.8506586448053134,
+          0.8904198876606799,
+          0.8574167729969867,
+          0.49463243860614015,
+          0.6044297633486626,
+          0.6291983613802387
+        ],
+        "scope": "Descriptive temporal correlation, not stationary effective sample size or an uncertainty calibration; full common map and sequential acquisitions remain shared."
+      },
+      "new": {
+        "tracked_frames": 3661,
+        "unique_reference_anchors": 458,
+        "adjacent_pairs_sharing_anchor": 3102,
+        "axis_lag1_correlations": [
+          0.8581597583817463,
+          0.9689623422476225,
+          0.7037736495079927,
+          0.7414666253475942,
+          0.535973248567614,
+          0.9047665043603448
+        ],
+        "scope": "Descriptive temporal correlation, not stationary effective sample size or an uncertainty calibration; full common map and sequential acquisitions remain shared."
+      }
+    },
+    "geometric_scan_proxy": {
+      "frame_nis": {
+        "median": 1.0953414971856157,
+        "p95": 5.706444620183934,
+        "max": 34.58855589927783,
+        "exceed95": 5
+      },
+      "old_nis": {
+        "median": 1.269052727257488,
+        "p95": 16.348614103102225,
+        "max": 226.4220481607601,
+        "exceed95": 28
+      },
+      "new_nis": {
+        "median": 0.16637082813998755,
+        "p95": 1.512196069693583,
+        "max": 4.869247728497647,
+        "exceed95": 0
+      }
+    },
+    "rejected_ablations": {
+      "stronger_tracking_proxy": {
+        "old_session_rmse_mm": [
+          7.433919601749557,
+          11.336317673210289
+        ],
+        "new_session_rmse_mm": [
+          6.782660421667902,
+          7.898773291249892
+        ]
+      },
+      "tracking_factor_removal": {
+        "new_session_rmse_mm": [
+          6.782660421667902,
+          6.8567111461624695
+        ],
+        "new_session_angular_max_deg": [
+          0.0884982253319587,
+          0.09492156049038653
+        ]
+      },
+      "full_results": [
+        "frozen_ablation.json",
+        "factor_ablation.json"
+      ]
+    },
+    "limitations": [
+      "Exact replay identity does not identify general temporal, map, or shared-endpoint correlation.",
+      "Pre-existing duplicate odometry/tracking graph factors are preserved; no retrospective map migration or data deletion.",
+      "Conditional registration curvature and scan-shape proxies do not calibrate rigid common deskew error; candidate weight changes and tracking-factor removal were rejected.",
+      "Frozen tracking audit uses the actual full tracking target but no online map updates. Nominal chi-square exceedance counts are descriptive, not iid coverage.",
+      "Original mapping was not rerun end to end this stage; unique-acquisition geometry behavior is unchanged, with all regressions and fresh online extensions qualified.",
+      "59 ordinary new-route localization outputs still lack fresh geometric backend support.",
+      "03 and fresh online extension half-core remain open; exact replay savings do not establish the general half-core target.",
+      "CPU excludes full ROS node, frontend, DDS, simulator and save. No hardware/RK3588/Noetic qualification."
+    ]
   }
 }

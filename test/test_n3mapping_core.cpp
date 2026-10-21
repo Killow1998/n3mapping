@@ -861,6 +861,53 @@ TEST(N3MappingCoreTest,
     std::filesystem::remove_all(dir);
 }
 
+TEST(N3MappingCoreTest, ReplayedAcquisitionKeepsTrackingAndDenseOutputWithoutNewNode)
+{
+    Config config = makeCoreTestConfig();
+    config.reloc_temporal_window_size = 1;
+    config.reloc_lock_min_winner_streak = 1;
+    config.reloc_lock_min_converged_updates = 1;
+    config.reloc_lock_log_likelihood_threshold = -1000.;
+    config.reloc_min_confidence = 0.;
+    config.reloc_min_inlier_ratio = 0.;
+    config.reloc_static_agg_enable = false;
+    const auto directory = std::filesystem::temp_directory_path() / "n3m_repeated_acquisition";
+    std::filesystem::create_directories(directory);
+    const auto map = (directory / "map.pbstream").string();
+    const auto input = makeFrame(1000000000, Eigen::Isometry3d::Identity());
+    {
+        N3MappingCore mapping(config);
+        ASSERT_TRUE(mapping.processMappingFrame(input).accepted_keyframe);
+        ASSERT_TRUE(mapping.saveMap(map));
+    }
+    N3MappingCore extension(config);
+    ASSERT_TRUE(extension.loadMap(map));
+    const auto loaded_samples = extension.getDenseOptimizedTrajectory().size();
+    ASSERT_TRUE(extension.processMapExtensionFrame(
+        makeFrame(900000000, Eigen::Isometry3d::Identity())).success);
+    const auto repeated = extension.processMapExtensionFrame(input);
+    ASSERT_TRUE(repeated.success);
+    EXPECT_FALSE(repeated.accepted_keyframe);
+    EXPECT_EQ(repeated.keyframe_id, 0);
+    EXPECT_EQ(extension.getAllKeyframes().size(), 1u);
+    auto next = makeFrame(1100000000, Eigen::Isometry3d::Identity());
+    const auto tracked = extension.processMapExtensionFrame(next);
+    EXPECT_TRUE(tracked.success);
+    EXPECT_FALSE(tracked.accepted_keyframe);
+    const auto trajectory = extension.getDenseOptimizedTrajectory();
+    ASSERT_EQ(trajectory.size(), loaded_samples + 3);
+    const auto sample = std::find_if(trajectory.begin() + loaded_samples, trajectory.end(),
+        [](const auto& p) { return std::abs(p.timestamp - 1.) < 1e-9; });
+    ASSERT_NE(sample, trajectory.end());
+    EXPECT_TRUE(sample->pose_world_lidar.matrix().isApprox(repeated.T_world_lidar.matrix(), 1e-6));
+    EXPECT_TRUE(extension.saveMap((directory / "replayed.pbstream").string()));
+    N3MappingCore restored(config);
+    ASSERT_TRUE(restored.loadMap((directory / "replayed.pbstream").string()));
+    EXPECT_EQ(restored.getAllKeyframes().size(), 1u);
+    EXPECT_EQ(restored.getDenseOptimizedTrajectory().size(), trajectory.size());
+    std::filesystem::remove_all(directory);
+}
+
 TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseRequiresLockBeforeMixingSources)
 {
     Config config = makeCoreTestConfig();
