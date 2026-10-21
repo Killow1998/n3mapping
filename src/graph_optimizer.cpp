@@ -221,6 +221,7 @@ void GraphOptimizer::swapWith(GraphOptimizer& other) {
     swap(last_good_estimate_, other.last_good_estimate_);
     swap(edges_, other.edges_);
     swap(shared_planes_, other.shared_planes_);
+    swap(pending_plane_observations_, other.pending_plane_observations_);
     swap(pending_edges_, other.pending_edges_);
     swap(node_ids_, other.node_ids_);
     swap(pending_node_ids_, other.pending_node_ids_);
@@ -249,6 +250,7 @@ void GraphOptimizer::clear() {
     last_good_estimate_.clear();
     edges_.clear();
     shared_planes_.clear();
+    pending_plane_observations_.clear();
     pending_edges_.clear();
     node_ids_.clear();
     pending_node_ids_.clear();
@@ -299,6 +301,7 @@ std::unique_ptr<gtsam::ISAM2> GraphOptimizer::createISAM2() const {
 }
 
 void GraphOptimizer::clearPending() {
+    pending_plane_observations_.clear();
     new_factors_.resize(0);
     new_values_.clear();
     pending_edges_.clear();
@@ -350,6 +353,8 @@ bool GraphOptimizer::ensureTargetInitialValue(
 
 void GraphOptimizer::commitPending(const gtsam::Values& optimized_estimate,
                                    std::unique_ptr<gtsam::ISAM2> optimized_isam2) {
+    for (const auto& [index, observation] : pending_plane_observations_)
+        shared_planes_.at(index).observations.push_back(observation);
     for (const auto& factor : new_factors_) {
         graph_.push_back(factor);
     }

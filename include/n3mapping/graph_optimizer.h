@@ -265,6 +265,9 @@ class GraphOptimizer : public LoopOptimizerInterface
     bool replaceSharedPlanes(const std::vector<SharedPlane>& planes,
                              bool optimize, GeometryOptimizationStats& stats);
     std::vector<SharedPlane> sharedPlanes() const;
+    // Stage observations for a pending new node against committed geometry.
+    // The append solve holds old poses/planes fixed; the worker later refines all.
+    size_t appendPlaneObservations(int64_t id, const std::vector<PlaneMoment>& moments);
     Eigen::Isometry3d gaugePrior() const;
     // Catch up an isolated solve only when the live graph has appended nodes
     // without changing its snapshot's factors or poses. No registration repeats.
@@ -313,6 +316,7 @@ class GraphOptimizer : public LoopOptimizerInterface
     gtsam::Values last_good_estimate_;        ///< 上一次成功的估计值 (用于回滚)
     std::vector<EdgeInfo> edges_;             ///< 所有边
     std::vector<SharedPlane> shared_planes_;
+    std::vector<std::pair<size_t, PlaneObservation>> pending_plane_observations_;
     std::vector<EdgeInfo> pending_edges_;     ///< 待提交边
     std::set<int64_t> node_ids_;              ///< 已添加的节点 ID
     std::set<int64_t> pending_node_ids_;      ///< 待提交节点 ID

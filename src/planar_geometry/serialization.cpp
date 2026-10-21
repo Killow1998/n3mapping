@@ -14,6 +14,7 @@ void writeSharedPlanes(const std::vector<SharedPlane>& planes, N3Map& map) {
       auto* o = p->add_observations();
       o->set_node_id(observation.node_id);
       o->set_count(observation.moment.count);
+      o->set_information_weight(observation.information_weight);
       for (int a = 0; a < 3; ++a) o->add_sum(observation.moment.sum[a]);
       for (int r = 0; r < 3; ++r)
         for (int c = 0; c < 3; ++c) o->add_square(observation.moment.square(r, c));
@@ -39,6 +40,9 @@ bool readSharedPlanes(const N3Map& map, std::vector<SharedPlane>& planes) {
       PlaneObservation observation;
       observation.node_id = o.node_id();
       observation.moment.count = o.count();
+      observation.information_weight =
+          o.weight_override_case() == PlaneObservationProto::kInformationWeight
+              ? o.information_weight() : 1.;
       for (int a = 0; a < 3; ++a) observation.moment.sum[a] = o.sum(a);
       for (int r = 0; r < 3; ++r)
         for (int c = 0; c < 3; ++c) observation.moment.square(r, c) = o.square(3*r+c);

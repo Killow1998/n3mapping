@@ -93,6 +93,10 @@ protected:
 };
 
 TEST_F(JointGeometryTest, MapRoundTripRetainsGeometryGaugeAndExactPoses) {
+  auto weighted = graph.sharedPlanes();
+  weighted[0].observations[0].information_weight = .5;
+  GeometryOptimizationStats stats;
+  ASSERT_TRUE(graph.replaceSharedPlanes(weighted, false, stats));
   const auto path = (directory / "map.pbstream").string();
   ASSERT_TRUE(serializer.saveMap(path, frames, detector, graph));
   GraphOptimizer restored(config);
@@ -100,6 +104,7 @@ TEST_F(JointGeometryTest, MapRoundTripRetainsGeometryGaugeAndExactPoses) {
   LoopDetector restored_detector(config);
   ASSERT_TRUE(serializer.loadMap(path, restored_frames, restored_detector, restored));
   ASSERT_EQ(restored.sharedPlanes().size(), graph.sharedPlanes().size());
+  EXPECT_EQ(restored.sharedPlanes()[0].observations[0].information_weight, .5);
   EXPECT_TRUE(restored.gaugePrior().matrix().isApprox(graph.gaugePrior().matrix(), 1e-14));
   for (const auto& [id, value] : graph.getOptimizedPoses()) {
     EXPECT_LT((value.matrix()-restored.getOptimizedPose(id).matrix()).norm(), 1e-13);
@@ -113,6 +118,57 @@ TEST_F(JointGeometryTest, MapRoundTripRetainsGeometryGaugeAndExactPoses) {
     EXPECT_EQ((value.matrix()-restored.getOptimizedPose(id).matrix()).norm(), 0);
   EXPECT_LT((restored.getOptimizedPose(3).matrix() -
              (old.at(2)*pose(.2)).matrix()).norm(), 1e-12);
+}
+
+TEST_F(JointGeometryTest, IdenticalAcquisitionSharesInformationWithoutDroppingObservations) {
+  auto originals = frames.getAllKeyframes();
+  auto repeated = originals;
+  for (const auto& frame : originals) {
+    auto copy = std::make_shared<Keyframe>(*frame);
+    copy->id += originals.size();
+    copy->session_id = 1;
+    copy->cloud = pcl::make_shared<Keyframe::PointCloudT>(*frame->cloud);
+    repeated.push_back(copy);
+  }
+  GeometryOptimizationStats stats;
+  const auto planes = buildSharedPlanes(repeated, stats);
+  ASSERT_FALSE(planes.empty());
+  for (const auto& plane : planes) {
+    ASSERT_EQ(plane.observations.size(), 6u);
+    double total = 0;
+    for (const auto& observation : plane.observations) {
+      EXPECT_EQ(observation.information_weight, .5);
+      total += observation.information_weight;
+    }
+    EXPECT_EQ(total, 3.);
+  }
+  // A new measurement, even at the same pose/time, must not be called a replay.
+  repeated[3]->cloud->at(0).x += .001f;
+  const auto sources = geometrySourceIds(repeated);
+  EXPECT_NE(sources[0], sources[3]);
+  EXPECT_EQ(sources[1], sources[4]);
+  EXPECT_EQ(sources[2], sources[5]);
+}
+
+TEST(PlaneObservationWeightTest, DuplicateCostAndInformationAreConservedForInliersAndOutliers) {
+  Config config;
+  PlaneMoment moment;
+  for (int x=0; x<5; ++x) for (int y=0; y<5; ++y)
+    moment.add(Eigen::Vector3d(.2*x,.2*y,1));
+  const auto x = gtsam::Symbol('x',0), p = gtsam::Symbol('p',0);
+  planar_geometry::MomentPlaneFactor full(x,p,moment,Eigen::Vector3d::Zero(),
+      planar_geometry::momentNoise(config,.01));
+  planar_geometry::MomentPlaneFactor half(x,p,moment,Eigen::Vector3d::Zero(),
+      planar_geometry::momentNoise(config,.01,.5));
+  for (double error : {.001,.02,.2}) {
+    gtsam::Values values;
+    values.insert(x,gtsam::Pose3(gtsam::Rot3(),{0,0,error}));
+    values.insert(p,gtsam::OrientedPlane3(gtsam::Unit3(0,0,1),1));
+    EXPECT_NEAR(full.error(values),2.*half.error(values),1e-12);
+    const auto information = full.linearize(values)->augmentedInformation();
+    EXPECT_LT((information-2.*half.linearize(values)->augmentedInformation()).norm(),1e-8);
+  }
+  EXPECT_THROW(planar_geometry::momentNoise(config,.01,0.),std::invalid_argument);
 }
 
 TEST_F(JointGeometryTest, WorkerCatchesUpNewNodesWithoutChangingItsSolvedPoses) {
@@ -159,6 +215,95 @@ TEST_F(JointGeometryTest, SharedGeometryRefinesNewFrameWithoutLoopAdmission) {
   unchanged.run();
   EXPECT_FALSE(unchanged.outcome.summary.optimized);
   EXPECT_EQ(unchanged.graph->getOptimizedPose(3).matrix(), before.matrix());
+}
+
+TEST_F(JointGeometryTest, NewFrameUsesExistingPlaneBeforeBackgroundRefinement) {
+  const auto before = graph.getOptimizedPoses();
+  const auto planes_before = graph.sharedPlanes();
+  graph.addOdometryEdge({2, 3, pose(.2, .04),
+      Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
+  const auto moments = extractPlaneMoments(*frames.getKeyframe(2)->cloud);
+  ASSERT_GT(graph.appendPlaneObservations(3, moments), 0u);
+  EXPECT_EQ(graph.appendPlaneObservations(3, moments), 0u);
+  EXPECT_EQ(graph.sharedPlanes()[0].observations.size(), planes_before[0].observations.size());
+  ASSERT_TRUE(graph.incrementalOptimize());
+  EXPECT_LT(std::abs(graph.getOptimizedPose(3).translation().z()),
+            .5 * std::abs(before.at(2).translation().z() + .04));
+  for (const auto& [id, value] : before)
+    EXPECT_EQ(graph.getOptimizedPose(id).matrix(), value.matrix());
+  const auto planes = graph.sharedPlanes();
+  EXPECT_EQ(planes[0].observations.size(), planes_before[0].observations.size()+1);
+  auto all = frames.getAllKeyframes();
+  all.push_back(Keyframe::create(3, 3, before.at(2)*pose(.2,.04), frames.getKeyframe(2)->cloud));
+  ASSERT_TRUE(frames.loadKeyframes(all));
+  frames.updateOptimizedPoses(graph.getOptimizedPoses());
+  const auto path = (directory / "appended.pbstream").string();
+  ASSERT_TRUE(serializer.saveMap(path, frames, detector, graph));
+  GraphOptimizer restored(config);
+  KeyframeManager restored_frames(config);
+  LoopDetector restored_detector(config);
+  ASSERT_TRUE(serializer.loadMap(path, restored_frames, restored_detector, restored));
+  EXPECT_EQ(restored.sharedPlanes()[0].observations.size(), planes[0].observations.size());
+  EXPECT_TRUE(restored.getOptimizedPose(3).matrix().isApprox(graph.getOptimizedPose(3).matrix(), 1e-13));
+}
+
+TEST_F(JointGeometryTest, WorkerReassociatesTailWhenPlaneIndicesChange) {
+  const auto snapshot = graph.cloneCommitted();
+  auto worker = graph.cloneCommitted();
+  auto planes = worker->sharedPlanes();
+  ASSERT_EQ(planes.size(), 1u);
+  auto other = planes[0];
+  const Eigen::Vector3d shift(0,0,.5);
+  other.offset += other.normal.dot(shift);
+  for (auto& observation : other.observations) {
+    const Eigen::Vector3d local = graph.getOptimizedPose(observation.node_id).linear().transpose()*shift;
+    auto& m = observation.moment;
+    m.square += m.sum*local.transpose() + local*m.sum.transpose() + m.count*local*local.transpose();
+    m.sum += m.count*local;
+  }
+  planes.insert(planes.begin(), other);
+  GeometryOptimizationStats stats;
+  ASSERT_TRUE(worker->replaceSharedPlanes(planes, false, stats));
+  graph.addOdometryEdge({2, 3, pose(.2, .04),
+      Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
+  ASSERT_GT(graph.appendPlaneObservations(3, extractPlaneMoments(*frames.getKeyframe(2)->cloud)), 0u);
+  ASSERT_TRUE(graph.incrementalOptimize());
+  ASSERT_TRUE(worker->appendCommittedTail(graph, *snapshot));
+  EXPECT_LT((worker->getOptimizedPose(3).matrix()-graph.getOptimizedPose(3).matrix()).norm(),1e-4);
+  const auto caught_up = worker->sharedPlanes();
+  EXPECT_EQ(caught_up[0].observations.size(), 3u);
+  EXPECT_EQ(caught_up[1].observations.size(), 4u);
+}
+
+TEST_F(JointGeometryTest, RolledBackAppendDoesNotRetainPlaneObservations) {
+  const auto count = graph.sharedPlanes()[0].observations.size();
+  graph.addOdometryEdge({2, 3, pose(.2, .04),
+      Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
+  ASSERT_GT(graph.appendPlaneObservations(3, extractPlaneMoments(*frames.getKeyframe(2)->cloud)), 0u);
+  graph.rollbackToLastState();
+  EXPECT_FALSE(graph.hasNode(3));
+  EXPECT_EQ(graph.sharedPlanes()[0].observations.size(), count);
+  graph.addOdometryEdge({2, 3, pose(.2),
+      Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
+  ASSERT_TRUE(graph.incrementalOptimize());
+  EXPECT_EQ(graph.sharedPlanes()[0].observations.size(), count);
+}
+
+TEST_F(JointGeometryTest, UnsupportedOrAmbiguousPlaneCannotConstrainNewNode) {
+  const auto moments = extractPlaneMoments(*frames.getKeyframe(2)->cloud);
+  graph.addOdometryEdge({2, 3, pose(20),
+      Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
+  EXPECT_EQ(graph.appendPlaneObservations(3, moments), 0u);
+  graph.rollbackToLastState();
+  auto planes = graph.sharedPlanes();
+  auto near = planes[0];
+  near.offset += .05;
+  planes.push_back(near);
+  GeometryOptimizationStats stats;
+  ASSERT_TRUE(graph.replaceSharedPlanes(planes, false, stats));
+  graph.addOdometryEdge({2, 3, pose(.2),
+      Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
+  EXPECT_EQ(graph.appendPlaneObservations(3, moments), 0u);
 }
 
 TEST_F(JointGeometryTest, WorkerRejectsChangedOldGraphTransactionally) {

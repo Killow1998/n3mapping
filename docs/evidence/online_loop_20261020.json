@@ -17788,5 +17788,3136 @@
       "build/n3mapping/multisession_20261021/qualify_multisession.py": "e22bf2aff75b8418f58bd0aedd5cc86738edd8821d691b117b78a0ae5562f25c",
       "build/n3mapping/multisession_20261021/collect_multisession.py": "efe958d40357d2e69b97f9365e59bb5be58a700e6eaaf7aa1cf6122be08325c4"
     }
+  },
+  "timely_keyframe_geometry": {
+    "source_base": "1c1b4a2",
+    "artifacts": "build/n3mapping/timely_geometry_20261021",
+    "verification": {
+      "core_sha256": "b7d8f6533b822c931104af1cbafcf7b87f42056a85f9466afbcebb3c741c2d67",
+      "production_sources_verified": true,
+      "original_inputs_verified": true,
+      "new_independent_inputs_verified": true,
+      "independent_manifest_sha256": "533cb539c3bd260812a42bf3ee2dfb48361abf595d63d07c5e23f2741fe4b2ba",
+      "independent_pcd_set_sha256": "d0b068168d0129095c7ed1de89d210dba7faa88538062f0147712569c9e3f61b",
+      "ctest_targets": 69
+    },
+    "constraints": {
+      "cpus": "0,2,4,6",
+      "registration_threads": 4,
+      "rate_hz": 10,
+      "omp_wait_policy": "PASSIVE",
+      "truth": "observer/controller only; original first mapping alignment; no query fitting",
+      "localization_gates": "unchanged"
+    },
+    "limits": [
+      "CPU excludes map loading, saving, ROS/DDS, frontend and simulator; save cost reported separately",
+      "Repeated-input weighting only removes exact duplicate raw-acquisition overcounting in geometry factors; no full correlation/covariance calibration",
+      "Simulation qualification; hardware and Noetic runtime unqualified"
+    ],
+    "mapping": {
+      "baseline": {
+        "frames": 13791,
+        "keyframes": 1271,
+        "successful_frames": 13723,
+        "accepted_loops": 429,
+        "mapping_cpu_s": 59.21358963000418,
+        "loop_cpu_s": 2.135116396999813,
+        "runtime_cpu_s": 565.930378101,
+        "runtime_wall_s": 1379.000114745,
+        "source_duration_s": 1379,
+        "max_pacing_lag_s": 0.005518678999976601,
+        "peak_rss_kib": 869704,
+        "paced": true,
+        "foreground_wall_ms": {
+          "all": {
+            "count": 13791,
+            "median": 0.054833,
+            "p95": 14.808421,
+            "maximum": 63.553314
+          },
+          "keyframe": {
+            "count": 1271,
+            "median": 14.966225,
+            "p95": 27.622759000000002,
+            "maximum": 63.553314
+          }
+        },
+        "average_cores": 0.41039186229224073,
+        "runtime_peak_rss_gib": 0.8294143676757812,
+        "live": {
+          "alignment": {
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "frames": 13791,
+          "outputs": 13723,
+          "rejected_frames": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67
+          ],
+          "position_m": {
+            "count": 13723,
+            "rmse": 0.017016425616286527,
+            "median": 0.009782104273321943,
+            "p95": 0.03442763540734088,
+            "maximum": 0.11593259920642546
+          },
+          "rotation_deg": {
+            "count": 13723,
+            "rmse": 0.05259333397910334,
+            "median": 0.0305745405572804,
+            "p95": 0.10147028901753347,
+            "maximum": 0.6063187729173982
+          },
+          "consecutive_displacement_error_m": {
+            "count": 13722,
+            "rmse": 0.006213044621501076,
+            "median": 0.00297234876422845,
+            "p95": 0.010991843908433429,
+            "maximum": 0.08808303753789498
+          },
+          "above_10cm": 8,
+          "above_1m": 0,
+          "max_rotation_orthogonality_error": 5.024302005096228e-15,
+          "commits": 253,
+          "max_pending": 1,
+          "graph_rebases": 0,
+          "commit_ms": {
+            "count": 253,
+            "rmse": 3.5335213306153306,
+            "median": 2.406965,
+            "p95": 6.239368199999998,
+            "maximum": 13.931367000000002
+          },
+          "max_pending_age_ms": 4081.788954
+        },
+        "accuracy": {
+          "position_m": {
+            "rmse": 0.006875448785972429,
+            "median": 0.0063876815165825815,
+            "p95": 0.01088740068443292,
+            "maximum": 0.019305218864767798
+          },
+          "rotation_deg": {
+            "rmse": 0.01502943450528951,
+            "median": 0.0115175348393383,
+            "p95": 0.027250059615657737,
+            "maximum": 0.06609861002136164
+          },
+          "independent_revisits": {
+            "count": 1811,
+            "relative_translation_m": {
+              "rmse": 0.004188127501376076,
+              "median": 0.0023486935843218377,
+              "p95": 0.008584905185361013,
+              "maximum": 0.01782972926327896
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.016495138745945926,
+              "median": 0.006648900483608778,
+              "p95": 0.038989382045905976,
+              "maximum": 0.06329618007892138
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.0038688366838468403,
+            "median": 0.002456673764113765,
+            "p95": 0.00767655310405471,
+            "maximum": 0.022442024523452453,
+            "points": 633185,
+            "incomplete_over_2m": 0
+          }
+        },
+        "save": {
+          "cpu_s": 6.18065,
+          "wall_s": 2.99731,
+          "peak_rss_kib": 1887524
+        }
+      },
+      "candidate": {
+        "frames": 13791,
+        "keyframes": 1271,
+        "successful_frames": 13723,
+        "accepted_loops": 428,
+        "mapping_cpu_s": 61.21566006399853,
+        "loop_cpu_s": 2.956517852997794,
+        "runtime_cpu_s": 569.291997164,
+        "runtime_wall_s": 1379.000139174,
+        "source_duration_s": 1379,
+        "max_pacing_lag_s": 0.005632285999922715,
+        "peak_rss_kib": 765964,
+        "paced": true,
+        "foreground_wall_ms": {
+          "all": {
+            "count": 13791,
+            "median": 0.054083,
+            "p95": 16.3828035,
+            "maximum": 61.31904
+          },
+          "keyframe": {
+            "count": 1271,
+            "median": 16.587774,
+            "p95": 30.312575000000002,
+            "maximum": 61.31904
+          }
+        },
+        "average_cores": 0.4128295846004351,
+        "runtime_peak_rss_gib": 0.7304801940917969,
+        "live": {
+          "alignment": {
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "frames": 13791,
+          "outputs": 13723,
+          "rejected_frames": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67
+          ],
+          "position_m": {
+            "count": 13723,
+            "rmse": 0.013988463108082615,
+            "median": 0.008976721883620907,
+            "p95": 0.0256724472116011,
+            "maximum": 0.09289024199775274
+          },
+          "rotation_deg": {
+            "count": 13723,
+            "rmse": 0.04934068783184323,
+            "median": 0.028234822800982537,
+            "p95": 0.0936247564627344,
+            "maximum": 0.588200625131369
+          },
+          "consecutive_displacement_error_m": {
+            "count": 13722,
+            "rmse": 0.00613307253009193,
+            "median": 0.0029675035776029293,
+            "p95": 0.010878833149412188,
+            "maximum": 0.08856840577341914
+          },
+          "above_10cm": 0,
+          "above_1m": 0,
+          "max_rotation_orthogonality_error": 4.715530118451987e-15,
+          "commits": 253,
+          "max_pending": 1,
+          "graph_rebases": 0,
+          "commit_ms": {
+            "count": 253,
+            "rmse": 5.023648104942198,
+            "median": 2.560302,
+            "p95": 10.275879999999995,
+            "maximum": 18.92579
+          },
+          "max_pending_age_ms": 4071.61123
+        },
+        "map_accuracy": {
+          "scope": "Original/repeated recorded inputs",
+          "original_mapping": {
+            "position_m": {
+              "count": 1271,
+              "rmse": 0.007317709460173574,
+              "median": 0.006829037681898584,
+              "p95": 0.011230885826090248,
+              "maximum": 0.020672902892061407
+            },
+            "rotation_deg": {
+              "count": 1271,
+              "rmse": 0.015082513580205922,
+              "median": 0.01177620400331926,
+              "p95": 0.027614129598867592,
+              "maximum": 0.06576926849075036
+            },
+            "surface_distance_m": {
+              "count": 633185,
+              "rmse": 0.003999905315219702,
+              "median": 0.0025551976499752216,
+              "p95": 0.008029040014975938,
+              "maximum": 0.022540697324978876
+            }
+          },
+          "surface_distance_m": {
+            "count": 633185,
+            "rmse": 0.003999905315219702,
+            "median": 0.0025551976499752216,
+            "p95": 0.008029040014975938,
+            "maximum": 0.022540697324978876
+          }
+        },
+        "accuracy": {
+          "position_m": {
+            "rmse": 0.007317709460173574,
+            "median": 0.006829037681898584,
+            "p95": 0.011230885826089835,
+            "maximum": 0.020672902892061407
+          },
+          "rotation_deg": {
+            "rmse": 0.015082513580206413,
+            "median": 0.011776204003318871,
+            "p95": 0.027614129598867616,
+            "maximum": 0.0657692684907502
+          },
+          "independent_revisits": {
+            "count": 1811,
+            "relative_translation_m": {
+              "rmse": 0.004195417279283912,
+              "median": 0.0023543755024463503,
+              "p95": 0.008562666647492488,
+              "maximum": 0.017896759527517726
+            },
+            "relative_rotation_deg": {
+              "rmse": 0.01650740872787244,
+              "median": 0.00666759202319544,
+              "p95": 0.03888223825372679,
+              "maximum": 0.06362649122121146
+            }
+          },
+          "surface_distance_m": {
+            "rmse": 0.003999905315219718,
+            "median": 0.0025551976499752216,
+            "p95": 0.008029040014975938,
+            "maximum": 0.022540697324978876,
+            "points": 633185,
+            "incomplete_over_2m": 0
+          }
+        },
+        "save": {
+          "cpu_s": 6.23049,
+          "wall_s": 3.07103,
+          "peak_rss_kib": 1776368
+        },
+        "weights_audit": {
+          "map_version": "2.10.0",
+          "keyframes": 1271,
+          "unique_raw_inputs": 1271,
+          "planes": 770,
+          "observations": 19415,
+          "discounted_observations": 0,
+          "effective_observations": 19415.0,
+          "minimum_distinct_sources": 3,
+          "maximum_multiplicity_weight_deviation": 0.0,
+          "scope": "Identical timestamp, raw pose and point payload only; no calibration of independent-scan correlation"
+        }
+      }
+    },
+    "fixed14": {
+      "baseline": {
+        "positions": 14,
+        "frames": 4144,
+        "outputs": 4088,
+        "locks": {
+          "01_west_corridor": [
+            4
+          ],
+          "02_east_corridor": [
+            4
+          ],
+          "03_south_corridor": [
+            4
+          ],
+          "04_north_corridor": [
+            4
+          ],
+          "05_southwest_office": [
+            4
+          ],
+          "06_south_meeting": [
+            4
+          ],
+          "07_south_pillars": [
+            4
+          ],
+          "08_west_shelves": [
+            4
+          ],
+          "09_east_shelves": [
+            4
+          ],
+          "10_northwest_meeting": [
+            4
+          ],
+          "11_northeast_pillars": [
+            4
+          ],
+          "12_north_office": [
+            4
+          ],
+          "13_south_door": [
+            4
+          ],
+          "14_north_door": [
+            4
+          ]
+        },
+        "cpu_s": 188.827458943,
+        "input_s": 413.000005005,
+        "peak_rss_mib": 1297.25,
+        "first_lock_wall_max_s": 4.548545357,
+        "first_lock_wall_median_s": 3.1331170520000002,
+        "average_cores": 0.45720933814689413,
+        "position_error_m": {
+          "rmse": 0.007941903161472854,
+          "maximum": 0.024196746844361603
+        },
+        "rotation_error_deg": {
+          "rmse": 0.015191536876671794,
+          "maximum": 0.08399917345033774
+        }
+      },
+      "candidate": {
+        "positions": 14,
+        "frames": 4144,
+        "outputs": 4088,
+        "locks": {
+          "01_west_corridor": [
+            4
+          ],
+          "02_east_corridor": [
+            4
+          ],
+          "03_south_corridor": [
+            4
+          ],
+          "04_north_corridor": [
+            4
+          ],
+          "05_southwest_office": [
+            4
+          ],
+          "06_south_meeting": [
+            4
+          ],
+          "07_south_pillars": [
+            4
+          ],
+          "08_west_shelves": [
+            4
+          ],
+          "09_east_shelves": [
+            4
+          ],
+          "10_northwest_meeting": [
+            4
+          ],
+          "11_northeast_pillars": [
+            4
+          ],
+          "12_north_office": [
+            4
+          ],
+          "13_south_door": [
+            4
+          ],
+          "14_north_door": [
+            4
+          ]
+        },
+        "cpu_s": 187.35902511999998,
+        "input_s": 413.000005005,
+        "peak_rss_mib": 1276.0390625,
+        "first_lock_wall_max_s": 4.281361707,
+        "first_lock_wall_median_s": 3.2152390265,
+        "per_position": [
+          {
+            "id": "01_west_corridor",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.3587163507245876,
+            "first_lock_wall_s": 2.284792873,
+            "position_error_m": {
+              "rmse": 0.0025154685529212182,
+              "median": 0.001982475795606962,
+              "p95": 0.004224404325242483,
+              "maximum": 0.008304925599261914
+            },
+            "rotation_error_deg": {
+              "rmse": 0.013882703693533139,
+              "median": 0.012693159433540737,
+              "p95": 0.0221223061550529,
+              "maximum": 0.025768151191663525
+            }
+          },
+          {
+            "id": "02_east_corridor",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.44188719879168037,
+            "first_lock_wall_s": 2.9576746170000003,
+            "position_error_m": {
+              "rmse": 0.009175944404053327,
+              "median": 0.0091625999578707,
+              "p95": 0.010127704321342907,
+              "maximum": 0.010757061706048069
+            },
+            "rotation_error_deg": {
+              "rmse": 0.01132349372312086,
+              "median": 0.011013176221641451,
+              "p95": 0.01571881049188712,
+              "maximum": 0.02631597840065163
+            }
+          },
+          {
+            "id": "03_south_corridor",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.5903960081694917,
+            "first_lock_wall_s": 4.281361707,
+            "position_error_m": {
+              "rmse": 0.005660683901142635,
+              "median": 0.005509339514209459,
+              "p95": 0.006927571973581867,
+              "maximum": 0.009945601619870984
+            },
+            "rotation_error_deg": {
+              "rmse": 0.01552946532180839,
+              "median": 0.014927752724490873,
+              "p95": 0.019627206290838122,
+              "maximum": 0.03908688229825237
+            }
+          },
+          {
+            "id": "04_north_corridor",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.48145062971730174,
+            "first_lock_wall_s": 3.308355183,
+            "position_error_m": {
+              "rmse": 0.005084878853257013,
+              "median": 0.005091373613201161,
+              "p95": 0.005945395385232008,
+              "maximum": 0.006804682301142581
+            },
+            "rotation_error_deg": {
+              "rmse": 0.010503993119131198,
+              "median": 0.010116986307286684,
+              "p95": 0.013567993277659353,
+              "maximum": 0.024449401673012586
+            }
+          },
+          {
+            "id": "05_southwest_office",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4666813318983051,
+            "first_lock_wall_s": 3.308689012,
+            "position_error_m": {
+              "rmse": 0.007956395759327826,
+              "median": 0.007021230220174951,
+              "p95": 0.011609847479441155,
+              "maximum": 0.012112688270303821
+            },
+            "rotation_error_deg": {
+              "rmse": 0.013997343550867998,
+              "median": 0.013006728699657319,
+              "p95": 0.021198000659987715,
+              "maximum": 0.04059111701164909
+            }
+          },
+          {
+            "id": "06_south_meeting",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.41603706823728814,
+            "first_lock_wall_s": 2.973032776,
+            "position_error_m": {
+              "rmse": 0.009534731429737998,
+              "median": 0.008749293634561705,
+              "p95": 0.012889675415113676,
+              "maximum": 0.014149239717498506
+            },
+            "rotation_error_deg": {
+              "rmse": 0.016486665439525802,
+              "median": 0.014297218490544137,
+              "p95": 0.02313780848686014,
+              "maximum": 0.06952464221697742
+            }
+          },
+          {
+            "id": "07_south_pillars",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4408883109152542,
+            "first_lock_wall_s": 2.863706128,
+            "position_error_m": {
+              "rmse": 0.012816141964529168,
+              "median": 0.010688277718549603,
+              "p95": 0.02209190917886113,
+              "maximum": 0.024088018120769515
+            },
+            "rotation_error_deg": {
+              "rmse": 0.017983712348819358,
+              "median": 0.015745051575278016,
+              "p95": 0.028055816134791408,
+              "maximum": 0.05022820606915803
+            }
+          },
+          {
+            "id": "08_west_shelves",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4811314481016949,
+            "first_lock_wall_s": 3.6060013730000002,
+            "position_error_m": {
+              "rmse": 0.005146761156178556,
+              "median": 0.0037752218536494485,
+              "p95": 0.009520503460060737,
+              "maximum": 0.010401973378119081
+            },
+            "rotation_error_deg": {
+              "rmse": 0.022246319926856856,
+              "median": 0.019668592687511675,
+              "p95": 0.0350228069868426,
+              "maximum": 0.058793253963747745
+            }
+          },
+          {
+            "id": "09_east_shelves",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.35876030084745764,
+            "first_lock_wall_s": 2.8916728600000003,
+            "position_error_m": {
+              "rmse": 0.010604849034261168,
+              "median": 0.010085757984545352,
+              "p95": 0.013032631995993717,
+              "maximum": 0.014019826509610941
+            },
+            "rotation_error_deg": {
+              "rmse": 0.017748898460579345,
+              "median": 0.015213657105277258,
+              "p95": 0.027641657877813575,
+              "maximum": 0.045938444118023176
+            }
+          },
+          {
+            "id": "10_northwest_meeting",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.39184368044067797,
+            "first_lock_wall_s": 2.7013368580000003,
+            "position_error_m": {
+              "rmse": 0.00338987576365838,
+              "median": 0.00147715592831096,
+              "p95": 0.0073171879007674035,
+              "maximum": 0.009108078883321642
+            },
+            "rotation_error_deg": {
+              "rmse": 0.012686175506559667,
+              "median": 0.010967058918743645,
+              "p95": 0.020664537637501364,
+              "maximum": 0.0246675994518266
+            }
+          },
+          {
+            "id": "11_northeast_pillars",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4618595332542373,
+            "first_lock_wall_s": 3.12212287,
+            "position_error_m": {
+              "rmse": 0.010574744497955646,
+              "median": 0.009675831446269026,
+              "p95": 0.014591399022746886,
+              "maximum": 0.015067965336121546
+            },
+            "rotation_error_deg": {
+              "rmse": 0.014096773534478389,
+              "median": 0.01274100670254052,
+              "p95": 0.02118858906577099,
+              "maximum": 0.04156534538390517
+            }
+          },
+          {
+            "id": "12_north_office",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.48256233674576265,
+            "first_lock_wall_s": 3.388985039,
+            "position_error_m": {
+              "rmse": 0.005707719150635328,
+              "median": 0.005769462628967343,
+              "p95": 0.006702947447046607,
+              "maximum": 0.007019787902576777
+            },
+            "rotation_error_deg": {
+              "rmse": 0.014256847386035066,
+              "median": 0.012899208979837045,
+              "p95": 0.021766493469086313,
+              "maximum": 0.03397813956625999
+            }
+          },
+          {
+            "id": "13_south_door",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4481760122331884,
+            "first_lock_wall_s": 3.433312679,
+            "position_error_m": {
+              "rmse": 0.011920764708539425,
+              "median": 0.01120045509329539,
+              "p95": 0.01605264300900235,
+              "maximum": 0.02171273127659304
+            },
+            "rotation_error_deg": {
+              "rmse": 0.016246198814748265,
+              "median": 0.012728159114568812,
+              "p95": 0.023000969041750467,
+              "maximum": 0.084021398663821
+            }
+          },
+          {
+            "id": "14_north_door",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.5307630853061274,
+            "first_lock_wall_s": 4.017170837,
+            "position_error_m": {
+              "rmse": 0.006123281911559676,
+              "median": 0.006135920586224649,
+              "p95": 0.007142397903975493,
+              "maximum": 0.00918795477539334
+            },
+            "rotation_error_deg": {
+              "rmse": 0.01084555087497416,
+              "median": 0.010573560885687082,
+              "p95": 0.015710038797645084,
+              "maximum": 0.017919895640842124
+            }
+          }
+        ],
+        "average_cores": 0.45365380835220986,
+        "position_error_m": {
+          "rmse": 0.008199910398181364,
+          "maximum": 0.024088018120769515
+        },
+        "rotation_error_deg": {
+          "rmse": 0.015161044246982048,
+          "maximum": 0.084021398663821
+        }
+      },
+      "after_repeated_baseline": {
+        "positions": 14,
+        "frames": 4144,
+        "outputs": 4088,
+        "locks": {
+          "01_west_corridor": [
+            4
+          ],
+          "02_east_corridor": [
+            4
+          ],
+          "03_south_corridor": [
+            4
+          ],
+          "04_north_corridor": [
+            4
+          ],
+          "05_southwest_office": [
+            4
+          ],
+          "06_south_meeting": [
+            4
+          ],
+          "07_south_pillars": [
+            4
+          ],
+          "08_west_shelves": [
+            4
+          ],
+          "09_east_shelves": [
+            4
+          ],
+          "10_northwest_meeting": [
+            4
+          ],
+          "11_northeast_pillars": [
+            4
+          ],
+          "12_north_office": [
+            4
+          ],
+          "13_south_door": [
+            4
+          ],
+          "14_north_door": [
+            4
+          ]
+        },
+        "cpu_s": 183.77454792100002,
+        "input_s": 413.000005005,
+        "peak_rss_mib": 1500.515625,
+        "first_lock_wall_max_s": 4.588850484,
+        "first_lock_wall_median_s": 3.247349359,
+        "average_cores": 0.44497468691017367,
+        "position_error_m": {
+          "rmse": 0.009598793932540877,
+          "maximum": 0.02521616721530791
+        },
+        "rotation_error_deg": {
+          "rmse": 0.01759190936871705,
+          "maximum": 0.08480199422672337
+        }
+      },
+      "after_repeated_candidate": {
+        "positions": 14,
+        "frames": 4144,
+        "outputs": 4088,
+        "locks": {
+          "01_west_corridor": [
+            4
+          ],
+          "02_east_corridor": [
+            4
+          ],
+          "03_south_corridor": [
+            4
+          ],
+          "04_north_corridor": [
+            4
+          ],
+          "05_southwest_office": [
+            4
+          ],
+          "06_south_meeting": [
+            4
+          ],
+          "07_south_pillars": [
+            4
+          ],
+          "08_west_shelves": [
+            4
+          ],
+          "09_east_shelves": [
+            4
+          ],
+          "10_northwest_meeting": [
+            4
+          ],
+          "11_northeast_pillars": [
+            4
+          ],
+          "12_north_office": [
+            4
+          ],
+          "13_south_door": [
+            4
+          ],
+          "14_north_door": [
+            4
+          ]
+        },
+        "cpu_s": 183.522374309,
+        "input_s": 413.000005005,
+        "peak_rss_mib": 1532.515625,
+        "first_lock_wall_max_s": 4.038406826,
+        "first_lock_wall_median_s": 3.3888006455,
+        "per_position": [
+          {
+            "id": "01_west_corridor",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.3143896333057666,
+            "first_lock_wall_s": 2.242123587,
+            "position_error_m": {
+              "rmse": 0.0025674523827729744,
+              "median": 0.0019405817179800776,
+              "p95": 0.004538286782739036,
+              "maximum": 0.00839699292189474
+            },
+            "rotation_error_deg": {
+              "rmse": 0.01447237143528706,
+              "median": 0.013291728923207725,
+              "p95": 0.02318699480588557,
+              "maximum": 0.028379838783050323
+            }
+          },
+          {
+            "id": "02_east_corridor",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.35461686641161305,
+            "first_lock_wall_s": 2.304591696,
+            "position_error_m": {
+              "rmse": 0.010625331702430256,
+              "median": 0.010629805532732399,
+              "p95": 0.011595703463005605,
+              "maximum": 0.012290705051018576
+            },
+            "rotation_error_deg": {
+              "rmse": 0.01444096256618166,
+              "median": 0.01405506835193895,
+              "p95": 0.018777582139823536,
+              "maximum": 0.027573839495984947
+            }
+          },
+          {
+            "id": "03_south_corridor",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.5403646790169491,
+            "first_lock_wall_s": 3.9859360390000003,
+            "position_error_m": {
+              "rmse": 0.006950819895932719,
+              "median": 0.006812489803738705,
+              "p95": 0.008437755662547529,
+              "maximum": 0.011855441183032406
+            },
+            "rotation_error_deg": {
+              "rmse": 0.017027668629876695,
+              "median": 0.01630294835603132,
+              "p95": 0.021551812211053456,
+              "maximum": 0.038746452909215794
+            }
+          },
+          {
+            "id": "04_north_corridor",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4009980770506906,
+            "first_lock_wall_s": 2.590298041,
+            "position_error_m": {
+              "rmse": 0.00644492573326343,
+              "median": 0.006480855086790586,
+              "p95": 0.007361948051627111,
+              "maximum": 0.008269544464820075
+            },
+            "rotation_error_deg": {
+              "rmse": 0.01286413386752169,
+              "median": 0.012320901033551414,
+              "p95": 0.016554836584212463,
+              "maximum": 0.02802320064665664
+            }
+          },
+          {
+            "id": "05_southwest_office",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.47535479277966103,
+            "first_lock_wall_s": 3.473430594,
+            "position_error_m": {
+              "rmse": 0.008759737363123748,
+              "median": 0.00792586394615567,
+              "p95": 0.012220361986718775,
+              "maximum": 0.012778012317518335
+            },
+            "rotation_error_deg": {
+              "rmse": 0.015838890177230034,
+              "median": 0.015130326008215452,
+              "p95": 0.022911979388705494,
+              "maximum": 0.041299093738888
+            }
+          },
+          {
+            "id": "06_south_meeting",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4195104754576271,
+            "first_lock_wall_s": 3.304170697,
+            "position_error_m": {
+              "rmse": 0.010115366717167817,
+              "median": 0.009449748581681287,
+              "p95": 0.01323119388566767,
+              "maximum": 0.014666216635369642
+            },
+            "rotation_error_deg": {
+              "rmse": 0.016931436051076675,
+              "median": 0.015154952659518103,
+              "p95": 0.0232601439239044,
+              "maximum": 0.06948809929721765
+            }
+          },
+          {
+            "id": "07_south_pillars",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4544841024745763,
+            "first_lock_wall_s": 3.16956601,
+            "position_error_m": {
+              "rmse": 0.014252833642220788,
+              "median": 0.01254649808329895,
+              "p95": 0.022725540995840423,
+              "maximum": 0.02460105771065894
+            },
+            "rotation_error_deg": {
+              "rmse": 0.01842541731665147,
+              "median": 0.016605693673394817,
+              "p95": 0.028949159442048393,
+              "maximum": 0.050637431725341256
+            }
+          },
+          {
+            "id": "08_west_shelves",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.49128147400000005,
+            "first_lock_wall_s": 3.81990439,
+            "position_error_m": {
+              "rmse": 0.005210522478706074,
+              "median": 0.003902275460814639,
+              "p95": 0.00953988221332288,
+              "maximum": 0.010463581101092417
+            },
+            "rotation_error_deg": {
+              "rmse": 0.02293904609647882,
+              "median": 0.02024881664128878,
+              "p95": 0.035992850850206294,
+              "maximum": 0.059858753925741116
+            }
+          },
+          {
+            "id": "09_east_shelves",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.35674010183050847,
+            "first_lock_wall_s": 2.740571669,
+            "position_error_m": {
+              "rmse": 0.011821673937470169,
+              "median": 0.011394541514706853,
+              "p95": 0.013966967225032953,
+              "maximum": 0.014891431041087113
+            },
+            "rotation_error_deg": {
+              "rmse": 0.01885978339761193,
+              "median": 0.016135513929087464,
+              "p95": 0.029760765331212528,
+              "maximum": 0.047834617562728034
+            }
+          },
+          {
+            "id": "10_northwest_meeting",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4164860703050847,
+            "first_lock_wall_s": 3.152102804,
+            "position_error_m": {
+              "rmse": 0.003294745421579848,
+              "median": 0.0013376170768559122,
+              "p95": 0.007205171876548938,
+              "maximum": 0.00896842232624282
+            },
+            "rotation_error_deg": {
+              "rmse": 0.012514443454560577,
+              "median": 0.010443494749130897,
+              "p95": 0.020634488731594014,
+              "maximum": 0.026026533629257463
+            }
+          },
+          {
+            "id": "11_northeast_pillars",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4857906236949152,
+            "first_lock_wall_s": 3.80451039,
+            "position_error_m": {
+              "rmse": 0.012419702905236276,
+              "median": 0.011739705716980447,
+              "p95": 0.01569662754073924,
+              "maximum": 0.016632031072808535
+            },
+            "rotation_error_deg": {
+              "rmse": 0.014876465544040101,
+              "median": 0.013847886984982481,
+              "p95": 0.02194190833436646,
+              "maximum": 0.038921252658854266
+            }
+          },
+          {
+            "id": "12_north_office",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.5039911907118645,
+            "first_lock_wall_s": 3.818895702,
+            "position_error_m": {
+              "rmse": 0.0059845490591201415,
+              "median": 0.006068084247549057,
+              "p95": 0.0069949158311835655,
+              "maximum": 0.007291756807509089
+            },
+            "rotation_error_deg": {
+              "rmse": 0.014803370648700383,
+              "median": 0.01347869602387683,
+              "p95": 0.02201220146913712,
+              "maximum": 0.03447912698746914
+            }
+          },
+          {
+            "id": "13_south_door",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.4727543599276077,
+            "first_lock_wall_s": 3.587279591,
+            "position_error_m": {
+              "rmse": 0.014272636238236089,
+              "median": 0.013826476286947638,
+              "p95": 0.017328662261252126,
+              "maximum": 0.019041169740171282
+            },
+            "rotation_error_deg": {
+              "rmse": 0.01587190330302965,
+              "median": 0.012335432673782934,
+              "p95": 0.02251309994510185,
+              "maximum": 0.0830617321286505
+            }
+          },
+          {
+            "id": "14_north_door",
+            "outputs": 292,
+            "lock_frames": [
+              4
+            ],
+            "cpu_seconds_per_input_second": 0.5343348775814895,
+            "first_lock_wall_s": 4.038406826,
+            "position_error_m": {
+              "rmse": 0.007814314633186433,
+              "median": 0.007835452669129448,
+              "p95": 0.008849702182649574,
+              "maximum": 0.01082944843872785
+            },
+            "rotation_error_deg": {
+              "rmse": 0.012039169203524139,
+              "median": 0.011767903400231313,
+              "p95": 0.017275606149906562,
+              "maximum": 0.019715931779078957
+            }
+          }
+        ],
+        "average_cores": 0.444364097058009,
+        "position_error_m": {
+          "rmse": 0.009350820179583717,
+          "maximum": 0.02460105771065894
+        },
+        "rotation_error_deg": {
+          "rmse": 0.016094073500684807,
+          "maximum": 0.0830617321286505
+        }
+      }
+    },
+    "motion": {
+      "motion_original": {
+        "frames": 2236,
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "truth": {
+          "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+          "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/timely_geometry_20261021/motion_original/frames.csv",
+          "probe_status": {
+            "input_frames": 2236,
+            "successful_frames": 2232,
+            "published_without_backend_success": 0
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 2232,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.0038897995341094947,
+          "first_output_rotation_error_deg": 0.013861135338641882,
+          "position_error_m": {
+            "rmse": 0.009551471733884152,
+            "median": 0.006971633678282364,
+            "p95": 0.014945975438822152,
+            "maximum": 0.07741726242473228
+          },
+          "rotation_error_deg": {
+            "rmse": 0.02200657628659183,
+            "median": 0.014759863752449955,
+            "p95": 0.040335286628765156,
+            "maximum": 0.1464507876252226
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "cpu_s": 125.05266624899998,
+        "wall_s": 40.227479414,
+        "input_s": 223.5,
+        "peak_rss_mib": 1301.82421875,
+        "sources": {
+          "0": 4,
+          "2": 2222,
+          "1": 10
+        },
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 2221,
+          "icp_gate_failed": 10
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "average_cores": 0.5595197595033556
+      },
+      "motion_new_baseline": {
+        "frames": 3666,
+        "outputs": 3662,
+        "locks": [
+          4,
+          1996
+        ],
+        "truth": {
+          "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+          "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/timely_geometry_20261021/motion_new_baseline/frames.csv",
+          "probe_status": {
+            "input_frames": 3666,
+            "successful_frames": 3535,
+            "published_without_backend_success": 127
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 3662,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.001781498150140213,
+          "first_output_rotation_error_deg": 0.012210916183329125,
+          "position_error_m": {
+            "rmse": 0.011278931236638595,
+            "median": 0.006248984065579357,
+            "p95": 0.016783883191258602,
+            "maximum": 0.05756713365227816
+          },
+          "rotation_error_deg": {
+            "rmse": 0.035696206156220364,
+            "median": 0.01591625978651318,
+            "p95": 0.07514276374986498,
+            "maximum": 0.2112576089235974
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "cpu_s": 302.193202725,
+        "wall_s": 98.537970796,
+        "input_s": 366.5,
+        "peak_rss_mib": 1296.25,
+        "sources": {
+          "0": 131,
+          "2": 3528,
+          "1": 7
+        },
+        "decisions": {
+          "temporal_window_pending": 108,
+          "accepted": 2,
+          "tracking_geometric": 3526,
+          "icp_gate_failed": 7,
+          "ambiguous": 12,
+          "margin": 8,
+          "log_likelihood": 3
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "average_cores": 0.8245380701909959
+      },
+      "motion_new_same_map": {
+        "frames": 3666,
+        "outputs": 3662,
+        "locks": [
+          4,
+          1996
+        ],
+        "truth": {
+          "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+          "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/timely_geometry_20261021/motion_new_same_map/frames.csv",
+          "probe_status": {
+            "input_frames": 3666,
+            "successful_frames": 3535,
+            "published_without_backend_success": 127
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 3662,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.001781498150140127,
+          "first_output_rotation_error_deg": 0.012210916183329064,
+          "position_error_m": {
+            "rmse": 0.011278931236639856,
+            "median": 0.0062489840655794125,
+            "p95": 0.016783883191278496,
+            "maximum": 0.05756713365228671
+          },
+          "rotation_error_deg": {
+            "rmse": 0.03569620615621604,
+            "median": 0.01591625978651317,
+            "p95": 0.07514276374986498,
+            "maximum": 0.21125760892357448
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "cpu_s": 301.96599557900004,
+        "wall_s": 98.007131767,
+        "input_s": 366.5,
+        "peak_rss_mib": 1305.34375,
+        "sources": {
+          "0": 131,
+          "2": 3528,
+          "1": 7
+        },
+        "decisions": {
+          "temporal_window_pending": 108,
+          "accepted": 2,
+          "tracking_geometric": 3526,
+          "icp_gate_failed": 7,
+          "ambiguous": 12,
+          "margin": 8,
+          "log_likelihood": 3
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "average_cores": 0.8239181325484312
+      },
+      "motion_new_final": {
+        "frames": 3666,
+        "outputs": 3662,
+        "locks": [
+          4,
+          2002
+        ],
+        "truth": {
+          "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+          "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/timely_geometry_20261021/motion_new_final/frames.csv",
+          "probe_status": {
+            "input_frames": 3666,
+            "successful_frames": 3529,
+            "published_without_backend_success": 133
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 3662,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.0017805344569888667,
+          "first_output_rotation_error_deg": 0.012399372245541279,
+          "position_error_m": {
+            "rmse": 0.011571236557492471,
+            "median": 0.0065831582265989536,
+            "p95": 0.017077977988255916,
+            "maximum": 0.06435623904484356
+          },
+          "rotation_error_deg": {
+            "rmse": 0.03599131766169958,
+            "median": 0.01592110621605412,
+            "p95": 0.07721044739630527,
+            "maximum": 0.2113263071722405
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "cpu_s": 311.626552384,
+        "wall_s": 101.267551863,
+        "input_s": 366.5,
+        "peak_rss_mib": 1301.82421875,
+        "sources": {
+          "0": 137,
+          "2": 3522,
+          "1": 7
+        },
+        "decisions": {
+          "temporal_window_pending": 113,
+          "accepted": 2,
+          "tracking_geometric": 3520,
+          "icp_gate_failed": 7,
+          "ambiguous": 13,
+          "margin": 8,
+          "log_likelihood": 3
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "average_cores": 0.8502770869959072
+      }
+    },
+    "extensions": {
+      "extension_first": {
+        "baseline": {
+          "frames": 2236,
+          "keyframes": 231,
+          "successful_frames": 2232,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 123.36605883199977,
+          "loop_cpu_s": 0.4512428890001452,
+          "runtime_cpu_s": 194.646707185,
+          "runtime_wall_s": 228.407389912,
+          "source_duration_s": 223.5,
+          "max_pacing_lag_s": 1.881094732,
+          "peak_rss_kib": 2140616,
+          "paced": true,
+          "foreground_wall_ms": {
+            "all": {
+              "count": 2236,
+              "median": 22.5700335,
+              "p95": 45.10926725,
+              "maximum": 1165.2452520000002
+            },
+            "keyframe": {
+              "count": 231,
+              "median": 26.853195,
+              "p95": 49.0715945,
+              "maximum": 94.484065
+            }
+          },
+          "average_cores": 0.8709024929977629,
+          "runtime_peak_rss_gib": 2.0414505004882812,
+          "live": {
+            "alignment": {
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "frames": 2236,
+            "outputs": 2232,
+            "rejected_frames": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "position_m": {
+              "count": 2232,
+              "rmse": 0.008347465064598401,
+              "median": 0.0059767415299328205,
+              "p95": 0.014112606765899396,
+              "maximum": 0.042803943918213426
+            },
+            "rotation_deg": {
+              "count": 2232,
+              "rmse": 0.025869441711423115,
+              "median": 0.01259693390799357,
+              "p95": 0.0491424992615227,
+              "maximum": 0.16648063469995347
+            },
+            "consecutive_displacement_error_m": {
+              "count": 2231,
+              "rmse": 0.0033012299918319457,
+              "median": 0.0014145638232030075,
+              "p95": 0.005800991898458915,
+              "maximum": 0.04014010042635249
+            },
+            "above_10cm": 0,
+            "above_1m": 0,
+            "max_rotation_orthogonality_error": 2.9658403546010687e-13,
+            "commits": 12,
+            "max_pending": 2,
+            "graph_rebases": 0,
+            "commit_ms": {
+              "count": 12,
+              "rmse": 12.858394581607381,
+              "median": 10.0252625,
+              "p95": 20.569105149999995,
+              "maximum": 25.089911
+            },
+            "max_pending_age_ms": 29304.56142
+          },
+          "map_accuracy": {
+            "scope": "Repeated recorded route checks state/resource growth, not independent new measurements",
+            "original_mapping": {
+              "position_m": {
+                "count": 1271,
+                "rmse": 0.008136009435250068,
+                "median": 0.007122566003394715,
+                "p95": 0.013594421021728432,
+                "maximum": 0.020624665897507204
+              },
+              "rotation_deg": {
+                "count": 1271,
+                "rmse": 0.015069664886746,
+                "median": 0.012011070100115892,
+                "p95": 0.026292830053006203,
+                "maximum": 0.06143718238878085
+              }
+            },
+            "extension_1": {
+              "position_m": {
+                "count": 231,
+                "rmse": 0.00684549473868653,
+                "median": 0.005729093634103048,
+                "p95": 0.011267145466644783,
+                "maximum": 0.019020500678255624
+              },
+              "rotation_deg": {
+                "count": 231,
+                "rmse": 0.021662814378608834,
+                "median": 0.012379492965908878,
+                "p95": 0.04288957320648043,
+                "maximum": 0.0997693994714309
+              }
+            },
+            "surface_distance_m": {
+              "count": 748129,
+              "rmse": 0.004400168563135325,
+              "median": 0.002915173306491242,
+              "p95": 0.008792333329467644,
+              "maximum": 0.023718443963263253
+            }
+          },
+          "save": {
+            "cpu_s": 6.60468,
+            "wall_s": 3.29606,
+            "peak_rss_kib": 2503624
+          }
+        },
+        "candidate": {
+          "frames": 2236,
+          "keyframes": 231,
+          "successful_frames": 2232,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 125.62265996999993,
+          "loop_cpu_s": 0.528435605000297,
+          "runtime_cpu_s": 195.71119503,
+          "runtime_wall_s": 229.239021687,
+          "source_duration_s": 223.5,
+          "max_pacing_lag_s": 1.8193961699999999,
+          "peak_rss_kib": 2248188,
+          "paced": true,
+          "foreground_wall_ms": {
+            "all": {
+              "count": 2236,
+              "median": 22.8309665,
+              "p95": 47.38808925,
+              "maximum": 1084.4352390000001
+            },
+            "keyframe": {
+              "count": 231,
+              "median": 26.598661999999997,
+              "p95": 51.199867999999995,
+              "maximum": 97.470407
+            }
+          },
+          "average_cores": 0.875665302147651,
+          "runtime_peak_rss_gib": 2.1440391540527344,
+          "live": {
+            "alignment": {
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "frames": 2236,
+            "outputs": 2232,
+            "rejected_frames": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "position_m": {
+              "count": 2232,
+              "rmse": 0.008436884508180278,
+              "median": 0.006180822556352012,
+              "p95": 0.013517880786871113,
+              "maximum": 0.042623729243849884
+            },
+            "rotation_deg": {
+              "count": 2232,
+              "rmse": 0.02574698682711827,
+              "median": 0.012882235198703774,
+              "p95": 0.04756514502043774,
+              "maximum": 0.16535200068993486
+            },
+            "consecutive_displacement_error_m": {
+              "count": 2231,
+              "rmse": 0.0032452285197861045,
+              "median": 0.0013912113718400059,
+              "p95": 0.005749628908367431,
+              "maximum": 0.040139975018979424
+            },
+            "above_10cm": 0,
+            "above_1m": 0,
+            "max_rotation_orthogonality_error": 2.959868883831229e-13,
+            "commits": 13,
+            "max_pending": 2,
+            "graph_rebases": 0,
+            "commit_ms": {
+              "count": 13,
+              "rmse": 9.97313741299652,
+              "median": 9.977506,
+              "p95": 13.521465999999991,
+              "maximum": 17.217292
+            },
+            "max_pending_age_ms": 28422.740208
+          },
+          "map_accuracy": {
+            "scope": "Original/repeated recorded inputs",
+            "original_mapping": {
+              "position_m": {
+                "count": 1271,
+                "rmse": 0.008512013335281583,
+                "median": 0.0077079622219477124,
+                "p95": 0.013883266540688333,
+                "maximum": 0.021713011217287897
+              },
+              "rotation_deg": {
+                "count": 1271,
+                "rmse": 0.015436428431075622,
+                "median": 0.012517778670786727,
+                "p95": 0.026005410847959428,
+                "maximum": 0.0630323133755929
+              },
+              "surface_distance_m": {
+                "count": 633185,
+                "rmse": 0.004685306168862413,
+                "median": 0.0032286974427529758,
+                "p95": 0.009246238767606227,
+                "maximum": 0.024051776692763843
+              }
+            },
+            "extension_1": {
+              "position_m": {
+                "count": 231,
+                "rmse": 0.0074332824881305215,
+                "median": 0.005905899419028802,
+                "p95": 0.012528067163409262,
+                "maximum": 0.020899223470194562
+              },
+              "rotation_deg": {
+                "count": 231,
+                "rmse": 0.021255165661373764,
+                "median": 0.013005450100651147,
+                "p95": 0.03984811991062612,
+                "maximum": 0.09490067254155005
+              },
+              "surface_distance_m": {
+                "count": 114944,
+                "rmse": 0.003739171603683033,
+                "median": 0.002314445983312416,
+                "p95": 0.008050676269451747,
+                "maximum": 0.020829671768695213
+              }
+            },
+            "surface_distance_m": {
+              "count": 748129,
+              "rmse": 0.004552742204857154,
+              "median": 0.0030406445223704337,
+              "p95": 0.00912152391467033,
+              "maximum": 0.024051776692763843
+            }
+          },
+          "save": {
+            "cpu_s": 6.49697,
+            "wall_s": 3.24905,
+            "peak_rss_kib": 2589972
+          },
+          "weights_audit": {
+            "map_version": "2.10.0",
+            "keyframes": 1502,
+            "unique_raw_inputs": 1502,
+            "planes": 1521,
+            "observations": 51509,
+            "discounted_observations": 0,
+            "effective_observations": 51509.0,
+            "minimum_distinct_sources": 3,
+            "maximum_multiplicity_weight_deviation": 0.0,
+            "scope": "Identical timestamp, raw pose and point payload only; no calibration of independent-scan correlation"
+          }
+        }
+      },
+      "extension_second": {
+        "baseline": {
+          "frames": 2236,
+          "keyframes": 231,
+          "successful_frames": 2232,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 131.1947601919999,
+          "loop_cpu_s": 0.41000150000024327,
+          "runtime_cpu_s": 197.18989743699998,
+          "runtime_wall_s": 227.948904401,
+          "source_duration_s": 223.5,
+          "max_pacing_lag_s": 1.617690533,
+          "peak_rss_kib": 2348204,
+          "paced": true,
+          "foreground_wall_ms": {
+            "all": {
+              "count": 2236,
+              "median": 23.823878999999998,
+              "p95": 51.88541525,
+              "maximum": 1032.873589
+            },
+            "keyframe": {
+              "count": 231,
+              "median": 29.425704,
+              "p95": 61.45859,
+              "maximum": 104.549956
+            }
+          },
+          "average_cores": 0.8822814202997762,
+          "runtime_peak_rss_gib": 2.239421844482422,
+          "live": {
+            "alignment": {
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "frames": 2236,
+            "outputs": 2232,
+            "rejected_frames": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "position_m": {
+              "count": 2232,
+              "rmse": 0.00862633902376363,
+              "median": 0.006288382674165981,
+              "p95": 0.014314458727031156,
+              "maximum": 0.0723654314639369
+            },
+            "rotation_deg": {
+              "count": 2232,
+              "rmse": 0.021334047256150516,
+              "median": 0.013394432567904745,
+              "p95": 0.04058857492462651,
+              "maximum": 0.15148711175242865
+            },
+            "consecutive_displacement_error_m": {
+              "count": 2231,
+              "rmse": 0.003485538227305354,
+              "median": 0.0012793064721915571,
+              "p95": 0.005707504969977425,
+              "maximum": 0.06956395952882596
+            },
+            "above_10cm": 0,
+            "above_1m": 0,
+            "max_rotation_orthogonality_error": 2.866331600409999e-13,
+            "commits": 14,
+            "max_pending": 2,
+            "graph_rebases": 0,
+            "commit_ms": {
+              "count": 14,
+              "rmse": 8.268339032909317,
+              "median": 7.2080044999999995,
+              "p95": 10.832582550000001,
+              "maximum": 11.224060000000001
+            },
+            "max_pending_age_ms": 22509.929913
+          },
+          "map_accuracy": {
+            "scope": "Repeated recorded route checks state/resource growth, not independent new measurements",
+            "original_mapping": {
+              "position_m": {
+                "count": 1271,
+                "rmse": 0.009245897044263016,
+                "median": 0.008304765735478035,
+                "p95": 0.014372182278825793,
+                "maximum": 0.02363383739625778
+              },
+              "rotation_deg": {
+                "count": 1271,
+                "rmse": 0.017174407880247988,
+                "median": 0.014246185487934089,
+                "p95": 0.028326495155351496,
+                "maximum": 0.06469883076475143
+              }
+            },
+            "extension_1": {
+              "position_m": {
+                "count": 231,
+                "rmse": 0.008092611374787914,
+                "median": 0.006624697500129333,
+                "p95": 0.013235382228328606,
+                "maximum": 0.021765504525355608
+              },
+              "rotation_deg": {
+                "count": 231,
+                "rmse": 0.027385224566893514,
+                "median": 0.014859650270510026,
+                "p95": 0.054706161558931495,
+                "maximum": 0.13085122046988992
+              }
+            },
+            "extension_2": {
+              "position_m": {
+                "count": 231,
+                "rmse": 0.008088634424074726,
+                "median": 0.006658111218913986,
+                "p95": 0.013230288283724736,
+                "maximum": 0.021845579830367872
+              },
+              "rotation_deg": {
+                "count": 231,
+                "rmse": 0.025644685729875646,
+                "median": 0.014856736301719931,
+                "p95": 0.051212837299019945,
+                "maximum": 0.11513041702353974
+              }
+            },
+            "surface_distance_m": {
+              "count": 863073,
+              "rmse": 0.004766933006389248,
+              "median": 0.0031968558048518364,
+              "p95": 0.009368315877924098,
+              "maximum": 0.025553984326478846
+            }
+          },
+          "save": {
+            "cpu_s": 6.81677,
+            "wall_s": 3.51319,
+            "peak_rss_kib": 2596792
+          }
+        },
+        "candidate": {
+          "frames": 2236,
+          "keyframes": 231,
+          "successful_frames": 2232,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 129.65144272700053,
+          "loop_cpu_s": 0.505513911999917,
+          "runtime_cpu_s": 192.32943855399998,
+          "runtime_wall_s": 227.899941592,
+          "source_duration_s": 223.5,
+          "max_pacing_lag_s": 1.750830918,
+          "peak_rss_kib": 2417396,
+          "paced": true,
+          "foreground_wall_ms": {
+            "all": {
+              "count": 2236,
+              "median": 23.795828,
+              "p95": 51.620648,
+              "maximum": 1231.8484720000001
+            },
+            "keyframe": {
+              "count": 231,
+              "median": 30.834228000000003,
+              "p95": 59.1254075,
+              "maximum": 81.657366
+            }
+          },
+          "average_cores": 0.860534400689038,
+          "runtime_peak_rss_gib": 2.305408477783203,
+          "live": {
+            "alignment": {
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "frames": 2236,
+            "outputs": 2232,
+            "rejected_frames": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "position_m": {
+              "count": 2232,
+              "rmse": 0.008862272395411656,
+              "median": 0.00653812944301699,
+              "p95": 0.014740436970261062,
+              "maximum": 0.0722868788666659
+            },
+            "rotation_deg": {
+              "count": 2232,
+              "rmse": 0.02179522309210078,
+              "median": 0.012924870884709911,
+              "p95": 0.04210903875261713,
+              "maximum": 0.1757436212065921
+            },
+            "consecutive_displacement_error_m": {
+              "count": 2231,
+              "rmse": 0.0033718365566091256,
+              "median": 0.0012827231278058889,
+              "p95": 0.005270452896186349,
+              "maximum": 0.06956392574332697
+            },
+            "above_10cm": 0,
+            "above_1m": 0,
+            "max_rotation_orthogonality_error": 2.973054418813203e-13,
+            "commits": 13,
+            "max_pending": 2,
+            "graph_rebases": 0,
+            "commit_ms": {
+              "count": 13,
+              "rmse": 9.539829006360835,
+              "median": 9.28002,
+              "p95": 12.887689599999996,
+              "maximum": 14.196331
+            },
+            "max_pending_age_ms": 25104.476733
+          },
+          "map_accuracy": {
+            "scope": "Original/repeated recorded inputs",
+            "original_mapping": {
+              "position_m": {
+                "count": 1271,
+                "rmse": 0.008795630219376674,
+                "median": 0.008105933333034101,
+                "p95": 0.013678873538108333,
+                "maximum": 0.023185887099600292
+              },
+              "rotation_deg": {
+                "count": 1271,
+                "rmse": 0.01563405801136027,
+                "median": 0.012574284691475793,
+                "p95": 0.02749571923025569,
+                "maximum": 0.06486629707922574
+              },
+              "surface_distance_m": {
+                "count": 633185,
+                "rmse": 0.004574459801656632,
+                "median": 0.002892544181369805,
+                "p95": 0.009002849135686435,
+                "maximum": 0.02429293420811654
+              }
+            },
+            "extension_1": {
+              "position_m": {
+                "count": 231,
+                "rmse": 0.008047366580066545,
+                "median": 0.006707739823866252,
+                "p95": 0.013332083455570264,
+                "maximum": 0.023172940397081534
+              },
+              "rotation_deg": {
+                "count": 231,
+                "rmse": 0.029176587030655933,
+                "median": 0.013877201671655317,
+                "p95": 0.06267881423028772,
+                "maximum": 0.1424891148678966
+              },
+              "surface_distance_m": {
+                "count": 114944,
+                "rmse": 0.00394188944487388,
+                "median": 0.0022149133886343597,
+                "p95": 0.00895417589390738,
+                "maximum": 0.029976167106874008
+              }
+            },
+            "extension_2": {
+              "position_m": {
+                "count": 231,
+                "rmse": 0.008002132796408643,
+                "median": 0.006749840725857123,
+                "p95": 0.013324238392266678,
+                "maximum": 0.02328212058537462
+              },
+              "rotation_deg": {
+                "count": 231,
+                "rmse": 0.028148141680085274,
+                "median": 0.013917761105151211,
+                "p95": 0.06200969480128955,
+                "maximum": 0.13502811658563876
+              },
+              "surface_distance_m": {
+                "count": 114944,
+                "rmse": 0.003927465609746355,
+                "median": 0.0021917235075644415,
+                "p95": 0.00892643895426613,
+                "maximum": 0.028055638988185527
+              }
+            },
+            "surface_distance_m": {
+              "count": 863073,
+              "rmse": 0.004413120726250237,
+              "median": 0.0026642816367931366,
+              "p95": 0.008993295908495328,
+              "maximum": 0.029976167106874008
+            }
+          },
+          "save": {
+            "cpu_s": 6.67089,
+            "wall_s": 3.42877,
+            "peak_rss_kib": 2624428
+          },
+          "weights_audit": {
+            "map_version": "2.10.0",
+            "keyframes": 1733,
+            "unique_raw_inputs": 1502,
+            "planes": 679,
+            "observations": 24638,
+            "discounted_observations": 6626,
+            "effective_observations": 21325.0,
+            "minimum_distinct_sources": 3,
+            "maximum_multiplicity_weight_deviation": 0.0,
+            "scope": "Identical timestamp, raw pose and point payload only; no calibration of independent-scan correlation"
+          }
+        }
+      },
+      "fresh": {
+        "baseline": {
+          "frames": 3666,
+          "keyframes": 344,
+          "successful_frames": 3662,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 207.9799943989984,
+          "loop_cpu_s": 0.715526620000646,
+          "runtime_cpu_s": 312.97971003500004,
+          "runtime_wall_s": 370.504273823,
+          "source_duration_s": 366.5,
+          "max_pacing_lag_s": 2.227660223,
+          "peak_rss_kib": 2143420,
+          "paced": true,
+          "foreground_wall_ms": {
+            "all": {
+              "count": 3666,
+              "median": 23.2225805,
+              "p95": 47.73267725,
+              "maximum": 1255.246183
+            },
+            "keyframe": {
+              "count": 344,
+              "median": 27.5152875,
+              "p95": 51.1388931,
+              "maximum": 93.396412
+            }
+          },
+          "average_cores": 0.8539691951841747,
+          "runtime_peak_rss_gib": 2.0441246032714844,
+          "live": {
+            "alignment": {
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "frames": 3666,
+            "outputs": 3662,
+            "rejected_frames": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "position_m": {
+              "count": 3662,
+              "rmse": 0.012540269688930596,
+              "median": 0.005642989877181468,
+              "p95": 0.015842333011805678,
+              "maximum": 0.08282927165938146
+            },
+            "rotation_deg": {
+              "count": 3662,
+              "rmse": 0.053342987312093984,
+              "median": 0.012992303958800256,
+              "p95": 0.08776000191810802,
+              "maximum": 0.47641887091498575
+            },
+            "consecutive_displacement_error_m": {
+              "count": 3661,
+              "rmse": 0.003301496091665323,
+              "median": 0.0017430068992844614,
+              "p95": 0.006713917356942898,
+              "maximum": 0.026689769315683638
+            },
+            "above_10cm": 0,
+            "above_1m": 0,
+            "max_rotation_orthogonality_error": 1.0939877496427927e-12,
+            "commits": 24,
+            "max_pending": 2,
+            "graph_rebases": 0,
+            "commit_ms": {
+              "count": 24,
+              "rmse": 8.296629860970603,
+              "median": 8.281761,
+              "p95": 10.6510679,
+              "maximum": 11.260363000000002
+            },
+            "max_pending_age_ms": 21413.731005
+          },
+          "map_accuracy": {
+            "scope": "Fresh independent acquisition",
+            "original_mapping": {
+              "position_m": {
+                "count": 1271,
+                "rmse": 0.007319542282930793,
+                "median": 0.006844132902792923,
+                "p95": 0.011395225903020105,
+                "maximum": 0.020263785023907115
+              },
+              "rotation_deg": {
+                "count": 1271,
+                "rmse": 0.01527347581576445,
+                "median": 0.01198088383341289,
+                "p95": 0.02741609383115349,
+                "maximum": 0.06553261192361971
+              },
+              "surface_distance_m": {
+                "count": 633185,
+                "rmse": 0.003997248502452895,
+                "median": 0.0025159961025819355,
+                "p95": 0.007837291427252637,
+                "maximum": 0.022932968291818595
+              }
+            },
+            "extension_1": {
+              "position_m": {
+                "count": 344,
+                "rmse": 0.006599220705455059,
+                "median": 0.005480144434200583,
+                "p95": 0.01051292679459479,
+                "maximum": 0.018742465459986105
+              },
+              "rotation_deg": {
+                "count": 344,
+                "rmse": 0.019461631476191055,
+                "median": 0.013148880954796188,
+                "p95": 0.036475727075276576,
+                "maximum": 0.08817346385866164
+              },
+              "surface_distance_m": {
+                "count": 171279,
+                "rmse": 0.003522270208464478,
+                "median": 0.0023481857865111644,
+                "p95": 0.006623369692360632,
+                "maximum": 0.026840196974185937
+              }
+            },
+            "surface_distance_m": {
+              "count": 804464,
+              "rmse": 0.0039009693622908304,
+              "median": 0.0024761500502201717,
+              "p95": 0.007640747999220113,
+              "maximum": 0.026840196974185937
+            }
+          },
+          "save": {
+            "cpu_s": 6.6579,
+            "wall_s": 3.38476,
+            "peak_rss_kib": 2500704
+          }
+        },
+        "candidate": {
+          "frames": 3666,
+          "keyframes": 344,
+          "successful_frames": 3662,
+          "accepted_loops": 0,
+          "mapping_cpu_s": 207.9899356419991,
+          "loop_cpu_s": 0.8238887029999082,
+          "runtime_cpu_s": 312.926723261,
+          "runtime_wall_s": 369.92583441,
+          "source_duration_s": 366.5,
+          "max_pacing_lag_s": 2.079738201,
+          "peak_rss_kib": 2390412,
+          "paced": true,
+          "foreground_wall_ms": {
+            "all": {
+              "count": 3666,
+              "median": 23.097737000000002,
+              "p95": 48.012609499999996,
+              "maximum": 1183.5170699999999
+            },
+            "keyframe": {
+              "count": 344,
+              "median": 27.012659,
+              "p95": 47.422273599999976,
+              "maximum": 82.61248499999999
+            }
+          },
+          "average_cores": 0.8538246200845839,
+          "runtime_peak_rss_gib": 2.279674530029297,
+          "live": {
+            "alignment": {
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "frames": 3666,
+            "outputs": 3662,
+            "rejected_frames": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "position_m": {
+              "count": 3662,
+              "rmse": 0.012656935966107695,
+              "median": 0.005763040497850088,
+              "p95": 0.0159868636922866,
+              "maximum": 0.08311779569738945
+            },
+            "rotation_deg": {
+              "count": 3662,
+              "rmse": 0.05286083561934149,
+              "median": 0.012840662583592073,
+              "p95": 0.08920994449081623,
+              "maximum": 0.47532767792735486
+            },
+            "consecutive_displacement_error_m": {
+              "count": 3661,
+              "rmse": 0.003245399752086885,
+              "median": 0.001711041078015216,
+              "p95": 0.00649098167558535,
+              "maximum": 0.0238054284494812
+            },
+            "above_10cm": 0,
+            "above_1m": 0,
+            "max_rotation_orthogonality_error": 1.0731017522073831e-12,
+            "commits": 24,
+            "max_pending": 2,
+            "graph_rebases": 0,
+            "commit_ms": {
+              "count": 24,
+              "rmse": 9.20550774312925,
+              "median": 8.067184,
+              "p95": 15.567958449999995,
+              "maximum": 17.139737
+            },
+            "max_pending_age_ms": 21789.458575
+          },
+          "map_accuracy": {
+            "scope": "Fresh independent acquisition",
+            "original_mapping": {
+              "position_m": {
+                "count": 1271,
+                "rmse": 0.007422651198987243,
+                "median": 0.006882282889670917,
+                "p95": 0.011612186548089369,
+                "maximum": 0.020610399940326995
+              },
+              "rotation_deg": {
+                "count": 1271,
+                "rmse": 0.01508285981628631,
+                "median": 0.01182984457131907,
+                "p95": 0.027709337211333125,
+                "maximum": 0.06569152726216652
+              },
+              "surface_distance_m": {
+                "count": 633185,
+                "rmse": 0.00401285645939212,
+                "median": 0.0025253636054443918,
+                "p95": 0.007821366793161165,
+                "maximum": 0.022650606457874423
+              }
+            },
+            "extension_1": {
+              "position_m": {
+                "count": 344,
+                "rmse": 0.00678197745410657,
+                "median": 0.0056452589930979374,
+                "p95": 0.010867215033830323,
+                "maximum": 0.019202475122874714
+              },
+              "rotation_deg": {
+                "count": 344,
+                "rmse": 0.019433231968849652,
+                "median": 0.013102190280188263,
+                "p95": 0.03640237616718857,
+                "maximum": 0.08849903169009037
+              },
+              "surface_distance_m": {
+                "count": 171279,
+                "rmse": 0.003586781525219699,
+                "median": 0.0023715009031071987,
+                "p95": 0.006773905010234383,
+                "maximum": 0.025991999506608354
+              }
+            },
+            "surface_distance_m": {
+              "count": 804464,
+              "rmse": 0.003926016918281461,
+              "median": 0.0024897747343623003,
+              "p95": 0.007634325692094221,
+              "maximum": 0.025991999506608354
+            }
+          },
+          "save": {
+            "cpu_s": 6.59914,
+            "wall_s": 3.31806,
+            "peak_rss_kib": 2759924
+          },
+          "weights_audit": {
+            "map_version": "2.10.0",
+            "keyframes": 1615,
+            "unique_raw_inputs": 1615,
+            "planes": 741,
+            "observations": 24084,
+            "discounted_observations": 0,
+            "effective_observations": 24084.0,
+            "minimum_distinct_sources": 3,
+            "maximum_multiplicity_weight_deviation": 0.0,
+            "scope": "Identical timestamp, raw pose and point payload only; no calibration of independent-scan correlation"
+          }
+        }
+      }
+    },
+    "checkpoints": {
+      "checkpoint_mapping": {
+        "geometry": {
+          "atlas_point_error_m": 0.0,
+          "atlas_points": 2095987,
+          "edge_error": 6.473657049493588e-16,
+          "edges": 1698,
+          "graph_pose_error": 2.701289589270864e-15,
+          "keyframe_pose_error": 2.701289589270864e-15,
+          "keyframes": 1271,
+          "observations": 19415,
+          "plane_error": 1.1102230246251565e-16,
+          "planes": 770,
+          "raw_clouds_odometry_information_and_moments_preserved": true,
+          "raw_pose_error": 1.1322165218767588e-15,
+          "reload_pose_error": 1.3414884610104311e-15
+        },
+        "trajectory": {
+          "sessions": 1,
+          "dense_poses": 13723,
+          "existing_sources_preserved": 13723,
+          "dense_position_max_m": 8.286359581811501e-14,
+          "dense_rotation_max_rad": 1.7763598015330813e-15,
+          "source_pose_max": [
+            0.0,
+            1.3322698381205926e-15
+          ],
+          "all_restored_poses_have_explicit_source": true
+        }
+      },
+      "checkpoint_repeated": {
+        "geometry": {
+          "atlas_point_error_m": 0.0,
+          "atlas_points": 2169885,
+          "edge_error": 1.13220990837065e-15,
+          "edges": 2620,
+          "graph_pose_error": 2.010699504048134e-15,
+          "keyframe_pose_error": 2.010699504048134e-15,
+          "keyframes": 1733,
+          "observations": 24638,
+          "plane_error": 1.1102230246251565e-16,
+          "planes": 679,
+          "raw_clouds_odometry_information_and_moments_preserved": true,
+          "raw_pose_error": 1.341488180606803e-15,
+          "reload_pose_error": 1.0532540807165894e-15
+        },
+        "trajectory": {
+          "sessions": 3,
+          "dense_poses": 18187,
+          "existing_sources_preserved": 18187,
+          "dense_position_max_m": 6.355287432313019e-14,
+          "dense_rotation_max_rad": 1.7763648630369112e-15,
+          "source_pose_max": [
+            0.0,
+            1.3322736293533875e-15
+          ],
+          "all_restored_poses_have_explicit_source": true
+        }
+      },
+      "checkpoint_new": {
+        "geometry": {
+          "atlas_point_error_m": 0.0,
+          "atlas_points": 2201613,
+          "edge_error": 1.294733080373658e-15,
+          "edges": 2385,
+          "graph_pose_error": 1.9165425403825046e-15,
+          "keyframe_pose_error": 1.9165425403825046e-15,
+          "keyframes": 1615,
+          "observations": 24084,
+          "plane_error": 1.1102230246251565e-16,
+          "planes": 741,
+          "raw_clouds_odometry_information_and_moments_preserved": true,
+          "raw_pose_error": 9.93017638739767e-16,
+          "reload_pose_error": 1.4043335307751306e-15
+        },
+        "trajectory": {
+          "sessions": 2,
+          "dense_poses": 17385,
+          "existing_sources_preserved": 17385,
+          "dense_position_max_m": 7.140870972574998e-14,
+          "dense_rotation_max_rad": 2.5535134238869706e-15,
+          "source_pose_max": [
+            0.0,
+            1.4432942486164601e-15
+          ],
+          "all_restored_poses_have_explicit_source": true
+        }
+      }
+    },
+    "weighting_ablation": {
+      "unit": {
+        "association_ms": 901.34418,
+        "cpu_s": 1.149272,
+        "discounted_observations": 0,
+        "effective_observations": 24618.0,
+        "final_cost": 2164.105446460034,
+        "initial_cost": 2516.329932675815,
+        "observations": 24618,
+        "scope": "One frozen-map refinement; not an online performance or uncertainty-calibration claim",
+        "solve_ms": 214.805622,
+        "wall_s": 1.152428062,
+        "weighted": false,
+        "sessions": {
+          "0": {
+            "position_m": {
+              "rmse": 0.00921791656200883,
+              "maximum": 0.023697852396653594
+            },
+            "rotation_deg": {
+              "rmse": 0.016979941780122017,
+              "maximum": 0.06629504597893424
+            }
+          },
+          "1": {
+            "position_m": {
+              "rmse": 0.008109658357790418,
+              "maximum": 0.021803542566102174
+            },
+            "rotation_deg": {
+              "rmse": 0.02727533908743979,
+              "maximum": 0.13079054073937427
+            }
+          },
+          "2": {
+            "position_m": {
+              "rmse": 0.008105880184775966,
+              "maximum": 0.02187837082404826
+            },
+            "rotation_deg": {
+              "rmse": 0.02552844085710414,
+              "maximum": 0.11508934439161136
+            }
+          }
+        }
+      },
+      "weighted": {
+        "association_ms": 895.879392,
+        "cpu_s": 1.21094,
+        "discounted_observations": 6626,
+        "effective_observations": 21305.0,
+        "final_cost": 1877.268705930035,
+        "initial_cost": 2177.9933965154046,
+        "observations": 24618,
+        "scope": "One frozen-map refinement; not an online performance or uncertainty-calibration claim",
+        "solve_ms": 282.756435,
+        "wall_s": 1.214228905,
+        "weighted": true,
+        "sessions": {
+          "0": {
+            "position_m": {
+              "rmse": 0.008800887379183943,
+              "maximum": 0.02316109348545839
+            },
+            "rotation_deg": {
+              "rmse": 0.016160947905284866,
+              "maximum": 0.06543353479913666
+            }
+          },
+          "1": {
+            "position_m": {
+              "rmse": 0.007937414565640599,
+              "maximum": 0.022800160503085382
+            },
+            "rotation_deg": {
+              "rmse": 0.030103900191022253,
+              "maximum": 0.1475399586533851
+            }
+          },
+          "2": {
+            "position_m": {
+              "rmse": 0.007926489348677452,
+              "maximum": 0.022920956448120335
+            },
+            "rotation_deg": {
+              "rmse": 0.028309101599269457,
+              "maximum": 0.1326172060190493
+            }
+          }
+        }
+      }
+    },
+    "loop_measurements": {
+      "baseline": {
+        "count": 429,
+        "translation_max_m": 0.10107226256164195,
+        "translation_rmse_m": 0.006678987241982013,
+        "rotation_max_deg": 0.14576434628924975
+      },
+      "final": {
+        "count": 428,
+        "translation_max_m": 0.10206317776037131,
+        "translation_rmse_m": 0.006523134529501654,
+        "rotation_max_deg": 0.14623314017998235
+      },
+      "added": [
+        {
+          "query": 492,
+          "match": 484,
+          "translation_m": 0.005099885694903733,
+          "rotation_deg": 0.0028319197846027465
+        },
+        {
+          "query": 577,
+          "match": 555,
+          "translation_m": 0.001083511451777396,
+          "rotation_deg": 0.003119682203506542
+        }
+      ],
+      "removed": [
+        [
+          577,
+          558
+        ],
+        [
+          1017,
+          991
+        ],
+        [
+          1232,
+          587
+        ]
+      ]
+    },
+    "mapping_peaks": {
+      "previous_above_10cm": [
+        {
+          "frame": 6992,
+          "baseline": {
+            "stamp_ns": "699599995002",
+            "position_m": 0.1036259570626497,
+            "accepted_keyframe": false
+          },
+          "candidate": {
+            "stamp_ns": "699599995002",
+            "position_m": 0.07688795869326684,
+            "accepted_keyframe": false
+          }
+        },
+        {
+          "frame": 6993,
+          "baseline": {
+            "stamp_ns": "699699989997",
+            "position_m": 0.11581145254413092,
+            "accepted_keyframe": false
+          },
+          "candidate": {
+            "stamp_ns": "699699989997",
+            "position_m": 0.08991907515348233,
+            "accepted_keyframe": false
+          }
+        },
+        {
+          "frame": 6994,
+          "baseline": {
+            "stamp_ns": "699799995002",
+            "position_m": 0.11551418704759499,
+            "accepted_keyframe": false
+          },
+          "candidate": {
+            "stamp_ns": "699799995002",
+            "position_m": 0.08962119534669882,
+            "accepted_keyframe": false
+          }
+        },
+        {
+          "frame": 6995,
+          "baseline": {
+            "stamp_ns": "699899989997",
+            "position_m": 0.11593259920642546,
+            "accepted_keyframe": false
+          },
+          "candidate": {
+            "stamp_ns": "699899989997",
+            "position_m": 0.09018360719587533,
+            "accepted_keyframe": false
+          }
+        },
+        {
+          "frame": 6996,
+          "baseline": {
+            "stamp_ns": "699999995002",
+            "position_m": 0.11393260076463384,
+            "accepted_keyframe": false
+          },
+          "candidate": {
+            "stamp_ns": "699999995002",
+            "position_m": 0.08876011107860632,
+            "accepted_keyframe": false
+          }
+        },
+        {
+          "frame": 6997,
+          "baseline": {
+            "stamp_ns": "700099989997",
+            "position_m": 0.10671017628194968,
+            "accepted_keyframe": false
+          },
+          "candidate": {
+            "stamp_ns": "700099989997",
+            "position_m": 0.08242841644896982,
+            "accepted_keyframe": false
+          }
+        },
+        {
+          "frame": 12220,
+          "baseline": {
+            "stamp_ns": "1222399989997",
+            "position_m": 0.10074383505192724,
+            "accepted_keyframe": false
+          },
+          "candidate": {
+            "stamp_ns": "1222399989997",
+            "position_m": 0.09278699279613042,
+            "accepted_keyframe": false
+          }
+        },
+        {
+          "frame": 12221,
+          "baseline": {
+            "stamp_ns": "1222499989997",
+            "position_m": 0.10084278875287006,
+            "accepted_keyframe": false
+          },
+          "candidate": {
+            "stamp_ns": "1222499989997",
+            "position_m": 0.09289024199775274,
+            "accepted_keyframe": false
+          }
+        }
+      ],
+      "current_above_10cm": [],
+      "current_worst": [
+        {
+          "frame": 12221,
+          "stamp_ns": "1222499989997",
+          "position_m": 0.09289024199775274,
+          "accepted_keyframe": false
+        },
+        {
+          "frame": 12220,
+          "stamp_ns": "1222399989997",
+          "position_m": 0.09278699279613042,
+          "accepted_keyframe": false
+        },
+        {
+          "frame": 8902,
+          "stamp_ns": "890599995002",
+          "position_m": 0.09111462036079622,
+          "accepted_keyframe": false
+        },
+        {
+          "frame": 6995,
+          "stamp_ns": "699899989997",
+          "position_m": 0.09018360719587533,
+          "accepted_keyframe": false
+        },
+        {
+          "frame": 6993,
+          "stamp_ns": "699699989997",
+          "position_m": 0.08991907515348233,
+          "accepted_keyframe": false
+        },
+        {
+          "frame": 6994,
+          "stamp_ns": "699799995002",
+          "position_m": 0.08962119534669882,
+          "accepted_keyframe": false
+        },
+        {
+          "frame": 6996,
+          "stamp_ns": "699999995002",
+          "position_m": 0.08876011107860632,
+          "accepted_keyframe": false
+        },
+        {
+          "frame": 12219,
+          "stamp_ns": "1222299989997",
+          "position_m": 0.08812778809796303,
+          "accepted_keyframe": false
+        },
+        {
+          "frame": 8901,
+          "stamp_ns": "890499989997",
+          "position_m": 0.08719543345388653,
+          "accepted_keyframe": false
+        },
+        {
+          "frame": 8903,
+          "stamp_ns": "890699989997",
+          "position_m": 0.08677512479288874,
+          "accepted_keyframe": false
+        }
+      ]
+    },
+    "same_map_localization": {
+      "frames": 3666,
+      "categorical_differences": {
+        "frame": [],
+        "stamp_ns": [],
+        "live": [],
+        "lock": [],
+        "pose_source": [],
+        "decision": []
+      },
+      "maximum_public_pose_matrix_difference": 4.263256414560601e-14
+    },
+    "search_cost": {
+      "motion_original": {
+        "total_cpu_s": 125.05266624899998,
+        "by_decision": {
+          "tracking_geometric": {
+            "frames": 2221,
+            "cpu_s": 118.35543614499998
+          },
+          "temporal_window_pending": {
+            "frames": 4,
+            "cpu_s": 3.2715140810000003
+          },
+          "icp_gate_failed": {
+            "frames": 10,
+            "cpu_s": 2.2619081790000024
+          },
+          "accepted": {
+            "frames": 1,
+            "cpu_s": 1.163807843999999
+          }
+        },
+        "lock_frames": [
+          4
+        ],
+        "scope": "Whole frame CPU grouped by final decision; not isolated registration-stage or background timings"
+      },
+      "motion_new_baseline": {
+        "total_cpu_s": 302.193202725,
+        "by_decision": {
+          "tracking_geometric": {
+            "frames": 3526,
+            "cpu_s": 173.69519349099994
+          },
+          "temporal_window_pending": {
+            "frames": 108,
+            "cpu_s": 113.12992640399995
+          },
+          "ambiguous": {
+            "frames": 12,
+            "cpu_s": 5.390513915999989
+          },
+          "margin": {
+            "frames": 8,
+            "cpu_s": 4.063061029000039
+          },
+          "accepted": {
+            "frames": 2,
+            "cpu_s": 3.561656455000038
+          },
+          "icp_gate_failed": {
+            "frames": 7,
+            "cpu_s": 1.2014396750000174
+          },
+          "log_likelihood": {
+            "frames": 3,
+            "cpu_s": 1.1514117550000265
+          }
+        },
+        "lock_frames": [
+          4,
+          1996
+        ],
+        "scope": "Whole frame CPU grouped by final decision; not isolated registration-stage or background timings"
+      },
+      "motion_new_same_map": {
+        "total_cpu_s": 301.96599557900004,
+        "by_decision": {
+          "tracking_geometric": {
+            "frames": 3526,
+            "cpu_s": 173.38749271000006
+          },
+          "temporal_window_pending": {
+            "frames": 108,
+            "cpu_s": 113.06963271500007
+          },
+          "ambiguous": {
+            "frames": 12,
+            "cpu_s": 5.485239157999899
+          },
+          "margin": {
+            "frames": 8,
+            "cpu_s": 4.136815775000002
+          },
+          "accepted": {
+            "frames": 2,
+            "cpu_s": 3.590000187999995
+          },
+          "icp_gate_failed": {
+            "frames": 7,
+            "cpu_s": 1.1979138770000048
+          },
+          "log_likelihood": {
+            "frames": 3,
+            "cpu_s": 1.098901156000025
+          }
+        },
+        "lock_frames": [
+          4,
+          1996
+        ],
+        "scope": "Whole frame CPU grouped by final decision; not isolated registration-stage or background timings"
+      },
+      "motion_new_final": {
+        "total_cpu_s": 311.626552384,
+        "by_decision": {
+          "tracking_geometric": {
+            "frames": 3520,
+            "cpu_s": 173.70665820300002
+          },
+          "temporal_window_pending": {
+            "frames": 113,
+            "cpu_s": 122.02047768699995
+          },
+          "ambiguous": {
+            "frames": 13,
+            "cpu_s": 6.086189420000011
+          },
+          "margin": {
+            "frames": 8,
+            "cpu_s": 3.8691878040000347
+          },
+          "accepted": {
+            "frames": 2,
+            "cpu_s": 3.712065023999955
+          },
+          "icp_gate_failed": {
+            "frames": 7,
+            "cpu_s": 1.1731621939999997
+          },
+          "log_likelihood": {
+            "frames": 3,
+            "cpu_s": 1.058812052000036
+          }
+        },
+        "lock_frames": [
+          4,
+          2002
+        ],
+        "scope": "Whole frame CPU grouped by final decision; not isolated registration-stage or background timings"
+      }
+    },
+    "new_route_baseline_assertion": {
+      "reason": "Unmeasured fresh-route baseline was incorrectly assumed to have one initialization",
+      "observed_locks": [
+        4,
+        1996
+      ],
+      "outputs": 3662,
+      "inputs": 3666,
+      "maximum_error_m": 0.05756713365227816,
+      "production_gates_changed": false,
+      "continuation": "Preserve baseline assertion failure; require candidate full outputs/no gross errors, initial frame 4, and no extra locks beyond measured baseline; report remaining recovery separately"
+    },
+    "acceptance": {
+      "mapping_all_outputs_below_10cm": true,
+      "original14_all_locks_and_outputs": true,
+      "motion_all_outputs_below_10cm": {
+        "motion_original": true,
+        "motion_new_baseline": true,
+        "motion_new_same_map": true,
+        "motion_new_final": true
+      },
+      "extension_all_outputs_below_10cm": {
+        "extension_first": true,
+        "extension_second": true,
+        "fresh": true
+      },
+      "extension_average_half_core": {
+        "extension_first": false,
+        "extension_second": false,
+        "fresh": false
+      }
+    },
+    "full_qualification_artifact": "build/n3mapping/timely_geometry_20261021/qualification.json",
+    "full_loop_measurements_artifact": "build/n3mapping/timely_geometry_20261021/loop_measurement_audit.json"
   }
 }

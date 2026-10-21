@@ -1,4 +1,5 @@
 #include "n3mapping/graph_optimizer.h"
+#include "planar_geometry/moment_factor.h"
 #include <iostream>
 #include <tbb/global_control.h>
 
@@ -101,7 +102,16 @@ bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
   }
   if (pending_node_ids_.empty()) return true;
   for (size_t i = snapshot.graph_.size(); i < live.graph_.size(); ++i)
-    new_factors_.push_back(live.graph_[i]);
+    if (!dynamic_cast<const planar_geometry::MomentPlaneFactor*>(live.graph_[i].get()))
+      new_factors_.push_back(live.graph_[i]);
+  // A global geometry solve can split, merge and reorder planes. Retain the
+  // immutable body moments, but re-associate against this worker's plane IDs.
+  std::map<int64_t, std::vector<PlaneMoment>> moments;
+  for (const auto& plane : live.shared_planes_)
+    for (const auto& observation : plane.observations)
+      if (pending_node_ids_.count(observation.node_id))
+        moments[observation.node_id].push_back(observation.moment);
+  for (const auto& [id, observations] : moments) appendPlaneObservations(id, observations);
   pending_edges_.assign(live.edges_.begin() + snapshot.edges_.size(), live.edges_.end());
   pending_floor_attitude_constraints_.assign(
       live.committed_floor_attitude_constraints_.begin() + snapshot.committed_floor_attitude_constraints_.size(),

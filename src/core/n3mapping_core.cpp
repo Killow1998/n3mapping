@@ -186,6 +186,9 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
     }
   }
 
+  if (config_.loop_geometry_enable)
+    session_->graphOptimizer().appendPlaneObservations(
+        keyframe_id, extractPlaneMoments(*frame.undistorted_cloud));
   session_->graphOptimizer().incrementalOptimize();
   refreshOptimizedPoses();
 

@@ -5,6 +5,7 @@
 #include <array>
 #include <gtsam/geometry/Pose3.h>
 #include <json/json.h>
+#include <map>
 #include <vector>
 namespace n3mapping::planar_geometry {
 using Cell = std::array<int, 3>;
@@ -26,4 +27,8 @@ std::vector<Plane> associate(const std::vector<Keyframe::Ptr>& keyframes,
 std::vector<Plane> mergePlanes(std::vector<Plane> input,
                                const std::vector<gtsam::Pose3> &poses,
                                Json::Value &audit);
+std::vector<std::pair<size_t, Moment>> associateToPlanes(
+    const std::vector<Moment>& moments, const gtsam::Pose3& pose,
+    const std::vector<SharedPlane>& planes,
+    const std::map<int64_t, Eigen::Isometry3d>& reference_poses);
 } // namespace n3mapping::planar_geometry

@@ -37,9 +37,6 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
     auto values = current_estimate_.empty() ? initial_values_ : current_estimate_;
     for (size_t i = 0; i < shared_planes_.size(); ++i)
       values.erase(gtsam::Symbol('p', i));
-    Config noise_config = config_;
-    noise_config.robust_kernel_type = "Cauchy";
-    noise_config.robust_kernel_delta = 3;
     for (size_t i = 0; i < planes.size(); ++i) {
       const auto& plane = planes[i];
       if (!plane.normal.allFinite() || !plane.origin.allFinite() ||
@@ -49,10 +46,10 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
         throw std::invalid_argument("Invalid shared plane");
       const auto key = gtsam::Symbol('p', i);
       values.insert(key, gtsam::OrientedPlane3(gtsam::Unit3(plane.normal), plane.offset));
-      const auto noise = makeGraphRobustNoise(
-          gtsam::noiseModel::Isotropic::Sigma(4, plane.sigma), noise_config);
       std::set<int64_t> observed;
       for (const auto& observation : plane.observations) {
+        const auto noise = planar_geometry::momentNoise(
+            config_, plane.sigma, observation.information_weight);
         const auto& m = observation.moment;
         if (!node_ids_.count(observation.node_id) || !observed.insert(observation.node_id).second ||
             m.count < 6 || !m.sum.allFinite() || !m.square.allFinite())

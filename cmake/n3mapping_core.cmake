@@ -46,7 +46,9 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/graph_optimizer_factors.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer_geometry.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer_append.cpp
+  ${N3MAPPING_ROOT}/src/graph_optimizer_plane_append.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/association.cpp
+  ${N3MAPPING_ROOT}/src/planar_geometry/append_association.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/merging.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/plane_partition.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/builder.cpp

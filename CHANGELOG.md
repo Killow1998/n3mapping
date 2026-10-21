@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Correct newly appended mapping keyframes using committed plane support before
+  background refinement; transactionally preserve observations and re-associate
+  worker tails when plane indices change.
+- Divide geometry information for exactly repeated raw acquisitions, preserve
+  robust residual scales, and persist weights in map format 2.10.0.
+- Complete four-core mapping, original14 before/after extension, original and newly
+  recorded motion, repeated/fresh extensions, real checkpoints and 69 CTest targets.
+  Mapping maximum 11.593→9.289 cm,
+  with zero outputs over 10 cm and 0.413 average cores. Record small
+  accuracy tradeoffs, the fresh route's existing recovery lock and remaining
+  extension/covariance limits in the [timely geometry evidence](docs/evidence/runtime_cpu_20261017/README.md#timely-keyframe-geometry-and-repeat-input-information--2026-10-21).
+
 - Qualify two saved/reloaded extensions on repeated input, original14 after both,
   and a three-session map/Atlas/trajectory checkpoint on unchanged `a16a35d` code.
   CPU 0.871/0.882 cores; live maximum

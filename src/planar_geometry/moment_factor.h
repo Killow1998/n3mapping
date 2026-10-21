@@ -3,6 +3,7 @@
 #pragma once
 #include <Eigen/Eigenvalues>
 #include "n3mapping/planar_geometry.h"
+#include "n3mapping/graph_factor_noise.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -11,6 +12,19 @@
 
 namespace n3mapping::planar_geometry {
 using Moment = PlaneMoment;
+
+inline gtsam::SharedNoiseModel momentNoise(const Config& config, double sigma,
+                                         double information_weight = 1.) {
+  if (!std::isfinite(information_weight) || information_weight <= 0. || information_weight > 1.)
+    throw std::invalid_argument("Invalid geometry information weight");
+  auto geometry = config;
+  const double scale = std::sqrt(information_weight);
+  geometry.robust_kernel_type = "Cauchy";
+  // Scale cost and Jacobians without changing the robust transition in metres.
+  geometry.robust_kernel_delta = 3. * scale;
+  return makeGraphRobustNoise(
+      gtsam::noiseModel::Isotropic::Sigma(4, sigma / scale), geometry);
+}
 
 class MomentPlaneFactor
     : public gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::OrientedPlane3> {

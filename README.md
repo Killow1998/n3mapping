@@ -814,11 +814,11 @@ remains the performance baseline.
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
-| Reliability — stationary startup and continuous output retained | Rebuilt-map independent motion retains one initialization and 2,232 outputs. After two saved/reloaded extensions, original14 retains 14 frame-4 locks and all 4,088 outputs. Repeated extension inputs test state integrity, not new-route generalization; the partial-map alias remains outside full-map acceptance. |
-| Accuracy — tested localization below 10 cm; mapping tail remains open | Rebuilt-map motion RMSE/maximum 0.907/7.742 cm; original14 0.794/2.420 cm. Mapping online RMSE 1.702 cm, but eight outputs still exceed 10 cm. See the [refresh evidence](docs/evidence/runtime_cpu_20261017/README.md#geometry-refresh-independent-of-loop-admission--2026-10-21). |
-| Online loop/map consistency — shared geometry and checkpoints verified | Full mapping retains 13,791 inputs, 13,723 outputs, 1,271 keyframes and 429 loops. Final map RMSE/maximum 0.688/1.931 cm; surface RMSE 3.869 mm. Real map/Atlas/trajectory reload passes; uncertainty calibration remains open. |
-| Online extension — two sessions and reload verified; half-core open | Two consecutive extensions each retain 2,232 outputs and 231 new keyframes. Live maximum 4.280/7.237 cm; CPU 0.871/0.882 cores; runtime peak 2.041/2.239 GiB. Three-session map/Atlas and all 18,187 dense sources survive reload. Small map/static regressions and diagnostic limits are in the [multisession record](docs/evidence/runtime_cpu_20261017/README.md#repeated-extension-sessions-and-causal-peak-diagnosis--2026-10-21). |
-| Asynchronous online mapping loops — complete causal qualification | Geometry updates no longer depend on loop admission. Four-core 10 Hz replay uses 0.410 cores including background work; maximum online error 11.593 cm. Full-node/hardware and independent Noetic compilation remain open. |
+| Reliability — original startup/output baseline retained | Original14 retains all 14 frame-4 locks and 4,088 outputs, before and after two extensions. Original motion keeps one lock; the freshly recorded route keeps 3,662 outputs but has a second recovery lock in both old and current versions. The partial-map alias remains outside full-map acceptance. |
+| Accuracy — complete recorded simulation cases below 10 cm | Mapping live RMSE/maximum 1.399/9.289 cm, with zero >10-cm outputs. Original14 0.820/2.409 cm; original/fresh motion maxima 7.742/6.436 cm. Small map/static/fresh-route regressions are retained in the [timely geometry record](docs/evidence/runtime_cpu_20261017/README.md#timely-keyframe-geometry-and-repeat-input-information--2026-10-21). |
+| Online loop/map consistency — timely support and checkpoints verified | New mapping keyframes use already committed geometry before background refinement. Full mapping keeps 13,791 inputs, 13,723 outputs and 1,271 keyframes. Three real checkpoint cases preserve graph/Atlas/trajectory and weighted observations. Exact repeated inputs share information; broader uncertainty calibration remains open. |
+| Online extension — repeated and fresh recordings verified; half-core open | First/second repeated extensions use 0.876/0.861 cores and 2.144/2.305 GiB. Fresh-route extension uses 0.854 cores / 2.280 GiB. All tested outputs stay below 10 cm; full measurements and limits are in the [current evidence](docs/evidence/runtime_cpu_20261017/README.md#timely-keyframe-geometry-and-repeat-input-information--2026-10-21). |
+| Asynchronous online mapping loops — complete causal qualification | Mapping averages 0.413 cores including background drain; maximum live error 9.289 cm. Full-node/hardware and independent Noetic compilation remain open. |
 | Search cost — paused; half core remains open | Retain the accepted `54b602f` algorithm and its original 15.3% paired CPU reduction. The standalone 1.0.1 full14 replay measures 214.962 CPU s / 413 input s (0.520488 cores), first-lock wall median 3.348 s / maximum 5.383 s. 03/08/14 need 0.663/0.673/0.654 cores. The 440 cold seeds and 104 confirmation registrations are unchanged. This is a release behavior check, without a new paired speedup claim. Source reordering, direct fine tracking, exact-neighbor certificates and registration-kernel experiments are not retained: they regress latency/accuracy or lack consistent overall CPU benefit. |
 
 The deferred performance target retains **four physical P cores**, four registration threads,
@@ -828,8 +828,9 @@ startup, subsequent tracking and background work; short peaks are allowed.
 Outside-map continuation and its recovery costs remain separate deferred evidence.
 Do not dilute search cost
 with longer stationary recordings or drop inputs to meet the average. Report
-lock/recovery latency and peak RSS alongside CPU. Current direct-core measurements
-exclude loading, frontend, simulator and DDS; full-node deployment and RK3588
+lock/recovery latency and peak RSS alongside CPU. Current direct-core CPU measurements
+exclude loading/saving, frontend, simulator and DDS. Runtime peak RSS includes
+map loading; save peak is reported separately. Full-node deployment and RK3588
 qualification remain separate pending checks.
 
 The [frozen spatial-geometry comparison](docs/evidence/runtime_cpu_20261017/README.md#spatial-geometry-ablation-and-motion-peak-attribution--2026-10-20)
@@ -866,13 +867,14 @@ improvement is not claimed. The [subsequent refinement](docs/evidence/runtime_cp
 extension geometry, reducing whole-extension CPU/RAM while preserving every tested
 output. The [Atlas refinement](docs/evidence/runtime_cpu_20261017/README.md#exact-atlas-feature-reuse-and-compact-target-covariance--2026-10-21) reuses unchanged neighborhoods and removes
 redundant target covariance storage. Full same-input tests retain reliability;
-whole-extension half-core and online mapping peaks remain open.
-The tested moving localization route is now below 10 cm, while online mapping
-now has eight frames above it after the subsequent geometry-refresh stage.
-The [causal-prefix diagnosis](docs/evidence/runtime_cpu_20261017/README.md#repeated-extension-sessions-and-causal-peak-diagnosis--2026-10-21) shows enough existing geometry in the
-two affected prefixes, but timely online correction remains unqualified.
-Repeated extension checks retain successful localization while small map/static
-regressions remain visible.
+whole-extension half-core remains open; the following stage addresses online mapping peaks.
+The [subsequent timely-geometry stage](docs/evidence/runtime_cpu_20261017/README.md#timely-keyframe-geometry-and-repeat-input-information--2026-10-21) removes the eight online mapping
+peaks using only geometry already available at keyframe insertion. Original14,
+original/fresh independent routes and repeated/fresh extensions are fully replayed.
+Fresh-route recovery and small metric regressions remain explicit. Map format
+2.10.0 stores per-observation information weights; old maps default to unit weight,
+and old binaries reject the new format. Broader noise calibration and full-system
+resource targets remain open.
 
 Retain existing interfaces and numeric acceptance gates. Compare actual emitted
 poses, lock decisions and input/output continuity on the same full inputs for

@@ -120,6 +120,9 @@ int main(int argc, char **argv) {
     std::vector<n3mapping::Keyframe::Ptr> keyframes;
     for (const auto& k : map.keyframes()) {
       auto frame = std::make_shared<n3mapping::Keyframe>();
+      frame->id = k.id();
+      frame->timestamp = k.timestamp();
+      frame->pose_odom = n3mapping::poseFromProto(k.pose_odom());
       if (!n3mapping::pointCloudFromProto(k.cloud(), &frame->cloud, &error))
         throw std::runtime_error(error);
       keyframes.push_back(frame);
@@ -135,18 +138,19 @@ int main(int argc, char **argv) {
     report["merging_wall_s"] =
         std::chrono::duration<double>(factors - merging).count();
     bool audited = false;
+    const auto sources = n3mapping::geometrySourceIds(keyframes);
     for (int i = 0; i < int(planes.size()); ++i) {
       const auto &plane = planes[i];
+      std::map<size_t, size_t> multiplicity;
+      for (const auto& patch : plane.patches) ++multiplicity[sources.at(patch.index)];
+      if (multiplicity.size() < 3) continue;
       const gtsam::OrientedPlane3 landmark(gtsam::Unit3(plane.normal),
                                            plane.offset);
       const auto key = gtsam::Symbol('p', i);
       initial.insert(key, landmark);
       for (const auto &patch : plane.patches) {
-        auto geometry_noise = config;
-        geometry_noise.robust_kernel_delta = 3;
-        const auto noise = n3mapping::makeGraphRobustNoise(
-            gtsam::noiseModel::Isotropic::Sigma(4, plane.sigma),
-            geometry_noise);
+        const auto noise = momentNoise(config, plane.sigma,
+            1. / multiplicity.at(sources.at(patch.index)));
         MomentPlaneFactor factor(
             gtsam::Symbol('x', map.keyframes(patch.index).id()), key,
             patch.moment, plane.origin, noise);

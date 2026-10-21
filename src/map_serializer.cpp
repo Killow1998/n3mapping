@@ -24,7 +24,7 @@
 namespace n3mapping {
 
 namespace {
-constexpr const char* MAP_VERSION = "2.9.0";
+constexpr const char* MAP_VERSION = "2.10.0";
 
 struct SemVer {
     int major = 0;

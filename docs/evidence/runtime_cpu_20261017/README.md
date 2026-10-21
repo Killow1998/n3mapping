@@ -5613,3 +5613,123 @@ eight online mapping peaks, calibrated uncertainty, longer *independently
 recorded* routes and full-node/hardware qualification remain open. All 69 CTest
 targets passed on this unchanged production source in the preceding stage;
 this evidence-only closeout does not rerun that suite.
+
+
+## Timely keyframe geometry and repeat-input information — 2026-10-21
+
+Frozen core `b7d8f6533b822c931104af1cbafcf7b87f42056a85f9466afbcebb3c741c2d67`, based on `1c1b4a2`.
+Complete commands, immutable binaries/source, input hashes, failed attempts and
+results: `build/n3mapping/timely_geometry_20261021/qualification.json` and its
+sibling artifacts. Original maps, bags and installed programs are unchanged.
+
+**Implementation.** A new mapping keyframe extracts body-frame planar moments and
+associates them with already committed planes before its small conditioned solve.
+Old poses and planes remain fixed in this foreground step. Association retains
+the existing 5-degree/10-cm gates, bounds spatial support and omits ambiguous
+matches. The union of observed covariance bounds is a footprint heuristic, not
+an exact support certificate. Extension retains its existing Atlas tracking
+constraints. When a background solve changes plane indices, catch-up uses the
+immutable body moments and re-associates them; it never copies stale plane IDs.
+Observations join the graph only on successful commit and disappear on rollback.
+The two new implementation files have 92 and 24 lines.
+
+Repeated timestamps/point payloads and raw poses equal within serialization
+roundoff share geometry information:
+each copy receives 1/N of that source's contribution to its plane. Distinct scans
+remain independent in this model. Both Gaussian scale and Cauchy transition are
+scaled so that robust information is divided without changing the transition in
+metres. A plane needs three distinct sources. Format **2.10.0** persists explicit
+weights; older maps load with unit weights, while older binaries reject the new
+version instead of silently discarding its semantics. Raw scans remain available.
+This does not calibrate correlated noise in different scans, duplicated odometry,
+or the plane-scatter estimator.
+
+**Complete causal qualification.** Physical cores 0,2,4,6, four registration
+threads, passive OpenMP and unchanged localization gates. Mapping/extension are
+paced at the original 10 Hz and include final background drain. CPU excludes
+load, save, FAST_LIO, simulator and DDS. Runtime peak RSS includes map loading;
+save has separate `save.json` CPU/wall/peak measurements.
+Humble/research build and all **69 CTest targets** pass on the frozen source.
+Tests cover immediate correction, unchanged old poses, rollback, plane reindexing,
+unsupported/ambiguous associations, robust information conservation and reload.
+
+| Complete workload | Position RMSE/maximum | Outputs / initialization |
+| --- | --- | --- |
+| Online mapping | 1.399/9.289 cm | 13,723; zero over 10 cm |
+| Original14 | 0.820/2.409 cm | 4,088; all 14 frame-4 locks |
+| Original independent route | 0.955/7.742 cm | 2,232; one frame-4 lock |
+| Fresh independent route | 1.157/6.436 cm | 3,662; frame 4 and recovery frame 2002 |
+| Original14 after two extensions | 0.935/2.460 cm | 4,088; all 14 frame-4 locks |
+
+Online mapping removes all eight former >10-cm outputs: maximum
+11.593→9.289 cm,
+RMSE 1.702→1.399 cm.
+All 13,791 inputs, 1,271 keyframes and 13,723 valid outputs remain. There are
+428 accepted loop events and 253 geometry commits.
+Two added loop pairs have 5.10/1.08-mm translation error; three old pairs are
+omitted. Across all accepted loops, translation RMSE improves 6.679→6.523 mm,
+while maximum changes 10.107→10.206 cm. These are constraint errors, distinct
+from the live trajectory's maximum. `loop_measurement_audit.json` retains every
+pair; loop uncertainty remains an open calibration task.
+Mapping CPU is 0.410→0.413 cores,
+runtime peak RSS 0.829→0.730 GiB.
+Maximum pacing lag is 5.63 ms.
+
+**Independent input and honest recovery coverage.** A new 366.945-s acquisition
+starts at yaw 180 degrees and follows a southern loop with five room entries and
+a central return. Its closed bag has 3,669 raw scans, 73,389 IMU samples, 3,669 truth
+poses and all 3,666 matched LIO pairs; truth is isolated to the fixture/observer.
+The first recording stopped on a route-clearance guard and is preserved. Its
+waypoints were corrected before any n3m evaluation; the scene and estimators were
+not changed. The completed route is at `map/sprobo_20261021/independent_v2`.
+
+The baseline has two lock events, at frames 4/1996, while retaining every output
+and a 5.757-cm maximum.
+The initial driver incorrectly assumed a single lock and stopped; its failure is
+preserved. Continuation compares the measured baseline without changing any
+production gate. Current code on the same old map reproduces its public decisions
+and poses within 1e-12. The rebuilt map retains two locks, with recovery 0.6 s later,
+and a 6.436-cm maximum. Of its outputs,
+133 use trusted projection while the geometric backend reports no success, versus
+127 on the baseline. Strict extension separately suppresses unverified writes.
+This recovery is **not fixed**;
+fresh-route localization uses 0.850 cores and is not half-core.
+
+| Extension workload | Inputs/outputs/new keyframes | Live RMSE/maximum | CPU cores | Runtime peak RSS | Geometry commits / maximum request age |
+| --- | --- | --- | --- | --- | --- |
+| Original route, first extension | 2,236/2,232/231 | 0.844/4.262 cm | 0.876 | 2.144 GiB | 13 / 28.42 s |
+| Same raw input, second extension | 2,236/2,232/231 | 0.886/7.229 cm | 0.861 | 2.305 GiB | 13 / 25.10 s |
+| Fresh independent route | 3,666/3,662/344 | 1.266/8.312 cm | 0.854 | 2.280 GiB | 24 / 21.79 s |
+
+The fresh-route previous-version extension is measured separately on exactly the
+same recording: 0.854 cores,
+2.044 GiB, live
+1.254/8.283 cm. Runtime peak RSS increases
+by about 0.103/0.066/0.236 GiB across the first/repeated/fresh extension cases;
+there is no whole-extension memory reduction in this stage. Repeated-input tests check
+state/resource growth; they are not independent acquisitions. Whole-extension
+half-core remains open. Real mapping, repeated-extension and fresh-extension
+checkpoints retain raw clouds, measurements, information, plane moments/weights,
+sessions and dense correction provenance. Map/Atlas comparisons are recorded in
+`checkpoint_*/audit.json` and `trajectory_audit.json`.
+
+**Ablation and tradeoffs.** On the same frozen repeated-session graph, source
+weighting changes original-session RMSE 9.218→8.801 mm, retaining 24,618 observations
+with 21,305 effective contributions. New-session maxima rise about 1 mm and angle
+maxima about 0.017 degrees; weighting is not a universal accuracy gain. Full new
+mapping also changes final keyframe RMSE 6.875→7.318 mm and surface RMSE
+3.869→4.000 mm, despite the better live trajectory. Complete per-position,
+per-session, angular, cost and memory results remain in `qualification.json`.
+Combined surface statistics use growing point sets; the observer also reports
+individual session surfaces. No point/acceptance threshold is tuned using truth.
+
+The new localization route spends 122.020 of 311.627 process CPU seconds in
+113 frames whose final decision is `temporal_window_pending`. These are whole-frame
+totals, not isolated confirmation-stage timings. They identify a useful next cost
+audit while the localization algorithm remains frozen in this stage.
+
+The original localization algorithm is retained. Outstanding work is statistical
+uncertainty/correlation calibration for distinct observations, fresh-route recovery
+cost, whole-extension half-core, outside-map coverage (deferred), full ROS-node
+and hardware qualification, and independent Noetic compilation. Sub-10-cm results
+here cover the complete recorded simulation cases, not arbitrary scenes or hardware.

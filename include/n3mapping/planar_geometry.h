@@ -21,6 +21,7 @@ struct PlaneMoment {
 struct PlaneObservation {
   int64_t node_id = -1;
   PlaneMoment moment;
+  double information_weight = 1.;
 };
 struct SharedPlane {
   Eigen::Vector3d normal = Eigen::Vector3d::UnitZ();
@@ -39,4 +40,9 @@ struct GeometryOptimizationStats {
 std::vector<SharedPlane> buildSharedPlanes(
     const std::vector<Keyframe::Ptr>& keyframes,
     GeometryOptimizationStats& stats);
+// Body-frame patches for a newly appended scan. No map or future pose is used.
+std::vector<PlaneMoment> extractPlaneMoments(const Keyframe::PointCloudT& cloud);
+// Only identical acquisition time, raw pose and point payload share an identity.
+// Nearby/repeated views with different measurements remain independent here.
+std::vector<size_t> geometrySourceIds(const std::vector<Keyframe::Ptr>& keyframes);
 }  // namespace n3mapping
