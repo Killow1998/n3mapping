@@ -5970,3 +5970,109 @@ inherit the prior stage's complete qualification; they are not rerun here.
 Their roughly 0.84–0.87-core extension cost remains open. Full-node/hardware,
 Noetic runtime and partial-map aliasing remain outside this acceptance.
 No installation, push, original-data replacement or acceptance relaxation occurs.
+
+
+## Confirmation scale reuse and session-separated uncertainty — 2026-10-21
+
+Base `5ffac08`; final frozen core `553fbb4f813df73f59ea7dab9cac7a7c7099c5a1c9b63702c61843ad3484487c`. Reproduction commands, source/input
+identities, complete results and discarded experiments are retained in
+`build/n3mapping/search_uncertainty_20261021/qualification.json` and sibling
+artifacts. Original map/Atlas and both original/fresh input sets are hash-verified.
+All 69 CTest targets pass on the final source, including fresh-observation
+confirmation and the existing duplicated-geometry/reset/Atlas regressions.
+
+**Retained change.** Descriptor hypotheses with accepted geometry resume from
+their last accepted plane/GICP scale on the current observation. They do not
+restart coarser levels solely to confirm an already established capture region.
+Unsupported/failed local solves or corrections outside the existing local
+translation/rotation bounds retry the full cascade. Final current-observation
+convergence, overlap, first-return, ambiguity, directional and free-space checks
+remain mandatory. Prior-pose recovery follows its existing stricter path;
+new-region admission and candidate identities are unchanged. No extra descriptor,
+map format, option or cross-observation evidence cache is introduced.
+A fallback can add a top-level registration call: the focused runs show 03
+44→45 and 14 34→35 calls. The saving comes from fewer repeated coarse stages,
+not from removing candidate checks or claiming every call count decreased.
+
+**Paired four-core timing.** Three complete-input A/B repeats alternate variant
+order, using physical P cores 0,2,4,6, four registration threads and passive
+OpenMP. The following are medians, not selected fastest runs. CPU is whole-process
+CPU divided by unchanged input duration; loading/saving, FAST_LIO, DDS and the
+simulator are excluded. Search-only and startup CPU are not bounded by half a
+core. RAM below includes initial map loading. Single repeats overlap and can
+regress; these three medians establish measured behavior on this workload,
+not statistical significance or a universal speed guarantee. Raw ranges are
+retained in the qualification file.
+
+| Point | Mean cores over full input, before → after | Startup CPU seconds | Startup wall seconds |
+| --- | --- | --- | --- |
+| 03 | 0.5626 → 0.5456 | 10.201 → 9.648 | 4.402 → 4.229 |
+| 14 | 0.5085 → 0.4833 | 9.025 → 8.247 | 3.958 → 3.875 |
+
+**03 still exceeds half a core.** Do not replace that result with the average of
+all 14 points. Individual full-suite values (cores): 01 0.317; 02 0.438; 03 0.548; 04 0.457; 05 0.430; 06 0.375; 07 0.406; 08 0.474; 09 0.332; 10 0.351; 11 0.445; 12 0.440; 13 0.478; 14 0.469.
+
+| Final complete input | Outputs / locks | Position RMSE / maximum cm | Average cores | Peak RSS GiB |
+| --- | --- | --- | --- | --- |
+| Original14 | 4,088 / all 14 at frame 4 | 0.840 / 2.481 | 0.42561 | 1.246 |
+| Original independent route | 2,232 / frame 4 | 0.968 / 7.933 | 0.24045 | 1.272 |
+| Fresh independent route | 3,662 / frames 4, 1938 | 0.852 / 3.247 | 0.35941 | 1.271 |
+
+All inputs retain identical per-frame success, lock, state, source, decision,
+seed, support, matched keyframe, live hypothesis and candidate fields relative
+to the frozen baseline. Published poses are not bitwise identical: individual
+static maximum errors can move by fractions of a micrometre; overall position
+maxima above remain unchanged. Raw per-point position/rotation metrics and
+maximum output-matrix differences are retained in the qualification file.
+All outputs stay below 10 cm on these simulation recordings, using only the
+original fixed mapping alignment. The fresh route still has 59 observations
+with propagated output during missing geometric support. This stage does not
+claim to repair that coverage gap, reduce RAM, or certify hardware accuracy.
+
+**Ablation cleanup.** Only the scale-resumption path is retained. Direct final
+GICP from a prior GICP metric does not improve 03. Four-at-a-time exact leaf
+arithmetic has mixed timing; jumping from coarse directly to GICP adds failed
+attempts without sufficient saving. Bounded outer OpenMP workers reproduce the
+previous scheduling tradeoff: no robust CPU benefit and slower startup. Exact
+nearest-neighbor certificates preserve correspondence tests, but second-neighbor
+work increases total CPU (03 0.590→0.636; 14 0.495→0.528 in their paired screen).
+All five rejected implementations and their extra APIs/tests are removed from
+production. Frozen artifacts retain their evidence. Final implementation adds
+one matcher entry point and a focused observable-behavior test; other code paths
+keep their existing interfaces and cache lifetime.
+
+**Loop uncertainty: separate bias from local residual noise.** Recomputed
+fine-GICP residuals on the stored raw scan pairs test cluster-sandwich floors
+with 1 m, 2 m and half-cell-shifted groups. These require no truth in the
+estimator. Observer scoring uses nominal six-dimensional NIS; correlated ideal
+simulation is not a calibrated chi-square experiment. On the 428 mapping loops,
+adding the 2 m floor changes p95 16.34→15.44, maximum 226.78→199.91 and nominal
+95% exceedances 28→25. This leaves the worst bias largely unexplained.
+
+Session-separated scoring matters: the two extension maps inherit the same
+428 mapping loops. Their 230/230 repeated-extension and 343 fresh-extension
+new constraints have baseline maximum NIS 0.555/0.041/2.828, respectively, with
+zero exceedances; counting inherited loops again would fake independent
+validation. Uniformly inflating all covariance would worsen conservatism in
+those new sessions.
+
+A diagnostic screen of 17 selected loop pairs performs 136 half-voxel-phase
+registrations. It was selected retrospectively from observer residuals and is
+not a prospective calibration set. Edge 4→412 has approximately 16.76 mm true
+translation error but only 0.000036 mm local stationarity correction; all eight
+phase solves produce only 0.024/0.038/0.030 mm translational spread. Its NIS is
+226.78→226.58, so extra iterations or voxel-phase uncertainty cannot explain the
+bias. Seven pairs have no accepted phase and one has only two; these are
+unavailable calibration, not zero uncertainty. No cluster/phase floor is promoted
+to production and existing loop weights remain unchanged.
+
+**Next boundary.** Continue reducing 03 cold-seed and confirmation geometry
+without suppressing newly supported regions. For loop calibration, test
+independent observation-to-observation bias and direction-specific innovations;
+do not infer uncertainty from optimized residual alone or use a single global
+floor to fit these observer labels. Online mapping and strict extension tracking/geometry
+code are unchanged; their earlier resource figures remain historical. Extension
+startup shares the modified confirmation and is covered by current regressions
+and localization replays, but no complete online mapping/extension resource
+benchmark is rerun in this stage.
+Noetic runtime, full-node CPU and real hardware remain separate qualifications.

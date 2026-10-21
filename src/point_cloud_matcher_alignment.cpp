@@ -209,7 +209,8 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
     const PreparedTarget& target,
     const PreparedSource& source,
     const Eigen::Isometry3d& init_guess,
-    const small_gicp::RegistrationSetting& setting) {
+    const small_gicp::RegistrationSetting& setting,
+    double start_resolution) {
     MatchResult result;
     // An explicit GICP request is a local solve on the already prepared
     // covariance level. Do not run the broad plane cascade first.
@@ -268,6 +269,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
 
         const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
         for (double res : resolutions) {
+            if (res > start_resolution + 1e-9) continue;
             if (res < base_res * 0.99) continue;
             const auto* target_level = find_target(res);
             const auto* source_level = find_source(res);

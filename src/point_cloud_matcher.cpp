@@ -295,4 +295,23 @@ MatchResult PointCloudMatcher::alignPrepared(
     return alignPreparedWithSetting(target, source, init_guess, setting);
 }
 
+MatchResult PointCloudMatcher::resumePrepared(
+    const PreparedTarget& target, const PreparedSource& source,
+    const Eigen::Isometry3d& init_guess, const MatchMetric& metric) {
+    if (!init_guess.matrix().allFinite() ||
+        !std::isfinite(metric.resolution) || metric.resolution <= 0.0 ||
+        !std::isfinite(metric.max_correspondence_distance) ||
+        metric.max_correspondence_distance <= 0.0 ||
+        (metric.type != small_gicp::RegistrationSetting::PLANE_ICP &&
+         metric.type != small_gicp::RegistrationSetting::GICP))
+        return {};
+    auto setting = setting_;
+    setting.type = metric.type;
+    setting.downsampling_resolution = metric.resolution;
+    setting.max_correspondence_distance = metric.max_correspondence_distance;
+    if (metric.type == small_gicp::RegistrationSetting::GICP)
+        setting.max_iterations = config_.icp_refine_max_iterations;
+    return alignPreparedWithSetting(target, source, init_guess, setting, metric.resolution);
+}
+
 } // namespace n3mapping

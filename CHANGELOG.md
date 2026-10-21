@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Resume fresh relocalization confirmation at its accepted geometric scale,
+  retrying the full cascade for failed or large local corrections. Original14
+  and both independent routes preserve all decisions and outputs; all 69 CTest
+  targets pass. Keep 03 half-core open and retain explicit precision/timing
+  limits in the [paired evidence](docs/evidence/runtime_cpu_20261017/README.md#confirmation-scale-reuse-and-session-separated-uncertainty--2026-10-21).
+- Audit spatially correlated loop residuals and voxel-phase sensitivity by
+  session; remove five unsuccessful search prototypes. Production loop weights
+  remain unchanged because the proposed floors do not explain common bias.
+
 - Share loaded Atlas tracking targets and confirm one fresh prior-pose recovery
   candidate without suppressing descriptor regions or inheriting old votes.
   New-route recovery advances 6.4 input seconds; paired CPU

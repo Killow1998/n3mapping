@@ -2467,7 +2467,7 @@
     },
     "ablation": {
       "rejected": "Prediction-to-ICP pose interpolation",
-      "reason": "Same first 500 outputs, but full-route CPU 186.493\u2192202.667 s and position RMSE 0.299208\u21920.312180 m. Removed implementation.",
+      "reason": "Same first 500 outputs, but full-route CPU 186.493→202.667 s and position RMSE 0.299208→0.312180 m. Removed implementation.",
       "accuracy": {
         "fixed_alignment": {
           "stamp_ns": 7299995002,
@@ -4758,7 +4758,7 @@
       "No inferred fundamental FAST_LIO accuracy ceiling."
     ],
     "next_actions": [
-      "Isolate the accepted tracking excursion around 202\u2013211 s with the unchanged full route.",
+      "Isolate the accepted tracking excursion around 202–211 s with the unchanged full route.",
       "Investigate independent loop coverage and residual map deformation without tuning to evaluation locations."
     ],
     "maintained_sources_sha256": {
@@ -24284,5 +24284,411 @@
     ],
     "artifacts": "build/n3mapping/recovery_relock_20261021/qualification.json",
     "report": "docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21"
+  },
+  "search_uncertainty": {
+    "base_commit": "5ffac081d24ba16f28b37fb146eeb27bf7ca5c67",
+    "verification": {
+      "core_sha256": "553fbb4f813df73f59ea7dab9cac7a7c7099c5a1c9b63702c61843ad3484487c",
+      "production_sources_verified": true,
+      "original_inputs_verified": true,
+      "new_independent_inputs_verified": true,
+      "independent_manifest_sha256": "533cb539c3bd260812a42bf3ee2dfb48361abf595d63d07c5e23f2741fe4b2ba",
+      "independent_pcd_set_sha256": "d0b068168d0129095c7ed1de89d210dba7faa88538062f0147712569c9e3f61b",
+      "ctest_targets": 69,
+      "original14_and_old_route_raw_clouds": [
+        {
+          "episode": "01_west_corridor",
+          "manifest_sha256": "2febd832139abebf4edc1c20b53076263079cdb9f97c1a32622a8d57dc94c36d",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "71f58a02b17e2f06136049d1b7712cc305b6187c3b90bb57cc7394a70df97c1e"
+        },
+        {
+          "episode": "02_east_corridor",
+          "manifest_sha256": "ae32a235322d1266b6bf6f6ec88682ea6f65d6f35a467814459fc41836869410",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "ab06e578ac4082d3e953ebc259e60ceaa7009a8f7769fe6b13d1375a82b60cfd"
+        },
+        {
+          "episode": "03_south_corridor",
+          "manifest_sha256": "733179d895d843f0b821841342e733a199046c0ae602aea85b88360be4ad6fc1",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "2067853c635edd2fe8c02d2cc4c65643bceef2a743d27e22dea3f2737dbfa86d"
+        },
+        {
+          "episode": "04_north_corridor",
+          "manifest_sha256": "32ae751300d9a871fcbf6e5183d925a9d0e7d7855e622d4c6195c7be660749ef",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "43c5d6478c6ea31204f5bbc9bcc10d5e31bacd911777e887faae099d916e99b8"
+        },
+        {
+          "episode": "05_southwest_office",
+          "manifest_sha256": "554bffb0d28a28afef1a2890d5538b9863ee55f69b537529b540e8cd1c4b3a8b",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "bdc91e8f0b085ecd5118a1b05503b51a2d3aa4d31c722630a23be58e8dbd2e1e"
+        },
+        {
+          "episode": "06_south_meeting",
+          "manifest_sha256": "6427f2fdb87cf3a8de97bd5af10eaf0b8d22bf33725c09dad8bcc2e114cf087d",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "cce1e939b1c0f84d901355ed0aabfcc790128425f61042e2bc6a6f4333e482a3"
+        },
+        {
+          "episode": "07_south_pillars",
+          "manifest_sha256": "2e46e287af0f2d9b85c6b6712d9a147b4de5c752188edc725c83e59f7647db21",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "ea5289ed6a9a17a791794f3b850bae7632c8e45093d33c8395036566bf163639"
+        },
+        {
+          "episode": "08_west_shelves",
+          "manifest_sha256": "e0e670ea0f490ae292c21c94768e0a709b5817c0a722c10f84d7dc0a7b55de0e",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "05ee7bae7c23c4665a864f127a3a7a100b46223078a2ed5599634cb3f5e85e5f"
+        },
+        {
+          "episode": "09_east_shelves",
+          "manifest_sha256": "9e9a0352af0cfa8038fc34763fc8bf6a1bd61cb2891e202ba5dbe0b3d7b0736a",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "c4e05b1aebb34cfedbff4a8fe6405e242e508f9ad64ea772ca442d4a330b57d3"
+        },
+        {
+          "episode": "10_northwest_meeting",
+          "manifest_sha256": "a5576adf71a0eed91a2ec0928d8bb59c8dc9eb7c572357d7f74735a1de6ade3d",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "d24320cbbd7c1dc1d35f73e5bbc3b1cca3d21c45956442d4f52b87b4d1611970"
+        },
+        {
+          "episode": "11_northeast_pillars",
+          "manifest_sha256": "78350f0bcde6576e3f67e4ecaeb47c567c011e83e167e3b329db68840bd489fb",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "f4ff42c231115bda956249d12198fbfce634215bd8b43cf8f9e8796c5dc9e6ba"
+        },
+        {
+          "episode": "12_north_office",
+          "manifest_sha256": "cea9e59c53ac1673866ea369766da53e354587a94f237d77ea4286033b3a3b49",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "4d3ba5b7b8791b869b36db3ff6ba235fb319e29c86ea35c55d1e640f4798073a"
+        },
+        {
+          "episode": "13_south_door",
+          "manifest_sha256": "f79b59e4788614fb32fca74b79316f501513635f41e8a19085beeb4132423a07",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "1b009d0928aa87d6ca1f3e30ab762c7a6cbb10ec00f80bd1573ef091a0dd31f6"
+        },
+        {
+          "episode": "14_north_door",
+          "manifest_sha256": "dfb34bc8faa33295669bf2f8f7483522543f2dadd4690a45095c5a47587d20b2",
+          "clouds_verified": 296,
+          "pcd_set_sha256": "6815aed442015720b858270ed993fd6a3bcd271a969b0c4731785319cafbad7b"
+        },
+        {
+          "episode": "query",
+          "manifest_sha256": "2422a44c5560990ab1ac76bc4719b9c4ecc2880b7d3890fa33560270dd0f3fcf",
+          "clouds_verified": 2236,
+          "pcd_set_sha256": "db167e5906725a690d73e0d0c2873c621d021230398a025f5268cefadf894943"
+        }
+      ]
+    },
+    "artifacts": "build/n3mapping/search_uncertainty_20261021/qualification.json",
+    "artifact_sha256": "1596be43a1870be5b760c739985e5901e8e4ff64086c172765c9fa2795f9ad5a",
+    "cpu_scope": "Four physical P cores 0,2,4,6; four registration threads, passive OpenMP. Process CPU / complete unchanged input duration; excludes load/save, FAST_LIO, DDS and simulator. RSS includes loading.",
+    "truth_scope": "Observer only; original fixed first mapping alignment; no query fitting.",
+    "retained_change": "Resume current-observation confirmation at accepted metric scale; full-cascade fallback for unsupported, failed or excessive corrections. Final reliability gates and candidate admission unchanged.",
+    "focus": {
+      "03_south_corridor": {
+        "medians": {
+          "previous": {
+            "cores": 0.5626185395254237,
+            "lock_cpu_s": 10.201269601,
+            "lock_wall_s": 4.4016484810000005
+          },
+          "final": {
+            "cores": 0.5455658958983051,
+            "lock_cpu_s": 9.647655986999998,
+            "lock_wall_s": 4.229121978999999
+          }
+        },
+        "core_ranges": {
+          "previous": [
+            0.5620792540677967,
+            0.582845140576271
+          ],
+          "final": [
+            0.5434615032542373,
+            0.5681013918644068
+          ]
+        }
+      },
+      "14_north_door": {
+        "medians": {
+          "previous": {
+            "cores": 0.5084877518989425,
+            "lock_cpu_s": 9.025376518000002,
+            "lock_wall_s": 3.957604
+          },
+          "final": {
+            "cores": 0.4832525217735976,
+            "lock_cpu_s": 8.246662421000002,
+            "lock_wall_s": 3.8752442609999997
+          }
+        },
+        "core_ranges": {
+          "previous": [
+            0.4982337099776366,
+            0.5208627117654959
+          ],
+          "final": [
+            0.4768290728295082,
+            0.5000060974057452
+          ]
+        }
+      }
+    },
+    "original14": {
+      "outputs": 4088,
+      "average_cores": 0.42560694813762034,
+      "position_rmse_m": 0.008396573274656961,
+      "maximum_m": 0.024809060907976216,
+      "peak_rss_mib": 1276.1953125,
+      "locks": "all 14 at frame 4",
+      "per_point": [
+        {
+          "id": "01_west_corridor",
+          "cores": 0.31650086918938475,
+          "position_maximum_m": 0.0083915895223161,
+          "rotation_maximum_deg": 0.02356297462551075
+        },
+        {
+          "id": "02_east_corridor",
+          "cores": 0.43763428581831865,
+          "position_maximum_m": 0.011538685881210898,
+          "rotation_maximum_deg": 0.027476796815913553
+        },
+        {
+          "id": "03_south_corridor",
+          "cores": 0.5479425581355932,
+          "position_maximum_m": 0.009945601619870984,
+          "rotation_maximum_deg": 0.038207457515146315
+        },
+        {
+          "id": "04_north_corridor",
+          "cores": 0.45666268632531337,
+          "position_maximum_m": 0.006832174028661471,
+          "rotation_maximum_deg": 0.025483007582551273
+        },
+        {
+          "id": "05_southwest_office",
+          "cores": 0.43043965901694914,
+          "position_maximum_m": 0.011978283880913284,
+          "rotation_maximum_deg": 0.03981740003437222
+        },
+        {
+          "id": "06_south_meeting",
+          "cores": 0.37525409820338984,
+          "position_maximum_m": 0.01411288597497736,
+          "rotation_maximum_deg": 0.069704054819127
+        },
+        {
+          "id": "07_south_pillars",
+          "cores": 0.40620304393220336,
+          "position_maximum_m": 0.024809060907976216,
+          "rotation_maximum_deg": 0.052982119313907235
+        },
+        {
+          "id": "08_west_shelves",
+          "cores": 0.4738276485423729,
+          "position_maximum_m": 0.010355671855784699,
+          "rotation_maximum_deg": 0.05908166347250475
+        },
+        {
+          "id": "09_east_shelves",
+          "cores": 0.331522528779661,
+          "position_maximum_m": 0.014101758520219387,
+          "rotation_maximum_deg": 0.04695767838129227
+        },
+        {
+          "id": "10_northwest_meeting",
+          "cores": 0.3507348352881356,
+          "position_maximum_m": 0.009108078883321642,
+          "rotation_maximum_deg": 0.024667599451826616
+        },
+        {
+          "id": "11_northeast_pillars",
+          "cores": 0.44513585101694925,
+          "position_maximum_m": 0.015142060267106381,
+          "rotation_maximum_deg": 0.041566407198522816
+        },
+        {
+          "id": "12_north_office",
+          "cores": 0.44020166742372885,
+          "position_maximum_m": 0.007026096141037657,
+          "rotation_maximum_deg": 0.03632441003692059
+        },
+        {
+          "id": "13_south_door",
+          "cores": 0.4778978459024163,
+          "position_maximum_m": 0.02171273127659304,
+          "rotation_maximum_deg": 0.08384197149033165
+        },
+        {
+          "id": "14_north_door",
+          "cores": 0.4685396649138636,
+          "position_maximum_m": 0.009183216444252124,
+          "rotation_maximum_deg": 0.018130618223808598
+        }
+      ]
+    },
+    "old_route": {
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "average_cores": 0.24044750774944074,
+      "peak_rss_mib": 1302.13671875,
+      "above_10cm": 0,
+      "position_error_m": {
+        "rmse": 0.009681592239874026,
+        "median": 0.0069795146036306524,
+        "p95": 0.01518112445598996,
+        "maximum": 0.07932836946644896
+      },
+      "rotation_error_deg": {
+        "rmse": 0.023736649209609672,
+        "median": 0.015028926866236463,
+        "p95": 0.045788827359471734,
+        "maximum": 0.14149876903368358
+      },
+      "published_without_backend_success": 0
+    },
+    "new_route": {
+      "frames": 3666,
+      "outputs": 3662,
+      "locks": [
+        4,
+        1938
+      ],
+      "average_cores": 0.3594135989004093,
+      "peak_rss_mib": 1301.72265625,
+      "above_10cm": 0,
+      "position_error_m": {
+        "rmse": 0.00852416884274261,
+        "median": 0.006629034525469866,
+        "p95": 0.015433337229173076,
+        "maximum": 0.03246851633697081
+      },
+      "rotation_error_deg": {
+        "rmse": 0.035139060585896116,
+        "median": 0.016250484742516114,
+        "p95": 0.05739092931586709,
+        "maximum": 0.2641706757292131
+      },
+      "published_without_backend_success": 59
+    },
+    "baseline_comparison": {
+      "all_per_frame_decisions_equal": true,
+      "fields": [
+        "success",
+        "lock",
+        "state",
+        "pose_source",
+        "decision",
+        "seed",
+        "support",
+        "matched",
+        "live",
+        "candidates"
+      ],
+      "maximum_output_matrix_component_delta": 1.819271770209241e-05,
+      "largest_individual_static_peak_increase_m": 2.2888759122069446e-07
+    },
+    "rejected_prototypes": [
+      "direct final GICP only: no 03 saving",
+      "exact leaf batch: mixed timings",
+      "coarse-to-GICP jump: additional work without sufficient saving",
+      "bounded outer OpenMP: no robust CPU saving; slower startup",
+      "exact nearest-neighbor certificate: second-neighbor cost exceeds reuse saving"
+    ],
+    "uncertainty": {
+      "production_weights_changed": false,
+      "mapping_cluster_2m": {
+        "before": {
+          "count": 428,
+          "median": 1.2694741167329808,
+          "p95": 16.343106946666126,
+          "maximum": 226.78428729543074,
+          "above_nominal_95": 28
+        },
+        "after": {
+          "count": 428,
+          "median": 1.2250435803197663,
+          "p95": 15.441243393364582,
+          "maximum": 199.91075426065936,
+          "above_nominal_95": 25
+        }
+      },
+      "new_session_baselines": {
+        "extension_second": {
+          "1": {
+            "count": 230,
+            "median": 0.0023355077337355,
+            "p95": 0.09306784962936686,
+            "maximum": 0.5551751183376985,
+            "above_nominal_95": 0
+          },
+          "2": {
+            "count": 230,
+            "median": 0.0008620243718153197,
+            "p95": 0.01341610271567895,
+            "maximum": 0.040839716002869404,
+            "above_nominal_95": 0
+          }
+        },
+        "extension_new": {
+          "1": {
+            "count": 343,
+            "median": 0.003025317544599564,
+            "p95": 0.1303330748395165,
+            "maximum": 2.827949369315404,
+            "above_nominal_95": 0
+          }
+        }
+      },
+      "phase_screen": {
+        "pairs": 17,
+        "registration_trials": 136,
+        "complete_phase_sets": 9,
+        "partial_phase_sets": 1,
+        "unavailable_phase_sets": 7,
+        "selected_retrospectively": true,
+        "worst_pair": [
+          4,
+          412
+        ],
+        "true_translation_error_m": 0.016760843934437712,
+        "local_stationarity_translation_m": 3.5687e-08,
+        "phase_translation_sigma_m": [
+          2.3636795626512375e-05,
+          3.785507019388162e-05,
+          2.9837694844194646e-05
+        ],
+        "nis_before_after": [
+          226.78428729543074,
+          226.57923189886495
+        ]
+      },
+      "limitations": [
+        "Extension session 0 repeats the same 428 mapping constraints; not independent evidence.",
+        "Phase screen chosen retrospectively from observer diagnostics; failed or partial phase sets do not imply zero uncertainty.",
+        "Nominal six-dimensional chi-square exceedances are diagnostics, not calibrated empirical probability in correlated ideal simulation."
+      ]
+    },
+    "limitations": [
+      "03 half-core remains open; whole recording average is not a search-only interval bound.",
+      "59 new-route outputs still use propagated state during insufficient geometry; full recovery was not changed here.",
+      "Small floating-point/optimizer precision changes are reported; no universal bitwise or metric improvement claim.",
+      "Loop covariance calibration remains open; no unqualified production weighting adopted.",
+      "Online mapping and strict extension tracking/geometry are unchanged. Extension startup shares the modified confirmation; covered by current regressions and localization replays, but no complete mapping/extension resource rerun in this stage.",
+      "No hardware, full-node or independent Noetic runtime qualification."
+    ]
   }
 }

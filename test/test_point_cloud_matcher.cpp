@@ -413,6 +413,34 @@ TEST_F(PointCloudMatcherTest, SourceRefinementDoesNotNeedTargetNormals) {
     EXPECT_EQ(lean.num_inliers, with_normals.num_inliers);
 }
 
+TEST_F(PointCloudMatcherTest, ResumedConfirmationSolvesFreshGeometryAndRejectsMissingSupport) {
+    config_.num_threads = 1;
+    matcher_ = std::make_unique<PointCloudMatcher>(config_);
+    const auto cloud = createPlaneCloud(2000, 10.0, 0.0);
+    const auto target = matcher_->prepareTargetCloud(cloud);
+    const auto displaced = matcher_->prepareSourceCloud(
+        transformCloud(cloud, createPose(0, 0, -0.12, 0, 0, 0)));
+    for (const auto type : {small_gicp::RegistrationSetting::PLANE_ICP,
+                            small_gicp::RegistrationSetting::GICP}) {
+        MatchMetric metric{type,
+            type == small_gicp::RegistrationSetting::GICP
+                ? config_.icp_refine_downsampling_resolution
+                : config_.gicp_downsampling_resolution,
+            config_.icp_refine_max_correspondence_distance};
+        const auto current = matcher_->resumePrepared(
+            target, displaced, Eigen::Isometry3d::Identity(), metric);
+        ASSERT_TRUE(current.success);
+        EXPECT_TRUE(current.converged);
+        EXPECT_NEAR(current.T_target_source.translation().z(), 0.12, 1e-5);
+        const auto unsupported = matcher_->resumePrepared(
+            target, displaced, createPose(0, 0, 5, 0, 0, 0), metric);
+        EXPECT_FALSE(unsupported.success);
+        metric.resolution = std::numeric_limits<double>::quiet_NaN();
+        EXPECT_EQ(matcher_->resumePrepared(target, displaced,
+            Eigen::Isometry3d::Identity(), metric).termination, MatchTermination::Invalid);
+    }
+}
+
 TEST_F(PointCloudMatcherTest, FixedPoseEvaluationUsesObjectiveAndCorrespondenceGate) {
     const auto cloud = createPlaneCloud(2000, 10.0, 0.0);
     const auto target = matcher_->prepareTargetCloud(cloud);

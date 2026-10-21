@@ -133,6 +133,13 @@ public:
                               const PreparedSource& source,
                               const Eigen::Isometry3d& init_guess,
                               const small_gicp::RegistrationSetting& setting);
+    // Optimize fresh geometry from a previously accepted metric's scale.
+    // The caller must retry the full cascade if the local solve is unsupported
+    // or its correction leaves the tracking neighborhood.
+    MatchResult resumePrepared(const PreparedTarget& target,
+                               const PreparedSource& source,
+                               const Eigen::Isometry3d& init_guess,
+                               const MatchMetric& metric);
     // Does not change pose or claim optimizer convergence. The result has
     // FixedPoseEvaluation termination only when usable residuals were measured.
     MatchResult evaluatePreparedPose(const PreparedTarget& target,
@@ -156,7 +163,8 @@ private:
     MatchResult alignPreparedWithSetting(const PreparedTarget& target,
                                          const PreparedSource& source,
                                          const Eigen::Isometry3d& init_guess,
-                                         const small_gicp::RegistrationSetting& setting);
+                                         const small_gicp::RegistrationSetting& setting,
+                                         double start_resolution = std::numeric_limits<double>::infinity());
 
     Config config_;
     small_gicp::RegistrationSetting setting_;

@@ -798,8 +798,8 @@ remain separate from that measured result.
 ### TODO
 
 Current work is updated **2026-10-21**. Maintenance version **1.0.1** closed the
-accepted performance changes. Current priorities are **fresh-route recovery,
-difficult-search cost and directional loop uncertainty**, while preserving
+accepted performance changes. Current priorities are **03/14 search cost and
+directional loop uncertainty**, while preserving
 relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for
 that online behavior. Stationary startup remains required by Xian's downstream
 workflow. Continuing localization outside the global map is deferred pending
@@ -815,10 +815,10 @@ remains the performance baseline.
 | --- | --- |
 | Reliability — startup and output baseline retained | Original14 keeps all 14 frame-4 locks and 4,088 outputs. Both independent routes preserve all outputs. Fresh-route recovery advances 2002→1938 (6.4 input seconds); backend-loss observations fall 123→59. Previous locks cannot break a geometric tie. Reference coverage gaps and partial-map aliasing remain explicit. |
 | Accuracy — recorded simulation cases below 10 cm | Prior mapping RMSE/maximum 1.399/9.289 cm retained. Current original14 0.840/2.481 cm; original/fresh motion maxima 7.933/3.247 cm. Small RMSE and old-route peak regressions are preserved in the [recovery evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21). |
-| Online loop/map consistency — checkpoints retained; calibration open | New keyframes receive committed geometry and exact repeated acquisitions share information. Eighteen frozen-graph robust/directional solves plus a fitted-versus-truth residual audit expose translation uncertainty concerns; no unqualified production weighting is adopted. See [limits](docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21). |
-| Online extension — RAM reduced; half-core open | Current first/second/fresh extensions use 0.873/0.860/0.840 cores and 1.873/1.987/1.813 GiB runtime RSS. The paired fresh-route memory change is 2.088→1.816 GiB with CPU approximately unchanged. All recorded outputs stay below 10 cm; [save peaks and latency tradeoffs](docs/evidence/runtime_cpu_20261017/README.md#recovery-geometry-compact-map-assembly-and-uncertainty-ablation--2026-10-21) remain explicit. |
+| Online loop/map consistency — checkpoints retained; calibration open | New keyframes receive committed geometry; exact repeated acquisitions share information. Session-separated cluster and voxel-phase audits show local residual noise does not explain biased mapping constraints; new extension constraints are generally conservative. Production weights retained. [Evidence and limits](docs/evidence/runtime_cpu_20261017/README.md#confirmation-scale-reuse-and-session-separated-uncertainty--2026-10-21). |
+| Online extension — RAM reduced; half-core open | Last fully measured first/second/fresh extensions use 0.873/0.860/0.840 cores and 1.873/1.987/1.813 GiB runtime RSS. The paired fresh-route memory change is 2.088→1.816 GiB with CPU approximately unchanged. All recorded outputs stay below 10 cm; [save peaks and latency tradeoffs](docs/evidence/runtime_cpu_20261017/README.md#recovery-geometry-compact-map-assembly-and-uncertainty-ablation--2026-10-21) remain explicit. |
 | Asynchronous online mapping loops — complete causal qualification | Mapping averages 0.413 cores including background drain; maximum live error 9.289 cm. Full-node/hardware and independent Noetic compilation remain open. |
-| Search cost — motion half-core achieved on these recordings; individual static cases open | Shared Atlas targets plus freshly confirmed recovery reduce paired new-route CPU 0.820→0.363 cores; original motion uses 0.244. Original14 averages 0.438, but 03/14 remain 0.592/0.503. Complete input durations are unchanged; search-only peaks are not bounded. [Ablations and resource scope](docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21). |
+| Search cost — 03 half-core remains open | Confirmation scale reuse: paired three-repeat medians 03 0.563→0.546, 14 0.508→0.483 cores. Full original14 0.426; old/new routes 0.240/0.359. Original decisions and outputs retained. [Scope and ablations](docs/evidence/runtime_cpu_20261017/README.md#confirmation-scale-reuse-and-session-separated-uncertainty--2026-10-21). |
 
 The performance target retains **four physical P cores**, four registration threads,
 `OMP_WAIT_POLICY=PASSIVE`, the same map/configuration and MID360-derived **10 Hz**

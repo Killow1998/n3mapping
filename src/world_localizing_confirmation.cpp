@@ -141,14 +141,36 @@ WorldLocalizing::confirmRelocalization(
             setting.max_correspondence_distance = hyp.metric.max_correspondence_distance;
             setting.max_iterations = config_.gicp_max_iterations + config_.icp_refine_max_iterations;
           }
-          mr = matcher_.alignPrepared(*prepared_target.registration_target,
-                                      prepared_query, predicted_pose, setting);
+          // An accepted hypothesis already names its capture scale. Re-solve
+          // the current observation there; a failed or large correction must
+          // still receive the original broad search below.
+          mr = hyp.tracking_proposal
+              ? matcher_.alignPrepared(*prepared_target.registration_target,
+                                       prepared_query, predicted_pose, setting)
+              : matcher_.resumePrepared(*prepared_target.registration_target,
+                                        prepared_query, predicted_pose, hyp.metric);
           cost.align_ms += std::chrono::duration<double, std::milli>(
               std::chrono::steady_clock::now() - align_started).count();
           ++cost.alignments;
           ++cost.confirmation_registrations;
           optimized = true;
           if (!hasValidRegistrationResult(mr)) ++cost.rejected_alignments;
+          if (!hyp.tracking_proposal &&
+              (!evaluateRelocMatchQuality(mr, config_).accepted ||
+               (predicted_pose.inverse() * mr.T_target_source).translation().norm() >
+                   config_.icp_refine_max_correspondence_distance ||
+               Eigen::AngleAxisd(predicted_pose.rotation().transpose() *
+                                mr.T_target_source.rotation()).angle() >
+                   config_.reloc_track_max_rotation)) {
+            const auto fallback_started = std::chrono::steady_clock::now();
+            mr = matcher_.alignPrepared(*prepared_target.registration_target,
+                                        prepared_query, predicted_pose);
+            cost.align_ms += std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - fallback_started).count();
+            ++cost.alignments;
+            ++cost.confirmation_registrations;
+            if (!hasValidRegistrationResult(mr)) ++cost.rejected_alignments;
+          }
         }
       }
       VisibilityConsistencyResult selected_visibility = predicted_visibility;
