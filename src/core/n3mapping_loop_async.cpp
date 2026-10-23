@@ -121,7 +121,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
             std::chrono::duration_cast<LoopClock::duration>(interval);
       }
     } catch (const std::exception& error) {
-      std::cerr << "Isolated loop processing failed: " << error.what() << '\n';
+      LOG(ERROR) << "Isolated loop processing failed: " << error.what() << '\n';
     }
     double catchup_ms = 0;
     if (completed && state.job->outcome.summary.optimized &&

@@ -22,16 +22,41 @@ void N3MappingNoeticNode::syncCallback(const sensor_msgs::PointCloud2ConstPtr& c
 void N3MappingNoeticNode::processSynchronizedFrame(const sensor_msgs::PointCloud2ConstPtr& cloud_msg,
                               const nav_msgs::OdometryConstPtr& odom_msg)
 {
+    const auto callback_started = std::chrono::steady_clock::now();
+    const auto elapsed = [&](auto start) {
+        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    };
+    RuntimePerformanceDebugEvent performance_event;
+    const auto finish_trace = [&] {
+        if (!performance_debug_logger_) return;
+        performance_event.callback_total_ms = elapsed(callback_started);
+        performance_debug_logger_->append(performance_event);
+    };
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
+        if (performance_debug_logger_) {
+            performance_event.mode = coreRunModeName(run_mode_);
+            performance_event.frame_index = ++performance_frame_index_;
+            performance_event.sensor_timestamp = cloud_msg->header.stamp.toSec();
+            performance_event.processing_time = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
+            performance_event.input_points = cloud_msg->width * cloud_msg->height;
+            performance_event.callback_lock_wait_ms = elapsed(callback_started);
+        }
+        const auto conversion_started = std::chrono::steady_clock::now();
         const double frame_start_source_age_s =
             (ros::Time::now() - odom_msg->header.stamp).toSec();
         const auto frame = toCoreLioFrame(*cloud_msg, *odom_msg);
 
+        performance_event.ros_conversion_ms = elapsed(conversion_started);
         const auto backend_started = std::chrono::steady_clock::now();
         auto output = core_->processFrame(run_mode_, frame);
         const double backend_seconds = std::chrono::duration<double>(
             std::chrono::steady_clock::now() - backend_started).count();
+        runtime_events_.backend(output, frame.stamp.nsec, backend_seconds * 1000.0);
+        if (performance_debug_logger_) {
+            populateFramePerformance(performance_event, output);
+            performance_event.core_frame_ms = backend_seconds * 1000.0;
+        }
         const auto committed = realtime_output_->acceptBackend(
             {static_cast<int64_t>(odom_msg->header.stamp.toNSec()),
              frame.source_frame_id, odom_msg->child_frame_id,
@@ -100,11 +125,13 @@ void N3MappingNoeticNode::processSynchronizedFrame(const sensor_msgs::PointCloud
         }
         if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
             ++frame_count_;
+            finish_trace();
             return;
         }
 
         if (publication.publish_global_pose) {
             publishPath(cloud_msg->header, &output.T_world_lidar);
+            performance_event.published_global_pose = true;
         }
         if (output.accepted_keyframe) {
             ++keyframe_count_;
@@ -115,6 +142,7 @@ void N3MappingNoeticNode::processSynchronizedFrame(const sensor_msgs::PointCloud
         }
         ++frame_count_;
     }
+    finish_trace();
 }
 
 void N3MappingNoeticNode::denseOdomCallback(const nav_msgs::OdometryConstPtr& odom_msg)
@@ -134,16 +162,30 @@ void N3MappingNoeticNode::loopDetectionTimerCallback(const ros::TimerEvent&)
         return;
     }
 
+    const auto trace_started = std::chrono::steady_clock::now();
+    RuntimePerformanceLoopEvent performance_event;
+    if (performance_debug_logger_) {
+        performance_event.mode = coreRunModeName(run_mode_);
+        performance_event.processing_time = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
+        performance_event.cycle_index = ++performance_loop_index_;
+    }
     bool needs_global_map_rebuild = false;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
+        const auto core_started = std::chrono::steady_clock::now();
         const auto result = core_->processPendingLoopClosuresAsync();
+        if (performance_debug_logger_) {
+            populateLoopPerformance(performance_event, result);
+            performance_event.core_ms = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - core_started).count();
+        }
+        runtime_events_.loop(result);
         if (!result.accepted_loops.empty()) {
             publishLoopMarkers(result.accepted_loops);
         }
         if (result.optimized) {
             loop_count_ += result.edge_count;
-            logOptimizationResult("loop_closure", ros::Time::now().toSec(), nullptr);
+            logOptimizationResult("loop_closure", std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count(), nullptr);
             std::ostringstream oss;
             oss << "[OPTIMIZATION] loop impact edges=" << result.edge_count
                 << " accepted=" << result.accepted_loops.size()
@@ -167,6 +209,11 @@ void N3MappingNoeticNode::loopDetectionTimerCallback(const ros::TimerEvent&)
     }
     if (needs_global_map_rebuild) {
         markGlobalMapFullRebuildRequired();
+    }
+    if (performance_debug_logger_) {
+        performance_event.total_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - trace_started).count();
+        performance_debug_logger_->append(performance_event);
     }
 }
 

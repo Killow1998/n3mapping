@@ -1,3 +1,4 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping/loop_debug_logger.h"
 
 #include <filesystem>
@@ -20,6 +21,7 @@ std::filesystem::path makeTempDir()
 std::vector<std::string> readLines(const std::filesystem::path& path)
 {
     std::vector<std::string> lines;
+    EXPECT_TRUE(AsyncLog::instance().drain());
     std::ifstream file(path);
     std::string line;
     while (std::getline(file, line)) {

@@ -1,3 +1,4 @@
+#include "n3mapping/async_log.h"
 #include <filesystem>
 #include <algorithm>
 #include <cmath>
@@ -252,6 +253,7 @@ TEST(N3MappingCoreTest, EnabledShadowSubmapIsPersistedFromMappingPath)
     EXPECT_NEAR(persisted.keyframes(0).pose_optimized().ty(), 3.0, 1e-9);
 
     const auto trial_path = output_directory / "submap_graph_trial.jsonl";
+    ASSERT_TRUE(AsyncLog::instance().drain());
     std::ifstream trial_input(trial_path);
     ASSERT_TRUE(trial_input.is_open());
     std::string trial_record;

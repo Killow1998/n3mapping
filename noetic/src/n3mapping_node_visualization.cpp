@@ -1,6 +1,6 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping_node.h"
 #include <algorithm>
-#include <fstream>
 #include <sstream>
 
 namespace n3mapping {
@@ -124,14 +124,8 @@ geometry_msgs::Point N3MappingNoeticNode::toPoint(const Eigen::Isometry3d& pose)
 
 void N3MappingNoeticNode::initializeOptimizationLogging()
 {
-    if (!ensureMapDirectory(config_.map_save_path)) {
-        ROS_WARN("Failed to create optimization log directory: %s", config_.map_save_path.c_str());
-    }
     optimization_log_path_ = config_.map_save_path + "/optimization.log";
-    std::ofstream file(optimization_log_path_, std::ios::out | std::ios::trunc);
-    if (!file.is_open()) {
-        ROS_WARN("Failed to open optimization log: %s", optimization_log_path_.c_str());
-    }
+    logEvent("optimization_log_started", optimization_log_path_);
 }
 
 void N3MappingNoeticNode::logOptimizationResult(const std::string& context, double timestamp, const Eigen::Isometry3d* current_pose)
@@ -167,12 +161,7 @@ void N3MappingNoeticNode::logOptimizationResult(const std::string& context, doub
 
 void N3MappingNoeticNode::appendOptimizationLogLine(const std::string& line)
 {
-    std::lock_guard<std::mutex> lock(optimization_log_mutex_);
-    std::ofstream file(optimization_log_path_, std::ios::out | std::ios::app);
-    if (!file.is_open()) {
-        return;
-    }
-    file << line << '\n';
+    appendLogLine(optimization_log_path_, line);
 }
 
 }  // namespace n3mapping

@@ -1,3 +1,4 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/core/n3mapping_session.h"
 #include "loop_closure_async.h"
@@ -196,7 +197,7 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   if (session_->submapBuilder().enabled()) {
     const auto committed_keyframe = keyframes.getKeyframe(keyframe_id);
     if (!session_->submapBuilder().appendKeyframe(committed_keyframe)) {
-      std::cerr << "Shadow submap append failed for committed keyframe id="
+      LOG(ERROR) << "Shadow submap append failed for committed keyframe id="
                 << keyframe_id << '\n';
     } else {
       // graph_update necessarily runs before the just-committed keyframe can
@@ -424,6 +425,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
 }
 
 bool N3MappingCore::loadMap(const std::string &map_path) {
+  LogOperation operation("map_load", map_path);
   try {
     auto candidate = std::make_unique<core::N3MappingSession>(config_);
     std::vector<core::DenseTrajectoryPose> loaded_dense_optimized;
@@ -441,7 +443,7 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
     std::string atlas_error;
     if (!candidate->worldLocalizing().loadLocalizationAtlas(map_path,
                                                             &atlas_error)) {
-      std::cerr << "Failed to load localization atlas: " << atlas_error << '\n';
+      LOG(ERROR) << "Failed to load localization atlas: " << atlas_error << '\n';
       return false;
     }
 
@@ -465,9 +467,10 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
     floor_attitude_rejected_ = 0;
     localization_source_frame_id_.clear();
     map_loaded_ = true;
+    operation.succeed();
     return true;
   } catch (const std::exception &error) {
-    std::cerr << "Failed to prepare map transaction: " << error.what() << '\n';
+    LOG(ERROR) << "Failed to prepare map transaction: " << error.what() << '\n';
     return false;
   }
 }
@@ -718,7 +721,7 @@ bool N3MappingCore::refreshSubmapPoses(const char* context) {
   const auto trial = runSubmapGraphTrialCheckpoint(
       graph_snapshot, config_, "core", context_name);
   if (trial.checkpoint) {
-    if (!trial.persisted) {
+    if (!trial.log_enqueued) {
       LOG(WARNING) << "[SubmapGraphShadow] trial evidence write failed context="
                    << context_name << " path=" << trial.output_path;
     }
@@ -747,7 +750,7 @@ bool N3MappingCore::refreshSubmapPoses(const char* context) {
               << " optimized_keyframe_p95_rotation_error_rad="
               << trial.diagnostics.optimized_keyframe_comparison
                      .p95_rotation_error_rad
-              << " persisted=" << trial.persisted
+              << " log_enqueued=" << trial.log_enqueued
               << " failure_reason="
               << (trial.diagnostics.failure_reason.empty()
                       ? "none"

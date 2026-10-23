@@ -1,10 +1,9 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping/submap_graph_trial_runtime.h"
 
 #include <cmath>
 #include <filesystem>
-#include <fstream>
 #include <iomanip>
-#include <mutex>
 #include <sstream>
 
 #include <Eigen/Geometry>
@@ -13,11 +12,6 @@
 
 namespace n3mapping {
 namespace {
-
-std::mutex& outputMutex() {
-    static std::mutex mutex;
-    return mutex;
-}
 
 std::string jsonEscape(const std::string& value) {
     std::ostringstream output;
@@ -271,20 +265,7 @@ std::string serializeRecord(
 }
 
 bool appendLine(const std::string& path, const std::string& line) {
-    std::lock_guard<std::mutex> lock(outputMutex());
-    try {
-        const std::filesystem::path filesystem_path(path);
-        const auto parent = filesystem_path.parent_path();
-        if (!parent.empty()) {
-            std::filesystem::create_directories(parent);
-        }
-        std::ofstream file(path, std::ios::out | std::ios::app);
-        if (!file.is_open()) return false;
-        file << line << '\n';
-        return file.good();
-    } catch (const std::exception&) {
-        return false;
-    }
+  return appendLogLine(path, line);
 }
 
 }  // namespace
@@ -316,7 +297,7 @@ SubmapGraphTrialRuntimeResult runSubmapGraphTrialCheckpoint(
     result.output_path = resolveSubmapGraphTrialPath(config);
     result.diagnostics = evaluateSubmapGraphOptimizationTrial(
         snapshot, config);
-    result.persisted = appendLine(
+    result.log_enqueued = appendLine(
         result.output_path,
         serializeRecord(snapshot, config, runtime_source, context,
                         result.diagnostics));

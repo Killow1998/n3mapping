@@ -1,3 +1,4 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
@@ -297,6 +298,7 @@ TEST_F(MappingResumingTest, SaveExtendedMap)
     ASSERT_TRUE(serializer.loadMap(extended_map_file, kf_manager2, loop_detector2, optimizer2));
     EXPECT_EQ(kf_manager2.size(), 3);
 
+    ASSERT_TRUE(AsyncLog::instance().drain());
     std::ifstream trial_input(
         config_.map_save_path + "/submap_graph_trial.jsonl");
     ASSERT_TRUE(trial_input.is_open());

@@ -1,3 +1,4 @@
+#include <glog/logging.h>
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/graph_factor_noise.h"
 #include "planar_geometry/moment_factor.h"
@@ -99,7 +100,7 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
     stats.optimized = optimize;
     return true;
   } catch (const std::exception& e) {
-    std::cerr << "Joint geometry unchanged: " << e.what() << '\n';
+    LOG(ERROR) << "Joint geometry unchanged: " << e.what() << '\n';
     return false;
   }
 }

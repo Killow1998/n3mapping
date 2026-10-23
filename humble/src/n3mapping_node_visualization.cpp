@@ -1,5 +1,5 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping_node.h"
-#include <fstream>
 
 namespace n3mapping {
 
@@ -172,12 +172,7 @@ void N3MappingNode::logOptimizationResult(const std::string& context, double tim
 
 void N3MappingNode::appendOptimizationLogLine(const std::string& line)
 {
-    std::lock_guard<std::mutex> lock(optimization_log_mutex_);
-    std::ofstream file(optimization_log_path_, std::ios::out | std::ios::app);
-    if (!file.is_open()) {
-        return;
-    }
-    file << line << '\n';
+    appendLogLine(optimization_log_path_, line);
 }
 
 void N3MappingNode::publishLoopMarkers(const std::vector<VerifiedLoop>& loops)
@@ -253,14 +248,8 @@ Keyframe::Ptr N3MappingNode::getKeyframeForPublishing(int64_t id) const
 
 void N3MappingNode::initializeOptimizationLogging()
 {
-    if (!ensureMapDirectory(config_.map_save_path)) {
-        RCLCPP_WARN(this->get_logger(), "Failed to create optimization log directory: %s", config_.map_save_path.c_str());
-    }
     optimization_log_path_ = config_.map_save_path + "/optimization.log";
-    std::ofstream file(optimization_log_path_, std::ios::out | std::ios::trunc);
-    if (!file.is_open()) {
-        RCLCPP_WARN(this->get_logger(), "Failed to open optimization log: %s", optimization_log_path_.c_str());
-    }
+    logEvent("optimization_log_started", optimization_log_path_);
 }
 
 }  // namespace n3mapping

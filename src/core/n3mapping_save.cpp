@@ -1,3 +1,4 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/core/n3mapping_session.h"
 #include <filesystem>
@@ -15,6 +16,7 @@ struct SaveDirectory {
 };
 } // namespace
 bool N3MappingCore::saveMap(const std::string &map_path) {
+  LogOperation operation("map_save", map_path);
   if (async_loops_ || (map_loaded_ && config_.loop_geometry_enable)) processPendingLoopClosures();
   if (!refreshSubmapPoses("save_map")) {
     return false;
@@ -44,7 +46,7 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
       pending, session_->keyframeManager(), session_->loopDetector(),
       session_->graphOptimizer(), dense_optimized_trajectory, metadata,
       &session_->submapBuilder())) return false;
-  if (!with_atlas) return true;
+  if (!with_atlas) { operation.succeed(); return true; }
   const auto atlas_path = LocalizationAtlas::defaultAtlasPath(map_path);
   const auto pending_atlas = (stage.path / "atlas").string();
   const auto backup_atlas = (stage.path / "atlas.previous").string();
@@ -80,6 +82,7 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
             << " atlas_prepare_ms=" << stats.prepare_ms
             << " atlas_serialize_ms=" << stats.serialize_ms
             << " atlas_bytes=" << stats.sidecar_bytes;
+  operation.succeed();
   return true;
 }
 

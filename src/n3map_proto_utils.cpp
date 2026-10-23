@@ -1,3 +1,4 @@
+#include <glog/logging.h>
 #include "n3mapping/n3map_proto_utils.h"
 
 #include <algorithm>
@@ -474,7 +475,7 @@ bool parseEdgesFromProto(const N3Map& map_proto,
             if (policy == PbstreamLoadPolicy::STRICT) {
                 return setError(error, "unknown edge type");
             }
-            std::cerr << "[MapSerializer] Salvage: skipping unknown edge type "
+            LOG(ERROR) << "[MapSerializer] Salvage: skipping unknown edge type "
                       << static_cast<int>(proto.type()) << '\n';
             continue;
         }
@@ -489,7 +490,7 @@ bool parseEdgesFromProto(const N3Map& map_proto,
             if (policy == PbstreamLoadPolicy::STRICT) {
                 return setError(error, "unknown edge constraint mode");
             }
-            std::cerr
+            LOG(ERROR)
                 << "[MapSerializer] Salvage: skipping unknown edge constraint mode "
                 << static_cast<int>(proto.constraint_mode()) << '\n';
             if (edge.type == PbstreamEdgeType::ODOMETRY) {
@@ -556,7 +557,7 @@ bool parseFloorAttitudeFactorsFromProto(
             if (policy == PbstreamLoadPolicy::STRICT) {
                 return setError(error, local_error);
             }
-            std::cerr << "[MapSerializer] Salvage: skipping bad floor factor at "
+            LOG(ERROR) << "[MapSerializer] Salvage: skipping bad floor factor at "
                       << floor.node_id << ": " << local_error << '\n';
             continue;
         }

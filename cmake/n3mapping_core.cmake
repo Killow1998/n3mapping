@@ -3,6 +3,11 @@ pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 
 set(N3MAPPING_CORE_SOURCES
   ${PROTO_SRCS}
+  ${N3MAPPING_ROOT}/src/logging/async_log.cpp
+  ${N3MAPPING_ROOT}/src/logging/log_store.cpp
+  ${N3MAPPING_ROOT}/src/logging/process_logging.cpp
+  ${N3MAPPING_ROOT}/src/logging/runtime_events.cpp
+  ${N3MAPPING_ROOT}/src/logging/runtime_performance_fields.cpp
   ${N3MAPPING_ROOT}/src/config.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_save.cpp

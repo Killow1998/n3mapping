@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — shared bounded asynchronous logging
+
+- Route both ROS adapters, glog and existing diagnostic streams through one
+  ROS-free worker. Bound queued records by allocated capacity, batch file writes,
+  aggregate frequent observations, and reserve queue space for critical events.
+- Enforce a shared 100,000,000-byte ceiling over registered current logs, archives
+  and restarts. Persist destination ownership, account for configured external
+  streams, repair torn tails, and reject a second owner of the same instance.
+- Add shared lifecycle/state/lock/loop/save events and memory-resident 1 Hz health
+  reporting. Count queue loss, oversized records and write failures; preserve
+  failure evidence across restart. Align Noetic frame/loop/live timing with Humble.
+- Disable duplicate native node logs. Extend support bundles to collect managed
+  health, events and rotated logs without following external catalog paths.
+- Fix Noetic logging teardown after ROS has already removed its appender.
+  Four-core development validation passes Humble 66/66 and Noetic 48/48, including
+  actual-node write failure, invalid-input recovery, map save and process restart.
+
+The logging E2E observes a ready executor before steady-state measurement.
+Earlier-input Humble runs intermittently receive stale live odometry on both
+this build and unchanged rc2; that startup problem remains open. No new
+whole-route, target-hardware or Release qualification is claimed. Existing rc1
+and rc2 are unchanged. See [logging evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-asynchronous-logging--2026-10-23).
+
 ## Unreleased — shared artifacts and ROS adapter alignment
 
 - Share map snapshots, save orchestration, global-cloud caching and debug PCDs

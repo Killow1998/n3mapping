@@ -23,10 +23,10 @@ RK3588/MID360 真机尚未验收。Noetic/Focal Docker 已补齐独立 Release �
 本版只调整编译配置和构建流程，保留 **v1.1.0-rc1** 标签。
 版本标签是否已到远端应以实际仓库为准；本地定版不等于已经推送。
 
-后续本地开发提交已完成共享 MapArtifacts、头文件解耦和两套 ROS 适配层职责对齐，
-但只完成 RelWithDebInfo 的两套完整测试，尚未替换上述 Release 候选。另已确认
-日志存在同步逐条文件 I/O、事件覆盖差异及缺少跨重启总量限制的问题；目前不能
-保证全部日志合计不超过 100 MB。详见 [当前日志限制](../README.md#25-map-files-and-logs)。
+后续本地开发提交已整合共享 MapArtifacts、头文件解耦、两套 ROS 薄适配层和
+共用异步日志模块。当前开发代码的日志策略见 [共用日志](../README.md#25-map-files-and-logs)。
+这些改动属于 RelWithDebInfo 开发验证，**尚未替换上述 rc2 Release 候选**。
+下面日志环境变量对新开发版本生效；旧 rc2 不具备异步总量限制。
 
 ## 1. 拉取与构建
 
@@ -127,7 +127,10 @@ echo "RUN=$RUN"
 `--diagnostics` 显式开启已有的重定位、回环和逐帧性能 JSONL，适合短时故障复现。
 这会增加日志 IO 和计算开销，不应把带诊断的资源数字当作默认配置性能。
 正常长期运行可省略该选项；工具不覆盖原配置中的 enable 值。
-运行中的日志不自动轮转，短时复现结束后及时停止；打包上限不能限制运行日志占用。
+新开发版本由共用模块轮转，当前文件和历史文件合计不超过 100 MB。
+长期运行应给每个实例配置固定的 `N3MAPPING_LOG_DIR`，跨重启沿用。
+下面的 `RUN` 是独立的短时测试实例；验证重启时也沿用这个 `RUN`。
+反馈包上限与运行日志上限分别生效；前端、RViz 等进程有各自的日志策略。
 
 同一台机器用 Fast DDS 传大点云时，启动所有参与进程之前，按
 [DDS 共享内存说明](../README.md#humble--fast-dds-large-local-point-clouds)选择
@@ -140,7 +143,7 @@ echo "RUN=$RUN"
 
 ```bash
 set -o pipefail
-ROS_LOG_DIR="$RUN/ros_log" stdbuf -oL -eL "$NODE" \
+N3MAPPING_LOG_DIR="$RUN/managed_logs" ROS_LOG_DIR="$RUN/ros_log" stdbuf -oL -eL "$NODE" \
   --ros-args --params-file "$RUN/config.yaml" \
   --params-file "$RUN/overrides.yaml" \
   2>&1 | tee "$RUN/n3mapping.log"
@@ -168,8 +171,11 @@ ros2 service call /n3mapping/save_map std_srvs/srv/Trigger '{}' \
 ```
 
 检查返回 `success=True`。地图保留在本次 `RUN`，**不会进入日志反馈包**。
-然后正常 Ctrl+C 停止各节点，保留终端末尾信息。不要在旧 `RUN` 中重启节点，
-因为 `optimization.log` 等文件会被截断；下一次重新执行 `prepare`。
+然后正常 Ctrl+C 停止各节点，让异步日志排空。新开发版本可以用相同命令在同一
+`RUN` 中重启，完整日志会保留并受同一总额约束；不要重复执行 `prepare` 覆盖目录。
+旧 rc2 仍会截断部分日志，使用旧版时为每次测试创建新 `RUN`。
+新版本没有普通节点终端日志，查看 `$RUN/managed_logs/runtime.log`，或执行
+`ros2 topic echo /n3mapping/logging_status` 检查写入失败及溢出计数。
 
 ## 4. 导出反馈包
 
@@ -190,7 +196,7 @@ python3 -B ~/ros_ws/src/n3mapping/tools/n3mapping_support_bundle.py pack \
   --run-dir "$RUN" --output "${RUN}-offline.zip"
 ```
 
-- 只选择本次目录中约定名称的配置/文本日志，以及 `ros_log/` 下的 `.log`。
+- 只选择本次目录中约定名称的配置/文本日志、`managed_logs/` 的事件和健康记录、数字后缀轮转文件，以及 `ros_log/` 下的 `.log`。
 - 不扫描整个 `~/.ros`，不收集环境变量、密钥、地图、bag 或指向外部文件的符号链接。
 - 默认单文件最多 8 MiB、总文本最多 64 MiB。大日志保留头尾并以 `.excerpt` 标识，
   `bundle_report.json` 记录保留字节范围；它不是完整 JSONL，不能直接代替原日志跑分析。

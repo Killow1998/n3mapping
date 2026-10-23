@@ -19,6 +19,7 @@ function(n3mapping_add_nav_resource_reader target_name)
   )
 
   target_link_libraries(${target_name}
+    glog::glog
     ${PCL_LIBRARIES}
     ${PROTOBUF_LIBRARIES}
   )

@@ -141,6 +141,7 @@ rosidl_get_typesupport_target(n3mapping_typesupport_target
 # Production and live-output E2E tests link the same compiled node methods.
 add_library(n3mapping_humble_node_impl STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_lifecycle.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_logging.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_live.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_backend.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_visualization.cpp
@@ -414,6 +415,11 @@ install(FILES ${N3MAPPING_ROOT}/requirements-product-tools.txt
 if(BUILD_TESTING)
   n3mapping_find_test_dependencies()
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  add_test(NAME test_logging_ros_e2e
+    COMMAND ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/logging_ros_e2e.py
+      --ros humble --node $<TARGET_FILE:n3mapping_node>)
+  set_tests_properties(test_logging_ros_e2e PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+
 
   add_test(
     NAME test_n3mapping_support_bundle
@@ -601,6 +607,11 @@ if(BUILD_TESTING)
   if(TARGET test_keyframe_manager)
     target_link_libraries(test_keyframe_manager ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
     ament_target_dependencies(test_keyframe_manager rclcpp)
+  endif()
+
+  ament_add_gtest(test_async_log ${N3MAPPING_ROOT}/test/test_async_log.cpp)
+  if(TARGET test_async_log)
+    target_link_libraries(test_async_log n3mapping_core)
   endif()
 
   ament_add_gtest(test_global_map_cache ${N3MAPPING_ROOT}/test/test_global_map_cache.cpp)

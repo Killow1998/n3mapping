@@ -2,15 +2,15 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <fstream>
 #include <limits>
-#include <mutex>
 #include <string>
 
 #include "n3mapping/config.h"
 #include "n3mapping/relocalization_performance.h"
 
 namespace n3mapping {
+struct CoreLoopClosureResult;
+namespace core { struct BackendOutput; }
 
 // PERF-ME-01B: one record per synchronized ROS frame. This is intentionally a
 // separate JSONL stream from relocalization_debug.jsonl so existing evidence
@@ -103,12 +103,16 @@ struct RuntimePerformanceLiveEvent {
   double projection_ms = 0.0, pose_publish_ms = 0.0, status_publish_ms = 0.0;
 };
 
+void populateFramePerformance(RuntimePerformanceDebugEvent&, const core::BackendOutput&);
+void populateLoopPerformance(RuntimePerformanceLoopEvent&, const CoreLoopClosureResult&);
+
 class RuntimePerformanceDebugLogger {
 public:
   explicit RuntimePerformanceDebugLogger(const Config &config);
 
   static std::string resolvePath(const Config &config);
   bool enabled() const noexcept { return enabled_; }
+  // Queue admission is available; disk health is reported by AsyncLog statistics.
   bool ready() const noexcept { return ready_; }
   const std::string &path() const noexcept { return path_; }
   bool append(const RuntimePerformanceDebugEvent &event);
@@ -119,8 +123,7 @@ private:
   bool enabled_ = false;
   bool ready_ = false;
   std::string path_;
-  std::ofstream stream_;
-  std::mutex mutex_;
+
 };
 
 } // namespace n3mapping

@@ -22,6 +22,20 @@ ROOT_FILES = (
     "relocalization_debug.jsonl", "loop_debug.jsonl",
     "runtime_performance_debug.jsonl", "process_resource.jsonl",
 )
+MANAGED_FILES = ("runtime.log", "events.jsonl", "logger_health.json", "catalog.json")
+
+
+def log_candidates(directory, names):
+    for name in names:
+        path = directory / name
+        if path.exists() or path.is_symlink():
+            yield path
+        if name.endswith((".log", ".jsonl")):
+            for archive in sorted(directory.glob(name + ".n3m.*")):
+                if archive.name.rsplit(".n3m.", 1)[-1].isdigit():
+                    yield archive
+
+
 ISSUE_TEMPLATE = """# 实机问题反馈
 
 - 模式、传感器和前端版本：
@@ -92,10 +106,12 @@ def prepare(args: argparse.Namespace) -> Path:
 
 
 def candidates(root: Path):
-    for name in ROOT_FILES:
-        path = root / name
-        if path.exists() or path.is_symlink():
-            yield path
+    yield from log_candidates(root, ROOT_FILES)
+    managed = root / "managed_logs"
+    if managed.is_symlink():
+        yield managed
+    elif managed.is_dir():
+        yield from log_candidates(managed, MANAGED_FILES)
     ros_logs = root / "ros_log"
     if ros_logs.is_symlink():
         yield ros_logs
@@ -152,7 +168,7 @@ def pack(args: argparse.Namespace) -> Path:
                         continue
                     limit = min(per_file, remaining)
                     # Keep structured metadata intact; never silently clip config.
-                    if size > limit and path.suffix not in (".log", ".jsonl"):
+                    if size > limit and Path(path.name.split(".n3m.", 1)[0]).suffix not in (".log", ".jsonl"):
                         entry["skipped"] = "metadata exceeds remaining byte limit"
                         continue
                     with path.open("rb") as source:

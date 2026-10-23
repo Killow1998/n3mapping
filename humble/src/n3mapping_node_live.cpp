@@ -15,10 +15,17 @@ void N3MappingNode::initializeLiveSubscriptions()
 {
     live_odom_worker_ = std::make_unique<CallbackWorker>(*this);
     live_cloud_worker_ = std::make_unique<CallbackWorker>(*this);
+    logging_status_pub_ = create_publisher<std_msgs::msg::String>("/n3mapping/logging_status", rclcpp::QoS(1));
+    logging_status_timer_ = create_wall_timer(std::chrono::seconds(1), [this] {
+        std_msgs::msg::String message; message.data = AsyncLog::instance().statistics().json();
+        logging_status_pub_->publish(message);
+    }, live_odom_worker_->options().callback_group);
     live_odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
         config_.odom_topic, rclcpp::QoS(1),
         std::bind(&N3MappingNode::liveOdomCallback, this, std::placeholders::_1),
         live_odom_worker_->options());
+    logEvent("input_subscription", "topic=" + config_.odom_topic +
+        " role=live_odom depth=" + std::to_string(live_odom_sub_->get_actual_qos().depth()), true);
     const int queue_size = std::max(1, config_.sync_queue_size);
     auto qos = rmw_qos_profile_default;
     qos.depth = static_cast<std::size_t>(queue_size);
@@ -43,6 +50,7 @@ void N3MappingNode::initializeLiveSubscriptions()
 
 void N3MappingNode::stopLiveOutput()
 {
+    if (logging_status_timer_) logging_status_timer_->cancel();
     if (live_odom_worker_) live_odom_worker_->stop();
     if (live_cloud_worker_) live_cloud_worker_->stop();
 }
@@ -68,6 +76,7 @@ void N3MappingNode::liveOdomCallback(const nav_msgs::msg::Odometry::ConstSharedP
     const bool publishable = forwardOdometryTwist(*odom, input_linear_velocity_frame_, &message);
     const auto emission = realtime_output_->observeOdometry(
         toCoreOdometrySource(*odom), liveOutputNow(), publishable);
+    runtime_events_.live(emission);
     const auto projected = trace ? Clock::now() : Clock::time_point{};
     if (emission.pose) {
         message.pose.pose = makePose(emission.pose->pose);

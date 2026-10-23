@@ -11,7 +11,7 @@ namespace n3mapping {
 
 struct SubmapGraphTrialRuntimeResult {
     bool checkpoint = false;
-    bool persisted = false;
+    bool log_enqueued = false;
     std::string output_path;
     SubmapGraphTrialDiagnostics diagnostics;
 };
@@ -24,7 +24,8 @@ std::string resolveSubmapGraphTrialPath(const Config& config);
 
 // Evaluates an immutable snapshot and appends one JSONL record when shadow
 // submaps are enabled and context is an approved checkpoint. Persistence is
-// observational: failure is returned to the caller but never changes graph or
+// observational: queue admission is returned; write failures are reported through
+// AsyncLog statistics. Neither changes graph or
 // map lifecycle decisions.
 SubmapGraphTrialRuntimeResult runSubmapGraphTrialCheckpoint(
     const SubmapGraphSnapshot& snapshot,

@@ -158,6 +158,7 @@ set_target_properties(n3map_nav_resource_reader PROPERTIES
 
 add_library(n3mapping_noetic_node_impl STATIC
   src/n3mapping_node_lifecycle.cpp
+  src/n3mapping_node_logging.cpp
   src/n3mapping_node_live.cpp
   src/n3mapping_node_backend.cpp
   src/n3mapping_node_visualization.cpp
@@ -165,6 +166,7 @@ add_library(n3mapping_noetic_node_impl STATIC
 )
 n3mapping_guard_product_target(n3mapping_noetic_node_impl)
 target_link_libraries(n3mapping_noetic_node_impl PUBLIC
+  log4cxx
   n3mapping_noetic_wrapper
   ${catkin_LIBRARIES}
 )
@@ -426,6 +428,11 @@ install(FILES ${N3MAPPING_ROOT}/requirements-product-tools.txt
 )
 
 if(CATKIN_ENABLE_TESTING)
+  add_test(NAME test_logging_ros_e2e
+    COMMAND ${PYTHON_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/logging_ros_e2e.py
+      --ros noetic --node $<TARGET_FILE:n3mapping_node>)
+  set_tests_properties(test_logging_ros_e2e PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+
   add_test(
     NAME test_noetic_output_smoke
     COMMAND ${PYTHON_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/noetic_output_smoke.py
@@ -591,6 +598,13 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_loop_debug_logger)
     target_link_libraries(test_loop_debug_logger n3mapping_core)
+  endif()
+
+  catkin_add_gtest(test_async_log
+    ${N3MAPPING_ROOT}/test/test_async_log.cpp
+    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp)
+  if(TARGET test_async_log)
+    target_link_libraries(test_async_log n3mapping_core)
   endif()
 
   catkin_add_gtest(test_global_map_cache

@@ -7927,3 +7927,122 @@ source audits and Humble logs are under
 `aligned/` subdirectory. Noetic logs/build scripts are under
 `<workspace>/build/n3mapping/build_profiles_20261023/noetic/map_artifacts/`, also
 with final `aligned/` results. No new whole-route replay or runtime gain is claimed.
+
+
+## Shared asynchronous logging — 2026-10-23
+
+The shared-map and thin-ROS integration is retained. Both ROS wrappers now use
+one ROS-free logging implementation. Existing glog/ROS hooks forward records
+into a bounded queue; no new logging-library dependency is added. A separate
+worker owns filesystem operations, retention and health snapshots. The maximum
+implementation file in the new logging directory is 243 lines. Shared builders
+remove duplicate frame/loop field copying from the adapters. This is a logging
+change; matching, geometry, authorization and acceptance thresholds are unchanged.
+
+The queue accounts for string **capacity**, not only content length, and admits
+at most 2 MiB of queued records. Individual records are at most 64 KiB. Ordinary
+traffic uses at most three quarters of the queue; critical traffic may use the
+reserved remainder. The worker coalesces ordinary batches at 200 ms and critical
+bursts at 20 ms. Per-frame/live/decision counts aggregate; existing detailed JSONL
+streams remain opt-in. Worker batches and queue metadata have separate bounded
+memory overhead; 2 MiB is not a claim about total process or logger RSS.
+
+Retention shares **100,000,000 bytes** across current files, numeric archives,
+registered external destinations and restarts. A stable instance directory holds
+a persistent catalog and exclusive owner lock. A conservative 576 KiB reserve
+covers catalog/health temporary files. Recognized old glog files can join the
+same budget; unknown historical external paths cannot be discovered. Other
+services' logs, maps, bags and launcher/terminal capture are not node log files.
+Incomplete trailing records are repaired before later append. Unrelated files
+are preserved; an invalid catalog/storage root disables file writes and exposes
+`storage_ready=false` until repair/restart. Individual destination failures can
+recover on subsequent batches. Queue admission is not a disk acknowledgement.
+
+Default events cover start/stop, input subscription depth, map load/save outcome,
+backend/live state transitions, relocalization lock and loop commit/rebase/stale
+work. Existing debug streams retain detailed decision/timing fields. Both
+adapters publish `/n3mapping/logging_status` from memory once per wall-clock second,
+including overflow, critical loss, oversized records, failed writes, lost records,
+last failed path and repaired bytes. The disk is not read by that publisher.
+Noetic gains the common frame/loop/live timing fields. Native node ROS/glog file
+and ordinary console duplication are disabled. Support bundles include managed
+health/events/archives, without reading arbitrary paths from the catalog.
+
+All validation uses physical cores 0,2,4,6, four build/OpenMP threads, passive
+OpenMP waiting and one OpenBLAS thread. Native colcon/catkin layouts and ccache are
+retained. Final development CTest results are **Humble 66/66 (45.63 s)** and
+**Noetic 48/48 (49.36 s)**. The Noetic aggregator reports 718 entries, not 718
+independent targets. All 428 audited source/test/tool/CMake files match the
+Noetic validation overlay; distribution-selection markers remain profile-local.
+Development identities remain `UNVERIFIED`; rc1/rc2 and Release installs are not
+replaced.
+
+Eight focused logger cases cover flood/critical reserve, batch aggregation,
+multiple destinations under a 1 MiB total quota over three restarts, actual write
+failure and recovery, legacy enrollment, torn tails, unrelated files, concurrent
+ownership, and oversized/unsafe destinations. The quota case attempts about
+8.6 MB over 90 batches; it checks all current and archive bytes after every batch.
+A syscall trace of the flood case records **10 managed writes, all on the worker;
+zero producer writes and zero fsync/fdatasync calls**. This proves the inspected
+logging path's thread ownership, not a universal physical-disk latency bound.
+
+The real-node E2E sends 200 Hz odometry and 10 Hz, 441-point static clouds, with
+detailed diagnostics enabled. It injects an actual EISDIR failure, requires
+continued identity-pose output, then repairs the destination. Invalid twist must
+suppress output; raw valid odometry alone cannot restore it; a fresh paired scan
+must recover. Map save and SIGINT must succeed. A second process uses the same
+catalog and must emit a **newly stamped** output. The test checks cross-process
+failure history, quota, and zero duplicate native node log bytes. These are
+synthetic integration checks, not new 14-point, six-route or hardware accuracy
+qualification.
+
+Three-repeat, ready-start observations (all samples retained):
+
+| Adapter / sample length | Before median P99 | After median P99 | Before / after median CPU cores | Delivered |
+| --- | ---: | ---: | ---: | --- |
+| Humble / 30 s | 0.300 ms | 0.303 ms | 0.0240 / 0.0257 | 6,000/6,000 each run |
+| Noetic / 6 s | 0.218 ms | 0.240 ms | 0.0133 / 0.0183 | 1,200/1,200 each run |
+
+Humble's before artifact is verified rc2 **Release**, whereas the after artifact
+is **RelWithDebInfo** and includes the earlier shared-map/ROS refactors. This is a
+continuity check, not a controlled isolated logger speedup. Noetic uses retained
+pre-logging and current RelWithDebInfo artifacts; `ldd` confirms each intended
+core/wrapper. Old Noetic did not emit the new 200 Hz performance JSONL even with
+the same debug setting. Its final samples show an added 0.022 ms median P99 and
+0.0050 CPU core, with overlapping per-run latency ranges. Logging is not free;
+all observed outputs and sub-millisecond P99 delivery are retained in this
+fixture. The small synthetic CPU numbers do not describe full SLAM workloads or
+prove worst-case scheduling latency. Earlier shorter samples remain in raw
+records; the table uses the final matched-ready controls.
+
+Startup investigation is retained as an open boundary. Publishing while Humble
+subscriptions/executors were still starting sometimes produced almost no live
+output: received odometry lagged the backend correction by about 0.5 s, so the
+existing `input_before_correction` guard rejected it. The unchanged, verified rc2
+Release also reproduces it. A parallel observer received current inputs, actual
+live QoS depth was one, and logger overflow was zero. UDP-only and disabling loaned
+messages did not consistently remove it. These observations do **not** identify
+SHM or logging as the cause. Steady-state tests now wait for every input endpoint
+and the live worker's wall-clock health publication before sending input; rc2,
+which has no health publisher, gets a one-second post-match warm-up. Production
+QoS/executor/authorization behavior is unchanged. Ready-start passing runs do not
+close the earlier-input issue; its reproduction and logs remain available.
+
+Failed checks and fixes are preserved. Noetic initially crashed on shutdown
+because the adapter deregistered an appender already cleared by `ros::shutdown`;
+its logging guard now calls the idempotent console shutdown. Two legacy tests
+read asynchronous diagnostics without draining; lifecycle-only barriers fix
+those assertions. The E2E initially counted ROS1 callback registrations as
+transport connections; roscpp shares one connection per topic/process. Its ready
+check now reflects that, without weakening delivery/latency/invalid-input
+assertions. One validation overlay copied ignored Humble-selection markers into
+the Noetic clone; the existing distro selector restored the intended profile.
+Source algorithm behavior was not changed to make these checks pass.
+
+See [structured results and hashes](logging_20261023.json). Raw Humble/failure/
+syscall evidence is under `<workspace>/build/n3mapping/logging_20261023/`;
+Noetic evidence is under
+`<workspace>/build/n3mapping/build_profiles_20261023/noetic/logging/`.
+Next: diagnose the earlier-input Humble startup path separately, then qualify
+the chosen clean Release build and target hardware. Existing 10 cm, difficult
+search and cross-scene uncertainty limits remain open.

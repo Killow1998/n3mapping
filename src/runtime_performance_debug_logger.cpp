@@ -1,3 +1,4 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping/runtime_performance_debug_logger.h"
 #include <json/json.h>
 
@@ -29,9 +30,7 @@ bool RuntimePerformanceDebugLogger::append(const RuntimePerformanceLiveEvent &ev
   Json::StreamWriterBuilder writer;
   writer["indentation"] = "";
   const auto line = Json::writeString(writer, record);
-  std::lock_guard<std::mutex> lock(mutex_);
-  stream_ << line << '\n';
-  return stream_.good();
+  return appendLogLine(path_, line);
 }
 
 namespace {
@@ -116,19 +115,7 @@ void appendSize(std::ostream &stream, bool *first, const char *key,
 RuntimePerformanceDebugLogger::RuntimePerformanceDebugLogger(
     const Config &config)
     : enabled_(config.reloc_debug_enable), path_(resolvePath(config)) {
-  if (!enabled_) {
-    return;
-  }
-  try {
-    const std::filesystem::path path(path_);
-    if (!path.parent_path().empty()) {
-      std::filesystem::create_directories(path.parent_path());
-    }
-    stream_.open(path_, std::ios::out | std::ios::app);
-    ready_ = stream_.is_open();
-  } catch (const std::exception &) {
-    ready_ = false;
-  }
+  ready_ = enabled_;
 }
 
 std::string RuntimePerformanceDebugLogger::resolvePath(const Config &config) {
@@ -209,9 +196,7 @@ bool RuntimePerformanceDebugLogger::append(
   }
   record << '}';
 
-  std::lock_guard<std::mutex> lock(mutex_);
-  stream_ << record.str() << '\n';
-  return stream_.good();
+  return appendLogLine(path_, record.str());
 }
 
 bool RuntimePerformanceDebugLogger::append(
@@ -257,9 +242,7 @@ bool RuntimePerformanceDebugLogger::append(
   appendNumber(record, &first, "total_ms", event.total_ms);
   record << '}';
 
-  std::lock_guard<std::mutex> lock(mutex_);
-  stream_ << record.str() << '\n';
-  return stream_.good();
+  return appendLogLine(path_, record.str());
 }
 
 } // namespace n3mapping

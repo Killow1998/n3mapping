@@ -1,3 +1,4 @@
+#include <glog/logging.h>
 #include "n3mapping/graph_optimizer.h"
 #include "graph_pose_factors.h"
 #include <gtsam/navigation/AttitudeFactor.h>
@@ -29,7 +30,7 @@ bool GraphOptimizer::loadGraph(
         gtsam::Key key = gtsam::Symbol('x', id);
         gtsam::Pose3 gtsam_pose = eigenToGtsam(pose);
         if (temp.initial_values_.exists(key)) {
-            std::cerr << "GraphOptimizer::loadGraph() duplicate node id: " << id << std::endl;
+            LOG(ERROR) << "GraphOptimizer::loadGraph() duplicate node id: " << id << std::endl;
             return false;
         }
         temp.initial_values_.insert(key, gtsam_pose);
@@ -124,7 +125,7 @@ bool GraphOptimizer::loadGraph(
         tbb::global_control serial_reload_solve(
             tbb::global_control::max_allowed_parallelism, 1);
         if (!temp.optimizeCandidate(temp.graph_, temp.initial_values_, &optimized_estimate)) {
-            std::cerr << "GraphOptimizer::loadGraph() failed; existing graph left unchanged" << std::endl;
+            LOG(ERROR) << "GraphOptimizer::loadGraph() failed; existing graph left unchanged" << std::endl;
             return false;
         }
         temp.current_estimate_ = optimized_estimate;

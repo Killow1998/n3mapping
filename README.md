@@ -297,31 +297,63 @@ Mapping and map extension save:
 <map_save_path>/optimization.log
 ```
 
-`optimization.log` is truncated when the node starts and appended after accepted keyframes or loop optimizations.
+Humble and Noetic share the ROS-free asynchronous logger. `optimization.log`,
+loop/relocalization/trial/performance JSONL and node-owned ROS/glog messages use
+one bounded queue and one disk worker. Producers perform no log filesystem I/O.
+The queue holds at most 2 MiB, reserving its last quarter for warnings and critical
+events; individual records are limited to 64 KiB. The worker writes complete
+records in batches, normally every 200 ms. Critical bursts wake it after a short
+20 ms coalescing window. Frame, live-output and decision counters are aggregated;
+detailed per-frame/per-candidate diagnostics remain opt-in in both ROS versions.
+No matching, locking or geometry thresholds change.
 
-**Logging policy gap (2026-10-23):** the current implementation still opens and
-closes optimization/loop/relocalization files per record. The opt-in runtime
-performance stream keeps its file open but writes synchronously in the callback;
-Noetic sets glog's buffer interval to zero. There is no shared bounded writer or
-aggregate retention limit. These paths do **not** yet satisfy the required
-100,000,000-byte total per service instance across current and rotated logs and
-restarts. This limit is not a separate allowance for each algorithm or file.
+**The shared limit is 100 MB (100,000,000 bytes) per instance, across all managed
+current files, archives and restarts.** It is not a separate budget per stream.
+`N3MAPPING_LOG_DIR` identifies the instance and defaults to
+`${ROS_HOME:-$HOME/.ros}/n3mapping/logs`. Keep this directory stable across restarts;
+concurrent instances must use distinct directories. `N3MAPPING_LOG_TOTAL_BYTES`
+can lower the limit (minimum 1 MiB), but cannot raise it above 100 MB. The catalog
+tracks existing configured destinations even outside this directory. The worker
+expires the oldest managed files before exceeding the total budget; files no
+longer selected by a new configuration remain accounted for. Startup preserves
+complete records and removes an incomplete trailing record. Optimization logs
+now append across restarts instead of being truncated.
 
-Detailed relocalization and loop records require their debug switches. Humble's
-frame/loop/live performance stream has no equivalent Noetic integration, and
-some write failures are silently ignored. Complete event coverage is unverified.
-The required follow-up is a common bounded asynchronous writer, batched high-rate
-summaries, observable write/overflow failures and shared retention accounting.
-Key state transitions, decisions and failures need event-coverage checks; this
-does not require writing every observation to disk. Existing logs are retained;
-this source refactor does not retroactively apply a deletion policy.
+The instance directory contains `runtime.log`, `events.jsonl`, `catalog.json`
+and `logger_health.json`. Recognizable historical `n3mapping_node.*.log.*` files
+in `GLOG_log_dir` also join retention; without an explicit instance directory,
+the previous source-tree `logs/` location is checked as a fallback. Unrelated
+files are never deleted. Previously configured external debug destinations are
+managed once registered in the catalog; unknown historical paths cannot be
+discovered automatically. Map files, bags and logs owned by roscore, launchers,
+frontends or terminal capture are separate artifacts/services.
 
-Terminal output is intentionally lightweight. It keeps warnings, errors, map loading, save-map results, shutdown map-save results, and relocalization-lock events.
+Default events cover process lifecycle, map load/save outcomes, backend and
+live-output state changes, relocalization locks, loop commits/rebases/stale jobs,
+and logging health. Existing detailed diagnostics retain their formats.
+`/n3mapping/logging_status` publishes memory-resident counters once per wall-clock
+second on the independent live queue. Queue overflow, critical loss, oversized
+records, write failures, lost records, last failed destination and repaired tail
+bytes are observable even if the log disk is unavailable. Health snapshots and
+failure summaries are also persisted when storage permits. `retained_bytes`
+includes a conservative 576 KiB metadata reservation; it is not exact disk usage.
+
+Queue admission is not a persistence acknowledgement. A full queue drops and
+counts records instead of waiting for disk; critical traffic has reserved space
+but is not guaranteed lossless. Normal shutdown drains the worker. Fatal logging
+has a bounded best-effort drain; power-loss durability is not promised. An invalid
+catalog or inaccessible instance directory disables file writing and reports
+`storage_ready=false`; repair that condition and restart. Per-destination write
+failures recover on subsequent batches without stopping SLAM. Native ROS/glog
+file and console duplication is disabled for node diagnostics; use the status
+topic and managed logs to inspect normal runtime messages.
 
 For real-device update/build commands, per-run log capture, and local support ZIP
 export, see [实机测试与问题反馈](docs/field_testing_zh.md). The support tool
 does not launch frontends, upload logs, or include maps/bags. Detailed JSONL
 logging is opt-in; default matching and locking behavior is unchanged.
+Four-core logging validation and its remaining startup boundary are recorded in
+[the stage evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-asynchronous-logging--2026-10-23).
 
 ### 2.6 Build, Run, And Test Commands
 

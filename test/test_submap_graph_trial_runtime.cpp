@@ -1,3 +1,4 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping/submap_graph_trial_runtime.h"
 
 #include "n3mapping/product_build_identity.h"
@@ -75,6 +76,7 @@ SubmapGraphSnapshot makeDisconnectedSnapshot() {
 }
 
 std::vector<std::string> readLines(const std::filesystem::path& path) {
+    EXPECT_TRUE(AsyncLog::instance().drain());
     std::ifstream input(path);
     std::vector<std::string> lines;
     std::string line;
@@ -104,14 +106,14 @@ TEST(SubmapGraphTrialRuntimeTest,
     const auto disabled = runSubmapGraphTrialCheckpoint(
         snapshot, config, "core", "save_map");
     EXPECT_FALSE(disabled.checkpoint);
-    EXPECT_FALSE(disabled.persisted);
+    EXPECT_FALSE(disabled.log_enqueued);
     EXPECT_FALSE(disabled.diagnostics.attempted);
 
     config.submap_shadow_enable = true;
     const auto high_frequency = runSubmapGraphTrialCheckpoint(
         snapshot, config, "core", "graph_update");
     EXPECT_FALSE(high_frequency.checkpoint);
-    EXPECT_FALSE(high_frequency.persisted);
+    EXPECT_FALSE(high_frequency.log_enqueued);
     EXPECT_FALSE(high_frequency.diagnostics.attempted);
     EXPECT_FALSE(std::filesystem::exists(
         directory.path() / "submap_graph_trial.jsonl"));
@@ -131,7 +133,7 @@ TEST(SubmapGraphTrialRuntimeTest,
         snapshot, config, "core\"runtime", "save_map");
 
     EXPECT_TRUE(result.checkpoint);
-    EXPECT_TRUE(result.persisted);
+    EXPECT_TRUE(result.log_enqueued);
     EXPECT_EQ(result.output_path,
               (directory.path() / "submap_graph_trial.jsonl").string());
     ASSERT_TRUE(result.diagnostics.valid)
@@ -196,11 +198,11 @@ TEST(SubmapGraphTrialRuntimeTest,
         snapshot, config, "mapping_resuming", "cross_session_loop");
 
     EXPECT_TRUE(first.checkpoint);
-    EXPECT_TRUE(first.persisted);
+    EXPECT_TRUE(first.log_enqueued);
     EXPECT_FALSE(first.diagnostics.valid);
     EXPECT_FALSE(first.diagnostics.attempted);
     EXPECT_EQ(first.diagnostics.failure_reason, "topology_not_ready");
-    EXPECT_TRUE(second.persisted);
+    EXPECT_TRUE(second.log_enqueued);
     EXPECT_EQ(second.diagnostics.failure_reason,
               first.diagnostics.failure_reason);
 
@@ -233,7 +235,9 @@ TEST(SubmapGraphTrialRuntimeTest,
         snapshot, config, "core", "save_map");
 
     EXPECT_TRUE(result.checkpoint);
-    EXPECT_FALSE(result.persisted);
+    EXPECT_TRUE(result.log_enqueued);
+    ASSERT_TRUE(AsyncLog::instance().drain());
+    EXPECT_GT(AsyncLog::instance().statistics().write_failures, 0u);
     EXPECT_TRUE(result.diagnostics.valid)
         << result.diagnostics.failure_reason;
     EXPECT_TRUE(result.diagnostics.solved);

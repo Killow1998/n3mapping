@@ -33,6 +33,7 @@ N3MappingNoeticNode::N3MappingNoeticNode()
         loadConfigFromNoetic(private_nh_, &config_);
     }
     map_artifacts_ = std::make_unique<MapArtifacts>(config_);
+    if (config_.reloc_debug_enable) performance_debug_logger_ = std::make_unique<RuntimePerformanceDebugLogger>(config_);
     ROS_INFO("%s", config_.toString().c_str());
 
     run_mode_ = parseCoreRunMode(config_.mode);

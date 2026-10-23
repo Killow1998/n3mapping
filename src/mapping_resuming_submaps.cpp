@@ -116,7 +116,7 @@ bool MappingResuming::refreshSubmapPosesNoLock(const char* context) {
     const auto trial = runSubmapGraphTrialCheckpoint(
         graph_snapshot, config_, "mapping_resuming", context_name);
     if (trial.checkpoint) {
-        if (!trial.persisted) {
+        if (!trial.log_enqueued) {
             LOG(WARNING) << "[MappingResuming][SubmapGraphShadow] trial evidence write failed context="
                          << context_name << " path=" << trial.output_path;
         }
@@ -145,7 +145,7 @@ bool MappingResuming::refreshSubmapPosesNoLock(const char* context) {
                   << " optimized_keyframe_p95_rotation_error_rad="
                   << trial.diagnostics.optimized_keyframe_comparison
                          .p95_rotation_error_rad
-                  << " persisted=" << trial.persisted
+                  << " log_enqueued=" << trial.log_enqueued
                   << " failure_reason="
                   << (trial.diagnostics.failure_reason.empty()
                           ? "none"

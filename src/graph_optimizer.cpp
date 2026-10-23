@@ -1,3 +1,4 @@
+#include <glog/logging.h>
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/graph_factor_noise.h"
 #include "graph_pose_factors.h"
@@ -57,7 +58,7 @@ void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
     const int total_factors = floor_attitude_factor_count_ +
                               static_cast<int>(pending_floor_attitude_constraints_.size());
     if (total_factors == 1 || total_factors % 25 == 0) {
-        std::cout << "[OPTIMIZATION] floor_attitude kf=" << id
+        LOG(INFO) << "[OPTIMIZATION] floor_attitude kf=" << id
                   << " normal_body=" << normal_body.transpose()
                   << " sigma_deg=" << config_.floor_attitude_noise_deg
                   << " total_factors=" << total_factors
@@ -129,7 +130,7 @@ bool GraphOptimizer::incrementalOptimize() {
         
         // 检查优化健康度
         if (optimized_estimate.empty()) {
-            std::cerr << "Optimization unhealthy, rolling back to last state" << std::endl;
+            LOG(ERROR) << "Optimization unhealthy, rolling back to last state" << std::endl;
             rollbackToLastState();
             return false;
         }
@@ -138,7 +139,7 @@ bool GraphOptimizer::incrementalOptimize() {
         return true;
 
     } catch (const std::exception& e) {
-        std::cerr << "GTSAM optimization exception: " << e.what() << std::endl;
+        LOG(ERROR) << "GTSAM optimization exception: " << e.what() << std::endl;
         rollbackToLastState();
         return false;
     }
@@ -272,12 +273,12 @@ void GraphOptimizer::rollbackToLastState() {
     if (!last_good_estimate_.empty()) {
         current_estimate_ = last_good_estimate_;
         rebuildISAM2FromCommitted();
-        std::cerr << "Rolled back to last good optimization state" << std::endl;
+        LOG(ERROR) << "Rolled back to last good optimization state" << std::endl;
     } else {
         if (!current_estimate_.empty() || !initial_values_.empty()) {
             rebuildISAM2FromCommitted();
         }
-        std::cerr << "No previous state to rollback to" << std::endl;
+        LOG(ERROR) << "No previous state to rollback to" << std::endl;
     }
     needs_optimization_ = false;
 }
@@ -397,7 +398,7 @@ void GraphOptimizer::rebuildISAM2FromCommitted() {
     try {
         isam2_->update(graph_, values);
     } catch (const std::exception& e) {
-        std::cerr << "GraphOptimizer::rebuildISAM2FromCommitted() failed: " << e.what() << std::endl;
+        LOG(ERROR) << "GraphOptimizer::rebuildISAM2FromCommitted() failed: " << e.what() << std::endl;
         isam2_ = createISAM2();
     }
 }
@@ -417,7 +418,7 @@ bool GraphOptimizer::optimizeCandidate(const gtsam::NonlinearFactorGraph& candid
         *optimized_estimate = optimizer.optimize();
         return !optimized_estimate->empty();
     } catch (const std::exception& e) {
-        std::cerr << "GraphOptimizer::optimizeCandidate() failed: " << e.what() << std::endl;
+        LOG(ERROR) << "GraphOptimizer::optimizeCandidate() failed: " << e.what() << std::endl;
         return false;
     }
 }

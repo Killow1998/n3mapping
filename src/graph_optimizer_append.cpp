@@ -1,3 +1,4 @@
+#include <glog/logging.h>
 #include "n3mapping/graph_optimizer.h"
 #include "planar_geometry/moment_factor.h"
 #include <iostream>
@@ -69,7 +70,7 @@ bool GraphOptimizer::optimizeGeometryUpdate() {
     commitPending(result, createISAM2());
     return true;
   } catch (const std::exception& e) {
-    std::cerr << "Geometry graph update failed: " << e.what() << '\n';
+    LOG(ERROR) << "Geometry graph update failed: " << e.what() << '\n';
     clearPending();
     needs_optimization_ = false;
     return false;

@@ -84,47 +84,14 @@ void N3MappingNode::processSynchronizedFrame(const sensor_msgs::msg::PointCloud2
               elapsed_ms(conversion_started);
         }
         const double timestamp = rclcpp::Time(cloud_msg->header.stamp).seconds();
-        const auto core_started = performance_enabled
-          ? PerformanceClock::now()
-          : PerformanceClock::time_point{};
+        const auto core_started = PerformanceClock::now();
         auto output = n3mapping_core_->processFrame(run_mode_, frame);
+        runtime_events_.backend(output, frame.stamp.nsec, elapsed_ms(core_started));
         if (performance_enabled) {
             performance_event.core_frame_ms = elapsed_ms(core_started);
-            performance_event.relocalization_performance = output.relocalization_performance;
-            performance_event.core_success = output.success;
-            performance_event.accepted_keyframe =
-              output.accepted_keyframe;
-            performance_event.keyframe_id = output.keyframe_id;
-            performance_event.matched_keyframe_id =
-              output.matched_keyframe_id;
-            performance_event.relocalization_state =
-              relocalizationStateName(output.relocalization_state);
-            performance_event.pose_source =
-              poseSourceName(output.pose_source);
-            performance_event.relocalization_decision =
-              output.relocalization_decision;
-            performance_event.relocalization_locked =
-              output.relocalization_locked;
-            performance_event.tracking_attempted =
-              output.performance.tracking_attempted;
-            performance_event.initial_relocalization_ms =
-              output.performance.initial_relocalization_ms;
-            performance_event.loaded_map_tracking_ms =
-              output.performance.loaded_map_tracking_ms;
-            performance_event.keyframe_gate_ms =
-              output.performance.keyframe_gate_ms;
-            performance_event.keyframe_commit_ms =
-              output.performance.keyframe_commit_ms;
-            performance_event.graph_update_ms =
-              output.performance.graph_update_ms;
-            performance_event.descriptor_update_ms =
-              output.performance.descriptor_update_ms;
-            performance_event.post_commit_refresh_ms =
-              output.performance.post_commit_refresh_ms;
+            populateFramePerformance(performance_event, output);
         }
-        // Core cannot log, so the one thing that must not pass unnoticed is
-        // said here: the front end has run away and everything from this
-        // point on is being discarded.
+        // Retain the human-readable divergence context alongside shared events.
         if (const auto& sanity = n3mapping_core_->odometrySanity();
             sanity.diverged && !odometry_divergence_reported_) {
             odometry_divergence_reported_ = true;
@@ -237,31 +204,10 @@ void N3MappingNode::loopDetectionTimerCallback()
           ? PerformanceClock::now()
           : PerformanceClock::time_point{};
         const auto result = n3mapping_core_->processPendingLoopClosuresAsync();
+        runtime_events_.loop(result);
         if (performance_enabled) {
             performance_event.core_ms = elapsed_ms(core_started);
-            performance_event.queued_keyframe_count =
-              result.queued_keyframe_count;
-            performance_event.detected_candidate_count =
-              result.detected_candidate_count;
-            performance_event.place_candidate_count =
-              result.place_candidate_count;
-            performance_event.accepted_loop_count =
-              result.accepted_loops.size();
-            performance_event.edge_count = result.edge_count;
-            performance_event.optimized = result.optimized;
-            performance_event.async_pending = result.async_pending;
-            performance_event.pending_query_count = result.pending_query_count;
-            performance_event.graph_rebase_count = result.graph_rebase_count;
-            performance_event.stale_job_count = result.stale_job_count;
-            performance_event.worker_wall_ms = result.worker_wall_ms;
-            performance_event.oldest_pending_age_ms = result.oldest_pending_age_ms;
-            performance_event.snapshot_ms = result.snapshot_ms;
-            performance_event.commit_ms = result.commit_ms;
-            performance_event.geometry_planes = result.geometry.planes;
-            performance_event.geometry_observations = result.geometry.observations;
-            performance_event.geometry_association_ms = result.geometry.association_ms;
-            performance_event.geometry_solve_ms = result.geometry.solve_ms;
-            performance_event.atlas_prepare_ms = result.atlas_prepare_ms;
+            populateLoopPerformance(performance_event, result);
         }
         const auto publish_started = performance_enabled
           ? PerformanceClock::now()

@@ -1,4 +1,5 @@
 #include "n3mapping_node.h"
+#include "n3mapping/async_log.h"
 #include "n3mapping/product_build_identity.h"
 
 #include <csignal>
@@ -46,7 +47,11 @@ main(int argc, char** argv)
     }
     const auto authority_probe_scenario =
       extractAuthorityProbeScenario(&argc, argv);
-    rclcpp::init(argc, argv);
+    n3mapping::ProcessLogging logging(argv[0]);
+    n3mapping::RosLogging ros_logging;
+    rclcpp::InitOptions init_options;
+    init_options.auto_initialize_logging(false);
+    rclcpp::init(argc, argv, init_options);
 
     // 注册信号处理
     signal(SIGINT, signalHandler);

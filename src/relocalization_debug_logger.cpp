@@ -1,8 +1,8 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping/relocalization_debug_logger.h"
 
 #include <cmath>
 #include <filesystem>
-#include <fstream>
 #include <iomanip>
 #include <sstream>
 
@@ -394,22 +394,8 @@ void appendPose(std::ostream &os, bool *first, const char *key,
   os << '}';
 }
 
-bool appendLine(const std::string &path, const std::string &line) {
-  try {
-    const std::filesystem::path fs_path(path);
-    const auto parent = fs_path.parent_path();
-    if (!parent.empty()) {
-      std::filesystem::create_directories(parent);
-    }
-    std::ofstream file(path, std::ios::out | std::ios::app);
-    if (!file.is_open()) {
-      return false;
-    }
-    file << line << '\n';
-    return file.good();
-  } catch (const std::exception &) {
-    return false;
-  }
+bool appendLine(const std::string& path, const std::string& line) {
+  return appendLogLine(path, line);
 }
 
 } // namespace

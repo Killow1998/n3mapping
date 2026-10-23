@@ -1,3 +1,4 @@
+#include "n3mapping/async_log.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/loop_detector.h"
@@ -195,6 +196,7 @@ protected:
 
 std::vector<std::string> readDebugLines(const std::filesystem::path &path) {
   std::vector<std::string> lines;
+  EXPECT_TRUE(AsyncLog::instance().drain());
   std::ifstream file(path);
   std::string line;
   while (std::getline(file, line)) {

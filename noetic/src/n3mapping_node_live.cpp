@@ -13,11 +13,18 @@ namespace n3mapping {
 void N3MappingNoeticNode::initializeLiveSubscriptions()
 {
     const int sync_queue_size = std::max(1, config_.sync_queue_size);
+    ros::NodeHandle logging_nh(nh_); logging_nh.setCallbackQueue(&live_odom_queue_);
+    logging_status_pub_ = nh_.advertise<std_msgs::String>("/n3mapping/logging_status", 1, true);
+    logging_status_timer_ = logging_nh.createWallTimer(ros::WallDuration(1.0), [this](const ros::WallTimerEvent&) {
+        std_msgs::String message; message.data = AsyncLog::instance().statistics().json();
+        logging_status_pub_.publish(message);
+    });
     auto live_options = ros::SubscribeOptions::create<nav_msgs::Odometry>(
         config_.odom_topic, 1,
         boost::bind(&N3MappingNoeticNode::liveOdomCallback, this, _1),
         ros::VoidPtr(), &live_odom_queue_);
     live_odom_sub_ = nh_.subscribe(live_options);
+    logEvent("input_subscription", "topic=" + config_.odom_topic + " role=live_odom depth=1", true);
     ros::NodeHandle live_nh(nh_);
     // Full cloud conversion/publication must not occupy the raw odom queue.
     live_nh.setCallbackQueue(&live_cloud_queue_);
@@ -48,6 +55,7 @@ void N3MappingNoeticNode::startLiveOutput()
 
 void N3MappingNoeticNode::stopLiveOutput()
 {
+    logging_status_timer_.stop();
     if (live_odom_spinner_) live_odom_spinner_->stop();
     if (live_cloud_spinner_) live_cloud_spinner_->stop();
     live_odom_sub_.shutdown();
@@ -71,6 +79,8 @@ void N3MappingNoeticNode::liveOdomCallback(const nav_msgs::OdometryConstPtr& odo
     const auto source = toCoreOdometrySource(*odom_msg);
     const auto emission = realtime_output_->observeOdometry(
         source, static_cast<int64_t>(ros::Time::now().toNSec()), twist_publishable);
+    runtime_events_.live(emission);
+    const auto projected = std::chrono::steady_clock::now();
     const auto& diagnostic = emission.diagnostic;
     const auto& reason = emission.reason;
     if (emission.pose) {
@@ -78,10 +88,22 @@ void N3MappingNoeticNode::liveOdomCallback(const nav_msgs::OdometryConstPtr& odo
         odom_pub_.publish(odometry);
         publishLiveTransform(emission.pose->pose, odom_msg->header);
     }
+    const auto pose_published = std::chrono::steady_clock::now();
     if (!emission.status_json.empty()) {
         std_msgs::String status;
         status.data = emission.status_json;
         localization_status_pub_.publish(status);
+    }
+    if (performance_debug_logger_) {
+        RuntimePerformanceLiveEvent event{diagnostic.input_stamp_nsec, diagnostic.correction_stamp_nsec,
+            diagnostic.now_nsec, diagnostic.generation, reason, emission.pose.has_value()};
+        event.processing_time = std::chrono::duration<double>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        event.projection_ms = std::chrono::duration<double, std::milli>(projected - received).count();
+        event.pose_publish_ms = std::chrono::duration<double, std::milli>(pose_published - projected).count();
+        event.status_publish_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - pose_published).count();
+        performance_debug_logger_->append(event);
     }
     if (last_logged_live_reason_ != reason ||
         receive_gap_s > 0.5) {

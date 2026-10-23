@@ -22,6 +22,9 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <n3mapping/RelocalizationStatus.h>
+#include "n3mapping/async_log.h"
+#include "n3mapping/runtime_events.h"
+#include "n3mapping/runtime_performance_debug_logger.h"
 #include "n3mapping/core/latest_frame_slot.h"
 #include "n3mapping/core/map_artifacts.h"
 #include "n3mapping/core/n3mapping_core.h"
@@ -29,6 +32,11 @@
 #include "n3mapping/ros_output_contract.h"
 
 namespace n3mapping {
+class RosLogging {
+public:
+    RosLogging();
+    ~RosLogging();
+};
 // Owns ROS resources and scheduling; shared core owns SLAM and output decisions.
 class N3MappingNoeticNode {
   public:
@@ -184,8 +192,12 @@ class N3MappingNoeticNode {
     std::optional<sensor_msgs::PointCloud2> global_map_msg_cache_;
     std::uint64_t global_map_msg_revision_ = 0;
     std::optional<std::uint64_t> global_map_last_published_revision_;
+    RuntimeEvents runtime_events_;
+    std::unique_ptr<RuntimePerformanceDebugLogger> performance_debug_logger_;
+    std::uint64_t performance_frame_index_ = 0, performance_loop_index_ = 0;
+    ros::Publisher logging_status_pub_;
+    ros::WallTimer logging_status_timer_;
     std::string optimization_log_path_;
-    std::mutex optimization_log_mutex_;
 
     std::vector<geometry_msgs::PoseStamped> localization_path_;
     ros::Time last_tf_stamp_;

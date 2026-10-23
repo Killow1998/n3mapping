@@ -84,6 +84,23 @@ class SupportBundleTest(unittest.TestCase):
             self.assertTrue(report["incomplete"])
         self.assertTrue((self.run / "map.pbstream").exists())
 
+    def test_managed_health_and_rotated_logs_are_exported_without_following_catalog(self):
+        self.prepare()
+        (self.run / "n3mapping.log").write_text("")
+        managed = self.run / "managed_logs"
+        managed.mkdir()
+        (managed / "runtime.log").write_text("error\n")
+        (managed / "events.jsonl.n3m.123").write_text('{"event":"logger_health"}\n')
+        (managed / "events.jsonl.n3m.private").write_text("unrelated")
+        (managed / "logger_health.json").write_text('{"write_failures":1}')
+        (managed / "catalog.json").write_text(json.dumps({"paths": [str(self.config)]}))
+        with self.pack() as archive:
+            names = archive.namelist()
+            self.assertIn("logs/managed_logs/events.jsonl.n3m.123", names)
+            self.assertIn("logs/managed_logs/logger_health.json", names)
+            self.assertNotIn("logs/managed_logs/events.jsonl.n3m.private", names)
+            self.assertFalse(any("input.yaml" in name for name in names))
+
     def test_limits_are_reported_and_logs_remain_unchanged(self):
         self.prepare()
         payload = b"first\n" + b"x" * (2 * TOOL.MIB) + b"\nlast\n"

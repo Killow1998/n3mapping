@@ -21,6 +21,8 @@
 #include <std_srvs/srv/trigger.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include "n3mapping/async_log.h"
+#include "n3mapping/runtime_events.h"
 #include "n3mapping/core/latest_frame_slot.h"
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/core/realtime_output.h"
@@ -32,6 +34,11 @@
 #include "n3mapping/runtime_performance_debug_logger.h"
 
 namespace n3mapping {
+class RosLogging {
+public:
+    RosLogging();
+    ~RosLogging();
+};
 // Shared by the process signal handler and the finite authority probe.
 extern std::atomic<bool> g_shutdown_requested;
 
@@ -259,8 +266,10 @@ class N3MappingNode : public rclcpp::Node
     // 状态
     bool map_loaded_ = false;
     std::atomic<bool> shutdown_called_{false};
+    RuntimeEvents runtime_events_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr logging_status_pub_;
+    rclcpp::TimerBase::SharedPtr logging_status_timer_;
     std::string optimization_log_path_;
-    std::mutex optimization_log_mutex_;
     nav_msgs::msg::Path localization_path_; // 定位模式累积轨迹
     std::vector<std::pair<int64_t, int64_t>> loop_marker_history_;
     std::optional<rclcpp::Time> last_tf_stamp_;
