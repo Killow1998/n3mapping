@@ -2,8 +2,10 @@
 #include "n3mapping/loop_consensus_verifier.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <map>
+#include <glog/logging.h>
 
 namespace n3mapping {
 namespace {
@@ -124,8 +126,23 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
         }
     }
 
-    // Only one prepared target is resident. Solves and evidence remain per
-    // central candidate; changing execution order cannot pool their votes.
+    // The map is immutable for this call. Candidate loops of the same query
+    // reuse its few neighbor sources, while only one target stays resident.
+    // Solves and votes still belong to each central candidate independently.
+    struct Source {
+        PointCloudMatcher::PreparedSource prepared;
+        bool valid = false;
+    };
+    std::map<int64_t, Source> sources;
+    std::map<int64_t, std::size_t> remaining_uses;
+    for (const auto& [target_key, tasks] : tasks_by_target)
+        for (const auto& task : tasks) ++remaining_uses[task.query_neighbor->id];
+    using Clock = std::chrono::steady_clock;
+    const auto elapsed = [](Clock::time_point start) {
+        return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+    };
+    double target_ms = 0, source_ms = 0, solve_ms = 0;
+    std::size_t solve_count = 0, source_count = 0, peak_sources = 0;
     for (const auto& [target_key, tasks] : tasks_by_target) {
         const auto [target_id, excluded] = target_key;
         const auto target = keyframes.buildSubmapInRootFrame(
@@ -134,19 +151,38 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
         bool prepared = false;
         for (const auto& task : tasks) {
             auto& evidence = pairs[task.loop_index][task.pair_index];
-            const auto source = keyframes.buildSubmapInRootFrame(
-                evidence.query_neighbor_id, 0, evidence.query_neighbor_id);
-            if (!source || source->size() < 10 || !target || target->size() < 10) {
+            if (!target || target->size() < 10) {
+                evidence.reject_reason = "empty_neighbor_submap";
+                continue;
+            }
+            auto [entry, inserted] = sources.try_emplace(evidence.query_neighbor_id);
+            auto& source = entry->second;
+            if (inserted) {
+                const auto start = Clock::now();
+                const auto cloud = keyframes.buildSubmapInRootFrame(
+                    evidence.query_neighbor_id, 0, evidence.query_neighbor_id);
+                source.valid = cloud && cloud->size() >= 10;
+                if (source.valid) source.prepared = matcher.prepareSourceCloud(cloud);
+                ++source_count;
+                peak_sources = std::max(peak_sources, sources.size());
+                source_ms += elapsed(start);
+            }
+            if (!source.valid) {
                 evidence.reject_reason = "empty_neighbor_submap";
                 continue;
             }
             if (!prepared) {
-                prepared_target = matcher.prepareTargetCloud(target);
+                const auto start = Clock::now();
+                prepared_target = matcher.prepareTargetCloud(
+                    target, PointCloudMatcher::TargetFeatures::OnDemand);
+                target_ms += elapsed(start);
                 prepared = true;
             }
-            const auto prepared_source = matcher.prepareSourceCloud(source);
+            const auto start = Clock::now();
             const auto match_result = matcher.alignPrepared(
-                prepared_target, prepared_source, task.predicted);
+                prepared_target, source.prepared, task.predicted);
+            solve_ms += elapsed(start);
+            ++solve_count;
             evidence.valid = match_result.num_inliers > 0;
             evidence.converged = match_result.converged;
             evidence.fitness_score = match_result.fitness_score;
@@ -174,7 +210,21 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
                 evidence.reject_reason = "icp_not_converged";
             }
         }
+        // Includes failed tasks: their source will not be requested again.
+        // Release after its final target, without evicting or recomputing a
+        // source that another candidate still needs.
+        for (const auto& task : tasks)
+            if (--remaining_uses.at(task.query_neighbor->id) == 0)
+                sources.erase(task.query_neighbor->id);
     }
+
+    if (config_.loop_debug_enable && !central_loops.empty())
+        LOG(INFO) << "[LoopNeighbors] query=" << central_loops.front().query_id
+                  << " candidates=" << central_loops.size()
+                  << " sources=" << source_count << " peak_sources=" << peak_sources
+                  << " targets=" << tasks_by_target.size()
+                  << " solves=" << solve_count << " source_prepare_ms=" << source_ms
+                  << " target_prepare_ms=" << target_ms << " solve_ms=" << solve_ms;
 
     std::vector<LoopConsensusResult> results;
     results.reserve(central_loops.size());

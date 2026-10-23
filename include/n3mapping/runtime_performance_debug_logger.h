@@ -92,6 +92,17 @@ struct RuntimePerformanceLoopEvent {
   double total_ms = std::numeric_limits<double>::quiet_NaN();
 };
 
+// Independent live callbacks can reject a source sample even when the mapping
+// queue processes it. Keep exact nanoseconds so clock/order failures are auditable.
+struct RuntimePerformanceLiveEvent {
+  int64_t input_stamp_ns = 0, correction_stamp_ns = 0, now_ns = 0;
+  uint64_t generation = 0;
+  std::string reason;
+  bool published = false;
+  double processing_time = 0.0;
+  double projection_ms = 0.0, pose_publish_ms = 0.0, status_publish_ms = 0.0;
+};
+
 class RuntimePerformanceDebugLogger {
 public:
   explicit RuntimePerformanceDebugLogger(const Config &config);
@@ -102,6 +113,7 @@ public:
   const std::string &path() const noexcept { return path_; }
   bool append(const RuntimePerformanceDebugEvent &event);
   bool append(const RuntimePerformanceLoopEvent &event);
+  bool append(const RuntimePerformanceLiveEvent &event);
 
 private:
   bool enabled_ = false;

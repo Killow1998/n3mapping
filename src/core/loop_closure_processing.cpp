@@ -10,6 +10,7 @@
 #include <set>
 #include <utility>
 #include <vector>
+#include <glog/logging.h>
 
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/loop_consensus_verifier.h"
@@ -19,56 +20,6 @@
 namespace n3mapping {
 using namespace loop_diagnostics;
 
-namespace {
-void recordLoopOptimization(const Config& config, const std::vector<EdgeInfo>& edges,
-    const std::vector<VerifiedLoop>& best_loops,
-    const std::map<int64_t, Eigen::Isometry3d>& poses_before,
-    const std::map<int64_t, Eigen::Isometry3d>& poses_after,
-    LoopClosureOutcome& outcome) {
-  auto& result = outcome.summary;
-  const bool loop_debug_enabled = config.loop_debug_enable;
-  const auto residual_before = meanLoopResidual(edges, poses_before);
-  const auto residual_axes_before = meanLoopResidualAxes(edges, poses_before);
-  const auto residual_after = meanLoopResidual(edges, poses_after);
-  const auto residual_axes_after = meanLoopResidualAxes(edges, poses_after);
-  result.optimized = true;
-  result.edge_count += edges.size();
-  result.graph_edge_count += edges.size();
-  result.loop_residual_translation_before = residual_before.first;
-  result.loop_residual_rotation_before = residual_before.second;
-  result.loop_residual_translation_after = residual_after.first;
-  result.loop_residual_rotation_after = residual_after.second;
-  accumulatePoseUpdateStats(poses_before, poses_after, &result);
-  result.accepted_loops.insert(result.accepted_loops.end(),
-                               best_loops.begin(), best_loops.end());
-
-  if (loop_debug_enabled) {
-    LoopDebugOptimizationEvent event;
-    event.processing_time = processingTimeSeconds();
-    event.accepted_edge_count = edges.size();
-    event.accepted_edges.reserve(edges.size());
-    for (const auto &edge : edges) {
-      event.accepted_edges.emplace_back(edge.from_id, edge.to_id);
-    }
-    event.loop_residual_translation_before = residual_before.first;
-    event.loop_residual_rotation_before = residual_before.second;
-    event.loop_residual_translation_after = residual_after.first;
-    event.loop_residual_rotation_after = residual_after.second;
-    event.loop_residual_translation_axes_before =
-        residual_axes_before.translation;
-    event.loop_residual_translation_axes_after =
-        residual_axes_after.translation;
-    event.loop_residual_rpy_axes_before = residual_axes_before.rpy;
-    event.loop_residual_rpy_axes_after = residual_axes_after.rpy;
-    event.mean_pose_update_translation = result.mean_pose_update_translation;
-    event.max_pose_update_translation = result.max_pose_update_translation;
-    event.mean_pose_update_rotation = result.mean_pose_update_rotation;
-    event.max_pose_update_rotation = result.max_pose_update_rotation;
-    outcome.optimizations.push_back(event);
-  }
-}
-} // namespace
-
 LoopClosureOutcome processLoopCandidates(
     const Config& config, KeyframeManager& keyframes, PointCloudMatcher& matcher,
     GraphOptimizer& optimizer, LoopClosureManager& manager,
@@ -76,6 +27,8 @@ LoopClosureOutcome processLoopCandidates(
   LoopClosureOutcome outcome;
   auto& result = outcome.summary;
   LoopVerificationPipeline verification_pipeline(config, keyframes, matcher, optimizer, manager);
+  std::vector<EdgeInfo> batch_edges;
+  std::vector<VerifiedLoop> batch_loops;
   for (const auto& query : queries) {
     const auto query_kf = keyframes.getKeyframe(query.id);
     if (!query_kf) continue;
@@ -104,6 +57,18 @@ LoopClosureOutcome processLoopCandidates(
     auto flush_debug_events =
         [&](const std::set<std::pair<int64_t, int64_t>> &accepted_pairs,
             const std::string &not_selected_reason) {
+          if (VLOG_IS_ON(1)) {
+            for (const auto& candidate : candidates) {
+              const auto key = std::make_pair(candidate.query_id, candidate.match_id);
+              const auto rejected = graph_reject_by_pair.find(key);
+              VLOG(1) << "[Loop/Selection] query=" << candidate.query_id
+                      << " match=" << candidate.match_id
+                      << " accepted=" << accepted_pairs.count(key)
+                      << " reason=" << (accepted_pairs.count(key) ? "accepted" :
+                          rejected != graph_reject_by_pair.end() ? rejected->second :
+                          not_selected_reason.empty() ? "not_selected" : not_selected_reason);
+            }
+          }
           if (!loop_debug_enabled) {
             return;
           }
@@ -167,6 +132,17 @@ LoopClosureOutcome processLoopCandidates(
 
     for (const auto &candidate : candidates) {
       auto pipeline_result = verification_pipeline.evaluate(candidate);
+      VLOG(1) << "[Loop/Verification] query=" << candidate.query_id
+              << " match=" << candidate.match_id
+              << " registered=" << pipeline_result.registration_attempted
+              << " verified=" << pipeline_result.loop.verified
+              << " fitness=" << pipeline_result.verification.match_result.fitness_score
+              << " inlier_ratio=" << pipeline_result.verification.match_result.inlier_ratio
+              << " stage=" << pipeline_result.reject_stage
+              << " reason=" << pipeline_result.reject_reason
+              << " referee=" << pipeline_result.loop.loop_referee_reason
+              << " segment_pairs=" << pipeline_result.loop.segment_valid_pair_count
+              << " segment_ratio=" << pipeline_result.loop.segment_consensus_ratio;
       if (!pipeline_result.registration_attempted) {
         make_rejected_event(candidate, pipeline_result.reject_reason);
         continue;
@@ -377,6 +353,14 @@ LoopClosureOutcome processLoopCandidates(
       flush_debug_events({}, "same_query_consensus_rejected");
       continue;
     }
+    if (config.loop_geometry_enable && queries.size() > 1) {
+      batch_edges.insert(batch_edges.end(), edges.begin(), edges.end());
+      batch_loops.insert(batch_loops.end(), best_loops.begin(), best_loops.end());
+      std::set<std::pair<int64_t, int64_t>> pairs;
+      for (const auto& loop : best_loops) pairs.emplace(loop.query_id, loop.match_id);
+      flush_debug_events(pairs, "not_selected");
+      continue;
+    }
     result.place_candidate_count += best_loops.size();
     const bool optimization_committed =
         manager.applyEdges(edges,
@@ -398,41 +382,24 @@ LoopClosureOutcome processLoopCandidates(
     recordLoopOptimization(config, edges, best_loops, poses_before, poses_after, outcome);
   }
 
+  if (!batch_edges.empty()) {
+    const auto before = optimizer.getOptimizedPoses();
+    // Individual geometry/consensus/admission gates already passed. Check the
+    // combined constraints too before sharing one full graph solve. A conflict
+    // falls back per query using the same measurements, without another ICP.
+    const auto trial = computeLoopGraphTrialDiagnostics(
+        config, before, optimizer.getEdges(), batch_edges);
+    if (loopGraphTrialRejectReason(trial, true).empty() && manager.applyEdges(batch_edges, optimizer)) {
+      result.place_candidate_count += batch_loops.size();
+      recordLoopOptimization(config, batch_edges, batch_loops, before,
+                             optimizer.getOptimizedPoses(), outcome);
+    } else {
+      result.accepted_loops = std::move(batch_loops);
+      rebaseLoopOutcome(config, optimizer, manager, outcome);
+    }
+    keyframes.updateOptimizedPoses(optimizer.getOptimizedPoses());
+  }
   return outcome;
-}
-
-void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
-                       LoopClosureManager& manager, LoopClosureOutcome& outcome) {
-  // Geometry is an independent relative measurement. Recheck graph admission
-  // against all updates made while the worker was busy; never rerun ICP here.
-  auto loops = outcome.summary.accepted_loops;
-  const auto edges = manager.buildLoopEdges(loops, LoopEdgeDirection::MatchToQuery);
-  const auto before = optimizer.getOptimizedPoses();
-  const auto committed = optimizer.getEdges();
-  std::string rejection;
-  for (const auto& edge : edges) {
-    const auto trial = computeLoopGraphTrialDiagnostics(config, before, committed, {edge});
-    for (auto& loop : loops)
-      if (loop.match_id == edge.from_id && loop.query_id == edge.to_id)
-        assignLoopGraphTrialDiagnostics(&loop, trial);
-    for (auto& event : outcome.candidates)
-      if (event.candidate.match_id == edge.from_id && event.candidate.query_id == edge.to_id)
-        assignGraphTrialDiagnostics(&event, trial);
-    const auto reason = loopGraphTrialRejectReason(trial);
-    if (!reason.empty()) rejection = reason;
-  }
-  outcome.summary = {};
-  outcome.optimizations.clear();
-  if (rejection.empty() && !edges.empty() && manager.applyEdges(edges, optimizer)) {
-    outcome.summary.place_candidate_count = loops.size();
-    recordLoopOptimization(config, edges, loops, before, optimizer.getOptimizedPoses(), outcome);
-    return;
-  }
-  for (auto& event : outcome.candidates) {
-    if (event.gate_result != "accepted") continue;
-    event.gate_result = "rejected";
-    event.reject_reason = "async_rebase_" + (rejection.empty() ? "optimization_failed" : rejection);
-  }
 }
 
 } // namespace n3mapping

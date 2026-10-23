@@ -1,0 +1,3848 @@
+{
+  "stage": "real_sensor_baseline_20261021",
+  "protocol": {
+    "n3m_commit": "732065ab54db2a39cc881ee1d05431b84b4de421",
+    "physical_core_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "runtime_tuning": "none",
+    "truth": "observer only; excluded from raw sensor replay and n3m manifests",
+    "scope": "staged FAST_LIO ROS2 replay then causal paced production core; not simultaneous full-node E2E",
+    "sha256": {
+      "/home/user/ros_ws/to_migrate_ws/install/fast_lio/lib/fast_lio/fastlio_mapping": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93",
+      "/home/user/ros_ws/to_migrate_ws/build/n3mapping/source_uncertainty_20261021/release_final/libn3mapping_core.so": "05cbdfcb89fd0532bfd3498b3fef587ea674a62d63f92cb0b3556aacfaf17cf4",
+      "build/n3mapping/real_data_20261021/m2dgr.yaml": "cf2bbfa7788bc28ea9b0f44f51daa4eb3c3b58058cbf3f0b1eceb6cbab096b17",
+      "build/n3mapping/real_data_20261021/mid360.yaml": "93a6540e369b71cf2dac8223fe45fc3ee8e7e0473ea75c115788b226faf5ac4b"
+    }
+  },
+  "public_data": {
+    "url": "https://huggingface.co/datasets/ASIG-Lab/RESPLE-Dataset",
+    "revision": "a1ee9e53d2a886e73a7449b9c88506609668e6eb",
+    "bags": [
+      {
+        "type": "file",
+        "oid": "80a8cdd11eb50845c4ec936fc01e3abcd03bfcc1",
+        "size": 842780672,
+        "lfs": {
+          "oid": "20899c2bae63fa35574f4efc770072b5acf60ad8a96945b2e8574e6617f26516",
+          "size": 842780672,
+          "pointerSize": 134
+        },
+        "xetHash": "b5dadc49e2d80a43a447016aa92c734d72a0c4cdc4b72e12ccebb4716c902015",
+        "path": "HelmDyn/HelmDyn01/HelmDyn01.db3",
+        "local_bytes": 842780672,
+        "checksum_validation_logged": true
+      },
+      {
+        "type": "file",
+        "oid": "444d7bd59bcd52df3b721514e827bb5b1bd665aa",
+        "size": 437903360,
+        "lfs": {
+          "oid": "e27a0c0fe66d52d0a3e23f9609a65f244f6b84fbbac086397a40d872a9b4048b",
+          "size": 437903360,
+          "pointerSize": 134
+        },
+        "xetHash": "5aa1871fdd5443ea99720312d62498cedda973e27abba67c5b46d1a9cfd6df01",
+        "path": "HelmDyn/HelmDyn02/HelmDyn02.db3",
+        "local_bytes": 437903360,
+        "checksum_validation_logged": true
+      },
+      {
+        "type": "file",
+        "oid": "f5cb8bd3384dcc67ecad0b2e8c6508a90fe4bb8a",
+        "size": 213913600,
+        "lfs": {
+          "oid": "d88d12d93ed2108163cf4387fafb05041c97f7a7432b0e862a0af9403aed4b9f",
+          "size": 213913600,
+          "pointerSize": 134
+        },
+        "xetHash": "72840e00de9a753cf7d1b32f7c4892fdbaa8af286650855dec8f1f6616ed65c2",
+        "path": "TudoRun/TudoRun01/TudoRun01.db3",
+        "local_bytes": 213913600,
+        "checksum_validation_logged": true
+      },
+      {
+        "type": "file",
+        "oid": "cf50250bab934f96e0d15c7e728e79d54a146e5f",
+        "size": 326541312,
+        "lfs": {
+          "oid": "17e64c407a4e258ee84bc802622f85ac248d4e22d2b1d79502f61904e1c810e2",
+          "size": 326541312,
+          "pointerSize": 134
+        },
+        "xetHash": "75594c153998e8abbed3715ec4c69bc39fae1db47e6ec29517eb48efa460ad82",
+        "path": "TudoRun/TudoRun02/TudoRun02.db3",
+        "local_bytes": 326541312,
+        "checksum_validation_logged": true
+      }
+    ],
+    "source_files_sha256": {
+      "resple_tudorun01.yaml": "c552af4e5c0448b17b19eb8f6fd8a27bc7107d1cd06627e607b78a028e12b6e4",
+      "m3dgr_calibration.md": "39720b5c71a65b4c879769bd793d9c2f299deb61dbe4c0d182807773d601c7a0",
+      "m2dgr_readme.md": "dc901f5c46ba30f0c712ee53eb3ffaf6da38ac005c4294c17077d14bc61f36f4",
+      "resple_helmdyn01.yaml": "a22457cb3ebf482852f95883f8a4609e26ddc3903160c2ec09cc7123c40741a0",
+      "m2dgr_calibration.txt": "e515207fcf53668953a21a2e4d990643007a3a12ad54b91c456a8ee8a8100a90",
+      "m3dgr_checksums.txt": "35803cb15cf3a4d9f965c5de4d29c6c2d141178a6120e586658b24fb6b9a31f8",
+      "m3dgr_readme.md": "98fbc418df5ee1f1524f2a95fed11ef561eda81a23724c13ae231702f097349b",
+      "tiers_readme.md": "193fbfeb613023f307b0dd930f5749c78009d779f2704a80e81f048fe004c601"
+    }
+  },
+  "ground_truth_provenance": {
+    "HelmDyn/GT/HelmDyn01_gt.txt": {
+      "official_object_matches": true,
+      "sha256": "66860fafe50f5b78d6a20fa9c64c843a3572dc0d84f6fe4df882a16474dd8551"
+    },
+    "HelmDyn/GT/HelmDyn02_gt.txt": {
+      "official_object_matches": true,
+      "sha256": "2287165d391068c002985fb58c47427ea2f2945f6a16a31e6bde24a88a0697fb"
+    },
+    "TudoRun/GT/TudoRun01_gt.txt": {
+      "official_object_matches": true,
+      "sha256": "ed9c2a312b7db00b6e96b9bc2ec8c8832b74535a7d299a5c0d0d3aaab5ed8964"
+    },
+    "TudoRun/GT/TudoRun02_gt.txt": {
+      "official_object_matches": true,
+      "sha256": "c013199504eb1ad6e527bf25303aff4e86d7a3420c9d491c14a9c7e70566f4bc"
+    }
+  },
+  "cases": {
+    "gate_02": {
+      "frontend": {
+        "position_reference": "xsens_imu (existing dataset convention; antenna reference remains to audit)",
+        "lever_arm_imu_to_gt_m": [
+          0.4316,
+          0.00014,
+          0.0113
+        ],
+        "input_poses": 3265,
+        "gt_matched": 3265,
+        "truth_time_offset_s": 0,
+        "orientation_qualified": false,
+        "prefix_fixed_all": {
+          "n": 3265,
+          "rmse_m": 0.7879100775562241,
+          "median_m": 0.8381615803959995,
+          "p95_m": 1.1731689839977517,
+          "max_m": 1.287352857166028,
+          "within_10cm_fraction": 0.03430321592649311
+        },
+        "prefix_fixed_holdout": {
+          "n": 2668,
+          "rmse_m": 0.8684518529078827,
+          "median_m": 0.9108768008616821,
+          "p95_m": 1.1771270785041363,
+          "max_m": 1.287352857166028,
+          "within_10cm_fraction": 0.0
+        },
+        "alignment": {
+          "rotation": [
+            [
+              -0.7166161154425142,
+              -0.524123982537886,
+              -0.4601688755410425
+            ],
+            [
+              0.05423260066920429,
+              -0.6996461101942295,
+              0.7124283441264384
+            ],
+            [
+              -0.6953561448011633,
+              0.4855814776314161,
+              0.5298022843179843
+            ]
+          ],
+          "translation": [
+            0.35036552956727185,
+            0.14989240151693473,
+            0.0924311254368888
+          ],
+          "prefix_singular_values": [
+            76247.19677465581,
+            7681.476462785785,
+            0.14291540075100823
+          ],
+          "prefix_start_s": 1627729762.6819932,
+          "prefix_end_s": 1627729822.6819932,
+          "gt_origin": [
+            -2853538.25608,
+            4667400.61047,
+            3268263.155
+          ]
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 136.77,
+          "average_cores_over_lio_duration": 0.41820601680440994,
+          "peak_rss_mib": 334.21484375,
+          "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        }
+      },
+      "n3m_live": {
+        "position_reference": "xsens_imu (existing dataset convention; antenna reference remains to audit)",
+        "lever_arm_imu_to_gt_m": [
+          0.4316,
+          0.00014,
+          0.0113
+        ],
+        "input_poses": 3251,
+        "gt_matched": 3251,
+        "truth_time_offset_s": 0,
+        "orientation_qualified": false,
+        "prefix_fixed_all": {
+          "n": 3251,
+          "rmse_m": 0.9103582061527061,
+          "median_m": 0.9475145808040791,
+          "p95_m": 1.2689634391239575,
+          "max_m": 1.4129131093359923,
+          "within_10cm_fraction": 0.03199015687480775
+        },
+        "prefix_fixed_holdout": {
+          "n": 2668,
+          "rmse_m": 1.0021439108039387,
+          "median_m": 1.070875727896881,
+          "p95_m": 1.2791485350704144,
+          "max_m": 1.4129131093359923,
+          "within_10cm_fraction": 0.0
+        },
+        "alignment": {
+          "rotation": [
+            [
+              -0.7166161154425142,
+              -0.524123982537886,
+              -0.4601688755410425
+            ],
+            [
+              0.05423260066920429,
+              -0.6996461101942295,
+              0.7124283441264384
+            ],
+            [
+              -0.6953561448011633,
+              0.4855814776314161,
+              0.5298022843179843
+            ]
+          ],
+          "translation": [
+            0.35036552956727185,
+            0.14989240151693473,
+            0.0924311254368888
+          ],
+          "prefix_singular_values": [
+            76247.19677465581,
+            7681.476462785785,
+            0.14291540075100823
+          ],
+          "prefix_start_s": 1627729762.6819932,
+          "prefix_end_s": 1627729822.6819932,
+          "gt_origin": [
+            -2853538.25608,
+            4667400.61047,
+            3268263.155
+          ]
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 136.77,
+          "average_cores_over_lio_duration": 0.42000821239466185,
+          "peak_rss_mib": 334.21484375,
+          "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        }
+      },
+      "n3m_final": {
+        "position_reference": "xsens_imu (existing dataset convention; antenna reference remains to audit)",
+        "lever_arm_imu_to_gt_m": [
+          0.4316,
+          0.00014,
+          0.0113
+        ],
+        "input_poses": 3251,
+        "gt_matched": 3251,
+        "truth_time_offset_s": 0,
+        "orientation_qualified": false,
+        "prefix_fixed_all": {
+          "n": 3251,
+          "rmse_m": 0.9383867686728853,
+          "median_m": 1.0153322246854122,
+          "p95_m": 1.3208958036571952,
+          "max_m": 1.4093229892333443,
+          "within_10cm_fraction": 0.03199015687480775
+        },
+        "prefix_fixed_holdout": {
+          "n": 2668,
+          "rmse_m": 1.033281809748574,
+          "median_m": 1.1434554732059163,
+          "p95_m": 1.3249715695653865,
+          "max_m": 1.4093229892333443,
+          "within_10cm_fraction": 0.0
+        },
+        "alignment": {
+          "rotation": [
+            [
+              -0.7166161154425142,
+              -0.524123982537886,
+              -0.4601688755410425
+            ],
+            [
+              0.05423260066920429,
+              -0.6996461101942295,
+              0.7124283441264384
+            ],
+            [
+              -0.6953561448011633,
+              0.4855814776314161,
+              0.5298022843179843
+            ]
+          ],
+          "translation": [
+            0.35036552956727185,
+            0.14989240151693473,
+            0.0924311254368888
+          ],
+          "prefix_singular_values": [
+            76247.19677465581,
+            7681.476462785785,
+            0.14291540075100823
+          ],
+          "prefix_start_s": 1627729762.6819932,
+          "prefix_end_s": 1627729822.6819932,
+          "gt_origin": [
+            -2853538.25608,
+            4667400.61047,
+            3268263.155
+          ]
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 136.77,
+          "average_cores_over_lio_duration": 0.42000821239466185,
+          "peak_rss_mib": 334.21484375,
+          "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        }
+      },
+      "core_resource": {
+        "frames": 3265,
+        "keyframes": 235,
+        "successful_frames": 3251,
+        "accepted_loops": 45,
+        "mapping_cpu_s": 23.914635182999948,
+        "loop_cpu_s": 0.46742090299979194,
+        "runtime_cpu_s": 167.22985341700002,
+        "runtime_wall_s": 327.039968043,
+        "source_duration_s": 327.03977088000005,
+        "max_pacing_lag_s": 0.005284463999998934,
+        "peak_rss_kib": 482380,
+        "paced": true,
+        "cpu_seconds_per_sensor_second": 0.5113440881120275,
+        "average_cores_over_execution_wall": 0.5113437798373691,
+        "runtime_peak_mib": 471.07421875
+      },
+      "checkpoint": {
+        "atlas_point_error_m": 0.0,
+        "atlas_points": 5215921,
+        "edge_error": 8.883359538575794e-16,
+        "edges": 279,
+        "graph_pose_error": 1.6911214076241236e-15,
+        "keyframe_pose_error": 1.6911214076241236e-15,
+        "keyframes": 235,
+        "observations": 14430,
+        "plane_error": 1.1102230246251565e-16,
+        "planes": 2148,
+        "raw_clouds_odometry_information_and_moments_preserved": true,
+        "raw_pose_error": 8.882110298699404e-16,
+        "reload_pose_error": 9.931182058790354e-16
+      },
+      "end_of_input_async": {
+        "frame": "3264",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "drained_async": {
+        "frame": "3265",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "transport": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": true,
+        "startup_lidar_without_pose": 3
+      },
+      "common_stamp_holdout": {
+        "frames": {
+          "holdout_common_stamps": 2668,
+          "frontend_rmse_m": 0.8684518529078827,
+          "n3m_rmse_m": 1.0021439108039387
+        },
+        "dense": {
+          "holdout_common_stamps": 2668,
+          "frontend_rmse_m": 0.8684518529078827,
+          "n3m_rmse_m": 1.033281809748574
+        }
+      }
+    },
+    "hall_05": {
+      "frontend": {
+        "position_reference": "leica_prism",
+        "lever_arm_imu_to_gt_m": [
+          0.05881,
+          0.00093,
+          0.8631
+        ],
+        "input_poses": 4014,
+        "gt_matched": 3957,
+        "orientation_qualified": false,
+        "prefix_fixed_all": {
+          "n": 3957,
+          "rmse_m": 1.3097698708254806,
+          "median_m": 1.1541551606331182,
+          "p95_m": 2.139310583209769,
+          "max_m": 2.934033494657881,
+          "within_10cm_fraction": 0.00429618397776093
+        },
+        "prefix_fixed_holdout": {
+          "n": 3367,
+          "rmse_m": 1.3825725948960401,
+          "median_m": 1.2670604656810616,
+          "p95_m": 2.177530274245602,
+          "max_m": 2.934033494657881,
+          "within_10cm_fraction": 0.0
+        },
+        "alignment": {
+          "rotation": [
+            [
+              0.9827430511624435,
+              0.18469329500919304,
+              0.010221652047365385
+            ],
+            [
+              0.18474448219685027,
+              -0.9827771583882048,
+              -0.004305025925880104
+            ],
+            [
+              0.009250496729791929,
+              0.006119128128419705,
+              -0.9999384903988836
+            ]
+          ],
+          "translation": [
+            -0.22500362507992566,
+            -0.9430449929715887,
+            0.8442254262103208
+          ],
+          "prefix_singular_values": [
+            8152.553254295852,
+            3232.9186752254695,
+            0.007588071223913806
+          ],
+          "prefix_start_s": 1629013352.4626107,
+          "prefix_end_s": 1629013412.4626107,
+          "gt_origin": [
+            8.243,
+            3.2688,
+            -4.638
+          ]
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 89.92,
+          "average_cores_over_lio_duration": 0.22363200190050295,
+          "peak_rss_mib": 194.72265625,
+          "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        }
+      },
+      "n3m_live": {
+        "position_reference": "leica_prism",
+        "lever_arm_imu_to_gt_m": [
+          0.05881,
+          0.00093,
+          0.8631
+        ],
+        "input_poses": 3984,
+        "gt_matched": 3927,
+        "orientation_qualified": false,
+        "prefix_fixed_all": {
+          "n": 3927,
+          "rmse_m": 1.3266933930418463,
+          "median_m": 1.1873322280546372,
+          "p95_m": 2.137407032936731,
+          "max_m": 2.9354786371238784,
+          "within_10cm_fraction": 0.0
+        },
+        "prefix_fixed_holdout": {
+          "n": 3367,
+          "rmse_m": 1.3977161005936505,
+          "median_m": 1.2852551045874598,
+          "p95_m": 2.1787909557035374,
+          "max_m": 2.9354786371238784,
+          "within_10cm_fraction": 0.0
+        },
+        "alignment": {
+          "rotation": [
+            [
+              0.9827430511624435,
+              0.18469329500919304,
+              0.010221652047365385
+            ],
+            [
+              0.18474448219685027,
+              -0.9827771583882048,
+              -0.004305025925880104
+            ],
+            [
+              0.009250496729791929,
+              0.006119128128419705,
+              -0.9999384903988836
+            ]
+          ],
+          "translation": [
+            -0.22500362507992566,
+            -0.9430449929715887,
+            0.8442254262103208
+          ],
+          "prefix_singular_values": [
+            8152.553254295852,
+            3232.9186752254695,
+            0.007588071223913806
+          ],
+          "prefix_start_s": 1629013352.4626107,
+          "prefix_end_s": 1629013412.4626107,
+          "gt_origin": [
+            8.243,
+            3.2688,
+            -4.638
+          ]
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 89.92,
+          "average_cores_over_lio_duration": 0.2253164060102753,
+          "peak_rss_mib": 194.72265625,
+          "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        }
+      },
+      "n3m_final": {
+        "position_reference": "leica_prism",
+        "lever_arm_imu_to_gt_m": [
+          0.05881,
+          0.00093,
+          0.8631
+        ],
+        "input_poses": 3984,
+        "gt_matched": 3927,
+        "orientation_qualified": false,
+        "prefix_fixed_all": {
+          "n": 3927,
+          "rmse_m": 1.303338345187636,
+          "median_m": 1.1612026427981357,
+          "p95_m": 2.1189086948667506,
+          "max_m": 2.933334881570574,
+          "within_10cm_fraction": 0.002546473134708429
+        },
+        "prefix_fixed_holdout": {
+          "n": 3367,
+          "rmse_m": 1.3732566772655261,
+          "median_m": 1.2533526123488834,
+          "p95_m": 2.1604631427884935,
+          "max_m": 2.933334881570574,
+          "within_10cm_fraction": 0.0
+        },
+        "alignment": {
+          "rotation": [
+            [
+              0.9827430511624435,
+              0.18469329500919304,
+              0.010221652047365385
+            ],
+            [
+              0.18474448219685027,
+              -0.9827771583882048,
+              -0.004305025925880104
+            ],
+            [
+              0.009250496729791929,
+              0.006119128128419705,
+              -0.9999384903988836
+            ]
+          ],
+          "translation": [
+            -0.22500362507992566,
+            -0.9430449929715887,
+            0.8442254262103208
+          ],
+          "prefix_singular_values": [
+            8152.553254295852,
+            3232.9186752254695,
+            0.007588071223913806
+          ],
+          "prefix_start_s": 1629013352.4626107,
+          "prefix_end_s": 1629013412.4626107,
+          "gt_origin": [
+            8.243,
+            3.2688,
+            -4.638
+          ]
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 89.92,
+          "average_cores_over_lio_duration": 0.2253164060102753,
+          "peak_rss_mib": 194.72265625,
+          "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        }
+      },
+      "core_resource": {
+        "frames": 4014,
+        "keyframes": 277,
+        "successful_frames": 3984,
+        "accepted_loops": 477,
+        "mapping_cpu_s": 48.7123887339983,
+        "loop_cpu_s": 0.805868855000659,
+        "runtime_cpu_s": 1034.769752201,
+        "runtime_wall_s": 506.929625303,
+        "source_duration_s": 402.08914304,
+        "max_pacing_lag_s": 0.6713168649999979,
+        "peak_rss_kib": 952676,
+        "paced": true,
+        "cpu_seconds_per_sensor_second": 2.573483442944046,
+        "average_cores_over_execution_wall": 2.0412493185469316,
+        "runtime_peak_mib": 930.34765625
+      },
+      "checkpoint": {
+        "atlas_point_error_m": 0.0,
+        "atlas_points": 526772,
+        "edge_error": 1.4476056931257965e-15,
+        "edges": 753,
+        "graph_pose_error": 2.334136551775064e-15,
+        "keyframe_pose_error": 2.334136551775064e-15,
+        "keyframes": 277,
+        "observations": 21345,
+        "plane_error": 1.1102230246251565e-16,
+        "planes": 1515,
+        "raw_clouds_odometry_information_and_moments_preserved": true,
+        "raw_pose_error": 1.053256044979692e-15,
+        "reload_pose_error": 9.55084616933826e-16
+      },
+      "end_of_input_async": {
+        "frame": "4013",
+        "pending": "9",
+        "age_ms": "71773.471642999997",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "drained_async": {
+        "frame": "4014",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "105815.23796500001",
+        "snapshot_ms": "21.653445999999999",
+        "commit_ms": "31.005277000000003",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "1515",
+        "geometry_observations": "21345",
+        "association_ms": "2692.4486739999998",
+        "solve_ms": "14251.073146000001",
+        "atlas_ms": "0"
+      },
+      "transport": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": true,
+        "startup_lidar_without_pose": 3
+      },
+      "common_stamp_holdout": {
+        "frames": {
+          "holdout_common_stamps": 3367,
+          "frontend_rmse_m": 1.3825725948960401,
+          "n3m_rmse_m": 1.3977161005936505
+        },
+        "dense": {
+          "holdout_common_stamps": 3367,
+          "frontend_rmse_m": 1.3825725948960401,
+          "n3m_rmse_m": 1.3732566772655261
+        }
+      }
+    },
+    "HelmDyn01": {
+      "frontend": {
+        "input_poses": 4107,
+        "gt_matched": 1426,
+        "gt_fraction": 0.34721207694180667,
+        "max_gt_interpolation_gap_s": 0.15,
+        "imu_to_gt_lever_arm_m": [
+          -0.011,
+          -0.02329,
+          0.05712
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            0.003888743578285314,
+            0.007918582947076088,
+            -0.025538392091891304,
+            0.9996349154800734
+          ],
+          "translation": [
+            -3.0037522232641414,
+            -3.592643986836785,
+            1.6835131256160474
+          ],
+          "first_stamp": 1717335356.469477,
+          "prefix_start_s": 1717335355.0193088,
+          "prefix_end_s": 1717335431.0193088,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            1086.3738702422331,
+            30.78957965403742,
+            0.3313100694066042
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.00297332569259749,
+            0.30215241005376464,
+            10.728961901767612
+          ]
+        },
+        "position_m": {
+          "n": 1426,
+          "rmse": 0.06657342436361245,
+          "median": 0.05794860323036335,
+          "p95": 0.10773332647610283,
+          "max": 0.1297481485672425
+        },
+        "within_10cm_fraction": 0.9053295932678822,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 134,
+              "rmse": 0.05496463340822607,
+              "median": 0.05584700138307117,
+              "p95": 0.06423206668153159,
+              "max": 0.1011502309348413
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 134,
+              "rmse": 54.269488427396126,
+              "median": 53.36452945942969,
+              "p95": 55.1078081394689,
+              "max": 136.03682308397126
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 176,
+              "rmse": 0.06639604522292308,
+              "median": 0.0577914786602637,
+              "p95": 0.11121140305394861,
+              "max": 0.1144627541559967
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 176,
+              "rmse": 76.58744726354998,
+              "median": 53.70841432618383,
+              "p95": 141.96959837889406,
+              "max": 177.83471950954743
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 881,
+              "rmse": 0.07050587350148728,
+              "median": 0.06644277185655034,
+              "p95": 0.11029075681710947,
+              "max": 0.1297481485672425
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 881,
+              "rmse": 74.34084575850423,
+              "median": 53.026940162681036,
+              "p95": 167.58688681270306,
+              "max": 179.93064943635733
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 235,
+              "rmse": 0.0568622232040689,
+              "median": 0.056247793843891156,
+              "p95": 0.08486385447115907,
+              "max": 0.11112344270540118
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 235,
+              "rmse": 58.63945378903866,
+              "median": 53.337483936657726,
+              "p95": 55.41977114946711,
+              "max": 136.5197851934301
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 1324,
+          "rmse": 0.06887390802174931,
+          "median": 0.05874993298948771,
+          "p95": 0.1088051805320914,
+          "max": 0.1297481485672425
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 32.09,
+          "average_cores_over_source_duration": 0.15619402839286392,
+          "peak_rss_mib": 165.65625,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "n3m_live": {
+        "input_poses": 4104,
+        "gt_matched": 1426,
+        "gt_fraction": 0.34746588693957114,
+        "max_gt_interpolation_gap_s": 0.15,
+        "imu_to_gt_lever_arm_m": [
+          -0.011,
+          -0.02329,
+          0.05712
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            0.003888743578285314,
+            0.007918582947076088,
+            -0.025538392091891304,
+            0.9996349154800734
+          ],
+          "translation": [
+            -3.0037522232641414,
+            -3.592643986836785,
+            1.6835131256160474
+          ],
+          "first_stamp": 1717335356.469477,
+          "prefix_start_s": 1717335355.0193088,
+          "prefix_end_s": 1717335431.0193088,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            1086.3738702422331,
+            30.78957965403742,
+            0.3313100694066042
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.00297332569259749,
+            0.30215241005376464,
+            10.728961901767612
+          ]
+        },
+        "position_m": {
+          "n": 1426,
+          "rmse": 0.051440076002408,
+          "median": 0.035501706155687804,
+          "p95": 0.09839941829872632,
+          "max": 0.13341920920686012
+        },
+        "within_10cm_fraction": 0.9530154277699859,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 134,
+              "rmse": 0.01941001506120595,
+              "median": 0.01649650978975651,
+              "p95": 0.029300853222611823,
+              "max": 0.07963823913272924
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 134,
+              "rmse": 54.12116423820373,
+              "median": 53.194869857445475,
+              "p95": 54.82776624824516,
+              "max": 136.19620894220893
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 176,
+              "rmse": 0.03951652326042511,
+              "median": 0.020146951212834587,
+              "p95": 0.07898850177167412,
+              "max": 0.10159166904780936
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 176,
+              "rmse": 76.42020129143388,
+              "median": 53.52356576062144,
+              "p95": 141.62055865384784,
+              "max": 177.68483551927176
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 881,
+              "rmse": 0.06136099386524763,
+              "median": 0.05329358186480199,
+              "p95": 0.10639723937031886,
+              "max": 0.13341920920686012
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 881,
+              "rmse": 74.24836246172666,
+              "median": 52.90865116024908,
+              "p95": 167.2298417936362,
+              "max": 179.99876709165392
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 235,
+              "rmse": 0.023599300471985097,
+              "median": 0.016379579625507644,
+              "p95": 0.036273845324638634,
+              "max": 0.0854820948616944
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 235,
+              "rmse": 58.49650020424928,
+              "median": 53.15611903907317,
+              "p95": 55.060689263979825,
+              "max": 136.40453938610653
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 1324,
+          "rmse": 0.052754404612101215,
+          "median": 0.03724935986043332,
+          "p95": 0.1000458172178508,
+          "max": 0.13341920920686012
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 32.09,
+          "average_cores_over_source_duration": 0.15619402839286392,
+          "peak_rss_mib": 165.65625,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "n3m_final": {
+        "input_poses": 4104,
+        "gt_matched": 1426,
+        "gt_fraction": 0.34746588693957114,
+        "max_gt_interpolation_gap_s": 0.15,
+        "imu_to_gt_lever_arm_m": [
+          -0.011,
+          -0.02329,
+          0.05712
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            0.003888743578285314,
+            0.007918582947076088,
+            -0.025538392091891304,
+            0.9996349154800734
+          ],
+          "translation": [
+            -3.0037522232641414,
+            -3.592643986836785,
+            1.6835131256160474
+          ],
+          "first_stamp": 1717335356.469477,
+          "prefix_start_s": 1717335355.0193088,
+          "prefix_end_s": 1717335431.0193088,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            1086.3738702422331,
+            30.78957965403742,
+            0.3313100694066042
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.00297332569259749,
+            0.30215241005376464,
+            10.728961901767612
+          ]
+        },
+        "position_m": {
+          "n": 1426,
+          "rmse": 0.04796774697597284,
+          "median": 0.03701728882052513,
+          "p95": 0.08221212896820065,
+          "max": 0.10808299786343066
+        },
+        "within_10cm_fraction": 0.9950911640953717,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 134,
+              "rmse": 0.01918297615973999,
+              "median": 0.01805872221689656,
+              "p95": 0.024777902759921287,
+              "max": 0.07820456811355835
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 134,
+              "rmse": 53.95207833668281,
+              "median": 53.00962338031919,
+              "p95": 54.80146049791821,
+              "max": 136.4800349686207
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 176,
+              "rmse": 0.03849562712473319,
+              "median": 0.022035717787367647,
+              "p95": 0.07848446196201866,
+              "max": 0.08274229136423986
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 176,
+              "rmse": 76.3486559863761,
+              "median": 53.469359450039306,
+              "p95": 141.66521349810967,
+              "max": 177.51589286239636
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 881,
+              "rmse": 0.05679196496223465,
+              "median": 0.05356982275203289,
+              "p95": 0.08546790934262044,
+              "max": 0.10808299786343066
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 881,
+              "rmse": 74.24630210524927,
+              "median": 52.89193232630011,
+              "p95": 167.3293734910954,
+              "max": 179.9990720902803
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 235,
+              "rmse": 0.023470206814904984,
+              "median": 0.017648079456194888,
+              "p95": 0.027706398423958806,
+              "max": 0.0844513577488538
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 235,
+              "rmse": 58.37583425605329,
+              "median": 53.00986715019532,
+              "p95": 55.060689263979825,
+              "max": 136.69671572297403
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 1324,
+          "rmse": 0.04836051383660966,
+          "median": 0.03720894936887181,
+          "p95": 0.08271178535918197,
+          "max": 0.10808299786343066
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 32.09,
+          "average_cores_over_source_duration": 0.15619402839286392,
+          "peak_rss_mib": 165.65625,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "core_resource": {
+        "frames": 4107,
+        "keyframes": 206,
+        "successful_frames": 4104,
+        "accepted_loops": 188,
+        "mapping_cpu_s": 6.383326050000018,
+        "loop_cpu_s": 0.2803241669998633,
+        "runtime_cpu_s": 125.934419063,
+        "runtime_wall_s": 205.299738152,
+        "source_duration_s": 205.29962112,
+        "max_pacing_lag_s": 0.005616323999987571,
+        "peak_rss_kib": 402092,
+        "paced": true,
+        "cpu_seconds_per_sensor_second": 0.6134176886249092,
+        "average_cores_over_execution_wall": 0.6134173389435138,
+        "runtime_peak_mib": 392.66796875
+      },
+      "checkpoint": {
+        "atlas_point_error_m": 0.0,
+        "atlas_points": 155609,
+        "edge_error": 1.2560739669470201e-15,
+        "edges": 393,
+        "graph_pose_error": 2.099173102142364e-15,
+        "keyframe_pose_error": 2.099173102142364e-15,
+        "keyframes": 206,
+        "observations": 10221,
+        "plane_error": 1.1102230246251565e-16,
+        "planes": 399,
+        "raw_clouds_odometry_information_and_moments_preserved": true,
+        "raw_pose_error": 1.014503308166385e-15,
+        "reload_pose_error": 1.336885555457667e-15
+      },
+      "end_of_input_async": {
+        "frame": "4106",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "drained_async": {
+        "frame": "4107",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "transport": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": true,
+        "startup_lidar_without_pose": 3
+      },
+      "common_stamp_holdout": {
+        "frames": {
+          "holdout_common_stamps": 1324,
+          "frontend_rmse_m": 0.06887390802174931,
+          "n3m_rmse_m": 0.052754404612101215
+        },
+        "dense": {
+          "holdout_common_stamps": 1324,
+          "frontend_rmse_m": 0.06887390802174931,
+          "n3m_rmse_m": 0.04836051383660966
+        }
+      }
+    },
+    "HelmDyn02": {
+      "frontend": {
+        "input_poses": 2133,
+        "gt_matched": 1164,
+        "gt_fraction": 0.5457102672292545,
+        "max_gt_interpolation_gap_s": 0.15,
+        "imu_to_gt_lever_arm_m": [
+          -0.011,
+          -0.02329,
+          0.05712
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            -0.007293419062749959,
+            0.007497301914667669,
+            0.837993999086895,
+            -0.5455791913157324
+          ],
+          "translation": [
+            0.1725435197211465,
+            0.5272889979948642,
+            0.04175254160499331
+          ],
+          "first_stamp": 1717348302.4762254,
+          "prefix_start_s": 1717348302.2761233,
+          "prefix_end_s": 1717348332.2761233,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            479.45138984055956,
+            228.16351285791927,
+            94.3082873821552
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.1827866543162248,
+            0.4469244061064892,
+            0.9387010779395888
+          ]
+        },
+        "position_m": {
+          "n": 1164,
+          "rmse": 0.03855144509519964,
+          "median": 0.028790713511873272,
+          "p95": 0.06935543060901553,
+          "max": 0.11667616405180356
+        },
+        "within_10cm_fraction": 0.9939862542955327,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 129,
+              "rmse": 0.013218862579427755,
+              "median": 0.0074885351872504115,
+              "p95": 0.028917906635177293,
+              "max": 0.050199610956873725
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 129,
+              "rmse": 48.38960856752902,
+              "median": 47.9321040426892,
+              "p95": 50.84736062008995,
+              "max": 53.270609745971
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 19,
+              "rmse": 0.008815681335605825,
+              "median": 0.006127186967477361,
+              "p95": 0.016757085957566288,
+              "max": 0.01901974650290643
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 19,
+              "rmse": 49.62398169371925,
+              "median": 49.07347702658149,
+              "p95": 53.12152261282773,
+              "max": 53.95222530181261
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 1000,
+              "rmse": 0.041260288467227166,
+              "median": 0.033615092065726784,
+              "p95": 0.07068142614347629,
+              "max": 0.11667616405180356
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 1000,
+              "rmse": 63.48785900288174,
+              "median": 53.41958298109313,
+              "p95": 112.17288870715927,
+              "max": 179.63051855861966
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 16,
+              "rmse": 0.01484028391008245,
+              "median": 0.007993095049212673,
+              "p95": 0.03001931029478124,
+              "max": 0.03370007418926344
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 16,
+              "rmse": 49.78375855471901,
+              "median": 49.0837928900539,
+              "p95": 52.33112482953671,
+              "max": 52.367103340724995
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 654,
+          "rmse": 0.04405138271400286,
+          "median": 0.03538448690683697,
+          "p95": 0.07649701249066922,
+          "max": 0.11667616405180356
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 18.9,
+          "average_cores_over_source_duration": 0.17704811770248097,
+          "peak_rss_mib": 167.13671875,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "n3m_live": {
+        "input_poses": 2130,
+        "gt_matched": 1161,
+        "gt_fraction": 0.5450704225352113,
+        "max_gt_interpolation_gap_s": 0.15,
+        "imu_to_gt_lever_arm_m": [
+          -0.011,
+          -0.02329,
+          0.05712
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            -0.007293419062749959,
+            0.007497301914667669,
+            0.837993999086895,
+            -0.5455791913157324
+          ],
+          "translation": [
+            0.1725435197211465,
+            0.5272889979948642,
+            0.04175254160499331
+          ],
+          "first_stamp": 1717348302.4762254,
+          "prefix_start_s": 1717348302.2761233,
+          "prefix_end_s": 1717348332.2761233,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            479.45138984055956,
+            228.16351285791927,
+            94.3082873821552
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.1827866543162248,
+            0.4469244061064892,
+            0.9387010779395888
+          ]
+        },
+        "position_m": {
+          "n": 1161,
+          "rmse": 0.04039412048845625,
+          "median": 0.032775633250029725,
+          "p95": 0.06892261741748164,
+          "max": 0.1294482793096464
+        },
+        "within_10cm_fraction": 0.9922480620155039,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 126,
+              "rmse": 0.012185749461014387,
+              "median": 0.007315293511452003,
+              "p95": 0.025746314253699817,
+              "max": 0.02852102416944311
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 126,
+              "rmse": 48.39356680391204,
+              "median": 47.993882687548464,
+              "p95": 50.92765772937935,
+              "max": 53.270609745971
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 19,
+              "rmse": 0.013289939536457854,
+              "median": 0.006127186967477154,
+              "p95": 0.03189162922780942,
+              "max": 0.03879517793216267
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 19,
+              "rmse": 49.64163804864631,
+              "median": 49.073477026581486,
+              "p95": 53.12152261282773,
+              "max": 53.95222530181261
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 1000,
+              "rmse": 0.04319487041717342,
+              "median": 0.03681704932222541,
+              "p95": 0.07126705347287489,
+              "max": 0.1294482793096464
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 1000,
+              "rmse": 63.50842973174716,
+              "median": 53.4101019896125,
+              "p95": 112.323610192316,
+              "max": 179.60702561553126
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 16,
+              "rmse": 0.020192106687665457,
+              "median": 0.015941738431713086,
+              "p95": 0.03040567042490195,
+              "max": 0.030598044431206225
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 16,
+              "rmse": 49.85832195258031,
+              "median": 49.23628585932181,
+              "p95": 52.36550142187578,
+              "max": 52.504609710081276
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 654,
+          "rmse": 0.04617337424083279,
+          "median": 0.039451896580752224,
+          "p95": 0.07523569541345507,
+          "max": 0.1294482793096464
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 18.9,
+          "average_cores_over_source_duration": 0.17704811770248097,
+          "peak_rss_mib": 167.13671875,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "n3m_final": {
+        "input_poses": 2130,
+        "gt_matched": 1161,
+        "gt_fraction": 0.5450704225352113,
+        "max_gt_interpolation_gap_s": 0.15,
+        "imu_to_gt_lever_arm_m": [
+          -0.011,
+          -0.02329,
+          0.05712
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            -0.007293419062749959,
+            0.007497301914667669,
+            0.837993999086895,
+            -0.5455791913157324
+          ],
+          "translation": [
+            0.1725435197211465,
+            0.5272889979948642,
+            0.04175254160499331
+          ],
+          "first_stamp": 1717348302.4762254,
+          "prefix_start_s": 1717348302.2761233,
+          "prefix_end_s": 1717348332.2761233,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            479.45138984055956,
+            228.16351285791927,
+            94.3082873821552
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.1827866543162248,
+            0.4469244061064892,
+            0.9387010779395888
+          ]
+        },
+        "position_m": {
+          "n": 1161,
+          "rmse": 0.03564089483205592,
+          "median": 0.029983509420616197,
+          "p95": 0.06178811495836553,
+          "max": 0.12784136235583132
+        },
+        "within_10cm_fraction": 0.9939707149009475,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 126,
+              "rmse": 0.010638038737788551,
+              "median": 0.007109959653265038,
+              "p95": 0.021530169438300398,
+              "max": 0.022839756965271463
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 126,
+              "rmse": 48.3735516824266,
+              "median": 47.94345885957476,
+              "p95": 50.9079411696578,
+              "max": 53.24951722762403
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 19,
+              "rmse": 0.009453525763539713,
+              "median": 0.009200131435379255,
+              "p95": 0.01374536615664878,
+              "max": 0.017673681892191945
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 19,
+              "rmse": 49.60582750651307,
+              "median": 49.05937052357219,
+              "p95": 53.097559890628055,
+              "max": 53.89615170022563
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 1000,
+              "rmse": 0.038161722121382455,
+              "median": 0.0330712777209844,
+              "p95": 0.06294976921440407,
+              "max": 0.12784136235583132
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 1000,
+              "rmse": 63.4805361318936,
+              "median": 53.41029915111947,
+              "p95": 112.1742400497155,
+              "max": 179.6353872835037
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 16,
+              "rmse": 0.012532953621944867,
+              "median": 0.010323965798515786,
+              "p95": 0.022762284113758986,
+              "max": 0.025418285117686866
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 16,
+              "rmse": 49.79079471858446,
+              "median": 49.13405018875427,
+              "p95": 52.32629045544457,
+              "max": 52.408698901049384
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": true,
+          "startup_lidar_without_pose": 3
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 654,
+          "rmse": 0.04033829019258609,
+          "median": 0.03455290765098679,
+          "p95": 0.06559217768575637,
+          "max": 0.12784136235583132
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 18.9,
+          "average_cores_over_source_duration": 0.17704811770248097,
+          "peak_rss_mib": 167.13671875,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "core_resource": {
+        "frames": 2133,
+        "keyframes": 506,
+        "successful_frames": 2130,
+        "accepted_loops": 1020,
+        "mapping_cpu_s": 26.65599360899994,
+        "loop_cpu_s": 0.895297292999603,
+        "runtime_cpu_s": 1608.028370081,
+        "runtime_wall_s": 892.82433419,
+        "source_duration_s": 106.600745728,
+        "max_pacing_lag_s": 0.03412944100000459,
+        "peak_rss_kib": 1947836,
+        "paced": true,
+        "cpu_seconds_per_sensor_second": 15.084588377871277,
+        "average_cores_over_execution_wall": 1.8010579556390083,
+        "runtime_peak_mib": 1902.18359375
+      },
+      "checkpoint": {
+        "atlas_point_error_m": 0.0,
+        "atlas_points": 217797,
+        "edge_error": 1.5740127955196998e-15,
+        "edges": 1525,
+        "graph_pose_error": 2.6691571797624175e-15,
+        "keyframe_pose_error": 2.6691571797624175e-15,
+        "keyframes": 506,
+        "observations": 32778,
+        "plane_error": 2.220446049250313e-16,
+        "planes": 968,
+        "raw_clouds_odometry_information_and_moments_preserved": true,
+        "raw_pose_error": 1.8408873757358923e-15,
+        "reload_pose_error": 1.3799853365199569e-15
+      },
+      "end_of_input_async": {
+        "frame": "2132",
+        "pending": "76",
+        "age_ms": "68635.066860999999",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "drained_async": {
+        "frame": "2133",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "787664.53052599996",
+        "snapshot_ms": "329.93974800000001",
+        "commit_ms": "339.84065599999991",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "968",
+        "geometry_observations": "32778",
+        "association_ms": "12472.454089000001",
+        "solve_ms": "279807.61202499998",
+        "atlas_ms": "0"
+      },
+      "transport": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": true,
+        "startup_lidar_without_pose": 3
+      },
+      "common_stamp_holdout": {
+        "frames": {
+          "holdout_common_stamps": 654,
+          "frontend_rmse_m": 0.04405138271400286,
+          "n3m_rmse_m": 0.04617337424083279
+        },
+        "dense": {
+          "holdout_common_stamps": 654,
+          "frontend_rmse_m": 0.04405138271400286,
+          "n3m_rmse_m": 0.04033829019258609
+        }
+      }
+    },
+    "TudoRun01": {
+      "frontend": {
+        "input_poses": 1541,
+        "gt_matched": 1162,
+        "gt_fraction": 0.754055807916937,
+        "max_gt_interpolation_gap_s": 0.03,
+        "imu_to_gt_lever_arm_m": [
+          -0.078,
+          -0.06629,
+          -0.0008799999999999988
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            0.01834049610455184,
+            -0.02713074343616038,
+            0.7168489154725433,
+            0.6964590306321533
+          ],
+          "translation": [
+            -0.3159272566835195,
+            -0.8862318126377047,
+            0.35579972343258054
+          ],
+          "first_stamp": 1745589888.6342406,
+          "prefix_start_s": 1745589888.4677198,
+          "prefix_end_s": 1745589918.4677198,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            2870.918986442863,
+            533.8266163595403,
+            0.12342947495481293
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.0002924046348157664,
+            0.7142803591411704,
+            3.831198673867304
+          ]
+        },
+        "position_m": {
+          "n": 1162,
+          "rmse": 0.04010870204862957,
+          "median": 0.02206526778135693,
+          "p95": 0.047896463612652596,
+          "max": 0.5709628004665609
+        },
+        "within_10cm_fraction": 0.9845094664371773,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 268,
+              "rmse": 0.07024891801965771,
+              "median": 0.027377642497760833,
+              "p95": 0.12166633400580319,
+              "max": 0.5709628004665609
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 268,
+              "rmse": 0.8209973292393777,
+              "median": 0.6319582404959541,
+              "p95": 1.6511729377115956,
+              "max": 2.639362720742184
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 210,
+              "rmse": 0.026451707027230213,
+              "median": 0.022699286913253396,
+              "p95": 0.042832038261656456,
+              "max": 0.048752209230199045
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 210,
+              "rmse": 1.1335947270349533,
+              "median": 0.7354050166552164,
+              "p95": 2.166610065425324,
+              "max": 5.089864066005845
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 665,
+              "rmse": 0.02389444481508969,
+              "median": 0.018259351560266635,
+              "p95": 0.04071330836044096,
+              "max": 0.04982372948568927
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 665,
+              "rmse": 1.0532889066924005,
+              "median": 0.7497790249119793,
+              "p95": 1.7123150473264057,
+              "max": 6.42991703383439
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 19,
+              "rmse": 0.03256498485000523,
+              "median": 0.03771355127833772,
+              "p95": 0.042633883656780606,
+              "max": 0.042828560684615005
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 19,
+              "rmse": 1.7228135017078892,
+              "median": 1.728060948264913,
+              "p95": 2.6297918975914136,
+              "max": 2.714528597201091
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "cdr_padding_only_difference": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": false,
+          "startup_lidar_without_pose": 4
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 411,
+          "rmse": 0.03162385844708945,
+          "median": 0.03020395880464436,
+          "p95": 0.04454945862122403,
+          "max": 0.04982372948568927
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 7.81,
+          "average_cores_over_source_duration": 0.1517495905663144,
+          "peak_rss_mib": 160.5703125,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "n3m_live": {
+        "input_poses": 1538,
+        "gt_matched": 1159,
+        "gt_fraction": 0.7535760728218466,
+        "max_gt_interpolation_gap_s": 0.03,
+        "imu_to_gt_lever_arm_m": [
+          -0.078,
+          -0.06629,
+          -0.0008799999999999988
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            0.01834049610455184,
+            -0.02713074343616038,
+            0.7168489154725433,
+            0.6964590306321533
+          ],
+          "translation": [
+            -0.3159272566835195,
+            -0.8862318126377047,
+            0.35579972343258054
+          ],
+          "first_stamp": 1745589888.6342406,
+          "prefix_start_s": 1745589888.4677198,
+          "prefix_end_s": 1745589918.4677198,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            2870.918986442863,
+            533.8266163595403,
+            0.12342947495481293
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.0002924046348157664,
+            0.7142803591411704,
+            3.831198673867304
+          ]
+        },
+        "position_m": {
+          "n": 1159,
+          "rmse": 0.07572991818647885,
+          "median": 0.034619803248254005,
+          "p95": 0.1537397612628306,
+          "max": 0.1709313486287561
+        },
+        "within_10cm_fraction": 0.7523727351164797,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 265,
+              "rmse": 0.05037456534986963,
+              "median": 0.03410911475285102,
+              "p95": 0.11183100839221811,
+              "max": 0.1622890216794076
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 265,
+              "rmse": 0.9147461302005269,
+              "median": 0.6728590636366457,
+              "p95": 1.4890588988871192,
+              "max": 3.0510698730255994
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 210,
+              "rmse": 0.07998390540467804,
+              "median": 0.03138491437212549,
+              "p95": 0.15764461304291533,
+              "max": 0.16543568320109134
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 210,
+              "rmse": 1.289718886715094,
+              "median": 0.9323615529328679,
+              "p95": 2.5794545769091894,
+              "max": 5.468251349350742
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 665,
+              "rmse": 0.08278006095973926,
+              "median": 0.03687764953581031,
+              "p95": 0.15617015846074261,
+              "max": 0.1709313486287561
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 665,
+              "rmse": 1.2680465711383215,
+              "median": 0.9953154789303335,
+              "p95": 1.974627927667258,
+              "max": 6.781041224576305
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 19,
+              "rmse": 0.062419731538431646,
+              "median": 0.026383044072407692,
+              "p95": 0.1689199301494802,
+              "max": 0.169646062163589
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 19,
+              "rmse": 2.09892918875308,
+              "median": 2.142670774503219,
+              "p95": 3.0388439353999277,
+              "max": 3.1091097031634636
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "cdr_padding_only_difference": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": false,
+          "startup_lidar_without_pose": 4
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 411,
+          "rmse": 0.033504563754659565,
+          "median": 0.032068229100621896,
+          "p95": 0.0441872377958248,
+          "max": 0.0503651674802785
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 7.81,
+          "average_cores_over_source_duration": 0.1517495905663144,
+          "peak_rss_mib": 160.5703125,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "n3m_final": {
+        "input_poses": 1538,
+        "gt_matched": 1159,
+        "gt_fraction": 0.7535760728218466,
+        "max_gt_interpolation_gap_s": 0.03,
+        "imu_to_gt_lever_arm_m": [
+          -0.078,
+          -0.06629,
+          -0.0008799999999999988
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            0.01834049610455184,
+            -0.02713074343616038,
+            0.7168489154725433,
+            0.6964590306321533
+          ],
+          "translation": [
+            -0.3159272566835195,
+            -0.8862318126377047,
+            0.35579972343258054
+          ],
+          "first_stamp": 1745589888.6342406,
+          "prefix_start_s": 1745589888.4677198,
+          "prefix_end_s": 1745589918.4677198,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            2870.918986442863,
+            533.8266163595403,
+            0.12342947495481293
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.0002924046348157664,
+            0.7142803591411704,
+            3.831198673867304
+          ]
+        },
+        "position_m": {
+          "n": 1159,
+          "rmse": 0.03939434769568705,
+          "median": 0.03378410513312159,
+          "p95": 0.055115155987566264,
+          "max": 0.16228979898481027
+        },
+        "within_10cm_fraction": 0.9870578084555651,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 265,
+              "rmse": 0.05089940654366255,
+              "median": 0.03433303702459507,
+              "p95": 0.11196434299986655,
+              "max": 0.16228979898481027
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 265,
+              "rmse": 0.844855165640985,
+              "median": 0.6753537991461707,
+              "p95": 1.4009737425302033,
+              "max": 2.1478291164944707
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 210,
+              "rmse": 0.03229045379555701,
+              "median": 0.029603664074557046,
+              "p95": 0.047704538225573696,
+              "max": 0.05216802421044257
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 210,
+              "rmse": 1.0430137265628685,
+              "median": 0.7086031788170788,
+              "p95": 1.8400345781369731,
+              "max": 4.549893100164062
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 665,
+              "rmse": 0.03631312304186449,
+              "median": 0.03463315513060322,
+              "p95": 0.05234987308378599,
+              "max": 0.0621921482813279
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 665,
+              "rmse": 1.0422893625463228,
+              "median": 0.7818210419177379,
+              "p95": 1.658095971208145,
+              "max": 5.914959801177985
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 19,
+              "rmse": 0.029255201055468968,
+              "median": 0.02229219929693858,
+              "p95": 0.04371014486231574,
+              "max": 0.04497403191758545
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 19,
+              "rmse": 1.4172806559960787,
+              "median": 1.3738468911085953,
+              "p95": 2.12154858592717,
+              "max": 2.2894127775265787
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "cdr_padding_only_difference": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": false,
+          "startup_lidar_without_pose": 4
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 411,
+          "rmse": 0.034595316691784325,
+          "median": 0.03441959961452724,
+          "p95": 0.04559176277612188,
+          "max": 0.054163233487462124
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 7.81,
+          "average_cores_over_source_duration": 0.1517495905663144,
+          "peak_rss_mib": 160.5703125,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "core_resource": {
+        "frames": 1541,
+        "keyframes": 57,
+        "successful_frames": 1538,
+        "accepted_loops": 18,
+        "mapping_cpu_s": 0.9502714619999879,
+        "loop_cpu_s": 0.04050618899998337,
+        "runtime_cpu_s": 17.965457259,
+        "runtime_wall_s": 51.333210142,
+        "source_duration_s": 51.33308236800001,
+        "max_pacing_lag_s": 0.5543740330000002,
+        "peak_rss_kib": 67260,
+        "paced": true,
+        "cpu_seconds_per_sensor_second": 0.34997815113084463,
+        "average_cores_over_execution_wall": 0.3499772799967745,
+        "runtime_peak_mib": 65.68359375
+      },
+      "checkpoint": {
+        "atlas_point_error_m": 0.0,
+        "atlas_points": 52952,
+        "edge_error": 8.972394979902883e-16,
+        "edges": 74,
+        "graph_pose_error": 1.7401273962163896e-15,
+        "keyframe_pose_error": 1.7401273962163896e-15,
+        "keyframes": 57,
+        "observations": 889,
+        "plane_error": 1.1102230246251565e-16,
+        "planes": 83,
+        "raw_clouds_odometry_information_and_moments_preserved": true,
+        "raw_pose_error": 1.5702735685231296e-15,
+        "reload_pose_error": 1.1443916996305594e-15
+      },
+      "end_of_input_async": {
+        "frame": "1540",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "drained_async": {
+        "frame": "1541",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "transport": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "cdr_padding_only_difference": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": false,
+        "startup_lidar_without_pose": 4
+      },
+      "common_stamp_holdout": {
+        "frames": {
+          "holdout_common_stamps": 411,
+          "frontend_rmse_m": 0.03162385844708945,
+          "n3m_rmse_m": 0.033504563754659565
+        },
+        "dense": {
+          "holdout_common_stamps": 411,
+          "frontend_rmse_m": 0.03162385844708945,
+          "n3m_rmse_m": 0.034595316691784325
+        }
+      }
+    },
+    "TudoRun02": {
+      "frontend": {
+        "input_poses": 2355,
+        "gt_matched": 2029,
+        "gt_fraction": 0.8615711252653928,
+        "max_gt_interpolation_gap_s": 0.03,
+        "imu_to_gt_lever_arm_m": [
+          -0.078,
+          -0.06629,
+          -0.0008799999999999988
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            -0.008338565438299902,
+            -0.013181349030558757,
+            0.9813154282597635,
+            -0.19177265348198827
+          ],
+          "translation": [
+            -1.6195984291730765,
+            -0.6805449526877918,
+            0.4456774863795816
+          ],
+          "first_stamp": 1745590210.4107523,
+          "prefix_start_s": 1745590210.2454913,
+          "prefix_end_s": 1745590240.2454913,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            2362.1184976663885,
+            355.0571337957337,
+            0.17312140397846146
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.00020370493718504084,
+            0.4598768953747065,
+            3.054435376148584
+          ]
+        },
+        "position_m": {
+          "n": 2029,
+          "rmse": 0.025451352307052456,
+          "median": 0.016384354146224522,
+          "p95": 0.0458377138370237,
+          "max": 0.10923929576935082
+        },
+        "within_10cm_fraction": 0.9980285855101035,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 294,
+              "rmse": 0.014434111537706833,
+              "median": 0.012044927303481327,
+              "p95": 0.01915285981209884,
+              "max": 0.058038385317565284
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 294,
+              "rmse": 0.8538413289146899,
+              "median": 0.476530691967355,
+              "p95": 1.4870049804473797,
+              "max": 1.7688005113516008
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 146,
+              "rmse": 0.016032932106645845,
+              "median": 0.009704184620656267,
+              "p95": 0.03773081725996164,
+              "max": 0.04569462198145519
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 146,
+              "rmse": 1.0540579828184062,
+              "median": 0.8388014149727308,
+              "p95": 1.821034887788192,
+              "max": 3.0006798341700676
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 1577,
+              "rmse": 0.02773271674377166,
+              "median": 0.01935654832942621,
+              "p95": 0.04738868669583679,
+              "max": 0.10923929576935082
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 1577,
+              "rmse": 1.4181269805328482,
+              "median": 1.2024444555267921,
+              "p95": 2.3774486132068997,
+              "max": 5.03945843559581
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 12,
+              "rmse": 0.014912707852502798,
+              "median": 0.01576094726787387,
+              "p95": 0.017117679327453655,
+              "max": 0.01743941517039103
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 12,
+              "rmse": 0.9568243754096499,
+              "median": 1.049966375283188,
+              "p95": 1.2394005081770936,
+              "max": 1.252058040163206
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "cdr_padding_only_difference": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": false,
+          "startup_lidar_without_pose": 4
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 1255,
+          "rmse": 0.03093557620886177,
+          "median": 0.024602791290488108,
+          "p95": 0.04887240083787055,
+          "max": 0.10923929576935082
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 11.82,
+          "average_cores_over_source_duration": 0.15038508303614703,
+          "peak_rss_mib": 161.90234375,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "n3m_live": {
+        "input_poses": 2352,
+        "gt_matched": 2026,
+        "gt_fraction": 0.8613945578231292,
+        "max_gt_interpolation_gap_s": 0.03,
+        "imu_to_gt_lever_arm_m": [
+          -0.078,
+          -0.06629,
+          -0.0008799999999999988
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            -0.008338565438299902,
+            -0.013181349030558757,
+            0.9813154282597635,
+            -0.19177265348198827
+          ],
+          "translation": [
+            -1.6195984291730765,
+            -0.6805449526877918,
+            0.4456774863795816
+          ],
+          "first_stamp": 1745590210.4107523,
+          "prefix_start_s": 1745590210.2454913,
+          "prefix_end_s": 1745590240.2454913,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            2362.1184976663885,
+            355.0571337957337,
+            0.17312140397846146
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.00020370493718504084,
+            0.4598768953747065,
+            3.054435376148584
+          ]
+        },
+        "position_m": {
+          "n": 2026,
+          "rmse": 0.021875448248127472,
+          "median": 0.017701611882822873,
+          "p95": 0.03689467933164098,
+          "max": 0.07718812947030831
+        },
+        "within_10cm_fraction": 1.0,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 291,
+              "rmse": 0.011221734538400311,
+              "median": 0.010438854582192753,
+              "p95": 0.016244958287768983,
+              "max": 0.022697609257015416
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 291,
+              "rmse": 0.6315343605827539,
+              "median": 0.4421521875636651,
+              "p95": 1.040227742034565,
+              "max": 1.2162388218868023
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 146,
+              "rmse": 0.021764317776419993,
+              "median": 0.016271697898540823,
+              "p95": 0.041424475304754856,
+              "max": 0.05173172107671279
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 146,
+              "rmse": 1.063738129210149,
+              "median": 0.8692744162997392,
+              "p95": 1.7553509458736976,
+              "max": 2.5124723292099205
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 1577,
+              "rmse": 0.023356929895752,
+              "median": 0.019343281070950655,
+              "p95": 0.03764943813003246,
+              "max": 0.07718812947030831
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 1577,
+              "rmse": 1.1748827387408236,
+              "median": 0.8814624958818237,
+              "p95": 2.0949456084034765,
+              "max": 5.660396472982985
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 12,
+              "rmse": 0.016790703279451938,
+              "median": 0.017542714865032033,
+              "p95": 0.019997330789093937,
+              "max": 0.020226523109313537
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 12,
+              "rmse": 0.9999239047411701,
+              "median": 1.0285462933618414,
+              "p95": 1.3850719490216505,
+              "max": 1.465838994338489
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "cdr_padding_only_difference": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": false,
+          "startup_lidar_without_pose": 4
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 1255,
+          "rmse": 0.023592516523769414,
+          "median": 0.01944805468069818,
+          "p95": 0.037747199761086356,
+          "max": 0.07718812947030831
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 11.82,
+          "average_cores_over_source_duration": 0.15038508303614703,
+          "peak_rss_mib": 161.90234375,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "n3m_final": {
+        "input_poses": 2352,
+        "gt_matched": 2026,
+        "gt_fraction": 0.8613945578231292,
+        "max_gt_interpolation_gap_s": 0.03,
+        "imu_to_gt_lever_arm_m": [
+          -0.078,
+          -0.06629,
+          -0.0008799999999999988
+        ],
+        "alignment": {
+          "quaternion_xyzw": [
+            -0.008338565438299902,
+            -0.013181349030558757,
+            0.9813154282597635,
+            -0.19177265348198827
+          ],
+          "translation": [
+            -1.6195984291730765,
+            -0.6805449526877918,
+            0.4456774863795816
+          ],
+          "first_stamp": 1745590210.4107523,
+          "prefix_start_s": 1745590210.2454913,
+          "prefix_end_s": 1745590240.2454913,
+          "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+          "prefix_singular_values": [
+            2362.1184976663885,
+            355.0571337957337,
+            0.17312140397846146
+          ],
+          "gt_position_covariance_eigenvalues": [
+            0.00020370493718504084,
+            0.4598768953747065,
+            3.054435376148584
+          ]
+        },
+        "position_m": {
+          "n": 2026,
+          "rmse": 0.019422430430347228,
+          "median": 0.01762794275533581,
+          "p95": 0.030074319146030367,
+          "max": 0.052211040048663046
+        },
+        "within_10cm_fraction": 1.0,
+        "motion": {
+          "stationary": {
+            "position_m": {
+              "n": 291,
+              "rmse": 0.012883317849954366,
+              "median": 0.012549092325480809,
+              "p95": 0.017181783237937533,
+              "max": 0.022697609100565893
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 291,
+              "rmse": 0.616119261239309,
+              "median": 0.41763339250691167,
+              "p95": 0.9996354420485434,
+              "max": 1.2136825484640006
+            }
+          },
+          "translation": {
+            "position_m": {
+              "n": 146,
+              "rmse": 0.019201361555066108,
+              "median": 0.017839695749648596,
+              "p95": 0.03005906417429445,
+              "max": 0.04147792276586948
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 146,
+              "rmse": 0.838019607713385,
+              "median": 0.6841310004847786,
+              "p95": 1.5157286011384645,
+              "max": 2.3020891828561876
+            }
+          },
+          "turning": {
+            "position_m": {
+              "n": 1577,
+              "rmse": 0.020453904472430083,
+              "median": 0.018905534879817748,
+              "p95": 0.03071918995921446,
+              "max": 0.052211040048663046
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 1577,
+              "rmse": 1.0622139100814334,
+              "median": 0.7904036920571127,
+              "p95": 1.9193976083678168,
+              "max": 5.3139711894628325
+            }
+          },
+          "other_slow_motion": {
+            "position_m": {
+              "n": 12,
+              "rmse": 0.014092515248745833,
+              "median": 0.013300961778181596,
+              "p95": 0.017501496573599746,
+              "max": 0.01753512998319537
+            },
+            "angle_coordinate_diagnostic_deg": {
+              "n": 12,
+              "rmse": 0.8691318420330301,
+              "median": 0.8868149545656199,
+              "p95": 1.2136465178367923,
+              "max": 1.262995114263246
+            }
+          }
+        },
+        "transport_qualification": {
+          "qualified": true,
+          "checks": {
+            "no_error": true,
+            "input_counts": true,
+            "sensor_payload_hashes": true,
+            "output_pairs": true,
+            "cdr_padding_only_difference": true,
+            "all_lidar_acknowledged": true
+          },
+          "raw_cdr_streams_identical": false,
+          "startup_lidar_without_pose": 4
+        },
+        "orientation_qualified": false,
+        "holdout_position_m": {
+          "n": 1255,
+          "rmse": 0.01967280851166863,
+          "median": 0.01779496175769963,
+          "p95": 0.030636167610244097,
+          "max": 0.052211040048663046
+        },
+        "frontend_resource": {
+          "cpu_s_sampled": 11.82,
+          "average_cores_over_source_duration": 0.15038508303614703,
+          "peak_rss_mib": 161.90234375,
+          "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+        }
+      },
+      "core_resource": {
+        "frames": 2355,
+        "keyframes": 126,
+        "successful_frames": 2352,
+        "accepted_loops": 195,
+        "mapping_cpu_s": 2.231978082000116,
+        "loop_cpu_s": 0.10856045600004838,
+        "runtime_cpu_s": 71.13092778400001,
+        "runtime_wall_s": 78.46756545,
+        "source_duration_s": 78.467487488,
+        "max_pacing_lag_s": 0.007407869999994432,
+        "peak_rss_kib": 120260,
+        "paced": true,
+        "cpu_seconds_per_sensor_second": 0.90650191641319,
+        "average_cores_over_execution_wall": 0.906501015751853,
+        "runtime_peak_mib": 117.44140625
+      },
+      "checkpoint": {
+        "atlas_point_error_m": 0.0,
+        "atlas_points": 68669,
+        "edge_error": 1.4527332972915343e-15,
+        "edges": 320,
+        "graph_pose_error": 1.7029012646844388e-15,
+        "keyframe_pose_error": 1.7029012646844388e-15,
+        "keyframes": 126,
+        "observations": 3333,
+        "plane_error": 1.1102230246251565e-16,
+        "planes": 195,
+        "raw_clouds_odometry_information_and_moments_preserved": true,
+        "raw_pose_error": 7.153457808806092e-16,
+        "reload_pose_error": 6.726791511811415e-16
+      },
+      "end_of_input_async": {
+        "frame": "2354",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "drained_async": {
+        "frame": "2355",
+        "pending": "0",
+        "age_ms": "0",
+        "worker_ms": "0",
+        "snapshot_ms": "0",
+        "commit_ms": "0",
+        "rebases": "0",
+        "stale": "0",
+        "geometry_planes": "0",
+        "geometry_observations": "0",
+        "association_ms": "0",
+        "solve_ms": "0",
+        "atlas_ms": "0"
+      },
+      "transport": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "cdr_padding_only_difference": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": false,
+        "startup_lidar_without_pose": 4
+      },
+      "common_stamp_holdout": {
+        "frames": {
+          "holdout_common_stamps": 1255,
+          "frontend_rmse_m": 0.03093557620886177,
+          "n3m_rmse_m": 0.023592516523769414
+        },
+        "dense": {
+          "holdout_common_stamps": 1255,
+          "frontend_rmse_m": 0.03093557620886177,
+          "n3m_rmse_m": 0.01967280851166863
+        }
+      }
+    }
+  },
+  "point_time_representation_ablation": {
+    "raw_time_flow": {
+      "position_reference": "xsens_imu (existing dataset convention; antenna reference remains to audit)",
+      "lever_arm_imu_to_gt_m": [
+        0.4316,
+        0.00014,
+        0.0113
+      ],
+      "input_poses": 3265,
+      "gt_matched": 3265,
+      "orientation_qualified": false,
+      "prefix_fixed_all": {
+        "n": 3265,
+        "rmse_m": 0.7753852181681503,
+        "median_m": 0.8199885964756004,
+        "p95_m": 1.14256380219156,
+        "max_m": 1.286499017752028,
+        "within_10cm_fraction": 0.04349157733537519
+      },
+      "prefix_fixed_holdout": {
+        "n": 2669,
+        "rmse_m": 0.8544153842794531,
+        "median_m": 0.8893062450447078,
+        "p95_m": 1.1464330146054404,
+        "max_m": 1.286499017752028,
+        "within_10cm_fraction": 0.0
+      },
+      "alignment": {
+        "rotation": [
+          [
+            -0.7163270394246599,
+            -0.5244392590284727,
+            -0.4602597485972122
+          ],
+          [
+            0.05499509767534671,
+            -0.7000021792894411,
+            0.7120200054926217
+          ],
+          [
+            -0.6955940711512577,
+            0.4847271527155256,
+            0.5302720769562724
+          ]
+        ],
+        "translation": [
+          0.3538160050338437,
+          0.15435084060685966,
+          0.09462525352336115
+        ],
+        "prefix_singular_values": [
+          75927.0254597409,
+          7650.115243640369,
+          0.15118888110357986
+        ],
+        "prefix_start_s": 1627729762.6819932,
+        "prefix_end_s": 1627729822.6819932,
+        "gt_origin": [
+          -2853538.25608,
+          4667400.61047,
+          3268263.155
+        ]
+      },
+      "frontend_resource": {
+        "cpu_s_sampled": 138.43,
+        "average_cores_over_lio_duration": 0.4232824658284018,
+        "peak_rss_mib": 338.55859375,
+        "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+      },
+      "transport_qualification": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "all_lidar_acknowledged": true
+        },
+        "startup_lidar_without_pose": 3
+      }
+    },
+    "normalized_flow": {
+      "position_reference": "xsens_imu (existing dataset convention; antenna reference remains to audit)",
+      "lever_arm_imu_to_gt_m": [
+        0.4316,
+        0.00014,
+        0.0113
+      ],
+      "input_poses": 3265,
+      "gt_matched": 3265,
+      "truth_time_offset_s": 0,
+      "orientation_qualified": false,
+      "prefix_fixed_all": {
+        "n": 3265,
+        "rmse_m": 0.7879100775562241,
+        "median_m": 0.8381615803959995,
+        "p95_m": 1.1731689839977517,
+        "max_m": 1.287352857166028,
+        "within_10cm_fraction": 0.03430321592649311
+      },
+      "prefix_fixed_holdout": {
+        "n": 2668,
+        "rmse_m": 0.8684518529078827,
+        "median_m": 0.9108768008616821,
+        "p95_m": 1.1771270785041363,
+        "max_m": 1.287352857166028,
+        "within_10cm_fraction": 0.0
+      },
+      "alignment": {
+        "rotation": [
+          [
+            -0.7166161154425142,
+            -0.524123982537886,
+            -0.4601688755410425
+          ],
+          [
+            0.05423260066920429,
+            -0.6996461101942295,
+            0.7124283441264384
+          ],
+          [
+            -0.6953561448011633,
+            0.4855814776314161,
+            0.5298022843179843
+          ]
+        ],
+        "translation": [
+          0.35036552956727185,
+          0.14989240151693473,
+          0.0924311254368888
+        ],
+        "prefix_singular_values": [
+          76247.19677465581,
+          7681.476462785785,
+          0.14291540075100823
+        ],
+        "prefix_start_s": 1627729762.6819932,
+        "prefix_end_s": 1627729822.6819932,
+        "gt_origin": [
+          -2853538.25608,
+          4667400.61047,
+          3268263.155
+        ]
+      },
+      "frontend_resource": {
+        "cpu_s_sampled": 136.77,
+        "average_cores_over_lio_duration": 0.41820601680440994,
+        "peak_rss_mib": 334.21484375,
+        "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+      },
+      "transport_qualification": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": true,
+        "startup_lidar_without_pose": 3
+      }
+    }
+  },
+  "normalizer_verification": {
+    "real_bag_records": {
+      "/handsfree/imu": 42,
+      "/velodyne_points": 3
+    },
+    "prototype_cdr_and_record_time_parity": true,
+    "all_other_point_bytes_unchanged": true,
+    "absolute_point_time_error_s": 3.724330496779338e-09
+  },
+  "normalizer_tests": {
+    "ctest_targets": 1,
+    "unittest_cases": 3,
+    "passed": true
+  },
+  "clock_diagnostic": {
+    "gate_02": {
+      "fit_sensor_time_end_s": 55,
+      "holdout_sensor_time_start_s": 65,
+      "prefix_best_lag_s": 0.06000000000000272,
+      "lag_definition": "compare estimate(t) with truth(t+lag)",
+      "prefix_speed_rmse_mps_zero": 0.07849348580864636,
+      "prefix_speed_rmse_mps_fitted": 0.07802994082725016,
+      "holdout_speed_rmse_mps_zero": 0.14426603644363756,
+      "holdout_speed_rmse_mps_fitted": 0.14382799876312047,
+      "search_bound_hit": false,
+      "scope": "speed-only diagnostic; no runtime timestamps or primary evaluation changed"
+    },
+    "hall_05": {
+      "fit_sensor_time_end_s": 55,
+      "holdout_sensor_time_start_s": 65,
+      "prefix_best_lag_s": -1.6599999999999988,
+      "lag_definition": "compare estimate(t) with truth(t+lag)",
+      "prefix_speed_rmse_mps_zero": 0.08483527950935557,
+      "prefix_speed_rmse_mps_fitted": 0.03559659543696067,
+      "holdout_speed_rmse_mps_zero": 0.14669314630039734,
+      "holdout_speed_rmse_mps_fitted": 0.06258420928127043,
+      "search_bound_hit": false,
+      "scope": "speed-only diagnostic; no runtime timestamps or primary evaluation changed"
+    }
+  },
+  "hall_prefix_clock_position_diagnostic": {
+    "frontend": {
+      "position_reference": "leica_prism",
+      "lever_arm_imu_to_gt_m": [
+        0.05881,
+        0.00093,
+        0.8631
+      ],
+      "input_poses": 4014,
+      "gt_matched": 3958,
+      "truth_time_offset_s": -1.66,
+      "orientation_qualified": false,
+      "prefix_fixed_all": {
+        "n": 3958,
+        "rmse_m": 0.3956255740237789,
+        "median_m": 0.35497876204780743,
+        "p95_m": 0.662064822035561,
+        "max_m": 0.8079566673912588,
+        "within_10cm_fraction": 0.07908034360788277
+      },
+      "prefix_fixed_holdout": {
+        "n": 3368,
+        "rmse_m": 0.41041272522722566,
+        "median_m": 0.3704393367875538,
+        "p95_m": 0.6744837321630774,
+        "max_m": 0.8079566673912588,
+        "within_10cm_fraction": 0.07868171021377672
+      },
+      "alignment": {
+        "rotation": [
+          [
+            0.998509093317758,
+            0.05379360406697089,
+            0.009264918954608016
+          ],
+          [
+            0.05385036027552544,
+            -0.9985310547020994,
+            -0.005989281568661188
+          ],
+          [
+            0.008929124254124055,
+            0.006479271332377833,
+            -0.9999391430397434
+          ]
+        ],
+        "translation": [
+          -0.39059785680909265,
+          -0.3366633742150985,
+          0.8456198358540146
+        ],
+        "prefix_singular_values": [
+          8185.65475096281,
+          3200.655937745356,
+          0.013436492393867483
+        ],
+        "prefix_start_s": 1629013352.4626107,
+        "prefix_end_s": 1629013412.4626107,
+        "gt_origin": [
+          8.243,
+          3.2688,
+          -4.638
+        ]
+      },
+      "frontend_resource": {
+        "cpu_s_sampled": 89.92,
+        "average_cores_over_lio_duration": 0.22363200190050295,
+        "peak_rss_mib": 194.72265625,
+        "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+      },
+      "transport_qualification": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": true,
+        "startup_lidar_without_pose": 3
+      }
+    },
+    "n3m_live": {
+      "position_reference": "leica_prism",
+      "lever_arm_imu_to_gt_m": [
+        0.05881,
+        0.00093,
+        0.8631
+      ],
+      "input_poses": 3984,
+      "gt_matched": 3928,
+      "truth_time_offset_s": -1.66,
+      "orientation_qualified": false,
+      "prefix_fixed_all": {
+        "n": 3928,
+        "rmse_m": 0.45268347278762205,
+        "median_m": 0.39864759363064867,
+        "p95_m": 0.7136718762305441,
+        "max_m": 0.874984874623437,
+        "within_10cm_fraction": 0.0010183299389002036
+      },
+      "prefix_fixed_holdout": {
+        "n": 3368,
+        "rmse_m": 0.471924049618627,
+        "median_m": 0.4275217644770556,
+        "p95_m": 0.7325958457366388,
+        "max_m": 0.874984874623437,
+        "within_10cm_fraction": 0.0011876484560570072
+      },
+      "alignment": {
+        "rotation": [
+          [
+            0.998509093317758,
+            0.05379360406697089,
+            0.009264918954608016
+          ],
+          [
+            0.05385036027552544,
+            -0.9985310547020994,
+            -0.005989281568661188
+          ],
+          [
+            0.008929124254124055,
+            0.006479271332377833,
+            -0.9999391430397434
+          ]
+        ],
+        "translation": [
+          -0.39059785680909265,
+          -0.3366633742150985,
+          0.8456198358540146
+        ],
+        "prefix_singular_values": [
+          8185.65475096281,
+          3200.655937745356,
+          0.013436492393867483
+        ],
+        "prefix_start_s": 1629013352.4626107,
+        "prefix_end_s": 1629013412.4626107,
+        "gt_origin": [
+          8.243,
+          3.2688,
+          -4.638
+        ]
+      },
+      "frontend_resource": {
+        "cpu_s_sampled": 89.92,
+        "average_cores_over_lio_duration": 0.2253164060102753,
+        "peak_rss_mib": 194.72265625,
+        "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+      },
+      "transport_qualification": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": true,
+        "startup_lidar_without_pose": 3
+      }
+    },
+    "n3m_final": {
+      "position_reference": "leica_prism",
+      "lever_arm_imu_to_gt_m": [
+        0.05881,
+        0.00093,
+        0.8631
+      ],
+      "input_poses": 3984,
+      "gt_matched": 3928,
+      "truth_time_offset_s": -1.66,
+      "orientation_qualified": false,
+      "prefix_fixed_all": {
+        "n": 3928,
+        "rmse_m": 0.3800236282059924,
+        "median_m": 0.32811258578978986,
+        "p95_m": 0.6407331856216436,
+        "max_m": 0.7984995154088045,
+        "within_10cm_fraction": 0.05269857433808554
+      },
+      "prefix_fixed_holdout": {
+        "n": 3368,
+        "rmse_m": 0.39432686427363245,
+        "median_m": 0.34844293431002804,
+        "p95_m": 0.6514870585104291,
+        "max_m": 0.7984995154088045,
+        "within_10cm_fraction": 0.044833729216152016
+      },
+      "alignment": {
+        "rotation": [
+          [
+            0.998509093317758,
+            0.05379360406697089,
+            0.009264918954608016
+          ],
+          [
+            0.05385036027552544,
+            -0.9985310547020994,
+            -0.005989281568661188
+          ],
+          [
+            0.008929124254124055,
+            0.006479271332377833,
+            -0.9999391430397434
+          ]
+        ],
+        "translation": [
+          -0.39059785680909265,
+          -0.3366633742150985,
+          0.8456198358540146
+        ],
+        "prefix_singular_values": [
+          8185.65475096281,
+          3200.655937745356,
+          0.013436492393867483
+        ],
+        "prefix_start_s": 1629013352.4626107,
+        "prefix_end_s": 1629013412.4626107,
+        "gt_origin": [
+          8.243,
+          3.2688,
+          -4.638
+        ]
+      },
+      "frontend_resource": {
+        "cpu_s_sampled": 89.92,
+        "average_cores_over_lio_duration": 0.2253164060102753,
+        "peak_rss_mib": 194.72265625,
+        "scope": "FAST_LIO process only, includes startup; excludes recorder and n3m"
+      },
+      "transport_qualification": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": true,
+        "startup_lidar_without_pose": 3
+      }
+    }
+  },
+  "full_ros_TudoRun02": {
+    "scope": "Simultaneous raw sensors -> installed frozen FAST_LIO -> matching current ROS node with frozen n3m core; truth observer only",
+    "transport": {
+      "qualified": true,
+      "checks": {
+        "no_error": true,
+        "input_counts": true,
+        "sensor_payload_hashes": true,
+        "output_pairs": true,
+        "cdr_padding_only_difference": true,
+        "all_lidar_acknowledged": true
+      },
+      "raw_cdr_streams_identical": false,
+      "startup_lidar_without_pose": 4
+    },
+    "summary": {
+      "counts": {
+        "/livox/imu": 15724,
+        "/livox/lidar": 2359,
+        "/n3m_replay_ack": 2359,
+        "/Odometry": 2355,
+        "/cloud_registered_body": 2355,
+        "/n3mapping/odometry": 2311
+      },
+      "matched_outputs": 2355,
+      "odom_cloud_exact_pairs": true,
+      "acknowledged_lidar": 2359,
+      "cdr_stream_sha256": {
+        "/livox/lidar": "7fe536a33ff8b7043977361432f98b34c38be7c0ef76038d404be960c844ec6d",
+        "/livox/imu": "27baded41268cf9239accc446e6283527631b48f51149b152da2b072a3f1b7e3"
+      },
+      "first_last_stamps": {
+        "/livox/imu": [
+          1745590210270451456,
+          1745590288886639360
+        ],
+        "/livox/lidar": [
+          1745590210245491200,
+          1745590288843712256
+        ],
+        "/Odometry": [
+          1745590210410752256,
+          1745590288878239744
+        ],
+        "/cloud_registered_body": [
+          1745590210410752256,
+          1745590288878239744
+        ],
+        "/n3mapping/odometry": [
+          1745590210544717568,
+          1745590288878239744
+        ]
+      },
+      "error": null,
+      "wall_s": 86.8053583749861
+    },
+    "frontend": {
+      "input_poses": 2355,
+      "gt_matched": 2029,
+      "gt_fraction": 0.8615711252653928,
+      "max_gt_interpolation_gap_s": 0.03,
+      "imu_to_gt_lever_arm_m": [
+        -0.078,
+        -0.06629,
+        -0.0008799999999999988
+      ],
+      "alignment": {
+        "quaternion_xyzw": [
+          -0.008338565438299902,
+          -0.013181349030558757,
+          0.9813154282597635,
+          -0.19177265348198827
+        ],
+        "translation": [
+          -1.6195984291730765,
+          -0.6805449526877918,
+          0.4456774863795816
+        ],
+        "first_stamp": 1745590210.4107523,
+        "prefix_start_s": 1745590210.2454913,
+        "prefix_end_s": 1745590240.2454913,
+        "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+        "prefix_singular_values": [
+          2362.1184976663885,
+          355.0571337957337,
+          0.17312140397846146
+        ],
+        "gt_position_covariance_eigenvalues": [
+          0.00020370493718504084,
+          0.4598768953747065,
+          3.054435376148584
+        ]
+      },
+      "position_m": {
+        "n": 2029,
+        "rmse": 0.025451352307052456,
+        "median": 0.016384354146224522,
+        "p95": 0.0458377138370237,
+        "max": 0.10923929576935082
+      },
+      "within_10cm_fraction": 0.9980285855101035,
+      "motion": {
+        "stationary": {
+          "position_m": {
+            "n": 294,
+            "rmse": 0.014434111537706833,
+            "median": 0.012044927303481327,
+            "p95": 0.01915285981209884,
+            "max": 0.058038385317565284
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 294,
+            "rmse": 0.8538413289146899,
+            "median": 0.476530691967355,
+            "p95": 1.4870049804473797,
+            "max": 1.7688005113516008
+          }
+        },
+        "translation": {
+          "position_m": {
+            "n": 146,
+            "rmse": 0.016032932106645845,
+            "median": 0.009704184620656267,
+            "p95": 0.03773081725996164,
+            "max": 0.04569462198145519
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 146,
+            "rmse": 1.0540579828184062,
+            "median": 0.8388014149727308,
+            "p95": 1.821034887788192,
+            "max": 3.0006798341700676
+          }
+        },
+        "turning": {
+          "position_m": {
+            "n": 1577,
+            "rmse": 0.02773271674377166,
+            "median": 0.01935654832942621,
+            "p95": 0.04738868669583679,
+            "max": 0.10923929576935082
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 1577,
+            "rmse": 1.4181269805328482,
+            "median": 1.2024444555267921,
+            "p95": 2.3774486132068997,
+            "max": 5.03945843559581
+          }
+        },
+        "other_slow_motion": {
+          "position_m": {
+            "n": 12,
+            "rmse": 0.014912707852502798,
+            "median": 0.01576094726787387,
+            "p95": 0.017117679327453655,
+            "max": 0.01743941517039103
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 12,
+            "rmse": 0.9568243754096499,
+            "median": 1.049966375283188,
+            "p95": 1.2394005081770936,
+            "max": 1.252058040163206
+          }
+        }
+      },
+      "transport_qualification": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "cdr_padding_only_difference": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": false,
+        "startup_lidar_without_pose": 4
+      },
+      "orientation_qualified": false,
+      "holdout_position_m": {
+        "n": 1255,
+        "rmse": 0.03093557620886177,
+        "median": 0.024602791290488108,
+        "p95": 0.04887240083787055,
+        "max": 0.10923929576935082
+      },
+      "frontend_resource": {
+        "cpu_s_sampled": 11.66,
+        "average_cores_over_source_duration": 0.14834941355342424,
+        "peak_rss_mib": 162.49609375,
+        "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+      }
+    },
+    "n3m_live": {
+      "input_poses": 2311,
+      "gt_matched": 1986,
+      "gt_fraction": 0.8593682388576374,
+      "max_gt_interpolation_gap_s": 0.03,
+      "imu_to_gt_lever_arm_m": [
+        -0.078,
+        -0.06629,
+        -0.0008799999999999988
+      ],
+      "alignment": {
+        "quaternion_xyzw": [
+          -0.008338565438299902,
+          -0.013181349030558757,
+          0.9813154282597635,
+          -0.19177265348198827
+        ],
+        "translation": [
+          -1.6195984291730765,
+          -0.6805449526877918,
+          0.4456774863795816
+        ],
+        "first_stamp": 1745590210.4107523,
+        "prefix_start_s": 1745590210.2454913,
+        "prefix_end_s": 1745590240.2454913,
+        "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+        "prefix_singular_values": [
+          2362.1184976663885,
+          355.0571337957337,
+          0.17312140397846146
+        ],
+        "gt_position_covariance_eigenvalues": [
+          0.00020370493718504084,
+          0.4598768953747065,
+          3.054435376148584
+        ]
+      },
+      "position_m": {
+        "n": 1986,
+        "rmse": 0.02239395936142655,
+        "median": 0.018050169546235433,
+        "p95": 0.03834937839984877,
+        "max": 0.0749457896287515
+      },
+      "within_10cm_fraction": 1.0,
+      "motion": {
+        "stationary": {
+          "position_m": {
+            "n": 282,
+            "rmse": 0.011007703182611727,
+            "median": 0.010500263305883955,
+            "p95": 0.01453140149759321,
+            "max": 0.018254599198087935
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 282,
+            "rmse": 0.6434904169120498,
+            "median": 0.44479814259086947,
+            "p95": 1.0798801713406936,
+            "max": 1.2175939639172304
+          }
+        },
+        "translation": {
+          "position_m": {
+            "n": 144,
+            "rmse": 0.021830773256578447,
+            "median": 0.01546789854355738,
+            "p95": 0.042201347906524134,
+            "max": 0.05120198645704119
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 144,
+            "rmse": 1.07448283398138,
+            "median": 0.8855780646038902,
+            "p95": 1.7563547767765944,
+            "max": 2.512472329209914
+          }
+        },
+        "turning": {
+          "position_m": {
+            "n": 1548,
+            "rmse": 0.023992478072856455,
+            "median": 0.020302528619217164,
+            "p95": 0.03925373100259727,
+            "max": 0.0749457896287515
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 1548,
+            "rmse": 1.1823513924704456,
+            "median": 0.892125791799266,
+            "p95": 2.0929313570399506,
+            "max": 5.660396472982986
+          }
+        },
+        "other_slow_motion": {
+          "position_m": {
+            "n": 12,
+            "rmse": 0.013137386758231145,
+            "median": 0.01312033673316193,
+            "p95": 0.015611258503798839,
+            "max": 0.016007257596904755
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 12,
+            "rmse": 1.003172400752884,
+            "median": 1.03368132775622,
+            "p95": 1.3873881471185867,
+            "max": 1.4627217627429265
+          }
+        }
+      },
+      "transport_qualification": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "cdr_padding_only_difference": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": false,
+        "startup_lidar_without_pose": 4
+      },
+      "orientation_qualified": false,
+      "holdout_position_m": {
+        "n": 1241,
+        "rmse": 0.024342674424968222,
+        "median": 0.020564276819898815,
+        "p95": 0.04121236936542064,
+        "max": 0.0749457896287515
+      },
+      "frontend_resource": {
+        "cpu_s_sampled": 11.66,
+        "average_cores_over_source_duration": 0.14834941355342424,
+        "peak_rss_mib": 162.49609375,
+        "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+      }
+    },
+    "n3m_final": {
+      "input_poses": 2355,
+      "gt_matched": 2029,
+      "gt_fraction": 0.8615711252653928,
+      "max_gt_interpolation_gap_s": 0.03,
+      "imu_to_gt_lever_arm_m": [
+        -0.078,
+        -0.06629,
+        -0.0008799999999999988
+      ],
+      "alignment": {
+        "quaternion_xyzw": [
+          -0.008338565438299902,
+          -0.013181349030558757,
+          0.9813154282597635,
+          -0.19177265348198827
+        ],
+        "translation": [
+          -1.6195984291730765,
+          -0.6805449526877918,
+          0.4456774863795816
+        ],
+        "first_stamp": 1745590210.4107523,
+        "prefix_start_s": 1745590210.2454913,
+        "prefix_end_s": 1745590240.2454913,
+        "method": "earliest prefix >=30 s with >=50 truth matches and second truth-position std >=0.25 m; fixed for holdout and n3m",
+        "prefix_singular_values": [
+          2362.1184976663885,
+          355.0571337957337,
+          0.17312140397846146
+        ],
+        "gt_position_covariance_eigenvalues": [
+          0.00020370493718504084,
+          0.4598768953747065,
+          3.054435376148584
+        ]
+      },
+      "position_m": {
+        "n": 2029,
+        "rmse": 0.01943501320298067,
+        "median": 0.017676930608870173,
+        "p95": 0.030219618248685572,
+        "max": 0.05803838526605488
+      },
+      "within_10cm_fraction": 1.0,
+      "motion": {
+        "stationary": {
+          "position_m": {
+            "n": 294,
+            "rmse": 0.013510388828683715,
+            "median": 0.01266363098113454,
+            "p95": 0.017435385229305635,
+            "max": 0.05803838526605488
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 294,
+            "rmse": 0.6168584848595106,
+            "median": 0.41657395664987185,
+            "p95": 1.0006139453877496,
+            "max": 1.216754101341792
+          }
+        },
+        "translation": {
+          "position_m": {
+            "n": 146,
+            "rmse": 0.019293077405388322,
+            "median": 0.01767780992948261,
+            "p95": 0.03003863033065644,
+            "max": 0.04149356055373137
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 146,
+            "rmse": 0.8379342529365306,
+            "median": 0.6822837420270136,
+            "p95": 1.5153251795645686,
+            "max": 2.301853523655222
+          }
+        },
+        "turning": {
+          "position_m": {
+            "n": 1577,
+            "rmse": 0.020395938076784578,
+            "median": 0.018861235634024906,
+            "p95": 0.03054256782382931,
+            "max": 0.05312992208860741
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 1577,
+            "rmse": 1.0625388668753781,
+            "median": 0.7903817966601946,
+            "p95": 1.9176416823170814,
+            "max": 5.312177626139893
+          }
+        },
+        "other_slow_motion": {
+          "position_m": {
+            "n": 12,
+            "rmse": 0.01402919916945921,
+            "median": 0.013214693294059115,
+            "p95": 0.017526760018099878,
+            "max": 0.017560635161387218
+          },
+          "angle_coordinate_diagnostic_deg": {
+            "n": 12,
+            "rmse": 0.871973409776956,
+            "median": 0.8901045618431269,
+            "p95": 1.2175152448702047,
+            "max": 1.2668599259466666
+          }
+        }
+      },
+      "transport_qualification": {
+        "qualified": true,
+        "checks": {
+          "no_error": true,
+          "input_counts": true,
+          "sensor_payload_hashes": true,
+          "output_pairs": true,
+          "cdr_padding_only_difference": true,
+          "all_lidar_acknowledged": true
+        },
+        "raw_cdr_streams_identical": false,
+        "startup_lidar_without_pose": 4
+      },
+      "orientation_qualified": false,
+      "holdout_position_m": {
+        "n": 1255,
+        "rmse": 0.019534319324854606,
+        "median": 0.017742281369450743,
+        "p95": 0.03037328175736335,
+        "max": 0.05312992208860741
+      },
+      "frontend_resource": {
+        "cpu_s_sampled": 11.66,
+        "average_cores_over_source_duration": 0.14834941355342424,
+        "peak_rss_mib": 162.49609375,
+        "scope": "FAST_LIO process only; includes startup, excludes recorder and n3m"
+      }
+    },
+    "checkpoint": {
+      "atlas_point_error_m": 0.0,
+      "atlas_points": 68692,
+      "edge_error": 1.6889900632112593e-15,
+      "edges": 321,
+      "graph_pose_error": 1.4673750978618009e-15,
+      "keyframe_pose_error": 1.4673750978618009e-15,
+      "keyframes": 126,
+      "observations": 3342,
+      "plane_error": 1.1102230246251565e-16,
+      "planes": 191,
+      "raw_clouds_odometry_information_and_moments_preserved": true,
+      "raw_pose_error": 7.153457808806092e-16,
+      "reload_pose_error": 7.65168414856311e-16
+    },
+    "process_resource": {
+      "frontend": {
+        "cpu_s_sampled": 11.66,
+        "peak_mib": 162.49609375
+      },
+      "n3m": {
+        "cpu_s_sampled": 73.91,
+        "peak_mib": 165.6484375
+      },
+      "replay": {
+        "cpu_s_sampled": 42.25,
+        "peak_mib": 69.9375
+      }
+    },
+    "processed_frames": 2355,
+    "core_successes": 2352,
+    "maximum_pending_queries": 2,
+    "drained_pending_queries": 0,
+    "missing_live_input_indices_zero_based": [
+      0,
+      1,
+      2,
+      3,
+      9,
+      42,
+      51,
+      57,
+      60,
+      63,
+      66,
+      172,
+      173,
+      174,
+      195,
+      204,
+      207,
+      210,
+      213,
+      216,
+      219,
+      222,
+      240,
+      243,
+      249,
+      264,
+      279,
+      294,
+      702,
+      1128,
+      1143,
+      1185,
+      1305,
+      1478,
+      1541,
+      1570,
+      1571,
+      1585,
+      1586,
+      1983,
+      2012,
+      2013,
+      2027,
+      2217
+    ],
+    "maximum_live_stamp_gap_ms": 133.522688,
+    "live_output_boundary": "2355 backend inputs and saved dense samples; 2311 live outputs. Missing live stamps are retained as an unresolved publication/clock/scheduling boundary, not claimed as complete output coverage.",
+    "common_stamp_holdout": {
+      "holdout_common_stamps": 1241,
+      "frontend_rmse_m": 0.030936052687760982,
+      "n3m_rmse_m": 0.024342674424968222
+    }
+  },
+  "limitations": [
+    "No universal 10 cm or half-core acceptance; native input frequencies differ (10/20/30 Hz).",
+    "Ground-truth gaps excluded and reported; no angular acceptance without independent frame calibration.",
+    "Hall clock correction is an observer-only prefix-fit diagnostic, not algorithm improvement.",
+    "Mapping baseline is not a real-data relocalization or map-extension qualification.",
+    "Final trajectories include subsequent loop corrections; live output remains the online accuracy measure.",
+    "Frontend and core CPU are separate; staged core includes backlog drain, excludes loading/saving and ROS. Full ROS resource includes startup/shutdown.",
+    "The installed n3m node is old ABI. First full_ros attempt exited before replay; full_ros_current uses matching build adapters without installation.",
+    "Initial unpaced/no-ACK M2DGR attempts were incomplete and excluded. Raw artifacts retained."
+  ],
+  "reproduction_sha256": {
+    "build/n3mapping/real_data_20261021/score_m2dgr.py": "0e8f947693b9c0df5dec94ffb22693bfa9a7754ef39574af2c013f09b1b0669c",
+    "build/n3mapping/real_data_20261021/run_full_e2e.py": "ad52fb28f417a73e45d8bab94586f1eccf50fc5fa24ba94aecd9316c3d7ee2c9",
+    "build/n3mapping/real_data_20261021/download_mid360.py": "e86f3c876e34fc21bb730cbe408f8cd07471d94e3e2589ac069c86eda8cdfd23",
+    "build/n3mapping/real_data_20261021/fetch_sources.py": "c9c7c9965de1061dc37dd0da6c7f77c9c110949eb4961ac921ba8ed83e5abfbc",
+    "build/n3mapping/real_data_20261021/run_flow_batch.py": "1c6b5e574999063368fab33cb5356308cc3fcdff21c7f3a1d0e1f82430fd58f3",
+    "build/n3mapping/real_data_20261021/prepare_m2dgr.py": "8993f91ec6e0709c3f66803b30fb23d9470a42b0df0c7c6191d898c73820e491",
+    "build/n3mapping/real_data_20261021/prepare_resple.py": "dff70d20b428e67977da6f1c2dd1b6ffe094352f30e87abb1e683bc4c5c65dd3",
+    "build/n3mapping/real_data_20261021/run_checkpoint_batch.py": "03a26f46cd2756d5cece90a8b963982e83a17ae48a0d2a50e37bff9036804e18",
+    "build/n3mapping/real_data_20261021/summarize_results.py": "14161b5fb723f8c8cdfdbc1ca70141ef7284f22cd6f3965dd3ab24132cb955d3",
+    "build/n3mapping/real_data_20261021/close_stage.py": "c9004bae1db52f5ba67cd50b120b7a67c964287d70e683cf48f5552dcf7de1ff",
+    "build/n3mapping/real_data_20261021/probe_downloads.py": "0b7efd4a6001206eebbea1a64be39c36e25ff2b72654f0b9bc81796c04f16331",
+    "build/n3mapping/real_data_20261021/normalize_time.py": "76d9c5fce42a2245423dcc91229079fa892a24d6667c7baf2f3cab3b3d02d89e",
+    "build/n3mapping/real_data_20261021/fetch_resple.py": "17775cf042faae9c17eed5e54e1a0fb7b2e68e271366d17184e908b561851ea3",
+    "build/n3mapping/real_data_20261021/gt_time_audit.py": "29cf11404c8488d3046ac5959fe3e138a1a22f63fcff4ded6320f147e6b01448",
+    "build/n3mapping/real_data_20261021/run_frontend.py": "de027fd5d257b29af24d9a5eb15c056641f7099819f126831804236c45662553",
+    "build/n3mapping/real_data_20261021/run_m2dgr_batch.py": "d0eb87b4c90d5dbfd630d0faeafd3b156a17347bf18365df61ee4b741bc5e461",
+    "build/n3mapping/real_data_20261021/audit_cdr_padding.py": "d68ed9b7cdb2d4cb179e2ebce9348612f2363bbfc55a8e21863e31f1dfbc27ca",
+    "build/n3mapping/real_data_20261021/run_full_after.py": "03e56aabbca6a21557b237a9370e660635ab09315d8a0a5e79ea8cba1bf5569a",
+    "build/n3mapping/real_data_20261021/audit_full_cdr_padding.py": "9a4dbed5e541cfddbea0b631618c167559ae5455a2482fd5087a15941ed205eb",
+    "build/n3mapping/real_data_20261021/run_core_batch.py": "a51d0d6e9661b06d022aedbb0dc4e2305a1a00397361ddc2488920251a78d553",
+    "build/n3mapping/real_data_20261021/plot_results.py": "8475d7025f722c3c853e7d939d902ae2a2fd44636e1ec4d1498e2a76dabc160c",
+    "build/n3mapping/real_data_20261021/score_mid360.py": "40b4b978b37b5ccb1bd1ea4c68994ca3b10259d4d1be2744402a96db785260ed",
+    "build/n3mapping/real_data_20261021/verify_transport.py": "444036516fb9af05c818070b8f3f086b6475b3de57aad3957a660cbfed81057c",
+    "build/n3mapping/real_data_20261021/mid360.yaml": "93a6540e369b71cf2dac8223fe45fc3ee8e7e0473ea75c115788b226faf5ac4b",
+    "build/n3mapping/real_data_20261021/m2dgr.yaml": "cf2bbfa7788bc28ea9b0f44f51daa4eb3c3b58058cbf3f0b1eceb6cbab096b17",
+    "build/n3mapping/n3mapping_node": "477522c454ead75cf32f26d5ae4719dfd789d755973b6843adf845ae5005467d",
+    "build/n3mapping/libn3mapping_humble_wrapper.so": "edd720a022dd94b0a27ae481b20377cc7bfc8c50cf814de445fc1f2c9d75ced5",
+    "src/n3mapping/tools/n3mapping_normalize_point_time.py": "f572865ee4739e08d81a9b7f66dfb11597466dfb3255d1b9ec9d1295a9a77aff",
+    "src/n3mapping/test/test_n3mapping_normalize_point_time.py": "6ecc119e61c599e635fb6ca802a6fd58e1e391e4c1dbb133a5fdcf6a180d8fe0"
+  },
+  "evidence_root": "build/n3mapping/real_data_20261021"
+}

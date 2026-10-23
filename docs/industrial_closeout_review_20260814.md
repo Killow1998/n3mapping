@@ -102,6 +102,21 @@ The durable result is
 The checksummed formal directory is
 /tmp/n3mapping_fa02_ac54ed2_20260815_023901.
 
+Later evidence: the [2026-10-21 real-sensor baseline](evidence/runtime_cpu_20261017/README.md#real-sensor-baseline-and-input-contract--2026-10-21)
+feeds actual LiDAR/IMU through frozen FAST_LIO and n3m, with truth confined to
+the observer. Six staged mapping runs and one simultaneous ROS run complement
+this historical backend gate. They expose time/reference ambiguity, missing
+truth, transient error and asynchronous computation backlog; they do not certify
+general 10 cm accuracy, half-core operation, or real-data relocalization.
+The [subsequent six-sequence ROS validation](evidence/runtime_cpu_20261017/README.md#real-data-clocks-references-and-shared-loop-solving--2026-10-21)
+repairs replay-clock ordering, validates an opt-in Fast DDS SHM profile with a
+capacity-only reverse control, and retains all live inputs after initialization.
+Map/Atlas save-reload checks pass. Shared pending-loop computation reduces
+HelmDyn02 core CPU by 21.7% on identical frozen frontend input while preserving
+accepted query groups. Real-reference ambiguity, sustained live errors above 10 cm,
+failed cross-sequence covariance models and heavy-loop backlog remain explicit;
+this does not extend the historical gate to general localization or extension.
+
 ## FA-03: one development line without importing obsolete code
 
 The recovery code tree was selected as the product tree. Main and realtime

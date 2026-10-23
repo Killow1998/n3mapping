@@ -111,7 +111,8 @@ void evaluateFixedPoseFactors(
     const registration_detail::CorrespondenceSearch search(*target.kdtree, rejector.max_dist_sq,
                                                           target.search_bounds.get());
     const auto [H, b, error] = reduction.linearize(
-        registration_detail::TargetView{*target.cloud}, source, search, rejector, pose, factors);
+        registration_detail::TargetView{*target.cloud, target.lazy_normals.get()},
+        source, search, rejector, pose, factors);
     (void)b;
     result->num_inliers = std::count_if(factors.begin(), factors.end(),
         [](const Factor& factor) { return factor.inlier(); });
@@ -226,7 +227,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
         try {
             const auto rr = registration_detail::align(
                 *level.cloud, *source.refine_cloud, *level.kdtree, init_guess, setting,
-                level.search_bounds.get());
+                level.search_bounds.get(), level.lazy_normals.get());
             const auto stage = makeStageResult("local_gicp", level.resolution, rr,
                 source.refine_cloud->size(), setting.max_iterations);
             result.stages.push_back(stage);
@@ -288,7 +289,8 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
                 setting.max_correspondence_distance >= setting_.max_correspondence_distance)
                 ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
             auto rr = registration_detail::align(*target_level->cloud, *source_level->cloud,
-                                        *target_level->kdtree, T, ls, target_level->search_bounds.get());
+                                        *target_level->kdtree, T, ls, target_level->search_bounds.get(),
+                                        target_level->lazy_normals.get());
             T = rr.T_target_source;
             const auto stage = makeStageResult(
                 res > base_res * 1.01 ? "coarse_plane_icp" : "fine_plane_icp",
@@ -334,7 +336,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
                     rs.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
                     rs.downsampling_resolution = config_.icp_refine_downsampling_resolution;
                     auto rr = registration_detail::align(*tr.cloud, *sr, *tr.kdtree, T, rs,
-                                                         tr.search_bounds.get());
+                                                         tr.search_bounds.get(), tr.lazy_normals.get());
                     const auto stage = makeStageResult("refine_gicp", config_.icp_refine_downsampling_resolution,
                                                        rr, sr->size(), rs.max_iterations);
                     result.stages.push_back(stage);

@@ -15,9 +15,10 @@ double elapsedMs(LoopClock::time_point start) {
 } // namespace
 
 AsyncLoopJob::AsyncLoopJob(const Config& config, const KeyframeManager& source,
-    std::unique_ptr<GraphOptimizer> graph, DetectedLoopQuery query)
+    std::unique_ptr<GraphOptimizer> graph, std::vector<DetectedLoopQuery> queries)
     : config(config), keyframes(config), matcher(config), manager(config),
-      graph(std::move(graph)), query(std::move(query)), revision(source.revision()) {
+      graph(std::move(graph)), queries(std::move(queries)), revision(source.revision()) {
+  if (this->queries.empty()) throw std::invalid_argument("Empty loop job");
   base_graph = this->graph->cloneCommitted();
   std::vector<Keyframe::Ptr> snapshot;
   const auto originals = source.getAllKeyframes();
@@ -39,8 +40,8 @@ void AsyncLoopJob::run() {
   const auto start = LoopClock::now();
   started = start;
   const auto cpu_start = std::clock();
-  if (!query.geometry_only)
-    outcome = processLoopCandidates(config, keyframes, matcher, *graph, manager, {query});
+  if (!geometryOnly())
+    outcome = processLoopCandidates(config, keyframes, matcher, *graph, manager, queries);
   optimizeGeometry();
   worker_wall_ms += elapsedMs(start);
   cpu_upper_ms += 1000.0 * (std::clock() - cpu_start) / CLOCKS_PER_SEC;
@@ -49,7 +50,7 @@ void AsyncLoopJob::run() {
 void AsyncLoopJob::rebase() {
   const auto start = LoopClock::now();
   const auto cpu_start = std::clock();
-  if (!query.geometry_only) rebaseLoopOutcome(config, *graph, manager, outcome);
+  if (!geometryOnly()) rebaseLoopOutcome(config, *graph, manager, outcome);
   optimizeGeometry();
   worker_wall_ms += elapsedMs(start);
   cpu_upper_ms += 1000.0 * (std::clock() - cpu_start) / CLOCKS_PER_SEC;
@@ -89,6 +90,7 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosuresAsync() {
 }
 
 CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
+  const auto cycle_started = LoopClock::now();
   if (!async_loops_) async_loops_ = std::make_unique<AsyncLoopState>();
   auto& state = *async_loops_;
   CoreLoopClosureResult result;
@@ -98,17 +100,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
     state.next_geometry_start = {};
     state.generation = revision.generation;
   }
-  for (auto& query : detectPendingLoopCandidates(result)) {
-    // Strict extension constraints are already in the live graph. One latest
-    // geometry request covers all of them; no verified measurement is dropped.
-    if (query.geometry_only) {
-      for (const auto& pending : state.pending)
-        if (pending.geometry_only) query.enqueued = std::min(query.enqueued, pending.enqueued);
-      state.pending.erase(std::remove_if(state.pending.begin(), state.pending.end(),
-          [](const auto& pending) { return pending.geometry_only; }), state.pending.end());
-    }
-    state.pending.push_back(std::move(query));
-  }
+
 
   if (state.job && (wait ||
       state.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)) {
@@ -116,7 +108,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
     try {
       state.future.get();
       completed = true;
-      if (state.job->query.geometry_only &&
+      if (state.job->geometryOnly() &&
           state.job->revision.generation == revision.generation &&
           config_.loop_geometry_cpu_budget > 0) {
         // Process CPU includes the concurrent owner and is a conservative
@@ -135,7 +127,13 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
         state.job->revision.generation == revision.generation &&
         state.job->revision != revision) {
       const auto catchup_start = LoopClock::now();
-      if (state.job->graph->appendCommittedTail(session_->graphOptimizer(), *state.job->base_graph))
+      std::map<int64_t, std::vector<PlaneMoment>> body_moments;
+      if (config_.loop_geometry_enable)
+        for (const auto& frame : session_->keyframeManager().getAllKeyframes())
+          if (frame && frame->cloud && !state.job->base_graph->hasNode(frame->id))
+            body_moments.emplace(frame->id, extractPlaneMoments(*frame->cloud));
+      if (state.job->graph->appendCommittedTail(
+              session_->graphOptimizer(), *state.job->base_graph, body_moments))
         state.job->revision = revision;
       catchup_ms = elapsedMs(catchup_start);
     }
@@ -152,7 +150,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       const auto start = LoopClock::now();
       auto previous = std::move(state.job);
       state.job = std::make_unique<AsyncLoopJob>(config_, session_->keyframeManager(),
-          session_->graphOptimizer().cloneCommitted(), previous->query);
+          session_->graphOptimizer().cloneCommitted(), previous->queries);
       state.job->outcome = std::move(previous->outcome);
       state.job->worker_wall_ms = previous->worker_wall_ms;
       state.job->cpu_upper_ms = previous->cpu_upper_ms;
@@ -160,7 +158,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       state.job->graph_rebase_count = previous->graph_rebase_count;
       result.snapshot_ms += elapsedMs(start) + catchup_ms;
       auto* job = state.job.get();
-      state.future = std::async(std::launch::async, [job] { job->rebase(); });
+      state.future = state.worker.submit([job] { job->rebase(); });
     } else {
       const auto detected = result.detected_candidate_count;
       const auto queued = result.queued_keyframe_count;
@@ -190,7 +188,8 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       result.worker_wall_ms = job.worker_wall_ms;
       result.graph_rebase_count = job.graph_rebase_count;
       if (result.geometry.optimized)
-        LOG(INFO) << "[JointGeometry] query=" << job.query.id << " planes=" << result.geometry.planes
+        LOG(INFO) << "[JointGeometry] query=" << job.queries.back().id
+                  << " queries=" << job.queries.size() << " planes=" << result.geometry.planes
                   << " observations=" << result.geometry.observations
                   << " association_ms=" << result.geometry.association_ms
                   << " solve_ms=" << result.geometry.solve_ms
@@ -202,28 +201,79 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
                   << " atlas_ms=" << result.atlas_prepare_ms
                   << " worker_ms=" << result.worker_wall_ms
                   << " cpu_upper_ms=" << job.cpu_upper_ms
+                  << " snapshot_nodes=" << job.base_graph->getNumNodes()
+                  << " committed_nodes=" << session_->graphOptimizer().getNumNodes()
+                  << " catchup_ms=" << catchup_ms
                   << " commit_ms=" << result.commit_ms
                   << " rebases=" << result.graph_rebase_count;
       state.job.reset();
     }
   }
+  // Publish a completed correction before retrieving newly arrived queries.
+  // Otherwise top-k is frozen from poses that this same call is about to replace.
+  // Existing queued candidates and retained registration evidence stay intact.
+  for (auto& query : detectPendingLoopCandidates(result)) {
+    query.enqueued = cycle_started;
+    // Strict extension constraints are already in the live graph. One latest
+    // geometry request covers all of them; no verified measurement is dropped.
+    if (query.geometry_only) {
+      for (const auto& pending : state.pending)
+        if (pending.geometry_only) query.enqueued = std::min(query.enqueued, pending.enqueued);
+      state.pending.erase(std::remove_if(state.pending.begin(), state.pending.end(),
+          [](const auto& pending) { return pending.geometry_only; }), state.pending.end());
+    }
+    state.pending.push_back(std::move(query));
+  }
+
   if (!state.job && !state.pending.empty() &&
       (wait || !state.pending.front().geometry_only ||
        LoopClock::now() >= state.next_geometry_start)) {
     const auto start = LoopClock::now();
-    auto query = std::move(state.pending.front());
+    std::vector<DetectedLoopQuery> queries;
+    queries.push_back(std::move(state.pending.front()));
     state.pending.pop_front();
+    // Preserve every query and its existing registration/admission gates.
+    // Queued work shares graph commits, reassociation and geometry solving.
+    // Bound a batch so a growing queue cannot postpone publication indefinitely.
+    while (!queries.front().geometry_only && queries.size() < 4 &&
+           !state.pending.empty() && !state.pending.front().geometry_only) {
+      queries.push_back(std::move(state.pending.front()));
+      state.pending.pop_front();
+    }
+    if (!queries.front().geometry_only && config_.loop_spatial_candidates_enable) {
+      // A queued query can outlive a map correction. Supplement its original
+      // candidates once, at dispatch; none of these registrations has run yet.
+      // Rebase keeps measurements and never enters this retrieval path again.
+      std::map<int64_t, Keyframe::Ptr> current_frames;
+      for (const auto& frame : session_->keyframeManager().getAllKeyframes())
+        if (frame) current_frames.emplace(frame->id, frame);
+      for (auto& query : queries) {
+        const auto current = session_->loopDetector().detectSpatialCandidates(
+            query.id, current_frames);
+        for (const auto& candidate : current) {
+          const auto found = std::find_if(query.candidates.begin(), query.candidates.end(),
+              [&](const auto& existing) { return existing.match_id == candidate.match_id; });
+          if (found == query.candidates.end()) {
+            query.candidates.push_back(candidate);
+            ++result.detected_candidate_count;
+          } else {
+            found->source_flags |= candidate.source_flags;
+            found->spatial_score = std::max(found->spatial_score, candidate.spatial_score);
+          }
+        }
+      }
+    }
     state.job = std::make_unique<AsyncLoopJob>(
         config_, session_->keyframeManager(),
-        session_->graphOptimizer().cloneCommitted(), std::move(query));
+        session_->graphOptimizer().cloneCommitted(), std::move(queries));
     result.snapshot_ms += elapsedMs(start);
     auto* job = state.job.get();
-    state.future = std::async(std::launch::async, [job] { job->run(); });
+    state.future = state.worker.submit([job] { job->run(); });
   }
-  result.pending_query_count = state.pending.size() + (state.job ? 1 : 0);
+  result.pending_query_count = state.pending.size() + (state.job ? state.job->queries.size() : 0);
   result.async_pending = result.pending_query_count != 0;
   if (state.job)
-    result.oldest_pending_age_ms = elapsedMs(state.job->query.enqueued);
+    result.oldest_pending_age_ms = elapsedMs(state.job->queries.front().enqueued);
   else if (!state.pending.empty())
     result.oldest_pending_age_ms = elapsedMs(state.pending.front().enqueued);
   return result;

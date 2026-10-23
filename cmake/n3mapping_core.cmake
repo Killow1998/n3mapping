@@ -12,6 +12,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/core/n3mapping_loop_closure.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_loop_async.cpp
   ${N3MAPPING_ROOT}/src/core/loop_closure_processing.cpp
+  ${N3MAPPING_ROOT}/src/core/loop_closure_commit.cpp
   ${N3MAPPING_ROOT}/src/core/loop_closure_diagnostics.cpp
   ${N3MAPPING_ROOT}/src/core/run_mode.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
@@ -29,6 +30,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/point_cloud_matcher_alignment.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_registration.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
+  ${N3MAPPING_ROOT}/src/loop_detector_spatial.cpp
   ${N3MAPPING_ROOT}/src/loop_verifier.cpp
   ${N3MAPPING_ROOT}/src/loop_verification_pipeline.cpp
   ${N3MAPPING_ROOT}/src/loop_constraint_pipeline.cpp

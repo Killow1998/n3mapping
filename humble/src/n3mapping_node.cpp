@@ -545,6 +545,11 @@ class N3MappingNode : public rclcpp::Node
     void liveOdomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr odom)
     {
         if (shutdown_called_) return;
+        const bool trace = performance_debug_logger_ && performance_debug_logger_->ready();
+        using Clock = std::chrono::steady_clock;
+        const auto started = trace ? Clock::now() : Clock::time_point{};
+        const double processing_time = trace ? std::chrono::duration<double>(
+            std::chrono::system_clock::now().time_since_epoch()).count() : 0.0;
         nav_msgs::msg::Odometry message;
         message.header = odom->header;
         message.header.frame_id = config_.world_frame;
@@ -552,15 +557,28 @@ class N3MappingNode : public rclcpp::Node
         const bool publishable = forwardOdometryTwist(*odom, input_linear_velocity_frame_, &message);
         const auto emission = realtime_output_->observeOdometry(
             toCoreOdometrySource(*odom), liveOutputNow(), publishable);
+        const auto projected = trace ? Clock::now() : Clock::time_point{};
         if (emission.pose) {
             message.pose.pose = makePose(emission.pose->pose);
             odom_pub_->publish(message);
             publishLiveTransform(emission.pose->pose, odom->header);
         }
+        const auto pose_published = trace ? Clock::now() : Clock::time_point{};
         if (!emission.status_json.empty()) {
             std_msgs::msg::String status;
             status.data = emission.status_json;
             localization_status_pub_->publish(status);
+        }
+        if (trace) {
+            const auto& d = emission.diagnostic;
+            RuntimePerformanceLiveEvent event{
+                d.input_stamp_nsec, d.correction_stamp_nsec, d.now_nsec,
+                d.generation, emission.reason, emission.pose.has_value()};
+            event.processing_time = processing_time;
+            event.projection_ms = std::chrono::duration<double, std::milli>(projected - started).count();
+            event.pose_publish_ms = std::chrono::duration<double, std::milli>(pose_published - projected).count();
+            event.status_publish_ms = std::chrono::duration<double, std::milli>(Clock::now() - pose_published).count();
+            performance_debug_logger_->append(event);
         }
     }
 

@@ -10,6 +10,30 @@
 #include "n3mapping/relocalization_debug_logger.h"
 
 namespace n3mapping {
+
+bool RuntimePerformanceDebugLogger::append(const RuntimePerformanceLiveEvent &event) {
+  if (!enabled_ || !ready_) return false;
+  Json::Value record;
+  record["schema"] = "n3mapping_runtime_performance_v2";
+  record["record_type"] = "live_odometry";
+  record["input_stamp_ns"] = Json::Int64(event.input_stamp_ns);
+  record["correction_stamp_ns"] = Json::Int64(event.correction_stamp_ns);
+  record["now_ns"] = Json::Int64(event.now_ns);
+  record["generation"] = Json::UInt64(event.generation);
+  record["reason"] = event.reason;
+  record["published"] = event.published;
+  record["processing_time"] = event.processing_time;
+  record["projection_ms"] = event.projection_ms;
+  record["pose_publish_ms"] = event.pose_publish_ms;
+  record["status_publish_ms"] = event.status_publish_ms;
+  Json::StreamWriterBuilder writer;
+  writer["indentation"] = "";
+  const auto line = Json::writeString(writer, record);
+  std::lock_guard<std::mutex> lock(mutex_);
+  stream_ << line << '\n';
+  return stream_.good();
+}
+
 namespace {
 
 void appendComma(std::ostream &stream, bool *first) {

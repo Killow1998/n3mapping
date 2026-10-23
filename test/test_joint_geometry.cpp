@@ -211,7 +211,7 @@ TEST_F(JointGeometryTest, WorkerCatchesUpNewNodesWithoutChangingItsSolvedPoses) 
   graph.addOdometryEdge({2, 3, pose(.2),
       Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
   ASSERT_TRUE(graph.incrementalOptimize());
-  ASSERT_TRUE(worker->appendCommittedTail(graph, *snapshot));
+  ASSERT_TRUE(worker->appendCommittedTail(graph, *snapshot, {}));
   EXPECT_EQ(worker->getNumNodes(), 4u);
   EXPECT_EQ(worker->getNumEdges(), graph.getNumEdges());
   EXPECT_EQ(worker->sharedPlanes().size(), graph.sharedPlanes().size());
@@ -231,7 +231,7 @@ TEST_F(JointGeometryTest, SharedGeometryRefinesNewFrameWithoutLoopAdmission) {
   ASSERT_TRUE(frames.loadKeyframes(keyframes));
   DetectedLoopQuery query;
   query.id = 3;
-  AsyncLoopJob worker(config, frames, graph.cloneCommitted(), query);
+  AsyncLoopJob worker(config, frames, graph.cloneCommitted(), {query});
   worker.run();
   EXPECT_TRUE(worker.outcome.summary.geometry.optimized);
   EXPECT_TRUE(worker.outcome.summary.accepted_loops.empty());
@@ -242,7 +242,7 @@ TEST_F(JointGeometryTest, SharedGeometryRefinesNewFrameWithoutLoopAdmission) {
   EXPECT_EQ(graph.getOptimizedPose(3).matrix(), before.matrix());
   auto disabled = config;
   disabled.loop_geometry_enable = false;
-  AsyncLoopJob unchanged(disabled, frames, graph.cloneCommitted(), query);
+  AsyncLoopJob unchanged(disabled, frames, graph.cloneCommitted(), {query});
   unchanged.run();
   EXPECT_FALSE(unchanged.outcome.summary.optimized);
   EXPECT_EQ(unchanged.graph->getOptimizedPose(3).matrix(), before.matrix());
@@ -299,7 +299,8 @@ TEST_F(JointGeometryTest, WorkerReassociatesTailWhenPlaneIndicesChange) {
       Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
   ASSERT_GT(graph.appendPlaneObservations(3, extractPlaneMoments(*frames.getKeyframe(2)->cloud)), 0u);
   ASSERT_TRUE(graph.incrementalOptimize());
-  ASSERT_TRUE(worker->appendCommittedTail(graph, *snapshot));
+  ASSERT_TRUE(worker->appendCommittedTail(graph, *snapshot,
+      {{3, extractPlaneMoments(*frames.getKeyframe(2)->cloud)}}));
   EXPECT_LT((worker->getOptimizedPose(3).matrix()-graph.getOptimizedPose(3).matrix()).norm(),1e-4);
   const auto caught_up = worker->sharedPlanes();
   EXPECT_EQ(caught_up[0].observations.size(), 3u);
@@ -318,6 +319,75 @@ TEST_F(JointGeometryTest, RolledBackAppendDoesNotRetainPlaneObservations) {
       Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
   ASSERT_TRUE(graph.incrementalOptimize());
   EXPECT_EQ(graph.sharedPlanes()[0].observations.size(), count);
+}
+
+TEST_F(JointGeometryTest, DelayedMultiFrameCatchupMatchesSequentialAppend) {
+  const auto snapshot = graph.cloneCommitted();
+  auto worker = graph.cloneCommitted();
+  auto planes = worker->sharedPlanes();
+  for (auto& plane : planes) plane.offset += .08 * plane.normal.z();
+  GeometryOptimizationStats stats;
+  ASSERT_TRUE(worker->replaceSharedPlanes(planes, false, stats));
+  auto fresh = worker->cloneCommitted();
+  const auto moments = extractPlaneMoments(*frames.getKeyframe(2)->cloud);
+  std::map<int64_t, std::vector<PlaneMoment>> tail;
+  for (int64_t id = 3; id < 7; ++id) {
+    const EdgeInfo edge{id - 1, id, pose(.2, .04),
+        Eigen::Matrix<double, 6, 6>::Identity() * 100, EdgeType::ODOMETRY};
+    graph.addOdometryEdge(edge);
+    graph.appendPlaneObservations(id, moments);
+    ASSERT_TRUE(graph.incrementalOptimize());
+    fresh->addOdometryEdge(edge);
+    fresh->appendPlaneObservations(id, moments);
+    ASSERT_TRUE(fresh->incrementalOptimize());
+    tail.emplace(id, moments);
+  }
+  ASSERT_TRUE(worker->appendCommittedTail(graph, *snapshot, tail));
+  ASSERT_EQ(worker->getNumEdges(), fresh->getNumEdges());
+  for (const auto& [id, expected] : fresh->getOptimizedPoses())
+    EXPECT_TRUE(worker->getOptimizedPose(id).matrix().isApprox(expected.matrix(), 1e-10)) << id;
+  const auto expected = fresh->sharedPlanes(), actual = worker->sharedPlanes();
+  ASSERT_EQ(actual.size(), expected.size());
+  for (size_t i = 0; i < actual.size(); ++i)
+    EXPECT_EQ(actual[i].observations.size(), expected[i].observations.size());
+}
+
+TEST(PlaneObservationCatchupTest, NewlySupportedPatchMatchesFreshAppend) {
+  Config config;
+  GraphOptimizer live(config);
+  live.addPriorFactor(0, pose(0));
+  for (int id = 1; id < 3; ++id)
+    live.addOdometryEdge({id - 1, id, pose(.2),
+        Eigen::Matrix<double, 6, 6>::Identity() * 100, EdgeType::ODOMETRY});
+  ASSERT_TRUE(live.incrementalOptimize());
+  auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
+  for (int x = 0; x < 21; ++x) for (int y = 0; y < 21; ++y) {
+    pcl::PointXYZI p;
+    p.x = .1 * x; p.y = .1 * y; p.z = 1.; cloud->push_back(p);
+  }
+  std::vector<Keyframe::Ptr> frames;
+  for (int id = 0; id < 3; ++id)
+    frames.push_back(Keyframe::create(id, id, pose(.2 * id), cloud));
+  GeometryOptimizationStats stats;
+  ASSERT_TRUE(live.replaceSharedPlanes(buildSharedPlanes(frames, stats), true, stats));
+  auto snapshot = live.cloneCommitted(), worker = live.cloneCommitted();
+  auto corrected = worker->sharedPlanes();
+  for (auto& plane : corrected) plane.offset += .08 * plane.normal.z();
+  ASSERT_TRUE(worker->replaceSharedPlanes(corrected, false, stats));
+  auto fresh = worker->cloneCommitted();
+  const auto moments = extractPlaneMoments(*cloud);
+  const EdgeInfo edge{2, 3, pose(.2, .12),
+      Eigen::Matrix<double, 6, 6>::Identity() * 100, EdgeType::ODOMETRY};
+  live.addOdometryEdge(edge);
+  ASSERT_EQ(live.appendPlaneObservations(3, moments), 0u);
+  ASSERT_TRUE(live.incrementalOptimize());
+  fresh->addOdometryEdge(edge);
+  ASSERT_GT(fresh->appendPlaneObservations(3, moments), 0u);
+  ASSERT_TRUE(fresh->incrementalOptimize());
+  ASSERT_TRUE(worker->appendCommittedTail(live, *snapshot, {{3, moments}}));
+  EXPECT_TRUE(worker->getOptimizedPose(3).matrix().isApprox(
+      fresh->getOptimizedPose(3).matrix(), 1e-10));
+  EXPECT_EQ(worker->getNumEdges(), fresh->getNumEdges());
 }
 
 TEST_F(JointGeometryTest, UnsupportedOrAmbiguousPlaneCannotConstrainNewNode) {
@@ -344,7 +414,7 @@ TEST_F(JointGeometryTest, WorkerRejectsChangedOldGraphTransactionally) {
       Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::LOOP});
   ASSERT_TRUE(graph.incrementalOptimize());
   const auto before = worker->getOptimizedPoses();
-  EXPECT_FALSE(worker->appendCommittedTail(graph, *snapshot));
+  EXPECT_FALSE(worker->appendCommittedTail(graph, *snapshot, {}));
   EXPECT_EQ(worker->getNumEdges(), snapshot->getNumEdges());
   for (const auto& [id, value] : before)
     EXPECT_EQ((value.matrix()-worker->getOptimizedPose(id).matrix()).norm(), 0);
@@ -360,7 +430,7 @@ TEST_F(JointGeometryTest, RepeatedAsyncCatchUpPreservesRigidMotion) {
     graph.addOdometryEdge({id-1, id, step,
         Eigen::Matrix<double, 6, 6>::Identity()*100, EdgeType::ODOMETRY});
     ASSERT_TRUE(graph.incrementalOptimize());
-    ASSERT_TRUE(worker->appendCommittedTail(graph, *snapshot));
+    ASSERT_TRUE(worker->appendCommittedTail(graph, *snapshot, {}));
     graph.swapWith(*worker);
     expected = expected * step;
     const auto actual = graph.getOptimizedPose(id);

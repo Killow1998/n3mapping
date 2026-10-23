@@ -48,7 +48,7 @@ LoopFeatures makeSegmentAwareLoopFeatures(const Config& config,
         (fitness_score + inlier_score + motion_score) / 3.0;
     features.segment_consistency = loop.segment_consensus_ratio;
     features.segment_support =
-        loop.segment_pair_count > 0
+        loop.segment_valid_pair_count >= 2 && loop.segment_pair_count > 0
             ? static_cast<double>(loop.segment_valid_pair_count) /
                   static_cast<double>(loop.segment_pair_count)
             : 0.0;

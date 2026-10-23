@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import math
 from pathlib import Path
@@ -250,6 +251,13 @@ def split_runtime_records(
             frames.append(record)
         elif record_type == "loop_cycle":
             loops.append(record)
+        elif record_type == "live_odometry":
+            if (record.get("schema") != RUNTIME_SCHEMA_V2
+                    or not isinstance(record.get("reason"), str)
+                    or not isinstance(record.get("published"), bool)
+                    or any(type(record.get(key)) is not int for key in
+                           ("input_stamp_ns", "correction_stamp_ns", "now_ns", "generation"))):
+                errors.append(f"runtime stream record {line}: invalid live_odometry")
         else:
             errors.append(f"runtime stream record {line}: unexpected record_type")
     return frames, loops, errors
@@ -804,6 +812,7 @@ def analyze(
 ) -> tuple[dict[str, Any], int]:
     runtime_stream, runtime_read_errors = read_jsonl(runtime_path)
     runtime, loop_cycles, split_errors = split_runtime_records(runtime_stream)
+    live = [r for r in runtime_stream if r.get("record_type") == "live_odometry"]
     modes = {runtime_mode(record) for record in runtime}
     modes.update(runtime_mode(record) for record in loop_cycles)
     modes.discard(None)
@@ -1133,6 +1142,16 @@ def analyze(
             "resource_samples_outside_runtime_window": len(resources) - len(runtime_resources),
         },
         "runtime_timing_ms": runtime_stats,
+        "live_odometry": {
+            "callbacks": len(live),
+            "published": sum(r.get("published") is True for r in live),
+            "reasons": dict(Counter(r.get("reason") for r in live
+                                    if isinstance(r.get("reason"), str))),
+        },
+        "live_odometry_timing_ms": {
+            field: stats((row.get(field) for row in live), len(live))
+            for field in ("projection_ms", "pose_publish_ms", "status_publish_ms")
+        },
         "relocalization_search": search_cost_summary(runtime),
         "steady_state_runtime_timing_ms": steady_runtime_stats,
         "tracking_timing_ms": tracking_stats,

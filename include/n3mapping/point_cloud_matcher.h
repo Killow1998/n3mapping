@@ -20,7 +20,7 @@
 #include "n3mapping/keyframe.h"
 
 namespace n3mapping {
-namespace registration_detail { struct SearchBounds; }
+namespace registration_detail { struct SearchBounds; class LazyTargetNormals; }
 
 enum class MatchTermination {
     Invalid,
@@ -84,6 +84,7 @@ public:
         SmallGicpCloud::Ptr cloud;
         std::shared_ptr<SmallGicpKdTree> kdtree;
         std::shared_ptr<const registration_detail::SearchBounds> search_bounds = nullptr;
+        std::shared_ptr<registration_detail::LazyTargetNormals> lazy_normals = nullptr;
     };
 
     struct PreparedSourceLevel {
@@ -123,7 +124,11 @@ public:
                            const Eigen::Isometry3d& init_guess,
                            const small_gicp::RegistrationSetting& setting);
 
-    PreparedTarget prepareTargetCloud(const PointCloudT::Ptr& cloud);
+    enum class TargetFeatures { Eager, OnDemand };
+    // OnDemand retains the same full KNN support and memoizes each normal on
+    // first registration access. All accesses go through the matcher view.
+    PreparedTarget prepareTargetCloud(
+        const PointCloudT::Ptr& cloud, TargetFeatures features = TargetFeatures::Eager);
     PreparedSource prepareSourceCloud(const PointCloudT::Ptr& cloud);
     MatchResult alignPrepared(const PreparedTarget& target,
                               const PreparedSource& source,

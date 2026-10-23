@@ -225,6 +225,16 @@ def write_jsonl(path: Path, records: list[dict[str, object]]) -> None:
 
 
 class RuntimePerformanceAnalyzeTest(unittest.TestCase):
+    def test_live_output_diagnostics_preserve_exact_time_and_reject_missing_fields(self):
+        record = {"schema": TOOL.RUNTIME_SCHEMA_V2, "record_type": "live_odometry",
+                  "input_stamp_ns": 1745590210711611392,
+                  "correction_stamp_ns": 1745590210677902848,
+                  "now_ns": 1745590210710333184, "generation": 1,
+                  "reason": "invalid_input_time", "published": False}
+        self.assertEqual(TOOL.split_runtime_records([record]), ([], [], []))
+        del record["now_ns"]
+        self.assertTrue(TOOL.split_runtime_records([record])[2])
+
     def test_search_cost_separates_cold_rebuild_from_warm_retrieval(self) -> None:
         def record(total, rebuild_calls):
             return {"relocalization_performance": {
@@ -261,6 +271,12 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
                         2, 10.1, mode="mapping", callback_total_ms=120.0
                     ),
                     loop_record(2, queued=1, total_ms=45.0),
+                    {"schema": TOOL.RUNTIME_SCHEMA_V2, "record_type": "live_odometry",
+                     "input_stamp_ns": 10100000000, "correction_stamp_ns": 10000000000,
+                     "now_ns": 10100000000, "generation": 1,
+                     "reason": "ready", "published": True,
+                     "projection_ms": 0.2, "pose_publish_ms": 250.0,
+                     "status_publish_ms": 0.1},
                 ],
             )
             write_jsonl(resource_path, [resource_record(1), resource_record(2)])
@@ -278,6 +294,9 @@ class RuntimePerformanceAnalyzeTest(unittest.TestCase):
             self.assertEqual(report["counts"]["steady_state_runtime_frames"], 2)
             self.assertEqual(report["counts"]["loop_work_cycles"], 2)
             self.assertEqual(report["counts"]["loop_graph_rebases"], 1)
+            self.assertEqual(report["live_odometry"], {
+                "callbacks": 1, "published": 1, "reasons": {"ready": 1}})
+            self.assertEqual(report["live_odometry_timing_ms"]["pose_publish_ms"]["max"], 250.0)
             self.assertEqual(report["loop_cycle_timing_ms"]["worker_wall_ms"]["max"], 12.0)
             self.assertEqual(report["counts"]["loop_detected_candidates"], 2)
             self.assertEqual(report["counts"]["processed_input_rate"], 1.0)

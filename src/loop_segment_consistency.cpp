@@ -67,10 +67,13 @@ Keyframe::Ptr findLocalCorrespondence(const std::vector<Keyframe::Ptr>& keyframe
                                       int64_t match_id,
                                       int query_offset,
                                       int local_id_radius,
-                                      const Eigen::Isometry3d& expected_pose)
+                                      const Eigen::Isometry3d& expected_pose,
+                                      double translation_threshold,
+                                      double yaw_threshold)
 {
     Keyframe::Ptr best;
-    double best_distance = std::numeric_limits<double>::infinity();
+    double best_score = std::numeric_limits<double>::infinity();
+    bool best_within_gates = false;
     for (const auto& keyframe : keyframes) {
         if (!keyframe) {
             continue;
@@ -85,10 +88,22 @@ Keyframe::Ptr findLocalCorrespondence(const std::vector<Keyframe::Ptr>& keyframe
         if (query_offset * static_cast<int>(match_delta) <= 0) {
             continue;
         }
-        const double distance =
-            (keyframe->pose_optimized.translation() - expected_pose.translation()).norm();
-        if (distance < best_distance) {
-            best_distance = distance;
+        const Eigen::Isometry3d residual =
+            keyframe->pose_optimized.inverse() * expected_pose;
+        const double translation = residual.translation().norm() / translation_threshold;
+        const double yaw = std::abs(normalizeAngle(
+            canonicalRollPitchYaw(residual).z())) / yaw_threshold;
+        // Correspondence and validation must use the same observed pose axes.
+        // Translation alone can choose the opposite-facing side of a turn and
+        // then report a yaw contradiction despite an available consistent pair.
+        const double score = translation * translation + yaw * yaw;
+        const bool within_gates = translation <= 1.0 && yaw <= 1.0;
+        // A lower combined score must not crowd out a correspondence satisfying
+        // both gates. Retain a failed best match only when no supported one exists.
+        if ((within_gates && !best_within_gates) ||
+            (within_gates == best_within_gates && score < best_score)) {
+            best_score = score;
+            best_within_gates = within_gates;
             best = keyframe;
         }
     }
@@ -118,11 +133,14 @@ DirectionStats evaluateDirection(const Config& config,
         if (offset == 0) {
             continue;
         }
-        ++stats.pair_count;
         const auto query_neighbor = keyframe_manager.getKeyframe(loop.query_id + offset);
         if (!query_neighbor) {
             continue;
         }
+        // A live snapshot may end at the query. Future scans are not failed
+        // observations; count only query neighbors that can be checked. A
+        // missing match for an available query still reduces support.
+        ++stats.pair_count;
         const Eigen::Isometry3d T_query_query_neighbor =
             query->pose_optimized.inverse() * query_neighbor->pose_optimized;
         const Eigen::Isometry3d expected_match_neighbor =
@@ -131,7 +149,8 @@ DirectionStats evaluateDirection(const Config& config,
                 : match->pose_optimized * T_query_query_neighbor.inverse();
         const auto match_neighbor = findLocalCorrespondence(
             keyframes, loop.match_id, offset,
-            local_id_radius, expected_match_neighbor);
+            local_id_radius, expected_match_neighbor,
+            translation_threshold, yaw_threshold);
         if (!match_neighbor) {
             continue;
         }
@@ -208,7 +227,13 @@ LoopSegmentConsistencyDiagnostics computeLoopSegmentConsistency(
     }
     const DirectionStats same = evaluateDirection(config, keyframe_manager, loop, half_window, 1);
     const DirectionStats reverse = evaluateDirection(config, keyframe_manager, loop, half_window, -1);
-    return makeDiagnostics(directionScore(reverse) < directionScore(same) ? reverse : same);
+    // Both directions explain the same observed query neighbors. Prefer more
+    // gate-consistent pairs before comparing their residuals: a lower median
+    // must not replace a fully supported direction with a contradicting one.
+    const bool prefer_reverse = reverse.inlier_count != same.inlier_count
+        ? reverse.inlier_count > same.inlier_count
+        : directionScore(reverse) < directionScore(same);
+    return makeDiagnostics(prefer_reverse ? reverse : same);
 }
 
 void assignLoopSegmentConsistency(

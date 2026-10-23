@@ -31,7 +31,8 @@ template <typename Factor>
 small_gicp::RegistrationResult alignWithFactor(
     const small_gicp::PointCloud& target, const small_gicp::PointCloud& source,
     const CorrespondenceSearch::Tree& tree, const Eigen::Isometry3d& initial_pose,
-    const small_gicp::RegistrationSetting& setting, const SearchBounds* bounds) {
+    const small_gicp::RegistrationSetting& setting, const SearchBounds* bounds,
+    const LazyTargetNormals* lazy_normals) {
   small_gicp::Registration<HintedFactor<Factor>, RegistrationReduction> registration;
   registration.reduction.num_threads = setting.num_threads;
   registration.rejector.max_dist_sq =
@@ -41,22 +42,25 @@ small_gicp::RegistrationResult alignWithFactor(
   registration.optimizer.max_iterations = setting.max_iterations;
   registration.optimizer.verbose = setting.verbose;
   const CorrespondenceSearch search(tree, registration.rejector.max_dist_sq, bounds);
-  return registration.align(TargetView{target}, source, search, initial_pose);
+  return registration.align(TargetView{target, lazy_normals}, source, search, initial_pose);
 }
 }  // namespace
 
 small_gicp::RegistrationResult align(
     const small_gicp::PointCloud& target, const small_gicp::PointCloud& source,
     const CorrespondenceSearch::Tree& tree, const Eigen::Isometry3d& initial_pose,
-    const small_gicp::RegistrationSetting& setting, const SearchBounds* bounds) {
+    const small_gicp::RegistrationSetting& setting, const SearchBounds* bounds,
+    const LazyTargetNormals* lazy_normals) {
   switch (setting.type) {
     case small_gicp::RegistrationSetting::ICP:
-      return alignWithFactor<small_gicp::ICPFactor>(target, source, tree, initial_pose, setting, bounds);
+      return alignWithFactor<small_gicp::ICPFactor>(target, source, tree, initial_pose, setting, bounds, lazy_normals);
     case small_gicp::RegistrationSetting::PLANE_ICP:
-      return alignWithFactor<small_gicp::PointToPlaneICPFactor>(target, source, tree, initial_pose, setting, bounds);
+      return alignWithFactor<small_gicp::PointToPlaneICPFactor>(target, source, tree, initial_pose, setting, bounds, lazy_normals);
     case small_gicp::RegistrationSetting::GICP:
-      return alignWithFactor<small_gicp::GICPFactor>(target, source, tree, initial_pose, setting, bounds);
+      return alignWithFactor<small_gicp::GICPFactor>(target, source, tree, initial_pose, setting, bounds, lazy_normals);
     default:
+      if (lazy_normals)
+        for (std::size_t i = 0; i < target.size(); ++i) lazy_normals->normal(i);
       return small_gicp::align(target, source, tree, initial_pose, setting);
   }
 }

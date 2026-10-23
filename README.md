@@ -440,7 +440,7 @@ ros2 run n3mapping n3mapping_kitti360_reader \
 
 This is an offline evaluation input reader only; it does not run mapping or
 relocalization and does not replace real robot bags. See the
-[dataset evidence contract](docs/industrial_closeout_review_20260814.md#dataset-evidence-contract).
+[dataset evidence contract](docs/industrial_closeout_review_20260814.md#fa-02-what-kitti-360-and-m2dgr-prove).
 
 KITTI360 offline mapping-loop smoke:
 
@@ -490,6 +490,93 @@ ros2 run n3mapping n3mapping_m2dgr_eval \
 
 Details and evidence limitations are in the
 [dataset evidence contract](docs/industrial_closeout_review_20260814.md#dataset-evidence-contract).
+
+For raw M2DGR LiDAR/IMU replay, first convert the selected ROS1 sensor topics to
+ROS2. Its FLOAT32 `time` field contains seconds relative to a cloud header near
+the scan end. Normalize that representation before FAST_LIO:
+
+```bash
+python3 tools/n3mapping_normalize_point_time.py \
+  --bag /path/to/raw_ros2 --output /path/to/normalized_ros2
+```
+
+This offline tool requires `numpy` and `rosbags`. It writes a new bag with a
+scan-start header and nonnegative offsets, retaining absolute point sampling
+times, other point fields, record times and other message streams. It does not
+perform motion compensation. Configure FAST_LIO's `preprocess.timestamp_unit`
+as `0` (seconds), select `/handsfree/imu`, and use the matching LiDAR-to-Handsfree
+extrinsic; the Xsens device supplies outdoor truth and is a different IMU.
+Check the adapter's `point_time_audit.json` and complete frontend frame
+acknowledgements before interpreting an accuracy score.
+When replaying into nodes configured with `use_sim_time`, give clock ownership
+to the replay process:
+
+```bash
+python3 tools/n3mapping_deterministic_ros2_replay.py \
+  --bag /path/to/normalized_ros2 \
+  --topic-depth /velodyne_points=100 --topic-depth /handsfree/imu=4000 \
+  --clock --flow-control-lidar-topic /velodyne_points \
+  --lidar-ack-topic /n3m_replay_ack
+```
+
+The frontend must publish the configured frame acknowledgement. `--clock`
+publishes monotonic time before each sensor message without changing its payload;
+do not also publish `/clock` from a downstream observer. With runtime debug
+logging enabled, `live_odometry` records report exact input/correction/current
+nanoseconds and the publication decision, independently of backend frame counts.
+The [2026-10-21 real-sensor baseline](docs/evidence/runtime_cpu_20261017/README.md#real-sensor-baseline-and-input-contract--2026-10-21)
+records M2DGR and MID360 results, reference limitations and complete ROS replay.
+
+### Humble / Fast DDS: large local point clouds
+
+For other Humble applications as well, check **DDS shared-memory segment capacity
+against serialized message size and simultaneous traffic** when local point-cloud
+delivery stalls or odometry callbacks disappear. Available system RAM and DDS
+segment capacity are different limits. Fast DDS 2.6 documents a default segment
+of 512 KiB and warns that a segment no larger than a message risks data loss;
+see its [SHM transport documentation](https://fast-dds.docs.eprosima.com/en/2.6.x/fastdds/transport/shared_memory/shared_memory.html).
+This applies to the selected Fast DDS transport/version, not every ROS 2 RMW.
+
+In our Humble replay (`rmw_fastrtps_cpp` 6.2.10, Fast DDS 2.6.11), a M2DGR
+frontend cloud serialized to 1,091,869 bytes while the observed default SHM
+mapping was about 0.5 MiB.
+With the original depth-1 live subscription, several runs lost live callbacks
+despite complete backend input. A 64 MiB SHM profile restored all 3,265 callbacks
+in the complete `gate_02` replay, with 3,250 outputs after 15 startup waits and a
+maximum input timestamp gap of 106.8 ms. Increasing the subscription depth or
+changing executor spinning did not resolve the delivery problem. The profile
+is an opt-in, validated **single-host** configuration, not a universal memory
+budget or a replacement for measuring the actual workload.
+Changing only the segment back to 512 KiB reproduces the failure: 733 callbacks
+from 3,265 backend inputs, with a maximum 9.819 s input gap. All raw sensor inputs
+remain present; the failed delivery check is retained.
+
+Before starting **all participating processes**, including sensor/replay
+publishers, FAST_LIO, n3m and recording tools, set:
+
+```bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export FASTRTPS_DEFAULT_PROFILES_FILE=/absolute/path/to/n3mapping/config/fastdds_local.xml
+```
+
+The [profile](config/fastdds_local.xml) enables a 64 MiB SHM segment per participant
+and loopback UDP. Its UDP interface whitelist is deliberately local-only; adapt
+the interface configuration before using multiple computers. Existing processes
+must be restarted to pick up their environment. The
+[Humble RMW documentation](https://github.com/ros2/rmw_fastrtps/blob/humble/README.md)
+describes loading the XML. SHM transport is distinct from Fast DDS Data Sharing;
+this profile does not enable zero-copy Data Sharing or change subscription QoS.
+
+For future incidents, retain the RMW/Fast DDS versions, loaded profile, largest
+serialized frame and actual `fastrtps` mappings in `/proc/<pid>/maps`. Compare
+publisher, subscriber callback and output counts, timestamp gaps and callback
+phase timings with the same input before and after changing the segment. Size
+for outstanding traffic as well as one frame, and measure process RSS separately.
+The [complete six-sequence record](docs/evidence/runtime_cpu_20261017/README.md#real-data-clocks-references-and-shared-loop-solving--2026-10-21)
+contains the paired controls, timing/reference audit, CPU/RAM measurements and
+remaining accuracy limits. Raw replay evidence stays under
+`build/n3mapping/real_robustness_20261021`, including the failed controls and all
+six successful `full_ros_shm64` delivery/checkpoint validations.
 
 </details>
 
@@ -801,9 +888,9 @@ remain separate from that measured result.
 
 ### TODO
 
-Current work is updated **2026-10-21**. Maintenance version **1.0.1** closed the
-accepted performance changes. Current priorities are **03 search cost and
-scan-level motion bias / correlated loop uncertainty**, while preserving
+Current work is updated **2026-10-22**. Maintenance version **1.0.1** closed the
+accepted performance changes. Current priorities are **real-data time/reference
+qualification, correlated loop uncertainty and remaining per-query loop cost**, while preserving
 relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for
 that online behavior. Stationary startup remains required by Xian's downstream
 workflow. Continuing localization outside the global map is deferred pending
@@ -817,11 +904,13 @@ remains the performance baseline.
 
 | Priority / state | Task and completion evidence |
 | --- | --- |
+| Real-data mapping — retrieval/support repaired; calibration and general 10 cm open | Six four-core ROS replays, 70/70 CTest and six map/Atlas checkpoints pass. Bounded candidate retention and position/heading/direction association preserve observed support. Lightweight decisions can be traced without diagnostic graph solves. Added validation costs and every small accuracy/RAM regression remain visible; frozen geometry/shared-endpoint uncertainty models are still not deployed. M2DGR timing and gate output reference remain unqualified. [Current measurements and limits](docs/evidence/runtime_cpu_20261017/README.md#loop-retrieval-observed-motion-and-uncertainty--2026-10-23). |
+| Shared loop computation — measured saving, backlog remains | On identical frozen HelmDyn02 frontend inputs, batching at most four pending queries retains all 99 accepted query groups; core CPU falls 21.7%, wall time 39.5%, peak RSS 10.1%. Every query still passes its geometry/admission gates. Heavy mapping is not yet realtime or half-core; edge counts and small accuracy regressions are retained in the record. |
 | Reliability — startup and output baseline retained | Original14 keeps all 14 frame-4 locks and 4,088 outputs. Both independent routes preserve all outputs. Fresh-route recovery advances 2002→1938 (6.4 input seconds); backend-loss observations fall 123→59. Previous locks cannot break a geometric tie. Reference coverage gaps and partial-map aliasing remain explicit. |
 | Accuracy — recorded simulation cases below 10 cm | Prior mapping RMSE/maximum 1.399/9.289 cm retained. Current original14 0.840/2.481 cm; original/fresh motion maxima 7.933/3.247 cm. Small RMSE and old-route peak regressions are preserved in the [recovery evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21). |
 | Online loop/map consistency — checkpoints retained; calibration open | Source/target deskew cross-ablation attributes the worst audited mapping-loop bias to both scans: 16.757→0.495 mm with observer-only native deskew. A shared rigid scan bias can cancel around graph cycles. Production weights remain unchanged; the diagnostic is not a runtime correction. [Evidence and limits](docs/evidence/runtime_cpu_20261017/README.md#occupied-search-bounds-and-scan-level-loop-bias--2026-10-21). |
 | Online extension — RAM reduced; half-core open | Last fully measured first/second/fresh extensions use 0.873/0.860/0.840 cores and 1.873/1.987/1.813 GiB runtime RSS. The paired fresh-route memory change is 2.088→1.816 GiB with CPU approximately unchanged. All recorded outputs stay below 10 cm; [save peaks and latency tradeoffs](docs/evidence/runtime_cpu_20261017/README.md#recovery-geometry-compact-map-assembly-and-uncertainty-ablation--2026-10-21) remain explicit. |
-| Asynchronous online mapping loops — complete causal qualification | Mapping averages 0.413 cores including background drain; maximum live error 9.289 cm. Full-node/hardware and independent Noetic compilation remain open. |
+| Asynchronous online mapping loops — complete causal qualification | Recorded simulation mapping averages 0.413 cores including background drain; maximum live error 9.289 cm. Full-node/hardware and independent Noetic compilation remain open. |
 | Search cost — 03 half-core remains open | Exact occupied bounds and Atlas crop retention: paired three-repeat medians 03 0.569→0.552, 14 0.468→0.448 cores. Full original14 0.407; old/new routes 0.244/0.324. All decisions retained; pose differences below 6e-14 matrix units. [Scope, timing ranges and ablations](docs/evidence/runtime_cpu_20261017/README.md#occupied-search-bounds-and-scan-level-loop-bias--2026-10-21). |
 
 For uncertainty audits, `LOOP` identifies a robust graph edge, not its measurement

@@ -5,6 +5,7 @@
 #include "point_cloud_sampling.h"
 #include "point_cloud_features.h"
 #include "point_cloud_feature_reuse.h"
+#include "lazy_target_normals.h"
 
 #include <glog/logging.h>
 #include <omp.h>
@@ -45,6 +46,7 @@ std::size_t preparedLevelMemoryBytes(
     if (level.search_bounds) bytes = saturatedAdd(bytes,
         saturatedAdd(sizeof(*level.search_bounds), saturatedMultiply(
             level.search_bounds->nodes.capacity(), sizeof(registration_detail::SearchBounds::Box))));
+    if (level.lazy_normals) bytes = saturatedAdd(bytes, level.lazy_normals->memoryBytes());
     return saturatedAdd(bytes, saturatedMultiply(
         level.cloud->size(), kTreeBytesPerPoint));
 }
@@ -166,7 +168,7 @@ PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::preprocessSourcePointC
 }
 
 PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
-    const PointCloudT::Ptr& cloud) {
+    const PointCloudT::Ptr& cloud, TargetFeatures features) {
     PreparedTarget prepared;
     if (!cloud || cloud->empty()) return prepared;
 
@@ -186,6 +188,16 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
             prepared.refine_level = { resolution, points, kdtree,
                 kdtree ? std::make_shared<registration_detail::SearchBounds>(*kdtree) : nullptr };
             prepared.has_refine_level = true;
+        }
+        if (features == TargetFeatures::OnDemand) {
+            const auto defer = [&](PreparedTargetLevel& level) {
+                if (level.kdtree) level.lazy_normals =
+                    std::make_shared<registration_detail::LazyTargetNormals>(
+                        level.cloud, level.kdtree, config_.gicp_num_neighbors);
+            };
+            for (auto& level : prepared.plane_levels) defer(level);
+            if (prepared.has_refine_level) defer(prepared.refine_level);
+            return prepared;
         }
         const auto& plane = prepared.plane_levels.back();
         auto& refine = prepared.refine_level;

@@ -2,6 +2,7 @@
 #include <cmath>
 #include <limits>
 #include <random>
+#include <set>
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/pcl_compat.h"
@@ -1042,6 +1043,39 @@ TEST_F(LoopDetectorTest, SpatialCandidateMaxCandidatesStillAppliesInsideRadius) 
     EXPECT_EQ(candidates[1].match_id, 2);
 }
 
+TEST_F(LoopDetectorTest, SpatialBoundaryReservePreservesNearTiesWithinABoundedBudget) {
+    Config cfg = config_;
+    cfg.loop_min_path_length_m = 0.0;
+    cfg.loop_spatial_candidate_max_candidates = 2;
+    cfg.loop_spatial_candidate_radius = 2.035;
+    cfg.gicp_downsampling_resolution = 0.1;
+    auto frames = lineOfKeyframes(101);
+    frames[100]->pose_optimized.setIdentity();
+    // Filter out unrelated frames before both primary selection and reserve.
+    for (int id = 1; id <= 5; ++id)
+        frames[id]->pose_optimized.translation().x() =
+            id == 1 ? 1.0 : 2.0 + (id - 2) * 0.01;
+    const auto eligible = [](int64_t id) { return id >= 1 && id <= 5; };
+    LoopDetector detector(cfg);
+    auto candidates = detector.detectSpatialCandidates(100, frames, eligible, true);
+    ASSERT_EQ(candidates.size(), 4u);
+    for (int i = 0; i < 4; ++i) EXPECT_EQ(candidates[i].match_id, i + 1);
+    // A small graph update swaps the boundary pair; neither observation vanishes.
+    frames[2]->pose_optimized.translation().x() += 0.015;
+    candidates = detector.detectSpatialCandidates(100, frames, eligible, true);
+    ASSERT_EQ(candidates.size(), 4u);
+    std::set<int64_t> ids;
+    for (const auto& c : candidates) ids.insert(c.match_id);
+    EXPECT_EQ(ids, (std::set<int64_t>{1, 2, 3, 4}));
+    // A candidate outside the physical radius is excluded even with free slots.
+    cfg.loop_spatial_candidate_max_candidates = 4;
+    cfg.loop_spatial_candidate_radius = 2.019;
+    LoopDetector smaller(cfg);
+    candidates = smaller.detectSpatialCandidates(100, frames, eligible, true);
+    ASSERT_EQ(candidates.size(), 3u);
+    for (const auto& c : candidates) EXPECT_LE(c.match_id, 3);
+}
+
 TEST_F(LoopDetectorTest, DescriptorCandidatesUnaffectedBySpatialRadius) {
     Config base = config_;
     base.rhpd_enabled = true;
@@ -1130,6 +1164,42 @@ TEST_F(LoopDetectorTest, ScanContextMatchFilterAppliesBeforeKnn) {
         5, lineOfKeyframes(6), [](int64_t id) { return id == 0; });
     ASSERT_EQ(candidates.size(), 1u);
     EXPECT_EQ(candidates.front().match_id, 0);
+}
+
+TEST_F(LoopDetectorTest, WorkBoundReplenishesWithoutDiscardingOriginalCandidates) {
+    for (bool rhpd : {false, true}) {
+        Config cfg = config_;
+        cfg.rhpd_enabled = rhpd;
+        cfg.rhpd_num_candidates = cfg.sc_num_candidates = 2;
+        cfg.rhpd_preselect_candidates = 20;
+        cfg.sc_aux_veto_enabled = false;
+        cfg.sc_num_exclude_recent = 0;
+        cfg.loop_min_path_length_m = 0;
+        LoopDetector detector(cfg);
+        const auto query = createAsymmetricCloud();
+        // More nearer-looking but unusable entries than either coarse pool.
+        for (int id = 0; id <= 45; ++id) {
+            const auto cloud = id == 0 ? createDifferentStructureCloud() : query;
+            detector.addDescriptor(id, cloud);
+            detector.addRHPD(id, cloud);
+        }
+        const auto frames = lineOfKeyframes(46);
+        const auto original = detector.detectLoopCandidates(45, frames);
+        ASSERT_EQ(original.size(), 2u);
+        for (const auto& candidate : original) ASSERT_NE(candidate.match_id, 0);
+        const auto replenished = detector.detectLoopCandidates(
+            45, frames, {}, [](int64_t id) { return id == 0; });
+        ASSERT_EQ(replenished.size(), 3u);
+        for (size_t i = 0; i < original.size(); ++i) {
+            EXPECT_EQ(replenished[i].match_id, original[i].match_id);
+            EXPECT_EQ(replenished[i].fused_score, original[i].fused_score);
+        }
+        EXPECT_EQ(replenished.back().match_id, 0);
+        // An already usable top-k does not spend an extra registration slot.
+        const auto sufficient = detector.detectLoopCandidates(
+            45, frames, {}, [&](int64_t id) { return id == original.front().match_id; });
+        EXPECT_EQ(sufficient.size(), original.size());
+    }
 }
 
 TEST_F(LoopDetectorTest, SpatialMatchFilterAppliesBeforeCandidateLimit) {

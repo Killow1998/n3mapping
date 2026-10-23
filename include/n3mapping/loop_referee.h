@@ -39,7 +39,7 @@ public:
     static constexpr double kYawFlipRad = 2.8;
     static constexpr double kLargeSegmentTranslationM = 2.0;
 
-    // ponytail: fixed first-principles weights; tune only after matrix evidence says this model is right.
+    // Empirical ranking weights, not an uncertainty or probability estimate.
     static double energy(const LoopFeatures& f)
     {
         const double segment = clamp01(f.segment_support) * clamp01(f.segment_consistency);
@@ -59,12 +59,9 @@ public:
         const double segment_consistency = clamp01(f.segment_consistency);
         const bool has_descriptor = f.descriptor_supported || clamp01(f.descriptor_score) > 0.0;
 
-        // A spatial candidate is proposed by the drifted poses, so it does
-        // need confirmation from somewhere the poses cannot reach. A
-        // descriptor hit is one such source; neighbouring keyframes that all
-        // register consistently against the same match are another, and a
-        // stronger one. Requiring the descriptor specifically discarded 26 of
-        // the 57 best-evidenced candidates in the session.
+        // Segment evidence here compares pose displacements. It is a cheap
+        // consistency screen, not independent neighbor registration evidence.
+        // Geometry, neighbor registration and graph trials have separate gates.
         const bool segment_confirmed = segment_consistency >= 1.0 - 1e-9 &&
                                        segment_support > 0.0;
         if (f.spatial_only && !has_descriptor && !segment_confirmed) {
@@ -74,13 +71,7 @@ public:
             return result;
         }
 
-        // Every accepted loop needs at least one confirmation the drifted
-        // poses could not have produced: a descriptor hit, or neighbouring
-        // keyframes registering consistently against the same match. This
-        // replaces a conjunction whose first clause was predicted_translation_
-        // norm -- the separation the drifted poses report, which grows
-        // precisely for the loops that would repair the drift, and which
-        // rejected 86 candidates registering at a median fitness of 0.052.
+        // Descriptor-free candidates also need consistent observed motion.
         if (segment_consistency <= 0.5 && !has_descriptor) {
             result.decision = LoopDecision::Reject;
             result.reason = "unconfirmed_weak_segment";

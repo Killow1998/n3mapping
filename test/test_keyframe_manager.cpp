@@ -65,6 +65,42 @@ TEST_F(KeyframeManagerTest, InitialState) {
     EXPECT_EQ(revision.pose_revision, 0u);
 }
 
+TEST_F(KeyframeManagerTest, OnlineDescriptorGeometrySurvivesDelayedMapCorrection) {
+    const auto cloud = createTestCloud();
+    manager_->addKeyframe(0., createPose(0, 0, 0), cloud);
+    manager_->addKeyframe(1., createPose(1, 0, 0), cloud);
+    const auto reference = manager_->buildCausalSubmapInRootFrame(
+        1, 3, 1, KeyframeManager::PoseSource::Odometry);
+    // Worker corrects the old frame before the newly inserted frame has a
+    // graph estimate. The local sensor data and odometry have not changed.
+    manager_->updateOptimizedPoses({{0, createPose(20, -4, 1, 0, 0, .5)}});
+    const auto delayed = manager_->buildCausalSubmapInRootFrame(
+        1, 3, 1, KeyframeManager::PoseSource::Odometry);
+    ASSERT_EQ(reference->size(), delayed->size());
+    for (size_t i = 0; i < reference->size(); ++i)
+        EXPECT_EQ(reference->at(i).getVector4fMap(), delayed->at(i).getVector4fMap());
+    const auto map = manager_->buildCausalSubmapInRootFrame(1, 3, 1);
+    EXPECT_GT((map->front().getVector3fMap() - reference->front().getVector3fMap()).norm(), 10.);
+}
+
+TEST_F(KeyframeManagerTest, OdometryDescriptorCannotMixSessionOrigins) {
+    const auto cloud = createTestCloud();
+    manager_->addKeyframe(0., createPose(40, 0, 0), cloud);
+    MapSessionInfo session;
+    session.id = 1;
+    session.start_timestamp = 1.;
+    ASSERT_TRUE(manager_->addSession(session));
+    ASSERT_EQ(manager_->addKeyframe(1., createPose(0, 0, 0),
+        createPose(40, 0, 0), cloud, session.id), 1);
+    const auto local = manager_->buildCausalSubmapInRootFrame(
+        1, 3, 1, KeyframeManager::PoseSource::Odometry);
+    ASSERT_EQ(local->size(), cloud->size());
+    for (size_t i = 0; i < cloud->size(); ++i)
+        EXPECT_EQ(local->at(i).getVector4fMap(), cloud->at(i).getVector4fMap());
+    // The optimized-map path can still use geometry from both sessions.
+    EXPECT_EQ(manager_->buildCausalSubmapInRootFrame(1, 3, 1)->size(), 2 * cloud->size());
+}
+
 // 测试添加第一个关键帧
 TEST_F(KeyframeManagerTest, AddFirstKeyframe) {
     auto pose = createPose(0, 0, 0);

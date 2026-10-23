@@ -586,6 +586,140 @@ TEST(LoopSegmentConsistencyTest, ReportsConsistentSameDirectionSegments)
     EXPECT_EQ(diagnostics.recommendation, "consistent");
 }
 
+TEST(LoopSegmentConsistencyTest, AssociatesPositionAndHeadingBeforeCheckingConsistency)
+{
+    Config config;
+    config.loop_max_icp_translation = 2.0;
+    KeyframeManager manager(config);
+    std::vector<Keyframe::Ptr> frames;
+    for (const auto& item : std::vector<std::pair<int64_t, Eigen::Isometry3d>>{
+             {6, poseAt(-2.02)}, {7, poseAt(-1.02)},
+             {8, poseAt(-2.0, 0.0, 1.0)}, {9, poseAt(-1.0, 0.0, 1.0)},
+             {10, poseAt(0.0)}, {28, poseAt(98.0)},
+             {29, poseAt(99.0)}, {30, poseAt(100.0)}}) {
+        frames.push_back(Keyframe::create(item.first, item.first,
+                                         item.second, makeTinyCloud()));
+    }
+    ASSERT_TRUE(manager.loadKeyframes(frames));
+    VerifiedLoop loop;
+    loop.query_id = 30;
+    loop.match_id = 10;
+    auto result = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(result.consensus_inlier_count, 2);
+    EXPECT_EQ(result.recommendation, "consistent");
+    // A small summed score can still violate one axis gate. Prefer a valid
+    // alternative over a closer point whose heading is outside the same gate.
+    frames[0]->pose_optimized = poseAt(-3.8, 0.0, 0.4);
+    frames[1]->pose_optimized = poseAt(-2.8, 0.0, 0.4);
+    frames[2]->pose_optimized = poseAt(-2.0, 0.0, 0.55);
+    frames[3]->pose_optimized = poseAt(-1.0, 0.0, 0.55);
+    ASSERT_TRUE(manager.loadKeyframes(frames));
+    result = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(result.consensus_inlier_count, 2);
+    // With no heading-consistent alternative, the same yaw gate still rejects.
+    frames[0]->pose_optimized = poseAt(-2.02, 0.0, 1.0);
+    frames[1]->pose_optimized = poseAt(-1.02, 0.0, 1.0);
+    ASSERT_TRUE(manager.loadKeyframes(frames));
+    result = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(result.consensus_inlier_count, 0);
+    EXPECT_EQ(result.recommendation, "inconsistent");
+}
+
+TEST(LoopSegmentConsistencyTest, SupportedDirectionSurvivesAnAdditionalObservation)
+{
+    Config config;
+    config.loop_max_icp_translation = 2.0;
+    KeyframeManager manager(config);
+    std::vector<Keyframe::Ptr> frames;
+    for (const auto& item : std::vector<std::pair<int64_t, Eigen::Isometry3d>>{
+             {8, poseAt(-3.0, 0.0, 0.4)}, {9, poseAt(1.0)},
+             {10, poseAt(0.0)}, {11, poseAt(2.0, 0.0, 0.4)},
+             {28, poseAt(98.0)}, {29, poseAt(99.0)},
+             {30, poseAt(100.0)}, {31, poseAt(101.0)}}) {
+        frames.push_back(Keyframe::create(item.first, item.first,
+                                         item.second, makeTinyCloud()));
+    }
+    VerifiedLoop loop;
+    loop.query_id = 30;
+    loop.match_id = 10;
+    ASSERT_TRUE(manager.loadKeyframes({frames.begin(), frames.end() - 1}));
+    EXPECT_EQ(computeLoopSegmentConsistency(config, manager, loop, 2).recommendation,
+              "consistent");
+    ASSERT_TRUE(manager.loadKeyframes(frames));
+    const auto observed = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(observed.pair_count, 3);
+    EXPECT_EQ(observed.consensus_inlier_count, 3);
+    EXPECT_EQ(observed.direction, "same");
+    EXPECT_EQ(observed.recommendation, "consistent");
+
+    // If neither direction explains the observed neighbor, it still counts
+    // against support; selecting a direction cannot erase that contradiction.
+    frames[3]->pose_optimized = poseAt(20.0, 0.0, 0.4);
+    ASSERT_TRUE(manager.loadKeyframes(frames));
+    const auto contradicting = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(contradicting.consensus_inlier_count, 2);
+    EXPECT_EQ(contradicting.recommendation, "inconsistent");
+}
+
+TEST(LoopSegmentConsistencyTest, UnobservedFutureIsNotAContradictingMeasurement)
+{
+    Config config;
+    KeyframeManager manager(config);
+    std::vector<Keyframe::Ptr> keyframes;
+    for (int id = 0; id <= 12; ++id) {
+        keyframes.push_back(Keyframe::create(
+            id, static_cast<double>(id), poseAt(id), makeTinyCloud()));
+    }
+    VerifiedLoop loop;
+    loop.query_id = 10;
+    loop.match_id = 2;
+    manager.loadKeyframes({keyframes.begin(), keyframes.begin() + 11});
+    const auto live = computeLoopSegmentConsistency(config, manager, loop, 2);
+    ASSERT_EQ(live.pair_count, 2);
+    EXPECT_EQ(live.valid_pair_count, 2);
+    EXPECT_EQ(live.recommendation, "consistent");
+    manager.loadKeyframes(keyframes);
+    const auto complete = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(complete.pair_count, 4);
+    EXPECT_EQ(complete.valid_pair_count, 4);
+    EXPECT_DOUBLE_EQ(live.consensus_ratio, complete.consensus_ratio);
+
+    // Once contradictory motion is observed it must count against the loop.
+    keyframes[11]->pose_optimized = poseAt(100.0);
+    keyframes[12]->pose_optimized = poseAt(200.0);
+    manager.loadKeyframes(keyframes);
+    const auto contradictory = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(contradictory.pair_count, 4);
+    EXPECT_EQ(contradictory.valid_pair_count, 4);
+    EXPECT_EQ(contradictory.recommendation, "inconsistent");
+}
+
+TEST(LoopSegmentConsistencyTest, MissingMatchesAndSingleObservationsAreInsufficient)
+{
+    Config config;
+    KeyframeManager manager(config);
+    std::vector<Keyframe::Ptr> keyframes;
+    for (int id : {2, 8, 9, 10}) {
+        keyframes.push_back(Keyframe::create(
+            id, static_cast<double>(id), poseAt(id), makeTinyCloud()));
+    }
+    VerifiedLoop loop;
+    loop.query_id = 10;
+    loop.match_id = 2;
+    manager.loadKeyframes(keyframes);
+    const auto missing_match = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(missing_match.pair_count, 2);
+    EXPECT_EQ(missing_match.valid_pair_count, 0);
+    EXPECT_EQ(missing_match.recommendation, "insufficient_support");
+    keyframes = {keyframes[0], keyframes[2], keyframes[3],
+        Keyframe::create(1, 1.0, poseAt(1), makeTinyCloud())};
+    manager.loadKeyframes(keyframes);
+    const auto single = computeLoopSegmentConsistency(config, manager, loop, 2);
+    EXPECT_EQ(single.pair_count, 1);
+    EXPECT_EQ(single.valid_pair_count, 1);
+    EXPECT_EQ(single.recommendation, "insufficient_support");
+}
+
 TEST(LoopSegmentConsistencyTest, ChoosesReverseDirectionWhenTraversalIsOpposite)
 {
     Config config;

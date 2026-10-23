@@ -1,5 +1,5 @@
-// Fine registration shared by adjacent odometry and loop measurements.
-// Callers still own broad geometric admission and the graph noise model.
+// Fine registration of admitted loop measurements. The caller owns broad
+// geometric admission and the loop's uncertainty model.
 #pragma once
 
 #include "n3mapping/point_cloud_matcher.h"

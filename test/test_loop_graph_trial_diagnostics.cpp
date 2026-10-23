@@ -1,4 +1,5 @@
 #include "n3mapping/loop_graph_trial_diagnostics.h"
+#include "../src/core/loop_closure_processing.h"
 
 #include <cmath>
 #include <map>
@@ -71,6 +72,47 @@ TEST(LoopGraphTrialDiagnosticsTest, MissingEndpointReturnsFailedDiagnostics)
     EXPECT_FALSE(diagnostics.success);
     EXPECT_NE(diagnostics.recommendation, "trial_success_score_only");
     EXPECT_FALSE(std::isfinite(diagnostics.consistency_score));
+}
+
+TEST(LoopGraphTrialDiagnosticsTest, RebaseRetainsValidQueryWhenAnotherQueryConflicts)
+{
+    Config config;
+    config.use_robust_kernel = false;
+    GraphOptimizer optimizer(config);
+    LoopClosureManager manager(config);
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
+    std::vector<EdgeInfo> odometry;
+    for (int i = 0; i < 4; ++i) {
+        nodes.emplace_back(i, translated(i));
+        if (i) odometry.push_back(makeEdge(i - 1, i, translated(1), EdgeType::ODOMETRY));
+    }
+    ASSERT_TRUE(optimizer.loadGraph(nodes, odometry));
+    LoopClosureOutcome outcome;
+    for (int id : {2, 3}) {
+        VerifiedLoop loop;
+        loop.query_id = id;
+        loop.match_id = 0;
+        loop.verified = true;
+        loop.T_match_query = translated(id == 2 ? 10.0 : 3.0);
+        loop.information = Eigen::Matrix<double, 6, 6>::Identity() * 10000.0;
+        outcome.summary.accepted_loops.push_back(loop);
+        LoopDebugCandidateEvent event;
+        event.candidate.query_id = id;
+        event.candidate.match_id = 0;
+        event.gate_result = "accepted";
+        outcome.candidates.push_back(event);
+    }
+    const auto valid = outcome.summary.accepted_loops.back();
+    rebaseLoopOutcome(config, optimizer, manager, outcome);
+    ASSERT_EQ(outcome.summary.accepted_loops.size(), 1U);
+    EXPECT_EQ(outcome.summary.accepted_loops.front().query_id, 3);
+    EXPECT_TRUE(outcome.summary.accepted_loops.front().T_match_query.isApprox(
+        valid.T_match_query, 0.0));
+    EXPECT_TRUE(outcome.summary.accepted_loops.front().information.isApprox(
+        valid.information, 0.0));
+    EXPECT_EQ(optimizer.getEdges().size(), odometry.size() + 1);
+    EXPECT_EQ(outcome.candidates.front().gate_result, "rejected");
+    EXPECT_EQ(outcome.candidates.back().gate_result, "accepted");
 }
 
 }  // namespace

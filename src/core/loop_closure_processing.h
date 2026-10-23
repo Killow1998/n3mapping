@@ -15,6 +15,12 @@ struct LoopClosureOutcome {
   std::vector<LoopDebugCandidateEvent> candidates;
   std::vector<LoopDebugOptimizationEvent> optimizations;
 };
+void recordLoopOptimization(
+    const Config& config, const std::vector<EdgeInfo>& edges,
+    const std::vector<VerifiedLoop>& loops,
+    const std::map<int64_t, Eigen::Isometry3d>& before,
+    const std::map<int64_t, Eigen::Isometry3d>& after,
+    LoopClosureOutcome& outcome);
 LoopClosureOutcome processLoopCandidates(
     const Config& config, KeyframeManager& keyframes, PointCloudMatcher& matcher,
     GraphOptimizer& optimizer, LoopClosureManager& manager,

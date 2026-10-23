@@ -6412,3 +6412,1234 @@ this stage; unique-acquisition fitting is unchanged, with regressions and full
 fresh online extensions checked. General extension half-core, full-node/RK3588
 qualification and new-route unsupported tracking frames remain open. No input
 was deleted or changed; no installation or remote push was performed.
+
+### Real-sensor baseline and input contract — 2026-10-21
+
+**Scope.** Freeze the preceding algorithm and establish real-input evidence before
+changing robustness weights. Local M2DGR `gate_02` / `hall_05` and four author-hosted
+RESPLE MID360 sequences now run raw LiDAR/IMU through FAST_LIO, then through the
+same production n3m core with paced asynchronous mapping. A separate TudoRun02
+run also executes FAST_LIO and the current Humble node simultaneously. Truth is
+an observer only. No runtime gate, descriptor, registration, geometry weight or
+algorithm source changed. Core SHA256 remains
+`05cbdfcb89fd0532bfd3498b3fef587ea674a62d63f92cb0b3556aacfaf17cf4`;
+FAST_LIO remains `86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93`.
+All runs use physical P cores 0,2,4,6, four OpenMP threads and passive waiting.
+
+**Data and input contract.** M2DGR uses `/handsfree/imu`, not its Xsens truth
+device. The supplied FLOAT32 point `time` values are seconds, predominantly
+negative relative to a scan-end header. The new offline
+`tools/n3mapping_normalize_point_time.py` writes a separate ROS2 bag with a
+scan-start header and nonnegative offsets; absolute sampling times agree within
+3.73 ns. XYZ/intensity/ring, all other point bytes, other streams and bag record
+times are retained. FAST_LIO uses timestamp unit 0 and the corresponding
+LiDAR-to-Handsfree translation (+0.27255,-0.00053,+0.17954) m. This is a time
+representation repair, not a new deskewer. A complete gate_02 A/B does **not**
+improve holdout position RMSE: 85.44 cm raw versus 86.85 cm normalized.
+
+MID360 data and calibration come from the [RESPLE authors](https://asig-x.github.io/resple_web/datasets.html)
+and [versioned dataset](https://huggingface.co/datasets/ASIG-Lab/RESPLE-Dataset/tree/a1ee9e53d2a886e73a7449b9c88506609668e6eb).
+All four bag checksums and GT blobs match that revision. HelmDyn retains native
+20 Hz and TudoRun approximately 30 Hz; no downsampling to the prior 10 Hz target.
+All six accepted replays acknowledge every LiDAR input and preserve sensor
+message payloads. TudoRun serialization changes only the unused CDR alignment
+byte in each CustomPoint; every non-padding byte is compared across every cloud.
+Earlier incomplete M2DGR replays without frame acknowledgement are retained but
+excluded from accuracy/performance claims.
+
+**Evaluation boundary.** A single initial position-based SE(3) alignment is fixed
+for the frontend, live backend and saved trajectory. M2DGR uses its first 60 s.
+MID360 uses the earliest prefix of at least 30 s with at least 50 GT matches and
+second position standard deviation at least 0.25 m; HelmDyn01 needs 76 s because
+the initial motion/truth coverage is insufficient. This rule uses GT geometry,
+not fit error. The table is the remaining held-out suffix; startup is still
+included in full-route metrics and the plot. GT interpolation gaps over 0.15 s
+(HelmDyn) or 0.03 s (TudoRun) are excluded. Frontend GT coverage is approximately
+34.7%, 54.5%, 75.4%, 86.2% respectively. No angular acceptance is claimed without
+independent GT-body/LiDAR orientation calibration. Nominal M2DGR reference/time
+ambiguities below prevent interpreting these results as a qualified 10 cm test.
+
+| Staged mapping sequence | FAST_LIO holdout RMSE cm | n3m live cm | Saved trajectory cm | Core CPU s | Core wall s | Runtime peak MiB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| gate_02, nominal reference | 86.85 | 100.21 | 103.33 | 167.23 | 327.04 | 471.1 |
+| hall_05, nominal timestamps | 138.26 | 139.77 | 137.33 | 1034.77 | 506.93 | 930.3 |
+| HelmDyn01 | 6.89 | 5.28 | 4.84 | 125.93 | 205.30 | 392.7 |
+| HelmDyn02 | 4.41 | 4.62 | 4.03 | 1608.03 | 892.82 | 1902.2 |
+| TudoRun01 | 3.16 | 3.35 | 3.46 | 17.97 | 51.33 | 65.7 |
+| TudoRun02 | 3.09 | 2.36 | 1.97 | 71.13 | 78.47 | 117.4 |
+
+CPU includes all asynchronous work through drain, excludes map load/save,
+frontend and ROS in these staged runs. CPU divided by sensor duration describes
+work demand, not concurrent core usage when the queue outlives the input.
+Final trajectory accuracy includes later loop corrections; it is not the live
+output accuracy. All six save/reload/Atlas audits preserve raw clouds, odometry,
+information and plane moments, with Atlas point error zero.
+
+**Failure attribution.** Hall speed-norm alignment, fitted only inside the initial
+prefix, suggests comparing estimate(t) with truth(t-1.66 s). Independent suffix
+speed RMSE falls 0.14669 to 0.06258 m/s. With this fixed observer-only offset,
+position holdout RMSE is frontend 41.04 cm, live 47.19 cm, final 39.43 cm. This
+does not establish which device clock is wrong, and is not an algorithm gain.
+Gate's best speed lag (+0.06 s) barely helps; its Xsens/antenna reference ambiguity
+remains. Both original nominal scores are retained. M2DGR is not yet a reliable
+centimeter-level calibration oracle for this pipeline.
+
+The real MID360 failures also remain visible: TudoRun01's frontend startup has
+roughly 57 cm outliers, while the backend's existing guard blocks its first three
+input frames. Later accepted live error still reaches 17.09 cm. HelmDyn02 live
+error reaches 12.95 cm on the qualified GT subset. Neither is a blanket pass.
+Stationary, translation, turning and slow-motion bins are stored separately;
+their temporal samples are not independent evidence for covariance calibration.
+
+**Complete ROS check.** TudoRun02 receives all 2359 clouds and 15724 IMUs, produces
+2355 exact cloud/odometry pairs, processes all 2355 backend frames (2352 successful)
+and saves 2355 dense samples with 126 keyframes / 196 loop edges. The matching
+node loads the frozen core; map/Atlas reload passes. Frontend/live/final holdout
+RMSE is 3.094 / 2.434 / 1.953 cm. The live comparison uses 1241 common held-out
+timestamps; frontend RMSE there is also 3.094 cm. Qualified live maximum is
+7.495 cm. Truth covers about 86% of the route; missing truth is not a pass.
+
+The live topic contains 2311 outputs: 44 input timestamps are absent, maximum
+live stamp interval 133.523 ms. The queue-depth-1/freshness/callback path is not
+yet separately instrumented to attribute every omission. Complete backend
+processing and saved trajectory do not certify complete live publication.
+Sampled CPU is FAST_LIO 11.66 s and n3m 73.91 s over 78.60 s of raw LiDAR input;
+process peak RSS is 162.50 / 165.65 MiB. Those figures include startup/shutdown;
+replay/recording overhead is separate. No installed executable was replaced.
+An initial full-ROS attempt failed before replay because the installed node had
+an old core ABI; the successful run uses the matching existing build adapter.
+
+**Next bounded work.** HelmDyn02 supplies only 106.6 s of frontend output but
+needs 892.8 s to finish its core work, with 76 pending queries at input end.
+`AsyncLoopJob::run()` solves joint geometry after each ordinary mapping query;
+coalescing/budgeting currently applies to `geometry_only` extension work. Profiles
+show repeated overlapping geometry solves and complete loop jobs, not evidence
+that descriptor retrieval dominates. Separate retained loop measurements from
+coalesced geometry solving, then compare this frozen input without weakening
+acceptance. Independently audit M2DGR clock/reference calibration and MID360
+startup/turning residuals before adopting shared-bias uncertainty weights.
+The evidence does not yet identify deskew as the sole remaining error source.
+
+**Validation and artifacts.** The new adapter passes three contract/CLI cases
+(one CTest target), plus a real three-cloud/42-IMU byte and sampling-time audit.
+No runtime code changed, so the previous 69-target and original14/two-route
+qualification is retained rather than reported as rerun. The six new maps and
+the full-ROS map pass checkpoint audits. This is a mapping baseline, not a new
+real-data relocalization/extension acceptance. Global 10 cm, half-core operation,
+correlated uncertainty calibration and complete live publication remain open.
+
+Durable evidence: [scores, provenance, checksums and boundaries](real_data_baseline_20261021.json)
+and [position-error plot](real_data_position_baseline_20261021.png).
+Reproduction commands, raw/converted bags, timing audits, manifests, trajectories,
+all logs and maps remain in `build/n3mapping/real_data_20261021` under the existing
+workspace. No old evidence was removed; no installation or remote push occurred.
+
+### Real-data clocks, references and shared loop solving — 2026-10-21
+
+**Scope and implementation.** This stage keeps the frozen FAST_LIO binary,
+native 10/20/30 Hz inputs, four physical P cores 0,2,4,6, four OpenMP threads,
+passive waiting and existing acceptance gates. Ordinary mapping now batches at
+most four already-pending queries. Each query retains its independent geometric
+registration, neighborhood/consensus and graph admission. Accepted measurements
+share one graph commit and final geometry reassociation/solve. An additional
+combined graph trial must pass; otherwise the existing measurements fall back
+to per-query admission without another ICP. Rebase also treats each query
+separately, so one obsolete query cannot discard unrelated valid measurements.
+Extension-only geometry requests keep their existing coalescing/budget path.
+Graph commit/rebase code moves into `loop_closure_commit.cpp` (98 lines), reducing
+`loop_closure_processing.cpp` to 381 lines without a public compatibility layer.
+
+**Live output diagnosis and repair.** Debug logs now record each live odometry
+callback's exact nanosecond input/correction/current times, reason and publication
+decision, separately from backend processing. An unchanged-algorithm TudoRun02
+run exposes 35 `invalid_input_time` omissions plus four startup waits: the input
+timestamp leads the observer-republished clock by 0.090–63.418 ms. Replay now
+owns `/clock` and publishes monotonic time before each sensor input (`--clock`);
+sensor timestamps and runtime freshness checks are unchanged. Its paired run
+has 2,351 publications from 2,355 callbacks, four startup waits and zero invalid
+input times. This resolves an observed replay-clock ordering defect, not a
+demonstrated hardware clock defect. Complete six-run per-reason/gap counts are
+retained below and in JSON; a processed backend frame alone is not an output.
+
+**Humble Fast DDS delivery diagnosis.** Large M2DGR clouds exposed a second,
+independent failure after clock ordering was fixed. The first frontend cloud
+serializes to 1,091,869 bytes, while default participant SHM mappings occupy
+552,960 bytes (including overhead). Fast DDS 2.6 documents a 512 KiB segment
+default and warns about segments no larger than a message. The installed
+`rmw_fastrtps_cpp` is 6.2.10 and Fast DDS is 2.6.11. Independent subscribers receive all expected odometry
+in their observation windows while n3m loses callbacks; timed projection and
+publication phases stay short. Changing executor spinning still loses callbacks.
+Increasing queue depth and draining to the latest input coalesces 152 inputs
+and still leaves approximately 3 s gaps. Both prototypes were rejected; the
+original executor and depth-1 subscription remain.
+
+The opt-in `config/fastdds_local.xml` provides 64 MiB SHM and loopback UDP. With
+the same phase-instrumented node/core, `gate_02` now has all 3,265 live callbacks,
+15 startup waits and 3,250 outputs, maximum input gap 106.8 ms. Actual participant
+mappings are 67,137,536 bytes, confirming the configuration is loaded. The full
+six-sequence matrix below uses this profile. A subsequent reverse control changes
+only `segment_size` back to 512 KiB, preserving binary, QoS, raw input and all
+other XML fields: it observes
+733 callbacks from 3,265
+backend inputs. Its failed delivery check is retained, not counted as a pass.
+The reverse run's actual mappings return to 552,960 bytes. Its total wall time
+rises from 355.11 to 577.74 s; the maximum live-input timestamp gap is 9.819 s.
+There are 717 outputs, 15 startup waits and one late input rejected as
+`input_before_correction`; incomplete delivery is not used to claim a CPU gain.
+Its frontend follows the earlier frozen trajectory, differing from the 64 MiB
+run by up to 9.90 mm per pose component. This is a transport intervention with
+identical raw sensor payloads, not a frozen-frontend algorithm comparison.
+
+This lesson also applies to other Humble projects using this Fast DDS transport:
+check segment capacity, serialized frame size and outstanding traffic separately
+from available system RAM. Configure all participant processes before startup,
+verify the actual mappings, and compare callback/output counts and cadence.
+64 MiB is a measured workload configuration, not a universal requirement. The
+loopback whitelist requires adaptation for multiple hosts. This does not enable
+Data Sharing or change QoS. Reusable instructions are in the
+[Humble README](../../../README.md#humble--fast-dds-large-local-point-clouds);
+primary references are the
+[Fast DDS SHM documentation](https://fast-dds.docs.eprosima.com/en/2.6.x/fastdds/transport/shared_memory/shared_memory.html)
+and [Humble RMW documentation](https://github.com/ros2/rmw_fastrtps/blob/humble/README.md).
+
+**Timing and reference audit.** Hall's approximately -1.66 s truth offset is
+stable across independent motion windows. Input gyro versus frontend angular
+speed differs by roughly 8–12 ms, excluding a 1.66 s frontend-input mismatch as
+the explanation. The bag lacks original Leica/Xsens truth-device packets, so
+the device clock responsible remains unproven. Gate's ECEF GT is
+[author-confirmed](https://github.com/SJTU-ViSYS/M2DGR/issues/13),
+but Xsens IMU versus GNSS antenna origin remains ambiguous. Published extrinsic
+alternatives change frontend holdout RMSE from 86.85 to 61.52 cm; neither qualifies
+10 cm, and the better-scoring origin is not silently selected. Nominal M2DGR
+scores remain primary. No fitted lag, frame or truth pose enters the estimator.
+
+The four MID360 text GT files match the original `/rigid_bodies` messages:
+HelmDyn uses body 4 and TudoRun body 0, positions within 8.3e-8 m and timestamps
+within 0.48 microseconds of text rounding. Missing native poses are non-finite;
+they are not replaced with another body's more complete trajectory. Integrating
+raw gyro over each actual GT interval still leaves HelmDyn holdout orientation
+increment RMSE 15.67/23.63 degrees and maxima about 177/178 degrees, whereas
+TudoRun gives 0.28/0.44 degrees. Thus HelmDyn's angular anomalies exist in the
+original motion-capture stream and cannot be explained by constant frame
+rotation alone. Full angular/SE(3) uncertainty acceptance remains unqualified.
+Linear-versus-local-cubic GT position interpolation sensitivity reaches
+1.62/2.78 cm on HelmDyn; this is not a proved truth-error bound or a replacement
+score. Published marker offsets and the previous fixed-prefix scoring rule stay
+unchanged, with missing truth explicitly unscored.
+
+**Four-core algorithm ablation.** Identical frozen frontend clouds/poses feed
+the production core, paced at original timestamps, and all background work drains
+before CPU measurement ends. The baseline is the preceding immutable core;
+the candidate is the algorithm-identical pre-file-split snapshot. CPU excludes
+frontend, ROS and map save/load. These are observations, not timing guarantees.
+
+| Sequence | Core CPU s, old → new | Wall s, old → new | Peak MiB, old → new | Loop edges, old → new | Accepted query groups, unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| gate_02 | 167.23 → 167.30 | 327.04 → 327.04 | 471.1 → 394.0 | 45 → 44 | 34 |
+| hall_05 | 1034.77 → 1026.90 | 506.93 → 480.74 | 930.3 → 869.2 | 477 → 477 | 55 |
+| HelmDyn01 | 125.93 → 129.30 | 205.30 → 205.30 | 392.7 → 369.9 | 188 → 190 | 38 |
+| HelmDyn02 | 1608.03 → 1258.52 | 892.82 → 540.20 | 1902.2 → 1709.7 | 1020 → 1014 | 99 |
+| TudoRun01 | 17.97 → 18.25 | 51.33 → 51.33 | 65.7 → 67.2 | 18 → 18 | 4 |
+| TudoRun02 | 71.13 → 71.67 | 78.47 → 78.47 | 117.4 → 119.3 | 195 → 195 | 24 |
+
+HelmDyn02 geometry commits fall 99→30; final geometry solve wall time falls
+293.22→71.40 s. Sharing only final geometry gives 1,383.14 CPU s / 649.63 wall s;
+also sharing the admitted graph commit gives 1,258.52 / 540.20 s. Full core CPU
+falls 21.7%, wall time 39.5%, peak RSS 10.1%. All 99 accepted query groups remain;
+edge counts vary with asynchronous snapshots and unchanged selection gates.
+All six runs retain the same accepted query-group sets and successful-frame
+counts. Single-query low-backlog cases see little benefit. Exact-old-binary
+repeats on HelmDyn01/TudoRun01/TudoRun02 also vary at submillimeter-to-millimeter
+RMSE scale; these repeats are not independent calibration observations and do
+not establish a statistical equivalence bound.
+
+Precision is mixed, not universally improved: staged HelmDyn02 live/saved RMSE
+changes 4.617/4.034→4.492/4.043 cm, but its live maximum rises
+12.945→13.697 cm. HelmDyn01 saved holdout RMSE rises 4.836→4.941 cm;
+the exact-old-core repeat is 4.883 cm. All values remain in the evidence rather
+than selecting the best run. No acceptance threshold, point budget or input rate
+was relaxed to obtain CPU savings. Heavy mapping still has substantial backlog;
+CPU divided by source duration is work demand, not concurrent cores when work
+continues after the recording ends. Realtime heavy-loop processing and general
+half-core operation remain open.
+
+**Complete ROS validation of the final source.** All six recordings run raw
+LiDAR/IMU → installed frozen FAST_LIO → matching newly built Humble node/core,
+with GT only in the observer. Every LiDAR input is acknowledged and all sensor
+counts/payloads are verified; all frontend
+point fields and poses of the four MID360 sequences match the frozen frontend
+replay exactly. M2DGR must be distinguished: gate/hall have
+2941/3,265 and
+876/4,014
+fully identical clouds; later XYZ differs, while intensity, normals and curvature
+stay identical. Maximum pose-component differences are 9.90 and 22.12 mm. Several
+new gate runs reproduce exactly the same difference from the earlier baseline;
+another executor control matches the old frontend. The cause is not established,
+so this is not labeled random noise or used as an identical-input algorithm A/B.
+The staged core table above does use exactly the same frozen frontend data.
+Unassigned PCL/CDR alignment padding is reported separately.
+All frontend poses have backend frames and live diagnostic callbacks. Queues
+drain to zero before shutdown. Saved maps reload with raw clouds, odometry,
+information matrices and plane moments preserved, and Atlas point error zero.
+
+| Sequence | FAST_LIO holdout cm | Live holdout cm | Saved holdout cm | n3m process CPU s | Peak MiB | Live outputs/backend inputs | Missing after first output |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| gate_02 | 86.85 | 99.80 | 102.57 | 193.81 | 1883.0 | 3250/3265 | 0 |
+| hall_05 | 138.21 | 139.19 | 137.55 | 1114.90 | 1166.0 | 3983/4014 | 0 |
+| HelmDyn01 | 6.89 | 5.38 | 4.95 | 157.17 | 670.7 | 4103/4107 | 0 |
+| HelmDyn02 | 4.41 | 4.57 | 4.04 | 1319.19 | 1790.9 | 2129/2133 | 0 |
+| TudoRun01 | 3.16 | 3.07 | 3.23 | 20.40 | 182.9 | 1537/1541 | 0 |
+| TudoRun02 | 3.09 | 2.49 | 2.07 | 79.77 | 213.5 | 2351/2355 | 0 |
+
+Process CPU/RSS is sampled every 0.25 s, includes startup, input, backlog drain
+and shutdown, and excludes FAST_LIO and the recorder. Those costs are separately
+recorded in JSON. It must not be compared directly with the core-only CPU table.
+Process RSS includes shared pages; adding participant RSS values would double-count
+shared mappings and is not a measurement of total physical RAM.
+Saved trajectories include later corrections and startup poses; TudoRun01's
+saved dense maximum is 57.10 cm,
+including frontend startup; live output initially waits for correction and still
+reaches 17.09 cm.
+Holdout RMSE below 10 cm is not an all-frame 10 cm pass. In particular, TudoRun01
+has a sustained early live error, not just isolated jumps: 300/1,158 qualified
+samples exceed 10 cm and the longest observed continuous span is 5.866 s. Its
+full-route live RMSE is 7.61 cm, although holdout RMSE is 3.07 cm. The original
+frozen core also has 287/1,159 over-threshold samples and the same 17.093 cm peak;
+this is an existing accuracy problem, not resolved by compute reuse or DDS sizing.
+
+| Sequence | Live samples above 10 cm / qualified samples, including prefix | Fraction | Longest observed continuous span, s |
+| --- | ---: | ---: | ---: |
+| HelmDyn01 | 70/1426 | 4.91% | 1.000 |
+| HelmDyn02 | 8/1160 | 0.69% | 0.150 |
+| TudoRun01 | 300/1158 | 25.91% | 5.866 |
+| TudoRun02 | 0/2025 | 0.00% | 0.000 |
+
+A gap longer than 1.6 nominal frame periods breaks the reported continuous span;
+missing GT is not treated as a passing sample. The interval length is observed
+between sample timestamps, not a bound on unknown behavior through truth gaps.
+This stage qualifies
+mapping/loop processing, not real-data relocalization or extension; the original
+14 simulation positions/two routes were not rerun or relabeled as these six tests.
+
+**Uncertainty calibration, rejected alternatives.** All four MID360 maps here
+contain geometric mapping loops, not loaded-map tracking observations. Calibration
+uses marker-to-marker distance, which avoids unqualified GT orientation. The
+right-perturbation Jacobian propagates each loop's information matrix including
+the marker lever arm. Same-query observations share total weight one; common
+match endpoints are still dependent. Leave-one-sequence-out tests compare an
+isotropic endpoint floor, a common timing error and independent per-scan timing
+jitter. Common timing uses the relative motion difference, not two independent
+copies of one shared error. None transfers reliably: held-out HelmDyn02 coverage
+is only about 33–36% at the nominal 95% interval, while TudoRun02 becomes roughly
+99–100% covered. A fitted timing parameter also includes reference error and
+does not prove deskew is the cause. No new runtime uncertainty model is adopted.
+
+Association outliers and Gaussian covariance errors also need separate handling.
+HelmDyn01 contains five loop constraints with existing Cauchy weights below 0.01;
+inflating all covariance to explain these would weaken valid observations.
+Graph-conditioned inlier diagnostics are retained as diagnostics, not an unbiased
+calibration sample. The next bounded step is a source-aware robust association /
+shared-scan error model validated across independent acquisitions, with qualified
+angular reference before a full six-degree-of-freedom claim. Remaining per-query
+registration/admission cost needs profiling before further solve removal.
+
+**Validation and reproducibility.** Final build and 70/70 CTest targets pass on
+four cores. A new observable rebase regression fails against the immutable old
+core and passes against the candidate: rejecting a stale query must preserve an
+unrelated valid query's measurement/information. The production analyzer parses
+all 3,265 gate live events with zero format errors and complete phase timings;
+its overall status remains `INSUFFICIENT_EVIDENCE` because this harness records
+process resources separately as CSV and does not populate every optional core
+timing field. This is not promoted to an overall performance-gate pass. Final core SHA256 is
+`b1e79021e670a58f454ba39f89c8ba4e3409b5e9701cabbe79160a2bc3238548`.
+Full source/binary identities, all six scores, live reasons, resources, checkpoint
+audits, failed calibration ablations and repeat controls are in
+[durable stage evidence](real_robustness_20261021.json), with a
+[full-route position plot](real_robustness_position_20261021.png). Raw recordings,
+maps, scripts and logs stay under `build/n3mapping/real_robustness_20261021` and
+the preceding `real_data_20261021` directory. Earlier build/audit-harness failures
+are retained and distinguished from estimator failures. No existing data was
+removed; no installed executable was replaced and no remote push was performed.
+
+
+### Frontend-odometry provenance and sustained-error repair — 2026-10-21
+
+This stage repairs TudoRun01's sustained online error and repeats all six real-data
+ROS chains on physical P cores `0,2,4,6` with four registration threads. FAST_LIO,
+sensor payloads, admission gates, truth exclusions and the fixed frontend-derived
+alignment are unchanged. The documented 64 MiB local Fast DDS profile is retained.
+No installation, push, hardware or new map-extension qualification is claimed.
+
+The runtime change is deliberately small: adjacent odometry edges retain the
+frontend relative pose. Previously, pairwise GICP could replace that measurement
+while keeping the fixed odometry standard deviations of 1 cm / 0.001 rad. In
+TudoRun01, edge 4→5 changed the measurement by **13.120 cm / 1.4956°** at source
+11.4996 s; its online correction appeared before the first loop commit at about
+13.0 s. This was an unqualified change of measurement provenance and confidence.
+Removing that replacement leaves loop fine registration, admission, Cauchy
+weighting and joint plane optimization active. Historical serialized edges are
+preserved on reload; this repair changes newly built constraints.
+An isolated replay of the original 4→5 scan pair reproduces the accepted
+13.120 cm / 1.4956° change: the fine fitness improves 0.092859→0.068693 and
+inlier ratio 0.692865→0.718218. Optimizing that local geometric objective does
+not establish a more accurate motion measurement or justify odometry noise.
+
+The repeated-geometry regression fails with the old core and passes with the
+candidate. **70/70 CTest** pass (35.36 s). Runtime source changes are confined to
+`n3mapping_constraints.cpp`; one test and the refinement helper's ownership
+comment accompany it. All other 379 files in the starting 382-file source
+manifest are unchanged. The comment was clarified after the build without any
+registration-function change. Tested core SHA256:
+`cc1dc94cc1a1b1aa93ab3dce1ac7fb9732cd887972053be1032e3977b89f8e3e`.
+
+**Complete ROS results.** Position values are centimetres, over qualified GT
+samples; startup and all originally eligible samples remain included. CPU/RSS
+are for the n3m process including startup, input, backlog drain and saving, with
+sampled process accounting. They exclude FAST_LIO and the recorder. These are
+single-run system measurements, not repeatability intervals.
+
+| Sequence | Live full-route RMSE cm | Live holdout RMSE cm | Saved holdout RMSE cm | CPU s | Peak RSS MiB | Admitted loops |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| TudoRun01 | 7.614 → 3.212 | 3.067 → 2.939 | 3.229 → 2.413 | 20.40 → 18.99 | 182.9 → 154.7 | 18 → 59 |
+| TudoRun02 | 2.269 → 2.015 | 2.491 → 2.117 | 2.069 → 1.898 | 79.77 → 74.05 | 213.5 → 219.5 | 199 → 199 |
+| HelmDyn01 | 5.246 → 5.200 | 5.384 → 5.336 | 4.952 → 4.858 | 157.17 → 165.76 | 670.7 → 455.6 | 204 → 217 |
+| HelmDyn02 | 4.029 → 4.097 | 4.574 → 4.673 | 4.042 → 4.035 | 1319.19 → 1274.43 | 1790.9 → 1990.2 | 1013 → 1013 |
+| gate_02 | 90.678 → 91.635 | 99.804 → 100.860 | 102.572 → 102.549 | 193.81 → 172.31 | 1883.0 → 1909.1 | 46 → 44 |
+| hall_05 | 132.153 → 130.336 | 139.192 → 137.330 | 137.554 → 137.296 | 1114.90 → 1049.98 | 1166.0 → 1138.9 | 478 → 474 |
+
+TudoRun01 improves from **7.614 → 3.212 cm** full-route live RMSE. Above-10-cm
+samples fall **300 → 15 / 1,158**, and the longest contiguous observed exceedance
+falls **5.8658 → 0.4670 s**. In the former 11.5–23.2 s failure interval, the 285
+qualified samples have a maximum of **17.093 → 2.785 cm**. All remaining live
+exceedances are the unchanged startup transient, whose maximum is **16.229 cm**.
+The saved dense trajectory also retains the previously recorded raw startup
+outlier near 57 cm; neither startup nor missing GT is hidden to claim general
+10 cm acceptance.
+
+![TudoRun01 causal ablation](live_accuracy_tudo_20261021.png)
+
+Tradeoffs remain visible: HelmDyn02 live holdout RMSE increases about **0.99 mm**,
+with 8→10 above-10-cm samples and the same 0.150 s longest span; its peak decreases
+13.759→13.597 cm and saved holdout RMSE slightly improves. The two additional
+crossings are 9.486→10.542 cm at 44.451 s and 9.720→10.297 cm at 50.451 s;
+the 0.99 mm aggregate regression does not bound individual frame changes. HelmDyn01 CPU rises
+about 5.5% with more admitted loops. HelmDyn02 peak RSS rises about **199 MiB**.
+Thus this is a sustained-error repair, not an all-metric performance win.
+All six input/delivery and map/Atlas reload audits are retained in the structured
+record; raw clouds, raw odometry, edge information and plane moments survive
+save/reload. Loop counts describe admitted constraints, not independent valid
+observations. Individual pair choices can change while query groups and all
+admission rules are audited explicitly. The full ROS gate_02 comparison loses
+query group 51 (34→33 groups); the other five sequences preserve query groups.
+The fixed-frontend controls below retain the 51→46 observation in both cores
+with matching measurement and fitness to numerical precision. Its commit moves
+from frame 786 to 785. Thus the missing ROS-run observation is not reproduced
+by this code change on matched core inputs; asynchronous scheduling is not
+frozen, and the original admission/snapshot difference is not fully isolated.
+No previously admitted observation is reclassified as false from counts alone.
+
+**Fixed-frontend M2DGR controls.** Repeated raw ROS replay can diverge within the
+frozen FAST_LIO frontend before n3m sees its data. The gate_02 comparison first
+differs in pose at frame 2940 (294.576 s), followed by the body cloud at frame
+2941, with identical sensor stamps/payloads; this does not establish a DDS data
+corruption or a physical timing error. The paired core controls below use the
+same frozen `normalized_flow` PCD/odometry inputs, same parameters and 1× pacing
+with the exact old and new core releases. CPU here is **core-process scope** and
+includes input and backlog drain but excludes the separately measured save;
+it must not be substituted for the ROS-process table.
+
+| Sequence | Live holdout RMSE cm | Saved holdout RMSE cm | Core CPU s | Runtime peak RSS MiB | Admitted loops |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| gate_02 | 96.774 → 98.762 | 101.844 → 102.533 | 175.29 → 158.56 | 405.8 → 399.5 | 46 → 45 |
+| hall_05 | 139.979 → 137.317 | 137.489 → 137.206 | 1095.32 → 1094.68 | 908.2 → 1185.0 | 477 → 479 |
+
+The matched gate_02 core comparison loses query group 146 (34→33 groups),
+despite retaining group 51. Its first different logged geometry job is already
+query 71: the old/new snapshots produce 635/636 planes and 3,982/3,986 observations.
+Worker snapshots and commit scheduling are therefore part of the remaining
+repeatability investigation. Removing adjacent work is not certified as an
+all-query or all-metric non-regression on M2DGR; no gates are weakened to force
+the old observation list.
+
+A second full gate_02 diagnostic completes each existing loop job before the
+next input, keeping both releases on the same causal geometry snapshots. Old
+and new cores then retain **the same 46 admitted pairs and frame-success decisions**;
+the maximum output-pose matrix component difference is **1.606e-12**. This
+isolates the observed variation to asynchronous execution context rather than
+an adjacent-measurement change on gate_02. The blocking, unpaced control is not
+an online solution or a new runtime setting. Async snapshot/commit robustness
+and strict online non-regression acceptance remain open.
+
+**Time and reference audit.** gate_02's independent UBLOX UTC packets differ
+from ROS recording time by 8.7–58.9 ms (median 30.9 ms). This consumer receiver
+is not the Xsens truth source; its metre-scale accuracy cannot qualify RTK GT.
+Raw gyro versus GT angular-speed magnitudes consistently prefer GT queries
+50–60 ms later; the first-60-s fitted 50 ms offset improves holdout angular-speed
+agreement, but the observer-only nominal-IMU position RMSE remains 81.4 cm
+(previously 86.8 cm). It is insufficient to explain the position error.
+For hall_05, raw gyro versus planar Leica course rate independently supports a
+seconds-scale discrepancy (roughly −1.8 s for the least-smoothed later windows),
+consistent in scale with the prior −1.66 s LIO-speed audit. Course rate is a
+planar-driving proxy, not an exact body clock. Native Leica timestamps/config
+were not recorded; no runtime stamps or official score conventions are changed.
+Keeping the nominal reference origin and applying only the fixed diagnostic
+offsets leaves the new live holdout RMSE at 97.0 cm for gate_02 (+50 ms) and
+39.3 cm for hall_05 (−1.66 s). These diagnostic results do not establish 10 cm
+accuracy or replace the nominal score table.
+
+The dataset authors identify outdoor GT as
+[ECEF](https://github.com/SJTU-ViSYS/M2DGR/issues/13) and an
+[Xsens GNSS/IMU output](https://github.com/SJTU-ViSYS/M2DGR/issues/23).
+The [manufacturer's lever-arm documentation](https://base.xsens.com/s/article/The-GNSS-lever-arm-antenna-offset-and-its-role-in-the-GNSS-INS-sensor-fusion-algorithm?language=en_US)
+says compensated position refers to the IMU when the antenna lever arm is
+configured; its default is zero. Dataset device settings/export metadata remain
+missing. The [published extrinsics](https://raw.githubusercontent.com/SJTU-ViSYS/M2DGR/main/calibration_results.txt)
+therefore support an explicit origin sensitivity study, not selecting the
+best-scoring origin. Original nominal scores remain authoritative for comparison.
+
+**Loop uncertainty remains unqualified.** The installed small_gicp covariance
+setter uses eigenvalues `(0.001, 1, 1)` to encode surface shape; n3m transports
+the resulting Hessian into the correct tangent frame. This is conditional
+geometric information, not a complete sensor/deskew error calibration. The new
+observer audit uses marker distances, excludes unobservable GT gaps only from
+labels, and caps each query's calibration weight. All labelled edges within
+each route are connected through shared endpoints; no independent-edge
+confidence interval is reported. This does not mean that the whole component
+has only one statistical degree of freedom. Marker-distance residuals also
+include unseparated truth noise; fitted floors are diagnostic, not certified
+sensor or deskew covariance estimates.
+
+Leave-one-route-out endpoint-noise fitting still fails to transfer: HelmDyn02's
+nominal 95% scalar coverage is only **37.2%**, whereas TudoRun02 becomes nearly
+100% under the fitted floor. Even HelmDyn02's graph-central diagnostic subset
+covers only 39.1%; this is not merely a few Cauchy outliers. HelmDyn01 and
+TudoRun01 retain heavily downweighted constraints; graph-conditioned subsets
+are not used to certify calibration. No GT-driven runtime weighting or blanket
+constraint deletion is introduced.
+
+Evidence: [structured qualification](live_accuracy_20261021.json), full source,
+commands, raw replay bags, maps, comparisons and rejected calibration evidence
+under `build/n3mapping/live_accuracy_20261021`. The immediate remaining work is
+asynchronous snapshot/admission repeatability, physical timing/reference
+qualification and a transferable model of shared scan error. Universal 10 cm, calibrated full-SE(3) uncertainty, arbitrary real-world
+localization, hardware and general half-core mapping are still open.
+
+
+### Async catch-up and descriptor pose-domain repair — 2026-10-22
+
+This stage isolates gate_02 snapshot/commit variation on the same frozen
+frontend input, then replays the six original real-data ROS chains on physical
+P cores `0,2,4,6`, with four registration threads and passive OpenMP waiting.
+Sensor payloads, FAST_LIO, admission thresholds, robust weights, timestamps and
+truth-scoring rules are unchanged. Final qualification below distinguishes
+causal correctness from aggregate precision and from all-observation retention.
+
+**Snapshot and descriptor repairs.** Delayed graph commits previously reused only plane
+patches admitted/merged by the old live map. A patch rejected before a worker's
+map correction could consequently never become supported during catch-up.
+Catch-up now receives the immutable raw body moments of appended frames and
+re-associates them against the worker's corrected reference. A controlled case
+with an 8 cm reference correction reduces the difference from fresh append
+from **3.77 cm to zero**; the old executable reproduces the failure.
+
+A multi-frame tail is replayed causally using the unchanged original odometry
+measurement, corrected parent pose and the ordinary conditioned append solve.
+The old batch solve could let a later tail frame alter an earlier frame merely
+because the worker finished later. With raw moments alone, the controlled
+multi-frame discrepancy is **1.806e-4 matrix units**; causal append reduces it
+to **1.025e-15**. The delayed-append regression fails against the frozen
+raw-moments-only library and passes against the final candidate. Catch-up remains
+transactional; old-to-old changes and incompatible generations still use the
+existing rebase path, retaining the already computed loop registrations.
+
+Online RHPD construction also mixed pose domains: the new frame was inserted
+with its raw pose while its causal neighbours had already received map
+corrections. The local descriptor then permanently depended on worker commit
+timing. At gate_02 query 171, this mixed-domain assembly introduces **31.24 cm /
+0.438 degrees** of relative-origin discrepancy. This is a descriptor geometry
+measurement, not a ground-truth position error. Online descriptors now use
+same-session raw relative odometry, evaluated in double precision. Loaded-map
+descriptor reconstruction continues to use the saved optimized map geometry;
+no descriptor dimensions, map format or runtime configuration are added.
+Tests cover delayed correction and exclusion of incompatible session origins.
+
+The initial three-repair candidate changes eight of 382 frozen source files,
+passes 70/70 CTest (38.17 s), and has core SHA256
+`c2a6015616a7fc8ea53e0ac9655d60dc3b47a74da527c951da133ad754630fda`.
+The bounded-retrieval repair below brings the final change to twelve files;
+the other 370 remain byte-identical to stage entry. Its **70/70 CTest** pass
+(34.83 s); final core SHA256:
+`932760b523f058f87069111d53f2f8023e18ac898563863abbc8e84f4d0178eb`.
+The Humble wrapper/node and installed FAST_LIO are unchanged. No obsolete append
+overload or new global abstraction is retained. The append implementation is
+152 lines. New geometry log fields distinguish snapshot nodes, committed nodes
+and catch-up duration; existing structured snapshot/commit timing remains intact.
+
+**Bounded candidate recovery.** The first complete six-route ROS replay exposes
+a lost HelmDyn01 query group 110. An identical-input blocking comparison
+isolates descriptor retrieval: all ten primary candidates exceed the existing
+6 m prediction bound, while the former 71→110 observation is displaced before
+heading reranking by the coarse shortlist. It is not a newly failed ICP. Its
+old measurement differs from raw odometry by 2.4 cm, but query 110 lies inside a
+3.95 s GT gap, so it cannot be independently labelled true/false from this GT.
+
+The final retrieval keeps every original candidate. Only when none is currently
+within the work bound does it perform a bounded search over the eligible set,
+using the same ranking and admission rules, and append **one** alternative.
+Both coarse and final shortlist stages see the eligibility filter. RHPD and
+heading fallback share the existing ranking implementation behind one mutex;
+no new descriptors, runtime settings or persistent cache are introduced.
+Original candidates remain available because asynchronous correction can bring
+them into range later. The added candidate still passes the full unchanged
+registration, neighbourhood, referee and graph checks. The regression places
+usable evidence beyond both coarse pools; the rejected full-quota implementation
+fails on its first retrieval path; the final implementation passes both paths.
+
+Filling every available registration slot is rejected: on the same 2,400-frame
+prefix it raises core CPU **47.85→78.58 s** and adds 72 loops. The bounded
+alternative uses **49.67 s**, adds two loops and restores the original **71→110**
+with 93.55% inliers. These are single-run core-process observations, not ROS
+process timing. On the complete blocking HelmDyn01 control, query groups rise
+37→40 with CPU 125.39→126.69 s, live holdout RMSE 5.174→5.153 cm and saved
+holdout 4.831→4.905 cm. The final ROS replay also restores 71→110 and preserves
+all baseline query groups. The gate_02 blocking control gains 34→46 groups,
+while CPU rises 143.89→172.63 s; observation retention has a measurable cost.
+The added observations are not declared independent or ground-truth valid from
+admission counts alone.
+
+**gate_02 causal controls.** Completing each existing job before the next input
+is a diagnostic, not a new online mode. With the three-repair core, that blocking
+control and the ordinary source-paced asynchronous control retain the same
+**43 loop pairs, 34 query groups and 46 geometry jobs**. Their maximum loop
+measurement component difference is **9.24e-14** and saved dense-pose component
+difference is **4.17e-12**; geometry association counts and logged costs match.
+The asynchronous run catches up at most three appended nodes, with a maximum
+14.17 ms catch-up. Online publication delay remains real and is scored separately.
+This establishes the tested schedule comparison, not arbitrary-delay or
+multi-query batching invariance.
+
+Both intermediate ablations are retained: raw moments alone and causal tail
+alone each produce 47 admitted gate_02 loops with a remaining descriptor-driven
+difference. The old blocking descriptor admits 46 loops; the repaired one admits
+43, with all 34 groups. Old pairs 68→171 and 79→171 are not retrieved under the
+corrected descriptor, and spatial pair 74→176 fails the unchanged segment
+referee. Pair counts are not proof of observation truth; no old pair is labelled
+false merely to make the new list appear preferable.
+
+**Final ROS schedule comparison.** With the bounded retrieval repair included,
+full gate_02 ROS replay and the exact-input blocking core control retain the same
+**54 loop pairs**. Maximum measurement component difference is **2.53e-13**,
+information-matrix relative component difference is **4.17e-9**, and optimized
+keyframe-pose component difference is **3.20e-12**; raw poses match
+exactly. All 3,265 frontend clouds and poses match the frozen stream. Thus the
+fourth repair preserves the measured asynchronous/synchronous saved-map result.
+Online publication delay remains separately scored, and this comparison still
+does not certify arbitrary worker delays or every multi-query batching schedule.
+
+**Independent time/reference evidence.** gate_02 raw three-axis gyro versus the
+published quaternion derivative prefers a **+54 ms effective angular lag**, fit
+only on seconds 5–60 with a constant gyro bias. Four later windows improve their
+vector-rate RMSE from 0.00825/0.01162/0.01639/0.01368 to
+0.00253/0.00445/0.00597/0.00559 rad/s. The derivative uses interval midpoints.
+This can reflect clock offset or orientation-filter latency; it does not qualify
+the position clock. No estimator or truth timestamp is shifted.
+
+On 373 low-rotation startup IMU samples, acceleration rotated by the published
+quaternion lies 0.889 degrees from local +Z but 59.23 degrees from ECEF radial
+up. Combined with the authors' [ECEF position statement](https://github.com/SJTU-ViSYS/M2DGR/issues/13),
+this supports a mixed world-frame interpretation; position and quaternion must
+not be composed into one SE(3) truth pose without a verified conversion. The
+current position scorer already ignores GT orientation, so this is not a newly
+corrected scoring bug. The [published extrinsics](https://raw.githubusercontent.com/SJTU-ViSYS/M2DGR/main/calibration_results.txt)
+put the Xsens IMU and antenna 0.9312 m apart but do not establish the exported
+position reference point. The [dataset discussion](https://github.com/SJTU-ViSYS/M2DGR/issues/23)
+does not supply native Xsens lever-arm/output configuration. The previously
+recorded hall_05 timing discrepancy likewise remains a diagnostic without native
+Leica timing. Original nominal scores remain the comparison convention.
+
+**Uncertainty ablations.** Four-route marker-distance auditing keeps all admitted
+runtime constraints, caps each query's label weight, and exposes shared-endpoint
+components. These labels do not require a GT orientation, but still combine
+measurement bias, truth noise and interpolation uncertainty. No independent-edge
+confidence interval or full-SE(3) calibration is claimed. Constant endpoint
+floors fitted on the other routes improve final HelmDyn02 scalar 95% coverage
+only **35.0%→45.1%**, while over-expanding TudoRun02 to nearly 100%. The fixed
+low/high angular-rate split is uninformative here: all labelled pairs exceed its
+0.2 rad/s cut. A continuous raw-gyro variance proxy fitted by nonnegative weighted
+median regression also fails the held-out high-motion route. Neither proxy
+enters runtime. The existing Cauchy model remains active; a graph-central subset
+is reported only as a diagnostic, never as an unbiased calibration set.
+
+A separate, explicitly weaker time-holdout experiment adds only the first half
+of HelmDyn02 to the other three training routes. The cut is fixed from raw input
+duration; training and held-out edges have disjoint endpoint IDs. On 22 later
+edges / 13 queries, coverage increases **59.1%→95.9%**, but median normalized
+squared error becomes **0.0848**, far below the Gaussian reference 0.455. This
+shows central over-conservatism despite improved tail coverage, not a calibrated
+model. The 97 boundary-crossing edges remain in the estimator and whole-route
+audit. Endpoint separation still does not remove shared scan/clock/GT error.
+Independent high-motion validation and directional/shared-source modelling
+remain necessary; no GT fit changes production weights.
+
+**Final six-route ROS qualification.** The frozen final core completes all six
+original raw-sensor replays. Every live input is accounted for, with zero input
+coalescing and zero pending loop queries after drain. All six maps/Atlases pass
+save/reload: raw clouds, odometry, measurement information and moments remain
+preserved, with zero Atlas point error. All baseline query groups retain at
+least one admitted loop. Individual pair identities still change; this is not
+proof that every old pair is retained or every new pair is physically correct.
+
+Online RMSE uses the same fixed frontend-derived alignment and the same valid
+GT samples before/after. Holdout scoring excludes the alignment prefix; no
+diagnostic time shift or reference-point choice enters these numbers.
+
+| Route | Online full RMSE, cm | Online holdout RMSE, cm | Saved holdout RMSE, cm | Loops | Query groups |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| TudoRun01 | 3.212 → 3.321 | 2.939 → 3.247 | 2.413 → 2.407 | 59 → 62 | 10 → 10 |
+| TudoRun02 | 2.015 → 2.045 | 2.117 → 2.159 | 1.898 → 1.943 | 199 → 195 | 24 → 24 |
+| HelmDyn01 | 5.200 → 5.073 | 5.336 → 5.203 | 4.858 → 4.882 | 217 → 227 | 38 → 40 |
+| HelmDyn02 | 4.097 → 4.025 | 4.673 → 4.545 | 4.035 → 4.031 | 1013 → 1015 | 99 → 99 |
+| gate_02 | 91.635 → 90.832 | 100.860 → 99.976 | 102.549 → 100.188 | 44 → 54 | 33 → 46 |
+| hall_05 | 130.336 → 130.281 | 137.330 → 137.271 | 137.296 → 137.270 | 474 → 474 | 55 → 55 |
+
+M2DGR rows remain **nominal, unqualified time/reference scores**, not 10 cm
+acceptance or proof that all their error belongs to the backend. TudoRun01
+full/holdout RMSE regresses by 1.10/3.07 mm; the 15 above-10-cm samples and
+0.467 s longest span remain unchanged. TudoRun02 regresses slightly but retains
+zero above-10-cm samples. HelmDyn01/02 above-threshold counts fall 52→46 and
+10→9, while maxima rise 12.902→12.962 cm and 13.597→13.806 cm. The HelmDyn01
+saved holdout also regresses by 0.24 mm. These are observed tradeoffs, not a
+claim of every-metric nonregression or universal 10 cm.
+
+| Route | n3m CPU, s | Peak RSS, MiB | n3m process wall, s |
+| --- | ---: | ---: | ---: |
+| TudoRun01 | 18.99 → 19.36 | 154.7 → 178.6 | 59.92 → 59.88 |
+| TudoRun02 | 74.05 → 72.52 | 219.5 → 201.2 | 87.02 → 87.11 |
+| HelmDyn01 | 165.76 → 176.26 | 455.6 → 479.1 | 213.16 → 213.17 |
+| HelmDyn02 | 1274.43 → 1253.37 | 1990.2 → 1825.5 | 593.47 → 581.01 |
+| gate_02 | 172.31 → 196.87 | 1909.1 → 1887.1 | 355.25 → 353.19 |
+| hall_05 | 1049.98 → 991.70 | 1138.9 → 1160.5 | 528.85 → 507.32 |
+
+Resource scope includes n3m startup, input, asynchronous drain and saving;
+FAST_LIO and recorder are excluded. These are single four-core runs, without
+a repeatability interval. gate_02 retains more observations at **14.25% higher
+CPU**; HelmDyn02 CPU/RSS fall 1.65%/8.27%, and hall_05 CPU falls 5.55% while
+RSS rises 1.90%. The heavy routes still require backlog drain; realtime and
+half-core mapping are not established by this stage.
+
+**Frontend provenance.** All six final frontend pose streams equal the actual
+previous-stage ROS baseline exactly. The first five also match the older frozen
+input stream, including every declared cloud field. hall_05 is checked directly
+against the previous ROS baseline: all 4,014 clouds match every declared field,
+as recorded in `full_ros_bounded_baseline_frontend.json`.
+Its mismatch against the older frozen stream starts after frame 875 and remains
+explicit in `chain_audit.json`. The intermediate three-repair hall run used that
+older stream, so its small accuracy changes cannot be treated as a strict
+backend-only ablation against either final ROS run. PCL alignment padding is
+excluded from payload comparisons; declared normal/curvature fields are retained.
+
+**Closeout and next action.** Source and tested binary checksums match; 370 of
+382 source files are unchanged from stage entry. Regression tests fail on the
+applicable frozen predecessor and pass on the final candidate; full-quota
+retrieval and unqualified noise proxies are not promoted. No new feature, map
+format or user setting is introduced. This stage qualifies the tested gate_02
+schedule, full six-route delivery and checkpoint behavior. It does not repeat
+original14/extension acceptance or qualify arbitrary worker delays, physical
+GT clocks/reference points, transferable directional uncertainty, or hardware.
+The next step is independent high-motion/shared-source uncertainty validation
+and native M2DGR reference metadata, while preserving all runtime observations.
+An apparently better coverage percentage alone is insufficient to change weights.
+
+Durable [structured evidence](async_snapshot_20261022.json) contains all six
+results, source/binary identity, causal and retrieval ablations, timing/reference
+audits and uncertainty limits. Full bags, frozen builds, scripts and logs stay
+in `build/n3mapping/async_snapshot_20261022`. Only existing project records and
+the structured evidence are updated for closeout. The candidate is tested in
+the build directory; it is **not installed or pushed**.
+
+
+### On-demand loop geometry and Tudo timing audit — 2026-10-22
+
+This stage compares against the preceding `932760b` async-repair candidate.
+The six original real-data ROS chains run sequentially on physical P cores
+`0,2,4,6`, four registration threads and passive OpenMP waiting. Sensor payloads,
+FAST_LIO, map format, admission gates, runtime uncertainty weights and scoring
+rules are unchanged. Frozen evidence is in
+`build/n3mapping/loop_precision_20261022`; the durable summary is
+[loop_precision_20261022.json](loop_precision_20261022.json).
+
+**Tudo regression isolation.** Eight complete fixed-input blocking replays
+separate the previous causal-tail, descriptor and bounded-retrieval repairs.
+Causal append alone leaves both routes unchanged to numerical precision.
+Stable descriptors change Tudo01 live RMSE from 3.184330 to 3.184714 cm
+(+0.00383 mm), and Tudo02 from 2.012698 to 2.003327 cm. The bounded alternative
+adds no further difference on these routes. Tudo02 saved holdout changes
+1.919218→1.943260 cm (+0.2404 mm); this small deterministic tradeoff remains.
+
+The same stage-entry core under blocking versus prior ROS execution retains
+the same Tudo loop pairs and raw measurements (maximum component change about
+2e-14). Tudo02 also retains the same saved map. Tudo01 query 52 starts with
+53 nodes when blocking, 56 in the previous ROS replay and 54 in this final
+replay: query 47 is still executing while later scans arrive. Extra positive
+neighbours change disagreement information and plane associations; earlier
+publication also changes the scored online trajectory. This explains the
+schedule sensitivity rather than attributing every difference to ICP accuracy.
+Arbitrary schedule invariance and a full return to every older metric are not
+claimed. No output delay is tuned against truth.
+
+**Measured bottleneck and implementation.** Reusing each query-neighbour source
+within one immutable consensus call avoids repeated source preparation. This
+alone is insufficient: the gate blocking control uses 172.63 s before and
+175.36 s after source reuse in single runs. Stage logging then identifies
+34.24 s of target preparation versus 3.18 s of registration wall time.
+
+Consensus targets now build the same sampled coordinates and full KNN trees,
+and calculate each normal on its first correspondence access. The existing
+normal estimator and covariance reconstruction are reused. Per-point atomic
+publication supports concurrent readers; geometry stays immutable for the
+prepared target's lifetime. The few neighbour sources are call-scoped, with
+one target resident at a time. Each candidate retains its own solve, votes,
+information and admission decision. Default localization preparation remains
+eager. There is no new user setting, descriptor, persistent cache or map schema.
+
+On the same gate input, both controls still prepare 243 targets and perform
+265 neighbour registrations. Target preparation falls 34.24→9.99 s; lazy
+feature work moves into registration, which rises 3.18→6.11 s. These are wall
+stage measurements, not additive process CPU. Total blocking CPU falls
+175.36→101.69 s (41.1% below the stage-entry 172.63 s); wall falls 79.48→57.82 s.
+The two Tudo controls fall 17.38→12.32 s and 72.42→47.20 s.
+
+All loop and odometry pairs remain identical in the three controlled maps.
+Gate measurement, relative information and saved pose maximum component
+differences are 8.54e-14, 8.36e-10 and 4.48e-12. Both Tudo saved pose differences
+are below 1.4e-14. Full gate ROS versus its new blocking control also preserves
+all 54 loops, with saved pose difference 4.18e-12.
+
+**Final six-route ROS comparison.** Position metrics use the same fixed
+frontend alignment and held-out interval as before. M2DGR rows remain nominal
+diagnostics because their physical time/reference contract is unresolved.
+
+| Route | Live RMSE, cm | Live holdout, cm | Saved holdout, cm | Loop pairs | Query groups |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| TudoRun01 | 3.321 → 3.241 | 3.247 → 2.977 | 2.407 → 2.348 | 62 → 62 | 10 → 10 |
+| TudoRun02 | 2.045 → 2.023 | 2.159 → 2.128 | 1.943 → 1.943 | 195 → 195 | 24 → 24 |
+| HelmDyn01 | 5.073 → 5.045 | 5.203 → 5.173 | 4.882 → 4.905 | 227 → 191 | 40 → 40 |
+| HelmDyn02 | 4.025 → 4.003 | 4.545 → 4.532 | 4.031 → 4.032 | 1015 → 1014 | 99 → 99 |
+| gate_02 | 90.832 → 90.794 | 99.976 → 99.934 | 100.188 → 100.188 | 54 → 54 | 46 → 46 |
+| hall_05 | 130.281 → 130.300 | 137.271 → 137.292 | 137.270 → 137.292 | 474 → 474 | 55 → 55 |
+
+All baseline admitted query groups remain, including HelmDyn01 71→110. Pair
+identities are a separate limitation: HelmDyn01 loses 36 old asynchronous
+pairs. Its new ROS result exactly matches the old blocking control's 396 total
+edges (191 loops), with pose difference 5.23e-14. In that old blocking control,
+35 of the missing pairs fail the unchanged `segment_referee_energy` rule and
+159→200 is not retrieved. Faster processing changes snapshot availability;
+the optimization does not skip their registration work under a fixed schedule.
+Only three of these 36 pairs have both endpoints outside GT gaps; their
+marker-distance errors are 4.15–6.33 cm. Thus they cannot all be dismissed as
+invalid, and useful-observation retention is not fully qualified.
+HelmDyn02 changes three old pairs to two others, retaining all 99 groups.
+
+Tudo01 still has 15 above-10-cm live samples and a 0.467 s longest excursion;
+Tudo02 has none. Helm01 falls 46→44 above-threshold samples and its maximum
+12.962→12.664 cm. Helm02 falls 9→8 samples while its maximum increases
+13.8058→13.8142 cm. Saved holdout RMSE increases by 0.227 mm on Helm01 and
+0.0137 mm on Helm02; Tudo02 live p95 also increases slightly. Aggregate live
+improvement is not a claim that every metric is non-regressing or that 10 cm
+holds throughout every motion sequence.
+
+| Route | n3m CPU, s | CPU reduction | Peak RSS, MiB | Replay/drain wall, s |
+| --- | ---: | ---: | ---: | ---: |
+| TudoRun01 | 19.36 → 13.47 | 30.4% | 178.6 → 163.2 | 59.88 → 59.96 |
+| TudoRun02 | 72.52 → 46.90 | 35.3% | 201.2 → 206.3 | 87.11 → 86.96 |
+| HelmDyn01 | 176.26 → 85.62 | 51.4% | 479.1 → 466.4 | 213.17 → 213.10 |
+| HelmDyn02 | 1253.37 → 691.10 | 44.9% | 1825.5 → 1844.4 | 581.01 → 402.04 |
+| gate_02 | 196.87 → 125.03 | 36.5% | 1887.1 → 1953.8 | 353.19 → 355.21 |
+| hall_05 | 991.70 → 518.82 | 47.7% | 1160.5 → 1526.4 | 507.32 → 433.17 |
+
+Resources are single-run sampled n3m process measurements, including startup,
+background drain and save, excluding FAST_LIO and recording. Faster feature
+work reduces CPU substantially; RAM is not uniformly lower. HelmDyn02 still
+has a substantial background drain. This is not a heavy-route realtime,
+half-core, whole-ROS-chain or RK3588 qualification.
+
+**Source-cache memory ablation.** The final hall RAM increase triggers one
+additional single-variable comparison, removing only the call-scoped source
+cache while retaining on-demand targets. Gate blocking CPU changes
+101.69→102.35 s with the same 54 loops and saved pose difference 4.75e-12;
+its peak RSS does not improve. Full hall ROS retains 474 loops while CPU changes
+518.82→628.54 s (+21.1%) and peak RSS falls 1526.4→1113.2 MiB (−27.1%).
+Runtime sampled peak falls 1364.9→978.4 MiB, so the increase is not confined to
+serialization. Direct comparison of all frontend poses and cloud fields is
+recorded for this ablation as well. These asynchronous runs also change
+snapshot timing, so they are not identical-job heap measurements.
+
+The CPU-saving cache is retained for this compute-focused stage, with the RAM
+tradeoff explicit. The source-removal variant is not deployed. Source and
+binary are restored to the same frozen six-route candidate before closeout.
+Reducing retained source features/allocator residency while preserving reuse
+remains open; a uniformly lower RAM claim would be incorrect.
+
+**Cross-scene uncertainty.** Query-weighted scalar marker-distance labels
+retain all runtime loops; GT-gap exclusions affect observer labels only.
+Shared endpoints leave each route in a single connected group, so hundreds of
+edges cannot be counted as independent calibration trials. A new diagnostic
+models a shared query displacement and separate match displacement with
+`C = diag(v + sigma²) + sigma² U Uᵀ`. Both Tudo routes train both Helm routes
+and conversely, holding out an entire acquisition family.
+
+Unrobust off-diagonal moment fitting fails: Tudo training gives a negative
+variance moment (clamped to zero), while Helm training gives sigma=0.369 m.
+Fixed-nu=4 Student-t fitting limits gross-residual influence, retaining every
+label and equal route/query weighting. It fits sigma=1.012 cm on Tudo and
+2.933 cm on Helm. Held-out Helm02 marginal nominal-95% coverage rises
+33.9→62.6%, but query-block coverage is only 26.2%; this remains inadequate.
+Held-out Tudo coverage reaches 97.2%/100%, with overly small residual ratios.
+Neither this shared floor nor the earlier independent floor is deployed.
+Temporal/shared-match correlations and reference errors remain unresolved.
+
+The calibration audit also isolates existing large-residual Helm01 query-15
+edges: marker-distance discrepancies are 1.63–2.83 m, whereas their final
+saved-pose distance errors are 1.5–4.7 cm. The same edges exist in the old
+blocking map. Robust graph handling and other constraints protect final poses;
+these observations must not be treated as small Gaussian deskew noise when
+fitting a common floor. They remain in this frozen comparison. Raw IMU versus
+marker-orientation timing audits also fail to establish a transferable angular
+reference, so full-SE3 covariance calibration remains unqualified.
+
+**M2DGR reference contract.** Read-only inventories of the original full ROS1
+bags find no native Xsens output/antenna-reference configuration for gate_02,
+and no native Leica clock stream for hall_05. UBLOX native clock topics belong
+to a separate receiver. The published Xsens IMU/antenna extrinsics do not
+identify the position reference selected during acquisition. The previous
++54 ms effective angular lag and hall planar-course lag remain diagnostics,
+with no truth retiming or favorable reference selection. Primary records:
+[ECEF clarification](https://github.com/SJTU-ViSYS/M2DGR/issues/13),
+[Xsens model/reference discussion](https://github.com/SJTU-ViSYS/M2DGR/issues/23),
+[published extrinsics](https://github.com/SJTU-ViSYS/M2DGR/blob/main/calibration_results.txt).
+
+**Validation and closeout.** All 70 CTest targets pass in 35.01 s. The added
+registration case compares concurrent and repeated on-demand solves and
+fixed-pose evaluation with eager preparation, including untouched distant
+geometry. A first focused test invocation used a relative library search path
+and failed during dynamic loading; the absolute-path correction passes 2/2,
+and the full suite above loads the frozen final library.
+
+All six full ROS runs account for every live input, with zero coalesced inputs
+and zero pending queries after drain. Map/Atlas reload checks preserve raw
+clouds, odometry, information and plane moments. Direct comparison with the
+actual previous ROS baseline is recorded separately from the older frozen
+frontend stream, particularly for hall_05. No unqualified frontend equality
+is assumed when comparing backend accuracy.
+
+Eight of 382 existing frozen source/test/config files change; 374 are identical,
+and one 57-line internal helper is added. Consensus registration is 226 lines.
+The replay/checkpoint harness is rebuilt against the changed prepared-target
+C++ interface. Final core SHA256:
+`ec8271fce6f23f375a181bad772e2c1e07bf3709f75691ae56852bf0033328b3`.
+The wrapper/node and installed FAST_LIO binaries remain unchanged. The candidate
+is built and frozen, with no install, push or existing-data replacement. This
+stage does not rerun original14 or extension routes.
+
+Next work should distinguish gross loop mismatches from correlated scan error,
+qualify the physical truth reference before applying full-SE3 weights, and
+address the remaining snapshot-dependent neighbour/admission opportunity.
+Preserve the exact-geometry speedup and every independently valid observation;
+do not tune a universal noise floor to aggregate coverage alone.
+
+### Observed loop support and geometry lifetimes — 2026-10-22
+
+**Scope and frozen implementation.** Three changes: count only existing query
+neighbors in the segment screen, with at least two matched neighbors before
+descriptor-free support; release raw source clouds after preparation and prepared
+sources after their last target use; reuse one isolated asynchronous worker.
+The independent registration, neighbor, graph-trial and same-query consensus
+gates remain. Numerical acceptance thresholds, noise, robust loss and the prior
+on-demand target normals are unchanged. This does change admission when future
+query scans have not yet been observed; it is not merely a logging change.
+Pose-segment checks are explicitly documented as pose evidence, not independent ICP.
+
+**Controlled ablation.** All runs share the frozen frontend and four physical
+cores (0,2,4,6), with four matcher threads. Observed-support-only, source-lifetime
+and reusable-worker variants retain identical loop pairs on hall_05; the worker
+also matches observed-support-only on HelmDyn01. All three hall variants perform
+270 source preparations, 1,128 target preparations and 2,375 neighbor solves.
+HelmDyn01 retains 199 / 908 / 1,600. Source caching is retained; no source is
+evicted before its last use. The worker thread count across query jobs changes
+55→1 for hall and 40→1 for Helm. Numerical map differences are below 1.1e-13
+in pose components and 4.4e-9 relative information components.
+
+| hall_05 fixed-input variant | CPU s | Runtime peak MiB | Loops |
+| --- | ---: | ---: | ---: |
+| before | 498.24 | 875.57 | 475 |
+| observed | 501.56 | 975.14 | 484 |
+| lifetime | 500.43 | 934.18 | 484 |
+| worker | 503.89 | 914.73 | 484 |
+
+The resource-only changes preserve the observed-support solution. Recovery of
+additional loops carries additional validation work; these are not claims that
+every sequence gets cheaper, or that memory stays constant as the map grows.
+
+**Complete ROS qualification.** Same raw inputs, unchanged FAST_LIO/config,
+four-core affinity shared by frontend/backend. CPU is n3m process time including
+startup, drain and save; RAM is process high-water RSS. These are single runs.
+Replay requests 1x with acknowledgement flow control. Completeness does not
+certify acquisition-rate realtime: HelmDyn02 contains 106.60 s of frontend
+outputs but takes about 402.08 s wall time including drain/save.
+M2DGR scores are nominal because physical timing remains unresolved; gate also
+has an unresolved Xsens output reference. Every regression remains visible.
+
+| Route | Online RMSE cm before→after | Saved holdout cm before→after | CPU s before→after | Peak MiB before→after | Loops before→after |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| TudoRun01 | 3.241→3.189 | 2.348→2.519 | 13.47→14.08 | 163.2→156.0 | 62→68 |
+| TudoRun02 | 2.023→2.020 | 1.943→1.935 | 46.90→49.48 | 206.3→205.0 | 195→222 |
+| HelmDyn01 | 5.045→5.134 | 4.905→4.902 | 85.62→114.10 | 466.4→477.0 | 191→321 |
+| HelmDyn02 | 4.003→4.020 | 4.032→4.031 | 691.10→691.36 | 1844.4→1815.7 | 1014→1016 |
+| gate_02 | 90.794→90.954 | 100.188→100.886 | 125.03→133.66 | 1953.8→1862.0 | 54→68 |
+| hall_05 | 130.300→130.301 | 137.292→137.181 | 518.82→529.37 | 1526.4→1064.9 | 474→478 |
+
+**HelmDyn01 recovery.** The 35 older async pairs rejected by the missing-future
+segment-energy penalty are recovered. The old 159→200 pair is still outside
+the retrieved set; it is not an already verified measurement dropped at commit.
+No unconditional full-recall claim is made. In the fixed-input candidate, 17
+newly labeled pairs have marker-distance errors with median 3.784 cm and maximum
+8.106 cm. These labels use the existing GT-gap qualification; they are not full
+SE(3) truth, and the other new pairs are not certified by those 17 labels.
+
+**Remaining pair instability.** HelmDyn02 still differs on three old pairs:
+13→203, 21→248 and 112→143. The first two old marker-distance labels are
+consistent (2.08 / 3.65 cm absolute error), so they are not called invalid.
+All three rank fifth in the old final-map spatial search. In the new final
+map, 21→248 ranks sixth, only 0.428 mm beyond fifth. This identifies a fragile
+bounded-search boundary, but final-map ranks do not prove the original
+admission-snapshot rejection stage. Their query groups remain. No blanket
+claim that every old valid observation is retained is made.
+
+**Frontend parity and memory attribution.** The intermediate lifetime ROS
+run reproduces the older frozen D frontend, whereas the previous stage ROS
+baseline has a different FAST_LIO outcome after frame 876 (maximum pose
+component difference 2.212 cm). Raw payload equality alone therefore does not
+establish strict backend input equality. That intermediate RAM comparison is
+not a causal single-variable ablation. The frozen backend matrix above is.
+Final-versus-prior ROS pose comparisons and all hall cloud fields are separately
+recorded in `full_ros_worker_baseline_frontend.json`; only qualified comparisons
+are used for input-parity claims. Final gate_02 also differs from the prior
+frontend after 2,941 identical cloud messages (maximum pose component change
+0.990 cm); its ROS score/cost delta is not a strict backend-only comparison.
+The supplemental fixed-frontend gate run preserves all old 54 loop pairs and
+adds 14; CPU 101.69→112.43 s, peak RSS 382.12→383.24 MiB. The retained
+on-demand geometry optimization is unchanged; added validation has a cost.
+
+**Adaptive uncertainty experiment.** A three-coefficient nonnegative model
+uses only causal previous-keyframe odometry speed and angular rate to predict
+an endpoint noise floor. The same predeclared experiment is rerun on the final
+four qualified MID360 maps. It adds a shared-query covariance term, retains all
+labels and equal route/query weighting, and is trained on the other acquisition
+family only. Shared endpoint correlations are also evaluated across all edges.
+It improves held-out Tudo losses when trained on Helm, but fails to improve
+Helm transfer when trained on Tudo: Helm02 nominal-95% marginal coverage stays
+64.0%, query-block coverage 23.8%. This is insufficient. No learned coefficient
+or new noise floor is deployed. Tiny CPU inference is feasible; geometry
+ambiguity, shared scan bias, label quality and safe fallback dominate the problem.
+
+**M2DGR reference audit.** The published Leica-to-LiDAR and Handsfree-to-LiDAR
+extrinsics compose to the scorer's existing IMU-to-prism lever arm
+`[0.05881, 0.00093, 0.86310] m`; the scorer/frontend coordinate convention is
+consistent with that calibration. Hall's physical GT clock remains unresolved.
+The paper's measured <10 ms synchronization statement is for cameras; it does
+not certify LiDAR-to-GT latency. Gate's Xsens IMU/antenna output reference
+configuration is still missing. No truth retiming or reference selection changes
+any official score. Sources: [published calibration](https://github.com/SJTU-ViSYS/M2DGR/blob/main/calibration_results.txt),
+[dataset paper §III-C/D](https://arxiv.org/html/2112.13659v1),
+[Xsens discussion](https://github.com/SJTU-ViSYS/M2DGR/issues/23).
+
+**Validation and remaining limits.** 70/70 CTest pass (35.44 s).
+Two new segment regressions fail on the frozen old core and pass on the new one.
+An initial focused CTest invocation missed the ROS Python environment; the
+corrected invocation and final suite pass. Six ROS chains account for all inputs,
+zero coalescing and an empty drained queue. Six map/Atlas reload checks preserve
+raw clouds, odometry, information and plane moments. General 10 cm and universal
+cross-scene uncertainty calibration are not accepted. Original14 and simulated
+extension routes are not rerun in this stage. Existing gross-residual Helm
+query-15 loops remain a separate reliability/calibration issue; no noise model
+is allowed to hide them as ordinary Gaussian deskew error.
+
+Eight of 383 frozen source/test/config files change; 375 are byte-identical.
+The worker is a private 94-line async-state header; consensus registration is
+238 lines. No public API, dependency or parameter is added. Core SHA256:
+`cf7d6ca73fae553bafeae66fc5e07f0ee39731767344cda4f96260e00e42c001`.
+Built and frozen, not installed or pushed. All stage inputs/results remain in
+`build/n3mapping/loop_retention_20261022/`; compact evidence is
+[loop_retention_20261022.json](loop_retention_20261022.json).
+
+Next: distinguish gross mismatches from correlated measurement error, add
+geometry/independent-disagreement features to the held-out calibration audit,
+and establish native GT timing before interpreting M2DGR absolute accuracy.
+Preserve the measured geometry reuse and all independently verified observations.
+
+
+### Loop retrieval, observed motion and uncertainty — 2026-10-23
+
+**Implementation.** Spatial retrieval retains the primary top-k and a bounded
+reserve within one existing registration voxel of its boundary, at most another
+k. This is a retrieval heuristic, not calibrated pose uncertainty; the hard
+radius and numerical acceptance gates remain. A completed async correction is
+committed before new retrieval. Pending queries supplement their retained
+candidates once at dispatch, deduplicated by match ID. Rebase still reuses the
+registration evidence. The enqueue clock includes any blocking wait.
+
+Pose-segment association now uses position and heading together and prefers
+correspondences satisfying both existing gates. Traversal direction then
+prioritizes the number of consistent observed pairs before residual medians.
+Previously, adding a valid neighbor could cause a lower-median but contradictory
+direction to displace a fully supported one. Both corrections are shared by the
+mapping/extension verification pipeline; no dataset IDs or truth enter runtime.
+Missing future scans remain unavailable evidence; actual contradictions remain
+negative evidence. Numerical thresholds, robust loss and noise are unchanged.
+
+**Observability and causal limits.** `GLOG_v=1 GLOG_logtostderr=1` enables bounded
+spatial-rank, verification and selection traces without `loop_debug_enable`'s
+extra diagnostic graph trials. Normal qualification below disables both traces.
+The full-debug HelmDyn01 replay accepts 159→200, while the lightweight trace
+retrieves and registers it but rejects it at the unchanged inlier-ratio gate.
+These separate runs cannot reconstruct an unlogged earlier snapshot. The final
+map audit records actual retained pairs; no acceptance threshold is widened to
+force a remembered pair back into the graph.
+
+**Complete four-core ROS comparison.** Same raw inputs and unchanged FAST_LIO,
+four physical cores (0,2,4,6) shared by frontend/backend, four matcher threads.
+CPU includes startup, drain and saving; RAM is process high-water RSS. These
+are single runs. Acknowledgement flow control ensures complete input delivery,
+not acquisition-rate realtime. M2DGR scores below remain nominal diagnostics.
+
+| Route | Online RMSE cm before→after | Saved holdout cm before→after | CPU s before→after | Peak MiB before→after | Loops before→after |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| TudoRun01 | 3.189→3.182 | 2.519→2.320 | 14.08→14.50 | 156.0→180.8 | 68→72 |
+| TudoRun02 | 2.020→1.984 | 1.935→1.907 | 49.48→54.31 | 205.0→219.4 | 222→260 |
+| HelmDyn01 | 5.134→5.078 | 4.902→4.906 | 114.10→121.16 | 477.0→486.1 | 321→340 |
+| HelmDyn02 | 4.020→3.986 | 4.031→4.037 | 691.36→860.19 | 1815.7→1752.2 | 1016→1439 |
+| gate_02 | 90.954→91.104 | 100.886→101.094 | 133.66→133.45 | 1862.0→1877.9 | 68→69 |
+| hall_05 | 130.301→130.319 | 137.181→137.163 | 529.37→533.46 | 1064.9→1182.7 | 478→485 |
+
+Frontend equality against the actual previous ROS baseline: TudoRun01: equal; TudoRun02: equal; HelmDyn01: equal; HelmDyn02: equal; gate_02: equal; hall_05: different.
+Unequal frontend outputs prevent strict backend-only attribution for that row.
+The four MID360 streams are independently checked against the same frozen
+frontend, including every declared point field. PCL padding is excluded.
+
+**Loop labels and precision.** All available marker-distance labels are kept,
+including existing large-residual observations. They do not certify full SE(3),
+and unlabeled pairs are not declared valid or invalid.
+
+Both Helm routes retain every old loop pair in the actual previous ROS baseline.
+The final maps also contain previously missing HelmDyn01 159→200 and HelmDyn02
+13→203, 21→248 and 112→143. Across all routes, absent old pairs are: TudoRun02: 49→69, 55→69; hall_05: 14→140, 23→185, 30→110, 30→235, 34→120, 38→200, 43→205, 45→85, 55→260, 61→145, 73→80, 79→200, 103→265, 106→270, 108→150, 111→235, 111→275, 116→240, 123→245, 148→190, 183→225, 187→270, 234→275.
+Absence of a qualified GT label is not evidence that such a pair was invalid.
+
+- TudoRun01: 0 newly labeled pairs; 0 exceed 10 cm in scalar measurement error; removed labeled pairs: none.
+- TudoRun02: 33 newly labeled pairs; 0 exceed 10 cm in scalar measurement error; removed labeled pairs: none.
+- HelmDyn01: 4 newly labeled pairs; 0 exceed 10 cm in scalar measurement error; removed labeled pairs: none.
+- HelmDyn02: 121 newly labeled pairs; 0 exceed 10 cm in scalar measurement error; removed labeled pairs: none.
+
+Qualified online samples exceeding 10 cm: TudoRun01 15→15; TudoRun02 0→0; HelmDyn01 43→43; HelmDyn02 7→8. GT gaps are not filled
+or joined when measuring excursions. General 10 cm accuracy and an unconditional
+no-regression claim remain unaccepted. Small metric regressions above are
+retained, even where overall recall or online RMSE improves.
+
+**Memory and work.** The on-demand target geometry, exact feature reuse,
+prepared-source lifetimes and reusable isolated worker are byte-identical to
+the previous stage. Additional candidates/accepted loops still cost work.
+Hall runtime high-water RSS is 1042.87→1006.39 MiB;
+the corresponding whole-run/save high-water is 1064.91→1182.67 MiB.
+Sampled RSS maxima and kernel high-water values are distinct measurements.
+The intermediate gated run had a larger saving peak; that is preserved in the
+build evidence and is not attributed to a leak from one measurement alone.
+Heavy mapping is still not certified realtime or half-core.
+
+Because final hall's frontend differs from the actual previous ROS baseline,
+an additional control reuses exactly the same frozen frontend and harness.
+Raw point clouds and odometry are identical. With per-frame loop drain and full
+debug enabled on both versions, CPU is 503.89→503.48 s,
+runtime high-water RSS 914.73→887.78 MiB,
+and loops 484→488.
+Preparation/solve counts are retained in the compact evidence. This control
+does not certify the raw ROS memory difference as a backend-only improvement.
+
+**Uncertainty ablations.** Full same-query multiplication of the neighbor
+scatter is rejected: fixed-input HelmDyn01 online RMSE worsens 0.344 mm and
+saved holdout 0.175 mm despite a better peak. A query count is not a calibrated
+shared covariance. That runtime proposal is reverted byte-for-byte.
+
+Observer models include translational covariance anisotropy, causal previous
+keyframe speed/rotation and shared query/match endpoint covariance blocks.
+Geometry uses the effective stored covariance, including the existing neighbor
+floor, not an unmodified ICP Hessian. Registration fitness is also tested as a
+residual-scale proxy. Fits retain all usable scalar labels, use equal route/query
+weights and hold out the whole acquisition family. On the same boundary-control
+data, HelmDyn02 nominal-95% marginal coverage is 67.8% for the shared isotropic
+model and 72.1% with residual scale; this is still inadequate.
+
+Frozen geometry-model coefficients, without refitting, are also evaluated on
+the final maps. HelmDyn02 results: isotropic_shared: 64.6% marginal / 20.9% query-block; geometry_shared: 64.0% marginal / 20.9% query-block; geometry_motion_shared: 64.0% marginal / 20.9% query-block. Reprocessing the same recordings
+does not provide new independent acquisitions. Full SE(3), temporal common bias
+and the existing gross Helm query-15 residuals remain unresolved. No learned
+coefficient, new floor or changed runtime weight is deployed.
+
+**M2DGR.** The fixed-support hall timing audit uses identical moving samples
+for every tested lag, fits only the prefix and keeps that lag for held-out
+windows. Effective course/gyro lags range −1.88 to −2.08 s across smoothing
+windows. This is a motion proxy, not a physical clock calibration. Published
+Leica geometry still agrees with the existing scorer; its native clock is
+missing. Gate's native Xsens output-reference/clock configuration remains
+missing. No truth retiming or favorable reference selection changes the scores.
+Primary references remain the [published calibration](https://github.com/SJTU-ViSYS/M2DGR/blob/main/calibration_results.txt),
+[ECEF clarification](https://github.com/SJTU-ViSYS/M2DGR/issues/13) and
+[Xsens reference discussion](https://github.com/SJTU-ViSYS/M2DGR/issues/23).
+
+**Validation and closeout.** 70/70 CTest targets pass in
+35.41 s. Both association/direction regressions fail on their
+frozen old cores and pass on the final implementation; a test fixture was
+corrected to set the replay's 2 m gate explicitly instead of relying on the
+5 m Config default. The same fixture still rejects genuinely contradictory
+neighbors. Six ROS chains account for every input, zero coalescing and empty
+drained queues. Six map/Atlas reload checks preserve raw clouds, odometry,
+information and plane moments.
+
+Nine existing source/test/build files change, 374 remain byte-identical, and
+one spatial-retrieval source is added. The detector is 406 + 139 lines; segment
+consistency is 260 lines. Existing geometry/cache modules are retained. No ROS
+interface, parameter or dependency is added. Core SHA256:
+`02b30ac157d03b3084a122dadb52367521b3417af6881f7757f3ad560250b42c`.
+Built and frozen, not installed or pushed. Original14 and simulated extension
+routes are not rerun in this stage. Diagnostic runs and overlapped exploratory
+timings are excluded from the final resource comparison.
+
+**Follow-up ablation and remaining consensus ambiguity.** A separate lightweight
+TudoRun02 replay retrieves, registers and individually verifies both 49→69 and
+55→69, then rejects them at `same_query_consensus_ambiguous`. A fixed-frontend
+diagnostic shows the 49/50/55 corrections agree at centimeter scale, while
+19/20/21 give large, mutually different corrections. Three of six do not satisfy
+the existing strict-majority rule, so fallback keeps only 50. This identifies
+candidate-set sensitivity in these observed snapshots, not the physical validity
+of either unlabeled pair or an earlier unlogged snapshot. The policy is retained
+pending independent reliability evidence.
+
+An additional same-target preparation-reuse prototype is **not promoted**.
+With identical frozen frontend inputs and four cores, TudoRun02 keeps 260 loops
+and HelmDyn02 keeps 1,476; neighbor preparation/solve counts are unchanged.
+Maximum saved-pose matrix-component differences are 2.53e-14 and 9.89e-14;
+maximum relative information-component differences are 3.41e-9 and 1.53e-7.
+The comparison uses explicit 1e-9 rigid-matrix and 1e-6 relative-information
+tolerances, not a bit-identical claim. CPU is 54.86→54.23 s and 804.69→802.08 s;
+wall time is 21.32→22.77 s and 513.33→513.61 s. Peak runtime RSS changes by
++0.37 MiB and −49.41 MiB. These single-run results do not establish a useful
+CPU improvement for the current bottleneck. The four experiment-owned files
+are restored; all 384 source hashes and all three runtime binary hashes again
+match the six-route-qualified `direction` snapshot above. The rejected probe,
+comparison and decision are preserved without adding its structure to runtime.
+
+All detailed inputs/results remain in `build/n3mapping/loop_adaptive_20261022/`;
+compact evidence is [loop_adaptive_20261022.json](loop_adaptive_20261022.json).
+Next work should distinguish isolated conflicting candidates from competing
+supported places without inflating correlated votes, separate gross measurement
+mismatches from shared scan bias, and qualify physical truth timing/reference
+before full-SE3 calibration. Additional verification work remains a measured cost.

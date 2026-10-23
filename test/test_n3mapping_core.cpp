@@ -130,6 +130,26 @@ TEST(N3MappingCoreTest, ProcessMappingFrameAcceptsFirstKeyframe)
     EXPECT_NE(optimized.find(0), optimized.end());
 }
 
+TEST(N3MappingCoreTest, MappingRetainsFrontendMotionWhenScansDisagree)
+{
+    auto config = makeCoreTestConfig();
+    config.keyframe_distance_threshold = 0.05;
+    config.icp_refine_use_gicp = true;
+    N3MappingCore core(config);
+    // The frontend reports motion, but repeated local geometry provides the
+    // same scan. Without an admitted loop or plane factor, this ambiguous
+    // pair must not introduce an unexplained map-to-odometry correction.
+    for (int i = 0; i < 3; ++i) {
+        auto pose = Eigen::Isometry3d::Identity();
+        pose.translation().x() = 0.12 * i;
+        const auto output = core.processMappingFrame(
+            makeFrame(1000000000LL + i * 100000000LL, pose, 600));
+        ASSERT_TRUE(output.success);
+        ASSERT_TRUE(output.accepted_keyframe);
+        EXPECT_TRUE(output.T_world_lidar.isApprox(pose, 1e-9));
+    }
+}
+
 TEST(N3MappingCoreTest, RealtimeConsumerOmitsOnlyTheBackendWorldCloud)
 {
     const auto config = makeCoreTestConfig();

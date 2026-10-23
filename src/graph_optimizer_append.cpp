@@ -77,7 +77,8 @@ bool GraphOptimizer::optimizeGeometryUpdate() {
 }
 
 bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
-                                        const GraphOptimizer& snapshot) {
+    const GraphOptimizer& snapshot,
+    const std::map<int64_t, std::vector<PlaneMoment>>& body_moments) {
   if (snapshot.node_ids_.empty() || !new_factors_.empty() || !live.new_factors_.empty() ||
       live.graph_.size() < snapshot.graph_.size()) return false;
   for (size_t i = 0; i < snapshot.graph_.size(); ++i)
@@ -87,6 +88,8 @@ bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
         !live.getOptimizedPose(id).matrix().isApprox(
             snapshot.getOptimizedPose(id).matrix(), 1e-12)) return false;
   }
+  for (int64_t id : live.node_ids_)
+    if (!snapshot.node_ids_.count(id) && id <= *snapshot.node_ids_.rbegin()) return false;
   // Stage only new factors, retaining their noise and measurement semantics.
   for (size_t i = snapshot.graph_.size(); i < live.graph_.size(); ++i) {
     bool touches_new = false;
@@ -94,30 +97,56 @@ bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
       touches_new |= !snapshot.current_estimate_.exists(key);
     if (!touches_new) return false;
   }
+  std::map<int64_t, gtsam::NonlinearFactorGraph> factors;
+  for (size_t i = snapshot.graph_.size(); i < live.graph_.size(); ++i) {
+    const auto& factor = live.graph_[i];
+    if (dynamic_cast<const planar_geometry::MomentPlaneFactor*>(factor.get())) continue;
+    int64_t last = -1;
+    for (auto key : factor->keys()) if (!snapshot.current_estimate_.exists(key)) {
+      const gtsam::Symbol symbol(key);
+      if (symbol.chr() != 'x' || !live.node_ids_.count(symbol.index())) return false;
+      last = std::max(last, static_cast<int64_t>(symbol.index()));
+    }
+    factors[last].push_back(factor);
+  }
+  if (factors.empty()) return live.node_ids_ == snapshot.node_ids_;
+
+  // Replay the tail with the same causal conditioning as foreground append.
+  // A batch solve would let a later frame alter an earlier tail pose solely
+  // because the worker finished later. Keep failure transactional as well.
+  auto staged = cloneCommitted();
   const int64_t anchor = *snapshot.node_ids_.rbegin();
   const auto correction = getOptimizedPose(anchor) * live.getOptimizedPose(anchor).inverse();
   for (int64_t id : live.node_ids_) if (!snapshot.node_ids_.count(id)) {
-    pending_node_ids_.insert(id);
-    new_values_.insert(gtsam::Symbol('x', id), eigenToGtsam(correction * live.getOptimizedPose(id)));
+    auto initial = correction * live.getOptimizedPose(id);
+    for (size_t i = snapshot.edges_.size(); i < live.edges_.size(); ++i) {
+      const auto& edge = live.edges_[i];
+      if (edge.type == EdgeType::ODOMETRY && edge.to_id == id && staged->hasNode(edge.from_id)) {
+        initial = staged->getOptimizedPose(edge.from_id) * edge.measurement;
+        break;
+      }
+    }
+    staged->pending_node_ids_.insert(id);
+    staged->new_values_.insert(gtsam::Symbol('x', id), eigenToGtsam(initial));
+    staged->new_factors_ = factors[id];
+    for (size_t i = snapshot.edges_.size(); i < live.edges_.size(); ++i) {
+      const auto& edge = live.edges_[i];
+      if (std::max(edge.from_id, edge.to_id) == id) staged->pending_edges_.push_back(edge);
+    }
+    for (size_t i = snapshot.committed_floor_attitude_constraints_.size();
+         i < live.committed_floor_attitude_constraints_.size(); ++i) {
+      const auto& floor = live.committed_floor_attitude_constraints_[i];
+      if (floor.node_id == id) staged->pending_floor_attitude_constraints_.push_back(floor);
+    }
+    // Re-evaluate all raw body patches, including old-map rejects. Reusing
+    // admitted/merged patches or their corrected pose carries obsolete geometry.
+    const auto moments = body_moments.find(id);
+    if (moments != body_moments.end()) staged->appendPlaneObservations(id, moments->second);
+    staged->pending_has_loop_closure_ = live.has_loop_closure_;
+    staged->pending_has_session_anchor_ = live.has_session_anchor_;
+    if (!staged->optimizeGeometryUpdate()) return false;
   }
-  if (pending_node_ids_.empty()) return true;
-  for (size_t i = snapshot.graph_.size(); i < live.graph_.size(); ++i)
-    if (!dynamic_cast<const planar_geometry::MomentPlaneFactor*>(live.graph_[i].get()))
-      new_factors_.push_back(live.graph_[i]);
-  // A global geometry solve can split, merge and reorder planes. Retain the
-  // immutable body moments, but re-associate against this worker's plane IDs.
-  std::map<int64_t, std::vector<PlaneMoment>> moments;
-  for (const auto& plane : live.shared_planes_)
-    for (const auto& observation : plane.observations)
-      if (pending_node_ids_.count(observation.node_id))
-        moments[observation.node_id].push_back(observation.moment);
-  for (const auto& [id, observations] : moments) appendPlaneObservations(id, observations);
-  pending_edges_.assign(live.edges_.begin() + snapshot.edges_.size(), live.edges_.end());
-  pending_floor_attitude_constraints_.assign(
-      live.committed_floor_attitude_constraints_.begin() + snapshot.committed_floor_attitude_constraints_.size(),
-      live.committed_floor_attitude_constraints_.end());
-  pending_has_loop_closure_ = live.has_loop_closure_;
-  pending_has_session_anchor_ = live.has_session_anchor_;
-  return optimizeGeometryUpdate();
+  swapWith(*staged);
+  return true;
 }
 } // namespace n3mapping

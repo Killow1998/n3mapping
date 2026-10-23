@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <array>
+#include <future>
 #include <small_gicp/util/normal_estimation_omp.hpp>
 
 #include "n3mapping/point_cloud_matcher.h"
@@ -90,6 +91,45 @@ TEST_F(PointCloudMatcherTest, PreparedTargetBudgetCountsRetainedCapacity) {
     cloud->covs.reserve(1000);
     EXPECT_GE(estimatePreparedTargetMemoryBytes(target) - small,
               (cloud->covs.capacity() - capacity) * sizeof(Eigen::Matrix4d));
+}
+
+TEST_F(PointCloudMatcherTest, OnDemandTargetsPreserveConcurrentAndRepeatedRegistration) {
+    config_.icp_refine_use_gicp = true;
+    config_.icp_refine_downsampling_resolution = 0.2;
+    PointCloudMatcher matcher(config_);
+    const auto near = createSphereCloud(3000, 3.0);
+    auto target_cloud = pcl::make_shared<PointCloudMatcher::PointCloudT>(*near);
+    *target_cloud += *transformCloud(near, createPose(40, 0, 0));
+    const auto source = matcher.prepareSourceCloud(near);
+    const auto eager = matcher.prepareTargetCloud(target_cloud);
+    const auto lazy = matcher.prepareTargetCloud(
+        target_cloud, PointCloudMatcher::TargetFeatures::OnDemand);
+    const auto guess = createPose(.05, -.03, .02, 0, 0, .02);
+    const auto reference = matcher.alignPrepared(eager, source, guess);
+    auto future = std::async(std::launch::async, [&] {
+        return matcher.alignPrepared(lazy, source, guess);
+    });
+    const auto concurrent = matcher.alignPrepared(lazy, source, guess);
+    const auto other = future.get();
+    for (const auto& value : {concurrent, other, matcher.alignPrepared(lazy, source, guess)}) {
+        EXPECT_EQ(value.termination, reference.termination);
+        EXPECT_EQ(value.iterations, reference.iterations);
+        EXPECT_EQ(value.num_inliers, reference.num_inliers);
+        EXPECT_NEAR(value.fitness_score, reference.fitness_score, 1e-12);
+        EXPECT_TRUE(value.T_target_source.matrix().isApprox(reference.T_target_source.matrix(), 1e-12));
+        EXPECT_TRUE(value.information.isApprox(reference.information, 1e-10));
+    }
+    const auto check = matcher.evaluatePreparedPose(lazy, source, reference.T_target_source, reference.metric);
+    const auto expected = matcher.evaluatePreparedPose(eager, source, reference.T_target_source, reference.metric);
+    EXPECT_EQ(check.num_inliers, expected.num_inliers);
+    EXPECT_TRUE(check.information.isApprox(expected.information, 1e-10));
+    // Unvisited distant geometry keeps its full search support but needs no
+    // feature evaluation. This is the observable work saved by the policy.
+    for (const auto& level : lazy.plane_levels) {
+        ASSERT_TRUE(level.lazy_normals);
+        EXPECT_GT(level.lazy_normals->computedCount(), 0u);
+        EXPECT_LT(level.lazy_normals->computedCount(), level.cloud->size());
+    }
 }
 
 // 测试空点云预处理

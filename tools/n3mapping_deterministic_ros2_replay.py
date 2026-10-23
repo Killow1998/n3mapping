@@ -62,6 +62,10 @@ def parser() -> argparse.ArgumentParser:
         metavar="TOPIC=DEPTH",
     )
     command.add_argument("--rate", type=float, default=1.0)
+    command.add_argument(
+        "--clock", action="store_true",
+        help="Publish monotonic /clock before each sensor message, using its header or storage time, whichever is later",
+    )
     command.add_argument("--min-subscriptions", type=int, default=1)
     command.add_argument("--match-timeout-s", type=float, default=30.0)
     command.add_argument("--ack-timeout-s", type=float, default=10.0)
@@ -265,6 +269,7 @@ def replay(
     flow_control_lidar_topic: Optional[str] = None,
     lidar_ack_state: Optional[MutableMapping[str, object]] = None,
     lidar_ack_timeout_s: float = 60.0,
+    clock_publisher: Optional[object] = None,
 ) -> Dict[str, object]:
     counts: Counter[str] = Counter()
     first_storage_ns: Optional[int] = None
@@ -273,6 +278,7 @@ def replay(
     flow_control_ack_wait_ns = 0
     flow_control_schedule_shift_ns = 0
     published_lidar_frames = 0
+    clock_ns = 0
 
     while reader.has_next():
         topic, serialized, storage_ns = reader.read_next()
@@ -311,6 +317,14 @@ def replay(
         message = deserialize_message(
             serialized, message_types[topic]
         )
+        if clock_publisher is not None:
+            from rosgraph_msgs.msg import Clock
+            stamp = getattr(getattr(message, "header", None), "stamp", None)
+            header_ns = (int(stamp.sec) * 1_000_000_000 + int(stamp.nanosec)) if stamp else 0
+            clock_ns = max(clock_ns, storage_ns, header_ns)
+            clock = Clock()
+            clock.clock.sec, clock.clock.nanosec = divmod(clock_ns, 1_000_000_000)
+            clock_publisher.publish(clock)
         publishers[topic].publish(message)
         counts[topic] += 1
         if topic == flow_control_lidar_topic:
@@ -331,6 +345,7 @@ def replay(
         "counts": dict(sorted(counts.items())),
         "first_storage_ns": first_storage_ns,
         "last_storage_ns": last_storage_ns,
+        "clock": {"enabled": clock_publisher is not None, "last_ns": clock_ns},
         "flow_control": {
             "enabled": flow_control_lidar_topic is not None,
             "lidar_topic": flow_control_lidar_topic,
@@ -372,6 +387,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             for topic, depth in depths.items()
         }
         lidar_ack_state: Optional[MutableMapping[str, object]] = None
+        clock_publisher = None
+        if args.clock:
+            from rosgraph_msgs.msg import Clock
+            clock_publisher = node.create_publisher(Clock, "/clock", 10)
+            wait_for_subscriptions(node, {"/clock": clock_publisher}, 1, args.match_timeout_s)
         if args.lidar_ack_topic is not None:
             lidar_ack_state = {"sequence": 0, "error": None}
             ack_type = get_message("std_msgs/msg/UInt64")
@@ -410,6 +430,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             args.flow_control_lidar_topic,
             lidar_ack_state,
             args.lidar_ack_timeout_s,
+            clock_publisher,
         )
         acknowledgements = {
             topic: publisher.wait_for_all_acked(

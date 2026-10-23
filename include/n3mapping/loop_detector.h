@@ -199,14 +199,21 @@ public:
     bool isHeadingShapeValid(const RHPDHeadingPtr& descriptor) const;
     // keyframes supplies the odometry poses the path-length exclusion needs;
     // pass the same map used for spatial candidates.
+    // Retain the original top-k even if its predicted pose later changes, but
+    // supplement it with one usable candidate if every original is out of range.
     std::vector<LoopCandidate> detectLoopCandidates(
         int64_t query_id,
         const std::map<int64_t, Keyframe::Ptr>& keyframes,
-        const MatchFilter& accept_match = {});
+        const MatchFilter& accept_match = {},
+        const MatchFilter& within_work_bound = {});
+    // Optional boundary reserve adds at most one extra top-k budget within a
+    // registration voxel of the cutoff. Every candidate still obeys the radius
+    // and caller eligibility filter; geometric verification remains mandatory.
     std::vector<LoopCandidate> detectSpatialCandidates(
         int64_t query_id,
         const std::map<int64_t, Keyframe::Ptr>& keyframes,
-        const MatchFilter& accept_match = {}) const;
+        const MatchFilter& accept_match = {},
+        bool include_boundary_ties = false) const;
 
     std::vector<std::pair<int64_t, RHPDHeadingPtr>> getDescriptors() const;
     void swapWith(LoopDetector& other);
@@ -227,6 +234,10 @@ public:
     const RHPDescriptor::Params& getRHPDParams() const { return rhpd_manager_.getDescriptorParams(); }
 
 private:
+    // Caller holds mutex_; shared ranking for the original and bounded search.
+    std::vector<LoopCandidate> rankLoopCandidates(
+        int64_t query_id, const std::map<int64_t, Keyframe::Ptr>& keyframes,
+        const MatchFilter& accept_match);
     Config config_;
     RHPDManager rhpd_manager_;
     std::map<int64_t, size_t> id_to_index_;

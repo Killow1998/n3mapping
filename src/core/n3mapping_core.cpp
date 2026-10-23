@@ -583,7 +583,8 @@ void N3MappingCore::addRhpdDescriptorForKeyframe(
   PointCloud::Ptr rhpd_cloud = fallback_cloud;
   if (submap_radius > 0) {
     rhpd_cloud = session_->keyframeManager().buildCausalSubmapInRootFrame(
-        keyframe_id, submap_radius, keyframe_id);
+        keyframe_id, submap_radius, keyframe_id,
+        KeyframeManager::PoseSource::Odometry);
   }
 
   if (rhpd_cloud && !rhpd_cloud->empty() &&

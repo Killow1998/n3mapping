@@ -72,7 +72,12 @@ public:
     Keyframe::PointCloudT::Ptr buildSubmapInRootFrame(
         int64_t center_id, int range, int64_t root_id,
         int64_t excluded_keyframe_id = -1) const;
-    Keyframe::PointCloudT::Ptr buildCausalSubmapInRootFrame(int64_t center_id, int range, int64_t root_id) const;
+    enum class PoseSource { Optimized, Odometry };
+    // Online descriptors use a consistent local odometry frame. Loaded-map
+    // descriptors use the optimized map; odometry never crosses sessions.
+    Keyframe::PointCloudT::Ptr buildCausalSubmapInRootFrame(
+        int64_t center_id, int range, int64_t root_id,
+        PoseSource poses = PoseSource::Optimized) const;
 
 private:
     Config config_;

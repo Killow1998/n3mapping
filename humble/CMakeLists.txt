@@ -291,6 +291,7 @@ install(PROGRAMS
   ${N3MAPPING_ROOT}/tools/n3mapping_product_authority_runner.py
   ${N3MAPPING_ROOT}/tools/n3mapping_product_runtime.py
   ${N3MAPPING_ROOT}/tools/n3mapping_deterministic_ros2_replay.py
+  ${N3MAPPING_ROOT}/tools/n3mapping_normalize_point_time.py
   ${N3MAPPING_ROOT}/tools/n3mapping_raw_lio_replay_evidence.py
   ${N3MAPPING_ROOT}/tools/n3mapping_ros1_raw_bag_slice.py
   ${N3MAPPING_ROOT}/tools/n3mapping_submap_graph_trial_qualify.py
@@ -456,6 +457,13 @@ if(BUILD_TESTING)
       ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_raw_lio_replay_evidence.py
   )
   set_tests_properties(test_n3mapping_raw_lio_replay_evidence PROPERTIES TIMEOUT 60)
+
+  add_test(
+    NAME test_n3mapping_normalize_point_time
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONDONTWRITEBYTECODE=1
+      ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_normalize_point_time.py
+  )
+  set_tests_properties(test_n3mapping_normalize_point_time PROPERTIES TIMEOUT 30)
 
   add_test(
     NAME test_n3mapping_ros1_raw_bag_slice

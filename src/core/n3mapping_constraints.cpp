@@ -1,6 +1,5 @@
 // Graph constraints for new mapping keyframes. Raw odometry stays unchanged.
 #include "n3mapping/core/n3mapping_core.h"
-#include "../constraint_refinement.h"
 
 namespace n3mapping {
 bool N3MappingCore::addOdometryConstraint(int64_t keyframe_id,
@@ -14,16 +13,10 @@ bool N3MappingCore::addOdometryConstraint(int64_t keyframe_id,
   edge.from_id = keyframe_id - 1;
   edge.to_id = keyframe_id;
   edge.measurement = prev_kf->pose_odom.inverse() * pose;
-  const auto current = session_->keyframeManager().getKeyframe(keyframe_id);
-  if (config_.icp_refine_use_gicp && current) {
-    auto& matcher = session_->pointCloudMatcher();
-    const auto target = matcher.prepareTargetCloud(prev_kf->cloud);
-    const auto source = matcher.prepareSourceCloud(current->cloud);
-    const auto refined = refineConstraint(config_, matcher, target, source, edge.measurement);
-    if (refined.success) {
-      edge.measurement = refined.T_target_source;
-    }
-  }
+  // This edge represents the frontend's motion estimate. Re-registering its
+  // deskewed scans would reuse correlated evidence and assign the result the
+  // odometry noise below. Keep geometric corrections in the loop/plane factors,
+  // where they retain their own admission checks and uncertainty model.
   edge.information = Eigen::Matrix<double, 6, 6>::Identity();
   edge.information.block<3, 3>(0, 0) *=
       1.0 / (config_.odom_noise_position * config_.odom_noise_position);

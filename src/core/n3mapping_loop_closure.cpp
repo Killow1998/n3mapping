@@ -54,12 +54,19 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
         keyframe_map[keyframe->id] = keyframe;
       }
     }
+    const auto within_work_bound = [&](int64_t match_id) {
+      const auto match = keyframe_map.find(match_id);
+      if (match == keyframe_map.end()) return false;
+      const auto predicted = match->second->pose_optimized.inverse() * query_kf->pose_optimized;
+      return !(predicted.translation().norm() > config_.loop_max_range);
+    };
     std::vector<LoopCandidate> candidates =
-        session_->loopDetector().detectLoopCandidates(query_id, keyframe_map);
+        session_->loopDetector().detectLoopCandidates(query_id, keyframe_map, {},
+                                                      within_work_bound);
     if (config_.loop_spatial_candidates_enable) {
       auto spatial_candidates =
           session_->loopDetector().detectSpatialCandidates(query_id,
-                                                           keyframe_map);
+                                                           keyframe_map, {}, true);
       for (const auto &spatial : spatial_candidates) {
         auto duplicate =
             std::find_if(candidates.begin(), candidates.end(),

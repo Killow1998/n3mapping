@@ -271,8 +271,11 @@ class GraphOptimizer : public LoopOptimizerInterface
     Eigen::Isometry3d gaugePrior() const;
     // Catch up an isolated solve only when the live graph has appended nodes
     // without changing its snapshot's factors or poses. No registration repeats.
+    // Supply unassociated body moments: old-map admission is not valid for a
+    // newly solved reference. Missing geometry is represented by an empty map.
     bool appendCommittedTail(const GraphOptimizer& live,
-                             const GraphOptimizer& snapshot);
+                             const GraphOptimizer& snapshot,
+                             const std::map<int64_t, std::vector<PlaneMoment>>& body_moments);
     void swapWith(GraphOptimizer& other);
     // Owner-thread snapshot for an isolated loop solve. Factors are immutable;
     // estimates and staging state belong exclusively to the returned optimizer.

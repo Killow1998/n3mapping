@@ -1,6 +1,7 @@
 #pragma once
 
 #include <small_gicp/points/point_cloud.hpp>
+#include "lazy_target_normals.h"
 
 namespace n3mapping::registration_detail {
 inline Eigen::Matrix4d covarianceFromNormal(const Eigen::Vector4d& normal) {
@@ -14,9 +15,13 @@ inline Eigen::Matrix4d covarianceFromNormal(const Eigen::Vector4d& normal) {
 // reconstruct only the matrix requested by the current correspondence.
 struct TargetView {
   const small_gicp::PointCloud& cloud;
+  const LazyTargetNormals* lazy_normals = nullptr;
+  const Eigen::Vector4d& normal(std::size_t i) const {
+    return lazy_normals ? lazy_normals->normal(i) : cloud.normal(i);
+  }
   Eigen::Matrix4d covariance(std::size_t i) const {
     if (!cloud.covs.empty()) return cloud.cov(i);
-    return covarianceFromNormal(cloud.normal(i));
+    return covarianceFromNormal(normal(i));
   }
 };
 }  // namespace n3mapping::registration_detail
@@ -35,7 +40,7 @@ struct Traits<n3mapping::registration_detail::TargetView> {
     return view.cloud.point(i);
   }
   static const Eigen::Vector4d& normal(const View& view, std::size_t i) {
-    return view.cloud.normal(i);
+    return view.normal(i);
   }
   static Eigen::Matrix4d cov(const View& view, std::size_t i) {
     return view.covariance(i);

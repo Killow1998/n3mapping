@@ -102,11 +102,13 @@ class CorrespondenceSearch {
   double search_limit_;
 };
 
+class LazyTargetNormals;
 small_gicp::RegistrationResult align(
     const small_gicp::PointCloud& target, const small_gicp::PointCloud& source,
     const CorrespondenceSearch::Tree& tree, const Eigen::Isometry3d& initial_pose,
     const small_gicp::RegistrationSetting& setting,
-    const SearchBounds* bounds = nullptr);
+    const SearchBounds* bounds = nullptr,
+    const LazyTargetNormals* lazy_normals = nullptr);
 
 }  // namespace n3mapping::registration_detail
 

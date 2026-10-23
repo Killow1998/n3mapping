@@ -10,7 +10,7 @@
 namespace n3mapping {
 
 struct LoopSegmentConsistencyDiagnostics {
-    int pair_count = 0;
+    int pair_count = 0;  // Observed query neighbors, excluding unavailable future scans.
     int valid_pair_count = 0;
     int consensus_inlier_count = 0;
     double consensus_ratio = 0.0;

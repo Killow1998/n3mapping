@@ -112,9 +112,28 @@ void LoopDetector::addDescriptorUnlocked(int64_t id, const RHPDHeadingPtr& descr
 
 std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
     int64_t query_id, const std::map<int64_t, Keyframe::Ptr>& keyframes,
+    const MatchFilter& accept_match, const MatchFilter& within_work_bound) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto candidates = rankLoopCandidates(query_id, keyframes, accept_match);
+    if (within_work_bound &&
+        std::none_of(candidates.begin(), candidates.end(), [&](const auto& candidate) {
+            return within_work_bound(candidate.match_id);
+        })) {
+        // Preserve the original set: a later graph commit may bring it into
+        // range. Only when it is wholly unusable, retrieve one alternative.
+        // Eligibility must precede both coarse preselection and final top-k.
+        const auto usable = rankLoopCandidates(query_id, keyframes, [&](int64_t id) {
+            return (!accept_match || accept_match(id)) && within_work_bound(id);
+        });
+        if (!usable.empty()) candidates.push_back(usable.front());
+    }
+    return candidates;
+}
+
+std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
+    int64_t query_id, const std::map<int64_t, Keyframe::Ptr>& keyframes,
     const MatchFilter& accept_match) {
     std::vector<LoopCandidate> candidates;
-    std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = id_to_index_.find(query_id);
     if (it == id_to_index_.end()) return candidates;
@@ -320,107 +339,6 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
         candidate.sc_rank = i;
         candidates.push_back(candidate);
     }
-    return candidates;
-}
-
-std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
-    int64_t query_id,
-    const std::map<int64_t, Keyframe::Ptr>& keyframes,
-    const MatchFilter& accept_match) const {
-    std::vector<LoopCandidate> candidates;
-    if (!config_.loop_spatial_candidates_enable ||
-        config_.loop_spatial_candidate_max_candidates <= 0) {
-        return candidates;
-    }
-
-    auto query_it = keyframes.find(query_id);
-    if (query_it == keyframes.end() || !query_it->second) {
-        return candidates;
-    }
-    const auto& query_pose = query_it->second->pose_optimized;
-    const double radius = std::max(1e-6, config_.loop_spatial_candidate_radius);
-    const double min_path = std::max(0.0, config_.loop_min_path_length_m);
-
-    // What makes a revisit worth registering is how far the platform walked
-    // between the two visits, not how many keyframes it laid down. Asking for
-    // fifty keyframes of index discarded the out-and-back at 95 to 104 m of
-    // path on 0723 -- nine keyframes apart, nine metres of travel, and the
-    // worst revisit disagreement in the map.
-    std::map<int64_t, double> path_at;
-    {
-        double travelled = 0.0;
-        const Eigen::Vector3d* previous = nullptr;
-        Eigen::Vector3d previous_store;
-        for (const auto& [id, keyframe] : keyframes) {
-            if (keyframe) {
-                const Eigen::Vector3d t = keyframe->pose_odom.translation();
-                if (previous) {
-                    travelled += (t - *previous).norm();
-                }
-                previous_store = t;
-                previous = &previous_store;
-            }
-            path_at[id] = travelled;
-        }
-    }
-    const auto query_path_it = path_at.find(query_id);
-    const double query_path =
-        query_path_it != path_at.end() ? query_path_it->second : 0.0;
-
-    std::vector<std::pair<double, int64_t>> ranked;
-    std::size_t spatial_considered = 0;
-    std::size_t spatial_outside_radius = 0;
-    for (const auto& [match_id, keyframe] : keyframes) {
-        if (!keyframe || match_id >= query_id) {
-            continue;
-        }
-        if (accept_match && !accept_match(match_id)) {
-            continue;
-        }
-        const auto match_path_it = path_at.find(match_id);
-        if (match_path_it == path_at.end() ||
-            query_path - match_path_it->second < min_path) {
-            continue;
-        }
-        const double squared_distance =
-            (query_pose.translation() - keyframe->pose_optimized.translation()).squaredNorm();
-        if (!std::isfinite(squared_distance)) {
-            continue;
-        }
-        const double distance = std::sqrt(squared_distance);
-        ++spatial_considered;
-        // The radius is a hard bound, not a score normalizer: a candidate
-        // farther than loop_spatial_candidate_radius must never enter the
-        // returned set, however few candidates remain. Equal stays in.
-        if (distance > radius) {
-            ++spatial_outside_radius;
-            continue;
-        }
-        ranked.emplace_back(distance, match_id);
-    }
-
-    std::sort(ranked.begin(), ranked.end(), [](const auto& a, const auto& b) {
-        if (a.first != b.first) return a.first < b.first;
-        return a.second < b.second;
-    });
-
-    const int keep = std::min(config_.loop_spatial_candidate_max_candidates,
-                              static_cast<int>(ranked.size()));
-    candidates.reserve(keep);
-    for (int i = 0; i < keep; ++i) {
-        LoopCandidate candidate;
-        candidate.query_id = query_id;
-        candidate.match_id = ranked[i].second;
-        candidate.source_flags = LoopCandidate::SOURCE_SPATIAL;
-        candidate.candidate_source = LoopCandidate::Source::SpatialRadius;
-        candidate.fused_score = ranked[i].first / std::max(1e-6, radius);
-        candidate.spatial_score = 1.0 / (1.0 + candidate.fused_score);
-        candidate.fused_rank = i;
-        candidates.push_back(candidate);
-    }
-    VLOG(1) << "[Loop/SpatialCandidates] considered=" << spatial_considered
-            << " outside_radius=" << spatial_outside_radius
-            << " kept=" << candidates.size() << " radius=" << radius;
     return candidates;
 }
 
