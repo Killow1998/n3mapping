@@ -7742,8 +7742,9 @@ The field guide keeps clean-commit identity checks. Source the chosen installati
 last and verify both the package prefix and loaded libraries. `MAKEFLAGS=-j4`
 accompanies `CMAKE_BUILD_PARALLEL_LEVEL=4`; CPU affinity limits the actual cores.
 No bespoke build dispatcher, runtime abstraction or new regression test is added.
-Noetic receives the same flag fix and native catkin profile instructions; no
-Noetic underlay was available for an independent build.
+This initial run covered Humble only. The host lacked a native Noetic underlay,
+but an existing Noetic Docker image was overlooked. The independent build and
+test qualification is recorded in the following section.
 
 A real `n3mapping_node_backend.cpp` compilation takes 7.399 s without cache,
 9.433 s on its first cache miss and 0.019 s on a direct hit. The old duplicated
@@ -7777,3 +7778,59 @@ identity and the delivery manifest reside under
 `<workspace>/build/n3mapping/build_profiles_20261023/`. This stage does not rerun
 all six real sequences or full motion routes. Target hardware, general 10 cm,
 difficult-search half-core and uncertainty calibration remain open.
+
+### Noetic Docker validation — 2026-10-23
+
+The existing Focal/Noetic Docker environment supports the independent build.
+The original rc2 runtime builds and passes the corrected existing node E2E.
+The full suite passes on clean supplemental commit `19f099d`, which only fixes
+test compatibility/expectations, registers the existing E2E in CTest and corrects
+README commands. It changes no runtime source, header, parameter or algorithm.
+Both release tags and their original delivery artifacts remain unchanged.
+
+Native catkin profiles use separate build/devel/install/log directories, ccache
+and four physical cores 0,2,4,6. Focal's GCC 9.4, CMake 3.16.3 and PCL 1.10 use
+dependencies built inside the container; Jammy binaries are not reused. GTSAM
+4.1.1 uses system Eigen with native ISA/TBB/unstable builds disabled, following
+the repository CI configuration. Research tools are OFF.
+
+| Configuration | All 169 compile commands | Executed verification |
+| --- | --- | --- |
+| Debug | `-g`, no forced optimization | Nine realtime-odometry cases pass. |
+| RelWithDebInfo | `-O2 -g -DNDEBUG` | Nine realtime-odometry cases pass. |
+| MinSizeRel | `-Os -DNDEBUG` | Nine realtime-odometry cases pass. |
+| Release | Exactly one `-O3 -DNDEBUG` | Full build/install and 46/46 CTest targets pass in 37.51 s. |
+
+The Release node reports the tested commit with `verified=true`; dynamic libraries
+resolve to the selected container installation and Focal-built dependencies.
+The other profiles validate flags and one short target, not full SLAM builds.
+ccache reports 159 hits and 359 misses across dependency, initial and corrected
+builds; these mixed runs are not a clean cache-speed comparison.
+
+Three failures were isolated and resolved without relaxing runtime contracts:
+
+- PCL 1.10 lacks the fixture's two-argument point-cloud `resize`. Resize then
+  fill the same 25 points; the existing assertions are unchanged.
+- The old smoke script treated input time as a published estimate and expected
+  raw odometry alone to restore an invalidated projection. Match the existing
+  shared contract: keep exact input time in the projection association, require
+  a zero estimate while unavailable and a fresh backend correction for recovery.
+  The rc2 node itself passes the corrected script. This is not an algorithm fix.
+- Python 3.8 lacked `backports.zoneinfo`. Install the existing
+  `requirements-product-tools.txt`; the initially failing tool test and complete
+  suite then pass. CTest 3.16 requires running inside the build directory rather
+  than using `--test-dir`.
+
+The real-node E2E covers mapping/save, scan pairing, timestamps, retained anchors,
+velocity/covariance, invalid-input recovery and localization/extension startup
+without a map. It does not qualify complete motion routes or hardware. Two
+affected Humble targets (`test_loop_detector`, `test_ros_output_contract`) pass;
+the prior original14 runtime comparison remains applicable because runtime code
+did not change. No new CPU/precision improvement is claimed.
+
+See [structured evidence](noetic_validation_20261023.json). Raw logs, the frozen
+source clone, dependencies and native build scripts are retained under
+`<workspace>/build/n3mapping/build_profiles_20261023/noetic/` for incremental reuse.
+Keep this supplemental test commit when running the full Noetic suite; the old
+rc2 tag alone still contains the incompatible test fixture. The hardware-test
+candidate remains rc2, with target hardware and complete Noetic route testing open.

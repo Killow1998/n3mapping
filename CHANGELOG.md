@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased — Noetic validation follow-up
+
+- Make the existing loop-detector fixture compatible with Focal's PCL 1.10.
+- Align the existing Noetic node smoke test with the shared output contract:
+  unavailable estimates have zero pose time, input association retains source
+  time, and invalidated projections need a fresh trusted backend correction.
+  Register this real-node test in CTest and retain invalid-input/recovery checks.
+- Validate clean commit `19f099d` in Noetic/Focal Docker: full Release build and
+  46/46 CTest targets pass on four physical cores. Audit all four configurations'
+  compiler commands and run nine realtime cases in each non-Release profile.
+  Humble's two affected fixture/contract targets also pass.
+- Correct the earlier environment assessment: the host lacked a native Noetic
+  underlay, but an existing Docker image was available. Install the declared
+  Python 3.8 dependencies and use Focal-compatible CTest invocation.
+
+Runtime algorithms and configuration are unchanged from rc2; `v1.1.0-rc1` and
+`v1.1.0-rc2` remain immutable. See the
+[Noetic evidence](docs/evidence/runtime_cpu_20261017/README.md#noetic-docker-validation--2026-10-23).
+
 ## [1.1.0-rc2] - 2026-10-23
 
 Build-configuration candidate; ROS package versions remain `1.1.0` and the
@@ -14,8 +33,9 @@ Build-configuration candidate; ROS package versions remain `1.1.0` and the
   algorithm, acceptance threshold, map format or default parameter changes.
 
 See the [build-profile evidence](docs/evidence/runtime_cpu_20261017/README.md#build-profiles-and-rc2--2026-10-23)
-for configuration, cache, regression and Release comparison results. Noetic
-runtime and target-hardware acceptance remain unverified.
+for configuration, cache, regression and Release comparison results. The
+subsequent Noetic build/node-smoke qualification is recorded above; full Noetic
+route timing and target-hardware acceptance remain unverified.
 
 ## [1.1.0-rc1] - 2026-10-23
 

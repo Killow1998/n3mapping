@@ -143,7 +143,7 @@
       "wall_s": 37.92
     }
   },
-  "configuration_test_scope": "Release and RelWithDebInfo full build/install and 64 production CTest targets; Debug/MinSizeRel configure all targets and build/run existing nine realtime-odometry cases only; Noetic unavailable",
+  "configuration_test_scope": "Release and RelWithDebInfo full build/install and 64 production CTest targets; Debug/MinSizeRel configure all targets and build/run existing nine realtime-odometry cases only; this initial run covered Humble only (Noetic Docker follow-up: noetic_validation_20261023.json)",
   "cache_probe": [
     {
       "name": "old_duplicate_o3",
@@ -454,9 +454,10 @@
     "Sandbox colcon stalled before compiler launch; stopped own attempt and used authorized host build."
   ],
   "limits": [
-    "No complete Noetic build or hardware acceptance.",
+    "This initial stage did not include a Noetic build or hardware acceptance; see the separately qualified Noetic Docker follow-up.",
     "No new six-real-sequence or full motion-route qualification in this build-only stage.",
     "General 10 cm, difficult-search half-core and uncertainty calibration remain open."
   ],
-  "local_artifacts": "<workspace>/build/n3mapping/build_profiles_20261023/"
+  "local_artifacts": "<workspace>/build/n3mapping/build_profiles_20261023/",
+  "noetic_followup": "noetic_validation_20261023.json"
 }

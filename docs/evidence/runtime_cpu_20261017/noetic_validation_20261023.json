@@ -1,0 +1,234 @@
+{
+  "date": "2026-10-23",
+  "scope": "Noetic Docker build and test-only follow-up; no runtime or configuration changes from rc2",
+  "runtime_baseline_commit": "4b5db4f2e5fb10e5ccc0082edfae65977fa9d0aa",
+  "tested_commit": "19f099d7cc90f1ff410cc1f5d112a92acf43bdef",
+  "source_change_files": [
+    "README.md",
+    "noetic/CMakeLists.txt",
+    "test/noetic_output_smoke.py",
+    "test/test_loop_detector.cpp"
+  ],
+  "tags_preserved": {
+    "v1.1.0-rc1": {
+      "tag_object": "50534bd45fbce7f65d026883e68b32a6d930f493",
+      "commit": "6964b34d3f5f529eb8ed42844478a6f5cd721b2a"
+    },
+    "v1.1.0-rc2": {
+      "tag_object": "8272c7bb056cc27095f3c5144d71c96fb0e717c8",
+      "commit": "4b5db4f2e5fb10e5ccc0082edfae65977fa9d0aa"
+    }
+  },
+  "environment": {
+    "os": "Ubuntu 20.04.6 Focal",
+    "ros": "Noetic",
+    "image": "noetic_dev:n3mapping-validation",
+    "image_id": "sha256:bf7273998bc2e92150f6f1527636a6d7120925650a543263014fc33d195e900c",
+    "compiler": "GCC 9.4.0",
+    "cmake": "3.16.3",
+    "pcl": "1.10",
+    "eigen": "3.3.7",
+    "ccache": "3.7.7",
+    "catkin_tools": "0.9.4",
+    "cpus": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "build_jobs": 4,
+    "omp_threads": 4,
+    "omp_wait_policy": "PASSIVE",
+    "openblas_threads": 1,
+    "research_tools": "OFF",
+    "dependency_sources": {
+      "gtsam": {
+        "commit": "69a3a75195b65356d6e56669e5199d325c7962c9",
+        "status": ""
+      },
+      "small_gicp": {
+        "commit": "78f2e7a221720625eb95271ad9da21a04fb77f86",
+        "status": ""
+      }
+    }
+  },
+  "profiles": {
+    "Debug": {
+      "commands": 169,
+      "optimization_counts": {
+        "()": 169
+      },
+      "ndebug": [
+        false
+      ],
+      "debug_info_flag": [
+        true
+      ],
+      "compiler_launchers": [
+        "ccache",
+        "ccache"
+      ],
+      "build_path": "build/n3mapping/build_profiles_20261023/noetic/build/Debug/n3mapping",
+      "realtime_tests_passed": 9
+    },
+    "RelWithDebInfo": {
+      "commands": 169,
+      "optimization_counts": {
+        "('-O2',)": 169
+      },
+      "ndebug": [
+        true
+      ],
+      "debug_info_flag": [
+        true
+      ],
+      "compiler_launchers": [
+        "ccache",
+        "ccache"
+      ],
+      "build_path": "build/n3mapping/build_profiles_20261023/noetic/build/RelWithDebInfo/n3mapping",
+      "realtime_tests_passed": 9
+    },
+    "MinSizeRel": {
+      "commands": 169,
+      "optimization_counts": {
+        "('-Os',)": 169
+      },
+      "ndebug": [
+        true
+      ],
+      "debug_info_flag": [
+        false
+      ],
+      "compiler_launchers": [
+        "ccache",
+        "ccache"
+      ],
+      "build_path": "build/n3mapping/build_profiles_20261023/noetic/build/MinSizeRel/n3mapping",
+      "realtime_tests_passed": 9
+    },
+    "Release": {
+      "commands": 169,
+      "optimization_counts": {
+        "('-O3',)": 169
+      },
+      "ndebug": [
+        true
+      ],
+      "debug_info_flag": [
+        false
+      ],
+      "compiler_launchers": [
+        "ccache",
+        "ccache"
+      ],
+      "build_path": "build/n3mapping/build_profiles_20261023/noetic/build/Release/n3mapping",
+      "ctest_passed": 46,
+      "ctest_seconds": 37.51
+    }
+  },
+  "build_identity": {
+    "schema": "n3mapping_product_build_identity_v2",
+    "commit": "19f099d7cc90f1ff410cc1f5d112a92acf43bdef",
+    "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+    "build_type": "Release",
+    "research_tools": "OFF",
+    "verified": true
+  },
+  "original_rc2_runtime": {
+    "build_identity": {
+      "schema": "n3mapping_product_build_identity_v2",
+      "commit": "4b5db4f2e5fb10e5ccc0082edfae65977fa9d0aa",
+      "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+      "build_type": "Release",
+      "research_tools": "OFF",
+      "verified": true
+    },
+    "build_install": "passed",
+    "corrected_node_smoke": "passed",
+    "uncorrected_full_test_build": "failed: PCL 1.10 fixture used unsupported resize(count, point); fixed in tested commit"
+  },
+  "release_tests": {
+    "ctest_passed": 46,
+    "ctest_failed": 0,
+    "seconds": 37.51,
+    "catkin_test_results_report": "Summary: 700 tests, 0 errors, 0 failures, 0 skipped",
+    "node_e2e": "existing test/noetic_output_smoke.py registered in CTest",
+    "node_scope": [
+      "mapping/save",
+      "scan pairing and source times",
+      "retained anchor",
+      "velocity/covariance",
+      "invalid-input withdrawal and fresh backend recovery",
+      "localization/extension unavailable startup"
+    ]
+  },
+  "humble_affected_targets": {
+    "passed": 2,
+    "targets": [
+      "test_loop_detector",
+      "test_ros_output_contract"
+    ],
+    "seconds": 0.18
+  },
+  "ccache": {
+    "direct_hits": 33,
+    "preprocessed_hits": 126,
+    "misses": 359,
+    "compile_failures": 1,
+    "max_size": "8 GB",
+    "scope": "mixed dependency, initial/fixed product and short-profile builds; not a controlled speedup benchmark"
+  },
+  "resolved_failures": [
+    {
+      "cause": "original fixture calls PointCloud::resize(count, point), absent in PCL 1.10",
+      "resolution": "resize then std::fill same 25 points; assertions unchanged"
+    },
+    {
+      "cause": "old node smoke assumes unavailable estimate has source time and raw odometry restores invalidated projection",
+      "resolution": "assert zero estimate and exact input association; require fresh backend correction; unmodified rc2 runtime passes corrected script"
+    },
+    {
+      "cause": "Python 3.8 backports.zoneinfo dependency absent",
+      "resolution": "install already declared requirements-product-tools.txt; 45/46 initial CTest becomes 46/46"
+    },
+    {
+      "cause": "separate CMake dependency installs do not export ROS environment hooks",
+      "resolution": "add exact Focal-built dependency lib directories to runtime LD_LIBRARY_PATH"
+    },
+    {
+      "cause": "Focal CTest 3.16 lacks --test-dir",
+      "resolution": "run ctest inside native catkin package build directory"
+    }
+  ],
+  "artifacts": {
+    "base": "build/n3mapping/build_profiles_20261023/noetic",
+    "log_sha256": {
+      "ctest_release.log": "1487dddf6ca63568fbeea7dbae8216ae26e30ec025dd3599a8cbd5a81bd6006c",
+      "catkin_test_results.log": "1cbde3a3072b631eaf8b3d2ab07e16448ead124f25a4dc602f586f78f83e2531",
+      "profiles_audit.json": "eeb5710e0d11997a5e49b6a2fcfd2b70bd1aa5574c50c00691eb9195a980ebd0",
+      "runtime_environment.txt": "eaa13480f5caec5add3ec367cfe536d2d116e8d4913b3d204ad84e6a7db0cd49",
+      "ccache_stats.log": "875538dbc893ae247c32f386f12b2f2ef7e08d2b734a8adef95830d14020773f",
+      "rc2_output_smoke_recovery.log": "4be4b51bc6843f30429e899af1c5014657ceaac5e5da1d7f40c72a866d92b63b",
+      "humble_fixture_test.log": "82e4f021cc7429f891ad5b0784cb4a55555f2d3bd0bb5a3422f7aead347e2752",
+      "build_dependencies.sh": "4e3bd14854710600e7b18a7bab6a6b3a6ff8fca56aed6314e52b10f5c4962aee",
+      "build_release.sh": "7834d3542f2f0fbc9817698c104f6a0179bfa1e7a6b84934f12349ddfe665aef",
+      "run_tests.sh": "aa123bcad0620130a6304691842b2f880d1e3ee17e23383203e1f39ff3632465",
+      "check_profiles.sh": "2385e15219a29ca7bfbae0d71d183b09bc5742c57ac9ea3c73b3c66795d32919",
+      "ctest_missing_zoneinfo.log": "8bf3da51afafeb2b0087685b5cbe9afea85ef7cd84e70fab46949da95809436a",
+      "python_dependencies.log": "de6600798d321caf2315512182d83041738b01c32365f0bc781e3f5041d742e2"
+    },
+    "release_binary_sha256": {
+      "lib/n3mapping/n3mapping_node": "0b73d32c681485bf6fb1bd159d3789fb7a8f6e446860cee5574f7a7d9abb1508",
+      "lib/libn3mapping_core.so": "93141a13dd7a66ebdb741b929758e8fa37e7ba533b991e6d32d49177ecdade71",
+      "lib/libn3mapping_noetic_wrapper.so": "d10a805043723475d640eba5c49ada1b5b53f35a19d0b776cfe991269b8d6458"
+    }
+  },
+  "limitations": [
+    "No runtime algorithm change or new CPU/precision improvement claimed.",
+    "Debug, RelWithDebInfo and MinSizeRel configure all targets but only build/run existing realtime-odometry test.",
+    "No full Noetic motion/real-data route or target-hardware acceptance.",
+    "Original rc2 tag still has the incompatible test fixture; full suite requires supplemental tested commit.",
+    "No push, merge, issue closure, tag rewrite or original bundle replacement."
+  ]
+}

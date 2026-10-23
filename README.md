@@ -5,6 +5,8 @@ Use the [versioned build and field-test instructions](docs/field_testing_zh.md).
 The rc2 build configuration preserves Release optimization and isolates cached
 development builds; the **v1.1.0-rc1** tag remains available. See the
 [rc2 build validation](docs/evidence/runtime_cpu_20261017/README.md#build-profiles-and-rc2--2026-10-23).
+The [Noetic Docker follow-up](docs/evidence/runtime_cpu_20261017/README.md#noetic-docker-validation--2026-10-23)
+qualifies the same runtime with a separate test-only correction; neither release tag is moved.
 The [closeout evidence](docs/evidence/runtime_cpu_20261017/README.md#hardware-test-release-closeout--2026-10-23) records the paired behavior and retained limits.
 This candidate consolidates the existing localization, online loop and extension
 work; general 10 cm accuracy, difficult-search half-core operation and target
@@ -718,8 +720,12 @@ performance testing and `Debug` for unoptimized debugging. Native
 [catkin profiles](https://catkin-tools.readthedocs.io/en/latest/verbs/catkin_profile.html)
 keep build/devel/install/log paths separate; retain existing profiles and caches.
 After dependencies are ready, `catkin build ... --no-deps` limits iteration to
-n3mapping. The initial rc2 report covered Humble only; it omitted the available
-local Noetic/Focal Docker environment. On a host with only Humble installed,
+n3mapping. Noetic/Focal Docker validation now covers the full Release build,
+46 CTest targets including the real-node smoke test, and compiler flags for all
+four configurations. Debug, RelWithDebInfo and MinSizeRel have targeted realtime
+tests, not full Noetic SLAM builds. See the
+[follow-up evidence](docs/evidence/runtime_cpu_20261017/README.md#noetic-docker-validation--2026-10-23)
+for the tested commit and dependency setup. On a host with only Humble installed,
 check existing Noetic containers before declaring the build environment absent.
 
 ### Run
@@ -755,6 +761,11 @@ rosservice call /n3mapping/save_map "{}"
 ```
 
 ### Test
+
+Install `requirements-product-tools.txt` before running the complete suite;
+Python 3.8 needs its declared `backports.zoneinfo` dependency. If GTSAM or
+small_gicp was installed to a custom prefix without a ROS environment hook,
+also make that prefix's `lib` directory available to the runtime linker.
 
 ```bash
 catkin build --profile "$N3M_PROFILE" n3mapping --no-status -j4 -p1 \
@@ -996,7 +1007,7 @@ remains the performance baseline.
 | Accuracy — recorded simulation cases below 10 cm | Prior mapping RMSE/maximum 1.399/9.289 cm retained. Current original14 0.840/2.481 cm; original/fresh motion maxima 7.933/3.247 cm. Small RMSE and old-route peak regressions are preserved in the [recovery evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-atlas-tracking-and-fresh-recovery-confirmation--2026-10-21). |
 | Online loop/map consistency — checkpoints retained; calibration open | Source/target deskew cross-ablation attributes the worst audited mapping-loop bias to both scans: 16.757→0.495 mm with observer-only native deskew. A shared rigid scan bias can cancel around graph cycles. Production weights remain unchanged; the diagnostic is not a runtime correction. [Evidence and limits](docs/evidence/runtime_cpu_20261017/README.md#occupied-search-bounds-and-scan-level-loop-bias--2026-10-21). |
 | Online extension — RAM reduced; half-core open | Last fully measured first/second/fresh extensions use 0.873/0.860/0.840 cores and 1.873/1.987/1.813 GiB runtime RSS. The paired fresh-route memory change is 2.088→1.816 GiB with CPU approximately unchanged. All recorded outputs stay below 10 cm; [save peaks and latency tradeoffs](docs/evidence/runtime_cpu_20261017/README.md#recovery-geometry-compact-map-assembly-and-uncertainty-ablation--2026-10-21) remain explicit. |
-| Asynchronous online mapping loops — complete causal qualification | Recorded simulation mapping averages 0.413 cores including background drain; maximum live error 9.289 cm. Full-node/hardware and independent Noetic compilation remain open. |
+| Asynchronous online mapping loops — complete causal qualification | Recorded simulation mapping averages 0.413 cores including background drain; maximum live error 9.289 cm. Noetic Release build and node smoke now pass; complete Noetic route timing and target-hardware acceptance remain open. |
 | Search cost — 03 half-core remains open | Exact occupied bounds and Atlas crop retention: paired three-repeat medians 03 0.569→0.552, 14 0.468→0.448 cores. Full original14 0.407; old/new routes 0.244/0.324. All decisions retained; pose differences below 6e-14 matrix units. [Scope, timing ranges and ablations](docs/evidence/runtime_cpu_20261017/README.md#occupied-search-bounds-and-scan-level-loop-bias--2026-10-21). |
 
 For uncertainty audits, `LOOP` identifies a robust graph edge, not its measurement

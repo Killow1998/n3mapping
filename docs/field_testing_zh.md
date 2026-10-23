@@ -16,7 +16,10 @@ Python 标准库，不要求 ROS 正在运行；也可以打包按同样目录�
 
 本次实机候选为 **v1.1.0-rc2**，Humble / Noetic 的 ROS package 版本均为
 **1.1.0**。这是现有功能的收尾定版；10 cm 全场景精度、困难搜索平均半核、
-RK3588/MID360 真机及本版 Noetic 独立编译尚未验收。
+RK3588/MID360 真机尚未验收。Noetic/Focal Docker 已补齐独立 Release 构建和
+节点 E2E；完整 46 项测试通过于测试修正提交 `19f099d`，并非原 rc2 标签。
+该提交没有运行算法或配置改动，详情见
+[Noetic 补验记录](evidence/runtime_cpu_20261017/README.md#noetic-docker-validation--2026-10-23)。
 本版只调整编译配置和构建流程，保留 **v1.1.0-rc1** 标签。
 版本标签是否已到远端应以实际仓库为准；本地定版不等于已经推送。
 
