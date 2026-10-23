@@ -8046,3 +8046,72 @@ Noetic evidence is under
 Next: diagnose the earlier-input Humble startup path separately, then qualify
 the chosen clean Release build and target hardware. Existing 10 cm, difficult
 search and cross-scene uncertainty limits remain open.
+
+
+### Humble startup input and branch integration — 2026-10-23
+
+**Problem and cause boundary.** Input sent during DDS discovery/initialization
+could leave the reliable depth-1 live subscription about 0.4–0.5 s behind the
+paired backend. `input_before_correction` correctly rejected it. The unchanged
+pre-fix logging build reproduces this with no authorized output. A ROS-only
+odometry echo, with no n3m core or logger, reproduces 9–13/800 delivered samples
+and approximately 490 ms age while its three depth-100 readers stay current.
+This isolates an input-history/recovery interaction from SLAM and logging; it
+does not establish every internal Fast DDS race or a universal network bound.
+The installed stack is Fast DDS 2.6.11 / rmw_fastrtps_cpp 6.2.10.
+
+The immutable rc2 Release, using its own setup and verified wrapper/core paths,
+fails two of three cold-start trials: 2/1,200 and 0/1,200 measured outputs.
+The third passes, confirming an intermittent startup failure. An earlier
+control accidentally loaded development libraries and is excluded; its crashes
+are not attributed to rc2. The isolated control and loader evidence are retained.
+
+**Ablation and correction.** At immediate worker start, depth 1 failed 3/5
+minimal runs; depth 10 also failed once; depth 100 passed 5/5. A 1.2 s delayed
+minimal executor passed at all tested depths, so inserting a readiness wait
+would hide the relevant startup condition. Changing the spinning API did not
+provide a demonstrated fix and was not retained. Humble now uses the existing
+`sync_queue_size` (default 100) for reliable, volatile transport history, matching
+the local FAST_LIO `/Odometry` writer's depth. It drains at most that configured
+capacity and projects only the newest pending sample. No unbounded queue,
+sleep-before-input requirement or acceptance-threshold change is introduced.
+The existing freshness, source-time, invalid-input and authority checks remain.
+`live_odom_coalesced` is aggregated by the shared asynchronous logger; existing
+live `projection_ms` includes drain work.
+
+A queue-only prototype passed five actual-node startup runs but failed the
+existing blocked-executor test: it published eight retained inputs instead of
+the newest one. The final coalescing implementation passes that same assertion
+without editing it. This retains the original overload behavior. The logging
+E2E now sends input during initial startup and restart, without waiting for
+endpoint matching or health. Its delivery/latency, invalid-twist rejection,
+paired recovery, map save, clean exit, logging fault and quota checks remain.
+
+**Four-core verification.** Native colcon/catkin, RelWithDebInfo, ccache,
+CPU affinity 0,2,4,6 and four OpenMP threads: Humble **66/66 (46.10 s)** and
+Noetic **48/48 (50.42 s)**. Noetic's stronger cold-start E2E also passes
+separately (10.90 s); its 718 aggregator entries are not independent targets.
+The final Humble node passes three 30 s, 200 Hz odometry / 10 Hz static-cloud
+runs, **6,000/6,000 measurements each**, with first output 0.108–0.220 s after
+process launch. P99 is 0.317/0.343/0.323 ms, CPU averages
+0.02567/0.02600/0.02534 cores, and the largest observed delay is 7.80 ms.
+These small synthetic workloads check live continuity, not full SLAM CPU or
+new route/target-hardware qualification. The 64 MiB local DDS profile is retained;
+this correction is separate from the earlier large-cloud SHM-capacity issue.
+
+**Branch integration.** Merge `803fbb3` has parents `9f0d63a` and `792585c`.
+The Noetic side has zero remaining unique commits. Conflict resolution retains
+the newer shared MapArtifacts, async-save ordering, locks, thin adapters and
+current tests. Dependency/protobuf setup is now shared by both wrappers; all
+103 core compile units on each distro have explicit includes without ROS or
+wrapper paths. The private bundled nanoflann include remains necessary for the
+existing KD-tree helper. The old Noetic monolith and standalone build entry are
+not reintroduced; native colcon/catkin profiles remain authoritative. The source
+mirror audit matches 414 code/CMake/test/tool files. rc1/rc2 tags are unchanged.
+
+See [structured results, source/binary hashes and diagnostic failures](startup_merge_20261023.json).
+Raw evidence is under `<workspace>/build/n3mapping/startup_merge_20261023/` and
+`<workspace>/build/n3mapping/build_profiles_20261023/noetic/startup_merge/`.
+The earlier ready-start logging result is historical; this stage replaces its
+readiness precondition with tested continuous-startup input. No new Release,
+14-point, six-route, 10 cm or difficult-search acceptance is claimed.

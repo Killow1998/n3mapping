@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — Humble startup input and branch integration
+
+- Merge `dev/noetic-core-modularity-20261019` into the current shared pipeline,
+  retaining the newer asynchronous MapArtifacts and both thin adapters. Share
+  dependency/protobuf setup and remove inherited wrapper includes from the core.
+  Keep native colcon/catkin builds and immutable rc1/rc2 tags.
+- Replace Humble's reliable depth-1 live history with the existing bounded sync
+  queue, and coalesce pending input before projection. Preserve latest-input,
+  timestamp, invalid-input and backend-authority behavior. Count coalesced samples;
+  include drain time in the existing live processing timing.
+- Strengthen the real-node logging E2E: input now runs during initial startup and
+  process restart, without waiting for discovery or health before publication.
+  Keep the existing delivery, latency, invalid-input/recovery, save and quota checks.
+
+See [startup and merge evidence](docs/evidence/runtime_cpu_20261017/README.md#humble-startup-input-and-branch-integration--2026-10-23).
+
 ## Unreleased — shared bounded asynchronous logging
 
 - Route both ROS adapters, glog and existing diagnostic streams through one
@@ -17,10 +33,10 @@
   Four-core development validation passes Humble 66/66 and Noetic 48/48, including
   actual-node write failure, invalid-input recovery, map save and process restart.
 
-The logging E2E observes a ready executor before steady-state measurement.
-Earlier-input Humble runs intermittently receive stale live odometry on both
-this build and unchanged rc2; that startup problem remains open. No new
-whole-route, target-hardware or Release qualification is claimed. Existing rc1
+The original logging qualification waited for a ready executor. The following
+startup correction removes that test precondition; see the newer startup
+evidence. No new whole-route, target-hardware or Release qualification
+is claimed. Existing rc1
 and rc2 are unchanged. See [logging evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-asynchronous-logging--2026-10-23).
 
 ## Unreleased — shared artifacts and ROS adapter alignment

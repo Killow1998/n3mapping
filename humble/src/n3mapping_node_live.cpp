@@ -13,6 +13,7 @@ void N3MappingNode::startLiveOutput()
 
 void N3MappingNode::initializeLiveSubscriptions()
 {
+    const int queue_size = std::max(1, config_.sync_queue_size);
     live_odom_worker_ = std::make_unique<CallbackWorker>(*this);
     live_cloud_worker_ = std::make_unique<CallbackWorker>(*this);
     logging_status_pub_ = create_publisher<std_msgs::msg::String>("/n3mapping/logging_status", rclcpp::QoS(1));
@@ -21,12 +22,14 @@ void N3MappingNode::initializeLiveSubscriptions()
         logging_status_pub_->publish(message);
     }, live_odom_worker_->options().callback_group);
     live_odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        config_.odom_topic, rclcpp::QoS(1),
+        // Fast DDS reliable depth-1 history can remain behind the writer after
+        // discovery. Keep the same bounded history as the paired input; this
+        // lane still runs independently and RealtimeOutput rejects stale data.
+        config_.odom_topic, rclcpp::QoS(static_cast<std::size_t>(queue_size)),
         std::bind(&N3MappingNode::liveOdomCallback, this, std::placeholders::_1),
         live_odom_worker_->options());
     logEvent("input_subscription", "topic=" + config_.odom_topic +
         " role=live_odom depth=" + std::to_string(live_odom_sub_->get_actual_qos().depth()), true);
-    const int queue_size = std::max(1, config_.sync_queue_size);
     auto qos = rmw_qos_profile_default;
     qos.depth = static_cast<std::size_t>(queue_size);
     const auto options = live_cloud_worker_->options();
@@ -61,7 +64,7 @@ int64_t N3MappingNode::liveOutputNow()
     return probe_time > 0 ? probe_time : this->get_clock()->now().nanoseconds();
 }
 
-void N3MappingNode::liveOdomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr odom)
+void N3MappingNode::liveOdomCallback(nav_msgs::msg::Odometry::ConstSharedPtr odom)
 {
     if (shutdown_called_) return;
     const bool trace = performance_debug_logger_ && performance_debug_logger_->ready();
@@ -69,6 +72,19 @@ void N3MappingNode::liveOdomCallback(const nav_msgs::msg::Odometry::ConstSharedP
     const auto started = trace ? Clock::now() : Clock::time_point{};
     const double processing_time = trace ? std::chrono::duration<double>(
         std::chrono::system_clock::now().time_since_epoch()).count() : 0.0;
+    // Transport history accommodates reliable discovery/retransmission. Keep
+    // only the newest pending input for projection, as the old depth-1 lane did.
+    // Bound draining so a continuous publisher cannot starve this executor.
+    nav_msgs::msg::Odometry pending;
+    nav_msgs::msg::Odometry::SharedPtr newest;
+    rclcpp::MessageInfo info;
+    for (int i = 1; i < std::max(1, config_.sync_queue_size); ++i) {
+        if (!live_odom_sub_ || !live_odom_sub_->take(pending, info)) break;
+        if (!newest) newest = std::make_shared<nav_msgs::msg::Odometry>();
+        std::swap(*newest, pending);
+        AsyncLog::instance().count("live_odom_coalesced");
+    }
+    if (newest) odom = std::move(newest);
     nav_msgs::msg::Odometry message;
     message.header = odom->header;
     message.header.frame_id = config_.world_frame;

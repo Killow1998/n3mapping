@@ -24,7 +24,10 @@ RK3588/MID360 真机尚未验收。Noetic/Focal Docker 已补齐独立 Release �
 版本标签是否已到远端应以实际仓库为准；本地定版不等于已经推送。
 
 后续本地开发提交已整合共享 MapArtifacts、头文件解耦、两套 ROS 薄适配层和
-共用异步日志模块。当前开发代码的日志策略见 [共用日志](../README.md#25-map-files-and-logs)。
+共用异步日志模块，并合并 Noetic 模块化分支。Humble 实时输入改用有界传输队列，
+处理前合并为最新待处理样本；E2E 覆盖启动和重启期间持续输入，详情见
+[启动修复记录](evidence/runtime_cpu_20261017/README.md#humble-startup-input-and-branch-integration--2026-10-23)。
+当前开发代码的日志策略见 [共用日志](../README.md#25-map-files-and-logs)。
 这些改动属于 RelWithDebInfo 开发验证，**尚未替换上述 rc2 Release 候选**。
 下面日志环境变量对新开发版本生效；旧 rc2 不具备异步总量限制。
 

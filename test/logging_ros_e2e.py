@@ -111,6 +111,7 @@ def run(args, root):
                 command += ['--ros-args', '-r', '__node:=n3_logging_probe']
                 for k, v in settings.items():
                     command += ['-p', k + ':=' + v]
+            node_started = time.monotonic()
             node = start(command)
             cloud = PointCloud2()
             cloud.height, cloud.width = 1, 441
@@ -142,29 +143,9 @@ def run(args, root):
                     cloud_pub.publish(cloud)
                 return ns
 
-            # Measure a connected system, not discovery/history delivery at startup.
-            deadline = time.monotonic() + 5
-            def connected():
-                if args.ros == 'noetic':
-                    # roscpp shares one transport connection per topic/process.
-                    return odom_pub.get_num_connections() >= 1 and cloud_pub.get_num_connections() >= 1
-                return odom_pub.get_subscription_count() >= 4 and cloud_pub.get_subscription_count() >= 2
-            while not connected() and time.monotonic() < deadline:
-                assert node.poll() is None
-                time.sleep(.02)
-            assert connected(), 'input subscriptions did not match'
-            # A matched subscription can exist before its executor is running.
-            # The wall-clock health publication observes that executor readiness.
-            if not args.baseline:
-                deadline = time.monotonic() + 3
-                while not health and time.monotonic() < deadline:
-                    assert node.poll() is None
-                    time.sleep(.01)
-                assert health, 'live worker has not started'
-            else:
-                time.sleep(1.0)  # Older executables have no health publication.
-
-            # Establish a real trusted backend correction before measuring live delivery.
+            # Input starts during discovery and initialization. Waiting for a
+            # match or health first hides reliable-history startup stalls.
+            # Establish a real trusted correction before measuring delivery.
             for i in range(600):
                 if node.poll() is not None:
                     raise AssertionError('node exited during initialization')
@@ -172,7 +153,8 @@ def run(args, root):
                 if received and (args.baseline or health):
                     break
                 time.sleep(.005)
-            assert received, 'no authorized output'
+            assert received, 'no authorized output with continuous startup input'
+            first_output_s = min(received.values()) - node_started
             if not args.baseline:
                 assert health and health[-1]['write_failures'] > 0, health
 
@@ -243,23 +225,20 @@ def run(args, root):
                     received.clear()
                 health.clear()
                 restart = start(command)
-                deadline = time.monotonic() + 5
-                while (not connected() or not health) and time.monotonic() < deadline:
-                    assert restart.poll() is None
-                    time.sleep(.02)
-                assert connected() and health, 'restarted live worker has not started'
                 for i in range(600):
                     restarted_stamp = publish(i)
                     assert restart.poll() is None
                     time.sleep(.005)
-                    if restarted_stamp in received:
+                    if restarted_stamp in received and health:
                         break
+                assert health, 'restarted live worker did not publish health'
                 assert restarted_stamp in received, 'no fresh output after restart'
                 os.killpg(restart.pid, signal.SIGINT)
                 restart.wait(timeout=15)
                 assert restart.returncode == 0
             result = {'schema': 'n3mapping_logging_e2e_v1', 'ros': args.ros,
-                      'baseline': args.baseline, 'sent': len(sent), 'received': len(latencies),
+                      'baseline': args.baseline, 'startup_input': 'continuous_before_ready',
+                      'first_output_s': first_output_s, 'sent': len(sent), 'received': len(latencies),
                       'delivery_ratio': ratio, 'p50_ms': latencies[len(latencies)//2],
                       'p99_ms': latencies[int(.99*(len(latencies)-1))], 'max_ms': latencies[-1],
                       'node_cpu_s': cpu_used, 'wall_s': elapsed, 'average_cores': cpu_used/elapsed}

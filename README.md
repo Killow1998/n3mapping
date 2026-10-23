@@ -268,9 +268,13 @@ valid; it grants no new initialization authority or lock epoch.
 
 Humble uses separate callback groups and independently spun serial executors for
 live odometry and paired clouds. The backend, dense trajectory recorder, loop
-processing and save service keep one serial executor. Raw odometry retains only
-one pending sample (reliable, volatile, depth 1); the other subscriptions retain
-the configured synchronization queue and existing QoS. Product V1 uses exact
+processing and save service keep one serial executor. Raw odometry uses the
+configured synchronization queue (default 100, reliable, volatile) for transport
+recovery, then drains at most that many samples and projects only the newest
+pending input. Coalesced inputs are counted in the asynchronous event aggregates.
+This avoids the reproduced Fast DDS depth-1 startup stall while preserving the
+latest-input behavior; timestamp and authority guards still apply. Other
+subscriptions retain their configured queues and existing QoS. Product V1 uses exact
 synchronization; other profiles keep `sync_time_tolerance`. Localization drains
 received backend pairs into the existing `LatestFrameSlot`, replacing pending
 work with the newest complete pair before processing it. Mapping and extension
@@ -642,13 +646,15 @@ This applies to the selected Fast DDS transport/version, not every ROS 2 RMW.
 In our Humble replay (`rmw_fastrtps_cpp` 6.2.10, Fast DDS 2.6.11), a M2DGR
 frontend cloud serialized to 1,091,869 bytes while the observed default SHM
 mapping was about 0.5 MiB.
-With the original depth-1 live subscription, several runs lost live callbacks
+In that 2026-10-21 replay, with the original depth-1 live subscription, several runs lost live callbacks
 despite complete backend input. A 64 MiB SHM profile restored all 3,265 callbacks
 in the complete `gate_02` replay, with 3,250 outputs after 15 startup waits and a
 maximum input timestamp gap of 106.8 ms. Increasing the subscription depth or
 changing executor spinning did not resolve the delivery problem. The profile
 is an opt-in, validated **single-host** configuration, not a universal memory
 budget or a replacement for measuring the actual workload.
+The separate small-message startup/history correction is documented in the
+[startup evidence](docs/evidence/runtime_cpu_20261017/README.md#humble-startup-input-and-branch-integration--2026-10-23).
 Changing only the segment back to 512 KiB reproduces the failure: 733 callbacks
 from 3,265 backend inputs, with a maximum 9.819 s input gap. All raw sensor inputs
 remain present; the failed delivery check is retained.
