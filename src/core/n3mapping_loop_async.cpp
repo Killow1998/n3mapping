@@ -1,3 +1,4 @@
+#include "n3mapping/core/n3mapping_session.h"
 #include "loop_closure_async.h"
 #include "loop_closure_diagnostics.h"
 #include <glog/logging.h>

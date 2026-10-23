@@ -8,6 +8,7 @@
 #include <thread>
 #include <utility>
 #include "loop_closure_processing.h"
+#include "n3mapping/localization_atlas.h"
 
 namespace n3mapping {
 using LoopClock = std::chrono::steady_clock;

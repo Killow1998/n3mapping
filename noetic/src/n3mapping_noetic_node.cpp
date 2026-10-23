@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -35,8 +34,6 @@
 #include <std_msgs/UInt32.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Trigger.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -46,7 +43,7 @@
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/core/latest_frame_slot.h"
 #include "n3mapping/core/realtime_output.h"
-#include "n3mapping/global_map_cache.h"
+#include "n3mapping/core/map_artifacts.h"
 #include "n3mapping/product_build_identity.h"
 #include "n3mapping/ros_output_contract.h"
 #include "n3mapping_noetic/config_noetic.h"
@@ -83,7 +80,7 @@ class N3MappingNoeticNode {
         } else {
             loadConfigFromNoetic(private_nh_, &config_);
         }
-        global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
+        map_artifacts_ = std::make_unique<MapArtifacts>(config_);
         ROS_INFO("%s", config_.toString().c_str());
 
         run_mode_ = parseCoreRunMode(config_.mode);
@@ -443,35 +440,25 @@ class N3MappingNoeticNode {
         if (global_map_pub_.getNumSubscribers() == 0) {
             return;
         }
-        std::vector<Keyframe::Ptr> keyframes;
-        KeyframeMapRevision map_revision;
+        MapKeyframeSnapshot snapshot;
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            keyframes = snapshotKeyframesForGlobalMapLocked(&map_revision);
+            snapshot = snapshotMapKeyframes(core_.get());
         }
-        publishGlobalMap(keyframes, map_revision);
+        publishGlobalMap(snapshot);
     }
 
     bool handleSaveMap(std_srvs::Trigger::Request&, std_srvs::Trigger::Response& res)
     {
         std::string error;
         std::string warning;
-        std::vector<Keyframe::Ptr> global_map_keyframes;
-        KeyframeMapRevision global_map_revision;
+        MapKeyframeSnapshot snapshot;
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            if (!coreRunModeSavesMap(run_mode_)) {
-                res.success = false;
-                res.message = std::string("save_disabled_in_mode:") + coreRunModeName(run_mode_);
-                ROS_WARN("save_map service rejected: %s", res.message.c_str());
-                return true;
-            }
-            res.success = saveMapPbstreamAndSnapshotLocked(
-                &error, &global_map_keyframes, &global_map_revision);
+            res.success = map_artifacts_->save(core_.get(), &error, &snapshot);
         }
         if (res.success && config_.save_global_map_on_shutdown) {
-            saveDebugGlobalMap(
-                global_map_keyframes, global_map_revision, &warning);
+            map_artifacts_->saveDebug(snapshot, &warning);
         }
         res.message = res.success ? ("saved:" + config_.map_save_path) : (error.empty() ? "save_failed" : error);
         if (res.success && !warning.empty()) {
@@ -483,63 +470,6 @@ class N3MappingNoeticNode {
             ROS_ERROR("save_map service failed: %s", res.message.c_str());
         }
         return true;
-    }
-
-    bool saveMapPbstreamAndSnapshotLocked(std::string* error,
-                                          std::vector<Keyframe::Ptr>* global_map_keyframes,
-                                          KeyframeMapRevision* map_revision)
-    {
-        if (!core_) {
-            if (error) *error = "core_unavailable";
-            return false;
-        }
-        if (core_->getAllKeyframes().empty()) {
-            if (error) *error = "no_keyframes";
-            return false;
-        }
-        if (!ensureDirectoryExists(config_.map_save_path)) {
-            if (error) *error = "create_map_directory_failed";
-            return false;
-        }
-
-        const std::string map_file = config_.map_save_path + "/n3map.pbstream";
-        if (!core_->saveMap(map_file)) {
-            if (error) *error = "save_pbstream_failed";
-            return false;
-        }
-        ROS_INFO("Map pbstream saved: %s", map_file.c_str());
-
-        if (config_.save_global_map_on_shutdown && global_map_keyframes) {
-            *global_map_keyframes =
-                snapshotKeyframesForGlobalMapLocked(map_revision);
-        }
-        return true;
-    }
-
-    void saveDebugGlobalMap(const std::vector<Keyframe::Ptr>& keyframes,
-                            const KeyframeMapRevision& map_revision,
-                            std::string* warning)
-    {
-        if (warning) {
-            warning->clear();
-        }
-        if (keyframes.empty()) {
-            if (warning) *warning = "save_global_map_empty";
-            return;
-        }
-        std::lock_guard<std::mutex> global_map_lock(global_map_mutex_);
-        const auto cloud = global_map_cache_.update(keyframes, map_revision);
-        if (!cloud || cloud->empty()) {
-            if (warning) *warning = "save_global_map_empty";
-            return;
-        }
-
-        const std::string global_map_file = config_.map_save_path + "/global_map.pcd";
-        if (pcl::io::savePCDFileBinary(global_map_file, *cloud) == -1) {
-            if (warning) *warning = "save_global_map_failed";
-            return;
-        }
-        ROS_INFO("Debug global map saved: %s (%zu points)", global_map_file.c_str(), cloud->size());
     }
 
     void publishLiveTransform(const Eigen::Isometry3d& pose,
@@ -637,7 +567,7 @@ class N3MappingNoeticNode {
 
     void initializeOptimizationLogging()
     {
-        if (!ensureDirectoryExists(config_.map_save_path)) {
+        if (!ensureMapDirectory(config_.map_save_path)) {
             ROS_WARN("Failed to create optimization log directory: %s", config_.map_save_path.c_str());
         }
         optimization_log_path_ = config_.map_save_path + "/optimization.log";
@@ -645,39 +575,6 @@ class N3MappingNoeticNode {
         if (!file.is_open()) {
             ROS_WARN("Failed to open optimization log: %s", optimization_log_path_.c_str());
         }
-    }
-
-    static bool ensureDirectoryExists(const std::string& path)
-    {
-        if (path.empty()) {
-            return false;
-        }
-
-        std::string current;
-        std::size_t start = 0;
-        if (path[0] == '/') {
-            current = "/";
-            start = 1;
-        }
-
-        while (start <= path.size()) {
-            const std::size_t end = path.find('/', start);
-            const std::string part = path.substr(start, end == std::string::npos ? std::string::npos : end - start);
-            if (!part.empty()) {
-                if (!current.empty() && current.back() != '/') {
-                    current += "/";
-                }
-                current += part;
-                if (::mkdir(current.c_str(), 0755) != 0 && errno != EEXIST) {
-                    return false;
-                }
-            }
-            if (end == std::string::npos) {
-                break;
-            }
-            start = end + 1;
-        }
-        return true;
     }
 
     void logOptimizationResult(const std::string& context, double timestamp, const Eigen::Isometry3d* current_pose)
@@ -721,35 +618,10 @@ class N3MappingNoeticNode {
         file << line << '\n';
     }
 
-    std::vector<Keyframe::Ptr> snapshotKeyframesForGlobalMapLocked(
-        KeyframeMapRevision* map_revision = nullptr) const
-    {
-        std::vector<Keyframe::Ptr> snapshots;
-        const auto keyframes = core_ ? core_->getAllKeyframes() : std::vector<Keyframe::Ptr>{};
-        if (map_revision && core_) {
-            *map_revision = core_->mapRevision();
-        }
-        snapshots.reserve(keyframes.size());
-        for (const auto& keyframe : keyframes) {
-            if (!keyframe) {
-                continue;
-            }
-            auto snapshot = std::make_shared<Keyframe>();
-            snapshot->id = keyframe->id;
-            snapshot->timestamp = keyframe->timestamp;
-            snapshot->pose_odom = keyframe->pose_odom;
-            snapshot->pose_optimized = keyframe->pose_optimized;
-            snapshot->cloud = keyframe->cloud;
-            snapshot->is_from_loaded_map = keyframe->is_from_loaded_map;
-            snapshots.push_back(snapshot);
-        }
-        return snapshots;
-    }
-
     void resetGlobalMapCache()
     {
         std::lock_guard<std::mutex> lock(global_map_mutex_);
-        global_map_cache_.clear();
+        map_artifacts_->clear();
         global_map_msg_cache_.reset();
         global_map_last_published_revision_.reset();
     }
@@ -757,13 +629,12 @@ class N3MappingNoeticNode {
     void markGlobalMapFullRebuildRequired()
     {
         std::lock_guard<std::mutex> lock(global_map_mutex_);
-        global_map_cache_.markFullRebuildRequired();
+        map_artifacts_->invalidate();
         global_map_msg_cache_.reset();
         global_map_last_published_revision_.reset();
     }
 
-    bool refreshGlobalMapMessage(const std::vector<Keyframe::Ptr>& keyframes,
-                                 const KeyframeMapRevision& map_revision,
+    bool refreshGlobalMapMessage(const MapKeyframeSnapshot& snapshot,
                                  sensor_msgs::PointCloud2* out_msg)
     {
         if (!out_msg) {
@@ -771,48 +642,50 @@ class N3MappingNoeticNode {
         }
 
         std::lock_guard<std::mutex> lock(global_map_mutex_);
-        const auto cloud = global_map_cache_.update(keyframes, map_revision);
-        if (!cloud || cloud->empty()) {
-            return false;
-        }
+        bool changed = false;
+        map_artifacts_->withGlobalCloud(snapshot, [&](const auto& global) {
+            const auto& cloud = global.cloud;
+            if (!cloud || cloud->empty()) {
+                return;
+            }
 
-        const auto revision = global_map_cache_.revision();
-        if (!global_map_msg_cache_ || global_map_msg_revision_ != revision) {
-            sensor_msgs::PointCloud2 msg;
-            pcl::toROSMsg(*cloud, msg);
-            msg.header.frame_id = config_.world_frame;
-            msg.header.stamp = ros::Time::now();
-            global_map_msg_cache_ = msg;
-            global_map_msg_revision_ = revision;
-        }
-        if (!global_map_msg_cache_) {
-            return false;
-        }
-        if (global_map_last_published_revision_ &&
-            *global_map_last_published_revision_ == global_map_msg_revision_) {
-            return false;
-        }
-        *out_msg = *global_map_msg_cache_;
-        global_map_last_published_revision_ = global_map_msg_revision_;
-        return true;
+            const auto revision = global.revision;
+            if (!global_map_msg_cache_ || global_map_msg_revision_ != revision) {
+                sensor_msgs::PointCloud2 msg;
+                pcl::toROSMsg(*cloud, msg);
+                msg.header.frame_id = config_.world_frame;
+                msg.header.stamp = ros::Time::now();
+                global_map_msg_cache_ = msg;
+                global_map_msg_revision_ = revision;
+            }
+            if (!global_map_msg_cache_) {
+                return;
+            }
+            if (global_map_last_published_revision_ &&
+                *global_map_last_published_revision_ == global_map_msg_revision_) {
+                return;
+            }
+            *out_msg = *global_map_msg_cache_;
+            global_map_last_published_revision_ = global_map_msg_revision_;
+            changed = true;
+        });
+        return changed;
     }
 
     void publishGlobalMap()
     {
-        std::vector<Keyframe::Ptr> keyframes;
-        KeyframeMapRevision map_revision;
+        MapKeyframeSnapshot snapshot;
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            keyframes = snapshotKeyframesForGlobalMapLocked(&map_revision);
+            snapshot = snapshotMapKeyframes(core_.get());
         }
-        publishGlobalMap(keyframes, map_revision);
+        publishGlobalMap(snapshot);
     }
 
-    void publishGlobalMap(const std::vector<Keyframe::Ptr>& keyframes,
-                          const KeyframeMapRevision& map_revision)
+    void publishGlobalMap(const MapKeyframeSnapshot& snapshot)
     {
         sensor_msgs::PointCloud2 msg;
-        if (!refreshGlobalMapMessage(keyframes, map_revision, &msg)) {
+        if (!refreshGlobalMapMessage(snapshot, &msg)) {
             return;
         }
         global_map_pub_.publish(msg);
@@ -970,17 +843,14 @@ class N3MappingNoeticNode {
         if (coreRunModeSavesMap(run_mode_)) {
             std::string error;
             std::string warning;
-            std::vector<Keyframe::Ptr> global_map_keyframes;
-            KeyframeMapRevision global_map_revision;
+            MapKeyframeSnapshot snapshot;
             bool saved = false;
             {
                 std::lock_guard<std::mutex> lock(data_mutex_);
-                saved = saveMapPbstreamAndSnapshotLocked(
-                    &error, &global_map_keyframes, &global_map_revision);
+                saved = map_artifacts_->save(core_.get(), &error, &snapshot);
             }
             if (saved && config_.save_global_map_on_shutdown) {
-                saveDebugGlobalMap(
-                    global_map_keyframes, global_map_revision, &warning);
+                map_artifacts_->saveDebug(snapshot, &warning);
             }
             if (saved) {
                 ROS_INFO("Map snapshot saved under: %s", config_.map_save_path.c_str());
@@ -1049,7 +919,7 @@ class N3MappingNoeticNode {
     ros::Timer loop_timer_;
     ros::Timer global_map_timer_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
-    GlobalMapCache global_map_cache_;
+    std::unique_ptr<MapArtifacts> map_artifacts_;
     std::optional<sensor_msgs::PointCloud2> global_map_msg_cache_;
     std::uint64_t global_map_msg_revision_ = 0;
     std::optional<std::uint64_t> global_map_last_published_revision_;

@@ -1,5 +1,6 @@
 // Graph constraints for new mapping keyframes. Raw odometry stays unchanged.
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/core/n3mapping_session.h"
 
 namespace n3mapping {
 bool N3MappingCore::addOdometryConstraint(int64_t keyframe_id,

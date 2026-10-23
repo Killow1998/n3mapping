@@ -2,6 +2,8 @@
 #pragma once
 #include <chrono>
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/loop_closure_manager.h"
+#include "n3mapping/loop_debug_logger.h"
 namespace n3mapping {
 struct DetectedLoopQuery {
   int64_t id = -1;

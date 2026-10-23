@@ -10,14 +10,18 @@
 #include "n3mapping/odometry_sanity.h"
 #include "n3mapping/static_start_guard.h"
 #include "n3mapping/config.h"
-#include "n3mapping/core/n3mapping_session.h"
 #include "n3mapping/core/run_mode.h"
 #include "n3mapping/core/types.h"
 #include "n3mapping/keyframe.h"
-#include "n3mapping/loop_debug_logger.h"
-#include "n3mapping/loop_detector.h"
+#include "n3mapping/loop_types.h"
+#include "n3mapping/keyframe_manager.h"
+#include "n3mapping/planar_geometry.h"
 
 namespace n3mapping {
+namespace core { class N3MappingSession; }
+struct LoopDebugCandidateEvent;
+struct LoopDebugOptimizationEvent;
+struct RegistrationSeedProbeResult;
 
 struct DetectedLoopQuery;
 struct LoopClosureOutcome;

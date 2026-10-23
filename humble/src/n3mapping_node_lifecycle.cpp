@@ -99,7 +99,7 @@ void N3MappingNode::initializeComponents()
         run_mode_, config_.world_frame, std::max(1, config_.sync_queue_size));
     n3mapping_core_->setExternalDenseTrajectoryRecordingEnabled(
       run_mode_ == CoreRunMode::MAPPING);
-    global_map_cache_.setVoxelSize(config_.global_map_voxel_size);
+    map_artifacts_ = std::make_unique<MapArtifacts>(config_);
     if (config_.reloc_debug_enable) {
         performance_debug_logger_ =
           std::make_unique<RuntimePerformanceDebugLogger>(config_);

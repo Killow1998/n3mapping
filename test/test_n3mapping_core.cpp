@@ -8,6 +8,9 @@
 #include "n3mapping/pcl_compat.h"
 
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/registration_probe.h"
+#include "n3mapping/core/map_artifacts.h"
+#include <pcl/io/pcd_io.h>
 #include "n3mapping/localization_atlas.h"
 #include "n3map.pb.h"
 
@@ -649,8 +652,11 @@ TEST(N3MappingCoreTest, SavingDrainsAsyncLoopsAndPreservesCorrectedDenseTrajecto
         std::filesystem::temp_directory_path() / "n3mapping_core_dense_loop_optimized";
     std::filesystem::remove_all(dir);
     std::filesystem::create_directories(dir);
-    const std::filesystem::path map_path = dir / "dense_loop.pbstream";
+    const std::filesystem::path map_path = dir / "n3map.pbstream";
 
+    config.map_save_path = dir.string();
+    config.save_global_map_on_shutdown = true;
+    MapArtifacts artifacts(config);
     N3MappingCore core(config);
     ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
 
@@ -668,9 +674,25 @@ TEST(N3MappingCoreTest, SavingDrainsAsyncLoopsAndPreservesCorrectedDenseTrajecto
 
     // Saving must drain and commit outstanding geometry before serializing
     // either keyframes or the trajectory anchored to them.
-    ASSERT_TRUE(core.saveMap(map_path.string()));
+    MapKeyframeSnapshot snapshot;
+    std::string error;
+    ASSERT_TRUE(artifacts.save(&core, &error, &snapshot)) << error;
+    ASSERT_EQ(snapshot.keyframes.size(), 2U);
+    EXPECT_EQ(snapshot.revision, core.mapRevision());
+    artifacts.saveDebug(snapshot, &error);
+    ASSERT_TRUE(error.empty()) << error;
+    core::LioFrame::PointCloud saved_cloud;
+    ASSERT_EQ(pcl::io::loadPCDFile((dir / "global_map.pcd").string(), saved_cloud), 0);
+    const auto expected_cloud = core.buildGlobalMap();
+    ASSERT_EQ(saved_cloud.size(), expected_cloud->size());
+    for (size_t i = 0; i < saved_cloud.size(); ++i) {
+        EXPECT_TRUE(saved_cloud[i].getVector4fMap().isApprox(
+            (*expected_cloud)[i].getVector4fMap(), 1e-6));
+    }
     const auto final_kf = core.getKeyframe(1);
     ASSERT_NE(final_kf, nullptr);
+    EXPECT_TRUE(snapshot.keyframes.back()->pose_optimized.isApprox(
+        final_kf->pose_optimized, 1e-9));
     N3Map persisted;
     std::ifstream input(map_path, std::ios::binary);
     ASSERT_TRUE(persisted.ParseFromIstream(&input));

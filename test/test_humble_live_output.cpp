@@ -58,10 +58,12 @@ class HumbleOutputTestAccess {
   static void enableSave(N3MappingNode& node, const std::string& directory, bool real_core) {
     node.authority_probe_scenario_.reset();
     node.run_mode_ = CoreRunMode::MAPPING;
+    node.config_.mode = "mapping";
     node.config_.map_save_path = directory;
     node.config_.mapping_static_start_guard_enable = false;
     node.config_.rhpd_submap_kf_radius = 1;
     node.config_.rhpd_submap_voxel_size = 0.0;
+    node.map_artifacts_ = std::make_unique<MapArtifacts>(node.config_);
     if (real_core) node.n3mapping_core_ = std::make_unique<N3MappingCore>(
         node.config_, N3MappingCore::WorldCloudOutput::Disabled);
   }

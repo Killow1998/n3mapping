@@ -15,6 +15,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/core/loop_closure_commit.cpp
   ${N3MAPPING_ROOT}/src/core/loop_closure_diagnostics.cpp
   ${N3MAPPING_ROOT}/src/core/run_mode.cpp
+  ${N3MAPPING_ROOT}/src/core/map_artifacts.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
   ${N3MAPPING_ROOT}/src/core/realtime_output.cpp
   ${N3MAPPING_ROOT}/src/ros_output_contract.cpp

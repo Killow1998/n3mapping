@@ -1,5 +1,6 @@
 // Localization input lifecycle, backend orchestration and offline probes.
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/core/n3mapping_session.h"
 
 namespace n3mapping {
 

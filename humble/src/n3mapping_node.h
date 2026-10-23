@@ -24,7 +24,7 @@
 #include "n3mapping/core/latest_frame_slot.h"
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/core/realtime_output.h"
-#include "n3mapping/global_map_cache.h"
+#include "n3mapping/core/map_artifacts.h"
 #include "n3mapping/humble/callback_worker.h"
 #include "n3mapping/humble/conversions.h"
 #include "n3mapping/msg/relocalization_status.hpp"
@@ -181,21 +181,16 @@ class N3MappingNode : public rclcpp::Node
 
     Keyframe::Ptr getKeyframeForPublishing(int64_t id) const;
 
-    std::vector<Keyframe::Ptr> snapshotKeyframesForGlobalMapLocked(
-        KeyframeMapRevision* map_revision = nullptr) const;
-
     void resetGlobalMapCache();
 
     void markGlobalMapFullRebuildRequired();
 
-    bool refreshGlobalMapMessage(const std::vector<Keyframe::Ptr>& keyframes,
-                                 const KeyframeMapRevision& map_revision,
+    bool refreshGlobalMapMessage(const MapKeyframeSnapshot& snapshot,
                                  sensor_msgs::msg::PointCloud2* out_msg);
 
     void publishGlobalMap();
 
-    void publishGlobalMap(const std::vector<Keyframe::Ptr>& keyframes,
-                          const KeyframeMapRevision& map_revision);
+    void publishGlobalMap(const MapKeyframeSnapshot& snapshot);
 
     /**
      * @brief 关闭时保存地图
@@ -206,14 +201,6 @@ class N3MappingNode : public rclcpp::Node
   private:
     void handleSaveMap(const std::shared_ptr<std_srvs::srv::Trigger::Request>,
                        std::shared_ptr<std_srvs::srv::Trigger::Response> response);
-
-    bool saveMapPbstreamAndSnapshotLocked(std::string* error,
-                                          std::vector<Keyframe::Ptr>* global_map_keyframes,
-                                          KeyframeMapRevision* map_revision);
-
-    void saveDebugGlobalMap(const std::vector<Keyframe::Ptr>& keyframes,
-                            const KeyframeMapRevision& map_revision,
-                            std::string* warning);
 
     /**
      * @brief 打印统计信息
@@ -260,7 +247,7 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr loop_timer_;
     rclcpp::TimerBase::SharedPtr global_map_timer_;
     rclcpp::TimerBase::SharedPtr authority_probe_timer_;
-    GlobalMapCache global_map_cache_;
+    std::unique_ptr<MapArtifacts> map_artifacts_;
     std::optional<sensor_msgs::msg::PointCloud2> global_map_msg_cache_;
     std::uint64_t global_map_msg_revision_ = 0;
     std::optional<std::uint64_t> global_map_last_published_revision_;

@@ -29,6 +29,7 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/registration_probe.h"
 #include "n3mapping/cloud_utils.h"
 #include "eval_correlated_odom.h"
 #include "eval_episode_manifest.h"
