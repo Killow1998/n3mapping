@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased — Humble startup input and branch integration
+## [1.1.0-rc3] - 2026-10-23 (local candidate)
+
+- Separate core mapping, extension and load/save responsibilities; split map
+  serialization and remove its transitive graph/loop/protobuf header dependencies.
+  Preserve runtime algorithms, gates, defaults and map formats.
+- Share 42 ROS-free core test targets through native ament/catkin registration.
+  Remove nine unnecessary ROS contexts, the unused library alias and two
+  assignment-only tests. Reuse the existing PCL compatibility shim in fixtures.
+  Noetic gains 16 existing behavioral targets; no behavioral assertions weakened.
+- Include the adapter, logging and startup corrections described below. Join
+  issue #6's already cherry-picked history without changing the source tree.
+- Qualify clean runtime `ea0ced6` in independent Release directories: four-core
+  Humble 66/66 and Noetic 64/64, with real-node E2E and verified build identities.
+  Retain rc1/rc2. No push or new whole-route/hardware acceptance is claimed.
+
+See the [requirements checklist](docs/field_testing_zh.md#收尾要求核对2026-10-23)
+and [qualification evidence](docs/evidence/runtime_cpu_20261017/README.md#core-closeout-and-rc3--2026-10-23).
+The following incorporated-stage entries retain their original validation scope;
+the Release qualification above supersedes their development-only status.
+
+### Incorporated stage — Humble startup input and branch integration
 
 - Merge `dev/noetic-core-modularity-20261019` into the current shared pipeline,
   retaining the newer asynchronous MapArtifacts and both thin adapters. Share
@@ -16,7 +36,7 @@
 
 See [startup and merge evidence](docs/evidence/runtime_cpu_20261017/README.md#humble-startup-input-and-branch-integration--2026-10-23).
 
-## Unreleased — shared bounded asynchronous logging
+### Incorporated stage — shared bounded asynchronous logging
 
 - Route both ROS adapters, glog and existing diagnostic streams through one
   ROS-free worker. Bound queued records by allocated capacity, batch file writes,
@@ -39,7 +59,7 @@ evidence. No new whole-route, target-hardware or Release qualification
 is claimed. Existing rc1
 and rc2 are unchanged. See [logging evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-asynchronous-logging--2026-10-23).
 
-## Unreleased — shared artifacts and ROS adapter alignment
+### Incorporated stage — shared artifacts and ROS adapter alignment
 
 - Share map snapshots, save orchestration, global-cloud caching and debug PCDs
   between Humble and Noetic through the ROS-free `MapArtifacts`. Preserve
@@ -62,7 +82,7 @@ and rc2 are unchanged. See [logging evidence](docs/evidence/runtime_cpu_20261017
 See the [stage evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-map-artifacts-and-ros-alignment--2026-10-23).
 Existing rc1/rc2 tags remain unchanged.
 
-## Unreleased — Noetic validation follow-up
+### Incorporated stage — Noetic validation follow-up
 
 - Make the existing loop-detector fixture compatible with Focal's PCL 1.10.
 - Align the existing Noetic node smoke test with the shared output contract:

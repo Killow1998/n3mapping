@@ -8115,3 +8115,51 @@ Raw evidence is under `<workspace>/build/n3mapping/startup_merge_20261023/` and
 The earlier ready-start logging result is historical; this stage replaces its
 readiness precondition with tested continuous-startup input. No new Release,
 14-point, six-route, 10 cm or difficult-search acceptance is claimed.
+
+
+### Core closeout and rc3 — 2026-10-23
+
+Runtime candidate `ea0ced6` separates core mapping, extension, load and save
+implementations without adding owners or changing 43 moved member bodies.
+The main core file falls 762→303 lines; serialization 833→401/416/33 lines.
+The public serialization header and PCD export compilation no longer import
+concrete graph/loop/protobuf implementation headers. Both ROS wrappers use a
+single native-test catalog: 42 core targets each, adding 16 previously absent
+Noetic targets. Nine ROS context initializations, the obsolete library alias,
+and two assignment-only tests are removed. Existing behavioral assertions remain.
+PCL 1.10 fixture pointers and joint-geometry JSON dependencies are made explicit.
+
+Four physical cores (0,2,4,6), four build/OpenMP workers, passive OpenMP waiting:
+
+| Configuration | Humble | Noetic/Focal Docker |
+| --- | --- | --- |
+| Development RelWithDebInfo | 66/66, 47.24 s | 64/64, 52.59 s |
+| Final clean Release | 66/66, 42.93 s | 64/64, 50.89 s |
+
+The development Humble run preceded the portable fixture spelling; final Release
+runs use the exact same clean runtime commit and report `verified=true`.
+Both real-node E2Es retain startup/restart continuous input, latency/delivery,
+invalid-input recovery, map saving, actual write-failure health, aggregate quota
+and clean shutdown checks. Core behavioral coverage includes localization
+recovery, asynchronous loop commits, map/Atlas persistence and failed-load rollback.
+The core and core tests do not inherit ROS/wrapper headers (native GoogleTest
+vendor headers are expected). All 440 checked source/build files agree between
+native trees. This is structural ablation and compatibility evidence, not a new
+SLAM speed or precision measurement; E2E CPU reflects a small synthetic input.
+
+The issue #6 patch `03df921` is identical to already-applied `459be6f`
+(stable patch ID `9fbc7ed440c2c3695acc5c2032f700edabb59f56`). History-only merge
+`2c8cee2` keeps the runtime tree unchanged. The Noetic branch was merged in
+`803fbb3`; both and the previous pipeline head are ancestors of local main.
+Existing branch names and rc1/rc2 tag objects are retained. rc3 is local only.
+
+Noetic's first Release attempt exposed root-owned entries from the development
+cache invocation. Restore only those cache entries to the source owner's UID;
+retain cache contents and run subsequent native builds as that owner. Both
+Release profiles use ccache and CMake-selected O3, separate from development and
+old candidate directories. See [machine-readable evidence](review_closeout_20261023.json)
+and the [review checklist](../../field_testing_zh.md#收尾要求核对2026-10-23).
+
+No fresh original14, two-route or six-real-data replay is claimed in this stage.
+General 10 cm accuracy, all difficult searches at half-core, M2DGR reference/time,
+correlated loop uncertainty and RK3588/MID360 hardware acceptance remain open.

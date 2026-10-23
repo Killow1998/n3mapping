@@ -14,22 +14,33 @@ odometry，提供 mapping、localization、map_extension。现有受控验收不
 Python 标准库，不要求 ROS 正在运行；也可以打包按同样目录布局保存的 Noetic 文本日志。
 `prepare` 生成的是 ROS 2 参数文件，不能直接交给 ROS 1 使用。
 
-本次实机候选为 **v1.1.0-rc2**，Humble / Noetic 的 ROS package 版本均为
-**1.1.0**。这是现有功能的收尾定版；10 cm 全场景精度、困难搜索平均半核、
-RK3588/MID360 真机尚未验收。Noetic/Focal Docker 已补齐独立 Release 构建和
-节点 E2E；完整 46 项测试通过于测试修正提交 `19f099d`，并非原 rc2 标签。
-该提交没有运行算法或配置改动，详情见
-[Noetic 补验记录](evidence/runtime_cpu_20261017/README.md#noetic-docker-validation--2026-10-23)。
-本版只调整编译配置和构建流程，保留 **v1.1.0-rc1** 标签。
-版本标签是否已到远端应以实际仓库为准；本地定版不等于已经推送。
+本次本地实机候选为 **v1.1.0-rc3**，运行代码变更止于 `ea0ced6`；候选还包括
+此后的历史合并与验收文档。两套 ROS 的 package 版本仍为 **1.1.0**。
+Humble 和 Noetic/Focal Docker 使用独立 Release 构建；身份须匹配所用候选提交，
+且 `verified=true`。保留 **v1.1.0-rc1 / v1.1.0-rc2**，未推送；
+由 Xian 检阅后决定是否推送。构建身份确认不等于真机验收。
 
-后续本地开发提交已整合共享 MapArtifacts、头文件解耦、两套 ROS 薄适配层和
-共用异步日志模块，并合并 Noetic 模块化分支。Humble 实时输入改用有界传输队列，
-处理前合并为最新待处理样本；E2E 覆盖启动和重启期间持续输入，详情见
-[启动修复记录](evidence/runtime_cpu_20261017/README.md#humble-startup-input-and-branch-integration--2026-10-23)。
-当前开发代码的日志策略见 [共用日志](../README.md#25-map-files-and-logs)。
-这些改动属于 RelWithDebInfo 开发验证，**尚未替换上述 rc2 Release 候选**。
-下面日志环境变量对新开发版本生效；旧 rc2 不具备异步总量限制。
+## 收尾要求核对（2026-10-23）
+
+| Xian 的要求 | 结果与验收范围 |
+| --- | --- |
+| 冻结功能，保持算法与可靠性门槛 | 完成。此次移动的 43 个成员函数体一致；地图格式、算法配置和门槛不变。 |
+| 单一职责、缩短文件 | 完成。核心入口 762→303 行；建图、续建、加载、保存分别维护。序列化 833 行拆为加载 401、保存 416、PCD 导出 33 行。没有新增状态持有者。 |
+| 两套 ROS 薄封装、职责对齐 | 完成。节点按相同职责分文件，共用核心、RealtimeOutput、MapArtifacts 和日志模块。传输 API 与 Humble 专用诊断探针仍有差别。 |
+| 减少模块编译依赖 | 完成。序列化头文件不再导入图优化、回环检测和生成 protobuf 头；PCD 导出编译依赖中也已排除这些头。 |
+| 消融冗余抽象、设计和测试 | 完成此次审计。移除旧库别名、9 处无用 ROS 测试初始化和两项赋值读回测试。核心测试统一注册；两套 ROS 均有 42 项，Noetic 补齐 16 项。保留真实状态、事务与故障断言。 |
+| 开发与发布隔离、ccache、四核、无硬编码 O3 | 完成。rc3 使用独立 colcon/catkin 构建目录；Release 的 O3 来自 CMake 配置。既有开发目录和缓存保留。容器构建使用源码及缓存的所属用户。 |
+| 共用异步日志，跨重启总额 100 MB | 已实现并复验。有限队列、批量写入、关键事件、写失败和溢出统计；按同一实例目录管理当前与轮转日志。前端及外部启动器的日志不属于 n3m 实例。 |
+| E2E 确认完整性 | Release：Humble 66/66，Noetic 64/64。包含地图/Atlas 事务、恢复锁定、异步回环与两套真实节点 E2E；真实节点覆盖持续启动输入、无效输入恢复、保存、写入故障和重启。 |
+| 分支整合 | 完成。Noetic 模块化及旧 issue #6 分支均进入 main；issue #6 补丁已等价应用，仅补齐历史，源码树未变。旧分支名称保留，没有未整合的独有代码。 |
+| 定版本、保留回滚点、检阅后再推送 | 本地 rc3 候选完成；rc1/rc2 不移动。未推送。 |
+
+证据见 [收尾与 rc3 验证](evidence/runtime_cpu_20261017/README.md#core-closeout-and-rc3--2026-10-23)。
+本轮没有重放原有 14 点、两条独立路线和六条真实数据；此前结果作为历史基线保留。
+**10 cm 全场景精度、所有困难搜索平均半核、RK3588/MID360 真机仍未验收。**
+M2DGR 时间/参考点与相关观测不确定度仍有开放项。算法探索保持暂停。
+模块内修改可使用定向测试；接口、异步时序或保存格式变化仍需集成验证。
+当前日志策略见 [共用日志](../README.md#25-map-files-and-logs)。
 
 ## 1. 拉取与构建
 
@@ -49,12 +60,12 @@ git status --short --branch
 若标签尚未推送，可先从交付的 Git bundle 导入。它保留提交历史和标签：
 
 ```bash
-git fetch /absolute/path/to/n3mapping-v1.1.0-rc2.bundle \
-  refs/tags/v1.1.0-rc2:refs/tags/v1.1.0-rc2
+git fetch /absolute/path/to/n3mapping-v1.1.0-rc3.bundle \
+  refs/tags/v1.1.0-rc3:refs/tags/v1.1.0-rc3
 ```
 
 ```bash
-git switch --detach v1.1.0-rc2
+git switch --detach v1.1.0-rc3
 N3M_COMMIT=$(git rev-parse HEAD)
 
 source /opt/ros/humble/setup.bash
@@ -64,11 +75,11 @@ export CCACHE_DIR="$PWD/build/ccache" CCACHE_TEMPDIR="$PWD/build/ccache/tmp"
 mkdir -p "$CCACHE_TEMPDIR"
 ccache --max-size 8G
 export CMAKE_BUILD_PARALLEL_LEVEL=4 MAKEFLAGS=-j4
-colcon --log-base log/n3mapping-v1.1.0-rc2 build \
+colcon --log-base log/n3mapping-v1.1.0-rc3 build \
   --symlink-install --executor sequential \
   --packages-select n3mapping \
-  --build-base build/n3mapping-v1.1.0-rc2 \
-  --install-base install/n3mapping-v1.1.0-rc2 \
+  --build-base build/n3mapping-v1.1.0-rc3 \
+  --install-base install/n3mapping-v1.1.0-rc3 \
   --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
   -DN3MAPPING_BUILD_RESEARCH_TOOLS=OFF \
   -DN3MAPPING_PRODUCT_COMMIT="$N3M_COMMIT" \
@@ -79,10 +90,10 @@ colcon --log-base log/n3mapping-v1.1.0-rc2 build \
 **构建成功后**再测试，避免 `install/` 旧库污染结果：
 
 ```bash
-source ~/ros_ws/install/n3mapping-v1.1.0-rc2/setup.bash
+source ~/ros_ws/install/n3mapping-v1.1.0-rc3/setup.bash
 export OMP_NUM_THREADS=4 OMP_WAIT_POLICY=PASSIVE OPENBLAS_NUM_THREADS=1
-ROS_LOG_DIR="$HOME/ros_ws/log/n3mapping-v1.1.0-rc2/ros_test" \
-  ctest --test-dir ~/ros_ws/build/n3mapping-v1.1.0-rc2/n3mapping --output-on-failure -j1
+ROS_LOG_DIR="$HOME/ros_ws/log/n3mapping-v1.1.0-rc3/ros_test" \
+  ctest --test-dir ~/ros_ws/build/n3mapping-v1.1.0-rc3/n3mapping --output-on-failure -j1
 ros2 pkg prefix n3mapping
 ros2 run n3mapping n3mapping_node --build-identity-json
 ```
@@ -108,7 +119,7 @@ localization / map_extension 必须设置已有地图的**绝对路径** `map_pa
 
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/ros_ws/install/n3mapping-v1.1.0-rc2/setup.bash
+source ~/ros_ws/install/n3mapping-v1.1.0-rc3/setup.bash
 export OMP_NUM_THREADS=4 OMP_WAIT_POLICY=PASSIVE OPENBLAS_NUM_THREADS=1
 RUN="$HOME/n3mapping_runs/$(TZ=Asia/Shanghai date +%Y%m%d_%H%M%S)"
 NODE="$(ros2 pkg prefix n3mapping)/lib/n3mapping/n3mapping_node"
@@ -130,7 +141,7 @@ echo "RUN=$RUN"
 `--diagnostics` 显式开启已有的重定位、回环和逐帧性能 JSONL，适合短时故障复现。
 这会增加日志 IO 和计算开销，不应把带诊断的资源数字当作默认配置性能。
 正常长期运行可省略该选项；工具不覆盖原配置中的 enable 值。
-新开发版本由共用模块轮转，当前文件和历史文件合计不超过 100 MB。
+本候选由共用模块轮转，当前文件和历史文件合计不超过 100 MB。
 长期运行应给每个实例配置固定的 `N3MAPPING_LOG_DIR`，跨重启沿用。
 下面的 `RUN` 是独立的短时测试实例；验证重启时也沿用这个 `RUN`。
 反馈包上限与运行日志上限分别生效；前端、RViz 等进程有各自的日志策略。
@@ -174,7 +185,7 @@ ros2 service call /n3mapping/save_map std_srvs/srv/Trigger '{}' \
 ```
 
 检查返回 `success=True`。地图保留在本次 `RUN`，**不会进入日志反馈包**。
-然后正常 Ctrl+C 停止各节点，让异步日志排空。新开发版本可以用相同命令在同一
+然后正常 Ctrl+C 停止各节点，让异步日志排空。本候选可以用相同命令在同一
 `RUN` 中重启，完整日志会保留并受同一总额约束；不要重复执行 `prepare` 覆盖目录。
 旧 rc2 仍会截断部分日志，使用旧版时为每次测试创建新 `RUN`。
 新版本没有普通节点终端日志，查看 `$RUN/managed_logs/runtime.log`，或执行

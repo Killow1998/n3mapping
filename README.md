@@ -1,16 +1,16 @@
 # N3Mapping
 
-Current hardware-test candidate: **v1.1.0-rc2** (ROS package version **1.1.0**).
-Use the [versioned build and field-test instructions](docs/field_testing_zh.md).
-The rc2 build configuration preserves Release optimization and isolates cached
-development builds; the **v1.1.0-rc1** tag remains available. See the
-[rc2 build validation](docs/evidence/runtime_cpu_20261017/README.md#build-profiles-and-rc2--2026-10-23).
-The [Noetic Docker follow-up](docs/evidence/runtime_cpu_20261017/README.md#noetic-docker-validation--2026-10-23)
-qualifies the same runtime with a separate test-only correction; neither release tag is moved.
-The [closeout evidence](docs/evidence/runtime_cpu_20261017/README.md#hardware-test-release-closeout--2026-10-23) records the paired behavior and retained limits.
-This candidate consolidates the existing localization, online loop and extension
-work; general 10 cm accuracy, difficult-search half-core operation and target
-hardware acceptance remain open.
+Current local hardware-test candidate: **v1.1.0-rc3** (ROS package version **1.1.0**).
+Runtime code changes end at `ea0ced6`; the candidate also includes integration
+history and review documentation. Four-core Release validation passes Humble
+66/66 and Noetic/Focal Docker 64/64 tests. See the
+[review checklist and field guide](docs/field_testing_zh.md#收尾要求核对2026-10-23)
+and [rc3 evidence](docs/evidence/runtime_cpu_20261017/README.md#core-closeout-and-rc3--2026-10-23).
+The candidate includes shared map artifacts/logging, aligned thin ROS adapters,
+continuous-startup input recovery, and ROS-free core tests. Existing rc1/rc2 tags
+are unchanged. Local integration is complete; pushing awaits Xian's review.
+General 10 cm accuracy, difficult-search half-core operation and target-hardware
+acceptance remain open. This closeout does not repeat the full recorded routes.
 
 ## 1. What Is N3Mapping?
 
@@ -1069,8 +1069,8 @@ remain separate from that measured result.
 
 ### TODO
 
-Current work is updated **2026-10-23**. Version **1.1.0-rc1** freezes the accepted
-changes for hardware testing. Further algorithm/performance exploration is
+Current work is updated **2026-10-23**. Version **1.1.0-rc3** is the current local hardware-test candidate;
+rc1/rc2 remain available. Further algorithm/performance exploration is
 paused for this closeout. Outstanding research includes **real-data time/reference
 qualification, correlated loop uncertainty and remaining per-query loop cost**,
 while preserving relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for
