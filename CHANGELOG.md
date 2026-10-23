@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.0-rc2] - 2026-10-23
+
+Build-configuration candidate; ROS package versions remain `1.1.0` and the
+`v1.1.0-rc1` tag is retained.
+
+- Remove unconditional `-O3` from both wrappers. CMake's selected build type
+  now controls optimization; Release retains `-O3 -DNDEBUG` on GCC.
+- Document and validate ccache compiler launchers, retained caches, four-job
+  builds and separate development/release build, install and log directories.
+  Keep native colcon/catkin entry points and the clean-commit Product identity.
+- Update the hardware instructions to the versioned rc2 install. No runtime
+  algorithm, acceptance threshold, map format or default parameter changes.
+
+See the [build-profile evidence](docs/evidence/runtime_cpu_20261017/README.md#build-profiles-and-rc2--2026-10-23)
+for configuration, cache, regression and Release comparison results. Noetic
+runtime and target-hardware acceptance remain unverified.
+
 ## [1.1.0-rc1] - 2026-10-23
 
 Hardware-test candidate; both ROS manifests use numeric version `1.1.0`.

@@ -19,7 +19,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 include(${N3MAPPING_ROOT}/cmake/n3mapping_product_identity.cmake)
-add_compile_options(-O3 -Wall -Wextra)
+add_compile_options(-Wall -Wextra)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp

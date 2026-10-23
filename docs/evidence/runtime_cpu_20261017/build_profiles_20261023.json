@@ -1,0 +1,462 @@
+{
+  "version_tag": "v1.1.0-rc2",
+  "ros_package_version": "1.1.0",
+  "date": "2026-10-23",
+  "kind": "build configuration; no runtime algorithms or thresholds changed",
+  "baseline_commit": "6964b34d3f5f529eb8ed42844478a6f5cd721b2a",
+  "retained_rc1_tag_object": "50534bd45fbce7f65d026883e68b32a6d930f493",
+  "cpus": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "compiler_jobs": 4,
+  "registration_threads": 4,
+  "toolchain": {
+    "gcc": "11.4.0",
+    "cmake": "cmake version 3.22.1",
+    "ccache": "ccache version 4.5.1"
+  },
+  "cache_max_size": "8G",
+  "profile_matrix": {
+    "Debug": {
+      "build_directory": "build/n3mapping-Debug/n3mapping",
+      "actual_commands": {
+        "src/core/n3mapping_core.cpp": {
+          "optimization": [],
+          "debug_symbols": true,
+          "ndebug": false
+        },
+        "test/test_realtime_odometry.cpp": {
+          "optimization": [],
+          "debug_symbols": true,
+          "ndebug": false
+        },
+        "humble/src/n3mapping_node_backend.cpp": {
+          "optimization": [],
+          "debug_symbols": true,
+          "ndebug": false
+        }
+      },
+      "launcher_verified": true,
+      "existing_realtime_tests_passed": 9,
+      "commands_checked": 179
+    },
+    "RelWithDebInfo": {
+      "build_directory": "build/n3mapping-RelWithDebInfo/n3mapping",
+      "actual_commands": {
+        "src/core/n3mapping_core.cpp": {
+          "optimization": [
+            "-O2"
+          ],
+          "debug_symbols": true,
+          "ndebug": true
+        },
+        "test/test_realtime_odometry.cpp": {
+          "optimization": [
+            "-O2"
+          ],
+          "debug_symbols": true,
+          "ndebug": true
+        },
+        "humble/src/n3mapping_node_backend.cpp": {
+          "optimization": [
+            "-O2"
+          ],
+          "debug_symbols": true,
+          "ndebug": true
+        }
+      },
+      "launcher_verified": true,
+      "existing_realtime_tests_passed": 9,
+      "commands_checked": 179
+    },
+    "MinSizeRel": {
+      "build_directory": "build/n3mapping-MinSizeRel/n3mapping",
+      "actual_commands": {
+        "src/core/n3mapping_core.cpp": {
+          "optimization": [
+            "-Os"
+          ],
+          "debug_symbols": false,
+          "ndebug": true
+        },
+        "test/test_realtime_odometry.cpp": {
+          "optimization": [
+            "-Os"
+          ],
+          "debug_symbols": false,
+          "ndebug": true
+        },
+        "humble/src/n3mapping_node_backend.cpp": {
+          "optimization": [
+            "-Os"
+          ],
+          "debug_symbols": false,
+          "ndebug": true
+        }
+      },
+      "launcher_verified": true,
+      "existing_realtime_tests_passed": 9,
+      "commands_checked": 179
+    },
+    "Release": {
+      "build_directory": "build/n3mapping-v1.1.0-rc2/n3mapping",
+      "actual_commands": {
+        "src/core/n3mapping_core.cpp": {
+          "optimization": [
+            "-O3"
+          ],
+          "debug_symbols": false,
+          "ndebug": true
+        },
+        "test/test_realtime_odometry.cpp": {
+          "optimization": [
+            "-O3"
+          ],
+          "debug_symbols": false,
+          "ndebug": true
+        },
+        "humble/src/n3mapping_node_backend.cpp": {
+          "optimization": [
+            "-O3"
+          ],
+          "debug_symbols": false,
+          "ndebug": true
+        }
+      },
+      "launcher_verified": true,
+      "existing_realtime_tests_passed": 9,
+      "commands_checked": 179
+    }
+  },
+  "full_build_and_test": {
+    "release": {
+      "passed": 64,
+      "failed": 0,
+      "wall_s": 34.83
+    },
+    "development": {
+      "passed": 64,
+      "failed": 0,
+      "wall_s": 37.92
+    }
+  },
+  "configuration_test_scope": "Release and RelWithDebInfo full build/install and 64 production CTest targets; Debug/MinSizeRel configure all targets and build/run existing nine realtime-odometry cases only; Noetic unavailable",
+  "cache_probe": [
+    {
+      "name": "old_duplicate_o3",
+      "wall_s": 8.25525208003819,
+      "cpu_s": 8.254416,
+      "object_sha256": "3dd9e924b405558b2d78925e6f26370cc746cae540877119ad38de01080da7d8",
+      "ccache_delta": {}
+    },
+    {
+      "name": "release_no_cache",
+      "wall_s": 7.39880558301229,
+      "cpu_s": 7.397368000000001,
+      "object_sha256": "3dd9e924b405558b2d78925e6f26370cc746cae540877119ad38de01080da7d8",
+      "ccache_delta": {}
+    },
+    {
+      "name": "release_cache_first",
+      "wall_s": 9.433358516020235,
+      "cpu_s": 9.43215,
+      "object_sha256": "3dd9e924b405558b2d78925e6f26370cc746cae540877119ad38de01080da7d8",
+      "ccache_delta": {
+        "cache_miss": 1,
+        "cache_size_kibibyte": 116,
+        "direct_cache_miss": 1,
+        "files_in_cache": 2,
+        "preprocessed_cache_miss": 1,
+        "primary_storage_miss": 2
+      }
+    },
+    {
+      "name": "release_cache_repeat",
+      "wall_s": 0.018639927031472325,
+      "cpu_s": 0.018328999999998707,
+      "object_sha256": "3dd9e924b405558b2d78925e6f26370cc746cae540877119ad38de01080da7d8",
+      "ccache_delta": {
+        "direct_cache_hit": 1,
+        "primary_storage_hit": 2
+      }
+    }
+  ],
+  "fixed14": {
+    "rc1_runtime": {
+      "positions": 14,
+      "outputs": 4088,
+      "cpu_s": 167.52546444100003,
+      "wall_s": 73.453558814,
+      "input_s": 413.000005005,
+      "average_cores": 0.40563065959035977,
+      "first_lock_cpu_s": 81.66163560599999,
+      "first_lock_wall_s": 41.362033416,
+      "peak_rss_mib": 1300.1796875,
+      "maximum_position_error_m": 0.024809060907976216,
+      "maximum_rotation_error_deg": 0.08384197149034017,
+      "mean_first_lock_wall_s": 2.9544309582857147,
+      "mean_first_lock_cpu_s": 5.832973971857142
+    },
+    "rc2_runtime": {
+      "positions": 14,
+      "outputs": 4088,
+      "cpu_s": 168.434049485,
+      "wall_s": 77.257076462,
+      "input_s": 413.000005005,
+      "average_cores": 0.40783062335062403,
+      "first_lock_cpu_s": 82.683269973,
+      "first_lock_wall_s": 43.281301305999996,
+      "peak_rss_mib": 1300.03125,
+      "maximum_position_error_m": 0.024809060907976112,
+      "maximum_rotation_error_deg": 0.08384197149034019,
+      "mean_first_lock_wall_s": 3.0915215218571426,
+      "mean_first_lock_cpu_s": 5.9059478552142854
+    }
+  },
+  "maximum_pose_component_difference": 7.105427357601002e-15,
+  "fixed14_decision_or_counter_mismatches": 0,
+  "priority_case_three_runs": {
+    "03_south_corridor": {
+      "rc1_runtime": {
+        "cpu_s": {
+          "runs": [
+            15.815766160999999,
+            15.435949884000001,
+            16.762556302
+          ],
+          "median": 15.815766160999999
+        },
+        "wall_s": {
+          "runs": [
+            6.087598968,
+            5.627202164,
+            6.526923651
+          ],
+          "median": 6.087598968
+        },
+        "first_lock_cpu_s": {
+          "runs": [
+            9.05786981,
+            8.842029856,
+            8.967182445999999
+          ],
+          "median": 8.967182445999999
+        },
+        "first_lock_wall_s": {
+          "runs": [
+            4.088395572,
+            3.763797287,
+            4.0237269289999995
+          ],
+          "median": 4.0237269289999995
+        }
+      },
+      "rc2_runtime": {
+        "cpu_s": {
+          "runs": [
+            16.488380266,
+            16.066792056999997,
+            15.522086552000001
+          ],
+          "median": 16.066792056999997
+        },
+        "wall_s": {
+          "runs": [
+            8.657774901,
+            6.1541461129999995,
+            5.929864327000001
+          ],
+          "median": 6.1541461129999995
+        },
+        "first_lock_cpu_s": {
+          "runs": [
+            9.79504802,
+            9.470273486,
+            8.845472261000001
+          ],
+          "median": 9.470273486
+        },
+        "first_lock_wall_s": {
+          "runs": [
+            5.348032594,
+            4.28355303,
+            3.778245208
+          ],
+          "median": 4.28355303
+        }
+      }
+    },
+    "08_west_shelves": {
+      "rc1_runtime": {
+        "cpu_s": {
+          "runs": [
+            12.48765841,
+            12.562970992999999,
+            12.710829968999999
+          ],
+          "median": 12.562970992999999
+        },
+        "wall_s": {
+          "runs": [
+            4.7565397030000005,
+            5.13014476,
+            4.944493366
+          ],
+          "median": 4.944493366
+        },
+        "first_lock_cpu_s": {
+          "runs": [
+            6.988110776999999,
+            6.987488977,
+            7.227490284
+          ],
+          "median": 6.988110776999999
+        },
+        "first_lock_wall_s": {
+          "runs": [
+            3.1732301269999996,
+            3.182643278,
+            3.371720862
+          ],
+          "median": 3.182643278
+        }
+      },
+      "rc2_runtime": {
+        "cpu_s": {
+          "runs": [
+            12.641619762000001,
+            13.026453357000001,
+            12.493424316
+          ],
+          "median": 12.641619762000001
+        },
+        "wall_s": {
+          "runs": [
+            5.610071298,
+            6.021794006,
+            4.757178124
+          ],
+          "median": 5.610071298
+        },
+        "first_lock_cpu_s": {
+          "runs": [
+            6.982915903,
+            7.057727767,
+            6.984776202
+          ],
+          "median": 6.984776202
+        },
+        "first_lock_wall_s": {
+          "runs": [
+            3.193366026,
+            3.592127294,
+            3.171413985
+          ],
+          "median": 3.193366026
+        }
+      }
+    },
+    "14_north_door": {
+      "rc1_runtime": {
+        "cpu_s": {
+          "runs": [
+            13.716024469,
+            12.794370094000001,
+            13.148247719
+          ],
+          "median": 13.148247719
+        },
+        "wall_s": {
+          "runs": [
+            5.495970461,
+            4.922906115,
+            5.925150465
+          ],
+          "median": 5.495970461
+        },
+        "first_lock_cpu_s": {
+          "runs": [
+            7.048482396000001,
+            6.985921282000001,
+            6.980026894000001
+          ],
+          "median": 6.985921282000001
+        },
+        "first_lock_wall_s": {
+          "runs": [
+            3.3245920719999997,
+            3.240109958,
+            3.2304739639999998
+          ],
+          "median": 3.240109958
+        }
+      },
+      "rc2_runtime": {
+        "cpu_s": {
+          "runs": [
+            13.335957776,
+            13.198020722,
+            12.832698142000002
+          ],
+          "median": 13.198020722
+        },
+        "wall_s": {
+          "runs": [
+            5.560768852,
+            5.419103633,
+            4.918488602
+          ],
+          "median": 5.419103633
+        },
+        "first_lock_cpu_s": {
+          "runs": [
+            7.453925903000001,
+            7.382317315000001,
+            7.004425194000001
+          ],
+          "median": 7.382317315000001
+        },
+        "first_lock_wall_s": {
+          "runs": [
+            3.5740629090000002,
+            3.741184091,
+            3.231347522
+          ],
+          "median": 3.5740629090000002
+        }
+      }
+    }
+  },
+  "runtime_hashes": {
+    "rc1_runtime": {
+      "libn3mapping_core.so": "068227ace08a50d994884b2e7e28bb4bdbf0b49ab8175e0476fd7244d1dcc340",
+      "libn3mapping_humble_wrapper.so": "edd720a022dd94b0a27ae481b20377cc7bfc8c50cf814de445fc1f2c9d75ced5",
+      "n3mapping_node": "34edbf801474318db403a3b9e9bf09bd8ea3a41727743a9368d9adacb6e3fccf",
+      "replay_probe": "1c9df356f6ea554e339da4f31834ab9a25a6cfa9e023a9cf08ef3209b4be952f",
+      "replay_probe.cpp": "73cebf902cc10974cb1fd8937fc1d07aebae31c98eafff8044479bce7333b787"
+    },
+    "rc2_runtime": {
+      "libn3mapping_core.so": "9f540ab9601ac6adfbeb7f6fd6dd6164b09881bd763062ef4f734c4baea653b1",
+      "libn3mapping_humble_wrapper.so": "282e7dae59e5ad248e4188737234082c8ce77ba528b22ae14c1d65945ba25f73",
+      "n3mapping_node": "ec27725bdebe39b9432de5e5f814e759a3b58ce4da8234638c10e9a6b7386a1b",
+      "replay_probe": "1c9df356f6ea554e339da4f31834ab9a25a6cfa9e023a9cf08ef3209b4be952f",
+      "replay_probe.cpp": "73cebf902cc10974cb1fd8937fc1d07aebae31c98eafff8044479bce7333b787"
+    }
+  },
+  "runtime_note": "CPU normalized by recorded input duration, excludes map load; rate=0; one full alternating paired pass plus two paired repeats of 03/08/14. Frozen rc1 research build vs rc2 research-OFF Release. Runtime differences and timing variance retained; no new runtime speedup claimed.",
+  "delivery": "Keep rc1; clean-commit verified rc2 build and bundle identities are bound in the local release_manifest.json after source commit. Existing default build/install untouched. No remote push.",
+  "excluded_attempts": [
+    "Initial ccache temp path was unwritable; use workspace CCACHE_TEMPDIR.",
+    "Overlapping Release preflight/build interrupted; serial reconfiguration passed before all accepted results.",
+    "Sandbox colcon stalled before compiler launch; stopped own attempt and used authorized host build."
+  ],
+  "limits": [
+    "No complete Noetic build or hardware acceptance.",
+    "No new six-real-sequence or full motion-route qualification in this build-only stage.",
+    "General 10 cm, difficult-search half-core and uncertainty calibration remain open."
+  ],
+  "local_artifacts": "<workspace>/build/n3mapping/build_profiles_20261023/"
+}

@@ -7712,3 +7712,68 @@ remain open. Existing install is unchanged. The tested local development build
 identifies itself as UNVERIFIED; build the clean tag on the target machine using
 the field guide to obtain a verified source identity. This is not a new general
 industrial acceptance decision.
+
+### Build profiles and rc2 — 2026-10-23
+
+**v1.1.0-rc2** removes the two unconditional wrapper `-O3` options. The existing
+Release default remains; CMake now determines the optimization level of the
+selected configuration. There are no runtime algorithm, threshold, parameter or
+map-format changes. ROS package versions stay `1.1.0`; retain **v1.1.0-rc1**.
+
+Humble, GCC 11.4, CMake 3.22.1, ccache 4.5.1; four physical cores 0,2,4,6,
+four compiler jobs and four registration threads, passive OpenMP waiting:
+
+| Configuration | Effective optimization/debug flags | Verification |
+| --- | --- | --- |
+| Debug | `-g`, no forced `-O` or `NDEBUG` | All 179 commands inspected; nine existing realtime cases pass. |
+| RelWithDebInfo | `-O2 -g -DNDEBUG` | All 179 commands inspected; full build/install and 64-target production CTest pass. |
+| MinSizeRel | `-Os -DNDEBUG` | All 179 commands inspected; nine existing realtime cases pass. |
+| Release | One `-O3 -DNDEBUG` | All 179 commands inspected; nine existing realtime cases and full 64-target production CTest pass. |
+
+Release and RelWithDebInfo full suites pass in 34.83 s and 37.92 s, respectively.
+Loaded core/wrapper paths resolve to the selected profile, and the development
+core contains DWARF debug information. Debug and MinSizeRel were not full SLAM
+builds; their scope is the command audit and nine realtime cases shown above.
+
+C/C++ compiler launchers use ccache with an 8 GB workspace cache and workspace
+temporary directory. Development and rc2 use separate native colcon
+build/install/log bases; the previous default installation is retained.
+The field guide keeps clean-commit identity checks. Source the chosen installation
+last and verify both the package prefix and loaded libraries. `MAKEFLAGS=-j4`
+accompanies `CMAKE_BUILD_PARALLEL_LEVEL=4`; CPU affinity limits the actual cores.
+No bespoke build dispatcher, runtime abstraction or new regression test is added.
+Noetic receives the same flag fix and native catkin profile instructions; no
+Noetic underlay was available for an independent build.
+
+A real `n3mapping_node_backend.cpp` compilation takes 7.399 s without cache,
+9.433 s on its first cache miss and 0.019 s on a direct hit. The old duplicated
+`-O3`, corrected Release, cache miss and cache hit produce the same object SHA256.
+This measures one translation unit, not whole-build speedup. Cold cache misses
+can add overhead; an unchanged incremental build invokes no compiler.
+
+The complete alternating rc1/rc2 original14 comparison preserves all 14 frame-4
+locks, 4,088 outputs and the 2.481 cm maximum position error. Every non-timing
+decision/work counter agrees; maximum pose component difference is 7.11e-15.
+CPU is 167.525→168.434 s (0.406→0.408 cores per recorded input second); summed
+post-load wall time is 73.454→77.257 s. Runtime peak RSS is 1300.18→1300.03 MiB.
+These unpaced replay timings exclude map loading and do not prove a runtime gain.
+
+Two additional paired passes of 03/08/14 retain decisions and poses. Three-run
+CPU medians are 15.816→16.067 s, 12.563→12.642 s and 13.148→13.198 s; wall medians
+are 6.088→6.154 s, 4.944→5.610 s and 5.496→5.419 s. Individual samples overlap;
+retain the mixed wall-time results and small CPU increases rather than claim
+identical timing or a new performance improvement. Neither the algorithms nor
+Release optimization level were reduced.
+
+Initial unwritable ccache temp-path and overlapping-build attempts are excluded;
+workspace temp selection and a serial reconfiguration precede the accepted runs.
+A separate sandbox colcon attempt stalled before compilation and was stopped;
+the authorized host build passes. The production suite has 64 targets because
+research tools are OFF, versus 70 in the preceding research-enabled closeout.
+
+See [configuration and paired measurements](build_profiles_20261023.json) and the
+[updated field guide](../../field_testing_zh.md). Local artifacts, final clean-build
+identity and the delivery manifest reside under
+`<workspace>/build/n3mapping/build_profiles_20261023/`. This stage does not rerun
+all six real sequences or full motion routes. Target hardware, general 10 cm,
+difficult-search half-core and uncertainty calibration remain open.

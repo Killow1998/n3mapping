@@ -14,15 +14,17 @@ odometry，提供 mapping、localization、map_extension。现有受控验收不
 Python 标准库，不要求 ROS 正在运行；也可以打包按同样目录布局保存的 Noetic 文本日志。
 `prepare` 生成的是 ROS 2 参数文件，不能直接交给 ROS 1 使用。
 
-本次实机候选为 **v1.1.0-rc1**，Humble / Noetic 的 ROS package 版本均为
+本次实机候选为 **v1.1.0-rc2**，Humble / Noetic 的 ROS package 版本均为
 **1.1.0**。这是现有功能的收尾定版；10 cm 全场景精度、困难搜索平均半核、
 RK3588/MID360 真机及本版 Noetic 独立编译尚未验收。
+本版只调整编译配置和构建流程，保留 **v1.1.0-rc1** 标签。
 版本标签是否已到远端应以实际仓库为准；本地定版不等于已经推送。
 
 ## 1. 拉取与构建
 
 先按 [README](../README.md) 安装 ROS、GTSAM、small_gicp 等依赖，准备自己的 LIO
-前端。下面以 `~/ros_ws` 为工作空间；如果实机路径不同，只改这个路径。
+前端，并一次性安装编译缓存：`sudo apt-get install ccache`。
+下面以 `~/ros_ws` 为工作空间；如果实机路径不同，只改这个路径。
 新机器将仓库 clone 到该工作空间的 `src/n3mapping`；已有机器按以下方式更新。
 
 ```bash
@@ -36,34 +38,48 @@ git status --short --branch
 若标签尚未推送，可先从交付的 Git bundle 导入。它保留提交历史和标签：
 
 ```bash
-git fetch /absolute/path/to/n3mapping-v1.1.0-rc1.bundle \
-  refs/tags/v1.1.0-rc1:refs/tags/v1.1.0-rc1
+git fetch /absolute/path/to/n3mapping-v1.1.0-rc2.bundle \
+  refs/tags/v1.1.0-rc2:refs/tags/v1.1.0-rc2
 ```
 
 ```bash
-git switch --detach v1.1.0-rc1
+git switch --detach v1.1.0-rc2
 N3M_COMMIT=$(git rev-parse HEAD)
 
 source /opt/ros/humble/setup.bash
 cd ~/ros_ws
 src/n3mapping/scripts/select_distro_wrapper.sh humble
-CMAKE_BUILD_PARALLEL_LEVEL=4 colcon build --symlink-install --executor sequential \
+export CCACHE_DIR="$PWD/build/ccache" CCACHE_TEMPDIR="$PWD/build/ccache/tmp"
+mkdir -p "$CCACHE_TEMPDIR"
+ccache --max-size 8G
+export CMAKE_BUILD_PARALLEL_LEVEL=4 MAKEFLAGS=-j4
+colcon --log-base log/n3mapping-v1.1.0-rc2 build \
+  --symlink-install --executor sequential \
   --packages-select n3mapping \
-  --build-base build/n3mapping-v1.1.0-rc1 \
-  --install-base install/n3mapping-v1.1.0-rc1 \
+  --build-base build/n3mapping-v1.1.0-rc2 \
+  --install-base install/n3mapping-v1.1.0-rc2 \
   --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
   -DN3MAPPING_BUILD_RESEARCH_TOOLS=OFF \
-  -DN3MAPPING_PRODUCT_COMMIT="$N3M_COMMIT"
+  -DN3MAPPING_PRODUCT_COMMIT="$N3M_COMMIT" \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ```
 
 **构建成功后**再测试，避免 `install/` 旧库污染结果：
 
 ```bash
-source ~/ros_ws/install/n3mapping-v1.1.0-rc1/setup.bash
-ROS_LOG_DIR="$HOME/ros_ws/log/n3mapping_ctest" \
-  ctest --test-dir ~/ros_ws/build/n3mapping-v1.1.0-rc1/n3mapping --output-on-failure
+source ~/ros_ws/install/n3mapping-v1.1.0-rc2/setup.bash
+export OMP_NUM_THREADS=4 OMP_WAIT_POLICY=PASSIVE OPENBLAS_NUM_THREADS=1
+ROS_LOG_DIR="$HOME/ros_ws/log/n3mapping-v1.1.0-rc2/ros_test" \
+  ctest --test-dir ~/ros_ws/build/n3mapping-v1.1.0-rc2/n3mapping --output-on-failure -j1
+ros2 pkg prefix n3mapping
 ros2 run n3mapping n3mapping_node --build-identity-json
 ```
+
+开发构建使用 README 中的独立 `RelWithDebInfo` / `Debug` 目录。不要在候选目录中
+切换优化级别；保留既有 build/install/log 和 ccache。Release 的 `-O3 -DNDEBUG`
+由 CMake 的 Release 配置提供，不再被包级无条件 `-O3` 覆盖。可在该构建目录的
+`compile_commands.json` 核对命令，用 `ccache --show-stats` 核对缓存命中。
 
 identity 应报告本次提交且 `verified=true`。这是构建来源确认，不等于实机功能验收。
 如果产品构建拒绝 dirty checkout，不要绕过检查；把自己的运行配置放在仓库外。
@@ -81,7 +97,7 @@ localization / map_extension 必须设置已有地图的**绝对路径** `map_pa
 
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/ros_ws/install/n3mapping-v1.1.0-rc1/setup.bash
+source ~/ros_ws/install/n3mapping-v1.1.0-rc2/setup.bash
 export OMP_NUM_THREADS=4 OMP_WAIT_POLICY=PASSIVE OPENBLAS_NUM_THREADS=1
 RUN="$HOME/n3mapping_runs/$(TZ=Asia/Shanghai date +%Y%m%d_%H%M%S)"
 NODE="$(ros2 pkg prefix n3mapping)/lib/n3mapping/n3mapping_node"

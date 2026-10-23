@@ -1,7 +1,10 @@
 # N3Mapping
 
-Current hardware-test candidate: **v1.1.0-rc1** (ROS package version **1.1.0**).
+Current hardware-test candidate: **v1.1.0-rc2** (ROS package version **1.1.0**).
 Use the [versioned build and field-test instructions](docs/field_testing_zh.md).
+The rc2 build configuration preserves Release optimization and isolates cached
+development builds; the **v1.1.0-rc1** tag remains available. See the
+[rc2 build validation](docs/evidence/runtime_cpu_20261017/README.md#build-profiles-and-rc2--2026-10-23).
 The [closeout evidence](docs/evidence/runtime_cpu_20261017/README.md#hardware-test-release-closeout--2026-10-23) records the paired behavior and retained limits.
 This candidate consolidates the existing localization, online loop and extension
 work; general 10 cm accuracy, difficult-search half-core operation and target
@@ -362,16 +365,53 @@ git clone https://github.com/koide3/small_gicp.git
 
 ### Build
 
+Install `ccache` once (`sudo apt-get install ccache` on Ubuntu). Keep the cache
+and build directories between edits. The following uses native colcon options;
+it does not change the workspace's existing default build/install directories.
+
 ```bash
 source /opt/ros/humble/setup.bash
 cd ~/ros_ws
+# Source any dependency workspace here, before the selected profile below.
 src/n3mapping/scripts/select_distro_wrapper.sh humble
 
-colcon build --packages-up-to n3mapping --symlink-install \
-  --cmake-args -DCMAKE_BUILD_TYPE=Release
+export CCACHE_DIR="$PWD/build/ccache" CCACHE_TEMPDIR="$PWD/build/ccache/tmp"
+mkdir -p "$CCACHE_TEMPDIR"
+ccache --max-size 8G
+export CMAKE_BUILD_PARALLEL_LEVEL=4 MAKEFLAGS=-j4
+N3M_BUILD_TYPE=RelWithDebInfo
+N3M_PROFILE="n3mapping-$N3M_BUILD_TYPE"
 
-source install/setup.bash
+colcon --log-base "log/$N3M_PROFILE" build \
+  --symlink-install --executor sequential --packages-up-to n3mapping \
+  --build-base "build/$N3M_PROFILE" --install-base "install/$N3M_PROFILE" \
+  --cmake-args -DCMAKE_BUILD_TYPE="$N3M_BUILD_TYPE" -DBUILD_TESTING=ON \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+  -DN3MAPPING_BUILD_RESEARCH_TOOLS=OFF -DN3MAPPING_PRODUCT_COMMIT=
+
+source "install/$N3M_PROFILE/setup.bash"
+ros2 pkg prefix n3mapping
 ```
+
+Once dependencies are built and sourced, use `--packages-select n3mapping` for
+package-only iteration. In a new terminal, restore the cache environment and
+source ROS/dependencies first, then the chosen profile last. Use `Debug` for
+unoptimized debugging, `RelWithDebInfo` for daily development, and `Release` for
+runtime comparisons; each value selects its own directories. On this GCC build
+they use `-g`, `-O2 -g -DNDEBUG`, and `-O3 -DNDEBUG`, respectively; `MinSizeRel`
+uses `-Os -DNDEBUG`. The wrappers do not override CMake's optimization flags.
+Inspect `build/$N3M_PROFILE/n3mapping/compile_commands.json` and `ccache --show-stats`
+to verify the effective flags and cache activity. An unchanged build has no
+compilations to cache. Cache hits accelerate compilation, not runtime execution.
+
+For the hardware candidate, follow the [Release field guide](docs/field_testing_zh.md)
+instead: its versioned install and clean-commit identity remain separate from
+these UNVERIFIED development builds. The four-core 14600KF comparison prefixes
+build/test/replay commands with `taskset -c 0,2,4,6`; choose the correct physical
+cores for other machines. Both Make's job limit and CPU affinity matter.
+See [CMake compiler launchers](https://cmake.org/cmake/help/v3.22/variable/CMAKE_LANG_COMPILER_LAUNCHER.html)
+and [colcon build options](https://colcon.readthedocs.io/en/released/reference/verb/build.html).
 
 ### Run
 
@@ -408,12 +448,16 @@ ros2 service call /n3mapping/save_map std_srvs/srv/Trigger {}
 ### Test
 
 ```bash
-colcon build --packages-up-to n3mapping --symlink-install \
-  --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
-
-ROS_LOG_DIR=/tmp/ros_log colcon test --packages-select n3mapping
-colcon test-result --test-result-base build/n3mapping --verbose
+# After the selected profile has built successfully:
+source "install/$N3M_PROFILE/setup.bash"
+export OMP_NUM_THREADS=4 OMP_WAIT_POLICY=PASSIVE OPENBLAS_NUM_THREADS=1
+ROS_LOG_DIR="$PWD/log/$N3M_PROFILE/ros_test" \
+  ctest --test-dir "build/$N3M_PROFILE/n3mapping" --output-on-failure -j1
 ```
+
+For a local change, append `-R '<affected test expression>'` to run the relevant
+existing tests; run the full suite for a release candidate. Keep research tools
+in a separate development profile if enabling `N3MAPPING_BUILD_RESEARCH_TOOLS`.
 
 ### Synthetic Relocalization Tools
 
@@ -653,11 +697,29 @@ source /opt/ros/noetic/setup.bash
 cd ~/ros_ws
 src/n3mapping/scripts/select_distro_wrapper.sh noetic
 
-catkin build n3mapping --no-status -j2 \
-  --cmake-args -DCMAKE_BUILD_TYPE=Release
+export CCACHE_DIR="$PWD/build/ccache" CCACHE_TEMPDIR="$PWD/build/ccache/tmp"
+mkdir -p "$CCACHE_TEMPDIR"
+N3M_BUILD_TYPE=RelWithDebInfo
+N3M_PROFILE="n3mapping-noetic-$N3M_BUILD_TYPE"
+catkin config --init --profile "$N3M_PROFILE" \
+  --build-space "build/$N3M_PROFILE" --devel-space "devel/$N3M_PROFILE" \
+  --install-space "install/$N3M_PROFILE" --log-space "log/$N3M_PROFILE" \
+  --cmake-args -DCMAKE_BUILD_TYPE="$N3M_BUILD_TYPE" \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+  -DN3MAPPING_BUILD_RESEARCH_TOOLS=OFF -DN3MAPPING_PRODUCT_COMMIT=
+catkin build --profile "$N3M_PROFILE" n3mapping --no-status -j4 -p1
 
-source devel/setup.bash
+source "devel/$N3M_PROFILE/setup.bash"
 ```
+
+Install `ccache` once before building. Use a separate `Release` profile for
+performance testing and `Debug` for unoptimized debugging. Native
+[catkin profiles](https://catkin-tools.readthedocs.io/en/latest/verbs/catkin_profile.html)
+keep build/devel/install/log paths separate; retain existing profiles and caches.
+After dependencies are ready, `catkin build ... --no-deps` limits iteration to
+n3mapping. The rc2 four-configuration build validation was performed on Humble;
+a Noetic underlay was unavailable, so this version's Noetic build remains unverified.
 
 ### Run
 
@@ -694,10 +756,10 @@ rosservice call /n3mapping/save_map "{}"
 ### Test
 
 ```bash
-catkin build n3mapping --no-status -j2 --catkin-make-args run_tests
-source devel/setup.bash
-cd build/n3mapping
-ctest --output-on-failure
+catkin build --profile "$N3M_PROFILE" n3mapping --no-status -j4 -p1 \
+  --catkin-make-args run_tests
+source "devel/$N3M_PROFILE/setup.bash"
+ctest --test-dir "build/$N3M_PROFILE/n3mapping" --output-on-failure -j1
 ```
 
 ### Synthetic Relocalization Tools
