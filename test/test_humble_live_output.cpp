@@ -1,11 +1,12 @@
 // Exercise the production node's subscriptions, executors and publishers.
 // The test subclass pauses conversion; it does not replace output decisions.
-#define N3MAPPING_NODE_NO_MAIN
-#include "../humble/src/n3mapping_node.cpp"
+#include "../humble/src/n3mapping_node.h"
 
 #include <condition_variable>
+#include <filesystem>
 #include <future>
 #include <sstream>
+#include <pcl_conversions/pcl_conversions.h>
 #include <gtest/gtest.h>
 #include <json/json.h>
 #include <tf2_msgs/msg/tf_message.hpp>

@@ -1,5 +1,12 @@
 # N3Mapping
 
+Current hardware-test candidate: **v1.1.0-rc1** (ROS package version **1.1.0**).
+Use the [versioned build and field-test instructions](docs/field_testing_zh.md).
+The [closeout evidence](docs/evidence/runtime_cpu_20261017/README.md#hardware-test-release-closeout--2026-10-23) records the paired behavior and retained limits.
+This candidate consolidates the existing localization, online loop and extension
+work; general 10 cm accuracy, difficult-search half-core operation and target
+hardware acceptance remain open.
+
 ## 1. What Is N3Mapping?
 
 N3Mapping is a graph-backend SLAM, loop-closure, map-extension, and relocalization package for external LIO frontends.
@@ -788,6 +795,18 @@ Localization changes should follow the existing ownership boundaries:
 | Online loop retrieval, isolated geometry/graph work and revision-checked commit | `N3MappingCore` loop orchestration and shared loop-processing implementation |
 | Trusted corrections and live pose/cloud projection | `core::RealtimeOutput` |
 
+The Humble node has one state/lock owner, declared in the private
+`humble/src/n3mapping_node.h`. Its lifecycle, live output, serial backend,
+visualization, map IO and finite authority probe have separate implementations.
+`n3mapping_node.cpp` only owns process startup and signal handling. Production
+and live-output E2E tests link the same `n3mapping_humble_node_impl` objects;
+tests do not include a production `.cpp` or compile a separate node variant.
+The core's `MappingResuming` similarly separates session lifecycle, keyframe
+transactions, acquisition identity, cross-session loops and submap diagnostics.
+These are implementation boundaries, without new managers or state copies.
+Use the relevant behavioral tests during a module change and the integrated
+mapping/localization/extension checks at release boundaries.
+
 Search, tracking, map evidence and offline probes have separate implementation
 files. Session reset preserves map-derived tracking targets; map replacement
 invalidates their generation and queued work. Loaded-map tracking prepares one
@@ -888,10 +907,11 @@ remain separate from that measured result.
 
 ### TODO
 
-Current work is updated **2026-10-22**. Maintenance version **1.0.1** closed the
-accepted performance changes. Current priorities are **real-data time/reference
-qualification, correlated loop uncertainty and remaining per-query loop cost**, while preserving
-relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for
+Current work is updated **2026-10-23**. Version **1.1.0-rc1** freezes the accepted
+changes for hardware testing. Further algorithm/performance exploration is
+paused for this closeout. Outstanding research includes **real-data time/reference
+qualification, correlated loop uncertainty and remaining per-query loop cost**,
+while preserving relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for
 that online behavior. Stationary startup remains required by Xian's downstream
 workflow. Continuing localization outside the global map is deferred pending
 Xian's decision; the highly repetitive out-of-map corridor remains a recorded

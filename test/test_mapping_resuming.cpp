@@ -169,27 +169,6 @@ class MappingResumingTest : public ::testing::Test
 };
 
 /**
- * @brief 测试初始状态
- */
-TEST_F(MappingResumingTest, InitialState)
-{
-    KeyframeManager kf_manager(config_);
-    LoopDetector loop_detector(config_);
-    PointCloudMatcher matcher(config_);
-    GraphOptimizer optimizer(config_);
-    MapSerializer serializer(config_);
-    WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
-
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
-
-    EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
-    EXPECT_EQ(extension.getOriginalKeyframeCount(), 0);
-    EXPECT_EQ(extension.getNewKeyframeCount(), 0);
-    EXPECT_EQ(extension.getCrossLoopCount(), 0);
-    EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
-}
-
-/**
  * @brief 测试加载地图
  * Requirements: 12.1
  */
@@ -208,6 +187,12 @@ TEST_F(MappingResumingTest, InitializeFromSerializedMap)
 
     MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
+    EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
+    EXPECT_EQ(extension.getOriginalKeyframeCount(), 0u);
+    EXPECT_EQ(extension.getNewKeyframeCount(), 0u);
+    EXPECT_EQ(extension.getCrossLoopCount(), 0u);
+    EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
+
     // 加载地图
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                      optimizer, serializer, extension));
@@ -215,6 +200,11 @@ TEST_F(MappingResumingTest, InitializeFromSerializedMap)
     EXPECT_EQ(extension.getState(), MappingResumingState::MAP_LOADED);
     EXPECT_EQ(extension.getOriginalKeyframeCount(), 5);
     EXPECT_EQ(kf_manager.size(), 5);
+    EXPECT_TRUE(extension.isFromOriginalMap(0));
+    EXPECT_TRUE(extension.isFromOriginalMap(2));
+    EXPECT_TRUE(extension.isFromOriginalMap(4));
+    EXPECT_FALSE(extension.isFromOriginalMap(5));
+    EXPECT_FALSE(extension.isFromOriginalMap(10));
 }
 
 /**
@@ -235,53 +225,6 @@ TEST_F(MappingResumingTest, SerializedLoadFailureKeepsUninitialized)
                                       loop_detector, optimizer, serializer,
                                       extension));
     EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
-}
-
-/**
- * @brief 测试关键帧 ID 连续性
- * Requirements: 12.3
- */
-TEST_F(MappingResumingTest, KeyframeIdContinuity)
-{
-    // 创建测试地图
-    std::string map_file = createTestMap(5);
-
-    // 创建新的组件
-    KeyframeManager kf_manager(config_);
-    LoopDetector loop_detector(config_);
-    PointCloudMatcher matcher(config_);
-    GraphOptimizer optimizer(config_);
-    MapSerializer serializer(config_);
-    WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
-
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
-
-    // 加载地图
-    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
-                                     optimizer, serializer, extension));
-
-    // 获取原始地图最大 ID
-    int64_t max_original_id = -1;
-    for (const auto& kf : kf_manager.getAllKeyframes()) {
-        if (kf && kf->id > max_original_id) {
-            max_original_id = kf->id;
-        }
-    }
-
-    // 手动设置重定位状态以便添加新关键帧
-    relocalization.setMapToOdomTransform(Eigen::Isometry3d::Identity());
-
-    // 模拟添加新关键帧
-    Eigen::Isometry3d new_pose = Eigen::Isometry3d::Identity();
-    new_pose.translation().x() = 12.0; // 在原始地图末端之后
-
-    auto cloud = generateCorridorCloud(new_pose);
-
-    // 由于 processNewKeyframe 需要 RELOCALIZED 状态，我们直接测试 KeyframeManager
-    int64_t new_id = kf_manager.addKeyframe(0.5, new_pose, cloud);
-
-    // 验证新 ID > 原始最大 ID
-    EXPECT_GT(new_id, max_original_id);
 }
 
 /**
@@ -312,35 +255,6 @@ TEST_F(MappingResumingTest, Reset)
     EXPECT_EQ(extension.getOriginalKeyframeCount(), 0);
     EXPECT_EQ(extension.getCrossLoopCount(), 0);
     EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
-}
-
-/**
- * @brief 测试 isFromOriginalMap
- */
-TEST_F(MappingResumingTest, IsFromOriginalMap)
-{
-    std::string map_file = createTestMap(5);
-
-    KeyframeManager kf_manager(config_);
-    LoopDetector loop_detector(config_);
-    PointCloudMatcher matcher(config_);
-    GraphOptimizer optimizer(config_);
-    MapSerializer serializer(config_);
-    WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
-
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
-
-    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
-                                     optimizer, serializer, extension));
-
-    // 原始地图关键帧 ID 为 0-4
-    EXPECT_TRUE(extension.isFromOriginalMap(0));
-    EXPECT_TRUE(extension.isFromOriginalMap(2));
-    EXPECT_TRUE(extension.isFromOriginalMap(4));
-
-    // ID > 4 不是原始地图
-    EXPECT_FALSE(extension.isFromOriginalMap(5));
-    EXPECT_FALSE(extension.isFromOriginalMap(10));
 }
 
 /**

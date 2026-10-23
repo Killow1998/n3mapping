@@ -1,0 +1,1006 @@
+{
+  "version_tag": "v1.1.0-rc1",
+  "ros_package_version": "1.1.0",
+  "date": "2026-10-23",
+  "kind": "structural closeout; hardware-test candidate",
+  "baseline_commit": "732065ab54db2a39cc881ee1d05431b84b4de421",
+  "baseline_note": "Includes the previously qualified, uncommitted direction stage; not a clean HEAD baseline.",
+  "cpus": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "threads": 4,
+  "ctest": {
+    "passed": 70,
+    "failed": 0,
+    "wall_s": 35.51
+  },
+  "structural": {
+    "node_method_bodies_unchanged": 47,
+    "modified_from_stage_baseline": [
+      "cmake/n3mapping_core.cmake",
+      "humble/CMakeLists.txt",
+      "humble/package.xml",
+      "humble/src/n3mapping_node.cpp",
+      "noetic/package.xml",
+      "src/mapping_resuming.cpp",
+      "test/test_humble_live_output.cpp",
+      "test/test_mapping_resuming.cpp"
+    ],
+    "no_acceptance_or_parameter_changes": true
+  },
+  "fixed14": {
+    "before": {
+      "positions": 14,
+      "outputs": 4088,
+      "lock_frames": [
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ]
+      ],
+      "maximum_position_m": 0.024809060907976216,
+      "average_cores": 0.40129285779789164
+    },
+    "candidate": {
+      "positions": 14,
+      "outputs": 4088,
+      "lock_frames": [
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ]
+      ],
+      "maximum_position_m": 0.024809060907976112,
+      "average_cores": 0.40300688505314897
+    }
+  },
+  "motion": {
+    "before": {
+      "old": {
+        "frames": 2236,
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "truth": {
+          "mapping": "<workspace>/src/n3mapping/map/sprobo_20261018/coverage_v2",
+          "query": "<workspace>/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "<workspace>/build/n3mapping/release_closeout_20261023/motion_old_before/frames.csv",
+          "probe_status": {
+            "input_frames": 2236,
+            "successful_frames": 2232,
+            "published_without_backend_success": 0
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 2232,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.0038900949293342916,
+          "first_output_rotation_error_deg": 0.013850834494894746,
+          "position_error_m": {
+            "rmse": 0.009681592239874028,
+            "median": 0.00697951460363066,
+            "p95": 0.01518112445598998,
+            "maximum": 0.07932836946644896
+          },
+          "rotation_error_deg": {
+            "rmse": 0.023736649209611597,
+            "median": 0.015028926866236466,
+            "p95": 0.045788827359471755,
+            "maximum": 0.1414987690337036
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "cpu_s": 54.003565601000005,
+        "wall_s": 21.438735341,
+        "input_s": 223.5,
+        "peak_rss_mib": 1307.0390625,
+        "sources": {
+          "0": 4,
+          "2": 2232
+        },
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 2231
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "average_cores": 0.24162669172706938
+      },
+      "new": {
+        "frames": 3666,
+        "outputs": 3662,
+        "locks": [
+          4,
+          1938
+        ],
+        "truth": {
+          "mapping": "<workspace>/src/n3mapping/map/sprobo_20261018/coverage_v2",
+          "query": "<workspace>/src/n3mapping/map/sprobo_20261021/independent_v2",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "<workspace>/build/n3mapping/release_closeout_20261023/motion_new_before/frames.csv",
+          "probe_status": {
+            "input_frames": 3666,
+            "successful_frames": 3603,
+            "published_without_backend_success": 59
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 3662,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.0017836637356589554,
+          "first_output_rotation_error_deg": 0.012414035472442568,
+          "position_error_m": {
+            "rmse": 0.008524168842742534,
+            "median": 0.006629034525469846,
+            "p95": 0.015433337229173076,
+            "maximum": 0.03246851633696918
+          },
+          "rotation_error_deg": {
+            "rmse": 0.035139060585895526,
+            "median": 0.016250484742516107,
+            "p95": 0.057390929315867104,
+            "maximum": 0.2641706757292131
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "cpu_s": 117.385551927,
+        "wall_s": 47.103331935,
+        "input_s": 366.5,
+        "peak_rss_mib": 1307.29296875,
+        "sources": {
+          "0": 63,
+          "2": 3597,
+          "1": 6
+        },
+        "decisions": {
+          "temporal_window_pending": 53,
+          "accepted": 2,
+          "tracking_geometric": 3595,
+          "icp_gate_failed": 6,
+          "ambiguous": 6,
+          "margin": 3,
+          "log_likelihood": 1
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "average_cores": 0.3202879998008185
+      }
+    },
+    "candidate": {
+      "old": {
+        "frames": 2236,
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "truth": {
+          "mapping": "<workspace>/src/n3mapping/map/sprobo_20261018/coverage_v2",
+          "query": "<workspace>/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "<workspace>/build/n3mapping/release_closeout_20261023/motion_old_candidate/frames.csv",
+          "probe_status": {
+            "input_frames": 2236,
+            "successful_frames": 2232,
+            "published_without_backend_success": 0
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 2232,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.0038900949293344035,
+          "first_output_rotation_error_deg": 0.013850834494894727,
+          "position_error_m": {
+            "rmse": 0.009681592239874016,
+            "median": 0.006979514603630659,
+            "p95": 0.015181124455989991,
+            "maximum": 0.07932836946644896
+          },
+          "rotation_error_deg": {
+            "rmse": 0.02373664920961125,
+            "median": 0.015028926866236466,
+            "p95": 0.0457888273594717,
+            "maximum": 0.14149876903369796
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "cpu_s": 54.39080228,
+        "wall_s": 20.898834184,
+        "input_s": 223.5,
+        "peak_rss_mib": 1307.125,
+        "sources": {
+          "0": 4,
+          "2": 2232
+        },
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 2231
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "average_cores": 0.2433592943176734
+      },
+      "new": {
+        "frames": 3666,
+        "outputs": 3662,
+        "locks": [
+          4,
+          1938
+        ],
+        "truth": {
+          "mapping": "<workspace>/src/n3mapping/map/sprobo_20261018/coverage_v2",
+          "query": "<workspace>/src/n3mapping/map/sprobo_20261021/independent_v2",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "<workspace>/build/n3mapping/release_closeout_20261023/motion_new_candidate/frames.csv",
+          "probe_status": {
+            "input_frames": 3666,
+            "successful_frames": 3603,
+            "published_without_backend_success": 59
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 3662,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.0017836637356589452,
+          "first_output_rotation_error_deg": 0.012414035472442547,
+          "position_error_m": {
+            "rmse": 0.008524168842742739,
+            "median": 0.006629034525469823,
+            "p95": 0.015433337229173083,
+            "maximum": 0.03246851633697364
+          },
+          "rotation_error_deg": {
+            "rmse": 0.03513906058589657,
+            "median": 0.016250484742516096,
+            "p95": 0.05739092931586709,
+            "maximum": 0.26417067572926395
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "cpu_s": 116.58954669900001,
+        "wall_s": 44.061707604000006,
+        "input_s": 366.5,
+        "peak_rss_mib": 1307.22265625,
+        "sources": {
+          "0": 63,
+          "2": 3597,
+          "1": 6
+        },
+        "decisions": {
+          "temporal_window_pending": 53,
+          "accepted": 2,
+          "tracking_geometric": 3595,
+          "icp_gate_failed": 6,
+          "ambiguous": 6,
+          "margin": 3,
+          "log_likelihood": 1
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "average_cores": 0.31811608921964535
+      }
+    }
+  },
+  "extension": {
+    "before": {
+      "summary": {
+        "frames": 3666,
+        "keyframes": 344,
+        "successful_frames": 3662,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 205.1087329239994,
+        "loop_cpu_s": 1.0880818070007257,
+        "runtime_cpu_s": 308.530004395,
+        "runtime_wall_s": 370.10947908,
+        "source_duration_s": 366.5,
+        "max_pacing_lag_s": 1.5801698549999998,
+        "peak_rss_kib": 1915428,
+        "paced": true
+      },
+      "accuracy": {
+        "alignment": {
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "frames": 3666,
+        "outputs": 3662,
+        "rejected_frames": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "position_m": {
+          "count": 3662,
+          "rmse": 0.01267775983070753,
+          "median": 0.005786656023920687,
+          "p95": 0.016514082634768,
+          "maximum": 0.08311386309911993
+        },
+        "rotation_deg": {
+          "count": 3662,
+          "rmse": 0.051384279071940236,
+          "median": 0.01263263358419939,
+          "p95": 0.08505074381635988,
+          "maximum": 0.4763104592445367
+        },
+        "consecutive_displacement_error_m": {
+          "count": 3661,
+          "rmse": 0.003254867592691853,
+          "median": 0.0016983920869140996,
+          "p95": 0.006495776857755047,
+          "maximum": 0.027358493482712902
+        },
+        "above_10cm": 0,
+        "above_1m": 0,
+        "max_rotation_orthogonality_error": 1.092636846882634e-12,
+        "commits": 23,
+        "max_pending": 2,
+        "graph_rebases": 0,
+        "commit_ms": {
+          "count": 23,
+          "rmse": 21.561803417778595,
+          "median": 20.592867000000002,
+          "p95": 32.28599209999999,
+          "maximum": 33.739319
+        },
+        "max_pending_age_ms": 23992.801638
+      },
+      "save": {
+        "cpu_s": 6.85817,
+        "wall_s": 3.52534,
+        "peak_rss_kib": 2493116
+      }
+    },
+    "candidate": {
+      "summary": {
+        "frames": 3666,
+        "keyframes": 344,
+        "successful_frames": 3662,
+        "accepted_loops": 0,
+        "mapping_cpu_s": 207.79981256499966,
+        "loop_cpu_s": 1.0281175099998485,
+        "runtime_cpu_s": 310.504627721,
+        "runtime_wall_s": 370.071632943,
+        "source_duration_s": 366.5,
+        "max_pacing_lag_s": 1.5521837980000002,
+        "peak_rss_kib": 1919140,
+        "paced": true
+      },
+      "accuracy": {
+        "alignment": {
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "frames": 3666,
+        "outputs": 3662,
+        "rejected_frames": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "position_m": {
+          "count": 3662,
+          "rmse": 0.01270364527055713,
+          "median": 0.00579016545147891,
+          "p95": 0.016064803212691825,
+          "maximum": 0.08312044783733492
+        },
+        "rotation_deg": {
+          "count": 3662,
+          "rmse": 0.05258425759643816,
+          "median": 0.012747788465186378,
+          "p95": 0.08555522362006292,
+          "maximum": 0.4764669555151859
+        },
+        "consecutive_displacement_error_m": {
+          "count": 3661,
+          "rmse": 0.0032495286341682763,
+          "median": 0.0017063702438047928,
+          "p95": 0.006452847809102549,
+          "maximum": 0.027868022570565223
+        },
+        "above_10cm": 0,
+        "above_1m": 0,
+        "max_rotation_orthogonality_error": 1.0878956993402865e-12,
+        "commits": 23,
+        "max_pending": 2,
+        "graph_rebases": 0,
+        "commit_ms": {
+          "count": 23,
+          "rmse": 20.56249601258929,
+          "median": 20.142910999999998,
+          "p95": 27.2973303,
+          "maximum": 30.695282
+        },
+        "max_pending_age_ms": 22798.407623
+      },
+      "save": {
+        "cpu_s": 6.91516,
+        "wall_s": 3.57363,
+        "peak_rss_kib": 2542204
+      }
+    }
+  },
+  "checkpoint": {
+    "before": {
+      "atlas_point_error_m": 0.0,
+      "atlas_points": 2201610,
+      "edge_error": 1.2561602329421812e-15,
+      "edges": 2385,
+      "graph_pose_error": 3.159750453282998e-15,
+      "keyframe_pose_error": 3.159750453282998e-15,
+      "keyframes": 1615,
+      "observations": 24083,
+      "plane_error": 1.1102230246251565e-16,
+      "planes": 741,
+      "raw_clouds_odometry_information_and_moments_preserved": true,
+      "raw_pose_error": 9.93017638739767e-16,
+      "reload_pose_error": 2.106500667079488e-15
+    },
+    "candidate": {
+      "atlas_point_error_m": 0.0,
+      "atlas_points": 2201764,
+      "edge_error": 1.9165434197601358e-15,
+      "edges": 2385,
+      "graph_pose_error": 1.910100224600532e-15,
+      "keyframe_pose_error": 1.910100224600532e-15,
+      "keyframes": 1615,
+      "observations": 24059,
+      "plane_error": 1.1102230246251565e-16,
+      "planes": 740,
+      "raw_clouds_odometry_information_and_moments_preserved": true,
+      "raw_pose_error": 9.93017638739767e-16,
+      "reload_pose_error": 1.5700973849800906e-15
+    }
+  },
+  "equivalence": {
+    "fixed14": [
+      {
+        "case": "01_west_corridor",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 2.7755575615628914e-16,
+        "mismatches": []
+      },
+      {
+        "case": "02_east_corridor",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 5.902396627011086e-16,
+        "mismatches": []
+      },
+      {
+        "case": "03_south_corridor",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 2.42861286636753e-17,
+        "mismatches": []
+      },
+      {
+        "case": "04_north_corridor",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 1.5959455978986625e-16,
+        "mismatches": []
+      },
+      {
+        "case": "05_southwest_office",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 4.440892098500626e-16,
+        "mismatches": []
+      },
+      {
+        "case": "06_south_meeting",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 1.448494102440634e-16,
+        "mismatches": []
+      },
+      {
+        "case": "07_south_pillars",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 7.105427357601002e-15,
+        "mismatches": []
+      },
+      {
+        "case": "08_west_shelves",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 1.7763568394002505e-15,
+        "mismatches": []
+      },
+      {
+        "case": "09_east_shelves",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 4.440892098500626e-16,
+        "mismatches": []
+      },
+      {
+        "case": "10_northwest_meeting",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 4.440892098500626e-16,
+        "mismatches": []
+      },
+      {
+        "case": "11_northeast_pillars",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 1.1102230246251565e-16,
+        "mismatches": []
+      },
+      {
+        "case": "12_north_office",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 1.1102230246251565e-16,
+        "mismatches": []
+      },
+      {
+        "case": "13_south_door",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 1.6653345369377348e-16,
+        "mismatches": []
+      },
+      {
+        "case": "14_north_door",
+        "passed": true,
+        "rows": 296,
+        "max_numeric_difference": 4.163336342344337e-17,
+        "mismatches": []
+      }
+    ],
+    "motion": {
+      "old": {
+        "passed": true,
+        "rows": 2236,
+        "max_numeric_difference": 1.4210854715202004e-14,
+        "mismatches": 0
+      },
+      "new": {
+        "passed": true,
+        "rows": 3666,
+        "max_numeric_difference": 5.684341886080802e-14,
+        "mismatches": 0
+      }
+    },
+    "interrupted_extension": {
+      "path": "extension_candidate",
+      "complete": false,
+      "frames": 998,
+      "reason": "Execution session lost; no exit reason in log; retained without qualification."
+    }
+  },
+  "ablation": {
+    "removed_tests": [
+      "MappingResumingTest.InitialState",
+      "MappingResumingTest.IsFromOriginalMap",
+      "MappingResumingTest.KeyframeIdContinuity"
+    ],
+    "coverage": "State/getter assertions moved into serialized-map lifecycle. The removed ID-only test bypassed the extension API; real anchor/odometry commit, replay identity, rollback and property tests remain.",
+    "node_test_variant_removed": "No N3MAPPING_NODE_NO_MAIN or inclusion of a production .cpp; E2E and executable share the same static implementation objects.",
+    "runtime_helpers_removed": [
+      "isFiniteTransform",
+      "rotationRpyDegrees"
+    ],
+    "previous_rejected_cache": "loop_adaptive_20261022/reuse_decision.json: full fixed-input CPU changes -1.15%/-0.325% did not justify new ownership/API complexity; not included.",
+    "thresholds_or_weights_changed": false
+  },
+  "verification_limit": "This stage reruns the original14, both independent localization routes and fresh online extension; it does not repeat all six real routes. The six-route direction evidence is the retained algorithm baseline. This is a source release candidate. Local tested runtime artifacts remain a development build; build the clean tagged source on target hardware per the field guide. Existing install is not replaced.",
+  "invalid_test_attempt": "Initial CTest invocation selected old installed shared libraries. Disqualified; corrected LD_LIBRARY_PATH and reran all 70 tests.",
+  "open": [
+    "general live 10 cm accuracy",
+    "difficult search/extension half-core",
+    "M2DGR physical time/reference qualification",
+    "correlated uncertainty calibration",
+    "RK3588/MID360 field test",
+    "independent Noetic compile/runtime for this release"
+  ],
+  "before_binaries": {
+    "libn3mapping_humble_wrapper.so": "edd720a022dd94b0a27ae481b20377cc7bfc8c50cf814de445fc1f2c9d75ced5",
+    "replay_probe": "1c9df356f6ea554e339da4f31834ab9a25a6cfa9e023a9cf08ef3209b4be952f",
+    "libn3mapping_core.so": "02b30ac157d03b3084a122dadb52367521b3417af6881f7757f3ad560250b42c",
+    "n3mapping_node": "0a88b5c68e8820f0c123211c4055a691a0e8d582a9be752b2b3f30f2dcb46e48",
+    "online_replay": "85c7651928c132d06d1a943a15386e8260b120bd8454008c7c883fa9962a9fd1"
+  },
+  "candidate_binaries": {
+    "libn3mapping_humble_wrapper.so": "edd720a022dd94b0a27ae481b20377cc7bfc8c50cf814de445fc1f2c9d75ced5",
+    "replay_probe": "1c9df356f6ea554e339da4f31834ab9a25a6cfa9e023a9cf08ef3209b4be952f",
+    "libn3mapping_core.so": "068227ace08a50d994884b2e7e28bb4bdbf0b49ab8175e0476fd7244d1dcc340",
+    "n3mapping_node": "34edbf801474318db403a3b9e9bf09bd8ea3a41727743a9368d9adacb6e3fccf",
+    "online_replay": "85c7651928c132d06d1a943a15386e8260b120bd8454008c7c883fa9962a9fd1"
+  },
+  "file_lines": {
+    "humble/src/n3mapping_node.cpp": 73,
+    "humble/src/n3mapping_node.h": 306,
+    "src/mapping_resuming.cpp": 201,
+    "humble/src/n3mapping_node_backend.cpp": 314,
+    "humble/src/n3mapping_node_lifecycle.cpp": 249,
+    "humble/src/n3mapping_node_live.cpp": 260,
+    "humble/src/n3mapping_node_map.cpp": 279,
+    "humble/src/n3mapping_node_probe.cpp": 200,
+    "humble/src/n3mapping_node_visualization.cpp": 254,
+    "src/mapping_resuming_keyframes.cpp": 291,
+    "src/mapping_resuming_loops.cpp": 254,
+    "src/mapping_resuming_submaps.cpp": 157
+  },
+  "source_sha256": {
+    "src/point_cloud_matcher_alignment.cpp": "0415ddacb746b17a6a5254ca721392897414fb9703a62dc63fbec62a96cc3d25",
+    "src/visibility_consistency.cpp": "86dc6006efe96146e5393640a7e5f1901346c03fb251d24f0bec8f22bd62bf2e",
+    "src/global_map_cache.cpp": "5572fb0864df39414d7f409e3bdbf2bdbd9215599af862429a1d7a982439d8eb",
+    "src/world_localizing_confirmation.cpp": "019db47f2a466602bd7f0be7e83ac50da27858a6997bd2c96396609924a8aab4",
+    "src/graph_optimizer.cpp": "5af688cb81eb13dace2eed1005470261aa1280b3f0859c6d50ead45ccb0fe46a",
+    "src/registration_observability.cpp": "c239f7552299ef37bcfb0ff250d808f60cd478fa99092def8eeeddc604399330",
+    "src/n3map_nav_resource_reader.cpp": "526592a9ef810ac5744ef7e5d28afba9352ab9a8eac4d79717350e18b4709530",
+    "src/graph_optimizer_factors.cpp": "bc187c408097b2065c9aedbcf40874a16262ebdb177dca5b3068ef7b5cf115cd",
+    "src/relocalization_debug_logger.cpp": "8c8b30fce2870a2793efb2aea79c34f203654f2277296cf7656bfa2aac648228",
+    "src/relocalization_candidate_evaluator.cpp": "f122bee5696c9bfedae599c0a06f339d5751420b568356945d8448602775bc21",
+    "src/relocalization_query_builder.cpp": "2dfd91c7c930075bfe903a37e8c84b4106c29d38c95321cb01b165abf2195884",
+    "src/local_map_selector.cpp": "f1bd538e7e33fb4ff99a5d8601feccf18c623090a100621b71d7c8d13059e378",
+    "src/visibility_planar_support.cpp": "1363f1aa8a232869bed0f4b0d45f702c4093fc4647f31b4513190c7c5ce3bdc9",
+    "src/localization_atlas.cpp": "dc374ca572b6ed12dfe260857a3717f5144d55782907e57df68550040f2f0503",
+    "src/relocalization_decision_policy.cpp": "15dc337cd0c1dcc842bbdcd39c586de7e2ee769b6d07404245e67cf596af733f",
+    "src/odometry_sanity.cpp": "b21bd88632eda265b6fe64b025f3a457b35010b43971eeb5e61a7b554e05230b",
+    "src/graph_optimizer_append.cpp": "c452952a9c6892e9852bb0de940e234700012779adf1704332b337e53a992210",
+    "src/world_localizing_initialization.cpp": "7a60025f1717cf75aa0f35c1d50c42071311f78398c8c3653b42dd23b724ef5f",
+    "src/relocalization_debug_emitter.cpp": "3225080529a9c61cc6184de6a23a59e86da2413869d103e97d183a364cbc73ff",
+    "src/submap_graph_projection.cpp": "87ea5d4f64c759a7968fa4c5ecea5d49e0268bedbcd458bb444aaf55c7a466ec",
+    "src/rhpd_place.cpp": "e9a24d1c70c76ca1fc1b2ce3d04172474039abc1ae33f071db43c57f7df4f3c1",
+    "src/runtime_performance_debug_logger.cpp": "02c705ba948b3d675fab7f126c662b37d83cc460cedc7a87fa8392ff745a0672",
+    "src/localization_atlas_map.cpp": "d58c59a716779607d3a9b5293886c3a203b72d0c0238a3ae6a52b306ee213d04",
+    "src/rhpd_manager.cpp": "4790c1d530c6701d1eb946367277ab6ed4e09489639508a7728c6e0d0da92e83",
+    "src/point_cloud_matcher.cpp": "917727af48a0d477732b2024bd144bae7ccc03395f17c6b2842d639f050b51fd",
+    "src/relocalization_target_provider.cpp": "2e95cab121680b1842d6050541b9acb029fc1128a9b974cab89aa4acd9afda8b",
+    "src/submap_graph_trial_runtime.cpp": "473d3012f24e2bbabbf4a0feb61c048d72c30888bda93046005f7d4fb8443f32",
+    "src/submap_graph_factor.cpp": "1240619a2e83488d4ea9c3fe23e154a99c7bc4ba5f696d6cb695ae27b5086546",
+    "src/config.cpp": "9001359b267a18447a7c8aa29b5e96a8f39f91cb98db5d14af572c82b4f8f803",
+    "src/submap_builder.cpp": "d5480bed6bba3234c3de6190edada6fe53b150f88180da465a93ad71d65921df",
+    "src/floor_attitude.cpp": "5fd4a09ae59fe871ac174bd0c9d80225d7b7bbfcb35d909d23c15179559ee07f",
+    "src/graph_factor_noise.cpp": "aedd78ae5a61ff30048ea2aa3e6b1c5652f8f4f177fafaeeaa33f0b17d7d9d94",
+    "src/world_localizing_tracking_registration.cpp": "90dc5656cac23cd51ad8399c98f187e6cf5b5c05845a101fb127f5aa9b352ce3",
+    "src/loop_consensus_registration.cpp": "c4704a40d61f9aa0b36bcc50ebca6f45e185e0e0d1f8ff8b0ddf1732ac52df8d",
+    "src/loop_graph_trial_diagnostics.cpp": "ed39a3b17be71e39c10d3600c84e670d0fde85c49b3f3e212d4860f01220c78c",
+    "src/free_space_grid.cpp": "4257e1a60512a5a6ca4f2cf47e33def4717e2f930759e187d806003350d35005",
+    "src/world_localizing.cpp": "94401b07b41cdb9a69464f2bd88067b737e4d7d1cce2bb1b263d522f5d97f0fa",
+    "src/graph_optimizer_plane_append.cpp": "846b5ff264294bf8f13f9e726ea4a75a6b0020c33dc6afc1b56ec5bc183753dd",
+    "src/RHPDescriptor.cpp": "025e8c0271cc3abf8cc285cee3ede8cd550c0f253de23b7236037793f77763b3",
+    "src/loop_consensus_verifier.cpp": "ec0fc74d87900990a41a60de51bbb2296066d370889ba7a63ed43cfc91e8e0db",
+    "src/loop_verifier.cpp": "cbac713bde1e76af9a2b79e067b0825423f4ec36bbc382eafb6e2a03ca62508f",
+    "src/relocalization_hypothesis_manager.cpp": "fcec030f708fb4645844197b89b5f48f1fe3a5107231f6e775c1680dc88ac928",
+    "src/loop_heightmap_diagnostics.cpp": "ba3c887416fd85acc301b5bd39c1b12c2c6bbe4d629efd2802ef74f4795066d6",
+    "src/loop_detector.cpp": "c22fed0ea9a5f61adaf31d624ed798d2c6e91f8edd547c2e1ba8d0ed0034b432",
+    "src/loop_debug_logger.cpp": "dccf11b6c592168d20467807ff4e1a2883c35cc25836d3e25082db063a81c35d",
+    "src/world_localizing_relocalization.cpp": "00903e50cf9cf7c97c5e1a76fe505249185ac52e571b02864528375f5fe2f27d",
+    "src/relocalization_seed_plan.cpp": "641ce98090a9a9639f8fedb0db801fac1e087c9bcc7e69d4b84707d7d34aa154",
+    "src/keyframe_manager.cpp": "3f76b76bcd14dbd6306a714406a1f33f031678ffe59b2eb6e7510409e6ea8deb",
+    "src/world_localizing_probe.cpp": "c936658e4f23670980c18cdbc22403faceaf7ee86b7219c9726c66b3bb5d538f",
+    "src/graph_optimizer_restore.cpp": "acf6e81703b10c3bb37196c5acb1c860c8dd68b89672c450682d296a85a60815",
+    "src/loop_constraint_pipeline.cpp": "05ff16eb0207188633209be8c7a59aa03ccefd11a99589bebeb041ac649e74ad",
+    "src/world_localizing_tracking.cpp": "d1ffc662849ea1c18fceffa5b70df1fef6f9f77c8a7d42a92d94a0dce8c97cab",
+    "src/rhpd_heading.cpp": "14648ffab5d56fa387eb4951be61423e32869ed30145237a9b5891f923e898a8",
+    "src/loop_verification_pipeline.cpp": "5a810685c2fda48c57cf3623b45a72a4aad6073d08afad795326225369f0ae4a",
+    "src/tracking_target_cache.cpp": "3eb5901292cffc2e4c6ac5fb13a37b854b090d265166d36b25adfee056e2605a",
+    "src/relocalization_place_index.cpp": "b1ea2c8cf5a4e6a4ffa9a70bed9a89f9a6cdef01bddaf1853bf9f25a6b78cf99",
+    "src/mapping_resuming_loops.cpp": "fae7489ab59a4a3b5b21b00ae27f02d2deceefb556bd6e484e878e0e58d40136",
+    "src/map_serializer.cpp": "76c9039c46aaebf7c4deba04f7b93f9cb4a65ff68fe6becef3258269d26246ae",
+    "src/world_localizing_recovery.cpp": "78fd6635bd340261a86843043e09e3467af2e0efb849537640eda0a3fcf0cd00",
+    "src/n3map_proto_utils.cpp": "bd4814ff53421003b87ab4e271ba26d9f355ade66e1647531c35c6f9a53a78d4",
+    "src/mapping_resuming.cpp": "c8b24b40b02d7df68ad09716b2192866c748341e51d5671d1ddc84ab0779993a",
+    "src/mapping_resuming_keyframes.cpp": "4c5329baf4c9c9318c190980d8abadaec3ac91e54da35e701721419467fcb433",
+    "src/localization_crop.cpp": "e7a42a640b6d8c7a8d607c505ce66fdc788eafedae9c18104895d9cf914d4fe5",
+    "src/graph_optimizer_geometry.cpp": "d7c53006307bb8f64fe52b2d5d9234cbbe922183d0f0092fe35108bf78f7f70a",
+    "src/mapping_resuming_submaps.cpp": "aaab6236f8bdbf6cf6d63ffd03e099f5f2dc446b88f5f35338d0ff842fa237c1",
+    "src/point_cloud_registration.cpp": "a7cedfabb98aee962487f4135bd391481b79ce80ab22f910f0aa69ad89a80791",
+    "src/ros_output_contract.cpp": "da4134d02420680d48f6934f6b7874761c27524a54d60354e2e16fc17bef3881",
+    "src/loop_detector_spatial.cpp": "6646351e5d965e8d06f51c8fd9be378ff0033d3893e5ea4e03517d3184997e0a",
+    "src/rhpd_polar.cpp": "ba40721b910e14d31b464249fd9aa2ba549a01351ed5ee981da0744a1ba8127f",
+    "src/static_start_guard.cpp": "170c35533c4f0eff80113a935f54af6b81b96143800ba680a0bc094fe614f01c",
+    "src/world_localizing_evidence.cpp": "07e90117482439554978c7d5539728f986473b8cd9f6698cf131d654783d17a4",
+    "src/graph_optimizer_snapshot.cpp": "6100fd8dd3bf6d0ccfa5dee2748d09610bb2a1fb12082b0a5010aa3e1b9481d8",
+    "src/submap_graph_trial.cpp": "82e2083404c47c8c0693d160904cba397c560390c9334fee394741783411f78b",
+    "src/loop_segment_consistency.cpp": "cd21d592b78dd7fbf5be4a9c6bdb1e5b7584c5acae91f5e72a61fcc4e4c9cf4b",
+    "src/relocalization_performance.cpp": "5bef2efc719b10b7a43fd003ae875df39affc40931eab02e04914bc9124ba76b",
+    "src/loop_closure_manager.cpp": "ad29127a986b3859fdfcc32308997f953f8d3227f8a780136611cf5b9010c907",
+    "src/mapping_resuming_acquisition.cpp": "c9f5e0e1cac0db6bb177cd9e5b0d2688f02fb24f9d45d4ff51e8b991c927c2da",
+    "src/planar_geometry/append_association.cpp": "807a5cd15e8ec3dc9a2b05d20cf7b3ad22167b15266fb69d735c51c97c33b355",
+    "src/planar_geometry/plane_partition.cpp": "1ec578a04f3fc794d9325f994629e935f2d874fc037667332a232b5d9be939e9",
+    "src/planar_geometry/serialization.cpp": "a4948f35484fcf04d7a9140a83f5ac9f4ea39ac5651fe99d45abb69cccd3dbf1",
+    "src/planar_geometry/merging.cpp": "8b9949262e783045e2cfe3cd16a61d1e7b3b786524ee12b5888a5dc2ca3817ed",
+    "src/planar_geometry/builder.cpp": "a196f295f668485cc9d3a5f2577522a97a4424060b72e72664608d0a93e7a3e5",
+    "src/planar_geometry/association.cpp": "42ee932b89135064f181821ca70aa9d45fa28a659299f83eca8b17f8c143d4b8",
+    "src/core/loop_closure_commit.cpp": "4efb33bd600f2f103355f4f7837ea5a6eb547ebab3132cb2e337023c59a2c266",
+    "src/core/n3mapping_localization.cpp": "b0b26038017c30f9f5c03d6b20a8fdb7450951db8dc5faa663f5a0b07e5c25ed",
+    "src/core/loop_closure_processing.cpp": "f6e8b3eff09f4ffd73c267ebae7e294f3cf8fb3b3cf8b8deda1c28f826df77fc",
+    "src/core/n3mapping_trajectory.cpp": "2265cb81dd463e66fd1fd672c1f1d61eb58bc6bd70713f44e4699d707ef810f3",
+    "src/core/n3mapping_loop_async.cpp": "013e066e18b34c4fa0a4d36cd8c9a6189432affe74499b627133d3f410285142",
+    "src/core/n3mapping_constraints.cpp": "cbc170f3e4d059639298b17a3ba36dffc69f73cc4a698609f623429850d7a05a",
+    "src/core/n3mapping_loop_closure.cpp": "ecaacff8cf21ca1ae41c2649520d6abc610c2f0e938d0399c7cce03ff6522e13",
+    "src/core/n3mapping_save.cpp": "46037fa51396482b4672e59148509375346dba8953ca52274f7b6a569649f7c9",
+    "src/core/n3mapping_session.cpp": "8bfaf5d95d720b691bda8bbaf455b639f3c8c1d5a5d0a1a4bd8d6b774729e56f",
+    "src/core/loop_closure_diagnostics.cpp": "5f8af63f473a914ff5413bf9b21fe0b853a05334af69390e601b4ea33a5fa94f",
+    "src/core/realtime_output.cpp": "63bea6096146ced4a698b2bcc0edb214a44a16665e30c897b4f346e7bea67871",
+    "src/core/n3mapping_core.cpp": "359140190cd551219eb1d0af2019d65c61b57963e86c7e60dd1c4085a042eea9",
+    "src/core/run_mode.cpp": "0fb135f4418d431d168e1fc7720be1cbd7c22fd206ee10612dbb740f42792602",
+    "src/registration_search.h": "cd0685621db41f3fce5e2b5a96794dedd4ddfd58ece67911acc968586d976fd4",
+    "src/point_cloud_features.h": "5a3bb79db359c34f8e630ac6959a804ed4eb5ec061dc4dc4e4344337eeba741b",
+    "src/registration_reduction.h": "633b53b3a17283bb6edd230739c0b7105cd2d26049777f65f05bc8cd4251826f",
+    "src/relocalization_seed_plan.h": "b586f40256da5f9e3998dea234b8e9e84b0eb62478be04d7c9252b85c1cd27f6",
+    "src/relocalization_observation.h": "98a62fc7586e38e0f6bf1ee4b194ab6524fd3db07c0ec6891846daff2cc55478",
+    "src/point_cloud_target_view.h": "025d05bc182080763f7b633f56c8e272b52ced229b84545a841004e4819bda2b",
+    "src/point_cloud_feature_reuse.h": "0420ac37b7f63607ce0804498ee0e1c9d1f2c37bda2bd076b95c550a64f2fd00",
+    "src/visibility_angular_bins.h": "b9cd05ac82de2ac7289b36952c81f3338ebffa0503d4145f0489c0314337b54d",
+    "src/registration_bounds.h": "ee791e947d3c6ebd68a5b5b2c00eff036f37281f8c3ce7a6e6ee44e18e0b6700",
+    "src/lazy_target_normals.h": "5f3fa59fd7cc30de6402d499ccf141cafacae6d96de6a3a45d546c8b0f646c57",
+    "src/point_cloud_sampling.h": "ff9d629ab56538753dda978b3b3b3222517f7c09306d2373120c89d91005d40b",
+    "src/constraint_refinement.h": "89855bbacc2cb3aecf35a66b5cd97469a19b4aadaab0089e3e3d1d73e88537e1",
+    "src/compact_kdtree_builder.h": "413e9db3846fd50f5314a37e61b8c320b9a82cd0f8c2bbd311c4b687323710cd",
+    "src/graph_pose_factors.h": "478987fe19aef5d4d050f9c75dae05b83945aada54879bc80ff0092c059e1fdb",
+    "src/rhpd_heading_accumulator.h": "981a37846ffc7b0d47085e0485c59b9fcb0956b2175877097d67c5038ae3679e",
+    "src/tracking_pose_correction.h": "83a0a1d4cc4c8161f933aaf2d8b038004ebb9cd1ad1af11f40f89effe23ce1af",
+    "src/planar_geometry/serialization.h": "18ac71b2109874c82efddc427b678bff5215f6df407ab5d4ee4fda75c001f1ce",
+    "src/planar_geometry/association.h": "47d2f2ca920adedca56913dec26fbc1d16686ca15ccf7927b8b4ccb17c6f4ac9",
+    "src/planar_geometry/moment_factor.h": "a837377ca6a454864d9c033e46aa8117bcf7faf424c5091fa23c7f50b66f6e43",
+    "src/planar_geometry/plane_partition.h": "075826c7cb8c3eb59672bfbf6fb104d8e6ad4f75c9cc4210e0413c7f60e792ea",
+    "src/core/loop_closure_processing.h": "fea851e08cdf6bc85f8693ab456f2ef6ca35fb2a8d7858377f50475557d0d513",
+    "src/core/loop_closure_async.h": "4bff6cd089b6baf9fdad66a61bec1bfdefb52a874f57ff53e846924701463e69",
+    "src/core/loop_closure_diagnostics.h": "ed2a404e655b4658bb898fadc4832c50feb79e603c21450b4071c13a16d1fc2d",
+    "include/n3mapping/graph_factor_noise.h": "f98aa0b7120c6c415e4cd9dddfb24dd910883cd0c372e3fd750dacbdec845f83",
+    "include/n3mapping/descriptor_performance.h": "3264a9b66b88fa6a768a006269c9adf5ac08251bac18523a04fab2caa82dee29",
+    "include/n3mapping/planar_geometry.h": "8264d3189559f1ed6ff7d009751ac2f5436748edb029231d2dd35829f498cd11",
+    "include/n3mapping/global_map_cache.h": "24131aa8221509b74431a626fd1d12701eeebda7d791e73cf9b2edcb9407ea36",
+    "include/n3mapping/relocalization_order.h": "7e448c826c1144c61369e78bb83cb6ba5256bbeeb2144dd7e5d9de3c34d1258a",
+    "include/n3mapping/dense_trajectory_export.h": "d5b916bd5078577c28db1bf65b73375841cbd1b6ff8c88ea10b84c30c5533452",
+    "include/n3mapping/relocalization_hypothesis_manager.h": "5db09bf2d10c562ff739ba96b37121c2a16af39be670dabfde67e6d5bc100bf6",
+    "include/n3mapping/pose_uncertainty.h": "f478c0106f23869ec1902daba698fc4e2687c42a196dbc592d824952834e0601",
+    "include/n3mapping/rhpd_heading.h": "565e8b52f390a23e697002d60e0463c9c31f93aaa08d226d19f0aa88a539f060",
+    "include/n3mapping/mapping_resuming.h": "635900c87234ccf288e84552804e68e368921333aeed4556163458efeefa1755",
+    "include/n3mapping/loop_detector.h": "37e55ade5a3d8f136c2a170b4afcece9a81244c59ca7dc335170598a1d6ababa",
+    "include/n3mapping/free_space_grid.h": "57a2ae9ade0a0f7bf5cec9aeb983a866456dcbfb3f0db17ac5aece0df5f4ac4b",
+    "include/n3mapping/n3map_proto_utils.h": "61c4b95d4a0af09141c1cd387d6046c9ba45b29e29aee6e24be046017c8a533f",
+    "include/n3mapping/map_session.h": "12990b5f296587fdb11bb90a374668e29f25e9298b7601d53e881c9787e3b3c7",
+    "include/n3mapping/keyframe.h": "54892ce3192037f4361596d1126e9095d184e72206f19c245c4f9dec6932a13e",
+    "include/n3mapping/loop_verifier.h": "6cc19a4e4d59c32ef903113d23323dfeb74e83ceafd301b2f2a2f23620cce708",
+    "include/n3mapping/graph_optimizer.h": "3ac6daf31bca7fbad2d0f3438016d848523610294b85763971a311d3eef3df8a",
+    "include/n3mapping/relocalization_debug_logger.h": "35ef0ab77dda47553f90d99f48c2c6117e43df600237d4cc9b753985916d1a45",
+    "include/n3mapping/registration_observability.h": "1226ae22a2fc75357aef7b5a82365536e35ca5ed50ae584cc0072c558f40e3f0",
+    "include/n3mapping/map_serializer.h": "33a3ec57732ca64db6f4a424771b6a08bbe017b2fd34e5650061a24b9504af6c",
+    "include/n3mapping/rhpd_place.h": "c3f394cbd29fb6965fcd96115d3fb4ba5eb4d9ec5e0dd55976633007e54a6955",
+    "include/n3mapping/odometry_pose_validation.h": "235942c6e3e49811923e6e161f70938e146d29654e384d8d5e9d1bce8a98ae7f",
+    "include/n3mapping/point_cloud_matcher.h": "89ba1cbda307e14643d6672d696979451fa73a44eda8e0e5804195c0fc327072",
+    "include/n3mapping/submap_graph_trial.h": "8c8e9f7cc93d3bee67e2f8c843f494c1009bf028248a6baf10044e961a91dc45",
+    "include/n3mapping/RHPDescriptor.h": "1d2a85690fa2200d52b55c7d24aea69637850a124cb3371baeda64c2ad685aeb",
+    "include/n3mapping/cloud_utils.h": "e62e5a512871d548d899d506e273e4f51457d792d630a98d78ffde08792beadb",
+    "include/n3mapping/keyframe_manager.h": "5246dcf1986b7a8a896dfaa8b26fd612b30a32b0f791ef134419fbf314ecf3e1",
+    "include/n3mapping/synthetic_relocalization_query.h": "47f909d05f44539f776c1b927e82c694bac1d39525727544585794ce3095b616",
+    "include/n3mapping/rotation_utils.h": "e8c88f14412c53cf16c06291aa46ade51ccc8aab85fd2d3bf7f8bc91c2eafaf3",
+    "include/n3mapping/world_localizing.h": "ca341cd875809f3c2ea669565eb42edd108bf4f9ebf94ce0ea4e661bc3a20e5b",
+    "include/n3mapping/loop_verification_pipeline.h": "8e2837967d9596a0c0878966dac5989ff22e20d540f8c7af3f2ca63038fbbb65",
+    "include/n3mapping/relocalization_state.h": "c87e5cc0928bcfb84bd7ca9c1fc3b1c4afcacc656ca2232a30b920ab828749ac",
+    "include/n3mapping/loop_graph_trial_diagnostics.h": "f83853eaf60916fb49daad7098521b32e925107d6af5dd6ddf36ec9e74f82895",
+    "include/n3mapping/config.h": "72d78dd14a8fca7f6edd888b8bc4de67c2a289afbf44133fb36a82c836e5d2c8",
+    "include/n3mapping/relocalization_output_authority.h": "6c9941adce04d1f176e3a36e0e25d501d6993fe1015223429d42e9282ef7c181",
+    "include/n3mapping/visibility_consistency.h": "0eac29f66005ed726640f92be3f5f265abdd897852fdb2c2ca1c6f718672fe85",
+    "include/n3mapping/submap_builder.h": "96a358e094256dcfd46ba213a25f8560b3a2f8163f30ff3e6bea8fef1022f6cb",
+    "include/n3mapping/loop_segment_consistency.h": "33717285cbae99641c1a3d14d46c1365cb07316075af73f519b74878a47e049b",
+    "include/n3mapping/floor_attitude.h": "c6b41d11eecaef1791f46c4735baa08e95a36cb6382038b7dfecf5f14cf91954",
+    "include/n3mapping/tracking_target_cache.h": "18ea0f5150961bd418fa332608d20c5ab4c962a963c254f8a9778e72b147fa26",
+    "include/n3mapping/relocalization_target_provider.h": "9a0f58b31e166f8aaa80daf878eea6257d36753bd687eaef4b5ca3c07e9fc502",
+    "include/n3mapping/pcl_compat.h": "bd437b50cbadfb0201269e3b8f3c515883a192f371eda53789f2ec4ef6c012d5",
+    "include/n3mapping/relocalization_place_index.h": "e59f9c08d951f473b9cf1106ab5689fca0bc425e3da7d10dcca4a6bc764d02f6",
+    "include/n3mapping/relocalization_decision_policy.h": "a754202fc38a07ecf19b56e66470c6fd7e2e20dd06a9e1f1f99008660320d26c",
+    "include/n3mapping/runtime_performance_debug_logger.h": "625da232cd6085d7b389722a0d08ee5fbff88e6b9e2df828875e69130def5671",
+    "include/n3mapping/submap_graph_factor.h": "808e7e52f0a7305db2c0fd51928f800d43441b7132b0251e9e6fbba94eac4f02",
+    "include/n3mapping/odometry_sanity.h": "c6105df71b31e5073279792f26a68ef87b4e152f7d99379fa421fc9e61a5de67",
+    "include/n3mapping/loop_consensus_verifier.h": "e63aa4370551c0d4fb1d89a5936ec99eedf395b08526c254324f2cba72bb09a5",
+    "include/n3mapping/relocalization_query_builder.h": "6e6714b9628a2c46a519da93d970ba204771dc3f280ffd6e95cae1460e74d06f",
+    "include/n3mapping/local_map_selector.h": "72501cb57c2240edacdefcdfc5d666310a0e0a4c0503c5926dc197d9d5bbf8e2",
+    "include/n3mapping/relocalization_performance.h": "731236c76e26bbc2b5127b6805be8d632f5da7fd04387d87000541a2f357febc",
+    "include/n3mapping/n3map_nav_resource_reader.h": "2b3485977a430da946b26d070a75c4b6479e968287ab9bc0f1c3be4b3a5b373b",
+    "include/n3mapping/product_build_identity.h": "3477f236a0bb8e50bc91da6d1b74f33f81e8731526b7790a54d6628e2261ffd5",
+    "include/n3mapping/submap_graph_trial_runtime.h": "7cf44ec49751e00b7d763c4e734030af4350f2fc61bcb648cd43afcb809b481c",
+    "include/n3mapping/loop_closure_manager.h": "6a9d282768722b3e538b7cc8efb68f98a80f084d12dadf03e363bc572b9bf80f",
+    "include/n3mapping/relocalization_debug_emitter.h": "cdc2014e798347dfb5e9eccedbc26e0f8f99fae665d6e6520bd708114c9678db",
+    "include/n3mapping/ros_output_contract.h": "58db84586fe7adbaef48bb859c8ba7e758a51d496ee3671c1af963da30a87f93",
+    "include/n3mapping/relocalization_quality.h": "34a2f25cd0c5c5a41281efffb23ef48ac603d48f914c1827fe01d58fe789382f",
+    "include/n3mapping/loop_referee.h": "d7858d33dd509a4b65890a71e4da2b954ed7bcc208f94a9b1f071b5883f2f956",
+    "include/n3mapping/loop_debug_logger.h": "6406d29777067c44c8a061a3e20c627692a7498dc17464b57dcc555ca6c97b2d",
+    "include/n3mapping/submap_graph_projection.h": "44ff033bfddcc9dc5d51a1e3e4ba987768e3312ec7a9ee235cc8e35673f43c51",
+    "include/n3mapping/localization_atlas.h": "070c5f4bbf4bd4e9c00f9d660b547b65675c2d43412eb3ea86fe09553ff1aa77",
+    "include/n3mapping/loop_heightmap_diagnostics.h": "0941bab1c27c1d94012be42c7ab3715579a0da5b2fa524d1966bea163f295d55",
+    "include/n3mapping/relocalization_candidate_evaluator.h": "6fd3f7d219a2ca855a8273bc0f7d690814b6d5f69c29f2a84d169918a802f9f8",
+    "include/n3mapping/static_start_guard.h": "06506196f0583b755aa12aedeedb10f0f74cfe1c9cb4e825abcdc706d7efe83e",
+    "include/n3mapping/core/n3mapping_core.h": "dda0cd8a8e0985ffc150f20ee3108a7f4746a6f929382d1d88645f705da13792",
+    "include/n3mapping/core/realtime_output.h": "0aa51310ca3518c9c5ebe37ea1e64b6f9927815757696f3258140657417ea505",
+    "include/n3mapping/core/run_mode.h": "d90d3da16febacd3d26c31a473e994fd20b48b8e2ee40ab3d102f2573a510423",
+    "include/n3mapping/core/n3mapping_session.h": "36eaa13a9d6f4de3e9fb3b9506ad813c7c54837d93d702bd3b64dfe26599b8eb",
+    "include/n3mapping/core/latest_frame_slot.h": "cc03e6c30fa645a3c2b0efd2d8e6d475950b77ac18046fd4491d7e189139696c",
+    "include/n3mapping/core/types.h": "0e115a80cfb109c91cf94db5212db8e1fe1f06dc5430a00caf50ced17ec5f93e",
+    "include/n3mapping/core/realtime_odometry.h": "dad11ed576caf9c4122b8e7cb0b88820094a57fb6f42369f11aaa1428ad440a7",
+    "include/Scancontext/KDTreeVectorOfVectorsAdaptor.h": "d843539e63cfe5af9071c954f72311295f6ca425ea3859c267e32e1c7ae6c6b3",
+    "include/Scancontext/tictoc.h": "8deefcd0733e701bb9bd263cf671d34cb756857e08f74bcfea04cb1cef6d8521",
+    "humble/src/n3mapping_node_map.cpp": "4013cea2c57e2f48ddb0b7fe7e74875056f94011312ec86f6cba536cbd7a5a19",
+    "humble/src/conversions.cpp": "a1ac534243a0d4cd3c3728cfe47406447e5cab8654b6d7878874f0e196ad2eb8",
+    "humble/src/n3mapping_node.h": "aba97dce801b23dbf8e5b0c1584e5ff2036e53328ec3c8ec551c0945f9e51836",
+    "humble/src/config_humble.cpp": "48037f5b35e6e9ed79e4cc94aac6cd6e837e8db9caf7f16bbac24d7729df844c",
+    "humble/src/n3mapping_node_backend.cpp": "346f6b9adba9b6b9a2ee95e3f87d5f45adba48927e3bb11d0a1202c8dd296fd0",
+    "humble/src/n3mapping_node_lifecycle.cpp": "9cc1c388cee3e9f7a04d70ba28e3dd8f0af66ac637d3632dc47669164f2773ba",
+    "humble/src/n3mapping_node_visualization.cpp": "e3475d22f4c4f3a961926c4fb8c06c42cc5b597fc07793d2b372a74a53feebe5",
+    "humble/src/n3mapping_node_live.cpp": "3cf84c4460fe987ea2cdb1dfb54f823eefb15bc2397e05222fa58c6cb00cb083",
+    "humble/src/n3mapping_node.cpp": "c83a604d78dff77feb86a0b103e7ea2e887b982f95f5cd562c05b323cf6dcc41",
+    "humble/src/n3mapping_node_probe.cpp": "92270fc5714a8492ebcfe8d436df5ab6e3192114c114fc15e8c941b12d2ee274",
+    "humble/package.xml": "162dac3b57a8f46cc06f1b3e3849703ad3af79e7dc680edd7075e670753cf224",
+    "noetic/package.xml": "7c39088974ddac3a3884c1f6d8f98774fe5688baa811025b5b88c9c538a66097",
+    "humble/CMakeLists.txt": "acb238116f1bdb8c785c3b95223e603a2602908bfa5a7c0f275bdb8322276712",
+    "cmake/n3mapping_core.cmake": "dcbae88638ddd3a0312140c5d5d9db4fb3fdb5acb130dc3eaee0c0fb22b57b0c",
+    "cmake/n3mapping_humble.cmake": "0d71491f0668aa6eccca176b7f8f48fbdb33a9bde5108c2040534e8f4853d67b",
+    "cmake/n3mapping_checks.cmake": "9371b5be31eb2a7d9f76cbcffd5e42461d7b9a1f9c270924dd127a99b0647478",
+    "cmake/n3mapping_product_identity.cmake": "812c668007763a13daebc6382e05b5f435fe3067cf18eab4748006468b079335",
+    "cmake/n3mapping_nav_resource_reader.cmake": "2b8cd8139cac37123500aa1abd1405d834b70cb42b4cdb74ebe0ad331ce30fd4",
+    "cmake/n3mapping_verify_clean_product_build.cmake": "ba90489ef3a0fe13d29bc821f2c5f1638b704f9a8fd64b4e92c942d4ced77be8",
+    "cmake/n3mapping_tests.cmake": "38d177f375d983a2f23e207f81a4f3e19165555f47be12b52cf54f942c02a1eb",
+    "cmake/n3mapping_dependency_abi.cmake": "3af54cb23401207715ee920bc2e3f7a82956924a983897cb972ded10ac5ffe50",
+    "test/test_humble_live_output.cpp": "820ddf8b77199b1360ebb98ddcbc200dca11892c4522f2c32654a79637a876eb",
+    "test/test_mapping_resuming.cpp": "1b266e73d63ac09809668f298cbec8c796fbde9781fb6e9294e35a91657985a6"
+  },
+  "qualified_baseline_commit": "085cbee1175feb4125406df4e500b7f33a710111"
+}

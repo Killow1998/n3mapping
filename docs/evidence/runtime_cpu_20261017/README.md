@@ -7643,3 +7643,72 @@ Next work should distinguish isolated conflicting candidates from competing
 supported places without inflating correlated votes, separate gross measurement
 mismatches from shared scan bias, and qualify physical truth timing/reference
 before full-SE3 calibration. Additional verification work remains a measured cost.
+
+### Hardware-test release closeout — 2026-10-23
+
+Source candidate **v1.1.0-rc1** uses ROS package version **1.1.0** in both
+wrappers. This closes the existing work for hardware testing. Numeric gates,
+configuration defaults, descriptor/registration algorithms, uncertainty weights
+and map format are unchanged by this structural closeout. The separately
+committed six-route-qualified baseline contains the preceding loop/resource fixes.
+
+Ownership stays explicit: the Humble node owns its subscriptions, workers and
+locks; core owns decisions. The node now separates lifecycle, serial backend,
+live output, visualization, map IO and the finite authority probe. Its 1,794-line
+file becomes a 73-line entry point; implementation files contain 200–314 lines,
+with a private 306-line declaration header. All 47 moved method bodies were
+checked unchanged after deindent. Extension's 896-line implementation becomes
+201-line lifecycle, 291-line keyframe transaction, 254-line cross-session loop
+and 157-line submap diagnostics files; acquisition identity retains its owner.
+No additional runtime manager or copied state is introduced.
+
+The closeout ablation removes the separate node compilation inside tests:
+production and live-output E2E now link the same implementation objects.
+Two standalone state/getter cases are folded into serialized-map lifecycle;
+one ID case that bypassed extension is removed. Real anchor/raw-odometry commits,
+replayed acquisition, transactional failure rollback and property checks remain.
+The two trivial local transform wrappers are replaced by their direct operations.
+The preceding same-target preparation/cache prototype remains excluded: its full
+fixed-input CPU changes of -1.15% and -0.325% did not establish a useful benefit
+for the additional ownership/API complexity. Required KD-tree utilities in the
+historically named Scancontext directory remain part of RHPD retrieval.
+
+Four physical cores (0,2,4,6), four registration threads, passive OpenMP waiting:
+
+| Validation | Before / after closeout |
+| --- | --- |
+| Full development regression | 70/70 CTest targets pass in 35.51 s. |
+| Original14 | 14/14 frame-4 locks; 4,088 outputs; maximum position error 2.481 cm in both. |
+| Original motion route | 2,232 outputs; maximum 7.933 cm in both. |
+| Fresh motion route | 3,662 outputs; locks at frames 4 and 1938; maximum 3.247 cm in both. |
+| Localization equivalence | All non-timing decisions/work counters retained; maximum pose component difference 5.69e-14. |
+| Full paced fresh extension | 3,666 inputs, 3,662 outputs, 344 new keyframes, 23 geometry commits in both; zero outputs above 10 cm. |
+| Extension precision | RMSE 1.2678→1.2704 cm; maximum 8.3114→8.3120 cm. |
+| Extension resources | CPU 308.530→310.505 s; runtime HWM 1,915,428→1,919,140 KiB; save HWM 2,493,116→2,542,204 KiB. Single runs; no new speed/RAM gain is claimed. |
+| Map/Atlas checkpoints | Both preserve 1,615 keyframes, 2,385 edges, raw clouds/odometry/information and body-frame moments; within each saved/reloaded run Atlas point difference is zero. |
+
+Asynchronous scheduling does not produce bit-identical maps across runs:
+plane/observation counts are 741/24,083 before and 740/24,059 after. The
+0.026 mm live RMSE increase and higher save peak are retained, rather than
+called an accuracy or memory improvement. The extension harness reports zero
+new selected geometric loops in this case; its 23 asynchronous geometry commits
+and loaded-map tracking are covered, while positive geometric-loop evidence
+remains the preceding six real sequences and the focused regression cases.
+
+The initial CTest attempt accidentally selected old installed libraries and is
+disqualified. Explicit build-library selection passes all 70 tests. An interrupted
+extension attempt stopped after 998 inputs without a saved map; it is retained
+as incomplete. The replacement candidate run covers all 3,666 inputs and both
+checkpoint probes pass. No original recording or partial evidence is removed.
+
+See [machine-readable closeout](release_closeout_20261023.json) and
+[versioned field instructions](../../field_testing_zh.md). Source/build/paired
+artifacts are retained locally under
+`<workspace>/build/n3mapping/release_closeout_20261023/`.
+This stage does not rerun all six real sequences. The six-route-qualified
+algorithm is preserved; general 10 cm, difficult-case half-core, physical
+M2DGR time/reference, correlated uncertainty and target-hardware acceptance
+remain open. Existing install is unchanged. The tested local development build
+identifies itself as UNVERIFIED; build the clean tag on the target machine using
+the field guide to obtain a verified source identity. This is not a new general
+industrial acceptance decision.

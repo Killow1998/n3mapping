@@ -14,6 +14,11 @@ odometry，提供 mapping、localization、map_extension。现有受控验收不
 Python 标准库，不要求 ROS 正在运行；也可以打包按同样目录布局保存的 Noetic 文本日志。
 `prepare` 生成的是 ROS 2 参数文件，不能直接交给 ROS 1 使用。
 
+本次实机候选为 **v1.1.0-rc1**，Humble / Noetic 的 ROS package 版本均为
+**1.1.0**。这是现有功能的收尾定版；10 cm 全场景精度、困难搜索平均半核、
+RK3588/MID360 真机及本版 Noetic 独立编译尚未验收。
+版本标签是否已到远端应以实际仓库为准；本地定版不等于已经推送。
+
 ## 1. 拉取与构建
 
 先按 [README](../README.md) 安装 ROS、GTSAM、small_gicp 等依赖，准备自己的 LIO
@@ -25,17 +30,27 @@ cd ~/ros_ws/src/n3mapping
 git status --short --branch
 ```
 
-确认当前为 `main`，且没有未提交的本地修改后再执行；有修改时先保留自己的工作，
-不要使用 reset/clean 强制覆盖。
+使用已经传到实机仓库的候选标签，且确认没有未提交的本地修改；有修改时先保留
+自己的工作，不要使用 reset/clean 强制覆盖。实机收到仓库/标签后固定到该版本：
+
+若标签尚未推送，可先从交付的 Git bundle 导入。它保留提交历史和标签：
 
 ```bash
-git pull --ff-only origin main
+git fetch /absolute/path/to/n3mapping-v1.1.0-rc1.bundle \
+  refs/tags/v1.1.0-rc1:refs/tags/v1.1.0-rc1
+```
+
+```bash
+git switch --detach v1.1.0-rc1
 N3M_COMMIT=$(git rev-parse HEAD)
 
 source /opt/ros/humble/setup.bash
 cd ~/ros_ws
 src/n3mapping/scripts/select_distro_wrapper.sh humble
-CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build --executor sequential \
+CMAKE_BUILD_PARALLEL_LEVEL=4 colcon build --symlink-install --executor sequential \
+  --packages-select n3mapping \
+  --build-base build/n3mapping-v1.1.0-rc1 \
+  --install-base install/n3mapping-v1.1.0-rc1 \
   --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
   -DN3MAPPING_BUILD_RESEARCH_TOOLS=OFF \
   -DN3MAPPING_PRODUCT_COMMIT="$N3M_COMMIT"
@@ -44,14 +59,19 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build --executor sequential \
 **构建成功后**再测试，避免 `install/` 旧库污染结果：
 
 ```bash
-source ~/ros_ws/install/setup.bash
+source ~/ros_ws/install/n3mapping-v1.1.0-rc1/setup.bash
 ROS_LOG_DIR="$HOME/ros_ws/log/n3mapping_ctest" \
-  ctest --test-dir ~/ros_ws/build/n3mapping --output-on-failure
+  ctest --test-dir ~/ros_ws/build/n3mapping-v1.1.0-rc1/n3mapping --output-on-failure
 ros2 run n3mapping n3mapping_node --build-identity-json
 ```
 
 identity 应报告本次提交且 `verified=true`。这是构建来源确认，不等于实机功能验收。
 如果产品构建拒绝 dirty checkout，不要绕过检查；把自己的运行配置放在仓库外。
+依赖若安装在其他 workspace，应在构建前 source 对应 underlay。新终端先 source
+ROS 和依赖，再最后 source 此版本安装目录；核对 `ros2 pkg prefix n3mapping`
+指向它。不要用旧 `install/n3mapping` 的库去测试新构建的可执行文件。
+本机 14600KF 对照使用 `taskset -c 0,2,4,6` 限定四个物理核心；其他 CPU 请按
+实际拓扑选择四核，并在配置中保留 `num_threads: 4`。
 
 ## 2. 每次测试建立独立目录
 
@@ -61,7 +81,8 @@ localization / map_extension 必须设置已有地图的**绝对路径** `map_pa
 
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/ros_ws/install/setup.bash
+source ~/ros_ws/install/n3mapping-v1.1.0-rc1/setup.bash
+export OMP_NUM_THREADS=4 OMP_WAIT_POLICY=PASSIVE OPENBLAS_NUM_THREADS=1
 RUN="$HOME/n3mapping_runs/$(TZ=Asia/Shanghai date +%Y%m%d_%H%M%S)"
 NODE="$(ros2 pkg prefix n3mapping)/lib/n3mapping/n3mapping_node"
 
@@ -83,6 +104,11 @@ echo "RUN=$RUN"
 这会增加日志 IO 和计算开销，不应把带诊断的资源数字当作默认配置性能。
 正常长期运行可省略该选项；工具不覆盖原配置中的 enable 值。
 运行中的日志不自动轮转，短时复现结束后及时停止；打包上限不能限制运行日志占用。
+
+同一台机器用 Fast DDS 传大点云时，启动所有参与进程之前，按
+[DDS 共享内存说明](../README.md#humble--fast-dds-large-local-point-clouds)选择
+足够的 SHM 段。仓库的 `config/fastdds_local.xml` 为 64 MiB、仅本机的受控配置；
+雷达或前端跨机器时先调整网络接口，不能直接照用 loopback 限制。
 
 ## 3. 像平常一样分别启动节点
 

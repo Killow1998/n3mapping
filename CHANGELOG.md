@@ -1,6 +1,35 @@
 # Changelog
 
-## Unreleased
+## [1.1.0-rc1] - 2026-10-23
+
+Hardware-test candidate; both ROS manifests use numeric version `1.1.0`.
+
+- Consolidate the existing online asynchronous geometry/loop pipeline,
+  incremental relocalization reuse, acquisition deduplication, bounded memory
+  and real-data input/timing diagnostics. No new algorithm or acceptance rule
+  is introduced by this release closeout.
+- Split the Humble node by lifecycle, live output, backend processing,
+  visualization, map IO and authority probing; keep one owner of state and locks.
+  Link the real node and E2E test to one compiled implementation.
+- Split extension lifecycle, keyframe transactions, cross-session loops and
+  submap diagnostics. Fold redundant state/getter tests into the serialized-map
+  lifecycle and remove an ID test that bypassed the extension API; retain real
+  anchor/odometry commits, repeated-acquisition and failure-rollback coverage.
+- Keep rejected geometry-cache and uncertainty prototypes out of production.
+  Preserve their ablation evidence and the valid loop observations. Package
+  version does not change the `pbstream` format or acceptance thresholds.
+- Freeze an explicit real-hardware test boundary: remaining live errors above
+  10 cm, difficult-case CPU cost, unqualified M2DGR reference/time calibration
+  and correlated uncertainty are not declared solved.
+
+Validation: 70/70 CTest, paired original14 and both motion routes, complete
+fresh online extension and map/Atlas reload checks. See the
+[closeout evidence](docs/evidence/runtime_cpu_20261017/README.md#hardware-test-release-closeout--2026-10-23)
+and [field testing](docs/field_testing_zh.md) for isolated installation and
+build-identity checks. The following development evidence records the changes
+incorporated since 1.0.1, including their workload-specific limits.
+
+### Incorporated development evidence
 
 - Reuse exact acquisitions before plane fitting and extension graph insertion;
   preserve sampling, fresh continuation and all tracking/dense outputs. Four-core

@@ -136,14 +136,26 @@ add_library(n3mapping_humble_wrapper SHARED
 n3mapping_guard_product_target(n3mapping_humble_wrapper)
 n3mapping_configure_humble_wrapper_target(n3mapping_humble_wrapper)
 
+rosidl_get_typesupport_target(n3mapping_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
+# Production and live-output E2E tests link the same compiled node methods.
+add_library(n3mapping_humble_node_impl STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_lifecycle.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_live.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_backend.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_visualization.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_map.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node_probe.cpp
+)
+n3mapping_guard_product_target(n3mapping_humble_node_impl)
+n3mapping_configure_humble_node_target(n3mapping_humble_node_impl)
+target_link_libraries(n3mapping_humble_node_impl "${n3mapping_typesupport_target}")
+
 add_executable(n3mapping_node
   ${CMAKE_CURRENT_SOURCE_DIR}/src/n3mapping_node.cpp
 )
 n3mapping_guard_product_target(n3mapping_node)
-n3mapping_configure_humble_node_target(n3mapping_node)
-rosidl_get_typesupport_target(n3mapping_typesupport_target
-  ${PROJECT_NAME} rosidl_typesupport_cpp)
-target_link_libraries(n3mapping_node "${n3mapping_typesupport_target}")
+target_link_libraries(n3mapping_node n3mapping_humble_node_impl)
 
 add_executable(n3mapping_localization_atlas_compile
   ${N3MAPPING_ROOT}/tools/n3mapping_localization_atlas_compile.cpp
@@ -571,7 +583,7 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_humble_conversions nav_msgs sensor_msgs pcl_conversions)
 
   ament_add_gtest(test_humble_live_output ${N3MAPPING_ROOT}/test/test_humble_live_output.cpp TIMEOUT 60)
-  n3mapping_configure_humble_node_target(test_humble_live_output)
+  target_link_libraries(test_humble_live_output n3mapping_humble_node_impl)
   target_include_directories(test_humble_live_output PRIVATE ${JSONCPP_INCLUDE_DIRS})
   target_link_libraries(test_humble_live_output "${n3mapping_typesupport_target}" ${JSONCPP_LIBRARIES})
 
