@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <random>
@@ -342,7 +343,8 @@ TEST_F(LoopDetectorTest, UnifiedHeadingRetainsItsOwnRangeAndHeightSupport) {
     EXPECT_DOUBLE_EQ(sparse_values.topRows(20).maxCoeff(), 10.0);
     EXPECT_DOUBLE_EQ(sparse_values.middleRows(40, 20).maxCoeff(), 1.0);
     EXPECT_TRUE(sparse_values.bottomRows(80).isZero());
-    cloud->resize(25, point);
+    cloud->resize(25);
+    std::fill(cloud->begin(), cloud->end(), point);
     const auto full = descriptor.computeWithHeading(cloud);
     EXPECT_TRUE(full.place.ring_height.isZero());
     EXPECT_TRUE(rhpdHeadingDenseValues(*full.heading).isApprox(sparse_values, 0.0));

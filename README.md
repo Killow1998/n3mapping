@@ -718,8 +718,9 @@ performance testing and `Debug` for unoptimized debugging. Native
 [catkin profiles](https://catkin-tools.readthedocs.io/en/latest/verbs/catkin_profile.html)
 keep build/devel/install/log paths separate; retain existing profiles and caches.
 After dependencies are ready, `catkin build ... --no-deps` limits iteration to
-n3mapping. The rc2 four-configuration build validation was performed on Humble;
-a Noetic underlay was unavailable, so this version's Noetic build remains unverified.
+n3mapping. The initial rc2 report covered Humble only; it omitted the available
+local Noetic/Focal Docker environment. On a host with only Humble installed,
+check existing Noetic containers before declaring the build environment absent.
 
 ### Run
 
@@ -759,7 +760,10 @@ rosservice call /n3mapping/save_map "{}"
 catkin build --profile "$N3M_PROFILE" n3mapping --no-status -j4 -p1 \
   --catkin-make-args run_tests
 source "devel/$N3M_PROFILE/setup.bash"
-ctest --test-dir "build/$N3M_PROFILE/n3mapping" --output-on-failure -j1
+(
+  cd "build/$N3M_PROFILE/n3mapping"
+  ctest --output-on-failure -j1
+)
 ```
 
 ### Synthetic Relocalization Tools

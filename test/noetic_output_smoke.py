@@ -60,7 +60,7 @@ def run(binary, directory):
             from nav_msgs.msg import Odometry
             from tf2_msgs.msg import TFMessage
             from sensor_msgs import point_cloud2
-            from sensor_msgs.msg import PointCloud2
+            from sensor_msgs.msg import PointCloud2, PointField
             from std_msgs.msg import Header, String
             rospy.init_node("n3_output_smoke", disable_signals=True)
             received, body, world, transforms, statuses = [], [], [], [], []
@@ -72,7 +72,14 @@ def run(binary, directory):
                              lambda m: statuses.append(json.loads(m.data)), queue_size=50)
             cloud_pub = rospy.Publisher("/probe/cloud", PointCloud2, queue_size=100)
             odom_pub = rospy.Publisher("/probe/odom", Odometry, queue_size=100)
-            points = [(0.1*x, 0.1*y, -0.4) for x in range(-10, 11) for y in range(-10, 11)]
+            points = [(0.1*x, 0.1*y, -0.4, 0.0) for x in range(-10, 11) for y in range(-10, 11)]
+            fields = [PointField(name, 4*index, PointField.FLOAT32, 1)
+                      for index, name in enumerate(("x", "y", "z", "intensity"))]
+
+            def odom_status(stamp):
+                return next((status for status in reversed(statuses)
+                             if status.get("projection", {}).get("kind") == "odom"
+                             and status["projection"]["odom_stamp_nsec"] == stamp.to_nsec()), None)
 
             def node_for(mode, extra=()):
                 node = start([binary, "__name:=n3_output_probe", "_mode:=" + mode,
@@ -100,8 +107,8 @@ def run(binary, directory):
                 if not cloud_only:
                     odom_pub.publish(odom)
                 if not odom_only:
-                    cloud_pub.publish(point_cloud2.create_cloud_xyz32(
-                        Header(stamp=stamp, frame_id="base_link"), points))
+                    cloud_pub.publish(point_cloud2.create_cloud(
+                        Header(stamp=stamp, frame_id="base_link"), fields, points))
                 return stamp
 
             node = node_for("mapping", ("_mapping_static_start_guard_enable:=true",))
@@ -130,11 +137,18 @@ def run(binary, directory):
                 publish(odom_only=True)
                 time.sleep(0.02)
             assert statuses[-1]["correction_stamp"] + 1e-6 >= stamp.to_sec()
-            # Exact paired fixture stamps let us check snapshot coherence while
-            # the backend and realtime callback run on different threads.
+            # Before authorization there is no estimate timestamp. The input
+            # timestamp belongs to projection metadata, not to a fabricated pose.
+            initializing = [status for status in statuses if status["stamp"] == 0.0
+                            and status.get("projection", {}).get("kind") == "odom"]
+            assert initializing
+            assert all(status["state"] == "initializing"
+                       and status["correction_stamp"] == 0.0
+                       and not status["projection"]["available"] for status in initializing), initializing[:5]
             # Epoch-second doubles cannot represent nanosecond precision.
             incoherent = [(status["correction_stamp"], status["observation_stamp"], status["stamp"])
                           for status in statuses
+                          if status["stamp"] > 0.0 and status.get("projection", {}).get("kind") == "odom"
                           if not (0.0 <= status["correction_stamp"] <= status["observation_stamp"] + 1e-6
                                   and status["observation_stamp"] <= status["stamp"] + 1e-6)]
             assert not incoherent, incoherent[:3]
@@ -160,7 +174,8 @@ def run(binary, directory):
 
             time.sleep(0.65)
             fresh = publish(odom_only=True, x=0.04)
-            wait_until(lambda: received[-1].header.stamp == fresh and statuses[-1]["stamp"] == fresh.to_sec())
+            wait_until(lambda: received[-1].header.stamp == fresh and odom_status(fresh))
+            assert abs(odom_status(fresh)["stamp"] - fresh.to_sec()) <= 1e-6
             # The delayed scan can update the backend; capture its actual source stamp.
             assert any(abs(statuses[-1]["observation_stamp"] - expected) <= 1e-6
                        for expected in (observation, scan_stamp.to_sec()))
@@ -168,10 +183,31 @@ def run(binary, directory):
                        for expected in (correction, scan_stamp.to_sec()))
             assert statuses[-1]["state"] == "tracking"
             invalid = publish(float("nan"), odom_only=True)
-            wait_until(lambda: statuses[-1]["stamp"] == invalid.to_sec())
-            assert statuses[-1]["state"] == "error" and received[-1].header.stamp < invalid
-            fresh = publish(1.0, odom_only=True)
+            wait_until(lambda: odom_status(invalid))
+            invalid_status = odom_status(invalid)
+            assert invalid_status["state"] == "error" and received[-1].header.stamp < invalid
+            assert invalid_status["reason"] == "invalid_twist_or_body_frame"
+            assert invalid_status["stamp"] == 0.0 and not invalid_status["projection"]["available"]
+            blocked = publish(1.0, odom_only=True)
+            wait_until(lambda: odom_status(blocked))
+            assert odom_status(blocked)["state"] == "error"
+            assert odom_status(blocked)["stamp"] == 0.0
+            assert not odom_status(blocked)["projection"]["available"]
+            assert received[-1].header.stamp < invalid
+            # A valid raw pose alone cannot restore an invalidated projection.
+            # Resume only after a fresh paired scan establishes a trusted basis.
+            recovery = publish(1.0)
+            deadline = time.monotonic() + 10.0
+            while time.monotonic() < deadline:
+                fresh = publish(1.0, odom_only=True)
+                wait_until(lambda: odom_status(fresh))
+                if odom_status(fresh)["projection"]["available"]:
+                    break
+                time.sleep(0.02)
             wait_until(lambda: received[-1].header.stamp == fresh)
+            assert odom_status(fresh)["state"] == "tracking"
+            assert odom_status(fresh)["correction_stamp"] + 1e-6 >= recovery.to_sec()
+            assert odom_status(fresh)["projection"]["generation"] == invalid_status["projection"]["generation"]
             stop(node)
             saved = directory / "mapping/n3map.pbstream"
             assert saved.is_file() and saved.stat().st_size > 0
@@ -186,11 +222,15 @@ def run(binary, directory):
                 for _ in range(3):
                     stamp = publish()
                     time.sleep(0.1)
-                wait_until(lambda: statuses and body and statuses[-1]["stamp"] == stamp.to_sec())
-                assert statuses[-1]["state"] == expected and not received and not world
+                wait_until(lambda: body and odom_status(stamp))
+                assert odom_status(stamp)["state"] == expected and not received and not world
+                assert odom_status(stamp)["stamp"] == 0.0
+                assert not odom_status(stamp)["projection"]["available"]
                 stamp = publish(odom_only=True)
-                wait_until(lambda: statuses[-1]["stamp"] == stamp.to_sec())
-                assert statuses[-1]["correction_stamp"] == 0.0
+                wait_until(lambda: odom_status(stamp))
+                assert odom_status(stamp)["stamp"] == 0.0
+                assert odom_status(stamp)["correction_stamp"] == 0.0
+                assert not odom_status(stamp)["projection"]["available"]
                 stop(node)
                 wait_until(lambda: not odom_pub.get_num_connections())
             rospy.signal_shutdown("fixture complete")
@@ -198,6 +238,8 @@ def run(binary, directory):
                   "retained anchor, velocity/covariance, invalid input, localization/extension initialization")
         except Exception as exception:
             log.flush()
+            if "statuses" in locals():
+                (directory / "statuses.json").write_text(json.dumps(statuses, indent=2))
             detail = (directory / "processes.log").read_text(errors="replace")[-6000:]
             raise RuntimeError("{}\\n{}".format(exception, detail)) from exception
         finally:

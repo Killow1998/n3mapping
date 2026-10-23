@@ -418,6 +418,13 @@ install(FILES ${N3MAPPING_ROOT}/requirements-product-tools.txt
 )
 
 if(CATKIN_ENABLE_TESTING)
+  add_test(
+    NAME test_noetic_output_smoke
+    COMMAND ${PYTHON_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/noetic_output_smoke.py
+      $<TARGET_FILE:n3mapping_node>
+  )
+  set_tests_properties(test_noetic_output_smoke PROPERTIES TIMEOUT 60)
+
   catkin_add_gtest(test_realtime_odometry
     ${N3MAPPING_ROOT}/test/test_realtime_odometry.cpp
     ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp)
