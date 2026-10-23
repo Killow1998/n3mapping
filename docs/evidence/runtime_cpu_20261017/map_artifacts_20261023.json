@@ -1,0 +1,219 @@
+{
+  "date": "2026-10-23",
+  "baseline_commit": "0bb62b8441a3601a2a01b1fa753ec6bff6a7e8c3",
+  "runtime_commits": {
+    "preflight": "b74eed5",
+    "map_artifacts_and_headers": "6fd5bd3",
+    "ros_alignment": "8cf17bafb8dcc2b35fcb6ec31433c0821dab0a22"
+  },
+  "configuration": {
+    "build_type": "RelWithDebInfo",
+    "cpu_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "jobs": 4,
+    "OMP_NUM_THREADS": 4,
+    "research_tools": false,
+    "product_identity_verified": false
+  },
+  "validation": {
+    "humble": {
+      "passed": 64,
+      "total": 64,
+      "wall_s": 36.7
+    },
+    "noetic": {
+      "passed": 46,
+      "total": 46,
+      "wall_s": 39.41
+    },
+    "noetic_source_overlay_matching_files": 399,
+    "research_evaluators": "kitti360 and m2dgr compile-only syntax checks; not linked or run"
+  },
+  "compile_probe": {
+    "phase": "shared artifacts/header decoupling at 6fd5bd3; before final ROS file alignment",
+    "method": "same compiler/flags/affinity, three real uncached object compilations per side",
+    "measurements": {
+      "n3mapping_node_backend": {
+        "wall_s": {
+          "before_median": 10.354002293024678,
+          "after_median": 4.292568409990054,
+          "reduction_pct": 58.54194070555801,
+          "before_samples": [
+            10.53003601403907,
+            9.90231874998426,
+            10.354002293024678
+          ],
+          "after_samples": [
+            4.812983224983327,
+            4.290507977013476,
+            4.292568409990054
+          ]
+        },
+        "cpu_s": {
+          "before_median": 10.248009,
+          "after_median": 4.27107,
+          "reduction_pct": 58.322928873306026,
+          "before_samples": [
+            10.436926999999999,
+            9.801728000000002,
+            10.248009
+          ],
+          "after_samples": [
+            4.777227,
+            4.253633000000001,
+            4.27107
+          ]
+        }
+      },
+      "n3mapping_node_map": {
+        "wall_s": {
+          "before_median": 11.981428738043178,
+          "after_median": 5.791330632986501,
+          "reduction_pct": 51.66410651345786,
+          "before_samples": [
+            12.305370033951476,
+            11.981428738043178,
+            11.372846876969561
+          ],
+          "after_samples": [
+            6.3838187549845316,
+            5.6965022449730895,
+            5.791330632986501
+          ]
+        },
+        "cpu_s": {
+          "before_median": 11.849283999999992,
+          "after_median": 5.739134999999999,
+          "reduction_pct": 51.565554509453875,
+          "before_samples": [
+            12.117810000000002,
+            11.849283999999992,
+            11.189556000000007
+          ],
+          "after_samples": [
+            6.283633,
+            5.600912999999999,
+            5.739134999999999
+          ]
+        }
+      }
+    }
+  },
+  "header_dependents": {
+    "core/n3mapping_core.h": {
+      "before": 27,
+      "after": 28
+    },
+    "core/n3mapping_session.h": {
+      "before": 28,
+      "after": 8
+    },
+    "loop_detector.h": {
+      "before": 75,
+      "after": 60
+    },
+    "world_localizing.h": {
+      "before": 45,
+      "after": 26
+    },
+    "graph_optimizer.h": {
+      "before": 64,
+      "after": 49
+    }
+  },
+  "node_file_lines": {
+    "humble": {
+      "n3mapping_node_map.cpp": 198,
+      "n3mapping_node.h": 293,
+      "n3mapping_node_backend.cpp": 314,
+      "n3mapping_node_lifecycle.cpp": 220,
+      "n3mapping_node_visualization.cpp": 266,
+      "n3mapping_node_live.cpp": 260,
+      "n3mapping_node.cpp": 73,
+      "n3mapping_node_probe.cpp": 200
+    },
+    "noetic": {
+      "n3mapping_node_map.cpp": 153,
+      "n3mapping_node.h": 198,
+      "n3mapping_node_backend.cpp": 173,
+      "n3mapping_node_lifecycle.cpp": 147,
+      "n3mapping_node_visualization.cpp": 178,
+      "n3mapping_node_live.cpp": 217,
+      "n3mapping_node.cpp": 30
+    }
+  },
+  "noetic_split": {
+    "identical_method_bodies": [
+      "N3MappingNoeticNode",
+      "~N3MappingNoeticNode",
+      "loadMap",
+      "syncCallback",
+      "processSynchronizedFrame",
+      "liveOdomCallback",
+      "denseOdomCallback",
+      "loopDetectionTimerCallback",
+      "globalMapTimerCallback",
+      "handleSaveMap",
+      "publishLiveTransform",
+      "publishPath",
+      "liveCloudCallback",
+      "initializeOptimizationLogging",
+      "logOptimizationResult",
+      "appendOptimizationLogLine",
+      "resetGlobalMapCache",
+      "markGlobalMapFullRebuildRequired",
+      "refreshGlobalMapMessage",
+      "publishGlobalMap",
+      "publishGlobalMap",
+      "publishLegacyRelocalizationLock",
+      "publishAuthoritativeRelocalizationPose",
+      "publishRelocalizationStatus",
+      "publishLoopMarkers",
+      "publishPathMarkers",
+      "addPathMarker",
+      "makePose",
+      "toPoint"
+    ],
+    "helper_extractions_to_review": [
+      "spin",
+      "initializeROS",
+      "shutdown"
+    ],
+    "same_count": 29,
+    "new_helper_methods": [
+      "initializeLiveSubscriptions",
+      "startLiveOutput",
+      "stopLiveOutput",
+      "saveMapOnShutdown"
+    ]
+  },
+  "logging_audit": {
+    "high_frequency_synchronous_write_paths": true,
+    "bounded_async_writer": false,
+    "aggregate_100000000_byte_retention": false,
+    "all_event_coverage_qualified": false,
+    "humble_per_frame_per_loop_per_live_trace_present_in_noetic": false,
+    "scope": "source inspection; no syscall-frequency measurement or logging-policy repair"
+  },
+  "not_qualified": [
+    "new full 14-position or six-real-route replay",
+    "new runtime CPU/RAM/accuracy benefit",
+    "new Release/Product artifact",
+    "real hardware",
+    "complete event coverage or total log retention"
+  ],
+  "binary_sha256": {
+    "humble_node": "84e7fcaee7a78856bc837e1512e26e38b5d0b7a56b5688455fc41acc84aae095",
+    "humble_core": "ac921c7b5ea975915e8e0e1e86d18173ce5b608485da775e85532d25068aebb8",
+    "noetic_node": "f5286f7bb9bafb132e56541358cfd9fb25c2ebc57c41dce383a3ec3c84b41d62",
+    "noetic_core": "cccc0bff4db104b6adfd288d0b67f2e8d9ffec916efab1bc7deaaa2baa9270f0"
+  },
+  "retained_tags": {
+    "v1.1.0-rc1": "50534bd45fbce7f65d026883e68b32a6d930f493",
+    "v1.1.0-rc2": "8272c7bb056cc27095f3c5144d71c96fb0e717c8"
+  }
+}

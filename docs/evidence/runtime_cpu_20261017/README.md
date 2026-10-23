@@ -7834,3 +7834,96 @@ source clone, dependencies and native build scripts are retained under
 Keep this supplemental test commit when running the full Noetic suite; the old
 rc2 tag alone still contains the incompatible test fixture. The hardware-test
 candidate remains rc2, with target hardware and complete Noetic route testing open.
+
+### Shared map artifacts and ROS alignment — 2026-10-23
+
+Commits `b74eed5`, `6fd5bd3` and `8cf17ba` adapt the useful shared-map/header work
+from the old Noetic modularity branch to the current core, then align both ROS
+adapters by responsibility. The old branch is not merged wholesale. No standalone
+root CMake entry or alternative algorithm implementation is introduced.
+
+`MapArtifacts` now owns snapshots, map-save orchestration, global-cloud cache
+and debug PCD writing in both distributions. The backend lock covers save and
+post-commit snapshot capture; PCD generation runs after releasing that lock.
+Cloud data stays shared and immutable, while poses are copied. A cache visitor
+holds the cache mutex because unvoxelized global clouds can append in place.
+Existing tests now check that draining asynchronous loops precedes both pbstream
+and PCD snapshots, followed by reload/trajectory comparison. The Humble real-node
+save test constructs the same artifact owner as production.
+
+`loop_types.h` and `registration_probe.h` expose existing value types without
+requiring session, loop-detector and registration implementation headers. These
+preserve current types, descriptor yaw rules and numerical algorithms. In the
+retained Humble dependency tree, session-header dependents fall from 28 to 8,
+loop-detector from 75 to 60, world-localizing from 45 to 26 and graph-optimizer
+from 64 to 49. A core-facade consumer is added by the shared artifact source.
+
+Same compiler/flags/affinity, three actual uncached object compilations per side:
+
+| Humble translation unit | Before median | After median | Reduction |
+| --- | ---: | ---: | ---: |
+| Backend | 10.354 s | 4.293 s | 58.5% |
+| Map | 11.981 s | 5.791 s | 51.7% |
+
+These measurements compare `0bb62b8` with the shared-artifact/header phase at
+`6fd5bd3`, before the final file alignment. They do not measure the entire build,
+Noetic compilation speed, runtime CPU/RAM or accuracy. Normal builds still use
+ccache. Final source organization changes three Humble files but no algorithm.
+
+Both ROS directories now have `n3mapping_node.{cpp,h}` and matching lifecycle,
+live, backend, visualization and map files. Noetic's original 1,091-line node
+became 961 lines after shared-map extraction; the final entry has 30 lines and
+its largest implementation file has 217. Humble's entry has 73 lines and its
+largest implementation file has 314. This is responsibility alignment, not a
+claim that total adapter LOC decreased: out-of-line declarations add lines.
+Of the 32 Noetic methods before file splitting, 29 retain identical normalized
+bodies; three extract subscription setup, worker start/stop and shutdown saving
+without changing call order. The existing boundary test inspects all split
+files and retains queue/isCurrent/projection-association guards.
+
+| Final validation | Result | Scope |
+| --- | --- | --- |
+| Humble RelWithDebInfo | 64/64, 36.70 s | Full existing production CTest, including live node and save E2E |
+| Noetic/Focal RelWithDebInfo | 46/46, 39.41 s | Full existing production CTest, including external real-node E2E |
+| Research header consumers | kitti360/m2dgr syntax checks pass | Compilation only; no new link/runtime qualification |
+
+Both native profiles use four physical cores 0,2,4,6, four build/OpenMP threads,
+passive OpenMP wait and one OpenBLAS thread. Native colcon/catkin layouts and
+caches are retained. Noetic uses the existing CPU-only Focal container and its
+Focal-built dependencies. All 399 audited source/test/tool/CMake files match
+between the working source and the validation overlay. Development identities
+are deliberately `UNVERIFIED`; the Release profiles and rc1/rc2 tags are not
+replaced. The Noetic test-result aggregator reports 702 entries; the table uses
+CTest target counts, not that aggregate as independent tests.
+
+The first shared-artifact Humble suite found an unrelated preflight defect:
+its dependency regex matched a random temporary **parent directory** containing
+`gpu`, rejecting a normal wrapper library. Check SONAME basename and canonical
+target filename instead. A deterministic parent-name fixture passes the fix and
+fails the old implementation; forbidden SONAME/alias targets remain rejected.
+All eight preflight cases and both final full suites pass. This inspects library
+names, without GPU or driver probing. The failed first run is retained.
+
+The logging audit is **not** a logging-policy repair. Optimization logs still
+open/append/close per line, loop and relocalization debug writers also perform
+per-record directory/open/write operations, and the performance stream writes
+synchronously on callbacks despite retaining its file. Noetic glog explicitly
+sets a zero buffering interval. No common asynchronous queue or 100,000,000-byte
+aggregate retention policy exists. Detailed events are gated by debug switches;
+Humble's per-frame/loop/live performance stream has no equivalent Noetic
+integration. Some append failures are discarded. Event coverage and log-volume
+compliance remain unqualified. The source inspection did not measure syscall
+frequency or physical disk traffic; stream close is not an explicit `fsync`.
+
+Next logging work must preserve critical state/decision/error events while
+batching or aggregating high-rate observations, report queue overflow and write
+failures, and bound all instance log files across restarts. Existing logs are
+not deleted by this stage. Complete real-route replay, hardware, general 10 cm,
+difficult-search half-core and uncertainty calibration remain open.
+
+See [structured evidence](map_artifacts_20261023.json). Raw compile probes,
+source audits and Humble logs are under
+`<workspace>/build/n3mapping/map_artifacts_20261023/`; final tests are in its
+`aligned/` subdirectory. Noetic logs/build scripts are under
+`<workspace>/build/n3mapping/build_profiles_20261023/noetic/map_artifacts/`, also
+with final `aligned/` results. No new whole-route replay or runtime gain is claimed.

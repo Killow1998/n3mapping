@@ -23,6 +23,11 @@ RK3588/MID360 真机尚未验收。Noetic/Focal Docker 已补齐独立 Release �
 本版只调整编译配置和构建流程，保留 **v1.1.0-rc1** 标签。
 版本标签是否已到远端应以实际仓库为准；本地定版不等于已经推送。
 
+后续本地开发提交已完成共享 MapArtifacts、头文件解耦和两套 ROS 适配层职责对齐，
+但只完成 RelWithDebInfo 的两套完整测试，尚未替换上述 Release 候选。另已确认
+日志存在同步逐条文件 I/O、事件覆盖差异及缺少跨重启总量限制的问题；目前不能
+保证全部日志合计不超过 100 MB。详见 [当前日志限制](../README.md#25-map-files-and-logs)。
+
 ## 1. 拉取与构建
 
 先按 [README](../README.md) 安装 ROS、GTSAM、small_gicp 等依赖，准备自己的 LIO

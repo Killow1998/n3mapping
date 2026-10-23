@@ -299,6 +299,23 @@ Mapping and map extension save:
 
 `optimization.log` is truncated when the node starts and appended after accepted keyframes or loop optimizations.
 
+**Logging policy gap (2026-10-23):** the current implementation still opens and
+closes optimization/loop/relocalization files per record. The opt-in runtime
+performance stream keeps its file open but writes synchronously in the callback;
+Noetic sets glog's buffer interval to zero. There is no shared bounded writer or
+aggregate retention limit. These paths do **not** yet satisfy the required
+100,000,000-byte total per service instance across current and rotated logs and
+restarts. This limit is not a separate allowance for each algorithm or file.
+
+Detailed relocalization and loop records require their debug switches. Humble's
+frame/loop/live performance stream has no equivalent Noetic integration, and
+some write failures are silently ignored. Complete event coverage is unverified.
+The required follow-up is a common bounded asynchronous writer, batched high-rate
+summaries, observable write/overflow failures and shared retention accounting.
+Key state transitions, decisions and failures need event-coverage checks; this
+does not require writing every observation to disk. Existing logs are retained;
+this source refactor does not retroactively apply a deletion policy.
+
 Terminal output is intentionally lightweight. It keeps warnings, errors, map loading, save-map results, shutdown map-save results, and relocalization-lock events.
 
 For real-device update/build commands, per-run log capture, and local support ZIP
@@ -871,13 +888,34 @@ Localization changes should follow the existing ownership boundaries:
 | Tracking targets, bounded local caches and the immutable loaded-map target | `TrackingTargetCache` |
 | Online loop retrieval, isolated geometry/graph work and revision-checked commit | `N3MappingCore` loop orchestration and shared loop-processing implementation |
 | Trusted corrections and live pose/cloud projection | `core::RealtimeOutput` |
+| Post-commit map snapshots, global-cloud cache and debug PCDs | `MapArtifacts` |
 
-The Humble node has one state/lock owner, declared in the private
-`humble/src/n3mapping_node.h`. Its lifecycle, live output, serial backend,
-visualization, map IO and finite authority probe have separate implementations.
-`n3mapping_node.cpp` only owns process startup and signal handling. Production
-and live-output E2E tests link the same `n3mapping_humble_node_impl` objects;
-tests do not include a production `.cpp` or compile a separate node variant.
+Both ROS adapters keep one state/lock owner in their private
+`src/n3mapping_node.h` and use corresponding files for the same responsibilities:
+
+| File in `humble/src/` and `noetic/src/` | Adapter responsibility |
+| --- | --- |
+| `n3mapping_node.cpp` | Process startup, execution and shutdown |
+| `n3mapping_node_lifecycle.cpp` | Parameters, ROS resources and lifecycle |
+| `n3mapping_node_backend.cpp` | Input conversion, serial core calls, forwarding results |
+| `n3mapping_node_live.cpp` | Independent live queues, odometry/cloud/TF/status publication |
+| `n3mapping_node_map.cpp` | Map service calls and cached ROS map messages |
+| `n3mapping_node_visualization.cpp` | Paths, markers and optimization-log formatting |
+
+`N3MappingCore` owns SLAM decisions; `core::RealtimeOutput` owns output authority.
+The ROS-free `MapArtifacts` owns map snapshots, save orchestration, global-cloud
+caching and debug PCDs. Saving captures poses after draining pending loop work;
+immutable clouds are shared, and cache visitors run under the cache lock.
+ROS message caches remain adapter-local. Core headers expose value contracts
+through `loop_types.h` and `registration_probe.h` without pulling session and
+registration implementation headers into every adapter source.
+
+Both adapters compile their node methods into an internal static implementation
+target. Humble's real node and live-output E2E link the same objects; Noetic's
+E2E launches its real executable. The existing Humble-only authority probe
+remains in `n3mapping_node_probe.cpp`. Transport APIs and diagnostic coverage
+still differ; file alignment does not establish complete feature parity.
+See the [alignment and compile measurements](docs/evidence/runtime_cpu_20261017/README.md#shared-map-artifacts-and-ros-alignment--2026-10-23).
 The core's `MappingResuming` similarly separates session lifecycle, keyframe
 transactions, acquisition identity, cross-session loops and submap diagnostics.
 These are implementation boundaries, without new managers or state copies.

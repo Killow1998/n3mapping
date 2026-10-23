@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — shared artifacts and ROS adapter alignment
+
+- Share map snapshots, save orchestration, global-cloud caching and debug PCDs
+  between Humble and Noetic through the ROS-free `MapArtifacts`. Preserve
+  post-async-commit save ordering and existing map formats.
+- Narrow session/loop/registration header dependencies. Three uncached compile
+  samples per side show representative Humble backend/map compilation medians
+  falling 10.354→4.293 s and 11.981→5.791 s; this is not a runtime-speed claim.
+- Split the Noetic monolith into files matching Humble lifecycle, live output,
+  backend, visualization and map responsibilities. Keep state/locks in one
+  owner and algorithms in the shared core. Extend the existing boundary check
+  to all split files without weakening live-queue/projection guards.
+- Fix dependency preflight falsely matching GPU/research tokens in parent
+  directory names; still check actual SONAMEs and resolved library filenames.
+- Four-core RelWithDebInfo: Humble 64/64 and Noetic 46/46 tests pass, including
+  real-node E2E. These are development builds, not a new Release candidate.
+- Audit and record outstanding synchronous log I/O, incomplete cross-ROS event
+  coverage and missing aggregate 100 MB retention. No logging-policy compliance
+  or new full-route/runtime-performance qualification is claimed.
+
+See the [stage evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-map-artifacts-and-ros-alignment--2026-10-23).
+Existing rc1/rc2 tags remain unchanged.
+
 ## Unreleased — Noetic validation follow-up
 
 - Make the existing loop-detector fixture compatible with Focal's PCL 1.10.
