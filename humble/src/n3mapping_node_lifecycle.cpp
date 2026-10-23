@@ -1,7 +1,5 @@
 #include "n3mapping_node.h"
 #include "n3mapping/humble/config_humble.h"
-#include <filesystem>
-#include <fstream>
 
 namespace n3mapping {
 
@@ -206,33 +204,6 @@ void N3MappingNode::initializeROS()
     global_map_timer_ = this->create_wall_timer(
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(1.0 / global_map_hz)),
       std::bind(&N3MappingNode::globalMapTimerCallback, this));
-}
-
-void N3MappingNode::initializeOptimizationLogging()
-{
-    std::error_code ec;
-    std::filesystem::create_directories(config_.map_save_path, ec);
-    optimization_log_path_ = config_.map_save_path + "/optimization.log";
-    std::ofstream file(optimization_log_path_, std::ios::out | std::ios::trunc);
-    if (!file.is_open()) {
-        RCLCPP_WARN(this->get_logger(), "Failed to open optimization log: %s", optimization_log_path_.c_str());
-    }
-}
-
-void N3MappingNode::loadMap()
-{
-    if (config_.map_path.empty()) {
-        RCLCPP_ERROR(this->get_logger(), "Map path is empty!");
-        return;
-    }
-
-    if (!n3mapping_core_->loadMap(config_.map_path)) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to load map: %s", config_.map_path.c_str());
-        return;
-    }
-    RCLCPP_INFO(this->get_logger(), "Loaded map with %zu keyframes", n3mapping_core_->getAllKeyframes().size());
-    map_loaded_ = true;
-    resetGlobalMapCache();
 }
 
 void N3MappingNode::printStatistics()

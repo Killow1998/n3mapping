@@ -179,4 +179,20 @@ void N3MappingNode::handleSaveMap(const std::shared_ptr<std_srvs::srv::Trigger::
     }
 }
 
+void N3MappingNode::loadMap()
+{
+    if (config_.map_path.empty()) {
+        RCLCPP_ERROR(this->get_logger(), "Map path is empty!");
+        return;
+    }
+
+    if (!n3mapping_core_->loadMap(config_.map_path)) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to load map: %s", config_.map_path.c_str());
+        return;
+    }
+    RCLCPP_INFO(this->get_logger(), "Loaded map with %zu keyframes", n3mapping_core_->getAllKeyframes().size());
+    map_loaded_ = true;
+    resetGlobalMapCache();
+}
+
 }  // namespace n3mapping

@@ -156,18 +156,26 @@ set_target_properties(n3map_nav_resource_reader PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib
 )
 
-add_executable(n3mapping_node
-  src/n3mapping_noetic_node.cpp
+add_library(n3mapping_noetic_node_impl STATIC
+  src/n3mapping_node_lifecycle.cpp
+  src/n3mapping_node_live.cpp
+  src/n3mapping_node_backend.cpp
+  src/n3mapping_node_visualization.cpp
+  src/n3mapping_node_map.cpp
 )
-n3mapping_guard_product_target(n3mapping_node)
-target_link_libraries(n3mapping_node
+n3mapping_guard_product_target(n3mapping_noetic_node_impl)
+target_link_libraries(n3mapping_noetic_node_impl PUBLIC
   n3mapping_noetic_wrapper
   ${catkin_LIBRARIES}
 )
-add_dependencies(n3mapping_node
+add_dependencies(n3mapping_noetic_node_impl
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
+add_executable(n3mapping_node src/n3mapping_node.cpp)
+n3mapping_guard_product_target(n3mapping_node)
+target_link_libraries(n3mapping_node n3mapping_noetic_node_impl)
+add_dependencies(n3mapping_node ${${PROJECT_NAME}_EXPORTED_TARGETS})
 set_target_properties(n3mapping_node PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
 )

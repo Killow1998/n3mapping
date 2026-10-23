@@ -5,7 +5,13 @@ set(REQUIRED_FILES
   "${ROOT_DIR}/noetic/include/n3mapping_noetic/conversions.h"
   "${ROOT_DIR}/noetic/src/config_noetic.cpp"
   "${ROOT_DIR}/noetic/src/conversions.cpp"
-  "${ROOT_DIR}/noetic/src/n3mapping_noetic_node.cpp"
+  "${ROOT_DIR}/noetic/src/n3mapping_node.cpp"
+  "${ROOT_DIR}/noetic/src/n3mapping_node.h"
+  "${ROOT_DIR}/noetic/src/n3mapping_node_lifecycle.cpp"
+  "${ROOT_DIR}/noetic/src/n3mapping_node_live.cpp"
+  "${ROOT_DIR}/noetic/src/n3mapping_node_backend.cpp"
+  "${ROOT_DIR}/noetic/src/n3mapping_node_visualization.cpp"
+  "${ROOT_DIR}/noetic/src/n3mapping_node_map.cpp"
 )
 
 foreach(REQUIRED_FILE IN LISTS REQUIRED_FILES)
@@ -31,8 +37,9 @@ set(FORBIDDEN_PATTERNS
   "appendProjectionMetadata("
 )
 
-set(CHECK_FILES
-  "${ROOT_DIR}/noetic/src/n3mapping_noetic_node.cpp"
+file(GLOB CHECK_FILES "${ROOT_DIR}/noetic/src/n3mapping_node*.cpp")
+list(APPEND CHECK_FILES
+  "${ROOT_DIR}/noetic/src/n3mapping_node.h"
   "${ROOT_DIR}/noetic/src/conversions.cpp"
   "${ROOT_DIR}/noetic/include/n3mapping_noetic/conversions.h"
 )
@@ -55,8 +62,8 @@ if(OFFENDING_FILES)
     "Noetic wrapper directly references backend internals:\n${OFFENDING_OUTPUT}")
 endif()
 
-file(READ "${ROOT_DIR}/noetic/src/n3mapping_noetic_node.cpp" NODE_CONTENTS)
-string(FIND "${NODE_CONTENTS}" "void liveCloudCallback(" CLOUD_START)
+file(READ "${ROOT_DIR}/noetic/src/n3mapping_node_live.cpp" NODE_CONTENTS)
+string(FIND "${NODE_CONTENTS}" "void N3MappingNoeticNode::liveCloudCallback(" CLOUD_START)
 if(CLOUD_START EQUAL -1)
   message(FATAL_ERROR "Noetic live cloud callback is missing")
 endif()

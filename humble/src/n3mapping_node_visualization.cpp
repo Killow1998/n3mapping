@@ -251,4 +251,16 @@ Keyframe::Ptr N3MappingNode::getKeyframeForPublishing(int64_t id) const
     return nullptr;
 }
 
+void N3MappingNode::initializeOptimizationLogging()
+{
+    if (!ensureMapDirectory(config_.map_save_path)) {
+        RCLCPP_WARN(this->get_logger(), "Failed to create optimization log directory: %s", config_.map_save_path.c_str());
+    }
+    optimization_log_path_ = config_.map_save_path + "/optimization.log";
+    std::ofstream file(optimization_log_path_, std::ios::out | std::ios::trunc);
+    if (!file.is_open()) {
+        RCLCPP_WARN(this->get_logger(), "Failed to open optimization log: %s", optimization_log_path_.c_str());
+    }
+}
+
 }  // namespace n3mapping
