@@ -8163,3 +8163,10 @@ and the [review checklist](../../field_testing_zh.md#收尾要求核对2026-10-2
 No fresh original14, two-route or six-real-data replay is claimed in this stage.
 General 10 cm accuracy, all difficult searches at half-core, M2DGR reference/time,
 correlated loop uncertainty and RK3588/MID360 hardware acceptance remain open.
+
+Candidate `ee2b44b` adds only integration history and review documentation to
+runtime `ea0ced6`; all runtime/build/test/config paths are identical. Both native
+Release identities were refreshed to `ee2b44b`, verified=true. Four focused
+checks per ROS (source guard, preflight, bundle and real-node logging E2E) pass:
+Humble 10.61 s, Noetic 12.44 s. The JSON separates initial runtime-suite hashes
+from the final candidate hashes. Unchanged algorithm suites were not repeated.

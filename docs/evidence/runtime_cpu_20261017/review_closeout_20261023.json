@@ -88,24 +88,6 @@
     },
     "note": "Humble development suite preceded portable test-fixture spelling; both final Release suites use the exact runtime commit."
   },
-  "identities": {
-    "humble": {
-      "schema": "n3mapping_product_build_identity_v2",
-      "commit": "ea0ced6b13435b73de067f7288bbb381cc7829df",
-      "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
-      "build_type": "Release",
-      "research_tools": "OFF",
-      "verified": true
-    },
-    "noetic": {
-      "schema": "n3mapping_product_build_identity_v2",
-      "commit": "ea0ced6b13435b73de067f7288bbb381cc7829df",
-      "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
-      "build_type": "Release",
-      "research_tools": "OFF",
-      "verified": true
-    }
-  },
   "core_dependency_audit": {
     "humble": {
       "core": {
@@ -129,80 +111,6 @@
       "core_tests": {
         "compile_units": 45,
         "include_leaks": []
-      }
-    }
-  },
-  "release_flags": {
-    "humble": {
-      "src/core/n3mapping_mapping.cpp": {
-        "optimization": [
-          "-O3"
-        ],
-        "ndebug": true,
-        "identity": [
-          "N3MAPPING_PRODUCT_BUILD_VERIFIED=1",
-          "N3MAPPING_PRODUCT_COMMIT=\\\"ea0ced6b13435b73de067f7288bbb381cc7829df\\\""
-        ]
-      },
-      "src/map_serializer_load.cpp": {
-        "optimization": [
-          "-O3"
-        ],
-        "ndebug": true,
-        "identity": [
-          "N3MAPPING_PRODUCT_BUILD_VERIFIED=1",
-          "N3MAPPING_PRODUCT_COMMIT=\\\"ea0ced6b13435b73de067f7288bbb381cc7829df\\\""
-        ]
-      },
-      "test/test_map_serializer.cpp": {
-        "optimization": [
-          "-O3"
-        ],
-        "ndebug": true,
-        "identity": [
-          "N3MAPPING_PRODUCT_BUILD_VERIFIED=1",
-          "N3MAPPING_PRODUCT_COMMIT=\\\"ea0ced6b13435b73de067f7288bbb381cc7829df\\\""
-        ]
-      },
-      "humble/src/n3mapping_node_backend.cpp": {
-        "optimization": [
-          "-O3"
-        ],
-        "ndebug": true,
-        "identity": [
-          "N3MAPPING_PRODUCT_BUILD_VERIFIED=1",
-          "N3MAPPING_PRODUCT_COMMIT=\\\"ea0ced6b13435b73de067f7288bbb381cc7829df\\\""
-        ]
-      }
-    },
-    "noetic": {
-      "src/core/n3mapping_mapping.cpp": {
-        "optimization": [
-          "-O3"
-        ],
-        "ndebug": true,
-        "verified": true
-      },
-      "src/map_serializer_load.cpp": {
-        "optimization": [
-          "-O3"
-        ],
-        "ndebug": true,
-        "verified": true
-      },
-      "test/test_map_serializer.cpp": {
-        "optimization": [
-          "-O3"
-        ],
-        "ndebug": true,
-        "verified": true
-      },
-      "noetic/src/n3mapping_node_backend.cpp": {
-        "optimization": [
-          "-O3"
-        ],
-        "ndebug": true,
-        "verified": true
       }
     }
   },
@@ -372,7 +280,25 @@
     "M2DGR time/reference qualification and correlated loop uncertainty",
     "No fresh original14, independent-route or six-real-data replay in this structural closeout"
   ],
-  "sha256": {
+  "runtime_suite_identities": {
+    "humble": {
+      "schema": "n3mapping_product_build_identity_v2",
+      "commit": "ea0ced6b13435b73de067f7288bbb381cc7829df",
+      "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+      "build_type": "Release",
+      "research_tools": "OFF",
+      "verified": true
+    },
+    "noetic": {
+      "schema": "n3mapping_product_build_identity_v2",
+      "commit": "ea0ced6b13435b73de067f7288bbb381cc7829df",
+      "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+      "build_type": "Release",
+      "research_tools": "OFF",
+      "verified": true
+    }
+  },
+  "runtime_suite_sha256": {
     "humble": {
       "n3mapping_node": "fb3e38ab6f435705744aee017274b9d18fe9a2cf96c952f48bbc60114164d942",
       "libn3mapping_core.so": "6f54dfaec2fa63292176d323f282969e7dc7b2b855c3cb2d4fac466faab511ae"
@@ -380,6 +306,261 @@
     "noetic": {
       "n3mapping_node": "81dedb36a47ef8098c71f4133df974571a20cd0c5585b905f169083a67aed988",
       "libn3mapping_core.so": "ce4adc9963ecf98c3f6478b133e0f1f2750be773060776e7fc9e2aa08247d312"
+    }
+  },
+  "runtime_suite_flags": {
+    "humble": {
+      "src/core/n3mapping_mapping.cpp": {
+        "optimization": [
+          "-O3"
+        ],
+        "ndebug": true,
+        "identity": [
+          "N3MAPPING_PRODUCT_BUILD_VERIFIED=1",
+          "N3MAPPING_PRODUCT_COMMIT=\\\"ea0ced6b13435b73de067f7288bbb381cc7829df\\\""
+        ]
+      },
+      "src/map_serializer_load.cpp": {
+        "optimization": [
+          "-O3"
+        ],
+        "ndebug": true,
+        "identity": [
+          "N3MAPPING_PRODUCT_BUILD_VERIFIED=1",
+          "N3MAPPING_PRODUCT_COMMIT=\\\"ea0ced6b13435b73de067f7288bbb381cc7829df\\\""
+        ]
+      },
+      "test/test_map_serializer.cpp": {
+        "optimization": [
+          "-O3"
+        ],
+        "ndebug": true,
+        "identity": [
+          "N3MAPPING_PRODUCT_BUILD_VERIFIED=1",
+          "N3MAPPING_PRODUCT_COMMIT=\\\"ea0ced6b13435b73de067f7288bbb381cc7829df\\\""
+        ]
+      },
+      "humble/src/n3mapping_node_backend.cpp": {
+        "optimization": [
+          "-O3"
+        ],
+        "ndebug": true,
+        "identity": [
+          "N3MAPPING_PRODUCT_BUILD_VERIFIED=1",
+          "N3MAPPING_PRODUCT_COMMIT=\\\"ea0ced6b13435b73de067f7288bbb381cc7829df\\\""
+        ]
+      }
+    },
+    "noetic": {
+      "src/core/n3mapping_mapping.cpp": {
+        "optimization": [
+          "-O3"
+        ],
+        "ndebug": true,
+        "verified": true
+      },
+      "src/map_serializer_load.cpp": {
+        "optimization": [
+          "-O3"
+        ],
+        "ndebug": true,
+        "verified": true
+      },
+      "test/test_map_serializer.cpp": {
+        "optimization": [
+          "-O3"
+        ],
+        "ndebug": true,
+        "verified": true
+      },
+      "noetic/src/n3mapping_node_backend.cpp": {
+        "optimization": [
+          "-O3"
+        ],
+        "ndebug": true,
+        "verified": true
+      }
+    }
+  },
+  "candidate_verification": {
+    "commit": "ee2b44b9958ed324ed72ea5582fef2d6b1ccab08",
+    "code_identical_to_runtime_suite": true,
+    "identities": {
+      "humble": {
+        "schema": "n3mapping_product_build_identity_v2",
+        "commit": "ee2b44b9958ed324ed72ea5582fef2d6b1ccab08",
+        "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+        "build_type": "Release",
+        "research_tools": "OFF",
+        "verified": true
+      },
+      "noetic": {
+        "schema": "n3mapping_product_build_identity_v2",
+        "commit": "ee2b44b9958ed324ed72ea5582fef2d6b1ccab08",
+        "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+        "build_type": "Release",
+        "research_tools": "OFF",
+        "verified": true
+      }
+    },
+    "targeted_checks": {
+      "humble": {
+        "passed": 4,
+        "seconds": 10.61
+      },
+      "noetic": {
+        "passed": 4,
+        "seconds": 12.44
+      }
+    },
+    "scope": "After documentation/history-only commit, refresh native Release identities and run source guard, dependency preflight, bundle and real-node logging E2E. Do not repeat unchanged algorithm suites.",
+    "sha256": {
+      "humble": {
+        "n3mapping_node": "9b2d694a46d80be64cbbdf033256daf4f27c2409e00506ae8f22a278846a2b3a",
+        "libn3mapping_core.so": "0c3705475c39e4f9d01631451ad91edefc6633a0ea136c819b4c7b8c0ab163d0"
+      },
+      "noetic": {
+        "n3mapping_node": "b2a4ff92583458fe1686b86378e88b85f1b349b7610126551a082d5badb8ae1b",
+        "libn3mapping_core.so": "4ef4a8b0473e2aec9c581c9e338882ec02ba7ddecf9e0764331b5654558069f0"
+      }
+    },
+    "e2e": {
+      "humble": {
+        "schema": "n3mapping_logging_e2e_v1",
+        "ros": "humble",
+        "baseline": false,
+        "startup_input": "continuous_before_ready",
+        "first_output_s": 0.22023739898577332,
+        "sent": 1200,
+        "received": 1200,
+        "delivery_ratio": 1.0,
+        "p50_ms": 0.1725470065139234,
+        "p99_ms": 0.29116898076608777,
+        "max_ms": 0.6983870407566428,
+        "node_cpu_s": 0.13999999999999999,
+        "wall_s": 5.995098804007284,
+        "average_cores": 0.023352409122335105,
+        "unmanaged_node_log_bytes": 0,
+        "managed_bytes": 444788,
+        "logging_status": {
+          "accepted": 1549,
+          "aggregated": 1619,
+          "batches": 90,
+          "bytes_written": 669818,
+          "dropped": 0,
+          "dropped_critical": 0,
+          "last_failed_path": "/tmp/n3-logging-e2e-4sg8u9n2/managed/runtime.log",
+          "lost_on_write": 3,
+          "oversize": 0,
+          "peak_queue_bytes": 25883,
+          "queue_bytes": 0,
+          "recovered_bytes": 0,
+          "retained_bytes": 1047750,
+          "schema": "n3mapping_logging_status_v1",
+          "storage_ready": true,
+          "write_failures": 1,
+          "written": 1546
+        },
+        "restarted_logging_status": {
+          "accepted": 236,
+          "aggregated": 226,
+          "batches": 22,
+          "bytes_written": 99267,
+          "dropped": 0,
+          "dropped_critical": 0,
+          "last_failed_path": "",
+          "lost_on_write": 0,
+          "oversize": 0,
+          "peak_queue_bytes": 24500,
+          "queue_bytes": 0,
+          "recovered_bytes": 0,
+          "retained_bytes": 1034004,
+          "schema": "n3mapping_logging_status_v1",
+          "storage_ready": true,
+          "write_failures": 0,
+          "written": 236
+        },
+        "events": [
+          "aggregate",
+          "backend_state",
+          "input_subscription",
+          "live_state",
+          "logger_health",
+          "map_save_begin",
+          "map_save_success",
+          "optimization_log_started",
+          "process_start",
+          "process_stop"
+        ]
+      },
+      "noetic": {
+        "schema": "n3mapping_logging_e2e_v1",
+        "ros": "noetic",
+        "baseline": false,
+        "startup_input": "continuous_before_ready",
+        "first_output_s": 0.4118621380184777,
+        "sent": 1200,
+        "received": 1200,
+        "delivery_ratio": 1.0,
+        "p50_ms": 0.06974500138312578,
+        "p99_ms": 0.17298402963206172,
+        "max_ms": 0.6188030238263309,
+        "node_cpu_s": 0.09000000000000001,
+        "wall_s": 5.9951033479883336,
+        "average_cores": 0.015012251628689546,
+        "unmanaged_node_log_bytes": 0,
+        "managed_bytes": 406053,
+        "logging_status": {
+          "accepted": 1521,
+          "aggregated": 1565,
+          "batches": 95,
+          "bytes_written": 651523,
+          "dropped": 0,
+          "dropped_critical": 0,
+          "last_failed_path": "/tmp/n3-logging-e2e-kwmfnehc/managed/runtime.log",
+          "lost_on_write": 5,
+          "oversize": 0,
+          "peak_queue_bytes": 24959,
+          "queue_bytes": 0,
+          "recovered_bytes": 0,
+          "retained_bytes": 1025373,
+          "schema": "n3mapping_logging_status_v1",
+          "storage_ready": true,
+          "write_failures": 3,
+          "written": 1516
+        },
+        "restarted_logging_status": {
+          "accepted": 191,
+          "aggregated": 184,
+          "batches": 22,
+          "bytes_written": 82142,
+          "dropped": 0,
+          "dropped_critical": 0,
+          "last_failed_path": "",
+          "lost_on_write": 0,
+          "oversize": 0,
+          "peak_queue_bytes": 24353,
+          "queue_bytes": 0,
+          "recovered_bytes": 0,
+          "retained_bytes": 995270,
+          "schema": "n3mapping_logging_status_v1",
+          "storage_ready": true,
+          "write_failures": 0,
+          "written": 191
+        },
+        "events": [
+          "aggregate",
+          "backend_state",
+          "input_subscription",
+          "live_state",
+          "logger_health",
+          "map_save_begin",
+          "map_save_success",
+          "optimization_log_started",
+          "process_start",
+          "process_stop"
+        ]
+      }
     }
   }
 }
