@@ -111,12 +111,18 @@ function(n3mapping_configure_core_target target_name)
     set(N3MAPPING_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
   endif()
 
+  # Directory-level wrapper includes must not leak into the core build.
+  set_property(TARGET ${target_name} PROPERTY INCLUDE_DIRECTORIES "")
   target_include_directories(${target_name} PUBLIC
     $<BUILD_INTERFACE:${N3MAPPING_ROOT}/include>
     $<BUILD_INTERFACE:${PROTO_GEN_DIR}>
     $<INSTALL_INTERFACE:include>
   )
-  target_include_directories(${target_name} PRIVATE ${JSONCPP_INCLUDE_DIRS})
+  target_include_directories(${target_name} SYSTEM PUBLIC
+    ${PCL_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS}
+    ${GTSAM_INCLUDE_DIR} ${PROTOBUF_INCLUDE_DIRS})
+  target_include_directories(${target_name} PRIVATE
+    ${JSONCPP_INCLUDE_DIRS} ${N3MAPPING_ROOT}/include/Scancontext)
 
   target_link_libraries(${target_name}
     PUBLIC
