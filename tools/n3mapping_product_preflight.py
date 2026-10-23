@@ -354,7 +354,9 @@ def inspect_elf_dependencies(executable: Path) -> tuple[list[str], list[dict[str
         dependency_path = require_runtime_dependency(
             Path(path_text), f"runtime dependency {name}"
         )
-        forbidden_text = f"{name} {dependency_path}"
+        # Parent directories describe deployment locations, not library types.
+        # Check both the loader name and the canonical file behind any symlink.
+        forbidden_text = f"{Path(name).name} {dependency_path.name}"
         match = FORBIDDEN_DEPENDENCY_RE.search(forbidden_text)
         if match:
             raise PreflightError(

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.dont_write_bytecode = True
 
@@ -126,6 +127,31 @@ def event(
 
 
 class ProductPreflightTest(unittest.TestCase):
+    def test_dependency_checks_library_names_not_parent_directory(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="n3m_gpu_location_") as temporary:
+            root = Path(temporary)
+            executable = root / "node"
+            executable.write_bytes(b"\x7fELFfixture")
+            library = root / "libordinary.so"
+            library.write_bytes(b"fixture library")
+
+            def observe(name: str, path: Path):
+                output = f"{name} => {path} (0x1234)\n"
+                with mock.patch.object(preflight, "_run", return_value=
+                        subprocess.CompletedProcess(["ldd"], 0, output, "")):
+                    return preflight.inspect_elf_dependencies(executable)
+
+            _, dependencies = observe(library.name, library)
+            self.assertEqual(dependencies[0]["path"], str(library.resolve()))
+            with self.assertRaisesRegex(preflight.PreflightError, "forbidden Product V1"):
+                observe("libcuda.so", library)
+            forbidden = root / "libcheckpoint_runtime.so"
+            forbidden.write_bytes(b"forbidden fixture library")
+            alias = root / "libalias.so"
+            alias.symlink_to(forbidden)
+            with self.assertRaisesRegex(preflight.PreflightError, "forbidden Product V1"):
+                observe(alias.name, alias)
+
     def run_tool(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, "-B", str(TOOL), *arguments],
