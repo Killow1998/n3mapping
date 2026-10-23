@@ -1,5 +1,5 @@
+#include "n3mapping/pcl_compat.h"
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
 #include "n3mapping/map_serializer.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
@@ -54,7 +54,7 @@ protected:
         std::uniform_int_distribution<size_t> size_dist(min_points, max_points);
         size_t num_points = size_dist(rng);
         
-        auto cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         cloud->resize(num_points);
         
         std::uniform_real_distribution<float> pos_dist(-20.0f, 20.0f);
@@ -403,11 +403,3 @@ TEST_F(MapSerializerPBT, LargeMapRoundTrip) {
 
 }  // namespace test
 }  // namespace n3mapping
-
-int main(int argc, char** argv) {
-    testing::InitGoogleTest(&argc, argv);
-    rclcpp::init(argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

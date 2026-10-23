@@ -1,3 +1,4 @@
+#include "n3mapping/pcl_compat.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <gtsam/geometry/Pose3.h>
@@ -14,7 +15,7 @@ namespace {
 
 Keyframe::PointCloudT::Ptr makeTinyCloud()
 {
-    auto cloud = std::make_shared<Keyframe::PointCloudT>();
+    auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
     pcl::PointXYZI point;
     point.x = 0.0f;
     point.y = 0.0f;
@@ -26,7 +27,7 @@ Keyframe::PointCloudT::Ptr makeTinyCloud()
 
 Keyframe::PointCloudT::Ptr makeRegistrationCloud()
 {
-    auto cloud = std::make_shared<Keyframe::PointCloudT>();
+    auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
     for (int a = -5; a <= 5; ++a) {
         for (int b = -5; b <= 5; ++b) {
             pcl::PointXYZI floor;
@@ -352,7 +353,7 @@ TEST(LoopVerifierEvidenceTest, PretransformedSourceKeepsMeasurementUncertainty)
     config.loop_use_icp_information = true;
     auto query_pose = poseAt(3.0, -2.0, 0.4);
     const auto raw = makeRegistrationCloud();
-    auto transformed = std::make_shared<Keyframe::PointCloudT>();
+    auto transformed = pcl::make_shared<Keyframe::PointCloudT>();
     pcl::transformPointCloud(*raw, *transformed, query_pose.matrix().cast<float>());
     const auto match = Keyframe::create(0, 1.0, Eigen::Isometry3d::Identity(), transformed);
     const auto query = Keyframe::create(10, 2.0, query_pose, raw);

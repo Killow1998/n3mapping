@@ -11,14 +11,22 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/core/types.h"
-#include "n3mapping/keyframe_manager.h"
-#include "n3mapping/loop_detector.h"
-#include "n3mapping/graph_optimizer.h"
-#include "n3mapping/n3map_proto_utils.h"
-#include "n3mapping/submap_builder.h"
-#include "n3map.pb.h"
+#include "n3mapping/keyframe.h"
 
 namespace n3mapping {
+class KeyframeManager;
+class LoopDetector;
+class GraphOptimizer;
+class SubmapBuilder;
+struct EdgeInfo;
+struct PbstreamLoadOptions;
+class KeyframeProto;
+class EdgeProto;
+class DenseTrajectoryPose;
+class Pose3D;
+class PointCloudData;
+class InformationMatrix;
+
 
 class MapSerializer {
 public:
@@ -109,6 +117,7 @@ public:
                                                         double voxel_size = 0.1) const;
 
 private:
+    static constexpr const char* kMapVersion = "2.10.0";
     Config config_;
 
     void keyframeToProto(const Keyframe::Ptr& kf, n3mapping::KeyframeProto* proto);

@@ -10,6 +10,9 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/logging/runtime_performance_fields.cpp
   ${N3MAPPING_ROOT}/src/config.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_mapping.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_extension.cpp
+  ${N3MAPPING_ROOT}/src/core/n3mapping_load.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_save.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_trajectory.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_constraints.cpp
@@ -63,6 +66,8 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/planar_geometry/serialization.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
+  ${N3MAPPING_ROOT}/src/map_serializer_save.cpp
+  ${N3MAPPING_ROOT}/src/map_serializer_load.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas_map.cpp
   ${N3MAPPING_ROOT}/src/localization_crop.cpp

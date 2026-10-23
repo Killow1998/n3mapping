@@ -1,3 +1,4 @@
+#include "n3mapping/pcl_compat.h"
 #include "n3mapping/async_log.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/keyframe_manager.h"
@@ -13,7 +14,6 @@
 #include <gtest/gtest.h>
 #include <pcl/common/transforms.h>
 #include <random>
-#include <rclcpp/rclcpp.hpp>
 
 namespace n3mapping {
 namespace test {
@@ -67,7 +67,7 @@ class MappingResumingTest : public ::testing::Test
     pcl::PointCloud<pcl::PointXYZI>::Ptr generateCorridorCloud(const Eigen::Isometry3d& pose, double corridor_width = 3.0)
     {
 
-        auto cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
 
         std::mt19937 rng(42);
         std::uniform_real_distribution<float> noise(-0.05f, 0.05f);
@@ -91,7 +91,7 @@ class MappingResumingTest : public ::testing::Test
         }
 
         // 变换到世界坐标系
-        auto transformed = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        auto transformed = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         Eigen::Matrix4f transform = pose.matrix().cast<float>();
         pcl::transformPointCloud(*cloud, *transformed, transform);
 
@@ -618,13 +618,3 @@ TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
 
 } // namespace test
 } // namespace n3mapping
-
-int
-main(int argc, char** argv)
-{
-    testing::InitGoogleTest(&argc, argv);
-    rclcpp::init(argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

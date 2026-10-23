@@ -76,7 +76,6 @@ add_library(n3mapping_core SHARED
   ${N3MAPPING_CORE_SOURCES}
 )
 n3mapping_guard_product_target(n3mapping_core)
-add_library(${PROJECT_NAME}_lib ALIAS n3mapping_core)
 n3mapping_configure_core_target(n3mapping_core)
 
 n3mapping_add_nav_resource_reader(n3map_nav_resource_reader)
@@ -389,16 +388,6 @@ if(CATKIN_ENABLE_TESTING)
   )
   set_tests_properties(test_noetic_output_smoke PROPERTIES TIMEOUT 60)
 
-  catkin_add_gtest(test_realtime_odometry
-    ${N3MAPPING_ROOT}/test/test_realtime_odometry.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp)
-  if(TARGET test_realtime_odometry)
-    target_link_libraries(test_realtime_odometry ${PCL_LIBRARIES})
-  endif()
-  catkin_add_gtest(test_realtime_projection_contract
-    ${N3MAPPING_ROOT}/test/test_realtime_projection_contract.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
   catkin_add_gtest(test_noetic_live_output_queues
     ${N3MAPPING_ROOT}/test/test_noetic_live_output_queues.cpp
     ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
@@ -414,14 +403,9 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(test_ros_output_contract n3mapping_noetic_wrapper ${JSONCPP_LIBRARIES})
   endif()
 
-  catkin_add_gtest(test_realtime_output
-    ${N3MAPPING_ROOT}/test/test_realtime_output.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp)
-  if(TARGET test_realtime_output)
-    target_include_directories(test_realtime_output PRIVATE ${JSONCPP_INCLUDE_DIRS})
-    target_link_libraries(test_realtime_output n3mapping_core ${JSONCPP_LIBRARIES})
-  endif()
   include(${N3MAPPING_ROOT}/cmake/n3mapping_checks.cmake)
+  include(${N3MAPPING_ROOT}/cmake/n3mapping_core_tests.cmake)
+
   n3mapping_add_static_checks()
 
   add_test(
@@ -493,188 +477,7 @@ if(CATKIN_ENABLE_TESTING)
   )
   set_tests_properties(test_n3mapping_ros1_raw_bag_slice PROPERTIES TIMEOUT 60)
 
-  catkin_add_gtest(test_config
-    ${N3MAPPING_ROOT}/test/test_config.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_config)
-    target_link_libraries(test_config n3mapping_core)
-  endif()
-
-  catkin_add_gtest(test_static_start_guard
-    ${N3MAPPING_ROOT}/test/test_static_start_guard.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_static_start_guard)
-    target_link_libraries(test_static_start_guard n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_odometry_sanity
-    ${N3MAPPING_ROOT}/test/test_odometry_sanity.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_odometry_sanity)
-    target_link_libraries(test_odometry_sanity n3mapping_core)
-  endif()
-
-  catkin_add_gtest(test_core_types
-    ${N3MAPPING_ROOT}/test/test_core_types.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_core_types)
-    target_link_libraries(test_core_types n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_n3mapping_core
-    ${N3MAPPING_ROOT}/test/test_n3mapping_core.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_n3mapping_core)
-    target_link_libraries(test_n3mapping_core n3mapping_core ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-  endif()
-
-  catkin_add_gtest(test_loop_detector
-    ${N3MAPPING_ROOT}/test/test_loop_detector.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_loop_detector)
-    target_link_libraries(test_loop_detector n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
-  endif()
-
-  catkin_add_gtest(test_loop_debug_logger
-    ${N3MAPPING_ROOT}/test/test_loop_debug_logger.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_loop_debug_logger)
-    target_link_libraries(test_loop_debug_logger n3mapping_core)
-  endif()
-
-  catkin_add_gtest(test_async_log
-    ${N3MAPPING_ROOT}/test/test_async_log.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp)
-  if(TARGET test_async_log)
-    target_link_libraries(test_async_log n3mapping_core)
-  endif()
-
-  catkin_add_gtest(test_global_map_cache
-    ${N3MAPPING_ROOT}/test/test_global_map_cache.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_global_map_cache)
-    target_link_libraries(test_global_map_cache n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_localization_atlas
-    ${N3MAPPING_ROOT}/test/test_localization_atlas.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_localization_atlas)
-    target_link_libraries(test_localization_atlas n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_world_localizing
-    ${N3MAPPING_ROOT}/test/test_world_localizing.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_world_localizing)
-    target_link_libraries(test_world_localizing n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
-  endif()
-
-  catkin_add_gtest(test_point_cloud_matcher
-    ${N3MAPPING_ROOT}/test/test_point_cloud_matcher.cpp
-    ${N3MAPPING_ROOT}/test/test_relocalization_candidate_evaluator.cpp
-    ${N3MAPPING_ROOT}/test/test_registration_search.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_point_cloud_matcher)
-    target_link_libraries(test_point_cloud_matcher n3mapping_core ${PCL_LIBRARIES} OpenMP::OpenMP_CXX)
-  endif()
-
-  catkin_add_gtest(test_config_wiring
-    ${N3MAPPING_ROOT}/test/test_config_wiring.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_config_wiring)
-    target_link_libraries(test_config_wiring n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_visibility_consistency
-    ${N3MAPPING_ROOT}/test/test_visibility_consistency.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_visibility_consistency)
-    target_link_libraries(test_visibility_consistency n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_relocalization_debug_logger
-    ${N3MAPPING_ROOT}/test/test_relocalization_debug_logger.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_relocalization_debug_logger)
-    target_link_libraries(test_relocalization_debug_logger n3mapping_core)
-  endif()
-
-  catkin_add_gtest(test_relocalization_target_provider
-    ${N3MAPPING_ROOT}/test/test_relocalization_target_provider.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_relocalization_target_provider)
-    target_link_libraries(test_relocalization_target_provider n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_local_map_selector
-    ${N3MAPPING_ROOT}/test/test_local_map_selector.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_local_map_selector)
-    target_link_libraries(test_local_map_selector n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_submap_builder
-    ${N3MAPPING_ROOT}/test/test_submap_builder.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_submap_builder)
-    target_link_libraries(test_submap_builder n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_submap_graph_trial
-    ${N3MAPPING_ROOT}/test/test_submap_graph_trial.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_submap_graph_trial)
-    target_link_libraries(test_submap_graph_trial n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_submap_graph_trial_runtime
-    ${N3MAPPING_ROOT}/test/test_submap_graph_trial_runtime.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_submap_graph_trial_runtime)
-    target_link_libraries(test_submap_graph_trial_runtime n3mapping_core ${PCL_LIBRARIES})
-  endif()
-
   if(N3MAPPING_BUILD_RESEARCH_TOOLS)
-    catkin_add_gtest(test_kitti360_reader
-      ${N3MAPPING_ROOT}/test/test_kitti360_reader.cpp
-      ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-    )
-
-    catkin_add_gtest(test_kitti360_eval
-      ${N3MAPPING_ROOT}/test/test_kitti360_eval.cpp
-      ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-    )
-    if(TARGET test_kitti360_eval)
-      target_link_libraries(test_kitti360_eval n3mapping_core ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-    endif()
-
-    catkin_add_gtest(test_m2dgr_eval
-      ${N3MAPPING_ROOT}/test/test_m2dgr_eval.cpp
-      ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-    )
-    if(TARGET test_m2dgr_eval)
-      target_link_libraries(test_m2dgr_eval n3mapping_core ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-    endif()
 
     add_test(
       NAME test_n3mapping_fa02_tools
@@ -691,34 +494,6 @@ if(CATKIN_ENABLE_TESTING)
         ${PYTHON_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_fa02b_tools.py
     )
     set_tests_properties(test_n3mapping_fa02b_tools PROPERTIES TIMEOUT 60)
-  endif()
-
-  catkin_add_gtest(test_synthetic_relocalization
-    ${N3MAPPING_ROOT}/test/test_synthetic_relocalization.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_synthetic_relocalization)
-    target_link_libraries(test_synthetic_relocalization n3mapping_core ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
-  endif()
-
-  catkin_add_gtest(test_localization_episode
-    ${N3MAPPING_ROOT}/test/test_localization_episode.cpp
-    ${N3MAPPING_ROOT}/test/test_localization_recovery.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_localization_episode)
-    target_include_directories(test_localization_episode PRIVATE ${JSONCPP_INCLUDE_DIRS})
-    target_link_libraries(test_localization_episode n3mapping_core ${PCL_LIBRARIES} ${JSONCPP_LIBRARIES})
-  endif()
-
-  catkin_add_gtest(test_dense_trajectory_export
-    ${N3MAPPING_ROOT}/test/test_dense_trajectory_export.cpp
-    ${N3MAPPING_ROOT}/test/n3mapping_gtest_main.cpp
-  )
-  if(TARGET test_dense_trajectory_export)
-    target_link_libraries(test_dense_trajectory_export
-      n3map_nav_resource_reader
-    )
   endif()
 
   add_test(

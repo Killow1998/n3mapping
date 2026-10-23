@@ -1,5 +1,5 @@
+#include "n3mapping/pcl_compat.h"
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
 #include "n3mapping/keyframe_manager.h"
 
 namespace n3mapping {
@@ -21,7 +21,7 @@ protected:
 
     // 创建测试点云
     Keyframe::PointCloudT::Ptr createTestCloud(size_t num_points = 100) {
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         cloud->points.resize(num_points);
         for (size_t i = 0; i < num_points; ++i) {
             cloud->points[i].x = static_cast<float>(i) * 0.1f;
@@ -418,7 +418,7 @@ TEST_F(KeyframeManagerTest, FindNearestByPosition) {
 // 测试关键帧有效性检查
 TEST_F(KeyframeManagerTest, KeyframeValidity) {
     auto cloud = createTestCloud();
-    auto empty_cloud = std::make_shared<Keyframe::PointCloudT>();
+    auto empty_cloud = pcl::make_shared<Keyframe::PointCloudT>();
     
     // 有效关键帧
     auto kf_valid = Keyframe::create(0, 0.0, createPose(0, 0, 0), cloud);
@@ -435,11 +435,3 @@ TEST_F(KeyframeManagerTest, KeyframeValidity) {
 
 }  // namespace test
 }  // namespace n3mapping
-
-int main(int argc, char** argv) {
-    rclcpp::init(argc, argv);
-    testing::InitGoogleTest(&argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

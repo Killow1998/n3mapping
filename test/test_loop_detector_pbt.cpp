@@ -1,3 +1,4 @@
+#include "n3mapping/pcl_compat.h"
 /**
  * @file test_loop_detector_pbt.cpp
  * @brief Property-Based Tests for LoopDetector
@@ -6,12 +7,11 @@
  * Property 4: 回环检测排除近邻帧
  * Validates: Requirements 4.6
  * 
- * Property 7: ScanContext 描述子维度不变性
+ * Property 7: RHPD 航向描述子维度不变性
  * Validates: Requirements 4.1
  */
 
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
 #include <random>
 #include <chrono>
 #include "n3mapping/loop_detector.h"
@@ -62,7 +62,7 @@ protected:
         std::uniform_real_distribution<double> height_dist(-5.0, 5.0);
         
         size_t num_points = num_dist(rng_);
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         cloud->points.reserve(num_points);
         
         for (size_t i = 0; i < num_points; ++i) {
@@ -87,7 +87,7 @@ protected:
         std::uniform_real_distribution<double> radius_noise(-2.0, 2.0);
         
         size_t num_points = num_dist(rng_);
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         cloud->points.reserve(num_points);
         
         for (size_t i = 0; i < num_points; ++i) {
@@ -189,11 +189,11 @@ TEST_F(LoopDetectorPBTTest, Property4_ExcludeRecentFrames) {
 }
 
 /**
- * @brief Property 7: ScanContext 描述子维度不变性
+ * @brief Property 7: RHPD 航向描述子维度不变性
  * 
- * For any 输入点云，生成的 ScanContext 描述子维度应始终为 (PC_NUM_RING × PC_NUM_SECTOR)
+ * For any 输入点云，RHPD 航向描述子的行数应为 rings × channels，列数应为 sectors
  * 
- * Feature: n3mapping-backend, Property 7: ScanContext 描述子维度不变性
+ * Feature: n3mapping-backend, Property 7: RHPD 航向描述子维度不变性
  * Validates: Requirements 4.1
  */
 TEST_F(LoopDetectorPBTTest, Property7_DescriptorDimensionInvariance) {
@@ -312,11 +312,3 @@ TEST_F(LoopDetectorPBTTest, CandidateCountLimit) {
 
 }  // namespace test
 }  // namespace n3mapping
-
-int main(int argc, char** argv) {
-    rclcpp::init(argc, argv);
-    testing::InitGoogleTest(&argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

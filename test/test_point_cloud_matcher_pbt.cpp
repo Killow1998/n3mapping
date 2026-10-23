@@ -1,3 +1,4 @@
+#include "n3mapping/pcl_compat.h"
 /**
  * @file test_point_cloud_matcher_pbt.cpp
  * @brief Property-Based Tests for PointCloudMatcher
@@ -13,7 +14,6 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <random>
-#include <rclcpp/rclcpp.hpp>
 
 #include "n3mapping/point_cloud_matcher.h"
 
@@ -52,7 +52,7 @@ class PointCloudMatcherPBT : public ::testing::Test
         std::uniform_int_distribution<size_t> num_dist(min_points, max_points);
         size_t num_points = num_dist(rng);
 
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         cloud->points.resize(num_points);
 
         std::uniform_real_distribution<float> pos_dist(-size / 2, size / 2);
@@ -82,7 +82,7 @@ class PointCloudMatcherPBT : public ::testing::Test
         std::uniform_int_distribution<size_t> num_dist(min_points, max_points);
         size_t num_points = num_dist(rng);
 
-        auto cloud = std::make_shared<Keyframe::PointCloudT>();
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         cloud->points.resize(num_points);
 
         std::uniform_real_distribution<float> pos_dist(-size / 2, size / 2);
@@ -131,7 +131,7 @@ class PointCloudMatcherPBT : public ::testing::Test
      */
     Keyframe::PointCloudT::Ptr transformCloud(const Keyframe::PointCloudT::Ptr& cloud, const Eigen::Isometry3d& transform)
     {
-        auto transformed = std::make_shared<Keyframe::PointCloudT>();
+        auto transformed = pcl::make_shared<Keyframe::PointCloudT>();
         transformed->points.resize(cloud->size());
 
         for (size_t i = 0; i < cloud->size(); ++i) {
@@ -254,13 +254,3 @@ TEST_F(PointCloudMatcherPBT, RegistrationSymmetryProperty)
 
 } // namespace test
 } // namespace n3mapping
-
-int
-main(int argc, char** argv)
-{
-    rclcpp::init(argc, argv);
-    testing::InitGoogleTest(&argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

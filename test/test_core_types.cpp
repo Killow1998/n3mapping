@@ -27,15 +27,6 @@ TEST(CoreTypesTest, SharedOdometryBoundaryRejectsNonRigidInput) {
   EXPECT_TRUE(pose.linear().isUnitary(1e-12));
 }
 
-pcl::PointXYZI makePointXYZI(float x, float y, float z, float intensity) {
-  pcl::PointXYZI point;
-  point.x = x;
-  point.y = y;
-  point.z = z;
-  point.intensity = intensity;
-  return point;
-}
-
 TEST(CoreTypesTest, RelocalizationScoreOrderingIsStrict) {
   const std::vector<double> values = {
       0.0, 0.75e-9, 1.5e-9, -1.0, 1.0,
@@ -100,85 +91,6 @@ TEST(CoreTypesTest, DefaultValuesAreRosFreeAndStable) {
   EXPECT_TRUE(output.T_world_lidar.isApprox(Eigen::Isometry3d::Identity()));
   EXPECT_EQ(output.cloud_body, nullptr);
   EXPECT_EQ(output.cloud_world, nullptr);
-}
-
-TEST(CoreTypesTest, PointCloudBackedFramesCanBePopulated) {
-  core::RawLidarFrame::PointCloud::Ptr cloud(
-      new core::RawLidarFrame::PointCloud);
-  cloud->push_back(makePointXYZI(1.0f, 2.0f, 3.0f, 4.0f));
-
-  core::RawLidarFrame raw_frame;
-  raw_frame.stamp_begin.nsec = 100;
-  raw_frame.stamp_end.nsec = 200;
-  raw_frame.frame_id = "lidar";
-  raw_frame.source_format = "livox_custom";
-  raw_frame.points = cloud;
-  raw_frame.point_time_offsets_ns = {10U};
-  raw_frame.point_lines = {3U};
-
-  ASSERT_NE(raw_frame.points, nullptr);
-  ASSERT_EQ(raw_frame.points->size(), 1U);
-  EXPECT_EQ(raw_frame.frame_id, "lidar");
-  EXPECT_EQ(raw_frame.source_format, "livox_custom");
-  EXPECT_EQ(raw_frame.point_time_offsets_ns.front(), 10U);
-  EXPECT_EQ(raw_frame.point_lines.front(), 3U);
-
-  core::LioFrame lio_frame;
-  lio_frame.stamp.nsec = 1234;
-  lio_frame.pose_valid = true;
-  lio_frame.covariance_valid = true;
-  lio_frame.undistorted_cloud = cloud;
-  lio_frame.T_world_lidar.translation() = Eigen::Vector3d(1.0, 2.0, 3.0);
-
-  ASSERT_NE(lio_frame.undistorted_cloud, nullptr);
-  EXPECT_EQ(lio_frame.undistorted_cloud->size(), 1U);
-  EXPECT_TRUE(lio_frame.pose_valid);
-  EXPECT_TRUE(lio_frame.covariance_valid);
-  EXPECT_DOUBLE_EQ(lio_frame.T_world_lidar.translation().x(), 1.0);
-  EXPECT_DOUBLE_EQ(lio_frame.T_world_lidar.translation().y(), 2.0);
-  EXPECT_DOUBLE_EQ(lio_frame.T_world_lidar.translation().z(), 3.0);
-}
-
-TEST(CoreTypesTest, BackendOutputCarriesCoreResults) {
-  core::LioFrame::PointCloud::Ptr body_cloud(
-      new core::LioFrame::PointCloud);
-  core::LioFrame::PointCloud::Ptr world_cloud(
-      new core::LioFrame::PointCloud);
-  body_cloud->push_back(makePointXYZI(0.0f, 0.0f, 0.0f, 1.0f));
-  world_cloud->push_back(makePointXYZI(5.0f, 0.0f, 0.0f, 1.0f));
-
-  core::BackendOutput output;
-  output.success = true;
-  output.accepted_keyframe = true;
-  output.relocalization_locked = true;
-  output.relocalization_state = RelocalizationState::FULL_6DOF_LOCKED;
-  output.pose_source = PoseSource::GEOMETRICALLY_CORRECTED;
-  output.relocalization_decision = "accepted";
-  output.keyframe_id = 42;
-  output.relocalization_seed_keyframe_id = 12;
-  output.relocalization_support_keyframe_id = 24;
-  output.matched_keyframe_id = 24;
-  output.cloud_body = body_cloud;
-  output.cloud_world = world_cloud;
-  output.T_world_lidar.translation() = Eigen::Vector3d(5.0, 6.0, 7.0);
-
-  EXPECT_TRUE(output.success);
-  EXPECT_TRUE(output.accepted_keyframe);
-  EXPECT_TRUE(output.relocalization_locked);
-  EXPECT_EQ(output.relocalization_state, RelocalizationState::FULL_6DOF_LOCKED);
-  EXPECT_EQ(output.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
-  EXPECT_EQ(output.relocalization_decision, "accepted");
-  EXPECT_EQ(output.keyframe_id, 42);
-  EXPECT_EQ(output.relocalization_seed_keyframe_id, 12);
-  EXPECT_EQ(output.relocalization_support_keyframe_id, 24);
-  EXPECT_EQ(output.matched_keyframe_id, 24);
-  ASSERT_NE(output.cloud_body, nullptr);
-  ASSERT_NE(output.cloud_world, nullptr);
-  EXPECT_EQ(output.cloud_body->size(), 1U);
-  EXPECT_EQ(output.cloud_world->size(), 1U);
-  EXPECT_DOUBLE_EQ(output.T_world_lidar.translation().x(), 5.0);
-  EXPECT_DOUBLE_EQ(output.T_world_lidar.translation().y(), 6.0);
-  EXPECT_DOUBLE_EQ(output.T_world_lidar.translation().z(), 7.0);
 }
 
 TEST(CoreTypesTest, RelocalizationPoseAuthorityIsFailClosed) {

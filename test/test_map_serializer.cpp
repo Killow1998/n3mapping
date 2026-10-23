@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
 #include "n3mapping/map_serializer.h"
+#include "n3mapping/submap_builder.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/graph_optimizer.h"
@@ -2586,11 +2586,3 @@ TEST_F(MapSerializerTest, MapWithoutSessionAnchorsStillLoads) {
 
 }  // namespace test
 }  // namespace n3mapping
-
-int main(int argc, char** argv) {
-    testing::InitGoogleTest(&argc, argv);
-    rclcpp::init(argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

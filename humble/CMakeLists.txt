@@ -75,7 +75,6 @@ add_library(n3mapping_core SHARED
   ${N3MAPPING_CORE_SOURCES}
 )
 n3mapping_guard_product_target(n3mapping_core)
-add_library(${PROJECT_NAME}_lib ALIAS n3mapping_core)
 n3mapping_configure_core_target(n3mapping_core)
 
 n3mapping_add_nav_resource_reader(n3map_nav_resource_reader)
@@ -370,7 +369,6 @@ if(BUILD_TESTING)
       --ros humble --node $<TARGET_FILE:n3mapping_node>)
   set_tests_properties(test_logging_ros_e2e PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
 
-
   add_test(
     NAME test_n3mapping_support_bundle
     COMMAND ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_support_bundle.py
@@ -543,279 +541,17 @@ if(BUILD_TESTING)
   target_include_directories(test_humble_live_output PRIVATE ${JSONCPP_INCLUDE_DIRS})
   target_link_libraries(test_humble_live_output "${n3mapping_typesupport_target}" ${JSONCPP_LIBRARIES})
 
-  ament_add_gtest(test_realtime_projection_contract ${N3MAPPING_ROOT}/test/test_realtime_projection_contract.cpp)
-  target_link_libraries(test_realtime_projection_contract n3mapping_core)
-
-  ament_add_gtest(test_realtime_odometry ${N3MAPPING_ROOT}/test/test_realtime_odometry.cpp)
-  target_link_libraries(test_realtime_odometry ${PCL_LIBRARIES})
-
-  ament_add_gtest(test_realtime_output ${N3MAPPING_ROOT}/test/test_realtime_output.cpp)
-  target_include_directories(test_realtime_output PRIVATE ${JSONCPP_INCLUDE_DIRS})
-  target_link_libraries(test_realtime_output n3mapping_core ${JSONCPP_LIBRARIES})
-
-  ament_add_gtest(test_keyframe_manager ${N3MAPPING_ROOT}/test/test_keyframe_manager.cpp)
-  if(TARGET test_keyframe_manager)
-    target_link_libraries(test_keyframe_manager ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_keyframe_manager rclcpp)
-  endif()
-
-  ament_add_gtest(test_async_log ${N3MAPPING_ROOT}/test/test_async_log.cpp)
-  if(TARGET test_async_log)
-    target_link_libraries(test_async_log n3mapping_core)
-  endif()
-
-  ament_add_gtest(test_global_map_cache ${N3MAPPING_ROOT}/test/test_global_map_cache.cpp)
-  if(TARGET test_global_map_cache)
-    target_link_libraries(test_global_map_cache ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_global_map_cache rclcpp)
-  endif()
-
-  ament_add_gtest(test_config ${N3MAPPING_ROOT}/test/test_config.cpp)
-  if(TARGET test_config)
-    target_link_libraries(test_config ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_config rclcpp)
-  endif()
-
-  ament_add_gtest(test_static_start_guard
-    ${N3MAPPING_ROOT}/test/test_static_start_guard.cpp)
-  if(TARGET test_static_start_guard)
-    target_link_libraries(test_static_start_guard ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-  endif()
-
-  ament_add_gtest(test_odometry_sanity
-    ${N3MAPPING_ROOT}/test/test_odometry_sanity.cpp)
-  if(TARGET test_odometry_sanity)
-    target_link_libraries(test_odometry_sanity ${PROJECT_NAME}_lib)
-  endif()
-
-  ament_add_gtest(test_core_types
-    ${N3MAPPING_ROOT}/test/test_core_types.cpp)
-  if(TARGET test_core_types)
-    target_link_libraries(test_core_types ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-  endif()
-
   ament_add_gtest(test_product_config_humble
     ${N3MAPPING_ROOT}/test/test_product_config_humble.cpp)
   if(TARGET test_product_config_humble)
     target_link_libraries(test_product_config_humble
-      ${PROJECT_NAME}_lib
+      n3mapping_core
       n3mapping_humble_wrapper
     )
     ament_target_dependencies(test_product_config_humble rclcpp)
   endif()
 
-  ament_add_gtest(test_dense_trajectory_export
-    ${N3MAPPING_ROOT}/test/test_dense_trajectory_export.cpp)
-  if(TARGET test_dense_trajectory_export)
-    target_link_libraries(test_dense_trajectory_export
-      n3map_nav_resource_reader
-    )
-  endif()
-
-  ament_add_gtest(test_localization_atlas ${N3MAPPING_ROOT}/test/test_localization_atlas.cpp)
-  if(TARGET test_localization_atlas)
-    target_link_libraries(test_localization_atlas ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_localization_atlas rclcpp)
-  endif()
-
-  ament_add_gtest(test_n3mapping_core ${N3MAPPING_ROOT}/test/test_n3mapping_core.cpp)
-  if(TARGET test_n3mapping_core)
-    target_link_libraries(test_n3mapping_core ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-    ament_target_dependencies(test_n3mapping_core rclcpp)
-  endif()
-
-  ament_add_gtest(test_point_cloud_matcher
-    ${N3MAPPING_ROOT}/test/test_point_cloud_matcher.cpp
-    ${N3MAPPING_ROOT}/test/test_relocalization_candidate_evaluator.cpp
-    ${N3MAPPING_ROOT}/test/test_registration_search.cpp)
-  if(TARGET test_point_cloud_matcher)
-    target_link_libraries(test_point_cloud_matcher ${PROJECT_NAME}_lib ${PCL_LIBRARIES} OpenMP::OpenMP_CXX)
-  endif()
-
-  ament_add_gtest(test_point_cloud_matcher_pbt ${N3MAPPING_ROOT}/test/test_point_cloud_matcher_pbt.cpp)
-  if(TARGET test_point_cloud_matcher_pbt)
-    target_link_libraries(test_point_cloud_matcher_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} OpenMP::OpenMP_CXX)
-    ament_target_dependencies(test_point_cloud_matcher_pbt rclcpp)
-  endif()
-
-  ament_add_gtest(test_loop_detector ${N3MAPPING_ROOT}/test/test_loop_detector.cpp)
-  if(TARGET test_loop_detector)
-    target_link_libraries(test_loop_detector ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
-    ament_target_dependencies(test_loop_detector rclcpp)
-  endif()
-
-  ament_add_gtest(test_loop_debug_logger ${N3MAPPING_ROOT}/test/test_loop_debug_logger.cpp)
-  if(TARGET test_loop_debug_logger)
-    target_link_libraries(test_loop_debug_logger ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_loop_debug_logger rclcpp)
-  endif()
-
-  ament_add_gtest(test_loop_heightmap_diagnostics ${N3MAPPING_ROOT}/test/test_loop_heightmap_diagnostics.cpp)
-  if(TARGET test_loop_heightmap_diagnostics)
-    target_link_libraries(test_loop_heightmap_diagnostics ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_loop_heightmap_diagnostics rclcpp)
-  endif()
-
-  ament_add_gtest(test_loop_graph_trial_diagnostics ${N3MAPPING_ROOT}/test/test_loop_graph_trial_diagnostics.cpp)
-  if(TARGET test_loop_graph_trial_diagnostics)
-    target_link_libraries(test_loop_graph_trial_diagnostics ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_loop_graph_trial_diagnostics rclcpp)
-  endif()
-
-  ament_add_gtest(test_loop_consensus_verifier ${N3MAPPING_ROOT}/test/test_loop_consensus_verifier.cpp)
-  if(TARGET test_loop_consensus_verifier)
-    target_link_libraries(test_loop_consensus_verifier ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_loop_consensus_verifier rclcpp)
-  endif()
-
-  ament_add_gtest(test_loop_detector_pbt ${N3MAPPING_ROOT}/test/test_loop_detector_pbt.cpp)
-  if(TARGET test_loop_detector_pbt)
-    target_link_libraries(test_loop_detector_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
-    ament_target_dependencies(test_loop_detector_pbt rclcpp)
-  endif()
-
-  ament_add_gtest(test_trajectory_checkpoint ${N3MAPPING_ROOT}/test/test_trajectory_checkpoint.cpp)
-  if(TARGET test_trajectory_checkpoint)
-    target_link_libraries(test_trajectory_checkpoint n3mapping_core)
-  endif()
-
-  ament_add_gtest(test_joint_geometry ${N3MAPPING_ROOT}/test/test_joint_geometry.cpp)
-  if(TARGET test_joint_geometry)
-    target_link_libraries(test_joint_geometry n3mapping_core)
-  endif()
-
-  ament_add_gtest(test_graph_optimizer ${N3MAPPING_ROOT}/test/test_graph_optimizer.cpp)
-  if(TARGET test_graph_optimizer)
-    target_link_libraries(test_graph_optimizer ${PROJECT_NAME}_lib ${PCL_LIBRARIES} gtsam)
-    ament_target_dependencies(test_graph_optimizer rclcpp)
-  endif()
-
-  ament_add_gtest(test_graph_optimizer_pbt ${N3MAPPING_ROOT}/test/test_graph_optimizer_pbt.cpp)
-  if(TARGET test_graph_optimizer_pbt)
-    target_link_libraries(test_graph_optimizer_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} gtsam)
-    ament_target_dependencies(test_graph_optimizer_pbt rclcpp)
-  endif()
-
-  ament_add_gtest(test_map_serializer ${N3MAPPING_ROOT}/test/test_map_serializer.cpp)
-  if(TARGET test_map_serializer)
-    target_link_libraries(test_map_serializer ${PROJECT_NAME}_lib n3map_nav_resource_reader ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-    ament_target_dependencies(test_map_serializer rclcpp)
-  endif()
-
-  ament_add_gtest(test_n3mapping_filter_nav_pbstream ${N3MAPPING_ROOT}/test/test_n3mapping_filter_nav_pbstream.cpp)
-  if(TARGET test_n3mapping_filter_nav_pbstream)
-    target_link_libraries(test_n3mapping_filter_nav_pbstream ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-    ament_target_dependencies(test_n3mapping_filter_nav_pbstream rclcpp)
-  endif()
-
-  if(N3MAPPING_BUILD_RESEARCH_TOOLS)
-    ament_add_gtest(test_kitti360_reader ${N3MAPPING_ROOT}/test/test_kitti360_reader.cpp)
-
-    ament_add_gtest(test_kitti360_eval ${N3MAPPING_ROOT}/test/test_kitti360_eval.cpp)
-    if(TARGET test_kitti360_eval)
-      target_link_libraries(test_kitti360_eval ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-    endif()
-
-    ament_add_gtest(test_m2dgr_eval ${N3MAPPING_ROOT}/test/test_m2dgr_eval.cpp)
-    if(TARGET test_m2dgr_eval)
-      target_link_libraries(test_m2dgr_eval ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-    endif()
-  endif()
-
-  ament_add_gtest(test_synthetic_relocalization ${N3MAPPING_ROOT}/test/test_synthetic_relocalization.cpp)
-  if(TARGET test_synthetic_relocalization)
-    target_link_libraries(test_synthetic_relocalization ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
-    ament_target_dependencies(test_synthetic_relocalization rclcpp)
-  endif()
-
-  ament_add_gtest(test_localization_episode
-    ${N3MAPPING_ROOT}/test/test_localization_episode.cpp
-    ${N3MAPPING_ROOT}/test/test_localization_recovery.cpp
-    TIMEOUT 60)
-  if(TARGET test_localization_episode)
-    target_include_directories(test_localization_episode PRIVATE ${JSONCPP_INCLUDE_DIRS})
-    target_link_libraries(test_localization_episode n3mapping_core ${PCL_LIBRARIES} ${JSONCPP_LIBRARIES})
-  endif()
-
-  ament_add_gtest(test_map_serializer_pbt ${N3MAPPING_ROOT}/test/test_map_serializer_pbt.cpp)
-  if(TARGET test_map_serializer_pbt)
-    target_link_libraries(test_map_serializer_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam)
-    ament_target_dependencies(test_map_serializer_pbt rclcpp)
-  endif()
-
-  ament_add_gtest(test_world_localizing ${N3MAPPING_ROOT}/test/test_world_localizing.cpp)
-  if(TARGET test_world_localizing)
-    target_link_libraries(test_world_localizing ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} OpenMP::OpenMP_CXX)
-    ament_target_dependencies(test_world_localizing rclcpp)
-  endif()
-
-  ament_add_gtest(test_relocalization_debug_logger ${N3MAPPING_ROOT}/test/test_relocalization_debug_logger.cpp)
-  if(TARGET test_relocalization_debug_logger)
-    target_link_libraries(test_relocalization_debug_logger ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_relocalization_debug_logger rclcpp)
-  endif()
-
-  ament_add_gtest(test_relocalization_target_provider ${N3MAPPING_ROOT}/test/test_relocalization_target_provider.cpp)
-  if(TARGET test_relocalization_target_provider)
-    target_link_libraries(test_relocalization_target_provider ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_relocalization_target_provider rclcpp)
-  endif()
-
-  ament_add_gtest(test_local_map_selector ${N3MAPPING_ROOT}/test/test_local_map_selector.cpp)
-  if(TARGET test_local_map_selector)
-    target_link_libraries(test_local_map_selector ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_local_map_selector rclcpp)
-  endif()
-
-  ament_add_gtest(test_submap_builder ${N3MAPPING_ROOT}/test/test_submap_builder.cpp)
-  if(TARGET test_submap_builder)
-    target_link_libraries(test_submap_builder ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_submap_builder rclcpp)
-  endif()
-
-  ament_add_gtest(test_submap_graph_trial
-    ${N3MAPPING_ROOT}/test/test_submap_graph_trial.cpp)
-  if(TARGET test_submap_graph_trial)
-    target_link_libraries(test_submap_graph_trial ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_submap_graph_trial rclcpp)
-  endif()
-
-  ament_add_gtest(test_submap_graph_trial_runtime
-    ${N3MAPPING_ROOT}/test/test_submap_graph_trial_runtime.cpp)
-  if(TARGET test_submap_graph_trial_runtime)
-    target_link_libraries(test_submap_graph_trial_runtime ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_submap_graph_trial_runtime rclcpp)
-  endif()
-
-  ament_add_gtest(test_config_wiring ${N3MAPPING_ROOT}/test/test_config_wiring.cpp)
-  if(TARGET test_config_wiring)
-    target_link_libraries(test_config_wiring ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_config_wiring rclcpp)
-  endif()
-
-  ament_add_gtest(test_visibility_consistency ${N3MAPPING_ROOT}/test/test_visibility_consistency.cpp)
-  if(TARGET test_visibility_consistency)
-    target_link_libraries(test_visibility_consistency ${PROJECT_NAME}_lib ${PCL_LIBRARIES})
-    ament_target_dependencies(test_visibility_consistency rclcpp)
-  endif()
-
-  ament_add_gtest(test_mapping_resuming ${N3MAPPING_ROOT}/test/test_mapping_resuming.cpp)
-  if(TARGET test_mapping_resuming)
-    target_link_libraries(test_mapping_resuming ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam OpenMP::OpenMP_CXX)
-    ament_target_dependencies(test_mapping_resuming rclcpp)
-  endif()
-
-  ament_add_gtest(test_mapping_resuming_pbt ${N3MAPPING_ROOT}/test/test_mapping_resuming_pbt.cpp)
-  if(TARGET test_mapping_resuming_pbt)
-    target_link_libraries(test_mapping_resuming_pbt ${PROJECT_NAME}_lib ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${PROTOBUF_LIBRARIES} gtsam OpenMP::OpenMP_CXX)
-    ament_target_dependencies(test_mapping_resuming_pbt rclcpp)
-  endif()
-
-  ament_add_gmock(test_loop_closure_manager ${N3MAPPING_ROOT}/test/test_loop_closure_manager.cpp)
-  if(TARGET test_loop_closure_manager)
-    target_link_libraries(test_loop_closure_manager ${PROJECT_NAME}_lib)
-    ament_target_dependencies(test_loop_closure_manager rclcpp)
-  endif()
+  include(${N3MAPPING_ROOT}/cmake/n3mapping_core_tests.cmake)
 
   n3mapping_add_static_checks()
 endif()

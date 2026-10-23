@@ -86,4 +86,42 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
   return true;
 }
 
+bool N3MappingCore::saveGlobalMap(const std::string &pcd_path) {
+  return session_->mapSerializer().saveGlobalMap(
+      pcd_path, session_->keyframeManager(),
+      config_.save_global_map_voxel_size);
+}
+
+bool N3MappingCore::saveMapSnapshot(std::string *error) {
+  if (session_->keyframeManager().size() < 1) {
+    if (error)
+      *error = "no_keyframes";
+    return false;
+  }
+
+  const std::string map_file = config_.map_save_path + "/n3map.pbstream";
+  if (!saveMap(map_file)) {
+    if (error)
+      *error = "save_pbstream_failed";
+    return false;
+  }
+
+  if (config_.save_global_map_on_shutdown) {
+    const std::string global_map_file =
+        config_.map_save_path + "/global_map.pcd";
+    if (!saveGlobalMap(global_map_file)) {
+      if (error)
+        *error = "save_global_map_failed";
+      return false;
+    }
+  }
+
+  return true;
+}
+
+core::LioFrame::PointCloud::Ptr N3MappingCore::buildGlobalMap() const {
+  return session_->mapSerializer().buildGlobalMap(
+      session_->keyframeManager(), config_.global_map_voxel_size);
+}
+
 } // namespace n3mapping

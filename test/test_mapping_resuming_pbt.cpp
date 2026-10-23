@@ -1,3 +1,4 @@
+#include "n3mapping/pcl_compat.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_detector.h"
@@ -9,7 +10,6 @@
 #include <gtest/gtest.h>
 #include <pcl/common/transforms.h>
 #include <random>
-#include <rclcpp/rclcpp.hpp>
 
 namespace n3mapping {
 namespace test {
@@ -64,7 +64,7 @@ class MappingResumingPBTTest : public ::testing::Test
     // 生成随机点云
     pcl::PointCloud<pcl::PointXYZI>::Ptr generateRandomCloud(size_t num_points = 500)
     {
-        auto cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+        auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         cloud->resize(num_points);
 
         std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
@@ -325,13 +325,3 @@ TEST_F(MappingResumingPBTTest, IsFromOriginalMapCorrectness)
 
 } // namespace test
 } // namespace n3mapping
-
-int
-main(int argc, char** argv)
-{
-    testing::InitGoogleTest(&argc, argv);
-    rclcpp::init(argc, argv);
-    int result = RUN_ALL_TESTS();
-    rclcpp::shutdown();
-    return result;
-}

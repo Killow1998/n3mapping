@@ -356,8 +356,10 @@ For real-device update/build commands, per-run log capture, and local support ZI
 export, see [实机测试与问题反馈](docs/field_testing_zh.md). The support tool
 does not launch frontends, upload logs, or include maps/bags. Detailed JSONL
 logging is opt-in; default matching and locking behavior is unchanged.
-Four-core logging validation and its remaining startup boundary are recorded in
-[the stage evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-asynchronous-logging--2026-10-23).
+Four-core logging validation is recorded in the
+[logging evidence](docs/evidence/runtime_cpu_20261017/README.md#shared-asynchronous-logging--2026-10-23).
+The subsequent [startup fix](docs/evidence/runtime_cpu_20261017/README.md#humble-startup-input-and-branch-integration--2026-10-23)
+adds continuous input during startup and restart to the real-node E2E.
 
 ### 2.6 Build, Run, And Test Commands
 
@@ -957,6 +959,13 @@ See the [alignment and compile measurements](docs/evidence/runtime_cpu_20261017/
 The core's `MappingResuming` similarly separates session lifecycle, keyframe
 transactions, acquisition identity, cross-session loops and submap diagnostics.
 These are implementation boundaries, without new managers or state copies.
+`N3MappingCore` keeps mapping, extension, load and save implementations in
+corresponding files. `MapSerializer` separates pbstream read/write from PCD export;
+its public header does not import graph, loop-detector or generated protobuf
+implementation headers. Both distributions register core tests from
+`cmake/n3mapping_core_tests.cmake` through native ament/catkin macros. These tests
+use GoogleTest directly, without starting a ROS context. Adapter tests retain
+their native middleware setup.
 Use the relevant behavioral tests during a module change and the integrated
 mapping/localization/extension checks at release boundaries.
 
