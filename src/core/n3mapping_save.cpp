@@ -17,7 +17,14 @@ struct SaveDirectory {
 } // namespace
 bool N3MappingCore::saveMap(const std::string &map_path) {
   LogOperation operation("map_save", map_path);
-  if (async_loops_ || (map_loaded_ && config_.loop_geometry_enable)) processPendingLoopClosures();
+  if (async_loops_ || (map_loaded_ && config_.loop_geometry_enable)) {
+    LogOperation drain("map_save_drain", map_path);
+    const auto loops = processPendingLoopClosures();
+    logEvent("map_save_drained", "edges=" + std::to_string(loops.edge_count) +
+        " worker_ms=" + std::to_string(loops.worker_wall_ms) +
+        " geometry_ms=" + std::to_string(loops.geometry.solve_ms));
+    drain.succeed();
+  }
   if (!refreshSubmapPoses("save_map")) {
     return false;
   }
@@ -42,10 +49,14 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
     stage.path = buffer.data();
   }
   const std::string pending = with_atlas ? (stage.path / "map").string() : map_path;
-  if (!session_->mapSerializer().saveMap(
-      pending, session_->keyframeManager(), session_->loopDetector(),
-      session_->graphOptimizer(), dense_optimized_trajectory, metadata,
-      &session_->submapBuilder())) return false;
+  {
+    LogOperation serialize("map_save_serialize", map_path);
+    if (!session_->mapSerializer().saveMap(
+        pending, session_->keyframeManager(), session_->loopDetector(),
+        session_->graphOptimizer(), dense_optimized_trajectory, metadata,
+        &session_->submapBuilder())) return false;
+    serialize.succeed();
+  }
   if (!with_atlas) { operation.succeed(); return true; }
   const auto atlas_path = LocalizationAtlas::defaultAtlasPath(map_path);
   const auto pending_atlas = (stage.path / "atlas").string();
@@ -53,11 +64,15 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
   LocalizationAtlas atlas(config_, session_->pointCloudMatcher());
   LocalizationAtlasStats stats;
   std::string error;
-  if (!atlas.compileAndSave(pending, session_->keyframeManager().getAllKeyframes(),
+  {
+    LogOperation compile("map_save_atlas", map_path);
+    if (!atlas.compileAndSave(pending, session_->keyframeManager().getAllKeyframes(),
                             pending_atlas, true, &stats, &error)) {
-    LOG(ERROR) << "Map/Atlas save not published: " << error;
-    std::filesystem::remove(pending);
-    return false;
+      LOG(ERROR) << "Map/Atlas save not published: " << error;
+      std::filesystem::remove(pending);
+      return false;
+    }
+    compile.succeed();
   }
   bool backed_up = false, published_atlas = false;
   try {
@@ -87,9 +102,12 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
 }
 
 bool N3MappingCore::saveGlobalMap(const std::string &pcd_path) {
-  return session_->mapSerializer().saveGlobalMap(
+  LogOperation operation("map_save_pcd", pcd_path);
+  const bool saved = session_->mapSerializer().saveGlobalMap(
       pcd_path, session_->keyframeManager(),
       config_.save_global_map_voxel_size);
+  if (saved) operation.succeed();
+  return saved;
 }
 
 bool N3MappingCore::saveMapSnapshot(std::string *error) {

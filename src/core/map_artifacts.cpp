@@ -1,4 +1,5 @@
 #include "n3mapping/core/map_artifacts.h"
+#include "n3mapping/async_log.h"
 #include "n3mapping/core/n3mapping_core.h"
 #include <filesystem>
 #include <pcl/io/pcd_io.h>
@@ -86,6 +87,7 @@ void MapArtifacts::saveDebug(const MapKeyframeSnapshot& snapshot, std::string* w
     }
     return;
   }
+  LogOperation operation("map_save_pcd", config_.map_save_path);
   std::lock_guard<std::mutex> global_map_lock(mutex_);
   const auto cloud = cache_.update(snapshot.keyframes, snapshot.revision);
   if (!cloud || cloud->empty()) {
@@ -102,6 +104,7 @@ void MapArtifacts::saveDebug(const MapKeyframeSnapshot& snapshot, std::string* w
     }
     return;
   }
+  operation.succeed();
 }
 
 void MapArtifacts::withGlobalCloud(const MapKeyframeSnapshot& snapshot,
