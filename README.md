@@ -7,8 +7,12 @@ Save events separate pending-loop work from artifact writes. See the
 [follow-up evidence and limitations](docs/evidence/large_mapping_followup_20261026.md)
 and [solver ownership design](docs/graph_solver_execution.md).
 The dependency race is reproduced; its exclusive responsibility for the original
-SIGSEGV remains unproven. Failed-acquisition drift and general 10 cm accuracy
-remain unresolved. Existing navigation installations and release tags stay intact.
+SIGSEGV remains unproven. Raw-input controls now isolate a large startup-related
+accuracy loss; the unchanged frontend improves substantially with a settled
+start. Online backend error and general 10 cm accuracy remain unresolved.
+See the [startup and causal-prefix controls](docs/evidence/large_mapping_followup_20261026.md#raw-startup-isolation-and-online-accuracy-follow-up).
+These are diagnostic results, not a deployed frontend repair. Existing navigation
+installations and release tags stay intact.
 The previous serial-containment revision **`5e9bf8b`** retains its
 [original qualification](docs/evidence/large_mapping_crash_20261025.md).
 

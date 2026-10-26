@@ -77,5 +77,16 @@
     }
   },
   "protected_installations_unchanged": true,
-  "remote_published": false
+  "remote_published": false,
+  "precision_followup": {
+    "evidence_root": "build/n3mapping/reliability_precision_20261026/precision",
+    "qualification_sha256": "1c13ddd6710e5d3057ac4b01d41935ec5799c2ae9619a53cae7641f17fb4b0f0",
+    "runtime_changed": false,
+    "startup_control": "large causal improvement; automatic initialization repair not implemented",
+    "online_10cm": "not accepted",
+    "successful_recorded_pairs": 10372,
+    "reloaded_maps": 3,
+    "protected_installations_unchanged": true,
+    "correlation_variant": "not adopted after cross-route regressions"
+  }
 }

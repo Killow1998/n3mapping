@@ -13,6 +13,11 @@
 - Keep failed-input accuracy open. Frozen-graph ablations do not justify
   discarding observations or changing weights in the delivered runtime. See the
   [validation and integration record](docs/evidence/large_mapping_followup_20261026.md).
+- Isolate startup-related drift with unchanged frontend/raw-input controls and
+  complete-route replay. Retain the online error, causal-prefix loop/plane
+  ablations, rejected solver/correlation variants, recovered complete recording
+  and three additional map reloads. This evidence update changes no runtime
+  algorithm and does not certify general 10 cm accuracy.
 
 ## [5e9bf8b] - 2026-10-26 (qualified Humble crash revision)
 

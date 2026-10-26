@@ -8,6 +8,11 @@ Humble 后续修订 **`111b1ac`** 使用独立 Release 安装及带官方竞争�
 已复现并修复一处 GTSAM 消元竞争；尚未证明它是原 SIGSEGV 的唯一原因。
 新修订核对实际加载库的 build ID。身份不匹配时保留图内串行保护，不静默恢复并行。
 记录列明并行化的 CPU/RAM 代价、保存等待和仍未解决的精度问题；不能据此认定 10 cm 达标。
+同一原始采图的后续对照已证实启动条件对漂移有明显影响。前端初始化需要在其所属
+入口检查稳定观测，不能把固定等待一秒或延后 N3M 输出视为通用修复。健康启动后，
+在线后端仍有超过 10 cm 的持续误差；最终保存轨迹不能替代在线验收。
+详见[启动与前缀消融证据](evidence/large_mapping_followup_20261026.md#raw-startup-isolation-and-online-accuracy-follow-up)。
+本次只更新诊断证据，没有修改 FAST-LIO、采集入口或运行算法。
 上一版 **`5e9bf8b`** 的[串行隔离验证](evidence/large_mapping_crash_20261025.md)继续保留。
 以下 rc3 章节保留原版本的构建与验收范围；本轮未生成新的 Noetic 构建。
 

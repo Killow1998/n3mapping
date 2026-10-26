@@ -200,8 +200,10 @@ Evidence identifies two separate issues:
    force direction 11.61 degrees from world vertical, versus 0.077 degrees in
    1.2–1.3 s. The second acquisition delays frontend startup by one second, but
    also changes motion limits; it is not a single-variable causal experiment.
-   The exact consumed initialization window and complete frontend cause remain
-   unproven. Acceleration is audited in recorded units, not mislabeled as m/s².
+   The single-variable raw replay below now isolates a substantial startup
+   contribution. This does not establish a general frontend repair or prove
+   every remaining source of drift. Acceleration is audited in recorded units,
+   not mislabeled as m/s².
 2. The backend also contributes error on the completed route. Some stored loop
    measurements have metre-scale disagreement with truth despite robust graph
    weighting. Their mere presence does not establish that they dominate the
@@ -238,6 +240,179 @@ The failed acquisition remains diagnostic and must not be promoted as a valid
 navigation map. Next accuracy work must isolate startup/input defects from
 backend geometric association and weighting on the same observations. Changes
 to FAST-LIO or the simulator require their owning scope; this revision makes none.
+
+## Raw startup isolation and online accuracy follow-up
+
+The additional evidence is in `precision/` under the same evidence root.
+Runtime remains **111b1ac**. No production algorithm, parameter profile,
+acceptance gate, map format or external project is changed in this investigation.
+Ground truth is used only after estimation, with the existing IMU/body extrinsic.
+
+### A causal startup control
+
+Replay the original acquisition's raw LiDAR, IMU and recorded clock into the
+unchanged FAST-LIO executable and configuration. The only input change is
+starting at storage time 1 s instead of 0 s. The route and sensor payloads are
+unchanged. Private process mounts redirect legacy frontend log writes; the
+frontend source, installed binary and configuration remain read-only.
+The executable SHA256 remains
+`86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93`.
+
+The first 60 s control reproduces the original frontend's 596 shared poses
+with **zero component-wise difference**. Its own-first-pose maximum is
+24.0445 cm. To exclude different alignment times as the explanation, both runs
+are also aligned once at the same physical timestamp, **1.299989997 s**:
+
+| Same 587 timestamps through 59.899695 s | Position RMS | Maximum |
+| --- | --- | --- |
+| Original raw start | 12.418 cm | 21.864 cm |
+| Raw input starting at 1 s | 0.598 cm | 0.981 cm |
+
+This is not a fitted whole-route alignment. The first-pose transform is fixed
+for all later estimates. `startup_scores.json` and
+`matched_startup_anchor.json` retain both scoring conventions.
+
+The unchanged frontend reports initialization over **20 IMU samples** in both
+runs. The original initialization log reports acceleration variance 0.100418;
+the delayed run reports 0.000007, in the frontend's recorded units. The inspected
+implementation checks motion only after more than 50 samples, while its
+default zero-wait path already finishes after these 20 samples. This supports
+an initialization-quality defect for this input; it does not prove that a
+fixed one-second delay is safe on a different robot or scene.
+
+An implementation remedy belongs at the frontend/acquisition initialization
+boundary: validate a fresh stable IMU window before committing gravity and bias,
+restart that window when it is disturbed, and expose readiness before mapping
+or route motion begins. Simply discarding N3M outputs after FAST-LIO has already
+initialized does not repair gravity, deskewed points or the frontend's local map.
+This remedy is specified for the owning scope, not silently implemented here.
+
+### Complete original route, with healthy startup
+
+The normal-rate replay retains all **10,372** original frontend timestamps from
+1.299989997 s through 1038.399989997 s, each exactly once in the backend and
+native saved trajectory. At the same fixed 1.299989997 s alignment, original
+frontend RMS/max is **35.583/86.813 cm**, versus **3.770/7.619 cm** after changing
+the raw start. The previous 297 s large error no longer has its original
+magnitude. This improvement is demonstrated over the complete recorded input,
+not just the quiet opening minute.
+
+All three output streams below share the first frontend pose's alignment in
+each run. Online output is kept separate from the final corrected trajectory.
+
+| Raw replay rate | Frontend RMS / max | Online N3M RMS / max | Final native RMS / max |
+| --- | --- | --- | --- |
+| 1× | 3.770 / 7.619 cm | 9.776 / 25.639 cm | 3.280 / 8.609 cm |
+| 2× repeat | 3.784 / 7.635 cm | 8.248 / 19.681 cm | 3.763 / 11.058 cm |
+
+The first run's online output exceeds 10 cm for about **258.5 s**. The graph's
+existing current-pose log also reaches approximately 25.55 cm near 434.9 s;
+its text precision is lower than the pose CSV. The issue is present in the
+graph estimate, not merely an output-projection artifact. It is not a brief
+isolated spike. The final map benefits from later observations that were
+unavailable to online estimates.
+
+The 2× repeat changes frontend poses by up to **5.58 mm** compared with 1×,
+despite retaining exactly the same timestamps and raw source. Async graph
+schedules also differ: 1× retains 1,289 keyframes/1,162 loops, while 2× retains
+1,290/1,142. This is a pipeline repeat, not a deterministic backend-only A/B.
+Neither the 1× final maximum nor the large startup gain establishes general
+10 cm accuracy. The other completed two-floor acquisition retains its previous
+unresolved accuracy result.
+
+The normal-rate N3M process averages **0.649 cores**, with **891.32 MiB** peak
+RSS high-water mark; frontend averages **0.200 cores**, with **373.85 MiB** peak.
+Final save takes **0.817 s**. The 2× N3M process averages **1.233 cores**, peaks
+at **910.25 MiB**, and saves in **0.835 s**. These are measured process-lifetime
+costs, not a same-load performance improvement or a half-core qualification.
+All estimators are confined to cores 0,2,4,6.
+
+### Recording failure and recovery
+
+The first run's independent pose observer and N3M complete, but its auxiliary
+recorder aborts after **4,577** cloud/odometry pairs. Point's read-only query of
+the actively written SQLite database creates a read lock; rosbag2 reports
+`SQLite error (5): database is locked`. The recorder exits with SIGABRT.
+The failure, partial database, missing metadata and first failed coverage check
+are retained. It must not be described as a complete recorded frontend bag or
+as a new N3M/GTSAM crash.
+
+The repeat checks recorder liveness and does not inspect SQLite during writes.
+It exits normally and produces a closed bag with **10,372 clouds and 10,372
+odometry messages**, matching the observer, backend and native trajectory.
+Use `precision/full_start1_repeat_2x/lio_source/bag` for future frozen-input
+tests. The frontend wrapper's -2 status is the deliberately requested SIGINT;
+the node logs show its shutdown signal. N3M, observer, recorder and replayer
+return zero in the successful repeat.
+
+### Solver controls rejected as a precision fix
+
+Two frozen graphs compare approximate versus chain-rule-correct SE(3)
+BetweenFactor derivatives, crossed with default versus tighter LM tolerances.
+Measurements, information matrices, plane observations and gauge are fixed.
+Finite differences confirm the exact residual Jacobians to about 1.3e-8,
+whereas the dependency's default approximation has large errors on some
+outlier constraints. That fact alone does not establish an accuracy benefit.
+
+Default solves stop after one iteration. Tight tolerances require 15 iterations
+on the failed graph and 17 on the completed graph. For the completed graph,
+the approximate-derivative maximum changes only **14.7456 → 14.7415 cm**;
+exact derivatives also leave its maximum near **14.744 cm**. The failed graph
+remains above one metre, with small mixed changes. These controls do not explain
+the online 25 cm error or justify a permanent increase in solver work.
+No derivative variant or tighter tolerance is adopted.
+
+### Causal prefix and correlation ablation
+
+The closed partial recording contains all 4,577 cloud/odometry pairs through
+458.899989997 s. A separately reindexed copy replays this exact prefix into the
+unchanged backend. No later sensor observation is available. The 4,572 live
+outputs reproduce the approximately 25.639 cm online maximum. The saved graph
+contains 576 keyframes. Frozen-observation ablations retain the original
+measurements, gauge and noise for each included factor family:
+
+| Prefix graph, keyframe-only evaluation | RMS | Maximum | Last pose |
+| --- | --- | --- | --- |
+| Odometry only | 2.993 cm | 5.922 cm | 1.487 cm |
+| Odometry + loops | 12.540 cm | 24.375 cm | 21.621 cm |
+| Odometry + planes | 9.009 cm | 15.012 cm | 9.515 cm |
+| All observations | 12.779 cm | 23.793 cm | 21.995 cm |
+
+This localizes a substantial problem to loop constraints, with an additional
+plane-association/weight contribution. Solving the prefix without future input
+does not remove it. These diagnostic deletions are not an implemented policy:
+removing all loops or planes would discard valid observations and their later
+benefit. `prefix_ablation_scores.json` records the full comparison.
+
+A second diagnostic retains every loop and scales each same-query group to
+one total information budget. For a group of n measurements, each complete
+robust cost is multiplied by 1/n; information and Cauchy transition are scaled
+together, preserving the transition in measurement units. No truth is used to
+choose groups. All variants use the same stricter convergence controls:
+
+| Frozen graph maximum | Original group weight | Shared-query budget |
+| --- | --- | --- |
+| Causal prefix | 23.794 cm | 16.315 cm |
+| Complete delayed-start route | 8.504 cm | 9.267 cm |
+| Other completed two-floor route | 14.742 cm | 15.645 cm |
+
+The prefix improves but still misses 10 cm, and both complete-route maxima
+regress. A uniform same-query budget is therefore **not adopted**. Counts alone
+do not identify which directions or observations share bias. The next backend
+work should audit individual relative measurements and their shared scan/target
+support, then calibrate directional uncertainty on held-out routes. Retain the
+complete frozen frontend bag for those same-input comparisons.
+
+All three new maps load through the real ROS node in map-extension mode and
+save again. Dense position differences are below **4.5e-14 m**; cloud payloads
+and non-pose edge fields survive exactly. Original source timestamps are
+preserved. `reload_full_start1_qualification.json` indexes these checks.
+
+Future trajectory corrections must not be used to certify past online accuracy.
+Mature references considered are
+[BALM](https://github.com/hku-mars/BALM) and
+[HBA](https://github.com/hku-mars/HBA); this experiment reuses N3M's existing
+solver and does not import a new framework.
 
 ## Integration boundary
 
