@@ -5,7 +5,7 @@
     "dependency_race": "reproduced and patched in isolated dependency",
     "original_sigsegv_unique_cause": "not proven",
     "precision_10cm": "not accepted",
-    "failed_acquisition": "diagnostic only; still fails historical gross-drift guard",
+    "failed_acquisition": "original unmodified input remains diagnostic; repaired frontend/backend followups are qualified below",
     "save_latency": "observed by phase; pending-work drain remains unbounded by a fixed latency promise"
   },
   "evidence_root": "build/n3mapping/reliability_precision_20261026",
@@ -150,5 +150,66 @@
     "precision_10cm": "not accepted",
     "protected_installations_unchanged": true,
     "remote_published": false
+  },
+  "current_runtime_commit": "5169d620251a6c0d314166e389f892cccd127d2d",
+  "backend_repair": {
+    "evidence_root": "build/n3mapping/backend_repair_20261026",
+    "qualification_sha256": "ea0f0a6a2e283455447a8dd0fe731b07059590d67b41860f0e6ed5d10801079f",
+    "runtime_commit": "5169d620251a6c0d314166e389f892cccd127d2d",
+    "core_sha256": "a2c8729056145885816f20fc4643841deececdd27bf9269646a99b2a75328554",
+    "node_sha256": "12c58d58626fa9b6379b7c267fdacb7bb7d51974f2bf31b1358ebcb6ede1bb42",
+    "tests": {
+      "ctest_targets": 67,
+      "failures": 0,
+      "wall_s": 42.32,
+      "negative_controls": {
+        "partial_overlap": {
+          "negative_candidate03": 1,
+          "fixed_candidate04": 0
+        },
+        "directional_information": {
+          "negative_752eb71": 1,
+          "fixed_candidate07": 0
+        }
+      }
+    },
+    "original14_outputs": 4088,
+    "original14_frame4_locks": 14,
+    "original14_max_position_cm": 2.4809060907976113,
+    "motion_outputs": [
+      2232,
+      3662
+    ],
+    "motion_max_cm": [
+      7.932836946644896,
+      3.2468516336976068
+    ],
+    "online_max_cm": [
+      10.100534784103255,
+      9.273523099084095
+    ],
+    "saved_max_cm": [
+      9.178925577034466,
+      8.322314493484663
+    ],
+    "native_frames": [
+      10366,
+      13776
+    ],
+    "live_outputs": [
+      10358,
+      13759
+    ],
+    "old_frozen_route03_output_timestamps_identical": true,
+    "route03_inherited_missing_live_attempts": 9,
+    "online_10cm": "not accepted: route01 exceeds by 1.005 mm for 0.30 s",
+    "protected_installations_unchanged": true,
+    "remote_published": false,
+    "remaining_limits": [
+      "First mapping route live maximum 10.1005 cm, above 10 cm for 0.30 s.",
+      "Nine coalesced live inputs in route03 occur identically in the old frozen-input runtime; cause not uniquely established.",
+      "Ambiguous raw loop translations and cross-edge common bias remain.",
+      "No new real-data, robot, Noetic, or new-input long map-extension-session qualification."
+    ]
   }
 }

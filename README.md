@@ -1,6 +1,6 @@
 # N3Mapping
 
-Humble large-map follow-up: **`111b1ac`**, built separately with a backport of
+Humble large-map follow-up: **`5169d62`**, built separately with a backport of
 GTSAM's upstream elimination-race repair. Matching dependencies permit bounded
 local parallel solves; old or mismatched libraries retain local serial protection.
 Save events separate pending-loop work from artifact writes. See the
@@ -10,7 +10,13 @@ The dependency race is reproduced; its exclusive responsibility for the original
 SIGSEGV remains unproven. Raw-input controls now isolate a large startup-related
 accuracy loss. The authorized FAST-LIO fork follow-up now implements a recent
 stable startup window, consistent configured gravity and explicit deskew state.
-Online backend error and general 10 cm accuracy remain unresolved.
+The backend now separates raw-pair refinement from submap coverage and bounds
+translation confidence using shared-plane support. Both full repaired-input
+routes improve; saved maxima are **9.18 / 8.32 cm**, live maxima
+**10.10 / 9.27 cm**. Original14 and both localization-route results are retained.
+The first route still exceeds 10 cm for 0.30 s, and an existing frozen-replay
+live-output gap remains. General 10 cm accuracy is not accepted. See the
+[backend repair and controls](docs/evidence/large_mapping_followup_20261026.md#backend-measurement-and-directional-uncertainty-repair).
 See the [startup and causal-prefix controls](docs/evidence/large_mapping_followup_20261026.md#raw-startup-isolation-and-online-accuracy-follow-up).
 See the [frontend repair qualification](docs/evidence/large_mapping_followup_20261026.md#frontend-initialization-repair-in-the-authorized-fork).
 The frontend is built separately; existing navigation installations and release
@@ -1087,14 +1093,17 @@ remain separate from that measured result.
 
 ### TODO
 
-Current work is updated **2026-10-26**. Humble revision `111b1ac` qualifies the
+Current work is updated **2026-10-26**. Humble revision `5169d62` includes the
 [large-map dependency repair](docs/evidence/large_mapping_followup_20261026.md)
 within a local-arena boundary. The separately built FAST-LIO fork `1b3c0b4`
 repairs initialization; installed navigation artifacts and rc1/rc2/rc3 remain
-available. Frozen repaired-input ablations isolate loop-measurement bias,
-optional pair-refinement fallback and shared-error uncertainty as the next
-backend targets; they do not qualify a 10 cm runtime fix. See the
-[constraint diagnosis](docs/evidence/large_mapping_followup_20261026.md#backend-constraint-bias-diagnosis-after-the-frontend-repair).
+available. Reciprocal raw-pair refinement, fine support for retained coarse
+measurements, and shared-plane directional uncertainty improve both complete
+repaired-input routes. The 67-test Release suite, original14, both localization
+routes and map reload pass. Remaining work is the 0.30 s online excursion over
+10 cm, cross-edge common bias, ambiguous associations and an inherited
+frozen-replay output gap. See the
+[repair qualification](docs/evidence/large_mapping_followup_20261026.md#backend-measurement-and-directional-uncertainty-repair).
 Outstanding research includes **real-data time/reference
 qualification, correlated loop uncertainty and remaining per-query loop cost**,
 while preserving relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for

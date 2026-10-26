@@ -55,7 +55,7 @@ process-wide throttle or per-solve file access. See the
 
 ## Build identity and regression
 
-Runtime revision: **`111b1ac335ad9fa0dce525efadfa78af2995bc54`**.
+Dependency-repair baseline runtime: **`111b1ac335ad9fa0dce525efadfa78af2995bc54`**.
 Save observability is the preceding independent commit `d62304e`.
 The clean Release build reports `verified=true`, research tools OFF, and uses
 CMake's Release optimization, ccache and four build workers.
@@ -685,10 +685,167 @@ validate changes on both frozen full-route inputs before a new runtime claim.
 The current 10 cm online target remains unaccepted. Diagnostic sparse/oracle
 pbstreams are solver fixtures and must not be deployed as maps.
 
+## Backend measurement and directional uncertainty repair
+
+The subsequent runtime is **`5169d620251a6c0d314166e389f892cccd127d2d`**,
+including independent measurement repair **`752eb71`**. Evidence is under
+`build/n3mapping/backend_repair_20261026/`. These revisions change the shared
+backend; they do not alter ROS interfaces, frontend parameters, solver execution
+ownership, or the navigation team's frozen installations.
+
+### Measurement and confidence have separate responsibilities
+
+The original scan pair now uses reciprocal GICP correspondences during fine
+refinement. A nearest-neighbor match must also select the original source point
+in the reverse direction. This addresses the reproduced many-to-one boundary
+bias under partial overlap. Reciprocal matching is an established registration
+option; see [PCL's registration interface](https://pointclouds.org/documentation/classpcl_1_1_iterative_closest_point.html).
+It is not an escape mechanism from every wrong alignment basin.
+
+The complete submap supplies coverage at the refined pose, with the existing
+fine-scale inlier and fitness limits. Partial raw-pair coverage is not treated
+as full-scene coverage. If refinement fails, the retained coarse measurement
+must still pass fine-scale support. That support check retains the measurement's
+original, already transported information; evaluating a pose without solving
+it must not silently replace its uncertainty with a stronger fine Hessian.
+Prepared source/submap data are reused locally. The unused one-use
+`constraint_refinement.h` abstraction is removed.
+
+For full-6D edges with `loop_use_icp_information` enabled, the existing neighbor
+scatter calibration also uses committed planes observed by both endpoints.
+For normal `n`, plane sigma `s`, and existing observation weights `wq, wm`,
+the relative-position information contribution is
+`n n^T / (s^2 (1/wq + 1/wm))`. The sum is rotated from world to the query's
+right tangent. Its covariance bound can only add positive semidefinite
+translation covariance. Confidence cannot increase; rotation marginal
+covariance and cross covariance are retained. Existing repeated-observation
+weights affect the bound. No future geometry, truth, new plane factor, new
+rejection threshold, persistent cache, or concurrency mechanism is introduced.
+Without shared plane support, the previous calibration remains in force.
+
+For prefix queries 197, 202 and 212, respectively 94.0%, 97.7% and 99.8% of the
+observed translation error lies along the weakest shared-plane direction.
+The geometric confidence cap addresses this observed mechanism. It is not a
+complete cross-edge shared-bias model or a guarantee that an ambiguous loop's
+relative translation is correct.
+
+### Controls and current results
+
+The verified Release build passes **67/67 CTest targets, 42.32 s**, including
+three added behavioral cases: coarse support cannot substitute for fine
+evidence; partial raw overlap does not introduce a boundary translation; and a
+shared floor cannot certify horizontal loop precision. The last case also
+rotates the world frame and reduces correlated observation weights. Negative
+pre-fix controls fail as expected. Original fixtures and assertions are intact.
+
+The causal prefix uses the same 3,982 serialized input pairs, four-core affinity
+and 2× playback. No future scans or truth reach the runtime:
+
+| 400 s prefix | Before | Refinement only | + directional confidence |
+| --- | ---: | ---: | ---: |
+| Live RMS | 7.63 cm | 6.51 cm | 5.08 cm |
+| Live maximum | 14.85 cm | 14.49 cm | 10.10 cm |
+| Live time above 10 cm | 105.20 s | 97.70 s | 0.30 s |
+| Saved dense maximum | 14.68 cm | 13.57 cm | 9.91 cm |
+| Sampled process CPU | 162.24 s | 189.24 s | 180.45 s |
+| CPU / input duration | 0.408 core | 0.475 core | 0.453 core |
+| Sampled peak RSS | 389.13 MiB | 405.19 MiB | 369.14 MiB |
+
+These prefix runs used frozen development packages of the same implementations;
+the complete routes below use the clean verified commit. CPU includes all N3M
+threads and sampled startup/save work. At 2× playback, CPU/input duration is
+not the actual wall-time core utilization. These changes increase prefix
+CPU about 11% over the original runtime; this is primarily an accuracy repair.
+
+The prefix retains 459 loop observations versus 464 previously. Observations
+with raw relative error below 10 cm / 1 degree number 356 versus 365, across
+89 versus 90 queries. The differing query 417 still retains all five loop
+observations; its weak-direction translation worsens while angular error and
+uncertainty calibration improve. Thus improved trajectory accuracy must not be
+reported as improved raw accuracy of every loop or identical loop retention.
+
+Both full routes use the frozen repaired frontend messages and one initial LIO
+alignment, without trajectory fitting. The previous full-route figures are
+from the live-frontend qualification; the same serialized frontend data are
+replayed here. Asynchronous timing need not reproduce exactly.
+
+| Complete route | Previous live RMS/max | Revised live RMS/max | Previous saved RMS/max | Revised saved RMS/max |
+| --- | --- | --- | --- | --- |
+| Failed acquisition, repaired input | 6.16 / 14.86 cm | 3.91 / 10.10 cm | 4.46 / 10.97 cm | 3.04 / 9.18 cm |
+| Double-floor acquisition | 5.46 / 12.50 cm | 3.24 / 9.27 cm | 3.28 / 9.53 cm | 2.72 / 8.32 cm |
+
+All 10,366 / 13,776 native poses are saved with input timestamps exactly intact.
+The first route emits 10,358 live poses after eight startup holds; its remaining
+time above 10 cm is 0.30 s. The second emits 13,759 live poses: eight startup
+holds and nine absent live attempts at input 1001.2–1002.0 s. The latter coincide
+with a 508 ms pause in both input callback paths, followed by complete backend
+catch-up. Loop work continues during that pause; the observed core processing
+and lock waits do not explain it. A new four-core 2× replay of the old runtime
+on exactly this frozen input reproduces the same nine omissions, and all
+13,759 output timestamps match the revised runtime exactly. The independent
+observer receives all 13,776 input messages. The precise input/executor/transport
+cause is not established; this is not evidence of a new geometry regression.
+Do not claim complete live coverage or strict all-frame 10 cm.
+
+On that paired frozen-input control, old live RMS/max is **5.52/14.55 cm**
+and old saved RMS/max is **3.27/9.41 cm**, compared with revised
+**3.24/9.27 cm** and **2.72/8.32 cm**. The difference from the earlier
+live-frontend baseline above demonstrates the effect of asynchronous timing.
+Both runs process every input, save successfully and exit zero. Old/new CPU
+totals are **1,085.24/1,041.19 s**; sampled peak RSS is
+**1,121.28/1,019.86 MiB** and high-water RSS **1,133.51/1,096.25 MiB**.
+The approximately 4% CPU reduction is a single paired observation.
+
+The two real ROS map-extension reloads preserve keyframe poses exactly, dense
+poses within 4e-14 m, point payloads exactly, and all non-pose edge fields
+exactly. No new inputs are supplied during this reload test. This is not a new
+long live-extension-session or Noetic qualification.
+
+The frozen original14 A/B retains all 14 frame-4 locks and 4,088 outputs;
+both original motion routes retain 2,232 / 3,662 outputs, locks 4 / (4,1938),
+and maxima 7.93 / 3.25 cm. Errors agree to numerical precision. These use their
+original reference map and complete query frames, with one common probe binary,
+four-core affinity and unpaced replay. They do not test the new building maps
+against unrelated fixed14 geometry. No reliability assertion is weakened.
+
+For the two revised mapping replays, sampled total N3M CPU is 624.89 / 1,041.19 s,
+or 0.603 / 0.756 CPU-seconds per input second; peak RSS is 756.10 / 1,019.86 MiB
+(high-water marks 855.48 / 1,096.25 MiB). These mapping loads must not be called
+half-core localization results. Original14 CPU totals are 163.65 / 166.83 s
+(before/after), with unchanged alignment counts and peak RSS about 1,277 MiB.
+Single-run timing differences are not statistically established speed changes.
+
+Rejected controls remain in the evidence directory. A scalar point-to-plane
+factor corrected a mathematical inconsistency in the linked implementation,
+but worsened online mapping and was removed from the product change. Raw
+per-point plane Hessians, blanket covariance floors, fixed replacement noise,
+and same-query scaling did not provide a consistent cross-route solution.
+Their offline/oracle results are diagnostics, not qualified runtime accuracy.
+
+The full first route retains 1,099 loops (previously 1,159), with 123 raw
+translation errors over 10 cm (previously 193). The double-floor map retains
+1,490 loops and 1,051 shared planes. Neither raw edge counts nor low registration
+residuals establish reliability by themselves; use the trajectory, ambiguity,
+output coverage and held-out localization checks together.
+
+The verified package is `backend_repair_20261026/verified_5169d62_package`, under
+the workspace's `build/n3mapping/`. Its core SHA256 is
+`a2c8729056145885816f20fc4643841deececdd27bf9269646a99b2a75328554`;
+node SHA256 is
+`12c58d58626fa9b6379b7c267fdacb7bb7d51974f2bf31b1358ebcb6ede1bb42`.
+`qualification.json` binds the build, controls, inputs, outputs and protected
+installation hashes. Existing rc1/rc2/rc3 tags remain unchanged. This is a local
+revision, not a remote release, navigation deployment, or general real-data
+10 cm acceptance. Cross-edge common bias and ambiguous associations remain
+limits; no new live-extension route or Noetic runtime is claimed.
+
 ## Integration boundary
 
-Use the isolated `release/install/n3mapping` together with
-`dependency/gtsam_install`. Preserve build/install directories and the manifest.
+For the backend repair, use the frozen `verified_5169d62_package` above with
+`reliability_precision_20261026/dependency/gtsam_install`; both are under
+`build/n3mapping/`. The earlier dependency-only baseline retains its own
+`reliability_precision_20261026/release/install/n3mapping`. Preserve these
+isolated build/install directories and their manifests.
 Place the selected GTSAM prefix before the original one in the launch
 environment and confirm the `graph_solver_dependency` event. An old overlay
 will safely retain serial containment and will not deliver the parallel timings.
