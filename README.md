@@ -1,6 +1,6 @@
 # N3Mapping
 
-Humble large-map crash revision: **`0b4f4a9`**, qualified 2026-10-26 in a separate
+Humble large-map crash revision: **`5e9bf8b`**, qualified 2026-10-26 in a separate
 Release installation. GTSAM solves use local TBB arenas; whole-route replay,
 save/reload, numerical results and latency/CPU/RAM limits are recorded in the
 [qualification](docs/evidence/large_mapping_crash_20261025.md) and
@@ -1076,7 +1076,7 @@ remain separate from that measured result.
 
 ### TODO
 
-Current work is updated **2026-10-26**. Humble revision `0b4f4a9` contains the
+Current work is updated **2026-10-26**. Humble revision `5e9bf8b` contains the
 [large-map parallel crash](docs/evidence/large_mapping_crash_20261025.md) with a
 qualified local-arena boundary. rc1/rc2/rc3 remain available. Further algorithm/performance exploration is
 paused for this closeout. Outstanding research includes **real-data time/reference

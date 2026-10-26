@@ -2,7 +2,7 @@
 
 ## 大场景建图崩溃修订（2026-10-26）
 
-Humble 修订 **`0b4f4a9`** 已完成独立 Release 构建和崩溃回归。导航接入请按
+Humble 修订 **`5e9bf8b`** 已完成独立 Release 构建和崩溃回归。导航接入请按
 [验证与接入记录](evidence/large_mapping_crash_20261025.md#navigation-integration-and-remaining-limits)
 选择完整安装前缀，并核对节点、核心库与依赖身份。原 rc3、导航冻结候选和旧标签均保留。
 该修订是已验证的求解并行隔离措施，GTSAM 的具体竞争根因仍未证明。

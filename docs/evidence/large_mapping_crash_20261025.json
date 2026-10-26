@@ -1,14 +1,5 @@
 {
-  "implementation_commit": "0b4f4a928ab3c8709680c21f7452e364a01e4a92",
   "status": "Qualified Humble containment revision; dependency root cause unproven",
-  "build_identity": {
-    "schema": "n3mapping_product_build_identity_v2",
-    "commit": "0b4f4a928ab3c8709680c21f7452e364a01e4a92",
-    "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
-    "build_type": "Release",
-    "research_tools": "OFF",
-    "verified": true
-  },
   "affinity": [
     0,
     2,
@@ -18,7 +9,9 @@
   "tests": {
     "ctest_targets_passed": 67,
     "initial_setup_failures": 2,
-    "setup_failures_retested_passed": 2
+    "setup_failures_retested_passed": 2,
+    "final_ctest_targets_passed": 67,
+    "final_ctest_wall_s": 42.43
   },
   "runs": {
     "replay_local_01": {
@@ -132,7 +125,8 @@
         "median": 0.21836318824114354,
         "p95": 0.7513827834445068,
         "maximum": 1.043989758561399
-      }
+      },
+      "revision": "0b4f4a928ab3c8709680c21f7452e364a01e4a92"
     },
     "replay_global_01": {
       "map": {
@@ -245,7 +239,8 @@
         "median": 0.2183469094332962,
         "p95": 0.7513827834438737,
         "maximum": 1.0439897585622961
-      }
+      },
+      "revision": "frozen global-guard core 1558064cd47be23f694f930df2df6476987fb4ccb844f479423f61e15dd3a7c5"
     },
     "replay_local_03": {
       "map": {
@@ -358,6 +353,122 @@
         "median": 0.04932624952987087,
         "p95": 0.14816019132119013,
         "maximum": 0.17101738348172202
+      },
+      "revision": "0b4f4a928ab3c8709680c21f7452e364a01e4a92"
+    },
+    "replay_final_01": {
+      "map": {
+        "sha256": "fcfb9a5b7d6cf20a20dd1c6259834edc8d1b127af441db80273ec152a40f7630",
+        "bytes": 109627325,
+        "keyframes": 1302,
+        "edges": 2470,
+        "version": "2.10.0",
+        "native_trajectory_count": 10381,
+        "source_stamps_exact": true,
+        "old_rc3_public_reader_compatible": true
+      },
+      "resource": {
+        "sampled_wall_s": 529.5408926031087,
+        "cpu_s": 592.86,
+        "mean_cpu_cores": 1.1195735934303928,
+        "cpu_cores": {
+          "count": 529,
+          "unavailable_count": 0,
+          "mean": 1.119579397990225,
+          "p50": 1.0689331854826047,
+          "p95": 2.078060359534986,
+          "p99": 2.7638559643847085,
+          "max": 2.8760542060580487
+        },
+        "rss_mib": {
+          "count": 529,
+          "unavailable_count": 0,
+          "mean": 387.0897182183365,
+          "p50": 377.0859375,
+          "p95": 660.1882812499999,
+          "p99": 686.1584375,
+          "max": 843.51171875
+        },
+        "peak_hwm_mib": 891.75
+      },
+      "timing_ms": {
+        "callback_total_ms": {
+          "count": 10381,
+          "unavailable_count": 0,
+          "mean": 0.7496224286677585,
+          "p50": 0.307704,
+          "p95": 4.457137,
+          "p99": 6.205056200000005,
+          "max": 13.328367
+        },
+        "callback_lock_wait_ms": {
+          "count": 10381,
+          "unavailable_count": 0,
+          "mean": 0.0003741289856468548,
+          "p50": 0.000286,
+          "p95": 0.000886,
+          "p99": 0.0015112000000000044,
+          "max": 0.011548
+        },
+        "core_frame_ms": {
+          "count": 10381,
+          "unavailable_count": 0,
+          "mean": 0.4838789710047202,
+          "p50": 0.005884,
+          "p95": 4.237059,
+          "p99": 5.87034200000001,
+          "max": 13.118038
+        },
+        "graph_update_ms": {
+          "count": 0,
+          "unavailable_count": 10381
+        }
+      },
+      "loop_timing_ms": {
+        "worker_wall_ms": {
+          "count": 172,
+          "unavailable_count": 0,
+          "mean": 2226.034753761628,
+          "p50": 1041.6670525,
+          "p95": 6656.071256549999,
+          "p99": 9255.97625680997,
+          "max": 12363.16074
+        },
+        "geometry_solve_ms": {
+          "count": 172,
+          "unavailable_count": 0,
+          "mean": 571.9805784011628,
+          "p50": 263.97933,
+          "p95": 1723.0581822999998,
+          "p99": 2635.5238482699997,
+          "max": 2791.546394
+        },
+        "total_ms": {
+          "count": 172,
+          "unavailable_count": 0,
+          "mean": 21.378475296511628,
+          "p50": 10.6464605,
+          "p95": 70.75263274999999,
+          "p99": 80.98198697999999,
+          "max": 85.988204
+        }
+      },
+      "revision": "5e9bf8bc4e055bce6f0f4023012f5c80559524ce",
+      "rate": 2,
+      "save_wall_s": 0.9127732780762017,
+      "frames": 10381,
+      "live_reasons": {
+        "awaiting_correction": 4,
+        "ready": 10376,
+        "invalid_input_time": 1
+      },
+      "accepted_loops": 1169,
+      "quality_guard_passed": false,
+      "live_position_error_m": {
+        "rmse": 0.40606536396244425,
+        "median": 0.21840422852329267,
+        "p95": 0.7510831596255978,
+        "maximum": 1.0439897585617355
       }
     }
   },
@@ -709,7 +820,357 @@
     "numeric_qualification.json": "6bb08ab161b1d82fc2e2e887b8d912d18fa0efcff09522b1c5ca22eb0436ebf7",
     "build_manifest.json": "095b37435fbb0bc114ee9f9389abde48a518662a55ac3a9f20e56cf58309ea0e",
     "release_tests.xml": "b31675c9463a581440e31174fee9c11341cdefb92c81d1d66925c28cca49a02d",
-    "release_ros_retest.xml": "6bd00df62e735ac00f6796aba51339f1f3135d8878fe239f2008a3f13e20e84a"
+    "release_ros_retest.xml": "6bd00df62e735ac00f6796aba51339f1f3135d8878fe239f2008a3f13e20e84a",
+    "build_final_manifest.json": "93186b65b2d101da7447e2bc6335590854b1fa4c88d0215e6833f11c67772202",
+    "release_final_tests.xml": "b8f3bf62c4dcb8b475063c3ea0ea2d13371d69c463939b3ae854fb86d3c46c07",
+    "replay_final_01/validation.json": "6d8ba3090c6519dd68cf7e5f715b50006745dbdad78a6328ef69e4ed9285aaa3",
+    "reload_final_qualification.json": "37c2ebf79b64d4cbff457dae7adf4b864512273eca85eb78691b132e4887327b",
+    "numeric_final_qualification.json": "9e1c6e83cafd4d53bae86938be4d184cb0558a6e21afd73979b4bc24b3f50050",
+    "final_object_comparison.json": "2285a868b55d15e7c0fa004011a3292c40e1db87fa22a17a8f374a0243f00b02",
+    "input_manifest.json": "733a199b7a92bcb8213c5b830c9f6f3d22f2ef4560993be82da8610620247dcb"
+  },
+  "paired_measurement_commit": "0b4f4a928ab3c8709680c21f7452e364a01e4a92",
+  "paired_measurement_build_identity": {
+    "schema": "n3mapping_product_build_identity_v2",
+    "commit": "0b4f4a928ab3c8709680c21f7452e364a01e4a92",
+    "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+    "build_type": "Release",
+    "research_tools": "OFF",
+    "verified": true
+  },
+  "implementation_commit": "5e9bf8bc4e055bce6f0f4023012f5c80559524ce",
+  "build_identity": {
+    "schema": "n3mapping_product_build_identity_v2",
+    "commit": "5e9bf8bc4e055bce6f0f4023012f5c80559524ce",
+    "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+    "build_type": "Release",
+    "research_tools": "OFF",
+    "verified": true
+  },
+  "final_numeric": {
+    "commit": "5e9bf8bc4e055bce6f0f4023012f5c80559524ce",
+    "core_sha256": "dc5b91e06589cd78199868195cdc1c8cc0552b2e2a16bff5b1c3765d1a35ce39",
+    "iterations": 90,
+    "nodes": 1200,
+    "max_absolute_difference": {
+      "residual_t": 0.0,
+      "residual_r": 0.0,
+      "max_t": 0.0,
+      "max_r": 0.0,
+      "odom_delta": 0.0,
+      "loop_delta": 0.0,
+      "consistency": 0.0
+    }
+  },
+  "final_object_comparison": {
+    "old_count": 108,
+    "new_count": 108,
+    "removed": [],
+    "added": [],
+    "changed": [
+      "home/user/ros_ws/to_migrate_ws/src/n3mapping/src/submap_graph_trial.cpp.o",
+      "home/user/ros_ws/to_migrate_ws/src/n3mapping/src/submap_graph_trial_runtime.cpp.o",
+      "proto_gen/localization_atlas.pb.cc.o",
+      "proto_gen/n3map.pb.cc.o"
+    ]
+  },
+  "final_reload": {
+    "replay_local_01": {
+      "keyframes": {
+        "shared_count": 1302,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 1302,
+          "unavailable_count": 0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "rotation_rad": {
+          "count": 1302,
+          "unavailable_count": 0,
+          "mean": 7.128126626727434e-17,
+          "p50": 9.813077866773595e-18,
+          "p95": 3.3467050026279913e-16,
+          "p99": 6.686161872616327e-16,
+          "max": 7.775587468555267e-16
+        }
+      },
+      "dense": {
+        "shared_count": 10381,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 10381,
+          "unavailable_count": 0,
+          "mean": 2.585684257129046e-15,
+          "p50": 8.881784197001252e-16,
+          "p95": 1.0709480848675564e-14,
+          "p99": 1.7948923888332722e-14,
+          "max": 4.309267421372526e-14
+        },
+        "rotation_rad": {
+          "count": 10381,
+          "unavailable_count": 0,
+          "mean": 1.3815807640259584e-16,
+          "p50": 2.8675520600453845e-17,
+          "p95": 6.671544223058666e-16,
+          "p99": 8.959614166107082e-16,
+          "max": 1.7793971108752737e-15
+        }
+      },
+      "edge_poses": {
+        "shared_count": 2493,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 2493,
+          "unavailable_count": 0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "rotation_rad": {
+          "count": 2493,
+          "unavailable_count": 0,
+          "mean": 2.90223855560813e-17,
+          "p50": 1.7482242939615047e-18,
+          "p95": 2.2217899060904605e-16,
+          "p99": 4.447944654429459e-16,
+          "max": 1.3331756262065554e-15
+        }
+      },
+      "cloud_records_equal": true,
+      "edge_nonpose_records_equal": true,
+      "elapsed_wall_s": 4.784080363926478
+    },
+    "replay_global_01": {
+      "keyframes": {
+        "shared_count": 1302,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 1302,
+          "unavailable_count": 0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "rotation_rad": {
+          "count": 1302,
+          "unavailable_count": 0,
+          "mean": 8.071175751274637e-17,
+          "p50": 9.822656275951702e-18,
+          "p95": 3.357306211760598e-16,
+          "p99": 6.677577774531146e-16,
+          "max": 8.902495679636279e-16
+        }
+      },
+      "dense": {
+        "shared_count": 10381,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 10381,
+          "unavailable_count": 0,
+          "mean": 2.775249243423856e-15,
+          "p50": 8.881784197001252e-16,
+          "p95": 1.4217791915866692e-14,
+          "p99": 2.150052302758035e-14,
+          "max": 4.2789556681718124e-14
+        },
+        "rotation_rad": {
+          "count": 10381,
+          "unavailable_count": 0,
+          "mean": 1.3893882539570435e-16,
+          "p50": 2.86623902406891e-17,
+          "p95": 6.675784159539542e-16,
+          "p99": 1.0003566147415226e-15,
+          "max": 2.1166969395817767e-15
+        }
+      },
+      "edge_poses": {
+        "shared_count": 2492,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 2492,
+          "unavailable_count": 0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "rotation_rad": {
+          "count": 2492,
+          "unavailable_count": 0,
+          "mean": 3.028155316121249e-17,
+          "p50": 1.788118557094016e-18,
+          "p95": 2.222014208600239e-16,
+          "p99": 5.555527684694211e-16,
+          "max": 9.996945203519849e-16
+        }
+      },
+      "cloud_records_equal": true,
+      "edge_nonpose_records_equal": true,
+      "elapsed_wall_s": 4.6712396669900045
+    },
+    "replay_local_03": {
+      "keyframes": {
+        "shared_count": 1661,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 1661,
+          "unavailable_count": 0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "rotation_rad": {
+          "count": 1661,
+          "unavailable_count": 0,
+          "mean": 6.632748727256226e-17,
+          "p50": 6.939952614324261e-18,
+          "p95": 3.3345067456438544e-16,
+          "p99": 6.665797624956938e-16,
+          "max": 7.774488934794849e-16
+        }
+      },
+      "dense": {
+        "shared_count": 13781,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 13781,
+          "unavailable_count": 0,
+          "mean": 2.517450621808677e-15,
+          "p50": 6.304854800243424e-16,
+          "p95": 1.0743525530816638e-14,
+          "p99": 1.8406830535021704e-14,
+          "max": 3.5538930949951435e-14
+        },
+        "rotation_rad": {
+          "count": 13781,
+          "unavailable_count": 0,
+          "mean": 1.1974714877960077e-16,
+          "p50": 1.5946620109395764e-17,
+          "p95": 6.662806264643596e-16,
+          "p99": 9.992539144437526e-16,
+          "max": 1.6657814350986464e-15
+        }
+      },
+      "edge_poses": {
+        "shared_count": 3198,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 3198,
+          "unavailable_count": 0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "rotation_rad": {
+          "count": 3198,
+          "unavailable_count": 0,
+          "mean": 2.780275472752524e-17,
+          "p50": 4.470288853832757e-19,
+          "p95": 1.665787285088758e-16,
+          "p99": 5.605967190302153e-16,
+          "max": 1.2229197643612185e-15
+        }
+      },
+      "cloud_records_equal": true,
+      "edge_nonpose_records_equal": true,
+      "elapsed_wall_s": 5.5801898669451475
+    },
+    "replay_final_01": {
+      "keyframes": {
+        "shared_count": 1302,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 1302,
+          "unavailable_count": 0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "rotation_rad": {
+          "count": 1302,
+          "unavailable_count": 0,
+          "mean": 8.047323688577065e-17,
+          "p50": 1.3879481770324007e-17,
+          "p95": 3.3580344036393844e-16,
+          "p99": 6.679347689001384e-16,
+          "max": 7.791517058148931e-16
+        }
+      },
+      "dense": {
+        "shared_count": 10381,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 10381,
+          "unavailable_count": 0,
+          "mean": 2.6945136240417882e-15,
+          "p50": 8.881784197001252e-16,
+          "p95": 1.0814278949565478e-14,
+          "p99": 2.1441728631011806e-14,
+          "max": 4.4947444624483503e-14
+        },
+        "rotation_rad": {
+          "count": 10381,
+          "unavailable_count": 0,
+          "mean": 1.3985432093580824e-16,
+          "p50": 2.877133528365999e-17,
+          "p95": 6.675060417793632e-16,
+          "p99": 1.0007585231576144e-15,
+          "max": 1.5590947874330756e-15
+        }
+      },
+      "edge_poses": {
+        "shared_count": 2470,
+        "only_first": 0,
+        "only_second": 0,
+        "translation_m": {
+          "count": 2470,
+          "unavailable_count": 0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "rotation_rad": {
+          "count": 2470,
+          "unavailable_count": 0,
+          "mean": 2.7285599800423157e-17,
+          "p50": 1.7380820948678265e-18,
+          "p95": 2.2210050588857116e-16,
+          "p99": 4.495532858742729e-16,
+          "max": 7.849695609272956e-16
+        }
+      },
+      "cloud_records_equal": true,
+      "edge_nonpose_records_equal": true,
+      "elapsed_wall_s": 4.57925684703514
+    }
   },
   "local_evidence_root": "build/n3mapping/large_mapping_fix_20261025 in the parent ROS workspace"
 }

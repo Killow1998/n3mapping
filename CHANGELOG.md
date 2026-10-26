@@ -1,12 +1,12 @@
 # Changelog
 
-## [0b4f4a9] - 2026-10-26 (qualified Humble crash revision)
+## [5e9bf8b] - 2026-10-26 (qualified Humble crash revision)
 
-- Confine all five GTSAM solve entries to synchronous local TBB arenas. Remove
+- Confine all six GTSAM solve entries to synchronous local TBB arenas. Remove
   process-wide graph guards while preserving independent graph owners, other
   TBB work, existing interfaces and solver/admission parameters.
 - Qualify a separate clean Release build: 67 CTest targets, complete failed-input
-  A/B, two-floor route stress replay, three real-node map reloads, and unchanged
+  A/B, two-floor route stress replay, four real-node map reloads, and unchanged
   deterministic graph numerics. Original rc3 and navigation frozen libraries
   remain untouched; no new remote release is published.
 - Record the containment boundary, unresolved dependency cause, serial-solve

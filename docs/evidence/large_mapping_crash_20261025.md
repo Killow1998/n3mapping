@@ -18,7 +18,8 @@ containment, not a proven dependency repair or general accuracy claim.
 ## Revised implementation
 
 The N3M revision replaces both existing and candidate global guards with a
-single private local-arena boundary across all five solve entries. Interfaces,
+single private local-arena boundary across all five production GraphOptimizer
+solve entries and the optional shadow-submap diagnostic solve. Interfaces,
 map schema, solver parameters, acceptance gates and dependencies are unchanged.
 See [ownership and execution design](../graph_solver_execution.md).
 
@@ -54,7 +55,7 @@ parallelism requires a separate dependency revision and equivalent regression.
 
 ## Qualified build and tests — completed 2026-10-26
 
-Runtime revision: **`0b4f4a928ab3c8709680c21f7452e364a01e4a92`** on local main.
+Final runtime revision: **`5e9bf8bc4e055bce6f0f4023012f5c80559524ce`** on local main.
 The tested build stays fixed at this implementation commit; later documentation
 commits do not replace its binaries. ROS package version remains 1.1.0.
 
@@ -62,8 +63,9 @@ commits do not replace its binaries. ROS package version remains 1.1.0.
 - CMake-selected `-O3 -DNDEBUG`, ccache, isolated build/install/log directories.
 - Four physical CPU affinity entries: 0,2,4,6; OpenMP 4, passive wait,
   OpenBLAS 1. This is affinity, not exclusive CPU reservation.
-- **67/67 CTest targets passed**, including the three new execution tests and
-  real ROS-node E2Es. Two initial ROS failures were missing type-support libraries
+- **67/67 CTest targets passed in 42.43 s** on the final build, including shadow
+  diagnostics, the three new execution tests and real ROS-node E2Es.
+  Two initial ROS failures in the preceding build were missing type-support libraries
   because sandbox colcon had not finalized its environment. Host install
   completion and both retests passed; original failure output is retained.
 - New snapshot tests compare independent concurrent graph owners with serial
@@ -71,19 +73,28 @@ commits do not replace its binaries. ROS package version remains 1.1.0.
 
 All evidence below is under the parent ROS workspace's
 `build/n3mapping/large_mapping_fix_20261025/`.
-The tested install prefix is `release/install/n3mapping`; it is a symlink install,
-so retain `release/build` alongside it.
+The final install prefix is `release_final/install/n3mapping`; it is a symlink
+install, so retain `release_final/build` alongside it. The preceding `0b4f4a9`
+build remains unchanged under `release/` with its original measurement records.
+
+The final revision also removes the shadow diagnostic's old global guard. This
+path is disabled by the recorded `submap_shadow_enable=false`. All production
+GraphOptimizer object files are byte-identical to `0b4f4a9`; 104/108 core objects
+are identical. The other objects are the shadow solver, its build-identity
+logging, and two generated protobuf objects whose generated sources are identical.
+`final_object_comparison.json` records this boundary. The final binary receives
+an additional full failed-input replay and all four real-node reloads below.
 
 | Artifact | SHA256 |
 | --- | --- |
-| `release/install/n3mapping/lib/n3mapping/n3mapping_node` | `157450d66b6680587a8901b0f978b650883382c10ff0a5e7efe509dfb732e13a` |
-| `release/install/n3mapping/lib/libn3mapping_core.so` | `d9d87a83a11c4018c455f4b5dd03c09b7814880efc63190122cd215815c701f7` |
+| `release_final/install/n3mapping/lib/n3mapping/n3mapping_node` | `7b03a4459b549a317757cdcbb6fd87d370ab65cc21c5e89ce9415274531f7c8b` |
+| `release_final/install/n3mapping/lib/libn3mapping_core.so` | `dc5b91e06589cd78199868195cdc1c8cc0552b2e2a16bff5b1c3765d1a35ce39` |
 | installed GTSAM 4.1.1 | `546f8b37a0ff0edc5fafe85f1a8830d114e77a9d8f08e23091b10e08e0a8e41a` |
 
 [The retained qualification summary](large_mapping_crash_20261025.json) preserves
-the measurements and evidence checksums. `build_manifest.json` binds
+the measurements and evidence checksums. `build_final_manifest.json` binds
 executable/core/configuration hashes, actual loaded
-solver dependencies, original tags and compiler settings. `qualification.json`
+solver dependencies, original tags and compiler settings. `final_qualification.json`
 indexes the detailed replay, reload, numerical and test evidence.
 
 ## Complete replay and persistence
@@ -98,21 +109,25 @@ rc3 evidence; it was not repeatedly triggered for this qualification.
 | Run | Rate | Backend / native trajectory rows | Keyframes / edges | Save service wall time |
 | --- | --- | --- | --- | --- |
 | Original failed input, frozen global guard | 1× | 10,381 / 10,381 | 1,302 / 2,492 | 0.88 s |
-| Same input, local arena revision | 1× | 10,381 / 10,381 | 1,302 / 2,493 | 0.91 s |
-| Completed 356 m, 50-waypoint two-floor input, local arena | 2× | 13,781 / 13,781 | 1,661 / 3,198 | 36.92 s |
+| Same input, local arena `0b4f4a9` | 1× | 10,381 / 10,381 | 1,302 / 2,493 | 0.91 s |
+| Completed 356 m, 50-waypoint two-floor input, `0b4f4a9` | 2× | 13,781 / 13,781 | 1,661 / 3,198 | 36.92 s |
+| Failed input, final `5e9bf8b` | 2× | 10,381 / 10,381 | 1,302 / 2,470 | 0.91 s |
 
 All runs completed without SIGSEGV. Native trajectory stamps exactly match the
 source LIO sets; sequence numbers are continuous, values finite, source=native,
-degraded=false. The original rc3 navigation reader loads all three outputs.
+degraded=false. The original rc3 navigation reader loads all four outputs.
 Each map was then loaded by the **complete revised ROS node in map_extension
 mode**, saved without new input and compared: keyframe poses unchanged exactly,
-dense translation difference below 4.4e-14 m, constraint rotation difference
+dense translation difference below 4.5e-14 m, constraint rotation difference
 below 1.4e-15 rad, clouds and non-pose constraint fields unchanged exactly.
 This exercises full session/graph/Atlas loading, beyond the navigation reader.
 
-The 2× save duration includes waiting for outstanding asynchronous loop work;
+The 36.92 s two-floor save includes waiting for outstanding asynchronous loop work;
 it is not a pure disk-write benchmark. It needs to be allowed for by callers.
 No same-rate frozen-candidate A/B on that second route is claimed.
+The final 2× failed-input run retains the same maximum drift (1.043989759 m),
+with a different async schedule and 1,169 final loop edges; cross-rate loop
+counts are not claimed equivalent. Every source frame was processed.
 
 The failed-input live quality guard remains FAIL, just as before: maximum N3M
 position error 1.043989759 m under the unchanged 1 m / 5 degree gross-drift guard.
@@ -126,7 +141,9 @@ into a successful navigation acquisition.
 The original 1,200-node cross-linked graph fixture is unchanged. Balanced order,
 three processes per revision, 30 iterations per process: all seven residual,
 pose-update and consistency fields have **zero absolute difference** between
-old rc3, the frozen global guard and the local arena revision.
+old rc3, the frozen global guard and the measured `0b4f4a9` local arena revision.
+The final `5e9bf8b` binary also completes 90 fixture iterations with zero
+difference in all seven fields (`numeric_final_qualification.json`).
 
 | Fixture, mean per 30-iteration process | Old rc3 parallel path | Frozen global guard | Local arena |
 | --- | --- | --- | --- |
@@ -139,7 +156,7 @@ about 23% more wall time and 30% less CPU time than old rc3. It does not justify
 claiming that serial solves are universally faster. Local isolation avoids the
 additional unrelated-work restriction of the frozen global guard.
 
-| Failed-input 1× whole-node A/B | Frozen global guard | Local arena |
+| Failed-input 1× whole-node A/B | Frozen global guard | Local arena `0b4f4a9` |
 | --- | --- | --- |
 | Mean CPU cores, including startup/drain/save | 0.711 | 0.706 |
 | CPU seconds | 745.67 | 741.87 |
@@ -161,7 +178,7 @@ and is reported unavailable, not zero. Callback, async worker and geometry-solve
 wall times are measured; the controlled graph fixture supplies the solver-cost
 comparison. `/clock` and sensor callbacks have no cross-topic ordering barrier:
 recorded live `invalid_input_time` projection counts are 1 in each 1× run and
-4 in the 2× run. Status publication can repeat a rejection; its counts are
+4 in the 2× two-floor run; the final failed-input 2× run records 1. Status publication can repeat a rejection; its counts are
 retained separately in the observer evidence.
 The matching native/backend counts show these projection rejections did not
 remove mapping input. This fix does not alter time-validity gates.
@@ -173,9 +190,9 @@ old node and call the mixed process verified. From the parent ROS workspace:
 
 ```bash
 source /opt/ros/humble/setup.bash
-source build/n3mapping/large_mapping_fix_20261025/release/install/setup.bash
+source build/n3mapping/large_mapping_fix_20261025/release_final/install/setup.bash
 export LD_LIBRARY_PATH="$PWD/install/gtsam/lib:$PWD/install/small_gicp/lib:$LD_LIBRARY_PATH"
-build/n3mapping/large_mapping_fix_20261025/release/install/n3mapping/lib/n3mapping/n3mapping_node --build-identity-json
+build/n3mapping/large_mapping_fix_20261025/release_final/install/n3mapping/lib/n3mapping/n3mapping_node --build-identity-json
 ```
 
 The command must report the exact implementation commit above, Release,
