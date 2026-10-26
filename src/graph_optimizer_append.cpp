@@ -41,7 +41,7 @@ public:
 
 bool GraphOptimizer::optimizeGeometryUpdate() {
   try {
-    return internal::runGraphSolve([&] {
+    return internal::runGraphSolve(config_.num_threads, [&] {
       gtsam::LevenbergMarquardtParams params;
       params.maxIterations = 20;
       params.diagonalDamping = true;

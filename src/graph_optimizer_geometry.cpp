@@ -70,7 +70,7 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
       gtsam::LevenbergMarquardtParams params;
       params.maxIterations = 20;
       params.diagonalDamping = true;
-      values = internal::runGraphSolve([&] {
+      values = internal::runGraphSolve(config_.num_threads, [&] {
         return gtsam::LevenbergMarquardtOptimizer(candidate, values, params).optimize();
       });
       stats.solve_ms = std::chrono::duration<double, std::milli>(

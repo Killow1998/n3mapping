@@ -105,7 +105,7 @@ bool GraphOptimizer::incrementalOptimize() {
         return optimizeGeometryUpdate();
 
     try {
-        return internal::runGraphSolve([&] {
+        return internal::runGraphSolve(config_.num_threads, [&] {
             auto trial_isam2 = createISAM2();
 
             if (!graph_.empty()) {
@@ -398,7 +398,7 @@ void GraphOptimizer::rebuildISAM2FromCommitted() {
         return;
     }
     try {
-        internal::runGraphSolve([&] { isam2_->update(graph_, values); });
+        internal::runGraphSolve(config_.num_threads, [&] { isam2_->update(graph_, values); });
     } catch (const std::exception& e) {
         LOG(ERROR) << "GraphOptimizer::rebuildISAM2FromCommitted() failed: " << e.what() << std::endl;
         isam2_ = createISAM2();
@@ -412,7 +412,7 @@ bool GraphOptimizer::optimizeCandidate(const gtsam::NonlinearFactorGraph& candid
         return false;
     }
     try {
-        return internal::runGraphSolve([&] {
+        return internal::runGraphSolve(config_.num_threads, [&] {
             gtsam::LevenbergMarquardtParams params;
             params.maxIterations = config_.optimization_iterations;
             params.verbosity = gtsam::NonlinearOptimizerParams::SILENT;

@@ -13,24 +13,30 @@
 namespace n3mapping {
 namespace {
 using namespace std::chrono_literals;
+constexpr int kSolverThreads = N3MAPPING_GTSAM_LOCKED_ELIMINATION ? 4 : 1;
 
 TEST(GraphSolverExecution, NestedWorkAndExceptionsStayWithinLocalArena) {
     tbb::global_control budget(tbb::global_control::max_allowed_parallelism, 4);
     const auto owner = std::this_thread::get_id();
     std::atomic<int> calls{0}, foreign_threads{0};
-    EXPECT_EQ(internal::runGraphSolve([&] {
-        EXPECT_EQ(tbb::this_task_arena::max_concurrency(), 1);
+    EXPECT_EQ(internal::runGraphSolve(4, [&] {
+        EXPECT_EQ(tbb::this_task_arena::max_concurrency(), kSolverThreads);
         EXPECT_EQ(tbb::global_control::active_value(
             tbb::global_control::max_allowed_parallelism), 4U);
         tbb::parallel_for(0, 32, [&](int) {
             ++calls;
             if (std::this_thread::get_id() != owner) ++foreign_threads;
+            std::this_thread::sleep_for(1ms);
         });
-        return internal::runGraphSolve([] { return 17; });
+        return internal::runGraphSolve(4, [] { return 17; });
     }), 17);
     EXPECT_EQ(calls, 32);
-    EXPECT_EQ(foreign_threads, 0);
-    EXPECT_THROW(internal::runGraphSolve([]() -> int {
+    if (kSolverThreads == 1) EXPECT_EQ(foreign_threads, 0);
+    else EXPECT_GT(foreign_threads, 0);
+    internal::runGraphSolve(0, [] {
+        EXPECT_EQ(tbb::this_task_arena::max_concurrency(), 1);
+    });
+    EXPECT_THROW(internal::runGraphSolve(4, []() -> int {
         throw std::runtime_error("solver failed");
     }), std::runtime_error);
     EXPECT_EQ(tbb::global_control::active_value(
@@ -44,11 +50,11 @@ TEST(GraphSolverExecution, IndependentOwnersAndUnrelatedTbbWorkRemainConcurrent)
     const auto released = release.get_future().share();
     auto launch = [&] {
         return std::async(std::launch::async, [&] {
-            return internal::runGraphSolve([&] {
+            return internal::runGraphSolve(4, [&] {
                 ++entered;
                 const auto status = released.wait_for(5s);
                 return status == std::future_status::ready &&
-                    tbb::this_task_arena::max_concurrency() == 1;
+                    tbb::this_task_arena::max_concurrency() == kSolverThreads;
             });
         });
     };

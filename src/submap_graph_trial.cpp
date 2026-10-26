@@ -359,7 +359,7 @@ SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
         parameters.maxIterations = config.optimization_iterations;
         parameters.verbosity =
             gtsam::NonlinearOptimizerParams::SILENT;
-        const gtsam::Values optimized = internal::runGraphSolve([&] {
+        const gtsam::Values optimized = internal::runGraphSolve(config.num_threads, [&] {
             return gtsam::LevenbergMarquardtOptimizer(
                 graph, initial_values, parameters).optimize();
         });

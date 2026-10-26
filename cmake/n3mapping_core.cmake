@@ -51,6 +51,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/loop_consensus_registration.cpp
   ${N3MAPPING_ROOT}/src/loop_closure_manager.cpp
   ${N3MAPPING_ROOT}/src/graph_factor_noise.cpp
+  ${N3MAPPING_ROOT}/src/graph_solver_execution.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer_snapshot.cpp
   ${N3MAPPING_ROOT}/src/graph_optimizer_restore.cpp
@@ -140,6 +141,7 @@ function(n3mapping_configure_core_target target_name)
     glog::glog
     OpenSSL::Crypto
     PRIVATE
+    ${CMAKE_DL_LIBS}
     TBB::tbb
     ${JSONCPP_LIBRARIES}
   )
