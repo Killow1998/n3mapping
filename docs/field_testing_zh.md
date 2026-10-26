@@ -2,11 +2,13 @@
 
 ## 大场景建图崩溃修订（2026-10-26）
 
-Humble 修订 **`5e9bf8b`** 已完成独立 Release 构建和崩溃回归。导航接入请按
-[验证与接入记录](evidence/large_mapping_crash_20261025.md#navigation-integration-and-remaining-limits)
-选择完整安装前缀，并核对节点、核心库与依赖身份。原 rc3、导航冻结候选和旧标签均保留。
-该修订是已验证的求解并行隔离措施，GTSAM 的具体竞争根因仍未证明。
-记录保留了串行求解的时延代价、异步回环尾延迟、保存等待和原采图精度限制。
+Humble 后续修订 **`111b1ac`** 使用独立 Release 安装及带官方竞争修复的 GTSAM。
+导航接入请按[后续验证与接入记录](evidence/large_mapping_followup_20261026.md#integration-boundary)
+选择配套前缀，并核对节点、核心库和依赖身份。原 rc3、导航冻结候选和旧标签均保留。
+已复现并修复一处 GTSAM 消元竞争；尚未证明它是原 SIGSEGV 的唯一原因。
+新修订核对实际加载库的 build ID。身份不匹配时保留图内串行保护，不静默恢复并行。
+记录列明并行化的 CPU/RAM 代价、保存等待和仍未解决的精度问题；不能据此认定 10 cm 达标。
+上一版 **`5e9bf8b`** 的[串行隔离验证](evidence/large_mapping_crash_20261025.md)继续保留。
 以下 rc3 章节保留原版本的构建与验收范围；本轮未生成新的 Noetic 构建。
 
 ## 使用范围与收尾原则

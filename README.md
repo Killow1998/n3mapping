@@ -1,11 +1,16 @@
 # N3Mapping
 
-Humble large-map crash revision: **`5e9bf8b`**, qualified 2026-10-26 in a separate
-Release installation. GTSAM solves use local TBB arenas; whole-route replay,
-save/reload, numerical results and latency/CPU/RAM limits are recorded in the
-[qualification](docs/evidence/large_mapping_crash_20261025.md) and
-[solver ownership design](docs/graph_solver_execution.md). The precise dependency
-defect remains unproven. Existing navigation installations and release tags stay intact.
+Humble large-map follow-up: **`111b1ac`**, built separately with a backport of
+GTSAM's upstream elimination-race repair. Matching dependencies permit bounded
+local parallel solves; old or mismatched libraries retain local serial protection.
+Save events separate pending-loop work from artifact writes. See the
+[follow-up evidence and limitations](docs/evidence/large_mapping_followup_20261026.md)
+and [solver ownership design](docs/graph_solver_execution.md).
+The dependency race is reproduced; its exclusive responsibility for the original
+SIGSEGV remains unproven. Failed-acquisition drift and general 10 cm accuracy
+remain unresolved. Existing navigation installations and release tags stay intact.
+The previous serial-containment revision **`5e9bf8b`** retains its
+[original qualification](docs/evidence/large_mapping_crash_20261025.md).
 
 Previous hardware-test candidate: **v1.1.0-rc3** (ROS package version **1.1.0**).
 Runtime code changes end at `ea0ced6`; the candidate also includes integration

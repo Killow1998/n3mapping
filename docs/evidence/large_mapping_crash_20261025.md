@@ -1,5 +1,10 @@
 # Large mapping crash qualification — 2026-10-25
 
+The [2026-10-26 follow-up](large_mapping_followup_20261026.md) adds instrumented
+dependency-race evidence, an isolated upstream repair, qualified local
+parallelism and save/accuracy investigation. The historical `5e9bf8b` results
+below remain unchanged.
+
 ## Incident and scope
 
 The original rc3 crashed with SIGSEGV during acquisition and same-input replay.

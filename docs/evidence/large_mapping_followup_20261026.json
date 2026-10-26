@@ -1,0 +1,81 @@
+{
+  "schema": "n3mapping_large_mapping_followup_v1",
+  "runtime_commit": "111b1ac335ad9fa0dce525efadfa78af2995bc54",
+  "status": {
+    "dependency_race": "reproduced and patched in isolated dependency",
+    "original_sigsegv_unique_cause": "not proven",
+    "precision_10cm": "not accepted",
+    "failed_acquisition": "diagnostic only; still fails historical gross-drift guard",
+    "save_latency": "observed by phase; pending-work drain remains unbounded by a fixed latency promise"
+  },
+  "evidence_root": "build/n3mapping/reliability_precision_20261026",
+  "evidence_sha256": "3c24a7975757a55add2eee40c86aa351074305e1eca97268a83b766c04e345a8",
+  "artifacts": {
+    "node": {
+      "path": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/reliability_precision_20261026/release/install/n3mapping/lib/n3mapping/n3mapping_node",
+      "resolved": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/reliability_precision_20261026/release/install/n3mapping/lib/n3mapping/n3mapping_node",
+      "sha256": "aa5b86148b56ec90519c8a228110ff60a7304266d87758a143b4620d3478e10c"
+    },
+    "core": {
+      "path": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/reliability_precision_20261026/release/install/n3mapping/lib/libn3mapping_core.so",
+      "resolved": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/reliability_precision_20261026/release/install/n3mapping/lib/libn3mapping_core.so",
+      "sha256": "f14bee2496d1b1f47b7157048b7df618ec8e2ebb89ad4514c9f001d3ffc28526"
+    },
+    "exporter": {
+      "path": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/reliability_precision_20261026/release/install/n3mapping/lib/n3mapping/n3mapping_dense_trajectory_export",
+      "resolved": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/reliability_precision_20261026/release/install/n3mapping/lib/n3mapping/n3mapping_dense_trajectory_export",
+      "sha256": "a583612fca0eda5de6d7c22a2095c3c6c86e2fbcafa6332b6a0b98d86de6c58e"
+    },
+    "gtsam": {
+      "path": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/reliability_precision_20261026/dependency/gtsam_install/lib/libgtsam.so.4.1.1",
+      "resolved": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/reliability_precision_20261026/dependency/gtsam_install/lib/libgtsam.so.4.1.1",
+      "sha256": "84be7fb16cd93b8bf782674eae5e161489f08b3c5b964c14b29b632a9f65110b"
+    },
+    "runtime_config": {
+      "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/config/n3mapping.yaml",
+      "resolved": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/config/n3mapping.yaml",
+      "sha256": "9d5c1d2f8fdf265ece731dd3bc25edc4159f123437fe92198c770a58b4a1e098"
+    },
+    "product_profile": {
+      "path": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/config/product_v1.yaml",
+      "resolved": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/config/product_v1.yaml",
+      "sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01"
+    }
+  },
+  "tests": {
+    "release_tests": {
+      "tests": 67,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sha256": "e065473e1f846a2cdce5c920faf638b7f0bdd51214aa944788f3b8c8db286b79"
+    },
+    "fallback_tests": {
+      "tests": 67,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "sha256": "c3cbf4faabbf0bb8b7b36dbe7fb400409b5d7c38ebf78c78cae150f6e14dd835"
+    }
+  },
+  "replays": {
+    "release_01_2x": {
+      "frames": 10381,
+      "native_frames": 10381,
+      "keyframes": 1302,
+      "loop_edges": 1175,
+      "save_wall_s": 0.8807684510247782,
+      "reload_dense_max_m": 4.973799150320701e-14
+    },
+    "release_03_1x": {
+      "frames": 13781,
+      "native_frames": 13781,
+      "keyframes": 1661,
+      "loop_edges": 1566,
+      "save_wall_s": 1.0356552680023015,
+      "reload_dense_max_m": 3.826792375974035e-14
+    }
+  },
+  "protected_installations_unchanged": true,
+  "remote_published": false
+}

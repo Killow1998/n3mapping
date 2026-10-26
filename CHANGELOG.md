@@ -1,5 +1,19 @@
 # Changelog
 
+## [111b1ac] - 2026-10-26 (large-map follow-up)
+
+- Bind local graph parallelism to the selected lock-protected GTSAM library's
+  runtime build ID. Old or mismatched dependencies retain local serial
+  containment. No process-wide throttle or installed dependency replacement.
+- Separate save-time loop drain, serialization, Atlas and PCD timings through
+  the existing bounded asynchronous logger; retain all existing admission gates.
+- Reproduce the upstream elimination race with instrumented TBB and control
+  probes. Test an isolated GTSAM 4.1.1 backport; record numerical equivalence,
+  restored fixture speed and the CPU/RAM cost of parallelism.
+- Keep failed-input accuracy open. Frozen-graph ablations do not justify
+  discarding observations or changing weights in the delivered runtime. See the
+  [validation and integration record](docs/evidence/large_mapping_followup_20261026.md).
+
 ## [5e9bf8b] - 2026-10-26 (qualified Humble crash revision)
 
 - Confine all six GTSAM solve entries to synchronous local TBB arenas. Remove
