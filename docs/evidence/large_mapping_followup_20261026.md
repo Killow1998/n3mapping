@@ -2,8 +2,10 @@
 
 This continues the [crash-containment qualification](large_mapping_crash_20261025.md).
 It covers dependency repair, save latency and the failed acquisition's accuracy.
-The navigation team's frozen libraries, installed GTSAM, FAST-LIO, SpRobo, ETC
-and TGW were not changed. No remote release or deployment is performed.
+The navigation team's frozen libraries, installed GTSAM and FAST-LIO, SpRobo,
+ETC and TGW were not changed. The separately authorized frontend follow-up below
+changes Xian's FAST-LIO fork and uses an isolated build. N3M is not remotely
+released or deployed in this stage.
 
 Evidence root, relative to the parent ROS workspace:
 `build/n3mapping/reliability_precision_20261026/`.
@@ -413,6 +415,158 @@ Mature references considered are
 [BALM](https://github.com/hku-mars/BALM) and
 [HBA](https://github.com/hku-mars/HBA); this experiment reuses N3M's existing
 solver and does not import a new framework.
+
+## Frontend initialization repair in the authorized fork
+
+Xian subsequently authorized an initialization repair and update of
+[`Killow1998/FAST_LIO`, `humble`](https://github.com/Killow1998/FAST_LIO/tree/humble).
+Frontend source revision: **`1b3c0b4ae828d4b2e31c438fb64f405ffd4de942`**, based on
+`e0a02d53701c3bac72c952fe399f024d3ebb2987`. N3M remains **111b1ac**; no graph,
+registration, acceptance or map-format change accompanies this frontend repair.
+The source fork is pushed to `humble` and its remote ref is verified at
+`1b3c0b4`. Existing installed programs are unchanged. `fork_remote.json` records
+the verification; N3M remote branches are not updated.
+
+Evidence root for this stage, relative to the ROS workspace:
+`build/n3mapping/initialization_fix_20261026/`.
+The delivered frontend is `final/install/fast_lio/lib/fast_lio/fastlio_mapping`
+under that root. Its SHA256 is
+`d0dc2bffc0d59bad9eddef685f30cd4a066ec641b41089c6fe2910d2a3d0a12c`.
+The separate colcon build uses Release, ccache and four workers. CMake selects
+`-O3 -DNDEBUG`; no unconditional optimization flag is added to the source.
+All estimators retain affinity 0,2,4,6, OpenMP 4 and OpenBLAS 1.
+
+### Implementation and direct regressions
+
+- Commit gravity and gyro bias only after a recent continuous one-second
+  window with at least 20 samples. Noise limits and half-window mean changes
+  distinguish stable noisy/bias-bearing input from settling motion. Discard old
+  motion through the rolling window; never force acceptance on timeout.
+- Normalize acceleration statistics with the measured acceleration magnitude.
+  Direction variance therefore uses consistent units for g and m/s² inputs;
+  the existing 1e-5 gravity-direction covariance floor is retained.
+- Set the accepted LiDAR end time, velocity and last-IMU deskew state explicitly.
+  The preceding code left its first integration boundary and acceleration state
+  uninitialized. No point cloud is emitted while initialization is pending.
+- Make the S2 gravity radius and vector match `common.gravity_m_s2`. Constructing
+  S2 from `(0,0,-g)` previously normalized it back to its template radius,
+  **9.809 m/s²**, regardless of the configured value. This is a separate defect
+  from the premature startup decision.
+
+The gravity regression exercises the actual `ImuProcess` and filter state,
+including a copied/rotated state. With the prior radius assignment, stationary
+force cancellation leaves **0.01562 m/s²** for the default 9.79338 configuration
+and **0.00235 m/s²** for 9.80665. The same test fails against the retained
+pre-radius-fix implementation and passes against the final implementation.
+`gravity_negative_control/` records that explicit negative control.
+
+**8 test cases in 2 CTest targets pass.** Coverage includes startup motion,
+settling recovery, noise plus gyro bias, acceleration-unit invariance, duplicate
+and backward timestamps, missing/invalid samples, bounded storage, and actual
+state commitment. No upstream assertion is relaxed. Recent-window stationary
+checks were compared with the mature
+[OpenVINS static initializer](https://docs.openvins.com/classov__init_1_1StaticInitializer.html);
+this repair keeps the existing FAST-LIO pipeline and introduces no external
+initializer dependency.
+
+The IMU window is bounded at 2,048 samples and is cleared after acceptance.
+There are at most ten initialization-window summaries per attempt. Existing
+empty-scan warnings are throttled to one per second. An unused IMU debug-file
+handle/open is removed. This does not qualify all legacy FAST-LIO logging as
+having N3M's cross-restart quota policy.
+
+### Real-input startup coverage and operational boundary
+
+The final binary replays the first 20 seconds of each recorded input, with
+unchanged sensor configuration, existing timestamp normalization and no truth
+published. Flow-controlled replay retains the input LiDAR/IMU messages. Every
+produced odometry sample has a matching body-cloud timestamp and finite values.
+
+| Input | Initialized once | Pose/cloud pairs |
+| --- | --- | --- |
+| TudoRun01 | Yes | 567 |
+| TudoRun02 | Yes | 567 |
+| HelmDyn01 | No; remains waiting | 0 |
+| HelmDyn02 | Yes | 377 |
+| M2DGR gate_02 | Yes | 186 |
+| M2DGR hall_05 | Yes | 187 |
+| Xian's f7tof9_g2w | Yes | 187 |
+
+HelmDyn01's opening remains nonstationary under these checks, including the
+separate 30-second raw-IMU probe. This is an explicit compatibility boundary:
+provide a stationary lead-in and wait for `IMU Initial Done` plus the first
+odometry before commanding motion. The fork no longer guarantees immediate
+output from an arbitrary moving-start recording. Static IMU observations cannot
+rule out constant translational acceleration or sufficiently slow constant
+rotation; these checks are not a dynamic initializer or a full IMU calibration.
+The seven clips are startup/transport checks, **not full-route real-data 10 cm
+qualification**. The prior M2DGR reference/time caveats remain.
+
+### Final complete-route qualification
+
+Both final runs start from storage time zero, with the original raw LiDAR,
+IMU and clock at **2× replay rate**. No manual one-second skip is applied. Each
+comparison fixes the transform once at the same physical **1.898635002 s**
+anchor; the entire trajectory is not fitted. Ground truth remains offline.
+
+| Route, position RMS / maximum | Original frontend | Final frontend | Online N3M | Final saved trajectory |
+| --- | --- | --- | --- | --- |
+| Original failure input | 29.99 / 81.32 cm | 5.17 / 9.43 cm | 6.16 / 14.86 cm | 4.46 / 10.97 cm |
+| Completed two-floor route | 4.95 / 10.94 cm | 4.69 / 9.12 cm | 5.46 / 12.50 cm | 3.28 / 9.53 cm |
+
+The final binary also repeats the identical first-60-second input at 1×:
+581 matched timestamps, original maximum **17.71 cm**, repaired maximum
+**0.98 cm**. Its first published odometry is at 1.898635002 s after automatic
+acceptance of the window. This is a direct startup control, not a new claim
+that every frontend calibration problem is solved.
+
+The complete runs retain **10,366** and **13,776** post-initialization frames,
+respectively, in the frontend recording, backend and native saved trajectory.
+These stamps are the exact suffixes of the originals, with no missing or
+repeated post-initialization frame. Each run has eight initial N3M live outputs
+held for `awaiting_correction`, then **10,358** and **13,768** live poses.
+Both closed derived bags retain every frontend cloud/odometry pair. Node,
+observer, recorder, replayer and saver return zero; the frontend wrapper's -2
+is the requested shutdown SIGINT.
+
+Both maps reload and save through the real ROS map-extension node. Dense
+positions agree below 1e-9 m, and cloud payloads and non-pose edge fields survive
+exactly. These checks do not deploy either map to navigation.
+
+| 2× process-lifetime measurement | Failure route | Two-floor route |
+| --- | --- | --- |
+| Frontend mean cores / peak RSS | 0.347 / 356.14 MiB | 0.342 / 337.64 MiB |
+| N3M mean cores / peak RSS | 1.186 / 916.96 MiB | 1.382 / 1,144.22 MiB |
+| Save service latency | 0.835 s | 28.457 s |
+
+The second save spends **27.402 s** draining pending loop work, commits 90 loop
+edges during that drain, then spends 0.146 s serializing and 0.903 s building
+Atlas. It is not a 28-second disk-write cost. The following shutdown save has
+no pending edges. These are accelerated-input measurements, not a normal-rate
+half-core qualification or a guarantee on save latency. No build or other owned
+replay overlaps the two final full-route measurements.
+
+The preceding candidate without the S2-radius fix is retained in `full_01_2x`,
+`full_03_2x` and `candidate01_sources/`. The last part of its second run overlaps
+compilation of the final candidate; its resource measurements are not used to
+claim a speedup. Changing the frontend also changes point clouds, keyframes and
+asynchronous loop schedules. The online improvement between candidates must not
+be attributed exclusively to the small gravity-magnitude correction.
+
+**The complete N3M pipeline still does not meet 10 cm.** Online output exceeds
+10 cm for about **172.6 s** and **136.2 s** in the two final runs. This is not
+merely a short spike. The first final saved trajectory also exceeds 10 cm.
+Next backend work should freeze `final_01_2x/lio_source/bag` and
+`final_03_2x/lio_source/bag`, audit individual relative measurements and shared
+geometric support, and retain valid observations while calibrating directional
+uncertainty. Do not alter frontend initialization again as a substitute for
+isolating that backend error.
+
+`qualification.json` in this stage's evidence root binds source/binary hashes,
+regressions, real startup clips, full trajectories, save/reload and closed bags.
+The original FAST-LIO installation, installed GTSAM and navigation frozen N3M
+libraries retain their recorded hashes. Three pre-existing FAST-LIO `Log/`
+file deletions are preserved outside the repair commit.
 
 ## Integration boundary
 

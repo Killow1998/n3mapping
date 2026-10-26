@@ -88,5 +88,42 @@
     "reloaded_maps": 3,
     "protected_installations_unchanged": true,
     "correlation_variant": "not adopted after cross-route regressions"
+  },
+  "frontend_initialization_repair": {
+    "source_repository": "https://github.com/Killow1998/FAST_LIO",
+    "branch": "humble",
+    "source_revision": "1b3c0b4ae828d4b2e31c438fb64f405ffd4de942",
+    "remote_published": true,
+    "evidence_root": "build/n3mapping/initialization_fix_20261026",
+    "qualification_sha256": "59793f806fd35206f24bf3f278141354b826287f32a754b9ab4a0716ca84cfd2",
+    "remote_record_sha256": "499a2eb2de9c41e92796adf5f712641c525054d2439c3787b071844540c35dfb",
+    "binary_sha256": "d0dc2bffc0d59bad9eddef685f30cd4a066ec641b41089c6fe2910d2a3d0a12c",
+    "n3m_runtime_changed": false,
+    "tests": {
+      "targets": 2,
+      "cases": 8,
+      "failures": 0,
+      "pre_radius_fix_negative_control": "fails as expected"
+    },
+    "post_initialization_frame_counts": [
+      10366,
+      13776
+    ],
+    "original_failure_frontend_max_cm": 9.434213310203518,
+    "two_floor_frontend_max_cm": 9.122110083887621,
+    "online_max_cm": [
+      14.855078820127247,
+      12.497076798461254
+    ],
+    "final_saved_max_cm": [
+      10.971606946564899,
+      9.52543657773127
+    ],
+    "real_startup_clips": 7,
+    "successful_real_initializations": 6,
+    "moving_start_limit": "HelmDyn01 opening remains waiting; stationary lead-in required",
+    "precision_10cm": "not accepted for the complete pipeline or general real data",
+    "protected_installations_unchanged": true,
+    "all_owned_replay_processes_exited": true
   }
 }

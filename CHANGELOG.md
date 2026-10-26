@@ -18,6 +18,11 @@
   ablations, rejected solver/correlation variants, recovered complete recording
   and three additional map reloads. This evidence update changes no runtime
   algorithm and does not certify general 10 cm accuracy.
+- Qualify the separately authorized FAST-LIO fork initialization repair
+  `1b3c0b4`: recent stable input, consistent gravity magnitude/units and explicit
+  deskew boundary. Keep N3M runtime and navigation installations unchanged;
+  retain the moving-start limitation and unresolved online accuracy in the
+  [frontend qualification](docs/evidence/large_mapping_followup_20261026.md#frontend-initialization-repair-in-the-authorized-fork).
 
 ## [5e9bf8b] - 2026-10-26 (qualified Humble crash revision)
 

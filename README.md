@@ -8,11 +8,13 @@ Save events separate pending-loop work from artifact writes. See the
 and [solver ownership design](docs/graph_solver_execution.md).
 The dependency race is reproduced; its exclusive responsibility for the original
 SIGSEGV remains unproven. Raw-input controls now isolate a large startup-related
-accuracy loss; the unchanged frontend improves substantially with a settled
-start. Online backend error and general 10 cm accuracy remain unresolved.
+accuracy loss. The authorized FAST-LIO fork follow-up now implements a recent
+stable startup window, consistent configured gravity and explicit deskew state.
+Online backend error and general 10 cm accuracy remain unresolved.
 See the [startup and causal-prefix controls](docs/evidence/large_mapping_followup_20261026.md#raw-startup-isolation-and-online-accuracy-follow-up).
-These are diagnostic results, not a deployed frontend repair. Existing navigation
-installations and release tags stay intact.
+See the [frontend repair qualification](docs/evidence/large_mapping_followup_20261026.md#frontend-initialization-repair-in-the-authorized-fork).
+The frontend is built separately; existing navigation installations and release
+tags stay intact.
 The previous serial-containment revision **`5e9bf8b`** retains its
 [original qualification](docs/evidence/large_mapping_crash_20261025.md).
 
@@ -1085,10 +1087,12 @@ remain separate from that measured result.
 
 ### TODO
 
-Current work is updated **2026-10-26**. Humble revision `5e9bf8b` contains the
-[large-map parallel crash](docs/evidence/large_mapping_crash_20261025.md) with a
-qualified local-arena boundary. rc1/rc2/rc3 remain available. Further algorithm/performance exploration is
-paused for this closeout. Outstanding research includes **real-data time/reference
+Current work is updated **2026-10-26**. Humble revision `111b1ac` qualifies the
+[large-map dependency repair](docs/evidence/large_mapping_followup_20261026.md)
+within a local-arena boundary. The separately built FAST-LIO fork `1b3c0b4`
+repairs initialization; installed navigation artifacts and rc1/rc2/rc3 remain
+available. Next accuracy work uses the frozen repaired-frontend output to
+isolate backend constraint bias. Outstanding research includes **real-data time/reference
 qualification, correlated loop uncertainty and remaining per-query loop cost**,
 while preserving relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for
 that online behavior. Stationary startup remains required by Xian's downstream
