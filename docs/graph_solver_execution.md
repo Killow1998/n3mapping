@@ -13,8 +13,9 @@ destructor joins before the snapshots are destroyed. The worker does not acquire
 the live owner's mutex during shutdown.
 
 All GTSAM solves enter `internal::runGraphSolve`: incremental ISAM2, reconstruction
-of committed ISAM2, trial LM, geometry append LM, and shared-plane LM. Map restore
-delegates to the same trial boundary. A synchronous `tbb::task_arena(1)` confines
+of committed ISAM2, trial LM, geometry append LM, shared-plane LM, and the
+optional shadow-submap diagnostic LM. Map restore delegates to the same trial
+boundary. A synchronous `tbb::task_arena(1)` confines
 the solve's nested tasks; return or exception completes that execution before
 the arena is released. This is an execution boundary, **not a graph-state lock**.
 Independent graph owners and unrelated TBB workloads remain concurrent. There

@@ -14,7 +14,7 @@
 #include <gtsam/nonlinear/NonlinearFactor.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
-#include <tbb/global_control.h>
+#include "graph_solver_execution.h"
 
 #include "n3mapping/graph_factor_noise.h"
 #include "n3mapping/submap_graph_factor.h"
@@ -359,11 +359,10 @@ SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
         parameters.maxIterations = config.optimization_iterations;
         parameters.verbosity =
             gtsam::NonlinearOptimizerParams::SILENT;
-        tbb::global_control serial_trial(
-            tbb::global_control::max_allowed_parallelism, 1);
-        const gtsam::Values optimized =
-            gtsam::LevenbergMarquardtOptimizer(
+        const gtsam::Values optimized = internal::runGraphSolve([&] {
+            return gtsam::LevenbergMarquardtOptimizer(
                 graph, initial_values, parameters).optimize();
+        });
         diagnostics.final_nonlinear_error = graph.error(optimized);
         if (!std::isfinite(diagnostics.initial_nonlinear_error) ||
             !std::isfinite(diagnostics.final_nonlinear_error) ||
