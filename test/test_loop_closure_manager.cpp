@@ -626,6 +626,66 @@ TEST(LoopVerificationPipelineTest, DebugTrialDoesNotChangeConstraintDecision)
     EXPECT_EQ(optimizer.getEdges().size(), edges.size());  // Trials do not commit.
 }
 
+TEST(LoopVerificationPipelineTest, SharedFloorCannotCertifyHorizontalLoopPrecision)
+{
+    Config config;
+    config.num_threads = 1;
+    config.loop_use_icp_information = true;
+    const auto cloud = makeRegistrationCloud();
+    KeyframeManager keyframes(config);
+    std::vector<Keyframe::Ptr> frames;
+    std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
+    std::vector<EdgeInfo> edges;
+    Eigen::Isometry3d world_pose = Eigen::Isometry3d::Identity();
+    world_pose.linear() = Eigen::AngleAxisd(.6, Eigen::Vector3d::UnitX()).toRotationMatrix();
+    SharedPlane floor;
+    floor.normal = world_pose.rotation() * Eigen::Vector3d::UnitZ();
+    PlaneMoment patch;
+    for (int x = -5; x <= 5; ++x)
+        for (int y = -5; y <= 5; ++y)
+            patch.add(Eigen::Vector3d(.1 * x, .1 * y, 0.));
+    for (int64_t id : {0, 10, 20}) {
+        frames.push_back(Keyframe::create(id, id + 1., world_pose, cloud));
+        nodes.emplace_back(id, world_pose);
+        floor.observations.push_back({id, patch, 1.});
+        if (id) edges.emplace_back(id - 10, id, Eigen::Isometry3d::Identity(),
+            Eigen::Matrix<double, 6, 6>::Identity() * 1e4, EdgeType::ODOMETRY);
+    }
+    ASSERT_TRUE(keyframes.loadKeyframes(frames));
+    PointCloudMatcher matcher(config);
+    GraphOptimizer optimizer(config);
+    ASSERT_TRUE(optimizer.loadGraph(nodes, edges, {}, {floor}));
+    LoopClosureManager manager(config);
+    VerifiedLoop loop;
+    loop.query_id = 20;
+    loop.match_id = 0;
+    loop.verified = true;
+    loop.information.setIdentity();
+    loop.information *= 1e4;
+    loop.T_match_query = loop.T_measured_match_query = poseAt(.25);
+    const auto result = LoopVerificationPipeline(
+        config, keyframes, matcher, optimizer, manager).evaluateConstraints(
+            {loop}, LoopEdgeDirection::MatchToQuery).front();
+    ASSERT_TRUE(result.has_edge);
+    // Floor height and orientation retain evidence. Sampling along the floor
+    // cannot turn a 25 cm horizontal alias into a centimetre-precision edge.
+    EXPECT_LT(result.edge.information(0, 0), 1.);
+    EXPECT_LT(result.edge.information(1, 1), 1.);
+    EXPECT_GT(result.edge.information(2, 2), 1000.);
+    EXPECT_GT(result.edge.information(5, 5), 1000.);
+    EXPECT_TRUE(result.edge.measurement.isApprox(loop.T_match_query));
+
+    for (auto& observation : floor.observations) observation.information_weight = .25;
+    GeometryOptimizationStats stats;
+    ASSERT_TRUE(optimizer.replaceSharedPlanes({floor}, false, stats));
+    const auto correlated = LoopVerificationPipeline(
+        config, keyframes, matcher, optimizer, manager).evaluateConstraints(
+            {loop}, LoopEdgeDirection::MatchToQuery).front();
+    ASSERT_TRUE(correlated.has_edge);
+    EXPECT_LT(correlated.edge.information(2, 2), result.edge.information(2, 2) / 2.);
+    EXPECT_GT(correlated.edge.information(5, 5), 1000.);
+}
+
 TEST(PointCloudMatcherEvidenceTest, ClassifiesTermination)
 {
     EXPECT_EQ(classifyMatchTermination(true, 2, 10, true), MatchTermination::Converged);

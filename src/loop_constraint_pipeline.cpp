@@ -6,13 +6,15 @@
 #include <cmath>
 #include <utility>
 #include <Eigen/Cholesky>
+#include <Eigen/Eigenvalues>
 #include <gtsam/geometry/Pose3.h>
 #include "n3mapping/n3map_proto_utils.h"
 
 namespace n3mapping {
 namespace {
-void accountForNeighborDisagreement(
+void calibrateLoopInformation(
     const Config& config, const LoopConsensusResult& consensus,
+    const std::vector<SharedPlane>& planes, const Eigen::Matrix3d& query_rotation,
     VerifiedLoop* loop) {
     if (!config.loop_use_icp_information ||
         loop->edge_mode != LoopEdgeMode::Full6Dof) return;
@@ -33,12 +35,48 @@ void accountForNeighborDisagreement(
         scatter.noalias() += residual * residual.transpose();
         ++count;
     }
-    if (count < 3) return;
+    Eigen::Matrix3d plane_information = Eigen::Matrix3d::Zero();
+    for (const auto& plane : planes) {
+        double query_weight = 0., match_weight = 0.;
+        for (const auto& observation : plane.observations) {
+            if (observation.node_id == loop->query_id)
+                query_weight = observation.information_weight;
+            if (observation.node_id == loop->match_id)
+                match_weight = observation.information_weight;
+        }
+        if (query_weight == 0. || match_weight == 0.) continue;
+        const double variance = plane.sigma * plane.sigma *
+            (1. / query_weight + 1. / match_weight);
+        plane_information.noalias() +=
+            plane.normal * plane.normal.transpose() / variance;
+    }
+    if (count < 3 && plane_information.isZero()) return;
     // Neighbor estimates share scans and odometry. Their second moment is an
     // uncertainty floor, not independent information to multiply by their count.
     const Eigen::LDLT<Matrix6> initial(loop->information);
     if (initial.info() != Eigen::Success || !initial.isPositive()) return;
-    const Matrix6 covariance = initial.solve(Matrix6::Identity()) + scatter / count;
+    Matrix6 covariance = initial.solve(Matrix6::Identity());
+    if (count >= 3) covariance += scatter / count;
+    if (!plane_information.isZero()) {
+        // Nearby point samples can make GICP's tangent curvature appear strong.
+        // Shared planes bound that confidence using already committed geometry;
+        // they do not add a second set of measurements or discard loop edges.
+        plane_information = query_rotation.transpose() * plane_information * query_rotation;
+        const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> geometry(plane_information);
+        const Eigen::SelfAdjointEigenSolver<Matrix6> existing(covariance);
+        // Finite variance for an unobserved direction, within serialization's
+        // condition-number limit. This is not a geometric acceptance threshold.
+        const double minimum_information =
+            1e-10 / existing.eigenvalues().minCoeff();
+        const Eigen::Matrix3d bound = geometry.eigenvectors() *
+            geometry.eigenvalues().cwiseMax(minimum_information).cwiseInverse().asDiagonal() *
+            geometry.eigenvectors().transpose();
+        const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> missing(
+            bound - covariance.topLeftCorner<3, 3>());
+        covariance.topLeftCorner<3, 3>() += missing.eigenvectors() *
+            missing.eigenvalues().cwiseMax(0.).asDiagonal() *
+            missing.eigenvectors().transpose();
+    }
     const Eigen::LDLT<Matrix6> calibrated(covariance);
     if (calibrated.info() != Eigen::Success || !calibrated.isPositive()) return;
     const Matrix6 candidate = calibrated.solve(Matrix6::Identity());
@@ -105,6 +143,8 @@ LoopVerificationPipeline::evaluateConstraints(
     auto evidence = consensus_verifier_.evaluate(
         keyframe_manager_, matcher_, eligible,
         std::max(2, config_.gicp_submap_size), context.cross_session);
+    const auto planes = config_.loop_use_icp_information
+        ? optimizer_.sharedPlanes() : std::vector<SharedPlane>{};
     for (std::size_t i = 0; i < eligible.size(); ++i) {
         auto& result = results[indices[i]];
         result.consensus = std::move(evidence[i]);
@@ -126,7 +166,10 @@ LoopVerificationPipeline::evaluateConstraints(
             result.reject_reason = reason;
             continue;
         }
-        accountForNeighborDisagreement(config_, result.consensus, &result.loop);
+        const Eigen::Matrix3d query_rotation =
+            keyframe_manager_.getKeyframe(result.loop.query_id)->pose_optimized.rotation();
+        calibrateLoopInformation(config_, result.consensus, planes,
+                                 query_rotation, &result.loop);
 
         const auto edges = loop_closure_manager_.buildLoopEdges(
             {result.loop}, direction);
