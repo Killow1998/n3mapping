@@ -2,7 +2,6 @@
 #include "n3mapping/graph_optimizer.h"
 #include "graph_pose_factors.h"
 #include <gtsam/navigation/AttitudeFactor.h>
-#include <tbb/global_control.h>
 #include <iostream>
 #include <limits>
 namespace n3mapping {
@@ -116,14 +115,8 @@ bool GraphOptimizer::loadGraph(
     if (!restore_estimates && planes.empty() &&
         !temp.graph_.empty() && !temp.initial_values_.empty()) {
         gtsam::Values optimized_estimate;
-        // The installed GTSAM uses TBB for Bayes-tree back-substitution. On
-        // large cross-linked saved graphs its parallel traversal can race a
-        // child clique against publication of its parent's result and throw
-        // std::out_of_range ("map::at"). Keep only this one-shot bulk reload
-        // solve serial; online incremental optimization and point-cloud work
-        // retain their configured parallelism.
-        tbb::global_control serial_reload_solve(
-            tbb::global_control::max_allowed_parallelism, 1);
+        // optimizeCandidate owns the same local execution boundary used by
+        // live graph solves; reload does not change process-wide concurrency.
         if (!temp.optimizeCandidate(temp.graph_, temp.initial_values_, &optimized_estimate)) {
             LOG(ERROR) << "GraphOptimizer::loadGraph() failed; existing graph left unchanged" << std::endl;
             return false;

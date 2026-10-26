@@ -39,6 +39,7 @@ foreach(name
     test_global_map_cache
     test_graph_optimizer
     test_graph_optimizer_pbt
+    test_graph_solver_execution
     test_keyframe_manager
     test_local_map_selector
     test_localization_atlas

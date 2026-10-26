@@ -2,7 +2,7 @@
 #include "n3mapping/graph_optimizer.h"
 #include "planar_geometry/moment_factor.h"
 #include <iostream>
-#include <tbb/global_control.h>
+#include "graph_solver_execution.h"
 
 namespace n3mapping {
 namespace {
@@ -41,34 +41,35 @@ public:
 
 bool GraphOptimizer::optimizeGeometryUpdate() {
   try {
-    tbb::global_control serial(tbb::global_control::max_allowed_parallelism, 1);
-    gtsam::LevenbergMarquardtParams params;
-    params.maxIterations = 20;
-    params.diagonalDamping = true;
-    auto result = current_estimate_;
-    if (!pending_node_ids_.empty()) {
-      gtsam::NonlinearFactorGraph local;
-      for (const auto& factor : new_factors_) {
-        auto conditioned = boost::make_shared<ConditionedFactor>(factor, current_estimate_);
-        // An old-to-old update belongs to the asynchronous global solve.
-        if (conditioned->size() == 0)
-          throw std::runtime_error("Old-node update in append transaction");
-        local.push_back(conditioned);
+    return internal::runGraphSolve([&] {
+      gtsam::LevenbergMarquardtParams params;
+      params.maxIterations = 20;
+      params.diagonalDamping = true;
+      auto result = current_estimate_;
+      if (!pending_node_ids_.empty()) {
+        gtsam::NonlinearFactorGraph local;
+        for (const auto& factor : new_factors_) {
+          auto conditioned = boost::make_shared<ConditionedFactor>(factor, current_estimate_);
+          // An old-to-old update belongs to the asynchronous global solve.
+          if (conditioned->size() == 0)
+            throw std::runtime_error("Old-node update in append transaction");
+          local.push_back(conditioned);
+        }
+        const auto tail = gtsam::LevenbergMarquardtOptimizer(local, new_values_, params).optimize();
+        if (!std::isfinite(local.error(tail))) throw std::runtime_error("Non-finite append cost");
+        result.insert(tail);
+      } else {
+        auto candidate = graph_;
+        appendPendingTo(&candidate, &result);
+        result = gtsam::LevenbergMarquardtOptimizer(candidate, result, params).optimize();
+        if (!std::isfinite(candidate.error(result))) throw std::runtime_error("Non-finite graph cost");
       }
-      const auto tail = gtsam::LevenbergMarquardtOptimizer(local, new_values_, params).optimize();
-      if (!std::isfinite(local.error(tail))) throw std::runtime_error("Non-finite append cost");
-      result.insert(tail);
-    } else {
-      auto candidate = graph_;
-      appendPendingTo(&candidate, &result);
-      result = gtsam::LevenbergMarquardtOptimizer(candidate, result, params).optimize();
-      if (!std::isfinite(candidate.error(result))) throw std::runtime_error("Non-finite graph cost");
-    }
-    for (const auto id : pending_node_ids_)
-      if (!result.at<gtsam::Pose3>(gtsam::Symbol('x', id)).matrix().allFinite())
-        throw std::runtime_error("Non-finite appended pose");
-    commitPending(result, createISAM2());
-    return true;
+      for (const auto id : pending_node_ids_)
+        if (!result.at<gtsam::Pose3>(gtsam::Symbol('x', id)).matrix().allFinite())
+          throw std::runtime_error("Non-finite appended pose");
+      commitPending(result, createISAM2());
+      return true;
+    });
   } catch (const std::exception& e) {
     LOG(ERROR) << "Geometry graph update failed: " << e.what() << '\n';
     clearPending();

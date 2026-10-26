@@ -13,7 +13,7 @@
 #include <utility>
 #include <gtsam/linear/NoiseModel.h>
 #include <gtsam/nonlinear/DoglegOptimizer.h>
-#include <tbb/global_control.h>
+#include "graph_solver_execution.h"
 
 namespace n3mapping {
 GraphOptimizer::GraphOptimizer(const Config& config)
@@ -105,38 +105,40 @@ bool GraphOptimizer::incrementalOptimize() {
         return optimizeGeometryUpdate();
 
     try {
-        auto trial_isam2 = createISAM2();
+        return internal::runGraphSolve([&] {
+            auto trial_isam2 = createISAM2();
 
-        if (!graph_.empty()) {
-            const gtsam::Values& committed_values = !current_estimate_.empty() ? current_estimate_ : initial_values_;
-            trial_isam2->update(graph_, committed_values);
-        }
+            if (!graph_.empty()) {
+                const gtsam::Values& committed_values = !current_estimate_.empty() ? current_estimate_ : initial_values_;
+                trial_isam2->update(graph_, committed_values);
+            }
 
-        trial_isam2->update(new_factors_, new_values_);
+            trial_isam2->update(new_factors_, new_values_);
         
-        // Robust global constraints (loop or session anchor) receive the same
-        // additional relinearization updates.
-        if (hasGlobalConstraint()) {
-            for (int i = 0; i < config_.optimization_iterations; ++i) {
+            // Robust global constraints (loop or session anchor) receive the same
+            // additional relinearization updates.
+            if (hasGlobalConstraint()) {
+                for (int i = 0; i < config_.optimization_iterations; ++i) {
+                    trial_isam2->update();
+                }
+            } else {
+                // 普通情况下也执行一次额外更新以确保收敛
                 trial_isam2->update();
             }
-        } else {
-            // 普通情况下也执行一次额外更新以确保收敛
-            trial_isam2->update();
-        }
         
-        // 获取当前估计
-        gtsam::Values optimized_estimate = trial_isam2->calculateEstimate();
+            // 获取当前估计
+            gtsam::Values optimized_estimate = trial_isam2->calculateEstimate();
         
-        // 检查优化健康度
-        if (optimized_estimate.empty()) {
-            LOG(ERROR) << "Optimization unhealthy, rolling back to last state" << std::endl;
-            rollbackToLastState();
-            return false;
-        }
+            // 检查优化健康度
+            if (optimized_estimate.empty()) {
+                LOG(ERROR) << "Optimization unhealthy, rolling back to last state" << std::endl;
+                rollbackToLastState();
+                return false;
+            }
 
-        commitPending(optimized_estimate, std::move(trial_isam2));
-        return true;
+            commitPending(optimized_estimate, std::move(trial_isam2));
+            return true;
+        });
 
     } catch (const std::exception& e) {
         LOG(ERROR) << "GTSAM optimization exception: " << e.what() << std::endl;
@@ -396,7 +398,7 @@ void GraphOptimizer::rebuildISAM2FromCommitted() {
         return;
     }
     try {
-        isam2_->update(graph_, values);
+        internal::runGraphSolve([&] { isam2_->update(graph_, values); });
     } catch (const std::exception& e) {
         LOG(ERROR) << "GraphOptimizer::rebuildISAM2FromCommitted() failed: " << e.what() << std::endl;
         isam2_ = createISAM2();
@@ -410,13 +412,15 @@ bool GraphOptimizer::optimizeCandidate(const gtsam::NonlinearFactorGraph& candid
         return false;
     }
     try {
-        gtsam::LevenbergMarquardtParams params;
-        params.maxIterations = config_.optimization_iterations;
-        params.verbosity = gtsam::NonlinearOptimizerParams::SILENT;
+        return internal::runGraphSolve([&] {
+            gtsam::LevenbergMarquardtParams params;
+            params.maxIterations = config_.optimization_iterations;
+            params.verbosity = gtsam::NonlinearOptimizerParams::SILENT;
 
-        gtsam::LevenbergMarquardtOptimizer optimizer(candidate_graph, candidate_values, params);
-        *optimized_estimate = optimizer.optimize();
-        return !optimized_estimate->empty();
+            gtsam::LevenbergMarquardtOptimizer optimizer(candidate_graph, candidate_values, params);
+            *optimized_estimate = optimizer.optimize();
+            return !optimized_estimate->empty();
+        });
     } catch (const std::exception& e) {
         LOG(ERROR) << "GraphOptimizer::optimizeCandidate() failed: " << e.what() << std::endl;
         return false;

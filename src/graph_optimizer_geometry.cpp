@@ -4,7 +4,7 @@
 #include "planar_geometry/moment_factor.h"
 #include <chrono>
 #include <iostream>
-#include <tbb/global_control.h>
+#include "graph_solver_execution.h"
 
 namespace n3mapping {
 std::vector<SharedPlane> GraphOptimizer::sharedPlanes() const {
@@ -67,11 +67,12 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
     stats.initial_cost = candidate.error(values);
     if (optimize) {
       const auto start = std::chrono::steady_clock::now();
-      tbb::global_control serial(tbb::global_control::max_allowed_parallelism, 1);
       gtsam::LevenbergMarquardtParams params;
       params.maxIterations = 20;
       params.diagonalDamping = true;
-      values = gtsam::LevenbergMarquardtOptimizer(candidate, values, params).optimize();
+      values = internal::runGraphSolve([&] {
+        return gtsam::LevenbergMarquardtOptimizer(candidate, values, params).optimize();
+      });
       stats.solve_ms = std::chrono::duration<double, std::milli>(
           std::chrono::steady_clock::now() - start).count();
     }
