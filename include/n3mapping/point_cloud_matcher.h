@@ -140,6 +140,12 @@ public:
                               const PreparedSource& source,
                               const Eigen::Isometry3d& init_guess,
                               const small_gicp::RegistrationSetting& setting);
+    // Local GICP on an admitted raw scan pair; reject many-to-one boundary
+    // correspondences when the two scans cover different parts of the scene.
+    MatchResult alignPreparedReciprocal(const PreparedTarget& target,
+                                       const PreparedSource& source,
+                                       const Eigen::Isometry3d& init_guess,
+                                       const small_gicp::RegistrationSetting& setting);
     // Optimize fresh geometry from a previously accepted metric's scale.
     // The caller must retry the full cascade if the local solve is unsupported
     // or its correction leaves the tracking neighborhood.
@@ -171,7 +177,8 @@ private:
                                          const PreparedSource& source,
                                          const Eigen::Isometry3d& init_guess,
                                          const small_gicp::RegistrationSetting& setting,
-                                         double start_resolution = std::numeric_limits<double>::infinity());
+                                         double start_resolution = std::numeric_limits<double>::infinity(),
+                                         bool reciprocal = false);
 
     Config config_;
     small_gicp::RegistrationSetting setting_;

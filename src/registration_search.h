@@ -108,7 +108,7 @@ small_gicp::RegistrationResult align(
     const CorrespondenceSearch::Tree& tree, const Eigen::Isometry3d& initial_pose,
     const small_gicp::RegistrationSetting& setting,
     const SearchBounds* bounds = nullptr,
-    const LazyTargetNormals* lazy_normals = nullptr);
+    const LazyTargetNormals* lazy_normals = nullptr, bool reciprocal = false);
 
 }  // namespace n3mapping::registration_detail
 

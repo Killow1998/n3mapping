@@ -11,7 +11,7 @@
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/loop_referee.h"
 #include "n3mapping/loop_segment_consistency.h"
-#include "constraint_refinement.h"
+#include "n3mapping/relocalization_quality.h"
 
 namespace n3mapping {
 namespace {
@@ -292,29 +292,61 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
             config_, candidate, broad_loop,
             result.verification.icp_translation_norm)).decision == LoopDecision::Accept;
     }
-    if (broad_loop.verified && config_.icp_refine_use_gicp) {
-        // Neighbor scans provide coverage for admission, but their estimated
-        // relative poses can blur the target. Refine on the two original scans
-        // only after that broad observation has passed, and require the refined
-        // endpoint to retain the original submap's geometric support.
+    if (result.verification.loop.verified && config_.icp_refine_use_gicp) {
         const auto source = matcher_.prepareSourceCloud(query->cloud);
-        const auto target = matcher_.prepareTargetCloud(match->cloud);
-        const auto refined = refineConstraint(config_, matcher_, target, source,
-            result.verification.T_measured_match_query);
-        if (refined.success) {
-            const auto submap = matcher_.prepareTargetCloud(result.target_registration_cloud);
-            const auto supported = matcher_.evaluatePreparedPose(
-                submap, source, refined.T_target_source, refined.metric);
-            if (supported.num_inliers > 0 &&
-                supported.fitness_score < config_.loop_fitness_threshold &&
-                supported.inlier_ratio >= config_.loop_min_inlier_ratio) {
-                result.verification = loop_verifier_.verifyQueryToMatchResult(
-                    candidate, query, match, query->cloud, match->cloud, refined);
-                result.source_registration_cloud = query->cloud;
-                result.target_registration_cloud = match->cloud;
-                result.pose_visibility = pose_visibility(result.verification);
+        const auto submap = matcher_.prepareTargetCloud(result.target_registration_cloud);
+        bool pair_refined = false;
+        if (broad_loop.verified) {
+            // Neighbor scans supply coverage. Refine the measurement on the
+            // original pair to avoid fitting their estimated relative poses.
+            const auto target = matcher_.prepareTargetCloud(match->cloud);
+            auto settings = matcher_.getSettings();
+            settings.type = small_gicp::RegistrationSetting::GICP;
+            settings.downsampling_resolution = config_.icp_refine_downsampling_resolution;
+            settings.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
+            settings.max_iterations = config_.icp_refine_max_iterations;
+            const auto refined = matcher_.alignPreparedReciprocal(target, source,
+                result.verification.T_measured_match_query, settings);
+            const Eigen::Isometry3d delta =
+                result.verification.T_measured_match_query.inverse() * refined.T_target_source;
+            if (hasValidRegistrationResult(refined) && refined.converged &&
+                refined.num_inliers > 0 &&
+                refined.fitness_score < config_.loop_fitness_threshold &&
+                delta.translation().norm() <= config_.icp_refine_max_correspondence_distance &&
+                Eigen::AngleAxisd(delta.rotation()).angle() <= config_.icp_refine_delta_rotation_gate) {
+                auto supported = matcher_.evaluatePreparedPose(
+                    submap, source, refined.T_target_source, refined.metric);
+                // Coverage belongs to the full target observation. The raw
+                // pair contributes the measurement and its Hessian; partial
+                // pair overlap is not a second coverage veto.
+                supported.information = refined.information;
+                supported.stages = refined.stages;
+                auto verification = loop_verifier_.verifyQueryToMatchResult(
+                    candidate, query, match, query->cloud,
+                    result.target_registration_cloud, supported);
+                if (verification.loop.verified) {
+                    result.verification = std::move(verification);
+                    pair_refined = true;
+                }
             }
         }
+        if (!pair_refined) {
+            const MatchMetric metric{small_gicp::RegistrationSetting::GICP,
+                config_.icp_refine_downsampling_resolution,
+                config_.icp_refine_max_correspondence_distance};
+            auto supported = matcher_.evaluatePreparedPose(
+                submap, source, result.verification.T_measured_match_query, metric);
+            // Coarse convergence is not fine geometric evidence. Check the
+            // retained pose, without treating this check as a new measurement
+            // or replacing its uncertainty with the fine objective's Hessian.
+            supported.information = result.verification.loop.information;
+            supported.stages = result.verification.match_result.stages;
+            result.verification = loop_verifier_.verifyQueryToMatchResult(
+                candidate, query, match, query->cloud,
+                result.target_registration_cloud, supported);
+        }
+        result.source_registration_cloud = query->cloud;
+        result.pose_visibility = pose_visibility(result.verification);
     }
     result.loop = result.verification.loop;
     if (!result.loop.verified) {

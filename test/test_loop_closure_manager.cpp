@@ -346,6 +346,78 @@ TEST(LoopVerificationPipelineTest,
     }
 }
 
+TEST(LoopVerificationPipelineTest, CoarseSupportCannotReplaceFineEvidence)
+{
+    Config config;
+    config.num_threads = 1;
+    config.icp_refine_max_correspondence_distance = 0.1;
+    config.loop_min_inlier_ratio = 0.7;
+    const auto target = makeRegistrationCloud();
+    auto source = pcl::make_shared<Keyframe::PointCloudT>(*target);
+    // Two displaced sheets straddle each target surface. A wide search sees
+    // every point, but no rigid pose makes both sheets agree with the surface.
+    for (std::size_t i = 0; i < source->size(); ++i) {
+        const int normal_axis = (i % 3 + 2) % 3;
+        source->points[i].getVector3fMap()[normal_axis] +=
+            (i / 3) % 2 == 0 ? 0.25f : -0.25f;
+    }
+    KeyframeManager keyframes(config);
+    keyframes.loadKeyframes({
+        Keyframe::create(0, 1.0, Eigen::Isometry3d::Identity(), target),
+        Keyframe::create(10, 2.0, Eigen::Isometry3d::Identity(), source)});
+    GraphOptimizer optimizer(config);
+    LoopClosureManager manager(config);
+    LoopCandidate candidate;
+    candidate.query_id = 10;
+    candidate.match_id = 0;
+    candidate.source_flags = LoopCandidate::SOURCE_RHPD;
+    candidate.descriptor_score = 1.0;
+    for (bool fine : {false, true}) {
+        config.icp_refine_use_gicp = fine;
+        PointCloudMatcher matcher(config);
+        const auto result = LoopVerificationPipeline(
+            config, keyframes, matcher, optimizer, manager).evaluate(candidate, {});
+        ASSERT_TRUE(result.registration_attempted);
+        EXPECT_EQ(result.loop.verified, !fine) << result.reject_reason;
+        if (fine) {
+            EXPECT_EQ(result.reject_stage, "registration");
+            EXPECT_LT(result.verification.match_result.inlier_ratio,
+                      config.loop_min_inlier_ratio);
+        }
+    }
+}
+
+TEST(LoopVerificationPipelineTest, PartialPairRefinementKeepsFullSubmapAdmission)
+{
+    Config config;
+    config.num_threads = 1;
+    config.loop_min_inlier_ratio = 0.7;
+    const auto query = makeRegistrationCloud();
+    auto partial = pcl::make_shared<Keyframe::PointCloudT>();
+    for (const auto& point : *query)
+        if (point.x < 0.f) partial->push_back(point);
+    KeyframeManager keyframes(config);
+    // The neighbor's pose error blurs the submap. The original scan pair is
+    // accurate but covers less than the full query's observed scene.
+    keyframes.loadKeyframes({
+        Keyframe::create(0, 1.0, Eigen::Isometry3d::Identity(), partial),
+        Keyframe::create(1, 1.1, poseAt(0., 0.08), query),
+        Keyframe::create(20, 2.0, Eigen::Isometry3d::Identity(), query)});
+    PointCloudMatcher matcher(config);
+    GraphOptimizer optimizer(config);
+    LoopClosureManager manager(config);
+    LoopCandidate candidate;
+    candidate.query_id = 20;
+    candidate.match_id = 0;
+    candidate.source_flags = LoopCandidate::SOURCE_RHPD;
+    candidate.descriptor_score = 1.0;
+    const auto result = LoopVerificationPipeline(
+        config, keyframes, matcher, optimizer, manager).evaluate(candidate, {});
+    ASSERT_TRUE(result.loop.verified) << result.reject_reason;
+    EXPECT_GE(result.loop.inlier_ratio, config.loop_min_inlier_ratio);
+    EXPECT_LT(result.loop.T_match_query.translation().norm(), 0.01);
+}
+
 TEST(LoopVerifierEvidenceTest, PretransformedSourceKeepsMeasurementUncertainty)
 {
     Config config;

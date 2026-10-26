@@ -4,13 +4,13 @@
 #include "registration_search.h"
 #include "registration_reduction.h"
 #include "point_cloud_target_view.h"
+#include <small_gicp/factors/plane_icp_factor.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <glog/logging.h>
 #include <small_gicp/ann/kdtree_omp.hpp>
-#include <small_gicp/factors/plane_icp_factor.hpp>
 #include <small_gicp/factors/gicp_factor.hpp>
 #include <small_gicp/registration/rejector.hpp>
 #include <small_gicp/util/normal_estimation_omp.hpp>
@@ -207,12 +207,20 @@ MatchResult PointCloudMatcher::evaluatePreparedPose(
     return result;
 }
 
+MatchResult PointCloudMatcher::alignPreparedReciprocal(
+    const PreparedTarget& target, const PreparedSource& source,
+    const Eigen::Isometry3d& init_guess,
+    const small_gicp::RegistrationSetting& setting) {
+    return alignPreparedWithSetting(target, source, init_guess, setting,
+        std::numeric_limits<double>::infinity(), true);
+}
+
 MatchResult PointCloudMatcher::alignPreparedWithSetting(
     const PreparedTarget& target,
     const PreparedSource& source,
     const Eigen::Isometry3d& init_guess,
     const small_gicp::RegistrationSetting& setting,
-    double start_resolution) {
+    double start_resolution, bool reciprocal) {
     MatchResult result;
     // An explicit GICP request is a local solve on the already prepared
     // covariance level. Do not run the broad plane cascade first.
@@ -227,8 +235,8 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
         try {
             const auto rr = registration_detail::align(
                 *level.cloud, *source.refine_cloud, *level.kdtree, init_guess, setting,
-                level.search_bounds.get(), level.lazy_normals.get());
-            const auto stage = makeStageResult("local_gicp", level.resolution, rr,
+                level.search_bounds.get(), level.lazy_normals.get(), reciprocal);
+            const auto stage = makeStageResult(reciprocal ? "reciprocal_gicp" : "local_gicp", level.resolution, rr,
                 source.refine_cloud->size(), setting.max_iterations);
             result.stages.push_back(stage);
             result.T_target_source = rr.T_target_source;
