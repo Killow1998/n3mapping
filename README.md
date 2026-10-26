@@ -1,6 +1,13 @@
 # N3Mapping
 
-Current local hardware-test candidate: **v1.1.0-rc3** (ROS package version **1.1.0**).
+Humble large-map crash revision: **`0b4f4a9`**, qualified 2026-10-26 in a separate
+Release installation. GTSAM solves use local TBB arenas; whole-route replay,
+save/reload, numerical results and latency/CPU/RAM limits are recorded in the
+[qualification](docs/evidence/large_mapping_crash_20261025.md) and
+[solver ownership design](docs/graph_solver_execution.md). The precise dependency
+defect remains unproven. Existing navigation installations and release tags stay intact.
+
+Previous hardware-test candidate: **v1.1.0-rc3** (ROS package version **1.1.0**).
 Runtime code changes end at `ea0ced6`; the candidate also includes integration
 history and review documentation. Four-core Release validation passes Humble
 66/66 and Noetic/Focal Docker 64/64 tests. See the
@@ -8,9 +15,9 @@ history and review documentation. Four-core Release validation passes Humble
 and [rc3 evidence](docs/evidence/runtime_cpu_20261017/README.md#core-closeout-and-rc3--2026-10-23).
 The candidate includes shared map artifacts/logging, aligned thin ROS adapters,
 continuous-startup input recovery, and ROS-free core tests. Existing rc1/rc2 tags
-are unchanged. Local integration is complete; pushing awaits Xian's review.
+are unchanged. The new crash revision is local and has not been pushed.
 General 10 cm accuracy, difficult-search half-core operation and target-hardware
-acceptance remain open. This closeout does not repeat the full recorded routes.
+acceptance remain open. The rc3 closeout did not repeat the full recorded routes.
 
 ## 1. What Is N3Mapping?
 
@@ -1069,8 +1076,9 @@ remain separate from that measured result.
 
 ### TODO
 
-Current work is updated **2026-10-23**. Version **1.1.0-rc3** is the current local hardware-test candidate;
-rc1/rc2 remain available. Further algorithm/performance exploration is
+Current work is updated **2026-10-26**. Humble revision `0b4f4a9` contains the
+[large-map parallel crash](docs/evidence/large_mapping_crash_20261025.md) with a
+qualified local-arena boundary. rc1/rc2/rc3 remain available. Further algorithm/performance exploration is
 paused for this closeout. Outstanding research includes **real-data time/reference
 qualification, correlated loop uncertainty and remaining per-query loop cost**,
 while preserving relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for
