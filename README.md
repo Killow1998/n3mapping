@@ -1091,8 +1091,11 @@ Current work is updated **2026-10-26**. Humble revision `111b1ac` qualifies the
 [large-map dependency repair](docs/evidence/large_mapping_followup_20261026.md)
 within a local-arena boundary. The separately built FAST-LIO fork `1b3c0b4`
 repairs initialization; installed navigation artifacts and rc1/rc2/rc3 remain
-available. Next accuracy work uses the frozen repaired-frontend output to
-isolate backend constraint bias. Outstanding research includes **real-data time/reference
+available. Frozen repaired-input ablations isolate loop-measurement bias,
+optional pair-refinement fallback and shared-error uncertainty as the next
+backend targets; they do not qualify a 10 cm runtime fix. See the
+[constraint diagnosis](docs/evidence/large_mapping_followup_20261026.md#backend-constraint-bias-diagnosis-after-the-frontend-repair).
+Outstanding research includes **real-data time/reference
 qualification, correlated loop uncertainty and remaining per-query loop cost**,
 while preserving relocalization accuracy and online mapping/extension behavior. Offline replay is a validation method for
 that online behavior. Stationary startup remains required by Xian's downstream

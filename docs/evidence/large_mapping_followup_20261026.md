@@ -556,17 +556,134 @@ be attributed exclusively to the small gravity-magnitude correction.
 **The complete N3M pipeline still does not meet 10 cm.** Online output exceeds
 10 cm for about **172.6 s** and **136.2 s** in the two final runs. This is not
 merely a short spike. The first final saved trajectory also exceeds 10 cm.
-Next backend work should freeze `final_01_2x/lio_source/bag` and
-`final_03_2x/lio_source/bag`, audit individual relative measurements and shared
-geometric support, and retain valid observations while calibrating directional
-uncertainty. Do not alter frontend initialization again as a substitute for
-isolating that backend error.
+The backend diagnosis below freezes `final_01_2x/lio_source/bag` and
+`final_03_2x/lio_source/bag`. It isolates biased loop measurements and their
+admission/uncertainty limits. Do not alter frontend initialization again as a
+substitute for repairing that backend error.
 
 `qualification.json` in this stage's evidence root binds source/binary hashes,
 regressions, real startup clips, full trajectories, save/reload and closed bags.
 The original FAST-LIO installation, installed GTSAM and navigation frozen N3M
 libraries retain their recorded hashes. Three pre-existing FAST-LIO `Log/`
 file deletions are preserved outside the repair commit.
+
+## Backend constraint-bias diagnosis after the frontend repair
+
+Evidence: `build/n3mapping/backend_bias_20261026/` in the parent workspace.
+N3M runtime `111b1ac`, repaired frontend `1b3c0b4`, parameters and protected
+libraries are unchanged. This stage diagnoses causes; it does not qualify a
+runtime fix. `qualification.json` binds scripts, reports, maps and binaries.
+All experiments use affinity 0,2,4,6, OpenMP 4 and OpenBLAS 1.
+
+At the original online peak, **361.2 s**, the same-time position errors are
+6.81 cm for FAST-LIO, 14.86 cm for live N3M, and 9.05 cm for the final saved
+trajectory. Live N3M adds about (-7.59, -3.70, -0.08) cm relative to the input.
+The optimization log itself reaches 14.71 cm at 360.6 s. Thus the error exists
+in the graph state; output timing alone cannot explain it.
+
+A new causal prefix retains original serialized frontend/clock messages through
+400 s by message stamp. It publishes no truth and uses no future geometry.
+The four-core 2× replay processes all **3,982** cloud/odometry pairs, saves all
+3,982 native poses and emits 3,974 live poses after eight initialization holds.
+All owned processes exit zero. The online maximum is **14.85 cm**, and the
+prefix's final dense maximum is **14.68 cm**.
+
+The production `GraphOptimizer` then solves the same frozen nodes, gauge,
+odometry, loop measurements and plane observations with individual factor
+families ablated. These are **keyframe** errors using the same one-time input
+alignment, not dense/live results or whole-trajectory fits:
+
+| Fixed graph | Odometry only, RMS / max | + loops | + planes | + loops and planes |
+| --- | --- | --- | --- | --- |
+| New 400 s prefix, 502 nodes | 4.54 / 9.21 cm | 7.43 / 13.93 cm | 3.17 / 7.65 cm | 7.87 / 14.65 cm |
+| Complete repaired-input route 01 | 5.21 / 9.40 cm | 8.28 / 16.76 cm | 2.94 / 9.07 cm | 4.53 / 10.84 cm |
+| Complete repaired-input route 03 | 4.72 / 9.08 cm | 5.14 / 11.74 cm | 3.32 / 9.12 cm | 3.33 / 9.34 cm |
+
+The earlier 5.92 / 24.38 / 15.01 cm ablation used a different frontend prefix.
+Its plane regression must not be transferred to this repaired input: planes
+now improve the prefix and both complete-route RMS errors. Loops still worsen
+these frozen-graph comparisons, although the combined complete-route solution
+can improve RMS while worsening the maximum. These ablations retain the saved
+associations and initialization; they are not online runs with factor families
+disabled, nor proof of a global optimum.
+
+### Mechanisms supported by the new evidence
+
+1. **Registration quality does not ensure a correct relative pose.** The prefix
+   contains 464 admitted loops; 99 have translation errors above 10 cm, including
+   ten above 1 m. The complete first map contains 193 of 1,159 above 10 cm.
+   `pair_diagnosis.cpp` uses the actual matcher and stored original scan pairs.
+   For edge 381→407, the stored 1.31 m wrong pose has fine GICP fitness 0.00623
+   and 79.76% inliers; the true pose has fitness 0.00879 and 79.83% inliers.
+   Both satisfy the scalar quality limits. Starting at truth converges within
+   2.1 mm; starting at the stored pose remains 1.24 m wrong after 20 iterations.
+   This demonstrates distinct alignment basins and misleading scalar quality,
+   not a lack of an accurate solution for that pair.
+2. **The independent refinement is optional in effect.**
+   `loop_verification_pipeline.cpp` retains the admitted submap result when
+   original-pair refinement fails. Of 29 deliberately selected diagnostic
+   pairs, replaying refinement from the stored measurement succeeds for only
+   five; 22 fall below 70% pair overlap and six do not converge (categories
+   overlap). Neighbor scans improve coverage, but their optimized relative
+   poses are also used to assemble the registration target. The current path
+   can therefore keep a submap-dependent measurement without successful
+   independent pair refinement. This sample does not measure the historical
+   fallback rate: original worker snapshots were not retained.
+3. **Agreeing observations can share an error.** Query 202 has five stored
+   loops whose mean world translation error is 2.34 cm, but their scatter
+   around that mean is only 2.24 mm. Each factor's largest marginal translation
+   standard deviation is 6.62–7.67 mm. Query 212 similarly has 2.81 cm common
+   bias versus 3.98 mm scatter. `accountForNeighborDisagreement` already adds a
+   covariance floor; disagreement alone cannot reveal a shared bias. Separate
+   edge factors also lack an explicit shared-error variable. Removing all
+   150–200 s loop observations lowers prefix loop-only max 13.93→11.33 cm;
+   removing other windows sometimes worsens it. Blanket loop deletion is not
+   a validated remedy.
+4. **Admission mainly checks internal consistency.** The current graph trial
+   rejects increases above 0.05 in a whole-graph mean of translation norm plus
+   rotation angle. It does not use a local, direction-normalized innovation or
+   include the shared-plane factors in that trial. The registration gate also
+   does not enforce the diagnostic correction/convergence flags. These code
+   paths explain why low-residual or mutually consistent biased observations
+   can be admitted; they do not prove one missing threshold caused every peak.
+
+The ICP Hessian is copied into the factor information before neighbor-scatter
+calibration. In the linked small_gicp implementation, per-point covariance
+eigenvalues are regularized to (0.001, 1, 1); this is a geometric objective model,
+not a measured common-error covariance. Measurement reuse and covariance
+calibration require explicit treatment; see
+[Censi's ICP covariance analysis](https://censi.science/pub/research/2007-icra-icpcov.pdf).
+The source of the remaining scan/submap bias—deskew error, sampling,
+association, or their combination—is not uniquely separated by this stage.
+
+### Causal controls and repair direction
+
+Offline truth-substitution controls change only the prefix loop measurements,
+keep their stored information and use the same production solver without planes:
+
+| Diagnostic intervention | Maximum keyframe error |
+| --- | --- |
+| Original loops | 13.93 cm |
+| True loop translations, original rotations | 6.22 cm |
+| True loop rotations, original translations | 10.30 cm |
+| True loop translations and rotations | 2.08 cm |
+| Remove only loops whose true translation error exceeds 1 m | 13.38 cm |
+| Remove only loops whose true translation error exceeds 10 cm | 11.68 cm |
+
+These are **oracle diagnostics, not deployable solutions or achieved accuracy**.
+They isolate measurement bias, including smaller errors, rather than a solver
+incapable of representing an accurate trajectory. Simply filtering metre-scale
+outliers or adding optimizer iterations is insufficient for this evidence.
+
+Next work should distinguish broad coverage from trustworthy measurement
+support, calibrate directional uncertainty with independently withheld geometry
+and shared-observation correlation, then make graph admission reflect local
+evidence and the actual joint graph. Do not simply lower the overlap gate,
+reject all refinement failures, multiply every loop by 1/n, or reject genuine
+large drift based only on odometry disagreement. Retain valid loop coverage and
+validate changes on both frozen full-route inputs before a new runtime claim.
+The current 10 cm online target remains unaccepted. Diagnostic sparse/oracle
+pbstreams are solver fixtures and must not be deployed as maps.
 
 ## Integration boundary
 

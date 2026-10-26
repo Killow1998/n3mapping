@@ -125,5 +125,30 @@
     "precision_10cm": "not accepted for the complete pipeline or general real data",
     "protected_installations_unchanged": true,
     "all_owned_replay_processes_exited": true
+  },
+  "backend_bias_diagnosis": {
+    "evidence_root": "build/n3mapping/backend_bias_20261026",
+    "qualification_sha256": "079716c4befcfc849e1a756b2d02bd81e2b2902b01e0ca12f549c5197b2d9289",
+    "runtime_changed": false,
+    "scope": "four-core causal prefix replay and frozen production-solver factor ablations",
+    "source_pairs": 3982,
+    "live_outputs": 3974,
+    "prefix_online_max_cm": 14.84997080074483,
+    "prefix_keyframe_max_cm": {
+      "odometry": 9.212429918237351,
+      "loops": 13.92611256703102,
+      "planes": 7.653963443468685,
+      "all": 14.65445752360053
+    },
+    "oracle_measurement_substitution_is_diagnostic_only": true,
+    "prefix_loop_edges": 464,
+    "prefix_loop_translation_error_above_10cm": 99,
+    "same_query_202_common_translation_bias_m": 0.023390168324500454,
+    "same_query_202_scatter_rms_m": 0.0022351326106085454,
+    "pair_refinement_diagnostic_sample": 29,
+    "pair_refinement_successes": 5,
+    "precision_10cm": "not accepted",
+    "protected_installations_unchanged": true,
+    "remote_published": false
   }
 }
