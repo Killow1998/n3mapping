@@ -25,6 +25,17 @@ message LocalizationAtlasData {
     repeated LocalizationAtlasFrameDescriptor frame_descriptors = 11;
     string place_catalog_config = 12;
     repeated LocalizationAtlasPlace places = 13;
+    string free_space_config = 14;
+    LocalizationAtlasFreeSpaceGrid free_space_grid = 15;
+}
+
+message LocalizationAtlasFreeSpaceGrid {
+    double resolution = 1;
+    repeated double origin = 2 [packed = true];
+    repeated uint32 dimensions = 3 [packed = true];
+    // One bit per cell, x-major then y then z; lowest bit first in each byte.
+    bytes occupied = 4;
+    bytes free = 5;
 }
 
 message LocalizationAtlasPlace {

@@ -11,6 +11,7 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/config.h"
+#include "n3mapping/free_space_grid.h"
 #include "n3mapping/keyframe.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_place_catalog.h"
@@ -29,6 +30,8 @@ struct LocalizationAtlasStats {
     double kdtree_ms = 0.0;
     double descriptor_prepare_ms = 0.0;
     double descriptor_load_ms = 0.0;
+    double free_space_prepare_ms = 0.0;
+    double free_space_load_ms = 0.0;
 };
 
 class LocalizationAtlas {
@@ -54,6 +57,7 @@ public:
               LocalizationAtlasStats* stats = nullptr,
               std::string* error = nullptr);
     void clear();
+    FreeSpaceGrid takeFreeSpaceGrid();
 
     bool loaded() const { return loaded_; }
     const PointCloudT::Ptr& globalMap() const { return global_map_; }
@@ -92,6 +96,7 @@ private:
     RHPDPlaceCache frame_descriptors_;
     RelocalizationPlaceCatalog place_catalog_;
     bool place_catalog_ready_ = false;
+    FreeSpaceGrid free_space_grid_;
 };
 
 }  // namespace n3mapping

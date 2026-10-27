@@ -225,6 +225,60 @@ TEST(LocalizationAtlasTest, RoundTripsPreparedTargetExactly) {
   }
   EXPECT_EQ(compiled.mapSha256(), loaded.mapSha256());
   EXPECT_EQ(compiled.configSha256(), loaded.configSha256());
+  const auto built_grid = compiled.takeFreeSpaceGrid();
+  const auto loaded_grid = loaded.takeFreeSpaceGrid();
+  ASSERT_TRUE(built_grid.valid());
+  ASSERT_TRUE(loaded_grid.valid());
+  EXPECT_EQ(built_grid.occupiedCells(), loaded_grid.occupiedCells());
+  EXPECT_EQ(built_grid.freeCells(), loaded_grid.freeCells());
+  EXPECT_EQ(loaded_grid.buildSeconds(), 0.);
+  const auto query = makeStructuredCloud();
+  for (int i = -12; i <= 12; ++i) {
+    auto pose = Eigen::Isometry3d::Identity();
+    pose.translation() = Eigen::Vector3d(i * .17, i * .11, i * .07);
+    const auto expected = built_grid.score(*query, pose);
+    const auto actual = loaded_grid.score(*query, pose);
+    EXPECT_EQ(expected.valid, actual.valid);
+    EXPECT_EQ(expected.scored_points, actual.scored_points);
+    EXPECT_EQ(expected.occupied_points, actual.occupied_points);
+    EXPECT_EQ(expected.free_points, actual.free_points);
+    EXPECT_DOUBLE_EQ(expected.value, actual.value);
+    EXPECT_DOUBLE_EQ(expected.stddev, actual.stddev);
+  }
+  EXPECT_FALSE(loaded.takeFreeSpaceGrid().valid());
+}
+
+TEST(LocalizationAtlasTest, FreeSpaceCacheMissFallsBackAndMalformedMatchingCacheIsRejected) {
+  TemporaryAtlasFiles files;
+  const auto config = makeConfig();
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(),
+                                  files.atlas().string(), false, nullptr, &error));
+  for (int change = 0; change < 5; ++change) {
+    auto changed = config;
+    if (change == 0) changed.reloc_free_space_resolution *= 2;
+    if (change == 1) changed.reloc_free_space_max_ray_length *= 2;
+    if (change == 2) changed.reloc_free_space_occupied_min_points += 1;
+    if (change == 3) changed.reloc_free_space_map_pcd = "external.pcd";
+    if (change == 4) changed.reloc_free_space_enable = false;
+    LocalizationAtlas other(changed, matcher);
+    ASSERT_TRUE(other.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
+    EXPECT_FALSE(other.takeFreeSpaceGrid().valid());
+  }
+  LocalizationAtlasData data;
+  { std::ifstream in(files.atlas(), std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&in)); }
+  ASSERT_TRUE(data.has_free_space_grid());
+  data.mutable_free_space_grid()->mutable_occupied()->pop_back();
+  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_NE(error.find("free-space"), std::string::npos);
+  data.clear_free_space_grid();
+  data.clear_free_space_config();
+  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
+  EXPECT_FALSE(atlas.takeFreeSpaceGrid().valid());
 }
 
 TEST(LocalizationAtlasTest, DescriptorConfigMissRebuildsButMalformedMatchingCacheIsRejected) {

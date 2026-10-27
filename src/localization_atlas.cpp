@@ -16,6 +16,7 @@
 #include <limits>
 #include <sstream>
 #include <system_error>
+#include <utility>
 
 #include <openssl/evp.h>
 #include <pcl/common/point_tests.h>
@@ -38,6 +39,15 @@ double elapsedMs(const Clock::time_point& start) {
 
 void setError(std::string* error, const std::string& message) {
     if (error) *error = message;
+}
+
+std::string freeSpaceConfig(const Config& config) {
+    std::ostringstream signature;
+    signature << std::setprecision(17) << "free_space_v1;"
+              << config.reloc_free_space_resolution << ';'
+              << config.reloc_free_space_max_ray_length << ';'
+              << config.reloc_free_space_occupied_min_points;
+    return signature.str();
 }
 
 std::string digestBytes(const void* data, std::size_t size) {
@@ -295,6 +305,11 @@ void LocalizationAtlas::swapData(LocalizationAtlas& other) {
     swap(frame_descriptors_, other.frame_descriptors_);
     swap(place_catalog_, other.place_catalog_);
     swap(place_catalog_ready_, other.place_catalog_ready_);
+    swap(free_space_grid_, other.free_space_grid_);
+}
+
+FreeSpaceGrid LocalizationAtlas::takeFreeSpaceGrid() {
+    return std::exchange(free_space_grid_, FreeSpaceGrid{});
 }
 
 bool LocalizationAtlas::compileAndSave(
@@ -368,6 +383,20 @@ bool LocalizationAtlas::compileAndSave(
     const auto descriptor_start = Clock::now();
     encodeAtlasDescriptors(config_, keyframes, data);
     local_stats.descriptor_prepare_ms = elapsedMs(descriptor_start);
+
+    if (config_.reloc_free_space_enable && config_.reloc_free_space_map_pcd.empty()) {
+        const auto grid_start = Clock::now();
+        std::vector<Eigen::Vector3d> origins;
+        origins.reserve(keyframes.size());
+        for (const auto& frame : keyframes)
+            if (frame && frame->isValid()) origins.push_back(frame->pose_optimized.translation());
+        if (free_space_grid_.build(*global_map_, origins, config_.reloc_free_space_resolution,
+                config_.reloc_free_space_max_ray_length, config_.reloc_free_space_occupied_min_points)) {
+            data.set_free_space_config(freeSpaceConfig(config_));
+            free_space_grid_.encode(*data.mutable_free_space_grid());
+        }
+        local_stats.free_space_prepare_ms = elapsedMs(grid_start);
+    }
 
     // Loading deliberately rejects sidecars larger than 1 GiB. Refuse the
     // exact serialized message before opening a temporary file, so compilation
@@ -510,6 +539,16 @@ bool LocalizationAtlas::load(const std::string& map_path,
     const auto descriptor_start = Clock::now();
     if (!decodeAtlasDescriptors(config_, data, frame_descriptors_, place_catalog_, place_catalog_ready_, error)) return false;
     local_stats.descriptor_load_ms = elapsedMs(descriptor_start);
+    if (config_.reloc_free_space_enable && config_.reloc_free_space_map_pcd.empty() &&
+        data.has_free_space_grid() && data.free_space_config() == freeSpaceConfig(config_)) {
+        const auto grid_start = Clock::now();
+        if (data.free_space_grid().resolution() != config_.reloc_free_space_resolution ||
+            !free_space_grid_.decode(data.free_space_grid())) {
+            setError(error, "atlas free-space grid is malformed");
+            return false;
+        }
+        local_stats.free_space_load_ms = elapsedMs(grid_start);
+    }
     local_stats.load_ms = elapsedMs(start);
     local_stats.keyframe_count = static_cast<std::size_t>(data.keyframe_count());
     local_stats.global_point_count = global_map_->size();
@@ -527,6 +566,7 @@ void LocalizationAtlas::clear() {
     frame_descriptors_.clear();
     place_catalog_.clear();
     place_catalog_ready_ = false;
+    free_space_grid_ = FreeSpaceGrid{};
     map_sha256_.clear();
     config_sha256_.clear();
 }

@@ -1468,6 +1468,7 @@ TEST_F(WorldLocalizingTest, FreeSpaceStateClearedOnMapReplacement) {
 }
 
 TEST_F(WorldLocalizingTest, AtlasClearedOnMapReplacement) {
+  config_.reloc_free_space_mode = "kill";
   // Build a real small atlas file so the load path is exercised.
   buildTestMap(2, 2.0, 0.0);
   const auto nonce =
@@ -1501,13 +1502,19 @@ TEST_F(WorldLocalizingTest, AtlasClearedOnMapReplacement) {
                         *matcher_);
   ASSERT_TRUE(reloc.loadLocalizationAtlas(map_file.string(), &error)) << error;
   ASSERT_TRUE(reloc.localizationAtlasLoaded());
+  reloc.resetLocalizationState();
+  reloc.relocalize(keyframes.front()->cloud, keyframes.front()->pose_optimized);
+  ASSERT_TRUE(reloc.cacheDiagnostics().free_space_grid_valid);
 
   reloc.notifyMapReplaced();
   EXPECT_FALSE(reloc.localizationAtlasLoaded());
   EXPECT_FALSE(reloc.cacheDiagnostics().atlas_loaded);
+  EXPECT_FALSE(reloc.cacheDiagnostics().free_space_grid_valid);
 
   ASSERT_TRUE(reloc.loadLocalizationAtlas(map_file.string(), &error)) << error;
   EXPECT_TRUE(reloc.localizationAtlasLoaded());
+  reloc.relocalize(keyframes.front()->cloud, keyframes.front()->pose_optimized);
+  EXPECT_TRUE(reloc.cacheDiagnostics().free_space_grid_valid);
 
   std::error_code ec;
   std::filesystem::remove_all(dir, ec);

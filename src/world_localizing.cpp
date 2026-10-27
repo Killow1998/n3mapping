@@ -200,7 +200,13 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
             << " global_points=" << stats.global_point_count
             << " prepared_points=" << stats.prepared_point_count
             << " bytes=" << stats.sidecar_bytes << " load_ms=" << stats.load_ms
-            << " kdtree_ms=" << stats.kdtree_ms;
+            << " kdtree_ms=" << stats.kdtree_ms
+            << " free_space_load_ms=" << stats.free_space_load_ms;
+  loaded_atlas_revision_ = keyframe_manager_.revision();
+  free_space_grid_ = FreeSpaceGrid{};
+  free_space_grid_revision_ = loaded_atlas_revision_;
+  free_space_grid_keyframes_ = 0;
+  free_space_grid_failed_ = false;
   return true;
 }
 

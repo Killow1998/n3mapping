@@ -19,8 +19,16 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
   if (free_space_grid_failed_)
     return;
   const size_t current_size = keyframe_manager_.size();
+  // The first odometry frame resets search state. Keep map-derived preparation
+  // in the Atlas until it is needed, and consume it only at its loaded revision.
+  if (!free_space_grid_.valid() && localization_atlas_ &&
+      current_revision == loaded_atlas_revision_)
+    free_space_grid_ = localization_atlas_->takeFreeSpaceGrid();
   if (free_space_grid_.valid())
+  {
+    free_space_grid_keyframes_ = current_size;
     return;
+  }
   rebuildRelocMapCacheIfNeeded();
   PointCloudT::Ptr grid_source = reloc_map_cache_;
   if (!config_.reloc_free_space_map_pcd.empty()) {

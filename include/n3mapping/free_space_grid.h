@@ -12,6 +12,7 @@
 #include <pcl/point_types.h>
 
 namespace n3mapping {
+class LocalizationAtlasFreeSpaceGrid;
 
 // A 3D occupancy and free-space grid, built the way Cartographer builds one:
 // every cell a mapping ray traversed before its first return is free, and a
@@ -68,6 +69,9 @@ public:
   std::size_t occupiedCells() const { return occupied_cells_; }
   std::size_t freeCells() const { return free_cells_; }
   double buildSeconds() const { return build_seconds_; }
+
+  void encode(LocalizationAtlasFreeSpaceGrid& output) const;
+  bool decode(const LocalizationAtlasFreeSpaceGrid& input);
 
   // Scores a sensor-frame cloud placed at T_map_sensor.
   Score score(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,

@@ -188,6 +188,7 @@ private:
   RelocalizationQueryBuilder query_builder_;
   RelocalizationPlaceIndex place_index_;
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
+  KeyframeMapRevision loaded_atlas_revision_;
   std::unique_ptr<RelocTargetProvider> target_provider_;
   RelocalizationCandidateEvaluator candidate_evaluator_;
   RelocalizationHypothesisManager hypothesis_manager_;

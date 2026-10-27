@@ -96,6 +96,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/world_localizing_evidence.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_probe.cpp
   ${N3MAPPING_ROOT}/src/free_space_grid.cpp
+  ${N3MAPPING_ROOT}/src/free_space_grid_serialization.cpp
   ${N3MAPPING_ROOT}/src/floor_attitude.cpp
   ${N3MAPPING_ROOT}/src/odometry_sanity.cpp
   ${N3MAPPING_ROOT}/src/static_start_guard.cpp
