@@ -656,5 +656,1707 @@
       ],
       "evidence": "audit07_confirmation.json"
     }
+  },
+  "confirmation_followup": {
+    "source_commit": "9c45973d5f9111556995ef2d9abbac2d8c065570",
+    "baseline_runtime": "68d8ad6",
+    "evidence_root": "build/n3mapping/confirmation_cost_20261027",
+    "cpus": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "workers": 4,
+    "rate": 0,
+    "includes_map_load_in_first_lock": false,
+    "ctest": {
+      "passed": 67,
+      "total": 67,
+      "seconds": 43.32,
+      "isolated_log_directory": true
+    },
+    "source_files": {
+      "src/point_cloud_sampling.h": "c1851a2af4a3f03b417ff2b3a00c8e732974843f7bfe52c91cdd57104439a905",
+      "src/relocalization_observation.h": "b0f5f7623de55f11f7ebbb3d9f8deabe0da9016a8e2f7f33f1c9cfe6fea43fd0",
+      "src/world_localizing_initialization.cpp": "8cfcef21ea1d9f1097ab7b20980010dd5c33ad538a5c0a613eb147ae16679ca3",
+      "src/relocalization_candidate_evaluator.cpp": "f6fa0e2e226cec0b608b3cb4ecb78e049edfc57431d9ba41bf19d87bab78a0d6",
+      "test/test_point_cloud_matcher.cpp": "f9d11a49232824289ed4268f90e278f00862b74107807f23410fccc504a6e98d"
+    },
+    "artifacts": {
+      "libn3mapping_core.so": "5fa09cc05376fc024e7eadcb40541b08aaf24dffcda32ca29195b2c8f15cd02d",
+      "replay_probe": "fac346c029feb74a1196f3eed7874a69dbe8575bda437dadb17b77d4ac026020",
+      "replay_probe.cpp": "73cebf902cc10974cb1fd8937fc1d07aebae31c98eafff8044479bce7333b787"
+    },
+    "build_identity": "UNVERIFIED; independent development build, not a deployed release",
+    "final_source_build_check": {
+      "tested_core_sha256": "5fa09cc05376fc024e7eadcb40541b08aaf24dffcda32ca29195b2c8f15cd02d",
+      "rebuilt_core_sha256": "5fa09cc05376fc024e7eadcb40541b08aaf24dffcda32ca29195b2c8f15cd02d",
+      "identical": true
+    },
+    "map_sha256": "153eb3356e8cf2d4891f7240834652e75cdb49bf173dbd25d9f6c2945483746e",
+    "atlas_sha256": "2137d9908932f99a8d9865df39c7da0629330e28c24e6f188ad5fdec421f18bc",
+    "fixed14": {
+      "baseline": {
+        "locks": 14,
+        "outputs": 4088,
+        "max_position_m": 0.02480906089293595,
+        "max_rotation_deg": 0.08384167296100273,
+        "mean_first_lock_wall_s": 1.8029731044285715,
+        "first_lock_cpu_sum_s": 64.050541568,
+        "cpu_sum_s": 155.01850652299999,
+        "mean_load_s": 5.103144285714286,
+        "peak_rss_mib": 1300.59765625
+      },
+      "final": {
+        "locks": 14,
+        "outputs": 4088,
+        "max_position_m": 0.02480906089293637,
+        "max_rotation_deg": 0.08384096407414633,
+        "mean_first_lock_wall_s": 1.7252297890000001,
+        "first_lock_cpu_sum_s": 63.153324998,
+        "cpu_sum_s": 154.542227477,
+        "mean_load_s": 5.1190178571428575,
+        "peak_rss_mib": 1300.59375
+      },
+      "comparison": {
+        "01_west_corridor": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 2.338407245616736e-15
+        },
+        "02_east_corridor": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 8.526512829121202e-14
+        },
+        "03_south_corridor": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 4.632035114582322e-06
+        },
+        "04_north_corridor": {
+          "frames_equal": true,
+          "different_decisions": {
+            "alignments": 1
+          },
+          "max_output_matrix_element_delta": 5.995914875711605e-11
+        },
+        "05_southwest_office": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 6.522560269672795e-16
+        },
+        "06_south_meeting": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 1.7763568394002505e-15
+        },
+        "07_south_pillars": {
+          "frames_equal": true,
+          "different_decisions": {
+            "alignments": 1
+          },
+          "max_output_matrix_element_delta": 7.105427357601002e-15
+        },
+        "08_west_shelves": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 1.7763568394002505e-15
+        },
+        "09_east_shelves": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 4.649058915617843e-16
+        },
+        "10_northwest_meeting": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 1.7763568394002505e-15
+        },
+        "11_northeast_pillars": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 2.7284841053187847e-12
+        },
+        "12_north_office": {
+          "frames_equal": true,
+          "different_decisions": {
+            "alignments": 1
+          },
+          "max_output_matrix_element_delta": 4.760636329592671e-12
+        },
+        "13_south_door": {
+          "frames_equal": true,
+          "different_decisions": {
+            "alignments": 1
+          },
+          "max_output_matrix_element_delta": 3.236173675702503e-07
+        },
+        "14_north_door": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 8.65441052155802e-12
+        }
+      },
+      "max_output_matrix_element_delta": 4.632035114582322e-06
+    },
+    "routes": {
+      "old": {
+        "comparison": {
+          "frames_equal": true,
+          "different_decisions": {},
+          "max_output_matrix_element_delta": 1.4210854715202004e-14
+        },
+        "baseline": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "cpu_s": 56.693619325,
+          "wall_s": 22.68197263,
+          "peak_rss_mib": 1300.12109375,
+          "above_10cm": 0,
+          "decisions": {
+            "temporal_window_pending": 4,
+            "accepted": 1,
+            "tracking_geometric": 2231
+          },
+          "sources": {
+            "0": 4,
+            "2": 2232
+          },
+          "truth": {
+            "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+            "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+            "topic": "/n3mapping/odometry",
+            "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/confirmation_cost_20261027/motion_old_baseline_for_final/frames.csv",
+            "probe_status": {
+              "input_frames": 2236,
+              "successful_frames": 2232,
+              "published_without_backend_success": 0
+            },
+            "alignment": {
+              "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "evaluated_poses": 2232,
+            "first_output_sim_s": 0.799989997,
+            "first_output_position_error_m": 0.0038900949293376366,
+            "first_output_rotation_error_deg": 0.013850834494903572,
+            "position_error_m": {
+              "rmse": 0.009681592239874096,
+              "median": 0.006979514603630653,
+              "p95": 0.015181124455989957,
+              "maximum": 0.07932836946645079
+            },
+            "rotation_error_deg": {
+              "rmse": 0.023736649209611726,
+              "median": 0.015028926866236449,
+              "p95": 0.04578882735947179,
+              "maximum": 0.14149876903367498
+            },
+            "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+          }
+        },
+        "final": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "cpu_s": 52.713248601,
+          "wall_s": 18.228384454,
+          "peak_rss_mib": 1300.6015625,
+          "above_10cm": 0,
+          "decisions": {
+            "temporal_window_pending": 4,
+            "accepted": 1,
+            "tracking_geometric": 2231
+          },
+          "sources": {
+            "0": 4,
+            "2": 2232
+          },
+          "truth": {
+            "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+            "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+            "topic": "/n3mapping/odometry",
+            "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/confirmation_cost_20261027/motion_old_final/frames.csv",
+            "probe_status": {
+              "input_frames": 2236,
+              "successful_frames": 2232,
+              "published_without_backend_success": 0
+            },
+            "alignment": {
+              "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "evaluated_poses": 2232,
+            "first_output_sim_s": 0.799989997,
+            "first_output_position_error_m": 0.0038900949293355466,
+            "first_output_rotation_error_deg": 0.01385083449489842,
+            "position_error_m": {
+              "rmse": 0.009681592239874056,
+              "median": 0.006979514603630652,
+              "p95": 0.015181124455989967,
+              "maximum": 0.07932836946644896
+            },
+            "rotation_error_deg": {
+              "rmse": 0.023736649209609925,
+              "median": 0.01502892686623646,
+              "p95": 0.045788827359471734,
+              "maximum": 0.14149876903370634
+            },
+            "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+          }
+        }
+      },
+      "new": {
+        "comparison": {
+          "frames_equal": true,
+          "different_decisions": {
+            "alignments": 7
+          },
+          "max_output_matrix_element_delta": 5.684341886080802e-14
+        },
+        "baseline": {
+          "frames": 3666,
+          "outputs": 3662,
+          "locks": [
+            4,
+            1938
+          ],
+          "cpu_s": 114.125091885,
+          "wall_s": 40.822466179,
+          "peak_rss_mib": 1300.34375,
+          "above_10cm": 0,
+          "decisions": {
+            "temporal_window_pending": 53,
+            "accepted": 2,
+            "tracking_geometric": 3595,
+            "icp_gate_failed": 6,
+            "ambiguous": 7,
+            "margin": 2,
+            "log_likelihood": 1
+          },
+          "sources": {
+            "0": 63,
+            "2": 3597,
+            "1": 6
+          },
+          "truth": {
+            "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+            "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+            "topic": "/n3mapping/odometry",
+            "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/confirmation_cost_20261027/motion_new_baseline_for_final/frames.csv",
+            "probe_status": {
+              "input_frames": 3666,
+              "successful_frames": 3603,
+              "published_without_backend_success": 59
+            },
+            "alignment": {
+              "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "evaluated_poses": 3662,
+            "first_output_sim_s": 0.799989997,
+            "first_output_position_error_m": 0.0017836637670885583,
+            "first_output_rotation_error_deg": 0.012414035550643002,
+            "position_error_m": {
+              "rmse": 0.008524168842731638,
+              "median": 0.006629034525469799,
+              "p95": 0.015433337229173076,
+              "maximum": 0.03246851633697081
+            },
+            "rotation_error_deg": {
+              "rmse": 0.03513906058593241,
+              "median": 0.016250484742904563,
+              "p95": 0.057390929315867076,
+              "maximum": 0.2641706757292131
+            },
+            "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+          },
+          "coast_outputs": 59
+        },
+        "final": {
+          "frames": 3666,
+          "outputs": 3662,
+          "locks": [
+            4,
+            1938
+          ],
+          "cpu_s": 113.34496556100001,
+          "wall_s": 41.198804673,
+          "peak_rss_mib": 1300.59375,
+          "above_10cm": 0,
+          "decisions": {
+            "temporal_window_pending": 53,
+            "accepted": 2,
+            "tracking_geometric": 3595,
+            "icp_gate_failed": 6,
+            "ambiguous": 7,
+            "margin": 2,
+            "log_likelihood": 1
+          },
+          "sources": {
+            "0": 63,
+            "2": 3597,
+            "1": 6
+          },
+          "truth": {
+            "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+            "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+            "topic": "/n3mapping/odometry",
+            "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/confirmation_cost_20261027/motion_new_final/frames.csv",
+            "probe_status": {
+              "input_frames": 3666,
+              "successful_frames": 3603,
+              "published_without_backend_success": 59
+            },
+            "alignment": {
+              "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+              "stamp_ns": 7299995002,
+              "translation": [
+                -43.981804569062675,
+                0.013493989897703453,
+                0.6566722602620779
+              ],
+              "quaternion_xyzw": [
+                1.2163132549912854e-05,
+                -0.00045452323389096505,
+                0.00015331460290557127,
+                -0.9999998848776538
+              ]
+            },
+            "evaluated_poses": 3662,
+            "first_output_sim_s": 0.799989997,
+            "first_output_position_error_m": 0.0017836637670882198,
+            "first_output_rotation_error_deg": 0.012414035550643729,
+            "position_error_m": {
+              "rmse": 0.008524168842732226,
+              "median": 0.006629034525469937,
+              "p95": 0.015433337229173076,
+              "maximum": 0.03246851633697525
+            },
+            "rotation_error_deg": {
+              "rmse": 0.03513906058593221,
+              "median": 0.016250484742904463,
+              "p95": 0.057390929315867104,
+              "maximum": 0.2641706757291686
+            },
+            "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+          },
+          "coast_outputs": 59
+        }
+      }
+    },
+    "selected_positions": {
+      "01_west_corridor": {
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 33,
+          "first_lock_cpu_s": 2.6729429870000003,
+          "first_lock_wall_s": 1.186259028,
+          "map_load_wall_s": 5.22681,
+          "peak_rss_mib": 1300.390625
+        },
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 33,
+          "first_lock_cpu_s": 2.444086534,
+          "first_lock_wall_s": 1.011040833,
+          "map_load_wall_s": 5.1743999999999994,
+          "peak_rss_mib": 1300.3046875
+        }
+      },
+      "02_east_corridor": {
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 28,
+          "first_lock_cpu_s": 3.7939953880000012,
+          "first_lock_wall_s": 1.477497145,
+          "map_load_wall_s": 5.05561,
+          "peak_rss_mib": 1300.41796875
+        },
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 28,
+          "first_lock_cpu_s": 4.042096878,
+          "first_lock_wall_s": 1.7167477510000002,
+          "map_load_wall_s": 5.14017,
+          "peak_rss_mib": 1300.38671875
+        }
+      },
+      "03_south_corridor": {
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 41,
+          "first_lock_cpu_s": 7.384830868999999,
+          "first_lock_wall_s": 2.860950104,
+          "map_load_wall_s": 5.12589,
+          "peak_rss_mib": 1300.24609375
+        },
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 41,
+          "first_lock_cpu_s": 7.4268854300000005,
+          "first_lock_wall_s": 2.744658914,
+          "map_load_wall_s": 5.13734,
+          "peak_rss_mib": 1300.375
+        }
+      },
+      "04_north_corridor": {
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 39,
+          "first_lock_cpu_s": 6.8633023689999995,
+          "first_lock_wall_s": 2.3915122390000003,
+          "map_load_wall_s": 5.24897,
+          "peak_rss_mib": 1300.171875
+        },
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 38,
+          "first_lock_cpu_s": 6.1336122569999985,
+          "first_lock_wall_s": 2.3216763879999998,
+          "map_load_wall_s": 5.10031,
+          "peak_rss_mib": 1300.59375
+        }
+      },
+      "05_southwest_office": {
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 37,
+          "first_lock_cpu_s": 4.486839499999999,
+          "first_lock_wall_s": 1.7864836089999998,
+          "map_load_wall_s": 5.1250100000000005,
+          "peak_rss_mib": 1300.3671875
+        },
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 37,
+          "first_lock_cpu_s": 4.185243638,
+          "first_lock_wall_s": 1.647185083,
+          "map_load_wall_s": 5.1577,
+          "peak_rss_mib": 1300.1328125
+        }
+      },
+      "06_south_meeting": {
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 37,
+          "first_lock_cpu_s": 3.4543368940000008,
+          "first_lock_wall_s": 1.431549912,
+          "map_load_wall_s": 5.09142,
+          "peak_rss_mib": 1300.33203125
+        },
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 37,
+          "first_lock_cpu_s": 3.2492867569999997,
+          "first_lock_wall_s": 1.378061562,
+          "map_load_wall_s": 5.05394,
+          "peak_rss_mib": 1300.59765625
+        }
+      },
+      "07_south_pillars": {
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 40,
+          "first_lock_cpu_s": 4.3179033989999995,
+          "first_lock_wall_s": 1.619375193,
+          "map_load_wall_s": 5.15235,
+          "peak_rss_mib": 1300.35546875
+        },
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 37,
+          "first_lock_cpu_s": 3.746132779999999,
+          "first_lock_wall_s": 1.296792857,
+          "map_load_wall_s": 5.10867,
+          "peak_rss_mib": 1300.3125
+        }
+      },
+      "08_west_shelves": {
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 41,
+          "first_lock_cpu_s": 4.166330733000001,
+          "first_lock_wall_s": 1.6242956739999999,
+          "map_load_wall_s": 5.17008,
+          "peak_rss_mib": 1300.23046875
+        },
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 41,
+          "first_lock_cpu_s": 4.36308246,
+          "first_lock_wall_s": 1.7007784140000002,
+          "map_load_wall_s": 5.182930000000001,
+          "peak_rss_mib": 1300.3046875
+        }
+      },
+      "09_east_shelves": {
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 29,
+          "first_lock_cpu_s": 2.4518912980000005,
+          "first_lock_wall_s": 1.237468534,
+          "map_load_wall_s": 5.059810000000001,
+          "peak_rss_mib": 1300.51953125
+        },
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 29,
+          "first_lock_cpu_s": 2.4720369609999997,
+          "first_lock_wall_s": 1.225465086,
+          "map_load_wall_s": 5.097390000000001,
+          "peak_rss_mib": 1300.59375
+        }
+      },
+      "10_northwest_meeting": {
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 33,
+          "first_lock_cpu_s": 2.6122887009999993,
+          "first_lock_wall_s": 1.1818913199999999,
+          "map_load_wall_s": 5.084770000000001,
+          "peak_rss_mib": 1300.31640625
+        },
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 33,
+          "first_lock_cpu_s": 2.5695281690000003,
+          "first_lock_wall_s": 1.0920077289999999,
+          "map_load_wall_s": 5.058739999999999,
+          "peak_rss_mib": 1300.4375
+        }
+      },
+      "11_northeast_pillars": {
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 38,
+          "first_lock_cpu_s": 4.3800773479999995,
+          "first_lock_wall_s": 1.654441335,
+          "map_load_wall_s": 5.08791,
+          "peak_rss_mib": 1300.59765625
+        },
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 38,
+          "first_lock_cpu_s": 4.152293126000001,
+          "first_lock_wall_s": 1.576739533,
+          "map_load_wall_s": 5.14742,
+          "peak_rss_mib": 1300.30078125
+        }
+      },
+      "12_north_office": {
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 44,
+          "first_lock_cpu_s": 5.351048512999999,
+          "first_lock_wall_s": 1.975230361,
+          "map_load_wall_s": 5.07359,
+          "peak_rss_mib": 1300.32421875
+        },
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 43,
+          "first_lock_cpu_s": 5.196317428,
+          "first_lock_wall_s": 2.005298405,
+          "map_load_wall_s": 5.03729,
+          "peak_rss_mib": 1300.42578125
+        }
+      },
+      "13_south_door": {
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 43,
+          "first_lock_cpu_s": 6.6593351610000004,
+          "first_lock_wall_s": 2.316222077,
+          "map_load_wall_s": 5.04572,
+          "peak_rss_mib": 1300.23046875
+        },
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 42,
+          "first_lock_cpu_s": 6.310031534,
+          "first_lock_wall_s": 2.261358413,
+          "map_load_wall_s": 5.068350000000001,
+          "peak_rss_mib": 1300.33984375
+        }
+      },
+      "14_north_door": {
+        "final": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 38,
+          "first_lock_cpu_s": 6.175312397000001,
+          "first_lock_wall_s": 2.307999676,
+          "map_load_wall_s": 5.05054,
+          "peak_rss_mib": 1300.29296875
+        },
+        "baseline": {
+          "lock_frames": [
+            4
+          ],
+          "outputs": 292,
+          "alignments": 38,
+          "first_lock_cpu_s": 6.142797057,
+          "first_lock_wall_s": 2.365853333,
+          "map_load_wall_s": 5.047140000000001,
+          "peak_rss_mib": 1300.43359375
+        }
+      }
+    },
+    "repeat07": {
+      "baseline": {
+        "trials": [
+          {
+            "alignments": 40,
+            "first_lock_cpu_s": 4.17748187,
+            "first_lock_wall_s": 1.416101925,
+            "lock_frames": [
+              4
+            ]
+          },
+          {
+            "alignments": 40,
+            "first_lock_cpu_s": 4.147651035,
+            "first_lock_wall_s": 1.409942421,
+            "lock_frames": [
+              4
+            ]
+          },
+          {
+            "alignments": 40,
+            "first_lock_cpu_s": 4.164860891,
+            "first_lock_wall_s": 1.429645357,
+            "lock_frames": [
+              4
+            ]
+          }
+        ],
+        "median_cpu_s": 4.164860891,
+        "median_wall_s": 1.416101925,
+        "confirmation_alignments": [
+          12,
+          12,
+          12
+        ]
+      },
+      "final": {
+        "trials": [
+          {
+            "alignments": 37,
+            "first_lock_cpu_s": 3.5663116479999997,
+            "first_lock_wall_s": 1.2852335129999999,
+            "lock_frames": [
+              4
+            ]
+          },
+          {
+            "alignments": 37,
+            "first_lock_cpu_s": 3.5737371010000007,
+            "first_lock_wall_s": 1.270888011,
+            "lock_frames": [
+              4
+            ]
+          },
+          {
+            "alignments": 37,
+            "first_lock_cpu_s": 3.5718170960000006,
+            "first_lock_wall_s": 1.2681701559999998,
+            "lock_frames": [
+              4
+            ]
+          }
+        ],
+        "median_cpu_s": 3.5718170960000006,
+        "median_wall_s": 1.270888011,
+        "confirmation_alignments": [
+          9,
+          9,
+          9
+        ]
+      }
+    },
+    "resources": [
+      {
+        "variant": "baseline",
+        "configured_threads": 4,
+        "cpus": [
+          0,
+          2,
+          4,
+          6
+        ],
+        "returncode": 0,
+        "first_lock_cpu_s": 6.784537803999999,
+        "first_lock_wall_s": 2.370028162,
+        "max_threads": 17,
+        "max_50ms_cores": 3.9852577973817467,
+        "sampled_search_wall_s": 2.4090701460000004
+      },
+      {
+        "variant": "final",
+        "configured_threads": 4,
+        "cpus": [
+          0,
+          2,
+          4,
+          6
+        ],
+        "returncode": 0,
+        "first_lock_cpu_s": 6.727574720999999,
+        "first_lock_wall_s": 2.35585033,
+        "max_threads": 5,
+        "max_50ms_cores": 4.054167253789412,
+        "sampled_search_wall_s": 2.4082811170000005
+      },
+      {
+        "variant": "final",
+        "configured_threads": 2,
+        "cpus": [
+          0,
+          2,
+          4,
+          6
+        ],
+        "returncode": 0,
+        "first_lock_cpu_s": 6.546179403,
+        "first_lock_wall_s": 3.740936491,
+        "max_threads": 3,
+        "max_50ms_cores": 2.034287288290034,
+        "sampled_search_wall_s": 3.766758034
+      },
+      {
+        "variant": "baseline",
+        "configured_threads": 2,
+        "cpus": [
+          0,
+          2,
+          4,
+          6
+        ],
+        "returncode": 0,
+        "first_lock_cpu_s": 6.646189674000001,
+        "first_lock_wall_s": 3.219994686,
+        "max_threads": 9,
+        "max_50ms_cores": 3.7805203103271086,
+        "sampled_search_wall_s": 3.2624790479999994
+      }
+    ],
+    "two_thread_control": {
+      "fixed14": {
+        "locks": 14,
+        "outputs": 4088,
+        "max_position_m": 0.02480906089293637,
+        "mean_first_lock_wall_s": 2.388175449428571,
+        "first_lock_cpu_sum_s": 57.755578953,
+        "peak_rss_mib": 1300.75
+      },
+      "comparisons": {
+        "01_west_corridor": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 2.0469737016526324e-16
+        },
+        "02_east_corridor": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 6.661338147750939e-16
+        },
+        "03_south_corridor": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 1.3877787807814457e-17
+        },
+        "04_north_corridor": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 2.7755575615628914e-17
+        },
+        "05_southwest_office": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 4.440892098500626e-16
+        },
+        "06_south_meeting": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 1.7763568394002505e-15
+        },
+        "07_south_pillars": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 4.440892098500626e-16
+        },
+        "08_west_shelves": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 1.7763568394002505e-15
+        },
+        "09_east_shelves": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 4.440892098500626e-16
+        },
+        "10_northwest_meeting": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 4.440892098500626e-16
+        },
+        "11_northeast_pillars": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 1.7763568394002505e-15
+        },
+        "12_north_office": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 2.7755575615628914e-17
+        },
+        "13_south_door": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 2.220446049250313e-16
+        },
+        "14_north_door": {
+          "frames_equal": true,
+          "different_fields": {},
+          "max_output_matrix_element_delta": 2.0816681711721685e-17
+        }
+      },
+      "routes": {
+        "old": {
+          "comparison": {
+            "frames_equal": true,
+            "different_fields": {},
+            "max_output_matrix_element_delta": 1.4210854715202004e-14
+          },
+          "score": {
+            "frames": 2236,
+            "outputs": 2232,
+            "locks": [
+              4
+            ],
+            "cpu_s": 50.968474147,
+            "wall_s": 28.76730622,
+            "peak_rss_mib": 1300.4375,
+            "above_10cm": 0,
+            "decisions": {
+              "temporal_window_pending": 4,
+              "accepted": 1,
+              "tracking_geometric": 2231
+            },
+            "sources": {
+              "0": 4,
+              "2": 2232
+            },
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/confirmation_cost_20261027/motion_old_final_t2/frames.csv",
+              "probe_status": {
+                "input_frames": 2236,
+                "successful_frames": 2232,
+                "published_without_backend_success": 0
+              },
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 2232,
+              "first_output_sim_s": 0.799989997,
+              "first_output_position_error_m": 0.0038900949293355527,
+              "first_output_rotation_error_deg": 0.013850834494898436,
+              "position_error_m": {
+                "rmse": 0.009681592239874023,
+                "median": 0.0069795146036306524,
+                "p95": 0.015181124455989953,
+                "maximum": 0.07932836946644896
+              },
+              "rotation_error_deg": {
+                "rmse": 0.02373664920961211,
+                "median": 0.015028926866236456,
+                "p95": 0.04578882735947174,
+                "maximum": 0.14149876903370634
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            }
+          }
+        },
+        "new": {
+          "comparison": {
+            "frames_equal": true,
+            "different_fields": {},
+            "max_output_matrix_element_delta": 5.684341886080802e-14
+          },
+          "score": {
+            "frames": 3666,
+            "outputs": 3662,
+            "locks": [
+              4,
+              1938
+            ],
+            "cpu_s": 110.769327928,
+            "wall_s": 63.280119084,
+            "peak_rss_mib": 1300.5,
+            "above_10cm": 0,
+            "decisions": {
+              "temporal_window_pending": 53,
+              "accepted": 2,
+              "tracking_geometric": 3595,
+              "icp_gate_failed": 6,
+              "ambiguous": 7,
+              "margin": 2,
+              "log_likelihood": 1
+            },
+            "sources": {
+              "0": 63,
+              "2": 3597,
+              "1": 6
+            },
+            "truth": {
+              "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+              "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+              "topic": "/n3mapping/odometry",
+              "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/confirmation_cost_20261027/motion_new_final_t2/frames.csv",
+              "probe_status": {
+                "input_frames": 3666,
+                "successful_frames": 3603,
+                "published_without_backend_success": 59
+              },
+              "alignment": {
+                "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+                "stamp_ns": 7299995002,
+                "translation": [
+                  -43.981804569062675,
+                  0.013493989897703453,
+                  0.6566722602620779
+                ],
+                "quaternion_xyzw": [
+                  1.2163132549912854e-05,
+                  -0.00045452323389096505,
+                  0.00015331460290557127,
+                  -0.9999998848776538
+                ]
+              },
+              "evaluated_poses": 3662,
+              "first_output_sim_s": 0.799989997,
+              "first_output_position_error_m": 0.0017836637670882096,
+              "first_output_rotation_error_deg": 0.012414035550643725,
+              "position_error_m": {
+                "rmse": 0.008524168842732206,
+                "median": 0.006629034525469799,
+                "p95": 0.015433337229173076,
+                "maximum": 0.03246851633697525
+              },
+              "rotation_error_deg": {
+                "rmse": 0.0351390605859328,
+                "median": 0.016250484742904567,
+                "p95": 0.057390929315867076,
+                "maximum": 0.264170675729194
+              },
+              "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+            }
+          }
+        }
+      }
+    },
+    "protected": {
+      "sha256": {
+        "build/n3mapping/large_mapping_crash_20261025/candidate_01/lib/libn3mapping_core.so": "1558064cd47be23f694f930df2df6476987fb4ccb844f479423f61e15dd3a7c5",
+        "install/n3mapping-v1.1.0-rc3/n3mapping/lib/libn3mapping_core.so": "0c3705475c39e4f9d01631451ad91edefc6633a0ea136c819b4c7b8c0ab163d0",
+        "install/gtsam/lib/libgtsam.so.4.1.1": "546f8b37a0ff0edc5fafe85f1a8830d114e77a9d8f08e23091b10e08e0a8e41a",
+        "install/fast_lio/lib/fast_lio/fastlio_mapping": "86959088726e375e2c970fcef89d63525b91c39fb72ad3bc9eee25f0e7e1ce93"
+      },
+      "tags": [
+        "15c45cc9e23b0e731f43ba5063e0c240ab349064 refs/tags/archive/humble",
+        "a1108da12d00c64c755ca42ab07a0aa1d8db00f4 refs/tags/archive/noetic",
+        "50534bd45fbce7f65d026883e68b32a6d930f493 refs/tags/v1.1.0-rc1",
+        "8272c7bb056cc27095f3c5144d71c96fb0e717c8 refs/tags/v1.1.0-rc2",
+        "162795522077f39e9d3d21ba88fb64544dbd1f7f refs/tags/v1.1.0-rc3"
+      ],
+      "unchanged": true,
+      "small_gicp_sha256": "c5a5627069408ffcdb05f0732e37f43fd1037d2836d2d8824df2e2beb13f9832",
+      "small_gicp_unchanged": true
+    },
+    "gates_changed": false,
+    "fine_geometry_changed": false,
+    "target_preparation_duplicated": false,
+    "active_search_half_core_accepted": false,
+    "deployment_changed": false,
+    "ablations": {
+      "smoke_fixed_geometry_t4": [
+        {
+          "id": "03_south_corridor",
+          "variant": "flat_budget",
+          "alignments": 41,
+          "first_lock_cpu_s": 7.066135523999999,
+          "first_lock_wall_s": 2.568191229,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "03_south_corridor",
+          "variant": "fixed_geometry",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.6624809130000004,
+          "first_lock_wall_s": 2.4719054270000003,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "fixed_geometry",
+          "alignments": 37,
+          "first_lock_cpu_s": 3.5558645619999996,
+          "first_lock_wall_s": 1.3120216279999999,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "flat_budget",
+          "alignments": 37,
+          "first_lock_cpu_s": 3.5394611059999996,
+          "first_lock_wall_s": 1.31575373,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "flat_budget",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.026141239,
+          "first_lock_wall_s": 1.9565929069999999,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "fixed_geometry",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.051151587,
+          "first_lock_wall_s": 1.9612049870000001,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "fixed_geometry",
+          "alignments": 38,
+          "first_lock_cpu_s": 5.821447727000001,
+          "first_lock_wall_s": 2.209529021,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "flat_budget",
+          "alignments": 38,
+          "first_lock_cpu_s": 5.736298163,
+          "first_lock_wall_s": 2.1687827029999998,
+          "lock_frames": [
+            4
+          ]
+        }
+      ],
+      "smoke_flat_budget_t4": [
+        {
+          "id": "03_south_corridor",
+          "variant": "representative",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.7384982309999994,
+          "first_lock_wall_s": 2.357922252,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "03_south_corridor",
+          "variant": "flat_budget",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.611443266,
+          "first_lock_wall_s": 2.464408253,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "flat_budget",
+          "alignments": 37,
+          "first_lock_cpu_s": 3.5542639819999993,
+          "first_lock_wall_s": 1.320090125,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "representative",
+          "alignments": 37,
+          "first_lock_cpu_s": 3.637751252000001,
+          "first_lock_wall_s": 1.277360594,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "representative",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.128705713000001,
+          "first_lock_wall_s": 1.5959239250000001,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "flat_budget",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.023379610999999,
+          "first_lock_wall_s": 1.954461273,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "flat_budget",
+          "alignments": 38,
+          "first_lock_cpu_s": 5.749322053000001,
+          "first_lock_wall_s": 2.153791318,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "representative",
+          "alignments": 38,
+          "first_lock_cpu_s": 5.8440676819999995,
+          "first_lock_wall_s": 2.0833967280000003,
+          "lock_frames": [
+            4
+          ]
+        }
+      ],
+      "smoke_medium_centroid_t4": [
+        {
+          "id": "03_south_corridor",
+          "variant": "baseline",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.843643183,
+          "first_lock_wall_s": 2.424054521,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "03_south_corridor",
+          "variant": "medium_centroid",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.798733112,
+          "first_lock_wall_s": 2.410133415,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "medium_centroid",
+          "alignments": 36,
+          "first_lock_cpu_s": 3.3748735879999994,
+          "first_lock_wall_s": 1.193184511,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "baseline",
+          "alignments": 38,
+          "first_lock_cpu_s": 3.6964739260000004,
+          "first_lock_wall_s": 1.271065247,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "baseline",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.192619765,
+          "first_lock_wall_s": 1.6042512420000001,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "medium_centroid",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.044058087000001,
+          "first_lock_wall_s": 1.586754804,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "medium_centroid",
+          "alignments": 39,
+          "first_lock_cpu_s": 6.262005965999999,
+          "first_lock_wall_s": 2.217272709,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "baseline",
+          "alignments": 38,
+          "first_lock_cpu_s": 5.941261628,
+          "first_lock_wall_s": 2.106136932,
+          "lock_frames": [
+            4
+          ]
+        }
+      ],
+      "smoke_representative_t4": [
+        {
+          "id": "03_south_corridor",
+          "variant": "baseline",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.786250841999999,
+          "first_lock_wall_s": 2.4049057130000002,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "03_south_corridor",
+          "variant": "representative",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.684544042,
+          "first_lock_wall_s": 2.354570549,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "representative",
+          "alignments": 37,
+          "first_lock_cpu_s": 3.6403957289999997,
+          "first_lock_wall_s": 1.268263872,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "baseline",
+          "alignments": 40,
+          "first_lock_cpu_s": 4.170043226000001,
+          "first_lock_wall_s": 1.421900363,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "baseline",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.188022834000001,
+          "first_lock_wall_s": 1.6116282180000001,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "representative",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.0945225249999995,
+          "first_lock_wall_s": 1.555732801,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "representative",
+          "alignments": 38,
+          "first_lock_cpu_s": 5.844319764000001,
+          "first_lock_wall_s": 2.101687497,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "baseline",
+          "alignments": 38,
+          "first_lock_cpu_s": 5.931893895,
+          "first_lock_wall_s": 2.1278841969999998,
+          "lock_frames": [
+            4
+          ]
+        }
+      ],
+      "smoke_seed_tasks_t4": [
+        {
+          "id": "03_south_corridor",
+          "variant": "representative",
+          "alignments": 41,
+          "first_lock_cpu_s": 7.302795703,
+          "first_lock_wall_s": 2.8106665549999996,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "03_south_corridor",
+          "variant": "seed_tasks",
+          "alignments": 41,
+          "first_lock_cpu_s": 7.654034899,
+          "first_lock_wall_s": 2.747472749,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "seed_tasks",
+          "alignments": 37,
+          "first_lock_cpu_s": 4.081697385,
+          "first_lock_wall_s": 1.397981636,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "representative",
+          "alignments": 37,
+          "first_lock_cpu_s": 3.90123827,
+          "first_lock_wall_s": 1.4879446029999999,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "representative",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.260984082,
+          "first_lock_wall_s": 1.9270246279999999,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "seed_tasks",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.260678092,
+          "first_lock_wall_s": 1.8063012189999998,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "seed_tasks",
+          "alignments": 38,
+          "first_lock_cpu_s": 6.175738001999999,
+          "first_lock_wall_s": 2.3474690409999996,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "representative",
+          "alignments": 38,
+          "first_lock_cpu_s": 6.134669886999999,
+          "first_lock_wall_s": 2.639946622,
+          "lock_frames": [
+            4
+          ]
+        }
+      ],
+      "smoke_serial": [
+        {
+          "id": "03_south_corridor",
+          "variant": "baseline",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.776074009,
+          "first_lock_wall_s": 2.400236721,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "03_south_corridor",
+          "variant": "serial_centroid",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.73704722,
+          "first_lock_wall_s": 2.3780372830000003,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "serial_centroid",
+          "alignments": 38,
+          "first_lock_cpu_s": 3.659634801,
+          "first_lock_wall_s": 1.2752931980000002,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "baseline",
+          "alignments": 40,
+          "first_lock_cpu_s": 4.182312507,
+          "first_lock_wall_s": 1.423461318,
+          "lock_frames": [
+            4
+          ]
+        }
+      ],
+      "smoke_serial_budget_t4": [
+        {
+          "id": "03_south_corridor",
+          "variant": "baseline",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.8192558409999995,
+          "first_lock_wall_s": 2.414042185,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "03_south_corridor",
+          "variant": "serial_budget",
+          "alignments": 41,
+          "first_lock_cpu_s": 6.715181664000001,
+          "first_lock_wall_s": 2.685958271,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "serial_budget",
+          "alignments": 38,
+          "first_lock_cpu_s": 3.582496633,
+          "first_lock_wall_s": 1.578194966,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "07_south_pillars",
+          "variant": "baseline",
+          "alignments": 40,
+          "first_lock_cpu_s": 4.151462017,
+          "first_lock_wall_s": 1.410888947,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "baseline",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.1805801140000005,
+          "first_lock_wall_s": 1.611774918,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "08_west_shelves",
+          "variant": "serial_budget",
+          "alignments": 41,
+          "first_lock_cpu_s": 4.369662825000002,
+          "first_lock_wall_s": 2.8236628460000004,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "serial_budget",
+          "alignments": 38,
+          "first_lock_cpu_s": 5.859771079,
+          "first_lock_wall_s": 2.569567032,
+          "lock_frames": [
+            4
+          ]
+        },
+        {
+          "id": "14_north_door",
+          "variant": "baseline",
+          "alignments": 38,
+          "first_lock_cpu_s": 5.897215680999999,
+          "first_lock_wall_s": 2.077796363,
+          "lock_frames": [
+            4
+          ]
+        }
+      ]
+    },
+    "limitations": [
+      "Four-core first-lock CPU total improves only 1.4%; whole replay CPU is essentially unchanged.",
+      "03 active search remains about 2.86 cores with four workers and 1.75 cores with two workers.",
+      "Four-worker measured peak remains about four cores; two-worker control lowers it to about two cores at higher latency.",
+      "04 and 12 each add one alignment; 13 removes one. New-route alignments change 418 to 419 with identical acceptance/recovery.",
+      "Map load remains about five seconds; peak RSS remains about 1.27 GiB.",
+      "Frozen core-input replays and native suite do not establish target-hardware or arbitrary-scene reliability."
+    ]
   }
 }

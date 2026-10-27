@@ -1,5 +1,13 @@
 # N3Mapping
 
+Local confirmation follow-up **`9c45973`** removes 07's three extra retries:
+confirmation solves fall **12→9**, with repeated four-core first-lock CPU
+**4.165→3.572 s**. Basin/yaw tasks share the existing worker budget; a two-worker
+control lowers the observed 03 peak from about 3.8 to 2 cores, with higher latency.
+Original14 and both routes retain accuracy/recovery with four and two workers.
+Whole-replay CPU and RAM are essentially unchanged; difficult-search half-core
+operation remains unaccepted. See the [confirmation and peak-resource controls](docs/evidence/geometric_search_20261027.md#confirmation-proposals-and-shared-worker-budget--2026-10-27).
+
 Local proposal follow-up **`68d8ad6`** reduces four-core original14 first-lock CPU
 by **7.4%**; mean computation falls **1.75→1.67 s**, excluding map load.
 Original14 and both routes retain accuracy and recovery. The gain is not uniform:

@@ -4,7 +4,8 @@ Baseline runtime: `ab8e92a0b308558ab8d958acb5c369e0e2e71ee1`, repository
 head at the start: `5fa4fc3`. This follows the
 [prepared-place qualification](place_retrieval_20261026.md).
 Grid preparation runtime source: **`6b21624`**; bounded relocalization proposal
-follow-up: **`68d8ad6`** (qualification below). The
+follow-up: **`68d8ad6`**; latest confirmation/worker repair: **`9c45973`**
+(qualifications below). The
 [machine-readable qualification](geometric_search_20261027.json) records source,
 artifact hashes and numerical comparisons. No remote push, tag or installed
 runtime replacement occurred.
@@ -249,6 +250,144 @@ Evidence: `ctest03.log`, `fixed14_candidate03/results.json`,
 `qualification.json`, and `protected_check.json`.
 Core SHA-256: `365ccdba00a57d5c69147ecd1ceca51186839aad2b45c24f076b19c106158514`.
 
+## Confirmation proposals and shared worker budget — 2026-10-27
+
+Runtime source **`9c45973`**, compared with `68d8ad6`. Evidence lives in
+`build/n3mapping/confirmation_cost_20261027/`. The same map, Atlas, observations,
+acceptance gates and four-CPU affinity are retained. The primary comparison uses
+four workers; an additional two-worker control uses the same four allowed CPUs.
+
+### Trigger and retained change
+
+The previous sparse proposal altered three competing initial solutions at 07.
+During confirmation, two resumed fits required about 0.59 m of correction or
+failed convergence; another failed the existing quality check. These correctly
+triggered broad retries. Removing those checks would hide the cost and weaken
+reliability.
+
+The second voxel sampling now selects the **existing coarse point nearest each
+voxel centre**, using coordinate order to break ties. It does not create another
+centroid between surfaces. These are already prepared coarse points, not original
+sensor returns. Source voxel spacing remains bounded by the existing correspondence
+radius; fine and GICP layers retain their original input and resolution. The
+sampler groups complete cells rather than emitting partial means when a cell
+crosses a parallel sampling block. The upstream sampler's 1,024-point blocks and
+possible extra partial-cell points were checked in its installed implementation.
+A new property check covers input-order invariance, negative cells, equal-distance
+selection and retaining a point from the input set.
+
+The serial-centroid control removes two of 07's extra retries; the representative
+control removes all three on the repeated fixture. This localizes the regression
+to coarse proposal construction. It does not establish that one particular
+cross-surface centroid explains every restart in other scenes. The mature
+[PCL UniformSampling](https://pointclouds.org/documentation/classpcl_1_1_uniform_sampling.html)
+pattern was considered; this private helper works directly on the existing double
+coordinates and avoids an extra PCL cloud conversion or public abstraction.
+
+Atlas basin tasks and yaw tasks now share **one OpenMP team** sized by the existing
+`num_threads`. Nested point-level parallel regions do not create further workers.
+Targets are prepared once per candidate; a task group finishes before its captures
+leave scope. Each yaw writes its own result and cost slot; original-order merging
+preserves tie-breaking. Existing seed locks and lazy-feature publication remain.
+The sequential path remains available without Atlas/multiple basins. No new
+configuration, thread-pool service, process-wide serial limit or acceptance gate
+is added. Per-task `align_ms` values are summed task wall time, not elapsed search
+latency or process CPU; the probe measures those independently.
+
+### Ablations and full comparison
+
+| Control | Finding |
+| --- | --- |
+| Exact serial centroid at unchanged sparse spacing | 07 confirmation calls 12→10; useful partial repair. |
+| Denser 0.3 m centroid | 07 improves, but 14 adds a solve and CPU; not retained. |
+| Representative point at unchanged 0.4 m spacing | 07 confirmation calls 12→9, preserving all gates; retained. |
+| Capped basin-only/candidate-only asynchronous jobs | Uneven work leaves a long tail; 08 slows; not retained. |
+| One shared team with basin and yaw tasks | Bounds worker multiplication and avoids the long basin tail; retained. CPU reduction from scheduling alone is not established. |
+| One-pass fixed-pose factor accumulation | No stable complete-case benefit; reverted, with the shared geometric evaluator unchanged. |
+
+Three alternating-order 07 A/B pairs consistently use **40→37 total solves**:
+28 initial solves in both, **12→9** in confirmation. Median first-lock CPU is
+**4.1649→3.5718 s (−14.2%)**; median computation time is
+**1.4161→1.2709 s (−10.3%)**. The complete14 run measured 4.3179→3.7461 CPU s
+and 1.6194→1.2968 wall s for 07. Use the repeated control for the speed claim;
+host-load variation affects the one-shot wall measurements.
+
+| Four-worker original14 | Baseline | Candidate |
+| --- | ---: | ---: |
+| Locks / outputs | 14 / 4,088 | 14 / 4,088 |
+| Maximum position error | 2.481 cm | 2.481 cm |
+| Mean first-lock computation | 1.8030 s | 1.7252 s |
+| First-lock CPU sum | 64.0505 s | 63.1533 s |
+| Entire replay CPU sum | 155.0185 s | 154.5422 s |
+| Mean map load | 5.1031 s | 5.1190 s |
+| Peak RSS | 1,300.60 MiB | 1,300.59 MiB |
+
+All acceptance, output and lock decisions are retained; maximum static output
+matrix-element difference is 4.64e-6. Total solve count falls 519→517. 04 and 12
+each add one solve, while 13 removes one. Thus this is not a universal reduction in fallback
+work. The entire-replay CPU change is only 0.3%; do not claim a general speedup
+from it. Original14 first-lock CPU decreases 1.4% in this complete run.
+
+| Full route | Outputs / lock frames | Maximum position error | CPU baseline→candidate | Wall baseline→candidate |
+| --- | --- | ---: | ---: | ---: |
+| `reentry_20261019/query` | 2,232 / 4 | 7.933 cm | 56.694→52.713 s | 22.682→18.228 s |
+| `independent_v2` | 3,662 / 4,1938 | 3.247 cm | 114.125→113.345 s | 40.822→41.199 s |
+
+Both routes retain acceptance, pose sources, output count and recovery, including
+59 coast outputs in the new route. No published output exceeds 10 cm on these
+fixtures. Maximum output matrix-element difference is 5.69e-14. New-route solve
+count changes 418→419; seven per-frame counts differ. Old-route geometry/counts
+are unchanged, so its observed timing drop is not an established algorithmic gain.
+
+### Peak resource control
+
+The 03 process was sampled every 50 ms using its process CPU clock. This measures
+the core replay process, including its logger, not the entire ROS/robot stack.
+Sub-window accounting jitter can produce a value slightly above the affinity
+ceiling; report approximately four/two cores, not a literal 4.054-core maximum.
+
+| Configured workers | Version | Maximum process threads | Observed CPU peak | First-lock CPU / wall |
+| --- | --- | ---: | ---: | ---: |
+| 4 | baseline | 17 | about 4 cores | 6.785 / 2.370 s |
+| 4 | candidate | 5 | about 4 cores | 6.728 / 2.356 s |
+| 2 | baseline | 9 | about 3.8 cores | 6.646 / 3.220 s |
+| 2 | candidate | 3 | about 2 cores | 6.546 / 3.741 s |
+
+Worker limits now control the search team. They do not remove the required
+geometry or provide a hard CPU quota for other node threads. The default remains
+four workers. The additional two-worker run passes **all original14 and both
+complete routes**, preserving all compared decisions, counts and recovery;
+original14 maximum error stays 2.481 cm and route maxima stay 7.933/3.247 cm.
+Its original14 mean first-lock computation is 2.388 s, with 1,300.75 MiB peak RSS.
+Lowering the worker budget trades latency for CPU headroom. In the isolated 03
+control, active search still averages about **2.86 cores with four workers** and
+**1.75 cores with two workers**. Difficult-search half-core acceptance remains open.
+
+### Qualification and remaining work
+
+The native Release suite passes **67/67 in 43.32 s**, including ROS E2Es, using an
+isolated logger directory. The first test invocation had six logging-read failures
+because another running instance held the default log directory's instance lock.
+No assertion or product code was changed to make the suite pass, and that other
+instance was left running. The first resource sampler attempt used a nonexistent
+Python clock API; the corrected sampler uses libc's process-clock lookup. Its
+failed attempt is not included in timing results.
+
+The final comment-only rebuild is byte-identical to the tested core:
+`5fa09cc05376fc024e7eadcb40541b08aaf24dffcda32ca29195b2c8f15cd02d`.
+Frozen navigation, rc3, FAST-LIO, GTSAM, installed small_gicp and release tags are
+unchanged. The independent core retains **UNVERIFIED** production metadata;
+there is no new deployed release or target-hardware qualification. No remote
+push occurred. Raw evidence: `comparison.json`, `repeat07_*/results.json`,
+`resource_comparison.json`, `two_thread_comparison.json`, `ctest_isolated.log`,
+`final_source_build_check.json`, `qualification.json` and `protected_check.json`.
+
+Next, reduce necessary fine registration/verification work while preserving
+competing poses and fallback gates. Map loading still costs about five seconds;
+RAM remains about 1.27 GiB. These are separate remaining costs. Removing worker
+oversubscription prevents one source of peak contention but does not establish
+general half-core operation or a hard real-time bound on low-power hardware.
+
 ## Latest small_gicp control
 
 The installed source is `78f2e7a221720625eb95271ad9da21a04fb77f86`.
@@ -314,8 +453,9 @@ FasterPFH extraction alone at 26.60 CPU ms on 1,694 points; it did not qualify a
 complete KISS/ROBIN pose pipeline.
 
 The bounded proposal follow-up above establishes a modest aggregate improvement.
-Next, explain and reduce 07's additional confirmation fallbacks, and profile the
-remaining fine registration, visibility and roughly five-second map-load cost.
+The confirmation follow-up resolves the three additional 07 retries on the
+repeated fixture. Next, reduce remaining fine registration/verification work and
+profile the roughly five-second map-load cost.
 Any early rejection must retain a conservative justification and the competing
 modes needed for reliable stationary startup. Microbenchmarks and published
 timing ratios cannot substitute for the full comparison.
