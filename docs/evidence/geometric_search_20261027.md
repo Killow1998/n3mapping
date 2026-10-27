@@ -3,7 +3,8 @@
 Baseline runtime: `ab8e92a0b308558ab8d958acb5c369e0e2e71ee1`, repository
 head at the start: `5fa4fc3`. This follows the
 [prepared-place qualification](place_retrieval_20261026.md).
-Accepted runtime source: **`6b21624`**. The
+Grid preparation runtime source: **`6b21624`**; bounded relocalization proposal
+follow-up: **`68d8ad6`** (qualification below). The
 [machine-readable qualification](geometric_search_20261027.json) records source,
 artifact hashes and numerical comparisons. No remote push, tag or installed
 runtime replacement occurred.
@@ -158,6 +159,96 @@ prototype sources and failures remain under the evidence root for reproducibilit
 The previous unqualified descriptor-fusion experiment stays in its existing
 stash; it is not applied by this stage.
 
+## Bounded sparse relocalization proposals — 2026-10-27
+
+Source **`68d8ad6`**, baseline **`6b21624`**. Evidence is under
+`build/n3mapping/proposal_screen_20261027/`; the retained variant is `candidate03`.
+The same map and compiled Atlas, frozen frontend inputs, four CPUs/workers and
+all acceptance settings are used. The shared matcher, mapping-loop preparation,
+normal tracking and original test assertions are unchanged.
+
+`RelocalizationObservation` resamples only the broad proposal source once per
+search observation. With the current settings, proposal spacing is 0.4 m instead
+of 0.2 m; fine and covariance refinement retain 0.1 m and 0.05 m. Extra sampling
+is limited so the new cell diagonal does not exceed half the correspondence
+radius. Already coarse inputs keep their density, as do samples that would leave
+fewer than the solver's ten-point minimum. Diagnostic seed probes now reuse the
+same observation preparation. There is no new public API, parameter, dependency,
+worker, synchronization, log stream or candidate rejection gate.
+
+This follows the separation of a cheaper pose proposal and subsequent full
+refinement also used in [Cartographer's constraint builder](https://github.com/cartographer-project/cartographer/blob/master/cartographer/mapping/internal/constraints/constraint_builder_3d.cc).
+It does not import its branch-and-bound matcher. The 03 audit reduces proposal
+points by 37–49%, while retaining the original fine point counts. Full geometry,
+visibility and ambiguity checks still decide acceptance. Eleven 03 alignments
+have a nonconverged broad stage followed by passing final geometry; their poses
+are over 1.55 m from the selected pose in this fixture. This observation alone
+is not a cross-scene justification for rejecting every nonconverged proposal.
+
+An unbounded shared-matcher prototype failed the existing moving-keyframe
+recovery test: its 1 m proposal became 2 m. A bounded shared version passed its
+subsequent controls but affected mapping and normal tracking too. It is not
+retained. The final change belongs to the existing relocalization module;
+the matcher and a temporary near-zero residual assertion adjustment are restored.
+Final CTest passes **67/67 in 41.26 s**, including ROS E2Es, with original assertions.
+An earlier test invocation loaded an installed old core by mistake; its linkage
+failure is retained separately, not counted as a product result.
+
+| Original14, full replays | Baseline | Sparse proposal |
+| --- | ---: | ---: |
+| Locks / outputs | 14 / 4,088 | 14 / 4,088 |
+| Mean first-lock computation, excluding map load | 1.749 s | 1.671 s |
+| First-lock CPU sum | 66.138 s | 61.272 s |
+| Entire replay CPU sum, excluding load | 152.562 s | 147.843 s |
+| Mean map load | 4.918 s | 4.967 s |
+| Mean load plus first lock | 6.667 s | 6.638 s |
+| Peak RSS | 1,300.602 MiB | 1,300.598 MiB |
+| Maximum position / rotation error | 2.481 cm / 0.083842° | 2.481 cm / 0.083842° |
+
+First-lock CPU falls **7.36%**, computation wall **4.49%**, and whole-original14
+CPU **3.09%**. All positions still lock at frame 4. The largest output translation
+change is **0.0061 mm**. RAM and load-inclusive startup have no established
+improvement. Selected computation wall times are 03: **2.559→2.405 s**,
+08: **1.824→1.583 s**, and 14: **2.346→2.096 s**.
+
+This is not a uniform per-position speedup. Initial CPU rises 4.3% at 01 and
+12.1% at 07; a separate five-frame repeat gives 1.6% and 16.6%, respectively.
+07 still initializes the same 28 seeds. At final confirmation it performs
+**12 instead of 9** solves, including three extra broad fallbacks; no seed is
+reinitialized in those confirmation frames. A separate audit identifies the
+triggers: resumed corrections of 0.594 m and 0.583 m exceed the existing 0.3 m
+limit (the second also fails convergence); a third resumed result fails the
+geometric quality gate. These are individual fallbacks, not a whole-group
+restart. Keep them until their trigger can be addressed without excluding a
+valid competing pose. This is a
+remaining cost, not an accuracy or lock-time-in-frames regression.
+
+| Complete route | Outputs / lock frames | Maximum position error | CPU baseline→candidate | Wall baseline→candidate |
+| --- | --- | ---: | ---: | ---: |
+| `reentry_20261019/query` | 2,232 / 4 | 7.933 cm | 52.409→52.329 s | 18.155→17.990 s |
+| `independent_v2` | 3,662 / 4,1938 | 3.247 cm | 115.759→113.771 s | 40.911→40.511 s |
+
+Both retain output counts, pose sources and lock/recovery frames, with no output
+above 10 cm. Output matrix-element differences are below 4.20e-11. The new route
+retains 59 coast outputs; ten pending-search decision labels change and total
+alignments rise 410→419. Its measured CPU falls 1.72%; the old route's 0.15%
+change is not an established speedup. Do not describe all internal decisions
+or alignment counts as identical.
+
+03 still spends 6.799 CPU seconds in 2.405 seconds of first-lock computation,
+about **2.83 active cores**. Whole-route CPU divided by sensor duration is a
+different measure and cannot establish difficult-search half-core operation.
+The four-core ceiling is unchanged. The frozen navigation/rc3/FAST-LIO/GTSAM
+libraries and rc1/rc2/rc3 tags are unchanged. No dependency update, deployment,
+push or new release tag occurred; there is no fresh hardware qualification.
+The independent binary still carries unverified production build metadata.
+
+Evidence: `ctest03.log`, `fixed14_candidate03/results.json`,
+`motion_*_candidate03/score.json`, `comparison.json`, `audit_summary.json`,
+`slow_case_control/results.json`, `audit07_confirmation.json`,
+`qualification.json`, and `protected_check.json`.
+Core SHA-256: `365ccdba00a57d5c69147ecd1ceca51186839aad2b45c24f076b19c106158514`.
+
 ## Latest small_gicp control
 
 The installed source is `78f2e7a221720625eb95271ad9da21a04fb77f86`.
@@ -222,8 +313,9 @@ The [earlier local survey](framework_survey_20261017/README.md) measured KISS
 FasterPFH extraction alone at 26.60 CPU ms on 1,694 points; it did not qualify a
 complete KISS/ROBIN pose pipeline.
 
-The useful next registration experiment is a cheaper geometrically grounded
-proposal or conservative rejection bound, retaining competing modes and the
-existing final verification. It must count feature/matching cost and measure
-false rejection on the original14, recovery routes and repeated scenes.
-Microbenchmarks and published timing ratios cannot substitute for that test.
+The bounded proposal follow-up above establishes a modest aggregate improvement.
+Next, explain and reduce 07's additional confirmation fallbacks, and profile the
+remaining fine registration, visibility and roughly five-second map-load cost.
+Any early rejection must retain a conservative justification and the competing
+modes needed for reliable stationary startup. Microbenchmarks and published
+timing ratios cannot substitute for the full comparison.

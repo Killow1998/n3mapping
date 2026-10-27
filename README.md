@@ -1,5 +1,11 @@
 # N3Mapping
 
+Local proposal follow-up **`68d8ad6`** reduces four-core original14 first-lock CPU
+by **7.4%**; mean computation falls **1.75→1.67 s**, excluding map load.
+Original14 and both routes retain accuracy and recovery. The gain is not uniform:
+07 uses more confirmation fallbacks. RAM is unchanged and active difficult search
+still exceeds half a core. See the [proposal controls and limits](docs/evidence/geometric_search_20261027.md#bounded-sparse-relocalization-proposals--2026-10-27).
+
 Local geometry follow-up **`6b21624`** precomputes the existing free-space grid with the Atlas.
 Four-core original14 mean first-lock computation falls **2.35→1.75 s**;
 load plus first lock falls **7.21→6.68 s**. Original14 and both localization routes
