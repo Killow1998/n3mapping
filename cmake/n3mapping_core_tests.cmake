@@ -39,7 +39,6 @@ foreach(name
     test_global_map_cache
     test_graph_optimizer
     test_graph_optimizer_pbt
-    test_graph_solver_execution
     test_keyframe_manager
     test_local_map_selector
     test_localization_atlas
@@ -72,6 +71,7 @@ foreach(name
   n3mapping_add_core_test(${name} LIBRARIES n3mapping_core)
 endforeach()
 
+n3mapping_add_core_test(test_graph_solver_execution LIBRARIES n3mapping_core TBB::tbb)
 n3mapping_add_core_test(test_realtime_odometry LIBRARIES ${PCL_LIBRARIES})
 n3mapping_add_core_test(test_dense_trajectory_export LIBRARIES n3map_nav_resource_reader)
 n3mapping_add_core_test(test_map_serializer LIBRARIES n3mapping_core n3map_nav_resource_reader)
