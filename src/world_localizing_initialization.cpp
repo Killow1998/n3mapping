@@ -4,7 +4,7 @@
 #include "relocalization_observation.h"
 
 #include <algorithm>
-#include <future>
+#include <omp.h>
 #include <glog/logging.h>
 
 namespace n3mapping {
@@ -182,14 +182,21 @@ std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalizatio
   // default path stays sequential.
   if (localization_atlas_ && localization_atlas_->loaded() &&
       basins.size() > 1) {
-    std::vector<std::future<std::vector<BasinBest>>> futures;
-    futures.reserve(basins.size());
-    for (const auto &basin : basins) {
-      futures.push_back(
-          std::async(std::launch::async, evaluate_basin, std::cref(basin)));
+    std::vector<std::vector<BasinBest>> results(basins.size());
+#pragma omp parallel num_threads(config_.num_threads)
+    {
+      // Basin and yaw tasks share this team. Point-level solvers cannot
+      // multiply the thread budget; the caller's OpenMP settings are intact.
+      omp_set_max_active_levels(omp_get_active_level());
+#pragma omp single
+      {
+        for (std::size_t i = 0; i < basins.size(); ++i) {
+#pragma omp task firstprivate(i) shared(results, evaluate_basin)
+          results[i] = evaluate_basin(basins[i]);
+        }
+      }
     }
-    for (auto &future : futures) {
-      auto basin_modes = future.get();
+    for (auto& basin_modes : results) {
       basin_best_results.insert(basin_best_results.end(), basin_modes.begin(),
                                 basin_modes.end());
     }

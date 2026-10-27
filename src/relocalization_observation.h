@@ -30,8 +30,8 @@ struct RelocalizationObservation {
       const double resolution = std::min(proposal.resolution * 2.0,
           config.gicp_max_correspondence_distance / (2.0 * std::sqrt(3.0)));
       if (resolution > proposal.resolution) {
-        auto points = registration_detail::sampleCoordinates(
-            *proposal.cloud, resolution, config.num_threads);
+        auto points = registration_detail::sampleRepresentativeCoordinates(
+            *proposal.cloud, resolution);
         if (points->size() >= 10) proposal.cloud = std::move(points);
       }
     }

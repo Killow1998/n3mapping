@@ -7,6 +7,8 @@
 #include <cmath>
 #include <chrono>
 #include <glog/logging.h>
+#include <omp.h>
+#include <optional>
 
 #include <pcl/common/transforms.h>
 
@@ -115,16 +117,20 @@ RelocalizationCandidateEvaluator::evaluate(
   const auto &target = prepared_target.visibility_target;
 
   const auto yaw_hypotheses = buildRelocalizationYawHypotheses(candidate, config_);
-  const auto visibility = [&](const Eigen::Isometry3d &pose) {
-    const auto start = std::chrono::steady_clock::now();
-    auto result = evaluatePreparedVisibilityConsistency(*target, visibility_observation, pose,
-        prepared_target.visibility_indices.get());
-    cost.visibility_ms += std::chrono::duration<double, std::milli>(
-        std::chrono::steady_clock::now() - start).count();
-    ++cost.visibility_evaluations;
-    return result;
-  };
-  for (const double yaw : yaw_hypotheses) {
+  std::vector<std::optional<RelocalizationCandidateEvaluation>> seed_evaluations(yaw_hypotheses.size());
+  std::vector<RelocalizationPerformance> seed_costs(yaw_hypotheses.size());
+  const auto evaluate_seed = [&](std::size_t index) {
+    const double yaw = yaw_hypotheses[index];
+    auto& cost = seed_costs[index];
+    const auto visibility = [&](const Eigen::Isometry3d &pose) {
+      const auto start = std::chrono::steady_clock::now();
+      auto result = evaluatePreparedVisibilityConsistency(*target, visibility_observation, pose,
+          prepared_target.visibility_indices.get());
+      cost.visibility_ms += std::chrono::duration<double, std::milli>(
+          std::chrono::steady_clock::now() - start).count();
+      ++cost.visibility_evaluations;
+      return result;
+    };
     const auto seed = std::make_pair(candidate.match_id, yaw);
     auto stored_seed = seed;
     Eigen::Isometry3d initial_pose = match_keyframe->pose_optimized;
@@ -207,7 +213,7 @@ RelocalizationCandidateEvaluator::evaluate(
                                     match.metric, true, seed_plan_epoch_};
       else
         seed_poses_.erase(stored_seed);
-      continue;
+      return;
     }
 
     const auto initial_visibility = visibility(initial_pose);
@@ -244,8 +250,29 @@ RelocalizationCandidateEvaluator::evaluate(
     evaluation.match = std::move(match);
     evaluation.matched_keyframe_id = candidate.match_id;
     evaluation.visibility = selected_visibility;
-    evaluations.push_back(std::move(evaluation));
+    seed_evaluations[index] = std::move(evaluation);
+  };
+  // The enclosing search team also runs these tasks while a basin waits.
+  // Preparing its target once avoids repeating map work for each yaw.
+  if (omp_in_parallel()) {
+#pragma omp taskgroup
+    {
+      for (std::size_t i = 0; i < yaw_hypotheses.size(); ++i) {
+#pragma omp task firstprivate(i) shared(evaluate_seed)
+        evaluate_seed(i);
+      }
+    }
+  } else {
+    for (std::size_t i = 0; i < yaw_hypotheses.size(); ++i) evaluate_seed(i);
   }
+  for (std::size_t i = 0; i < yaw_hypotheses.size(); ++i) {
+    cost.addCandidate(seed_costs[i]);
+    if (seed_evaluations[i]) evaluations.push_back(std::move(*seed_evaluations[i]));
+  }
+  // Seed tasks share this candidate's target; their local cost records have
+  // no cache budget of their own.
+  cost.effective_cache_max_bytes = prepared_target.metrics.effective_max_bytes;
+  cost.effective_cache_max_entries = prepared_target.metrics.effective_max_entries;
 
   std::sort(evaluations.begin(), evaluations.end(),
             [](const auto &lhs, const auto &rhs) {

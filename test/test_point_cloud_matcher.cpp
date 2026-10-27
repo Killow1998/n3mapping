@@ -5,12 +5,34 @@
 
 #include "n3mapping/point_cloud_matcher.h"
 #include "../src/point_cloud_target_view.h"
+#include "../src/point_cloud_sampling.h"
 #include "support/registration_fixture.h"
 
 namespace n3mapping {
 namespace test {
 
 using PointCloudMatcherTest = RegistrationFixture;
+
+TEST_F(PointCloudMatcherTest, ProposalSamplingKeepsObservedSurfacesAndIgnoresInputOrder) {
+    small_gicp::PointCloud input;
+    // Two observed surfaces surround an empty cell centre, on either side
+    // of zero. A centroid would fabricate a point in that empty space.
+    for (int i = -6; i < 6; ++i) {
+        input.points.emplace_back(i + 0.125, 0.875, 0.5, 1.0);
+        input.points.emplace_back(i + 0.875, 0.125, 0.5, 1.0);
+    }
+    const auto first = registration_detail::sampleRepresentativeCoordinates(input, 1.0);
+    std::reverse(input.points.begin(), input.points.end());
+    const auto reversed = registration_detail::sampleRepresentativeCoordinates(input, 1.0);
+    ASSERT_EQ(first->size(), 12U);
+    ASSERT_EQ(reversed->size(), first->size());
+    for (std::size_t i = 0; i < first->size(); ++i) {
+        EXPECT_EQ(first->point(i), reversed->point(i));
+        EXPECT_TRUE(std::any_of(input.points.begin(), input.points.end(),
+            [&](const auto& point) { return point == first->point(i); }));
+        EXPECT_EQ(first->point(i).x(), static_cast<double>(i) - 6.0 + 0.125);
+    }
+}
 
 TEST_F(PointCloudMatcherTest, BoundedTrackingCannotAcquireADistantParallelSurface) {
     config_.icp_refine_use_gicp = false;
