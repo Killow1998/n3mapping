@@ -92,8 +92,8 @@ void encodeAtlasDescriptors(const Config &config,
     for (const auto &plane : place.planes)
       encodeCells(plane, *entry.add_planes());
     encodeCells(place.ring_height, *entry.mutable_ring_height());
-    for (const auto value : place.auxiliary)
-      entry.add_auxiliary(value);
+    for (Eigen::Index i = 0; i < place.auxiliary.size(); ++i)
+      entry.add_auxiliary(place.auxiliary(i));
   }
   const auto catalog = compileRelocalizationPlaceCatalog(
       config, keyframes, frames, submaps, headings);
