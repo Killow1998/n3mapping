@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.1.0-rc4] - 2026-10-27 (hardware-test candidate)
+
+- Include the large-map GTSAM containment, qualified dependency parallelism and
+  save-phase timing fixes below. Keep the live graph owner and asynchronous
+  snapshots separate; no process-wide serial throttle.
+- Separate loop measurement from submap admission and bound loop translation
+  confidence by shared plane support. Preserve valid observations and existing
+  admission thresholds; general accuracy remains a field acceptance item.
+- Precompile place/visibility data, reuse equivalent observations, use sparse
+  proposals followed by full verification, preserve confirmation proposal
+  surfaces, and order all prepared source points spatially. Share the existing
+  worker budget; no thinning of the final geometry or weakened acceptance gates.
+- Restore anchored map extension through loaded-map tracking loss. Preserve
+  degraded/lost status, reject invalid odometry before graph writes, continue
+  the healthy local chain, and recover the old map without reinitialization.
+- Restore Eigen 3.3 compatibility in Atlas descriptor serialization; preserve
+  element order and values.
+- Qualify independent four-core Humble and Noetic/Focal Release builds, including
+  real-node logging E2Es, map/Atlas persistence, recovery and extension. The new
+  candidate preserves rc1/rc2/rc3 and all frozen runtime installations.
+- Include the live SpRobo partial-map extension evidence: 33→225 keyframes,
+  42.4 m return route, online RMSE 1.53 cm, successful save/reload. The user accepts
+  its isolated small threshold exceedance; this does not establish universal
+  10 cm accuracy, half-core difficult search or hardware acceptance.
+
+See the [rc4 integration and validation record](docs/field_testing_zh.md#rc4-release--2026-10-27).
+
 ## [111b1ac] - 2026-10-26 (large-map follow-up)
 
 - Bind local graph parallelism to the selected lock-protected GTSAM library's

@@ -1,5 +1,9 @@
 # N3Mapping
 
+Current hardware-test candidate: **v1.1.0-rc4**. See the
+[release scope, native validation and field-test instructions](docs/field_testing_zh.md#rc4-release--2026-10-27).
+The updates below are included; prior scenario results retain their recorded scope.
+
 Local issue #7 repair lets an anchored extension session keep mapping through
 loaded-map tracking loss without fabricating loaded-map constraints or another
 initialization event. Shared status reports degraded/lost quality; invalid input
@@ -10,7 +14,7 @@ A live SpRobo partial-map extension now grows **33→225 keyframes** along a
 42.4 m route, with one initial anchor and successful return/reload. Online
 position RMSE is 1.53 cm; Xian accepts the isolated small threshold exceedance.
 See the [live acquisition evidence](docs/field_testing_zh.md#sprobo-live-extension--2026-10-27).
-The original field incident remains unqualified; this is a local source candidate.
+The original field incident remains unqualified; this repair is included in rc4.
 
 Local source-locality follow-up **`2d1917d`** keeps every prepared point and its
 covariance while ordering relocalization inputs spatially. Four-core original14

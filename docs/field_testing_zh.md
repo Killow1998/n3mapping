@@ -1,5 +1,39 @@
 # 实机拉取、测试与问题反馈
 
+## RC4 release — 2026-10-27
+
+本次更新定为 **v1.1.0-rc4 实机测试候选版**。两套 ROS 的包版本仍为 1.1.0。
+相较 rc3，纳入大场景图求解修复、后端回环量测与置信度修正、地点/可见性预计算、
+几何候选与连续确认复用、点云访问局部性优化，以及失去原图匹配后的锚定续建修复。
+接口和匹配门槛保持不变；地图未加载或输入异常时，续建明确报告 `error`，不输出权威定位。
+
+| 本次完整 Release 验证 | Humble | Noetic / Focal Docker |
+|---|---:|---:|
+| CTest | 68/68 | 66/66 |
+| 总测试时间（不是 SLAM 性能对照） | 43.59 s | 51.49 s |
+| 构建身份 | verified=true | verified=true |
+| 图求解依赖 | 已修复 GTSAM，有界并行 | 原有 GTSAM，图内串行保护 |
+
+均限制物理核 `0,2,4,6`、四个构建/计算工作线程，使用 ccache 和独立 Release 目录。
+覆盖两套真实节点、启动与故障输入、异步回环、地图/Atlas 保存重载、定位恢复和两室续建。
+Humble 完整套件对应 `3e9a4a1`；Noetic 对应 `18a0b1a`。
+两者运行源码一致，后者只补齐图执行测试的 TBB 链接与缺失地图的 E2E 状态断言。
+发布准备另修复了 Eigen 3.3 不支持向量范围迭代的问题，改用等价下标访问；不改变描述子数值。
+Noetic 镜像补装 Git、ccache 和已声明的 Python 3.8 时区兼容包，旧镜像和安装保留。
+
+[机器可读验收记录](evidence/release_rc4_20261027.json)区分本次验证与既有场景实验。
+原 14 点和两条定位路线的最近算法对照见[几何优化记录](evidence/geometric_search_20261027.md)；
+SpRobo 的 33→225 关键帧、42.4 m 续建及重载结果见[实采记录](#sprobo-live-extension--2026-10-27)。
+这些场景没有因本次定版本重新采集。Xian 接受该续建实验约 0.06% 的小幅孤立超限；
+持续偏差、明显误定位和地图稳定性仍是验收重点。实机、原 Go2 故障包、通用 10 cm 和困难搜索平均半核仍待验收。
+
+本机独立产物位于工作空间 `build/n3mapping/release_rc4_20261027/`：
+`humble/install/`、容器内对应 `/validation/install/rc4` 的 `noetic/install/rc4/`、
+源码包 `n3mapping-v1.1.0-rc4.bundle` 和最终 `release_manifest.json`。
+最终身份核对使用标签提交，清单记录二进制、依赖 SHA 和针对来源/产品预检/真实节点的复验。
+源码包用于其他机器重新构建；本机 x86_64 库不能直接用于 RK3588。
+rc1、rc2、rc3 标签及旧安装和导航冻结库保留。远端发布沿用 Xian 检阅后确认的流程。
+
 ## SpRobo live extension — 2026-10-27
 
 按 Xian 要求，使用实际 SpRobo 原生仿真与 ROS 输入，先采集局部场景，再重新启动完整 SLAM 会话续建。
@@ -113,7 +147,7 @@ Humble 后续修订 **`111b1ac`** 使用独立 Release 安装及带官方竞争�
 前端修订 `1b3c0b4` 使用独立构建。原 FAST-LIO 安装和导航冻结库未替换；N3M 算法仍为
 `111b1ac`。详见[前端修复验证](evidence/large_mapping_followup_20261026.md#frontend-initialization-repair-in-the-authorized-fork)。
 上一版 **`5e9bf8b`** 的[串行隔离验证](evidence/large_mapping_crash_20261025.md)继续保留。
-以下 rc3 章节保留原版本的构建与验收范围；本轮未生成新的 Noetic 构建。
+本节保留 2026-10-26 阶段的验收范围；该阶段未生成新的 Noetic 构建。最新构建见上方 rc4 记录。
 
 ## 使用范围与收尾原则
 
@@ -129,11 +163,9 @@ odometry，提供 mapping、localization、map_extension。现有受控验收不
 Python 标准库，不要求 ROS 正在运行；也可以打包按同样目录布局保存的 Noetic 文本日志。
 `prepare` 生成的是 ROS 2 参数文件，不能直接交给 ROS 1 使用。
 
-本次本地实机候选为 **v1.1.0-rc3**，运行代码变更止于 `ea0ced6`；候选还包括
-此后的历史合并与验收文档。两套 ROS 的 package 版本仍为 **1.1.0**。
-Humble 和 Noetic/Focal Docker 使用独立 Release 构建；身份须匹配所用候选提交，
-且 `verified=true`。保留 **v1.1.0-rc1 / v1.1.0-rc2**，未推送；
-由 Xian 检阅后决定是否推送。构建身份确认不等于真机验收。
+当前实机候选为 **v1.1.0-rc4**，两套 ROS 的包版本仍为 **1.1.0**。
+使用独立 Release 构建，身份须匹配候选标签提交且 `verified=true`。
+保留 rc1、rc2、rc3；详见[rc4 验证范围](#rc4-release--2026-10-27)。构建身份确认不等于真机验收。
 
 ## 收尾要求核对（2026-10-23）
 
@@ -177,12 +209,12 @@ git status --short --branch
 若标签尚未推送，可先从交付的 Git bundle 导入。它保留提交历史和标签：
 
 ```bash
-git fetch /absolute/path/to/n3mapping-v1.1.0-rc3.bundle \
-  refs/tags/v1.1.0-rc3:refs/tags/v1.1.0-rc3
+git fetch /absolute/path/to/n3mapping-v1.1.0-rc4.bundle \
+  refs/tags/v1.1.0-rc4:refs/tags/v1.1.0-rc4
 ```
 
 ```bash
-git switch --detach v1.1.0-rc3
+git switch --detach v1.1.0-rc4
 N3M_COMMIT=$(git rev-parse HEAD)
 
 source /opt/ros/humble/setup.bash
@@ -192,11 +224,11 @@ export CCACHE_DIR="$PWD/build/ccache" CCACHE_TEMPDIR="$PWD/build/ccache/tmp"
 mkdir -p "$CCACHE_TEMPDIR"
 ccache --max-size 8G
 export CMAKE_BUILD_PARALLEL_LEVEL=4 MAKEFLAGS=-j4
-colcon --log-base log/n3mapping-v1.1.0-rc3 build \
+colcon --log-base log/n3mapping-v1.1.0-rc4 build \
   --symlink-install --executor sequential \
   --packages-select n3mapping \
-  --build-base build/n3mapping-v1.1.0-rc3 \
-  --install-base install/n3mapping-v1.1.0-rc3 \
+  --build-base build/n3mapping-v1.1.0-rc4 \
+  --install-base install/n3mapping-v1.1.0-rc4 \
   --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
   -DN3MAPPING_BUILD_RESEARCH_TOOLS=OFF \
   -DN3MAPPING_PRODUCT_COMMIT="$N3M_COMMIT" \
@@ -207,10 +239,10 @@ colcon --log-base log/n3mapping-v1.1.0-rc3 build \
 **构建成功后**再测试，避免 `install/` 旧库污染结果：
 
 ```bash
-source ~/ros_ws/install/n3mapping-v1.1.0-rc3/setup.bash
+source ~/ros_ws/install/n3mapping-v1.1.0-rc4/setup.bash
 export OMP_NUM_THREADS=4 OMP_WAIT_POLICY=PASSIVE OPENBLAS_NUM_THREADS=1
-ROS_LOG_DIR="$HOME/ros_ws/log/n3mapping-v1.1.0-rc3/ros_test" \
-  ctest --test-dir ~/ros_ws/build/n3mapping-v1.1.0-rc3/n3mapping --output-on-failure -j1
+ROS_LOG_DIR="$HOME/ros_ws/log/n3mapping-v1.1.0-rc4/ros_test" \
+  ctest --test-dir ~/ros_ws/build/n3mapping-v1.1.0-rc4/n3mapping --output-on-failure -j1
 ros2 pkg prefix n3mapping
 ros2 run n3mapping n3mapping_node --build-identity-json
 ```
@@ -222,6 +254,11 @@ ros2 run n3mapping n3mapping_node --build-identity-json
 
 identity 应报告本次提交且 `verified=true`。这是构建来源确认，不等于实机功能验收。
 如果产品构建拒绝 dirty checkout，不要绕过检查；把自己的运行配置放在仓库外。
+Humble 的已验证并行方案使用带上游竞争修复的独立 GTSAM；构建时用
+`-DGTSAM_DIR=/absolute/path/to/qualified-gtsam/lib/cmake/GTSAM` 明确选择，运行时将同一前缀的
+`lib` 加入 `LD_LIBRARY_PATH`，并检查 `graph_solver_dependency` 事件与实际 `ldd`。
+使用旧依赖或运行库身份不符时只启用图内串行，不能引用并行版本的性能成绩。
+详见[求解依赖与部署边界](graph_solver_execution.md)。
 依赖若安装在其他 workspace，应在构建前 source 对应 underlay。新终端先 source
 ROS 和依赖，再最后 source 此版本安装目录；核对 `ros2 pkg prefix n3mapping`
 指向它。不要用旧 `install/n3mapping` 的库去测试新构建的可执行文件。

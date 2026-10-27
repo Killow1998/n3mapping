@@ -1,0 +1,249 @@
+{
+  "schema": "n3mapping_release_qualification_v1",
+  "version_tag": "v1.1.0-rc4",
+  "date": "2026-10-27",
+  "package_version": "1.1.0",
+  "baseline_tag": "v1.1.0-rc3",
+  "cpus": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "build_jobs": 4,
+  "omp_threads": 4,
+  "build_type": "Release",
+  "research_tools": false,
+  "full_suites": {
+    "humble": {
+      "passed": 68,
+      "failed": 0,
+      "seconds": 43.59,
+      "identity": {
+        "schema": "n3mapping_product_build_identity_v2",
+        "commit": "3e9a4a1ce631e5eae1fef0a12d593bc24fc0c2bc",
+        "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+        "build_type": "Release",
+        "research_tools": "OFF",
+        "verified": true
+      },
+      "node_e2e": {
+        "schema": "n3mapping_logging_e2e_v1",
+        "ros": "humble",
+        "baseline": false,
+        "startup_input": "continuous_before_ready",
+        "first_output_s": 0.10954804404173046,
+        "sent": 1200,
+        "received": 1200,
+        "delivery_ratio": 1.0,
+        "p50_ms": 0.294405035674572,
+        "p99_ms": 1.3071129797026515,
+        "max_ms": 3.6676409654319286,
+        "node_cpu_s": 0.26999999999999996,
+        "wall_s": 5.995095561956987,
+        "average_cores": 0.04503681337681021,
+        "unmanaged_node_log_bytes": 0,
+        "managed_bytes": 456597,
+        "logging_status": {
+          "accepted": 1587,
+          "aggregated": 1617,
+          "batches": 93,
+          "bytes_written": 682219,
+          "dropped": 0,
+          "dropped_critical": 0,
+          "last_failed_path": "/tmp/n3-logging-e2e-wf4hjqjp/managed/runtime.log",
+          "lost_on_write": 3,
+          "oversize": 0,
+          "peak_queue_bytes": 25793,
+          "queue_bytes": 0,
+          "recovered_bytes": 0,
+          "retained_bytes": 945863,
+          "schema": "n3mapping_logging_status_v1",
+          "storage_ready": true,
+          "write_failures": 1,
+          "written": 1584
+        },
+        "restarted_logging_status": {
+          "accepted": 241,
+          "aggregated": 223,
+          "batches": 21,
+          "bytes_written": 99950,
+          "dropped": 0,
+          "dropped_critical": 0,
+          "last_failed_path": "",
+          "lost_on_write": 0,
+          "oversize": 0,
+          "peak_queue_bytes": 24107,
+          "queue_bytes": 0,
+          "recovered_bytes": 0,
+          "retained_bytes": 1045813,
+          "schema": "n3mapping_logging_status_v1",
+          "storage_ready": true,
+          "write_failures": 0,
+          "written": 241
+        },
+        "events": [
+          "aggregate",
+          "backend_state",
+          "graph_solver_dependency",
+          "input_subscription",
+          "live_state",
+          "logger_health",
+          "map_save_begin",
+          "map_save_drain_begin",
+          "map_save_drain_success",
+          "map_save_drained",
+          "map_save_pcd_begin",
+          "map_save_pcd_success",
+          "map_save_serialize_begin",
+          "map_save_serialize_success",
+          "map_save_success",
+          "optimization_log_started",
+          "process_start",
+          "process_stop"
+        ]
+      },
+      "core_release_flags_verified": true
+    },
+    "noetic": {
+      "passed": 66,
+      "failed": 0,
+      "seconds": 51.49,
+      "identity": {
+        "schema": "n3mapping_product_build_identity_v2",
+        "commit": "18a0b1ae2354e8210e981a0269578aab6ea93e81",
+        "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+        "build_type": "Release",
+        "research_tools": "OFF",
+        "verified": true
+      },
+      "node_e2e": {
+        "schema": "n3mapping_logging_e2e_v1",
+        "ros": "noetic",
+        "baseline": false,
+        "startup_input": "continuous_before_ready",
+        "first_output_s": 0.3113601669901982,
+        "sent": 1200,
+        "received": 1200,
+        "delivery_ratio": 1.0,
+        "p50_ms": 0.0951720867305994,
+        "p99_ms": 0.3075880231335759,
+        "max_ms": 2.344680018723011,
+        "node_cpu_s": 0.12000000000000001,
+        "wall_s": 5.995076321065426,
+        "average_cores": 0.02001642574229547,
+        "unmanaged_node_log_bytes": 0,
+        "managed_bytes": 422490,
+        "logging_status": {
+          "accepted": 1541,
+          "aggregated": 1571,
+          "batches": 93,
+          "bytes_written": 657429,
+          "dropped": 0,
+          "dropped_critical": 0,
+          "last_failed_path": "/tmp/n3-logging-e2e-8qhrxslm/managed/runtime.log",
+          "lost_on_write": 5,
+          "oversize": 0,
+          "peak_queue_bytes": 25065,
+          "queue_bytes": 0,
+          "recovered_bytes": 0,
+          "retained_bytes": 1038841,
+          "schema": "n3mapping_logging_status_v1",
+          "storage_ready": true,
+          "write_failures": 2,
+          "written": 1536
+        },
+        "restarted_logging_status": {
+          "accepted": 203,
+          "aggregated": 188,
+          "batches": 22,
+          "bytes_written": 85120,
+          "dropped": 0,
+          "dropped_critical": 0,
+          "last_failed_path": "",
+          "lost_on_write": 0,
+          "oversize": 0,
+          "peak_queue_bytes": 23928,
+          "queue_bytes": 0,
+          "recovered_bytes": 0,
+          "retained_bytes": 1011706,
+          "schema": "n3mapping_logging_status_v1",
+          "storage_ready": true,
+          "write_failures": 0,
+          "written": 203
+        },
+        "events": [
+          "aggregate",
+          "backend_state",
+          "graph_solver_dependency",
+          "input_subscription",
+          "live_state",
+          "logger_health",
+          "map_save_begin",
+          "map_save_drain_begin",
+          "map_save_drain_success",
+          "map_save_drained",
+          "map_save_pcd_begin",
+          "map_save_pcd_success",
+          "map_save_serialize_begin",
+          "map_save_serialize_success",
+          "map_save_success",
+          "optimization_log_started",
+          "process_start",
+          "process_stop"
+        ]
+      },
+      "core_release_flags_verified": true
+    }
+  },
+  "scope": "Existing fixes and optimizations, native Release qualification; no new feature or algorithm tuning.",
+  "full_suite_runtime_difference": [],
+  "compatibility_fixes": [
+    "Eigen 3.3 vector indexing in Atlas encoding; same values and order",
+    "Explicit TBB dependency on the graph execution test only",
+    "Noetic missing-map E2E expects error, requires invalid_mapping_input and still forbids estimated pose/world cloud"
+  ],
+  "environment_repairs": [
+    "Independent Noetic image adds git and ccache",
+    "Install already declared Python 3.8 backports.zoneinfo dependency"
+  ],
+  "dependencies": {
+    "humble": {
+      "gtsam": "isolated GTSAM 4.1.1 with upstream PR 1158 backport",
+      "build_id": "a25c1600b852828206fd4f39d54eb6c05dca76f5",
+      "graph_execution": "bounded local parallelism"
+    },
+    "noetic": {
+      "gtsam": "existing Focal GTSAM 4.1.1",
+      "graph_execution": "local serial containment; no parallel-performance claim"
+    }
+  },
+  "prior_behavioral_evidence": {
+    "original14_and_two_routes": {
+      "runtime_commit": "2d1917d",
+      "record": "geometric_search_20261027.md",
+      "fresh_replay_for_this_release": false
+    },
+    "sprobo_live_extension": {
+      "runtime_commit": "ef05c1e",
+      "record": "../field_testing_zh.md#sprobo-live-extension--2026-10-27",
+      "keyframes": [
+        33,
+        225
+      ],
+      "distance_m": 42.4085,
+      "online_rmse_m": 0.015294,
+      "online_over_10cm_frames": 1,
+      "online_frames": 1681,
+      "acceptance": "User accepts this isolated small exceedance; no further optimization for this sample",
+      "fresh_acquisition_for_this_release": false
+    }
+  },
+  "remaining_acceptance": [
+    "RK3588/MID360 and original Go2 field incident",
+    "Universal 10 cm accuracy and difficult searches averaging <=0.5 core",
+    "No new six-real-data or whole-building/cross-floor replay in this release stage"
+  ],
+  "artifact_directory": "build/n3mapping/release_rc4_20261027",
+  "final_identity_verification": "The local release_manifest.json records the final tag commit, binary/dependency hashes and focused tests after documentation-only identity refresh."
+}
