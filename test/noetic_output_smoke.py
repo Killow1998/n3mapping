@@ -213,7 +213,7 @@ def run(binary, directory):
             assert saved.is_file() and saved.stat().st_size > 0
             wait_until(lambda: not odom_pub.get_num_connections())
 
-            for mode, expected in (("localization", "localizing"), ("map_extension", "initializing")):
+            for mode, expected in (("localization", "localizing"), ("map_extension", "error")):
                 received.clear()
                 statuses.clear()
                 body.clear()
@@ -223,9 +223,13 @@ def run(binary, directory):
                     stamp = publish()
                     time.sleep(0.1)
                 wait_until(lambda: body and odom_status(stamp))
-                assert odom_status(stamp)["state"] == expected and not received and not world
-                assert odom_status(stamp)["stamp"] == 0.0
-                assert not odom_status(stamp)["projection"]["available"]
+                status = odom_status(stamp)
+                assert status["state"] == expected, (mode, status)
+                assert not received and not world
+                assert status["stamp"] == 0.0
+                assert not status["projection"]["available"]
+                if mode == "map_extension":
+                    assert status["reason"] == "invalid_mapping_input"
                 stamp = publish(odom_only=True)
                 wait_until(lambda: odom_status(stamp))
                 assert odom_status(stamp)["stamp"] == 0.0
