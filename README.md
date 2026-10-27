@@ -1,5 +1,12 @@
 # N3Mapping
 
+Local source-locality follow-up **`2d1917d`** keeps every prepared point and its
+covariance while ordering relocalization inputs spatially. Four-core original14
+first-lock CPU falls **5.0%**; repeated 03 CPU falls **7.368→6.945 s**.
+Original14 and both routes retain decisions, solve counts, accuracy and recovery.
+Peak CPU remains about four cores; RAM remains about 1.27 GiB. Difficult-search
+half-core operation is still unaccepted. See the [source-ordering controls and limits](docs/evidence/geometric_search_20261027.md#source-locality-for-full-geometry--2026-10-27).
+
 Local confirmation follow-up **`9c45973`** removes 07's three extra retries:
 confirmation solves fall **12→9**, with repeated four-core first-lock CPU
 **4.165→3.572 s**. Basin/yaw tasks share the existing worker budget; a two-worker

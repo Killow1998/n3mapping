@@ -4,8 +4,8 @@ Baseline runtime: `ab8e92a0b308558ab8d958acb5c369e0e2e71ee1`, repository
 head at the start: `5fa4fc3`. This follows the
 [prepared-place qualification](place_retrieval_20261026.md).
 Grid preparation runtime source: **`6b21624`**; bounded relocalization proposal
-follow-up: **`68d8ad6`**; latest confirmation/worker repair: **`9c45973`**
-(qualifications below). The
+follow-up: **`68d8ad6`**; confirmation/worker repair: **`9c45973`**; latest
+source-locality follow-up: **`2d1917d`** (qualifications below). The
 [machine-readable qualification](geometric_search_20261027.json) records source,
 artifact hashes and numerical comparisons. No remote push, tag or installed
 runtime replacement occurred.
@@ -388,6 +388,110 @@ RAM remains about 1.27 GiB. These are separate remaining costs. Removing worker
 oversubscription prevents one source of peak contention but does not establish
 general half-core operation or a hard real-time bound on low-power hardware.
 
+## Source locality for full geometry — 2026-10-27
+
+Runtime source **`2d1917d`**, compared with `9c45973`. Evidence root:
+`build/n3mapping/fine_geometry_20261027/`. The four-CPU affinity, four workers,
+map, Atlas and input observations match the preceding qualification.
+
+### What changed and why
+
+Prepared relocalization source points are now packed in KD-tree leaf order once
+per observation. Every candidate and confirmation then uses that same spatial
+ordering. The existing `CompactKdTreeBuilder` performs a permutation: each layer
+keeps its complete **already prepared** point set, and the GICP covariance moves
+with its point. Covariances are computed through the unchanged preparation path
+before this permutation. The builder now supports a covariance-only cloud without
+requiring a normals array; the added test covers tuple preservation, duplicate
+XYZ coordinates and that absent channel.
+
+The change is limited to `RelocalizationObservation`. Public source preparation,
+tracking and loop/reciprocal inputs keep their previous ordering. The short-lived
+query trees are released after packing. There is no persistent map index, new
+configuration, point thinning, solver change or acceptance-gate change.
+Source preparation timing includes the added ordering work. Reordering can change
+floating-point summation order; the complete replay comparison checks its observed
+numerical effect. Better spatial locality is the reason for this experiment;
+hardware cache-miss counters were unavailable, so no measured cache-miss rate is
+claimed.
+
+A temporary, buffered offline probe counted **1,604 linearizations and 1,604 LM
+trial-error evaluations** on 03. Their summed call wall times were 3,676.99 and
+197.34 ms; 40 fixed-pose linearizations totalled 154.84 ms. These overlapping call
+sums are neither elapsed time nor process CPU. This fixture has one trial per
+linearization, not repeated damping retries. The profiling code was removed from
+production source. Kernel `perf_event_paranoid=4` blocked perf sampling; no system
+permission was changed.
+
+### Controls rejected or retained
+
+| Control | Result |
+| --- | --- |
+| GICP 3D arithmetic and explicit shared `JᵀM` | 03 CPU 7.249→7.265 s; no stable complete-case gain. General-covariance oracle passes, while existing serial bit-exact optimizer assertions differ in rounding. Reverted without relaxing those assertions. |
+| Precomputed KD partition entry from a previous match | Exact-neighbor tests pass, but 03 CPU 7.149→7.474 s. Added per-point routing storage did not pay for its query work; reverted. |
+| Previous source point as a fallback search bound | 03 CPU 7.233→7.206 s; other cases mixed. No established benefit; reverted. |
+| Sparse fine-target warmup for unfinished coarse seeds | 03 does not improve; 07 calls rise 37→39 and 08 41→43. The optional source field and extra solver stage were removed. |
+| Only GICP source ordering | 03 CPU 7.601 s versus 6.894 s with all source layers ordered. Plane ordering contributes materially. |
+| Only plane source ordering | 03 CPU 7.102 s versus 6.938 s with all layers; 07/14 also favour all layers slightly, 08 is effectively tied. Retain all-layer ordering for relocalization only. |
+
+The first packed-source smoke improved 03 CPU 7.789→7.176 s. The complete run and
+repeated controls below give the qualification; host frequency and unrelated load
+are not controlled. Earlier first/second-neighbor and pruned-subtree certificate
+failures were reviewed rather than repeated unchanged.
+
+### Complete four-core comparison
+
+| Original14 | Baseline | Candidate |
+| --- | ---: | ---: |
+| Locks / outputs | 14 / 4,088 | 14 / 4,088 |
+| Maximum position error | 2.481 cm | 2.481 cm |
+| Mean first-lock computation | 1.6923 s | 1.6307 s |
+| First-lock CPU sum | 62.6747 s | 59.5303 s |
+| Entire replay CPU sum | 153.5581 s | 149.4206 s |
+| Mean map load | 5.2378 s | 5.2280 s |
+| Peak RSS | 1,300.55 MiB | 1,300.59 MiB |
+
+Original14 first-lock CPU falls **5.0%**. All compared decisions, outputs, support,
+matched candidates and outer alignment counts remain equal. Maximum published
+matrix-element difference is 7.11e-15. In the complete 03 run, first-lock CPU is
+7.1692→6.9246 s and computation time 2.6048→2.4177 s, with 41 outer solves in both.
+The 07 confirmation count stays at nine; no previous retry regression returns.
+
+| Complete route | Outputs / locks | Maximum position error | CPU baseline→candidate | Wall baseline→candidate |
+| --- | --- | ---: | ---: | ---: |
+| `reentry_20261019/query` | 2,232 / 4 | 7.933 cm | 57.132→56.769 s | 21.507→21.514 s |
+| `independent_v2` | 3,662 / 4,1938 | 3.247 cm | 121.483→119.507 s | 46.530→45.890 s |
+
+Both retain all compared decisions, recovery and solve counts; the new route
+retains 59 coast outputs. No published output exceeds 10 cm. Published
+matrix-element differences are at most 7.11e-14. All 19,964 published poses across
+both variants' original14/routes were checked finite. Routine tracking is outside
+this source-ordering change, so small whole-route timing differences do not
+establish a tracking speedup.
+
+Three alternating-order 03 pairs confirm a median first-lock CPU reduction
+**7.3675→6.9446 s (−5.7%)** and computation reduction
+**2.6122→2.4967 s (−4.4%)**. These exclude map load. At 50 ms sampling, process
+thread count remains five and peak CPU remains approximately four cores. The
+median sampled time above 3.5 cores decreases approximately 0.905→0.806 s. This
+coarse sample is not a hard real-time bound; short-window clock accounting can
+slightly exceed four. Active-search average remains about **2.78 cores**, so
+**half-core difficult search is not accepted**. Map load is still about 5.2 s,
+and RAM remains about 1.27 GiB.
+
+The final native Release suite passes **67/67 in 44.58 s**, including ROS E2Es,
+with an isolated logger directory and the matching independent core/dependencies.
+Core SHA-256:
+`295e1e6c8d87c4eb210316948fab9cb4ccb6e800aaea1fa6e490426273b98550`.
+Build metadata remains **UNVERIFIED**. Frozen navigation, rc3, FAST-LIO, GTSAM,
+installed small_gicp and release tags are unchanged. No push or deployment occurred;
+there is no new target-hardware or separate Noetic runtime qualification.
+
+Raw evidence: `kernel03.csv`, `smoke_*/results.json`, `fixed14_final/results.json`,
+`motion_*/score.json`, `comparison.json`, `resource_comparison.json`,
+`ctest.log`, `qualification.json` and `protected_check.json`. Rejected source
+variants are retained beside their independent binaries for reproducibility.
+
 ## Latest small_gicp control
 
 The installed source is `78f2e7a221720625eb95271ad9da21a04fb77f86`.
@@ -454,8 +558,9 @@ complete KISS/ROBIN pose pipeline.
 
 The bounded proposal follow-up above establishes a modest aggregate improvement.
 The confirmation follow-up resolves the three additional 07 retries on the
-repeated fixture. Next, reduce remaining fine registration/verification work and
-profile the roughly five-second map-load cost.
+repeated fixture. Source locality further reduces complete original14 first-lock
+CPU by 5.0%. Remaining work is fine registration/verification cost and the
+roughly five-second map load. Difficult-search half-core acceptance remains open.
 Any early rejection must retain a conservative justification and the competing
 modes needed for reliable stationary startup. Microbenchmarks and published
 timing ratios cannot substitute for the full comparison.
