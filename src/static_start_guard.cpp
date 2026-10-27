@@ -6,15 +6,6 @@
 #include <cmath>
 
 namespace n3mapping {
-namespace {
-
-bool isFinitePoint(const pcl::PointXYZI& p)
-{
-    return std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z);
-}
-
-}  // namespace
-
 std::unordered_set<StaticStartGuard::VoxelKey>
 StaticStartGuard::voxelize(const pcl::PointCloud<pcl::PointXYZI>& cloud) const
 {
@@ -22,7 +13,7 @@ StaticStartGuard::voxelize(const pcl::PointCloud<pcl::PointXYZI>& cloud) const
     voxels.reserve(cloud.size() / 4 + 16);
     const double inv = 1.0 / options_.voxel_m;
     for (const auto& point : cloud.points) {
-        if (!isFinitePoint(point)) {
+        if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
             continue;
         }
         // Twenty-one bits per axis covers +-300 m at 0.3 m, which is more than

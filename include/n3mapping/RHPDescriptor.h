@@ -1,23 +1,6 @@
-// RHPDescriptor: Ring-Height + Planar descriptor for place recognition.
-//
-// Part A (2352-dim): PCA-aligned triple-plane projection (XY + XZ + YZ),
-//                    14x14 bins, 4 channels.
-//                    - legacy(V1/V2): density_norm, height_mean_norm,
-//                                      hit_count_norm, height_extent_norm.
-//                    - V3:           density_norm, height_mean_norm,
-//                                      visibility_state, boundary_strength.
-// Part B (512-dim):  Yaw-tolerant ring-height statistics,
-//                    16 rings x 8 z-layers x 4 ch (density, azimuth_variance,
-//                    mean_range, range_variance).
-//
-// Augmentation:
-//   Negative-space signature: per-azimuth nearest hit, frontier span, open/unknown state.
-//   PCA anisotropy confidence: one scalar used to down-weight unstable Part A.
-//
-// Place summary: sparse observed cells and a compact auxiliary block.
-// Heading: 7 channels on a ring/sector grid, sharing the polar traversal.
-// Heading matching estimates yaw by circular sector alignment.
-// Matching: L2 distance with 180-degree flip handling.
+// Sparse PCA-aligned planar and ring-height observations for place retrieval.
+// Auxiliary channels describe negative space and PCA confidence.
+// A separate ring/sector heading block estimates yaw by circular alignment.
 #pragma once
 
 #include "n3mapping/rhpd_heading.h"
@@ -63,11 +46,8 @@ public:
         double v3_free_space_margin_m = 0.15;    // margin before measured frontier to mark free space
         bool   enable_negative_space = true;
         bool   enable_pca_confidence = true;
-        // Scales on the plane and auxiliary blocks, applied on top of the
-        // weights already in distance(). One leaves the shipped behaviour
-        // untouched; zero drops the block. Only the ring-height block, which
-        // has no scale because it is the reference, was measured to separate
-        // same-place from elsewhere at all.
+        // Multipliers on the existing block weights; zero disables a block.
+        // Ring-height retains its reference scale.
         double part_a_scale = 1.0;
         double aux_scale    = 1.0;
     };
@@ -97,7 +77,7 @@ public:
 private:
     // PCA-align: rotate cloud so XY-plane PCA principal axis → +X axis.
     // Returns the XY alignment rotation; distance() handles its 180-degree ambiguity.
-    Eigen::Matrix3d computePCAAlignment(const CloudT::Ptr& cloud, double* confidence) const;
+    Eigen::Matrix3d computePCAAlignment(const CloudT& cloud, double* confidence) const;
 
     // Part A: triple-plane projection (XY, XZ, YZ) on PCA-aligned cloud.
     // Stores only cells with nonzero channels.

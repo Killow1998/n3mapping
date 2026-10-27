@@ -12,46 +12,23 @@ namespace n3mapping {
 
 struct Config;
 
-// The estimator is at its worst while the platform stands still: with no motion
-// there is nothing to separate a tilted body from a gravity vector pointing
-// elsewhere, and it slides along that direction. On the 0723 recording it spends
-// 33 s reporting 9.37 m of travel and 8.24 degrees of attitude swing that the
-// accelerometer says did not happen. Mapping those frames writes the moving part
-// of that error into the odometry edges, where nothing downstream can undo it.
-//
-// A stable scan alone cannot distinguish that drift from a healthy stationary
-// estimator. Require both a stable view and a continuous, bounded pose window
-// to start without motion. Otherwise retain the scan-based motion test and the
-// existing timeout. Odometry alone is never evidence of physical movement.
+// A stable view plus a bounded, continuous pose window permits stationary start.
+// Otherwise require scan-observed motion or timeout; odometry drift alone does
+// not count as physical motion.
 class StaticStartGuard {
 public:
     struct Options {
         // Coarse enough to be insensitive to range noise, fine enough that a
         // metre of travel empties most of them.
         double voxel_m = 0.3;
-        // Overlap with the opening view, below which the platform has moved.
-        // Comparing against the first scan rather than the previous one matters:
-        // at 0.17 m/s and 10 Hz a frame advances 17 mm, which barely disturbs
-        // consecutive-frame overlap, while overlap against a fixed reference
-        // falls away as displacement accumulates.
+        // Compare with the opening view so slow displacement accumulates.
         double moved_overlap = 0.6;
         // One frame below the threshold can be a passer-by; a run of them is
         // the platform leaving.
         int moved_consecutive = 3;
-        // Two things this test does not see, both acceptable. A surface lying
-        // exactly on a voxel boundary flips between two cells under millimetre
-        // noise, so a floor at an exact multiple of voxel_m reads as less
-        // stable than it is; real floors do not sit on the grid. And turning on
-        // the spot over a floor-dominated scene barely changes which cells are
-        // occupied, so pure rotation may not release the guard -- which is
-        // fine, because rotation is exactly the excitation the estimator was
-        // missing, and any translation afterwards releases it.
-        // Too few points to judge anything by.
+        // Minimum scan support for an overlap estimate.
         int min_points = 200;
-        // Start mapping regardless after this long. A session that never moves
-        // has nothing to map, so this only guards against the overlap test
-        // failing to notice motion it should have seen. Non-positive disables
-        // the guard entirely.
+        // Maximum startup delay; non-positive bypasses the guard.
         double max_wait_s = 120.0;
     };
 
@@ -86,9 +63,6 @@ private:
     std::unordered_set<VoxelKey> reference_;
 };
 
-// The guard's settings as configuration sets them. A function rather than a
-// block inside the mapping loop, so a test can assert that each key arrives
-// where it is meant to.
 StaticStartGuard::Options staticStartGuardOptionsFromConfig(const Config& config);
 
 }  // namespace n3mapping

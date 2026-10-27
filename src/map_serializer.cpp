@@ -14,7 +14,7 @@ bool MapSerializer::saveGlobalMap(const std::string& filepath, const KeyframeMan
         std::filesystem::path fp(filepath);
         if (fp.has_parent_path()) std::filesystem::create_directories(fp.parent_path());
         auto global = buildGlobalMap(keyframe_manager, voxel_size);
-        if (!global || global->empty()) return false;
+        if (global->empty()) return false;
         return pcl::io::savePCDFileBinary(filepath, *global) != -1;
     } catch (...) { return false; }
 }
@@ -24,9 +24,6 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::buildGlobalMap(const Keyfram
     GlobalMapCache cache(voxel_size);
     auto cloud = cache.update(
         keyframe_manager.getAllKeyframes(), keyframe_manager.revision());
-    if (!cloud) {
-        return pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-    }
     return pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>(*cloud);
 }
 

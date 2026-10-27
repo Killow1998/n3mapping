@@ -14,21 +14,9 @@
 namespace n3mapping {
 class LocalizationAtlasFreeSpaceGrid;
 
-// A 3D occupancy and free-space grid, built the way Cartographer builds one:
-// every cell a mapping ray traversed before its first return is free, and a
-// return landing there contradicts the map.
-//
-// Why 3D. A 2D projection of the same idea was measured on today20 and left one
-// wrong lock 10 m from truth: collapsing height merges a ray that passed
-// through a column at one height with structure present at another, so the true
-// pose itself scored as contradicted. Scoring in 3D removed that failure and
-// took the worst wrong lock from 33.1 m to 1.1 m.
-//
-// Resolution is not free to choose. At 0.10 m the map point cloud does not fill
-// its own surfaces, the occupied hit rate collapses from 20-95% to 2-4%, and
-// the score stops discriminating. 0.15 m, 0.20 m and 0.25 m produced
-// case-for-case identical results, so the working range is a plateau rather
-// than a tuned point; 0.30 m reintroduced a wrong lock.
+// Ray-traced occupancy and free space. Keep height to avoid merging free rays
+// with occupied structure at other elevations. Resolution must match map
+// sampling density: undersampled surfaces leave misleading free-space holes.
 class FreeSpaceGrid {
 public:
   struct Score {

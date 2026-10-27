@@ -76,12 +76,8 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
             << free_space_grid_.buildSeconds() << " s";
 }
 
-// Kills hypotheses whose observed cloud is contradicted by the map's own free
-// space by more than the sampling noise of the measurement. This deliberately
-// does not touch the ranking key or the acceptance gate: A0 showed that
-// replacing the ranking key makes the gate margin measure something the
-// ranking no longer orders, and the gate stops working. Here the existing
-// visibility ranking and the existing gate run unchanged, on survivors.
+// Filter contradicted hypotheses without changing visibility ranking or its
+// acceptance margin; both must continue to measure the same evidence.
 const WorldLocalizing::RelocHypothesis *
 WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
                                          const Eigen::Isometry3d &odom_pose) {

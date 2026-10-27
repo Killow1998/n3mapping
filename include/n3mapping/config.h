@@ -107,28 +107,10 @@ struct Config {
     int loop_spatial_candidate_max_candidates = 5;
 
     int loop_kf_gap = 5;
-    // Unused. Both of these are read from the YAML, validated at startup and
-    // printed in the configuration summary, and nothing reads them: the only
-    // separation the detector applies is loop_min_path_length_m, plus
-    // loop_kf_gap throttling how often detection runs at all. Left in place
-    // rather than removed alongside a measured change; deleting them is its own
-    // cleanup.
-    // Odometry path travelled between two keyframes, below which a loop is not
-    // worth forming because the odometry chain already constrains the pair far
-    // more tightly than registration could. Replaces the keyframe-count
-    // exclusion for RHPD candidates: a count is not a distance, and at 50
-    // counts it spanned about 50 m of travel in a building that loops back
-    // within 30, which excluded the only revisit that showed the drift.
+    // Minimum odometry path travelled between loop endpoints [m].
     double loop_min_path_length_m = 5.0;
 
-    // Absolute roll/pitch from the floor under each scan. Without it the pose
-    // graph has no observation of gravity at all: every edge is relative, so a
-    // world frame that tilts while running is invisible and the height error it
-    // causes cannot be recovered.
-    // Preserve every loop in a same-query consensus set rather than one per
-    // query. Selecting one made sense when the search window was wide enough
-    // to admit corridor aliases; within an agreeing set it only throws away
-    // constraints, and it ranks by a fitness that favours near neighbours.
+    // Keep every candidate in the accepted same-query consensus set.
     bool loop_keep_all_verified = true;
     // When several verified candidates belong to the same query, compare the
     // global query poses implied by each match and measurement.  Keep the
@@ -138,17 +120,7 @@ struct Config {
     double loop_same_query_consensus_translation_m = 1.0;
     double loop_same_query_consensus_rotation_rad = 0.17453292519943295;
 
-    // Stops mapping once the front end's pose has run away. FAST_LIO emits no
-    // divergence signal, so without this a stairwell that breaks scan matching
-    // turns a usable partial map into a 3,000,000 m one. Limits are set at the
-    // physically impossible, not at the merely poor.
-    // Holds mapping back until the platform is seen to move. While it stands
-    // still the estimator has nothing to separate a tilted body from a
-    // misplaced gravity vector, and the moving part of that error goes into the
-    // odometry edges where nothing downstream can take it out. Skipping those
-    // frames costs nothing, because a stationary opening carries no mapping
-    // information; doing it by hand took the worst revisit pair from 2.3275 m
-    // to 0.5865 and the floor residual span from 0.434 to 0.255.
+    // Admit mapping after stable stationary input, observed motion or timeout.
     bool mapping_static_start_guard_enable = true;
     double mapping_static_voxel_m = 0.3;
     double mapping_static_moved_overlap = 0.6;
@@ -168,15 +140,7 @@ struct Config {
     double floor_attitude_noise_deg = 1.0;
     double floor_attitude_max_radius_m = 8.0;
     int floor_attitude_min_points = 400;
-    // How far apart two keyframes may be, by the drifted poses, and still be
-    // worth registering. The comment here used to argue it must exceed the
-    // map's extent so it could not act as a correctness gate; that was written
-    // before the aliases were understood. A window sized to the drift rather
-    // than to the map is what separates a true revisit from a corridor that
-    // looks like one: 150 admitted matches from 14.766 m of cycle-closure
-    // error, 3.0 brought it to 0.887. This is the value the product ships and
-    // the built-in default has to agree with it -- a caller that does not load
-    // the YAML was silently getting the aliasing one.
+    // Maximum candidate separation in current odometry coordinates [m].
     double loop_max_range = 6.0;
 
 
@@ -225,22 +189,9 @@ struct Config {
     double reloc_static_agg_voxel_size = 0.12;
     double reloc_ambiguity_min_margin = 0.35;
     double reloc_ambiguity_min_ratio = 1.05;
-    // Ambiguity measured on the consistency ratio instead of on its logit, so
-    // the gate does not change meaning when the ratio's operating point moves.
-    // Zero keeps the log-odds gate above. 0.085 is the first-order equivalent
-    // of reloc_ambiguity_min_margin at the measured baseline operating point:
-    // d(logit)/dc is 1/(c(1-c)), which is 4.10 at c = 0.424, and 0.35 / 4.10 is
-    // 0.085. It is a conversion of the existing threshold, not a new number to
-    // tune.
+    // Positive uses a consistency-ratio gap; zero retains the log-odds margin.
     double reloc_ambiguity_min_consistency_margin = 0.0;
-    // The ambiguity gate currently only applies when the two leading
-    // hypotheses are far apart in translation. But the runner-up is already
-    // chosen as the first hypothesis that is not the same physical pose as the
-    // leader -- a test that counts a large rotation as different -- so
-    // re-deriving separation from translation alone exempts exactly the pair
-    // that sits in one place facing two ways. 11-58-53 locks 33 m from truth
-    // that way, with 2.08 m between the hypotheses and 42 degrees of yaw.
-    // True makes the gate apply whenever a competing hypothesis exists.
+    // Apply ambiguity checks even when competing poses are close in translation.
     bool reloc_ambiguity_ignore_basin_separation = false;
     double reloc_ambiguity_min_basin_separation = 3.0;
     // Experimental range matching; see VisibilityConsistencyOptions. Keep off
@@ -273,11 +224,7 @@ struct Config {
     int localization_tracking_target_cache_max_bytes = 0;
     int localization_tracking_target_cache_max_entries = 0;
 
-    // Free-space evidence and hypothesis persistence. Until 2026-08 these were
-    // process-environment switches read inside WorldLocalizing
-    // (N3MAPPING_FREESPACE_*, N3MAPPING_RELOC_PERSIST). The defaults below are
-    // exactly the env-unset behaviour, so a default YAML run is unchanged;
-    // setting the old environment variables no longer has any effect.
+    // Free-space evidence and hypothesis persistence.
     bool reloc_free_space_enable = true;
     std::string reloc_free_space_mode = "veto";  // veto | kill
     double reloc_free_space_resolution = 0.20;

@@ -126,11 +126,7 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
 
   Eigen::Isometry3d optimized_pose = frame.T_world_lidar;
   if (session_->graphOptimizer().hasNode(keyframe_id)) {
-    try {
-      optimized_pose = session_->graphOptimizer().getOptimizedPose(keyframe_id);
-    } catch (const std::exception &) {
-      optimized_pose = frame.T_world_lidar;
-    }
+    optimized_pose = session_->graphOptimizer().getOptimizedPose(keyframe_id);
   }
 
   auto output = makeOutput(true, optimized_pose, frame.undistorted_cloud);

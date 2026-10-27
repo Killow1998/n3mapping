@@ -364,7 +364,6 @@ class GraphOptimizer : public LoopOptimizerInterface
     /**
      * @brief 从已提交或待提交状态读取节点位姿
      */
-    bool getAnyPose(gtsam::Key key, gtsam::Pose3* pose) const;
 
     /**
      * @brief Ensure an edge target has an initial value derived from its source

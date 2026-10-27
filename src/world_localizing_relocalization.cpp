@@ -392,13 +392,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     }
   }
 
-  // Free space never selects; it only refuses. When the hypothesis the map's
-  // own free space favours is a different physical pose than the one the
-  // visibility ranking put first, the two independent kinds of evidence
-  // disagree and no lock is warranted. This can only remove locks, never
-  // create one, which is the only form in which this evidence is safe: the
-  // kill variant, which let free space pick the winner outright, locked a
-  // 32.9 m alias on 11-58-53 that the visibility ranking had got right.
+  // Free-space disagreement vetoes the ranked winner.
   const bool pass_free_space = decision.pass_free_space;
   if (!pass_free_space) {
     VLOG(1) << "[Reloc/FreeSpace] veto: free-space best disagrees with ranked "

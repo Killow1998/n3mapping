@@ -286,8 +286,6 @@ void GraphOptimizer::rollbackToLastState() {
 }
 
 bool GraphOptimizer::isOptimizationHealthy() const {
-    // 简化的健康度检查
-    // TODO: 可以添加更复杂的检查，如误差激增检测
     return !current_estimate_.empty();
 }
 
@@ -319,23 +317,6 @@ bool GraphOptimizer::hasAnyNode(int64_t id) const {
            pending_node_ids_.find(id) != pending_node_ids_.end();
 }
 
-bool GraphOptimizer::getAnyPose(gtsam::Key key, gtsam::Pose3* pose) const {
-    if (!pose) return false;
-    if (new_values_.exists(key)) {
-        *pose = new_values_.at<gtsam::Pose3>(key);
-        return true;
-    }
-    if (current_estimate_.exists(key)) {
-        *pose = current_estimate_.at<gtsam::Pose3>(key);
-        return true;
-    }
-    if (initial_values_.exists(key)) {
-        *pose = initial_values_.at<gtsam::Pose3>(key);
-        return true;
-    }
-    return false;
-}
-
 bool GraphOptimizer::ensureTargetInitialValue(
     int64_t from_id,
     int64_t to_id,
@@ -343,7 +324,13 @@ bool GraphOptimizer::ensureTargetInitialValue(
     const gtsam::Key key_from = gtsam::Symbol('x', from_id);
     const gtsam::Key key_to = gtsam::Symbol('x', to_id);
     gtsam::Pose3 pose_from;
-    if (!getAnyPose(key_from, &pose_from)) {
+    if (new_values_.exists(key_from)) {
+        pose_from = new_values_.at<gtsam::Pose3>(key_from);
+    } else if (current_estimate_.exists(key_from)) {
+        pose_from = current_estimate_.at<gtsam::Pose3>(key_from);
+    } else if (initial_values_.exists(key_from)) {
+        pose_from = initial_values_.at<gtsam::Pose3>(key_from);
+    } else {
         return false;
     }
     if (hasAnyNode(to_id)) {

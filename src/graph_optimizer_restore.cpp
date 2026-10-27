@@ -91,9 +91,8 @@ bool GraphOptimizer::loadGraph(
         temp.edges_.push_back(edge);
     }
 
-    // Load committed floor attitude constraints (validated by the
-    // serializer; defensive checks keep a bad record from breaking the
-    // load). The node must exist and the normal/sigma must be sane.
+    // This API also accepts graphs constructed without the serializer.
+    // Ignore floor records that cannot form a factor on an existing node.
     for (const auto& fc : floor_constraints) {
         if (!fc.normal_body.allFinite() || fc.normal_body.norm() < 1e-6 ||
             !std::isfinite(fc.sigma_rad) || fc.sigma_rad <= 0.0) {

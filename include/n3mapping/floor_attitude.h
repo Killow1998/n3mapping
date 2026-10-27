@@ -8,17 +8,8 @@
 
 namespace n3mapping {
 
-// Every pose in the graph is currently tied only to its neighbours: of the 258
-// edges the 0723 session produced, 256 are odometry and 2 are loops, and not one
-// of them says which way is up. So when the estimator's world frame tilts away
-// from gravity -- measured at 2.4-5.4 deg early in that session and 1.6-1.9 deg
-// late -- nothing downstream can notice, and the height error it produces
-// (2.77 m between two keyframes 0.46 m apart) is permanent.
-//
-// The floor is the observation that closes that gap. It is level, the robot
-// drives on it, and it is fittable in 249 of the session's 257 keyframes. Its
-// normal in the body frame is an absolute measurement of roll and pitch, leaving
-// yaw untouched, which is exactly the pair of degrees of freedom that drifts.
+// Assumes a level floor when using its normal as absolute roll/pitch evidence.
+// Yaw remains unconstrained.
 struct FloorNormalObservation {
   bool valid = false;
   // Unit normal in the sensor/body frame, pointing away from the floor.

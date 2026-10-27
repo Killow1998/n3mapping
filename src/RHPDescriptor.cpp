@@ -16,25 +16,21 @@ RHPDescriptor::RHPDescriptor(const Params& params) : params_(params) {}
 
 // ---- PCA alignment ----
 
-Eigen::Matrix3d RHPDescriptor::computePCAAlignment(const CloudT::Ptr& cloud, double* confidence) const {
-    if (!cloud || static_cast<int>(cloud->size()) < params_.min_points) {
-        return Eigen::Matrix3d::Identity();
-    }
-
+Eigen::Matrix3d RHPDescriptor::computePCAAlignment(const CloudT& cloud, double* confidence) const {
     // Compute mean (XY only for alignment)
     Eigen::Vector2d mean = Eigen::Vector2d::Zero();
-    for (const auto& pt : cloud->points) {
+    for (const auto& pt : cloud.points) {
         mean += Eigen::Vector2d(pt.x, pt.y);
     }
-    mean /= static_cast<double>(cloud->size());
+    mean /= static_cast<double>(cloud.size());
 
     // 2x2 covariance matrix of XY
     Eigen::Matrix2d cov = Eigen::Matrix2d::Zero();
-    for (const auto& pt : cloud->points) {
+    for (const auto& pt : cloud.points) {
         Eigen::Vector2d d(pt.x - mean.x(), pt.y - mean.y());
         cov += d * d.transpose();
     }
-    cov /= static_cast<double>(cloud->size());
+    cov /= static_cast<double>(cloud.size());
 
     // Eigendecomposition — largest eigenvector = principal axis
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(cov);
@@ -261,7 +257,7 @@ RHPDescriptor::Place RHPDescriptor::computeImpl(const CloudT::Ptr& cloud, RHPDHe
 
     // PCA alignment
     double confidence = 1.0;
-    Eigen::Matrix3d R_align = computePCAAlignment(cloud, params_.enable_pca_confidence ? &confidence : nullptr);
+    Eigen::Matrix3d R_align = computePCAAlignment(*cloud, params_.enable_pca_confidence ? &confidence : nullptr);
 
     // Build aligned cloud (only rotate around Z, preserve heights)
     CloudT::Ptr aligned = pcl::make_shared<CloudT>();

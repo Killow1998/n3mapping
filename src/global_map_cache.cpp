@@ -244,9 +244,6 @@ void GlobalMapCache::rebuildCloudFromVoxelCache()
 
 void GlobalMapCache::finalizeRawCloud()
 {
-    if (!cloud_) {
-        cloud_ = pcl::make_shared<PointCloud>();
-    }
     cloud_->width = static_cast<std::uint32_t>(cloud_->points.size());
     cloud_->height = 1;
     cloud_->is_dense = false;

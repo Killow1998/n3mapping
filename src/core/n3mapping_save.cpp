@@ -69,7 +69,6 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
     if (!atlas.compileAndSave(pending, session_->keyframeManager().getAllKeyframes(),
                             pending_atlas, true, &stats, &error)) {
       LOG(ERROR) << "Map/Atlas save not published: " << error;
-      std::filesystem::remove(pending);
       return false;
     }
     compile.succeed();
@@ -87,12 +86,9 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
     std::error_code ignored;
     if (backed_up) std::filesystem::rename(backup_atlas, atlas_path, ignored);
     else if (published_atlas) std::filesystem::remove(atlas_path, ignored);
-    std::filesystem::remove(pending, ignored);
-    std::filesystem::remove(pending_atlas, ignored);
     LOG(ERROR) << "Map/Atlas publication failed: " << e.what();
     return false;
   }
-  if (backed_up) std::filesystem::remove(backup_atlas);
   LOG(INFO) << "[JointGeometrySave] atlas_global_ms=" << stats.global_map_ms
             << " atlas_prepare_ms=" << stats.prepare_ms
             << " atlas_serialize_ms=" << stats.serialize_ms
