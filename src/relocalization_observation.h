@@ -5,6 +5,8 @@
 #include <cmath>
 #include <glog/logging.h>
 #include "point_cloud_sampling.h"
+#include "compact_kdtree_builder.h"
+#include <small_gicp/ann/kdtree_omp.hpp>
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_performance.h"
 #include "n3mapping/visibility_consistency.h"
@@ -34,6 +36,19 @@ struct RelocalizationObservation {
             *proposal.cloud, resolution);
         if (points->size() >= 10) proposal.cloud = std::move(points);
       }
+    }
+    // Spatial order is reused by every seed and verification of this query.
+    // Only reorder: every point and its existing covariance are retained.
+    for (const auto& level : registration.plane_levels) {
+      if (level.cloud->empty()) continue;
+      const PointCloudMatcher::SmallGicpKdTree order(level.cloud,
+          registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilderOMP>(
+              *level.cloud, false, config.num_threads));
+    }
+    if (registration.refine_cloud && !registration.refine_cloud->empty()) {
+      const PointCloudMatcher::SmallGicpKdTree order(registration.refine_cloud,
+          registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilderOMP>(
+              *registration.refine_cloud, true, config.num_threads));
     }
     const auto visibility_started = std::chrono::steady_clock::now();
     visibility = prepareVisibilityObservation(*cloud, visibilityOptionsFromConfig(config));

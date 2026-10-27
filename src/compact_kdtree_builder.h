@@ -9,7 +9,7 @@ namespace n3mapping::registration_detail {
 // one node per point and reduces size after building, leaving that capacity
 // alive with the immutable tree. Compact and reorder only during construction,
 // before the target is published. Fresh target features are estimated afterward;
-// decoded Atlas features must move with their points.
+// decoded Atlas or query features must move with their points.
 template <typename Builder>
 struct CompactKdTreeBuilder : Builder {
   template <typename... Args>
@@ -31,7 +31,7 @@ struct CompactKdTreeBuilder : Builder {
       Eigen::Vector4d normal;
       Eigen::Matrix4d covariance;
       if (features_ready_) {
-        normal = points_.normal(first);
+        if (!points_.normals.empty()) normal = points_.normal(first);
         if (!points_.covs.empty()) covariance = points_.cov(first);
       }
       auto current = first;
@@ -39,7 +39,7 @@ struct CompactKdTreeBuilder : Builder {
         const auto next = tree.indices[current];
         points_.point(current) = points_.point(next);
         if (features_ready_) {
-          points_.normal(current) = points_.normal(next);
+          if (!points_.normals.empty()) points_.normal(current) = points_.normal(next);
           if (!points_.covs.empty()) points_.cov(current) = points_.cov(next);
         }
         tree.indices[current] = current;
@@ -47,7 +47,7 @@ struct CompactKdTreeBuilder : Builder {
       }
       points_.point(current) = point;
       if (features_ready_) {
-        points_.normal(current) = normal;
+        if (!points_.normals.empty()) points_.normal(current) = normal;
         if (!points_.covs.empty()) points_.cov(current) = covariance;
       }
       tree.indices[current] = current;

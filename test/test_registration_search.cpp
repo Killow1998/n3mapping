@@ -3,6 +3,7 @@
 #include <cmath>
 #include <limits>
 #include <random>
+#include <small_gicp/ann/kdtree_omp.hpp>
 #include <small_gicp/util/normal_estimation_omp.hpp>
 
 #include "../src/registration_search.h"
@@ -156,6 +157,31 @@ TEST(RegistrationSearch, PreservesOptimizerPoseQualityAndInformation) {
       }
     }
   }
+}
+
+TEST(RegistrationSearch, PackedCovarianceOnlySourcePreservesEveryPointAndFeature) {
+  const auto source = randomCloud();
+  source->normals.clear();
+  source->point(1) = source->point(0);
+  for (std::size_t i = 0; i < source->size(); ++i)
+    source->cov(i) = Eigen::Matrix4d::Identity() * double(i + 1);
+  const Cloud original = *source;
+  const Search::Tree tree(source,
+      registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilderOMP>(
+          *source, true, 4));
+  ASSERT_TRUE(source->normals.empty());
+  ASSERT_EQ(source->size(), original.size());
+  ASSERT_EQ(source->covs.size(), original.covs.size());
+  std::vector<int> seen(source->size(), 0);
+  for (std::size_t i = 0; i < source->size(); ++i) {
+    // The feature value identifies each original tuple, even at duplicate XYZ.
+    const auto before = static_cast<std::size_t>(source->cov(i)(0, 0)) - 1;
+    ASSERT_LT(before, original.size());
+    ++seen[before];
+    EXPECT_EQ(source->point(i), original.point(before));
+    EXPECT_EQ(source->cov(i), original.cov(before));
+  }
+  EXPECT_TRUE(std::all_of(seen.begin(), seen.end(), [](int count) { return count == 1; }));
 }
 
 TEST(RegistrationSearch, PackedTargetKeepsNeighborGeometryAndFeatures) {
