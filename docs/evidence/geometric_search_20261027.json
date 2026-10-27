@@ -1,0 +1,294 @@
+{
+  "source_commit": "6b216248315f6fca92941a70e85c180c325e4163",
+  "baseline_runtime": "ab8e92a0b308558ab8d958acb5c369e0e2e71ee1",
+  "evidence_root": "build/n3mapping/geometric_search_20261026",
+  "cpus": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "threads": 4,
+  "rate": 0,
+  "ctest": {
+    "passed": 67,
+    "total": 67,
+    "seconds": 42.59
+  },
+  "original14": {
+    "baseline": {
+      "locks": 14,
+      "outputs": 4088,
+      "max_position_m": 0.024809060907976216,
+      "max_rotation_deg": 0.08384197149034017,
+      "mean_first_lock_wall_s": 2.3500469365,
+      "first_lock_cpu_sum_s": 74.356224183,
+      "cpu_sum_s": 158.15505169600002,
+      "mean_load_s": 4.85855,
+      "peak_rss_mib": 1300.89453125
+    },
+    "grid_cache02": {
+      "locks": 14,
+      "outputs": 4088,
+      "max_position_m": 0.024809060907976112,
+      "max_rotation_deg": 0.0838419714903317,
+      "mean_first_lock_wall_s": 1.7499484065,
+      "first_lock_cpu_sum_s": 65.959655473,
+      "cpu_sum_s": 151.609169109,
+      "mean_load_s": 4.926277857142857,
+      "peak_rss_mib": 1300.59765625
+    }
+  },
+  "decision_sequences_equal": true,
+  "routes": {
+    "old": {
+      "comparison": {
+        "frames_equal": true,
+        "different_decisions": {},
+        "max_output_matrix_element_delta": 1.4210854715202004e-14
+      },
+      "baseline": {
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "cpu_s": 52.775743194,
+        "wall_s": 18.714664506000002,
+        "peak_rss_mib": 1300.67578125,
+        "sources": {
+          "0": 4,
+          "2": 2232
+        },
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 2231
+        },
+        "position_error_m": {
+          "rmse": 0.009681592239874125,
+          "median": 0.006979514603630648,
+          "p95": 0.01518112445598998,
+          "maximum": 0.07932836946645079
+        },
+        "rotation_error_deg": {
+          "rmse": 0.02373664920961058,
+          "median": 0.015028926866236459,
+          "p95": 0.04578882735947178,
+          "maximum": 0.14149876903367506
+        }
+      },
+      "grid_cache02": {
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "cpu_s": 52.527222099,
+        "wall_s": 18.115467124,
+        "peak_rss_mib": 1300.296875,
+        "sources": {
+          "0": 4,
+          "2": 2232
+        },
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 2231
+        },
+        "position_error_m": {
+          "rmse": 0.009681592239874038,
+          "median": 0.006979514603630669,
+          "p95": 0.015181124455989964,
+          "maximum": 0.07932836946644896
+        },
+        "rotation_error_deg": {
+          "rmse": 0.023736649209609634,
+          "median": 0.015028926866236466,
+          "p95": 0.045788827359471755,
+          "maximum": 0.14149876903367498
+        }
+      }
+    },
+    "new": {
+      "comparison": {
+        "frames_equal": true,
+        "different_decisions": {},
+        "max_output_matrix_element_delta": 5.684341886080802e-14
+      },
+      "baseline": {
+        "outputs": 3662,
+        "locks": [
+          4,
+          1938
+        ],
+        "cpu_s": 115.338230892,
+        "wall_s": 41.481335619,
+        "peak_rss_mib": 1300.69921875,
+        "sources": {
+          "0": 63,
+          "2": 3597,
+          "1": 6
+        },
+        "decisions": {
+          "temporal_window_pending": 53,
+          "accepted": 2,
+          "tracking_geometric": 3595,
+          "icp_gate_failed": 6,
+          "ambiguous": 6,
+          "margin": 3,
+          "log_likelihood": 1
+        },
+        "position_error_m": {
+          "rmse": 0.008524168842742489,
+          "median": 0.006629034525469823,
+          "p95": 0.015433337229173076,
+          "maximum": 0.03246851633697081
+        },
+        "rotation_error_deg": {
+          "rmse": 0.03513906058589515,
+          "median": 0.016250484742516114,
+          "p95": 0.05739092931586709,
+          "maximum": 0.2641706757292131
+        }
+      },
+      "grid_cache02": {
+        "outputs": 3662,
+        "locks": [
+          4,
+          1938
+        ],
+        "cpu_s": 115.82892908400001,
+        "wall_s": 41.274490075,
+        "peak_rss_mib": 1300.6015625,
+        "sources": {
+          "0": 63,
+          "2": 3597,
+          "1": 6
+        },
+        "decisions": {
+          "temporal_window_pending": 53,
+          "accepted": 2,
+          "tracking_geometric": 3595,
+          "icp_gate_failed": 6,
+          "ambiguous": 6,
+          "margin": 3,
+          "log_likelihood": 1
+        },
+        "position_error_m": {
+          "rmse": 0.008524168842743166,
+          "median": 0.006629034525469892,
+          "p95": 0.015433337229173083,
+          "maximum": 0.03246851633697525
+        },
+        "rotation_error_deg": {
+          "rmse": 0.03513906058589494,
+          "median": 0.016250484742516093,
+          "p95": 0.057390929315867104,
+          "maximum": 0.264170675729194
+        }
+      }
+    }
+  },
+  "grid_atlas": {
+    "global_points_identical": true,
+    "levels": [
+      {
+        "points": 645634,
+        "resolution_equal": true,
+        "point_max_difference": 0.0,
+        "normals_max_difference": 0.0,
+        "covariances_max_difference": 0.0
+      },
+      {
+        "points": 2095950,
+        "resolution_equal": true,
+        "point_max_difference": 0.0,
+        "normals_max_difference": 0.0,
+        "covariances_max_difference": 0.0
+      },
+      {
+        "points": 2095975,
+        "resolution_equal": true,
+        "point_max_difference": 0.0,
+        "normals_max_difference": 0.0,
+        "covariances_max_difference": 0.0
+      }
+    ],
+    "map_sha_equal": true,
+    "geometry_config_equal": true,
+    "descriptor_cache_equal": true,
+    "places_equal": true,
+    "bytes": [
+      625350425,
+      626874615
+    ]
+  },
+  "manifest": "build_manifest.json",
+  "active_search_half_core_accepted": false,
+  "deployment_changed": false,
+  "installed_small_gicp_changed": false,
+  "small_gicp_latest": {
+    "baseline": {
+      "locks": 14,
+      "outputs": 4088,
+      "max_position_m": 0.024809060907976216,
+      "max_rotation_deg": 0.08384197149033176,
+      "mean_first_lock_wall_s": 2.353489275,
+      "first_lock_cpu_sum_s": 74.37115677300001,
+      "cpu_sum_s": 158.24919948800002,
+      "mean_load_s": 4.8695385714285715,
+      "peak_rss_mib": 1277.26171875
+    },
+    "small_gicp_new": {
+      "locks": 14,
+      "outputs": 4088,
+      "max_position_m": 0.024809060907976216,
+      "max_rotation_deg": 0.0838419714903344,
+      "mean_first_lock_wall_s": 2.356791711285714,
+      "first_lock_cpu_sum_s": 74.64118844699998,
+      "cpu_sum_s": 158.84993738600002,
+      "mean_load_s": 4.896210714285714,
+      "peak_rss_mib": 1277.1640625
+    }
+  },
+  "rejected_candidates": [
+    "nearest_neighbor_certificates",
+    "candidate01_kdtree_pruning",
+    "direct_3d_bbs",
+    "grid_cache_first_input_discard"
+  ],
+  "build_identity": {
+    "source_commit": "6b216248315f6fca92941a70e85c180c325e4163",
+    "build_metadata_verified": false,
+    "compiled_before_source_commit": true,
+    "source_files_sha256": {
+      "cmake/n3mapping_core.cmake": "e1c992c6d9be627d6bf80b15da05b0859f28217793f1fc5ef93adc48fd58410f",
+      "include/n3mapping/free_space_grid.h": "788293a7df0ef7cf2c6471455b47e9a690dc3d4573e566d8c2c6c2a68566d220",
+      "include/n3mapping/localization_atlas.h": "6d5cf9bcb25b7eadd5259e425672e362d2673ef4c432be9fc5c1b8ecf3ad6662",
+      "include/n3mapping/world_localizing.h": "048ee05cd2f863df5c98754beb27d1e32961bbb494ffa78a669da97d96873115",
+      "proto/localization_atlas.proto": "f637b6f46bc7fb8a95dd5068a9e18f1f4d05b36dbc159ba8c3342c40e32d86e9",
+      "src/free_space_grid_serialization.cpp": "91da254afdf44564f46c18aecb0580b230525ec0ea5050f526acc6b1c90e7eb9",
+      "src/localization_atlas.cpp": "64d9ecff756256c8bfabe443475b9746caf7570d9b07a158cf63126dde61eb61",
+      "src/world_localizing.cpp": "d9be725b74fe4c482aef7be1266795e7e52737ab4e94d999083e6b422f6931a5",
+      "src/world_localizing_evidence.cpp": "3db3d3444fd5d060be4d47ca72377aec7707faddf3e226d55f3add8fd40dc151",
+      "test/test_localization_atlas.cpp": "68ab86ee6a82f5904cdc12e4b96c177cbaad136b66f924cfa6991373810f4ac8",
+      "test/test_world_localizing.cpp": "c90671a56ab6d6281105c92e692233e8ec51a95fb51ac66f787055e05f2b6ced",
+      "tools/n3mapping_localization_atlas_compile.cpp": "ddccd1138723a774eb980ffe8e5614d94383d52e9437b25dd9fbbaabf169c679"
+    },
+    "artifacts_sha256": {
+      "build/n3mapping/geometric_search_20261026/grid_cache02/libn3mapping_core.so": "e7d92bf00e96ccac930525096f3c0cb3a3f2e2e8797a3678efd923a064c6ef3e",
+      "build/n3mapping/geometric_search_20261026/grid_cache02/replay_probe": "16e2ae4f00fefe88c6b3b3fe945cddae53469f396e46fed88d47c85d63980f51",
+      "build/n3mapping/geometric_search_20261026/release/build/n3mapping/libn3mapping_core.so": "f790e7b199f2cc9ee9b141e88ee4d16c24a95262037a1d658f5c61a728267899",
+      "build/n3mapping/geometric_search_20261026/release/install/n3mapping/lib/n3mapping/n3mapping_node": "a3e998d6a25adb535c411fea8ddc2f109c0541c4b39a444728c7c017dd5e2430",
+      "install/small_gicp/lib/libsmall_gicp.so": "c5a5627069408ffcdb05f0732e37f43fd1037d2836d2d8824df2e2beb13f9832",
+      "build/n3mapping/reliability_precision_20261026/dependency/gtsam_install/lib/libgtsam.so.4.1.1": "84be7fb16cd93b8bf782674eae5e161489f08b3c5b964c14b29b632a9f65110b",
+      "build/n3mapping/geometric_search_20261026/maps_grid/fixed14/map/n3map.pbstream.localization_atlas.pb": "2137d9908932f99a8d9865df39c7da0629330e28c24e6f188ad5fdec421f18bc"
+    },
+    "build": "Release; ccache; original small_gicp; matched repaired GTSAM",
+    "cpus": [
+      0,
+      2,
+      4,
+      6
+    ]
+  }
+}

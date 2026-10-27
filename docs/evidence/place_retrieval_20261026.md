@@ -202,10 +202,11 @@ so use fresh output directories for another run. Final results are in
 
 ## Remaining work
 
-The next optimization must address differing repeated observations inside a
-precompiled place without removing a geometrically useful competing hypothesis.
-Use the noisy-repeat failure alongside genuinely repeated-route inputs, and
-measure descriptor, heading and geometry work separately. Positions 13/14 remain
-regression cases. The stage does not qualify arbitrary repeated routes, larger
+The subsequent [geometry-cost stage](geometric_search_20261027.md) freezes the
+unqualified descriptor-fusion prototype and measures registration/verification
+before adding retrieval complexity. Noisy repeated observations remain an open
+retrieval-scaling case; useful competing hypotheses must not be removed just
+to shorten the candidate list. Positions 13/14 remain regression cases for this
+place-index revision. The stage does not qualify arbitrary repeated routes, larger
 maps beyond the existing 1 GiB Atlas contract, Noetic Docker, RK3588 hardware,
 general 10 cm accuracy or continuous difficult search at half a core.

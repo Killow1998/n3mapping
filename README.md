@@ -1,5 +1,12 @@
 # N3Mapping
 
+Local geometry follow-up **`6b21624`** precomputes the existing free-space grid with the Atlas.
+Four-core original14 mean first-lock computation falls **2.35→1.75 s**;
+load plus first lock falls **7.21→6.68 s**. Original14 and both localization routes
+retain decisions, recovery and accuracy. Active difficult search is still above
+half a core. Latest small_gicp and direct 3D-BBS controls did not establish a speed
+benefit. See the [geometry controls and remaining work](docs/evidence/geometric_search_20261027.md).
+
 Local place-retrieval revision **`ab8e92a`** compiles the place catalog and frame
 descriptor cache into the Atlas before localization. Four-core original14 and
 two-route replays retain accuracy and recovery behavior; mean first lock falls
