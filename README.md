@@ -6,7 +6,11 @@ initialization event. Shared status reports degraded/lost quality; invalid input
 is rejected before graph writes. Four-core Release tests pass **68/68**.
 The two-room doorway E2E and ablations are recorded in the
 [extension validation and remaining limits](docs/field_testing_zh.md#map-extension-doorway--2026-10-27).
-Field replay remains unqualified; this is a local source candidate.
+A live SpRobo partial-map extension now grows **33→225 keyframes** along a
+42.4 m route, with one initial anchor and successful return/reload. Online
+position RMSE is 1.53 cm; Xian accepts the isolated small threshold exceedance.
+See the [live acquisition evidence](docs/field_testing_zh.md#sprobo-live-extension--2026-10-27).
+The original field incident remains unqualified; this is a local source candidate.
 
 Local source-locality follow-up **`2d1917d`** keeps every prepared point and its
 covariance while ordering relocalization inputs spatially. Four-core original14
