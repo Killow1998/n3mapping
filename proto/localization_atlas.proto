@@ -21,4 +21,24 @@ message LocalizationAtlasData {
     repeated LocalizationAtlasPreparedLevel plane_levels = 7;
     bool refine_level_present = 8;
     LocalizationAtlasPreparedLevel refine_level = 9;
+    string frame_descriptor_config = 10;
+    repeated LocalizationAtlasFrameDescriptor frame_descriptors = 11;
+    string place_catalog_config = 12;
+    repeated LocalizationAtlasPlace places = 13;
+}
+
+message LocalizationAtlasPlace {
+    repeated int64 view_ids = 1 [packed = true];
+}
+
+message LocalizationAtlasCells {
+    repeated uint32 indices = 1 [packed = true];
+    repeated double values = 2 [packed = true];
+}
+
+message LocalizationAtlasFrameDescriptor {
+    int64 keyframe_id = 1;
+    repeated LocalizationAtlasCells planes = 2;
+    LocalizationAtlasCells ring_height = 3;
+    repeated double auxiliary = 4 [packed = true];
 }

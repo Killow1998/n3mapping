@@ -1,3 +1,4 @@
+#include "causal_submap.h"
 // KeyframeManager: keyframe CRUD, submap building (world frame and virtual root frame).
 #include "n3mapping/keyframe_manager.h"
 
@@ -356,31 +357,8 @@ Keyframe::PointCloudT::Ptr KeyframeManager::buildSubmapInRootFrame(
 Keyframe::PointCloudT::Ptr KeyframeManager::buildCausalSubmapInRootFrame(
     int64_t center_id, int range, int64_t root_id, PoseSource poses) const {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto submap = pcl::make_shared<Keyframe::PointCloudT>();
-
-    auto root_it = keyframes_.find(root_id);
-    if (root_it == keyframes_.end()) return submap;
-
-    const auto& root = *root_it->second;
-    const Eigen::Matrix4f T_root_inv = root.pose_optimized.matrix().cast<float>().inverse();
-    const auto T_odom_root_inv = root.pose_odom.inverse();
-
-    for (int64_t id = center_id - range; id <= center_id; ++id) {
-        auto it = keyframes_.find(id);
-        if (it == keyframes_.end()) continue;
-        auto kf = it->second;
-        if (!kf->cloud || kf->cloud->empty()) continue;
-        if (poses == PoseSource::Odometry && kf->session_id != root.session_id) continue;
-        // A newly inserted frame still has its raw pose while its neighbors
-        // may already be corrected. Never mix those domains in a descriptor.
-        const Eigen::Matrix4f T_root_kf = poses == PoseSource::Odometry
-            ? (T_odom_root_inv * kf->pose_odom).matrix().cast<float>().eval()
-            : (T_root_inv * kf->pose_optimized.matrix().cast<float>()).eval();
-        Keyframe::PointCloudT transformed;
-        pcl::transformPointCloud(*kf->cloud, transformed, T_root_kf);
-        *submap += transformed;
-    }
-    return submap;
+    return buildCausalSubmap(keyframes_, center_id, range, root_id, poses == PoseSource::Odometry);
 }
+
 
 } // namespace n3mapping

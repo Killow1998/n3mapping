@@ -1,6 +1,8 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <map>
+#include <memory>
 #include <vector>
 #include <Eigen/Core>
 namespace n3mapping {
@@ -41,6 +43,7 @@ struct RHPDPlace {
     bool isZero(double tolerance = 0.0) const;
     size_t storedValues() const;
 };
+using RHPDPlaceCache = std::map<int64_t, std::shared_ptr<const RHPDPlace>>;
 // Dense expansion is for offline analysis and numerical comparisons only.
 Eigen::VectorXd rhpdDenseValues(const RHPDPlace& place);
 } // namespace n3mapping

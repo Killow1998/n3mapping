@@ -164,8 +164,10 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
   if (target_provider_) {
     target_provider_->clear();
   }
-  if (!config_.reloc_atlas_enable)
+  if (!config_.reloc_atlas_enable) {
+    place_index_.prepare();
     return true;
+  }
   const std::string atlas_path =
       config_.reloc_atlas_path.empty()
           ? LocalizationAtlas::defaultAtlasPath(map_path)
@@ -173,6 +175,25 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
   LocalizationAtlasStats stats;
   if (!localization_atlas_->load(map_path, atlas_path, &stats, error))
     return false;
+  DescriptorSearchPerformance index_cost;
+  const auto *catalog = localization_atlas_->placeCatalog();
+  if (catalog) {
+    for (const auto &members : *catalog) {
+      for (const auto id : members) {
+        if (!keyframe_manager_.getKeyframe(id)) {
+          if (error) *error = "atlas place catalog refers to an unknown keyframe";
+          return false;
+        }
+      }
+    }
+  }
+  place_index_.prepare(localization_atlas_->frameDescriptors(), &index_cost, catalog);
+  LOG(INFO) << "[Reloc/PlaceIndex] ready keyframes=" << place_index_.indexedKeyframes()
+            << " retrieval_views=" << place_index_.indexedViews()
+            << " compiled_places=" << (catalog ? catalog->size() : 0)
+            << " cached_frames=" << index_cost.cached_frames
+            << " cache_decode_ms=" << stats.descriptor_load_ms
+            << " prepare_ms=" << index_cost.index_rebuild.wall_ms;
   tracking_targets_->installLoadedReference(
       localization_atlas_->globalMap(), localization_atlas_->preparedTarget());
   LOG(INFO) << "[LocalizationAtlas] Loaded " << atlas_path

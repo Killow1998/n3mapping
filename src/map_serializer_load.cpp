@@ -1,3 +1,4 @@
+#include "causal_submap.h"
 #include "n3mapping/map_serializer.h"
 #include "n3mapping/n3map_proto_utils.h"
 #include "n3mapping/graph_optimizer.h"
@@ -45,16 +46,7 @@ int compareSemVer(const SemVer& a, const SemVer& b) {
     return 0;
 }
 
-pcl::PointCloud<pcl::PointXYZI>::Ptr maybeVoxelizeRhpdCloud(
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud,
-    double voxel_size) {
-    if (!cloud || cloud->empty() || voxel_size <= 1e-4) return cloud;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr filtered;
-    if (!safeVoxelGridFilter<pcl::PointXYZI>(cloud, voxel_size, &filtered)) {
-        return cloud;
-    }
-    return filtered->empty() ? cloud : filtered;
-}
+
 
 Keyframe::Ptr keyframeFromParsedProto(const ParsedKeyframeProto& parsed) {
     auto keyframe = std::make_shared<Keyframe>();

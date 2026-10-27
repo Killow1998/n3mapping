@@ -1,3 +1,4 @@
+#include "localization_atlas_descriptors.h"
 // LocalizationAtlas: compile/load a map-bound global prepared target sidecar.
 #include "n3mapping/localization_atlas.h"
 
@@ -291,6 +292,9 @@ void LocalizationAtlas::swapData(LocalizationAtlas& other) {
     swap(prepared_target_, other.prepared_target_);
     swap(map_sha256_, other.map_sha256_);
     swap(config_sha256_, other.config_sha256_);
+    swap(frame_descriptors_, other.frame_descriptors_);
+    swap(place_catalog_, other.place_catalog_);
+    swap(place_catalog_ready_, other.place_catalog_ready_);
 }
 
 bool LocalizationAtlas::compileAndSave(
@@ -360,6 +364,10 @@ bool LocalizationAtlas::compileAndSave(
         }
         local_stats.prepared_point_count += prepared_target_.refine_level.cloud->size();
     }
+
+    const auto descriptor_start = Clock::now();
+    encodeAtlasDescriptors(config_, keyframes, data);
+    local_stats.descriptor_prepare_ms = elapsedMs(descriptor_start);
 
     // Loading deliberately rejects sidecars larger than 1 GiB. Refuse the
     // exact serialized message before opening a temporary file, so compilation
@@ -499,6 +507,9 @@ bool LocalizationAtlas::load(const std::string& map_path,
         return false;
     }
     local_stats.kdtree_ms = elapsedMs(kdtree_start);
+    const auto descriptor_start = Clock::now();
+    if (!decodeAtlasDescriptors(config_, data, frame_descriptors_, place_catalog_, place_catalog_ready_, error)) return false;
+    local_stats.descriptor_load_ms = elapsedMs(descriptor_start);
     local_stats.load_ms = elapsedMs(start);
     local_stats.keyframe_count = static_cast<std::size_t>(data.keyframe_count());
     local_stats.global_point_count = global_map_->size();
@@ -513,6 +524,9 @@ void LocalizationAtlas::clear() {
     loaded_ = false;
     global_map_ = pcl::make_shared<PointCloudT>();
     prepared_target_ = {};
+    frame_descriptors_.clear();
+    place_catalog_.clear();
+    place_catalog_ready_ = false;
     map_sha256_.clear();
     config_sha256_.clear();
 }

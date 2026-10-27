@@ -119,8 +119,10 @@ int main(int argc, char **argv) {
             << "  \"sidecar_bytes\": " << stats.sidecar_bytes << ",\n"
             << "  \"global_map_ms\": " << stats.global_map_ms << ",\n"
             << "  \"prepare_ms\": " << stats.prepare_ms << ",\n"
+            << "  \"descriptor_prepare_ms\": " << stats.descriptor_prepare_ms << ",\n"
             << "  \"serialize_ms\": " << stats.serialize_ms << ",\n"
             << "  \"verify_load_ms\": " << load_stats.load_ms << ",\n"
+            << "  \"descriptor_load_ms\": " << load_stats.descriptor_load_ms << ",\n"
             << "  \"verify_kdtree_ms\": " << load_stats.kdtree_ms << "\n"
             << "}\n";
   return 0;

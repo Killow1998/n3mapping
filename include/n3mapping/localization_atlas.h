@@ -13,6 +13,7 @@
 #include "n3mapping/config.h"
 #include "n3mapping/keyframe.h"
 #include "n3mapping/point_cloud_matcher.h"
+#include "n3mapping/relocalization_place_catalog.h"
 
 namespace n3mapping {
 
@@ -26,6 +27,8 @@ struct LocalizationAtlasStats {
     double serialize_ms = 0.0;
     double load_ms = 0.0;
     double kdtree_ms = 0.0;
+    double descriptor_prepare_ms = 0.0;
+    double descriptor_load_ms = 0.0;
 };
 
 class LocalizationAtlas {
@@ -59,6 +62,10 @@ public:
     }
     const std::string& mapSha256() const { return map_sha256_; }
     const std::string& configSha256() const { return config_sha256_; }
+    const RHPDPlaceCache& frameDescriptors() const { return frame_descriptors_; }
+    const RelocalizationPlaceCatalog* placeCatalog() const {
+        return place_catalog_ready_ ? &place_catalog_ : nullptr;
+    }
 
     PointCloudT::Ptr cropVisibilityTarget(const Eigen::Vector3d& center) const;
     // Original point order and exact sphere predicate, sharing immutable map data.
@@ -82,6 +89,9 @@ private:
     PointCloudMatcher::PreparedTarget prepared_target_;
     std::string map_sha256_;
     std::string config_sha256_;
+    RHPDPlaceCache frame_descriptors_;
+    RelocalizationPlaceCatalog place_catalog_;
+    bool place_catalog_ready_ = false;
 };
 
 }  // namespace n3mapping

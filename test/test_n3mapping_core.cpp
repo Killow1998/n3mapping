@@ -426,8 +426,8 @@ TEST(N3MappingCoreTest, LocalizationDoesNotAppendDenseOptimizedTrajectory)
     const auto& descriptor = output.relocalization_performance.descriptor;
     EXPECT_EQ(descriptor.total.calls, 1u);
     EXPECT_EQ(descriptor.generation.calls, 1u);
+    EXPECT_EQ(descriptor.index_rebuild.calls, 0u);
     EXPECT_GT(descriptor.generation.thread_cpu_ms, 0.0);
-    EXPECT_GT(descriptor.coarse_comparisons, 0u);
     EXPECT_GT(descriptor.place_comparisons, 0u);
     EXPECT_GT(descriptor.place_values, 0u);
 

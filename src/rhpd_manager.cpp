@@ -13,7 +13,7 @@ void RHPDManager::add(int64_t kf_id, const Place& descriptor) {
         return;
     }
     ids_.push_back(kf_id);
-    descriptors_.push_back(descriptor);
+    descriptors_.push_back(std::make_shared<const Place>(descriptor));
     coarse_keys_.push_back(makeCoarseKey(descriptor));
 }
 
@@ -85,7 +85,7 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
     results.reserve(coarse_ranked.size());
     for (const auto& item : coarse_ranked) {
         const size_t i = item.second;
-        const double d = desc_.distance(prepared, descriptors_[i]);
+        const double d = desc_.distance(prepared, *descriptors_[i]);
         results.emplace_back(ids_[i], d);
     }
 
@@ -98,12 +98,19 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
     return results;
 }
 
+RHPDPlaceCache RHPDManager::snapshot() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    RHPDPlaceCache result;
+    for (size_t i = 0; i < ids_.size(); ++i) result.emplace(ids_[i], descriptors_[i]);
+    return result;
+}
+
 bool RHPDManager::get(int64_t kf_id, Place* descriptor) const {
     if (!descriptor) return false;
     std::lock_guard<std::mutex> lock(mutex_);
     for (size_t i = 0; i < ids_.size(); ++i) {
         if (ids_[i] == kf_id) {
-            *descriptor = descriptors_[i];
+            *descriptor = *descriptors_[i];
             return true;
         }
     }

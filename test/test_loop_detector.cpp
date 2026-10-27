@@ -397,6 +397,81 @@ TEST_F(LoopDetectorTest, RelocalizationKeepsHeadingWinnerBeyondPlaceShortlist) {
     EXPECT_LE(performance.heading_comparisons, keyframes.size());
 }
 
+TEST_F(LoopDetectorTest, RepeatedViewDoesNotHideAnotherFloorOrOppositeHeading) {
+    Config config;
+    config.reloc_num_candidates = 10;
+    KeyframeManager keyframes(config);
+    LoopDetector detector(config);
+    const auto query = createAsymmetricCloud();
+    for (int i = 0; i < 32; ++i) {
+        auto pose = Eigen::Isometry3d::Identity();
+        pose.translation().x() = (i % 3) * 0.05;
+        const auto id = keyframes.addKeyframe(i, pose, query);
+        detector.addRHPD(id, query);
+        detector.addDescriptor(id, query);
+    }
+    auto floor_pose = Eigen::Isometry3d::Identity();
+    floor_pose.translation().z() = 3.0;
+    const auto floor = keyframes.addKeyframe(32, floor_pose, query);
+    detector.addRHPD(floor, query);
+    detector.addDescriptor(floor, query);
+    auto reverse_pose = Eigen::Isometry3d::Identity();
+    reverse_pose.linear() = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    const auto reverse = keyframes.addKeyframe(33, reverse_pose, query);
+    detector.addRHPD(reverse, query);
+    detector.addDescriptor(reverse, query);
+    RelocalizationPlaceIndex index(config, keyframes, detector);
+    index.prepare();
+    DescriptorSearchPerformance performance;
+    const auto candidates = index.search(query, &performance);
+    ASSERT_EQ(candidates.size(), 3u);
+    EXPECT_EQ(candidates[0].match_id, 0);
+    EXPECT_EQ(candidates[1].match_id, floor);
+    EXPECT_EQ(candidates[2].match_id, reverse);
+    EXPECT_EQ(performance.index_rebuild.calls, 0u);
+    EXPECT_EQ(performance.retrieval_views, 3u);
+}
+
+TEST_F(LoopDetectorTest, PlaceSearchMatchesExhaustiveFusedRanking) {
+    Config config;
+    config.sc_aux_veto_enabled = false;
+    config.rhpd_dist_threshold = 100.0;
+    config.reloc_num_candidates = 5;
+    KeyframeManager keyframes(config);
+    LoopDetector detector(config);
+    const auto original = createAsymmetricCloud();
+    std::vector<Keyframe::PointCloudT::Ptr> clouds;
+    for (int i = 0; i < 40; ++i) {
+        auto cloud = pcl::make_shared<Keyframe::PointCloudT>(*original);
+        for (auto &point : *cloud) { point.x += i * .17f; point.z += (i % 7) * .08f; }
+        auto pose = Eigen::Isometry3d::Identity();
+        pose.translation().x() = i * 4.0;
+        const auto id = keyframes.addKeyframe(i, pose, cloud);
+        detector.addRHPD(id, cloud);
+        detector.addDescriptor(id, cloud);
+        clouds.push_back(cloud);
+    }
+    RelocalizationPlaceIndex index(config, keyframes, detector);
+    for (const int query_id : {0, 7, 19, 39}) {
+        const auto features = detector.computeFeatures(clouds[query_id]);
+        auto ranked = detector.getRHPDManager().search(features.place, 40);
+        std::vector<std::tuple<double, double, int64_t>> expected;
+        for (const auto &[id, distance] : ranked) {
+            const auto heading = detector.computeDistance(features.heading, detector.getDescriptor(id));
+            const double score = config.rhpd_primary_weight * distance / config.rhpd_dist_threshold +
+                config.sc_aux_weight * heading.first / config.sc_aux_veto_threshold;
+            expected.emplace_back(score, distance, id);
+        }
+        std::sort(expected.begin(), expected.end());
+        const auto actual = index.search(clouds[query_id]);
+        ASSERT_EQ(actual.size(), 5u);
+        for (size_t i = 0; i < actual.size(); ++i) {
+            EXPECT_EQ(actual[i].match_id, std::get<2>(expected[i]));
+            EXPECT_NEAR(actual[i].fused_score, std::get<0>(expected[i]), 1e-12);
+        }
+    }
+}
+
 TEST_F(LoopDetectorTest, HeadingSeedRotatesQueryCloudIntoReferenceFrame) {
     Config config;
     const auto reference = createAsymmetricCloud();

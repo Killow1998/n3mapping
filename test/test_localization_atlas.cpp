@@ -12,6 +12,7 @@
 
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/cloud_utils.h"
+#include "n3mapping/RHPDescriptor.h"
 #include "localization_atlas.pb.h"
 
 namespace n3mapping {
@@ -193,6 +194,10 @@ TEST(LocalizationAtlasTest, RoundTripsPreparedTargetExactly) {
                           &load_stats, &error))
       << error;
   ASSERT_TRUE(loaded.loaded());
+  ASSERT_NE(loaded.placeCatalog(), nullptr);
+  ASSERT_EQ(loaded.placeCatalog()->size(), 2u);
+  EXPECT_EQ(loaded.placeCatalog()->at(0), std::vector<int64_t>{0});
+  EXPECT_EQ(loaded.placeCatalog()->at(1), std::vector<int64_t>{1});
   ASSERT_EQ(compiled.globalMap()->size(), loaded.globalMap()->size());
   for (std::size_t i = 0; i < compiled.globalMap()->size(); ++i) {
     EXPECT_EQ(compiled.globalMap()->points[i].x, loaded.globalMap()->points[i].x);
@@ -212,8 +217,66 @@ TEST(LocalizationAtlasTest, RoundTripsPreparedTargetExactly) {
   ASSERT_TRUE(loaded.preparedTarget().has_refine_level);
   expectPreparedLevelExact(compiled.preparedTarget().refine_level,
                            loaded.preparedTarget().refine_level);
+  RHPDescriptor descriptor(rhpdParamsFromConfig(config));
+  ASSERT_EQ(loaded.frameDescriptors().size(), makeKeyframes().size());
+  for (const auto &keyframe : makeKeyframes()) {
+    EXPECT_TRUE(rhpdDenseValues(*loaded.frameDescriptors().at(keyframe->id)).isApprox(
+        rhpdDenseValues(descriptor.compute(keyframe->cloud)), 0.0));
+  }
   EXPECT_EQ(compiled.mapSha256(), loaded.mapSha256());
   EXPECT_EQ(compiled.configSha256(), loaded.configSha256());
+}
+
+TEST(LocalizationAtlasTest, DescriptorConfigMissRebuildsButMalformedMatchingCacheIsRejected) {
+  TemporaryAtlasFiles files;
+  Config config = makeConfig();
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(),
+                                  files.atlas().string(), false, nullptr, &error));
+  Config changed = config;
+  changed.rhpd_z_min -= .1;
+  LocalizationAtlas changed_atlas(changed, matcher);
+  ASSERT_TRUE(changed_atlas.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
+  EXPECT_TRUE(changed_atlas.frameDescriptors().empty());
+  LocalizationAtlasData data;
+  { std::ifstream in(files.atlas(), std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&in)); }
+  ASSERT_GT(data.frame_descriptors_size(), 0);
+  data.mutable_frame_descriptors(0)->mutable_ring_height()->add_indices(999);
+  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_NE(error.find("descriptor cache"), std::string::npos);
+}
+
+TEST(LocalizationAtlasTest, CompiledPlaceViewsMatchLoadedMapPreparation) {
+  TemporaryAtlasFiles files;
+  Config config = makeConfig();
+  config.rhpd_submap_kf_radius = 0;
+  config.rhpd_submap_voxel_size = 0.0;
+  auto frames = makeKeyframes();
+  for (int i = 2; i < 6; ++i) {
+    auto repeat = Keyframe::create(i, i, Eigen::Isometry3d::Identity(), frames[0]->cloud);
+    frames.push_back(repeat);
+  }
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), frames, files.atlas().string(), false, nullptr, &error));
+  ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
+  ASSERT_NE(atlas.placeCatalog(), nullptr);
+  ASSERT_EQ(atlas.placeCatalog()->size(), 2u);
+  EXPECT_EQ(atlas.placeCatalog()->at(0), std::vector<int64_t>{0});
+  EXPECT_EQ(atlas.placeCatalog()->at(1), std::vector<int64_t>{1});
+  // Catalog construction is a map artifact operation; input observations stay intact.
+  EXPECT_EQ(frames.size(), 6u);
+  EXPECT_FALSE(frames[0]->is_from_loaded_map);
+  LocalizationAtlasData data;
+  { std::ifstream in(files.atlas(), std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&in)); }
+  data.mutable_places(1)->add_view_ids(0);
+  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_NE(error.find("place catalog"), std::string::npos);
 }
 
 TEST(LocalizationAtlasTest, RejectsChangedMapAndChangedTargetConfig) {

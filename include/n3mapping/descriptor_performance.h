@@ -52,6 +52,9 @@ struct DescriptorSearchPerformance {
   std::uint64_t indexed_keyframes = 0, coarse_comparisons = 0;
   std::uint64_t place_comparisons = 0, heading_comparisons = 0;
   std::uint64_t returned_candidates = 0;
+  std::uint64_t retrieval_places = 0;
+  std::uint64_t cached_frames = 0;
+  std::uint64_t retrieval_views = 0;
 };
 
 } // namespace n3mapping

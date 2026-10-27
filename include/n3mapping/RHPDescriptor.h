@@ -84,6 +84,14 @@ public:
     // Handles 180-degree ambiguity by comparing both orientations and taking the minimum.
     double distance(const Place& a, const Place& b) const;
 
+    struct PreparedQuery {
+        const Place& place;
+        std::array<RHPDCells, 3> flipped_planes;
+        Eigen::Matrix<double, RHPD_AUX_DIM, 1> flipped_auxiliary;
+    };
+    PreparedQuery prepareQuery(const Place& place) const;
+    double distance(const PreparedQuery& query, const Place& reference) const;
+
     const Params& params() const { return params_; }
 
 private:
@@ -111,14 +119,6 @@ private:
                         int axis1, double range1_min, double range1_max,
                         int height_axis) const;
 
-    friend class RHPDManager;
-    struct PreparedQuery {
-        const Place& place;
-        std::array<RHPDCells, 3> flipped_planes;
-        Eigen::Matrix<double, RHPD_AUX_DIM, 1> flipped_auxiliary;
-    };
-    PreparedQuery prepareQuery(const Place& place) const;
-    double distance(const PreparedQuery& query, const Place& reference) const;
     Params params_;
 };
 
@@ -149,6 +149,7 @@ public:
         const std::function<bool(int64_t)>& accept,
         DescriptorSearchPerformance* performance = nullptr) const;
     bool get(int64_t kf_id, Place* descriptor) const;
+    RHPDPlaceCache snapshot() const;
     VecD makeCoarseKey(const Place& descriptor) const;
 
     // Compute descriptor for a cloud (for use before searching).
@@ -172,7 +173,7 @@ public:
 private:
     RHPDescriptor desc_;
     std::vector<int64_t> ids_;
-    std::vector<Place>   descriptors_;
+    std::vector<std::shared_ptr<const Place>> descriptors_;
     std::vector<VecD>    coarse_keys_;
     mutable std::mutex mutex_;
 };

@@ -27,6 +27,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/core/n3mapping_session.cpp
   ${N3MAPPING_ROOT}/src/core/realtime_output.cpp
   ${N3MAPPING_ROOT}/src/ros_output_contract.cpp
+  ${N3MAPPING_ROOT}/src/causal_submap.cpp
   ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
   ${N3MAPPING_ROOT}/src/local_map_selector.cpp
   ${N3MAPPING_ROOT}/src/submap_builder.cpp
@@ -70,6 +71,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/map_serializer_save.cpp
   ${N3MAPPING_ROOT}/src/map_serializer_load.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp
+  ${N3MAPPING_ROOT}/src/localization_atlas_descriptors.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas_map.cpp
   ${N3MAPPING_ROOT}/src/localization_crop.cpp
   ${N3MAPPING_ROOT}/src/registration_observability.cpp
@@ -78,6 +80,8 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/relocalization_debug_emitter.cpp
   ${N3MAPPING_ROOT}/src/relocalization_hypothesis_manager.cpp
   ${N3MAPPING_ROOT}/src/relocalization_place_index.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_place_prepare.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_place_catalog.cpp
   ${N3MAPPING_ROOT}/src/relocalization_query_builder.cpp
   ${N3MAPPING_ROOT}/src/relocalization_seed_plan.cpp
   ${N3MAPPING_ROOT}/src/relocalization_target_provider.cpp

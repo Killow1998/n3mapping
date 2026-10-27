@@ -75,6 +75,9 @@ Json::Value relocalizationPerformanceJson(const RelocalizationPerformance &cost)
   descriptor["place_values"] = Json::UInt64(cost.descriptor.place_values);
   descriptor["heading_values"] = Json::UInt64(cost.descriptor.heading_values);
   descriptor["indexed_keyframes"] = Json::UInt64(cost.descriptor.indexed_keyframes);
+  descriptor["retrieval_places"] = Json::UInt64(cost.descriptor.retrieval_places);
+  descriptor["cached_frames"] = Json::UInt64(cost.descriptor.cached_frames);
+  descriptor["retrieval_views"] = Json::UInt64(cost.descriptor.retrieval_views);
   descriptor["coarse_comparisons"] = Json::UInt64(cost.descriptor.coarse_comparisons);
   descriptor["place_comparisons"] = Json::UInt64(cost.descriptor.place_comparisons);
   descriptor["heading_comparisons"] = Json::UInt64(cost.descriptor.heading_comparisons);
