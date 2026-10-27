@@ -1,5 +1,13 @@
 # N3Mapping
 
+Local issue #7 repair lets an anchored extension session keep mapping through
+loaded-map tracking loss without fabricating loaded-map constraints or another
+initialization event. Shared status reports degraded/lost quality; invalid input
+is rejected before graph writes. Four-core Release tests pass **68/68**.
+The two-room doorway E2E and ablations are recorded in the
+[extension validation and remaining limits](docs/field_testing_zh.md#map-extension-doorway--2026-10-27).
+Field replay remains unqualified; this is a local source candidate.
+
 Local source-locality follow-up **`2d1917d`** keeps every prepared point and its
 covariance while ordering relocalization inputs spatially. Four-core original14
 first-lock CPU falls **5.0%**; repeated 03 CPU falls **7.368→6.945 s**.

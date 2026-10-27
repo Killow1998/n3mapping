@@ -42,6 +42,8 @@ struct OdometrySanityVerdict {
   double speed_mps = 0.0;
   double angular_rate_dps = 0.0;
   double timestamp = 0.0;
+  // Current violation run, also before divergence is latched. Mapping must
+  // not commit known-invalid samples while waiting to classify a runaway.
   int consecutive = 0;
 };
 

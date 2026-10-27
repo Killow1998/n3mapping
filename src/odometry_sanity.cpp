@@ -47,11 +47,11 @@ OdometrySanity::check(double timestamp, const Eigen::Isometry3d &pose) {
       verdict_.speed_mps = speed;
       verdict_.angular_rate_dps = rate;
       verdict_.timestamp = timestamp;
-      verdict_.consecutive = consecutive_;
     }
   } else {
     consecutive_ = 0;
   }
+  verdict_.consecutive = consecutive_;
 
   if (pose_finite) {
     previous_timestamp_ = timestamp;

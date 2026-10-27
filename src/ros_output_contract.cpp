@@ -67,7 +67,8 @@ std::string localizationStatusJson(CoreRunMode mode,
     } else if (!valid_pose) {
         state = "error";
         reason = "invalid_pose";
-    } else if (mode != CoreRunMode::LOCALIZATION) {
+    } else if (mode != CoreRunMode::LOCALIZATION &&
+               output.mapping_block_reason != core::MappingBlockReason::None) {
         state = "initializing";
         reason = "awaiting_mapping_output";
         if (output.mapping_block_reason == core::MappingBlockReason::StaticStartGuard) {
@@ -78,10 +79,10 @@ std::string localizationStatusJson(CoreRunMode mode,
         } else if (output.mapping_block_reason == core::MappingBlockReason::InvalidInput) {
             state = "error";
             reason = "invalid_mapping_input";
-        } else if (output.success || output.accepted_keyframe) {
-            state = "tracking";
-            reason = "";
         }
+    } else if (mode == CoreRunMode::MAPPING) {
+        state = output.success || output.accepted_keyframe ? "tracking" : "initializing";
+        reason = output.success || output.accepted_keyframe ? "" : "awaiting_mapping_output";
     } else if (hasAuthoritativeRelocalizationInitializationPose(
                    output.relocalization_state, output.pose_source)) {
         state = "tracking";
@@ -89,10 +90,15 @@ std::string localizationStatusJson(CoreRunMode mode,
     } else if (output.relocalization_state == RelocalizationState::RECENTLY_LOST ||
                output.relocalization_state == RelocalizationState::DEGRADED_TRACKING) {
         state = "degraded";
-        reason = "localization_not_authoritative";
+        reason = mode == CoreRunMode::MAP_EXTENSION
+            ? "map_extension_odometry_only" : "localization_not_authoritative";
     } else if (output.relocalization_state == RelocalizationState::LOST) {
         state = "lost";
-        reason = "localization_lost";
+        reason = mode == CoreRunMode::MAP_EXTENSION
+            ? "map_extension_odometry_only" : "localization_lost";
+    } else if (mode == CoreRunMode::MAP_EXTENSION) {
+        state = "initializing";
+        reason = "awaiting_initial_relocalization";
     }
 
     if (realtime && realtime->estimate_attempted &&

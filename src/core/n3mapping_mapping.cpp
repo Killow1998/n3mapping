@@ -5,13 +5,11 @@
 
 namespace n3mapping {
 
-core::BackendOutput
-N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
+core::MappingBlockReason
+N3MappingCore::mappingInputBlockReason(const core::LioFrame &frame) {
   if (!frame.pose_valid || !frame.undistorted_cloud ||
-      frame.undistorted_cloud->empty()) {
-    auto output = makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
-    output.mapping_block_reason = core::MappingBlockReason::InvalidInput;
-    return output;
+      frame.undistorted_cloud->empty() || !isFiniteRigidPose(frame.T_world_lidar)) {
+    return core::MappingBlockReason::InvalidInput;
   }
 
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
@@ -28,11 +26,24 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
       odometry_sanity_configured_ = true;
     }
     if (odometry_sanity_.check(timestamp, frame.T_world_lidar).diverged) {
-      auto output = makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
-      output.mapping_block_reason = core::MappingBlockReason::OdometryDiverged;
-      return output;
+      return core::MappingBlockReason::OdometryDiverged;
+    }
+    if (odometry_sanity_.verdict().consecutive > 0) {
+      return core::MappingBlockReason::InvalidInput;
     }
   }
+  return core::MappingBlockReason::None;
+}
+
+core::BackendOutput
+N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
+  const auto blocked = mappingInputBlockReason(frame);
+  if (blocked != core::MappingBlockReason::None) {
+    auto output = makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+    output.mapping_block_reason = blocked;
+    return output;
+  }
+  const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
 
   // Do not seed the graph with unsettled odometry. A stable scan/pose window
   // also permits mapping when the robot remains stationary.

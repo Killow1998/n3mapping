@@ -110,6 +110,7 @@ class N3MappingCore {
     core::BackendOutput makeOutput(bool success,
                                    const Eigen::Isometry3d& pose,
                                    const PointCloud::Ptr& cloud) const;
+    core::MappingBlockReason mappingInputBlockReason(const core::LioFrame& frame);
     PointCloud::Ptr makeWorldCloud(const PointCloud::Ptr& cloud,
                                    const Eigen::Isometry3d& pose) const;
     void appendDenseTrajectorySample(double timestamp,

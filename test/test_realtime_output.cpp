@@ -165,6 +165,39 @@ TEST(RealtimeOutput, ModesRetainTheirExistingAuthorityAndDivergenceRules) {
   }
 }
 
+TEST(RealtimeOutput, ExtensionPredictionDoesNotAdvertiseAnotherGlobalLock) {
+  RealtimeOutput live(CoreRunMode::MAP_EXTENSION, "map", 8);
+  BackendOutput backend;
+  live.acceptBackend(source(1000000000), 1.0, backend);
+  EXPECT_EQ(json(live.observeOdometry(source(1000000001), 1000000001, true).status_json)["state"],
+            "initializing");
+  backend = trusted();
+  backend.relocalization_locked = true;
+  ASSERT_TRUE(live.acceptBackend(source(2000000000), 2.0, backend).plan.publish_legacy_lock);
+  int64_t stamp = 3000000000LL;
+  for (const auto state : {RelocalizationState::RECENTLY_LOST, RelocalizationState::LOST}) {
+    backend.relocalization_locked = false;
+    backend.accepted_keyframe = true;
+    backend.relocalization_state = state;
+    backend.pose_source = PoseSource::ODOM_PREDICTED;
+    const auto publication = live.acceptBackend(source(stamp), stamp*1e-9, backend);
+    EXPECT_TRUE(publication.live_authorized);
+    EXPECT_FALSE(publication.plan.publish_legacy_lock);
+    EXPECT_FALSE(publication.plan.publish_authoritative_pose);
+    const auto emission = live.observeOdometry(source(stamp+1), stamp+1, true);
+    ASSERT_TRUE(emission.pose);
+    EXPECT_EQ(json(emission.status_json)["state"],
+              state == RelocalizationState::LOST ? "lost" : "degraded");
+    EXPECT_EQ(json(emission.status_json)["reason"], "map_extension_odometry_only");
+    stamp += 1000000000LL;
+  }
+  backend = trusted();
+  const auto recovered = live.acceptBackend(source(stamp), stamp*1e-9, backend);
+  EXPECT_FALSE(recovered.plan.publish_legacy_lock);
+  EXPECT_EQ(json(live.observeOdometry(source(stamp+1), stamp+1, true).status_json)["state"],
+            "tracking");
+}
+
 TEST(RealtimeOutput, DroppedDuplicatesAndExpiredReservationsDoNotRevokeValidInput) {
   RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 1);
   auto backend = trusted();

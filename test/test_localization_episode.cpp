@@ -163,16 +163,17 @@ TEST_F(LocalizationEpisode, RepeatedPlacesStayUnpublishedAndFreshGeometryCanLock
     point.y *= 1.6F;
     point.z *= 1.3F;
   }
+  // Authored keyframes still obey the mapping input velocity limit.
   const auto repeated_path = directory_ / "repeated.pbstream";
   {
     N3MappingCore mapper(config_, N3MappingCore::WorldCloudOutput::Disabled);
     for (int i = 0; i < 2; ++i) {
       const auto mapped = mapper.processMappingFrame(makeFrame(
-          (i + 1) * 1000000000LL, makePose(i * 20.0, 0.0, 0.0), cloud));
+          (i + 1) * 30000000000LL, makePose(i * 20.0, 0.0, 0.0), cloud));
       ASSERT_TRUE(mapped.accepted_keyframe);
     }
     ASSERT_TRUE(mapper.processMappingFrame(makeFrame(
-        3000000000LL, makePose(40.0, 0.0, 0.0), unique_cloud)).accepted_keyframe);
+        90000000000LL, makePose(40.0, 0.0, 0.0), unique_cloud)).accepted_keyframe);
     ASSERT_TRUE(mapper.saveMap(repeated_path.string()));
     compileAtlas(mapper, repeated_path);
   }
@@ -231,7 +232,7 @@ TEST_F(LocalizationEpisode, NewlyVisibleRegionGetsItsOwnConfirmationWithoutResta
     N3MappingCore mapper(config_, N3MappingCore::WorldCloudOutput::Disabled);
     for (int i = 0; i < 3; ++i) {
       ASSERT_TRUE(mapper.processMappingFrame(makeFrame(
-          (i + 1) * 1000000000LL, makePose(20.0 * i, 0, 0),
+          (i + 1) * 30000000000LL, makePose(20.0 * i, 0, 0),
           i == 2 ? complete : common)).accepted_keyframe);
     }
     ASSERT_TRUE(mapper.saveMap(path.string()));
@@ -315,9 +316,9 @@ TEST_F(LocalizationEpisode, UnchangedSeedsCannotStrandSearchInOldPoseModes) {
   const auto path = directory_ / "mode_transition.pbstream";
   {
     N3MappingCore mapper(config_, N3MappingCore::WorldCloudOutput::Disabled);
-    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(1000000000LL, makePose(0, 0, 0), repeated)).accepted_keyframe);
-    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(2000000000LL, makePose(20, 0, 0), repeated)).accepted_keyframe);
-    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(3000000000LL, makePose(140, 0, 0), distinct)).accepted_keyframe);
+    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(30000000000LL, makePose(0, 0, 0), repeated)).accepted_keyframe);
+    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(60000000000LL, makePose(20, 0, 0), repeated)).accepted_keyframe);
+    ASSERT_TRUE(mapper.processMappingFrame(makeFrame(90000000000LL, makePose(140, 0, 0), distinct)).accepted_keyframe);
     ASSERT_TRUE(mapper.saveMap(path.string()));
     compileAtlas(mapper, path);
   }

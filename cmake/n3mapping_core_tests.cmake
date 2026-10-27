@@ -50,6 +50,7 @@ foreach(name
     test_loop_graph_trial_diagnostics
     test_loop_heightmap_diagnostics
     test_map_serializer_pbt
+    test_map_extension_route
     test_mapping_resuming
     test_mapping_resuming_pbt
     test_n3mapping_core

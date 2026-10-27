@@ -6,7 +6,7 @@ namespace n3mapping {
 
 core::BackendOutput
 N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
-  TrackingPerformance tracking_performance;
+  RelocResult tracking;
   using PerformanceClock = std::chrono::steady_clock;
   core::BackendPerformanceTiming performance;
   performance.enabled = config_.reloc_debug_enable;
@@ -22,23 +22,42 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   const auto make_output = [&](bool success, const Eigen::Isometry3d &pose,
                                const PointCloud::Ptr &cloud) {
     auto output = makeOutput(success, pose, cloud);
-    output.tracking_performance = tracking_performance;
+    if (performance.tracking_attempted) {
+      output.tracking_performance = tracking.tracking_performance;
+      output.relocalization_state = tracking.state;
+      output.pose_source = tracking.pose_source;
+      output.relocalization_decision = tracking.decision;
+      output.relocalization_seed_keyframe_id = tracking.seed_keyframe_id;
+      output.relocalization_support_keyframe_id = tracking.support_keyframe_id;
+      output.matched_keyframe_id = tracking.matched_keyframe_id;
+    }
     if (performance.enabled) {
       output.performance = performance;
     }
     return output;
   };
 
-  if (!frame.pose_valid || !frame.undistorted_cloud ||
-      frame.undistorted_cloud->empty() || !map_loaded_) {
-    return make_output(false, frame.T_world_lidar, frame.undistorted_cloud);
-  }
-
   auto &resuming = session_->mappingResuming();
   auto &localizer = session_->worldLocalizing();
   const auto state = resuming.getState();
+  // An established anchor belongs to one LIO coordinate frame. Never connect
+  // a changed source frame to that session's odometry chain.
+  const bool source_changed = state != MappingResumingState::MAP_LOADED &&
+      localization_source_frame_id_ != frame.source_frame_id;
+  const auto blocked = !map_loaded_ || source_changed
+      ? core::MappingBlockReason::InvalidInput : mappingInputBlockReason(frame);
+  if (blocked != core::MappingBlockReason::None) {
+    auto output = make_output(false, frame.T_world_lidar, frame.undistorted_cloud);
+    output.mapping_block_reason = blocked;
+    if (source_changed) output.relocalization_decision = "map_extension_source_frame_changed";
+    return output;
+  }
 
   if (state == MappingResumingState::MAP_LOADED) {
+    if (localization_source_frame_id_ != frame.source_frame_id) {
+      localizer.reset();
+      localization_source_frame_id_ = frame.source_frame_id;
+    }
     const auto relocalization_started = timingStarted();
     RelocalizationPerformance relocalization_performance;
     const bool locked = resuming.performInitialRelocalization(
@@ -80,36 +99,20 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     return make_output(false, frame.T_world_lidar, frame.undistorted_cloud);
   }
 
-  // While old-map geometry is visible, extension must track that immutable
-  // geometry continuously. A constant relocalization transform only carries
-  // the session LIO's time-varying drift into the resumed map. This strict
-  // path never falls back to a new global search or to self-created frames.
-  // Loss suppresses output and graph writes, but does not disable subsequent
-  // loaded-map registration when usable geometry returns.
+  // Loaded geometry supplies absolute corrections. When it disappears, the
+  // anchored session can still extend with LIO odometry, without inventing a
+  // loaded-map constraint or granting global localization authority.
   performance.tracking_attempted = true;
   const auto tracking_started = timingStarted();
-  const RelocResult tracking = localizer.trackLoadedMap(
-      frame.undistorted_cloud, frame.T_world_lidar);
-  tracking_performance = tracking.tracking_performance;
+  tracking = localizer.trackLoadedMap(frame.undistorted_cloud, frame.T_world_lidar);
   if (performance.enabled) {
-    performance.loaded_map_tracking_ms =
-        elapsedMilliseconds(tracking_started);
+    performance.loaded_map_tracking_ms = elapsedMilliseconds(tracking_started);
   }
-  if (!tracking.success ||
-      tracking.state != RelocalizationState::FULL_6DOF_LOCKED ||
-      tracking.pose_source != PoseSource::GEOMETRICALLY_CORRECTED ||
-      tracking.matched_keyframe_id < 0) {
-    auto output = make_output(
-        false, tracking.pose_in_map, frame.undistorted_cloud);
-    output.relocalization_state = tracking.state;
-    output.pose_source = tracking.pose_source;
-    output.relocalization_decision = tracking.decision;
-    output.relocalization_seed_keyframe_id = tracking.seed_keyframe_id;
-    output.relocalization_support_keyframe_id =
-        tracking.support_keyframe_id;
-    output.matched_keyframe_id = tracking.matched_keyframe_id;
-    return output;
-  }
+  const bool tracked = tracking.success &&
+      tracking.state == RelocalizationState::FULL_6DOF_LOCKED &&
+      tracking.pose_source == PoseSource::GEOMETRICALLY_CORRECTED &&
+      tracking.matched_keyframe_id >= 0;
+  if (!tracked) tracking.pose_source = PoseSource::ODOM_PREDICTED;
 
   Eigen::Isometry3d pose_map = tracking.pose_in_map;
   const auto keyframe_gate_started = timingStarted();
@@ -122,22 +125,17 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   if (!should_add_keyframe) {
     if (!external_dense_trajectory_recording_enabled_) {
       const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
-      auto matched_kf = session_->keyframeManager().getKeyframe(
-          tracking.matched_keyframe_id);
-      if (matched_kf && matched_kf->is_from_loaded_map) {
-        appendDenseTrajectorySample(timestamp, pose_map, matched_kf->id,
-                                    matched_kf->pose_optimized, false);
+      auto anchor = tracked
+          ? session_->keyframeManager().getKeyframe(tracking.matched_keyframe_id)
+          : session_->keyframeManager().getLatestKeyframe();
+      if (anchor) {
+        const bool loaded = anchor->is_from_loaded_map;
+        appendDenseTrajectorySample(timestamp, loaded ? pose_map : frame.T_world_lidar,
+                                    anchor->id, loaded ? anchor->pose_optimized : anchor->pose_odom,
+                                    false);
       }
     }
-    auto output = make_output(true, pose_map, frame.undistorted_cloud);
-    output.relocalization_state = tracking.state;
-    output.pose_source = tracking.pose_source;
-    output.relocalization_decision = tracking.decision;
-    output.relocalization_seed_keyframe_id = tracking.seed_keyframe_id;
-    output.relocalization_support_keyframe_id =
-        tracking.support_keyframe_id;
-    output.matched_keyframe_id = tracking.matched_keyframe_id;
-    return output;
+    return make_output(true, pose_map, frame.undistorted_cloud);
   }
 
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
@@ -145,7 +143,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   int64_t reused_acquisition_id = -1;
   const int64_t keyframe_id = resuming.processNewKeyframe(
       timestamp, frame.T_world_lidar, frame.undistorted_cloud,
-      tracking.matched_keyframe_id, tracking.pose_in_map,
+      tracked ? tracking.matched_keyframe_id : -1, tracking.pose_in_map,
       performance.enabled ? &resuming_timing : nullptr, &reused_acquisition_id);
   if (performance.enabled) {
     performance.keyframe_commit_ms = resuming_timing.total_ms;
@@ -157,30 +155,22 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
       std::lock_guard<std::mutex> lock(loop_queue_mutex_);
       loop_detection_queue_.push_back(keyframe_id);
     }
-    // The strict tracker already supplied a loaded-map constraint for this
-    // keyframe (the first one is represented by SESSION_ANCHOR). Running the
-    // global descriptor pipeline again would be redundant and can only add a
-    // less local alias.
+    // Return to old geometry is handled by the same strict local tracker.
+    // Joint geometry remains asynchronous; no second global search is needed.
     const auto refresh_started = timingStarted();
     refreshOptimizedPoses();
     if (performance.enabled) {
       performance.post_commit_refresh_ms =
           elapsedMilliseconds(refresh_started);
     }
-    // Publish the same Atlas-verified pose as on non-keyframes. The new graph
-    // node remains an estimate for joint optimization, not tracking authority.
+    // Keep the observation pose and its quality together. A graph solve
+    // does not turn an odometry prediction into geometric tracking authority.
   }
 
   auto output = make_output(keyframe_id >= 0 || reused_acquisition_id >= 0, pose_map,
                             frame.undistorted_cloud);
   output.accepted_keyframe = keyframe_id >= 0;
   output.keyframe_id = keyframe_id >= 0 ? keyframe_id : reused_acquisition_id;
-  output.relocalization_state = tracking.state;
-  output.pose_source = tracking.pose_source;
-  output.relocalization_decision = tracking.decision;
-  output.relocalization_seed_keyframe_id = tracking.seed_keyframe_id;
-  output.relocalization_support_keyframe_id = tracking.support_keyframe_id;
-  output.matched_keyframe_id = tracking.matched_keyframe_id;
   if (!external_dense_trajectory_recording_enabled_ && keyframe_id >= 0) {
     if (auto kf = session_->keyframeManager().getKeyframe(keyframe_id)) {
       appendDenseTrajectorySample(timestamp, kf->pose_odom, keyframe_id,
