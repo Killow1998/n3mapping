@@ -1,5 +1,12 @@
 # N3Mapping
 
+Local place-retrieval revision **`ab8e92a`** compiles the place catalog and frame
+descriptor cache into the Atlas before localization. Four-core original14 and
+two-route replays retain accuracy and recovery behavior; mean first lock falls
+2.79→2.36 s. Exact repeated views cost less, but noisy repeated views still cost
+more. General difficult-search half-core operation remains unaccepted. See the
+[place-index design, controls and limits](docs/evidence/place_retrieval_20261026.md).
+
 Humble large-map follow-up: **`5169d62`**, built separately with a backport of
 GTSAM's upstream elimination-race repair. Matching dependencies permit bounded
 local parallel solves; old or mismatched libraries retain local serial protection.
