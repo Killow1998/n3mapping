@@ -1,5 +1,6 @@
 #include "n3mapping/world_localizing.h"
 #include "relocalization_seed_plan.h"
+#include "relocalization_observation.h"
 
 #include <algorithm>
 #include <chrono>
@@ -33,9 +34,11 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
     result.error = "empty_query_cloud";
     return result;
   }
-  const auto prepared_query = matcher_.prepareSourceCloud(query_cloud);
-  const auto visibility_observation = prepareVisibilityObservation(
-      *query_cloud, visibilityOptionsFromConfig(config_));
+  RelocalizationObservation observation;
+  RelocalizationPerformance preparation_cost;
+  observation.prepare(query_cloud, matcher_, config_, preparation_cost);
+  const auto& prepared_query = observation.registration;
+  const auto& visibility_observation = observation.visibility;
   const auto &target = localization_atlas_->preparedTarget();
 
   const auto finish_attempt = [&](RegistrationSeedProbeAttempt *attempt) {
