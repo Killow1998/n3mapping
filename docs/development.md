@@ -44,14 +44,15 @@ Both ROS adapters keep one state/lock owner in their private
 | `n3mapping_node_lifecycle.cpp` | Parameters, ROS resources and lifecycle |
 | `n3mapping_node_backend.cpp` | Input conversion, serial core calls, forwarding results |
 | `n3mapping_node_live.cpp` | Independent live queues, odometry/cloud/TF/status publication |
-| `n3mapping_node_map.cpp` | Map service calls and cached ROS map messages |
+| `n3mapping_node_map.cpp` | Map service calls and map publication |
 | `n3mapping_node_visualization.cpp` | Paths, markers and optimization-log formatting |
 
 `N3MappingCore` owns SLAM decisions; `core::RealtimeOutput` owns output authority.
 The ROS-free `MapArtifacts` owns map snapshots, save orchestration, global-cloud
 caching and debug PCDs. Saving captures poses after draining pending loop work;
 immutable clouds are shared, and cache visitors run under the cache lock.
-ROS message caches remain adapter-local. Core headers expose value contracts
+Adapters track map revisions and publish on demand; middleware retains the
+latched message without a second adapter copy. Core headers expose value contracts
 through `loop_types.h` and `registration_probe.h` without pulling session and
 registration implementation headers into every adapter source.
 

@@ -163,11 +163,20 @@ ros2 run n3mapping n3mapping_localization_atlas_compile --map /path/to/n3map.pbs
 rosrun n3mapping n3mapping_localization_atlas_compile --map /path/to/n3map.pbstream
 ```
 
-The output is `<map_path>.localization_atlas.pb`. Set `reloc_atlas_enable: true`
-and use `reloc_atlas_path` for a custom location. The Product localization
-profile requires a matching Atlas. The loader verifies map and configuration
-fingerprints. Rebuild the cache after changing the map or relevant parameters;
+Atlas is enabled by default in both ROS adapters and the C++ core. Saving a map
+also generates `<map_path>.localization_atlas.pb`, including maps without loop
+or shared-plane constraints. Keep the two files together. For an existing map
+without an Atlas, run the command above before localization or extension.
+Use `reloc_atlas_path` for a custom location. The loader verifies map and
+configuration fingerprints and refuses missing or mismatched Atlases rather
+than using them. Rebuild after changing the map or relevant parameters;
 `--output` selects a new file and `--force` replaces an existing one.
+
+Precomputation adds map-save time, disk usage, and resident target geometry
+during localization in exchange for less online preparation. Set
+`reloc_atlas_enable: false` to use the ordinary profile's local preparation path
+on a memory-constrained deployment or an older map. Product localization
+requires Atlas. Existing robot YAML files keep their explicit setting.
 
 Newly compiled Atlases use compact v3 storage. The loader also reads v2 caches;
 missing or incompatible descriptor caches rebuild from the saved point clouds.

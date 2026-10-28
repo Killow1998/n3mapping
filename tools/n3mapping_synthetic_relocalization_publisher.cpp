@@ -106,6 +106,7 @@ bool parseArgs(int argc, char** argv, Options* options)
 Config makePublisherConfig()
 {
     Config config;
+    config.reloc_atlas_enable = false;  // Load source scans without preparing localization.
     config.rhpd_enabled = true;
     config.rhpd_dist_threshold = 100.0;
     config.reloc_static_agg_enable = false;

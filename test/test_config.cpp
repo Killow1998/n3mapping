@@ -21,7 +21,7 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_EQ(config.reloc_lock_min_winner_streak, 3);
     EXPECT_FALSE(config.reloc_debug_enable);
     EXPECT_TRUE(config.reloc_debug_path.empty());
-    EXPECT_FALSE(config.reloc_atlas_enable);
+    EXPECT_TRUE(config.reloc_atlas_enable);
     EXPECT_TRUE(config.reloc_atlas_path.empty());
     EXPECT_EQ(config.reloc_target_mode, "legacy_global_atlas");
     EXPECT_EQ(config.reloc_target_cache_max_bytes, 0);

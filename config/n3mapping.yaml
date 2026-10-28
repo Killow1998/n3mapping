@@ -139,7 +139,7 @@ n3mapping_node:
     reloc_ambiguity_min_basin_separation: 3.0
     reloc_debug_enable: false
     reloc_debug_path: ""
-    reloc_atlas_enable: false
+    reloc_atlas_enable: true
     reloc_atlas_path: ""
     reloc_target_mode: "legacy_global_atlas"
     reloc_target_cache_max_bytes: 0

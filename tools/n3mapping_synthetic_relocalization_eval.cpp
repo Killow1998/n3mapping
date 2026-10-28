@@ -1182,8 +1182,8 @@ int main(int argc, char** argv)
     }
 
     Config config = makeEvalConfig(options.eval_profile);
+    config.reloc_atlas_enable = !options.atlas_path.empty();
     if (!options.atlas_path.empty()) {
-        config.reloc_atlas_enable = true;
         config.reloc_atlas_path = options.atlas_path;
     }
     if (options.reloc_debug) {

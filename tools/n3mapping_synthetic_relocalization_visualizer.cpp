@@ -196,6 +196,7 @@ bool parseArgs(int argc, char** argv, Options* options)
 Config makeVisualizerConfig()
 {
     Config config;
+    config.reloc_atlas_enable = false;  // This synthetic profile uses local targets.
     config.gicp_max_iterations = 60;
     config.gicp_fitness_threshold = 0.8;
     config.gicp_max_correspondence_distance = 2.0;

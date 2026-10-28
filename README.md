@@ -63,8 +63,8 @@ roslaunch n3mapping localization.launch config_file:=/path/to/n3mapping.yaml
 roslaunch n3mapping map_extension.launch config_file:=/path/to/n3mapping.yaml
 ```
 
-Add `rviz:=false` to run without RViz. For repeated localization, see
-[preparing an Atlas](docs/getting_started.md#prepare-an-atlas-for-localization).
+Add `rviz:=false` to run without RViz. Atlas is enabled by default; for maps from
+older versions, see [preparing an Atlas](docs/getting_started.md#prepare-an-atlas-for-localization).
 
 ## Use and reuse a map
 
@@ -97,9 +97,9 @@ rosservice call /n3mapping/start_map_extension '{}'
 This switch requires a current geometric lock. It preserves the live coordinate
 transform and localization session.
 
-Saved maps contain `n3map.pbstream` for continued mapping and localization, and
-`global_map.pcd` for point-cloud tools. Prepare an Atlas alongside the map for
-repeated localization.
+Saved maps contain `n3map.pbstream` for continued mapping and localization,
+its matching `.localization_atlas.pb` cache, and `global_map.pcd` for point-cloud
+tools. Keep the map and Atlas together when deploying to another machine.
 
 ## Documentation
 

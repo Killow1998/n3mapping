@@ -143,7 +143,7 @@ def run(args, root):
             latest.clear(); locks.clear(); errors.clear()
             settings = dict(mode=mode, map_path=str(source), map_save_path=str(destination),
                             num_threads=4, mapping_static_start_guard_enable=False,
-                            reloc_atlas_enable=False, save_global_map_on_shutdown=False,
+                            save_global_map_on_shutdown=False,
                             cloud_topic='/switch/cloud', odom_topic='/switch/odom',
                             output_status_topic='/switch/status', output_odom_topic='/switch/output',
                             world_frame='map', body_frame='lidar')
@@ -174,6 +174,9 @@ def run(args, root):
         assert call('/n3mapping/save_map').success
         stop(node)
         source = original/'n3map.pbstream'; source_sha=hashlib.sha256(source.read_bytes()).hexdigest()
+        source_atlas = Path(str(source)+'.localization_atlas.pb')
+        assert source_atlas.stat().st_size > 0
+        atlas_sha = hashlib.sha256(source_atlas.read_bytes()).hexdigest()
         current_x, transformed = -3., True
         node = start('localization', source, extended)
         denied = call('/n3mapping/start_map_extension')
@@ -218,6 +221,8 @@ def run(args, root):
         maximum_error=max(errors)
         stop(node)
         assert hashlib.sha256(source.read_bytes()).hexdigest()==source_sha
+        assert hashlib.sha256(source_atlas.read_bytes()).hexdigest()==atlas_sha
+        assert (extended/'n3map.pbstream.localization_atlas.pb').stat().st_size > 0
         node=start('localization',extended/'n3map.pbstream',root/'reload_readonly')
         for _ in range(24):
             frame(-3.)
@@ -228,6 +233,7 @@ def run(args, root):
         result=dict(ros=args.ros,switch_ms=switch_ms,extension_max_position_error_m=maximum_error,
                     reload_max_position_error_m=max(errors),original_map_sha256=source_sha,
                     restart_at_switch=False,additional_lock_events=0,
+                    atlas_enabled_by_default=True,
                     late_global_map_received=True, extension_global_map_updated=True)
         (root/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
         print(json.dumps(result))

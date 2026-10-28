@@ -955,6 +955,7 @@ TEST(N3MappingCoreTest, ReplayedAcquisitionKeepsTrackingAndDenseOutputWithoutNew
 TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseRequiresLockBeforeMixingSources)
 {
     Config config = makeCoreTestConfig();
+    config.reloc_atlas_enable = false;  // Old-format fixture has no Atlas.
     config.reloc_temporal_window_size = 1;
     config.reloc_lock_min_winner_streak = 1;
     config.reloc_lock_min_converged_updates = 1;
@@ -1082,7 +1083,6 @@ TEST(N3MappingCoreTest, SameCountMapReplacementCommitsMapAndDenseTogether)
 TEST(N3MappingCoreTest, AtlasFailurePreservesPreviouslyLoadedSession)
 {
     Config config = makeCoreTestConfig();
-    config.reloc_atlas_enable = true;
     config.reloc_atlas_path.clear();
     const std::filesystem::path dir =
         std::filesystem::temp_directory_path() /
@@ -1092,13 +1092,11 @@ TEST(N3MappingCoreTest, AtlasFailurePreservesPreviouslyLoadedSession)
     const std::filesystem::path map_a = dir / "a.pbstream";
     const std::filesystem::path map_b = dir / "b.pbstream";
 
-    std::vector<Keyframe::Ptr> keyframes_a;
     {
         N3MappingCore producer(config);
         ASSERT_TRUE(producer.processMappingFrame(
             makeFrame(1000000000, Eigen::Isometry3d::Identity())).accepted_keyframe);
         ASSERT_TRUE(producer.saveMap(map_a.string()));
-        keyframes_a = producer.getAllKeyframes();
     }
     {
         N3MappingCore producer(config);
@@ -1109,13 +1107,10 @@ TEST(N3MappingCoreTest, AtlasFailurePreservesPreviouslyLoadedSession)
         ASSERT_TRUE(producer.saveMap(map_b.string()));
     }
 
-    PointCloudMatcher atlas_matcher(config);
-    LocalizationAtlas atlas(config, atlas_matcher);
-    std::string atlas_error;
-    ASSERT_TRUE(atlas.compileAndSave(
-        map_a.string(), keyframes_a,
-        LocalizationAtlas::defaultAtlasPath(map_a.string()), false, nullptr,
-        &atlas_error)) << atlas_error;
+    ASSERT_TRUE(std::filesystem::exists(
+        LocalizationAtlas::defaultAtlasPath(map_a.string())));
+    ASSERT_TRUE(std::filesystem::remove(
+        LocalizationAtlas::defaultAtlasPath(map_b.string())));
 
     N3MappingCore loaded(config);
     ASSERT_TRUE(loaded.loadMap(map_a.string()));

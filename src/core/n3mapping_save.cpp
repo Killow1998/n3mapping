@@ -35,7 +35,8 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
     metadata.source = "native";
     metadata.degraded = false;
   }
-  const bool with_atlas = !session_->graphOptimizer().sharedPlanes().empty();
+  const bool with_atlas = config_.reloc_atlas_enable ||
+                         !session_->graphOptimizer().sharedPlanes().empty();
   // Prepare both files before publication. Atlas SHA binding makes even the
   // short interval between renames fail closed for concurrent readers.
   SaveDirectory stage;

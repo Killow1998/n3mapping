@@ -206,7 +206,7 @@ struct Config {
     bool loaded_map_visibility_endpoint_fast_enable = false;
     bool reloc_debug_enable = false;
     std::string reloc_debug_path = "";
-    bool reloc_atlas_enable = false;
+    bool reloc_atlas_enable = true;
     std::string reloc_atlas_path = "";
     // Registration target selection is explicit so Atlas presence cannot
     // silently change semantics during later cache work. The legacy mode
