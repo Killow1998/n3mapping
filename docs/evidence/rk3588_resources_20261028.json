@@ -1,0 +1,1053 @@
+{
+  "n3_handoff": {
+    "input": {
+      "mode": "localization",
+      "started_monotonic_s": 10915.413567965,
+      "atlas_enabled": false,
+      "clouds_sent": 600,
+      "odom_sent": 11981,
+      "input_s": 59.9,
+      "counts": {
+        "odom": 8838,
+        "body": 600,
+        "world": 451,
+        "lock": 1
+      },
+      "handoff": {
+        "service_ms": 1025.7223040007375,
+        "success": true,
+        "session_before": "a0a69ce0e63b16ef5a060e9213bfa340",
+        "session_after": "a0a69ce0e63b16ef5a060e9213bfa340",
+        "maximum_output_receive_gap_ms": 31.363194999357802
+      },
+      "total_node_cpu_s": 80.431979,
+      "peak_rss_mib": 485.05078125,
+      "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+      "publication_delay_ms_percentiles": [
+        0.0741230005942839,
+        12.066812999472987,
+        20.978559599985786,
+        150.427497999992
+      ],
+      "phase_sessions": {
+        "localization": [
+          "a0a69ce0e63b16ef5a060e9213bfa340"
+        ],
+        "map_extension": [
+          "a0a69ce0e63b16ef5a060e9213bfa340"
+        ]
+      },
+      "node_exit_code": 0,
+      "output_receive_gap_ms_percentiles": [
+        4.954156000167131,
+        12.983002800683597,
+        14.398329000905496,
+        170.2568769997015
+      ]
+    },
+    "phases": [
+      {
+        "phase": "search",
+        "wall_s": 14.891663891001372,
+        "cpu_s": 38.739999999999995,
+        "mean_cores": 2.601455437320844,
+        "peak_one_second_cores": 2.883675415428912,
+        "sampled_peak_rss_mib": 406.7265625
+      },
+      {
+        "phase": "tracking",
+        "wall_s": 10.005067326999779,
+        "cpu_s": 5.990000000000002,
+        "mean_cores": 0.5986966208448519,
+        "peak_one_second_cores": 1.0299512609544696,
+        "sampled_peak_rss_mib": 364.55078125
+      },
+      {
+        "phase": "handoff",
+        "wall_s": 1.0295238159997098,
+        "cpu_s": 2.1199999999999974,
+        "mean_cores": 2.0592044273802355,
+        "peak_one_second_cores": null,
+        "sampled_peak_rss_mib": 370.99609375
+      },
+      {
+        "phase": "extension",
+        "wall_s": 33.99434254699918,
+        "cpu_s": 27.590000000000003,
+        "mean_cores": 0.8116056359041275,
+        "peak_one_second_cores": 2.7831996962018515,
+        "sampled_peak_rss_mib": 447.19921875
+      },
+      {
+        "phase": "drain",
+        "wall_s": 2.0042798440008482,
+        "cpu_s": 0.10999999999999943,
+        "mean_cores": 0.05488255561180651,
+        "peak_one_second_cores": 0.029915522602787358,
+        "sampled_peak_rss_mib": 439.40625
+      },
+      {
+        "phase": "shutdown",
+        "wall_s": 2.969496904999687,
+        "cpu_s": 3.7919789999999978,
+        "mean_cores": 1.2769769160612738,
+        "peak_one_second_cores": 1.9184917488245792,
+        "sampled_peak_rss_mib": 485.05078125
+      }
+    ],
+    "first_lock_after_input_s": 14.891663891001372,
+    "first_lock_after_process_s": 16.986200176999773,
+    "observed_search_totals": {
+      "total_ms": 14792.231356,
+      "process_cpu_ms": 38721.89282699999,
+      "target_prepare_ms": 11280.954898,
+      "target_build_ms": 619.873858,
+      "align_ms": 1374.1693790000002,
+      "fixed_pose_ms": 42.810604,
+      "visibility_ms": 839.1668710000001,
+      "free_space_ms": 133.993501,
+      "directional_check_ms": 349.166506,
+      "target_preparations": 37,
+      "cache_hits": 0,
+      "cache_misses": 37,
+      "alignments": 42,
+      "confirmation_registrations": 10,
+      "seed_initializations": 32,
+      "descriptor_wall_ms": 89.84417199999999,
+      "observed_unique_search_results": 5
+    },
+    "affinities": [
+      "4-7"
+    ],
+    "hardware": {
+      "min_temp_c": 49.923,
+      "max_temp_c": 69.307,
+      "cpu_frequency_khz": {
+        "cpu4": [
+          2304000
+        ],
+        "cpu5": [
+          2304000
+        ],
+        "cpu6": [
+          2256000
+        ],
+        "cpu7": [
+          2256000
+        ]
+      }
+    },
+    "first_published_pose": {
+      "position": [
+        0.026115547426883268,
+        0.006559297154218768,
+        -0.02258951982080748
+      ],
+      "quaternion_xyzw": [
+        -0.010015257141319673,
+        0.11657364286689419,
+        0.006607938493104269,
+        0.9931095687596644
+      ]
+    },
+    "last_published_pose": {
+      "position": [
+        0.024628077183461272,
+        0.0006507213144164581,
+        -0.026920843726873533
+      ],
+      "quaternion_xyzw": [
+        -0.014048672909854058,
+        0.1147984431361701,
+        0.010410245872210698,
+        0.9932349062653123
+      ]
+    }
+  },
+  "n3_mapping": {
+    "input": {
+      "mode": "mapping",
+      "started_monotonic_s": 10713.096904288,
+      "atlas_enabled": false,
+      "clouds_sent": 600,
+      "odom_sent": 11981,
+      "input_s": 59.9,
+      "counts": {
+        "odom": 11738,
+        "body": 600,
+        "world": 596,
+        "lock": 0
+      },
+      "handoff": null,
+      "total_node_cpu_s": 19.366518000000003,
+      "peak_rss_mib": 202.5390625,
+      "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+      "publication_delay_ms_percentiles": [
+        0.06482699849641449,
+        12.523513999546765,
+        14.249878798509107,
+        142.274282999864
+      ],
+      "phase_sessions": {
+        "mapping": [
+          "abccfafccc082fe8f9def661b0835320"
+        ]
+      },
+      "node_exit_code": 0,
+      "output_receive_gap_ms_percentiles": [
+        4.984785999113228,
+        12.971290999485051,
+        15.371301839695656,
+        163.71943299964187
+      ]
+    },
+    "phases": [
+      {
+        "phase": "mapping",
+        "wall_s": 59.920357966000665,
+        "cpu_s": 18.040000000000003,
+        "mean_cores": 0.30106629219798814,
+        "peak_one_second_cores": 1.9893250482203249,
+        "sampled_peak_rss_mib": 160.33203125
+      },
+      {
+        "phase": "drain",
+        "wall_s": 2.0022037140006432,
+        "cpu_s": 0.04999999999999716,
+        "mean_cores": 0.02497248389380477,
+        "peak_one_second_cores": 0.029927335262791503,
+        "sampled_peak_rss_mib": 149.29296875
+      },
+      {
+        "phase": "shutdown",
+        "wall_s": 0.8654017479984759,
+        "cpu_s": 1.0365180000000045,
+        "mean_cores": 1.1977304210411994,
+        "peak_one_second_cores": null,
+        "sampled_peak_rss_mib": 199.0078125
+      }
+    ],
+    "first_lock_after_input_s": null,
+    "first_lock_after_process_s": null,
+    "observed_search_totals": {
+      "total_ms": 0,
+      "process_cpu_ms": 0,
+      "target_prepare_ms": 0,
+      "target_build_ms": 0,
+      "align_ms": 0,
+      "fixed_pose_ms": 0,
+      "visibility_ms": 0,
+      "free_space_ms": 0,
+      "directional_check_ms": 0,
+      "target_preparations": 0,
+      "cache_hits": 0,
+      "cache_misses": 0,
+      "alignments": 0,
+      "confirmation_registrations": 0,
+      "seed_initializations": 0,
+      "descriptor_wall_ms": 0,
+      "observed_unique_search_results": 0
+    },
+    "affinities": [
+      "4-7"
+    ],
+    "hardware": {
+      "min_temp_c": 39.769,
+      "max_temp_c": 46.23,
+      "cpu_frequency_khz": {
+        "cpu4": [
+          2304000
+        ],
+        "cpu5": [
+          2304000
+        ],
+        "cpu6": [
+          2256000
+        ],
+        "cpu7": [
+          2256000
+        ]
+      }
+    },
+    "first_published_pose": {
+      "position": [
+        0.12599040758745167,
+        44.02830045246939,
+        -0.7853061706523089
+      ],
+      "quaternion_xyzw": [
+        -0.16775436038757255,
+        0.015165402437255275,
+        0.9857111793805765,
+        0.001398564987949094
+      ]
+    },
+    "last_published_pose": {
+      "position": [
+        -8.87674437741442,
+        13.181861764520088,
+        -0.07644374570320478
+      ],
+      "quaternion_xyzw": [
+        0.004539426734882774,
+        0.17092500604211672,
+        -0.09442606493411625,
+        0.9807383719297819
+      ]
+    }
+  },
+  "n3_moving": {
+    "input": {
+      "mode": "localization",
+      "started_monotonic_s": 10846.639234131,
+      "atlas_enabled": false,
+      "clouds_sent": 600,
+      "odom_sent": 11981,
+      "input_s": 59.9,
+      "counts": {
+        "odom": 0,
+        "body": 600,
+        "world": 0,
+        "lock": 0
+      },
+      "handoff": null,
+      "total_node_cpu_s": 174.88331,
+      "peak_rss_mib": 435.109375,
+      "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+      "publication_delay_ms_percentiles": [
+        0.08703099985751805,
+        18.670079000948192,
+        26.879210199694374,
+        69.96227300049185
+      ],
+      "phase_sessions": {
+        "localization": [
+          "c3bba9257f2c256c7a068dd6fb94b957"
+        ]
+      },
+      "node_exit_code": 0,
+      "output_receive_gap_ms_percentiles": null
+    },
+    "phases": [
+      {
+        "phase": "search",
+        "wall_s": 59.92106207800134,
+        "cpu_s": 159.66,
+        "mean_cores": 2.6645055088003113,
+        "peak_one_second_cores": 2.9868846075471494,
+        "sampled_peak_rss_mib": 435.109375
+      },
+      {
+        "phase": "drain",
+        "wall_s": 2.001996629000132,
+        "cpu_s": 5.900000000000006,
+        "mean_cores": 2.9470579093565576,
+        "peak_one_second_cores": 3.118779450362733,
+        "sampled_peak_rss_mib": 411.28515625
+      },
+      {
+        "phase": "shutdown",
+        "wall_s": 2.5717890589985473,
+        "cpu_s": 7.293309999999991,
+        "mean_cores": 2.835889659955238,
+        "peak_one_second_cores": 3.2399028824177143,
+        "sampled_peak_rss_mib": 411.28515625
+      }
+    ],
+    "first_lock_after_input_s": null,
+    "first_lock_after_process_s": null,
+    "observed_search_totals": {
+      "total_ms": 56975.77339599999,
+      "process_cpu_ms": 152718.85759499995,
+      "target_prepare_ms": 45436.64463000001,
+      "target_build_ms": 1118.0339569999999,
+      "align_ms": 6099.419021999999,
+      "fixed_pose_ms": 143.41214300000004,
+      "visibility_ms": 3034.1724710000003,
+      "free_space_ms": 0.0,
+      "directional_check_ms": 545.967845,
+      "target_preparations": 120,
+      "cache_hits": 2,
+      "cache_misses": 120,
+      "alignments": 188,
+      "confirmation_registrations": 52,
+      "seed_initializations": 136,
+      "descriptor_wall_ms": 337.99536099999995,
+      "observed_unique_search_results": 24
+    },
+    "affinities": [
+      "4-7"
+    ],
+    "hardware": {
+      "min_temp_c": 45.307,
+      "max_temp_c": 68.384,
+      "cpu_frequency_khz": {
+        "cpu4": [
+          2304000
+        ],
+        "cpu5": [
+          2304000
+        ],
+        "cpu6": [
+          2256000
+        ],
+        "cpu7": [
+          2256000
+        ]
+      }
+    }
+  },
+  "n3_static": {
+    "input": {
+      "mode": "localization",
+      "started_monotonic_s": 10779.976204856,
+      "atlas_enabled": false,
+      "clouds_sent": 600,
+      "odom_sent": 11981,
+      "input_s": 59.9,
+      "counts": {
+        "odom": 8755,
+        "body": 600,
+        "world": 446,
+        "lock": 1
+      },
+      "handoff": null,
+      "total_node_cpu_s": 67.490189,
+      "peak_rss_mib": 405.6875,
+      "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+      "publication_delay_ms_percentiles": [
+        0.07025900013246655,
+        12.063385999063314,
+        21.983904799548057,
+        131.33820400064167
+      ],
+      "phase_sessions": {
+        "localization": [
+          "686fbdbb5b5e10395647335370fddfa5"
+        ]
+      },
+      "node_exit_code": 0,
+      "output_receive_gap_ms_percentiles": [
+        4.968741500306351,
+        12.735900500047139,
+        14.277262551640884,
+        141.67299800101318
+      ]
+    },
+    "phases": [
+      {
+        "phase": "search",
+        "wall_s": 15.373650019999332,
+        "cpu_s": 40.03,
+        "mean_cores": 2.60380585924134,
+        "peak_one_second_cores": 2.8968584664187764,
+        "sampled_peak_rss_mib": 405.6875
+      },
+      {
+        "phase": "tracking",
+        "wall_s": 44.54992156499975,
+        "cpu_s": 25.089999999999996,
+        "mean_cores": 0.5631884214070476,
+        "peak_one_second_cores": 0.9317087065184781,
+        "sampled_peak_rss_mib": 355.015625
+      },
+      {
+        "phase": "drain",
+        "wall_s": 2.000360076001016,
+        "cpu_s": 0.10000000000000853,
+        "mean_cores": 0.049990999720371215,
+        "peak_one_second_cores": 0.02992459337626627,
+        "sampled_peak_rss_mib": 355.015625
+      },
+      {
+        "phase": "shutdown",
+        "wall_s": 0.3140325309996115,
+        "cpu_s": 0.1801889999999986,
+        "mean_cores": 0.5737908726412217,
+        "peak_one_second_cores": null,
+        "sampled_peak_rss_mib": 355.015625
+      }
+    ],
+    "first_lock_after_input_s": 15.373650019999332,
+    "first_lock_after_process_s": 17.46933025599901,
+    "observed_search_totals": {
+      "total_ms": 15277.914236,
+      "process_cpu_ms": 40013.018615,
+      "target_prepare_ms": 11759.338977,
+      "target_build_ms": 657.91269,
+      "align_ms": 1337.8892540000002,
+      "fixed_pose_ms": 41.336572000000004,
+      "visibility_ms": 823.68684,
+      "free_space_ms": 133.754123,
+      "directional_check_ms": 363.159736,
+      "target_preparations": 38,
+      "cache_hits": 0,
+      "cache_misses": 38,
+      "alignments": 42,
+      "confirmation_registrations": 10,
+      "seed_initializations": 32,
+      "descriptor_wall_ms": 89.44785800000001,
+      "observed_unique_search_results": 5
+    },
+    "affinities": [
+      "4-7"
+    ],
+    "hardware": {
+      "min_temp_c": 41.615,
+      "max_temp_c": 58.23,
+      "cpu_frequency_khz": {
+        "cpu4": [
+          2304000
+        ],
+        "cpu5": [
+          2304000
+        ],
+        "cpu6": [
+          2256000
+        ],
+        "cpu7": [
+          2256000
+        ]
+      }
+    },
+    "first_published_pose": {
+      "position": [
+        0.02564534757059178,
+        0.006213618387544528,
+        -0.02907758975235364
+      ],
+      "quaternion_xyzw": [
+        -0.011943965097719313,
+        0.11653331194409086,
+        0.008054917156099172,
+        0.9930822962950726
+      ]
+    },
+    "last_published_pose": {
+      "position": [
+        0.02407165659072774,
+        -0.0007685391280727316,
+        -0.023152478520352515
+      ],
+      "quaternion_xyzw": [
+        -0.012337123466368158,
+        0.11518086996105559,
+        0.00845871646653463,
+        0.9932319027776589
+      ]
+    }
+  },
+  "n3_static_atlas": {
+    "input": {
+      "mode": "localization",
+      "started_monotonic_s": 11092.860615804,
+      "atlas_enabled": true,
+      "clouds_sent": 600,
+      "odom_sent": 11981,
+      "input_s": 59.9,
+      "counts": {
+        "odom": 11303,
+        "body": 600,
+        "world": 580,
+        "lock": 1
+      },
+      "handoff": null,
+      "total_node_cpu_s": 38.487376,
+      "peak_rss_mib": 331.4140625,
+      "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+      "publication_delay_ms_percentiles": [
+        0.06744900056077086,
+        11.773667999950277,
+        12.787693400168557,
+        140.98477300139933
+      ],
+      "phase_sessions": {
+        "localization": [
+          "d4aceb7ecbc30f971395886cb121b262"
+        ]
+      },
+      "node_exit_code": 0,
+      "output_receive_gap_ms_percentiles": [
+        4.972528000507737,
+        12.716432951128784,
+        14.154881249196478,
+        162.30436299883877
+      ]
+    },
+    "phases": [
+      {
+        "phase": "search",
+        "wall_s": 2.0199229610007023,
+        "cpu_s": 5.22,
+        "mean_cores": 2.584256974540221,
+        "peak_one_second_cores": 3.4999146219015924,
+        "sampled_peak_rss_mib": 316.1328125
+      },
+      {
+        "phase": "tracking",
+        "wall_s": 57.90314871599912,
+        "cpu_s": 30.87,
+        "mean_cores": 0.5331316290139911,
+        "peak_one_second_cores": 0.734917609599719,
+        "sampled_peak_rss_mib": 321.63671875
+      },
+      {
+        "phase": "drain",
+        "wall_s": 2.0002851280005416,
+        "cpu_s": 0.0899999999999963,
+        "mean_cores": 0.044993585534457835,
+        "peak_one_second_cores": 0.02992305674951416,
+        "sampled_peak_rss_mib": 321.63671875
+      },
+      {
+        "phase": "shutdown",
+        "wall_s": 0.31403600399971765,
+        "cpu_s": 0.18737600000000043,
+        "mean_cores": 0.5966704378271509,
+        "peak_one_second_cores": null,
+        "sampled_peak_rss_mib": 322.01171875
+      }
+    ],
+    "first_lock_after_input_s": 2.0199229610007023,
+    "first_lock_after_process_s": 4.4487581419998605,
+    "observed_search_totals": {
+      "total_ms": 1982.579271,
+      "process_cpu_ms": 5212.228864,
+      "target_prepare_ms": 0.0,
+      "target_build_ms": 30.802605,
+      "align_ms": 4140.058311000001,
+      "fixed_pose_ms": 51.629532999999995,
+      "visibility_ms": 849.7510870000001,
+      "free_space_ms": 0.862441,
+      "directional_check_ms": 15.026958,
+      "target_preparations": 0,
+      "cache_hits": 27,
+      "cache_misses": 13,
+      "alignments": 41,
+      "confirmation_registrations": 9,
+      "seed_initializations": 32,
+      "descriptor_wall_ms": 83.837951,
+      "observed_unique_search_results": 5
+    },
+    "affinities": [
+      "4-7"
+    ],
+    "hardware": {
+      "min_temp_c": 41.615,
+      "max_temp_c": 53.615,
+      "cpu_frequency_khz": {
+        "cpu4": [
+          2304000
+        ],
+        "cpu5": [
+          2304000
+        ],
+        "cpu6": [
+          2256000
+        ],
+        "cpu7": [
+          2256000
+        ]
+      }
+    },
+    "first_published_pose": {
+      "position": [
+        0.03620747617713249,
+        -0.0024770381714347423,
+        -0.016002287927564085
+      ],
+      "quaternion_xyzw": [
+        -0.009607820878606864,
+        0.11639147252231086,
+        0.00357900100054388,
+        0.9931504949673493
+      ]
+    },
+    "last_published_pose": {
+      "position": [
+        0.022789187788273324,
+        -0.00016811142695516423,
+        -0.028913241311944393
+      ],
+      "quaternion_xyzw": [
+        -0.014460408848739316,
+        0.11494229492866073,
+        0.009843570138421118,
+        0.9932181379432166
+      ]
+    }
+  },
+  "n3_static_atlas02": {
+    "input": {
+      "mode": "localization",
+      "started_monotonic_s": 11220.638188524,
+      "atlas_enabled": true,
+      "clouds_sent": 600,
+      "odom_sent": 11981,
+      "input_s": 59.9,
+      "counts": {
+        "odom": 11407,
+        "body": 600,
+        "world": 580,
+        "lock": 1
+      },
+      "handoff": null,
+      "total_node_cpu_s": 39.252897,
+      "peak_rss_mib": 329.59765625,
+      "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+      "publication_delay_ms_percentiles": [
+        0.06687099958213594,
+        11.743350999967817,
+        12.211012399056642,
+        110.77337699876466
+      ],
+      "phase_sessions": {
+        "localization": [
+          "5fd8fdaf4341b3526966b1a098d27e45"
+        ]
+      },
+      "node_exit_code": 0,
+      "output_receive_gap_ms_percentiles": [
+        4.965818500750174,
+        12.649624250116176,
+        14.165298499210623,
+        126.8167739999626
+      ]
+    },
+    "phases": [
+      {
+        "phase": "search",
+        "wall_s": 1.9362836370000878,
+        "cpu_s": 5.199999999999999,
+        "mean_cores": 2.685556961095036,
+        "peak_one_second_cores": 3.4118882280212137,
+        "sampled_peak_rss_mib": 321.7265625
+      },
+      {
+        "phase": "tracking",
+        "wall_s": 57.98460407600032,
+        "cpu_s": 31.5,
+        "mean_cores": 0.5432476517165316,
+        "peak_one_second_cores": 0.764387264835166,
+        "sampled_peak_rss_mib": 322.49609375
+      },
+      {
+        "phase": "drain",
+        "wall_s": 2.002260306999233,
+        "cpu_s": 0.09000000000000341,
+        "mean_cores": 0.044949200503747434,
+        "peak_one_second_cores": 0.029923761139081066,
+        "sampled_peak_rss_mib": 322.49609375
+      },
+      {
+        "phase": "shutdown",
+        "wall_s": 0.3141038780013332,
+        "cpu_s": 0.192896999999995,
+        "mean_cores": 0.6141184923516807,
+        "peak_one_second_cores": null,
+        "sampled_peak_rss_mib": 322.77734375
+      }
+    ],
+    "first_lock_after_input_s": 1.9362836370000878,
+    "first_lock_after_process_s": 4.211637078999047,
+    "observed_search_totals": {
+      "total_ms": 1905.2310839999998,
+      "process_cpu_ms": 5192.451237000002,
+      "target_prepare_ms": 0.0,
+      "target_build_ms": 31.699164,
+      "align_ms": 4035.013063,
+      "fixed_pose_ms": 45.947092,
+      "visibility_ms": 830.471456,
+      "free_space_ms": 0.855441,
+      "directional_check_ms": 15.256781,
+      "target_preparations": 0,
+      "cache_hits": 27,
+      "cache_misses": 13,
+      "alignments": 41,
+      "confirmation_registrations": 9,
+      "seed_initializations": 32,
+      "descriptor_wall_ms": 84.049088,
+      "observed_unique_search_results": 5
+    },
+    "affinities": [
+      "4-7"
+    ],
+    "hardware": {
+      "min_temp_c": 40.692,
+      "max_temp_c": 49.923,
+      "cpu_frequency_khz": {
+        "cpu4": [
+          2304000
+        ],
+        "cpu5": [
+          2304000
+        ],
+        "cpu6": [
+          2256000
+        ],
+        "cpu7": [
+          2256000
+        ]
+      }
+    },
+    "first_published_pose": {
+      "position": [
+        0.03464206741106679,
+        -0.0024388739086180777,
+        -0.01565635421478828
+      ],
+      "quaternion_xyzw": [
+        -0.009423709114881372,
+        0.11657657142834026,
+        0.0034784694560550827,
+        0.9931309062509205
+      ]
+    },
+    "last_published_pose": {
+      "position": [
+        0.022789187788273324,
+        -0.00016811142695338788,
+        -0.028913241311944837
+      ],
+      "quaternion_xyzw": [
+        -0.014460408848739316,
+        0.11494229492866073,
+        0.009843570138421118,
+        0.9932181379432166
+      ]
+    }
+  },
+  "fastlio02": {
+    "ros": "humble",
+    "lidar_type": 1,
+    "feature_extraction": false,
+    "sent": {
+      "imu": 12002,
+      "lidar": 601
+    },
+    "received": {
+      "ack": 601,
+      "odom": 588,
+      "imu_odom": 11780,
+      "body": 588,
+      "world": 588,
+      "path": 58,
+      "gravity": 588,
+      "tf": 588
+    },
+    "wall_s": 61.10531013699983,
+    "node_cpu_s": 23.57,
+    "startup_cpu_s": 0.23,
+    "mean_cores": 0.38572752428807566,
+    "peak_rss_bytes": 217796608,
+    "errors": [],
+    "body_fields": [
+      "x",
+      "y",
+      "z",
+      "intensity",
+      "normal_x",
+      "normal_y",
+      "normal_z",
+      "curvature"
+    ],
+    "ack_observed_latency_s": {
+      "p50": 0.046198007999919355,
+      "p95": 0.04999865200079512,
+      "max": 0.2291065069985052
+    },
+    "node_exit_code": 0
+  },
+  "native_switch": {
+    "ros": "humble",
+    "switch_ms": 27.888274998986162,
+    "extension_max_position_error_m": 0.0003046496140775195,
+    "reload_max_position_error_m": 0.0003046496140775195,
+    "original_map_sha256": "fa1c8d2ae965ea7a4792bc98868207145c76433243ed3ead4ae85ce0230d78cb",
+    "restart_at_switch": false,
+    "additional_lock_events": 0
+  },
+  "atlas_pose_comparison": {
+    "last_translation_difference_m": 0.005932253163388671,
+    "last_angle_difference_deg": 0.2917761123719566,
+    "scope": "Same-map consistency only, not independent sensor accuracy."
+  },
+  "sources": {
+    "src/n3mapping": "0d8b5c4ace98da84ba9ed8461bc6f394d345d151",
+    "src/FAST_LIO": "d9786240120d755780919c593dc4bec72e0a4949",
+    "src/small_gicp": "78f2e7a221720625eb95271ad9da21a04fb77f86",
+    "livox_CustomMsg.msg": "f42d6709db951b1fa307e929e742c0593cbf0d1b0ff977d2ed63ad8d7cee0a96",
+    "livox_CustomPoint.msg": "b64b31a8edc8c8b3765d82b5d3ccd2d2e1f217b9525ef7007ab918674c619c59",
+    "gtsam": "4.1.1 with previously validated PR1158 backport",
+    "gtsam_elimination_header_sha256": "a455e3b13558bf592cf0ecd4a24b46de3b6a3a586ae9f83670bdc30c00576610",
+    "sources_tar_sha256": "c100aa62c20c01f84fb32777bce6eac6655fa52bf6f1f4c37768385f0bb4b19c",
+    "additional_source_files": {
+      "src/n3mapping/requirements-product-tools.txt": "459ba27c5a6af4c555d54bfb550b5e346f5697ea0fd328aaf660d6123089d5bb"
+    },
+    "atlas": {
+      "map_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+      "config_sha256": "fd565ab435506247f87dc03ed99f7197f896f71f158c55a525d493076ddf0390",
+      "keyframes": 250,
+      "global_points": 266305,
+      "prepared_points": 611210,
+      "sidecar_bytes": 80616577,
+      "global_map_ms": 110.441,
+      "prepare_ms": 149.882,
+      "descriptor_prepare_ms": 353.413,
+      "free_space_prepare_ms": 58.589,
+      "serialize_ms": 26.939,
+      "verify_load_ms": 170.984,
+      "descriptor_load_ms": 0.482,
+      "free_space_load_ms": 18.038,
+      "verify_kdtree_ms": 78.192
+    },
+    "atlas_preparation_host": "x86_64 Jammy; compile times are not RK3588 measurements"
+  },
+  "build_identity": [
+    "aarch64",
+    "4",
+    "b311d6b1d471578499788763e5c2e4b67611e99cc2af1b8454e064be7e201549  /work/install/humble/n3mapping/lib/n3mapping/n3mapping_node",
+    "cff0748732f38b272aef1d543645cdfdf71dc97b6863977b26a5e164bbaf68f1  /work/install/humble/n3mapping/lib/libn3mapping_core.so",
+    "11fc426f83615e9d1ad86823087d5b493a8e04669064c5cc5b2eaf4f722423f7  /work/install/humble/fast_lio/lib/fast_lio/fastlio_mapping",
+    "1ab722bfcc3d547e66f3166b80519ac02fe5a4e64b353d846a9cc05da49203e0  /work/install/humble/fast_lio/lib/libfast_lio_core.so",
+    "fbc4cc387d4e4d5c466bc4ff54b093c0f74f5d580f12f689e9f3fc0b4f39d87d  /work/deps/install/lib/libgtsam.so.4.1.1",
+    "\tlibgtsam.so.4 => /work/deps/install/lib/libgtsam.so.4 (0x0000ffff864a0000)",
+    "\tlibpcl_filters.so.1.12 => /lib/aarch64-linux-gnu/libpcl_filters.so.1.12 (0x0000ffff85980000)",
+    "\tlibpcl_kdtree.so.1.12 => /lib/aarch64-linux-gnu/libpcl_kdtree.so.1.12 (0x0000ffff85860000)",
+    "\tlibpcl_io.so.1.12 => /lib/aarch64-linux-gnu/libpcl_io.so.1.12 (0x0000ffff85670000)",
+    "\tlibpcl_common.so.1.12 => /lib/aarch64-linux-gnu/libpcl_common.so.1.12 (0x0000ffff855c0000)",
+    "\tlibtbb.so.12 => /lib/aarch64-linux-gnu/libtbb.so.12 (0x0000ffff85540000)",
+    "\tlibtbbmalloc.so.2 => /lib/aarch64-linux-gnu/libtbbmalloc.so.2 (0x0000ffff84f20000)",
+    "\tlibmetis-gtsam.so => /work/deps/install/lib/libmetis-gtsam.so (0x0000ffff84ea0000)",
+    "\tlibpcl_sample_consensus.so.1.12 => /lib/aarch64-linux-gnu/libpcl_sample_consensus.so.1.12 (0x0000ffff84320000)",
+    "\tlibpcl_search.so.1.12 => /lib/aarch64-linux-gnu/libpcl_search.so.1.12 (0x0000ffff84130000)",
+    "\tlibpcl_octree.so.1.12 => /lib/aarch64-linux-gnu/libpcl_octree.so.1.12 (0x0000ffff83ee0000)",
+    "\tlibpcl_io_ply.so.1.12 => /lib/aarch64-linux-gnu/libpcl_io_ply.so.1.12 (0x0000ffff83e60000)",
+    "/work/build/gtsam/CMakeCache.txt:CMAKE_BUILD_TYPE:STRING=Release",
+    "/work/build/gtsam/CMakeCache.txt:CMAKE_CXX_COMPILER_LAUNCHER:UNINITIALIZED=ccache",
+    "/work/build/gtsam/CMakeCache.txt:GTSAM_WITH_TBB:BOOL=ON",
+    "/work/build/humble/n3mapping/CMakeCache.txt:CMAKE_BUILD_TYPE:STRING=Release",
+    "/work/build/humble/n3mapping/CMakeCache.txt:CMAKE_CXX_COMPILER_LAUNCHER:UNINITIALIZED=ccache",
+    "/work/build/humble/fast_lio/CMakeCache.txt:CMAKE_BUILD_TYPE:STRING=Release",
+    "/work/build/humble/fast_lio/CMakeCache.txt:CMAKE_CXX_COMPILER_LAUNCHER:UNINITIALIZED=ccache",
+    "/work/build/humble/fast_lio/CMakeCache.txt:FAST_LIO_MATCH_THREADS:STRING=1",
+    "n3mapping_localization_atlas_compile",
+    "n3mapping_node",
+    "n3mapping_filter_nav_pbstream",
+    "n3mapping_dense_trajectory_export",
+    "n3mapping_relocalization_manifest_eval"
+  ],
+  "measurement_scope": {
+    "cpu": "SLAM node process CPU seconds / active phase wall seconds; 1 core = 100% top",
+    "rss": "Per-process RSS, includes shared mapped pages; not total system RAM",
+    "affinity": "Four Cortex-A76 cores, CPUs 4-7",
+    "input": "Saved-map-derived clouds and synthetic odometry, 10 Hz / 200 Hz; not independent raw sensors",
+    "atlas_pilot": "n3_static_atlas overlaps background artifact compression; n3_static_atlas02 is the uncontended comparison",
+    "tests": "ARM64 three core CTest targets plus native ROS switch/save/reload E2E; full x86 dual-ROS suites are in the handoff record"
+  },
+  "reload_mapping": {
+    "mode": "localization",
+    "started_monotonic_s": 11707.862915264,
+    "atlas_enabled": true,
+    "clouds_sent": 101,
+    "odom_sent": 2001,
+    "input_s": 10.0,
+    "counts": {
+      "odom": 0,
+      "body": 101,
+      "world": 0,
+      "lock": 0
+    },
+    "handoff": null,
+    "total_node_cpu_s": 27.304702,
+    "peak_rss_mib": 179.015625,
+    "source_sha256": "d2755b1aec53d75ffc9c34f136c5ffc531c850354eb3fa34abfe753d7d530441",
+    "publication_delay_ms_percentiles": [
+      0.08074999990625997,
+      14.22397499947703,
+      46.06249999946144,
+      83.1107829995017
+    ],
+    "phase_sessions": {
+      "localization": [
+        "906fbfc936504bc0d5d0ff663ca959f1"
+      ]
+    },
+    "node_exit_code": 0,
+    "output_receive_gap_ms_percentiles": null
+  },
+  "reload_handoff": {
+    "mode": "localization",
+    "started_monotonic_s": 11722.441590767,
+    "atlas_enabled": true,
+    "clouds_sent": 101,
+    "odom_sent": 2001,
+    "input_s": 10.0,
+    "counts": {
+      "odom": 1563,
+      "body": 101,
+      "world": 81,
+      "lock": 1
+    },
+    "handoff": null,
+    "total_node_cpu_s": 11.389228000000001,
+    "peak_rss_mib": 296.46875,
+    "source_sha256": "97f34a8e59488bf6c2b43e78e9e2f261f63ff859ef0628bd5a33dbad6c818074",
+    "publication_delay_ms_percentiles": [
+      0.07026299972490158,
+      12.131210001388837,
+      25.35579700139351,
+      45.31821500087973
+    ],
+    "phase_sessions": {
+      "localization": [
+        "9f84d9268d877b435c41765a26d56044"
+      ]
+    },
+    "node_exit_code": 0,
+    "output_receive_gap_ms_percentiles": [
+      4.978065000614151,
+      12.647705799645243,
+      14.072424370860965,
+      46.158806999301305
+    ]
+  },
+  "reload_mapping02": {
+    "mode": "localization",
+    "started_monotonic_s": 11986.568765392,
+    "atlas_enabled": true,
+    "clouds_sent": 101,
+    "odom_sent": 2001,
+    "input_s": 10.0,
+    "counts": {
+      "odom": 1707,
+      "body": 101,
+      "world": 89,
+      "lock": 1
+    },
+    "handoff": null,
+    "total_node_cpu_s": 8.228720000000001,
+    "peak_rss_mib": 180.62109375,
+    "source_sha256": "d2755b1aec53d75ffc9c34f136c5ffc531c850354eb3fa34abfe753d7d530441",
+    "publication_delay_ms_percentiles": [
+      0.06776599875557565,
+      12.66678400017529,
+      22.02641199997757,
+      50.65385700021574
+    ],
+    "phase_sessions": {
+      "localization": [
+        "ef74e82c3247060cbbb35cb7c87d04ad"
+      ]
+    },
+    "node_exit_code": 0,
+    "output_receive_gap_ms_percentiles": [
+      4.9783554995883605,
+      13.604147000478406,
+      15.363195901409199,
+      50.994825000088895
+    ]
+  },
+  "container_image": "n3m-rk3588-humble:20261028",
+  "container_image_id": "sha256:f5082c17340ada006b40b19598c081b54e0770171c5423ba943252f4202e3e28"
+}

@@ -137,8 +137,8 @@ The candidates retain `UNVERIFIED` development build identity. Twelve installed,
 previous-candidate and frozen binaries match their pre-task hashes. Concurrent
 FAST-LIVO2 documentation edits are excluded from this change.
 
-The next performance experiment should isolate repeated target preparation on
-the same 250-keyframe input, preserving all confirmation and visibility gates.
-Neither this handoff nor that optimization has been qualified on Jetson or
-RK3588 hardware. Large-map service latency, CPU/RAM and independent real-sensor
-reliability remain hardware acceptance items.
+The [RK3588 follow-up](rk3588_resources_20261028.md) measures this handoff on the
+same 250-keyframe input, including service latency, CPU/RAM and map/Atlas reload.
+It also compares the existing precomputed Atlas against repeated legacy target
+preparation. Jetson remains a read-only audit; independent real-sensor reliability
+and long-duration moving-extension resource bounds still need hardware tests.
