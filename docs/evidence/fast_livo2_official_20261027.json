@@ -1,0 +1,748 @@
+{
+  "schema": "n3m_fast_livo2_official_experiment_v1",
+  "date": "2026-10-27",
+  "scope": "Independent Noetic/Focal prototype. No production algorithm/interface/gate changes or release qualification.",
+  "cpu": "Intel Core i5-14600KF",
+  "cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "docker_image": "n3mapping-noetic-rc4:20261027",
+  "frontend_sources": {
+    "FAST-LIVO2": {
+      "head": "0d2c0346107b75b59934975adec9a6eeeb913c64",
+      "diff_stat": "CMakeLists.txt      |  4 ++--\n include/LIVMapper.h |  1 +\n src/LIVMapper.cpp   | 39 +++++++++++++++++++++++++++++++++++++++\n 3 files changed, 42 insertions(+), 2 deletions(-)"
+    },
+    "Sophus": {
+      "head": "a621ff2e56c56c839a6c40418d42c3c254424b5c",
+      "diff_stat": "sophus/so2.cpp | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)"
+    },
+    "rpg_vikit": {
+      "head": "6c886c8e5d83997806e00294826d528cea3581dd",
+      "diff_stat": "vikit_common/CMakeLists.txt | 2 +-\n vikit_ros/CMakeLists.txt    | 2 +-\n 2 files changed, 2 insertions(+), 2 deletions(-)"
+    }
+  },
+  "n3m_source": "d2c4233656907150998ca143f0c3fbd1a1aec64d",
+  "formal_fast_lio_source": "d9786240120d755780919c593dc4bec72e0a4949",
+  "binary_sha256": {
+    "frontend": "ae2b6aeb995b83721bcdb122bdf17fdc85b4a12be2d84d42782dd8af50f48838",
+    "vikit": "a2f3a3656c3b460488a10e50fcc45e8d7ed9959462c1e1b5370b673a02ab4383",
+    "sophus": "60db4bc2589aff0c4cddaabedd266bb752cd6b7d186f432157ce4c696ebdb943",
+    "n3m_core": "9837a0c3dd051a57bec94d1fe3afe64ded6e12212feec8a4c3c762a32c2c1ffc",
+    "n3m_node": "7e5996e72b0ef538b832fc068740593a9dd3659044f604ad84c0365fba02bb8f"
+  },
+  "datasets": {
+    "Bright_Screen_Wall.bag": {
+      "duration_s": 66.681504413,
+      "topic_index_counts": {
+        "/livox/imu": 13515,
+        "/livox/lidar": 667,
+        "/left_camera/image/compressed": 668
+      },
+      "bytes": 377748402,
+      "hashes": {
+        "sha256": "03b0487ab3727e379e53b9fed63a82fb984ebdd6bf15168c2291815daf2b301d",
+        "md5": "5bde1e476b6f9929413688e796acebc7"
+      },
+      "actual_counts": {
+        "/livox/imu": 13515,
+        "/livox/lidar": 667,
+        "/left_camera/image/compressed": 668
+      },
+      "sensor_header_minus_record": {
+        "/livox/imu": {
+          "min_s": -0.013927936553955078,
+          "median_s": 0.05107402801513672,
+          "max_s": 0.10352873802185059
+        },
+        "/livox/lidar": {
+          "min_s": -0.02399468421936035,
+          "median_s": -0.01333475112915039,
+          "max_s": -0.004575490951538086
+        },
+        "/left_camera/image/compressed": {
+          "min_s": -0.03667020797729492,
+          "median_s": -0.023859739303588867,
+          "max_s": -0.009632587432861328
+        }
+      },
+      "replay_clock_offset_s": 0.15,
+      "image_time_offset_s": 0.1,
+      "raw_lidar_last_point_offsets_s": {
+        "min": 0.099084767,
+        "median": 0.099836605,
+        "max": 0.100036311,
+        "over_200ms": 0
+      },
+      "provider_checksum": "not exposed by connector"
+    },
+    "Retail_Street.bag": {
+      "duration_s": 135.47025221,
+      "topic_index_counts": {
+        "/livox/imu": 27447,
+        "/livox/lidar": 1355,
+        "/left_camera/image": 1355
+      },
+      "bytes": 1961140106,
+      "hashes": {
+        "sha256": "1745bee1d570749679bad7a0392100477ab62d50aa77f7f629bc57f2a72e4427",
+        "md5": "30161ec11d3c925c3dcdb1a9b36ec2bb"
+      },
+      "actual_counts": {
+        "/livox/imu": 27447,
+        "/livox/lidar": 1355,
+        "/left_camera/image": 1355
+      },
+      "sensor_header_minus_record": {
+        "/livox/imu": {
+          "min_s": -717580145.5916593,
+          "median_s": -717580145.4979119,
+          "max_s": -717580145.4140829
+        },
+        "/livox/lidar": {
+          "min_s": -717580145.600993,
+          "median_s": -717580145.5630559,
+          "max_s": -717580145.518763
+        },
+        "/left_camera/image": {
+          "min_s": -717580145.6001832,
+          "median_s": -717580145.5666006,
+          "max_s": -717580145.528888
+        }
+      },
+      "replay_clock_offset_s": -717580145.35,
+      "image_time_offset_s": 0.1,
+      "raw_lidar_last_point_offsets_s": {
+        "min": 0.099811865,
+        "median": 0.099837865,
+        "max": 3.049560825,
+        "over_200ms": 1
+      },
+      "provider_checksum": "not exposed by connector"
+    }
+  },
+  "street_clock_audit": {
+    "sensor_header_minus_record_seconds": {
+      "/livox/imu": {
+        "min": -717580145.5916593,
+        "median": -717580145.4979119,
+        "max": -717580145.4140829
+      },
+      "/livox/lidar": {
+        "min": -717580145.600993,
+        "median": -717580145.5630559,
+        "max": -717580145.518763
+      },
+      "/left_camera/image": {
+        "min": -717580145.6001832,
+        "median": -717580145.5666006,
+        "max": -717580145.528888
+      }
+    },
+    "clock_offset_seconds": -717580145.35,
+    "image_topic": "/left_camera/image",
+    "image_delay_seconds": 0.1,
+    "raw_lidar_last_point_offsets_seconds": {
+      "min": 0.099811865,
+      "median": 0.099837865,
+      "max": 3.049560825,
+      "over_200ms": 1
+    },
+    "note": "Original sensor headers and serialized messages unchanged. Upstream preprocess already normalizes per-point offset jumps; raw last-point maxima are not output reference times."
+  },
+  "mapping": {
+    "wall_livo_final": {
+      "clock_offset_s": 0.15,
+      "visual": 1,
+      "mode": "mapping",
+      "wall_s": 74.5957103879191,
+      "resources": {
+        "n3m": {
+          "cpu_s": 6.8100000000000005,
+          "mean_cores_replay_wall": 0.09129211270441753,
+          "cores_per_realtime_input": 0.10212726980727337,
+          "sample_window_s": 0.5,
+          "sample_peak_cores": 2.5966496833586334,
+          "peak_rss_mib": 142.1171875
+        },
+        "frontend": {
+          "cpu_s": 20.720000000000002,
+          "mean_cores_replay_wall": 0.2777639611212234,
+          "cores_per_realtime_input": 0.31073084146941327,
+          "sample_window_s": 0.5,
+          "sample_peak_cores": 0.4196519146994845,
+          "peak_rss_mib": 443.015625
+        }
+      },
+      "paired_frames": 663,
+      "n3m_frames": 632,
+      "save_s": 0.1595718680182472,
+      "errors": [],
+      "input": {
+        "start": 1661405851.520846,
+        "end": 1661405918.2023504,
+        "topics": {
+          "/left_camera/image/compressed": {
+            "type": "sensor_msgs/CompressedImage",
+            "count": 668
+          },
+          "/livox/imu": {
+            "type": "sensor_msgs/Imu",
+            "count": 13515
+          },
+          "/livox/lidar": {
+            "type": "livox_ros_driver/CustomMsg",
+            "count": 667
+          }
+        }
+      },
+      "frontend_trajectory": {
+        "first_stamp": 1661405851.8958442,
+        "last_stamp": 1661405918.0914042,
+        "path_length_m": 21.96484740733432,
+        "endpoint_distance_m": 0.018624580359688326,
+        "finite": true
+      },
+      "n3m_trajectory": {
+        "first_stamp": 1661405854.9959872,
+        "last_stamp": 1661405918.0914042,
+        "path_length_m": 21.944909133209887,
+        "endpoint_distance_m": 0.02234055798063826,
+        "finite": true
+      },
+      "exit_codes": {
+        "master": 0,
+        "n3m": 0,
+        "decode": 0,
+        "frontend": 0,
+        "player": 0
+      },
+      "completed": true,
+      "clean_shutdown": true,
+      "full_output_coverage": true,
+      "qualified": true,
+      "common_window_seconds": [
+        1661405854.9959872,
+        1661405918.0914042
+      ],
+      "common_window_endpoint_distance_m": {
+        "frontend": 0.017905368389595305,
+        "n3m_live": 0.02234055798063826,
+        "n3m_saved": 0.02232610989009092
+      },
+      "live_startup_wait_s": 3.1001429557800293,
+      "unmatched_live_frames_after_first_output": 0,
+      "map": {
+        "keyframes": 19,
+        "loop_edges": 13,
+        "shared_planes": 12,
+        "sessions": 1,
+        "native_trajectory_rows": 664,
+        "pbstream_sha256": "10fac0466d63fa85601a339b8dca4b2c1fce0b5a01042a304869e32cfecefdb5",
+        "atlas_present": true
+      }
+    },
+    "wall_lio_final": {
+      "clock_offset_s": 0.15,
+      "visual": 0,
+      "mode": "mapping",
+      "wall_s": 74.60226416203659,
+      "resources": {
+        "n3m": {
+          "cpu_s": 6.74,
+          "mean_cores_replay_wall": 0.09034578341162243,
+          "cores_per_realtime_input": 0.10107750345095777,
+          "sample_window_s": 0.5,
+          "sample_peak_cores": 2.214552700785966,
+          "peak_rss_mib": 133.53515625
+        },
+        "frontend": {
+          "cpu_s": 11.32,
+          "mean_cores_replay_wall": 0.15173802199103353,
+          "cores_per_realtime_input": 0.1697622164784632,
+          "sample_window_s": 0.5,
+          "sample_peak_cores": 0.23985540992537407,
+          "peak_rss_mib": 176.94140625
+        }
+      },
+      "paired_frames": 664,
+      "n3m_frames": 633,
+      "save_s": 0.1590804950101301,
+      "errors": [],
+      "input": {
+        "start": 1661405851.520846,
+        "end": 1661405918.2023504,
+        "topics": {
+          "/left_camera/image/compressed": {
+            "type": "sensor_msgs/CompressedImage",
+            "count": 668
+          },
+          "/livox/imu": {
+            "type": "sensor_msgs/Imu",
+            "count": 13515
+          },
+          "/livox/lidar": {
+            "type": "livox_ros_driver/CustomMsg",
+            "count": 667
+          }
+        }
+      },
+      "frontend_trajectory": {
+        "first_stamp": 1661405851.8992054,
+        "last_stamp": 1661405918.199156,
+        "path_length_m": 22.048824821215916,
+        "endpoint_distance_m": 0.010765891773098543,
+        "finite": true
+      },
+      "n3m_trajectory": {
+        "first_stamp": 1661405854.9992764,
+        "last_stamp": 1661405918.199156,
+        "path_length_m": 22.000393782662375,
+        "endpoint_distance_m": 0.012259762761020608,
+        "finite": true
+      },
+      "exit_codes": {
+        "master": 0,
+        "n3m": 0,
+        "decode": 0,
+        "frontend": 0,
+        "player": 0
+      },
+      "completed": true,
+      "clean_shutdown": true,
+      "full_output_coverage": true,
+      "qualified": true,
+      "common_window_seconds": [
+        1661405854.9992764,
+        1661405918.199156
+      ],
+      "common_window_endpoint_distance_m": {
+        "frontend": 0.006641231284381995,
+        "n3m_live": 0.012259762761020608,
+        "n3m_saved": 0.012262038028387181
+      },
+      "live_startup_wait_s": 3.1000709533691406,
+      "unmatched_live_frames_after_first_output": 0,
+      "map": {
+        "keyframes": 19,
+        "loop_edges": 13,
+        "shared_planes": 14,
+        "sessions": 1,
+        "native_trajectory_rows": 665,
+        "pbstream_sha256": "5dae39b944e24a31fc491e5af8a045b71cdb865a864d7703278f85244275270a",
+        "atlas_present": true
+      }
+    },
+    "street_livo_final": {
+      "clock_offset_s": -717580145.35,
+      "visual": 1,
+      "mode": "mapping",
+      "wall_s": 143.17158529593144,
+      "resources": {
+        "n3m": {
+          "cpu_s": 38.45,
+          "mean_cores_replay_wall": 0.2685588758448472,
+          "cores_per_realtime_input": 0.283826148945344,
+          "sample_window_s": 0.5,
+          "sample_peak_cores": 3.1483836294444187,
+          "peak_rss_mib": 197.44921875
+        },
+        "frontend": {
+          "cpu_s": 61.660000000000004,
+          "mean_cores_replay_wall": 0.4306720490141295,
+          "cores_per_realtime_input": 0.4551552755258755,
+          "sample_window_s": 0.5,
+          "sample_peak_cores": 0.5597523129937291,
+          "peak_rss_mib": 824.19140625
+        }
+      },
+      "paired_frames": 1350,
+      "n3m_frames": 1318,
+      "save_s": 1.927809827029705,
+      "errors": [],
+      "input": {
+        "start": 1664265583.0300949,
+        "end": 1664265718.5003471,
+        "topics": {
+          "/left_camera/image": {
+            "type": "sensor_msgs/Image",
+            "count": 1355
+          },
+          "/livox/imu": {
+            "type": "sensor_msgs/Imu",
+            "count": 27447
+          },
+          "/livox/lidar": {
+            "type": "livox_ros_driver/CustomMsg",
+            "count": 1355
+          }
+        }
+      },
+      "frontend_trajectory": {
+        "first_stamp": 946685437.899828,
+        "last_stamp": 946685572.799966,
+        "path_length_m": 67.16040339785371,
+        "endpoint_distance_m": 0.04212992979920242,
+        "finite": true
+      },
+      "n3m_trajectory": {
+        "first_stamp": 946685441.0997621,
+        "last_stamp": 946685572.799966,
+        "path_length_m": 67.21923635256813,
+        "endpoint_distance_m": 0.051196529691295636,
+        "finite": true
+      },
+      "exit_codes": {
+        "master": 0,
+        "n3m": 0,
+        "frontend": 0,
+        "player": 0
+      },
+      "completed": true,
+      "clean_shutdown": true,
+      "full_output_coverage": true,
+      "qualified": true,
+      "common_window_seconds": [
+        946685441.0997621,
+        946685572.799966
+      ],
+      "common_window_endpoint_distance_m": {
+        "frontend": 0.040295415798160844,
+        "n3m_live": 0.051196529691295636,
+        "n3m_saved": 0.05116339279021156
+      },
+      "live_startup_wait_s": 3.1999341249465942,
+      "unmatched_live_frames_after_first_output": 0,
+      "map": {
+        "keyframes": 67,
+        "loop_edges": 44,
+        "shared_planes": 136,
+        "sessions": 1,
+        "native_trajectory_rows": 1351,
+        "pbstream_sha256": "4e57fa87e91a0e3c0c4da098ef70e666b782557194ae61ea38531f06066e8735",
+        "atlas_present": true
+      }
+    },
+    "street_lio_final": {
+      "clock_offset_s": -717580145.35,
+      "visual": 0,
+      "mode": "mapping",
+      "wall_s": 143.16895744402427,
+      "resources": {
+        "n3m": {
+          "cpu_s": 39.33,
+          "mean_cores_replay_wall": 0.27471038905467415,
+          "cores_per_realtime_input": 0.29032204000053,
+          "sample_window_s": 0.5,
+          "sample_peak_cores": 3.205576361642216,
+          "peak_rss_mib": 201.5234375
+        },
+        "frontend": {
+          "cpu_s": 44.59,
+          "mean_cores_replay_wall": 0.31145019699842164,
+          "cores_per_realtime_input": 0.32914975244402833,
+          "sample_window_s": 0.5,
+          "sample_peak_cores": 0.4194185055533208,
+          "peak_rss_mib": 298.1875
+        }
+      },
+      "paired_frames": 1352,
+      "n3m_frames": 1321,
+      "save_s": 2.0555926739471033,
+      "errors": [],
+      "input": {
+        "start": 1664265583.0300949,
+        "end": 1664265718.5003471,
+        "topics": {
+          "/left_camera/image": {
+            "type": "sensor_msgs/Image",
+            "count": 1355
+          },
+          "/livox/imu": {
+            "type": "sensor_msgs/Imu",
+            "count": 27447
+          },
+          "/livox/lidar": {
+            "type": "livox_ros_driver/CustomMsg",
+            "count": 1355
+          }
+        }
+      },
+      "frontend_trajectory": {
+        "first_stamp": 946685437.8984348,
+        "last_stamp": 946685572.9994718,
+        "path_length_m": 66.98245903519566,
+        "endpoint_distance_m": 0.03771603746742749,
+        "finite": true
+      },
+      "n3m_trajectory": {
+        "first_stamp": 946685440.9997588,
+        "last_stamp": 946685572.9994718,
+        "path_length_m": 67.01365865393701,
+        "endpoint_distance_m": 0.04799030693355395,
+        "finite": true
+      },
+      "exit_codes": {
+        "master": 0,
+        "n3m": 0,
+        "frontend": 0,
+        "player": 0
+      },
+      "completed": true,
+      "clean_shutdown": true,
+      "full_output_coverage": true,
+      "qualified": true,
+      "common_window_seconds": [
+        946685440.9997588,
+        946685572.9994718
+      ],
+      "common_window_endpoint_distance_m": {
+        "frontend": 0.03828610633873745,
+        "n3m_live": 0.04799030693355395,
+        "n3m_saved": 0.047935058643248964
+      },
+      "live_startup_wait_s": 3.1013240814208984,
+      "unmatched_live_frames_after_first_output": 0,
+      "map": {
+        "keyframes": 68,
+        "loop_edges": 44,
+        "shared_planes": 183,
+        "sessions": 1,
+        "native_trajectory_rows": 1353,
+        "pbstream_sha256": "70fb718af9dec2b092dc1e0c0d17a35d5dc1bd2c18f5d3860119a23e6ea90896",
+        "atlas_present": true
+      }
+    }
+  },
+  "localization": {
+    "wall_reload_lio": {
+      "not_ground_truth": true,
+      "query_vs_mapping_saved_trajectory_m": {
+        "median": 0.015315062011621132,
+        "p95": 0.04486271316654093,
+        "max": 0.09509189207687593
+      },
+      "status_observed_recovery_intervals_s": [
+        [
+          21.10054636001587,
+          21.20136857032776,
+          0.10082221031188965
+        ]
+      ],
+      "unclosed_recovery": false,
+      "recovery_state_observed_wall_durations_s": [],
+      "cpu_cores_per_realtime_input": 0.4226247492881132,
+      "mean_cores_replay_wall": 0.3782324445803955,
+      "peak_halfsecond_cores": 1.5978819246010614,
+      "peak_rss_mib": 182.6015625,
+      "first_authoritative_output_delay_sample_estimate_s": 0.5004339480074123,
+      "first_lock_observed_wall_s": null,
+      "paired_frames": 664,
+      "live_frames": 658,
+      "clean_shutdown": true
+    },
+    "wall_reload_livo": {
+      "not_ground_truth": true,
+      "query_vs_mapping_saved_trajectory_m": {
+        "median": 0.008204295296377886,
+        "p95": 0.025769936476659767,
+        "max": 0.08735984081726962
+      },
+      "status_observed_recovery_intervals_s": [
+        [
+          20.89783763885498,
+          20.998265266418457,
+          0.10042762756347656
+        ]
+      ],
+      "unclosed_recovery": false,
+      "recovery_state_observed_wall_durations_s": [
+        0.11920481803826988
+      ],
+      "cpu_cores_per_realtime_input": 0.4362830378561127,
+      "mean_cores_replay_wall": 0.38975283263469,
+      "peak_halfsecond_cores": 1.6581440262244178,
+      "peak_rss_mib": 182.99609375,
+      "first_authoritative_output_delay_sample_estimate_s": 0.5003169099800289,
+      "first_lock_observed_wall_s": 0.5376477260142565,
+      "paired_frames": 663,
+      "live_frames": 657,
+      "clean_shutdown": true
+    },
+    "street_reload_lio": {
+      "not_ground_truth": true,
+      "query_vs_mapping_saved_trajectory_m": {
+        "median": 0.012916768404212985,
+        "p95": 0.05772148393740741,
+        "max": 0.08438716580296116
+      },
+      "status_observed_recovery_intervals_s": [
+        [
+          15.899296164512634,
+          28.20094621181488,
+          12.301650047302246
+        ],
+        [
+          127.30102407932281,
+          128.4009290933609,
+          1.099905014038086
+        ]
+      ],
+      "unclosed_recovery": false,
+      "recovery_state_observed_wall_durations_s": [],
+      "cpu_cores_per_realtime_input": 1.1559496761714654,
+      "mean_cores_replay_wall": 1.0904897346492624,
+      "peak_halfsecond_cores": 3.475224784701165,
+      "peak_rss_mib": 719.0546875,
+      "first_authoritative_output_delay_sample_estimate_s": 9.513797066989355,
+      "first_lock_observed_wall_s": null,
+      "paired_frames": 1352,
+      "live_frames": 1256,
+      "clean_shutdown": true
+    },
+    "street_reload_livo": {
+      "not_ground_truth": true,
+      "query_vs_mapping_saved_trajectory_m": {
+        "median": 0.007366080077620647,
+        "p95": 0.017981143833975442,
+        "max": 0.03391842717274089
+      },
+      "status_observed_recovery_intervals_s": [
+        [
+          15.899671077728271,
+          16.799495100975037,
+          0.8998240232467651
+        ],
+        [
+          127.29978704452515,
+          134.90013802051544,
+          7.600350975990295
+        ]
+      ],
+      "unclosed_recovery": false,
+      "recovery_state_observed_wall_durations_s": [
+        0.83408529299777,
+        9.854311171919107
+      ],
+      "cpu_cores_per_realtime_input": 1.1008142925503628,
+      "mean_cores_replay_wall": 1.0404859329000056,
+      "peak_halfsecond_cores": 3.237161546958944,
+      "peak_rss_mib": 763.69140625,
+      "first_authoritative_output_delay_sample_estimate_s": 10.516996206017211,
+      "first_lock_observed_wall_s": 10.554903869051486,
+      "paired_frames": 1350,
+      "live_frames": 1244,
+      "clean_shutdown": true
+    }
+  },
+  "extension": {
+    "wall_partial_map": {
+      "keyframes": 4,
+      "sessions": 1,
+      "loop_edges": 0,
+      "session_anchor_edges": 0,
+      "dense_poses": 201,
+      "dense_clock_restarts": 0,
+      "clean_shutdown": true,
+      "paired_frames": 201,
+      "live_frames": 170,
+      "missing_output_frames_after_first": 0,
+      "cpu_cores_per_realtime_input": 0.016001685892342528,
+      "peak_rss_mib": 82.03125,
+      "save_s": 0.004196612047962844,
+      "atlas_present": false
+    },
+    "wall_partial_resume": {
+      "keyframes": 23,
+      "sessions": 2,
+      "loop_edges": 6,
+      "session_anchor_edges": 1,
+      "dense_poses": 861,
+      "dense_clock_restarts": 1,
+      "clean_shutdown": true,
+      "paired_frames": 664,
+      "live_frames": 659,
+      "missing_output_frames_after_first": 0,
+      "cpu_cores_per_realtime_input": 0.54645591244498,
+      "peak_rss_mib": 109.1171875,
+      "save_s": 0.18879880290478468,
+      "atlas_present": true
+    },
+    "reload": {
+      "clock_offset_s": 0.15,
+      "visual": 1,
+      "mode": "localization",
+      "wall_s": 27.54683866398409,
+      "resources": {
+        "n3m": {
+          "cpu_s": 7.46,
+          "rss_bytes": 142675968,
+          "peak_rss_bytes": 158183424,
+          "replay_cpu_s": 7.26,
+          "mean_cores": 0.26355111338028175
+        }
+      },
+      "paired_frames": 201,
+      "n3m_frames": 195,
+      "save_s": null,
+      "errors": [],
+      "input": {
+        "start": 1661405851.8958442,
+        "end": 1661405871.893737,
+        "topics": {
+          "/n3m_input/cloud_body": {
+            "type": "sensor_msgs/PointCloud2",
+            "count": 201
+          },
+          "/n3m_input/odometry": {
+            "type": "nav_msgs/Odometry",
+            "count": 201
+          }
+        }
+      },
+      "frontend_trajectory": {
+        "first_stamp": 1661405851.8958442,
+        "last_stamp": 1661405871.893737,
+        "path_length_m": 5.483854970169361,
+        "endpoint_distance_m": 1.5361472760993624,
+        "finite": true
+      },
+      "n3m_trajectory": {
+        "first_stamp": 1661405852.4957721,
+        "last_stamp": 1661405871.893737,
+        "path_length_m": 5.473904140736673,
+        "endpoint_distance_m": 1.5477987771642747,
+        "finite": true
+      },
+      "locked_frames": 196,
+      "first_lock_stamp": 1661405852.395559,
+      "first_lock_observed_wall_s": 0.5232019270770252,
+      "exit_codes": {
+        "master": 0,
+        "n3m": 0,
+        "player": 0
+      },
+      "completed": true,
+      "clean_shutdown": true,
+      "full_output_coverage": true,
+      "qualified": true
+    }
+  },
+  "protected_artifacts_verified": 10,
+  "continuous_gt_available": false,
+  "long_corridor_tested": false,
+  "mid360_hardware_tested": false,
+  "humble_tested": false,
+  "dlio_executed": false,
+  "limits": [
+    "LOOP-edge counts are graph constraints, not independent revisits or proof of accuracy.",
+    "Full-fusion Street localization still has slow first lock, geometric confirmation recovery and >0.5 average core.",
+    "Flat dense-trajectory export rejects replayed sessions with overlapping timestamps; core map/Atlas reload succeeded.",
+    "CPU normalized by input duration; excludes playback, image decoder and observer. 0.5s peaks are not instantaneous peaks.",
+    "Per-run qualified flags only reflect exit and broad output coverage, not geometric reliability or 10cm acceptance.",
+    "Same recorded route queries its own map: not an independent-route or general relocalization reliability test.",
+    "No provider checksum was exposed; downloaded bags were read fully, index counts matched and local hashes recorded."
+  ]
+}

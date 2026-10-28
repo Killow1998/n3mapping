@@ -82,6 +82,17 @@ registration target per frozen map generation, with a four-entry cache of exact
 raw visibility crops. Crop centers belong to that same frozen geometry.
 Speculative target-preparation threads have been removed.
 
+Tracking translation support comes from admitted correspondences, not all
+surfaces in the query. The private `tracking_geometry.h` helper removes GICP's
+isotropic tangential regularization from the translation information block.
+Directions supported by fewer than `gicp_num_neighbors` effective plane
+observations retain the odometry prediction; rotation is unchanged. This is
+a support test, not a calibrated posterior covariance. A changed pose is
+evaluated using the selected registration target and metric before the existing
+quality and motion gates. Recovery keeps that target alive through evaluation.
+Initial global relocalization does not use this projection. Already deformed
+map artifacts require reconstruction from their source recordings.
+
 Mapping-loop retrieval stays with the serialized owner. Geometry verification
 and graph solving use an isolated snapshot; the owner commits only a matching
 map generation and revision. Appended keyframes catch up through a conditioned

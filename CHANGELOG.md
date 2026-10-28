@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Preserve odometry translation along directions unsupported by matched map
+  geometry, separating GICP tangential regularization from geometric support.
+  Re-evaluate altered poses against the selected target. Four-core Noetic/Humble
+  continuation and cross-ROS reload pass the tested Avia/MID360 fixtures;
+  historical corrupted maps require reconstruction from raw input. See the
+  [integration record](docs/evidence/fast_livo2_frontend_20261028.md).
+
 ## [1.1.0-rc5] - 2026-10-28 (hardware-test candidate)
 
 - Enable Atlas by default in the shared core and both ROS profiles. Map saves

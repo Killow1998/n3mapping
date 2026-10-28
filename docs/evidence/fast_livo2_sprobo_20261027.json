@@ -1,0 +1,2558 @@
+{
+  "purpose": "Avia/MID360 native sensor integration and FAST-LIVO2 + N3M ground-truth evaluation",
+  "cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "playback_rate": 1,
+  "alignment": "each online output: fixed first-pose SE3, no trajectory/scale fitting",
+  "camera_model": "ideal D435i pinhole, 320x240, 60-degree vertical FOV; no photometric hardware/noise fidelity claim",
+  "truth_policy": "native IMU-site truth is only a controller/observer reference; estimator bag has no truth, depth or external odometry",
+  "thresholds": "unmodified FAST-LIVO2 and N3M acceptance/noise/voxel settings across cases; sensor calibration and line count match selected hardware",
+  "cases": [
+    {
+      "case": "avia_normal_range_lio",
+      "dataset": "avia_normal_range",
+      "visual_enabled": 0,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1069,
+        "position_rmse_m": 2.906631392366995,
+        "position_p95_m": 4.196884666772779,
+        "position_max_m": 4.308421297728183,
+        "angle_rmse_deg": 0.47441197292318277,
+        "angle_max_deg": 2.9766925265090296,
+        "fraction_over_10cm": 0.568755846585594,
+        "longest_over_10cm_s": 54.900000000000006,
+        "over_10cm_intervals": [
+          [
+            45.999995834,
+            51.699995834,
+            5.699999999999996
+          ],
+          [
+            56.299995834,
+            111.199995834,
+            54.900000000000006
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1029,
+        "position_rmse_m": 2.968099296384771,
+        "position_p95_m": 4.206337763855098,
+        "position_max_m": 4.307871679899374,
+        "angle_rmse_deg": 0.45620695982213416,
+        "angle_max_deg": 3.0238876277002125,
+        "fraction_over_10cm": 0.5908649173955296,
+        "longest_over_10cm_s": 54.900000000000006,
+        "over_10cm_intervals": [
+          [
+            45.999995834,
+            51.699995834,
+            5.699999999999996
+          ],
+          [
+            56.299995834,
+            111.199995834,
+            54.900000000000006
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 16.83,
+          "rss_bytes": 154091520,
+          "peak_rss_bytes": 173522944,
+          "replay_cpu_s": 16.77,
+          "mean_cores": 0.14556263132732364,
+          "cpu_s_per_input_s": 0.15629368674159816
+        },
+        "frontend": {
+          "cpu_s": 16.8,
+          "rss_bytes": 194904064,
+          "peak_rss_bytes": 194904064,
+          "replay_cpu_s": 16.64,
+          "mean_cores": 0.14443423883641415,
+          "cpu_s_per_input_s": 0.15508210777460904
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.25922728387571137,
+        "n3m": 1.1781988214889196
+      },
+      "visual_retrieval": {
+        "frames": 0,
+        "median": null,
+        "zero_frames": 0,
+        "at_most_4_frames": 0
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=138.33 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=546.923 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=552.961 pair=15:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=626.776 pair=20:12 pair=20:11",
+        "optimized=1 edges=4 rebase=0 stale=0 pending=0 worker_ms=888.193 pair=25:14 pair=25:13 pair=25:12 pair=25:11",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=1239.33 pair=30:13",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=4392.89 pair=35:11",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=4501.52 pair=40:9",
+        "optimized=1 edges=0 rebase=0 stale=0 pending=0 worker_ms=511.397"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 18892769,
+        "n3map.pbstream.localization_atlas.pb": 9512894,
+        "global_map.pcd": 521340
+      }
+    },
+    {
+      "case": "avia_normal_range_livo",
+      "dataset": "avia_normal_range",
+      "visual_enabled": 1,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1068,
+        "position_rmse_m": 2.242331658635965,
+        "position_p95_m": 3.242095541084062,
+        "position_max_m": 3.3216474226559116,
+        "angle_rmse_deg": 0.37638292537723245,
+        "angle_max_deg": 1.7092116500519057,
+        "fraction_over_10cm": 0.5149812734082397,
+        "longest_over_10cm_s": 54.89999999999999,
+        "over_10cm_intervals": [
+          [
+            56.2,
+            111.1,
+            54.89999999999999
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1028,
+        "position_rmse_m": 2.2807535487475152,
+        "position_p95_m": 3.240569879931547,
+        "position_max_m": 3.320675611926117,
+        "angle_rmse_deg": 0.25358412190251967,
+        "angle_max_deg": 1.5533885840002837,
+        "fraction_over_10cm": 0.5350194552529183,
+        "longest_over_10cm_s": 54.89999999999999,
+        "over_10cm_intervals": [
+          [
+            56.2,
+            111.1,
+            54.89999999999999
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 14.52,
+          "rss_bytes": 153210880,
+          "peak_rss_bytes": 173953024,
+          "replay_cpu_s": 14.48,
+          "mean_cores": 0.1257296255112294,
+          "cpu_s_per_input_s": 0.1349512572461742
+        },
+        "frontend": {
+          "cpu_s": 21.18,
+          "rss_bytes": 315920384,
+          "peak_rss_bytes": 315920384,
+          "replay_cpu_s": 21.06,
+          "mean_cores": 0.18286366804326595,
+          "cpu_s_per_input_s": 0.19627579265223954
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.29957833808129,
+        "n3m": 1.1784753357191682
+      },
+      "visual_retrieval": {
+        "frames": 1067,
+        "median": 15.0,
+        "zero_frames": 75,
+        "at_most_4_frames": 104
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=51.5727 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=259.903 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=245.093 pair=15:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=296.566 pair=20:11 pair=20:10",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=261.372 pair=25:13",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=1515.33 pair=30:14",
+        "optimized=1 edges=6 rebase=0 stale=0 pending=0 worker_ms=5236.29 pair=35:9 pair=35:8 pair=35:7 pair=35:5 pair=35:6 pair=35:4",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=1901.84 pair=40:35",
+        "optimized=1 edges=0 rebase=0 stale=0 pending=0 worker_ms=517.525"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 18130316,
+        "n3map.pbstream.localization_atlas.pb": 9814453,
+        "global_map.pcd": 538492
+      }
+    },
+    {
+      "case": "avia_plain_final_livo",
+      "dataset": "avia_plain_final",
+      "visual_enabled": 1,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1092,
+        "position_rmse_m": 2.3628295603019054,
+        "position_p95_m": 3.369552744770863,
+        "position_max_m": 3.39227169367425,
+        "angle_rmse_deg": 0.4307748991581093,
+        "angle_max_deg": 3.7846928634632566,
+        "fraction_over_10cm": 0.5824175824175825,
+        "longest_over_10cm_s": 62.6,
+        "over_10cm_intervals": [
+          [
+            48.6,
+            49.3,
+            0.6999999999999957
+          ],
+          [
+            49.7,
+            49.7,
+            0.0
+          ],
+          [
+            50.9,
+            113.5,
+            62.6
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1052,
+        "position_rmse_m": 2.4067928864798644,
+        "position_p95_m": 3.36827540328846,
+        "position_max_m": 3.393360341924161,
+        "angle_rmse_deg": 0.38438368663272765,
+        "angle_max_deg": 3.7510321152124213,
+        "fraction_over_10cm": 0.6045627376425855,
+        "longest_over_10cm_s": 62.6,
+        "over_10cm_intervals": [
+          [
+            48.6,
+            49.3,
+            0.6999999999999957
+          ],
+          [
+            49.7,
+            49.7,
+            0.0
+          ],
+          [
+            50.9,
+            113.5,
+            62.6
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 13.57,
+          "rss_bytes": 155856896,
+          "peak_rss_bytes": 183095296,
+          "replay_cpu_s": 13.530000000000001,
+          "mean_cores": 0.115005993506166,
+          "cpu_s_per_input_s": 0.12325996647474675
+        },
+        "frontend": {
+          "cpu_s": 20.07,
+          "rss_bytes": 286990336,
+          "peak_rss_bytes": 286990336,
+          "replay_cpu_s": 19.95,
+          "mean_cores": 0.1695764649259432,
+          "cpu_s_per_input_s": 0.18174695721886158
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.2997365830646015,
+        "n3m": 2.9357535317610255
+      },
+      "visual_retrieval": {
+        "frames": 1091,
+        "median": 0.0,
+        "zero_frames": 617,
+        "at_most_4_frames": 1037
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=70.4371 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=226.378 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=246.945 pair=15:10",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=213.523 pair=20:11",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=269.903 pair=25:14 pair=25:13",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=501.544 pair=30:11",
+        "optimized=1 edges=4 rebase=0 stale=0 pending=0 worker_ms=1490.38 pair=35:8 pair=35:7 pair=35:6 pair=35:9",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=1354.47 pair=40:9",
+        "optimized=1 edges=0 rebase=0 stale=0 pending=0 worker_ms=222.384"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 18661186,
+        "n3map.pbstream.localization_atlas.pb": 10173855,
+        "global_map.pcd": 558204
+      }
+    },
+    {
+      "case": "avia_textured_final_lio",
+      "dataset": "avia_textured_final",
+      "visual_enabled": 0,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1094,
+        "position_rmse_m": 3.2414641481437934,
+        "position_p95_m": 4.712278763976105,
+        "position_max_m": 4.809421950092875,
+        "angle_rmse_deg": 0.566742661213668,
+        "angle_max_deg": 4.750127229543861,
+        "fraction_over_10cm": 0.6124314442413162,
+        "longest_over_10cm_s": 55.50000000000001,
+        "over_10cm_intervals": [
+          [
+            46.152573181,
+            57.499995834,
+            11.347422653000002
+          ],
+          [
+            58.199995834,
+            113.699995834,
+            55.50000000000001
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1054,
+        "position_rmse_m": 3.2967487938257247,
+        "position_p95_m": 4.707598269287328,
+        "position_max_m": 4.805681330660707,
+        "angle_rmse_deg": 0.5521052281115738,
+        "angle_max_deg": 4.765224183533568,
+        "fraction_over_10cm": 0.635673624288425,
+        "longest_over_10cm_s": 55.50000000000001,
+        "over_10cm_intervals": [
+          [
+            46.152573181,
+            57.499995834,
+            11.347422653000002
+          ],
+          [
+            58.199995834,
+            113.699995834,
+            55.50000000000001
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 12.39,
+          "rss_bytes": 152854528,
+          "peak_rss_bytes": 158810112,
+          "replay_cpu_s": 12.350000000000001,
+          "mean_cores": 0.10497408614188004,
+          "cpu_s_per_input_s": 0.11251002113548576
+        },
+        "frontend": {
+          "cpu_s": 17.22,
+          "rss_bytes": 191836160,
+          "peak_rss_bytes": 191836160,
+          "replay_cpu_s": 17.09,
+          "mean_cores": 0.1452637353979538,
+          "cpu_s_per_input_s": 0.15569200495590702
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.2795623680443992,
+        "n3m": 2.7745943352376106
+      },
+      "visual_retrieval": {
+        "frames": 0,
+        "median": null,
+        "zero_frames": 0,
+        "at_most_4_frames": 0
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=59.7037 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=246.286 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=266.464 pair=15:10",
+        "optimized=1 edges=3 rebase=0 stale=0 pending=0 worker_ms=366.089 pair=20:12 pair=20:11 pair=20:10",
+        "optimized=1 edges=3 rebase=0 stale=0 pending=0 worker_ms=358.356 pair=25:14 pair=25:13 pair=25:12",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=764.43 pair=30:24",
+        "optimized=1 edges=5 rebase=0 stale=0 pending=0 worker_ms=1324.8 pair=35:8 pair=35:9 pair=35:10 pair=35:14 pair=35:13",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=817.429 pair=40:11 pair=40:12",
+        "optimized=1 edges=0 rebase=0 stale=0 pending=0 worker_ms=217.306"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 19045388,
+        "n3map.pbstream.localization_atlas.pb": 9775666,
+        "global_map.pcd": 535708
+      }
+    },
+    {
+      "case": "avia_textured_final_livo",
+      "dataset": "avia_textured_final",
+      "visual_enabled": 1,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1092,
+        "position_rmse_m": 2.3970635391619,
+        "position_p95_m": 3.404896416451174,
+        "position_max_m": 3.423523687392491,
+        "angle_rmse_deg": 0.5853285740136486,
+        "angle_max_deg": 7.343237504409492,
+        "fraction_over_10cm": 0.5842490842490843,
+        "longest_over_10cm_s": 63.7,
+        "over_10cm_intervals": [
+          [
+            49.8,
+            113.5,
+            63.7
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1052,
+        "position_rmse_m": 2.4422202306961456,
+        "position_p95_m": 3.4046578292005987,
+        "position_max_m": 3.42309052107836,
+        "angle_rmse_deg": 0.551432301688915,
+        "angle_max_deg": 7.36359567226309,
+        "fraction_over_10cm": 0.6064638783269962,
+        "longest_over_10cm_s": 63.7,
+        "over_10cm_intervals": [
+          [
+            49.8,
+            113.5,
+            63.7
+          ]
+        ],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 14.07,
+          "rss_bytes": 150757376,
+          "peak_rss_bytes": 172191744,
+          "replay_cpu_s": 14.030000000000001,
+          "mean_cores": 0.11926162952339521,
+          "cpu_s_per_input_s": 0.12781502805917938
+        },
+        "frontend": {
+          "cpu_s": 20.91,
+          "rss_bytes": 320344064,
+          "peak_rss_bytes": 320344064,
+          "replay_cpu_s": 20.78,
+          "mean_cores": 0.17663981906601228,
+          "cpu_s_per_input_s": 0.18930835944901975
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.31986621916157504,
+        "n3m": 2.9552592443608887
+      },
+      "visual_retrieval": {
+        "frames": 1091,
+        "median": 14.0,
+        "zero_frames": 127,
+        "at_most_4_frames": 155
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=50.3471 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=231.233 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=273.886 pair=15:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=300.402 pair=20:12 pair=20:11",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=260.103 pair=25:14 pair=25:13",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=828.69 pair=30:10 pair=30:15",
+        "optimized=1 edges=5 rebase=0 stale=0 pending=0 worker_ms=1870.57 pair=35:8 pair=35:7 pair=35:9 pair=35:5 pair=35:6",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=751.762 pair=40:10",
+        "optimized=1 edges=0 rebase=0 stale=0 pending=0 worker_ms=248.021"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 18277767,
+        "n3map.pbstream.localization_atlas.pb": 10341600,
+        "global_map.pcd": 567788
+      }
+    },
+    {
+      "case": "mid360_normal_range_lio",
+      "dataset": "mid360_normal_range",
+      "visual_enabled": 0,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1069,
+        "position_rmse_m": 0.005547293056208397,
+        "position_p95_m": 0.009104258088361758,
+        "position_max_m": 0.009886848249512015,
+        "angle_rmse_deg": 0.0345006234315398,
+        "angle_max_deg": 0.06009655899381314,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1038,
+        "position_rmse_m": 0.0022286008712869227,
+        "position_p95_m": 0.0035135084198281512,
+        "position_max_m": 0.00440024956029655,
+        "angle_rmse_deg": 0.02009652198771971,
+        "angle_max_deg": 0.05696686517180698,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 13.0,
+          "rss_bytes": 116453376,
+          "peak_rss_bytes": 156446720,
+          "replay_cpu_s": 12.96,
+          "mean_cores": 0.11256792540135396,
+          "cpu_s_per_input_s": 0.12078510317060896
+        },
+        "frontend": {
+          "cpu_s": 19.65,
+          "rss_bytes": 177831936,
+          "peak_rss_bytes": 177831936,
+          "replay_cpu_s": 19.529999999999998,
+          "mean_cores": 0.16963360980620698,
+          "cpu_s_per_input_s": 0.1820164401945982
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.2398659648381756,
+        "n3m": 2.9360189931650633
+      },
+      "visual_retrieval": {
+        "frames": 0,
+        "median": null,
+        "zero_frames": 0,
+        "at_most_4_frames": 0
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=51.5201 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=192.385 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=260.393 pair=15:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=351.822 pair=20:11 pair=20:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=358.481 pair=25:11 pair=25:10",
+        "optimized=1 edges=8 rebase=0 stale=0 pending=0 worker_ms=951.137 pair=30:11 pair=30:12 pair=30:10 pair=30:6 pair=30:9 pair=30:8 pair=30:7 pair=30:13",
+        "optimized=1 edges=10 rebase=0 stale=0 pending=0 worker_ms=1329.58 pair=35:9 pair=35:10 pair=35:7 pair=35:8 pair=35:5 pair=35:6 pair=35:12 pair=35:11 pair=35:4 pair=35:30",
+        "optimized=1 edges=5 rebase=0 stale=0 pending=0 worker_ms=444.755 pair=40:2 pair=40:0 pair=40:3 pair=40:1 pair=40:4",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=263.493 pair=45:0"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 15344756,
+        "n3map.pbstream.localization_atlas.pb": 10125284,
+        "global_map.pcd": 547020
+      }
+    },
+    {
+      "case": "mid360_normal_range_livo",
+      "dataset": "mid360_normal_range",
+      "visual_enabled": 1,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1068,
+        "position_rmse_m": 0.004845978286138928,
+        "position_p95_m": 0.008026640901615782,
+        "position_max_m": 0.011207182848745953,
+        "angle_rmse_deg": 0.047505734568560776,
+        "angle_max_deg": 0.21700424218884515,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1037,
+        "position_rmse_m": 0.0026147829413815235,
+        "position_p95_m": 0.00427251970014278,
+        "position_max_m": 0.012395115552160975,
+        "angle_rmse_deg": 0.04451716478930787,
+        "angle_max_deg": 0.23251838706035982,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 14.35,
+          "rss_bytes": 131698688,
+          "peak_rss_bytes": 150028288,
+          "replay_cpu_s": 14.29,
+          "mean_cores": 0.12406513708399598,
+          "cpu_s_per_input_s": 0.13318048798672855
+        },
+        "frontend": {
+          "cpu_s": 22.84,
+          "rss_bytes": 304488448,
+          "peak_rss_bytes": 304488448,
+          "replay_cpu_s": 22.669999999999998,
+          "mean_cores": 0.19681992006257445,
+          "cpu_s_per_input_s": 0.21128073216648957
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.31968874851557566,
+        "n3m": 1.1583522924042564
+      },
+      "visual_retrieval": {
+        "frames": 1067,
+        "median": 19.0,
+        "zero_frames": 107,
+        "at_most_4_frames": 167
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=132.101 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=575.214 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=641.75 pair=15:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=884.326 pair=20:11 pair=20:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=937.476 pair=25:11 pair=25:10",
+        "optimized=1 edges=8 rebase=0 stale=0 pending=0 worker_ms=2849.35 pair=30:11 pair=30:12 pair=30:10 pair=30:6 pair=30:9 pair=30:8 pair=30:7 pair=30:13",
+        "optimized=1 edges=10 rebase=0 stale=0 pending=0 worker_ms=3736.5 pair=35:9 pair=35:10 pair=35:7 pair=35:8 pair=35:5 pair=35:6 pair=35:12 pair=35:11 pair=35:4 pair=35:30",
+        "optimized=1 edges=5 rebase=0 stale=0 pending=0 worker_ms=1193.75 pair=40:2 pair=40:0 pair=40:3 pair=40:1 pair=40:4",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=398.02 pair=45:0"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 15344537,
+        "n3map.pbstream.localization_atlas.pb": 10233788,
+        "global_map.pcd": 553164
+      }
+    },
+    {
+      "case": "mid360_plain_final_livo",
+      "dataset": "mid360_plain_final",
+      "visual_enabled": 1,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1092,
+        "position_rmse_m": 0.004999793328030708,
+        "position_p95_m": 0.008369426577193908,
+        "position_max_m": 0.008965769112758955,
+        "angle_rmse_deg": 0.03419031540682589,
+        "angle_max_deg": 0.06692652467985644,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1049,
+        "position_rmse_m": 0.0015590848936135597,
+        "position_p95_m": 0.002264609161369644,
+        "position_max_m": 0.003491956160161248,
+        "angle_rmse_deg": 0.026915359596961744,
+        "angle_max_deg": 0.06303613636639345,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 13.6,
+          "rss_bytes": 132714496,
+          "peak_rss_bytes": 147681280,
+          "replay_cpu_s": 13.56,
+          "mean_cores": 0.1152649750827105,
+          "cpu_s_per_input_s": 0.1235332701698127
+        },
+        "frontend": {
+          "cpu_s": 23.3,
+          "rss_bytes": 266227712,
+          "peak_rss_bytes": 266227712,
+          "replay_cpu_s": 23.18,
+          "mean_cores": 0.19703850460304048,
+          "cpu_s_per_input_s": 0.21117265505429633
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.2796151410392278,
+        "n3m": 2.7523224786458482
+      },
+      "visual_retrieval": {
+        "frames": 1091,
+        "median": 4.0,
+        "zero_frames": 301,
+        "at_most_4_frames": 561
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=48.3899 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=217.63 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=285.898 pair=15:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=390.965 pair=20:11 pair=20:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=404.933 pair=25:12 pair=25:11",
+        "optimized=1 edges=8 rebase=0 stale=0 pending=0 worker_ms=1077.01 pair=30:11 pair=30:9 pair=30:12 pair=30:6 pair=30:7 pair=30:8 pair=30:10 pair=30:13",
+        "optimized=1 edges=10 rebase=0 stale=0 pending=0 worker_ms=1415.28 pair=35:9 pair=35:10 pair=35:8 pair=35:7 pair=35:5 pair=35:6 pair=35:11 pair=35:30 pair=35:3 pair=35:4",
+        "optimized=1 edges=4 rebase=0 stale=0 pending=0 worker_ms=478.208 pair=40:1 pair=40:2 pair=40:3 pair=40:4",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=301.884 pair=45:1"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 15350239,
+        "n3map.pbstream.localization_atlas.pb": 10161352,
+        "global_map.pcd": 549084
+      }
+    },
+    {
+      "case": "mid360_textured_final_lio",
+      "dataset": "mid360_textured_final",
+      "visual_enabled": 0,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1094,
+        "position_rmse_m": 0.005637474392083898,
+        "position_p95_m": 0.009218593551151528,
+        "position_max_m": 0.010090728193739433,
+        "angle_rmse_deg": 0.034314723869226064,
+        "angle_max_deg": 0.05915446751576589,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1063,
+        "position_rmse_m": 0.0022978813091420777,
+        "position_p95_m": 0.003746976450956629,
+        "position_max_m": 0.004845524378832426,
+        "angle_rmse_deg": 0.020827779238498975,
+        "angle_max_deg": 0.054254280550821814,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 13.28,
+          "rss_bytes": 116019200,
+          "peak_rss_bytes": 152821760,
+          "replay_cpu_s": 13.24,
+          "mean_cores": 0.11254495838659787,
+          "cpu_s_per_input_s": 0.12061803075577582
+        },
+        "frontend": {
+          "cpu_s": 21.77,
+          "rss_bytes": 187101184,
+          "peak_rss_bytes": 187101184,
+          "replay_cpu_s": 21.64,
+          "mean_cores": 0.1839481041907838,
+          "cpu_s_per_input_s": 0.19714306537424386
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.2598564890319092,
+        "n3m": 2.855978159652999
+      },
+      "visual_retrieval": {
+        "frames": 0,
+        "median": null,
+        "zero_frames": 0,
+        "at_most_4_frames": 0
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=51.1212 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=212.378 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=243.587 pair=15:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=356.985 pair=20:11 pair=20:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=396.877 pair=25:11 pair=25:12",
+        "optimized=1 edges=8 rebase=0 stale=0 pending=0 worker_ms=990.756 pair=30:11 pair=30:12 pair=30:10 pair=30:6 pair=30:9 pair=30:8 pair=30:7 pair=30:13",
+        "optimized=1 edges=10 rebase=0 stale=0 pending=0 worker_ms=1398.52 pair=35:9 pair=35:10 pair=35:7 pair=35:8 pair=35:5 pair=35:6 pair=35:12 pair=35:11 pair=35:30 pair=35:4",
+        "optimized=1 edges=5 rebase=0 stale=0 pending=0 worker_ms=486.676 pair=40:2 pair=40:0 pair=40:3 pair=40:1 pair=40:4",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=266.054 pair=45:0"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 15351293,
+        "n3map.pbstream.localization_atlas.pb": 10167242,
+        "global_map.pcd": 549564
+      }
+    },
+    {
+      "case": "mid360_textured_final_livo",
+      "dataset": "mid360_textured_final",
+      "visual_enabled": 1,
+      "qualified_io": true,
+      "clean_shutdown": true,
+      "frontend": {
+        "frames": 1092,
+        "position_rmse_m": 0.0048439230414206455,
+        "position_p95_m": 0.007961302394861883,
+        "position_max_m": 0.009651952902968523,
+        "angle_rmse_deg": 0.04381321098548245,
+        "angle_max_deg": 0.16809491064193144,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "n3m": {
+        "frames": 1061,
+        "position_rmse_m": 0.0026339283492678575,
+        "position_p95_m": 0.004510088272873991,
+        "position_max_m": 0.007626497597644633,
+        "angle_rmse_deg": 0.041450038138256935,
+        "angle_max_deg": 0.17782926326859314,
+        "fraction_over_10cm": 0.0,
+        "longest_over_10cm_s": 0,
+        "over_10cm_intervals": [],
+        "alignment": "first output pose only, fixed SE3; no trajectory fitting, no scale fitting"
+      },
+      "resources": {
+        "n3m": {
+          "cpu_s": 13.47,
+          "rss_bytes": 131710976,
+          "peak_rss_bytes": 150945792,
+          "replay_cpu_s": 13.430000000000001,
+          "mean_cores": 0.11416453038707908,
+          "cpu_s_per_input_s": 0.12234895415786022
+        },
+        "frontend": {
+          "cpu_s": 24.85,
+          "rss_bytes": 304164864,
+          "peak_rss_bytes": 304164864,
+          "replay_cpu_s": 24.73,
+          "mean_cores": 0.21022254925334813,
+          "cpu_s_per_input_s": 0.22529334596603745
+        }
+      },
+      "peak_cores_sampled_0_5s": {
+        "frontend": 0.2798696669292055,
+        "n3m": 2.776090642547435
+      },
+      "visual_retrieval": {
+        "frames": 1091,
+        "median": 19.0,
+        "zero_frames": 118,
+        "at_most_4_frames": 185
+      },
+      "loop_commit_events": [
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=51.0769 pair=5:0",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=208.871 pair=10:5",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=274.396 pair=15:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=377.009 pair=20:11 pair=20:10",
+        "optimized=1 edges=2 rebase=0 stale=0 pending=0 worker_ms=410.139 pair=25:11 pair=25:12",
+        "optimized=1 edges=8 rebase=0 stale=0 pending=0 worker_ms=1079.44 pair=30:11 pair=30:12 pair=30:10 pair=30:6 pair=30:9 pair=30:8 pair=30:7 pair=30:13",
+        "optimized=1 edges=10 rebase=0 stale=0 pending=0 worker_ms=1397.08 pair=35:9 pair=35:10 pair=35:7 pair=35:8 pair=35:5 pair=35:6 pair=35:12 pair=35:11 pair=35:30 pair=35:4",
+        "optimized=1 edges=5 rebase=0 stale=0 pending=0 worker_ms=464.251 pair=40:2 pair=40:0 pair=40:3 pair=40:1 pair=40:4",
+        "optimized=1 edges=1 rebase=0 stale=0 pending=0 worker_ms=261.269 pair=45:0"
+      ],
+      "saved_files": {
+        "n3map.pbstream": 15350896,
+        "n3map.pbstream.localization_atlas.pb": 10234769,
+        "global_map.pcd": 553404
+      }
+    }
+  ],
+  "fov_overlap": {
+    "avia": {
+      "camera_horizontal_fov_deg": 75.1781789379499,
+      "camera_vertical_fov_deg": 60.0,
+      "parallel_optical_axes": true,
+      "recorded_center_distance_m": 0.09552486587271398,
+      "range_sphere_projection": {
+        "preview_default": {
+          "1.0": 0.5941145833333333,
+          "2.0": 0.768309375,
+          "5.0": 0.8743625,
+          "10.0": 0.8913270833333333,
+          "20.0": 0.89965
+        },
+        "recorded_rig": {
+          "1.0": 0.8743625,
+          "2.0": 0.8930854166666666,
+          "5.0": 0.9021854166666666,
+          "10.0": 0.905021875,
+          "20.0": 0.9064572916666667
+        },
+        "front_windows_aligned": {
+          "1.0": 0.8899302083333334,
+          "2.0": 0.9002302083333333,
+          "5.0": 0.9049604166666667,
+          "10.0": 0.9063947916666667,
+          "20.0": 0.9071166666666667
+        }
+      },
+      "actual_route_projection": [
+        {
+          "stamp_s": 4.1,
+          "valid_lidar_points": 23896,
+          "projected_in_camera": 22182,
+          "fraction_in_camera": 0.9282725142283227
+        },
+        {
+          "stamp_s": 5.1,
+          "valid_lidar_points": 23891,
+          "projected_in_camera": 22182,
+          "fraction_in_camera": 0.928466786656063
+        },
+        {
+          "stamp_s": 6.1,
+          "valid_lidar_points": 23858,
+          "projected_in_camera": 21960,
+          "fraction_in_camera": 0.920445972001006
+        },
+        {
+          "stamp_s": 7.1,
+          "valid_lidar_points": 23850,
+          "projected_in_camera": 21954,
+          "fraction_in_camera": 0.920503144654088
+        },
+        {
+          "stamp_s": 8.1,
+          "valid_lidar_points": 23905,
+          "projected_in_camera": 22008,
+          "fraction_in_camera": 0.9206442166910688
+        },
+        {
+          "stamp_s": 9.1,
+          "valid_lidar_points": 23397,
+          "projected_in_camera": 21928,
+          "fraction_in_camera": 0.9372141727571911
+        },
+        {
+          "stamp_s": 10.1,
+          "valid_lidar_points": 23610,
+          "projected_in_camera": 21910,
+          "fraction_in_camera": 0.927996611605252
+        },
+        {
+          "stamp_s": 11.1,
+          "valid_lidar_points": 23798,
+          "projected_in_camera": 21807,
+          "fraction_in_camera": 0.9163375073535591
+        },
+        {
+          "stamp_s": 12.1,
+          "valid_lidar_points": 23865,
+          "projected_in_camera": 22012,
+          "fraction_in_camera": 0.9223549130525874
+        },
+        {
+          "stamp_s": 13.1,
+          "valid_lidar_points": 23751,
+          "projected_in_camera": 22026,
+          "fraction_in_camera": 0.927371479095617
+        },
+        {
+          "stamp_s": 14.1,
+          "valid_lidar_points": 23510,
+          "projected_in_camera": 21782,
+          "fraction_in_camera": 0.9264993619736283
+        },
+        {
+          "stamp_s": 15.100000000000001,
+          "valid_lidar_points": 23823,
+          "projected_in_camera": 21809,
+          "fraction_in_camera": 0.9154598497250556
+        },
+        {
+          "stamp_s": 16.1,
+          "valid_lidar_points": 23806,
+          "projected_in_camera": 22017,
+          "fraction_in_camera": 0.9248508779299336
+        },
+        {
+          "stamp_s": 17.1,
+          "valid_lidar_points": 23667,
+          "projected_in_camera": 22032,
+          "fraction_in_camera": 0.9309164659652681
+        },
+        {
+          "stamp_s": 18.1,
+          "valid_lidar_points": 23750,
+          "projected_in_camera": 21848,
+          "fraction_in_camera": 0.9199157894736842
+        },
+        {
+          "stamp_s": 19.1,
+          "valid_lidar_points": 23726,
+          "projected_in_camera": 21816,
+          "fraction_in_camera": 0.9194975975722836
+        },
+        {
+          "stamp_s": 20.1,
+          "valid_lidar_points": 23729,
+          "projected_in_camera": 22024,
+          "fraction_in_camera": 0.9281469931307682
+        },
+        {
+          "stamp_s": 21.1,
+          "valid_lidar_points": 23677,
+          "projected_in_camera": 22025,
+          "fraction_in_camera": 0.9302276470836677
+        },
+        {
+          "stamp_s": 22.1,
+          "valid_lidar_points": 23751,
+          "projected_in_camera": 21831,
+          "fraction_in_camera": 0.9191612984716433
+        },
+        {
+          "stamp_s": 23.1,
+          "valid_lidar_points": 23757,
+          "projected_in_camera": 21816,
+          "fraction_in_camera": 0.9182977648693017
+        },
+        {
+          "stamp_s": 24.1,
+          "valid_lidar_points": 23783,
+          "projected_in_camera": 22022,
+          "fraction_in_camera": 0.9259555144430897
+        },
+        {
+          "stamp_s": 25.1,
+          "valid_lidar_points": 23723,
+          "projected_in_camera": 22022,
+          "fraction_in_camera": 0.9282974328710534
+        },
+        {
+          "stamp_s": 26.1,
+          "valid_lidar_points": 23693,
+          "projected_in_camera": 21833,
+          "fraction_in_camera": 0.9214958004473895
+        },
+        {
+          "stamp_s": 27.1,
+          "valid_lidar_points": 23709,
+          "projected_in_camera": 21813,
+          "fraction_in_camera": 0.920030368214602
+        },
+        {
+          "stamp_s": 28.1,
+          "valid_lidar_points": 23800,
+          "projected_in_camera": 22015,
+          "fraction_in_camera": 0.925
+        },
+        {
+          "stamp_s": 29.100000000000005,
+          "valid_lidar_points": 23801,
+          "projected_in_camera": 22008,
+          "fraction_in_camera": 0.9246670307970253
+        },
+        {
+          "stamp_s": 30.100000000000005,
+          "valid_lidar_points": 23749,
+          "projected_in_camera": 21822,
+          "fraction_in_camera": 0.9188597414627985
+        },
+        {
+          "stamp_s": 31.100000000000005,
+          "valid_lidar_points": 23764,
+          "projected_in_camera": 21814,
+          "fraction_in_camera": 0.9179431072210066
+        },
+        {
+          "stamp_s": 32.1,
+          "valid_lidar_points": 23827,
+          "projected_in_camera": 22017,
+          "fraction_in_camera": 0.9240357577538088
+        },
+        {
+          "stamp_s": 33.1,
+          "valid_lidar_points": 23821,
+          "projected_in_camera": 22009,
+          "fraction_in_camera": 0.9239326644557323
+        },
+        {
+          "stamp_s": 34.1,
+          "valid_lidar_points": 23772,
+          "projected_in_camera": 21822,
+          "fraction_in_camera": 0.9179707218576476
+        },
+        {
+          "stamp_s": 35.1,
+          "valid_lidar_points": 23779,
+          "projected_in_camera": 21809,
+          "fraction_in_camera": 0.9171537911602675
+        },
+        {
+          "stamp_s": 36.1,
+          "valid_lidar_points": 23840,
+          "projected_in_camera": 22015,
+          "fraction_in_camera": 0.9234479865771812
+        },
+        {
+          "stamp_s": 37.1,
+          "valid_lidar_points": 23831,
+          "projected_in_camera": 22011,
+          "fraction_in_camera": 0.9236288867441568
+        },
+        {
+          "stamp_s": 38.1,
+          "valid_lidar_points": 23794,
+          "projected_in_camera": 21816,
+          "fraction_in_camera": 0.9168697991090191
+        },
+        {
+          "stamp_s": 39.1,
+          "valid_lidar_points": 23804,
+          "projected_in_camera": 21816,
+          "fraction_in_camera": 0.9164846244328684
+        },
+        {
+          "stamp_s": 40.1,
+          "valid_lidar_points": 23809,
+          "projected_in_camera": 22087,
+          "fraction_in_camera": 0.9276744088369944
+        },
+        {
+          "stamp_s": 41.1,
+          "valid_lidar_points": 23845,
+          "projected_in_camera": 22133,
+          "fraction_in_camera": 0.9282029775634305
+        },
+        {
+          "stamp_s": 42.1,
+          "valid_lidar_points": 23878,
+          "projected_in_camera": 21903,
+          "fraction_in_camera": 0.9172878800569562
+        },
+        {
+          "stamp_s": 43.1,
+          "valid_lidar_points": 24000,
+          "projected_in_camera": 21774,
+          "fraction_in_camera": 0.90725
+        },
+        {
+          "stamp_s": 44.1,
+          "valid_lidar_points": 23947,
+          "projected_in_camera": 21647,
+          "fraction_in_camera": 0.9039545663339875
+        },
+        {
+          "stamp_s": 45.1,
+          "valid_lidar_points": 23839,
+          "projected_in_camera": 21299,
+          "fraction_in_camera": 0.8934519065397039
+        },
+        {
+          "stamp_s": 46.1,
+          "valid_lidar_points": 14236,
+          "projected_in_camera": 11216,
+          "fraction_in_camera": 0.7878617589210453
+        },
+        {
+          "stamp_s": 47.1,
+          "valid_lidar_points": 4127,
+          "projected_in_camera": 2697,
+          "fraction_in_camera": 0.653501332687182
+        },
+        {
+          "stamp_s": 48.1,
+          "valid_lidar_points": 71,
+          "projected_in_camera": 18,
+          "fraction_in_camera": 0.2535211267605634
+        },
+        {
+          "stamp_s": 49.1,
+          "valid_lidar_points": 46,
+          "projected_in_camera": 21,
+          "fraction_in_camera": 0.45652173913043476
+        },
+        {
+          "stamp_s": 50.1,
+          "valid_lidar_points": 34,
+          "projected_in_camera": 15,
+          "fraction_in_camera": 0.4411764705882353
+        },
+        {
+          "stamp_s": 51.1,
+          "valid_lidar_points": 866,
+          "projected_in_camera": 767,
+          "fraction_in_camera": 0.8856812933025404
+        },
+        {
+          "stamp_s": 52.1,
+          "valid_lidar_points": 16022,
+          "projected_in_camera": 14279,
+          "fraction_in_camera": 0.8912120833853452
+        },
+        {
+          "stamp_s": 53.1,
+          "valid_lidar_points": 23699,
+          "projected_in_camera": 21885,
+          "fraction_in_camera": 0.9234566859361154
+        },
+        {
+          "stamp_s": 54.1,
+          "valid_lidar_points": 23938,
+          "projected_in_camera": 21944,
+          "fraction_in_camera": 0.9167014788202857
+        },
+        {
+          "stamp_s": 55.1,
+          "valid_lidar_points": 23521,
+          "projected_in_camera": 21757,
+          "fraction_in_camera": 0.9250031886399388
+        },
+        {
+          "stamp_s": 56.1,
+          "valid_lidar_points": 23933,
+          "projected_in_camera": 21584,
+          "fraction_in_camera": 0.9018510007103163
+        },
+        {
+          "stamp_s": 57.1,
+          "valid_lidar_points": 23857,
+          "projected_in_camera": 21661,
+          "fraction_in_camera": 0.9079515446200277
+        },
+        {
+          "stamp_s": 58.10000000000001,
+          "valid_lidar_points": 23768,
+          "projected_in_camera": 21383,
+          "fraction_in_camera": 0.899654998317065
+        },
+        {
+          "stamp_s": 59.10000000000001,
+          "valid_lidar_points": 23720,
+          "projected_in_camera": 21425,
+          "fraction_in_camera": 0.9032462057335582
+        },
+        {
+          "stamp_s": 60.10000000000001,
+          "valid_lidar_points": 23795,
+          "projected_in_camera": 21615,
+          "fraction_in_camera": 0.908384114309729
+        },
+        {
+          "stamp_s": 61.10000000000001,
+          "valid_lidar_points": 23899,
+          "projected_in_camera": 21618,
+          "fraction_in_camera": 0.9045566760115487
+        },
+        {
+          "stamp_s": 62.10000000000001,
+          "valid_lidar_points": 23523,
+          "projected_in_camera": 21244,
+          "fraction_in_camera": 0.9031160991370148
+        },
+        {
+          "stamp_s": 63.10000000000001,
+          "valid_lidar_points": 23938,
+          "projected_in_camera": 21615,
+          "fraction_in_camera": 0.9029576405714763
+        },
+        {
+          "stamp_s": 64.1,
+          "valid_lidar_points": 23820,
+          "projected_in_camera": 22146,
+          "fraction_in_camera": 0.9297229219143577
+        },
+        {
+          "stamp_s": 65.1,
+          "valid_lidar_points": 23904,
+          "projected_in_camera": 22166,
+          "fraction_in_camera": 0.9272925033467202
+        },
+        {
+          "stamp_s": 66.1,
+          "valid_lidar_points": 23868,
+          "projected_in_camera": 21956,
+          "fraction_in_camera": 0.9198927434221552
+        },
+        {
+          "stamp_s": 67.1,
+          "valid_lidar_points": 23882,
+          "projected_in_camera": 21789,
+          "fraction_in_camera": 0.912360773804539
+        },
+        {
+          "stamp_s": 68.1,
+          "valid_lidar_points": 23792,
+          "projected_in_camera": 22030,
+          "fraction_in_camera": 0.925941492938803
+        },
+        {
+          "stamp_s": 69.1,
+          "valid_lidar_points": 23691,
+          "projected_in_camera": 22024,
+          "fraction_in_camera": 0.92963572664725
+        },
+        {
+          "stamp_s": 70.1,
+          "valid_lidar_points": 23447,
+          "projected_in_camera": 21826,
+          "fraction_in_camera": 0.9308653559090715
+        },
+        {
+          "stamp_s": 71.1,
+          "valid_lidar_points": 23862,
+          "projected_in_camera": 21799,
+          "fraction_in_camera": 0.9135445478166122
+        },
+        {
+          "stamp_s": 72.1,
+          "valid_lidar_points": 23883,
+          "projected_in_camera": 22011,
+          "fraction_in_camera": 0.9216178872001005
+        },
+        {
+          "stamp_s": 73.1,
+          "valid_lidar_points": 23856,
+          "projected_in_camera": 22010,
+          "fraction_in_camera": 0.9226190476190477
+        },
+        {
+          "stamp_s": 74.1,
+          "valid_lidar_points": 23800,
+          "projected_in_camera": 21812,
+          "fraction_in_camera": 0.9164705882352941
+        },
+        {
+          "stamp_s": 75.1,
+          "valid_lidar_points": 23791,
+          "projected_in_camera": 21813,
+          "fraction_in_camera": 0.9168593165482746
+        },
+        {
+          "stamp_s": 76.1,
+          "valid_lidar_points": 23836,
+          "projected_in_camera": 22014,
+          "fraction_in_camera": 0.9235610001678134
+        },
+        {
+          "stamp_s": 77.1,
+          "valid_lidar_points": 23830,
+          "projected_in_camera": 22010,
+          "fraction_in_camera": 0.9236256819135543
+        },
+        {
+          "stamp_s": 78.1,
+          "valid_lidar_points": 23750,
+          "projected_in_camera": 21821,
+          "fraction_in_camera": 0.918778947368421
+        },
+        {
+          "stamp_s": 79.1,
+          "valid_lidar_points": 23684,
+          "projected_in_camera": 21817,
+          "fraction_in_camera": 0.921170410403648
+        },
+        {
+          "stamp_s": 80.1,
+          "valid_lidar_points": 23745,
+          "projected_in_camera": 22022,
+          "fraction_in_camera": 0.9274373552326806
+        },
+        {
+          "stamp_s": 81.1,
+          "valid_lidar_points": 23782,
+          "projected_in_camera": 22038,
+          "fraction_in_camera": 0.9266672273147759
+        },
+        {
+          "stamp_s": 82.1,
+          "valid_lidar_points": 23775,
+          "projected_in_camera": 21866,
+          "fraction_in_camera": 0.9197055730809675
+        },
+        {
+          "stamp_s": 83.1,
+          "valid_lidar_points": 23740,
+          "projected_in_camera": 21803,
+          "fraction_in_camera": 0.918407750631845
+        },
+        {
+          "stamp_s": 84.1,
+          "valid_lidar_points": 23738,
+          "projected_in_camera": 22025,
+          "fraction_in_camera": 0.9278372230179459
+        },
+        {
+          "stamp_s": 85.1,
+          "valid_lidar_points": 23725,
+          "projected_in_camera": 22035,
+          "fraction_in_camera": 0.9287671232876712
+        },
+        {
+          "stamp_s": 86.1,
+          "valid_lidar_points": 23649,
+          "projected_in_camera": 21829,
+          "fraction_in_camera": 0.9230411433887268
+        },
+        {
+          "stamp_s": 87.1,
+          "valid_lidar_points": 23667,
+          "projected_in_camera": 21820,
+          "fraction_in_camera": 0.9219588456500613
+        },
+        {
+          "stamp_s": 88.1,
+          "valid_lidar_points": 23786,
+          "projected_in_camera": 22019,
+          "fraction_in_camera": 0.9257126040528042
+        },
+        {
+          "stamp_s": 89.1,
+          "valid_lidar_points": 23798,
+          "projected_in_camera": 22024,
+          "fraction_in_camera": 0.9254559206656021
+        },
+        {
+          "stamp_s": 90.1,
+          "valid_lidar_points": 23723,
+          "projected_in_camera": 21844,
+          "fraction_in_camera": 0.9207941659992412
+        },
+        {
+          "stamp_s": 91.1,
+          "valid_lidar_points": 23714,
+          "projected_in_camera": 21831,
+          "fraction_in_camera": 0.9205954288605886
+        },
+        {
+          "stamp_s": 92.1,
+          "valid_lidar_points": 23787,
+          "projected_in_camera": 22025,
+          "fraction_in_camera": 0.9259259259259259
+        },
+        {
+          "stamp_s": 93.1,
+          "valid_lidar_points": 23769,
+          "projected_in_camera": 22026,
+          "fraction_in_camera": 0.926669190963019
+        },
+        {
+          "stamp_s": 94.1,
+          "valid_lidar_points": 23741,
+          "projected_in_camera": 21838,
+          "fraction_in_camera": 0.919843309043427
+        },
+        {
+          "stamp_s": 95.1,
+          "valid_lidar_points": 23725,
+          "projected_in_camera": 21818,
+          "fraction_in_camera": 0.9196206533192834
+        },
+        {
+          "stamp_s": 96.1,
+          "valid_lidar_points": 23789,
+          "projected_in_camera": 22019,
+          "fraction_in_camera": 0.9255958636344529
+        },
+        {
+          "stamp_s": 97.1,
+          "valid_lidar_points": 23790,
+          "projected_in_camera": 22008,
+          "fraction_in_camera": 0.9250945775535939
+        },
+        {
+          "stamp_s": 98.1,
+          "valid_lidar_points": 23752,
+          "projected_in_camera": 21869,
+          "fraction_in_camera": 0.9207224654765914
+        },
+        {
+          "stamp_s": 99.1,
+          "valid_lidar_points": 23793,
+          "projected_in_camera": 21883,
+          "fraction_in_camera": 0.9197242886563275
+        },
+        {
+          "stamp_s": 100.1,
+          "valid_lidar_points": 23858,
+          "projected_in_camera": 22109,
+          "fraction_in_camera": 0.9266912566015593
+        },
+        {
+          "stamp_s": 101.1,
+          "valid_lidar_points": 23887,
+          "projected_in_camera": 22038,
+          "fraction_in_camera": 0.9225938795160548
+        },
+        {
+          "stamp_s": 102.1,
+          "valid_lidar_points": 23752,
+          "projected_in_camera": 21855,
+          "fraction_in_camera": 0.9201330414280903
+        },
+        {
+          "stamp_s": 103.1,
+          "valid_lidar_points": 23479,
+          "projected_in_camera": 22060,
+          "fraction_in_camera": 0.9395630137569743
+        },
+        {
+          "stamp_s": 104.1,
+          "valid_lidar_points": 23769,
+          "projected_in_camera": 21959,
+          "fraction_in_camera": 0.9238503933695149
+        },
+        {
+          "stamp_s": 105.1,
+          "valid_lidar_points": 23670,
+          "projected_in_camera": 22038,
+          "fraction_in_camera": 0.9310519645120405
+        },
+        {
+          "stamp_s": 106.1,
+          "valid_lidar_points": 23841,
+          "projected_in_camera": 22020,
+          "fraction_in_camera": 0.923618975714106
+        },
+        {
+          "stamp_s": 107.1,
+          "valid_lidar_points": 23774,
+          "projected_in_camera": 21961,
+          "fraction_in_camera": 0.92374022040885
+        },
+        {
+          "stamp_s": 108.1,
+          "valid_lidar_points": 23948,
+          "projected_in_camera": 22105,
+          "fraction_in_camera": 0.9230415901119091
+        },
+        {
+          "stamp_s": 109.1,
+          "valid_lidar_points": 23941,
+          "projected_in_camera": 22161,
+          "fraction_in_camera": 0.9256505576208178
+        },
+        {
+          "stamp_s": 110.1,
+          "valid_lidar_points": 23870,
+          "projected_in_camera": 21952,
+          "fraction_in_camera": 0.9196480938416423
+        },
+        {
+          "stamp_s": 111.1,
+          "valid_lidar_points": 23872,
+          "projected_in_camera": 21957,
+          "fraction_in_camera": 0.9197804959785523
+        },
+        {
+          "stamp_s": 112.1,
+          "valid_lidar_points": 23915,
+          "projected_in_camera": 22181,
+          "fraction_in_camera": 0.9274932051014008
+        },
+        {
+          "stamp_s": 113.1,
+          "valid_lidar_points": 23915,
+          "projected_in_camera": 22164,
+          "fraction_in_camera": 0.9267823541710224
+        }
+      ],
+      "actual_fraction_median": 0.921556843823745,
+      "scope": "projection only; geometry occlusion and image gradient/feature quality are separate"
+    },
+    "mid360": {
+      "camera_horizontal_fov_deg": 75.1781789379499,
+      "camera_vertical_fov_deg": 60.0,
+      "parallel_optical_axes": true,
+      "recorded_center_distance_m": 0.09552486587271398,
+      "range_sphere_projection": {
+        "preview_default": {
+          "1.0": 0.0660375,
+          "2.0": 0.0985675,
+          "5.0": 0.12022625,
+          "10.0": 0.127725,
+          "20.0": 0.13156375
+        },
+        "recorded_rig": {
+          "1.0": 0.11145125,
+          "2.0": 0.12338875,
+          "5.0": 0.1306575,
+          "10.0": 0.1329775,
+          "20.0": 0.1342
+        },
+        "front_windows_aligned": {
+          "1.0": 0.11820875,
+          "2.0": 0.12685,
+          "5.0": 0.1319925,
+          "10.0": 0.13367,
+          "20.0": 0.134565
+        }
+      },
+      "actual_route_projection": [
+        {
+          "stamp_s": 4.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2590,
+          "fraction_in_camera": 0.1295
+        },
+        {
+          "stamp_s": 5.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2579,
+          "fraction_in_camera": 0.12895
+        },
+        {
+          "stamp_s": 6.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2583,
+          "fraction_in_camera": 0.12915
+        },
+        {
+          "stamp_s": 7.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2584,
+          "fraction_in_camera": 0.1292
+        },
+        {
+          "stamp_s": 8.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2656,
+          "fraction_in_camera": 0.1328
+        },
+        {
+          "stamp_s": 9.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2526,
+          "fraction_in_camera": 0.1263
+        },
+        {
+          "stamp_s": 10.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2573,
+          "fraction_in_camera": 0.12865
+        },
+        {
+          "stamp_s": 11.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2557,
+          "fraction_in_camera": 0.12785
+        },
+        {
+          "stamp_s": 12.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2554,
+          "fraction_in_camera": 0.1277
+        },
+        {
+          "stamp_s": 13.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2544,
+          "fraction_in_camera": 0.1272
+        },
+        {
+          "stamp_s": 14.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2516,
+          "fraction_in_camera": 0.1258
+        },
+        {
+          "stamp_s": 15.100000000000001,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2555,
+          "fraction_in_camera": 0.12775
+        },
+        {
+          "stamp_s": 16.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2559,
+          "fraction_in_camera": 0.12795
+        },
+        {
+          "stamp_s": 17.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2550,
+          "fraction_in_camera": 0.1275
+        },
+        {
+          "stamp_s": 18.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2556,
+          "fraction_in_camera": 0.1278
+        },
+        {
+          "stamp_s": 19.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2553,
+          "fraction_in_camera": 0.12765
+        },
+        {
+          "stamp_s": 20.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2560,
+          "fraction_in_camera": 0.128
+        },
+        {
+          "stamp_s": 21.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2550,
+          "fraction_in_camera": 0.1275
+        },
+        {
+          "stamp_s": 22.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2551,
+          "fraction_in_camera": 0.12755
+        },
+        {
+          "stamp_s": 23.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2554,
+          "fraction_in_camera": 0.1277
+        },
+        {
+          "stamp_s": 24.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2563,
+          "fraction_in_camera": 0.12815
+        },
+        {
+          "stamp_s": 25.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2559,
+          "fraction_in_camera": 0.12795
+        },
+        {
+          "stamp_s": 26.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2559,
+          "fraction_in_camera": 0.12795
+        },
+        {
+          "stamp_s": 27.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2553,
+          "fraction_in_camera": 0.12765
+        },
+        {
+          "stamp_s": 28.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2562,
+          "fraction_in_camera": 0.1281
+        },
+        {
+          "stamp_s": 29.100000000000005,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2553,
+          "fraction_in_camera": 0.12765
+        },
+        {
+          "stamp_s": 30.100000000000005,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2550,
+          "fraction_in_camera": 0.1275
+        },
+        {
+          "stamp_s": 31.100000000000005,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2554,
+          "fraction_in_camera": 0.1277
+        },
+        {
+          "stamp_s": 32.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2562,
+          "fraction_in_camera": 0.1281
+        },
+        {
+          "stamp_s": 33.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2552,
+          "fraction_in_camera": 0.1276
+        },
+        {
+          "stamp_s": 34.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2551,
+          "fraction_in_camera": 0.12755
+        },
+        {
+          "stamp_s": 35.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2555,
+          "fraction_in_camera": 0.12775
+        },
+        {
+          "stamp_s": 36.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2561,
+          "fraction_in_camera": 0.12805
+        },
+        {
+          "stamp_s": 37.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2552,
+          "fraction_in_camera": 0.1276
+        },
+        {
+          "stamp_s": 38.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2552,
+          "fraction_in_camera": 0.1276
+        },
+        {
+          "stamp_s": 39.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2554,
+          "fraction_in_camera": 0.1277
+        },
+        {
+          "stamp_s": 40.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2567,
+          "fraction_in_camera": 0.12835
+        },
+        {
+          "stamp_s": 41.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2571,
+          "fraction_in_camera": 0.12855
+        },
+        {
+          "stamp_s": 42.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2572,
+          "fraction_in_camera": 0.1286
+        },
+        {
+          "stamp_s": 43.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2520,
+          "fraction_in_camera": 0.126
+        },
+        {
+          "stamp_s": 44.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2473,
+          "fraction_in_camera": 0.12365
+        },
+        {
+          "stamp_s": 45.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2370,
+          "fraction_in_camera": 0.1185
+        },
+        {
+          "stamp_s": 46.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2251,
+          "fraction_in_camera": 0.11255
+        },
+        {
+          "stamp_s": 47.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2201,
+          "fraction_in_camera": 0.11005
+        },
+        {
+          "stamp_s": 48.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2215,
+          "fraction_in_camera": 0.11075
+        },
+        {
+          "stamp_s": 49.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2164,
+          "fraction_in_camera": 0.1082
+        },
+        {
+          "stamp_s": 50.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2164,
+          "fraction_in_camera": 0.1082
+        },
+        {
+          "stamp_s": 51.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2139,
+          "fraction_in_camera": 0.10695
+        },
+        {
+          "stamp_s": 52.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2372,
+          "fraction_in_camera": 0.1186
+        },
+        {
+          "stamp_s": 53.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2498,
+          "fraction_in_camera": 0.1249
+        },
+        {
+          "stamp_s": 54.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2610,
+          "fraction_in_camera": 0.1305
+        },
+        {
+          "stamp_s": 55.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2544,
+          "fraction_in_camera": 0.1272
+        },
+        {
+          "stamp_s": 56.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2436,
+          "fraction_in_camera": 0.1218
+        },
+        {
+          "stamp_s": 57.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2454,
+          "fraction_in_camera": 0.1227
+        },
+        {
+          "stamp_s": 58.10000000000001,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2420,
+          "fraction_in_camera": 0.121
+        },
+        {
+          "stamp_s": 59.10000000000001,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2410,
+          "fraction_in_camera": 0.1205
+        },
+        {
+          "stamp_s": 60.10000000000001,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2400,
+          "fraction_in_camera": 0.12
+        },
+        {
+          "stamp_s": 61.10000000000001,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2434,
+          "fraction_in_camera": 0.1217
+        },
+        {
+          "stamp_s": 62.10000000000001,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2378,
+          "fraction_in_camera": 0.1189
+        },
+        {
+          "stamp_s": 63.10000000000001,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2552,
+          "fraction_in_camera": 0.1276
+        },
+        {
+          "stamp_s": 64.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2564,
+          "fraction_in_camera": 0.1282
+        },
+        {
+          "stamp_s": 65.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2581,
+          "fraction_in_camera": 0.12905
+        },
+        {
+          "stamp_s": 66.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2585,
+          "fraction_in_camera": 0.12925
+        },
+        {
+          "stamp_s": 67.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2554,
+          "fraction_in_camera": 0.1277
+        },
+        {
+          "stamp_s": 68.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2574,
+          "fraction_in_camera": 0.1287
+        },
+        {
+          "stamp_s": 69.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2552,
+          "fraction_in_camera": 0.1276
+        },
+        {
+          "stamp_s": 70.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2569,
+          "fraction_in_camera": 0.12845
+        },
+        {
+          "stamp_s": 71.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2555,
+          "fraction_in_camera": 0.12775
+        },
+        {
+          "stamp_s": 72.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2559,
+          "fraction_in_camera": 0.12795
+        },
+        {
+          "stamp_s": 73.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2549,
+          "fraction_in_camera": 0.12745
+        },
+        {
+          "stamp_s": 74.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2547,
+          "fraction_in_camera": 0.12735
+        },
+        {
+          "stamp_s": 75.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2552,
+          "fraction_in_camera": 0.1276
+        },
+        {
+          "stamp_s": 76.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2561,
+          "fraction_in_camera": 0.12805
+        },
+        {
+          "stamp_s": 77.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2550,
+          "fraction_in_camera": 0.1275
+        },
+        {
+          "stamp_s": 78.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2548,
+          "fraction_in_camera": 0.1274
+        },
+        {
+          "stamp_s": 79.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2557,
+          "fraction_in_camera": 0.12785
+        },
+        {
+          "stamp_s": 80.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2569,
+          "fraction_in_camera": 0.12845
+        },
+        {
+          "stamp_s": 81.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2575,
+          "fraction_in_camera": 0.12875
+        },
+        {
+          "stamp_s": 82.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2562,
+          "fraction_in_camera": 0.1281
+        },
+        {
+          "stamp_s": 83.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2580,
+          "fraction_in_camera": 0.129
+        },
+        {
+          "stamp_s": 84.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2588,
+          "fraction_in_camera": 0.1294
+        },
+        {
+          "stamp_s": 85.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2555,
+          "fraction_in_camera": 0.12775
+        },
+        {
+          "stamp_s": 86.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2550,
+          "fraction_in_camera": 0.1275
+        },
+        {
+          "stamp_s": 87.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2551,
+          "fraction_in_camera": 0.12755
+        },
+        {
+          "stamp_s": 88.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2551,
+          "fraction_in_camera": 0.12755
+        },
+        {
+          "stamp_s": 89.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2558,
+          "fraction_in_camera": 0.1279
+        },
+        {
+          "stamp_s": 90.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2590,
+          "fraction_in_camera": 0.1295
+        },
+        {
+          "stamp_s": 91.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2585,
+          "fraction_in_camera": 0.12925
+        },
+        {
+          "stamp_s": 92.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2581,
+          "fraction_in_camera": 0.12905
+        },
+        {
+          "stamp_s": 93.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2582,
+          "fraction_in_camera": 0.1291
+        },
+        {
+          "stamp_s": 94.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2577,
+          "fraction_in_camera": 0.12885
+        },
+        {
+          "stamp_s": 95.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2575,
+          "fraction_in_camera": 0.12875
+        },
+        {
+          "stamp_s": 96.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2571,
+          "fraction_in_camera": 0.12855
+        },
+        {
+          "stamp_s": 97.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2555,
+          "fraction_in_camera": 0.12775
+        },
+        {
+          "stamp_s": 98.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2558,
+          "fraction_in_camera": 0.1279
+        },
+        {
+          "stamp_s": 99.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2573,
+          "fraction_in_camera": 0.12865
+        },
+        {
+          "stamp_s": 100.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2577,
+          "fraction_in_camera": 0.12885
+        },
+        {
+          "stamp_s": 101.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2600,
+          "fraction_in_camera": 0.13
+        },
+        {
+          "stamp_s": 102.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2601,
+          "fraction_in_camera": 0.13005
+        },
+        {
+          "stamp_s": 103.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2657,
+          "fraction_in_camera": 0.13285
+        },
+        {
+          "stamp_s": 104.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2598,
+          "fraction_in_camera": 0.1299
+        },
+        {
+          "stamp_s": 105.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2621,
+          "fraction_in_camera": 0.13105
+        },
+        {
+          "stamp_s": 106.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2617,
+          "fraction_in_camera": 0.13085
+        },
+        {
+          "stamp_s": 107.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2586,
+          "fraction_in_camera": 0.1293
+        },
+        {
+          "stamp_s": 108.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2583,
+          "fraction_in_camera": 0.12915
+        },
+        {
+          "stamp_s": 109.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2576,
+          "fraction_in_camera": 0.1288
+        },
+        {
+          "stamp_s": 110.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2578,
+          "fraction_in_camera": 0.1289
+        },
+        {
+          "stamp_s": 111.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2585,
+          "fraction_in_camera": 0.12925
+        },
+        {
+          "stamp_s": 112.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2589,
+          "fraction_in_camera": 0.12945
+        },
+        {
+          "stamp_s": 113.1,
+          "valid_lidar_points": 20000,
+          "projected_in_camera": 2579,
+          "fraction_in_camera": 0.12895
+        }
+      ],
+      "actual_fraction_median": 0.12785,
+      "scope": "projection only; geometry occlusion and image gradient/feature quality are separate"
+    }
+  },
+  "protected": {
+    "build/desktop/simple-rbt-sim": true,
+    "build/software-panorama/simple-rbt-sim": true,
+    "build/sensor-consistency/simple-rbt-sim": true,
+    "original_sensor_manifest": true
+  },
+  "appearance_sensor_parity": {
+    "avia": {
+      "lidar.bin": true,
+      "imu.csv": true,
+      "truth.csv": true
+    },
+    "mid360": {
+      "lidar.bin": true,
+      "imu.csv": true,
+      "truth.csv": true
+    }
+  },
+  "mid360_baseline_parity": {
+    "lidar-ray-indices.npy": {
+      "equal": true,
+      "shape": [
+        8843
+      ],
+      "maximum_difference": 0.0
+    },
+    "lidar-xyz.npy": {
+      "equal": true,
+      "shape": [
+        8843,
+        3
+      ],
+      "maximum_difference": 0.0
+    },
+    "lidar-offsets-ns.npy": {
+      "equal": true,
+      "shape": [
+        8843
+      ],
+      "maximum_difference": 0.0
+    },
+    "lidar-lines.npy": {
+      "equal": true,
+      "shape": [
+        8843
+      ],
+      "maximum_difference": 0.0
+    },
+    "lidar-capture-position-world.npy": {
+      "equal": true,
+      "shape": [
+        8843,
+        3
+      ],
+      "maximum_difference": 0.0
+    },
+    "lidar-capture-quaternion-world-xyzw.npy": {
+      "equal": true,
+      "shape": [
+        8843,
+        4
+      ],
+      "maximum_difference": 0.0
+    },
+    "mid360-imu-si.csv": {
+      "equal": true
+    }
+  },
+  "candidate_identity": {
+    "base_commit": "ff50aa21ccf49738f397c4b973226f800ce0ddd3",
+    "status": "uncommitted independent development candidate, not installed or published",
+    "source_sha256": {
+      "README.md": "1694917c91ee1cf31a3744faba5f453056edfdab0c5de90d29dd08449adcaed2",
+      "assets/lidar/avia-source.json": "bbcef979bcc9aaa9c7c538165fbaa0cb490a3d098e60bb02b980533323598be3",
+      "assets/lidar/avia.LICENSE": "4846843fe86275ad7a08915992fe69019608aebb783b3fb84e35a68d4611ad26",
+      "assets/lidar/avia.csv": "9363f7ec8da1541b49214ae18eea840151eda4eed176ebd573bd443eb7970d78",
+      "assets/visual/sensors/avia-glass-0.obj": "a02dbb50be4894107aa29d172acdf218b088b00c45c956b2dd758c9d25ef3e7d",
+      "assets/visual/sensors/avia-housing-0.obj": "e51b7f1fdba1ec2f7aaf0bbd290fbb039818ce84759293f700365288b7ebe68f",
+      "assets/visual/sensors/avia-provenance.json": "3abd04f900a76df5d33479872c8c137620d5702c7a6671ee5c6da96effe7c2db",
+      "console/app.go": "1c5f698cd7924b47e4ff7f3c77655b46f3c282eed85d997c417d3f45e5c59cb9",
+      "console/config_model.go": "5080fe5050147b97be2c34cffab583e32b595b45a5a678c1697acba709a03895",
+      "console/config_validation.go": "44bcb5b409cb1c4a6fdb630f6fee15aa1f05b5abc70b5fac5b32fa240868cf36",
+      "console/math_pose.go": "11e3081c043f0189e1efdbb17e0aca10e27a02eeca278de7211fd3f3440dafcc",
+      "console/ui_config.go": "e8ddaa6989706784d23a527a9853d5c092276b57d83cd09c4144a4c019c15934",
+      "console/ui_i18n.go": "2e71918cce2b8617fa72fbaa7788ba27c14d4881c5686fa338d1e6c7fb800b73",
+      "console/ui_mounts.go": "fc735834878b2ca81ee6c500475e524b6912df42a5e8bf1901a1a93603c62260",
+      "console/validation.go": "6ac2c86ad8525ba0d1328ef36abd3030ea982ac4d57006bce98239753eb8307f",
+      "console/validation_e2e.go": "c1dce81c3f978da2317e9500bdd69c639733bd6d2f49862e7b0593645d5df7dd",
+      "console/viewport_gizmo.go": "01a3665429f36bbb50ff40bc339408c0c4df12d8e75c2fff47f5b629dc97e8d7",
+      "console/workspace.go": "5e2a70d56bc57b10479e27c2a7ccad9a956dc3fae5056ff1e43db7c6e7c9c3bd",
+      "console/workspace_test.go": "ded038a25452feb593ce32cf0ace84b30c050a2c7f9387b2c89b68d33ac8f69c",
+      "docs/desktop-console-plan.md": "505cd1e1d3c5b6c4a947c82eecbb95f6cd568bdc8e5c019a6670e6ceb6a247eb",
+      "docs/runtime.md": "45a043d03a91cc14f41d1845c8986076fd1c94b87e885de6630b04700ff27d21",
+      "examples/go2w-avia-d435i.json": "f397f53a108141639d7b3faad7c6cc617631b60ceacc4eb738360a03acfe0aca",
+      "include/simple_rbt/core.hpp": "d86692d9069d34e8610eb7fadd613018d9520716fef341cf36afbe9399ec6a88",
+      "include/simple_rbt/lidar.hpp": "df47c9bca9b206d78ecc202d81b743cfcfb2900588f332d64d7ee13af5f539d3",
+      "include/simple_rbt/lidar_model.hpp": "4eb18cff6c7090b7af75ce394ef16b3a3d4d2105da9130da427b8c36eec7f925",
+      "include/simple_rbt/runtime.hpp": "7ef254ffb1ba5f955727d4c6ee7a63e984fa1046333bbb8d0353cad175ceb8b5",
+      "src/core.cpp": "4598870c9ae78bf7399191a23228cbfd4571f3399cec73abeb68919d4da0ed6c",
+      "src/lidar.cpp": "644b73a2aaa893906e2106c6febda1834ca000e40709f3eae20facea704fba04",
+      "src/main.cpp": "7dd0f54baab53a94aff9b0a3840169eca9b79d457a5a455f1835b8ab106bd839",
+      "src/runtime.cpp": "8b8c5582df45dc5f6a580f4b403b3db6261870f58cd5b4e93ea7a1fa6f5772fd",
+      "src/runtime_info.cpp": "5d9aa71b4104f789d1db3dab7268bdbb33dffac42daf6efc57ae4daefb21dccc",
+      "src/runtime_lidar.cpp": "96b787100ab32c61e4bee52452a38cd4724f513bc72688dd96529ac45aa94af1",
+      "src/runtime_lidar.hpp": "2d3f9afb01fadd3e0240e660028267e51199b052710fb46e22427466b8434eb2",
+      "src/scene.cpp": "e7275756bb04a4c9801eed443a943f8120825fdc2cb9a77f37b68319f3ea68e7",
+      "src/sensor_devices.cpp": "5d6f6d4b2728a8120256cb86e688da74022a780e8ec131a0b73cb8dea9366a56",
+      "src/session.cpp": "448dc83f6f0a1dd595e4ded01f5fa8170e8822853efb2cc7628981825e49cb9b",
+      "src/session_view.cpp": "6d2613cce7ff8aa48772abf9bf86182a4107136ca11d189308a773ff0578f9e7",
+      "tests/CMakeLists.txt": "6c9bbb2aa0632696ed315c98a832de7c4bb138721fe0b18f432e68394f9c3ed9",
+      "tests/lidar_oracle.cpp": "daf3084c2f0cc3b71d56ecda96c8381ad3fc9b09781c43e503cd3cbbc074835b",
+      "tests/sensor_devices.cpp": "c4151a45cde4b150fd26cb444136aaa2db0bc5b989761dc9e4a63ffc7c2df151",
+      "tools/prepare_avia_assets.py": "7c10326f9741ab051d38041a03b249f25b518c6356681fe391a01c84c07d63e4",
+      "tools/prepare_sensor_assets.py": "8e5e93b1bd3b0b8225a05985ccecfdc5c019791cfe3325c922cbe1a5c35d5c88"
+    },
+    "build_sha256": {
+      "build/livo2-avia-make/simple-rbt-sim": "124854a4ec5ff8c86a6aa03fe7b557d1b316727db96adeac8317865c57b3910d",
+      "build/livo2-avia-make/simple-rbt-console": "6b29abf8a166a2388d3429f90e37bc4057eb29aec4714fa185cda492812e355d",
+      "build/livo2-avia-make/libsimple_rbt_core.a": "b2f531027f3c87335376a79ae4397f58b35cf7725ff8afbcea03cfced4a8320d",
+      "build/livo2-avia-make/libsimple_rbt_lidar.a": "a4803caf4c391fe2da0863dbfa66e24f2e72d25f0d580b1d8247d66e173eaa52",
+      "build/livo2-avia-make/libsimple_rbt_runtime.a": "b796e29a7f43e7ca129b0fac6ffa619436d636af9667233ba2b5258d41dfade4"
+    },
+    "build": "Release, ccache, CPU-only, desktop enabled; four physical cores 0,2,4,6"
+  },
+  "protected_n3m_fastlio": {
+    "install/fast_lio/lib/fast_lio/fastlio_mapping": true,
+    "build/n3mapping/initialization_fix_20261026/final/install/fast_lio/lib/fast_lio/fastlio_mapping": true,
+    "build/n3mapping/large_mapping_crash_20261025/candidate_01/lib/libn3mapping_core.so": true,
+    "install/n3mapping-v1.1.0-rc3/n3mapping/lib/libn3mapping_core.so": true,
+    "build/n3mapping/release_rc4_20261027/humble/install/n3mapping/lib/libn3mapping_core.so": true,
+    "build/n3mapping/release_rc4_20261027/humble/install/n3mapping/lib/n3mapping/n3mapping_node": true,
+    "build/source_cleanup_20261027/fast_lio/humble/install/fast_lio/lib/libfast_lio_core.so": true,
+    "build/source_cleanup_20261027/fast_lio/humble/install/fast_lio/lib/fast_lio/fastlio_mapping": true,
+    "build/source_cleanup_20261027/noetic/install/lib/libfast_lio_core.so": true,
+    "build/source_cleanup_20261027/noetic/install/lib/fast_lio/fastlio_mapping": true
+  },
+  "scan_geometry_audits": {
+    "avia_textured_final": {
+      "device": "avia",
+      "method": "independent authored-box slab intersections and recorded native pose interpolation; no MuJoCo ray calls",
+      "frames": [
+        {
+          "stamp_s": 4.0,
+          "points": 23896,
+          "max_xyz_error_m": 5.114104818827623e-06
+        },
+        {
+          "stamp_s": 4.1000000000000005,
+          "points": 23846,
+          "max_xyz_error_m": 5.2084310723821135e-06
+        },
+        {
+          "stamp_s": 20.0,
+          "points": 23729,
+          "max_xyz_error_m": 3.043658972079285e-06
+        },
+        {
+          "stamp_s": 45.0,
+          "points": 23839,
+          "max_xyz_error_m": 3.008777190478286e-07
+        },
+        {
+          "stamp_s": 50.0,
+          "points": 34,
+          "max_xyz_error_m": 1.078199462932534e-07
+        },
+        {
+          "stamp_s": 60.00000000000001,
+          "points": 23795,
+          "max_xyz_error_m": 3.133889187571654e-07
+        },
+        {
+          "stamp_s": 90.0,
+          "points": 23723,
+          "max_xyz_error_m": 1.6413947958080946e-06
+        },
+        {
+          "stamp_s": 110.0,
+          "points": 23870,
+          "max_xyz_error_m": 5.3023076529135e-06
+        }
+      ],
+      "max_xyz_error_m": 5.3023076529135e-06,
+      "route_completed": true,
+      "path_length_m": 34.67210703116721
+    },
+    "mid360_textured_final": {
+      "device": "mid360",
+      "method": "independent authored-box slab intersections and recorded native pose interpolation; no MuJoCo ray calls",
+      "frames": [
+        {
+          "stamp_s": 4.0,
+          "points": 20000,
+          "max_xyz_error_m": 4.030990100672389e-06
+        },
+        {
+          "stamp_s": 4.1000000000000005,
+          "points": 20000,
+          "max_xyz_error_m": 3.4716101614929302e-06
+        },
+        {
+          "stamp_s": 20.0,
+          "points": 20000,
+          "max_xyz_error_m": 7.688196904005646e-06
+        },
+        {
+          "stamp_s": 45.0,
+          "points": 20000,
+          "max_xyz_error_m": 1.2140383527311728e-05
+        },
+        {
+          "stamp_s": 50.0,
+          "points": 20000,
+          "max_xyz_error_m": 2.4410206922211904e-05
+        },
+        {
+          "stamp_s": 60.00000000000001,
+          "points": 20000,
+          "max_xyz_error_m": 1.3134741260708595e-05
+        },
+        {
+          "stamp_s": 90.0,
+          "points": 20000,
+          "max_xyz_error_m": 1.7129208585973856e-05
+        },
+        {
+          "stamp_s": 110.0,
+          "points": 20000,
+          "max_xyz_error_m": 4.158244211010923e-06
+        }
+      ],
+      "max_xyz_error_m": 2.4410206922211904e-05,
+      "route_completed": true,
+      "path_length_m": 34.67210703116721
+    },
+    "avia_normal_range": {
+      "device": "avia",
+      "method": "independent authored-box slab intersections and recorded native pose interpolation; no MuJoCo ray calls",
+      "frames": [
+        {
+          "stamp_s": 4.0,
+          "points": 23896,
+          "max_xyz_error_m": 5.114104818827623e-06
+        },
+        {
+          "stamp_s": 4.1000000000000005,
+          "points": 23846,
+          "max_xyz_error_m": 5.2084310723821135e-06
+        },
+        {
+          "stamp_s": 20.0,
+          "points": 23729,
+          "max_xyz_error_m": 3.043658972079285e-06
+        },
+        {
+          "stamp_s": 45.0,
+          "points": 23809,
+          "max_xyz_error_m": 3.5060417305329947e-07
+        },
+        {
+          "stamp_s": 50.0,
+          "points": 23851,
+          "max_xyz_error_m": 2.442474910098981e-07
+        },
+        {
+          "stamp_s": 60.00000000000001,
+          "points": 23855,
+          "max_xyz_error_m": 5.85199753058811e-07
+        },
+        {
+          "stamp_s": 90.0,
+          "points": 23741,
+          "max_xyz_error_m": 1.5327412753204945e-06
+        },
+        {
+          "stamp_s": 110.0,
+          "points": 23903,
+          "max_xyz_error_m": 5.460395587729573e-06
+        }
+      ],
+      "max_xyz_error_m": 5.460395587729573e-06,
+      "route_completed": true,
+      "path_length_m": 33.92571794507493
+    }
+  },
+  "model_regeneration": {
+    "equal": true,
+    "expected": {
+      "avia-glass-0.obj": "a02dbb50be4894107aa29d172acdf218b088b00c45c956b2dd758c9d25ef3e7d",
+      "avia-housing-0.obj": "e51b7f1fdba1ec2f7aaf0bbd290fbb039818ce84759293f700365288b7ebe68f"
+    },
+    "actual": {
+      "avia-glass-0.obj": "a02dbb50be4894107aa29d172acdf218b088b00c45c956b2dd758c9d25ef3e7d",
+      "avia-housing-0.obj": "e51b7f1fdba1ec2f7aaf0bbd290fbb039818ce84759293f700365288b7ebe68f"
+    }
+  },
+  "verification": {
+    "ctest": "16/16 on final candidate",
+    "ctest_wall_s": 35.15,
+    "go": "all three packages passed",
+    "native_gui": "Avia model, selected IMU lever arm and matching recorded rig inspected",
+    "cad_rebuild": "derived meshes byte-identical",
+    "installed_or_pushed": false
+  }
+}

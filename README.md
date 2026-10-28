@@ -26,6 +26,11 @@ Odometry ───────────────────┘    Loop cl
 The LIO frontend handles sensor fusion and deskewing. N3Mapping handles global
 map alignment, loop closure, and map persistence.
 
+The adapted FAST-LIVO2 frontend supplies `/n3m_input/cloud_body` and
+`/n3m_input/odometry` with matching acquisition stamps. Configure those input
+topics and see the [integration validation](docs/evidence/fast_livo2_frontend_20261028.md)
+for the required tracking repair, regenerated maps and current limits.
+
 ## Getting started
 
 Build with the [Humble instructions](docs/getting_started.md#ros-2-humble) or
