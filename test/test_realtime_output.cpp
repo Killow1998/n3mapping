@@ -46,13 +46,54 @@ TEST(RealtimeOutput, CloudFirstEstimateReportsAppliedAnchorNotNewBackendCorrecti
   const auto estimate = live.observeOdometry(source(100000000000), 101000000000, true);
   ASSERT_TRUE(estimate.pose);
   const auto status = json(estimate.status_json);
-  EXPECT_EQ(status["state"], "tracking");
+  EXPECT_EQ(status["state"], "degraded");
+  EXPECT_EQ(status["reason"], "localization_observation_stale");
   EXPECT_DOUBLE_EQ(status["stamp"].asDouble(), 100.0);
   EXPECT_DOUBLE_EQ(status["observation_stamp"].asDouble(), 99.0);
   EXPECT_DOUBLE_EQ(status["correction_stamp"].asDouble(), 90.0);
   EXPECT_DOUBLE_EQ(estimate.pose->pose.translation().x(), 0.0);
   EXPECT_EQ(status["projection"]["basis_revision"],
             cloud_status["projection"]["basis_revision"]);
+}
+
+TEST(RealtimeOutput, FreshRawOdometryCannotRenewStaleLocalizationAuthority) {
+  RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 8, 1.0);
+  auto backend = trusted();
+  live.acceptBackend(source(100000000000), 100.0, backend);
+  auto moving = source(100500000000);
+  moving.pose.translation().x() = 0.25;
+  const auto fresh = live.observeOdometry(moving, moving.stamp_nsec, true);
+  ASSERT_TRUE(fresh.pose);
+  EXPECT_EQ(json(fresh.status_json)["state"], "tracking");
+  moving.stamp_nsec = 111000000000;
+  moving.pose.translation().x() = 5.5;
+  const auto stale = live.observeOdometry(moving, moving.stamp_nsec, true);
+  ASSERT_TRUE(stale.pose);  // Display remains a live prediction, never frozen.
+  EXPECT_DOUBLE_EQ(stale.pose->pose.translation().x(), 5.5);
+  EXPECT_EQ(json(stale.status_json)["state"], "degraded");
+  EXPECT_EQ(json(stale.status_json)["reason"], "localization_observation_stale");
+  EXPECT_DOUBLE_EQ(json(stale.status_json)["correction_stamp"].asDouble(), 100.0);
+  backend = trusted(5.45);
+  auto anchor = moving;
+  anchor.stamp_nsec = 110900000000;
+  live.acceptBackend(anchor, 110.9, backend);
+  moving.stamp_nsec = 111100000000;
+  const auto recovered = live.observeOdometry(moving, moving.stamp_nsec, true);
+  ASSERT_TRUE(recovered.pose);
+  EXPECT_EQ(json(recovered.status_json)["state"], "tracking");
+}
+
+TEST(RealtimeOutput, OldAppliedCloudBasisCannotBorrowNewCorrectionAuthority) {
+  RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 8);
+  auto backend = trusted();
+  live.acceptBackend(source(100000000000), 100.0, backend);
+  ASSERT_TRUE(live.observeCloud(source(110000000000), 110000000000,
+                               110000000000, "body"));
+  live.acceptBackend(source(109900000000), 109.9, backend);
+  const auto retained = live.observeOdometry(source(110000000000), 110000000000, true);
+  ASSERT_TRUE(retained.pose);
+  EXPECT_EQ(json(retained.status_json)["state"], "degraded");
+  EXPECT_EQ(json(retained.status_json)["reason"], "localization_correction_stale");
 }
 
 TEST(RealtimeOutput, FrozenProjectionCarriesExactGeometryAndIntegerAssociation) {

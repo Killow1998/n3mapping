@@ -20,7 +20,8 @@ void N3MappingNode::initializeAuthorityProbe()
     }
 
     realtime_output_ = std::make_unique<core::RealtimeOutput>(
-        run_mode_, config_.world_frame, std::max(1, config_.sync_queue_size));
+        run_mode_, config_.world_frame, std::max(1, config_.sync_queue_size),
+        localization_observation_timeout_sec_);
     tf_broadcaster_ =
       std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(

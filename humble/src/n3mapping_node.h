@@ -286,6 +286,8 @@ class N3MappingNode : public rclcpp::Node
     size_t keyframe_count_ = 0;
     size_t loop_count_ = 0;
     std::unique_ptr<core::RealtimeOutput> realtime_output_;
+    double localization_observation_timeout_sec_ = 1.0;
+    std::unique_ptr<CallbackWorker> localization_input_worker_;
     std::unique_ptr<CallbackWorker> live_odom_worker_;
     std::unique_ptr<CallbackWorker> live_cloud_worker_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr live_odom_sub_;

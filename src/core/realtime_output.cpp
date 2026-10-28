@@ -1,9 +1,11 @@
 #include "n3mapping/core/realtime_output.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <utility>
 
 namespace n3mapping::core {
@@ -25,9 +27,13 @@ double sourceSeconds(uint64_t stamp_nsec) {
 }  // namespace
 
 RealtimeOutput::RealtimeOutput(CoreRunMode mode, std::string world_frame,
-                               std::size_t retention)
+                               std::size_t retention, double max_localization_age_sec)
     : mode_(mode), world_frame_(std::move(world_frame)),
-      session_id_(projectionSessionId()), odometry_(retention) {}
+      session_id_(projectionSessionId()),
+      max_localization_age_sec_(max_localization_age_sec), odometry_(retention) {
+  if (!std::isfinite(max_localization_age_sec_) || max_localization_age_sec_ <= 0.0)
+    throw std::invalid_argument("max_localization_age_sec must be finite and positive");
+}
 
 BackendPublication RealtimeOutput::acceptBackend(
     const OdometrySource& source, double observation_stamp, BackendOutput& output) {
@@ -102,6 +108,18 @@ OdometryEmission RealtimeOutput::observeOdometry(
   realtime.correction_stamp = diagnostic.correction_stamp_nsec * 1e-9;
   realtime.estimate_available = emission.pose.has_value();
   realtime.input_reason = emission.reason;
+  // A current raw pose must not renew authority for a stale registration.
+  // Continue publishing the explicitly predicted pose/cloud for visualization,
+  // while consumers stop navigation until new geometric evidence arrives.
+  if (mode_ == CoreRunMode::LOCALIZATION && emission.pose) {
+    const double now = sourceSeconds(now_nsec);
+    if (!std::isfinite(realtime.observation_stamp) || realtime.observation_stamp <= 0.0 ||
+        now - realtime.observation_stamp > max_localization_age_sec_) {
+      realtime.tracking_unavailable_reason = "localization_observation_stale";
+    } else if (now - realtime.correction_stamp > max_localization_age_sec_) {
+      realtime.tracking_unavailable_reason = "localization_correction_stale";
+    }
+  }
   emission.status_json = localizationStatusJson(
       mode_, backend, sourceSeconds(source.stamp_nsec), world_frame_, &realtime);
   {

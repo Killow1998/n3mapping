@@ -12,6 +12,8 @@ N3MappingNode::N3MappingNode(
 {
     input_linear_velocity_frame_ = parseInputLinearVelocityFrame(
         this->declare_parameter<std::string>("input_linear_velocity_frame", "child"));
+    localization_observation_timeout_sec_ = this->declare_parameter<double>(
+        "localization_observation_timeout_sec", 1.0);
     localization_status_pub_ = this->create_publisher<std_msgs::msg::String>(
         this->declare_parameter<std::string>("output_status_topic", "/localization/status"), 1);
     if (authority_probe_scenario_) {
@@ -94,7 +96,8 @@ void N3MappingNode::initializeComponents()
     n3mapping_core_ = std::make_unique<N3MappingCore>(
         config_, N3MappingCore::WorldCloudOutput::Disabled);
     realtime_output_ = std::make_unique<core::RealtimeOutput>(
-        run_mode_, config_.world_frame, std::max(1, config_.sync_queue_size));
+        run_mode_, config_.world_frame, std::max(1, config_.sync_queue_size),
+        localization_observation_timeout_sec_);
     n3mapping_core_->setExternalDenseTrajectoryRecordingEnabled(
       run_mode_ == CoreRunMode::MAPPING);
     map_artifacts_ = std::make_unique<MapArtifacts>(config_);
@@ -124,8 +127,15 @@ void N3MappingNode::initializeROS()
     sync_qos.depth = static_cast<std::size_t>(sync_queue_size);
 
     // 订阅者
-    cloud_sub_.subscribe(this, config_.cloud_topic, sync_qos);
-    odom_sub_.subscribe(this, config_.odom_topic, sync_qos);
+    rclcpp::SubscriptionOptions backend_input_options;
+    if (run_mode_ == CoreRunMode::LOCALIZATION) {
+        // Drain paired input during registration; retain only the newest
+        // complete frame instead of leaving old scans queued in DDS.
+        localization_input_worker_ = std::make_unique<CallbackWorker>(*this);
+        backend_input_options = localization_input_worker_->options();
+    }
+    cloud_sub_.subscribe(this, config_.cloud_topic, sync_qos, backend_input_options);
+    odom_sub_.subscribe(this, config_.odom_topic, sync_qos, backend_input_options);
     if (run_mode_ == CoreRunMode::MAPPING) {
         dense_odom_sub_ =
           this->create_subscription<nav_msgs::msg::Odometry>(

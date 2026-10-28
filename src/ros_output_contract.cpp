@@ -101,6 +101,12 @@ std::string localizationStatusJson(CoreRunMode mode,
         reason = "awaiting_initial_relocalization";
     }
 
+    if (realtime && mode == CoreRunMode::LOCALIZATION &&
+        std::string(state) == "tracking" &&
+        !realtime->tracking_unavailable_reason.empty()) {
+        state = "degraded";
+        reason = realtime->tracking_unavailable_reason.c_str();
+    }
     if (realtime && realtime->estimate_attempted &&
         !realtime->estimate_available) {
         state = "error";

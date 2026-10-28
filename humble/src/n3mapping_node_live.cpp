@@ -7,6 +7,7 @@ namespace n3mapping {
 
 void N3MappingNode::startLiveOutput()
 {
+    if (localization_input_worker_) localization_input_worker_->start();
     live_odom_worker_->start();
     live_cloud_worker_->start();
 }
@@ -54,6 +55,7 @@ void N3MappingNode::initializeLiveSubscriptions()
 void N3MappingNode::stopLiveOutput()
 {
     if (logging_status_timer_) logging_status_timer_->cancel();
+    if (localization_input_worker_) localization_input_worker_->stop();
     if (live_odom_worker_) live_odom_worker_->stop();
     if (live_cloud_worker_) live_cloud_worker_->stop();
 }

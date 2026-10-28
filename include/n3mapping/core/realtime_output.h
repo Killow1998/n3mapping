@@ -44,7 +44,8 @@ struct CloudEmission {
 // live output contract. Registration and cloud conversion run outside it.
 class RealtimeOutput {
  public:
-  RealtimeOutput(CoreRunMode mode, std::string world_frame, std::size_t retention);
+  RealtimeOutput(CoreRunMode mode, std::string world_frame, std::size_t retention,
+                 double max_localization_age_sec = 1.0);
 
   // Called by the existing single backend owner after processing a paired scan.
   BackendPublication acceptBackend(const OdometrySource& source,
@@ -67,6 +68,7 @@ class RealtimeOutput {
   const CoreRunMode mode_;
   const std::string world_frame_;
   const std::string session_id_;
+  const double max_localization_age_sec_;
   RelocalizationOutputAuthority authority_;
   RealtimeOdometry odometry_;
   // Lock order is snapshot -> odometry. No serialization, publication or cloud

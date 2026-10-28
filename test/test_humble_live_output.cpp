@@ -72,6 +72,18 @@ class HumbleOutputTestAccess {
     node.processSynchronizedFrame(std::make_shared<sensor_msgs::msg::PointCloud2>(cloud),
                                  std::make_shared<nav_msgs::msg::Odometry>(odom));
   }
+  static void subscribeBackend(N3MappingNode& node) {
+    node.initializeROS();
+    node.loop_timer_->cancel();
+    node.global_map_timer_->cancel();
+  }
+  static int64_t takePendingStamp(N3MappingNode& node) {
+    auto frame = node.pending_localization_frame_.take();
+    if (!frame) return 0;
+    EXPECT_EQ(toCoreTimeStamp(frame->cloud->header.stamp).nsec,
+              toCoreTimeStamp(frame->odom->header.stamp).nsec);
+    return toCoreTimeStamp(frame->cloud->header.stamp).nsec;
+  }
 };
 
 namespace {
@@ -252,6 +264,30 @@ class HumbleLiveOutput : public ::testing::Test {
   std::vector<nav_msgs::msg::Path> paths;
   std::vector<geometry_msgs::msg::TransformStamped> transforms;
 };
+
+TEST_F(HumbleLiveOutput, SlowRegistrationCannotBacklogLocalizationInput) {
+  HumbleOutputTestAccess::subscribeBackend(*node);
+  HumbleOutputTestAccess::clock(*node, epoch + 1000000000);
+  blockBackend();
+  ASSERT_TRUE(until([&] {
+    return input_odom->get_subscription_count() >= 3 &&
+           input_cloud->get_subscription_count() >= 2;
+  }));
+  // Hold the actual backend callback lane while multiple paired scans arrive.
+  // Admission must keep draining DDS and retain the newest complete frame.
+  for (int i = 1; i <= 40; ++i) {
+    const int64_t stamp = epoch + i * 1000000;
+    input_odom->publish(raw(stamp, i));
+    input_cloud->publish(scan(stamp));
+    std::this_thread::sleep_for(5ms);
+  }
+  int64_t latest = 0;
+  ASSERT_TRUE(until([&] {
+    latest = std::max(latest, HumbleOutputTestAccess::takePendingStamp(*node));
+    return latest == epoch + 40000000;
+  }));
+  EXPECT_EQ(latest, epoch + 40000000);
+}
 
 TEST_F(HumbleLiveOutput, SameProductionSequenceMatchesSharedCoreInAllModes) {
   worldSubscriber();
