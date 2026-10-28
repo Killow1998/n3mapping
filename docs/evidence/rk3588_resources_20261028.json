@@ -1049,5 +1049,2300 @@
     ]
   },
   "container_image": "n3m-rk3588-humble:20261028",
-  "container_image_id": "sha256:f5082c17340ada006b40b19598c081b54e0770171c5423ba943252f4202e3e28"
+  "container_image_id": "sha256:f5082c17340ada006b40b19598c081b54e0770171c5423ba943252f4202e3e28",
+  "extended_controls": {
+    "runtime_source_commit": "0d8b5c4ace98da84ba9ed8461bc6f394d345d151",
+    "runtime_binaries_unchanged": true,
+    "probe_sha256": "126e12ce54aedcd0be03f71da0158b8e967f8f0931faad218e40b3ee8a1d49cf",
+    "probe_source_sha256": "73cebf902cc10974cb1fd8937fc1d07aebae31c98eafff8044479bce7333b787",
+    "input_manifest_sha256": "4cb7c9d43d5f55cb4cf35f50ff98a2d2c3ac5940e56cce6981cb8d347d5318c5",
+    "independent_map": {
+      "bytes": 208391054,
+      "sha256": "153eb3356e8cf2d4891f7240834652e75cdb49bf173dbd25d9f6c2945483746e"
+    },
+    "independent_atlas": {
+      "bytes": 626874615,
+      "sha256": "2137d9908932f99a8d9865df39c7da0629330e28c24e6f188ad5fdec421f18bc"
+    },
+    "verified_input_files": 4560,
+    "input_hashes_verified_on_board": true,
+    "native_ros": {
+      "n3_handoff_atlas4": {
+        "input": {
+          "mode": "localization",
+          "started_monotonic_s": 13507.845690702,
+          "atlas_enabled": true,
+          "registration_threads": 4,
+          "clouds_sent": 600,
+          "odom_sent": 11981,
+          "input_s": 59.9,
+          "counts": {
+            "odom": 11209,
+            "body": 600,
+            "world": 579,
+            "lock": 1
+          },
+          "handoff": {
+            "service_ms": 14.97470600043016,
+            "success": true,
+            "session_before": "734911ca435b07520816ba1c2029b0fc",
+            "session_after": "734911ca435b07520816ba1c2029b0fc",
+            "maximum_output_receive_gap_ms": 26.238328000545152
+          },
+          "total_node_cpu_s": 54.385446,
+          "peak_rss_mib": 477.23828125,
+          "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+          "publication_delay_ms_percentiles": [
+            0.07199800093005138,
+            11.762022001420291,
+            14.191767400190276,
+            141.0726719997939
+          ],
+          "phase_sessions": {
+            "localization": [
+              "734911ca435b07520816ba1c2029b0fc"
+            ],
+            "map_extension": [
+              "734911ca435b07520816ba1c2029b0fc"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            50.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.960846999892965,
+            12.886521099608213,
+            14.403241870877537,
+            157.2716020000371
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 2.0731302889998915,
+            "cpu_s": 5.5,
+            "mean_cores": 2.6529929301516697,
+            "peak_one_second_cores": 3.412322736143649,
+            "sampled_peak_rss_mib": 311.29296875
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 10.000030800001696,
+            "cpu_s": 5.53,
+            "mean_cores": 0.5529982967651522,
+            "peak_one_second_cores": 0.6951839967665828,
+            "sampled_peak_rss_mib": 317.82421875
+          },
+          {
+            "phase": "handoff",
+            "wall_s": 0.015393236999443616,
+            "cpu_s": 0.009999999999999787,
+            "mean_cores": 0.6496359407940795,
+            "peak_one_second_cores": null,
+            "sampled_peak_rss_mib": 317.82421875
+          },
+          {
+            "phase": "extension",
+            "wall_s": 47.84071984299953,
+            "cpu_s": 36.84,
+            "mean_cores": 0.7700553026981836,
+            "peak_one_second_cores": 2.5247552249807264,
+            "sampled_peak_rss_mib": 399.58203125
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.013315070000317,
+            "cpu_s": 0.10999999999999943,
+            "mean_cores": 0.05463625720537725,
+            "peak_one_second_cores": 0.029926186313289485,
+            "sampled_peak_rss_mib": 399.58203125
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 3.1279126800000085,
+            "cpu_s": 4.005445999999999,
+            "mean_cores": 1.2805491744098139,
+            "peak_one_second_cores": 1.9944794772777266,
+            "sampled_peak_rss_mib": 473.65625
+          }
+        ],
+        "first_lock_after_input_s": 2.0731302889998915,
+        "first_lock_after_process_s": 4.459396781998294,
+        "observed_search_totals": {
+          "total_ms": 2031.0612340000002,
+          "process_cpu_ms": 5499.948683,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 41.829018000000005,
+          "align_ms": 4331.02463,
+          "fixed_pose_ms": 48.080463,
+          "visibility_ms": 869.1238060000001,
+          "free_space_ms": 0.935645,
+          "directional_check_ms": 15.5449,
+          "target_preparations": 0,
+          "cache_hits": 27,
+          "cache_misses": 13,
+          "alignments": 41,
+          "confirmation_registrations": 9,
+          "seed_initializations": 32,
+          "descriptor_wall_ms": 91.55940100000001,
+          "observed_unique_search_results": 5
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 43.461,
+          "temp_max_c": 51.769,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 296.666015625
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 305.900390625
+          },
+          {
+            "phase": "handoff",
+            "pss_mib": 312.408203125
+          },
+          {
+            "phase": "extension",
+            "pss_mib": 312.408203125
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 395.439453125
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 395.439453125
+          }
+        ]
+      },
+      "n3_moving_atlas4": {
+        "input": {
+          "mode": "localization",
+          "started_monotonic_s": 13441.398733138,
+          "atlas_enabled": true,
+          "registration_threads": 4,
+          "clouds_sent": 600,
+          "odom_sent": 11981,
+          "input_s": 59.9,
+          "counts": {
+            "odom": 5311,
+            "body": 600,
+            "world": 272,
+            "lock": 1
+          },
+          "handoff": null,
+          "total_node_cpu_s": 99.483091,
+          "peak_rss_mib": 420.3046875,
+          "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+          "publication_delay_ms_percentiles": [
+            0.08284600014718535,
+            14.192653000208999,
+            27.011175400927108,
+            93.41417099997074
+          ],
+          "phase_sessions": {
+            "localization": [
+              "7f5a00b09a0427b483724412cf1286db"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            15.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.968430000189983,
+            13.809449650034383,
+            16.008143589406245,
+            106.98355000022275
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 32.826715788,
+            "cpu_s": 80.9,
+            "mean_cores": 2.464456101014329,
+            "peak_one_second_cores": 3.236947243606506,
+            "sampled_peak_rss_mib": 410.66796875
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 27.097641932999977,
+            "cpu_s": 16.209999999999994,
+            "mean_cores": 0.5982070336629246,
+            "peak_one_second_cores": 1.0205709329032786,
+            "sampled_peak_rss_mib": 419.9453125
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.011034369999834,
+            "cpu_s": 0.10000000000000853,
+            "mean_cores": 0.04972565436562717,
+            "peak_one_second_cores": 0.029926119831816693,
+            "sampled_peak_rss_mib": 419.9453125
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 0.32201930199880735,
+            "cpu_s": 0.19309099999999546,
+            "mean_cores": 0.5996255466720768,
+            "peak_one_second_cores": null,
+            "sampled_peak_rss_mib": 420.3046875
+          }
+        ],
+        "first_lock_after_input_s": 32.826715788,
+        "first_lock_after_process_s": 34.91075595500115,
+        "observed_search_totals": {
+          "total_ms": 32415.93559599998,
+          "process_cpu_ms": 80771.166777,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 423.75149200000004,
+          "align_ms": 44747.329913,
+          "fixed_pose_ms": 1195.1982500000001,
+          "visibility_ms": 16340.994887000004,
+          "free_space_ms": 2.364488,
+          "directional_check_ms": 70.017962,
+          "target_preparations": 0,
+          "cache_hits": 473,
+          "cache_misses": 147,
+          "alignments": 656,
+          "confirmation_registrations": 158,
+          "seed_initializations": 474,
+          "descriptor_wall_ms": 967.4367990000001,
+          "observed_unique_search_results": 77
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 37.0,
+          "temp_max_c": 56.384,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 303.923828125
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 406.748046875
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 414.677734375
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 414.677734375
+          }
+        ]
+      },
+      "n3_moving_handoff_atlas4_shm64": {
+        "input": {
+          "mode": "localization",
+          "runtime_environment": {
+            "ROS_DOMAIN_ID": "221",
+            "ROS_LOCALHOST_ONLY": "1",
+            "FASTRTPS_DEFAULT_PROFILES_FILE": "/work/src/n3mapping/config/fastdds_local.xml",
+            "RMW_IMPLEMENTATION": null,
+            "OMP_NUM_THREADS": "4"
+          },
+          "started_monotonic_s": 15475.103339304,
+          "atlas_enabled": true,
+          "registration_threads": 4,
+          "clouds_sent": 600,
+          "odom_sent": 11981,
+          "input_s": 59.9,
+          "counts": {
+            "odom": 5106,
+            "body": 600,
+            "world": 265,
+            "lock": 1
+          },
+          "handoff": {
+            "service_ms": 14.439174001381616,
+            "success": true,
+            "session_before": "e1def123f0bbc82a99a9b8315f9d3b91",
+            "session_after": "e1def123f0bbc82a99a9b8315f9d3b91",
+            "maximum_output_receive_gap_ms": 28.08678400106146
+          },
+          "total_node_cpu_s": 117.870702,
+          "peak_rss_mib": 604.48828125,
+          "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+          "publication_delay_ms_percentiles": [
+            0.08076999962014497,
+            13.782624999947757,
+            26.408638400811686,
+            126.3390849998558
+          ],
+          "phase_sessions": {
+            "localization": [
+              "e1def123f0bbc82a99a9b8315f9d3b91"
+            ],
+            "map_extension": [
+              "e1def123f0bbc82a99a9b8315f9d3b91"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            35.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.950332000589697,
+            14.158014599888702,
+            17.310418081469837,
+            139.28478799971344
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 33.436094763001165,
+            "cpu_s": 81.57000000000001,
+            "mean_cores": 2.4395791607296675,
+            "peak_one_second_cores": 3.3403591923404417,
+            "sampled_peak_rss_mib": 403.39453125
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 5.00581976399917,
+            "cpu_s": 3.3799999999999955,
+            "mean_cores": 0.6752140826779787,
+            "peak_one_second_cores": 1.081570802824604,
+            "sampled_peak_rss_mib": 415.765625
+          },
+          {
+            "phase": "handoff",
+            "wall_s": 0.013784398999632685,
+            "cpu_s": 0.0,
+            "mean_cores": 0.0,
+            "peak_one_second_cores": null,
+            "sampled_peak_rss_mib": 415.765625
+          },
+          {
+            "phase": "extension",
+            "wall_s": 21.48270573500122,
+            "cpu_s": 25.64,
+            "mean_cores": 1.1935181869677343,
+            "peak_one_second_cores": 2.6681062002166267,
+            "sampled_peak_rss_mib": 604.48828125
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.009664694998719,
+            "cpu_s": 0.9899999999999949,
+            "mean_cores": 0.49261949143243816,
+            "peak_one_second_cores": 0.9171134487011451,
+            "sampled_peak_rss_mib": 580.71484375
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 3.226524599000186,
+            "cpu_s": 4.130701999999999,
+            "mean_cores": 1.2802326073323582,
+            "peak_one_second_cores": 1.9841303028239923,
+            "sampled_peak_rss_mib": 593.21484375
+          }
+        ],
+        "first_lock_after_input_s": 33.436094763001165,
+        "first_lock_after_process_s": 35.611145852000845,
+        "observed_search_totals": {
+          "total_ms": 33045.339961,
+          "process_cpu_ms": 81459.70780999998,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 398.53801999999985,
+          "align_ms": 40636.69756599999,
+          "fixed_pose_ms": 1175.1708239999998,
+          "visibility_ms": 17185.790921999996,
+          "free_space_ms": 1.240719,
+          "directional_check_ms": 85.133867,
+          "target_preparations": 0,
+          "cache_hits": 530,
+          "cache_misses": 150,
+          "alignments": 660,
+          "confirmation_registrations": 179,
+          "seed_initializations": 450,
+          "descriptor_wall_ms": 1065.315324,
+          "observed_unique_search_results": 90
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 37.0,
+          "temp_max_c": 57.307,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 297.515625
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 398.18359375
+          },
+          {
+            "phase": "handoff",
+            "pss_mib": 410.44921875
+          },
+          {
+            "phase": "extension",
+            "pss_mib": 410.44921875
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 576.23046875
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 576.24609375
+          }
+        ]
+      },
+      "n3_ros_03_south_corridor": {
+        "input": {
+          "mode": "localization",
+          "input_stamp_base_ns": 1793185846431598049,
+          "dataset_first_stamp_ns": 399989997,
+          "runtime_environment": {
+            "ROS_DOMAIN_ID": "221",
+            "ROS_LOCALHOST_ONLY": "1",
+            "FASTRTPS_DEFAULT_PROFILES_FILE": "/work/src/n3mapping/config/fastdds_local.xml",
+            "RMW_IMPLEMENTATION": null,
+            "OMP_NUM_THREADS": "4"
+          },
+          "started_monotonic_s": 15834.195006103,
+          "atlas_enabled": true,
+          "registration_threads": 4,
+          "clouds_sent": 296,
+          "odom_sent": 5901,
+          "input_s": 29.5,
+          "counts": {
+            "odom": 3515,
+            "body": 296,
+            "world": 185,
+            "lock": 1
+          },
+          "handoff": null,
+          "total_node_cpu_s": 70.56052700000001,
+          "peak_rss_mib": 1545.26171875,
+          "source_sha256": "153eb3356e8cf2d4891f7240834652e75cdb49bf173dbd25d9f6c2945483746e",
+          "publication_delay_ms_percentiles": [
+            0.1239780000474866,
+            22.57631099993951,
+            40.576498999580494,
+            53.73407999933999
+          ],
+          "phase_sessions": {
+            "localization": [
+              "12d4a3d653f9ee186c722b90fd713160"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            25.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.832068500036257,
+            23.851387000377144,
+            26.062653460194266,
+            50.491213998611784
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 11.07202532699921,
+            "cpu_s": 29.85,
+            "mean_cores": 2.695983717379202,
+            "peak_one_second_cores": 3.5595685994929838,
+            "sampled_peak_rss_mib": 1516.421875
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 18.469763266000882,
+            "cpu_s": 19.809999999999995,
+            "mean_cores": 1.072563828496179,
+            "peak_one_second_cores": 1.5090605065039921,
+            "sampled_peak_rss_mib": 1544.8125
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.0175629440000193,
+            "cpu_s": 0.13000000000000966,
+            "mean_cores": 0.06443417311296952,
+            "peak_one_second_cores": 0.07972067891052079,
+            "sampled_peak_rss_mib": 1544.8125
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 1.280043900000237,
+            "cpu_s": 1.1605270000000019,
+            "mean_cores": 0.9066306241526458,
+            "peak_one_second_cores": 0.9939798161228905,
+            "sampled_peak_rss_mib": 1544.8125
+          }
+        ],
+        "first_lock_after_input_s": 11.07202532699921,
+        "first_lock_after_process_s": 30.678937594999297,
+        "observed_search_totals": {
+          "total_ms": 10983.260807999999,
+          "process_cpu_ms": 29829.589864,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 286.42505900000003,
+          "align_ms": 14393.338945,
+          "fixed_pose_ms": 341.34220700000003,
+          "visibility_ms": 3993.176636,
+          "free_space_ms": 10.138375,
+          "directional_check_ms": 67.669081,
+          "target_preparations": 0,
+          "cache_hits": 25,
+          "cache_misses": 16,
+          "alignments": 42,
+          "confirmation_registrations": 10,
+          "seed_initializations": 32,
+          "descriptor_wall_ms": 242.36173000000002,
+          "observed_unique_search_results": 5
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 37.923,
+          "temp_max_c": 57.307,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 1426.306640625
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 1512.205078125
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 1539.888671875
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 1539.888671875
+          }
+        ]
+      },
+      "n3_ros_08_west_shelves": {
+        "input": {
+          "mode": "localization",
+          "input_stamp_base_ns": 1793185900875034440,
+          "dataset_first_stamp_ns": 399989997,
+          "runtime_environment": {
+            "ROS_DOMAIN_ID": "221",
+            "ROS_LOCALHOST_ONLY": "1",
+            "FASTRTPS_DEFAULT_PROFILES_FILE": "/work/src/n3mapping/config/fastdds_local.xml",
+            "RMW_IMPLEMENTATION": null,
+            "OMP_NUM_THREADS": "4"
+          },
+          "started_monotonic_s": 15888.01230793,
+          "atlas_enabled": true,
+          "registration_threads": 4,
+          "clouds_sent": 296,
+          "odom_sent": 5901,
+          "input_s": 29.5,
+          "counts": {
+            "odom": 4316,
+            "body": 296,
+            "world": 231,
+            "lock": 1
+          },
+          "handoff": null,
+          "total_node_cpu_s": 58.309096,
+          "peak_rss_mib": 1496.1953125,
+          "source_sha256": "153eb3356e8cf2d4891f7240834652e75cdb49bf173dbd25d9f6c2945483746e",
+          "publication_delay_ms_percentiles": [
+            0.09730400059204669,
+            22.709552000305777,
+            34.85994099937662,
+            53.564807999937344
+          ],
+          "phase_sessions": {
+            "localization": [
+              "72cc104445f50a58e3167a3d5cdd9064"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            10.0,
+            10.0,
+            20.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.916503999993438,
+            24.50059420007165,
+            26.42676527950243,
+            49.86006599938264
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 6.453321027000129,
+            "cpu_s": 16.000000000000004,
+            "mean_cores": 2.4793435710167535,
+            "peak_one_second_cores": 3.4865660197122095,
+            "sampled_peak_rss_mib": 1476.77734375
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 23.088903746000142,
+            "cpu_s": 20.57,
+            "mean_cores": 0.8909041427990487,
+            "peak_one_second_cores": 1.3526784132012664,
+            "sampled_peak_rss_mib": 1488.92578125
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.017180160000862,
+            "cpu_s": 0.11999999999999744,
+            "mean_cores": 0.059488984860899166,
+            "peak_one_second_cores": 0.02992558064712013,
+            "sampled_peak_rss_mib": 1488.92578125
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 1.5299518709998665,
+            "cpu_s": 1.379095999999997,
+            "mean_cores": 0.9013982898028805,
+            "peak_one_second_cores": 1.0146935777449106,
+            "sampled_peak_rss_mib": 1488.92578125
+          }
+        ],
+        "first_lock_after_input_s": 6.453321027000129,
+        "first_lock_after_process_s": 26.686283277000257,
+        "observed_search_totals": {
+          "total_ms": 6382.207734,
+          "process_cpu_ms": 15989.866318999997,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 149.39966399999997,
+          "align_ms": 7960.605041000001,
+          "fixed_pose_ms": 151.536358,
+          "visibility_ms": 2719.2706959999996,
+          "free_space_ms": 5.969687,
+          "directional_check_ms": 42.603578,
+          "target_preparations": 0,
+          "cache_hits": 22,
+          "cache_misses": 8,
+          "alignments": 41,
+          "confirmation_registrations": 9,
+          "seed_initializations": 32,
+          "descriptor_wall_ms": 351.58969,
+          "observed_unique_search_results": 5
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 45.307,
+          "temp_max_c": 57.307,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 1426.3564453125
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 1471.9345703125
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 1483.3837890625
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 1483.3837890625
+          }
+        ]
+      },
+      "n3_ros_14_north_door": {
+        "input": {
+          "mode": "localization",
+          "input_stamp_base_ns": 1793185954973359255,
+          "dataset_first_stamp_ns": 399989997,
+          "runtime_environment": {
+            "ROS_DOMAIN_ID": "221",
+            "ROS_LOCALHOST_ONLY": "1",
+            "FASTRTPS_DEFAULT_PROFILES_FILE": "/work/src/n3mapping/config/fastdds_local.xml",
+            "RMW_IMPLEMENTATION": null,
+            "OMP_NUM_THREADS": "4"
+          },
+          "started_monotonic_s": 15942.737684222,
+          "atlas_enabled": true,
+          "registration_threads": 4,
+          "clouds_sent": 296,
+          "odom_sent": 5901,
+          "input_s": 29.500005005,
+          "counts": {
+            "odom": 3428,
+            "body": 296,
+            "world": 182,
+            "lock": 1
+          },
+          "handoff": null,
+          "total_node_cpu_s": 68.198194,
+          "peak_rss_mib": 1516.078125,
+          "source_sha256": "153eb3356e8cf2d4891f7240834652e75cdb49bf173dbd25d9f6c2945483746e",
+          "publication_delay_ms_percentiles": [
+            0.1178300005264532,
+            23.204695000021758,
+            38.42849700064107,
+            52.064269000693386
+          ],
+          "phase_sessions": {
+            "localization": [
+              "3336647422ea69527a04d2e575dfdfec"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            25.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.891130000032717,
+            24.209636599516646,
+            26.435914419853354,
+            50.58776100122486
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 11.391520585999388,
+            "cpu_s": 30.299999999999997,
+            "mean_cores": 2.6598731724401965,
+            "peak_one_second_cores": 3.5092661850523528,
+            "sampled_peak_rss_mib": 1488.25
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 18.150491452001006,
+            "cpu_s": 17.090000000000003,
+            "mean_cores": 0.9415723009591518,
+            "peak_one_second_cores": 1.3511797633359894,
+            "sampled_peak_rss_mib": 1515.609375
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.016326326998751,
+            "cpu_s": 0.12999999999999545,
+            "mean_cores": 0.06447369072123214,
+            "peak_one_second_cores": 0.029908036645464247,
+            "sampled_peak_rss_mib": 1515.609375
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 1.1798371730001236,
+            "cpu_s": 1.0681940000000054,
+            "mean_cores": 0.9053740841914408,
+            "peak_one_second_cores": 0.9746281527316666,
+            "sampled_peak_rss_mib": 1515.609375
+          }
+        ],
+        "first_lock_after_input_s": 11.391520585999388,
+        "first_lock_after_process_s": 30.997463732999677,
+        "observed_search_totals": {
+          "total_ms": 11284.143217,
+          "process_cpu_ms": 30276.98112699999,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 209.87060499999998,
+          "align_ms": 15557.738552000003,
+          "fixed_pose_ms": 312.54992599999997,
+          "visibility_ms": 2736.099076,
+          "free_space_ms": 6.973871,
+          "directional_check_ms": 57.226223,
+          "target_preparations": 0,
+          "cache_hits": 29,
+          "cache_misses": 12,
+          "alignments": 41,
+          "confirmation_registrations": 13,
+          "seed_initializations": 28,
+          "descriptor_wall_ms": 554.256043,
+          "observed_unique_search_results": 5
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 48.076,
+          "temp_max_c": 62.846,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 1426.2978515625
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 1483.1064453125
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 1510.1650390625
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 1510.1650390625
+          }
+        ]
+      },
+      "n3_ros_route": {
+        "input": {
+          "mode": "localization",
+          "input_stamp_base_ns": 1793186010331834281,
+          "dataset_first_stamp_ns": 399995002,
+          "runtime_environment": {
+            "ROS_DOMAIN_ID": "221",
+            "ROS_LOCALHOST_ONLY": "1",
+            "FASTRTPS_DEFAULT_PROFILES_FILE": "/work/src/n3mapping/config/fastdds_local.xml",
+            "RMW_IMPLEMENTATION": null,
+            "OMP_NUM_THREADS": "4"
+          },
+          "started_monotonic_s": 15997.171034792,
+          "atlas_enabled": true,
+          "registration_threads": 4,
+          "clouds_sent": 3666,
+          "odom_sent": 73301,
+          "input_s": 366.5,
+          "counts": {
+            "odom": 67937,
+            "body": 3666,
+            "world": 3614,
+            "lock": 2
+          },
+          "handoff": null,
+          "total_node_cpu_s": 434.346134,
+          "peak_rss_mib": 1694.38671875,
+          "source_sha256": "153eb3356e8cf2d4891f7240834652e75cdb49bf173dbd25d9f6c2945483746e",
+          "publication_delay_ms_percentiles": [
+            0.11447000018449671,
+            22.54543699922351,
+            25.130386999734355,
+            203.66505399971402
+          ],
+          "phase_sessions": {
+            "localization": [
+              "c1527505cf1981ef16242a5b52f97b20"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            10.0,
+            10.0,
+            55.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.881214500528586,
+            23.666866000439768,
+            26.641819249380198,
+            190.43302899990522
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 5.160844388999976,
+            "cpu_s": 13.54,
+            "mean_cores": 2.6236016782175566,
+            "peak_one_second_cores": 3.4792141586909175,
+            "sampled_peak_rss_mib": 1479.2734375
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 361.38516584899844,
+            "cpu_s": 399.07,
+            "mean_cores": 1.1042788628649685,
+            "peak_one_second_cores": 3.416462964715203,
+            "sampled_peak_rss_mib": 1694.38671875
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.030830390001938,
+            "cpu_s": 0.12999999999999545,
+            "mean_cores": 0.06401322367441595,
+            "peak_one_second_cores": 0.07976136937679375,
+            "sampled_peak_rss_mib": 1654.87890625
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 1.2415157219984394,
+            "cpu_s": 1.0761340000000246,
+            "mean_cores": 0.8667904730741519,
+            "peak_one_second_cores": 0.9561774492497898,
+            "sampled_peak_rss_mib": 1654.87890625
+          }
+        ],
+        "first_lock_after_input_s": 5.160844388999976,
+        "first_lock_after_process_s": 25.687762550000116,
+        "observed_search_totals": {
+          "total_ms": 28837.562284000007,
+          "process_cpu_ms": 68511.21107,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 1295.1689310000002,
+          "align_ms": 41901.97013999999,
+          "fixed_pose_ms": 512.3968799999999,
+          "visibility_ms": 10762.488031999997,
+          "free_space_ms": 1757.229257,
+          "directional_check_ms": 106.06258700000001,
+          "target_preparations": 0,
+          "cache_hits": 94,
+          "cache_misses": 76,
+          "alignments": 267,
+          "confirmation_registrations": 64,
+          "seed_initializations": 198,
+          "descriptor_wall_ms": 2418.8557660000006,
+          "observed_unique_search_results": 31
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 49.923,
+          "temp_max_c": 67.461,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 1426.326171875
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 1409.4765625
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 1649.091796875
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 1649.091796875
+          }
+        ],
+        "rss_windows": [
+          {
+            "input_interval_s": [
+              60,
+              120
+            ],
+            "min_mib": 1559.55859375,
+            "max_mib": 1633.88671875
+          },
+          {
+            "input_interval_s": [
+              180,
+              240
+            ],
+            "min_mib": 1575.90625,
+            "max_mib": 1690.796875
+          },
+          {
+            "input_interval_s": [
+              300,
+              360
+            ],
+            "min_mib": 1652.046875,
+            "max_mib": 1693.3984375
+          }
+        ],
+        "over_10cm_span_s": 0.06
+      },
+      "n3_static_atlas1_r1": {
+        "input": {
+          "mode": "localization",
+          "started_monotonic_s": 13710.822847811,
+          "atlas_enabled": true,
+          "registration_threads": 1,
+          "clouds_sent": 600,
+          "odom_sent": 11981,
+          "input_s": 59.9,
+          "counts": {
+            "odom": 10640,
+            "body": 600,
+            "world": 549,
+            "lock": 1
+          },
+          "handoff": null,
+          "total_node_cpu_s": 36.106987000000004,
+          "peak_rss_mib": 330.9921875,
+          "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+          "publication_delay_ms_percentiles": [
+            0.06775499947231367,
+            12.284033000035777,
+            12.637619399392012,
+            120.18182300052871
+          ],
+          "phase_sessions": {
+            "localization": [
+              "4e09f443bc55cf5038c66324a20e197c"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            15.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.970181000317098,
+            13.24583639998309,
+            14.378976000261904,
+            142.04843700099445
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 5.073861305001628,
+            "cpu_s": 5.42,
+            "mean_cores": 1.068219975713006,
+            "peak_one_second_cores": 1.0831861852915465,
+            "sampled_peak_rss_mib": 310.6875
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 54.85323955399872,
+            "cpu_s": 28.119999999999997,
+            "mean_cores": 0.5126406430803063,
+            "peak_one_second_cores": 0.704934295626583,
+            "sampled_peak_rss_mib": 320.0
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.0091220720005367,
+            "cpu_s": 0.09000000000000341,
+            "mean_cores": 0.044795685266842945,
+            "peak_one_second_cores": 0.039898739592297124,
+            "sampled_peak_rss_mib": 320.0
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 0.32069702700027847,
+            "cpu_s": 0.186987000000002,
+            "mean_cores": 0.5830643387905172,
+            "peak_one_second_cores": null,
+            "sampled_peak_rss_mib": 320.375
+          }
+        ],
+        "first_lock_after_input_s": 5.073861305001628,
+        "first_lock_after_process_s": 7.36989433600138,
+        "observed_search_totals": {
+          "total_ms": 4998.080112,
+          "process_cpu_ms": 5404.094453999999,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 29.976834999999994,
+          "align_ms": 3811.4238670000004,
+          "fixed_pose_ms": 137.7934,
+          "visibility_ms": 818.0663030000001,
+          "free_space_ms": 0.88723,
+          "directional_check_ms": 15.513114,
+          "target_preparations": 0,
+          "cache_hits": 27,
+          "cache_misses": 13,
+          "alignments": 41,
+          "confirmation_registrations": 9,
+          "seed_initializations": 32,
+          "descriptor_wall_ms": 91.662091,
+          "observed_unique_search_results": 5
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 43.461,
+          "temp_max_c": 48.076,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 302.22265625
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 301.240234375
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 314.39453125
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 314.39453125
+          }
+        ]
+      },
+      "n3_static_atlas2_r1": {
+        "input": {
+          "mode": "localization",
+          "started_monotonic_s": 13644.100806162,
+          "atlas_enabled": true,
+          "registration_threads": 2,
+          "clouds_sent": 600,
+          "odom_sent": 11981,
+          "input_s": 59.9,
+          "counts": {
+            "odom": 11069,
+            "body": 600,
+            "world": 570,
+            "lock": 1
+          },
+          "handoff": null,
+          "total_node_cpu_s": 37.655919000000004,
+          "peak_rss_mib": 331.21875,
+          "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+          "publication_delay_ms_percentiles": [
+            0.0688920004172644,
+            11.696656001298322,
+            12.128255999911634,
+            106.02073500034948
+          ],
+          "phase_sessions": {
+            "localization": [
+              "2932ac6c56f3ad207604c2ee233cf218"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            30.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.978056000254583,
+            12.669776999791788,
+            14.07337871958589,
+            119.30943200059119
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 2.9930537060008646,
+            "cpu_s": 5.41,
+            "mean_cores": 1.8075185183457705,
+            "peak_one_second_cores": 2.1092593956366597,
+            "sampled_peak_rss_mib": 320.3984375
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 56.93121182199866,
+            "cpu_s": 29.860000000000003,
+            "mean_cores": 0.5244926121256718,
+            "peak_one_second_cores": 0.723842754661204,
+            "sampled_peak_rss_mib": 321.16796875
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.0092348039997887,
+            "cpu_s": 0.09999999999999432,
+            "mean_cores": 0.049770191020444235,
+            "peak_one_second_cores": 0.03987098518703169,
+            "sampled_peak_rss_mib": 321.16796875
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 0.3208413760003168,
+            "cpu_s": 0.17591900000000749,
+            "mean_cores": 0.5483052160948025,
+            "peak_one_second_cores": null,
+            "sampled_peak_rss_mib": 321.4765625
+          }
+        ],
+        "first_lock_after_input_s": 2.9930537060008646,
+        "first_lock_after_process_s": 5.107986881001125,
+        "observed_search_totals": {
+          "total_ms": 2924.1784479999997,
+          "process_cpu_ms": 5367.883439,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 33.63745599999999,
+          "align_ms": 3707.708616,
+          "fixed_pose_ms": 72.70475200000001,
+          "visibility_ms": 827.558028,
+          "free_space_ms": 0.916397,
+          "directional_check_ms": 15.809731,
+          "target_preparations": 0,
+          "cache_hits": 27,
+          "cache_misses": 13,
+          "alignments": 41,
+          "confirmation_registrations": 9,
+          "seed_initializations": 32,
+          "descriptor_wall_ms": 89.515173,
+          "observed_unique_search_results": 5
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 43.461,
+          "temp_max_c": 50.846,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 306.591796875
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 315.076171875
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 315.650390625
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 315.650390625
+          }
+        ]
+      },
+      "n3_static_atlas2_r2": {
+        "input": {
+          "mode": "localization",
+          "started_monotonic_s": 13844.006608296,
+          "atlas_enabled": true,
+          "registration_threads": 2,
+          "clouds_sent": 600,
+          "odom_sent": 11981,
+          "input_s": 59.9,
+          "counts": {
+            "odom": 11017,
+            "body": 600,
+            "world": 570,
+            "lock": 1
+          },
+          "handoff": null,
+          "total_node_cpu_s": 37.652065,
+          "peak_rss_mib": 331.2578125,
+          "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+          "publication_delay_ms_percentiles": [
+            0.06826200005605187,
+            11.697652999938413,
+            12.25874339943407,
+            113.2041210005994
+          ],
+          "phase_sessions": {
+            "localization": [
+              "1758f7f517b94471860af913b1fe81dd"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            20.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.979515999366413,
+            12.66527274992768,
+            14.095837249715261,
+            128.72599699949205
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 3.03370272400025,
+            "cpu_s": 5.51,
+            "mean_cores": 1.816262337245258,
+            "peak_one_second_cores": 2.0989678094123776,
+            "sampled_peak_rss_mib": 319.32421875
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 56.893048194000585,
+            "cpu_s": 29.630000000000003,
+            "mean_cores": 0.5208017664823329,
+            "peak_one_second_cores": 0.680739887817426,
+            "sampled_peak_rss_mib": 319.32421875
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.009197551999023,
+            "cpu_s": 0.0899999999999963,
+            "mean_cores": 0.04479400241676189,
+            "peak_one_second_cores": 0.03990013952678014,
+            "sampled_peak_rss_mib": 319.32421875
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 0.3208811020012945,
+            "cpu_s": 0.18206500000000148,
+            "mean_cores": 0.5673908462183821,
+            "peak_one_second_cores": null,
+            "sampled_peak_rss_mib": 319.6953125
+          }
+        ],
+        "first_lock_after_input_s": 3.03370272400025,
+        "first_lock_after_process_s": 5.279325499999686,
+        "observed_search_totals": {
+          "total_ms": 2940.3230340000005,
+          "process_cpu_ms": 5423.960181,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 32.787563000000006,
+          "align_ms": 3749.7204300000003,
+          "fixed_pose_ms": 69.32589,
+          "visibility_ms": 829.226201,
+          "free_space_ms": 0.954604,
+          "directional_check_ms": 15.795443,
+          "target_preparations": 0,
+          "cache_hits": 27,
+          "cache_misses": 13,
+          "alignments": 41,
+          "confirmation_registrations": 9,
+          "seed_initializations": 32,
+          "descriptor_wall_ms": 91.324359,
+          "observed_unique_search_results": 5
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 43.461,
+          "temp_max_c": 50.846,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 302.509765625
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 313.751953125
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 313.728515625
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 313.728515625
+          }
+        ]
+      },
+      "n3_static_atlas4_r2": {
+        "input": {
+          "mode": "localization",
+          "started_monotonic_s": 13577.664229321,
+          "atlas_enabled": true,
+          "registration_threads": 4,
+          "clouds_sent": 600,
+          "odom_sent": 11981,
+          "input_s": 59.9,
+          "counts": {
+            "odom": 11384,
+            "body": 600,
+            "world": 580,
+            "lock": 1
+          },
+          "handoff": null,
+          "total_node_cpu_s": 38.966397,
+          "peak_rss_mib": 332.2421875,
+          "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+          "publication_delay_ms_percentiles": [
+            0.06692999857449422,
+            11.772299999869063,
+            12.385631799844534,
+            140.1028979990926
+          ],
+          "phase_sessions": {
+            "localization": [
+              "b696214beade771b915d8a81ae5ac11b"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            15.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.967847000443726,
+            12.621243299872729,
+            14.180568559895619,
+            160.84474599847454
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 1.9281780429992068,
+            "cpu_s": 5.2,
+            "mean_cores": 2.696846392831857,
+            "peak_one_second_cores": 3.499152045121042,
+            "sampled_peak_rss_mib": 318.3828125
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 57.99633383100081,
+            "cpu_s": 31.369999999999997,
+            "mean_cores": 0.5408962589154519,
+            "peak_one_second_cores": 0.7119879271940366,
+            "sampled_peak_rss_mib": 324.85546875
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.0095327210001415,
+            "cpu_s": 0.09000000000000341,
+            "mean_cores": 0.04478653124653305,
+            "peak_one_second_cores": 0.039909090444370285,
+            "sampled_peak_rss_mib": 324.85546875
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 0.3208244340003148,
+            "cpu_s": 0.18639699999999948,
+            "mean_cores": 0.5809937780481413,
+            "peak_one_second_cores": null,
+            "sampled_peak_rss_mib": 325.13671875
+          }
+        ],
+        "first_lock_after_input_s": 1.9281780429992068,
+        "first_lock_after_process_s": 4.053239510998537,
+        "observed_search_totals": {
+          "total_ms": 1892.1314750000001,
+          "process_cpu_ms": 5190.959395000001,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 31.68683,
+          "align_ms": 4005.779117,
+          "fixed_pose_ms": 44.209844000000004,
+          "visibility_ms": 832.3691700000002,
+          "free_space_ms": 0.936229,
+          "directional_check_ms": 15.829562,
+          "target_preparations": 0,
+          "cache_hits": 27,
+          "cache_misses": 13,
+          "alignments": 41,
+          "confirmation_registrations": 9,
+          "seed_initializations": 32,
+          "descriptor_wall_ms": 87.31692399999999,
+          "observed_unique_search_results": 5
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 43.461,
+          "temp_max_c": 54.538,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 303.62890625
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 311.8125
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 319.62109375
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 319.62109375
+          }
+        ]
+      },
+      "n3_static_atlas4_r3": {
+        "input": {
+          "mode": "localization",
+          "started_monotonic_s": 13777.697904909,
+          "atlas_enabled": true,
+          "registration_threads": 4,
+          "clouds_sent": 600,
+          "odom_sent": 11981,
+          "input_s": 59.9,
+          "counts": {
+            "odom": 11356,
+            "body": 600,
+            "world": 580,
+            "lock": 1
+          },
+          "handoff": null,
+          "total_node_cpu_s": 39.068661,
+          "peak_rss_mib": 329.1015625,
+          "source_sha256": "7c6115834a04d7cd9c1746b01a5669bf30614187434972ce4fc358e7baabb922",
+          "publication_delay_ms_percentiles": [
+            0.06728400141753355,
+            11.75073400001736,
+            12.556431801321084,
+            151.41915799984673
+          ],
+          "phase_sessions": {
+            "localization": [
+              "0d8c879ac64461ccb4ecb0604d9fa12a"
+            ]
+          },
+          "node_exit_code": 0,
+          "output_source_gap_ms_percentiles": [
+            5.0,
+            5.0,
+            10.0,
+            20.0
+          ],
+          "output_receive_gap_ms_percentiles": [
+            4.969597999661346,
+            12.621508499614718,
+            14.142580640000233,
+            164.1769990001194
+          ]
+        },
+        "phases": [
+          {
+            "phase": "search",
+            "wall_s": 1.9750774639996962,
+            "cpu_s": 5.209999999999999,
+            "mean_cores": 2.6378712202251124,
+            "peak_one_second_cores": 3.3812197898040024,
+            "sampled_peak_rss_mib": 319.8515625
+          },
+          {
+            "phase": "tracking",
+            "wall_s": 57.95256163299928,
+            "cpu_s": 31.48,
+            "mean_cores": 0.543202907912093,
+            "peak_one_second_cores": 0.6864230347073716,
+            "sampled_peak_rss_mib": 321.68359375
+          },
+          {
+            "phase": "drain",
+            "wall_s": 2.0095768940009293,
+            "cpu_s": 0.09000000000000341,
+            "mean_cores": 0.04478554678284522,
+            "peak_one_second_cores": 0.029911322053048285,
+            "sampled_peak_rss_mib": 321.68359375
+          },
+          {
+            "phase": "shutdown",
+            "wall_s": 0.32082450199959567,
+            "cpu_s": 0.1886609999999962,
+            "mean_cores": 0.5880504725297881,
+            "peak_one_second_cores": null,
+            "sampled_peak_rss_mib": 321.96484375
+          }
+        ],
+        "first_lock_after_input_s": 1.9750774639996962,
+        "first_lock_after_process_s": 4.079897052999513,
+        "observed_search_totals": {
+          "total_ms": 1937.8782449999999,
+          "process_cpu_ms": 5208.465498000001,
+          "target_prepare_ms": 0.0,
+          "target_build_ms": 32.08612499999999,
+          "align_ms": 3996.1202809999995,
+          "fixed_pose_ms": 39.743663000000005,
+          "visibility_ms": 848.0116929999999,
+          "free_space_ms": 0.866814,
+          "directional_check_ms": 15.149415,
+          "target_preparations": 0,
+          "cache_hits": 27,
+          "cache_misses": 13,
+          "alignments": 41,
+          "confirmation_registrations": 9,
+          "seed_initializations": 32,
+          "descriptor_wall_ms": 83.884979,
+          "observed_unique_search_results": 5
+        },
+        "affinities": [
+          "4-7"
+        ],
+        "hardware": {
+          "temp_min_c": 43.461,
+          "temp_max_c": 52.692,
+          "frequency_khz": {
+            "4": [
+              2304000
+            ],
+            "5": [
+              2304000
+            ],
+            "6": [
+              2256000
+            ],
+            "7": [
+              2256000
+            ]
+          }
+        },
+        "pss_phase_samples": [
+          {
+            "phase": "search",
+            "pss_mib": 304.220703125
+          },
+          {
+            "phase": "tracking",
+            "pss_mib": 315.025390625
+          },
+          {
+            "phase": "drain",
+            "pss_mib": 316.326171875
+          },
+          {
+            "phase": "shutdown",
+            "pss_mib": 316.326171875
+          }
+        ]
+      }
+    },
+    "native_accuracy": {
+      "03_south_corridor": {
+        "outputs": 3515,
+        "scored": 3515,
+        "outside_truth": 0,
+        "position_m": {
+          "rmse": 0.005901540568016118,
+          "p95": 0.007036954585798591,
+          "maximum": 0.014432388109275274
+        },
+        "angle_deg": {
+          "rmse": 0.012446536342672291,
+          "p95": 0.01605939025665342,
+          "maximum": 0.03784845148196015
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "lock_count": 1
+      },
+      "08_west_shelves": {
+        "outputs": 4316,
+        "scored": 4316,
+        "outside_truth": 0,
+        "position_m": {
+          "rmse": 0.00582917585353809,
+          "p95": 0.011844112276932517,
+          "maximum": 0.02745218409933886
+        },
+        "angle_deg": {
+          "rmse": 0.023236448424524356,
+          "p95": 0.033845234138239505,
+          "maximum": 0.12028064721403256
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "lock_count": 1
+      },
+      "14_north_door": {
+        "outputs": 3428,
+        "scored": 3428,
+        "outside_truth": 0,
+        "position_m": {
+          "rmse": 0.005557427158819683,
+          "p95": 0.006725703136481192,
+          "maximum": 0.008010974107490021
+        },
+        "angle_deg": {
+          "rmse": 0.011364256869030998,
+          "p95": 0.016130816370062476,
+          "maximum": 0.019312040328669546
+        },
+        "above_10cm": 0,
+        "gross_outputs": 0,
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "lock_count": 1
+      },
+      "route": {
+        "outputs": 67937,
+        "scored": 67937,
+        "outside_truth": 0,
+        "position_m": {
+          "rmse": 0.009870973231064738,
+          "p95": 0.019108403112365568,
+          "maximum": 0.10165721913719303
+        },
+        "angle_deg": {
+          "rmse": 0.03289926083400929,
+          "p95": 0.053891270666103996,
+          "maximum": 0.2703034947876997
+        },
+        "above_10cm": 12,
+        "gross_outputs": 0,
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "lock_count": 2
+      }
+    },
+    "core_replay": {
+      "03_south_corridor": {
+        "frames": 296,
+        "outputs": 292,
+        "lock_frames": [
+          4
+        ],
+        "first_lock_s": 10.377106793000001,
+        "first_lock_cpu_s": 29.977842285,
+        "map_load_wall_s": 13.9047,
+        "map_load_cpu_s": 13.9155,
+        "input_s": 29.5,
+        "cpu_s": 53.930213179,
+        "mean_cores": 1.8281428196271186,
+        "peak_one_second_cores_including_load": 3.921032857977001,
+        "peak_rss_mib": 1271.671875,
+        "maximum_pacing_lag_s": 9.877315867,
+        "accuracy": {
+          "mapping": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/geometric_search_20261026/maps_grid/fixed14",
+          "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/03_south_corridor",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/rk3588_20261028/followup/results/sprobo_03_south_corridor/frames.csv",
+          "probe_status": {
+            "input_frames": 296,
+            "successful_frames": 292,
+            "published_without_backend_success": 0
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 292,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.009945323162106712,
+          "first_output_rotation_error_deg": 0.026956291807197,
+          "position_error_m": {
+            "rmse": 0.005793302556327631,
+            "median": 0.005647291558030029,
+            "p95": 0.007028639335122725,
+            "maximum": 0.009945323162106712
+          },
+          "rotation_error_deg": {
+            "rmse": 0.01265287716595091,
+            "median": 0.011940060602555196,
+            "p95": 0.016683407173308004,
+            "maximum": 0.0382010726997849
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "work_groups": {
+          "search_or_recovery": {
+            "frames": 5,
+            "cpu_s": 29.976832245000008,
+            "computation_wall_s": 10.37609444
+          },
+          "geometric_tracking": {
+            "frames": 291,
+            "cpu_s": 23.89852048200009,
+            "computation_wall_s": 7.005777464000001
+          }
+        }
+      },
+      "08_west_shelves": {
+        "frames": 296,
+        "outputs": 292,
+        "lock_frames": [
+          4
+        ],
+        "first_lock_s": 6.483254787,
+        "first_lock_cpu_s": 16.798457551,
+        "map_load_wall_s": 13.7913,
+        "map_load_cpu_s": 13.7994,
+        "input_s": 29.5,
+        "cpu_s": 37.420509031,
+        "mean_cores": 1.268491831559322,
+        "peak_one_second_cores_including_load": 3.806140755291185,
+        "peak_rss_mib": 1271.6640625,
+        "maximum_pacing_lag_s": 5.983481987999999,
+        "accuracy": {
+          "mapping": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/geometric_search_20261026/maps_grid/fixed14",
+          "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/08_west_shelves",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/rk3588_20261028/followup/results/sprobo_08_west_shelves/frames.csv",
+          "probe_status": {
+            "input_frames": 296,
+            "successful_frames": 292,
+            "published_without_backend_success": 0
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 292,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.009024721951093767,
+          "first_output_rotation_error_deg": 0.04121949544079883,
+          "position_error_m": {
+            "rmse": 0.005079036993048634,
+            "median": 0.003677125499071983,
+            "p95": 0.009506146106921515,
+            "maximum": 0.010355624813113983
+          },
+          "rotation_error_deg": {
+            "rmse": 0.022292923960306812,
+            "median": 0.01983245440787105,
+            "p95": 0.0351114945530222,
+            "maximum": 0.05908148761550613
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "work_groups": {
+          "search_or_recovery": {
+            "frames": 5,
+            "cpu_s": 16.79733755,
+            "computation_wall_s": 6.4821327790000005
+          },
+          "geometric_tracking": {
+            "frames": 291,
+            "cpu_s": 20.560675181999958,
+            "computation_wall_s": 6.1710641950000005
+          }
+        }
+      },
+      "14_north_door": {
+        "frames": 296,
+        "outputs": 292,
+        "lock_frames": [
+          4
+        ],
+        "first_lock_s": 8.514838658999999,
+        "first_lock_cpu_s": 24.216657411999996,
+        "map_load_wall_s": 13.783700000000001,
+        "map_load_cpu_s": 13.7915,
+        "input_s": 29.500005005,
+        "cpu_s": 45.346068530000004,
+        "mean_cores": 1.5371546046285156,
+        "peak_one_second_cores_including_load": 4.001353715115373,
+        "peak_rss_mib": 1271.671875,
+        "maximum_pacing_lag_s": 8.01505361,
+        "accuracy": {
+          "mapping": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/geometric_search_20261026/maps_grid/fixed14",
+          "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/fixed14_20261019_v2/14_north_door",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/rk3588_20261028/followup/results/sprobo_14_north_door/frames.csv",
+          "probe_status": {
+            "input_frames": 296,
+            "successful_frames": 292,
+            "published_without_backend_success": 0
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 292,
+          "first_output_sim_s": 0.799995002,
+          "first_output_position_error_m": 0.009183164894475066,
+          "first_output_rotation_error_deg": 0.01378982914534175,
+          "position_error_m": {
+            "rmse": 0.0055364013766464595,
+            "median": 0.005511557483377546,
+            "p95": 0.006625311242109364,
+            "maximum": 0.009183164894475066
+          },
+          "rotation_error_deg": {
+            "rmse": 0.01123261046768876,
+            "median": 0.01093569413716336,
+            "p95": 0.01592745502944634,
+            "maximum": 0.018130624507457845
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "work_groups": {
+          "search_or_recovery": {
+            "frames": 5,
+            "cpu_s": 24.21562199600001,
+            "computation_wall_s": 8.513800654
+          },
+          "geometric_tracking": {
+            "frames": 291,
+            "cpu_s": 21.07410122899997,
+            "computation_wall_s": 6.210723103
+          }
+        }
+      },
+      "route": {
+        "frames": 3666,
+        "outputs": 3662,
+        "lock_frames": [
+          4,
+          1938
+        ],
+        "first_lock_s": 4.89488604,
+        "first_lock_cpu_s": 13.295306108,
+        "map_load_wall_s": 13.893799999999999,
+        "map_load_cpu_s": 13.9005,
+        "input_s": 366.5,
+        "cpu_s": 421.83133331299996,
+        "mean_cores": 1.1509722600627557,
+        "peak_one_second_cores_including_load": 3.9991467258232123,
+        "peak_rss_mib": 1271.66796875,
+        "maximum_pacing_lag_s": 39.936831198,
+        "accuracy": {
+          "mapping": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/geometric_search_20261026/maps_grid/fixed14",
+          "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+          "topic": "/n3mapping/odometry",
+          "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/rk3588_20261028/followup/results/sprobo_route/frames.csv",
+          "probe_status": {
+            "input_frames": 3666,
+            "successful_frames": 3603,
+            "published_without_backend_success": 59
+          },
+          "alignment": {
+            "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+            "stamp_ns": 7299995002,
+            "translation": [
+              -43.981804569062675,
+              0.013493989897703453,
+              0.6566722602620779
+            ],
+            "quaternion_xyzw": [
+              1.2163132549912854e-05,
+              -0.00045452323389096505,
+              0.00015331460290557127,
+              -0.9999998848776538
+            ]
+          },
+          "evaluated_poses": 3662,
+          "first_output_sim_s": 0.799989997,
+          "first_output_position_error_m": 0.0017836582646118474,
+          "first_output_rotation_error_deg": 0.012414080612958804,
+          "position_error_m": {
+            "rmse": 0.00852416873167693,
+            "median": 0.006629034525594064,
+            "p95": 0.015433337229173004,
+            "maximum": 0.03246851633696113
+          },
+          "rotation_error_deg": {
+            "rmse": 0.035139061153455525,
+            "median": 0.01625048514376526,
+            "p95": 0.05739092931594156,
+            "maximum": 0.2641706757292449
+          },
+          "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+        },
+        "work_groups": {
+          "search_or_recovery": {
+            "frames": 71,
+            "cpu_s": 125.86852949499996,
+            "computation_wall_s": 51.39640361599998
+          },
+          "geometric_tracking": {
+            "frames": 3595,
+            "cpu_s": 295.24880323999923,
+            "computation_wall_s": 96.65089765100007
+          }
+        }
+      }
+    },
+    "core_cross_architecture_comparison": {
+      "03_south_corridor": {
+        "frames": 296,
+        "decision_rows_different": 0,
+        "max_output_matrix_element_delta": 7.105427357601002e-15
+      },
+      "08_west_shelves": {
+        "frames": 296,
+        "decision_rows_different": 0,
+        "max_output_matrix_element_delta": 5.091120793346282e-08
+      },
+      "14_north_door": {
+        "frames": 296,
+        "decision_rows_different": 0,
+        "max_output_matrix_element_delta": 8.65130687088822e-08
+      },
+      "route": {
+        "frames": 3666,
+        "decision_rows_different": 0,
+        "max_output_matrix_element_delta": 3.8404183833051775e-08
+      }
+    },
+    "moving_extension_reload": {
+      "frames": 10,
+      "locks": 1,
+      "outputs": 6
+    },
+    "incomplete_probe": {
+      "directory": "n3_moving_handoff_atlas4",
+      "dds_profile": "default; controlled XML missing",
+      "lock_after_input_s": 56.17678949400033,
+      "handoff_invoked": false,
+      "reason": "Five-second post-lock wait exceeded remaining input duration; not a service refusal.",
+      "used_as_paired_performance_result": false
+    },
+    "performance_scopes": {
+      "native": "Whole native Humble process; replay and observer excluded; four-core container includes both.",
+      "core": "Original exact-input probe at 1x pacing, every input preserved, includes PCD I/O and trace writing, excludes DDS/frontend; backlog is reported.",
+      "truth": "Observer only; original fixed mapping alignment, no query fitting."
+    },
+    "next_targets": [
+      "Initial and recovery geometry/visibility work",
+      "Map-load submap/heading precomputation coverage",
+      "Native global visualization preparation and retained memory"
+    ],
+    "active_search_half_core_accepted": false,
+    "long_duration_memory_bound_accepted": false
+  }
 }
