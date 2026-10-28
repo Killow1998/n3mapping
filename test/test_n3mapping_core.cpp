@@ -14,6 +14,7 @@
 #include <pcl/io/pcd_io.h>
 #include "n3mapping/localization_atlas.h"
 #include "n3map.pb.h"
+#include "localization_atlas.pb.h"
 
 namespace n3mapping {
 namespace test {
@@ -1080,7 +1081,7 @@ TEST(N3MappingCoreTest, SameCountMapReplacementCommitsMapAndDenseTogether)
     std::filesystem::remove_all(dir);
 }
 
-TEST(N3MappingCoreTest, AtlasFailurePreservesPreviouslyLoadedSession)
+TEST(N3MappingCoreTest, AtlasAutoUpdatePreservesSessionWhenPublicationFails)
 {
     Config config = makeCoreTestConfig();
     config.reloc_atlas_path.clear();
@@ -1107,13 +1108,40 @@ TEST(N3MappingCoreTest, AtlasFailurePreservesPreviouslyLoadedSession)
         ASSERT_TRUE(producer.saveMap(map_b.string()));
     }
 
-    ASSERT_TRUE(std::filesystem::exists(
-        LocalizationAtlas::defaultAtlasPath(map_a.string())));
-    ASSERT_TRUE(std::filesystem::remove(
-        LocalizationAtlas::defaultAtlasPath(map_b.string())));
+    const auto atlas_a = LocalizationAtlas::defaultAtlasPath(map_a.string());
+    const auto atlas_b = LocalizationAtlas::defaultAtlasPath(map_b.string());
+    ASSERT_TRUE(std::filesystem::remove(atlas_a));
+    ASSERT_TRUE(std::filesystem::remove(atlas_b));
+    ASSERT_TRUE(std::filesystem::create_directory(atlas_b));
+    std::ofstream(std::filesystem::path(atlas_b) / "unrelated") << "keep";
 
     N3MappingCore loaded(config);
     ASSERT_TRUE(loaded.loadMap(map_a.string()));
+    ASSERT_TRUE(std::filesystem::is_regular_file(atlas_a));
+    const auto cache_time = std::filesystem::last_write_time(atlas_a);
+    ASSERT_TRUE(loaded.loadMap(map_a.string()));
+    EXPECT_EQ(std::filesystem::last_write_time(atlas_a), cache_time);
+    // Old format, stale feature settings, and a stale map binding all rebuild
+    // from the source pbstream and produce the same current cache.
+    const auto current_sha = LocalizationAtlas::fileSha256(atlas_a);
+    for (int stale = 0; stale < 3; ++stale) {
+        LocalizationAtlasData data;
+        { std::ifstream input(atlas_a, std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&input)); }
+        if (stale == 0) data.set_format_version("n3mapping_localization_atlas_v2");
+        if (stale == 1) data.clear_loop_descriptor_config();
+        if (stale == 2) data.set_map_sha256("stale");
+        { std::ofstream output(atlas_a, std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&output)); }
+        if (stale == 2) {
+            auto managed_config = config;
+            managed_config.reloc_atlas_path = atlas_a;
+            N3MappingCore managed(managed_config);
+            const auto stale_sha = LocalizationAtlas::fileSha256(atlas_a);
+            EXPECT_FALSE(managed.loadMap(map_a.string()));
+            EXPECT_EQ(LocalizationAtlas::fileSha256(atlas_a), stale_sha);
+        }
+        ASSERT_TRUE(loaded.loadMap(map_a.string()));
+        EXPECT_EQ(LocalizationAtlas::fileSha256(atlas_a), current_sha);
+    }
     const auto keyframes_before = loaded.getAllKeyframes();
     const auto dense_before = loaded.getDenseOptimizedTrajectory();
     const auto revision_before = loaded.mapRevision();
@@ -1124,9 +1152,9 @@ TEST(N3MappingCoreTest, AtlasFailurePreservesPreviouslyLoadedSession)
     ASSERT_NEAR(dense_before.front().pose_world_lidar.translation().x(),
                 0.0, 1e-9);
 
-    // B has no sidecar. Its parser succeeds, then candidate Atlas preparation
-    // fails; the already-loaded A session must remain live.
+    // B cannot publish its cache over an unrelated directory. Keep A live.
     EXPECT_FALSE(loaded.loadMap(map_b.string()));
+    EXPECT_TRUE(std::filesystem::exists(std::filesystem::path(atlas_b) / "unrelated"));
     EXPECT_TRUE(loaded.mapLoaded());
     EXPECT_EQ(loaded.mapRevision(), revision_before);
     const auto keyframes_after = loaded.getAllKeyframes();

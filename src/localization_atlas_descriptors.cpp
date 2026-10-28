@@ -75,6 +75,13 @@ bool decodePlace(const LocalizationAtlasFrameDescriptor& entry, RHPDPlace& place
 }
 } // namespace
 
+bool atlasDescriptorsCurrent(const Config& config, const LocalizationAtlasData& data) {
+  return !config.rhpd_enabled ||
+      (data.frame_descriptor_config() == descriptorConfig(config) &&
+       data.loop_descriptor_config() == catalogConfig(config) + " loop-descriptors-v1" &&
+       data.place_catalog_config() == catalogConfig(config));
+}
+
 void encodeAtlasDescriptors(const Config &config,
                             const std::vector<Keyframe::Ptr> &keyframes,
                             LocalizationAtlasData &data) {

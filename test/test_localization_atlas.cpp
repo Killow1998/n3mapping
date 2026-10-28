@@ -220,8 +220,19 @@ TEST(LocalizationAtlasTest, RoundTripsPreparedTargetExactly) {
   expectPreparedLevelExact(compiled.preparedTarget().refine_level,
                            loaded.preparedTarget().refine_level);
   RHPDescriptor descriptor(rhpdParamsFromConfig(config));
+  ASSERT_NE(compiled.placeCatalog(), nullptr);
+  EXPECT_EQ(*compiled.placeCatalog(), *loaded.placeCatalog());
+  ASSERT_EQ(compiled.frameDescriptors().size(), loaded.frameDescriptors().size());
+  ASSERT_EQ(compiled.submapDescriptors().size(), loaded.submapDescriptors().size());
+  ASSERT_EQ(compiled.headingDescriptors().size(), loaded.headingDescriptors().size());
   ASSERT_EQ(loaded.frameDescriptors().size(), makeKeyframes().size());
   for (const auto &keyframe : makeKeyframes()) {
+    EXPECT_TRUE(rhpdDenseValues(*compiled.frameDescriptors().at(keyframe->id)).isApprox(
+        rhpdDenseValues(*loaded.frameDescriptors().at(keyframe->id)), 0.0));
+    EXPECT_TRUE(rhpdDenseValues(*compiled.submapDescriptors().at(keyframe->id)).isApprox(
+        rhpdDenseValues(*loaded.submapDescriptors().at(keyframe->id)), 0.0));
+    EXPECT_EQ(compiled.headingDescriptors().at(keyframe->id)->values,
+              loaded.headingDescriptors().at(keyframe->id)->values);
     EXPECT_TRUE(rhpdDenseValues(*loaded.frameDescriptors().at(keyframe->id)).isApprox(
         rhpdDenseValues(descriptor.compute(keyframe->cloud)), 0.0));
   }

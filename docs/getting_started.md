@@ -152,8 +152,10 @@ for versioned release installation and test capture.
 ## Prepare an Atlas for localization
 
 An Atlas stores map-derived registration geometry, frame/submap descriptors,
-heading features and visibility data so localization can reuse them. Compile it after building and
-sourcing the workspace:
+heading features and visibility data so localization can reuse them. Saving a
+map generates its Atlas automatically. The first load of an older map also
+prepares or updates its default Atlas. To move that one-time work ahead of
+startup, compile it after building and sourcing the workspace:
 
 ```bash
 # Humble
@@ -165,11 +167,17 @@ rosrun n3mapping n3mapping_localization_atlas_compile --map /path/to/n3map.pbstr
 
 Atlas is enabled by default in both ROS adapters and the C++ core. Saving a map
 also generates `<map_path>.localization_atlas.pb`, including maps without loop
-or shared-plane constraints. Keep the two files together. For an existing map
-without an Atlas, run the command above before localization or extension.
-Use `reloc_atlas_path` for a custom location. The loader verifies map and
-configuration fingerprints and refuses missing or mismatched Atlases rather
-than using them. Rebuild after changing the map or relevant parameters;
+or shared-plane constraints. Keep the two files together. With the default
+empty `reloc_atlas_path`, loading regenerates missing, outdated or mismatched
+caches from the map's point clouds using the active configuration. The new
+cache is used immediately and reused on later loads. The map itself is not
+rewritten. Cache publication failure reports an error and retains the previous
+live session; the map directory must be writable for automatic preparation.
+
+An explicit `reloc_atlas_path` remains an externally managed artifact, including
+Product bundles and frozen deployments. Its map/configuration fingerprints
+must match; it is read without automatic changes. Compile a replacement before
+switching that deployment to the new artifact.
 `--output` selects a new file and `--force` replaces an existing one.
 
 Precomputation adds map-save time, disk usage, and resident target geometry
@@ -178,10 +186,10 @@ during localization in exchange for less online preparation. Set
 on a memory-constrained deployment or an older map. Product localization
 requires Atlas. Existing robot YAML files keep their explicit setting.
 
-Newly compiled Atlases use compact v3 storage. The loader also reads v2 caches;
-missing or incompatible descriptor caches rebuild from the saved point clouds.
-Recompile an older Atlas to obtain the startup savings. Older N3M binaries need
-their original v2 Atlas, so use `--output` when comparing versions.
+Newly compiled Atlases use compact v3 storage. Default v2 caches are upgraded
+on first load; explicitly managed v2 caches remain readable. Older N3M binaries
+need their original v2 Atlas, so keep separate map directories when comparing
+versions or use explicit Atlas paths to retain frozen artifacts.
 
 Humble launch files use a 64 MiB Fast DDS SHM profile with normal UDP interfaces
 when `FASTRTPS_DEFAULT_PROFILES_FILE` is unset. Existing profiles are preserved;

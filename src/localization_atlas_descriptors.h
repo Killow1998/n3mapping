@@ -5,6 +5,7 @@
 
 namespace n3mapping {
 class LocalizationAtlasData;
+bool atlasDescriptorsCurrent(const Config& config, const LocalizationAtlasData& data);
 void encodeAtlasDescriptors(const Config &config,
                             const std::vector<Keyframe::Ptr> &keyframes,
                             LocalizationAtlasData &data);

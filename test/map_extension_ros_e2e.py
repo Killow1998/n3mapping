@@ -176,7 +176,7 @@ def run(args, root):
         source = original/'n3map.pbstream'; source_sha=hashlib.sha256(source.read_bytes()).hexdigest()
         source_atlas = Path(str(source)+'.localization_atlas.pb')
         assert source_atlas.stat().st_size > 0
-        atlas_sha = hashlib.sha256(source_atlas.read_bytes()).hexdigest()
+        source_atlas.unlink()  # Exercise first-load preparation of an older map.
         current_x, transformed = -3., True
         node = start('localization', source, extended)
         denied = call('/n3mapping/start_map_extension')
@@ -186,6 +186,7 @@ def run(args, root):
             frame(-3.)
             if latest.get('state')=='tracking': break
         assert latest.get('state')=='tracking',latest
+        atlas_sha = hashlib.sha256(source_atlas.read_bytes()).hexdigest()
         wait(lambda:len(locks)==1)
         # Subscribe only after localization: headless startup must not be needed
         # to populate the map, and a later subscriber must receive the latched map.
@@ -234,6 +235,7 @@ def run(args, root):
                     reload_max_position_error_m=max(errors),original_map_sha256=source_sha,
                     restart_at_switch=False,additional_lock_events=0,
                     atlas_enabled_by_default=True,
+                    missing_atlas_created_at_first_load=True,
                     late_global_map_received=True, extension_global_map_updated=True)
         (root/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
         print(json.dumps(result))

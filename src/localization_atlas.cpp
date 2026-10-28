@@ -385,17 +385,22 @@ bool LocalizationAtlas::compileAndSave(
 
     const auto descriptor_start = Clock::now();
     encodeAtlasDescriptors(config_, keyframes, data);
+    // Keep the newly built cache usable immediately, without a second file
+    // read, target preparation or KD-tree construction after first-load upgrade.
+    if (!decodeAtlasDescriptors(config_, data, frame_descriptors_, submap_descriptors_,
+                               heading_descriptors_, place_catalog_, place_catalog_ready_, error))
+        return false;
     local_stats.descriptor_prepare_ms = elapsedMs(descriptor_start);
 
     if (config_.reloc_free_space_enable && config_.reloc_free_space_map_pcd.empty()) {
         const auto grid_start = Clock::now();
+        data.set_free_space_config(freeSpaceConfig(config_));
         std::vector<Eigen::Vector3d> origins;
         origins.reserve(keyframes.size());
         for (const auto& frame : keyframes)
             if (frame && frame->isValid()) origins.push_back(frame->pose_optimized.translation());
         if (free_space_grid_.build(*global_map_, origins, config_.reloc_free_space_resolution,
                 config_.reloc_free_space_max_ray_length, config_.reloc_free_space_occupied_min_points)) {
-            data.set_free_space_config(freeSpaceConfig(config_));
             free_space_grid_.encode(*data.mutable_free_space_grid());
         }
         local_stats.free_space_prepare_ms = elapsedMs(grid_start);
@@ -448,7 +453,8 @@ bool LocalizationAtlas::compileAndSave(
 bool LocalizationAtlas::load(const std::string& map_path,
                              const std::string& atlas_path,
                              LocalizationAtlasStats* stats,
-                             std::string* error) {
+                             std::string* error,
+                             bool require_current_cache) {
     clear();
     LocalizationAtlasStats local_stats;
     auto start = Clock::now();
@@ -487,6 +493,14 @@ bool LocalizationAtlas::load(const std::string& map_path,
     }
     if (data.config_sha256() != config_sha256_) {
         setError(error, "atlas config SHA-256 mismatch");
+        return false;
+    }
+    if (require_current_cache &&
+        (data.format_version() != kAtlasFormatVersion ||
+         !atlasDescriptorsCurrent(config_, data) ||
+         (config_.reloc_free_space_enable && config_.reloc_free_space_map_pcd.empty() &&
+          data.free_space_config() != freeSpaceConfig(config_)))) {
+        setError(error, "atlas precomputation is outdated");
         return false;
     }
     if (data.global_point_count() == 0 ||

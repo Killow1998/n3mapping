@@ -55,7 +55,8 @@ public:
     bool load(const std::string& map_path,
               const std::string& atlas_path,
               LocalizationAtlasStats* stats = nullptr,
-              std::string* error = nullptr);
+              std::string* error = nullptr,
+              bool require_current_cache = false);
     void clear();
     FreeSpaceGrid takeFreeSpaceGrid();
 

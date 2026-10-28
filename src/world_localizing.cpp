@@ -2,6 +2,7 @@
 // evidence and offline probes are implemented in separate translation units.
 #include "n3mapping/world_localizing.h"
 #include "n3mapping/tracking_target_cache.h"
+#include "n3mapping/async_log.h"
 
 #include <cmath>
 #include <glog/logging.h>
@@ -175,8 +176,26 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
           ? LocalizationAtlas::defaultAtlasPath(map_path)
           : config_.reloc_atlas_path;
   LocalizationAtlasStats stats;
-  if (!localization_atlas_->load(map_path, atlas_path, &stats, error))
-    return false;
+  std::string rebuild_reason;
+  const bool auto_prepare = config_.reloc_atlas_path.empty();
+  if (!localization_atlas_->load(map_path, atlas_path, &stats, &rebuild_reason, auto_prepare)) {
+    // Explicit artifacts can belong to a frozen deployment or Product bundle.
+    if (!auto_prepare) {
+      if (error) *error = rebuild_reason;
+      return false;
+    }
+    LogOperation rebuild("atlas_rebuild", atlas_path);
+    logEvent("atlas_rebuild_required", "path=" + atlas_path + " reason=" + rebuild_reason);
+    if (!localization_atlas_->compileAndSave(map_path, keyframe_manager_.getAllKeyframes(),
+                                             atlas_path, true, &stats, error))
+      return false;
+    LOG(INFO) << "[LocalizationAtlas] Updated " << atlas_path
+              << " global_map_ms=" << stats.global_map_ms
+              << " prepare_ms=" << stats.prepare_ms
+              << " descriptor_prepare_ms=" << stats.descriptor_prepare_ms
+              << " serialize_ms=" << stats.serialize_ms;
+    rebuild.succeed();
+  }
   DescriptorSearchPerformance index_cost;
   const auto *catalog = localization_atlas_->placeCatalog();
   if (catalog) {

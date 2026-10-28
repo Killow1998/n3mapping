@@ -63,8 +63,9 @@ roslaunch n3mapping localization.launch config_file:=/path/to/n3mapping.yaml
 roslaunch n3mapping map_extension.launch config_file:=/path/to/n3mapping.yaml
 ```
 
-Add `rviz:=false` to run without RViz. Atlas is enabled by default; for maps from
-older versions, see [preparing an Atlas](docs/getting_started.md#prepare-an-atlas-for-localization).
+Add `rviz:=false` to run without RViz. Atlas is enabled by default and prepared
+automatically when needed. See [Atlas setup](docs/getting_started.md#prepare-an-atlas-for-localization)
+to prepare it ahead of startup or manage a fixed deployment.
 
 ## Use and reuse a map
 
