@@ -163,6 +163,7 @@ struct RelocTrackingDebugEvent : TrackingPerformance {
   double fitness_score = std::numeric_limits<double>::quiet_NaN();
   double inlier_ratio = std::numeric_limits<double>::quiet_NaN();
   bool retry_used = false;
+  bool registration_translation_projected = false;
   int consecutive_track_failures = 0;
   bool result_success = false;
   std::string reject_reason;

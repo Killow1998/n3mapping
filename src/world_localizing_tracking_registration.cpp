@@ -4,6 +4,7 @@
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/visibility_consistency.h"
 #include "tracking_pose_correction.h"
+#include "tracking_geometry.h"
 
 #include <chrono>
 #include <cmath>
@@ -32,6 +33,7 @@ MatchResult WorldLocalizing::registerTracking(
   debug_event.registration_ms = elapsed_ms(registration_started);
   bool retry_used = false;
   bool bounded_recovery_accepted = false;
+  std::shared_ptr<const PointCloudMatcher::PreparedTarget> recovery_pair_target;
   std::optional<PreparedVisibilityObservation> recovery_observation;
   const auto admit_recovery = [&](const MatchResult& candidate) {
     if (!hasValidRegistrationResult(candidate) ||
@@ -165,6 +167,7 @@ MatchResult WorldLocalizing::registerTracking(
       const bool use_atlas = localization_atlas_ && localization_atlas_->loaded();
       const auto& recovery_target =
           use_atlas ? localization_atlas_->preparedTarget() : *prepared_target;
+      prepared_target = &recovery_target;
       const auto recovery_started = timing_started();
       auto recovery = matcher_.alignPrepared(
           recovery_target, prepared_source, predicted_pose, local);
@@ -215,12 +218,33 @@ MatchResult WorldLocalizing::registerTracking(
         debug_event.retry_registration_ms += elapsed_ms(pair_started);
         if (admit_recovery(pair)) {
           recovery = pair;
+          recovery_pair_target = pair_target.target;
+          prepared_target = recovery_pair_target.get();
         }
       }
       // An unsuccessful recheck cannot certify the distant coarse endpoint.
       // The caller applies the unchanged convergence, quality and motion gates.
       match_result = std::move(recovery);
     }
+  }
+  if (prepared_target && prepared_source.has_refine_cloud &&
+      hasValidRegistrationResult(match_result)) {
+    const auto projection_started = timing_started();
+    const auto supported_pose = supportedTrackingPose(
+        *prepared_source.refine_cloud, config_.gicp_num_neighbors,
+        predicted_pose, match_result);
+    if (!supported_pose) {
+      match_result = MatchResult{};
+    } else if ((supported_pose->matrix() - match_result.T_target_source.matrix()).norm() > 1e-9) {
+      debug_event.registration_translation_projected = true;
+      // Retain the optimizer's convergence requirement. Recheck the pose we
+      // actually propose with the same correspondence radius and quality gates.
+      auto checked = matcher_.evaluatePreparedPose(
+          *prepared_target, prepared_source, *supported_pose, match_result.metric);
+      checked.stages = std::move(match_result.stages);
+      match_result = std::move(checked);
+    }
+    debug_event.registration_ms += elapsed_ms(projection_started);
   }
   debug_event.icp_converged = match_result.converged;
   debug_event.fitness_score = match_result.fitness_score;

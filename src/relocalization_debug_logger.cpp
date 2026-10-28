@@ -549,6 +549,8 @@ bool RelocalizationDebugLogger::appendTracking(
   appendNumber(os, &first, "fitness_score", event.fitness_score);
   appendNumber(os, &first, "inlier_ratio", event.inlier_ratio);
   appendBool(os, &first, "retry_used", event.retry_used);
+  appendBool(os, &first, "registration_translation_projected",
+             event.registration_translation_projected);
   appendInteger(os, &first, "consecutive_track_failures",
                 event.consecutive_track_failures);
   appendBool(os, &first, "result_success", event.result_success);
