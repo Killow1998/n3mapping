@@ -151,8 +151,8 @@ for versioned release installation and test capture.
 
 ## Prepare an Atlas for localization
 
-An Atlas stores map-derived registration geometry, place descriptors and
-visibility data so localization can reuse them. Compile it after building and
+An Atlas stores map-derived registration geometry, frame/submap descriptors,
+heading features and visibility data so localization can reuse them. Compile it after building and
 sourcing the workspace:
 
 ```bash
@@ -168,6 +168,16 @@ and use `reloc_atlas_path` for a custom location. The Product localization
 profile requires a matching Atlas. The loader verifies map and configuration
 fingerprints. Rebuild the cache after changing the map or relevant parameters;
 `--output` selects a new file and `--force` replaces an existing one.
+
+Newly compiled Atlases use compact v3 storage. The loader also reads v2 caches;
+missing or incompatible descriptor caches rebuild from the saved point clouds.
+Recompile an older Atlas to obtain the startup savings. Older N3M binaries need
+their original v2 Atlas, so use `--output` when comparing versions.
+
+Humble launch files use a 64 MiB Fast DDS SHM profile with normal UDP interfaces
+when `FASTRTPS_DEFAULT_PROFILES_FILE` is unset. Existing profiles are preserved;
+`dds_profile:=/path/to/profile.xml` overrides the path. See [DDS and container setup](logging.md#humble-and-fast-dds-shared-memory)
+for the supplied single-host profile and container capacity.
 
 See [development and tests](development.md) for build profiles, E2E checks and
 offline evaluation tools, and [logging and DDS setup](logging.md) for diagnostics.

@@ -5,8 +5,8 @@ Requirements: 10.1, 10.2
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition
+from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
+from launch.conditions import IfCondition, LaunchConfigurationNotEquals
 from launch.substitutions import EnvironmentVariable, LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -56,6 +56,12 @@ def generate_launch_description():
     )
     
     return LaunchDescription([
+        DeclareLaunchArgument('dds_profile',
+            default_value=EnvironmentVariable('FASTRTPS_DEFAULT_PROFILES_FILE',
+                default_value=os.path.join(pkg_dir, 'config', 'fastdds.xml')),
+            description='Fast DDS XML profile; preserves an existing environment profile'),
+        SetEnvironmentVariable('FASTRTPS_DEFAULT_PROFILES_FILE', LaunchConfiguration('dds_profile'),
+            condition=LaunchConfigurationNotEquals('dds_profile', '')),
         config_file_arg,
         rviz_arg,
         n3mapping_node,

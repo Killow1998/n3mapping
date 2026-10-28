@@ -17,6 +17,12 @@
 | `/n3mapping/save_map` | service | `std_srvs/Trigger` / `std_srvs/srv/Trigger` | Save map files |
 | `/n3mapping/start_map_extension` | service | `std_srvs/Trigger` / `std_srvs/srv/Trigger` | Continue the loaded map from the current verified localization |
 
+Global map visualization is built on demand when a subscriber appears, then
+latched/transient-local for later subscribers. Both adapters use the loaded
+keyframes and their map revision; an adjacent `global_map.pcd` is an export,
+not an unchecked replacement for the selected map. Extension and loop corrections
+invalidate the cache. Headless localization does not construct this display cloud.
+
 ## Switch from localization to map extension
 
 An already localized node can switch to map extension without restarting the

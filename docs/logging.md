@@ -1,4 +1,4 @@
-# Logging and local DDS setup
+# Logging and DDS setup
 
 [Project overview](../README.md) · [ROS interface](ros_interface.md)
 
@@ -85,7 +85,7 @@ In that 2026-10-21 replay, with the original depth-1 live subscription, several 
 despite complete backend input. A 64 MiB SHM profile restored all 3,265 callbacks
 in the complete `gate_02` replay, with 3,250 outputs after 15 startup waits and a
 maximum input timestamp gap of 106.8 ms. Increasing the subscription depth or
-changing executor spinning did not resolve the delivery problem. The profile
+changing executor spinning did not resolve the delivery problem. The local-only profile
 is an opt-in, validated **single-host** configuration, not a universal memory
 budget or a replacement for measuring the actual workload.
 The separate small-message startup/history correction is documented in the
@@ -120,3 +120,65 @@ contains the paired controls, timing/reference audit, CPU/RAM measurements and
 remaining accuracy limits. Raw replay evidence stays under
 `build/n3mapping/real_robustness_20261021`, including the failed controls and all
 six successful `full_ros_shm64` delivery/checkpoint validations.
+
+### Launch configuration and Docker capacity
+
+The Humble `mapping`, `localization` and `map_extension` launch files accept
+`dds_profile:=/absolute/path/to/profile.xml`. The selected file is applied before
+child processes initialize ROS. With no argument, an existing
+`FASTRTPS_DEFAULT_PROFILES_FILE` is inherited. Otherwise they use the supplied
+[fastdds.xml](../config/fastdds.xml): 64 MiB SHM per participant plus ordinary
+UDP interfaces without a whitelist. `dds_profile:=` skips setting a profile, leaving the inherited environment
+unchanged.
+`RMW_IMPLEMENTATION`, `ROS_DOMAIN_ID` and `ROS_LOCALHOST_ONLY` are not changed.
+Cyclone DDS and ROS 1 Noetic do not use this Fast DDS XML profile.
+
+For a **single-host** deployment using the supplied 64 MiB profile:
+
+```bash
+ros2 launch n3mapping localization.launch.py config_file:=/path/to/localization.yaml \
+  dds_profile:="$(ros2 pkg prefix n3mapping)/share/n3mapping/config/fastdds_local.xml" \
+  rviz:=false
+```
+
+The explicitly selected `fastdds_local.xml` profile restricts UDP to loopback;
+the launch default `fastdds.xml` supports normal network interfaces for remote
+RViz or a multi-computer frontend. An operator-supplied profile always wins.
+Network reachability still depends on the selected RMW, domain, localhost-only
+setting and the host/container network. Export the chosen
+profile for the frontend, N3M, recording and viewing processes, or apply it in
+the top-level launch that owns the whole pipeline. N3M cannot reconfigure an
+already-running frontend. Direct executable launches use the environment exports
+shown above.
+
+Docker has a second, independent limit: the container's `/dev/shm` filesystem.
+During the RK3588 2026-10-28 controls, the default 64 MiB Docker allocation could
+not host the configured DDS segments. Fast DDS reported
+`Unable to Register SHM Transport`, then the replay used the available UDP path.
+Those pilot measurements are retained separately and excluded from the main A/B.
+The repeated comparison uses:
+
+```bash
+docker run --shm-size=512m ...
+# Compose equivalent under the service:
+# shm_size: '512m'
+```
+
+512 MiB is the capacity used for this measured process set, not a universal
+SLAM requirement. Account for every participant, concurrent outstanding payloads,
+and middleware overhead. A 64 MiB *segment* does not mean a 64 MiB container is
+sufficient. Increasing Docker capacity does not resize DDS segments, and changing
+DDS XML does not enlarge Docker's `/dev/shm`. Large global-map messages can also
+exceed a segment; check their serialized size rather than only the raw scan size.
+A launch file cannot enlarge the container filesystem after creation.
+
+For the planned FAST-LIVO2 fork, reuse this separation: ROS 2 launch/profile
+installation, explicit container capacity, preserved operator settings, and a
+CPU-only core without DDS initialization. Validate the raw cloud, frontend cloud,
+IMU and pose callback/output counts and timestamp gaps with the same input.
+No FAST-LIVO2 fork or runtime is changed by the N3M update.
+
+Record `df -h /dev/shm`, the profile and its hash, RMW/Fast DDS versions,
+participant count, largest serialized message, transport initialization errors,
+CPU affinity and RSS/PSS alongside every transport A/B. The RK3588 startup and
+memory results are maintained in the [hardware record](evidence/rk3588_resources_20261028.md).
