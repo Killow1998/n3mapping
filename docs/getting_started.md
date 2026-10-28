@@ -185,6 +185,7 @@ during localization in exchange for less online preparation. Set
 `reloc_atlas_enable: false` to use the ordinary profile's local preparation path
 on a memory-constrained deployment or an older map. Product localization
 requires Atlas. Existing robot YAML files keep their explicit setting.
+The current sidecar format has a 1 GiB load limit; larger artifacts fail preparation.
 
 Newly compiled Atlases use compact v3 storage. Default v2 caches are upgraded
 on first load; explicitly managed v2 caches remain readable. Older N3M binaries

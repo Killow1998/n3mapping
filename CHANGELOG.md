@@ -1,15 +1,26 @@
 # Changelog
 
-## Unreleased
+## [1.1.0-rc5] - 2026-10-28 (hardware-test candidate)
 
+- Enable Atlas by default in the shared core and both ROS profiles. Map saves
+  include a matching cache even without shared-plane constraints. First load
+  regenerates missing or outdated default caches from the map; explicit Atlas
+  paths remain managed by the deployment. Subsequent loads reuse the cache.
+- Persist existing submap descriptors and heading features in the Atlas, use
+  compact v3 storage for normal-derived covariances, and defer global-map
+  visualization until subscribed. Preserve geometry, matching thresholds and
+  late-subscriber publication. See the [RK3588 measurements](docs/evidence/rk3588_resources_20261028.md).
 - Reuse an authoritative localization when switching the same live node to map
-  extension. Both ROS adapters expose `start_map_extension`; the shared core
-  retains the current correction and creates one extension session without
-  another search. Unlocked/coasting inputs cannot authorize the handoff.
-- Verify four-core Humble and Noetic builds, native ROS switching and persistence,
-  and an extension route with nonidentity odometry coordinates. Keep rc4 and
-  installed/frozen runtimes unchanged. See the
-  [validation record](docs/evidence/localization_to_extension_20261027.md).
+  extension. Both ROS adapters expose `start_map_extension`; the core retains
+  the current correction without another search. See the
+  [handoff validation](docs/evidence/localization_to_extension_20261027.md).
+- Supply a 64 MiB Fast DDS SHM profile with normal UDP interfaces through Humble
+  launch files. Preserve operator configuration; document container SHM sizing
+  and the loopback-only alternative in the [DDS guide](docs/logging.md).
+- Simplify internal contracts and stale comments, and separate public setup
+  guidance from validation records. Keep rc1–rc4 and installed/frozen runtimes.
+- This is a field-test candidate. Hard-search half-core CPU and general 10 cm
+  accuracy remain unaccepted; startup savings do not establish either goal.
 
 ## [1.1.0-rc4] - 2026-10-27 (hardware-test candidate)
 

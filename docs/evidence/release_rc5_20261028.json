@@ -1,0 +1,174 @@
+{
+  "schema": "n3mapping_release_qualification_v1",
+  "version_tag": "v1.1.0-rc5",
+  "date": "2026-10-28",
+  "package_version": "1.1.0",
+  "previous_candidate": "v1.1.0-rc4",
+  "runtime_commit": "ec42535e8b13c023c734b426d21d0cf5e1e5e0c7",
+  "cpus": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "workers": 4,
+  "build_type": "Release",
+  "research_tools": false,
+  "full_suites": {
+    "humble": {
+      "identity": {
+        "schema": "n3mapping_product_build_identity_v2",
+        "commit": "ec42535e8b13c023c734b426d21d0cf5e1e5e0c7",
+        "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+        "build_type": "Release",
+        "research_tools": "OFF",
+        "verified": true
+      },
+      "tests_passed": 69,
+      "test_wall_s": 49.35,
+      "native_e2e": {
+        "ros": "humble",
+        "switch_ms": 1.6311010112985969,
+        "extension_max_position_error_m": 0.000311143882414754,
+        "reload_max_position_error_m": 0.00026379225749245536,
+        "original_map_sha256": "649e1ba13e3ec89dc357c2122807150b21d4d41c9af9cf5963ae25dfc519ebc1",
+        "restart_at_switch": false,
+        "additional_lock_events": 0,
+        "atlas_enabled_by_default": true,
+        "missing_atlas_created_at_first_load": true,
+        "late_global_map_received": true,
+        "extension_global_map_updated": true
+      },
+      "build_binary_sha256": {
+        "n3mapping_node": "b147f493d837027ab0fc932f88519872c2eab0368429a94c77daedb83d2a6527",
+        "libn3mapping_core.so": "03aaa95057f85d541f39c003c902fdcf7e0563e568bbc5fac5665aa324ee0ade"
+      },
+      "raw_log": "build/n3mapping/release_rc5_20261028/humble_ctest_full.log",
+      "raw_log_sha256": "a4973c1a43b58c3e1e44681486779493cc09d24a9446f481236642fd464d888d"
+    },
+    "noetic": {
+      "identity": {
+        "schema": "n3mapping_product_build_identity_v2",
+        "commit": "ec42535e8b13c023c734b426d21d0cf5e1e5e0c7",
+        "product_profile_sha256": "96da2443dd1dbd19847d263b424ea77dc36808791c96a576cead67ab07ea2e01",
+        "build_type": "Release",
+        "research_tools": "OFF",
+        "verified": true
+      },
+      "tests_passed": 67,
+      "test_wall_s": 61.59,
+      "native_e2e": {
+        "ros": "noetic",
+        "switch_ms": 1.661288901232183,
+        "extension_max_position_error_m": 0.0003111440443863949,
+        "reload_max_position_error_m": 0.00013115246656516226,
+        "original_map_sha256": "0227242a522b9ed8db82ee2a1080a47443a0bd936d42e744fac3af5fc0f560f8",
+        "restart_at_switch": false,
+        "additional_lock_events": 0,
+        "atlas_enabled_by_default": true,
+        "missing_atlas_created_at_first_load": true,
+        "late_global_map_received": true,
+        "extension_global_map_updated": true
+      },
+      "build_binary_sha256": {
+        "n3mapping_node": "0818a60284ec29df1eb5d76f72a3ed7b77b37f2b7b2cc7878461b909165ed0b4",
+        "libn3mapping_core.so": "a3ac66e2d236c587304ccbce194d4190e5b0aa5386d12bde3dc45eb832a256a5"
+      },
+      "raw_log": "build/n3mapping/release_rc5_20261028/noetic/ctest.log",
+      "raw_log_sha256": "bb02905a1665db1e0e62b6fd0f72efda126eaa7548feadf7a01b614d1cb8a8ff"
+    }
+  },
+  "automatic_atlas_upgrade": {
+    "upgrade_v2": {
+      "load_wall_s": 12.375,
+      "load_cpu_s": 11.5589,
+      "peak_rss_mib": 1281.8984375,
+      "updated": true,
+      "atlas_sha256": "5f9d934fc5735e87192826602e70e68725bb8182d2fe55739f647d48587a92e3",
+      "atlas_bytes": 311694939,
+      "atlas_mtime_ns": 1793202647501607797
+    },
+    "warm_v3": {
+      "load_wall_s": 1.99082,
+      "load_cpu_s": 1.81757,
+      "peak_rss_mib": 1065.7578125,
+      "updated": false,
+      "atlas_sha256": "5f9d934fc5735e87192826602e70e68725bb8182d2fe55739f647d48587a92e3",
+      "atlas_bytes": 311694939,
+      "atlas_mtime_ns": 1793202647501607797,
+      "frames": 296,
+      "decision_changes": {
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0,
+        "live": 0
+      },
+      "max_pose_element_delta": 1.7763568394002505e-15
+    },
+    "explicit_v2": {
+      "load_wall_s": 5.62191,
+      "load_cpu_s": 5.076350000000001,
+      "peak_rss_mib": 1269.703125,
+      "updated": false,
+      "atlas_sha256": "5f9d934fc5735e87192826602e70e68725bb8182d2fe55739f647d48587a92e3",
+      "atlas_bytes": 311694939,
+      "atlas_mtime_ns": 1793202647501607797,
+      "frames": 296,
+      "decision_changes": {
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0,
+        "live": 0
+      },
+      "max_pose_element_delta": 4.85722573273506e-17
+    },
+    "source_map_unchanged": true,
+    "explicit_v2_unchanged": true
+  },
+  "automatic_atlas_upgrade_scope": "1271-keyframe map; three complete 296-frame position-08 runs on x86_64; core loading excludes ROS startup and search",
+  "prior_validation": {
+    "rk3588_resources": "docs/evidence/rk3588_resources_20261028.md",
+    "rk3588_resources_machine": "docs/evidence/rk3588_resources_20261028.json",
+    "localization_to_extension": "docs/evidence/localization_to_extension_20261027.md",
+    "coverage": "Prior startup optimization: complete 14 positions and two localization routes; RK3588 positions03/08/14 and route, plus native ROS switching. Reused evidence, not rerun as a new 16-case rc5 suite."
+  },
+  "atlas_policy": {
+    "default_enabled": true,
+    "default_path": "<map_path>.localization_atlas.pb",
+    "missing_or_outdated_default": "Rebuild from the authoritative map and active settings, publish once, reuse immediately and on later loads",
+    "explicit_path": "Externally managed; read without automatic changes",
+    "write_failure": "Report failure and keep the previous live session",
+    "previous_map_preserved": true,
+    "sidecar_limit_bytes": 1073741824
+  },
+  "dds_policy": {
+    "humble_default": "config/fastdds.xml:64MiB SHM and ordinary UDPv4",
+    "preserves_operator_profile": true,
+    "local_alternative": "config/fastdds_local.xml",
+    "qualified_container_shm": "512MiB; deployment capacity depends on concurrent participants",
+    "prior_payload_test": "40/40 ordered PointCloud2 messages, 1280145 serialized bytes each; same-host test"
+  },
+  "protected": {
+    "installed_and_frozen_binaries_unchanged": 12,
+    "existing_tags_unchanged": true,
+    "unrelated_fast_livo2_documents_excluded": true
+  },
+  "limitations": [
+    "Hardware-test candidate, not general 10cm or half-core acceptance",
+    "RK3588 performance comes from the preceding measured runtime stage; these final clean Release builds are x86_64",
+    "Automatic upgrading incurs one-time preprocessing and requires a writable map directory; explicit Atlas deployments manage replacement separately",
+    "A global-map subscriber still incurs visualization preparation and storage",
+    "No additional six-real-sequence or raw-frontend-plus-backend concurrent ARM qualification in this release"
+  ],
+  "local_artifacts": "build/n3mapping/release_rc5_20261028/; final release_manifest.json records the exact tag build and dependency hashes"
+}
