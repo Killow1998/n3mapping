@@ -29,6 +29,12 @@ RealtimeOutput::RealtimeOutput(CoreRunMode mode, std::string world_frame,
     : mode_(mode), world_frame_(std::move(world_frame)),
       session_id_(projectionSessionId()), odometry_(retention) {}
 
+void RealtimeOutput::setMode(CoreRunMode mode) {
+  std::lock_guard<std::mutex> lock(snapshot_mutex_);
+  mode_ = mode;
+  scalar_status_json_.clear();
+}
+
 BackendPublication RealtimeOutput::acceptBackend(
     const OdometrySource& source, double observation_stamp, BackendOutput& output) {
   const bool localization = mode_ == CoreRunMode::LOCALIZATION;
@@ -60,6 +66,7 @@ OdometryEmission RealtimeOutput::observeOdometry(
     const OdometrySource& source, int64_t now_nsec, bool twist_publishable) {
   OdometryEmission emission;
   BackendOutput backend;
+  CoreRunMode mode;
   RealtimeLocalizationStatus realtime;
   {
     std::lock_guard<std::mutex> lock(snapshot_mutex_);
@@ -67,6 +74,7 @@ OdometryEmission RealtimeOutput::observeOdometry(
         source.source_frame, source.body_frame, source.pose, source.pose_valid,
         &emission.diagnostic);
     backend = backend_status_;
+    mode = mode_;
     realtime.observation_stamp = observation_stamp_;
   }
   auto& diagnostic = emission.diagnostic;
@@ -103,10 +111,10 @@ OdometryEmission RealtimeOutput::observeOdometry(
   realtime.estimate_available = emission.pose.has_value();
   realtime.input_reason = emission.reason;
   emission.status_json = localizationStatusJson(
-      mode_, backend, sourceSeconds(source.stamp_nsec), world_frame_, &realtime);
+      mode, backend, sourceSeconds(source.stamp_nsec), world_frame_, &realtime);
   {
     std::lock_guard<std::mutex> lock(snapshot_mutex_);
-    scalar_status_json_ = emission.status_json;
+    if (mode == mode_) scalar_status_json_ = emission.status_json;
   }
   return emission;
 }
@@ -126,13 +134,15 @@ std::optional<CloudEmission> RealtimeOutput::observeCloud(
   if (scalar_status.empty()) {
     RealtimeLocalizationStatus unavailable;
     BackendOutput backend;
+    CoreRunMode mode;
     {
       std::lock_guard<std::mutex> lock(snapshot_mutex_);
       backend = backend_status_;
+      mode = mode_;
       unavailable.observation_stamp = observation_stamp_;
     }
     scalar_status = localizationStatusJson(
-        mode_, backend, sourceSeconds(cloud_stamp_nsec), world_frame_, &unavailable);
+        mode, backend, sourceSeconds(cloud_stamp_nsec), world_frame_, &unavailable);
   }
   auto projection = metadata(*projected, "cloud");
   projection.cloud_stamp_nsec = cloud_stamp_nsec;

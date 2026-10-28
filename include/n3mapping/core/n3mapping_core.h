@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -76,6 +77,8 @@ class N3MappingCore {
     CoreLoopClosureResult processPendingLoopClosuresAsync();
 
     bool loadMap(const std::string& map_path);
+    // Same loaded map and LIO session; consumes the last authoritative observation.
+    bool startMapExtension(std::string* error = nullptr);
     bool saveMap(const std::string& map_path);
     bool saveGlobalMap(const std::string& pcd_path);
     bool saveMapSnapshot(std::string* error = nullptr);
@@ -152,6 +155,7 @@ class N3MappingCore {
     int floor_attitude_rejected_ = 0;
     std::size_t loop_count_ = 0;
     std::string localization_source_frame_id_;
+    std::optional<core::LioFrame> extension_anchor_frame_;
     bool map_loaded_ = false;
 };
 

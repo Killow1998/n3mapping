@@ -61,6 +61,23 @@ N3MappingNoeticNode::N3MappingNoeticNode()
 
 N3MappingNoeticNode::~N3MappingNoeticNode() { shutdown(); }
 
+bool N3MappingNoeticNode::handleStartMapExtension(
+    std_srvs::Trigger::Request&, std_srvs::Trigger::Response& res)
+{
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    res.success = core_->startMapExtension(&res.message);
+    if (!res.success) return true;
+    res.message = "map_extension";
+    if (run_mode_ == CoreRunMode::MAP_EXTENSION) return true;
+    pending_localization_frame_.take();
+    run_mode_ = CoreRunMode::MAP_EXTENSION;
+    config_.mode = coreRunModeName(run_mode_);
+    realtime_output_->setMode(run_mode_);
+    map_artifacts_->setMode(run_mode_);
+    initializeOptimizationLogging();
+    return true;
+}
+
 void N3MappingNoeticNode::spin()
 {
     startLiveOutput();
@@ -121,11 +138,11 @@ void N3MappingNoeticNode::initializeROS()
         nh_.advertise<RelocalizationStatus>("/n3mapping/relocalization_status", 1, true);
     relocalization_pose_pub_ =
         nh_.advertise<geometry_msgs::PoseStamped>("/n3mapping/relocalization_pose", 1, false);
-    if (coreRunModeSavesMap(run_mode_)) {
-        save_map_srv_ = nh_.advertiseService(
-            "/n3mapping/save_map",
-            &N3MappingNoeticNode::handleSaveMap, this);
-    }
+    save_map_srv_ = nh_.advertiseService(
+        "/n3mapping/save_map", &N3MappingNoeticNode::handleSaveMap, this);
+    start_extension_srv_ = nh_.advertiseService(
+        "/n3mapping/start_map_extension",
+        &N3MappingNoeticNode::handleStartMapExtension, this);
 
     loop_timer_ = nh_.createTimer(ros::Duration(0.1), &N3MappingNoeticNode::loopDetectionTimerCallback, this);
     const double global_map_hz = std::max(0.1, config_.global_map_publish_hz);

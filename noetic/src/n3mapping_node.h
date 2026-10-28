@@ -79,6 +79,7 @@ class N3MappingNoeticNode {
     void globalMapTimerCallback(const ros::TimerEvent&);
 
     bool handleSaveMap(std_srvs::Trigger::Request&, std_srvs::Trigger::Response& res);
+    bool handleStartMapExtension(std_srvs::Trigger::Request&, std_srvs::Trigger::Response& res);
 
     void publishLiveTransform(const Eigen::Isometry3d& pose,
                               const std_msgs::Header& header);
@@ -185,6 +186,7 @@ class N3MappingNoeticNode {
     ros::Publisher relocalization_status_pub_;
     ros::Publisher relocalization_pose_pub_;
     ros::ServiceServer save_map_srv_;
+    ros::ServiceServer start_extension_srv_;
     ros::Timer loop_timer_;
     ros::Timer global_map_timer_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;

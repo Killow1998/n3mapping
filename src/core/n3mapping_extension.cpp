@@ -1,11 +1,36 @@
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping/async_log.h"
 #include <chrono>
 
 namespace n3mapping {
 
+bool N3MappingCore::startMapExtension(std::string* error) {
+  const auto reject = [&](const char* reason) {
+    if (error) *error = reason;
+    logEvent("map_extension_switch_rejected", reason);
+    return false;
+  };
+  if (!map_loaded_) return reject("map_not_loaded");
+  auto& resuming = session_->mappingResuming();
+  const auto state = resuming.getState();
+  if (state == MappingResumingState::RELOCALIZED ||
+      state == MappingResumingState::EXTENDING) return true;
+  if (!extension_anchor_frame_) return reject("localization_not_authoritative");
+  // Seed the existing odometry check with the last verified observation, so
+  // the first extension frame is checked against the same continuous source.
+  if (mappingInputBlockReason(*extension_anchor_frame_) != core::MappingBlockReason::None)
+    return reject("invalid_extension_anchor_input");
+  if (!resuming.adoptCurrentLocalization(extension_anchor_frame_->source_frame_id))
+    return reject("extension_anchor_unavailable");
+  extension_anchor_frame_.reset();
+  logEvent("map_extension_started", "reused_localization=true");
+  return true;
+}
+
 core::BackendOutput
 N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
+  extension_anchor_frame_.reset();
   RelocResult tracking;
   using PerformanceClock = std::chrono::steady_clock;
   core::BackendPerformanceTiming performance;

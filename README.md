@@ -240,6 +240,18 @@ same small_gicp eigenvalue model, without changing the on-disk layout.
 | `/n3mapping/loop_closure_markers` | topic | `visualization_msgs/MarkerArray` | Loop closure and trajectory markers |
 | `/n3mapping/relocalization_lock` | topic | `std_msgs/UInt32` | Relocalization lock event counter |
 | `/n3mapping/save_map` | service | `std_srvs/Trigger` / `std_srvs/srv/Trigger` | Save map files |
+| `/n3mapping/start_map_extension` | service | `std_srvs/Trigger` / `std_srvs/srv/Trigger` | Continue the loaded map from the current verified localization |
+
+An already localized node can switch to map extension without restarting the
+front end or running global relocalization again. This one-way service requires
+the latest processed observation to have a full geometric lock; searching or
+odometry-only coasting returns `success: false`. Repeated successful calls keep
+the same extension session. The live correction, projection session and lock
+counter are retained. Use `map_save_path` to select the extension destination
+when starting the node. The save service is available during localization but
+rejects writes until extension starts. A different map or restarted LIO source
+still needs the normal localization lifecycle. See the
+[handoff validation and Jetson audit](docs/evidence/localization_to_extension_20261027.md).
 
 External consumers do not need N3Mapping's private status message. The generic
 status contains `mode`, `state`, numeric `stamp` (current estimate source time),
@@ -565,6 +577,12 @@ Map extension:
 ros2 launch n3mapping map_extension.launch.py
 ```
 
+If the running localization node is already locked in this map:
+
+```bash
+ros2 service call /n3mapping/start_map_extension std_srvs/srv/Trigger '{}'
+```
+
 Headless:
 
 ```bash
@@ -878,6 +896,12 @@ Map extension:
 
 ```bash
 roslaunch n3mapping map_extension.launch
+```
+
+If the running localization node is already locked in this map:
+
+```bash
+rosservice call /n3mapping/start_map_extension '{}'
 ```
 
 Headless:

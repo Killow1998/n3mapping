@@ -45,6 +45,8 @@ struct CloudEmission {
 class RealtimeOutput {
  public:
   RealtimeOutput(CoreRunMode mode, std::string world_frame, std::size_t retention);
+  // Backend owner changes policy without discarding the current correction.
+  void setMode(CoreRunMode mode);
 
   // Called by the existing single backend owner after processing a paired scan.
   BackendPublication acceptBackend(const OdometrySource& source,
@@ -64,7 +66,7 @@ class RealtimeOutput {
   ProjectionMetadata metadata(const RealtimeOdometryPose& pose,
                               const std::string& kind) const;
 
-  const CoreRunMode mode_;
+  CoreRunMode mode_;
   const std::string world_frame_;
   const std::string session_id_;
   RelocalizationOutputAuthority authority_;

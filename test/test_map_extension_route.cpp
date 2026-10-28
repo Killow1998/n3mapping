@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 
@@ -57,7 +58,9 @@ core::LioFrame roomFrame(int64_t stamp, double x, double y) {
   return frame;
 }
 
-TEST(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInitialization) {
+class MapExtensionRoute : public ::testing::TestWithParam<bool> {};
+
+TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInitialization) {
   Config config;
   config.mapping_static_start_guard_enable = false;  // The authored poses are settled.
   config.num_threads = 4;
@@ -71,18 +74,50 @@ TEST(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInit
   ASSERT_TRUE(mapping.saveMap(original_path));
 
   N3MappingCore core(config, N3MappingCore::WorldCloudOutput::Disabled);
+  std::string switch_error;
+  EXPECT_FALSE(core.startMapExtension(&switch_error));
   ASSERT_TRUE(core.loadMap(original_path));
+  EXPECT_FALSE(core.startMapExtension(&switch_error));
+  Eigen::Isometry3d map_from_odom = Eigen::Isometry3d::Identity();
+  if (GetParam()) {
+    map_from_odom.linear() = Eigen::AngleAxisd(0.7, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    map_from_odom.translation() = Eigen::Vector3d(12, -7, 0.3);
+  }
+  const auto sensor_frame = [&](int64_t timestamp, double x, double y) {
+    auto frame = roomFrame(timestamp, x, y);
+    frame.T_world_lidar = map_from_odom.inverse() * frame.T_world_lidar;
+    return frame;
+  };
   const auto original_poses = core.getOptimizedPoses();
   int64_t stamp = 10000000000LL;
   core::BackendOutput output;
   int locks = 0;
   for (int i = 0; i < 24 && !output.relocalization_locked; ++i) {
-    output = core.processMapExtensionFrame(roomFrame(stamp, -3, 0));
+    output = GetParam() ? core.processLocalizationFrame(sensor_frame(stamp, -3, 0))
+                        : core.processMapExtensionFrame(sensor_frame(stamp, -3, 0));
     stamp += 100000000LL;
     locks += output.relocalization_locked;
   }
   ASSERT_EQ(locks, 1) << output.relocalization_decision;
-  ASSERT_TRUE(core.processMapExtensionFrame(roomFrame(stamp, -3, 0)).accepted_keyframe);
+  if (GetParam()) {
+    auto sparse = sensor_frame(stamp, -3, 0);
+    sparse.undistorted_cloud->resize(1);
+    output = core.processLocalizationFrame(sparse);
+    EXPECT_NE(output.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
+    EXPECT_FALSE(core.startMapExtension(&switch_error));
+    stamp += 100000000LL;
+    output = core.processLocalizationFrame(sensor_frame(stamp, -3, 0));
+    ASSERT_EQ(output.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
+    const auto before_switch = core.mapRevision();
+    const auto started = std::chrono::steady_clock::now();
+    ASSERT_TRUE(core.startMapExtension(&switch_error)) << switch_error;
+    RecordProperty("switch_ms", std::to_string(std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - started).count()));
+    EXPECT_EQ(core.mapRevision(), before_switch);
+    EXPECT_TRUE(core.startMapExtension(&switch_error));
+    stamp += 100000000LL;
+  }
+  ASSERT_TRUE(core.processMapExtensionFrame(sensor_frame(stamp, -3, 0)).accepted_keyframe);
   stamp += 1000000000LL;
   int prediction_frames = 0, prediction_keyframes = 0, lost_frames = 0;
   std::vector<int64_t> predicted_keyframes;
@@ -93,13 +128,14 @@ TEST(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInit
     {3,0},{2,0},{1,0},{0,0},{-1,0},{-2,0},{-3,0}
   };
   for (const auto& point : route) {
-    auto frame = roomFrame(stamp, point[0], point[1]);
+    auto frame = sensor_frame(stamp, point[0], point[1]);
     output = core.processMapExtensionFrame(frame);
     stamp += 1000000000LL;
     EXPECT_TRUE(output.success) << point[0] << ',' << point[1] << ' ' << output.relocalization_decision;
     locks += output.relocalization_locked;
+    EXPECT_FALSE(output.relocalization_performance.available);
     maximum_error = std::max(maximum_error,
-        (output.T_world_lidar.translation()-frame.T_world_lidar.translation()).norm());
+        (output.T_world_lidar.translation()-Eigen::Vector3d(point[0], point[1], 1.0)).norm());
     if (output.pose_source == PoseSource::ODOM_PREDICTED) {
       ++prediction_frames;
       prediction_keyframes += output.accepted_keyframe;
@@ -129,7 +165,7 @@ TEST(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInit
 
   // Neither a changed coordinate frame nor an invalid pose may extend this session.
   const auto before_invalid = core.getAllKeyframes().size();
-  auto invalid = roomFrame(stamp, -3, 0);
+  auto invalid = sensor_frame(stamp, -3, 0);
   invalid.source_frame_id = "restarted_lio";
   output = core.processMapExtensionFrame(invalid);
   EXPECT_FALSE(output.success);
@@ -160,8 +196,10 @@ TEST(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInit
   EXPECT_EQ(anchors, 1);
   EXPECT_GT(loops, 0);
   EXPECT_TRUE(return_constraint);
-  for (const auto& frame : core.getAllKeyframes())
-    EXPECT_LT((frame->pose_optimized.translation()-frame->pose_odom.translation()).norm(), 0.1);
+  for (const auto& frame : core.getAllKeyframes()) {
+    const auto reference = frame->is_from_loaded_map ? frame->pose_odom : map_from_odom * frame->pose_odom;
+    EXPECT_LT((frame->pose_optimized.translation()-reference.translation()).norm(), 0.1);
+  }
   N3MappingCore reloaded(config, N3MappingCore::WorldCloudOutput::Disabled);
   ASSERT_TRUE(reloaded.loadMap(extended_path));
   ASSERT_EQ(reloaded.getAllKeyframes().size(), core.getAllKeyframes().size());
@@ -173,7 +211,7 @@ TEST(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInit
   // consecutive-violation threshold latches a front-end runaway.
   const auto before_runaway = core.getAllKeyframes().size();
   for (int i = 1; i <= config.odom_sanity_max_consecutive; ++i) {
-    auto runaway = roomFrame(stamp + i*100000000LL, -3, 0);
+    auto runaway = sensor_frame(stamp + i*100000000LL, -3, 0);
     runaway.T_world_lidar.translation().x() += i*1000.0;
     output = core.processMapExtensionFrame(runaway);
     EXPECT_FALSE(output.success);
@@ -181,7 +219,23 @@ TEST(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInit
     EXPECT_EQ(core.getAllKeyframes().size(), before_runaway);
   }
   EXPECT_EQ(output.mapping_block_reason, core::MappingBlockReason::OdometryDiverged);
+  if (GetParam()) {
+    for (int i = 0; i < 24; ++i) {
+      output = reloaded.processLocalizationFrame(sensor_frame(stamp, -3, 0));
+      stamp += 100000000LL;
+      if (output.relocalization_locked) break;
+    }
+    ASSERT_TRUE(reloaded.startMapExtension(&switch_error)) << switch_error;
+    auto reset = sensor_frame(stamp, -3, 0);
+    reset.T_world_lidar.translation().x() += 1000.;
+    const auto before_reset = reloaded.getAllKeyframes().size();
+    output = reloaded.processMapExtensionFrame(reset);
+    EXPECT_FALSE(output.success);
+    EXPECT_EQ(output.mapping_block_reason, core::MappingBlockReason::InvalidInput);
+    EXPECT_EQ(reloaded.getAllKeyframes().size(), before_reset);
+  }
   if (!HasFailure()) std::filesystem::remove_all(dir);
 }
+INSTANTIATE_TEST_SUITE_P(Startup, MapExtensionRoute, ::testing::Values(false, true));
 } // namespace
 } // namespace n3mapping

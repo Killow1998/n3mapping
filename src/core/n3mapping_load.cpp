@@ -91,6 +91,7 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
     floor_attitude_accepted_ = 0;
     floor_attitude_rejected_ = 0;
     localization_source_frame_id_.clear();
+    extension_anchor_frame_.reset();
     odometry_sanity_ = OdometrySanity{};
     odometry_sanity_configured_ = false;
     map_loaded_ = true;

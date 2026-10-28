@@ -6,6 +6,7 @@ namespace n3mapping {
 
 core::BackendOutput
 N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
+  extension_anchor_frame_.reset();
   auto &localizer = session_->worldLocalizing();
   if (!frame.pose_valid || !isFiniteRigidPose(frame.T_world_lidar)) {
     // A correction and its temporal hypotheses belong to one valid odometry
@@ -95,6 +96,10 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   output.matched_keyframe_id = matched_keyframe_id;
   output.performance.tracking_attempted = tracking_attempted;
   output.performance.enabled = config_.reloc_debug_enable;
+  if (success && relocalization_state == RelocalizationState::FULL_6DOF_LOCKED &&
+      pose_source == PoseSource::GEOMETRICALLY_CORRECTED) {
+    extension_anchor_frame_ = frame;
+  }
   return output;
 }
 

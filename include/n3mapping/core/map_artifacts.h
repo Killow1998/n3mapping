@@ -24,6 +24,8 @@ public:
   }
   // Caller holds the backend lock through save and the post-commit snapshot.
   bool save(N3MappingCore* core, std::string* error, MapKeyframeSnapshot* snapshot);
+  // Same backend owner as save(); retain the existing cloud cache.
+  void setMode(CoreRunMode mode) { mode_ = mode; }
   void saveDebug(const MapKeyframeSnapshot& snapshot, std::string* warning);
   struct GlobalCloud {
     core::LioFrame::PointCloud::ConstPtr cloud;
@@ -38,7 +40,7 @@ public:
   void invalidate();
 private:
   const Config config_;
-  const CoreRunMode mode_;
+  CoreRunMode mode_;
   mutable std::mutex mutex_;
   GlobalMapCache cache_;
 };

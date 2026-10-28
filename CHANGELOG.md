@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Reuse an authoritative localization when switching the same live node to map
+  extension. Both ROS adapters expose `start_map_extension`; the shared core
+  retains the current correction and creates one extension session without
+  another search. Unlocked/coasting inputs cannot authorize the handoff.
+- Verify four-core Humble and Noetic builds, native ROS switching and persistence,
+  and an extension route with nonidentity odometry coordinates. Keep rc4 and
+  installed/frozen runtimes unchanged. See the
+  [validation record](docs/evidence/localization_to_extension_20261027.md).
+
 ## [1.1.0-rc4] - 2026-10-27 (hardware-test candidate)
 
 - Include the large-map GTSAM containment, qualified dependency parallelism and

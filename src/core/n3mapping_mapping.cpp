@@ -37,6 +37,7 @@ N3MappingCore::mappingInputBlockReason(const core::LioFrame &frame) {
 
 core::BackendOutput
 N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
+  extension_anchor_frame_.reset();
   const auto blocked = mappingInputBlockReason(frame);
   if (blocked != core::MappingBlockReason::None) {
     auto output = makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);

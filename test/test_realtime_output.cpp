@@ -198,6 +198,35 @@ TEST(RealtimeOutput, ExtensionPredictionDoesNotAdvertiseAnotherGlobalLock) {
             "tracking");
 }
 
+TEST(RealtimeOutput, ExtensionSwitchRetainsCorrectionSessionAndLockEpoch) {
+  RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 8);
+  auto backend = trusted(12.0);
+  backend.relocalization_locked = true;
+  const auto locked = live.acceptBackend(source(1000000000), 1.0, backend);
+  ASSERT_TRUE(locked.plan.publish_legacy_lock);
+  const auto before = live.observeOdometry(source(1100000000), 1100000000, true);
+  ASSERT_TRUE(before.pose);
+
+  live.setMode(CoreRunMode::MAP_EXTENSION);
+  const auto cloud = live.observeCloud(source(1200000000), 1200000000, 1200000000, "body");
+  ASSERT_TRUE(cloud);
+  EXPECT_EQ(json(cloud->status_json)["mode"], "map_extension");
+  const auto after = live.observeOdometry(source(1200000000), 1200000000, true);
+  ASSERT_TRUE(after.pose);
+  EXPECT_TRUE(after.pose->pose.matrix().isApprox(before.pose->pose.matrix(), 1e-12));
+  EXPECT_EQ(after.pose->basis_revision, before.pose->basis_revision);
+  EXPECT_EQ(after.pose->generation, before.pose->generation);
+  EXPECT_EQ(json(after.status_json)["projection"]["session_id"],
+            json(before.status_json)["projection"]["session_id"]);
+
+  backend.relocalization_locked = false;
+  backend.accepted_keyframe = true;
+  const auto extended = live.acceptBackend(source(1300000000), 1.3, backend);
+  EXPECT_TRUE(extended.live_authorized);
+  EXPECT_FALSE(extended.plan.publish_legacy_lock);
+  EXPECT_EQ(extended.plan.lock_epoch, locked.plan.lock_epoch);
+}
+
 TEST(RealtimeOutput, DroppedDuplicatesAndExpiredReservationsDoNotRevokeValidInput) {
   RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 1);
   auto backend = trusted();

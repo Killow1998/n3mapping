@@ -369,6 +369,11 @@ if(BUILD_TESTING)
       --ros humble --node $<TARGET_FILE:n3mapping_node>)
   set_tests_properties(test_logging_ros_e2e PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
 
+  add_test(NAME test_map_extension_ros_e2e
+    COMMAND ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/map_extension_ros_e2e.py
+      --ros humble --node $<TARGET_FILE:n3mapping_node>)
+  set_tests_properties(test_map_extension_ros_e2e PROPERTIES TIMEOUT 120 RUN_SERIAL TRUE)
+
   add_test(
     NAME test_n3mapping_support_bundle
     COMMAND ${Python3_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/test_n3mapping_support_bundle.py

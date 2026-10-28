@@ -381,6 +381,11 @@ if(CATKIN_ENABLE_TESTING)
       --ros noetic --node $<TARGET_FILE:n3mapping_node>)
   set_tests_properties(test_logging_ros_e2e PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
 
+  add_test(NAME test_map_extension_ros_e2e
+    COMMAND ${PYTHON_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/map_extension_ros_e2e.py
+      --ros noetic --node $<TARGET_FILE:n3mapping_node>)
+  set_tests_properties(test_map_extension_ros_e2e PROPERTIES TIMEOUT 120 RUN_SERIAL TRUE)
+
   add_test(
     NAME test_noetic_output_smoke
     COMMAND ${PYTHON_EXECUTABLE} -B ${N3MAPPING_ROOT}/test/noetic_output_smoke.py

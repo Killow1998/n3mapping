@@ -55,6 +55,7 @@ public:
         const Eigen::Isometry3d& odom_pose,
         const std::string& source_frame_id = {},
         RelocalizationPerformance* performance = nullptr);
+    bool adoptCurrentLocalization(const std::string& source_frame_id);
     bool shouldAddKeyframe(
         const Eigen::Isometry3d& pose_in_session) const;
     // Returns a new node ID, or -1; an exact replay reports its existing ID separately.
@@ -77,6 +78,9 @@ public:
 
 private:
     bool initializeFromLoadedMapNoLock();
+    bool beginSessionNoLock(const Eigen::Isometry3d& T_map_odom,
+                            int64_t matched_keyframe_id,
+                            const std::string& source_frame_id);
     bool shouldAddKeyframeNoLock(const Eigen::Isometry3d& pose) const;
     int64_t reuseAcquisitionNoLock(double timestamp, const Eigen::Isometry3d& pose,
                                   const PointCloudT::Ptr& cloud);

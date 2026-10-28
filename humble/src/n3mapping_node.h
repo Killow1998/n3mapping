@@ -208,6 +208,8 @@ class N3MappingNode : public rclcpp::Node
   private:
     void handleSaveMap(const std::shared_ptr<std_srvs::srv::Trigger::Request>,
                        std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+    void handleStartMapExtension(const std::shared_ptr<std_srvs::srv::Trigger::Request>,
+                                 std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
     /**
      * @brief 打印统计信息
@@ -248,6 +250,7 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr
       relocalization_pose_pub_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr save_map_srv_;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_extension_srv_;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 

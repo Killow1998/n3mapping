@@ -92,22 +92,37 @@ bool MappingResuming::performInitialRelocalization(
     if (performance) *performance = result.performance;
     if (!result.success) return false;
 
-    auto anchor = keyframe_manager_.getKeyframe(result.matched_keyframe_id);
-    if (!anchor || !optimizer_.hasNode(result.matched_keyframe_id) ||
-        !anchor->pose_optimized.matrix().allFinite() ||
-        !result.pose_in_map.matrix().allFinite()) {
+    const Eigen::Isometry3d T_map_odom = result.pose_in_map * odom_pose.inverse();
+    if (!beginSessionNoLock(T_map_odom, result.matched_keyframe_id, source_frame_id))
+        return false;
+    world_localizing_.setMapToOdomTransform(T_map_odom);
+    return true;
+}
+
+bool MappingResuming::adoptCurrentLocalization(const std::string& source_frame_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (state_ != MappingResumingState::MAP_LOADED || !world_localizing_.isRelocalized())
+        return false;
+    return beginSessionNoLock(world_localizing_.getMapToOdomTransform(),
+                              world_localizing_.getLastMatchedKeyframeId(), source_frame_id);
+}
+
+bool MappingResuming::beginSessionNoLock(const Eigen::Isometry3d& T_map_odom,
+                                        int64_t matched_keyframe_id,
+                                        const std::string& source_frame_id) {
+    auto anchor = keyframe_manager_.getKeyframe(matched_keyframe_id);
+    if (!anchor || !optimizer_.hasNode(matched_keyframe_id) ||
+        !anchor->pose_optimized.matrix().allFinite()) {
         return false;
     }
 
-    Eigen::Isometry3d T_map_odom = result.pose_in_map * odom_pose.inverse();
     if (!T_map_odom.matrix().allFinite()) return false;
     const MapSessionId next_session_id =
         keyframe_manager_.getNextSessionId();
     if (next_session_id == kInvalidMapSessionId) return false;
-    world_localizing_.setMapToOdomTransform(T_map_odom);
 
     // Prepare the authoritative anchor before the first tracking callback.
-    world_localizing_.warmLoadedMapTrackingTarget(result.matched_keyframe_id);
+    world_localizing_.warmLoadedMapTrackingTarget(matched_keyframe_id);
 
     // Ordinary localization also initializes a loaded session, but never
     // inserts observations. Prepare this index only when extension starts.
@@ -116,11 +131,11 @@ bool MappingResuming::performInitialRelocalization(
 
     const Eigen::Vector3d rpy_deg = (canonicalRollPitchYaw(T_map_odom) * (180.0 / M_PI));
     LOG(INFO) << "[MappingResuming] Relocalization anchor id="
-              << result.matched_keyframe_id
+              << matched_keyframe_id
               << " T_map_odom_t=" << T_map_odom.translation().transpose()
               << " T_map_odom_rpy_deg=" << rpy_deg.transpose();
 
-    relocalization_anchor_keyframe_id_ = result.matched_keyframe_id;
+    relocalization_anchor_keyframe_id_ = matched_keyframe_id;
     previous_new_keyframe_id_ = -1;
     last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();

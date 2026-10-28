@@ -1,0 +1,151 @@
+{
+  "baseline": "d2c4233656907150998ca143f0c3fbd1a1aec64d",
+  "build_type": "Release",
+  "build_identity": "UNVERIFIED development candidate",
+  "cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "configured_threads": 4,
+  "ctest": {
+    "humble": {
+      "passed": 69,
+      "total": 69,
+      "elapsed_s": 49.89
+    },
+    "noetic": {
+      "passed": 67,
+      "total": 67,
+      "elapsed_s": 61.36
+    },
+    "first_extension_input_regression": "passed in both wrappers after the full suites"
+  },
+  "native_e2e": {
+    "humble": {
+      "ros": "humble",
+      "switch_ms": 11.838086997158825,
+      "extension_max_position_error_m": 0.0003111438824146402,
+      "reload_max_position_error_m": 0.00026379225749267627,
+      "original_map_sha256": "0e3523f737fd732670ef6d1c4d3fc244b37a0dd819673287b175a10f1dcf54e8",
+      "restart_at_switch": false,
+      "additional_lock_events": 0
+    },
+    "noetic": {
+      "ros": "noetic",
+      "switch_ms": 6.458219024352729,
+      "extension_max_position_error_m": 0.0003111440443863949,
+      "reload_max_position_error_m": 0.00013115246656368723,
+      "original_map_sha256": "a2496a7c0b8475039b549df1381913e435d01c6d93b3a78bc6f8cb931c6462e5",
+      "restart_at_switch": false,
+      "additional_lock_events": 0
+    }
+  },
+  "core_routes": [
+    {
+      "handoff": false,
+      "properties": {
+        "prediction_frames": 17.0,
+        "prediction_keyframes": 17.0,
+        "lost_frames": 14.0,
+        "maximum_error_mm": 0.306065
+      }
+    },
+    {
+      "handoff": true,
+      "properties": {
+        "switch_ms": 4.982477,
+        "prediction_frames": 17.0,
+        "prediction_keyframes": 12.0,
+        "lost_frames": 14.0,
+        "maximum_error_mm": 1.366671
+      }
+    }
+  ],
+  "source_sha256": {
+    "humble/CMakeLists.txt": "4552f2c1926dd42cdb8f8813d6e873e4a641a1c2da1462dafe94ba0336198bf4",
+    "humble/src/n3mapping_node.h": "2b335dd8b5662e96cf111914c8b6af9c2988683de4b4bd660763e00b4b2857ab",
+    "humble/src/n3mapping_node_lifecycle.cpp": "8ba6b5de8f0cda8bd4c37c7f4908506618eb5d61c0b5397dfddac0904c8a4fc1",
+    "include/n3mapping/core/map_artifacts.h": "b81b0597c1caddd9a96e1bd8e3895a4c95e960ed37186d223eee389a03e24ece",
+    "include/n3mapping/core/n3mapping_core.h": "5c30d6364037f2afc4b07629e38a2e3e7db68b88d8b9301a734de1e36a131cab",
+    "include/n3mapping/core/realtime_output.h": "3dc89c193d0e1280716b6b816de02813135392193e231b4853481981f085b10d",
+    "include/n3mapping/mapping_resuming.h": "63bace921c73331b8dc0ff761723ed6f1a52a5696309bd08eedef697560ab1a2",
+    "noetic/CMakeLists.txt": "7f74f381daa2b8cafc52980cf09cb70f4f0ca578bfd2564cee67aa0e5b182102",
+    "noetic/src/n3mapping_node.h": "566dc307b3b947b4d92e84051ee449b8d7bb1cf15a8c3c1196adb078e60bc79d",
+    "noetic/src/n3mapping_node_lifecycle.cpp": "c8dc0b7ea151c5c15f2135e3d1f5105c6749f3e106476b3a0299ebe03fa46b1d",
+    "src/core/n3mapping_extension.cpp": "4b5589bb6fe0b2d78f15d8db95524852714b8e1537304250dc980c92a7fc90b4",
+    "src/core/n3mapping_load.cpp": "720232bad45a7ee6f2474328f5d123ae0cf88574134c99269b029649161f6cb4",
+    "src/core/n3mapping_localization.cpp": "a521be9e1d4819f3443851eb473b7ab9612eef5e4c06c9a01503528f2983191e",
+    "src/core/n3mapping_mapping.cpp": "d70ce23838a3a737578481af627c85394aa2df4c3d85b6eedae49cb83f3377ab",
+    "src/core/realtime_output.cpp": "321eb7e475d823091ca1618d9230d52706929071bafa02967f52dc8c5f8c1084",
+    "src/mapping_resuming.cpp": "308c0301d86cd85b4d11c860f55aef0b2e15670a95bf12b386c93faf181e7944",
+    "test/test_map_extension_route.cpp": "bf73dcd719aa425fac7ec551d3781d18708e033d413d854be28d5b3bc7ab6169",
+    "test/test_realtime_output.cpp": "ac668e0486d15207e1d5295411684fa789db3db140c6a4a588c83558f5a6b722",
+    "test/map_extension_ros_e2e.py": "22ddc300582634f4fddb8944e1fe6cadbbfe73f87aa9a2da05e065682b0abe2a"
+  },
+  "binary_sha256": {
+    "humble/install/n3mapping/lib/libn3mapping_core.so": "a8ef2016f6dc99bcfb2a0eb0eea6da2510a75e62dce08e0914255e867dd409f1",
+    "humble/install/n3mapping/lib/n3mapping/n3mapping_node": "75bc1a2b7f221dd24cd9fc98377c7ee53f1626f5fcadd6d1e42b056c857be40f",
+    "noetic/devel/lib/libn3mapping_core.so": "42ecaeb1a8e2b1b21926421cb06c0375c88cf648fd44b37d7e83dd3912a42a87",
+    "noetic/devel/lib/n3mapping/n3mapping_node": "14778ba1053af35eb982c72fb42e85ed26e71d4d432b0deddb634e262d8ac7c9"
+  },
+  "protected_binaries_unchanged": 12,
+  "jetson_existing_rc4": {
+    "source_commit": "74b6961be07bf471530e6cc29875d78d776dfdd5",
+    "loaded_map_keyframes": 250,
+    "atlas_enabled": false,
+    "statistics_deduplicated_by": "observation_stamp",
+    "cases": {
+      "n3_stationary": {
+        "search_observations": 5,
+        "tracking_observations": 385,
+        "search_metrics": {
+          "total_ms": 21414.559068000002,
+          "process_cpu_ms": 44474.804224,
+          "target_prepare_ms": 16236.29305,
+          "target_build_ms": 514.458672,
+          "align_ms": 3035.724786,
+          "descriptor_wall_ms": 101.91513400000001,
+          "visibility_ms": 815.0243500000001,
+          "alignments": 40,
+          "target_preparations": 36,
+          "cache_hits": 0,
+          "cache_misses": 36,
+          "seed_initializations": 32,
+          "confirmation_registrations": 8
+        },
+        "cache_limit_bytes": 134217728,
+        "retained_entries_min": 1,
+        "retained_entries_max": 2
+      },
+      "n3_localization_03": {
+        "search_observations": 12,
+        "tracking_observations": 0,
+        "search_metrics": {
+          "total_ms": 53082.55449,
+          "process_cpu_ms": 102172.1664,
+          "target_prepare_ms": 40549.998085,
+          "target_build_ms": 638.812074,
+          "align_ms": 8088.769855999999,
+          "descriptor_wall_ms": 186.709431,
+          "visibility_ms": 2256.816225,
+          "alignments": 139,
+          "target_preparations": 64,
+          "cache_hits": 0,
+          "cache_misses": 64,
+          "seed_initializations": 105,
+          "confirmation_registrations": 33
+        },
+        "cache_limit_bytes": 134217728,
+        "retained_entries_min": 1,
+        "retained_entries_max": 2
+      }
+    },
+    "notes": [
+      "Moving-case sums cover the 12 completed searches visible in status output, not every backend completion in the runtime log.",
+      "Cache occupancy gauges are not summed.",
+      "No candidate deployment or new remote SLAM run was performed."
+    ]
+  }
+}

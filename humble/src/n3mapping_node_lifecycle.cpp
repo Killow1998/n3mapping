@@ -114,6 +114,24 @@ void N3MappingNode::initializeComponents()
     }
 }
 
+void N3MappingNode::handleStartMapExtension(
+    const std::shared_ptr<std_srvs::srv::Trigger::Request>,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    response->success = n3mapping_core_->startMapExtension(&response->message);
+    if (!response->success) return;
+    response->message = "map_extension";
+    if (run_mode_ == CoreRunMode::MAP_EXTENSION) return;
+    // A queued localization pair must not run after a newer extension pair.
+    pending_localization_frame_.take();
+    run_mode_ = CoreRunMode::MAP_EXTENSION;
+    config_.mode = coreRunModeName(run_mode_);
+    realtime_output_->setMode(run_mode_);
+    map_artifacts_->setMode(run_mode_);
+    initializeOptimizationLogging();
+}
+
 void N3MappingNode::initializeROS()
 {
     // TF 广播器
@@ -184,14 +202,15 @@ void N3MappingNode::initializeROS()
     relocalization_pose_qos.durability_volatile();
     relocalization_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
       "/n3mapping/relocalization_pose", relocalization_pose_qos);
-    if (coreRunModeSavesMap(run_mode_)) {
-        save_map_srv_ =
-          this->create_service<std_srvs::srv::Trigger>(
-            "/n3mapping/save_map",
-            std::bind(&N3MappingNode::handleSaveMap, this,
-                      std::placeholders::_1,
-                      std::placeholders::_2));
-    }
+    // MapArtifacts rejects save while localization remains read-only.
+    save_map_srv_ = this->create_service<std_srvs::srv::Trigger>(
+        "/n3mapping/save_map",
+        std::bind(&N3MappingNode::handleSaveMap, this,
+                  std::placeholders::_1, std::placeholders::_2));
+    start_extension_srv_ = this->create_service<std_srvs::srv::Trigger>(
+        "/n3mapping/start_map_extension",
+        std::bind(&N3MappingNode::handleStartMapExtension, this,
+                  std::placeholders::_1, std::placeholders::_2));
 
     // 全局地图发布者 (transient_local QoS，等价于 latched topic 语义)
     rclcpp::QoS global_map_qos(1);
