@@ -115,7 +115,8 @@ public:
                                  const Eigen::Isometry3d& pose_correction);
   int64_t getLastMatchedKeyframeId() const;
   bool loadLocalizationAtlas(const std::string &map_path,
-                             std::string *error = nullptr);
+                             std::string *error = nullptr,
+                             LoopDetector* restore_descriptors = nullptr);
   bool localizationAtlasLoaded() const;
   RegistrationSeedProbeResult
   probeRegistrationSeeds(const PointCloudT::Ptr &cloud,

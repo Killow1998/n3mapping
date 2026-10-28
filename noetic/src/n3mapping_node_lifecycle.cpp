@@ -51,9 +51,6 @@ N3MappingNoeticNode::N3MappingNoeticNode()
 
     if (coreRunModeLoadsMap(run_mode_)) {
         loadMap();
-        if (core_->mapLoaded()) {
-            publishGlobalMap();
-        }
     }
 
     ROS_INFO("N3Mapping Noetic node initialized. Mode: %s", config_.mode.c_str());

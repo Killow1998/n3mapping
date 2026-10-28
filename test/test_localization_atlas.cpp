@@ -13,6 +13,8 @@
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/cloud_utils.h"
 #include "n3mapping/RHPDescriptor.h"
+#include "n3mapping/loop_detector.h"
+#include "n3mapping/keyframe_manager.h"
 #include "localization_atlas.pb.h"
 
 namespace n3mapping {
@@ -223,6 +225,30 @@ TEST(LocalizationAtlasTest, RoundTripsPreparedTargetExactly) {
     EXPECT_TRUE(rhpdDenseValues(*loaded.frameDescriptors().at(keyframe->id)).isApprox(
         rhpdDenseValues(descriptor.compute(keyframe->cloud)), 0.0));
   }
+  KeyframeManager manager(config);
+  ASSERT_TRUE(manager.loadKeyframes(makeKeyframes()));
+  LoopDetector rebuilt(config), cached(config);
+  rebuilt.restoreMapDescriptors(manager);
+  cached.restoreMapDescriptors(manager, loaded.submapDescriptors(), loaded.headingDescriptors());
+  ASSERT_EQ(loaded.submapDescriptors().size(), makeKeyframes().size());
+  ASSERT_EQ(loaded.headingDescriptors().size(), makeKeyframes().size());
+  for (const auto& [id, place] : rebuilt.getRHPDManager().snapshot()) {
+    const auto other = cached.getRHPDManager().snapshot().at(id);
+    EXPECT_TRUE(rhpdDenseValues(*place).isApprox(rhpdDenseValues(*other), 0.0));
+  }
+  const auto expected_headings = rebuilt.getDescriptors();
+  const auto actual_headings = cached.getDescriptors();
+  ASSERT_EQ(expected_headings.size(), actual_headings.size());
+  for (size_t i = 0; i < expected_headings.size(); ++i) {
+    const auto& a = *expected_headings[i].second;
+    const auto& b = *actual_headings[i].second;
+    EXPECT_EQ(a.offsets, b.offsets);
+    EXPECT_EQ(a.ring_indices, b.ring_indices);
+    EXPECT_EQ(a.values, b.values);
+    EXPECT_EQ(a.ring_key, b.ring_key);
+    EXPECT_EQ(a.column_norms, b.column_norms);
+    EXPECT_EQ(a.sector_key, b.sector_key);
+  }
   EXPECT_EQ(compiled.mapSha256(), loaded.mapSha256());
   EXPECT_EQ(compiled.configSha256(), loaded.configSha256());
   const auto built_grid = compiled.takeFreeSpaceGrid();
@@ -303,6 +329,35 @@ TEST(LocalizationAtlasTest, DescriptorConfigMissRebuildsButMalformedMatchingCach
   EXPECT_NE(error.find("descriptor cache"), std::string::npos);
 }
 
+TEST(LocalizationAtlasTest, LoopDescriptorFallbackAndMalformedHeading) {
+  TemporaryAtlasFiles files;
+  const auto config = makeConfig();
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(),
+                                  files.atlas().string(), false, nullptr, &error));
+  Config changed = config;
+  ++changed.rhpd_submap_kf_radius;
+  LocalizationAtlas changed_atlas(changed, matcher);
+  ASSERT_TRUE(changed_atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_TRUE(changed_atlas.submapDescriptors().empty());
+  EXPECT_TRUE(changed_atlas.headingDescriptors().empty());
+  LocalizationAtlasData data;
+  { std::ifstream in(files.atlas(), std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&in)); }
+  const auto original = data;
+  data.clear_loop_descriptor_config();
+  data.clear_loop_descriptors();
+  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_TRUE(atlas.submapDescriptors().empty());
+  data = original;
+  data.mutable_loop_descriptors(0)->set_heading_offsets(1, 99999999);
+  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_NE(error.find("loop descriptor cache"), std::string::npos);
+}
+
 TEST(LocalizationAtlasTest, CompiledPlaceViewsMatchLoadedMapPreparation) {
   TemporaryAtlasFiles files;
   Config config = makeConfig();
@@ -376,6 +431,15 @@ TEST(LocalizationAtlasTest, KeepsExplicitCovarianceWhenItIsNotTheFixedNormalMode
     ASSERT_TRUE(data.ParseFromIstream(&stream));
   }
   auto* level = data.mutable_refine_level();
+  ASSERT_TRUE(level->covariance_from_normal());
+  level->set_covariance_from_normal(false);
+  for (uint64_t i = 0; i < level->num_points(); ++i) {
+    Eigen::Vector3d normal;
+    for (int axis = 0; axis < 3; ++axis) normal[axis] = level->normals(3 * i + axis);
+    const Eigen::Matrix3d covariance = Eigen::Matrix3d::Identity() - .999 * normal * normal.transpose();
+    for (int row = 0; row < 3; ++row)
+      for (int col = 0; col < 3; ++col) level->add_covariances(covariance(row, col));
+  }
   for (int i = level->covariances_size() - 9; i < level->covariances_size(); ++i)
     level->set_covariances(i, 2 * level->covariances(i));
   {
@@ -419,7 +483,7 @@ TEST(LocalizationAtlasTest, RejectsOldFormatAndTruncatedPreparedArrays) {
   EXPECT_NE(error.find("rebuild from the source map"), std::string::npos);
 
   data.set_format_version(current_version);
-  data.mutable_plane_levels(0)->mutable_covariances()->RemoveLast();
+  data.mutable_plane_levels(0)->mutable_points()->RemoveLast();
   {
     std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
     ASSERT_TRUE(data.SerializeToOstream(&stream));

@@ -1,4 +1,3 @@
-#include "causal_submap.h"
 #include "n3mapping/map_serializer.h"
 #include "n3mapping/n3map_proto_utils.h"
 #include "n3mapping/graph_optimizer.h"
@@ -6,9 +5,9 @@
 #include "n3mapping/submap_builder.h"
 #include "planar_geometry/serialization.h"
 #include <glog/logging.h>
-#include "n3mapping/cloud_utils.h"
 #include "n3mapping/loop_detector.h"
 #include <algorithm>
+#include <chrono>
 #include <sstream>
 #include <unordered_set>
 
@@ -158,6 +157,15 @@ bool MapSerializer::loadMap(const std::string& filepath,
                             const PbstreamLoadOptions& options,
                             SubmapBuilder* submap_builder) {
     try {
+        using Clock = std::chrono::steady_clock;
+        const auto started = Clock::now();
+        auto previous = started;
+        const auto phase = [&](const char* name) {
+            const auto now = Clock::now();
+            LOG(INFO) << "[MapSerializer/Load] phase=" << name
+                      << " wall_ms=" << std::chrono::duration<double, std::milli>(now - previous).count();
+            previous = now;
+        };
         n3mapping::N3Map map_proto;
         std::string read_error;
         if (!readN3MapProtoFromFile(filepath, &map_proto, &read_error)) {
@@ -165,6 +173,7 @@ bool MapSerializer::loadMap(const std::string& filepath,
             return false;
         }
 
+        phase("read_protobuf");
         const std::string file_version = map_proto.metadata().version();
         SemVer file_semver, code_semver;
         if (parseSemVer(file_version, &file_semver) &&
@@ -300,6 +309,7 @@ bool MapSerializer::loadMap(const std::string& filepath,
             return false;
         }
 
+        phase("parse_validate");
         KeyframeManager temp_keyframe_manager(config_);
         LoopDetector temp_loop_detector(config_);
         GraphOptimizer temp_optimizer(config_);
@@ -328,21 +338,10 @@ bool MapSerializer::loadMap(const std::string& filepath,
             LOG(ERROR) << "[MapSerializer] Reject map: invalid submap registry.";
             return false;
         }
-        // Heading uses the saved single frame. Place recognition uses the causal
-        // submap in its root frame, including the current optimized poses.
-        const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
-        for (const auto& kf : keyframes) {
-            auto place_cloud = submap_radius > 0
-                ? temp_keyframe_manager.buildCausalSubmapInRootFrame(kf->id, submap_radius, kf->id)
-                : kf->cloud;
-            if (!place_cloud || place_cloud->empty()) place_cloud = kf->cloud;
-            place_cloud = maybeVoxelizeRhpdCloud(place_cloud, config_.rhpd_submap_voxel_size);
-            temp_loop_detector.addDescriptor(kf->id, kf->cloud);
-            temp_loop_detector.addRHPD(kf->id, place_cloud);
-        }
-        LOG(INFO) << "[MapSerializer] Rebuilt RHPD place/heading for "
-                  << keyframes.size() << " keyframes from point clouds.";
-
+        phase("restore_keyframes_submaps");
+        if (options.rebuild_descriptors)
+            temp_loop_detector.restoreMapDescriptors(temp_keyframe_manager);
+        phase("rebuild_descriptors");
         std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
         for (const auto& kf : keyframes) {
             nodes.emplace_back(kf->id, kf->pose_optimized);
@@ -374,6 +373,7 @@ bool MapSerializer::loadMap(const std::string& filepath,
             return false;
         }
 
+        phase("restore_graph");
         keyframe_manager.swapWith(temp_keyframe_manager);
         loop_detector.swapWith(temp_loop_detector);
         optimizer.swapWith(temp_optimizer);

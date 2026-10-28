@@ -9,6 +9,8 @@ message LocalizationAtlasPreparedLevel {
     repeated double points = 3 [packed = true];
     repeated double normals = 4 [packed = true];
     repeated double covariances = 5 [packed = true];
+    // v3: omit matrices only for the fixed normal-derived covariance model.
+    bool covariance_from_normal = 6;
 }
 
 message LocalizationAtlasData {
@@ -27,6 +29,8 @@ message LocalizationAtlasData {
     repeated LocalizationAtlasPlace places = 13;
     string free_space_config = 14;
     LocalizationAtlasFreeSpaceGrid free_space_grid = 15;
+    string loop_descriptor_config = 16;
+    repeated LocalizationAtlasLoopDescriptor loop_descriptors = 17;
 }
 
 message LocalizationAtlasFreeSpaceGrid {
@@ -52,4 +56,12 @@ message LocalizationAtlasFrameDescriptor {
     repeated LocalizationAtlasCells planes = 2;
     LocalizationAtlasCells ring_height = 3;
     repeated double auxiliary = 4 [packed = true];
+}
+
+// Causal-submap place and single-frame heading, bound to this map and config.
+message LocalizationAtlasLoopDescriptor {
+    LocalizationAtlasFrameDescriptor submap = 1;
+    repeated uint32 heading_offsets = 2 [packed = true];
+    repeated uint32 heading_rings = 3 [packed = true];
+    repeated double heading_values = 4 [packed = true];
 }

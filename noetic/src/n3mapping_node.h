@@ -102,7 +102,6 @@ class N3MappingNoeticNode {
     bool refreshGlobalMapMessage(const MapKeyframeSnapshot& snapshot,
                                  sensor_msgs::PointCloud2* out_msg);
 
-    void publishGlobalMap();
 
     void publishGlobalMap(const MapKeyframeSnapshot& snapshot);
 
@@ -191,8 +190,6 @@ class N3MappingNoeticNode {
     ros::Timer global_map_timer_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
     std::unique_ptr<MapArtifacts> map_artifacts_;
-    std::optional<sensor_msgs::PointCloud2> global_map_msg_cache_;
-    std::uint64_t global_map_msg_revision_ = 0;
     std::optional<std::uint64_t> global_map_last_published_revision_;
     RuntimeEvents runtime_events_;
     std::unique_ptr<RuntimePerformanceDebugLogger> performance_debug_logger_;

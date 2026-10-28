@@ -116,7 +116,6 @@ class N3MappingNode : public rclcpp::Node
     /**
      * @brief Load global_map.pcd when available, otherwise publish a map built from loaded keyframes.
      */
-    void loadAndPublishGlobalMap();
 
     /**
      * @brief 同步回调处理
@@ -195,7 +194,6 @@ class N3MappingNode : public rclcpp::Node
     bool refreshGlobalMapMessage(const MapKeyframeSnapshot& snapshot,
                                  sensor_msgs::msg::PointCloud2* out_msg);
 
-    void publishGlobalMap();
 
     void publishGlobalMap(const MapKeyframeSnapshot& snapshot);
 
@@ -258,8 +256,6 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr global_map_timer_;
     rclcpp::TimerBase::SharedPtr authority_probe_timer_;
     std::unique_ptr<MapArtifacts> map_artifacts_;
-    std::optional<sensor_msgs::msg::PointCloud2> global_map_msg_cache_;
-    std::uint64_t global_map_msg_revision_ = 0;
     std::optional<std::uint64_t> global_map_last_published_revision_;
 
     // 线程和同步

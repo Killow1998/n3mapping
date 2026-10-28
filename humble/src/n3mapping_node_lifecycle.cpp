@@ -54,10 +54,6 @@ N3MappingNode::N3MappingNode(
     // 根据模式加载地图
     if (coreRunModeLoadsMap(run_mode_)) {
         loadMap();
-        // 定位模式下加载并发布全局地图用于可视化
-        if (map_loaded_) {
-            loadAndPublishGlobalMap();
-        }
     }
 
     RCLCPP_INFO(this->get_logger(), "N3Mapping node initialized. Mode: %s", config_.mode.c_str());

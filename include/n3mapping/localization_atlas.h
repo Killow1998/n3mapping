@@ -67,6 +67,8 @@ public:
     const std::string& mapSha256() const { return map_sha256_; }
     const std::string& configSha256() const { return config_sha256_; }
     const RHPDPlaceCache& frameDescriptors() const { return frame_descriptors_; }
+    const RHPDPlaceCache& submapDescriptors() const { return submap_descriptors_; }
+    const RHPDHeadingCache& headingDescriptors() const { return heading_descriptors_; }
     const RelocalizationPlaceCatalog* placeCatalog() const {
         return place_catalog_ready_ ? &place_catalog_ : nullptr;
     }
@@ -93,7 +95,8 @@ private:
     PointCloudMatcher::PreparedTarget prepared_target_;
     std::string map_sha256_;
     std::string config_sha256_;
-    RHPDPlaceCache frame_descriptors_;
+    RHPDPlaceCache frame_descriptors_, submap_descriptors_;
+    RHPDHeadingCache heading_descriptors_;
     RelocalizationPlaceCatalog place_catalog_;
     bool place_catalog_ready_ = false;
     FreeSpaceGrid free_space_grid_;

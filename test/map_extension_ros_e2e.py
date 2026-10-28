@@ -83,6 +83,7 @@ def run(args, root):
         from std_msgs.msg import String, UInt32
         from std_srvs.srv import Trigger
         latest, truth, errors, locks = {}, {}, [], []
+        global_maps = []
         current_x, transformed = -4., False
         def receive_status(msg):
             latest.clear(); latest.update(json.loads(msg.data))
@@ -183,6 +184,22 @@ def run(args, root):
             if latest.get('state')=='tracking': break
         assert latest.get('state')=='tracking',latest
         wait(lambda:len(locks)==1)
+        # Subscribe only after localization: headless startup must not be needed
+        # to populate the map, and a later subscriber must receive the latched map.
+        def subscribe_map(receive):
+            if args.ros == 'noetic':
+                return ros.Subscriber('/n3mapping/global_map', PointCloud2, receive, queue_size=1)
+            from rclpy.qos import QoSProfile, DurabilityPolicy
+            return observer.create_subscription(PointCloud2, '/n3mapping/global_map', receive,
+                QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        subscriptions.append(subscribe_map(lambda msg: global_maps.append(bytes(msg.data))))
+        wait(lambda: len(global_maps) > 0)
+        assert global_maps[-1]
+        late_maps = []
+        subscriptions.append(subscribe_map(lambda msg: late_maps.append(bytes(msg.data))))
+        wait(lambda: len(late_maps) > 0)
+        assert late_maps[-1] == global_maps[-1]
+        initial_global_map = global_maps[-1]
         session = latest['projection']['session_id']
         started=time.monotonic(); switched=call('/n3mapping/start_map_extension')
         switch_ms=(time.monotonic()-started)*1000
@@ -197,6 +214,7 @@ def run(args, root):
         assert len(locks)==1,locks
         assert errors and max(errors)<.1,max(errors,default=-1)
         assert call('/n3mapping/save_map').success
+        wait(lambda: global_maps[-1] != initial_global_map)
         maximum_error=max(errors)
         stop(node)
         assert hashlib.sha256(source.read_bytes()).hexdigest()==source_sha
@@ -209,7 +227,8 @@ def run(args, root):
         stop(node)
         result=dict(ros=args.ros,switch_ms=switch_ms,extension_max_position_error_m=maximum_error,
                     reload_max_position_error_m=max(errors),original_map_sha256=source_sha,
-                    restart_at_switch=False,additional_lock_events=0)
+                    restart_at_switch=False,additional_lock_events=0,
+                    late_global_map_received=True, extension_global_map_updated=True)
         (root/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
         print(json.dumps(result))
     finally:

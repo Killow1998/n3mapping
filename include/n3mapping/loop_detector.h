@@ -30,6 +30,8 @@ inline constexpr double kDescriptorYawMergeTolerance = 1e-6;
 std::vector<double> buildDescriptorYawHypotheses(
     const LoopCandidate& candidate, const Config& config);
 
+class KeyframeManager;
+
 class LoopDetector {
 public:
     using Ptr = std::shared_ptr<LoopDetector>;
@@ -40,6 +42,10 @@ public:
     explicit LoopDetector(const Config& config);
     ~LoopDetector() = default;
 
+    // Used by standalone map loading and the Atlas-backed core transaction.
+    void restoreMapDescriptors(const KeyframeManager& keyframes,
+                               const RHPDPlaceCache& submaps = {},
+                               const std::map<int64_t, RHPDHeadingPtr>& headings = {});
     RHPDHeadingPtr computeHeading(const PointCloudT::Ptr& cloud);
     RHPDHeadingPtr addDescriptor(int64_t keyframe_id, const PointCloudT::Ptr& cloud);
     void addDescriptor(int64_t keyframe_id, const RHPDHeadingPtr& descriptor);

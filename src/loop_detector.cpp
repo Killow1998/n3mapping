@@ -1,5 +1,8 @@
 // LoopDetector: RHPD place/heading retrieval and spatial candidates.
 #include <map>
+#include <chrono>
+#include "causal_submap.h"
+#include "n3mapping/keyframe_manager.h"
 
 #include "n3mapping/loop_detector.h"
 #include "Scancontext/KDTreeVectorOfVectorsAdaptor.h"
@@ -69,6 +72,35 @@ std::vector<double> buildDescriptorYawHypotheses(
 
 LoopDetector::LoopDetector(const Config& config)
     : config_(config), rhpd_manager_(rhpdParamsFromConfig(config)) {}
+
+void LoopDetector::restoreMapDescriptors(
+    const KeyframeManager& manager, const RHPDPlaceCache& submaps,
+    const std::map<int64_t, RHPDHeadingPtr>& headings) {
+    const auto started = std::chrono::steady_clock::now();
+    const auto keyframes = manager.getAllKeyframes();
+    const int radius = std::max(0, config_.rhpd_submap_kf_radius);
+    size_t cached = 0;
+    for (const auto& kf : keyframes) {
+        const auto heading = headings.find(kf->id);
+        if (heading != headings.end()) addDescriptor(kf->id, heading->second);
+        else addDescriptor(kf->id, kf->cloud);
+        const auto submap = submaps.find(kf->id);
+        if (submap != submaps.end()) {
+            rhpd_manager_.add(kf->id, *submap->second);
+            ++cached;
+        } else {
+            auto cloud = radius > 0
+                ? manager.buildCausalSubmapInRootFrame(kf->id, radius, kf->id)
+                : kf->cloud;
+            if (!cloud || cloud->empty()) cloud = kf->cloud;
+            addRHPD(kf->id, maybeVoxelizeRhpdCloud(cloud, config_.rhpd_submap_voxel_size));
+        }
+    }
+    LOG(INFO) << "[MapDescriptors] keyframes=" << keyframes.size()
+              << " cached_submaps=" << cached << " cached_headings=" << headings.size()
+              << " wall_ms=" << std::chrono::duration<double, std::milli>(
+                     std::chrono::steady_clock::now() - started).count();
+}
 
 RHPDHeadingPtr LoopDetector::computeHeading(const PointCloudT::Ptr& cloud) {
     return rhpd_manager_.computeHeading(cloud);

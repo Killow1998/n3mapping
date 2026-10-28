@@ -28,7 +28,9 @@
 namespace n3mapping {
 namespace {
 
-constexpr const char* kAtlasFormatVersion = "n3mapping_localization_atlas_v2";
+constexpr const char* kAtlasFormatVersion = "n3mapping_localization_atlas_v3";
+// Geometry/config binding is unchanged by the compact storage encoding.
+constexpr const char* kAtlasGeometryVersion = "n3mapping_localization_atlas_v2";
 constexpr std::uintmax_t kMaxAtlasBytes = std::uintmax_t{1} << 30;
 
 using Clock = std::chrono::steady_clock;
@@ -85,18 +87,15 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
     output->set_num_points(input.cloud->size());
     output->mutable_points()->Reserve(static_cast<int>(input.cloud->size() * 3));
     output->mutable_normals()->Reserve(static_cast<int>(input.cloud->size() * 3));
-    output->mutable_covariances()->Reserve(static_cast<int>(input.cloud->size() * 9));
+    const bool derived_covariance = input.cloud->covs.empty();
+    output->set_covariance_from_normal(derived_covariance);
+    if (!derived_covariance)
+        output->mutable_covariances()->Reserve(static_cast<int>(input.cloud->size() * 9));
     for (std::size_t i = 0; i < input.cloud->size(); ++i) {
         const auto& point = input.cloud->point(i);
         const auto& normal = input.cloud->normal(i);
-        Eigen::Matrix4d covariance = Eigen::Matrix4d::Zero();
-        if (input.cloud->covs.empty()) {
-            // Prepared targets retain normals only. Keep the existing sidecar
-            // schema using small_gicp's (0.001, 1, 1) covariance model.
-            covariance = registration_detail::covarianceFromNormal(normal);
-        } else {
-            covariance = input.cloud->cov(i);
-        }
+        const Eigen::Matrix4d covariance = derived_covariance
+            ? Eigen::Matrix4d::Zero() : input.cloud->cov(i);
         if (!point.allFinite() || !normal.allFinite() || !covariance.allFinite()) {
             setError(error, "prepared target contains non-finite data");
             return false;
@@ -112,7 +111,7 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
             output->add_points(point[axis]);
             output->add_normals(normal[axis]);
         }
-        for (int row = 0; row < 3; ++row) {
+        for (int row = 0; !derived_covariance && row < 3; ++row) {
             for (int column = 0; column < 3; ++column) {
                 output->add_covariances(covariance(row, column));
             }
@@ -144,7 +143,8 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
             static_cast<std::uint64_t>(std::numeric_limits<int>::max() / 9) ||
         input.points_size() != static_cast<int>(input.num_points() * 3) ||
         input.normals_size() != static_cast<int>(input.num_points() * 3) ||
-        input.covariances_size() != static_cast<int>(input.num_points() * 9)) {
+        input.covariances_size() != (input.covariance_from_normal() ? 0 :
+            static_cast<int>(input.num_points() * 9))) {
         setError(error, "atlas prepared level array size mismatch");
         return false;
     }
@@ -156,7 +156,8 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
     for (std::size_t i = 0; i < cloud->size(); ++i) {
         cloud->point(i)[3] = 1.0;
         cloud->normal(i)[3] = 0.0;
-        const auto covariance = decodedCovariance(input, i);
+        const Eigen::Matrix4d covariance = input.covariance_from_normal()
+            ? Eigen::Matrix4d::Zero() : decodedCovariance(input, i);
         for (int axis = 0; axis < 3; ++axis) {
             cloud->point(i)[axis] = input.points(static_cast<int>(i * 3 + axis));
             cloud->normal(i)[axis] = input.normals(static_cast<int>(i * 3 + axis));
@@ -166,7 +167,7 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
             setError(error, "atlas prepared level contains non-finite data");
             return false;
         }
-        if (with_covariances) {
+        if (with_covariances && !input.covariance_from_normal()) {
             if (compact_covariances && !covariance.isApprox(
                     registration_detail::covarianceFromNormal(cloud->normal(i)), 1e-12)) {
                 // Only a nonstandard covariance needs storage. Backfill the
@@ -246,7 +247,7 @@ std::string LocalizationAtlas::fileSha256(const std::string& path, std::string* 
 std::string LocalizationAtlas::configSha256(const Config& config) {
     std::ostringstream signature;
     signature << std::setprecision(17)
-              << "format=" << kAtlasFormatVersion
+              << "format=" << kAtlasGeometryVersion
               << ";global_map_voxel_size=" << config.global_map_voxel_size
               << ";rhpd_max_range=" << config.rhpd_max_range
               << ";gicp_max_correspondence_distance="
@@ -303,6 +304,8 @@ void LocalizationAtlas::swapData(LocalizationAtlas& other) {
     swap(map_sha256_, other.map_sha256_);
     swap(config_sha256_, other.config_sha256_);
     swap(frame_descriptors_, other.frame_descriptors_);
+    swap(submap_descriptors_, other.submap_descriptors_);
+    swap(heading_descriptors_, other.heading_descriptors_);
     swap(place_catalog_, other.place_catalog_);
     swap(place_catalog_ready_, other.place_catalog_ready_);
     swap(free_space_grid_, other.free_space_grid_);
@@ -469,7 +472,8 @@ bool LocalizationAtlas::load(const std::string& map_path,
         setError(error, "failed to parse atlas sidecar");
         return false;
     }
-    if (data.format_version() != kAtlasFormatVersion) {
+    if (data.format_version() != kAtlasFormatVersion &&
+        data.format_version() != kAtlasGeometryVersion) {
         setError(error, "atlas format version mismatch; rebuild from the source map "
                         "with n3mapping_localization_atlas_compile");
         return false;
@@ -537,7 +541,7 @@ bool LocalizationAtlas::load(const std::string& map_path,
     }
     local_stats.kdtree_ms = elapsedMs(kdtree_start);
     const auto descriptor_start = Clock::now();
-    if (!decodeAtlasDescriptors(config_, data, frame_descriptors_, place_catalog_, place_catalog_ready_, error)) return false;
+    if (!decodeAtlasDescriptors(config_, data, frame_descriptors_, submap_descriptors_, heading_descriptors_, place_catalog_, place_catalog_ready_, error)) return false;
     local_stats.descriptor_load_ms = elapsedMs(descriptor_start);
     if (config_.reloc_free_space_enable && config_.reloc_free_space_map_pcd.empty() &&
         data.has_free_space_grid() && data.free_space_config() == freeSpaceConfig(config_)) {
@@ -564,6 +568,8 @@ void LocalizationAtlas::clear() {
     global_map_ = pcl::make_shared<PointCloudT>();
     prepared_target_ = {};
     frame_descriptors_.clear();
+    submap_descriptors_.clear();
+    heading_descriptors_.clear();
     place_catalog_.clear();
     place_catalog_ready_ = false;
     free_space_grid_ = FreeSpaceGrid{};

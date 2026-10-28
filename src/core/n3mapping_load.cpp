@@ -1,6 +1,7 @@
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/core/n3mapping_session.h"
 #include "n3mapping/async_log.h"
+#include "n3mapping/n3map_proto_utils.h"
 #include <limits>
 #include <utility>
 #include <glog/logging.h>
@@ -55,10 +56,13 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
     auto candidate = std::make_unique<core::N3MappingSession>(config_);
     std::vector<core::DenseTrajectoryPose> loaded_dense_optimized;
     core::DenseTrajectoryMetadata loaded_dense_metadata;
+    PbstreamLoadOptions options;
+    options.allow_keyframe_fallback_dense = true;
+    options.rebuild_descriptors = false;
     if (!candidate->mapSerializer().loadMap(
             map_path, candidate->keyframeManager(), candidate->loopDetector(),
             candidate->graphOptimizer(), &loaded_dense_optimized,
-            &loaded_dense_metadata, &candidate->submapBuilder())) {
+            &loaded_dense_metadata, options, &candidate->submapBuilder())) {
       return false;
     }
     if (!candidate->mappingResuming().initializeFromLoadedMap()) {
@@ -67,7 +71,7 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
 
     std::string atlas_error;
     if (!candidate->worldLocalizing().loadLocalizationAtlas(map_path,
-                                                            &atlas_error)) {
+                                                            &atlas_error, &candidate->loopDetector())) {
       LOG(ERROR) << "Failed to load localization atlas: " << atlas_error << '\n';
       return false;
     }

@@ -11,6 +11,8 @@ void encodeAtlasDescriptors(const Config &config,
 bool decodeAtlasDescriptors(const Config &config,
                             const LocalizationAtlasData &data,
                             RHPDPlaceCache &frames,
+                            RHPDPlaceCache &submaps,
+                            RHPDHeadingCache &headings,
                             RelocalizationPlaceCatalog &catalog,
                             bool &catalog_ready, std::string *error);
 } // namespace n3mapping

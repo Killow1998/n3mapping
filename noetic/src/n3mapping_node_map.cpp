@@ -44,7 +44,6 @@ void N3MappingNoeticNode::resetGlobalMapCache()
 {
     std::lock_guard<std::mutex> lock(global_map_mutex_);
     map_artifacts_->clear();
-    global_map_msg_cache_.reset();
     global_map_last_published_revision_.reset();
 }
 
@@ -52,7 +51,6 @@ void N3MappingNoeticNode::markGlobalMapFullRebuildRequired()
 {
     std::lock_guard<std::mutex> lock(global_map_mutex_);
     map_artifacts_->invalidate();
-    global_map_msg_cache_.reset();
     global_map_last_published_revision_.reset();
 }
 
@@ -72,36 +70,16 @@ bool N3MappingNoeticNode::refreshGlobalMapMessage(const MapKeyframeSnapshot& sna
         }
 
         const auto revision = global.revision;
-        if (!global_map_msg_cache_ || global_map_msg_revision_ != revision) {
-            sensor_msgs::PointCloud2 msg;
-            pcl::toROSMsg(*cloud, msg);
-            msg.header.frame_id = config_.world_frame;
-            msg.header.stamp = ros::Time::now();
-            global_map_msg_cache_ = msg;
-            global_map_msg_revision_ = revision;
-        }
-        if (!global_map_msg_cache_) {
+        if (global_map_last_published_revision_ == revision) {
             return;
         }
-        if (global_map_last_published_revision_ &&
-            *global_map_last_published_revision_ == global_map_msg_revision_) {
-            return;
-        }
-        *out_msg = *global_map_msg_cache_;
-        global_map_last_published_revision_ = global_map_msg_revision_;
+        pcl::toROSMsg(*cloud, *out_msg);
+        out_msg->header.frame_id = config_.world_frame;
+        out_msg->header.stamp = ros::Time::now();
+        global_map_last_published_revision_ = revision;
         changed = true;
     });
     return changed;
-}
-
-void N3MappingNoeticNode::publishGlobalMap()
-{
-    MapKeyframeSnapshot snapshot;
-    {
-        std::lock_guard<std::mutex> lock(data_mutex_);
-        snapshot = snapshotMapKeyframes(core_.get());
-    }
-    publishGlobalMap(snapshot);
 }
 
 void N3MappingNoeticNode::publishGlobalMap(const MapKeyframeSnapshot& snapshot)

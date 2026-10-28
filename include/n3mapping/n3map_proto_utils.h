@@ -25,6 +25,8 @@ enum class PbstreamLoadPolicy {
 struct PbstreamLoadOptions {
     PbstreamLoadPolicy policy = PbstreamLoadPolicy::STRICT;
     bool allow_keyframe_fallback_dense = false;
+    // Core loading restores these after the map-bound Atlas has been validated.
+    bool rebuild_descriptors = true;
 };
 
 struct PbstreamResourceLimits {

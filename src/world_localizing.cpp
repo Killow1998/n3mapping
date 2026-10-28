@@ -154,7 +154,8 @@ void WorldLocalizing::installOptimizedReference(
 }
 
 bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
-                                            std::string *error) {
+                                            std::string *error,
+                                            LoopDetector* restore_descriptors) {
   if (!localization_atlas_) {
     if (error)
       *error = "localization atlas object is unavailable";
@@ -165,6 +166,7 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
     target_provider_->clear();
   }
   if (!config_.reloc_atlas_enable) {
+    if (restore_descriptors) restore_descriptors->restoreMapDescriptors(keyframe_manager_);
     place_index_.prepare();
     return true;
   }
@@ -187,6 +189,9 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
       }
     }
   }
+  if (restore_descriptors)
+    restore_descriptors->restoreMapDescriptors(keyframe_manager_,
+        localization_atlas_->submapDescriptors(), localization_atlas_->headingDescriptors());
   place_index_.prepare(localization_atlas_->frameDescriptors(), &index_cost, catalog);
   LOG(INFO) << "[Reloc/PlaceIndex] ready keyframes=" << place_index_.indexedKeyframes()
             << " retrieval_views=" << place_index_.indexedViews()

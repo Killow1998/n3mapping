@@ -70,6 +70,9 @@ GlobalMapCache::PointCloudConstPtr GlobalMapCache::update(
     const std::vector<Keyframe::Ptr>& keyframes,
     const KeyframeMapRevision& map_revision)
 {
+    if (!full_rebuild_required_ && cached_map_revision_ == map_revision) {
+        return cloud_;
+    }
     std::vector<Keyframe::Ptr> ordered;
     ordered.reserve(keyframes.size());
     for (const auto& keyframe : keyframes) {
