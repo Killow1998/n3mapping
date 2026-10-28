@@ -6597,7 +6597,7 @@ verify the actual mappings, and compare callback/output counts and cadence.
 64 MiB is a measured workload configuration, not a universal requirement. The
 loopback whitelist requires adaptation for multiple hosts. This does not enable
 Data Sharing or change QoS. Reusable instructions are in the
-[Humble README](../../../README.md#humble--fast-dds-large-local-point-clouds);
+[Humble DDS guide](../../logging.md#humble-and-fast-dds-shared-memory);
 primary references are the
 [Fast DDS SHM documentation](https://fast-dds.docs.eprosima.com/en/2.6.x/fastdds/transport/shared_memory/shared_memory.html)
 and [Humble RMW documentation](https://github.com/ros2/rmw_fastrtps/blob/humble/README.md).

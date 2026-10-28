@@ -212,7 +212,7 @@ Python 标准库，不要求 ROS 正在运行；也可以打包按同样目录�
 **10 cm 全场景精度、所有困难搜索平均半核、RK3588/MID360 真机仍未验收。**
 M2DGR 时间/参考点与相关观测不确定度仍有开放项。算法探索保持暂停。
 模块内修改可使用定向测试；接口、异步时序或保存格式变化仍需集成验证。
-当前日志策略见 [共用日志](../README.md#25-map-files-and-logs)。
+当前日志策略见 [共用日志](logging.md#managed-logs)。
 
 ## 1. 拉取与构建
 
@@ -324,7 +324,7 @@ echo "RUN=$RUN"
 反馈包上限与运行日志上限分别生效；前端、RViz 等进程有各自的日志策略。
 
 同一台机器用 Fast DDS 传大点云时，启动所有参与进程之前，按
-[DDS 共享内存说明](../README.md#humble--fast-dds-large-local-point-clouds)选择
+[DDS 共享内存说明](logging.md#humble-and-fast-dds-shared-memory)选择
 足够的 SHM 段。仓库的 `config/fastdds_local.xml` 为 64 MiB、仅本机的受控配置；
 雷达或前端跨机器时先调整网络接口，不能直接照用 loopback 限制。
 
