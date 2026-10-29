@@ -94,6 +94,25 @@ used [Cartographer's interpolated 3D grid](https://github.com/cartographer-proje
 N3M uses simpler trilinear interpolation because this gate only compares scores;
 it does not need optimizer derivatives or an additional dependency.
 
+The [Atlas cache audit](evidence/atlas_cache_20261029.json) distinguishes that
+frozen regression fixture from normal deployment. Its explicit legacy Atlas
+omits descriptor precomputation; the existing default path checks cache currency
+and rebuilds outdated artifacts. With the same binary and 1,271-keyframe map,
+four-core fixed-14 mean map-ready time is 5.058 s with the legacy artifact versus
+1.479 s with a freshly compiled cache. The latter excludes its one-time compile
+cost. Peak RSS across those fixed positions is 1,225.4 versus 1,097.0 MiB; CPU
+seconds per input second are 0.379 versus 0.361, including both search and tracking.
+This measures an existing cache capability, not a newly accelerated algorithm.
+
+All 14 positions retain frame-4 locks. Both complete localization routes retain
+their output/lock decisions; maximum live-pose matrix differences are below
+6e-14. The independent route did not show a consistent CPU saving, including
+a reversed-order repeat. Search 03 still uses 7.17 CPU seconds before locking,
+41 registration calls and 109 visibility evaluations; descriptor work uses only
+0.097 CPU seconds. Subsequent compute reduction should target measured registration
+and verification work. Do not report a mixed 30-second average as active-search
+CPU usage, or a frozen old-cache load as the current default startup cost.
+
 The bounded correspondence search uses a previous correspondence only as a
 search bound. On an ambiguous floating-point miss, it consults the original
 small_gicp search and reapplies the unchanged distance gate. This covers the

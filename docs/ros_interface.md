@@ -69,14 +69,20 @@ age alone is not proof of estimator failure or accuracy. For example:
 ## Frames and velocities
 
 `input_linear_velocity_frame` defaults to `child`, as required by standard
-Odometry. Select `parent` explicitly for a frontend such as this workspace's
-FAST-LIO that reports linear velocity in the odometry parent frame. N3 rotates
+Odometry. The shared-core FAST-LIO output-contract repair of 2026-10-29 uses
+`child`; its revisions through `783d62f` used parent-frame linear velocity.
+Select `parent` explicitly only for a frontend that reports that convention. N3 rotates
 that linear velocity and its covariance using the input odometry orientation;
 angular velocity stays in the child frame. Global localization corrections do
 not create velocity. The input child frame must match `body_frame`. Invalid
 twist/covariance or mismatched child frames suppress output odometry/TF rather
 than publishing a fabricated zero measurement. These conversions are shared by
 the thin Noetic/Humble adapters, not the backend core.
+
+The repaired FAST-LIO velocities refer to the IMU origin. Pose covariance is
+current and expressed in parent axes, but twist covariance is not yet supplied;
+its zero-filled default is not calibrated velocity uncertainty. N3 forwards the
+input twist and does not estimate missing uncertainty or move its reference point.
 
 ## Pose and cloud association
 

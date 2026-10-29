@@ -1,0 +1,382 @@
+{
+  "date": "2026-10-29",
+  "source_commit": "e3d1b5e5f137cb8baa56c577e1ad37ae72eb6897",
+  "scope": "Same N3M binary: explicitly selected frozen legacy Atlas versus freshly compiled Atlas loaded through the existing default automatic-cache path. No N3M algorithm change.",
+  "cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "threads": 4,
+  "map_keyframes": 1271,
+  "global_points": 2095987,
+  "prepared_points": 4837559,
+  "map_sha256": "153eb3356e8cf2d4891f7240834652e75cdb49bf173dbd25d9f6c2945483746e",
+  "core_sha256": "c25d9826be6e6d11b01c28d2748915cffdb68ebe645bfd1db8f1e7ea20aab1ac",
+  "variants": {
+    "legacy": {
+      "atlas_sha256": "83f4ee22fec54bd3c20650ebfb1163daad4769c0b9126e35858c96a8c3e832e3",
+      "sidecar_bytes": 614043150,
+      "load_mode": "explicit frozen artifact"
+    },
+    "current": {
+      "atlas_sha256": "bf46148986607415bddec85dc6db371c5e753367240175c1c43e5257839c8dff",
+      "sidecar_bytes": 311694939,
+      "load_mode": "default automatic cache"
+    }
+  },
+  "fixed14": {
+    "legacy": {
+      "positions": 14,
+      "outputs": 4088,
+      "map_ready_mean_s": 5.058136428571428,
+      "first_lock_mean_wall_s": 2.2361306090714286,
+      "first_lock_mean_cpu_s": 4.920727621642857,
+      "cpu_s_per_input_s": 0.3792349822153243,
+      "peak_rss_mib": 1225.41796875,
+      "position_max_m": 0.024809060892936476,
+      "per_position": [
+        {
+          "id": "01_west_corridor",
+          "first_lock_cpu_s": 3.061697974,
+          "first_lock_wall_s": 1.600989746,
+          "cpu_seconds_per_input_second": 0.28954095698821997,
+          "alignments": 33
+        },
+        {
+          "id": "02_east_corridor",
+          "first_lock_cpu_s": 4.2762861039999995,
+          "first_lock_wall_s": 2.212880759,
+          "cpu_seconds_per_input_second": 0.37173976425228744,
+          "alignments": 28
+        },
+        {
+          "id": "03_south_corridor",
+          "first_lock_cpu_s": 7.564547608,
+          "first_lock_wall_s": 3.04995978,
+          "cpu_seconds_per_input_second": 0.49142285006779657,
+          "alignments": 41
+        },
+        {
+          "id": "04_north_corridor",
+          "first_lock_cpu_s": 6.628315036999999,
+          "first_lock_wall_s": 2.7086011389999998,
+          "cpu_seconds_per_input_second": 0.44880949529801784,
+          "alignments": 39
+        },
+        {
+          "id": "05_southwest_office",
+          "first_lock_cpu_s": 4.6905899799999995,
+          "first_lock_wall_s": 2.184341609,
+          "cpu_seconds_per_input_second": 0.3832913945084746,
+          "alignments": 37
+        },
+        {
+          "id": "06_south_meeting",
+          "first_lock_cpu_s": 4.031231444,
+          "first_lock_wall_s": 2.005630739,
+          "cpu_seconds_per_input_second": 0.32504849796610175,
+          "alignments": 37
+        },
+        {
+          "id": "07_south_pillars",
+          "first_lock_cpu_s": 4.28622021,
+          "first_lock_wall_s": 1.900092286,
+          "cpu_seconds_per_input_second": 0.37666262433898307,
+          "alignments": 37
+        },
+        {
+          "id": "08_west_shelves",
+          "first_lock_cpu_s": 4.767466427999999,
+          "first_lock_wall_s": 2.213612898,
+          "cpu_seconds_per_input_second": 0.3565504837627118,
+          "alignments": 41
+        },
+        {
+          "id": "09_east_shelves",
+          "first_lock_cpu_s": 2.9706589979999998,
+          "first_lock_wall_s": 1.764218121,
+          "cpu_seconds_per_input_second": 0.3168694173559322,
+          "alignments": 29
+        },
+        {
+          "id": "10_northwest_meeting",
+          "first_lock_cpu_s": 3.2185124160000003,
+          "first_lock_wall_s": 1.71244569,
+          "cpu_seconds_per_input_second": 0.3225375218305085,
+          "alignments": 33
+        },
+        {
+          "id": "11_northeast_pillars",
+          "first_lock_cpu_s": 4.557540971999999,
+          "first_lock_wall_s": 2.080513137,
+          "cpu_seconds_per_input_second": 0.36427795474576274,
+          "alignments": 38
+        },
+        {
+          "id": "12_north_office",
+          "first_lock_cpu_s": 5.6190937210000005,
+          "first_lock_wall_s": 2.435662491,
+          "cpu_seconds_per_input_second": 0.389522696440678,
+          "alignments": 44
+        },
+        {
+          "id": "13_south_door",
+          "first_lock_cpu_s": 6.679159727,
+          "first_lock_wall_s": 2.661781224,
+          "cpu_seconds_per_input_second": 0.44544354781542517,
+          "alignments": 42
+        },
+        {
+          "id": "14_north_door",
+          "first_lock_cpu_s": 6.5388660839999995,
+          "first_lock_wall_s": 2.775098908,
+          "cpu_seconds_per_input_second": 0.42757252406778035,
+          "alignments": 38
+        }
+      ]
+    },
+    "current": {
+      "positions": 14,
+      "outputs": 4088,
+      "map_ready_mean_s": 1.4790964285714285,
+      "first_lock_mean_wall_s": 1.6008604592857143,
+      "first_lock_mean_cpu_s": 4.316704030571429,
+      "cpu_s_per_input_s": 0.3613392452748113,
+      "peak_rss_mib": 1096.96875,
+      "position_max_m": 0.024809060892936476,
+      "per_position": [
+        {
+          "id": "01_west_corridor",
+          "first_lock_cpu_s": 2.451942846,
+          "first_lock_wall_s": 0.979916207,
+          "cpu_seconds_per_input_second": 0.26940018374060737,
+          "alignments": 33
+        },
+        {
+          "id": "02_east_corridor",
+          "first_lock_cpu_s": 3.6386182620000005,
+          "first_lock_wall_s": 1.409872246,
+          "cpu_seconds_per_input_second": 0.35323636349328813,
+          "alignments": 28
+        },
+        {
+          "id": "03_south_corridor",
+          "first_lock_cpu_s": 7.170136627000001,
+          "first_lock_wall_s": 2.549227877,
+          "cpu_seconds_per_input_second": 0.49963951352542374,
+          "alignments": 41
+        },
+        {
+          "id": "04_north_corridor",
+          "first_lock_cpu_s": 5.954789825,
+          "first_lock_wall_s": 2.0279948,
+          "cpu_seconds_per_input_second": 0.42704263452028424,
+          "alignments": 39
+        },
+        {
+          "id": "05_southwest_office",
+          "first_lock_cpu_s": 4.053059845,
+          "first_lock_wall_s": 1.530090248,
+          "cpu_seconds_per_input_second": 0.35892879528813565,
+          "alignments": 37
+        },
+        {
+          "id": "06_south_meeting",
+          "first_lock_cpu_s": 3.389281482,
+          "first_lock_wall_s": 1.415434348,
+          "cpu_seconds_per_input_second": 0.30434154732203395,
+          "alignments": 37
+        },
+        {
+          "id": "07_south_pillars",
+          "first_lock_cpu_s": 3.6389652089999998,
+          "first_lock_wall_s": 1.2468211429999998,
+          "cpu_seconds_per_input_second": 0.35074773583050844,
+          "alignments": 37
+        },
+        {
+          "id": "08_west_shelves",
+          "first_lock_cpu_s": 4.174867219,
+          "first_lock_wall_s": 1.5796028899999999,
+          "cpu_seconds_per_input_second": 0.33646588172881353,
+          "alignments": 41
+        },
+        {
+          "id": "09_east_shelves",
+          "first_lock_cpu_s": 2.376886784,
+          "first_lock_wall_s": 1.130209427,
+          "cpu_seconds_per_input_second": 0.2995364397627119,
+          "alignments": 29
+        },
+        {
+          "id": "10_northwest_meeting",
+          "first_lock_cpu_s": 2.6565353419999997,
+          "first_lock_wall_s": 1.087186086,
+          "cpu_seconds_per_input_second": 0.3144362706101695,
+          "alignments": 33
+        },
+        {
+          "id": "11_northeast_pillars",
+          "first_lock_cpu_s": 3.918967275,
+          "first_lock_wall_s": 1.452048747,
+          "cpu_seconds_per_input_second": 0.34410402410169494,
+          "alignments": 38
+        },
+        {
+          "id": "12_north_office",
+          "first_lock_cpu_s": 5.027219731,
+          "first_lock_wall_s": 1.802903089,
+          "cpu_seconds_per_input_second": 0.37016204179661016,
+          "alignments": 44
+        },
+        {
+          "id": "13_south_door",
+          "first_lock_cpu_s": 6.0915885350000005,
+          "first_lock_wall_s": 2.0539864160000003,
+          "cpu_seconds_per_input_second": 0.42491463699329635,
+          "alignments": 42
+        },
+        {
+          "id": "14_north_door",
+          "first_lock_cpu_s": 5.890997446,
+          "first_lock_wall_s": 2.146752906,
+          "cpu_seconds_per_input_second": 0.40579334372895987,
+          "alignments": 38
+        }
+      ]
+    },
+    "max_live_matrix_difference": 7.105427357601002e-15
+  },
+  "routes": [
+    {
+      "route": "reentry",
+      "variant": "legacy",
+      "frames": 2236,
+      "outputs": 2232,
+      "success": 2232,
+      "locks": [
+        4
+      ],
+      "cpu_s": 59.963773028999995,
+      "input_s": 223.5,
+      "equivalent_cores": 0.26829428648322146,
+      "peak_rss_mib": 1225.08984375,
+      "position_max_m": 0.07936771243843452
+    },
+    {
+      "route": "reentry",
+      "variant": "current",
+      "frames": 2236,
+      "outputs": 2232,
+      "success": 2232,
+      "locks": [
+        4
+      ],
+      "cpu_s": 59.63682573,
+      "input_s": 223.5,
+      "equivalent_cores": 0.26683143503355705,
+      "peak_rss_mib": 1193.28515625,
+      "position_max_m": 0.0793677124384354
+    },
+    {
+      "route": "independent",
+      "variant": "current",
+      "frames": 3666,
+      "outputs": 3662,
+      "success": 3603,
+      "locks": [
+        4,
+        1938
+      ],
+      "cpu_s": 126.40318585400001,
+      "input_s": 366.5,
+      "equivalent_cores": 0.34489273084311056,
+      "peak_rss_mib": 1213.34765625,
+      "position_max_m": 0.03246851633697607
+    },
+    {
+      "route": "independent",
+      "variant": "legacy",
+      "frames": 3666,
+      "outputs": 3662,
+      "success": 3603,
+      "locks": [
+        4,
+        1938
+      ],
+      "cpu_s": 119.32580132,
+      "input_s": 366.5,
+      "equivalent_cores": 0.3255819954160982,
+      "peak_rss_mib": 1224.984375,
+      "position_max_m": 0.0324685163369769
+    }
+  ],
+  "independent_repeat": [
+    {
+      "route": "independent",
+      "variant": "legacy",
+      "frames": 3666,
+      "outputs": 3662,
+      "success": 3603,
+      "locks": [
+        4,
+        1938
+      ],
+      "cpu_s": 115.953676876,
+      "input_s": 366.5,
+      "equivalent_cores": 0.31638111016643927,
+      "peak_rss_mib": 1225.046875,
+      "position_max_m": 0.03246851633697604
+    },
+    {
+      "route": "independent",
+      "variant": "current",
+      "frames": 3666,
+      "outputs": 3662,
+      "success": 3603,
+      "locks": [
+        4,
+        1938
+      ],
+      "cpu_s": 117.429108376,
+      "input_s": 366.5,
+      "equivalent_cores": 0.3204068441364257,
+      "peak_rss_mib": 1212.3515625,
+      "position_max_m": 0.03246851633697525
+    }
+  ],
+  "limits": [
+    "Warm filesystem-cache desktop replays, not ARM/hardware qualification.",
+    "Map-ready time excludes one-time Atlas compilation; initial lock time starts at first processed input after map loading.",
+    "CPU/input-second includes search and post-lock tracking; it is not the average CPU usage during active search alone.",
+    "Instantaneous CPU peaks were not sampled. perf task-clock sampling was unavailable at perf_event_paranoid=4; system policy was not modified.",
+    "No consistent independent-route CPU reduction was demonstrated: cached Atlas improves startup but does not remove registration work."
+  ],
+  "route_matrix_differences": {
+    "reentry": 1.4210854715202004e-14,
+    "independent": 5.684341886080802e-14
+  },
+  "search_03": {
+    "cpu_s_to_first_lock": 7.170136627000001,
+    "wall_s_to_first_lock": 2.549227877,
+    "registration_calls": 41,
+    "visibility_evaluations": 109,
+    "descriptor_calling_thread_cpu_s": 0.09738427999999977,
+    "interpretation": "Descriptor work is about 1.4% of first-lock process CPU. Registration and validation remain the main investigation target; this cache experiment did not reduce their call counts."
+  },
+  "local_evidence": "build/odometry_contract_20261029/n3m",
+  "result_hashes": {
+    "fixed14/results.json": "4d852b57d81b4dcdb82766889d116169b422b31302ff6c18c0333a5201e51b84",
+    "routes/results.json": "ce5d3b46f36a4457ef93c882571731b0f161e4fd69486d67f01a76639a552739",
+    "routes_repeat/results.json": "f13c6ee8c825178a5522391dfd06f7bfa1e783ecd0a32aad6e9d0d601c71909b"
+  },
+  "restore_duplicate_map": "python3 -B build/odometry_contract_20261029/n3m/prepare_map.py",
+  "downstream_output_contract_ctest": {
+    "humble": [
+      5,
+      5
+    ]
+  }
+}
