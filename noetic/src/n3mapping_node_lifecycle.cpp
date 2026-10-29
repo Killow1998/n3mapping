@@ -97,7 +97,9 @@ void N3MappingNoeticNode::initializeROS()
 {
     const int sync_queue_size = std::max(1, config_.sync_queue_size);
     cloud_sub_.subscribe(nh_, config_.cloud_topic, static_cast<uint32_t>(sync_queue_size));
-    odom_sub_.subscribe(nh_, config_.odom_topic, static_cast<uint32_t>(sync_queue_size));
+    // Shared odom transport must not batch samples before the depth-one live queue.
+    odom_sub_.subscribe(nh_, config_.odom_topic, static_cast<uint32_t>(sync_queue_size),
+                        ros::TransportHints().tcpNoDelay());
     if (product_profile_v1_) {
         ExactSyncPolicy sync_policy(static_cast<uint32_t>(sync_queue_size));
         exact_sync_ = std::make_unique<ExactSynchronizer>(
@@ -119,7 +121,8 @@ void N3MappingNoeticNode::initializeROS()
     if (run_mode_ == CoreRunMode::MAPPING) {
         dense_odom_sub_ = nh_.subscribe(
             config_.odom_topic, static_cast<uint32_t>(sync_queue_size),
-            &N3MappingNoeticNode::denseOdomCallback, this);
+            &N3MappingNoeticNode::denseOdomCallback, this,
+            ros::TransportHints().tcpNoDelay());
     }
 
     odom_pub_ = nh_.advertise<nav_msgs::Odometry>(config_.output_odom_topic, 10);
