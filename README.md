@@ -26,10 +26,29 @@ Odometry ───────────────────┘    Loop cl
 The LIO frontend handles sensor fusion and deskewing. N3Mapping handles global
 map alignment, loop closure, and map persistence.
 
-The adapted FAST-LIVO2 frontend supplies `/n3m_input/cloud_body` and
-`/n3m_input/odometry` with matching acquisition stamps. Configure those input
-topics and see the [integration validation](docs/evidence/fast_livo2_frontend_20261028.md)
-for the required tracking repair, regenerated maps and current limits.
+## Recommended frontends
+
+These maintained forks have been tested with N3Mapping. Both provide native
+Noetic and Humble adapters around a shared C++ core on their `main` branch.
+Choose the frontend for your sensor inputs:
+
+| Repository | Sensor inputs | N3M `cloud_topic` | N3M `odom_topic` |
+| --- | --- | --- | --- |
+| [Killow1998/FAST_LIO](https://github.com/Killow1998/FAST_LIO) | LiDAR + IMU | `/cloud_registered_body` | `/Odometry` |
+| [Killow1998/FAST-LIVO2](https://github.com/Killow1998/FAST-LIVO2) | LiDAR + IMU + calibrated RGB camera | `/n3m_input/cloud_body` | `/n3m_input/odometry` |
+
+For FAST-LIO, keep `publish.scan_publish_en` and
+`publish.scan_bodyframe_pub_en` enabled. For FAST-LIVO2, use the full body-cloud
+output paired with the final post-visual pose; `/cloud_registered` may contain
+only camera-visible points in the world frame. In both cases, configure the
+sensor extrinsics and timestamps, and keep the cloud's body frame consistent
+with odometry. The IMU body origin may differ from the robot base.
+
+See the [FAST-LIO shared-core validation](https://github.com/Killow1998/FAST_LIO/blob/main/docs/core_wrappers_20261027.md)
+and [FAST-LIVO2 integration validation](docs/evidence/fast_livo2_frontend_20261028.md)
+for tested revisions and scope. The FAST-LIVO2 Avia/MID360 continuation and
+cross-ROS reload results use simulation; general hardware accuracy remains
+unqualified. Corrupted maps from before the tracking repair require regeneration.
 
 ## Getting started
 
@@ -37,7 +56,8 @@ Build with the [Humble instructions](docs/getting_started.md#ros-2-humble) or
 [Noetic instructions](docs/getting_started.md#ros-1-noetic), then source the workspace.
 
 Copy [the default configuration](config/n3mapping.yaml) and set your frontend's
-topics, coordinate frames, and map paths:
+topics, coordinate frames, and map paths. This example uses the FAST-LIO topic
+pair; select the FAST-LIVO2 pair from the table above when using that frontend:
 
 ```yaml
 n3mapping_node:
