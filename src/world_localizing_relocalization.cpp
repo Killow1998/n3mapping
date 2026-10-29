@@ -334,7 +334,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (config_.reloc_free_space_mode != "kill" &&
       !decision.temporal_window_pending && decision.accepted) {
     const auto started = std::chrono::steady_clock::now();
-    const auto *free_space_best = freeSpaceBestHypothesis(query_cloud, odom_pose);
+    const auto *free_space_best = freeSpaceBestHypothesis(query_cloud, odom_pose, *ranking.top1);
     cost.free_space_ms = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - started).count();
     decision = decision_policy_.evaluate(

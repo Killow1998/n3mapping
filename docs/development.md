@@ -48,7 +48,8 @@ linking. These are translation-unit and incremental-build measurements, not
 full clean-build or SLAM runtime speedups. The qualified GTSAM dependency remains
 unchanged. The final Humble/Noetic suites passed 69/69 and 67/67; the same reload
 relock test also failed intermittently on both the candidate and unmodified
-baseline. That existing reliability issue remains open in the evidence record.
+baseline. The subsequent [reload/relock repair](evidence/reload_relock_20261029.json)
+addresses that failure; the original failed runs remain in the evidence record.
 
 Registration entry points validate external clouds. Private preprocessing and
 result-copy helpers accept references; they do not repeat nullable-pointer
@@ -68,7 +69,30 @@ them again. Atlas file identity and cache orchestration remain in
 `localization_atlas.cpp`; prepared-level wire conversion belongs to the private
 `localization_atlas_codec.cpp`. Its persisted-input validation and wire format
 are unchanged. The [cleanup evidence](evidence/cleanup_20261029.json) records the
-boundary-check ablation, native ROS replays and remaining test limitation.
+boundary-check ablation and native ROS replays. Its reload/relock limitation was
+subsequently repaired as described below.
+
+Free-space scoring interpolates the occupied/free layers at voxel centers.
+Hard lookup could change a planar scan's score from 0.979 to 0.710 under a
+0.1 mm pose shift in a 0.20 m grid, incorrectly vetoing a verified pose after
+reload. The score now changes continuously. Support counts in
+`FreeSpaceGrid::Score` are fractional; rebuild C++ consumers of that type.
+Atlas storage, ROS interfaces and numeric configuration defaults are unchanged.
+
+Both veto and elimination use the existing `reloc_free_space_kill_sigmas`
+separation rule. The legacy parameter name is retained. An insignificant score
+difference cannot overturn the geometric winner; a significantly better distinct
+candidate still vetoes it. This remains a sampling-variance approximation, not a
+claim of calibrated cross-scene probability. Registration, confirmation,
+visibility and ambiguity gates are unchanged.
+
+The [repair evidence](evidence/reload_relock_20261029.json) includes the frozen
+failure, separate ablations, 50 repeated continuation/save/reload E2E runs,
+Humble/Noetic regression and complete four-core comparisons of the original
+14 positions and both localization routes. The reference implementation review
+used [Cartographer's interpolated 3D grid](https://github.com/cartographer-project/cartographer/blob/master/cartographer/mapping/internal/3d/scan_matching/interpolated_grid.h).
+N3M uses simpler trilinear interpolation because this gate only compares scores;
+it does not need optimizer derivatives or an additional dependency.
 
 The bounded correspondence search uses a previous correspondence only as a
 search bound. On an ambiguous floating-point miss, it consults the original

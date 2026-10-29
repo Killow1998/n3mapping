@@ -154,6 +154,7 @@ n3mapping_node:
     reloc_free_space_resolution: 0.20
     reloc_free_space_max_ray_length: 30.0
     reloc_free_space_occupied_min_points: 2
+    # Evidence separation for both veto and kill modes.
     reloc_free_space_kill_sigmas: 5.0
     reloc_free_space_map_pcd: ""
     reloc_persist_hypotheses: false

@@ -300,7 +300,8 @@
       "message": "localization_not_authoritative after reload",
       "candidate": "First full suite failed here; 10 consecutive focused runs and the final full suite passed.",
       "baseline": "Unmodified 7335819 reproduced the identical failure after 5 passing focused runs.",
-      "status": "Not fixed or suppressed by this compilation-only change; preserve for a separate reliability investigation."
+      "status": "Not fixed or suppressed by this compilation-only change; preserve for a separate reliability investigation.",
+      "resolution": "Subsequently repaired; see reload_relock_20261029.json. Original compilation-stage observations are retained."
     }
   },
   "runtime_cost": "One GtsamState allocation per GraphOptimizer instance, with no new per-frame state copies or locks. Runtime speedup is not claimed.",

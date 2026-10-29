@@ -90,7 +90,8 @@
     "failure": "localization_not_authoritative after reload; free_space_veto",
     "this_run": "Failed once in initial full Humble suite; 10 subsequent focused runs and final full suite passed. Noetic full suite passed.",
     "baseline_evidence": "compile_dependencies_20261029.json records the identical failure on unmodified 7335819 after five passing runs.",
-    "status": "Existing intermittent reload/relock behavior remains unresolved. No test deleted, disabled or acceptance threshold relaxed."
+    "status": "Repaired in the subsequent reload/relock stage; the original failures above are retained as historical evidence.",
+    "resolution": "reload_relock_20261029.json"
   },
   "coverage": [
     "Core mapping, loop closure, localization and continuation",

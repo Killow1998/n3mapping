@@ -160,7 +160,8 @@ private:
                                         const Eigen::Isometry3d &odom_pose);
   const RelocHypothesis *
   freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
-                          const Eigen::Isometry3d &odom_pose);
+                          const Eigen::Isometry3d &odom_pose,
+                          const RelocHypothesis &ranked_winner);
   PointCloudT::Ptr buildRelocTargetCloud(int64_t center_id);
   RelocTargetRequest makeRelocTargetRequest(int64_t center_id);
   void releaseSearchPreparation();

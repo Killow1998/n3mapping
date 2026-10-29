@@ -80,7 +80,8 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
 // acceptance margin; both must continue to measure the same evidence.
 const WorldLocalizing::RelocHypothesis *
 WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
-                                         const Eigen::Isometry3d &odom_pose) {
+                                         const Eigen::Isometry3d &odom_pose,
+                                         const RelocHypothesis &ranked_winner) {
   if (!config_.reloc_free_space_enable || !query_cloud || query_cloud->empty())
     return nullptr;
   rebuildFreeSpaceGridIfNeeded();
@@ -94,7 +95,7 @@ WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
   if (free_space_grid_.freeCells() == 0)
     return nullptr;
   const RelocHypothesis *best = nullptr;
-  double best_value = 0.0;
+  FreeSpaceGrid::Score best_score, ranked_score;
   for (const auto &hyp : hypothesis_manager_.hypotheses()) {
     if (!hyp.alive)
       continue;
@@ -102,15 +103,26 @@ WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
         free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
     if (!s.valid)
       continue;
+    if (&hyp == &ranked_winner) ranked_score = s;
     VLOG(1) << "[Reloc/FreeSpaceCov] seed=" << hyp.seed_match_id
             << " value=" << s.value << " known_frac=" << s.known_fraction
             << " occ|known=" << s.occupied_given_known
             << " free|known=" << s.free_given_known << " n=" << s.scored_points
             << " known=" << s.known_points;
-    if (!best || s.value > best_value) {
+    if (!best || s.value > best_score.value) {
       best = &hyp;
-      best_value = s.value;
+      best_score = s;
     }
+  }
+  // Veto and elimination require the same strength of counterevidence.
+  // A near tie in this coarse grid cannot overturn the geometric winner.
+  if (best && best != &ranked_winner && ranked_score.valid &&
+      !best_score.significantlyBetterThan(ranked_score, config_.reloc_free_space_kill_sigmas)) {
+    VLOG(1) << "[Reloc/FreeSpace] inconclusive delta="
+            << best_score.value - ranked_score.value
+            << " required=" << config_.reloc_free_space_kill_sigmas *
+                std::hypot(best_score.stddev, ranked_score.stddev);
+    return nullptr;
   }
   return best;
 }
@@ -163,7 +175,7 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
 
   // The separation test is the sampling noise itself, not a tuned threshold:
   // two hypotheses are only distinguishable when their scores differ by more
-  // than the binomial deviation of the difference.
+  // than the categorical sampling deviation of the difference.
   const double sigmas = config_.reloc_free_space_kill_sigmas;
   const auto &top = scores[static_cast<size_t>(best)];
   size_t killed = 0;
@@ -171,9 +183,7 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
     auto &hyp = hypotheses[i];
     if (!hyp.alive || static_cast<int>(i) == best || !scores[i].valid)
       continue;
-    const double noise = std::sqrt(top.stddev * top.stddev +
-                                   scores[i].stddev * scores[i].stddev);
-    if (top.value - scores[i].value > sigmas * noise) {
+    if (top.significantlyBetterThan(scores[i], sigmas)) {
       hyp.alive = false;
       ++killed;
     }

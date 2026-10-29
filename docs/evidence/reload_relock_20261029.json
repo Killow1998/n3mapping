@@ -1,0 +1,202 @@
+{
+  "date": "2026-10-29",
+  "baseline_commit": "ff61a3e1d87ac023a1bb268344f22459b6efcbba",
+  "scope": "Repair false free-space veto after continuation/save/reload. No new feature, ROS interface, map schema, background job or synchronization primitive.",
+  "cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "threads": 4,
+  "build_type": "Release",
+  "product_build_identity": "Independent UNVERIFIED development builds; no tagged product bundle or installed library replaced.",
+  "root_cause": [
+    "Hard voxel lookup made planar returns discontinuous at cell faces: a 0.1 mm z shift changed the correct pose score from 0.978655 to 0.710234 in a 0.20 m grid.",
+    "Veto mode treated any different free-space winner as decisive, while elimination mode already required a score separation relative to sampling variance. Continuous scoring alone exposed two corridor false vetoes for differences near 0.01."
+  ],
+  "implementation": [
+    "Trilinear sampling of occupied/free layers at voxel centers; outside-neighbor support stays unknown without renormalization.",
+    "Fractional support counts preserve the same evidence across score, coverage and variance; each query point remains one sample, not eight.",
+    "Veto and elimination share Score::significantlyBetterThan with the existing reloc_free_space_kill_sigmas value. The numeric default remains 5.0; veto semantics now require meaningful counterevidence.",
+    "Registration, temporal confirmation, visibility, ambiguity and motion gates are unchanged. Existing Atlas files remain usable without recompilation."
+  ],
+  "reference_review": {
+    "source": "https://github.com/cartographer-project/cartographer/blob/master/cartographer/mapping/internal/3d/scan_matching/interpolated_grid.h",
+    "source_blob_sha": "b38fdbe963292c76990dc30aea3fc831a9bb20ae",
+    "decision": "Review continuous interpolation as a mature pattern; implement ordinary trilinear weights locally because this score gate needs no optimizer derivatives. No Cartographer dependency added."
+  },
+  "frozen_failure": {
+    "map_sha256": "8e0c90ff6332ed6699e070e3e99dc95b777e03b49af61c92380a3e1b402f07a3",
+    "atlas_sha256": "9b6c80d82daf945adc076a91afcb59de97f1caaf9b06935c93344f6e1bf93f5f",
+    "repetitions_per_variant": 10,
+    "baseline_failed": 10,
+    "baseline_attempted_frames": 24,
+    "candidate_passed": 10,
+    "candidate_first_lock_frame_zero_based": 4,
+    "candidate_max_position_error_m": 9.90446e-05,
+    "candidate_max_rotation_error_rad": 1.97865e-05,
+    "continuous_score_at_z_minus_0_1mm": 0.510878,
+    "continuous_score_at_reference_z": 0.511078
+  },
+  "ablation": {
+    "hard_lookup_original_veto": "Frozen failure reproduces.",
+    "interpolation_only": "Frozen failure resolves and 50 full extension runs pass, but two existing corridor regressions fail; not shipped.",
+    "significance_only_hard_lookup": "Frozen failure and the new surface-continuity regression both fail.",
+    "combined": "Frozen failure, corridor regressions and complete suites pass.",
+    "strong_counterevidence": "The same regression verifies that occupied support still significantly beats a pose inside observed free space and that outside-grid input has no valid score."
+  },
+  "validation": {
+    "humble": {
+      "passed": 69,
+      "total": 69
+    },
+    "noetic": {
+      "passed": 67,
+      "total": 67
+    },
+    "continuation_repeats": {
+      "runs": 50,
+      "startup_cases_per_run": 2,
+      "all_passed": true
+    },
+    "fixed14": {
+      "baseline": {
+        "equivalent_cores": 0.3818248965543981,
+        "peak_rss_mib": 1221.89453125,
+        "max_truth_error_m": 0.024809060892936476,
+        "positions": 14,
+        "frames": 4144,
+        "outputs": 4088,
+        "first_lock_frame_zero_based": 4
+      },
+      "candidate": {
+        "equivalent_cores": 0.37857214908049974,
+        "peak_rss_mib": 1221.8828125,
+        "max_truth_error_m": 0.024809060892936476,
+        "positions": 14,
+        "frames": 4144,
+        "outputs": 4088,
+        "first_lock_frame_zero_based": 4
+      },
+      "same_decisions_and_counts": true,
+      "max_output_pose_element_difference": 7.105427357601002e-15
+    },
+    "routes": {
+      "reentry": {
+        "same_decisions_and_counts": true,
+        "max_output_pose_element_difference": 1.4210854715202004e-14,
+        "baseline": {
+          "frames": 2236,
+          "outputs": 2232,
+          "success": 2232,
+          "locks": [
+            4
+          ],
+          "equivalent_cores": 0.24893062680536912,
+          "peak_rss_mib": 1253.83984375,
+          "position_error_m": {
+            "rmse": 0.009709132793355732,
+            "median": 0.0069795146036306654,
+            "p95": 0.015455702583471564,
+            "maximum": 0.07936771243843452
+          },
+          "rotation_error_deg": {
+            "rmse": 0.023755464170401766,
+            "median": 0.015028926866236466,
+            "p95": 0.04578882735947145,
+            "maximum": 0.14198324735233542
+          }
+        },
+        "candidate": {
+          "frames": 2236,
+          "outputs": 2232,
+          "success": 2232,
+          "locks": [
+            4
+          ],
+          "equivalent_cores": 0.24308656959284117,
+          "peak_rss_mib": 1254.00390625,
+          "position_error_m": {
+            "rmse": 0.009709132793355852,
+            "median": 0.006979514603630643,
+            "p95": 0.015455702583471185,
+            "maximum": 0.07936771243843713
+          },
+          "rotation_error_deg": {
+            "rmse": 0.023755464170400434,
+            "median": 0.01502892686623648,
+            "p95": 0.04578882735947138,
+            "maximum": 0.14198324735234927
+          }
+        }
+      },
+      "independent": {
+        "same_decisions_and_counts": true,
+        "max_output_pose_element_difference": 8.526512829121202e-14,
+        "baseline": {
+          "frames": 3666,
+          "outputs": 3662,
+          "success": 3603,
+          "locks": [
+            4,
+            1938
+          ],
+          "equivalent_cores": 0.32062957245293316,
+          "peak_rss_mib": 1253.8671875,
+          "position_error_m": {
+            "rmse": 0.00852416884273188,
+            "median": 0.006629034525469892,
+            "p95": 0.015433337229173083,
+            "maximum": 0.03246851633697081
+          },
+          "rotation_error_deg": {
+            "rmse": 0.0351390605859334,
+            "median": 0.01625048474290457,
+            "p95": 0.057390929315867076,
+            "maximum": 0.2641706757292131
+          }
+        },
+        "candidate": {
+          "frames": 3666,
+          "outputs": 3662,
+          "success": 3603,
+          "locks": [
+            4,
+            1938
+          ],
+          "equivalent_cores": 0.3171935950995907,
+          "peak_rss_mib": 1254.0234375,
+          "position_error_m": {
+            "rmse": 0.00852416884273156,
+            "median": 0.006629034525469937,
+            "p95": 0.015433337229173076,
+            "maximum": 0.03246851633697082
+          },
+          "rotation_error_deg": {
+            "rmse": 0.03513906058593265,
+            "median": 0.01625048474290456,
+            "p95": 0.05739092931586709,
+            "maximum": 0.26417067572924485
+          }
+        }
+      }
+    }
+  },
+  "build_sha256": {
+    "baseline": "eb5a895b177eb8e6f3f83a804122ca9e55305b21a66a7c3c6e278d7b85b3b02f",
+    "candidate": "c25d9826be6e6d11b01c28d2748915cffdb68ebe645bfd1db8f1e7ea20aab1ac"
+  },
+  "protected_artifacts": {
+    "count": 12,
+    "original_installations_and_navigation_frozen_libraries_sha256_unchanged": true
+  },
+  "measurement_scope": "Complete same-input A/B replays at unlimited replay rate, four CPU affinity and four registration threads. CPU seconds divided by unchanged sensor-input duration is equivalent real-time core demand; it is not instantaneous replay CPU. Map loading is measured separately and excluded from that core-demand figure. RSS includes loaded map/cache state.",
+  "limits": [
+    "One full A/B performance pass with interleaved order; small CPU differences are not claimed as speedup.",
+    "The 14 positions and both routes are existing simulation datasets. No new RK3588/Jetson or physical-robot qualification.",
+    "The shared variance rule is the existing sampling approximation, not a claim of calibrated cross-scene probabilities or independent repeated observations.",
+    "FreeSpaceGrid::Score support counters are now double; C++ consumers of that type must rebuild. ROS and persisted formats are unchanged."
+  ],
+  "raw_evidence_workspace_directory": "build/n3mapping/reload_relock_20261029"
+}

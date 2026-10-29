@@ -144,6 +144,47 @@ void expectPreparedLevelExact(
 
 } // namespace
 
+TEST(FreeSpaceGridTest, SurfaceBoundaryIsContinuousAndObservedFreeSpaceStillContradicts) {
+  pcl::PointCloud<pcl::PointXYZI> floor;
+  for (int x = -40; x <= 40; ++x) {
+    for (int y = -40; y <= 40; ++y) {
+      pcl::PointXYZI p;
+      p.x = x * 0.05f; p.y = y * 0.05f; p.z = 0.0f;
+      p.intensity = 1.0f;
+      floor.push_back(p);
+    }
+  }
+  FreeSpaceGrid grid;
+  constexpr double resolution = 0.2, offset = 0.0001;
+  ASSERT_TRUE(grid.build(floor, {Eigen::Vector3d(0, 0, 1)}, resolution, 30.0, 2));
+  pcl::PointCloud<pcl::PointXYZI> query;
+  for (const auto& p : floor) {
+    if (std::abs(p.x) > 0.1f || std::abs(p.y) > 0.1f) continue;
+    auto local = p; local.z -= 1.0f;
+    query.push_back(local);
+  }
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation().z() = 1.0 - offset;
+  const auto below = grid.score(query, pose);
+  pose.translation().z() = 1.0 + offset;
+  const auto above = grid.score(query, pose);
+  ASSERT_TRUE(below.valid && above.valid);
+  EXPECT_GT(below.value, 0.0);
+  EXPECT_GT(above.value, 0.0);
+  EXPECT_LT(std::abs(above.value - below.value), 4.0 * offset / resolution);
+  EXPECT_FALSE(above.significantlyBetterThan(below, 5.0));
+  EXPECT_FALSE(below.significantlyBetterThan(above, 5.0));
+  pose.translation().z() = 1.4;
+  const auto contradicted = grid.score(query, pose);
+  ASSERT_TRUE(contradicted.valid);
+  EXPECT_LT(contradicted.value, 0.0);
+  EXPECT_GT(contradicted.free_given_known, contradicted.occupied_given_known);
+  EXPECT_TRUE(above.significantlyBetterThan(contradicted, 5.0));
+  EXPECT_FALSE(contradicted.significantlyBetterThan(above, 5.0));
+  pose.translation().z() = 4.0;
+  EXPECT_FALSE(grid.score(query, pose).valid);
+}
+
 TEST(LocalizationAtlasTest, PackedAssemblyRetainsVoxelCentroidsAndUnsafeGridFallback) {
   auto frames = makeKeyframes();
   frames[1]->pose_optimized.linear() =

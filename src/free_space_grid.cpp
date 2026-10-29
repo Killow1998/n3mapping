@@ -12,6 +12,10 @@
 
 namespace n3mapping {
 
+bool FreeSpaceGrid::Score::significantlyBetterThan(const Score& other, double sigmas) const {
+  return value - other.value > sigmas * std::hypot(stddev, other.stddev);
+}
+
 bool FreeSpaceGrid::build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
                           const std::vector<Eigen::Vector3d> &observation_origins,
                           double resolution, double max_ray_length,
@@ -154,46 +158,56 @@ FreeSpaceGrid::score(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
   Score out;
   if (!valid_ || cloud_in_sensor.empty())
     return out;
-  std::size_t occupied_hits = 0;
-  std::size_t free_hits = 0;
+  double occupied_hits = 0.0;
+  double free_hits = 0.0;
   std::size_t scored = 0;
   for (const auto &pt : cloud_in_sensor.points) {
     if (!std::isfinite(pt.x) || !std::isfinite(pt.y) || !std::isfinite(pt.z))
       continue;
-    const Eigen::Vector3i c =
-        cellOf(T_map_sensor * Eigen::Vector3d(pt.x, pt.y, pt.z));
-    if (!inside(c))
+    const Eigen::Vector3d point = T_map_sensor * Eigen::Vector3d(pt.x, pt.y, pt.z);
+    if (!inside(cellOf(point)))
       continue;
-    const std::size_t idx = indexOf(c);
     ++scored;
-    if (occupied_[idx])
-      ++occupied_hits;
-    else if (free_[idx])
-      ++free_hits;
+    // Hard cell lookup can flip a whole planar return at a submillimeter
+    // boundary crossing. Interpolate the existing evidence, not the lock gates.
+    const Eigen::Vector3d local = (point - origin_) / resolution_ -
+                                  Eigen::Vector3d::Constant(0.5);
+    const Eigen::Vector3i lower = local.array().floor().cast<int>();
+    const Eigen::Vector3d fraction = local - lower.cast<double>();
+    for (int x = 0; x < 2; ++x) {
+      const double wx = x ? fraction.x() : 1.0 - fraction.x();
+      for (int y = 0; y < 2; ++y) {
+        const double wxy = wx * (y ? fraction.y() : 1.0 - fraction.y());
+        for (int z = 0; z < 2; ++z) {
+          const Eigen::Vector3i cell = lower + Eigen::Vector3i(x, y, z);
+          if (!inside(cell)) continue;
+          const double weight = wxy * (z ? fraction.z() : 1.0 - fraction.z());
+          const std::size_t idx = indexOf(cell);
+          if (occupied_[idx]) occupied_hits += weight;
+          else if (free_[idx]) free_hits += weight;
+        }
+      }
+    }
   }
   if (scored == 0)
     return out;
   const double n = static_cast<double>(scored);
-  const std::size_t known = occupied_hits + free_hits;
+  const double known = occupied_hits + free_hits;
   out.valid = true;
   out.scored_points = static_cast<int>(scored);
-  out.known_points = static_cast<int>(known);
-  out.occupied_points = static_cast<int>(occupied_hits);
-  out.free_points = static_cast<int>(free_hits);
-  out.occupied_fraction = static_cast<double>(occupied_hits) / n;
-  out.free_fraction = static_cast<double>(free_hits) / n;
-  out.known_fraction = static_cast<double>(known) / n;
+  out.known_points = known;
+  out.occupied_points = occupied_hits;
+  out.free_points = free_hits;
+  out.occupied_fraction = occupied_hits / n;
+  out.free_fraction = free_hits / n;
+  out.known_fraction = known / n;
   if (known > 0) {
-    out.occupied_given_known = static_cast<double>(occupied_hits) /
-                               static_cast<double>(known);
-    out.free_given_known = static_cast<double>(free_hits) /
-                           static_cast<double>(known);
+    out.occupied_given_known = occupied_hits / known;
+    out.free_given_known = free_hits / known;
   }
   out.value = out.occupied_fraction - out.free_fraction;
-  // Occupied and free are mutually exclusive, so the per-point variable takes
-  // +1/-1/0 and its iid variance is E[X^2] - E[X]^2 with E[X^2] = p_o + p_f.
-  // The previous expression treated the two as independent Bernoullis and
-  // understated the variance by 2*p_o*p_f/n.
+  // Interpolation assigns mass to exclusive occupied/free/unknown labels.
+  // Their second moment is p_o + p_f; retain one sample per query point.
   const double variance =
       (out.occupied_fraction + out.free_fraction -
        (out.occupied_fraction - out.free_fraction) *
