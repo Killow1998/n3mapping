@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-29",
+  "source_commit": "b27e0dcde4e5cbbcca1d1134f34e98318e341757",
+  "scope": "03_south_corridor, first five frames through initial lock; no production changes.",
+  "cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "registration": {
+    "calls": 41,
+    "unique_fingerprints": 41,
+    "fingerprint_fields": "Matcher identity, target tree identity, full prepared point/normal/covariance arrays, resolutions, source arrays, initial pose, all registration settings, start resolution and reciprocal flag"
+  },
+  "visibility": {
+    "calls": 110,
+    "unique_fingerprints": 110,
+    "fingerprint_fields": "Map/query data actually used, selected indices, all visibility options, angular ranges, planar Jacobians and pose",
+    "extra_call": "Final relocalization witness has planar Jacobians; the ordinary search counter reports109."
+  },
+  "locks": [
+    4
+  ],
+  "instrumented_maximum_pose_matrix_difference": 3.469446951953614e-18,
+  "interpretation": [
+    "No identical-input memoization opportunity observed in this segment.",
+    "Does not prove all work is necessary, rule out approximate or algorithmic improvements, or generalize to other routes.",
+    "Input hashing warms caches and increases process cost. Instrumented timings are diagnostic, not product performance.",
+    "Calling-thread CPU measurements do not include other worker threads."
+  ],
+  "stopping_boundary": "Stop speculative code changes here. Reopen with a specific avoidable-computation hypothesis, unchanged accuracy/reliability decisions and repeatable four-core benefit beyond measured baseline variation.",
+  "local_evidence": "build/continuous_review_20261029",
+  "sha256": {
+    "registration_audit.cpp": "04960db35626f99953109c3ba057c7f67ecade74c7efc62c8dbea92b69822b51",
+    "visibility_audit.cpp": "616484fefe72795272e6509a90a92b4e18d3a815aaa59bfe3c1d24de7cdb1452",
+    "registration_calls.csv": "de97f7f124334835934e102aee11718f83c78b0a5901040180f2435fe7a50b34",
+    "visibility_calls.csv": "412ad266db820ee8e1df61626d995694b7daba03e331545a77900ea57ab7e772",
+    "registration_replay.csv": "5f45a407b56ecaf492dd9342a16005499a5abf6517dbe053c94fb1c2b8049ae2",
+    "visibility_replay.csv": "c703b581c38a5cfbbb35bd1efbf4b43e266c39d97a2c0a30fb2c28ab5a478874"
+  }
+}

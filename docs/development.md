@@ -113,6 +113,18 @@ a reversed-order repeat. Search 03 still uses 7.17 CPU seconds before locking,
 and verification work. Do not report a mixed 30-second average as active-search
 CPU usage, or a frozen old-cache load as the current default startup cost.
 
+The subsequent [03 geometry-call audit](evidence/geometry_audit_20261029.json)
+fingerprinted the first five input frames without changing production code.
+All 41 registration calls had distinct fingerprints covering prepared geometry,
+tree identity, pose and settings. All 110 visibility calls, including the final
+planar-support witness, also had distinct complete-input fingerprints. Instrumented
+replays retained the frame-4 lock and its pose to floating precision. Hashing and
+instrumentation perturb timing; these runs are not performance comparisons.
+The result does not establish that every call is necessary, or cover other routes.
+It does not support adding an identical-input result cache for this segment.
+Further optimization needs a specific hypothesis, unchanged acceptance behavior
+on the frozen regressions, and a repeatable CPU benefit beyond baseline variation.
+
 The bounded correspondence search uses a previous correspondence only as a
 search bound. On an ambiguous floating-point miss, it consults the original
 small_gicp search and reapplies the unchanged distance gate. This covers the
