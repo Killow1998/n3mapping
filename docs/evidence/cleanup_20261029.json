@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-29",
+  "baseline": "5e5e340",
+  "scope": "Behavior-preserving cleanup after build-dependency and PR #9 integration; no runtime policy, public ROS interface, schema, threshold, or solver dependency change.",
+  "cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "build_type": "Release",
+  "product_build_identity": "UNVERIFIED development builds, not a new tagged product bundle",
+  "changes": [
+    "Loop evidence headers no longer depend on the detector; borrowed resuming services are forward-declared and included directly by their callers.",
+    "Prepared Atlas level encoding/decoding moved into a private codec; cache/file orchestration stays in localization_atlas.cpp.",
+    "Map save retains one cloud validation pass, then directly writes validated points; private protobuf helpers removed from the class contract.",
+    "Prepared-target memory accounting uses capacities of allocated containers without synthetic SIZE_MAX saturation branches.",
+    "Stale/redundant comments removed; all meaningful core and E2E tests retained."
+  ],
+  "translation_units_including_headers": {
+    "loop_detector.h": {
+      "before": 65,
+      "after": 45
+    },
+    "mapping_resuming.h": {
+      "before": 18,
+      "after": 18
+    },
+    "graph_optimizer.h": {
+      "before": 44,
+      "after": 43
+    },
+    "RHPDescriptor.h": {
+      "before": 71,
+      "after": 51
+    }
+  },
+  "standalone_public_headers": {
+    "passed": 9,
+    "headers": [
+      "include/n3mapping/loop_closure_manager.h",
+      "include/n3mapping/loop_consensus_verifier.h",
+      "include/n3mapping/loop_debug_logger.h",
+      "include/n3mapping/loop_segment_consistency.h",
+      "include/n3mapping/loop_verifier.h",
+      "include/n3mapping/map_serializer.h",
+      "include/n3mapping/mapping_resuming.h",
+      "include/n3mapping/relocalization_candidate_evaluator.h",
+      "include/n3mapping/relocalization_debug_logger.h"
+    ]
+  },
+  "atlas_orchestration_lines": {
+    "before": 594,
+    "after": 472,
+    "private_codec_cpp": 139
+  },
+  "serializer_cloud_passes": {
+    "before": 3,
+    "after": 2,
+    "finite_validation_passes_before": 3,
+    "finite_validation_passes_after": 1
+  },
+  "boundary_ablation": {
+    "production": {
+      "rejected_invalid_clouds": 2,
+      "total": 2
+    },
+    "without_entry_validation": {
+      "failed_rejection_tests": 2,
+      "total": 2
+    },
+    "method": "Compile a separate serializer shared object with only the finite-cloud rejection disabled; LD_PRELOAD into the same existing test executable. Production source and binary remain unchanged."
+  },
+  "ctest": {
+    "humble_initial": {
+      "passed": 68,
+      "total": 69
+    },
+    "humble_final": {
+      "passed": 69,
+      "total": 69
+    },
+    "noetic": {
+      "passed": 67,
+      "total": 67
+    }
+  },
+  "known_limitation": {
+    "test": "Startup/MapExtensionRoute.ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInitialization/1",
+    "failure": "localization_not_authoritative after reload; free_space_veto",
+    "this_run": "Failed once in initial full Humble suite; 10 subsequent focused runs and final full suite passed. Noetic full suite passed.",
+    "baseline_evidence": "compile_dependencies_20261029.json records the identical failure on unmodified 7335819 after five passing runs.",
+    "status": "Existing intermittent reload/relock behavior remains unresolved. No test deleted, disabled or acceptance threshold relaxed."
+  },
+  "coverage": [
+    "Core mapping, loop closure, localization and continuation",
+    "Native Humble logging and localization-to-extension E2E",
+    "Atlas prepared-target exact roundtrip, explicit covariance, malformed cache and configuration invalidation",
+    "Map save/reload and invalid cloud rejection",
+    "Native Noetic output smoke and shared-core tests"
+  ],
+  "protected_artifacts": {
+    "count": 12,
+    "sha256_unchanged": true,
+    "rc_tags": "rc1 through rc5 retained"
+  },
+  "limits": [
+    "No new runtime speedup or RAM reduction is claimed for this cleanup.",
+    "This stage did not rerun ARM hardware or the full 14-position/two-route campaign; it used targeted core/native E2E coverage."
+  ]
+}

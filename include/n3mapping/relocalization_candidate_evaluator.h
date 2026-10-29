@@ -13,7 +13,7 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/keyframe_manager.h"
-#include "n3mapping/loop_detector.h"
+#include "n3mapping/loop_types.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_target_provider.h"
 #include "n3mapping/relocalization_performance.h"

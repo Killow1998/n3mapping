@@ -6,6 +6,7 @@
 #include "n3mapping/loop_debug_logger.h"
 namespace n3mapping {
 class GraphOptimizer;
+class PointCloudMatcher;
 struct DetectedLoopQuery {
   int64_t id = -1;
   std::vector<LoopCandidate> candidates;

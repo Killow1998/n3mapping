@@ -10,7 +10,7 @@
 #include <Eigen/Geometry>
 
 #include "n3mapping/config.h"
-#include "n3mapping/loop_detector.h"
+#include "n3mapping/loop_types.h"
 #include "n3mapping/registration_observability.h"
 #include "n3mapping/relocalization_performance.h"
 

@@ -13,16 +13,18 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/config.h"
-#include "n3mapping/graph_optimizer.h"
-#include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_closure_manager.h"
-#include "n3mapping/loop_detector.h"
-#include "n3mapping/map_serializer.h"
-#include "n3mapping/point_cloud_matcher.h"
-#include "n3mapping/submap_builder.h"
-#include "n3mapping/world_localizing.h"
 
 namespace n3mapping {
+
+class GraphOptimizer;
+class KeyframeManager;
+class LoopDetector;
+class MapSerializer;
+class PointCloudMatcher;
+class SubmapBuilder;
+class WorldLocalizing;
+struct RelocalizationPerformance;
 
 enum class MappingResumingState {
     NOT_INITIALIZED,

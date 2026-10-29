@@ -1,4 +1,8 @@
 #include "n3mapping/mapping_resuming.h"
+#include "n3mapping/world_localizing.h"
+#include "n3mapping/loop_detector.h"
+#include "n3mapping/keyframe_manager.h"
+#include "n3mapping/graph_optimizer.h"
 #include "n3mapping/rotation_utils.h"
 #include <glog/logging.h>
 #include <algorithm>

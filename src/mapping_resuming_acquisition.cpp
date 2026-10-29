@@ -1,6 +1,7 @@
 // Acquisition identity and keyframe sampling for extension. Replaying data
 // still produces tracking outputs, but cannot add another independent factor.
 #include "n3mapping/mapping_resuming.h"
+#include "n3mapping/keyframe_manager.h"
 #include <glog/logging.h>
 #include <cmath>
 namespace n3mapping {

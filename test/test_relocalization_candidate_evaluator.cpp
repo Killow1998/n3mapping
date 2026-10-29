@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "n3mapping/loop_detector.h"
 #include "n3mapping/relocalization_candidate_evaluator.h"
 #include "support/registration_fixture.h"
 

@@ -55,6 +55,21 @@ result-copy helpers accept references; they do not repeat nullable-pointer
 checks. Multi-scale registration keeps its stage result as the source of truth
 for convergence and quality statistics.
 
+Loop verification and diagnostics consume `loop_types.h`; only detector callers
+include `loop_detector.h`. `mapping_resuming.h` forward-declares the services it
+borrows, and implementations include the services they call. In the complete
+Humble build, this reduces detector-header consumers from 65 to 45 and RHPD-header
+consumers from 71 to 51. Public headers are also compiled individually to check
+that they declare their own dependencies.
+
+`MapSerializer::saveMap` validates keyframe clouds once before encoding. The
+private encoder copies those validated points without counting and filtering
+them again. Atlas file identity and cache orchestration remain in
+`localization_atlas.cpp`; prepared-level wire conversion belongs to the private
+`localization_atlas_codec.cpp`. Its persisted-input validation and wire format
+are unchanged. The [cleanup evidence](evidence/cleanup_20261029.json) records the
+boundary-check ablation, native ROS replays and remaining test limitation.
+
 The bounded correspondence search uses a previous correspondence only as a
 search bound. On an ambiguous floating-point miss, it consults the original
 small_gicp search and reapplies the unchanged distance gate. This covers the

@@ -1,3 +1,4 @@
+#include "n3mapping/submap_builder.h"
 #include "n3mapping/pcl_compat.h"
 #include "n3mapping/async_log.h"
 #include "n3mapping/graph_optimizer.h"

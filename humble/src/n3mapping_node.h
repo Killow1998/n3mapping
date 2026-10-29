@@ -61,9 +61,6 @@ class N3MappingNode : public rclcpp::Node
 
     ~N3MappingNode() override;
 
-    /**
-     * @brief 关闭节点，保存地图
-     */
     void shutdown();
 
     void startLiveOutput();
@@ -78,14 +75,8 @@ class N3MappingNode : public rclcpp::Node
 
     void authorityProbeTick();
 
-    /**
-     * @brief 初始化组件
-     */
     void initializeComponents();
 
-    /**
-     * @brief 初始化 ROS 接口
-     */
     void initializeROS();
 
     void initializeLiveSubscriptions();
@@ -108,19 +99,8 @@ class N3MappingNode : public rclcpp::Node
   private:
     void initializeOptimizationLogging();
 
-    /**
-     * @brief 加载地图
-     */
     void loadMap();
 
-    /**
-     * @brief Load global_map.pcd when available, otherwise publish a map built from loaded keyframes.
-     */
-
-    /**
-     * @brief 同步回调处理
-     * Requirements: 10.2, 5.4, 5.5
-     */
     struct SynchronizedFrame {
         sensor_msgs::msg::PointCloud2::ConstSharedPtr cloud;
         nav_msgs::msg::Odometry::ConstSharedPtr odom;
@@ -137,16 +117,10 @@ class N3MappingNode : public rclcpp::Node
 
     void denseOdomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr odom_msg);
 
-    /**
-     * @brief 回环检测定时器回调
-     */
     void loopDetectionTimerCallback();
 
     void globalMapTimerCallback();
 
-    /**
-     * @brief 发布里程计
-     */
     geometry_msgs::msg::Pose makePose(const Eigen::Isometry3d& pose) const;
 
     void publishLiveTransform(const Eigen::Isometry3d& pose,
@@ -162,17 +136,8 @@ class N3MappingNode : public rclcpp::Node
       const std_msgs::msg::Header& header, const core::BackendOutput& output,
       std::uint64_t lock_epoch);
 
-    /**
-     * @brief 发布路径
-     */
     void publishPath(const std_msgs::msg::Header& header, const Eigen::Isometry3d* current_pose);
 
-    /**
-     * @brief 发布分版本彩色轨迹 Marker
-     *
-     * 旧地图关键帧用蓝色 LINE_STRIP，新建关键帧用绿色 LINE_STRIP，
-     * 发布到 loop_closure_markers 话题与回环线条共存。
-     */
     void publishPathMarkers(const std::vector<geometry_msgs::msg::Point>& loaded_points,
                             const std::vector<geometry_msgs::msg::Point>& new_points,
                             const std_msgs::msg::Header& header);
@@ -194,12 +159,8 @@ class N3MappingNode : public rclcpp::Node
     bool refreshGlobalMapMessage(const MapKeyframeSnapshot& snapshot,
                                  sensor_msgs::msg::PointCloud2* out_msg);
 
-
     void publishGlobalMap(const MapKeyframeSnapshot& snapshot);
 
-    /**
-     * @brief 关闭时保存地图
-     */
   protected:
     virtual void saveMapOnShutdown();
 
@@ -209,9 +170,6 @@ class N3MappingNode : public rclcpp::Node
     void handleStartMapExtension(const std::shared_ptr<std_srvs::srv::Trigger::Request>,
                                  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
-    /**
-     * @brief 打印统计信息
-     */
     void printStatistics();
 
   private:

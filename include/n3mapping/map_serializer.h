@@ -11,22 +11,13 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/core/types.h"
-#include "n3mapping/keyframe.h"
 
 namespace n3mapping {
 class KeyframeManager;
 class LoopDetector;
 class GraphOptimizer;
 class SubmapBuilder;
-struct EdgeInfo;
 struct PbstreamLoadOptions;
-class KeyframeProto;
-class EdgeProto;
-class DenseTrajectoryPose;
-class Pose3D;
-class PointCloudData;
-class InformationMatrix;
-
 
 class MapSerializer {
 public:
@@ -120,13 +111,6 @@ private:
     static constexpr const char* kMapVersion = "2.10.0";
     Config config_;
 
-    void keyframeToProto(const Keyframe::Ptr& kf, n3mapping::KeyframeProto* proto);
-    void edgeToProto(const EdgeInfo& edge, n3mapping::EdgeProto* proto);
-    void denseTrajectoryToProto(const core::DenseTrajectoryPose& pose,
-                                n3mapping::DenseTrajectoryPose* proto);
-    void poseToProto(const Eigen::Isometry3d& pose, n3mapping::Pose3D* proto);
-    void pointCloudToProto(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, n3mapping::PointCloudData* proto);
-    void informationToProto(const Eigen::Matrix<double, 6, 6>& info, n3mapping::InformationMatrix* proto);
 };
 
 } // namespace n3mapping

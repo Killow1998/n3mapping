@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "n3mapping/cloud_utils.h"
+#include "n3mapping/loop_detector.h"
 #include "n3mapping/loop_referee.h"
 #include "n3mapping/loop_segment_consistency.h"
 #include "n3mapping/relocalization_quality.h"

@@ -1,4 +1,7 @@
 #include "n3mapping/mapping_resuming.h"
+#include "n3mapping/submap_builder.h"
+#include "n3mapping/keyframe_manager.h"
+#include "n3mapping/graph_optimizer.h"
 #include "n3mapping/rotation_utils.h"
 #include <glog/logging.h>
 #include "n3mapping/submap_graph_projection.h"

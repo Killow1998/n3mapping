@@ -21,34 +21,19 @@
 namespace n3mapping {
 namespace {
 
-std::size_t saturatedAdd(std::size_t lhs, std::size_t rhs) {
-    const std::size_t maximum = std::numeric_limits<std::size_t>::max();
-    return rhs > maximum - lhs ? maximum : lhs + rhs;
-}
-
-std::size_t saturatedMultiply(std::size_t lhs, std::size_t rhs) {
-    const std::size_t maximum = std::numeric_limits<std::size_t>::max();
-    if (lhs == 0 || rhs == 0) return 0;
-    return lhs > maximum / rhs ? maximum : lhs * rhs;
-}
-
 std::size_t preparedLevelMemoryBytes(
     const PointCloudMatcher::PreparedTargetLevel& level) {
     if (!level.cloud) return 0;
     constexpr std::size_t kTreeBytesPerPoint = sizeof(std::size_t) * 8;
-    std::size_t bytes = sizeof(level) + sizeof(*level.cloud);
-    bytes = saturatedAdd(bytes, saturatedMultiply(
-        level.cloud->points.capacity(), sizeof(Eigen::Vector4d)));
-    bytes = saturatedAdd(bytes, saturatedMultiply(
-        level.cloud->normals.capacity(), sizeof(Eigen::Vector4d)));
-    bytes = saturatedAdd(bytes, saturatedMultiply(
-        level.cloud->covs.capacity(), sizeof(Eigen::Matrix4d)));
-    if (level.search_bounds) bytes = saturatedAdd(bytes,
-        saturatedAdd(sizeof(*level.search_bounds), saturatedMultiply(
-            level.search_bounds->nodes.capacity(), sizeof(registration_detail::SearchBounds::Box))));
-    if (level.lazy_normals) bytes = saturatedAdd(bytes, level.lazy_normals->memoryBytes());
-    return saturatedAdd(bytes, saturatedMultiply(
-        level.cloud->size(), kTreeBytesPerPoint));
+    std::size_t bytes = sizeof(level) + sizeof(*level.cloud) +
+        level.cloud->points.capacity() * sizeof(Eigen::Vector4d) +
+        level.cloud->normals.capacity() * sizeof(Eigen::Vector4d) +
+        level.cloud->covs.capacity() * sizeof(Eigen::Matrix4d) +
+        level.cloud->size() * kTreeBytesPerPoint;
+    if (level.search_bounds) bytes += sizeof(*level.search_bounds) +
+        level.search_bounds->nodes.capacity() * sizeof(registration_detail::SearchBounds::Box);
+    if (level.lazy_normals) bytes += level.lazy_normals->memoryBytes();
+    return bytes;
 }
 
 bool isSmallGicpVoxelCoordSafe(const pcl::PointXYZI& pt, double leaf_size) {
@@ -73,16 +58,13 @@ bool isSmallGicpVoxelCoordSafe(const pcl::PointXYZI& pt, double leaf_size) {
 
 std::size_t estimatePreparedTargetMemoryBytes(
     const PointCloudMatcher::PreparedTarget& target) {
-    std::size_t bytes = saturatedAdd(
-        sizeof(target),
-        saturatedMultiply(target.plane_levels.capacity(),
-                          sizeof(PointCloudMatcher::PreparedTargetLevel)));
+    std::size_t bytes = sizeof(target) + target.plane_levels.capacity() *
+        sizeof(PointCloudMatcher::PreparedTargetLevel);
     for (const auto& level : target.plane_levels) {
-        bytes = saturatedAdd(bytes, preparedLevelMemoryBytes(level));
+        bytes += preparedLevelMemoryBytes(level);
     }
     if (target.has_refine_level) {
-        bytes = saturatedAdd(bytes,
-                             preparedLevelMemoryBytes(target.refine_level));
+        bytes += preparedLevelMemoryBytes(target.refine_level);
     }
     return bytes;
 }

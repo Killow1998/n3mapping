@@ -72,6 +72,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/map_serializer_save.cpp
   ${N3MAPPING_ROOT}/src/map_serializer_load.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp
+  ${N3MAPPING_ROOT}/src/localization_atlas_codec.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas_descriptors.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas_map.cpp
   ${N3MAPPING_ROOT}/src/localization_crop.cpp

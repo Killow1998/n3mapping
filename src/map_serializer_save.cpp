@@ -37,6 +37,48 @@ bool atomicWriteProto(const std::string& filepath, const n3mapping::N3Map& map_p
     return true;
 }
 
+void poseToProto(const Eigen::Isometry3d& pose, n3mapping::Pose3D* proto) {
+    proto->set_tx(pose.translation().x()); proto->set_ty(pose.translation().y()); proto->set_tz(pose.translation().z());
+    Eigen::Quaterniond q(pose.rotation());
+    proto->set_qx(q.x()); proto->set_qy(q.y()); proto->set_qz(q.z()); proto->set_qw(q.w());
+}
+
+void edgeToProto(const EdgeInfo& edge, n3mapping::EdgeProto* proto) {
+    proto->set_from_id(edge.from_id); proto->set_to_id(edge.to_id);
+    poseToProto(edge.measurement, proto->mutable_measurement());
+    auto* information = proto->mutable_information();
+    information->mutable_values()->Reserve(21);
+    for (int i = 0; i < 6; ++i)
+        for (int j = i; j < 6; ++j) information->add_values(edge.information(i, j));
+    n3mapping::EdgeProto::EdgeType proto_type = n3mapping::EdgeProto::ODOMETRY;
+    if (edge.type == EdgeType::LOOP) {
+        proto_type = n3mapping::EdgeProto::LOOP;
+    } else if (edge.type == EdgeType::SESSION_ANCHOR) {
+        proto_type = n3mapping::EdgeProto::SESSION_ANCHOR;
+    }
+    proto->set_type(proto_type);
+    proto->set_constraint_mode(edge.constraint_mode == EdgeConstraintMode::XY_YAW
+        ? n3mapping::EdgeProto::XY_YAW
+        : n3mapping::EdgeProto::FULL_6DOF);
+}
+
+void denseTrajectoryToProto(const core::DenseTrajectoryPose& pose,
+                                           n3mapping::DenseTrajectoryPose* proto) {
+    proto->set_seq(pose.seq);
+    proto->set_timestamp(pose.timestamp);
+    poseToProto(pose.pose_world_lidar, proto->mutable_pose_world_lidar());
+    if (pose.correction_source) {
+        const auto& source = *pose.correction_source;
+        auto* saved = proto->mutable_correction_source();
+        poseToProto(source.pose_world_lidar_raw, saved->mutable_pose_world_lidar_raw());
+        poseToProto(source.anchor_pose_world_lidar_raw,
+                    saved->mutable_anchor_pose_world_lidar_raw());
+        saved->set_anchor_keyframe_id(source.anchor_keyframe_id);
+        saved->set_has_anchor(source.has_anchor);
+        saved->set_use_bracketing_correction(source.use_bracketing_correction);
+    }
+}
+
 } // namespace
 
 bool MapSerializer::saveMap(const std::string& filepath,
@@ -295,7 +337,19 @@ bool MapSerializer::saveMap(const std::string& filepath,
         meta->set_dense_trajectory_degraded(dense_degraded);
         // Persist source geometry only. Both descriptor parts are rebuilt on load.
         for (const auto& kf : keyframes) {
-            keyframeToProto(kf, map_proto.add_keyframes());
+            auto* proto = map_proto.add_keyframes();
+            proto->set_id(kf->id);
+            proto->set_timestamp(kf->timestamp);
+            proto->set_session_id(kf->session_id);
+            poseToProto(kf->pose_odom, proto->mutable_pose_odom());
+            poseToProto(kf->pose_optimized, proto->mutable_pose_optimized());
+            auto* cloud = proto->mutable_cloud();
+            cloud->set_num_points(kf->cloud->size());
+            cloud->mutable_points()->Reserve(static_cast<int>(kf->cloud->size() * 4));
+            for (const auto& point : kf->cloud->points) {
+                cloud->add_points(point.x); cloud->add_points(point.y);
+                cloud->add_points(point.z); cloud->add_points(point.intensity);
+            }
         }
         auto edges = optimizer.getEdges();
         int n_odom = 0, n_loop = 0, n_anchor = 0;
@@ -347,70 +401,4 @@ bool MapSerializer::saveMap(const std::string& filepath,
     } catch (...) { return false; }
 }
 
-void MapSerializer::keyframeToProto(const Keyframe::Ptr& kf, n3mapping::KeyframeProto* proto) {
-    proto->set_id(kf->id); proto->set_timestamp(kf->timestamp);
-    proto->set_session_id(kf->session_id);
-    poseToProto(kf->pose_odom, proto->mutable_pose_odom());
-    poseToProto(kf->pose_optimized, proto->mutable_pose_optimized());
-    if (kf->cloud && !kf->cloud->empty()) pointCloudToProto(kf->cloud, proto->mutable_cloud());
-}
-
-void MapSerializer::edgeToProto(const EdgeInfo& edge, n3mapping::EdgeProto* proto) {
-    proto->set_from_id(edge.from_id); proto->set_to_id(edge.to_id);
-    poseToProto(edge.measurement, proto->mutable_measurement());
-    informationToProto(edge.information, proto->mutable_information());
-    n3mapping::EdgeProto::EdgeType proto_type = n3mapping::EdgeProto::ODOMETRY;
-    if (edge.type == EdgeType::LOOP) {
-        proto_type = n3mapping::EdgeProto::LOOP;
-    } else if (edge.type == EdgeType::SESSION_ANCHOR) {
-        proto_type = n3mapping::EdgeProto::SESSION_ANCHOR;
-    }
-    proto->set_type(proto_type);
-    proto->set_constraint_mode(edge.constraint_mode == EdgeConstraintMode::XY_YAW
-        ? n3mapping::EdgeProto::XY_YAW
-        : n3mapping::EdgeProto::FULL_6DOF);
-}
-
-void MapSerializer::denseTrajectoryToProto(const core::DenseTrajectoryPose& pose,
-                                           n3mapping::DenseTrajectoryPose* proto) {
-    proto->set_seq(pose.seq);
-    proto->set_timestamp(pose.timestamp);
-    poseToProto(pose.pose_world_lidar, proto->mutable_pose_world_lidar());
-    if (pose.correction_source) {
-        const auto& source = *pose.correction_source;
-        auto* saved = proto->mutable_correction_source();
-        poseToProto(source.pose_world_lidar_raw, saved->mutable_pose_world_lidar_raw());
-        poseToProto(source.anchor_pose_world_lidar_raw,
-                    saved->mutable_anchor_pose_world_lidar_raw());
-        saved->set_anchor_keyframe_id(source.anchor_keyframe_id);
-        saved->set_has_anchor(source.has_anchor);
-        saved->set_use_bracketing_correction(source.use_bracketing_correction);
-    }
-}
-
-void MapSerializer::poseToProto(const Eigen::Isometry3d& pose, n3mapping::Pose3D* proto) {
-    proto->set_tx(pose.translation().x()); proto->set_ty(pose.translation().y()); proto->set_tz(pose.translation().z());
-    Eigen::Quaterniond q(pose.rotation());
-    proto->set_qx(q.x()); proto->set_qy(q.y()); proto->set_qz(q.z()); proto->set_qw(q.w());
-}
-
-void MapSerializer::pointCloudToProto(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud, n3mapping::PointCloudData* proto) {
-    uint32_t count = 0;
-    for (const auto& pt : cloud->points) {
-        if (!isFinitePoint(pt)) continue;
-        ++count;
-    }
-    proto->set_num_points(count);
-    proto->mutable_points()->Reserve(static_cast<int>(count * 4u));
-    for (const auto& pt : cloud->points) {
-        if (!isFinitePoint(pt)) continue;
-        proto->add_points(pt.x); proto->add_points(pt.y); proto->add_points(pt.z); proto->add_points(pt.intensity);
-    }
-}
-
-void MapSerializer::informationToProto(const Eigen::Matrix<double, 6, 6>& info, n3mapping::InformationMatrix* proto) {
-    proto->mutable_values()->Reserve(21);
-    for (int i = 0; i < 6; ++i) for (int j = i; j < 6; ++j) proto->add_values(info(i, j));
-}
-
-} // namespace n3mapping} // namespace n3mapping
+} // namespace n3mapping
