@@ -166,9 +166,9 @@ public:
 
 private:
     std::pair<SmallGicpCloud::Ptr, std::shared_ptr<SmallGicpKdTree>>
-    prepareTargetGeometry(const PointCloudT::Ptr& cloud, double resolution);
-    SmallGicpCloud::Ptr convertToSmallGicp(const PointCloudT::Ptr& pcl_cloud, double downsampling_resolution);
-    SmallGicpCloud::Ptr preprocessSourcePointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution);
+    prepareTargetGeometry(const PointCloudT& cloud, double resolution);
+    SmallGicpCloud::Ptr convertToSmallGicp(const PointCloudT& pcl_cloud, double downsampling_resolution);
+    SmallGicpCloud::Ptr preprocessSourcePointCloud(const PointCloudT& cloud, double downsampling_resolution);
     MatchResult alignCloudWithSetting(const PointCloudT::Ptr& target_cloud,
                                       const PointCloudT::Ptr& source_cloud,
                                       const Eigen::Isometry3d& init_guess,

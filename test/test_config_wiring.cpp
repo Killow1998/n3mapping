@@ -1,12 +1,4 @@
-// Does each config key arrive where it is meant to?
-//
-// test_config_reaches_behaviour.py asks whether anything reads a field at all.
-// This asks the next question: that the value read is the right one. Five
-// defects in this package were a field that looked wired and was not, and a
-// sixth was a test named for a gate the production path had stopped consulting.
-// Distinct values are used throughout so that copying a neighbouring field --
-// the way those defects actually happen -- fails instead of passing by
-// coincidence.
+// Exercise parameter values at their behavioural consumers using distinct inputs.
 
 #include <gtest/gtest.h>
 
@@ -33,8 +25,6 @@ TEST(ConfigWiringTest, StaticStartGuardOptionsCarryEveryKey) {
 }
 
 TEST(ConfigWiringTest, StaticStartGuardDefaultsMatchTheConfigDefaults) {
-    // The guard shipped with mapping-side defaults chosen on 0723; a test that
-    // built Options directly would not notice them drifting apart from config.
     const auto options = staticStartGuardOptionsFromConfig(Config{});
     const Config defaults;
     EXPECT_DOUBLE_EQ(options.voxel_m, defaults.mapping_static_voxel_m);
@@ -62,9 +52,6 @@ TEST(ConfigWiringTest, VisibilityOptionsCarryEveryKey) {
 }
 
 TEST(ConfigWiringTest, VisibilityOptionsDefaultToThePublishedArithmetic) {
-    // Occlusion awareness changes the quantity that decides every lock, so it
-    // has to stay off until today20 says otherwise. A default that flipped by
-    // accident would be invisible without this.
     EXPECT_FALSE(visibilityOptionsFromConfig(Config{}).occlusion_aware);
 }
 

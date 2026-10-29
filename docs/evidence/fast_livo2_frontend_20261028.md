@@ -50,4 +50,18 @@ Noetic 在 Focal Docker 中运行，Humble 在本机原生运行。两者使用�
 
 仿真相机仍是理想 320×240 针孔模型。未声称 RK3588 实机通过、无限探索 RAM 有界或所有场景达到 10 cm。关闭视觉的走廊模式此前仍约 4 m 误差，不能标为精度通过。官方 Retail Street 完成 Noetic 接入和保存，但没有独立真值。
 
-[FAST-LIVO2 验证记录](../../../FAST_LIVO2/docs/n3m_frontend.md)和[机器记录](../../../FAST_LIVO2/docs/qualification_20261028.json)维护完整架构、数据及限制。工作空间 `build/fast_livo2/integration/repair_qualification.json`、`repair_final_build_identity.json`、`repair_final_matrix.json` 保留本次输出、构建与地图 SHA256；原失败输入和全部消融保留。此次只提交本地结果，不推送或变更候选标签。
+[FAST-LIVO2 验证记录](https://github.com/Killow1998/FAST-LIVO2/blob/main/docs/n3m_frontend.md)和[初次修复机器记录](https://github.com/Killow1998/FAST-LIVO2/blob/main/docs/qualification_20261028.json)维护完整架构、数据及限制。工作空间 `build/fast_livo2/integration/repair_qualification.json`、`repair_final_build_identity.json`、`repair_final_matrix.json` 保留初次修复的输出、构建与地图 SHA256；原失败输入和全部消融保留。该阶段只提交了本地结果，未变更候选标签。
+
+## 随后收尾与发布验证
+
+以 `dda1c11` 为后端基线完成结构精简。167 个参数的名称和顺序由一个字段表维护，两套 ROS 及配置溯源共用。名称、默认值、Noetic 命名空间优先级保持不变。空保存目录仍选择调用者的默认目录；原有参数 E2E 捕获过这一回退遗漏，恢复后两套原生参数入口均验证通过。内部配准辅助函数改用引用，去掉重复判空和多尺度求解的重复状态；输入、数值检查及接受门槛保留。净减 455 行代码。
+
+四核验证结果：
+
+- Humble 69/69、Noetic 67/67 通过。默认产品配置与给全部字段赋值后的规范序列化都与旧核心逐字节一致。
+- 原 14 点 A/B 输出 4,088 帧，定位决策与锁定时刻一致，最大位置误差 2.48 cm。
+- 两条运动路线输出 2,232/3,662 帧，锁定帧 `[4]` / `[4,1938]` 保持不变，最大误差 7.94/3.25 cm。位姿差异仅为浮点舍入量级。
+- 12 项原始输入续建和跨 ROS 重载通过，最大位置误差 9.03 cm。实时调度使峰值和帧数相对前表有变化，不将其视为严格相同输入的几何 A/B。空目录回退恢复只改变 ROS 入口；矩阵中明确设置了非空保存目录，核心二进制未改变。
+- FAST-LIVO2 完整近墙 ASan/UBSan/LeakSanitizer 回放通过。两份 Avia 固定输入轨迹逐字节一致；MID360 存在毫米级差异，真值误差峰值与基线相同，RMSE 未退步。前端固定回放 CPU 秒减少约 33%–38%；RAM 没有一致下降，最高增加约 6 MiB。
+
+[收尾机器记录](https://github.com/Killow1998/FAST-LIVO2/blob/main/docs/closeout_20261028.json)集中维护新二进制与源码指纹、全部用例、资源和限制。完整证据位于 `build/fast_livo2/closeout_20261028/`。私有依赖运行路径和可写日志目录须随测试环境设置；初次环境失败保留在证据中，未通过降低断言解决。两个仓库以 `main` 交付，本次不新增候选标签；既有标签、原安装和导航冻结库保留。实验构建的 Product 标记仍为 `UNVERIFIED`，不等同于新的正式产品验收。

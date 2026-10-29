@@ -102,16 +102,15 @@ PointCloudMatcher::PointCloudMatcher(const Config& config) : config_(config) {
     setting_.verbose = false;
 }
 
-PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::convertToSmallGicp(const PointCloudT::Ptr& pcl_cloud,
+PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::convertToSmallGicp(const PointCloudT& pcl_cloud,
                                                                               double downsampling_resolution) {
     auto cloud = std::make_shared<SmallGicpCloud>();
-    if (!pcl_cloud || pcl_cloud->empty()) return cloud;
 
-    cloud->points.resize(pcl_cloud->size());
+    cloud->points.resize(pcl_cloud.size());
     size_t out_index = 0;
     size_t dropped_points = 0;
-    for (size_t i = 0; i < pcl_cloud->size(); ++i) {
-        const auto& pt = pcl_cloud->points[i];
+    for (size_t i = 0; i < pcl_cloud.size(); ++i) {
+        const auto& pt = pcl_cloud.points[i];
         if (!isSmallGicpVoxelCoordSafe(pt, downsampling_resolution)) {
             ++dropped_points;
             continue;
@@ -121,23 +120,22 @@ PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::convertToSmallGicp(con
     cloud->points.resize(out_index);
 
     if (out_index == 0) {
-        LOG_EVERY_N(WARNING, 100) << "[PointCloudMatcher] Dropped all " << pcl_cloud->size()
+        LOG_EVERY_N(WARNING, 100) << "[PointCloudMatcher] Dropped all " << pcl_cloud.size()
                                   << " points before small_gicp preprocessing due to non-finite or out-of-range voxel coordinates.";
         return cloud;
     }
 
     if (dropped_points > 0) {
         LOG_EVERY_N(WARNING, 100) << "[PointCloudMatcher] Dropped " << dropped_points
-                                  << "/" << pcl_cloud->size()
+                                  << "/" << pcl_cloud.size()
                                   << " points before small_gicp preprocessing due to non-finite or out-of-range voxel coordinates.";
     }
     return cloud;
 }
 
 std::pair<PointCloudMatcher::SmallGicpCloud::Ptr, std::shared_ptr<PointCloudMatcher::SmallGicpKdTree>>
-PointCloudMatcher::prepareTargetGeometry(const PointCloudT::Ptr& cloud,
+PointCloudMatcher::prepareTargetGeometry(const PointCloudT& cloud,
                                          double downsampling_resolution) {
-    if (!cloud || cloud->empty()) return { std::make_shared<SmallGicpCloud>(), nullptr };
     auto raw = convertToSmallGicp(cloud, downsampling_resolution);
     if (raw->empty()) return { raw, nullptr };
     auto ds = registration_detail::sampleCoordinates(*raw, downsampling_resolution, config_.num_threads);
@@ -151,15 +149,15 @@ PointCloudMatcher::prepareTargetGeometry(const PointCloudT::Ptr& cloud,
 
 std::pair<PointCloudMatcher::SmallGicpCloud::Ptr, std::shared_ptr<PointCloudMatcher::SmallGicpKdTree>>
 PointCloudMatcher::preprocessPointCloud(const PointCloudT::Ptr& cloud) {
-    auto [ds, kdtree] = prepareTargetGeometry(cloud, config_.gicp_downsampling_resolution);
+    if (!cloud || cloud->empty()) return { std::make_shared<SmallGicpCloud>(), nullptr };
+    auto [ds, kdtree] = prepareTargetGeometry(*cloud, config_.gicp_downsampling_resolution);
     if (!kdtree) return { ds, kdtree };
     registration_detail::estimateFeatures<small_gicp::NormalCovarianceSetter<SmallGicpCloud>>(
         *ds, kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
     return { ds, kdtree };
 }
 
-PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::preprocessSourcePointCloud(const PointCloudT::Ptr& cloud, double downsampling_resolution) {
-    if (!cloud || cloud->empty()) return std::make_shared<SmallGicpCloud>();
+PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::preprocessSourcePointCloud(const PointCloudT& cloud, double downsampling_resolution) {
     auto raw = convertToSmallGicp(cloud, downsampling_resolution);
     if (raw->empty()) return raw;
     auto ds = registration_detail::sampleCoordinates(
@@ -177,14 +175,14 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
         const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
         prepared.plane_levels.reserve(resolutions.size());
         for (double resolution : resolutions) {
-            auto [points, kdtree] = prepareTargetGeometry(cloud, resolution);
+            auto [points, kdtree] = prepareTargetGeometry(*cloud, resolution);
             prepared.plane_levels.push_back({ resolution, points, kdtree,
                 kdtree ? std::make_shared<registration_detail::SearchBounds>(*kdtree) : nullptr });
         }
 
         if (config_.icp_refine_use_gicp) {
             const double resolution = config_.icp_refine_downsampling_resolution;
-            auto [points, kdtree] = prepareTargetGeometry(cloud, resolution);
+            auto [points, kdtree] = prepareTargetGeometry(*cloud, resolution);
             prepared.refine_level = { resolution, points, kdtree,
                 kdtree ? std::make_shared<registration_detail::SearchBounds>(*kdtree) : nullptr };
             prepared.has_refine_level = true;
@@ -241,12 +239,12 @@ PointCloudMatcher::PreparedSource PointCloudMatcher::prepareSourceCloud(
         prepared.plane_levels.reserve(resolutions.size());
         for (double resolution : resolutions) {
             prepared.plane_levels.push_back(
-                { resolution, preprocessSourcePointCloud(cloud, resolution) });
+                { resolution, preprocessSourcePointCloud(*cloud, resolution) });
         }
 
         if (config_.icp_refine_use_gicp) {
             auto points = preprocessSourcePointCloud(
-                cloud, config_.icp_refine_downsampling_resolution);
+                *cloud, config_.icp_refine_downsampling_resolution);
             if (!points->empty()) {
                 SmallGicpKdTree tree(
                     points, small_gicp::KdTreeBuilderOMP(config_.num_threads));

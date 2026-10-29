@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Share the parameter field table between canonical configuration records and
+  both ROS adapters. Preserve names, defaults and namespace precedence. Remove
+  duplicate matcher state and repeated internal pointer checks without changing
+  registration stages, input validation or acceptance thresholds.
 - Preserve odometry translation along directions unsupported by matched map
   geometry, separating GICP tangential regularization from geometric support.
   Re-evaluate altered poses against the selected target. Four-core Noetic/Humble

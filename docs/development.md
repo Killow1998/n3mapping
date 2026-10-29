@@ -22,6 +22,17 @@ tools/               Map utilities and offline evaluation
 - Do not commit local wrapper-selection marker files.
 - Do not commit generated maps, logs, build artifacts, or local test configs.
 
+`Config` owns parameter types and defaults. `forEachConfigField` in
+`config_fields.h` owns the external names and canonical ordering used by both
+ROS adapters and runtime provenance. Add a field there once; transport-specific
+parameter conversion stays in the adapter. Noetic retains its three supported
+namespace forms and their existing precedence.
+
+Registration entry points validate external clouds. Private preprocessing and
+result-copy helpers accept references; they do not repeat nullable-pointer
+checks. Multi-scale registration keeps its stage result as the source of truth
+for convergence and quality statistics.
+
 Localization changes should follow the existing ownership boundaries:
 
 | Responsibility | Owner |
