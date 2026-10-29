@@ -23,13 +23,15 @@ void N3MappingNoeticNode::initializeLiveSubscriptions()
         config_.odom_topic, 1,
         boost::bind(&N3MappingNoeticNode::liveOdomCallback, this, _1),
         ros::VoidPtr(), &live_odom_queue_);
+    live_options.transport_hints.tcpNoDelay();
     live_odom_sub_ = nh_.subscribe(live_options);
     logEvent("input_subscription", "topic=" + config_.odom_topic + " role=live_odom depth=1", true);
     ros::NodeHandle live_nh(nh_);
     // Full cloud conversion/publication must not occupy the raw odom queue.
     live_nh.setCallbackQueue(&live_cloud_queue_);
     live_cloud_sub_.subscribe(live_nh, config_.cloud_topic, sync_queue_size);
-    live_paired_odom_sub_.subscribe(live_nh, config_.odom_topic, sync_queue_size);
+    live_paired_odom_sub_.subscribe(live_nh, config_.odom_topic, sync_queue_size,
+                                  ros::TransportHints().tcpNoDelay());
     if (product_profile_v1_) {
         live_exact_sync_ = std::make_unique<ExactSynchronizer>(
             ExactSyncPolicy(sync_queue_size), live_cloud_sub_, live_paired_odom_sub_);
