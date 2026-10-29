@@ -55,6 +55,19 @@ result-copy helpers accept references; they do not repeat nullable-pointer
 checks. Multi-scale registration keeps its stage result as the source of truth
 for convergence and quality statistics.
 
+The bounded correspondence search uses a previous correspondence only as a
+search bound. On an ambiguous floating-point miss, it consults the original
+small_gicp search and reapplies the unchanged distance gate. This covers the
+ARM64 hint/leaf rounding failure reported in [#8](https://github.com/Killow1998/n3mapping/issues/8).
+[PR #9](https://github.com/Killow1998/n3mapping/pull/9) also requests TCP_NODELAY
+on all four Noetic odometry subscriptions, preserving synchronization and
+output-authority rules. Four-core integration passed Humble 69/69 and Noetic
+67/67. The RK3588/GCC11 registration suite passed 10/10 before and after;
+it did not reproduce the original Jetson/GCC9 failure. The interleaved
+optimizer-process benchmark used approximately 3.7% more CPU time with unchanged
+median peak RSS. These are microbenchmark results, not whole-SLAM resource
+measurements. See the [integration evidence](evidence/pr9_arm64_20261029.json).
+
 Localization changes should follow the existing ownership boundaries:
 
 | Responsibility | Owner |

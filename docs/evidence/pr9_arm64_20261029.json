@@ -1,0 +1,383 @@
+{
+  "remote_main": {
+    "n3m": "8afa286559bac7b50ff0bd5c7fbd480a19a917dc",
+    "fastlio": "5d3569015ddeca0d784a7b39811b7ed05a93a53f"
+  },
+  "tested_source": {
+    "n3m": "2522c95 + PR #9 head 41ea06f; reconciled local merge tree identical to tested tree",
+    "fastlio": "b543206; remote merge has identical source",
+    "local_heads_before_record": {
+      "n3mapping": "d1594aabdffd9322a17f12e0be8a2c0f98813e10",
+      "FAST_LIO": "5d3569015ddeca0d784a7b39811b7ed05a93a53f"
+    }
+  },
+  "cpu_affinity": {
+    "jammy": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "rk3588": [
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "build_type": "Release",
+  "tests": {
+    "n3m_humble": "69/69",
+    "n3m_noetic": "67/67",
+    "fastlio_standalone": "4/4",
+    "fastlio_humble": "4/4",
+    "fastlio_noetic": "4/4",
+    "rk3588_registration_before": "10/10",
+    "rk3588_registration_after": "10/10",
+    "rk3588_imu_initialization": "12/12"
+  },
+  "arm64_limit": "RK3588/GCC11 standalone registration suite did not reproduce the original Jetson/GCC9 failure. Jetson failure/fix evidence is reported in N3M #8 / PR #9, not newly reproduced here.",
+  "rk3588": {
+    "registration": {
+      "before": 0,
+      "after": 0
+    },
+    "optimizer_process_measurements": [
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.096715,
+        "wall_s": 0.06194481300190091,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100402,
+        "wall_s": 0.06423844899109099,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100615,
+        "wall_s": 0.0642401980003342,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097621,
+        "wall_s": 0.06266259499534499,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.09678199999999999,
+        "wall_s": 0.06211951799923554,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.10091699999999999,
+        "wall_s": 0.06448198699217755,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100543,
+        "wall_s": 0.06437582199578173,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097171,
+        "wall_s": 0.062192433993914165,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.09703099999999999,
+        "wall_s": 0.06208801901084371,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.10099,
+        "wall_s": 0.06462606799323112,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100553,
+        "wall_s": 0.06430640601320192,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097065,
+        "wall_s": 0.062138768000295386,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097041,
+        "wall_s": 0.062164142000256106,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100795,
+        "wall_s": 0.06450736100669019,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100387,
+        "wall_s": 0.06422007300716359,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097191,
+        "wall_s": 0.06228751500020735,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.09693199999999999,
+        "wall_s": 0.06204776800586842,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100842,
+        "wall_s": 0.06458611000562087,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100678,
+        "wall_s": 0.06445923700812273,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097321,
+        "wall_s": 0.062335932001587935,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097071,
+        "wall_s": 0.06213818400283344,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.101104,
+        "wall_s": 0.06463773400173523,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.10056,
+        "wall_s": 0.06434840500878636,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.09678,
+        "wall_s": 0.061913020006613806,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097008,
+        "wall_s": 0.062045725993812084,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100726,
+        "wall_s": 0.06446040299488232,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.10076399999999999,
+        "wall_s": 0.06455285899573937,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097324,
+        "wall_s": 0.06240797099599149,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.096574,
+        "wall_s": 0.06183368599158712,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100872,
+        "wall_s": 0.06439740300993435,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.10031799999999999,
+        "wall_s": 0.0641599899972789,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097351,
+        "wall_s": 0.0623452630097745,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097118,
+        "wall_s": 0.06222013999649789,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.10099,
+        "wall_s": 0.06457619300635997,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.101008,
+        "wall_s": 0.06466690001252573,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.09717899999999999,
+        "wall_s": 0.0621265170047991,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.096971,
+        "wall_s": 0.06212214099650737,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.100683,
+        "wall_s": 0.06441490299766883,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "after",
+        "returncode": 0,
+        "cpu_s": 0.10045099999999998,
+        "wall_s": 0.06426061400270555,
+        "peak_rss_kib": 10504
+      },
+      {
+        "phase": "before",
+        "returncode": 0,
+        "cpu_s": 0.097298,
+        "wall_s": 0.0623143480042927,
+        "peak_rss_kib": 10504
+      }
+    ],
+    "optimizer_process_summary": {
+      "before": {
+        "cpu_s": 0.097068,
+        "wall_s": 0.06213847600156441,
+        "peak_rss_kib": 10504.0
+      },
+      "after": {
+        "cpu_s": 0.1007045,
+        "wall_s": 0.06443707000289578,
+        "peak_rss_kib": 10504.0
+      }
+    }
+  },
+  "artifacts": {
+    "n3m_humble_core": {
+      "sha256": "8cddb1d022e12a8b2a50044afad42f81aaa232ce4c398dde734791f2116d047f",
+      "size_bytes": 4329536
+    },
+    "n3m_humble_node": {
+      "sha256": "2b8af2338562832cb9748a8f50c971b1d034dfdf06b57b8ae1187a409ac087de",
+      "size_bytes": 1962432
+    },
+    "n3m_noetic_core": {
+      "sha256": "993299e7b0a1559a08a8ba30e989b316d86294213e8f2f3cbb032c9cef7746e5",
+      "size_bytes": 4304784
+    },
+    "n3m_noetic_node": {
+      "sha256": "7572fe50ee55c849077cb2b2556b9dac589ab66f000803d0a7ba098afaa30490",
+      "size_bytes": 745624
+    },
+    "fastlio_humble_core": {
+      "sha256": "f0e5c50be1d028d57ff7faa7bf760ac37f56cd41c39d5102fbeee8a2370c99a4",
+      "size_bytes": 736104
+    },
+    "fastlio_humble_node": {
+      "sha256": "0c65e4eef6304550b93c9357a33b7c123b82f77e2411d5c90889939cde421add",
+      "size_bytes": 1486016
+    },
+    "fastlio_noetic_core": {
+      "sha256": "26c8c9ecffed2f03aee1692407115505bc5751bc6741e36b11eecb749532ce2f",
+      "size_bytes": 745744
+    },
+    "fastlio_noetic_node": {
+      "sha256": "f8092b49393fc7998199234b7d109efec14ee6b0aa6546df9597ce75fd9359d0",
+      "size_bytes": 221552
+    }
+  },
+  "protected_artifacts_unchanged": 12,
+  "issues": {
+    "n3m_8": "closed by merged PR #9",
+    "fastlio_2": "closed by merged PR #1",
+    "n3m_7": "kept open; repair already on main, original field acceptance pending; progress added",
+    "n3m_5": "kept open; existing implementation and remaining measurement scope clarified"
+  },
+  "harness_correction": "Initial test ROS_DOMAIN_ID=234 exceeded default Fast DDS port range; rerun with validated domain 230 passed. No production code or test gates changed.",
+  "deployment": "Independent verification outputs only. Original installations, navigation frozen libraries and existing RC tags were not replaced."
+}
