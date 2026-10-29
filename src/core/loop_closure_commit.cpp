@@ -1,3 +1,4 @@
+#include "n3mapping/graph_optimizer.h"
 // Commit retained geometric measurements and rebase them without rerunning ICP.
 #include "loop_closure_processing.h"
 #include "loop_closure_diagnostics.h"

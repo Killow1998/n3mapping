@@ -1,5 +1,5 @@
 #include <glog/logging.h>
-#include "n3mapping/graph_optimizer.h"
+#include "graph_optimizer_state.h"
 #include "n3mapping/graph_factor_noise.h"
 #include "planar_geometry/moment_factor.h"
 #include <chrono>
@@ -10,7 +10,7 @@ namespace n3mapping {
 std::vector<SharedPlane> GraphOptimizer::sharedPlanes() const {
   auto planes = shared_planes_;
   for (size_t i = 0; i < planes.size(); ++i) {
-    const auto& value = current_estimate_.at<gtsam::OrientedPlane3>(gtsam::Symbol('p', i));
+    const auto& value = gtsam_->current_estimate_.at<gtsam::OrientedPlane3>(gtsam::Symbol('p', i));
     planes[i].normal = value.normal().unitVector();
     planes[i].offset = value.distance();
   }
@@ -18,7 +18,7 @@ std::vector<SharedPlane> GraphOptimizer::sharedPlanes() const {
 }
 
 Eigen::Isometry3d GraphOptimizer::gaugePrior() const {
-  for (const auto* factors : {&graph_, &new_factors_})
+  for (const auto* factors : {&gtsam_->graph_, &gtsam_->new_factors_})
     for (const auto& factor : *factors) {
       const auto* prior = dynamic_cast<const gtsam::PriorFactor<gtsam::Pose3>*>(factor.get());
       if (prior) return gtsamToEigen(prior->prior());
@@ -29,13 +29,13 @@ Eigen::Isometry3d GraphOptimizer::gaugePrior() const {
 bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
                                         bool optimize,
                                         GeometryOptimizationStats& stats) {
-  if (!new_factors_.empty() || !new_values_.empty()) return false;
+  if (!gtsam_->new_factors_.empty() || !gtsam_->new_values_.empty()) return false;
   try {
     gtsam::NonlinearFactorGraph candidate;
-    for (const auto& factor : graph_)
+    for (const auto& factor : gtsam_->graph_)
       if (!dynamic_cast<const planar_geometry::MomentPlaneFactor*>(factor.get()))
         candidate.push_back(factor);
-    auto values = current_estimate_.empty() ? initial_values_ : current_estimate_;
+    auto values = gtsam_->current_estimate_.empty() ? gtsam_->initial_values_ : gtsam_->current_estimate_;
     for (size_t i = 0; i < shared_planes_.size(); ++i)
       values.erase(gtsam::Symbol('p', i));
     for (size_t i = 0; i < planes.size(); ++i) {
@@ -85,19 +85,19 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
         throw std::runtime_error("Non-finite geometry pose");
     for (int64_t id : node_ids_) {
       const auto key = gtsam::Symbol('x', id);
-      const auto& before = current_estimate_.at<gtsam::Pose3>(key);
+      const auto& before = gtsam_->current_estimate_.at<gtsam::Pose3>(key);
       const auto& after = values.at<gtsam::Pose3>(key);
       stats.max_translation_update_m = std::max(stats.max_translation_update_m,
           (before.translation()-after.translation()).norm());
       stats.max_rotation_update_rad = std::max(stats.max_rotation_update_rad,
           gtsam::Rot3::Logmap(before.rotation().between(after.rotation())).norm());
     }
-    graph_ = std::move(candidate);
-    current_estimate_ = values;
-    initial_values_ = values;
-    last_good_estimate_ = values;
+    gtsam_->graph_ = std::move(candidate);
+    gtsam_->current_estimate_ = values;
+    gtsam_->initial_values_ = values;
+    gtsam_->last_good_estimate_ = values;
     shared_planes_ = planes;
-    isam2_ = createISAM2(); // Next graph update builds its own transactional solver.
+    gtsam_->isam2_ = createISAM2(); // Next graph update builds its own transactional solver.
     stats.optimized = optimize;
     return true;
   } catch (const std::exception& e) {

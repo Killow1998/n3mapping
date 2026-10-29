@@ -1,5 +1,8 @@
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/nonlinear/Values.h>
 #include <gtest/gtest.h>
 #include "n3mapping/map_serializer.h"
+#include "n3mapping/graph_optimizer.h"
 #include "n3mapping/n3map_proto_utils.h"
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/tracking_target_cache.h"

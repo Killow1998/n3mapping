@@ -1,0 +1,309 @@
+{
+  "baseline_commit": "7335819df0e10a254498542f9667d3cdfcb7b8e9",
+  "build_type": "Release",
+  "scope": "Compile dependency isolation; no solver, parameter, or ROS interface changes. Rebuild C++ consumers after the layout/constructor change.",
+  "cache": "Disabled for both A/B compile rounds and the temporary default-change compile. Dependencies already installed; not a full cold-build comparison.",
+  "compiler_invocation": "Existing Release definitions/includes/options; one complete translation unit at a time, four-core affinity.",
+  "compile_measurements": {
+    "jammy": {
+      "cpu_affinity": [
+        0,
+        2,
+        4,
+        6
+      ],
+      "rounds": {
+        "before": {
+          "src/loop_debug_logger.cpp": {
+            "wall_s": 5.172648226027377,
+            "gtsam_headers": 88,
+            "object_bytes": 59648
+          },
+          "src/submap_graph_projection.cpp": {
+            "wall_s": 6.287213501986116,
+            "gtsam_headers": 88,
+            "object_bytes": 105520
+          },
+          "src/core/n3mapping_load.cpp": {
+            "wall_s": 5.985866172937676,
+            "gtsam_headers": 88,
+            "object_bytes": 90840
+          },
+          "src/graph_optimizer.cpp": {
+            "wall_s": 5.963602149975486,
+            "gtsam_headers": 90,
+            "object_bytes": 201656
+          }
+        },
+        "after": {
+          "src/loop_debug_logger.cpp": {
+            "wall_s": 1.8890720419585705,
+            "gtsam_headers": 0,
+            "object_bytes": 53960
+          },
+          "src/submap_graph_projection.cpp": {
+            "wall_s": 2.894809125107713,
+            "gtsam_headers": 0,
+            "object_bytes": 99808
+          },
+          "src/core/n3mapping_load.cpp": {
+            "wall_s": 2.5648643081076443,
+            "gtsam_headers": 0,
+            "object_bytes": 49632
+          },
+          "src/graph_optimizer.cpp": {
+            "wall_s": 5.990027011022903,
+            "gtsam_headers": 90,
+            "object_bytes": 202904
+          }
+        },
+        "before2": {
+          "src/loop_debug_logger.cpp": {
+            "wall_s": 5.129328627954237,
+            "cpu_s": 5.128767,
+            "gtsam_headers": 88,
+            "object_bytes": 59648
+          },
+          "src/submap_graph_projection.cpp": {
+            "wall_s": 6.314493812969886,
+            "cpu_s": 6.310495999999999,
+            "gtsam_headers": 88,
+            "object_bytes": 105520
+          },
+          "src/core/n3mapping_load.cpp": {
+            "wall_s": 5.958286356064491,
+            "cpu_s": 5.957588000000003,
+            "gtsam_headers": 88,
+            "object_bytes": 90840
+          },
+          "src/graph_optimizer.cpp": {
+            "wall_s": 5.977401404990815,
+            "cpu_s": 5.9767439999999965,
+            "gtsam_headers": 90,
+            "object_bytes": 201656
+          }
+        },
+        "after2": {
+          "src/loop_debug_logger.cpp": {
+            "wall_s": 1.8757374359993264,
+            "cpu_s": 1.8753849999999999,
+            "gtsam_headers": 0,
+            "object_bytes": 53960
+          },
+          "src/submap_graph_projection.cpp": {
+            "wall_s": 2.928965698927641,
+            "cpu_s": 2.928611000000001,
+            "gtsam_headers": 0,
+            "object_bytes": 99808
+          },
+          "src/core/n3mapping_load.cpp": {
+            "wall_s": 2.567869433085434,
+            "cpu_s": 2.5675169999999996,
+            "gtsam_headers": 0,
+            "object_bytes": 49632
+          },
+          "src/graph_optimizer.cpp": {
+            "wall_s": 6.0014728849055246,
+            "cpu_s": 6.000878999999999,
+            "gtsam_headers": 90,
+            "object_bytes": 202904
+          }
+        }
+      }
+    },
+    "rk3588": {
+      "cpu_affinity": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "rounds": {
+        "before": {
+          "src/loop_debug_logger.cpp": {
+            "wall_s": 21.963513530005002,
+            "cpu_s": 21.545813,
+            "gtsam_headers": 88
+          },
+          "src/submap_graph_projection.cpp": {
+            "wall_s": 26.296203278005123,
+            "cpu_s": 26.274743,
+            "gtsam_headers": 88
+          },
+          "src/core/n3mapping_load.cpp": {
+            "wall_s": 25.203958241007058,
+            "cpu_s": 25.16637200000001,
+            "gtsam_headers": 88
+          },
+          "src/graph_optimizer.cpp": {
+            "wall_s": 24.487938492995454,
+            "cpu_s": 24.455534999999983,
+            "gtsam_headers": 90
+          }
+        },
+        "after": {
+          "src/loop_debug_logger.cpp": {
+            "wall_s": 7.744593224997516,
+            "cpu_s": 7.73666200000001,
+            "gtsam_headers": 0
+          },
+          "src/submap_graph_projection.cpp": {
+            "wall_s": 12.064386997997644,
+            "cpu_s": 12.056646,
+            "gtsam_headers": 0
+          },
+          "src/core/n3mapping_load.cpp": {
+            "wall_s": 10.751387486001477,
+            "cpu_s": 10.741585000000015,
+            "gtsam_headers": 0
+          },
+          "src/graph_optimizer.cpp": {
+            "wall_s": 23.232635695007048,
+            "cpu_s": 21.461742999999984,
+            "gtsam_headers": 90
+          }
+        },
+        "before2": {
+          "src/loop_debug_logger.cpp": {
+            "wall_s": 20.91409216399188,
+            "cpu_s": 18.789830999999992,
+            "gtsam_headers": 88
+          },
+          "src/submap_graph_projection.cpp": {
+            "wall_s": 26.345088194997516,
+            "cpu_s": 26.327072000000015,
+            "gtsam_headers": 88
+          },
+          "src/core/n3mapping_load.cpp": {
+            "wall_s": 24.94074997199641,
+            "cpu_s": 24.918022999999977,
+            "gtsam_headers": 88
+          },
+          "src/graph_optimizer.cpp": {
+            "wall_s": 24.490490020994912,
+            "cpu_s": 24.47234000000003,
+            "gtsam_headers": 90
+          }
+        },
+        "after2": {
+          "src/loop_debug_logger.cpp": {
+            "wall_s": 7.697197624002001,
+            "cpu_s": 7.68599199999997,
+            "gtsam_headers": 0
+          },
+          "src/submap_graph_projection.cpp": {
+            "wall_s": 11.854002491003484,
+            "cpu_s": 11.84393399999999,
+            "gtsam_headers": 0
+          },
+          "src/core/n3mapping_load.cpp": {
+            "wall_s": 10.721307572996011,
+            "cpu_s": 10.702227999999991,
+            "gtsam_headers": 0
+          },
+          "src/graph_optimizer.cpp": {
+            "wall_s": 24.336452510993695,
+            "cpu_s": 24.316674000000035,
+            "gtsam_headers": 90
+          }
+        }
+      }
+    }
+  },
+  "dependency_fanout": {
+    "rc5_historical": {
+      "/n3mapping/config.h": {
+        "total": 141,
+        "core": 91
+      },
+      "/n3mapping/graph_optimizer.h": {
+        "total": 54,
+        "core": 37
+      },
+      "/gtsam/nonlinear/ISAM2.h": {
+        "total": 54,
+        "core": 37
+      },
+      "/graph_optimizer_state.h": {
+        "total": 0,
+        "core": 0
+      }
+    },
+    "candidate": {
+      "/n3mapping/config.h": {
+        "total": 142,
+        "core": 92
+      },
+      "/n3mapping/graph_optimizer.h": {
+        "total": 44,
+        "core": 31
+      },
+      "/gtsam/nonlinear/ISAM2.h": {
+        "total": 7,
+        "core": 7
+      },
+      "/graph_optimizer_state.h": {
+        "total": 7,
+        "core": 7
+      }
+    }
+  },
+  "fanout_baseline_note": "Historical rc5 build dependency files; compile A/B uses the exact 7335819 source baseline.",
+  "default_values": {
+    "source_macro": {
+      "fields": 167,
+      "equal": true,
+      "sha256": "3209c6fe768d630cef1da1f4d1476e1e031891680da478b6681b9343872a0021"
+    },
+    "fallback": {
+      "fields": 167,
+      "equal": true,
+      "sha256": "6a38872d3d31180c7f835f200eb02f505abb943505913fefe3d00db772fc4238"
+    }
+  },
+  "incremental_default_change": {
+    "wall_s": 7.442737974924967,
+    "compiled_objects": [
+      "src/config_defaults.cpp"
+    ],
+    "restored_library_sha256": "da4eefdff3e78a474887fabefa2e57151d2eaf91e5982e8d916b829055c2ba93",
+    "identical_to_tested_library": true
+  },
+  "solver_source_audit": {
+    "graph_optimizer.cpp": true,
+    "graph_optimizer_factors.cpp": true,
+    "graph_optimizer_append.cpp": true,
+    "graph_optimizer_plane_append.cpp": true,
+    "graph_optimizer_restore.cpp": true,
+    "graph_optimizer_geometry.cpp": true,
+    "graph_optimizer_snapshot.cpp": true
+  },
+  "solver_source_audit_scope": "Compared token-equivalent implementations after removing only state-member qualification, private include, constructor/destructor allocation, and bundled state swap.",
+  "tests": {
+    "humble": {
+      "passed": 69,
+      "total": 69,
+      "elapsed_s": 49.34
+    },
+    "noetic": {
+      "passed": 67,
+      "total": 67,
+      "elapsed_s": 61.11
+    },
+    "humble_extension_route_repeat": {
+      "passed": 10,
+      "total": 10
+    },
+    "existing_intermittent_failure": {
+      "test": "Startup/MapExtensionRoute.ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInitialization/1",
+      "line": 228,
+      "message": "localization_not_authoritative after reload",
+      "candidate": "First full suite failed here; 10 consecutive focused runs and the final full suite passed.",
+      "baseline": "Unmodified 7335819 reproduced the identical failure after 5 passing focused runs.",
+      "status": "Not fixed or suppressed by this compilation-only change; preserve for a separate reliability investigation."
+    }
+  },
+  "runtime_cost": "One GtsamState allocation per GraphOptimizer instance, with no new per-frame state copies or locks. Runtime speedup is not claimed.",
+  "gtsam_scope": "Existing qualified GTSAM 4.1 dependency retained. CMake builds one gtsam target across geometry, inference, linear, nonlinear and other modules; a smaller fork is not introduced.",
+  "protected_artifacts": "Independent Humble/Noetic build directories and RK compile-only objects; existing installations and navigation frozen libraries were not replaced."
+}

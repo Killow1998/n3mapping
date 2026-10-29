@@ -1,4 +1,5 @@
 #include "n3mapping/loop_graph_trial_diagnostics.h"
+#include "n3mapping/graph_optimizer.h"
 #include "../src/core/loop_closure_processing.h"
 
 #include <cmath>

@@ -9,7 +9,7 @@
 
 #include <Eigen/Geometry>
 
-#include "n3mapping/graph_optimizer.h"
+#include "n3mapping/graph_types.h"
 #include "n3mapping/submap_builder.h"
 
 namespace n3mapping {

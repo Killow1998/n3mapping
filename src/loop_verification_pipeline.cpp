@@ -1,3 +1,4 @@
+#include "n3mapping/graph_optimizer.h"
 #include "n3mapping/rotation_utils.h"
 #include "n3mapping/loop_verification_pipeline.h"
 

@@ -1,4 +1,5 @@
 #include "n3mapping/submap_graph_trial.h"
+#include "n3mapping/graph_optimizer.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,6 +8,7 @@
 #include <utility>
 
 #include <boost/make_shared.hpp>
+#include <gtsam/inference/Symbol.h>
 #include <gtsam/linear/NoiseModel.h>
 #include <gtsam/navigation/AttitudeFactor.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>

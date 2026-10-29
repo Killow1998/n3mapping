@@ -1,6 +1,7 @@
 // Shared graph admission for mapping and map extension. No graph mutation
 // occurs until every candidate has its own neighborhood and trial evidence.
 #include "n3mapping/loop_verification_pipeline.h"
+#include "n3mapping/graph_optimizer.h"
 
 #include <algorithm>
 #include <cmath>

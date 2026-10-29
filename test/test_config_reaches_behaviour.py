@@ -22,10 +22,10 @@ NOETIC = REPOSITORY / "noetic/src/config_noetic.cpp"
 
 # The plumbing is where a field is declared, registered, and loaded. Reading it
 # in any of these does not make it do anything.
-PLUMBING = {HEADER, SCHEMA, SUMMARY, HUMBLE, NOETIC}
+PLUMBING = {HEADER, SCHEMA, SUMMARY, HUMBLE, NOETIC, REPOSITORY / "src/config_defaults.cpp"}
 
 FIELD_PATTERN = re.compile(
-    r"^\s*(?:bool|int|double|float|std::size_t|size_t|std::string)\s+(\w+)\s*=",
+    r"^\s*(?:bool|int|double|float|std::size_t|size_t|std::string)\s+(\w+)\s*;",
     re.M,
 )
 

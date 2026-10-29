@@ -1,5 +1,5 @@
 #include <glog/logging.h>
-#include "n3mapping/graph_optimizer.h"
+#include "graph_optimizer_state.h"
 #include "planar_geometry/moment_factor.h"
 #include <iostream>
 #include "graph_solver_execution.h"
@@ -45,21 +45,21 @@ bool GraphOptimizer::optimizeGeometryUpdate() {
       gtsam::LevenbergMarquardtParams params;
       params.maxIterations = 20;
       params.diagonalDamping = true;
-      auto result = current_estimate_;
+      auto result = gtsam_->current_estimate_;
       if (!pending_node_ids_.empty()) {
         gtsam::NonlinearFactorGraph local;
-        for (const auto& factor : new_factors_) {
-          auto conditioned = boost::make_shared<ConditionedFactor>(factor, current_estimate_);
+        for (const auto& factor : gtsam_->new_factors_) {
+          auto conditioned = boost::make_shared<ConditionedFactor>(factor, gtsam_->current_estimate_);
           // An old-to-old update belongs to the asynchronous global solve.
           if (conditioned->size() == 0)
             throw std::runtime_error("Old-node update in append transaction");
           local.push_back(conditioned);
         }
-        const auto tail = gtsam::LevenbergMarquardtOptimizer(local, new_values_, params).optimize();
+        const auto tail = gtsam::LevenbergMarquardtOptimizer(local, gtsam_->new_values_, params).optimize();
         if (!std::isfinite(local.error(tail))) throw std::runtime_error("Non-finite append cost");
         result.insert(tail);
       } else {
-        auto candidate = graph_;
+        auto candidate = gtsam_->graph_;
         appendPendingTo(&candidate, &result);
         result = gtsam::LevenbergMarquardtOptimizer(candidate, result, params).optimize();
         if (!std::isfinite(candidate.error(result))) throw std::runtime_error("Non-finite graph cost");
@@ -81,10 +81,10 @@ bool GraphOptimizer::optimizeGeometryUpdate() {
 bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
     const GraphOptimizer& snapshot,
     const std::map<int64_t, std::vector<PlaneMoment>>& body_moments) {
-  if (snapshot.node_ids_.empty() || !new_factors_.empty() || !live.new_factors_.empty() ||
-      live.graph_.size() < snapshot.graph_.size()) return false;
-  for (size_t i = 0; i < snapshot.graph_.size(); ++i)
-    if (snapshot.graph_[i] != live.graph_[i]) return false;
+  if (snapshot.node_ids_.empty() || !gtsam_->new_factors_.empty() || !live.gtsam_->new_factors_.empty() ||
+      live.gtsam_->graph_.size() < snapshot.gtsam_->graph_.size()) return false;
+  for (size_t i = 0; i < snapshot.gtsam_->graph_.size(); ++i)
+    if (snapshot.gtsam_->graph_[i] != live.gtsam_->graph_[i]) return false;
   for (int64_t id : snapshot.node_ids_) {
     if (!live.node_ids_.count(id) || !node_ids_.count(id) ||
         !live.getOptimizedPose(id).matrix().isApprox(
@@ -93,18 +93,18 @@ bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
   for (int64_t id : live.node_ids_)
     if (!snapshot.node_ids_.count(id) && id <= *snapshot.node_ids_.rbegin()) return false;
   // Stage only new factors, retaining their noise and measurement semantics.
-  for (size_t i = snapshot.graph_.size(); i < live.graph_.size(); ++i) {
+  for (size_t i = snapshot.gtsam_->graph_.size(); i < live.gtsam_->graph_.size(); ++i) {
     bool touches_new = false;
-    for (auto key : live.graph_[i]->keys())
-      touches_new |= !snapshot.current_estimate_.exists(key);
+    for (auto key : live.gtsam_->graph_[i]->keys())
+      touches_new |= !snapshot.gtsam_->current_estimate_.exists(key);
     if (!touches_new) return false;
   }
   std::map<int64_t, gtsam::NonlinearFactorGraph> factors;
-  for (size_t i = snapshot.graph_.size(); i < live.graph_.size(); ++i) {
-    const auto& factor = live.graph_[i];
+  for (size_t i = snapshot.gtsam_->graph_.size(); i < live.gtsam_->graph_.size(); ++i) {
+    const auto& factor = live.gtsam_->graph_[i];
     if (dynamic_cast<const planar_geometry::MomentPlaneFactor*>(factor.get())) continue;
     int64_t last = -1;
-    for (auto key : factor->keys()) if (!snapshot.current_estimate_.exists(key)) {
+    for (auto key : factor->keys()) if (!snapshot.gtsam_->current_estimate_.exists(key)) {
       const gtsam::Symbol symbol(key);
       if (symbol.chr() != 'x' || !live.node_ids_.count(symbol.index())) return false;
       last = std::max(last, static_cast<int64_t>(symbol.index()));
@@ -129,8 +129,8 @@ bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
       }
     }
     staged->pending_node_ids_.insert(id);
-    staged->new_values_.insert(gtsam::Symbol('x', id), eigenToGtsam(initial));
-    staged->new_factors_ = factors[id];
+    staged->gtsam_->new_values_.insert(gtsam::Symbol('x', id), eigenToGtsam(initial));
+    staged->gtsam_->new_factors_ = factors[id];
     for (size_t i = snapshot.edges_.size(); i < live.edges_.size(); ++i) {
       const auto& edge = live.edges_[i];
       if (std::max(edge.from_id, edge.to_id) == id) staged->pending_edges_.push_back(edge);

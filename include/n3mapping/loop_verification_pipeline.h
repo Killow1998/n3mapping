@@ -5,7 +5,7 @@
 #include <string>
 
 #include "n3mapping/config.h"
-#include "n3mapping/graph_optimizer.h"
+#include "n3mapping/graph_types.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_consensus_verifier.h"
@@ -15,6 +15,7 @@
 #include "n3mapping/visibility_consistency.h"
 
 namespace n3mapping {
+class GraphOptimizer;
 
 struct LoopVerificationContext {
     bool cross_session = false;

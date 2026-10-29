@@ -22,11 +22,33 @@ tools/               Map utilities and offline evaluation
 - Do not commit local wrapper-selection marker files.
 - Do not commit generated maps, logs, build artifacts, or local test configs.
 
-`Config` owns parameter types and defaults. `forEachConfigField` in
-`config_fields.h` owns the external names and canonical ordering used by both
+`Config` declares parameter types in `config.h`; its out-of-line constructor in
+`src/config_defaults.cpp` owns the defaults. Changing a default recompiles one
+implementation file; changing a field or its type still changes the shared
+contract. `forEachConfigField` in `config_fields.h` owns the external names and
+canonical ordering used by both
 ROS adapters and runtime provenance. Add a field there once; transport-specific
 parameter conversion stays in the adapter. Noetic retains its three supported
 namespace forms and their existing precedence.
+
+`graph_types.h` carries graph-edge data and the loop-optimizer interface without
+GTSAM headers. `GraphOptimizer` owns its solver objects through the private
+`src/graph_optimizer_state.h`; only its seven implementation files include
+`ISAM2.h`. Consumers include the full optimizer declaration only where they call
+its methods. A solver implementation edit does not require recompiling its
+unrelated consumers. Rebuild C++ consumers when adopting this object-layout and
+`Config` constructor change; ROS interfaces and parameter values are unchanged.
+
+The [compile-dependency comparison](evidence/compile_dependencies_20261029.json)
+uses Release flags, disabled ccache and four-core affinity on Jammy and RK3588.
+Three representative consumers reduce compile CPU time by approximately 54–63%
+on both machines; the solver file itself shows no consistent improvement.
+A default-only edit rebuilt one file and completed in 7.44 s on Jammy, including
+linking. These are translation-unit and incremental-build measurements, not
+full clean-build or SLAM runtime speedups. The qualified GTSAM dependency remains
+unchanged. The final Humble/Noetic suites passed 69/69 and 67/67; the same reload
+relock test also failed intermittently on both the candidate and unmodified
+baseline. That existing reliability issue remains open in the evidence record.
 
 Registration entry points validate external clouds. Private preprocessing and
 result-copy helpers accept references; they do not repeat nullable-pointer

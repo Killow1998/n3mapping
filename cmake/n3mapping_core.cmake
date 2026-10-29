@@ -9,6 +9,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/logging/runtime_events.cpp
   ${N3MAPPING_ROOT}/src/logging/runtime_performance_fields.cpp
   ${N3MAPPING_ROOT}/src/config.cpp
+  ${N3MAPPING_ROOT}/src/config_defaults.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_core.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_mapping.cpp
   ${N3MAPPING_ROOT}/src/core/n3mapping_extension.cpp

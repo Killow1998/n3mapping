@@ -1,6 +1,7 @@
 #include "n3mapping/rotation_utils.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
+#include "n3mapping/graph_optimizer.h"
 
 #include <algorithm>
 #include <cmath>

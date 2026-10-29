@@ -1,4 +1,4 @@
-#include "n3mapping/graph_optimizer.h"
+#include "graph_optimizer_state.h"
 #include "graph_pose_factors.h"
 #include <gtsam/navigation/AttitudeFactor.h>
 #include <algorithm>
@@ -12,11 +12,11 @@ void GraphOptimizer::addPriorFactor(int64_t id, const Eigen::Isometry3d& pose) {
     auto noise_model = createPriorNoiseModel();
 
     // 添加到待提交因子；只有优化成功后才进入 committed graph。
-    new_factors_.add(gtsam::PriorFactor<gtsam::Pose3>(key, gtsam_pose, noise_model));
+    gtsam_->new_factors_.add(gtsam::PriorFactor<gtsam::Pose3>(key, gtsam_pose, noise_model));
 
     // 添加待提交初始值
     if (!hasAnyNode(id)) {
-        new_values_.insert(key, gtsam_pose);
+        gtsam_->new_values_.insert(key, gtsam_pose);
         pending_node_ids_.insert(id);
     }
 
@@ -35,7 +35,7 @@ void GraphOptimizer::addOdometryEdge(const EdgeInfo& edge) {
     }
 
     // 添加到待提交因子；只有优化成功后才进入 committed graph。
-    new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+    gtsam_->new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
 
     // 如果目标节点不存在，尝试从 from 节点推导待提交初始值。
     (void)ensureTargetInitialValue(
@@ -61,9 +61,9 @@ bool GraphOptimizer::addSessionOdometryEdge(
     const gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
     auto noise_model = createRobustNoiseModel(
         edge.information, config_.use_robust_kernel);
-    new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(
+    gtsam_->new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(
         key_from, key_to, eigenToGtsam(edge.measurement), noise_model));
-    new_values_.insert(key_to, eigenToGtsam(target_initial_pose));
+    gtsam_->new_values_.insert(key_to, eigenToGtsam(target_initial_pose));
     pending_node_ids_.insert(edge.to_id);
 
     EdgeInfo odometry_edge = edge;
@@ -86,9 +86,9 @@ void GraphOptimizer::addLoopEdge(const EdgeInfo& edge) {
 
     // 添加到待提交因子；只有优化成功后才进入 committed graph。
     if (edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
-        new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
+        gtsam_->new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
     } else {
-        new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+        gtsam_->new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
     }
 
     // 存储待提交边信息
@@ -180,9 +180,9 @@ bool GraphOptimizer::addSessionAnchorEdge(const EdgeInfo& edge) {
     }
 
     if (edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
-        new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
+        gtsam_->new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
     } else {
-        new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+        gtsam_->new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
     }
 
     EdgeInfo anchor_edge = edge;

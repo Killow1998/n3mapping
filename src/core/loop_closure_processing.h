@@ -5,6 +5,7 @@
 #include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_debug_logger.h"
 namespace n3mapping {
+class GraphOptimizer;
 struct DetectedLoopQuery {
   int64_t id = -1;
   std::vector<LoopCandidate> candidates;

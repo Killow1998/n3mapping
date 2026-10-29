@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "n3mapping/config.h"
-#include "n3mapping/graph_optimizer.h"
+#include "n3mapping/graph_types.h"
 #include "n3mapping/loop_detector.h"
 
 namespace n3mapping {

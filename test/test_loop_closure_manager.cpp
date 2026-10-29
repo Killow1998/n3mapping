@@ -5,6 +5,7 @@
 #include <pcl/common/transforms.h>
 
 #include "n3mapping/loop_closure_manager.h"
+#include "n3mapping/graph_optimizer.h"
 #include "n3mapping/loop_referee.h"
 #include "n3mapping/loop_segment_consistency.h"
 #include "n3mapping/loop_verification_pipeline.h"

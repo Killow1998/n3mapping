@@ -1,5 +1,5 @@
 #include <glog/logging.h>
-#include "n3mapping/graph_optimizer.h"
+#include "graph_optimizer_state.h"
 #include "n3mapping/graph_factor_noise.h"
 #include "graph_pose_factors.h"
 
@@ -17,7 +17,8 @@
 
 namespace n3mapping {
 GraphOptimizer::GraphOptimizer(const Config& config)
-    : config_(config)
+    : gtsam_(std::make_unique<GtsamState>())
+    , config_(config)
     , has_loop_closure_(false)
     , pending_has_loop_closure_(false)
     , needs_optimization_(false)
@@ -26,8 +27,10 @@ GraphOptimizer::GraphOptimizer(const Config& config)
     if (!config_.validate(&config_error)) {
         throw std::invalid_argument("Invalid N3Mapping graph optimizer config: " + config_error);
     }
-    isam2_ = createISAM2();
+    gtsam_->isam2_ = createISAM2();
 }
+
+GraphOptimizer::~GraphOptimizer() = default;
 
 // ==================== 添加因子 ====================
 
@@ -46,7 +49,7 @@ void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
     const gtsam::Key key = gtsam::Symbol('x', id);
     const double sigma = config_.floor_attitude_noise_deg * M_PI / 180.0;
     auto noise = gtsam::noiseModel::Isotropic::Sigma(2, sigma);
-    new_factors_.add(gtsam::Pose3AttitudeFactor(
+    gtsam_->new_factors_.add(gtsam::Pose3AttitudeFactor(
         key, gtsam::Unit3(0.0, 0.0, 1.0), noise,
         gtsam::Unit3(normal_body.normalized())));
     // Transactional: the constraint enters the pending set and only becomes
@@ -70,8 +73,8 @@ void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
 // ==================== 优化 ====================
 
 void GraphOptimizer::optimize() {
-    gtsam::NonlinearFactorGraph candidate_graph = graph_;
-    gtsam::Values candidate_values = initial_values_;
+    gtsam::NonlinearFactorGraph candidate_graph = gtsam_->graph_;
+    gtsam::Values candidate_values = gtsam_->initial_values_;
     appendPendingTo(&candidate_graph, &candidate_values);
 
     if (candidate_graph.empty() || candidate_values.empty()) {
@@ -84,18 +87,18 @@ void GraphOptimizer::optimize() {
         return;
     }
 
-    if (!new_factors_.empty() || !new_values_.empty() || !pending_edges_.empty()) {
+    if (!gtsam_->new_factors_.empty() || !gtsam_->new_values_.empty() || !pending_edges_.empty()) {
         commitPending(optimized_estimate, nullptr);
     } else {
-        current_estimate_ = optimized_estimate;
-        last_good_estimate_ = optimized_estimate;
+        gtsam_->current_estimate_ = optimized_estimate;
+        gtsam_->last_good_estimate_ = optimized_estimate;
         rebuildISAM2FromCommitted();
         needs_optimization_ = false;
     }
 }
 
 bool GraphOptimizer::incrementalOptimize() {
-    if (new_factors_.empty() && new_values_.empty() && pending_edges_.empty() && pending_node_ids_.empty()) {
+    if (gtsam_->new_factors_.empty() && gtsam_->new_values_.empty() && pending_edges_.empty() && pending_node_ids_.empty()) {
         return true;
     }
 
@@ -108,12 +111,12 @@ bool GraphOptimizer::incrementalOptimize() {
         return internal::runGraphSolve(config_.num_threads, [&] {
             auto trial_isam2 = createISAM2();
 
-            if (!graph_.empty()) {
-                const gtsam::Values& committed_values = !current_estimate_.empty() ? current_estimate_ : initial_values_;
-                trial_isam2->update(graph_, committed_values);
+            if (!gtsam_->graph_.empty()) {
+                const gtsam::Values& committed_values = !gtsam_->current_estimate_.empty() ? gtsam_->current_estimate_ : gtsam_->initial_values_;
+                trial_isam2->update(gtsam_->graph_, committed_values);
             }
 
-            trial_isam2->update(new_factors_, new_values_);
+            trial_isam2->update(gtsam_->new_factors_, gtsam_->new_values_);
         
             // Robust global constraints (loop or session anchor) receive the same
             // additional relinearization updates.
@@ -154,18 +157,18 @@ std::map<int64_t, Eigen::Isometry3d> GraphOptimizer::getOptimizedPoses() const {
     
     for (int64_t id : node_ids_) {
         gtsam::Key key = gtsam::Symbol('x', id);
-        if (current_estimate_.exists(key)) {
-            gtsam::Pose3 pose = current_estimate_.at<gtsam::Pose3>(key);
+        if (gtsam_->current_estimate_.exists(key)) {
+            gtsam::Pose3 pose = gtsam_->current_estimate_.at<gtsam::Pose3>(key);
             poses[id] = gtsamToEigen(pose);
-        } else if (initial_values_.exists(key)) {
-            gtsam::Pose3 pose = initial_values_.at<gtsam::Pose3>(key);
+        } else if (gtsam_->initial_values_.exists(key)) {
+            gtsam::Pose3 pose = gtsam_->initial_values_.at<gtsam::Pose3>(key);
             poses[id] = gtsamToEigen(pose);
         }
     }
     for (int64_t id : pending_node_ids_) {
         gtsam::Key key = gtsam::Symbol('x', id);
-        if (new_values_.exists(key)) {
-            poses[id] = gtsamToEigen(new_values_.at<gtsam::Pose3>(key));
+        if (gtsam_->new_values_.exists(key)) {
+            poses[id] = gtsamToEigen(gtsam_->new_values_.at<gtsam::Pose3>(key));
         }
     }
     
@@ -175,12 +178,12 @@ std::map<int64_t, Eigen::Isometry3d> GraphOptimizer::getOptimizedPoses() const {
 Eigen::Isometry3d GraphOptimizer::getOptimizedPose(int64_t id) const {
     gtsam::Key key = gtsam::Symbol('x', id);
     
-    if (current_estimate_.exists(key)) {
-        return gtsamToEigen(current_estimate_.at<gtsam::Pose3>(key));
-    } else if (initial_values_.exists(key)) {
-        return gtsamToEigen(initial_values_.at<gtsam::Pose3>(key));
-    } else if (new_values_.exists(key)) {
-        return gtsamToEigen(new_values_.at<gtsam::Pose3>(key));
+    if (gtsam_->current_estimate_.exists(key)) {
+        return gtsamToEigen(gtsam_->current_estimate_.at<gtsam::Pose3>(key));
+    } else if (gtsam_->initial_values_.exists(key)) {
+        return gtsamToEigen(gtsam_->initial_values_.at<gtsam::Pose3>(key));
+    } else if (gtsam_->new_values_.exists(key)) {
+        return gtsamToEigen(gtsam_->new_values_.at<gtsam::Pose3>(key));
     }
     
     throw std::out_of_range("Node " + std::to_string(id) + " does not exist in graph");
@@ -215,13 +218,7 @@ void GraphOptimizer::swapWith(GraphOptimizer& other) {
     if (this == &other) return;
     using std::swap;
     swap(config_, other.config_);
-    swap(isam2_, other.isam2_);
-    swap(graph_, other.graph_);
-    swap(new_factors_, other.new_factors_);
-    swap(initial_values_, other.initial_values_);
-    swap(new_values_, other.new_values_);
-    swap(current_estimate_, other.current_estimate_);
-    swap(last_good_estimate_, other.last_good_estimate_);
+    swap(gtsam_, other.gtsam_);
     swap(edges_, other.edges_);
     swap(shared_planes_, other.shared_planes_);
     swap(pending_plane_observations_, other.pending_plane_observations_);
@@ -245,12 +242,12 @@ std::vector<EdgeInfo> GraphOptimizer::getEdges() const {
 }
 
 void GraphOptimizer::clear() {
-    graph_.resize(0);
-    new_factors_.resize(0);
-    initial_values_.clear();
-    new_values_.clear();
-    current_estimate_.clear();
-    last_good_estimate_.clear();
+    gtsam_->graph_.resize(0);
+    gtsam_->new_factors_.resize(0);
+    gtsam_->initial_values_.clear();
+    gtsam_->new_values_.clear();
+    gtsam_->current_estimate_.clear();
+    gtsam_->last_good_estimate_.clear();
     edges_.clear();
     shared_planes_.clear();
     pending_plane_observations_.clear();
@@ -265,19 +262,19 @@ void GraphOptimizer::clear() {
     committed_floor_attitude_constraints_.clear();
     pending_floor_attitude_constraints_.clear();
     needs_optimization_ = false;
-    isam2_ = createISAM2();
+    gtsam_->isam2_ = createISAM2();
 }
 
 // ==================== 错误处理 ====================
 
 void GraphOptimizer::rollbackToLastState() {
     clearPending();
-    if (!last_good_estimate_.empty()) {
-        current_estimate_ = last_good_estimate_;
+    if (!gtsam_->last_good_estimate_.empty()) {
+        gtsam_->current_estimate_ = gtsam_->last_good_estimate_;
         rebuildISAM2FromCommitted();
         LOG(ERROR) << "Rolled back to last good optimization state" << std::endl;
     } else {
-        if (!current_estimate_.empty() || !initial_values_.empty()) {
+        if (!gtsam_->current_estimate_.empty() || !gtsam_->initial_values_.empty()) {
             rebuildISAM2FromCommitted();
         }
         LOG(ERROR) << "No previous state to rollback to" << std::endl;
@@ -286,7 +283,7 @@ void GraphOptimizer::rollbackToLastState() {
 }
 
 bool GraphOptimizer::isOptimizationHealthy() const {
-    return !current_estimate_.empty();
+    return !gtsam_->current_estimate_.empty();
 }
 
 // ==================== 辅助函数 ====================
@@ -303,8 +300,8 @@ std::unique_ptr<gtsam::ISAM2> GraphOptimizer::createISAM2() const {
 
 void GraphOptimizer::clearPending() {
     pending_plane_observations_.clear();
-    new_factors_.resize(0);
-    new_values_.clear();
+    gtsam_->new_factors_.resize(0);
+    gtsam_->new_values_.clear();
     pending_edges_.clear();
     pending_node_ids_.clear();
     pending_has_loop_closure_ = false;
@@ -324,19 +321,19 @@ bool GraphOptimizer::ensureTargetInitialValue(
     const gtsam::Key key_from = gtsam::Symbol('x', from_id);
     const gtsam::Key key_to = gtsam::Symbol('x', to_id);
     gtsam::Pose3 pose_from;
-    if (new_values_.exists(key_from)) {
-        pose_from = new_values_.at<gtsam::Pose3>(key_from);
-    } else if (current_estimate_.exists(key_from)) {
-        pose_from = current_estimate_.at<gtsam::Pose3>(key_from);
-    } else if (initial_values_.exists(key_from)) {
-        pose_from = initial_values_.at<gtsam::Pose3>(key_from);
+    if (gtsam_->new_values_.exists(key_from)) {
+        pose_from = gtsam_->new_values_.at<gtsam::Pose3>(key_from);
+    } else if (gtsam_->current_estimate_.exists(key_from)) {
+        pose_from = gtsam_->current_estimate_.at<gtsam::Pose3>(key_from);
+    } else if (gtsam_->initial_values_.exists(key_from)) {
+        pose_from = gtsam_->initial_values_.at<gtsam::Pose3>(key_from);
     } else {
         return false;
     }
     if (hasAnyNode(to_id)) {
         return true;
     }
-    new_values_.insert(key_to, pose_from * eigenToGtsam(measurement));
+    gtsam_->new_values_.insert(key_to, pose_from * eigenToGtsam(measurement));
     pending_node_ids_.insert(to_id);
     return true;
 }
@@ -345,13 +342,13 @@ void GraphOptimizer::commitPending(const gtsam::Values& optimized_estimate,
                                    std::unique_ptr<gtsam::ISAM2> optimized_isam2) {
     for (const auto& [index, observation] : pending_plane_observations_)
         shared_planes_.at(index).observations.push_back(observation);
-    for (const auto& factor : new_factors_) {
-        graph_.push_back(factor);
+    for (const auto& factor : gtsam_->new_factors_) {
+        gtsam_->graph_.push_back(factor);
     }
     for (int64_t id : pending_node_ids_) {
         gtsam::Key key = gtsam::Symbol('x', id);
-        if (!initial_values_.exists(key) && new_values_.exists(key)) {
-            initial_values_.insert(key, new_values_.at<gtsam::Pose3>(key));
+        if (!gtsam_->initial_values_.exists(key) && gtsam_->new_values_.exists(key)) {
+            gtsam_->initial_values_.insert(key, gtsam_->new_values_.at<gtsam::Pose3>(key));
         }
         node_ids_.insert(id);
     }
@@ -364,11 +361,11 @@ void GraphOptimizer::commitPending(const gtsam::Values& optimized_estimate,
         static_cast<int>(pending_floor_attitude_constraints_.size());
     has_loop_closure_ = has_loop_closure_ || pending_has_loop_closure_;
     has_session_anchor_ = has_session_anchor_ || pending_has_session_anchor_;
-    current_estimate_ = optimized_estimate;
-    last_good_estimate_ = optimized_estimate;
+    gtsam_->current_estimate_ = optimized_estimate;
+    gtsam_->last_good_estimate_ = optimized_estimate;
     clearPending();
     if (optimized_isam2) {
-        isam2_ = std::move(optimized_isam2);
+        gtsam_->isam2_ = std::move(optimized_isam2);
     } else {
         rebuildISAM2FromCommitted();
     }
@@ -376,19 +373,19 @@ void GraphOptimizer::commitPending(const gtsam::Values& optimized_estimate,
 }
 
 void GraphOptimizer::rebuildISAM2FromCommitted() {
-    isam2_ = createISAM2();
-    if (graph_.empty()) {
+    gtsam_->isam2_ = createISAM2();
+    if (gtsam_->graph_.empty()) {
         return;
     }
-    const gtsam::Values& values = !current_estimate_.empty() ? current_estimate_ : initial_values_;
+    const gtsam::Values& values = !gtsam_->current_estimate_.empty() ? gtsam_->current_estimate_ : gtsam_->initial_values_;
     if (values.empty()) {
         return;
     }
     try {
-        internal::runGraphSolve(config_.num_threads, [&] { isam2_->update(graph_, values); });
+        internal::runGraphSolve(config_.num_threads, [&] { gtsam_->isam2_->update(gtsam_->graph_, values); });
     } catch (const std::exception& e) {
         LOG(ERROR) << "GraphOptimizer::rebuildISAM2FromCommitted() failed: " << e.what() << std::endl;
-        isam2_ = createISAM2();
+        gtsam_->isam2_ = createISAM2();
     }
 }
 
@@ -419,13 +416,13 @@ void GraphOptimizer::appendPendingTo(gtsam::NonlinearFactorGraph* candidate_grap
     if (!candidate_graph || !candidate_values) {
         return;
     }
-    for (const auto& factor : new_factors_) {
+    for (const auto& factor : gtsam_->new_factors_) {
         candidate_graph->push_back(factor);
     }
     for (int64_t id : pending_node_ids_) {
         gtsam::Key key = gtsam::Symbol('x', id);
-        if (!candidate_values->exists(key) && new_values_.exists(key)) {
-            candidate_values->insert(key, new_values_.at<gtsam::Pose3>(key));
+        if (!candidate_values->exists(key) && gtsam_->new_values_.exists(key)) {
+            candidate_values->insert(key, gtsam_->new_values_.at<gtsam::Pose3>(key));
         }
     }
 }

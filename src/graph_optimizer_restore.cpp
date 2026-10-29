@@ -1,5 +1,5 @@
 #include <glog/logging.h>
-#include "n3mapping/graph_optimizer.h"
+#include "graph_optimizer_state.h"
 #include "graph_pose_factors.h"
 #include <gtsam/navigation/AttitudeFactor.h>
 #include <iostream>
@@ -28,11 +28,11 @@ bool GraphOptimizer::loadGraph(
     for (const auto& [id, pose] : nodes) {
         gtsam::Key key = gtsam::Symbol('x', id);
         gtsam::Pose3 gtsam_pose = eigenToGtsam(pose);
-        if (temp.initial_values_.exists(key)) {
+        if (temp.gtsam_->initial_values_.exists(key)) {
             LOG(ERROR) << "GraphOptimizer::loadGraph() duplicate node id: " << id << std::endl;
             return false;
         }
-        temp.initial_values_.insert(key, gtsam_pose);
+        temp.gtsam_->initial_values_.insert(key, gtsam_pose);
         temp.node_ids_.insert(id);
     }
 
@@ -40,9 +40,9 @@ bool GraphOptimizer::loadGraph(
     int64_t first_id = nodes.front().first;
     gtsam::Key first_key = gtsam::Symbol('x', first_id);
     gtsam::Pose3 first_pose = prior_pose ? eigenToGtsam(*prior_pose) :
-        temp.initial_values_.at<gtsam::Pose3>(first_key);
+        temp.gtsam_->initial_values_.at<gtsam::Pose3>(first_key);
     auto prior_noise = temp.createPriorNoiseModel();
-    temp.graph_.add(gtsam::PriorFactor<gtsam::Pose3>(first_key, first_pose, prior_noise));
+    temp.gtsam_->graph_.add(gtsam::PriorFactor<gtsam::Pose3>(first_key, first_pose, prior_noise));
 
     int64_t first_session_node_id = std::numeric_limits<int64_t>::max();
     for (const auto& edge : edges) {
@@ -84,9 +84,9 @@ bool GraphOptimizer::loadGraph(
         }
 
         if (isRobustGlobalEdge(edge.type) && edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
-            temp.graph_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
+            temp.gtsam_->graph_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
         } else {
-            temp.graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
+            temp.gtsam_->graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
         }
         temp.edges_.push_back(edge);
     }
@@ -99,11 +99,11 @@ bool GraphOptimizer::loadGraph(
             continue;
         }
         gtsam::Key key = gtsam::Symbol('x', fc.node_id);
-        if (!temp.initial_values_.exists(key)) {
+        if (!temp.gtsam_->initial_values_.exists(key)) {
             continue;
         }
         auto noise = gtsam::noiseModel::Isotropic::Sigma(2, fc.sigma_rad);
-        temp.graph_.add(gtsam::Pose3AttitudeFactor(
+        temp.gtsam_->graph_.add(gtsam::Pose3AttitudeFactor(
             key, gtsam::Unit3(0.0, 0.0, 1.0), noise,
             gtsam::Unit3(fc.normal_body.normalized())));
         temp.committed_floor_attitude_constraints_.push_back(fc);
@@ -112,21 +112,21 @@ bool GraphOptimizer::loadGraph(
 
     // 执行优化
     if (!restore_estimates && planes.empty() &&
-        !temp.graph_.empty() && !temp.initial_values_.empty()) {
+        !temp.gtsam_->graph_.empty() && !temp.gtsam_->initial_values_.empty()) {
         gtsam::Values optimized_estimate;
         // optimizeCandidate owns the same local execution boundary used by
         // live graph solves; reload does not change process-wide concurrency.
-        if (!temp.optimizeCandidate(temp.graph_, temp.initial_values_, &optimized_estimate)) {
+        if (!temp.optimizeCandidate(temp.gtsam_->graph_, temp.gtsam_->initial_values_, &optimized_estimate)) {
             LOG(ERROR) << "GraphOptimizer::loadGraph() failed; existing graph left unchanged" << std::endl;
             return false;
         }
-        temp.current_estimate_ = optimized_estimate;
-        temp.last_good_estimate_ = optimized_estimate;
+        temp.gtsam_->current_estimate_ = optimized_estimate;
+        temp.gtsam_->last_good_estimate_ = optimized_estimate;
     }
 
     if (restore_estimates || !planes.empty()) {
-        temp.current_estimate_ = temp.initial_values_;
-        temp.last_good_estimate_ = temp.initial_values_;
+        temp.gtsam_->current_estimate_ = temp.gtsam_->initial_values_;
+        temp.gtsam_->last_good_estimate_ = temp.gtsam_->initial_values_;
         GeometryOptimizationStats stats;
         if (!temp.replaceSharedPlanes(planes, false, stats)) return false;
     } else {

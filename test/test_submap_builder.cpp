@@ -1,3 +1,4 @@
+#include <gtsam/geometry/Pose3.h>
 #include "n3mapping/submap_builder.h"
 #include "n3mapping/submap_graph_factor.h"
 #include "n3mapping/submap_graph_projection.h"
