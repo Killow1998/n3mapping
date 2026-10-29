@@ -18,7 +18,7 @@ class CorrespondenceSearch {
 
   CorrespondenceSearch(const Tree& tree, double max_distance_squared,
                        const SearchBounds* bounds = nullptr)
-      : tree_(tree), bounds_(bounds),
+      : tree_(tree), bounds_(bounds), max_distance_squared_(max_distance_squared),
         search_limit_(std::isfinite(max_distance_squared)
             ? std::min(std::numeric_limits<double>::max(),
                 std::nextafter(max_distance_squared,
@@ -56,15 +56,22 @@ class CorrespondenceSearch {
         *distance_squared = std::nextafter(
             hint_distance, std::numeric_limits<double>::infinity());
     }
+    bool rounding_boundary = false;
     if (!tree_.points->empty())
-      visit(tree_.kdtree.root, query, index, distance_squared, {});
+      visit(tree_.kdtree.root, query, index, distance_squared, {}, rounding_boundary);
+    // ARM contraction can round the hint and leaf differently. Resolve only
+    // ambiguous misses through the reference search, keeping its gate exact.
+    if (*index == std::numeric_limits<std::size_t>::max() && rounding_boundary)
+      return tree_.nearest_neighbor_search(query, index, distance_squared) &&
+             *distance_squared <= max_distance_squared_;
     return *index != std::numeric_limits<std::size_t>::max();
   }
 
  private:
   void visit(small_gicp::NodeIndexType node_index, const Eigen::Vector4d& query,
              std::size_t* index, double* distance_squared,
-             const std::array<double, 3>& cell_distance_squared) const {
+             const std::array<double, 3>& cell_distance_squared,
+             bool& rounding_boundary) const {
     if (bounds_ && bounds_->outside(node_index, query, *distance_squared)) return;
     const auto& tree = tree_.kdtree;
     const auto& node = tree.nodes[node_index];
@@ -72,7 +79,11 @@ class CorrespondenceSearch {
       for (auto i = node.node_type.lr.first; i < node.node_type.lr.last; ++i) {
         const auto candidate = tree.indices[i];
         const double distance = (tree.points.point(candidate) - query).squaredNorm();
-        if (distance >= *distance_squared) continue;
+        if (distance >= *distance_squared) {
+          rounding_boundary |= distance - *distance_squared <=
+              16.0 * std::numeric_limits<double>::epsilon() * (1.0 + *distance_squared);
+          continue;
+        }
         *index = candidate;
         *distance_squared = distance;
       }
@@ -81,7 +92,7 @@ class CorrespondenceSearch {
     const double offset = node.node_type.sub.proj(query) - node.node_type.sub.thresh;
     const auto near_child = offset < 0.0 ? node.left : node.right;
     const auto far_child = offset < 0.0 ? node.right : node.left;
-    visit(near_child, query, index, distance_squared, cell_distance_squared);
+    visit(near_child, query, index, distance_squared, cell_distance_squared, rounding_boundary);
     if (*distance_squared > offset * offset) {
       // Splits on different axes jointly bound this subtree's cell. Testing
       // only the latest split revisits cells that are already outside the
@@ -93,12 +104,16 @@ class CorrespondenceSearch {
       const double rounding_guard = 16.0 * std::numeric_limits<double>::epsilon() *
                                     (1.0 + *distance_squared);
       if (lower_bound <= *distance_squared + rounding_guard)
-        visit(far_child, query, index, distance_squared, far_cell_distance);
+        visit(far_child, query, index, distance_squared, far_cell_distance, rounding_boundary);
+    } else {
+      rounding_boundary |= offset * offset - *distance_squared <=
+          16.0 * std::numeric_limits<double>::epsilon() * (1.0 + *distance_squared);
     }
   }
 
   const Tree& tree_;
   const SearchBounds* bounds_;
+  double max_distance_squared_;
   double search_limit_;
 };
 
