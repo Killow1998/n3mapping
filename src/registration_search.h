@@ -80,8 +80,9 @@ class CorrespondenceSearch {
         const auto candidate = tree.indices[i];
         const double distance = (tree.points.point(candidate) - query).squaredNorm();
         if (distance >= *distance_squared) {
-          rounding_boundary |= distance - *distance_squared <=
-              16.0 * std::numeric_limits<double>::epsilon() * (1.0 + *distance_squared);
+          rounding_boundary = rounding_boundary ||
+              (*index == std::numeric_limits<std::size_t>::max() && distance - *distance_squared <=
+              16.0 * std::numeric_limits<double>::epsilon() * (1.0 + *distance_squared));
           continue;
         }
         *index = candidate;
@@ -106,8 +107,9 @@ class CorrespondenceSearch {
       if (lower_bound <= *distance_squared + rounding_guard)
         visit(far_child, query, index, distance_squared, far_cell_distance, rounding_boundary);
     } else {
-      rounding_boundary |= offset * offset - *distance_squared <=
-          16.0 * std::numeric_limits<double>::epsilon() * (1.0 + *distance_squared);
+      rounding_boundary = rounding_boundary ||
+          (*index == std::numeric_limits<std::size_t>::max() && offset * offset - *distance_squared <=
+          16.0 * std::numeric_limits<double>::epsilon() * (1.0 + *distance_squared));
     }
   }
 
