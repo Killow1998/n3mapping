@@ -34,6 +34,7 @@ struct SphericalDepthImage {
   // Populated only for the predicted image, and only when occlusion awareness
   // is on: the accumulated return in each bearing closest to what was measured.
   std::vector<double> match_ranges;
+  std::vector<Eigen::Vector3d> nearest_points;
 };
 
 SphericalDepthImage makeDepthImage(double resolution_deg) {
@@ -75,7 +76,10 @@ void insertPoint(const Eigen::Vector3d &point,
           static_cast<std::size_t>(image->azimuth_bins) +
       static_cast<std::size_t>(azimuth_index);
   double &stored = image->ranges[index];
-  stored = std::min(stored, range);
+  if (range < stored) {
+    stored = range;
+    if (!image->nearest_points.empty()) image->nearest_points[index] = point;
+  }
   // Experimental range matching can reduce collisions between surfaces in a
   // coarse angular bin. It also ignores real foreground blockers when a
   // matching background exists; this score alone cannot establish visibility.
@@ -163,6 +167,9 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
   if (observed.ranges.size() / azimuth_count != elevation_count ||
       observed.ranges.size() % azimuth_count != 0) return result;
   auto predicted = makeDepthImage(resolution_deg);
+  const bool has_planar = !observed.planar_jacobians.empty();
+  const bool has_surfaces = has_planar && !options.occlusion_aware;
+  if (has_surfaces) predicted.nearest_points.resize(predicted.ranges.size());
   if (options.occlusion_aware) {
     predicted.match_ranges.assign(predicted.ranges.size(),
                                   std::numeric_limits<double>::infinity());
@@ -190,7 +197,6 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
 
   std::vector<double> residuals;
   Eigen::Matrix3d planar_support = Eigen::Matrix3d::Zero();
-  const bool has_planar = observed.planar_jacobians.size() == observed.ranges.size();
   residuals.reserve(observed.ranges.size());
   for (std::size_t i = 0; i < observed.ranges.size(); ++i) {
     const bool has_observation = std::isfinite(observed.ranges[i]);
@@ -213,12 +219,16 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const double signed_error = predicted_range - observed.ranges[i];
     const double absolute_error = std::abs(signed_error);
     residuals.push_back(absolute_error);
-    if (absolute_error <= options.range_tolerance_m) {
-      ++result.consistent_bins;
-      if (has_planar) {
-        const auto &j = observed.planar_jacobians[i];
-        planar_support.noalias() += j * j.transpose();
-      }
+    const bool range_consistent = absolute_error <= options.range_tolerance_m;
+    if (range_consistent) ++result.consistent_bins;
+    // A coarse bearing can sample different depths of the same grazing plane.
+    // Use only its nearest map return; a farther background cannot hide a blocker.
+    const bool surface_consistent = has_surfaces &&
+        std::abs(observed.planar_surfaces[i].head<3>().dot(predicted.nearest_points[i]) +
+                 observed.planar_surfaces[i][3]) <= options.range_tolerance_m;
+    if (has_planar && (range_consistent || surface_consistent)) {
+      const auto &j = observed.planar_jacobians[i];
+      planar_support.noalias() += j * j.transpose();
     }
     if (signed_error < -options.range_tolerance_m)
       ++result.foreground_conflict_bins;

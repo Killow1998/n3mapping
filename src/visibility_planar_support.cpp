@@ -13,6 +13,7 @@ void prepareVisibilityPlanarSupport(
     PreparedVisibilityObservation *observation) {
   if (!observation) return;
   observation->planar_jacobians.clear();
+  observation->planar_surfaces.clear();
   if (!query || query->empty() || observation->ranges.empty() ||
       !up_in_query.allFinite() || up_in_query.norm() < 1e-6) return;
   const auto &options = observation->options;
@@ -43,6 +44,7 @@ void prepareVisibilityPlanarSupport(
   pcl::KdTreeFLANN<pcl::PointXYZI> tree;
   tree.setInputCloud(query);
   std::vector<Eigen::Vector3d> jacobians(nearest.size(), Eigen::Vector3d::Zero());
+  std::vector<Eigen::Vector4d> surfaces(nearest.size(), Eigen::Vector4d::Zero());
   Eigen::Matrix3d information = Eigen::Matrix3d::Zero();
   std::vector<int> neighbors(20);
   std::vector<float> distances(20);
@@ -66,6 +68,8 @@ void prepareVisibilityPlanarSupport(
     if (solver.info() != Eigen::Success || solver.eigenvalues()[1] <= 1e-12) continue;
     const Eigen::Vector3d normal = solver.eigenvectors().col(0);
     const Eigen::Vector3d p(point.x, point.y, point.z);
+    surfaces[i].head<3>() = normal;
+    surfaces[i][3] = -normal.dot(p);
     auto &j = jacobians[i];
     // Point-to-plane residual derivative for yaw and two translations in the
     // odometry horizontal plane. A horizontal surface contributes no planar
@@ -90,5 +94,6 @@ void prepareVisibilityPlanarSupport(
   // a strongly constrained axis cannot pay for disagreement in another axis.
   for (auto &j : jacobians) j = (whitening.transpose() * j).eval();
   observation->planar_jacobians = std::move(jacobians);
+  observation->planar_surfaces = std::move(surfaces);
 }
 } // namespace n3mapping

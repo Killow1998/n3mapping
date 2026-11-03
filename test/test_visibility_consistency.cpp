@@ -78,6 +78,44 @@ TEST(VisibilityConsistencyTest, PlanarWitnessHandlesTiltAndMissingReturns) {
   }
 }
 
+TEST(VisibilityConsistencyTest, GrazingSamplesDoNotHideRealForegroundBlockers) {
+  auto query = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
+  pcl::PointCloud<pcl::PointXYZI> map;
+  for (int x = -290; x <= 290; ++x)
+    for (int z = -10; z <= 10; ++z)
+      for (double side : {-1.0, 1.0}) {
+        pcl::PointXYZI point;
+        point.x = x * 0.1; point.y = side; point.z = z * 0.1;
+        map.push_back(point);
+        if (x % 10 == 0 && z % 2 == 0) query->push_back(point);
+      }
+  // Elevated transverse patches constrain along-corridor translation without
+  // occluding the long side walls observed below them.
+  for (double side : {-1.0, 1.0})
+    for (int y = -4; y <= 4; ++y)
+      for (int z = 12; z <= 24; ++z) {
+        pcl::PointXYZI point;
+        point.x = side * 4.0; point.y = y * 0.1; point.z = z * 0.1;
+        map.push_back(point);
+        query->push_back(point);
+      }
+  auto observation = prepareVisibilityObservation(*query);
+  prepareVisibilityPlanarSupport(query, Eigen::Vector3d::UnitZ(), &observation);
+  const auto grazing = evaluatePreparedVisibilityConsistency(
+      map, observation, Eigen::Isometry3d::Identity());
+  ASSERT_TRUE(grazing.valid);
+  EXPECT_GT(grazing.foreground_conflict_bins, 0u);
+  EXPECT_GT(grazing.planar_min_support, 0.5);
+  auto foreground = *query;
+  for (auto &point : foreground) {
+    point.x *= 0.5; point.y *= 0.5; point.z *= 0.5;
+  }
+  map += foreground;
+  const auto blocked = evaluatePreparedVisibilityConsistency(
+      map, observation, Eigen::Isometry3d::Identity());
+  EXPECT_LT(blocked.planar_min_support, 0.5);
+}
+
 TEST(VisibilityConsistencyTest, OtherDirectionsCannotHideUnsupportedTranslation) {
   const auto query = planarWitnessRoom();
   auto map = *query;

@@ -1,0 +1,337 @@
+{
+  "date": "2026-11-03",
+  "issue": "https://github.com/Killow1998/n3mapping/issues/10",
+  "source_base_commit": "3b79fb18346f43094edf2e379f65e8dbad4c524f",
+  "scope": "Repair a reproduced false directional veto; retain 0.5 and all other acceptance gates.",
+  "baseline": {
+    "source_commit": "e3d1b5e",
+    "production_sources_equivalent_to": "3b79fb18346f43094edf2e379f65e8dbad4c524f",
+    "evidence": "reload_relock_20261029.json; changes after e3d1b5e are documentation only",
+    "core_sha256": "c25d9826be6e6d11b01c28d2748915cffdb68ebe645bfd1db8f1e7ea20aab1ac"
+  },
+  "candidate": {
+    "product_build_verified": false,
+    "identity": "Independent UNVERIFIED development build; no installation or release tag replaced.",
+    "core_sha256": "8bc4853e2a3999f94254efc211acf4ca97d65f571e32085e0f0f0d2308e3dd37",
+    "noetic_core_sha256": "c77456886207e5ce715f3e630eeadd72669fad7e0236259a0043d9d0bc5ace6f",
+    "code_patch_sha256": "5b7b7dcab0ef7998b691ef373af3e915d5e04f019cea5a400490cab266cebc6d",
+    "source_files_sha256": {
+      "include/n3mapping/visibility_consistency.h": "cc90e19159eabf0e461ccff9d87b60752add1e10448f71495a45f2a23d3bf9f5",
+      "src/visibility_consistency.cpp": "a4790c7b91bf11e77adcbcfc7c36d4682a7c4599daf206d50fd77e7c496e38e4",
+      "src/visibility_planar_support.cpp": "35eecac07c30bdcb76d41266605d706da423a44af5ce2aadcd1c1d4b8944219a",
+      "src/world_localizing_relocalization.cpp": "863f28b0906ed1f2df99e28223c303659c58ec6ae450745a831c24d42703d726",
+      "test/test_visibility_consistency.cpp": "3aa0d0c06093e3bf9e6e5643a8972c228a0dd2f41f9c52c758e8318a57dd0587"
+    }
+  },
+  "execution": {
+    "cpu_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "workers": 4,
+    "build_type": "Release",
+    "replay_rate": 0,
+    "omp_wait_policy": "PASSIVE",
+    "openblas_threads": 1,
+    "first_lock_wall_time_excludes_map_loading": true,
+    "map_scope": "Frozen explicit legacy Atlas in both variants; loading cost is not current default-cache startup.",
+    "cpu_scope": "Process CPU includes all workers. CPU/input duration includes tracking and is not active-search occupancy."
+  },
+  "model": {
+    "indicator": "min_v (v^T H_explained v)/(v^T H_all v), for yaw and horizontal translations",
+    "threshold": "0.5 is a conservative information-majority policy; no universal probabilistic calibration.",
+    "assumptions": "Largely covered, approximately static geometry; limited coverage or changed occlusion can keep a correct candidate searching.",
+    "explanation": "Nearest map return in the same angular bin agrees in range or point-to-query-plane distance.",
+    "tolerance": "Existing range_tolerance_m; unchanged.",
+    "covariance": "Existing query normal fit and Jacobians reused, with no extra nearest-neighbor search.",
+    "first_return": "Do not substitute a farther matching background for a nearer opaque return.",
+    "rejection": "directional_visibility_insufficient_support; low support alone does not establish contradiction.",
+    "unknown": "Unknown bearings retain zero explained information. Unknown coverage is reported separately."
+  },
+  "validation": {
+    "humble_ctest": "69/69, including five ROS checks rerun with the sourced runtime",
+    "noetic_ctest": "67/67 from the actual package test directory",
+    "xml": {
+      "humble": {
+        "xml_files": 48,
+        "cases": 604,
+        "failures": 0,
+        "errors": 0
+      },
+      "noetic": {
+        "xml_files": 46,
+        "cases": 588,
+        "failures": 0,
+        "errors": 0
+      }
+    },
+    "positive_ablation": "GrazingSamplesDoNotHideRealForegroundBlockers: original support 0.352743 fails; candidate passes and still rejects nearer blockers.",
+    "negative_e2e": [
+      "RepeatedPlacesStayUnpublishedAndFreshGeometryCanLock",
+      "OppositeHeadingsInSymmetricGeometryRemainAmbiguous",
+      "NoPlaceCandidateLeavesPoseUnavailable",
+      "F7-F9 projection0 wrong-place candidate remains unpublished"
+    ],
+    "fixed14": {
+      "baseline": {
+        "positions": 14,
+        "locks": 14,
+        "lock_frame_patterns_zero_based": [
+          [
+            4
+          ]
+        ],
+        "input_frames": 4144,
+        "published_frames": 4088,
+        "max_position_error_m": 0.024809060892936476,
+        "max_rotation_error_deg": 0.08384096407414635,
+        "cpu_s": 155.04320884299997,
+        "first_lock_cpu_sum_s": 68.533190125,
+        "mean_first_lock_wall_s": 2.221146798714286,
+        "mean_map_load_wall_s": 4.975196428571429,
+        "peak_rss_mib": 1229.96875
+      },
+      "candidate": {
+        "positions": 14,
+        "locks": 14,
+        "lock_frame_patterns_zero_based": [
+          [
+            4
+          ]
+        ],
+        "input_frames": 4144,
+        "published_frames": 4088,
+        "max_position_error_m": 0.024809060892936476,
+        "max_rotation_error_deg": 0.08384096407414639,
+        "cpu_s": 155.90031816099997,
+        "first_lock_cpu_sum_s": 69.25370940900001,
+        "mean_first_lock_wall_s": 2.2827254374999995,
+        "mean_map_load_wall_s": 4.964057857142857,
+        "peak_rss_mib": 1229.96875
+      },
+      "comparison": {
+        "cases": 14,
+        "all_decisions_and_counts_equal": true,
+        "max_live_matrix_element_delta": 7.105427357601002e-15
+      }
+    },
+    "routes": {
+      "reentry": {
+        "baseline": {
+          "variant": "baseline",
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "cpu_s": 53.852593976,
+          "input_s": 223.5,
+          "equivalent_cores": 0.2409512034720358,
+          "peak_rss_mib": 1229.63671875,
+          "max_position_error_m": 0.07936771243843713,
+          "max_rotation_error_deg": 0.14198324735236373,
+          "published_without_backend_success": 0
+        },
+        "candidate": {
+          "variant": "candidate",
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "cpu_s": 53.881552296,
+          "input_s": 223.5,
+          "equivalent_cores": 0.24108077089932886,
+          "peak_rss_mib": 1229.625,
+          "max_position_error_m": 0.07936771243843713,
+          "max_rotation_error_deg": 0.14198324735232698,
+          "published_without_backend_success": 0
+        },
+        "comparison": {
+          "frames": 2236,
+          "differences": {},
+          "max_live_matrix_element_delta": 1.4210854715202004e-14
+        }
+      },
+      "independent": {
+        "candidate": {
+          "variant": "candidate",
+          "frames": 3666,
+          "outputs": 3662,
+          "locks": [
+            4,
+            1938
+          ],
+          "cpu_s": 115.47677255600001,
+          "input_s": 366.5,
+          "equivalent_cores": 0.3150798705484311,
+          "peak_rss_mib": 1229.8828125,
+          "max_position_error_m": 0.03246851633697607,
+          "max_rotation_error_deg": 0.2641706757291813,
+          "published_without_backend_success": 59
+        },
+        "baseline": {
+          "variant": "baseline",
+          "frames": 3666,
+          "outputs": 3662,
+          "locks": [
+            4,
+            1938
+          ],
+          "cpu_s": 115.296287211,
+          "input_s": 366.5,
+          "equivalent_cores": 0.3145874139454298,
+          "peak_rss_mib": 1229.51171875,
+          "max_position_error_m": 0.03246851633698051,
+          "max_rotation_error_deg": 0.26417067572924485,
+          "published_without_backend_success": 59
+        },
+        "comparison": {
+          "frames": 3666,
+          "differences": {},
+          "max_live_matrix_element_delta": 5.684341886080802e-14
+        }
+      }
+    },
+    "f7f9": {
+      "reference": "Saved-map keyframe poses, not independent physical ground truth.",
+      "input": "Two map-derived input constructions at four places; 30 frames each at nominal 10 Hz.",
+      "cases": [
+        {
+          "case": "projection0",
+          "frames": 30,
+          "baseline_locked": false,
+          "candidate_first_lock_zero_based": null,
+          "candidate_max_saved_map_reference_error_m": null
+        },
+        {
+          "case": "projection1",
+          "frames": 30,
+          "baseline_locked": false,
+          "candidate_first_lock_zero_based": null,
+          "candidate_max_saved_map_reference_error_m": null
+        },
+        {
+          "case": "projection2",
+          "frames": 30,
+          "baseline_locked": true,
+          "candidate_first_lock_zero_based": 4,
+          "candidate_max_saved_map_reference_error_m": 0.0005111860211752675
+        },
+        {
+          "case": "projection3",
+          "frames": 30,
+          "baseline_locked": true,
+          "candidate_first_lock_zero_based": 4,
+          "candidate_max_saved_map_reference_error_m": 0.0006984256340324389
+        },
+        {
+          "case": "recorded0",
+          "frames": 30,
+          "baseline_locked": true,
+          "candidate_first_lock_zero_based": 4,
+          "candidate_max_saved_map_reference_error_m": 0.0008262302712738147
+        },
+        {
+          "case": "recorded1",
+          "frames": 30,
+          "baseline_locked": false,
+          "candidate_first_lock_zero_based": null,
+          "candidate_max_saved_map_reference_error_m": null
+        },
+        {
+          "case": "recorded2",
+          "frames": 30,
+          "baseline_locked": false,
+          "candidate_first_lock_zero_based": 4,
+          "candidate_max_saved_map_reference_error_m": 0.004486511502704039
+        },
+        {
+          "case": "recorded3",
+          "frames": 30,
+          "baseline_locked": false,
+          "candidate_first_lock_zero_based": null,
+          "candidate_max_saved_map_reference_error_m": null
+        }
+      ],
+      "first_final_witnesses": {
+        "recorded2_baseline": {
+          "consistent_bins": 821,
+          "foreground_conflict_bins": 277,
+          "known_bins": 1100,
+          "min_support": 0.44640196359472745,
+          "observed_bins": 1148,
+          "occlusion_aware": false,
+          "range_max_m": 30.0,
+          "range_min_m": 0.5,
+          "range_tolerance_m": 0.30000000000000004,
+          "resolution_deg": 4.0,
+          "position_error_to_saved_map_reference_m": 0.0,
+          "rotation_error_to_saved_map_reference_deg": 0.0
+        },
+        "recorded2_candidate": {
+          "consistent_bins": 821,
+          "foreground_conflict_bins": 277,
+          "known_bins": 1100,
+          "min_support": 0.5485501655834821,
+          "observed_bins": 1148,
+          "occlusion_aware": false,
+          "range_max_m": 30.0,
+          "range_min_m": 0.5,
+          "range_tolerance_m": 0.30000000000000004,
+          "resolution_deg": 4.0,
+          "position_error_to_saved_map_reference_m": 0.0,
+          "rotation_error_to_saved_map_reference_deg": 0.0
+        },
+        "projection0_baseline": {
+          "consistent_bins": 598,
+          "foreground_conflict_bins": 476,
+          "known_bins": 1685,
+          "min_support": 0.06687507795102735,
+          "observed_bins": 1716,
+          "occlusion_aware": false,
+          "range_max_m": 30.0,
+          "range_min_m": 0.5,
+          "range_tolerance_m": 0.30000000000000004,
+          "resolution_deg": 3.4635836561305235,
+          "position_error_to_saved_map_reference_m": 11.957616482895189,
+          "rotation_error_to_saved_map_reference_deg": 5.711046192057944
+        },
+        "projection0_candidate": {
+          "consistent_bins": 598,
+          "foreground_conflict_bins": 476,
+          "known_bins": 1685,
+          "min_support": 0.15866832942669024,
+          "observed_bins": 1716,
+          "occlusion_aware": false,
+          "range_max_m": 30.0,
+          "range_min_m": 0.5,
+          "range_tolerance_m": 0.30000000000000004,
+          "resolution_deg": 3.4635836561305235,
+          "position_error_to_saved_map_reference_m": 11.957616482895189,
+          "rotation_error_to_saved_map_reference_deg": 5.711046192057944
+        }
+      }
+    }
+  },
+  "protected_artifacts": {
+    "count": 17,
+    "all_sha256_unchanged": true,
+    "scope": "Original installations, navigation frozen libraries, original F7-F9 map, selected original video."
+  },
+  "limits": [
+    "0.5 remains an engineering policy; cross-scene empirical calibration is incomplete.",
+    "Four of eight map-derived F7-F9 cases now lock; four remain searching. No new lock is a wrong-place output.",
+    "This validates the reproduced sampling false rejection, not universal first-return visibility or field accuracy.",
+    "Single paired resource comparison; no speedup or half-core active-search result is claimed."
+  ],
+  "excluded_pilots": [
+    "Earlier October 29 library was used only for hypothesis discovery; formal A/B uses the current-main-equivalent baseline.",
+    "Duplicate-normal experimental LD_PRELOAD hook is not used for production or performance comparison.",
+    "Unsourced ROS / unwritable default logging / unsupported old CTest option were environment failures, rerun correctly.",
+    "Missing transient map copies were restored from persistent originals with matching recorded SHA256 before replay."
+  ],
+  "local_evidence": "build/n3mapping/directional_visibility_20261103"
+}

@@ -310,17 +310,19 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     cost.directional_min_support = witness.planar_min_support;
     cost.directional_check_ms = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - started).count();
-    // A majority of support is required in EVERY planar motion direction.
-    // Matching a large floor must not compensate for contradictory walls.
+    // 0.5 is an information-majority policy, not a calibrated probability.
+    // Matching a large floor must not compensate for unsupported walls.
     if (!std::isfinite(witness.planar_min_support) || witness.planar_min_support <= 0.5) {
       decision.accepted = false;
       rejected_current_geometry = std::isfinite(witness.planar_min_support);
       decision.reject_reason = visibility_observation.planar_jacobians.empty()
           ? "planar_geometry_unobservable"
           : (std::isfinite(witness.planar_min_support)
-              ? "directional_visibility_disagreement" : "directional_visibility_unavailable");
+              ? "directional_visibility_insufficient_support" : "directional_visibility_unavailable");
     }
     VLOG(1) << "[Reloc/Directional] min_support=" << cost.directional_min_support
+            << " known=" << witness.known_bins << " unknown=" << witness.unknown_bins
+            << " nearer_map_returns=" << witness.foreground_conflict_bins
             << " passed=" << decision.accepted << " ms=" << cost.directional_check_ms;
   }
   if (rejected_current_geometry) {

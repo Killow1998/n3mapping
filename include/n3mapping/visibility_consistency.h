@@ -31,6 +31,7 @@ struct VisibilityConsistencyResult {
   std::size_t predicted_bins = 0;
   std::size_t common_bins = 0;
   std::size_t consistent_bins = 0;
+  // Radial-bin diagnostics; tangential samples on one plane can differ in range.
   std::size_t foreground_conflict_bins = 0;
   // Shadow diagnostics: common observed/predicted bearings are the bins for
   // which the map has an opinion. Keeping them separate from uncovered query
@@ -67,6 +68,7 @@ struct PreparedVisibilityObservation {
   double resolution_deg = 1.0;
   std::vector<double> ranges;
   std::vector<Eigen::Vector3d> planar_jacobians;
+  std::vector<Eigen::Vector4d> planar_surfaces;
 };
 
 PreparedVisibilityObservation prepareVisibilityObservation(

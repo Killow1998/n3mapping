@@ -94,6 +94,31 @@ used [Cartographer's interpolated 3D grid](https://github.com/cartographer-proje
 N3M uses simpler trilinear interpolation because this gate only compares scores;
 it does not need optimizer derivatives or an additional dependency.
 
+### Directional support before locking
+
+The final witness uses point-to-plane Jacobians for yaw and horizontal translation.
+`planar_min_support = min_v (vᵀ H_explained v) / (vᵀ H_all v)` measures the
+least explained planar direction. Whitening makes `H_all` the identity. The fixed
+0.5 gate requires an information majority in every direction; it is an engineering
+policy, not a calibrated probability or a ratio between the two best candidates.
+It assumes largely covered, approximately static geometry. Limited coverage or
+changed occlusion can leave a correct candidate searching; 0.5 is not a theorem
+that separates every correct and incorrect pose.
+
+In the product's first-return mode, a bearing supports its query surface when
+its nearest map return agrees in range or point-to-plane distance, using the
+existing tolerance. Query planes reuse the normal fit already needed by the
+witness. This handles grazing-plane sampling without selecting a farther matching
+background through an opaque foreground. Candidate ranking and radial diagnostics
+retain their existing definitions; horizontal floor matches cannot compensate
+for unsupported walls.
+
+A finite failed witness reports `directional_visibility_insufficient_support`.
+Low support alone does not prove geometric contradiction: missing map coverage,
+occlusion and angular discretization can also reduce it. Known/unknown bearing
+counts and nearer-map-return diagnostics remain separate. No universal cross-scene
+calibration of 0.5 is claimed. See the [issue #10 evidence](evidence/directional_visibility_20261103.json).
+
 The [Atlas cache audit](evidence/atlas_cache_20261029.json) distinguishes that
 frozen regression fixture from normal deployment. Its explicit legacy Atlas
 omits descriptor precomputation; the existing default path checks cache currency
