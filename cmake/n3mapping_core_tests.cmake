@@ -66,7 +66,6 @@ foreach(name
     test_synthetic_relocalization
     test_trajectory_checkpoint
     test_visibility_consistency
-    test_world_localizing
 )
   n3mapping_add_core_test(${name} LIBRARIES n3mapping_core)
 endforeach()
@@ -86,6 +85,10 @@ n3mapping_add_core_test(test_localization_episode
           ${N3MAPPING_ROOT}/test/test_localization_recovery.cpp
   LIBRARIES n3mapping_core ${JSONCPP_LIBRARIES})
 n3mapping_add_core_test(test_realtime_output LIBRARIES n3mapping_core ${JSONCPP_LIBRARIES})
+n3mapping_add_core_test(test_world_localizing
+  SOURCES ${N3MAPPING_ROOT}/test/test_world_localizing.cpp
+          ${N3MAPPING_ROOT}/test/test_directional_reference.cpp
+  LIBRARIES n3mapping_core)
 n3mapping_add_core_test(test_joint_geometry LIBRARIES n3mapping_core ${JSONCPP_LIBRARIES})
 foreach(name test_localization_episode test_realtime_output test_joint_geometry)
   if(TARGET ${name})

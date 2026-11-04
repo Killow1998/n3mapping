@@ -1,0 +1,235 @@
+{
+  "date": "2026-11-04",
+  "issue": "https://github.com/Killow1998/n3mapping/issues/10",
+  "source_base_commit": "47d6201e356bfd2496fbcbf16e7be0cfaf7d83eb",
+  "scope": "Repair a second false directional veto caused by treating fused visits as one coherent first-return observation. Retain all acceptance thresholds and interfaces.",
+  "identity": {
+    "product_build_verified": false,
+    "kind": "Independent UNVERIFIED development builds; no installation, release tag or navigation frozen library replaced.",
+    "humble_baseline_core_sha256": "8bc4853e2a3999f94254efc211acf4ca97d65f571e32085e0f0f0d2308e3dd37",
+    "humble_candidate_core_sha256": "28f5974d5e813c92cad10f6652fa633ba18cc490336dd1a5829ce7b31b6f928e",
+    "noetic_installed_core_sha256": "b7607b7ace173bb11d22fe9fbeca30830e2ae5371ae1193c5e8c4f937139a0c2",
+    "noetic_devel_core_sha256": "038be68c5ed08e815ebf0853518d6516397111c6bf6ee87e6c2ff0b840bcada5",
+    "noetic_image": "n3mapping-noetic-rc4:20261027",
+    "noetic_image_id": "sha256:88042bb43c372c712cae2903116de092968cd1191348232004008631a6e81b9c",
+    "source_files_sha256": {
+      "src/world_localizing_relocalization.cpp": "7f9753a3348a26f076ec9a2b8ce3ee2bc4e7d2c8b2d32c95176c78ac4595df5c",
+      "cmake/n3mapping_core_tests.cmake": "b7c0993eb85b1c1dd7cf225e1155b841402b0458209405fc31b9c95873ede701",
+      "test/test_directional_reference.cpp": "fd4cca9baa776bbcd1bbe4d84ddbd5563058c08fabec896cefdc6ea902d089d9"
+    }
+  },
+  "execution": {
+    "cpu_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "workers": 4,
+    "build_type": "Release",
+    "compiler_launcher": "ccache in final Humble and Noetic configurations",
+    "replay_rate": 0,
+    "omp_wait_policy": "PASSIVE",
+    "openblas_threads": 1,
+    "performance_scope": "Serial full-input A/B replays. Process CPU includes all workers; CPU/input-duration includes both search and tracking and is not active-search occupancy. First-lock wall time excludes map loading.",
+    "cache_scope": "Identical frozen explicit legacy Atlas in both variants; loading and RSS are not current default-cache startup measurements."
+  },
+  "diagnosis": {
+    "saved_map_reference": {
+      "provenance": "Map-derived observations, evaluated at saved-map poses, not independent hardware ground truth. These poses are only used in offline diagnostics, never supplied to relocalization.",
+      "fused_support": 0.42771763904402,
+      "single_reference_support": 0.9738806811158996,
+      "temporal_submap_support": 0.44220320941334984,
+      "nearest_point_check": "Every query return had a map neighbor within 0.1 m; lack of map surface coverage did not explain this witness failure.",
+      "runtime_scope": "This snippet is rejected earlier by ambiguity/margin checks. The oracle demonstrates a possible final-witness veto, not a newly successful full relocalization."
+    },
+    "alternatives_rejected": [
+      "Replacing the fused map with a single stored cloud loses support on three projected views whose fused-map witnesses pass.",
+      "A temporal submap union still fails the reproduced saved-map reference.",
+      "Changing angular resolution or bin origin can change the score but does not repair the mixed-observation model."
+    ]
+  },
+  "implementation": {
+    "threshold": 0.5,
+    "trigger": "Only a finite insufficient fused-map witness reaches the coherent-reference recheck. Unavailable or unobservable geometry keeps its existing rejection.",
+    "references": "At most the candidate seed and support keyframes; duplicate IDs evaluated once. Existing clouds and optimized poses are used.",
+    "acceptance": "One complete observation must independently exceed 0.5 in all planar directions. No per-direction maximum across views and no farther-background substitution within a view.",
+    "unchanged": [
+      "candidate ranking",
+      "temporal confirmation",
+      "ambiguity policy",
+      "free-space veto",
+      "registration and geometric quality thresholds"
+    ],
+    "compute": "Reuse the query normal fit. No additional ICP, new spatial index, worker pool or persistent cache. directional_check_ms includes the recheck. Successful reference ID and both support scores are logged."
+  },
+  "validation": {
+    "humble_ctest": "69/69; five ROS checks run with the sourced runtime, localhost-only DDS and workspace log directory.",
+    "noetic_ctest": "67/67 in the existing rc4 validation image.",
+    "new_end_to_end_regression": {
+      "name": "DirectionalReference.StoredObservationMustIndependentlySupportTheCandidate",
+      "baseline": "Correct candidate rejected by fused support about 0.122; negative foreground case also rejected.",
+      "candidate": "Correct candidate locks with independent reference support 1.0 and position error below 0.1 m. When every stored view contains the foreground, support remains about 0.122 and no pose locks.",
+      "ablation": "Same new test executable against the frozen pre-change core fails only the clean-reference expectation; candidate core passes both cases.",
+      "profile": "Existing synthetic relocation fixture with a three-frame window and explicit Atlas. Free-space is disabled only in this focused regression; frozen 14-point and route comparisons use the unchanged product configuration."
+    },
+    "negative_coverage": [
+      "DuplicatedGeometryDoesNotClaimAUniquePlace",
+      "RepeatedPlacesStayUnpublishedAndFreshGeometryCanLock",
+      "OppositeHeadingsInSymmetricGeometryRemainAmbiguous",
+      "MatchingFloorCannotHideContradictoryWalls",
+      "GrazingSamplesDoNotHideRealForegroundBlockers"
+    ],
+    "fixed14": {
+      "baseline": {
+        "positions": 14,
+        "input_frames": 4144,
+        "output_frames": 4088,
+        "first_lock_frames": [
+          4
+        ],
+        "mean_first_lock_wall_s": 2.285953949071429,
+        "mean_first_lock_cpu_s": 5.035033126571428,
+        "cpu_s_per_input_s": 0.3870965286067357,
+        "peak_rss_mib": 1229.3671875,
+        "alignments": 517,
+        "maximum_position_error_m": 0.024809060892936476,
+        "maximum_rotation_error_deg": 0.08384096407414639
+      },
+      "candidate": {
+        "positions": 14,
+        "input_frames": 4144,
+        "output_frames": 4088,
+        "first_lock_frames": [
+          4
+        ],
+        "mean_first_lock_wall_s": 2.285412226857143,
+        "mean_first_lock_cpu_s": 5.014930575857143,
+        "cpu_s_per_input_s": 0.3862463952417355,
+        "peak_rss_mib": 1229.3671875,
+        "alignments": 517,
+        "maximum_position_error_m": 0.024809060892936476,
+        "maximum_rotation_error_deg": 0.08384096407414636
+      },
+      "behavior_differences": 0,
+      "maximum_live_pose_matrix_delta": 6.661338147750939e-16
+    },
+    "routes": [
+      {
+        "route": "reentry",
+        "comparison": {
+          "frames": 2236,
+          "behavior_differences": {
+            "frame": 0,
+            "stamp_ns": 0,
+            "success": 0,
+            "lock": 0,
+            "state": 0,
+            "pose_source": 0,
+            "decision": 0,
+            "seed": 0,
+            "support": 0,
+            "matched": 0,
+            "live": 0,
+            "alignments": 0
+          },
+          "maximum_live_pose_matrix_delta": 1.5987211554602254e-14
+        },
+        "baseline": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "cpu_s": 55.937744807,
+          "input_s": 223.5,
+          "equivalent_cores": 0.25028073739149886,
+          "peak_rss_mib": 1229.5234375,
+          "maximum_position_error_m": 0.07936771243843713,
+          "maximum_rotation_error_deg": 0.14198324735232692
+        },
+        "candidate": {
+          "frames": 2236,
+          "outputs": 2232,
+          "locks": [
+            4
+          ],
+          "cpu_s": 56.012353122,
+          "input_s": 223.5,
+          "equivalent_cores": 0.2506145553557047,
+          "peak_rss_mib": 1229.64453125,
+          "maximum_position_error_m": 0.0793677124384354,
+          "maximum_rotation_error_deg": 0.14198324735233567
+        }
+      },
+      {
+        "route": "independent",
+        "comparison": {
+          "frames": 3666,
+          "behavior_differences": {
+            "frame": 0,
+            "stamp_ns": 0,
+            "success": 0,
+            "lock": 0,
+            "state": 0,
+            "pose_source": 0,
+            "decision": 0,
+            "seed": 0,
+            "support": 0,
+            "matched": 0,
+            "live": 0,
+            "alignments": 0
+          },
+          "maximum_live_pose_matrix_delta": 5.684341886080802e-14
+        },
+        "baseline": {
+          "frames": 3666,
+          "outputs": 3662,
+          "locks": [
+            4,
+            1938
+          ],
+          "cpu_s": 119.31952106600001,
+          "input_s": 366.5,
+          "equivalent_cores": 0.32556485966166443,
+          "peak_rss_mib": 1229.8046875,
+          "maximum_position_error_m": 0.03246851633697608,
+          "maximum_rotation_error_deg": 0.2641706757291813
+        },
+        "candidate": {
+          "frames": 3666,
+          "outputs": 3662,
+          "locks": [
+            4,
+            1938
+          ],
+          "cpu_s": 119.1874552,
+          "input_s": 366.5,
+          "equivalent_cores": 0.32520451623465213,
+          "peak_rss_mib": 1229.5390625,
+          "maximum_position_error_m": 0.032468516336980495,
+          "maximum_rotation_error_deg": 0.2641706757292131
+        }
+      }
+    ],
+    "multilevel_map_derived_short_replays": {
+      "cases": 8,
+      "frames_per_case_per_variant": 30,
+      "provenance": "Map-projected and archived-keyframe-derived clouds with fixed dropout/noise; not raw independent sensor recordings.",
+      "baseline_locked": 4,
+      "candidate_locked": 4,
+      "incorrect_candidate": "The previously identified approximately 12 m wrong candidate remains unpublished.",
+      "remaining": "Three other snippets remain behind ambiguity/margin checks. They were not all directional-support rejections."
+    },
+    "protected_artifacts": {
+      "checked": 17,
+      "unchanged": 17,
+      "differences": []
+    }
+  },
+  "interpretation": "This stage repairs a reproduced representation error and preserves the frozen accuracy/reliability baseline. First-lock latency, total CPU and RSS are effectively unchanged on that baseline; this is not a compute-acceleration claim.",
+  "remaining": [
+    "No universal probabilistic or cross-scene calibration of 0.5 is claimed. Limited coverage and genuinely ambiguous geometry can still remain searching.",
+    "Independent raw hardware inputs are still needed to qualify field behavior. Map-derived saved-pose diagnostics cannot establish hardware accuracy."
+  ]
+}

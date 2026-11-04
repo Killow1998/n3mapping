@@ -105,19 +105,30 @@ It assumes largely covered, approximately static geometry. Limited coverage or
 changed occlusion can leave a correct candidate searching; 0.5 is not a theorem
 that separates every correct and incorrect pose.
 
-In the product's first-return mode, a bearing supports its query surface when
-its nearest map return agrees in range or point-to-plane distance, using the
-existing tolerance. Query planes reuse the normal fit already needed by the
-witness. This handles grazing-plane sampling without selecting a farther matching
-background through an opaque foreground. Candidate ranking and radial diagnostics
-retain their existing definitions; horizontal floor matches cannot compensate
-for unsupported walls.
+The witness first checks the fused map. Fusion combines different visits, so an
+old foreground can hide a return supported by another complete observation. If
+the fused map has finite but insufficient support, the final gate independently
+checks the candidate's seed and support keyframe clouds in their optimized
+reference frames. Duplicate references are checked once. One complete observation
+must exceed 0.5 in every planar direction; directional evidence from different
+observations is never pooled. Unobservable query geometry still fails.
+
+Within each tested point cloud, a bearing supports its query surface when its
+nearest return agrees in range or point-to-plane distance, using the existing
+tolerance. This handles grazing-plane sampling without selecting a farther
+matching background through that observation's foreground. The query normal fit
+is reused; the recheck performs no registration. Its time is included in
+`directional_check_ms`; an accepted reference logs its ID and both support scores.
+Candidate ranking, temporal confirmation, ambiguity checks and free-space vetoes
+retain their existing definitions; floor matches cannot compensate for unsupported
+walls.
 
 A finite failed witness reports `directional_visibility_insufficient_support`.
 Low support alone does not prove geometric contradiction: missing map coverage,
 occlusion and angular discretization can also reduce it. Known/unknown bearing
 counts and nearer-map-return diagnostics remain separate. No universal cross-scene
-calibration of 0.5 is claimed. See the [issue #10 evidence](evidence/directional_visibility_20261103.json).
+calibration of 0.5 is claimed. See the [grazing-plane evidence](evidence/directional_visibility_20261103.json)
+and [historical-observation evidence](evidence/directional_reference_20261104.json).
 
 The [Atlas cache audit](evidence/atlas_cache_20261029.json) distinguishes that
 frozen regression fixture from normal deployment. Its explicit legacy Atlas

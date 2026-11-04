@@ -307,6 +307,30 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           *target.visibility_target, visibility_observation,
           top1->T_map_odom * odom_pose, target.visibility_indices.get());
     }
+    if (std::isfinite(witness.planar_min_support) && witness.planar_min_support <= 0.5) {
+      // Fused observations can put an old foreground in front of a return seen
+      // on another visit. Verify one complete stored observation at a time;
+      // never assemble directional support from incompatible observations.
+      const int64_t references[] = {top1->seed_match_id, top1->last_match_id};
+      const int reference_count = references[0] == references[1] ? 1 : 2;
+      for (int i = 0; i < reference_count; ++i) {
+        const auto reference = keyframe_manager_.getKeyframe(references[i]);
+        if (!reference || !reference->cloud) continue;
+        const auto observed_witness = evaluatePreparedVisibilityConsistency(
+            *reference->cloud, visibility_observation,
+            reference->pose_optimized.inverse() * top1->T_map_odom * odom_pose);
+        VLOG(1) << "[Reloc/DirectionalReference] keyframe=" << reference->id
+                << " support=" << observed_witness.planar_min_support;
+        if (observed_witness.planar_min_support > 0.5) {
+          LOG(INFO) << "Relocalization directional support confirmed by stored observation."
+                    << " keyframe=" << reference->id
+                    << " fused_support=" << witness.planar_min_support
+                    << " reference_support=" << observed_witness.planar_min_support;
+          witness = observed_witness;
+          break;
+        }
+      }
+    }
     cost.directional_min_support = witness.planar_min_support;
     cost.directional_check_ms = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - started).count();
