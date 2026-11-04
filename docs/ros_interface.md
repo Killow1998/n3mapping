@@ -46,6 +46,14 @@ seconds; zero observation/correction time means none is available. Forwarding a
 current estimate never refreshes an old observation or correction time. In
 localization mode, `tracking` requires an authoritative full localization pose.
 Other states are `localizing`, `degraded`, `lost`, and `error`.
+
+In localization mode, `localizing`, `degraded`, or `lost` can coexist with a fresh
+`projection.kind=odom` record whose `available` is true. The previous trusted map
+correction still projects current frontend odometry; this does not report a new
+accepted map match. Consumers that allow odometry coasting must check projection
+freshness and their selected map/session separately from `state == tracking`.
+A displayed map or cloud alone does not establish projection freshness.
+
 Mapping reports `initializing` with `waiting_for_static_start_guard` while the
 core's startup protection is holding output, then `tracking` when output is
 available. Invalid mapping input and diverged odometry report `error`; a started
