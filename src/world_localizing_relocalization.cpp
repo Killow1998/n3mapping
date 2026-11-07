@@ -1,3 +1,4 @@
+#include "n3mapping/relocalization_debug_logger.h"
 #include "n3mapping/world_localizing.h"
 
 #include <algorithm>
@@ -123,7 +124,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   // Retrieval needs no registration representation. Prepare once on the
   // calling thread, only when candidates or hypotheses need verification.
   RelocalizationObservation prepared_observation;
-  auto& visibility_observation = prepared_observation.visibility;
   const auto prepare_query = [&]() {
     prepared_observation.prepare(query_cloud, matcher_, config_, cost);
   };
@@ -174,52 +174,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   }
 
   if (reloc_debug_enabled) {
-    debug_event.hypotheses.clear();
-    debug_event.hypotheses.reserve(hypothesis_manager_.size());
-    for (const auto &hyp : hypothesis_manager_.hypotheses()) {
-      RelocDebugHypothesisSummary summary;
-      summary.tracking_proposal = hyp.tracking_proposal;
-      summary.seed_match_id = hyp.seed_match_id;
-      summary.last_match_id = hyp.last_match_id;
-      summary.pose_in_map = hyp.T_map_odom * odom_pose;
-      summary.cumulative_log_likelihood = hyp.cumulative_log_likelihood;
-      summary.num_updates = hyp.num_updates;
-      summary.observations = hypothesis_manager_.windowCount() - hyp.first_observation + 1;
-      summary.converged_updates = hyp.converged_updates;
-      summary.visibility_updates = hyp.visibility_updates;
-      summary.mean_visibility_consistency =
-          hyp.visibility_updates > 0
-              ? hyp.visibility_consistency_sum /
-                    static_cast<double>(hyp.visibility_updates)
-              : std::numeric_limits<double>::quiet_NaN();
-      summary.mean_visibility_evidence =
-          hyp.visibility_updates > 0
-              ? hyp.visibility_evidence_sum /
-                    static_cast<double>(hyp.visibility_updates)
-              : std::numeric_limits<double>::quiet_NaN();
-      // Initial hypotheses duplicate the basin-best registrations emitted in
-      // the same event. Keep one complete copy to bound shadow logging cost.
-      if (debug_event.basin_best_results.empty()) {
-        summary.registration_observability =
-            hyp.last_registration_observability;
-      }
-      summary.alive = hyp.alive;
-      debug_event.hypotheses.push_back(std::move(summary));
-    }
+    RelocalizationDebugEmitter::captureHypotheses(
+        debug_event, hypothesis_manager_, odom_pose);
   }
 
   const RelocalizationRanking ranking =
       decision_policy_.rank(hypothesis_manager_.hypotheses(), odom_pose);
   const RelocHypothesis *top1 = ranking.top1;
   const RelocHypothesis *top2 = ranking.top2;
-  const double top1_ll = ranking.top1_log_likelihood;
-  const double top2_ll = ranking.top2_log_likelihood;
-  const double top1_visibility = ranking.top1_visibility;
-  const double top2_visibility = ranking.top2_visibility;
-  const bool use_visibility_evidence = ranking.uses_visibility_evidence;
-  const double top1_decision_score = ranking.top1_decision_score;
-  const double margin = ranking.margin;
-  const double ratio = ranking.ratio;
 
   if (top1) {
     result.state = RelocalizationState::PROVISIONAL;
@@ -231,23 +193,17 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         debug_event.runner_up_seed_match_id = top2->seed_match_id;
         debug_event.runner_up_last_match_id = top2->last_match_id;
       }
-      debug_event.temporal_hypothesis_score = top1_decision_score;
-      debug_event.log_likelihood = top1_ll;
-      debug_event.margin = margin;
-      if (use_visibility_evidence) {
-        debug_event.visibility_margin = margin;
-        debug_event.visibility_ratio = ratio;
+      debug_event.temporal_hypothesis_score = ranking.top1_decision_score;
+      debug_event.log_likelihood = ranking.top1_log_likelihood;
+      debug_event.margin = ranking.margin;
+      if (ranking.uses_visibility_evidence) {
+        debug_event.visibility_margin = ranking.margin;
+        debug_event.visibility_ratio = ranking.ratio;
       }
     }
 
-    // A relocalization solution is a physical pose trajectory, not the map
-    // keyframe nearest to the moving sensor. Tracking nearest-keyframe ids here
-    // resets the streak whenever a correct trajectory crosses a keyframe
-    // Voronoi boundary. Comparing the raw map-to-odom translations is also
-    // origin-dependent: a small rotation update around a large global
-    // coordinate can look like a multi-meter translation. Apply both the
-    // previous and current transforms to the current odom pose, then compare
-    // the two physical LiDAR poses at the same instant.
+    // Compare physical LiDAR poses at the same instant to avoid keyframe
+    // boundary changes and origin-dependent transform translation deltas.
     const WinnerStability winner_stability = hypothesis_manager_.observeWinner(
         top1->T_map_odom, odom_pose, config_.reloc_track_max_translation,
         config_.reloc_track_max_rotation);
@@ -261,16 +217,16 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     VLOG(1) << "[Reloc/Stability] window=" << hypothesis_manager_.windowCount()
             << "/" << config_.reloc_temporal_window_size
             << " top1(seed=" << top1->seed_match_id
-            << ",last_kf=" << top1->last_match_id << ",ll=" << top1_ll
+            << ",last_kf=" << top1->last_match_id << ",ll=" << ranking.top1_log_likelihood
             << ",conv_updates=" << top1->converged_updates
-            << ",visibility=" << top1_visibility
+            << ",visibility=" << ranking.top1_visibility
             << ",updates=" << top1->num_updates << ")"
             << " top2(seed=" << (top2 ? top2->seed_match_id : -1)
             << ",last_kf=" << (top2 ? top2->last_match_id : -1)
-            << ",ll=" << (top2 ? top2_ll : -1e9)
-            << ",visibility=" << top2_visibility << ")"
-            << " margin=" << margin << " evidence="
-            << (use_visibility_evidence ? "visibility" : "legacy_loglik")
+            << ",ll=" << (top2 ? ranking.top2_log_likelihood : -1e9)
+            << ",visibility=" << ranking.top2_visibility << ")"
+            << " margin=" << ranking.margin << " evidence="
+            << (ranking.uses_visibility_evidence ? "visibility" : "legacy_loglik")
             << " winner_streak=" << winner_stability.streak
             << " winner_pose_delta=(" << winner_stability.translation_delta
             << "m," << winner_stability.rotation_delta << "rad)";
@@ -363,60 +319,39 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         ranking, winner_observations, hypothesis_manager_.winnerStreak(),
         motion_baseline, free_space_best, odom_pose);
   }
-  const int effective_temporal_window = decision.effective_temporal_window;
   if (decision.temporal_window_pending) {
     VLOG(1) << "Relocalization pending: winner observations "
             << winner_observations << "/"
-            << effective_temporal_window
+            << decision.effective_temporal_window
             << ", active hypotheses=" << hypothesis_manager_.size();
     finish_debug("pending", "temporal_window_pending");
     return completed_result();
   }
 
-  const int effective_min_winner_streak = decision.effective_min_winner_streak;
-  const int effective_min_converged_updates =
-      decision.effective_min_converged_updates;
-  const double effective_min_margin = decision.effective_min_margin;
-  const bool pass_loglik = decision.pass_log_likelihood;
-  const bool pass_margin = decision.pass_margin;
-  const bool pass_winner_streak = decision.pass_winner_streak;
-  const bool pass_converged_updates = decision.pass_converged_updates;
-  const double evidence_motion_translation = motion_baseline.translation;
-  const double evidence_motion_rotation = motion_baseline.rotation;
-  // Repeated scans from one stationary viewpoint are not independent ray
-  // evidence, so descriptor/registration evidence remains authoritative there.
-  // Once the sensor has moved beyond the existing static-aggregation contract,
-  // the new viewpoints must not cumulatively disconfirm the pose. Zero log odds
-  // is the model's semantic support/opposition boundary, not a tuned score.
+  // Stationary repeats do not add independent visibility evidence.
   VLOG(1) << "[Reloc/Baseline] window=" << hypothesis_manager_.windowCount()
           << " persisted=" << hypothesis_manager_.persistedFrames()
-          << " motion_translation_m=" << evidence_motion_translation
-          << " motion_rotation_deg=" << evidence_motion_rotation * 180.0 / M_PI;
-  const bool moving_visibility_required = decision.moving_visibility_required;
-  const bool pass_moving_visibility = decision.pass_moving_visibility;
-  const bool top2_viable = decision.top2_viable;
-  const double basin_separation = ranking.basin_separation;
-  const bool ambiguous = decision.ambiguous;
+          << " motion_translation_m=" << motion_baseline.translation
+          << " motion_rotation_deg=" << motion_baseline.rotation * 180.0 / M_PI;
   if (reloc_debug_enabled) {
-    debug_event.temporal_hypothesis_score = top1_decision_score;
-    debug_event.log_likelihood = top1_ll;
+    debug_event.temporal_hypothesis_score = ranking.top1_decision_score;
+    debug_event.log_likelihood = ranking.top1_log_likelihood;
     debug_event.winner_streak = hypothesis_manager_.winnerStreak();
-    debug_event.evidence_motion_translation = evidence_motion_translation;
-    debug_event.evidence_motion_rotation = evidence_motion_rotation;
-    debug_event.moving_visibility_required = moving_visibility_required;
-    debug_event.moving_visibility_passed = pass_moving_visibility;
-    debug_event.margin = margin;
-    debug_event.ratio = ratio;
-    debug_event.basin_separation = basin_separation;
-    if (use_visibility_evidence) {
-      debug_event.visibility_margin = margin;
-      debug_event.visibility_ratio = ratio;
+    debug_event.evidence_motion_translation = motion_baseline.translation;
+    debug_event.evidence_motion_rotation = motion_baseline.rotation;
+    debug_event.moving_visibility_required = decision.moving_visibility_required;
+    debug_event.moving_visibility_passed = decision.pass_moving_visibility;
+    debug_event.margin = ranking.margin;
+    debug_event.ratio = ranking.ratio;
+    debug_event.basin_separation = ranking.basin_separation;
+    if (ranking.uses_visibility_evidence) {
+      debug_event.visibility_margin = ranking.margin;
+      debug_event.visibility_ratio = ranking.ratio;
     }
   }
 
   // Free-space disagreement vetoes the ranked winner.
-  const bool pass_free_space = decision.pass_free_space;
-  if (!pass_free_space) {
+  if (!decision.pass_free_space) {
     VLOG(1) << "[Reloc/FreeSpace] veto: free-space best disagrees with ranked "
                "top1";
   }
@@ -470,31 +405,31 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
               << result.seed_keyframe_id
               << " support_kf=" << result.support_keyframe_id
               << ", cumulative_loglik=" << best.cumulative_log_likelihood
-              << ", guard(loglik=" << pass_loglik << ", margin=" << pass_margin
-              << ", winner_streak=" << pass_winner_streak
-              << ", converged_updates=" << pass_converged_updates
-              << ", moving_visibility=" << pass_moving_visibility
-              << ", ambiguous=" << ambiguous << ")"
-              << ", margin_value=" << margin
+              << ", guard(loglik=" << decision.pass_log_likelihood << ", margin=" << decision.pass_margin
+              << ", winner_streak=" << decision.pass_winner_streak
+              << ", converged_updates=" << decision.pass_converged_updates
+              << ", moving_visibility=" << decision.pass_moving_visibility
+              << ", ambiguous=" << decision.ambiguous << ")"
+              << ", margin_value=" << ranking.margin
               << ", winner_streak_value=" << hypothesis_manager_.winnerStreak()
               << ", converged_updates_value=" << best.converged_updates
-              << ", ratio_value=" << ratio
-              << ", basin_separation=" << basin_separation;
+              << ", ratio_value=" << ranking.ratio
+              << ", basin_separation=" << ranking.basin_separation;
     finish_debug("accepted", "");
     releaseSearchPreparation();
   } else {
     const std::string &reject_reason = decision.reject_reason;
-    if (ambiguous) {
+    if (decision.ambiguous) {
       LOG(WARNING) << "AMBIGUOUS_REJECT relocalization lock: top1_seed="
                    << (top1 ? top1->seed_match_id : -1)
                    << " top1_kf=" << (top1 ? top1->last_match_id : -1)
-                   << " top1_ll=" << top1_ll
+                   << " top1_ll=" << ranking.top1_log_likelihood
                    << " top2_seed=" << (top2 ? top2->seed_match_id : -1)
                    << " top2_kf=" << (top2 ? top2->last_match_id : -1)
-                   << " top2_ll=" << top2_ll << " margin=" << margin
-                   << " ratio=" << ratio
-                   << " basin_separation=" << basin_separation
-                   << " top2_viable=" << top2_viable << " thresholds(margin>="
+                   << " top2_ll=" << ranking.top2_log_likelihood << " margin=" << ranking.margin
+                   << " ratio=" << ranking.ratio
+                   << " basin_separation=" << ranking.basin_separation
+                   << " top2_viable=" << decision.top2_viable << " thresholds(margin>="
                    << config_.reloc_ambiguity_min_margin
                    << ", ratio>=" << config_.reloc_ambiguity_min_ratio
                    << ", basin_sep>="
@@ -504,25 +439,25 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           << "Relocalization rejected after temporal window by stability guard."
           << " top1_seed=" << (top1 ? top1->seed_match_id : -1)
           << " top1_kf=" << (top1 ? top1->last_match_id : -1)
-          << " top1_ll=" << top1_ll
+          << " top1_ll=" << ranking.top1_log_likelihood
           << " top2_seed=" << (top2 ? top2->seed_match_id : -1)
-          << " top2_ll=" << top2_ll << " margin=" << margin
-          << " ratio=" << ratio << " basin_separation=" << basin_separation
+          << " top2_ll=" << ranking.top2_log_likelihood << " margin=" << ranking.margin
+          << " ratio=" << ranking.ratio << " basin_separation=" << ranking.basin_separation
           << " winner_streak=" << hypothesis_manager_.winnerStreak()
           << " top1_converged_updates=" << (top1 ? top1->converged_updates : 0)
-          << " evidence_motion=(" << evidence_motion_translation << "m,"
-          << evidence_motion_rotation << "rad)"
-          << " moving_visibility_required=" << moving_visibility_required
-          << " top1_visibility=" << top1_visibility
+          << " evidence_motion=(" << motion_baseline.translation << "m,"
+          << motion_baseline.rotation << "rad)"
+          << " moving_visibility_required=" << decision.moving_visibility_required
+          << " top1_visibility=" << ranking.top1_visibility
           << " require(loglik>=" << config_.reloc_lock_log_likelihood_threshold
-          << ", margin>=" << effective_min_margin
-          << ", winner_streak>=" << effective_min_winner_streak
-          << ", converged_updates>=" << effective_min_converged_updates << ")"
-          << " pass(loglik=" << pass_loglik << ", margin=" << pass_margin
-          << ", winner_streak=" << pass_winner_streak
-          << ", converged_updates=" << pass_converged_updates
-          << ", moving_visibility=" << pass_moving_visibility
-          << ", free_space=" << pass_free_space << ")"
+          << ", margin>=" << decision.effective_min_margin
+          << ", winner_streak>=" << decision.effective_min_winner_streak
+          << ", converged_updates>=" << decision.effective_min_converged_updates << ")"
+          << " pass(loglik=" << decision.pass_log_likelihood << ", margin=" << decision.pass_margin
+          << ", winner_streak=" << decision.pass_winner_streak
+          << ", converged_updates=" << decision.pass_converged_updates
+          << ", moving_visibility=" << decision.pass_moving_visibility
+          << ", free_space=" << decision.pass_free_space << ")"
           << " reason=" << reject_reason
           << " directional_support=" << cost.directional_min_support
           << " free_cells=" << free_space_grid_.freeCells();

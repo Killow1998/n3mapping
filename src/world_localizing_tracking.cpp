@@ -1,3 +1,4 @@
+#include "n3mapping/relocalization_debug_logger.h"
 #include "n3mapping/world_localizing.h"
 
 #include <algorithm>

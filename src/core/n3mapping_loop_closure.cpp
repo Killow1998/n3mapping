@@ -1,5 +1,5 @@
 #include "n3mapping/core/n3mapping_core.h"
-#include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping_session.h"
 #include "loop_closure_processing.h"
 #include "loop_closure_async.h"
 #include <algorithm>
@@ -44,13 +44,13 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
       continue;
     }
 
-    auto query_kf = session_->keyframeManager().getKeyframe(query_id);
+    auto query_kf = session_->keyframes.getKeyframe(query_id);
     if (!query_kf) {
       continue;
     }
 
     std::map<int64_t, Keyframe::Ptr> keyframe_map;
-    for (const auto &keyframe : session_->keyframeManager().getAllKeyframes()) {
+    for (const auto &keyframe : session_->keyframes.getAllKeyframes()) {
       if (keyframe) {
         keyframe_map[keyframe->id] = keyframe;
       }
@@ -62,11 +62,11 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
       return !(predicted.translation().norm() > config_.loop_max_range);
     };
     std::vector<LoopCandidate> candidates =
-        session_->loopDetector().detectLoopCandidates(query_id, keyframe_map, {},
+        session_->detector.detectLoopCandidates(query_id, keyframe_map, {},
                                                       within_work_bound);
     if (config_.loop_spatial_candidates_enable) {
       auto spatial_candidates =
-          session_->loopDetector().detectSpatialCandidates(query_id,
+          session_->detector.detectSpatialCandidates(query_id,
                                                            keyframe_map, {}, true);
       for (const auto &spatial : spatial_candidates) {
         auto duplicate =
@@ -156,9 +156,9 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
   }
   CoreLoopClosureResult detection;
   const auto queries = detectPendingLoopCandidates(detection);
-  auto outcome = processLoopCandidates(config_, session_->keyframeManager(),
-      session_->pointCloudMatcher(), session_->graphOptimizer(),
-      session_->loopClosureManager(), queries);
+  auto outcome = processLoopCandidates(config_, session_->keyframes,
+      session_->matcher, session_->optimizer,
+      session_->loops, queries);
   publishLoopOutcome(outcome);
   outcome.summary.queued_keyframe_count = detection.queued_keyframe_count;
   outcome.summary.detected_candidate_count = detection.detected_candidate_count;

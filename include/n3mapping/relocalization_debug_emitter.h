@@ -4,10 +4,14 @@
 #include <mutex>
 #include <string>
 
-#include "n3mapping/config.h"
-#include "n3mapping/relocalization_debug_logger.h"
+#include <Eigen/Geometry>
 
 namespace n3mapping {
+
+struct Config;
+struct RelocalizationDebugEvent;
+struct RelocTrackingDebugEvent;
+class RelocalizationHypothesisManager;
 
 // Owns debug-event sequencing and persistence. Callers populate the event
 // payload; this class adds the per-stream index and terminal fields without
@@ -20,6 +24,9 @@ public:
 
   RelocalizationDebugEvent beginRelocalization();
   RelocTrackingDebugEvent beginTracking();
+  static void captureHypotheses(RelocalizationDebugEvent& event,
+      const RelocalizationHypothesisManager& hypotheses,
+      const Eigen::Isometry3d& odom_pose);
 
   void finishRelocalization(RelocalizationDebugEvent &event,
                             const std::string &lock_result,

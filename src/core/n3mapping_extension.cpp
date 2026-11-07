@@ -1,5 +1,5 @@
 #include "n3mapping/core/n3mapping_core.h"
-#include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping_session.h"
 #include "n3mapping/async_log.h"
 #include <chrono>
 
@@ -12,7 +12,7 @@ bool N3MappingCore::startMapExtension(std::string* error) {
     return false;
   };
   if (!map_loaded_) return reject("map_not_loaded");
-  auto& resuming = session_->mappingResuming();
+  auto& resuming = session_->resuming;
   const auto state = resuming.getState();
   if (state == MappingResumingState::RELOCALIZED ||
       state == MappingResumingState::EXTENDING) return true;
@@ -62,8 +62,8 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     return output;
   };
 
-  auto &resuming = session_->mappingResuming();
-  auto &localizer = session_->worldLocalizing();
+  auto &resuming = session_->resuming;
+  auto &localizer = session_->localizer;
   const auto state = resuming.getState();
   // An established anchor belongs to one LIO coordinate frame. Never connect
   // a changed source frame to that session's odometry chain.
@@ -110,7 +110,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
       output.relocalization_seed_keyframe_id = matched_id;
       output.relocalization_support_keyframe_id = matched_id;
       output.matched_keyframe_id = matched_id;
-      auto matched_kf = session_->keyframeManager().getKeyframe(matched_id);
+      auto matched_kf = session_->keyframes.getKeyframe(matched_id);
       if (!external_dense_trajectory_recording_enabled_ && matched_kf) {
         appendDenseTrajectorySample(timestamp, output.T_world_lidar, matched_id,
                                     matched_kf->pose_optimized, false);
@@ -151,8 +151,8 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     if (!external_dense_trajectory_recording_enabled_) {
       const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
       auto anchor = tracked
-          ? session_->keyframeManager().getKeyframe(tracking.matched_keyframe_id)
-          : session_->keyframeManager().getLatestKeyframe();
+          ? session_->keyframes.getKeyframe(tracking.matched_keyframe_id)
+          : session_->keyframes.getLatestKeyframe();
       if (anchor) {
         const bool loaded = anchor->is_from_loaded_map;
         appendDenseTrajectorySample(timestamp, loaded ? pose_map : frame.T_world_lidar,
@@ -197,12 +197,12 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   output.accepted_keyframe = keyframe_id >= 0;
   output.keyframe_id = keyframe_id >= 0 ? keyframe_id : reused_acquisition_id;
   if (!external_dense_trajectory_recording_enabled_ && keyframe_id >= 0) {
-    if (auto kf = session_->keyframeManager().getKeyframe(keyframe_id)) {
+    if (auto kf = session_->keyframes.getKeyframe(keyframe_id)) {
       appendDenseTrajectorySample(timestamp, kf->pose_odom, keyframe_id,
                                   kf->pose_odom, false);
     }
   } else if (!external_dense_trajectory_recording_enabled_ && reused_acquisition_id >= 0) {
-    if (auto anchor = session_->keyframeManager().getKeyframe(tracking.matched_keyframe_id)) {
+    if (auto anchor = session_->keyframes.getKeyframe(tracking.matched_keyframe_id)) {
       appendDenseTrajectorySample(timestamp, pose_map, anchor->id,
                                   anchor->pose_optimized, false);
     }

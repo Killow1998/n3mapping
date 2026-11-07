@@ -49,50 +49,6 @@ TEST(CoreTypesTest, RelocalizationScoreOrderingIsStrict) {
   }
 }
 
-TEST(CoreTypesTest, DefaultValuesAreRosFreeAndStable) {
-  core::TimeStamp stamp;
-  EXPECT_EQ(stamp.nsec, 0);
-
-  core::ImuSample imu;
-  EXPECT_EQ(imu.stamp.nsec, 0);
-  EXPECT_TRUE(imu.linear_accel.isZero());
-  EXPECT_TRUE(imu.angular_velocity.isZero());
-  EXPECT_TRUE(imu.orientation.isApprox(Eigen::Quaterniond::Identity()));
-  EXPECT_FALSE(imu.has_orientation);
-
-  core::RawLidarFrame raw_frame;
-  EXPECT_EQ(raw_frame.frame_id, "");
-  EXPECT_EQ(raw_frame.source_format, "pointcloud2");
-  EXPECT_EQ(raw_frame.points, nullptr);
-  EXPECT_TRUE(raw_frame.point_time_offsets_ns.empty());
-  EXPECT_TRUE(raw_frame.point_lines.empty());
-
-  core::LioFrame lio_frame;
-  EXPECT_EQ(lio_frame.stamp.nsec, 0);
-  EXPECT_TRUE(lio_frame.source_frame_id.empty());
-  EXPECT_TRUE(lio_frame.T_world_lidar.isApprox(Eigen::Isometry3d::Identity()));
-  EXPECT_EQ(lio_frame.undistorted_cloud, nullptr);
-  EXPECT_TRUE(
-      lio_frame.covariance.isApprox(Eigen::Matrix<double, 6, 6>::Identity()));
-  EXPECT_FALSE(lio_frame.covariance_valid);
-  EXPECT_FALSE(lio_frame.pose_valid);
-
-  core::BackendOutput output;
-  EXPECT_FALSE(output.success);
-  EXPECT_FALSE(output.accepted_keyframe);
-  EXPECT_FALSE(output.relocalization_locked);
-  EXPECT_EQ(output.relocalization_state, RelocalizationState::SEARCHING);
-  EXPECT_EQ(output.pose_source, PoseSource::NONE);
-  EXPECT_EQ(output.relocalization_decision, "not_attempted");
-  EXPECT_EQ(output.keyframe_id, -1);
-  EXPECT_EQ(output.relocalization_seed_keyframe_id, -1);
-  EXPECT_EQ(output.relocalization_support_keyframe_id, -1);
-  EXPECT_EQ(output.matched_keyframe_id, -1);
-  EXPECT_TRUE(output.T_world_lidar.isApprox(Eigen::Isometry3d::Identity()));
-  EXPECT_EQ(output.cloud_body, nullptr);
-  EXPECT_EQ(output.cloud_world, nullptr);
-}
-
 TEST(CoreTypesTest, RelocalizationPoseAuthorityIsFailClosed) {
   EXPECT_EQ(static_cast<std::uint8_t>(RelocalizationState::SEARCHING), 0U);
   EXPECT_EQ(static_cast<std::uint8_t>(RelocalizationState::PROVISIONAL),

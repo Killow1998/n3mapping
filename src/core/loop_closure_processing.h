@@ -1,11 +1,12 @@
 // Geometry and graph work shared by synchronous replay and the isolated worker.
 #pragma once
 #include <chrono>
-#include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/core/loop_closure_result.h"
 #include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_debug_logger.h"
 namespace n3mapping {
 class GraphOptimizer;
+class KeyframeManager;
 class PointCloudMatcher;
 struct DetectedLoopQuery {
   int64_t id = -1;

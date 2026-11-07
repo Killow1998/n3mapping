@@ -1,5 +1,5 @@
 #include "n3mapping/core/n3mapping_core.h"
-#include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping_session.h"
 #include "n3mapping/async_log.h"
 #include "n3mapping/n3map_proto_utils.h"
 #include <limits>
@@ -59,26 +59,26 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
     PbstreamLoadOptions options;
     options.allow_keyframe_fallback_dense = true;
     options.rebuild_descriptors = false;
-    if (!candidate->mapSerializer().loadMap(
-            map_path, candidate->keyframeManager(), candidate->loopDetector(),
-            candidate->graphOptimizer(), &loaded_dense_optimized,
-            &loaded_dense_metadata, options, &candidate->submapBuilder())) {
+    if (!candidate->serializer.loadMap(
+            map_path, candidate->keyframes, candidate->detector,
+            candidate->optimizer, &loaded_dense_optimized,
+            &loaded_dense_metadata, options, &candidate->submaps)) {
       return false;
     }
-    if (!candidate->mappingResuming().initializeFromLoadedMap()) {
+    if (!candidate->resuming.initializeFromLoadedMap()) {
       return false;
     }
 
     std::string atlas_error;
-    if (!candidate->worldLocalizing().loadLocalizationAtlas(map_path,
-                                                            &atlas_error, &candidate->loopDetector())) {
+    if (!candidate->localizer.loadLocalizationAtlas(map_path,
+                                                            &atlas_error, &candidate->detector)) {
       LOG(ERROR) << "Failed to load localization atlas: " << atlas_error << '\n';
       return false;
     }
 
     auto loaded_dense_samples = anchorDenseTrajectory(
         loaded_dense_optimized,
-        candidate->keyframeManager().getAllKeyframes());
+        candidate->keyframes.getAllKeyframes());
 
     // Every fallible map-specific step completed against the candidate. The
     // session owns all cross-referenced components, so one pointer swap is the

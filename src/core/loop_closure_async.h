@@ -1,13 +1,17 @@
 #pragma once
 #include <chrono>
 #include <condition_variable>
-#include <deque>
+#include <memory>
+#include <vector>
 #include <future>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
 #include <utility>
 #include "loop_closure_processing.h"
+#include "n3mapping/graph_optimizer.h"
+#include "n3mapping/keyframe_manager.h"
+#include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/localization_atlas.h"
 
 namespace n3mapping {

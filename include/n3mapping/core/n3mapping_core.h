@@ -16,10 +16,10 @@
 #include "n3mapping/keyframe.h"
 #include "n3mapping/loop_types.h"
 #include "n3mapping/keyframe_manager.h"
-#include "n3mapping/planar_geometry.h"
+#include "n3mapping/core/loop_closure_result.h"
 
 namespace n3mapping {
-namespace core { class N3MappingSession; }
+namespace core { struct N3MappingSession; }
 struct LoopDebugCandidateEvent;
 struct LoopDebugOptimizationEvent;
 struct RegistrationSeedProbeResult;
@@ -28,34 +28,6 @@ struct DetectedLoopQuery;
 struct LoopClosureOutcome;
 struct AsyncLoopState;
 
-struct CoreLoopClosureResult {
-    bool optimized = false;
-    std::size_t queued_keyframe_count = 0;
-    std::size_t detected_candidate_count = 0;
-    std::size_t place_candidate_count = 0;
-    std::size_t edge_count = 0;
-    std::size_t graph_edge_count = 0;
-    std::size_t pose_update_count = 0;
-    double loop_residual_translation_before = 0.0;
-    double loop_residual_translation_after = 0.0;
-    double loop_residual_rotation_before = 0.0;
-    double loop_residual_rotation_after = 0.0;
-    double mean_pose_update_translation = 0.0;
-    double max_pose_update_translation = 0.0;
-    double mean_pose_update_rotation = 0.0;
-    double max_pose_update_rotation = 0.0;
-    std::vector<VerifiedLoop> accepted_loops;
-    bool async_pending = false;
-    std::size_t pending_query_count = 0;
-    std::size_t graph_rebase_count = 0;
-    std::size_t stale_job_count = 0;
-    double worker_wall_ms = 0.0;
-    double oldest_pending_age_ms = 0.0;
-    double snapshot_ms = 0.0;
-    double commit_ms = 0.0;
-    GeometryOptimizationStats geometry;
-    double atlas_prepare_ms = 0.0;
-};
 
 class N3MappingCore {
   public:
@@ -124,7 +96,6 @@ class N3MappingCore {
     void appendDenseTrajectorySampleWithLatestAnchor(double timestamp,
                                                      const Eigen::Isometry3d& raw_pose,
                                                      bool use_bracketing_correction = true);
-    std::vector<core::DenseTrajectoryPose> buildDenseOptimizedTrajectory() const;
     Eigen::Isometry3d interpolateDenseCorrection(
         double timestamp, const std::vector<Keyframe::Ptr>& time_index) const;
     void addRhpdDescriptorForKeyframe(int64_t keyframe_id, const PointCloud::Ptr& fallback_cloud);
