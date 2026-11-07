@@ -316,6 +316,16 @@ source "devel/$N3M_PROFILE/setup.bash"
 
 ## Offline evaluation
 
+Recorded cloud/odometry manifests use the explicit target
+`n3mapping_relocalization_manifest_eval`; it can be built without enabling all
+research targets. Supply `--map`, `--atlas`, `--manifest` and `--output`.
+For a deployment-parameter comparison, `--lock-min-margin VALUE` overrides only
+the lock margin. The report identifies the override in `config_source` and
+records the actual value in `relocalization_contract.lock_min_margin`. Such a run
+is not evidence for the unchanged product defaults. `frame_status.csv` includes
+`directional_checked`, `directional_min_support` and `directional_check_ms`;
+an unchecked witness is not a zero-support observation.
+
 Enable `N3MAPPING_BUILD_RESEARCH_TOOLS=ON` in a separate development build to use
 the research tools below. These commands use Humble; under Noetic use `rosrun`
 in place of `ros2 run`, and `.launch` in place of `.launch.py` for `roslaunch`.

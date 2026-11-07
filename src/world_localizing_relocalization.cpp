@@ -296,36 +296,34 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (!decision.temporal_window_pending && decision.accepted) {
     const auto started = std::chrono::steady_clock::now();
     prepare_query();
+    auto directional_observation = prepareVisibilityObservation(*query_cloud,
+        visibilityOptionsFromConfig(config_),
+        std::max(config_.global_map_voxel_size, config_.gicp_downsampling_resolution));
     prepareVisibilityPlanarSupport(query_cloud,
         odom_pose.rotation().transpose() * Eigen::Vector3d::UnitZ(),
-        &visibility_observation);
+        &directional_observation);
     const auto target = target_provider_->getTarget(makeRelocTargetRequest(top1->last_match_id));
     cost.directional_checked = true;
     VisibilityConsistencyResult witness;
     if (target.hasVisibility()) {
       witness = evaluatePreparedVisibilityConsistency(
-          *target.visibility_target, visibility_observation,
+          *target.visibility_target, directional_observation,
           top1->T_map_odom * odom_pose, target.visibility_indices.get());
     }
     if (std::isfinite(witness.planar_min_support) && witness.planar_min_support <= 0.5) {
-      // Fused observations can put an old foreground in front of a return seen
-      // on another visit. Verify one complete stored observation at a time;
-      // never assemble directional support from incompatible observations.
+      // A fused map can retain foreground from a different visit. Each stored
+      // observation must independently support the candidate; views are not pooled.
       const int64_t references[] = {top1->seed_match_id, top1->last_match_id};
       const int reference_count = references[0] == references[1] ? 1 : 2;
       for (int i = 0; i < reference_count; ++i) {
         const auto reference = keyframe_manager_.getKeyframe(references[i]);
         if (!reference || !reference->cloud) continue;
         const auto observed_witness = evaluatePreparedVisibilityConsistency(
-            *reference->cloud, visibility_observation,
+            *reference->cloud, directional_observation,
             reference->pose_optimized.inverse() * top1->T_map_odom * odom_pose);
         VLOG(1) << "[Reloc/DirectionalReference] keyframe=" << reference->id
                 << " support=" << observed_witness.planar_min_support;
         if (observed_witness.planar_min_support > 0.5) {
-          LOG(INFO) << "Relocalization directional support confirmed by stored observation."
-                    << " keyframe=" << reference->id
-                    << " fused_support=" << witness.planar_min_support
-                    << " reference_support=" << observed_witness.planar_min_support;
           witness = observed_witness;
           break;
         }
@@ -334,19 +332,17 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     cost.directional_min_support = witness.planar_min_support;
     cost.directional_check_ms = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - started).count();
-    // 0.5 is an information-majority policy, not a calibrated probability.
-    // Matching a large floor must not compensate for unsupported walls.
+    // A majority of support is required in EVERY planar motion direction.
+    // Matching a large floor must not compensate for contradictory walls.
     if (!std::isfinite(witness.planar_min_support) || witness.planar_min_support <= 0.5) {
       decision.accepted = false;
       rejected_current_geometry = std::isfinite(witness.planar_min_support);
-      decision.reject_reason = visibility_observation.planar_jacobians.empty()
+      decision.reject_reason = directional_observation.planar_jacobians.empty()
           ? "planar_geometry_unobservable"
           : (std::isfinite(witness.planar_min_support)
-              ? "directional_visibility_insufficient_support" : "directional_visibility_unavailable");
+              ? "directional_visibility_disagreement" : "directional_visibility_unavailable");
     }
     VLOG(1) << "[Reloc/Directional] min_support=" << cost.directional_min_support
-            << " known=" << witness.known_bins << " unknown=" << witness.unknown_bins
-            << " nearer_map_returns=" << witness.foreground_conflict_bins
             << " passed=" << decision.accepted << " ms=" << cost.directional_check_ms;
   }
   if (rejected_current_geometry) {
