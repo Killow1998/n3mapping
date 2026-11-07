@@ -1,6 +1,6 @@
 #include "n3mapping/async_log.h"
 #include "n3mapping/core/n3mapping_core.h"
-#include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping_session.h"
 #include <filesystem>
 #include <cstdlib>
 #include <vector>
@@ -28,7 +28,7 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
   if (!refreshSubmapPoses("save_map")) {
     return false;
   }
-  const auto dense_optimized_trajectory = buildDenseOptimizedTrajectory();
+  const auto dense_optimized_trajectory = getDenseOptimizedTrajectory();
   core::DenseTrajectoryMetadata metadata = dense_trajectory_metadata_;
   if (!dense_optimized_trajectory.empty() &&
       (metadata.source.empty() || metadata.source == "none")) {
@@ -36,7 +36,7 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
     metadata.degraded = false;
   }
   const bool with_atlas = config_.reloc_atlas_enable ||
-                         !session_->graphOptimizer().sharedPlanes().empty();
+                         !session_->optimizer.sharedPlanes().empty();
   // Prepare both files before publication. Atlas SHA binding makes even the
   // short interval between renames fail closed for concurrent readers.
   SaveDirectory stage;
@@ -52,22 +52,22 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
   const std::string pending = with_atlas ? (stage.path / "map").string() : map_path;
   {
     LogOperation serialize("map_save_serialize", map_path);
-    if (!session_->mapSerializer().saveMap(
-        pending, session_->keyframeManager(), session_->loopDetector(),
-        session_->graphOptimizer(), dense_optimized_trajectory, metadata,
-        &session_->submapBuilder())) return false;
+    if (!session_->serializer.saveMap(
+        pending, session_->keyframes, session_->detector,
+        session_->optimizer, dense_optimized_trajectory, metadata,
+        &session_->submaps)) return false;
     serialize.succeed();
   }
   if (!with_atlas) { operation.succeed(); return true; }
   const auto atlas_path = LocalizationAtlas::defaultAtlasPath(map_path);
   const auto pending_atlas = (stage.path / "atlas").string();
   const auto backup_atlas = (stage.path / "atlas.previous").string();
-  LocalizationAtlas atlas(config_, session_->pointCloudMatcher());
+  LocalizationAtlas atlas(config_, session_->matcher);
   LocalizationAtlasStats stats;
   std::string error;
   {
     LogOperation compile("map_save_atlas", map_path);
-    if (!atlas.compileAndSave(pending, session_->keyframeManager().getAllKeyframes(),
+    if (!atlas.compileAndSave(pending, session_->keyframes.getAllKeyframes(),
                             pending_atlas, true, &stats, &error)) {
       LOG(ERROR) << "Map/Atlas save not published: " << error;
       return false;
@@ -100,15 +100,15 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
 
 bool N3MappingCore::saveGlobalMap(const std::string &pcd_path) {
   LogOperation operation("map_save_pcd", pcd_path);
-  const bool saved = session_->mapSerializer().saveGlobalMap(
-      pcd_path, session_->keyframeManager(),
+  const bool saved = session_->serializer.saveGlobalMap(
+      pcd_path, session_->keyframes,
       config_.save_global_map_voxel_size);
   if (saved) operation.succeed();
   return saved;
 }
 
 bool N3MappingCore::saveMapSnapshot(std::string *error) {
-  if (session_->keyframeManager().size() < 1) {
+  if (session_->keyframes.size() < 1) {
     if (error)
       *error = "no_keyframes";
     return false;
@@ -135,8 +135,8 @@ bool N3MappingCore::saveMapSnapshot(std::string *error) {
 }
 
 core::LioFrame::PointCloud::Ptr N3MappingCore::buildGlobalMap() const {
-  return session_->mapSerializer().buildGlobalMap(
-      session_->keyframeManager(), config_.global_map_voxel_size);
+  return session_->serializer.buildGlobalMap(
+      session_->keyframes, config_.global_map_voxel_size);
 }
 
 } // namespace n3mapping

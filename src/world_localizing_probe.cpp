@@ -41,31 +41,29 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
   const auto& visibility_observation = observation.visibility;
   const auto &target = localization_atlas_->preparedTarget();
 
-  const auto finish_attempt = [&](RegistrationSeedProbeAttempt *attempt) {
-    if (!attempt)
-      return;
-    const auto quality = evaluateRelocMatchQuality(attempt->match, config_);
-    attempt->fitness_pass = quality.fitness_pass;
-    attempt->inlier_pass = quality.inlier_pass;
-    attempt->derived_confidence = quality.confidence;
-    attempt->confidence_pass = quality.confidence_pass;
-    attempt->production_quality_pass = quality.accepted;
+  const auto finish_attempt = [&](RegistrationSeedProbeAttempt& attempt) {
+    const auto quality = evaluateRelocMatchQuality(attempt.match, config_);
+    attempt.fitness_pass = quality.fitness_pass;
+    attempt.inlier_pass = quality.inlier_pass;
+    attempt.derived_confidence = quality.confidence;
+    attempt.confidence_pass = quality.confidence_pass;
+    attempt.production_quality_pass = quality.accepted;
     const auto visibility_target =
-        buildRelocTargetCloud(attempt->seed_keyframe_id);
+        buildRelocTargetCloud(attempt.seed_keyframe_id);
     if (visibility_target) {
-      attempt->initial_visibility = evaluatePreparedVisibilityConsistency(
-          *visibility_target, visibility_observation, attempt->initial_pose);
-      attempt->refined_visibility = evaluatePreparedVisibilityConsistency(
-          *visibility_target, visibility_observation, attempt->match.T_target_source);
+      attempt.initial_visibility = evaluatePreparedVisibilityConsistency(
+          *visibility_target, visibility_observation, attempt.initial_pose);
+      attempt.refined_visibility = evaluatePreparedVisibilityConsistency(
+          *visibility_target, visibility_observation, attempt.match.T_target_source);
     }
-    attempt->production_kept_initial_pose =
-        attempt->initial_visibility.valid &&
-        (!attempt->refined_visibility.valid ||
-         attempt->initial_visibility.consistency_ratio >
-             attempt->refined_visibility.consistency_ratio + 1e-9);
-    attempt->production_pose = attempt->production_kept_initial_pose
-                                   ? attempt->initial_pose
-                                   : attempt->match.T_target_source;
+    attempt.production_kept_initial_pose =
+        attempt.initial_visibility.valid &&
+        (!attempt.refined_visibility.valid ||
+         attempt.initial_visibility.consistency_ratio >
+             attempt.refined_visibility.consistency_ratio + 1e-9);
+    attempt.production_pose = attempt.production_kept_initial_pose
+                                   ? attempt.initial_pose
+                                   : attempt.match.T_target_source;
   };
 
   result.oracle_nearest_keyframe_id = findNearestKeyframe(oracle_pose);
@@ -75,7 +73,7 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
   oracle_attempt.initial_pose = oracle_pose;
   oracle_attempt.match =
       matcher_.alignPrepared(target, prepared_query, oracle_pose);
-  finish_attempt(&oracle_attempt);
+  finish_attempt(oracle_attempt);
   result.attempts.push_back(std::move(oracle_attempt));
 
   const auto candidates = place_index_.search(query_cloud);
@@ -105,7 +103,7 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     attempt.match =
         matcher_.alignPrepared(target, prepared_query, attempt.initial_pose);
-    finish_attempt(&attempt);
+    finish_attempt(attempt);
     result.attempts.push_back(std::move(attempt));
   }
   result.valid = true;

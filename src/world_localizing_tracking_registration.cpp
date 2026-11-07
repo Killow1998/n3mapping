@@ -1,3 +1,4 @@
+#include "n3mapping/relocalization_debug_logger.h"
 // Tracking registration proposals and bounded recovery. No localization
 // state or map-to-odometry correction is committed in this translation unit.
 #include "n3mapping/world_localizing.h"

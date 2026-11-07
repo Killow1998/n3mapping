@@ -1,5 +1,6 @@
 #include "loop_closure_processing.h"
 #include "n3mapping/graph_optimizer.h"
+#include "n3mapping/keyframe_manager.h"
 #include "loop_closure_diagnostics.h"
 
 #include <algorithm>
@@ -80,13 +81,13 @@ LoopClosureOutcome processLoopCandidates(
               event.loop_information = edge->second.information;
             auto trial_it = graph_trial_by_pair.find(key);
             if (trial_it != graph_trial_by_pair.end()) {
-              assignGraphTrialDiagnostics(&event, trial_it->second);
+              assignGraphTrialDiagnostics(event, trial_it->second);
             }
             auto consensus_trial_it =
                 consensus_estimator_trial_by_pair.find(key);
             if (consensus_trial_it != consensus_estimator_trial_by_pair.end()) {
               assignConsensusEstimatorTrialDiagnostics(
-                  &event, consensus_trial_it->second);
+                  event, consensus_trial_it->second);
             }
             auto referee_it = referee_by_pair.find(key);
             if (referee_it != referee_by_pair.end()) {
@@ -97,7 +98,7 @@ LoopClosureOutcome processLoopCandidates(
             }
             auto consensus_it = consensus_by_pair.find(key);
             if (consensus_it != consensus_by_pair.end()) {
-              assignConsensusDiagnostics(&event, consensus_it->second);
+              assignConsensusDiagnostics(event, consensus_it->second);
             }
             if (accepted_pairs.find(key) != accepted_pairs.end()) {
               event.gate_result = "accepted";
@@ -255,8 +256,8 @@ LoopClosureOutcome processLoopCandidates(
             loop.heightmap_ground_support_ratio;
         event.heightmap_vertical_consistency_score =
             loop.heightmap_vertical_consistency_score;
-        assignSegmentDiagnostics(&event, loop);
-        assignConsensusDiagnostics(&event, loop);
+        assignSegmentDiagnostics(event, loop);
+        assignConsensusDiagnostics(event, loop);
         event.loop_referee_recommendation = loop.loop_referee_recommendation;
         event.loop_referee_reason = loop.loop_referee_reason;
         event.loop_referee_risk_flags = loop.loop_referee_risk_flags;

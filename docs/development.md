@@ -16,83 +16,73 @@ tools/               Map utilities and offline evaluation
 
 ## Architecture and ownership
 
-- Keep backend mapping, loop closure, relocalization, graph optimization, and map serialization logic in the ROS-free core.
-- Keep ROS wrappers as thin adapters for parameters, messages, topics, services, TF, and launch defaults.
-- Keep Humble and Noetic runtime behavior consistent.
-- Do not commit local wrapper-selection marker files.
-- Do not commit generated maps, logs, build artifacts, or local test configs.
+`N3MappingCore` accepts frontend `LioFrame` values and returns `BackendOutput`.
+Mapping, localization, loop closure, graph optimization and serialization stay in
+the ROS-free core. Noetic and Humble adapt parameters, transport, messages, TF
+and services. Do not commit wrapper-selection markers, generated maps, local
+runtime settings or build products.
 
-`Config` declares parameter types in `config.h`; its out-of-line constructor in
-`src/config_defaults.cpp` owns the defaults. Changing a default recompiles one
-implementation file; changing a field or its type still changes the shared
-contract. `forEachConfigField` in `config_fields.h` owns the external names and
-canonical ordering used by both
-ROS adapters and runtime provenance. Add a field there once; transport-specific
-parameter conversion stays in the adapter. Noetic retains its three supported
-namespace forms and their existing precedence.
+The private `src/core/n3mapping_session.h` owns backend components as one lifetime
+unit. It wires borrowed references once and is replaced transactionally when a
+map loads. Components are direct members; the session has no duplicate `Config`
+and no forwarding accessors. Graph constraints and optimized-pose projection live
+in `n3mapping_constraints.cpp`; dense trajectory recording and correction live in
+`n3mapping_trajectory.cpp`.
 
-`graph_types.h` carries graph-edge data and the loop-optimizer interface without
-GTSAM headers. `GraphOptimizer` owns its solver objects through the private
-`src/graph_optimizer_state.h`; only its seven implementation files include
-`ISAM2.h`. Consumers include the full optimizer declaration only where they call
-its methods. A solver implementation edit does not require recompiling its
-unrelated consumers. Rebuild C++ consumers when adopting this object-layout and
-`Config` constructor change; ROS interfaces and parameter values are unchanged.
+`core/loop_closure_result.h` is the result contract shared by the facade and loop
+processing. Loop processing does not include the facade. `loop_types.h` carries
+verification data; only detector callers include `loop_detector.h`.
+`mapping_resuming.h` forward-declares borrowed services. Implementations include
+the owners they actually call, including the asynchronous loop implementation.
 
-The [compile-dependency comparison](evidence/compile_dependencies_20261029.json)
-uses Release flags, disabled ccache and four-core affinity on Jammy and RK3588.
-Three representative consumers reduce compile CPU time by approximately 54–63%
-on both machines; the solver file itself shows no consistent improvement.
-A default-only edit rebuilt one file and completed in 7.44 s on Jammy, including
-linking. These are translation-unit and incremental-build measurements, not
-full clean-build or SLAM runtime speedups. The qualified GTSAM dependency remains
-unchanged. The final Humble/Noetic suites passed 69/69 and 67/67; the same reload
-relock test also failed intermittently on both the candidate and unmodified
-baseline. The subsequent [reload/relock repair](evidence/reload_relock_20261029.json)
-addresses that failure; the original failed runs remain in the evidence record.
+`Config` declares types in `config.h`; `src/config_defaults.cpp` owns defaults.
+`config_fields.h` owns external names and canonical ordering for both adapters
+and provenance. A default-only change rebuilds its implementation; a field/type
+change changes the shared contract. Noetic retains its three parameter namespace
+forms and their existing precedence.
 
-Registration entry points validate external clouds. Private preprocessing and
-result-copy helpers accept references; they do not repeat nullable-pointer
-checks. Multi-scale registration keeps its stage result as the source of truth
-for convergence and quality statistics.
+`graph_types.h` exposes graph-edge data and the optimizer interface without GTSAM
+headers. `GraphOptimizer` keeps solver objects in private `graph_optimizer_state.h`.
+Its implementation files own GTSAM dependencies; unrelated consumers do not.
 
-Loop verification and diagnostics consume `loop_types.h`; only detector callers
-include `loop_detector.h`. `mapping_resuming.h` forward-declares the services it
-borrows, and implementations include the services they call. In the complete
-Humble build, this reduces detector-header consumers from 65 to 45 and RHPD-header
-consumers from 71 to 51. Public headers are also compiled individually to check
-that they declare their own dependencies.
+External cloud, configuration and persisted-map inputs are validated at their
+entry points. Internal preprocessing and diagnostic output parameters use
+references when every caller supplies an object. `MapSerializer::saveMap`
+validates clouds before encoding; its private encoder trusts those validated
+points. Atlas identity/cache orchestration belongs to `localization_atlas.cpp`,
+and prepared-level wire conversion to `localization_atlas_codec.cpp`.
 
-`MapSerializer::saveMap` validates keyframe clouds once before encoding. The
-private encoder copies those validated points without counting and filtering
-them again. Atlas file identity and cache orchestration remain in
-`localization_atlas.cpp`; prepared-level wire conversion belongs to the private
-`localization_atlas_codec.cpp`. Its persisted-input validation and wire format
-are unchanged. The [cleanup evidence](evidence/cleanup_20261029.json) records the
-boundary-check ablation and native ROS replays. Its reload/relock limitation was
-subsequently repaired as described below.
+`RelocalizationDebugEmitter` owns sequencing, hypothesis snapshots and persistence.
+Its header forward-declares event payloads. Localization implementations include
+the payload schema where they populate events; schema details do not flow through
+the public localizer header. Diagnostic code does not decide whether to lock.
 
-Free-space scoring interpolates the occupied/free layers at voxel centers.
-Hard lookup could change a planar scan's score from 0.979 to 0.710 under a
-0.1 mm pose shift in a 0.20 m grid, incorrectly vetoing a verified pose after
-reload. The score now changes continuously. Support counts in
-`FreeSpaceGrid::Score` are fractional; rebuild C++ consumers of that type.
-Atlas storage, ROS interfaces and numeric configuration defaults are unchanged.
+Offline evaluation separates three responsibilities:
 
-Both veto and elimination use the existing `reloc_free_space_kill_sigmas`
-separation rule. The legacy parameter name is retained. An insignificant score
-difference cannot overturn the geometric winner; a significantly better distinct
-candidate still vetoes it. This remains a sampling-variance approximation, not a
-claim of calibrated cross-scene probability. Registration, confirmation,
-visibility and ambiguity gates are unchanged.
+- `synthetic_relocalization_query.h`: scan synthesis, visibility and pose jitter.
+- `query_pose_manifest.h`: external CSV validation and typed pose entries.
+- `synthetic_episode_state.h`: evaluation-only episode transitions and labels.
 
-The [repair evidence](evidence/reload_relock_20261029.json) includes the frozen
-failure, separate ablations, 50 repeated continuation/save/reload E2E runs,
-Humble/Noetic regression and complete four-core comparisons of the original
-14 positions and both localization routes. The reference implementation review
-used [Cartographer's interpolated 3D grid](https://github.com/cartographer-project/cartographer/blob/master/cartographer/mapping/internal/3d/scan_matching/interpolated_grid.h).
-N3M uses simpler trilinear interpolation because this gate only compares scores;
-it does not need optimizer derivatives or an additional dependency.
+CSV numeric conversion uses the standard C conversion functions underlying
+`std::stoll`/`std::stod`, preserving full-token, range and finite-value checks
+without exception control flow. Runtime localization remains the authority for
+lock and tracking results.
+
+Free-space scoring interpolates occupied/free layers at voxel centers. Both veto
+and elimination use the existing `reloc_free_space_kill_sigmas` separation rule.
+An insignificant score difference cannot overturn the geometric winner; a
+significantly better distinct candidate still vetoes it. This is a sampling
+variance approximation, not calibrated cross-scene probability. Registration,
+confirmation, visibility and ambiguity gates remain separate decisions.
+
+Validation records: [compile dependencies](evidence/compile_dependencies_20261029.json),
+[serialization cleanup](evidence/cleanup_20261029.json),
+[reload/relock repair](evidence/reload_relock_20261029.json), and
+[ownership and diagnostic cleanup](evidence/cleanup_20261107.json).
+Earlier compile-time measurements apply to their recorded build configurations,
+not SLAM runtime speed. Free-space interpolation follows the approach in
+[Cartographer's interpolated grid](https://github.com/cartographer-project/cartographer/blob/master/cartographer/mapping/internal/3d/scan_matching/interpolated_grid.h)
+with trilinear sampling, without an optimizer dependency.
 
 ### Directional support before locking
 
@@ -315,6 +305,16 @@ source "devel/$N3M_PROFILE/setup.bash"
 ```
 
 ## Offline evaluation
+
+Recorded cloud/odometry manifests use the explicit target
+`n3mapping_relocalization_manifest_eval`; it can be built without enabling all
+research targets. Supply `--map`, `--atlas`, `--manifest` and `--output`.
+For a deployment-parameter comparison, `--lock-min-margin VALUE` overrides only
+the lock margin. The report identifies the override in `config_source` and
+records the actual value in `relocalization_contract.lock_min_margin`. Such a run
+is not evidence for the unchanged product defaults. `frame_status.csv` includes
+`directional_checked`, `directional_min_support` and `directional_check_ms`;
+an unchecked witness is not a zero-support observation.
 
 Enable `N3MAPPING_BUILD_RESEARCH_TOOLS=ON` in a separate development build to use
 the research tools below. These commands use Humble; under Noetic use `rosrun`

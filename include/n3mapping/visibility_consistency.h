@@ -75,6 +75,13 @@ PreparedVisibilityObservation prepareVisibilityObservation(
     const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
     const VisibilityConsistencyOptions &options = {});
 
+// Directional geometry samples at the map/query spacing while retaining the
+// independent range error tolerance. The two-argument form preserves scoring.
+PreparedVisibilityObservation prepareVisibilityObservation(
+    const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
+    const VisibilityConsistencyOptions &options,
+    double angular_sampling_spacing_m);
+
 // Optional lock witness, prepared only when the other acceptance gates pass.
 // up_in_query is the odometry world's Z axis expressed in the query frame;
 // sensor mounting tilt must not be mistaken for the world's horizontal plane.

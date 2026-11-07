@@ -1,0 +1,135 @@
+{
+  "date": "2026-11-07",
+  "scope": "Behavior-preserving ownership, diagnostics and evaluation cleanup",
+  "baseline_commit": "be30f005354783f58d2577bbecbca81e4b7297c2",
+  "build": {
+    "ros": "Noetic",
+    "type": "Release",
+    "existing_build_reused": true,
+    "final_build_warnings": 0,
+    "humble": "Not run locally; existing PR CI applies"
+  },
+  "regressions": {
+    "tests": 231,
+    "passed": 230,
+    "failed": 1,
+    "targets": [
+      {
+        "target": "test_core_types",
+        "tests": 7,
+        "failures": 0
+      },
+      {
+        "target": "test_n3mapping_core",
+        "tests": 30,
+        "failures": 1
+      },
+      {
+        "target": "test_map_serializer",
+        "tests": 68,
+        "failures": 0
+      },
+      {
+        "target": "test_map_extension_route",
+        "tests": 2,
+        "failures": 0
+      },
+      {
+        "target": "test_mapping_resuming",
+        "tests": 8,
+        "failures": 0
+      },
+      {
+        "target": "test_joint_geometry",
+        "tests": 17,
+        "failures": 0
+      },
+      {
+        "target": "test_localization_episode",
+        "tests": 15,
+        "failures": 0
+      },
+      {
+        "target": "test_synthetic_relocalization",
+        "tests": 14,
+        "failures": 0
+      },
+      {
+        "target": "test_world_localizing",
+        "tests": 40,
+        "failures": 0
+      },
+      {
+        "target": "test_visibility_consistency",
+        "tests": 19,
+        "failures": 0
+      },
+      {
+        "target": "test_relocalization_debug_logger",
+        "tests": 8,
+        "failures": 0
+      },
+      {
+        "target": "test_loop_graph_trial_diagnostics",
+        "tests": 3,
+        "failures": 0
+      }
+    ]
+  },
+  "known_failure": {
+    "test": "N3MappingCoreTest.MapExtensionFromFallbackDenseRequiresLockBeforeMixingSources",
+    "pre_cleanup_library": "fails identically",
+    "pre_room_repair_library": "passes",
+    "scenario": "A flat map accepts a corrugated query with confidence/inlier gates disabled and one-frame confirmation.",
+    "disposition": "Assertions retained. Not introduced by cleanup. Earlier upstream and local localization changes are not yet individually isolated; no field incidence estimate."
+  },
+  "replay_comparison": {
+    "cases": 8,
+    "frames": 340,
+    "discrete_outputs_identical": true,
+    "lock_frames_identical": true,
+    "directional_support_identical": true,
+    "negative_case_remains_unlocked": true,
+    "max_position_component_difference_m": 3.552713678800501e-15,
+    "max_normalized_diagnostic_difference": 3.4924596548080444e-10,
+    "diagnostic_numeric_tolerance": 1e-09,
+    "excluded": [
+      "wall-clock timing",
+      "output paths"
+    ],
+    "same_baseline_binary_repeat": "Shows floating-point differences of the same order"
+  },
+  "numeric_conversion_ablation": {
+    "input_cases": 40021,
+    "numeric_comparisons": 80042,
+    "mismatches": 0
+  },
+  "standalone_headers": {
+    "checked": 10,
+    "passed": 10
+  },
+  "evaluation_tool_syntax": {
+    "checked": 2,
+    "passed": 2
+  },
+  "removed_test": {
+    "name": "CoreTypesTest.DefaultValuesAreRosFreeAndStable",
+    "reason": "Mirrored initializers and unused placeholder types. Invalid-input and pose-authority behavior remains covered by complete core/localization tests."
+  },
+  "retained_contracts": [
+    "invalid frontend frames",
+    "failed map load preserves active session",
+    "map serialization and extension provenance",
+    "localization loss and recovery",
+    "geometry rejection counterexamples",
+    "strict CSV schemas"
+  ],
+  "functional_changes_in_cleanup": false,
+  "review_status": "Draft until the known geometry counterexample is resolved",
+  "stationary_reload": {
+    "samples": 121,
+    "duration_s": 11.999282836914062,
+    "all_geometric_locked": true,
+    "loaded_core_and_wrapper_hashes_match_validation": true
+  }
+}

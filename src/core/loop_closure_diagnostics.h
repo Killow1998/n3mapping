@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include "loop_closure_processing.h"
+#include "n3mapping/core/types.h"
 #include "n3mapping/loop_consensus_verifier.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
 namespace n3mapping::loop_diagnostics {
@@ -74,20 +75,19 @@ struct VerticalHypothesisDiagnostics {
 };
 
 double rotationAngle(const Eigen::Isometry3d& transform);
-Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d& transform);
 std::pair<double, double> meanLoopResidual(const std::vector<EdgeInfo>& edges,
     const std::map<int64_t, Eigen::Isometry3d>& poses);
 LoopResidualAxisStats meanLoopResidualAxes(const std::vector<EdgeInfo>& edges,
     const std::map<int64_t, Eigen::Isometry3d>& poses);
 void accumulatePoseUpdateStats(const std::map<int64_t, Eigen::Isometry3d>& before,
-    const std::map<int64_t, Eigen::Isometry3d>& after, CoreLoopClosureResult* result);
-void assignGraphTrialDiagnostics(LoopDebugCandidateEvent* event,
+    const std::map<int64_t, Eigen::Isometry3d>& after, CoreLoopClosureResult& result);
+void assignGraphTrialDiagnostics(LoopDebugCandidateEvent& event,
     const LoopGraphTrialDiagnostics& diagnostics);
-void assignConsensusEstimatorTrialDiagnostics(LoopDebugCandidateEvent* event,
+void assignConsensusEstimatorTrialDiagnostics(LoopDebugCandidateEvent& event,
     const LoopGraphTrialDiagnostics& diagnostics);
-void assignSegmentDiagnostics(LoopDebugCandidateEvent* event, const VerifiedLoop& loop);
-void assignConsensusDiagnostics(LoopDebugCandidateEvent* event, const VerifiedLoop& loop);
-void assignConsensusDiagnostics(LoopDebugCandidateEvent* event, const LoopConsensusResult& consensus);
+void assignSegmentDiagnostics(LoopDebugCandidateEvent& event, const VerifiedLoop& loop);
+void assignConsensusDiagnostics(LoopDebugCandidateEvent& event, const VerifiedLoop& loop);
+void assignConsensusDiagnostics(LoopDebugCandidateEvent& event, const LoopConsensusResult& consensus);
 double processingTimeSeconds();
 ZDistributionStats computeZStats(const core::LioFrame::PointCloud::Ptr& cloud);
 ZDistributionStats computeTransformedZStats(const core::LioFrame::PointCloud::Ptr& cloud,

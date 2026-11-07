@@ -1,4 +1,4 @@
-// Shadow-only submap data scaffold. It does not participate in the pose graph.
+// Submap snapshots and bounded cloud accumulation.
 #pragma once
 
 #include <cstdint>
@@ -27,8 +27,7 @@ struct Submap {
     Eigen::Isometry3d T_session_submap = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d T_map_submap = Eigen::Isometry3d::Identity();
     PointCloudT::Ptr registration_cloud;
-    // The first scaffold intentionally aliases the same immutable snapshot;
-    // later visualization filtering must use copy-on-write.
+    // Registration and visualization share an immutable snapshot.
     PointCloudT::Ptr visualization_cloud;
     int64_t descriptor_keyframe_id = -1;
     std::uint64_t cloud_byte_budget = 0;

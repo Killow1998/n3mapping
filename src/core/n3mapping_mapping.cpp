@@ -1,5 +1,5 @@
 #include "n3mapping/core/n3mapping_core.h"
-#include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping_session.h"
 #include "n3mapping/floor_attitude.h"
 #include <glog/logging.h>
 
@@ -62,7 +62,7 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
     }
   }
 
-  auto &keyframes = session_->keyframeManager();
+  auto &keyframes = session_->keyframes;
   if (!keyframes.shouldAddKeyframe(frame.T_world_lidar)) {
     Eigen::Isometry3d pose_map = frame.T_world_lidar;
     if (const auto latest = keyframes.getLatestKeyframe()) {
@@ -80,11 +80,11 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
 
   const int64_t keyframe_id = keyframes.addKeyframe(
       timestamp, frame.T_world_lidar, frame.undistorted_cloud);
-  session_->loopDetector().addDescriptor(keyframe_id, frame.undistorted_cloud);
+  session_->detector.addDescriptor(keyframe_id, frame.undistorted_cloud);
   addRhpdDescriptorForKeyframe(keyframe_id, frame.undistorted_cloud);
 
   if (keyframe_id == 0) {
-    session_->graphOptimizer().addPriorFactor(keyframe_id, frame.T_world_lidar);
+    session_->optimizer.addPriorFactor(keyframe_id, frame.T_world_lidar);
   } else {
     addOdometryConstraint(keyframe_id, frame.T_world_lidar);
   }
@@ -98,7 +98,7 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
     const auto floor = estimateFloorNormal(*frame.undistorted_cloud,
                                            frame.T_world_lidar, floor_options);
     if (floor.valid) {
-      session_->graphOptimizer().addFloorAttitudeFactor(keyframe_id,
+      session_->optimizer.addFloorAttitudeFactor(keyframe_id,
                                                         floor.normal_body);
       ++floor_attitude_accepted_;
     } else {
@@ -107,14 +107,14 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   }
 
   if (config_.loop_geometry_enable)
-    session_->graphOptimizer().appendPlaneObservations(
+    session_->optimizer.appendPlaneObservations(
         keyframe_id, extractPlaneMoments(*frame.undistorted_cloud));
-  session_->graphOptimizer().incrementalOptimize();
+  session_->optimizer.incrementalOptimize();
   refreshOptimizedPoses();
 
-  if (session_->submapBuilder().enabled()) {
+  if (session_->submaps.enabled()) {
     const auto committed_keyframe = keyframes.getKeyframe(keyframe_id);
-    if (!session_->submapBuilder().appendKeyframe(committed_keyframe)) {
+    if (!session_->submaps.appendKeyframe(committed_keyframe)) {
       LOG(ERROR) << "Shadow submap append failed for committed keyframe id="
                 << keyframe_id << '\n';
     } else {
@@ -126,8 +126,8 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   }
 
   Eigen::Isometry3d optimized_pose = frame.T_world_lidar;
-  if (session_->graphOptimizer().hasNode(keyframe_id)) {
-    optimized_pose = session_->graphOptimizer().getOptimizedPose(keyframe_id);
+  if (session_->optimizer.hasNode(keyframe_id)) {
+    optimized_pose = session_->optimizer.getOptimizedPose(keyframe_id);
   }
 
   auto output = makeOutput(true, optimized_pose, frame.undistorted_cloud);

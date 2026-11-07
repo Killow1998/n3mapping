@@ -118,7 +118,7 @@ n3mapping_node:
     reloc_lock_log_likelihood_threshold: 2.0
     reloc_lock_min_winner_streak: 3
     reloc_lock_min_converged_updates: 3
-    reloc_lock_min_margin: 0.35
+    reloc_lock_min_margin: 0.25
     reloc_hypothesis_miss_penalty: 8.0
     reloc_hypothesis_not_converged_penalty: 8.0
     reloc_reloc_inlier_weight: 2.0
