@@ -141,3 +141,7 @@ tools. Keep the map and Atlas together when deploying to another machine.
 ## License
 
 [BSD 3-Clause](LICENSE).
+
+### Configuration ownership
+
+`Config` in `src/config_defaults.cpp` owns shared defaults. `config/n3mapping.yaml` contains development overrides only; omitted fields are loaded from those defaults. Product bundles retain the frozen `product_v1.yaml` fingerprint. The development relocalization margin remains 0.25.
