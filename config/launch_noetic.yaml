@@ -1,0 +1,21 @@
+# Options for standalone entries; ETC generates the managed task configuration.
+visualization:
+  enabled: true
+  program: [rviz, rviz]
+  arguments: &rviz_arguments [-d, "$(find n3mapping)/launch/n3_noetic.rviz"]
+product_visualization:
+  enabled: false
+  program: [rviz, rviz]
+  arguments: *rviz_arguments
+synthetic_visualization:
+  enabled: true
+  program: [rviz, rviz]
+  arguments: [-d, "$(find n3mapping)/launch/synthetic_relocalization_visualization_noetic.rviz"]
+product:
+  enabled: true
+  program: [n3mapping, n3mapping_product_runtime.py]
+  arguments: [--bundle, ""]
+synthetic:
+  enabled: true
+  program: [n3mapping, n3mapping_synthetic_relocalization_visualizer]
+  arguments: [--map, ""]

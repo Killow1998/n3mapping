@@ -1,12 +1,9 @@
 <launch>
-  <arg name="config_file" default="$(find n3mapping)/config/n3mapping.yaml" />
-  <arg name="rviz" default="true" />
-
   <node pkg="n3mapping" type="n3mapping_node" name="n3mapping_node" output="screen">
     <env name="OMP_WAIT_POLICY" value="$(optenv OMP_WAIT_POLICY PASSIVE)" />
-    <rosparam file="$(arg config_file)" command="load" />
-    <param name="mode" value="map_extension" />
+    <rosparam file="$(find n3mapping)/config/n3mapping.yaml" command="load" />
+    <rosparam file="$(find n3mapping)/config/map_extension.yaml" command="load" />
   </node>
-
-  <node pkg="rviz" type="rviz" name="n3_rviz" output="screen" if="$(arg rviz)" args="-d $(find n3mapping)/launch/n3_noetic.rviz" />
+  <node pkg="n3mapping" type="yaml_arguments.py" name="n3_rviz" output="screen"
+        args="&quot;$(find n3mapping)/config/launch_noetic.yaml&quot; visualization" />
 </launch>

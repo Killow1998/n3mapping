@@ -339,6 +339,7 @@ install(DIRECTORY include/
 )
 
 install(FILES
+  launch/n3_launch.py
   launch/localization.launch.py
   launch/map_extension.launch.py
   launch/mapping.launch.py

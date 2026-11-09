@@ -323,8 +323,9 @@ in place of `ros2 run`, and `.launch` in place of `.launch.py` for `roslaunch`.
 RViz visualization:
 
 ```bash
-ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
-  map:=/path/to/n3map.pbstream
+# First set the map and tool options in config/launch_humble.yaml.
+# Noetic uses config/launch_noetic.yaml; neither launch accepts arguments.
+ros2 launch n3mapping synthetic_relocalization_visualization.launch.py
 ```
 
 Headless batch evaluation:

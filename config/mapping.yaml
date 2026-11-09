@@ -1,0 +1,3 @@
+n3mapping_node:
+  ros__parameters:
+    mode: mapping

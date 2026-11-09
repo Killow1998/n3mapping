@@ -124,21 +124,21 @@ six successful `full_ros_shm64` delivery/checkpoint validations.
 ### Launch configuration and Docker capacity
 
 The Humble `mapping`, `localization` and `map_extension` launch files accept
-`dds_profile:=/absolute/path/to/profile.xml`. The selected file is applied before
+`dds_profile` in `config/launch_humble.yaml`. The selected file is applied before
 child processes initialize ROS. With no argument, an existing
 `FASTRTPS_DEFAULT_PROFILES_FILE` is inherited. Otherwise they use the supplied
 [fastdds.xml](../config/fastdds.xml): 64 MiB SHM per participant plus ordinary
-UDP interfaces without a whitelist. `dds_profile:=` skips setting a profile, leaving the inherited environment
-unchanged.
+UDP interfaces without a whitelist. The inherited `FASTRTPS_DEFAULT_PROFILES_FILE`
+takes precedence; otherwise `config/launch_humble.yaml` selects `dds_profile`.
 `RMW_IMPLEMENTATION`, `ROS_DOMAIN_ID` and `ROS_LOCALHOST_ONLY` are not changed.
 Cyclone DDS and ROS 1 Noetic do not use this Fast DDS XML profile.
 
-For a **single-host** deployment using the supplied 64 MiB profile:
+For a **single-host** deployment, set `dds_profile: fastdds_local.xml` and
+`visualization.enabled: false` in `config/launch_humble.yaml`, and set the map in
+`config/localization.yaml`. Then launch without arguments:
 
 ```bash
-ros2 launch n3mapping localization.launch.py config_file:=/path/to/localization.yaml \
-  dds_profile:="$(ros2 pkg prefix n3mapping)/share/n3mapping/config/fastdds_local.xml" \
-  rviz:=false
+ros2 launch n3mapping localization.launch.py
 ```
 
 The explicitly selected `fastdds_local.xml` profile restricts UDP to loopback;

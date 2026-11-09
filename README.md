@@ -74,21 +74,29 @@ n3mapping_node:
 
 ```bash
 # Choose a startup mode.
-ros2 launch n3mapping mapping.launch.py config_file:=/path/to/n3mapping.yaml
-ros2 launch n3mapping localization.launch.py config_file:=/path/to/n3mapping.yaml
-ros2 launch n3mapping map_extension.launch.py config_file:=/path/to/n3mapping.yaml
+ros2 launch n3mapping mapping.launch.py
+ros2 launch n3mapping localization.launch.py
+ros2 launch n3mapping map_extension.launch.py
 ```
 
 ### ROS 1 Noetic
 
 ```bash
 # Choose a startup mode.
-roslaunch n3mapping mapping.launch config_file:=/path/to/n3mapping.yaml
-roslaunch n3mapping localization.launch config_file:=/path/to/n3mapping.yaml
-roslaunch n3mapping map_extension.launch config_file:=/path/to/n3mapping.yaml
+roslaunch n3mapping mapping.launch
+roslaunch n3mapping localization.launch
+roslaunch n3mapping map_extension.launch
 ```
 
-Add `rviz:=false` to run without RViz. Atlas is enabled by default and prepared
+All launch entries are argument-free. Shared parameters live in `config/n3mapping.yaml`;
+mode-specific parameters live in `config/mapping.yaml`, `config/map_extension.yaml` and
+`config/localization.yaml`. Set the map path before localization or map extension.
+Noetic product localization uses the verified bundle selected in `config/launch_noetic.yaml`
+(`product.arguments`); it does not accept raw-map overrides. The managed ETC development
+entry receives the selected raw map and session through generated runtime YAML.
+
+Visualization switches and standalone tool options live in `config/launch_noetic.yaml`
+and `config/launch_humble.yaml`. Atlas is enabled by default and prepared
 automatically when needed. See [Atlas setup](docs/getting_started.md#prepare-an-atlas-for-localization)
 to prepare it ahead of startup or manage a fixed deployment.
 
