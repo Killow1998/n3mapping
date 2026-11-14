@@ -2,6 +2,7 @@
 
 #include <small_gicp/points/point_cloud.hpp>
 #include "lazy_target_normals.h"
+#include "mapped_target.h"
 
 namespace n3mapping::registration_detail {
 inline Eigen::Matrix4d covarianceFromNormal(const Eigen::Vector4d& normal) {
@@ -22,6 +23,15 @@ struct TargetView {
   Eigen::Matrix4d covariance(std::size_t i) const {
     if (!cloud.covs.empty()) return cloud.cov(i);
     return covarianceFromNormal(normal(i));
+  }
+};
+struct MappedTargetView {
+  const MappedTargetLevel& level;
+  std::size_t size() const { return level.header.points; }
+  Eigen::Vector4d point(std::size_t i) const { return level.point(i); }
+  Eigen::Vector4d normal(std::size_t i) const { return level.normal(i); }
+  Eigen::Matrix4d covariance(std::size_t i) const {
+    return level.covariance_from_normal ? covarianceFromNormal(normal(i)) : level.covariance(i);
   }
 };
 }  // namespace n3mapping::registration_detail
@@ -45,5 +55,16 @@ struct Traits<n3mapping::registration_detail::TargetView> {
   static Eigen::Matrix4d cov(const View& view, std::size_t i) {
     return view.covariance(i);
   }
+};
+template <>
+struct Traits<n3mapping::registration_detail::MappedTargetView> {
+  using View = n3mapping::registration_detail::MappedTargetView;
+  static std::size_t size(const View& view) { return view.size(); }
+  static bool has_points(const View& view) { return view.size() != 0; }
+  static bool has_normals(const View&) { return true; }
+  static bool has_covs(const View&) { return true; }
+  static Eigen::Vector4d point(const View& view, std::size_t i) { return view.point(i); }
+  static Eigen::Vector4d normal(const View& view, std::size_t i) { return view.normal(i); }
+  static Eigen::Matrix4d cov(const View& view, std::size_t i) { return view.covariance(i); }
 };
 }  // namespace small_gicp::traits

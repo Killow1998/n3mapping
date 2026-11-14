@@ -1,0 +1,1131 @@
+{
+  "date": "2026-11-11",
+  "status": "qualified isolated candidate; not deployed, merged or pushed",
+  "source_head": "f0bb07977cec0098440d805ea2683d604cf85206",
+  "core_sha256": "d330d864f5b874b01a443721246c22cfeebf7a943a6317db0478b1602dc51d2d",
+  "mechanism": "Bounded rank paging after initial no-geometry or stationary likelihood/contradictory-geometry failure; retain seed cache, reset at exhausted batch/viewpoint change/lock/reset/map replacement; established-pose recovery and moving confirmation failures keep prior retrieval policy.",
+  "acceptance": "No changes to geometric, visibility, ambiguity or temporal acceptance thresholds; margin/ambiguity alone retains viable places.",
+  "newly_recovered": {
+    "door_upper_center": {
+      "frames": 626,
+      "lock_frame": 11,
+      "cpu_s": 8.186292897,
+      "first_lock_cpu_s": 3.262944591,
+      "first_lock_wall_s": 1.801208465,
+      "input_duration_at_lock_s": 1.1,
+      "peak_rss_mib": 605.41796875,
+      "peak_frame_cpu_cores": 3.2678657626866228,
+      "truth": {
+        "mapping": "/home/user/ros_ws/etc_host_20261024/runs/humble_large_mapping_20261025_03",
+        "query": "/home/user/ros_ws/to_migrate_ws/runs/upstream_20261110_door_upper_center",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/retrieval_20261111/verified/replay/door_upper_center/candidate/frames.csv",
+        "probe_status": {
+          "input_frames": 626,
+          "successful_frames": 615,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 1799989997,
+          "translation": [
+            8.982194940809483,
+            -34.384343674377554,
+            0.2189742736522992
+          ],
+          "quaternion_xyzw": [
+            -0.0006234217060588876,
+            0.004297519491542627,
+            -0.038574791540030705,
+            -0.999246280017714
+          ]
+        },
+        "evaluated_poses": 615,
+        "first_output_sim_s": 3.499995002,
+        "first_output_position_error_m": 0.06012748340542522,
+        "first_output_rotation_error_deg": 0.1228701549313187,
+        "position_error_m": {
+          "rmse": 0.06309086165192507,
+          "median": 0.06313850322541877,
+          "p95": 0.06388679365847194,
+          "maximum": 0.06469929540639453
+        },
+        "rotation_error_deg": {
+          "rmse": 0.07072556364910539,
+          "median": 0.07043385435246995,
+          "p95": 0.07959484394585946,
+          "maximum": 0.1228701549313187
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    "door_upper_right": {
+      "frames": 626,
+      "lock_frame": 198,
+      "cpu_s": 85.58867529099999,
+      "first_lock_cpu_s": 82.37134226799999,
+      "first_lock_wall_s": 40.176526435,
+      "input_duration_at_lock_s": 19.799994995000002,
+      "peak_rss_mib": 733.30859375,
+      "peak_frame_cpu_cores": 3.234288741185593,
+      "truth": {
+        "mapping": "/home/user/ros_ws/etc_host_20261024/runs/humble_large_mapping_20261025_03",
+        "query": "/home/user/ros_ws/to_migrate_ws/runs/upstream_20261110_door_upper_right",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/retrieval_20261111/verified/replay/door_upper_right/candidate/frames.csv",
+        "probe_status": {
+          "input_frames": 626,
+          "successful_frames": 428,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 1799989997,
+          "translation": [
+            8.982194940809483,
+            -34.384343674377554,
+            0.2189742736522992
+          ],
+          "quaternion_xyzw": [
+            -0.0006234217060588876,
+            0.004297519491542627,
+            -0.038574791540030705,
+            -0.999246280017714
+          ]
+        },
+        "evaluated_poses": 428,
+        "first_output_sim_s": 22.199989997,
+        "first_output_position_error_m": 0.061600498932944996,
+        "first_output_rotation_error_deg": 0.0921452606226529,
+        "position_error_m": {
+          "rmse": 0.06155970505546866,
+          "median": 0.06155603315448212,
+          "p95": 0.06240148606426317,
+          "maximum": 0.06383194908965874
+        },
+        "rotation_error_deg": {
+          "rmse": 0.08201189802844994,
+          "median": 0.08163275138894811,
+          "p95": 0.0902094811579609,
+          "maximum": 0.1167813983172358
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    }
+  },
+  "doorway_locks": [
+    {
+      "name": "door_control",
+      "frames": 160,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.02736808622012414
+    },
+    {
+      "name": "door_center",
+      "frames": 626,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.012485359187300779
+    },
+    {
+      "name": "door_center_far",
+      "frames": 626,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.007920574742566047
+    },
+    {
+      "name": "door_left_angled_original",
+      "frames": 162,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.02518333309239338
+    },
+    {
+      "name": "door_left_original",
+      "frames": 160,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.01979150665060268
+    },
+    {
+      "name": "door_posts_center",
+      "frames": 198,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.01383420342475717
+    },
+    {
+      "name": "door_posts_left",
+      "frames": 626,
+      "locks": [
+        7
+      ],
+      "max_position_m": 0.01165078365318432
+    },
+    {
+      "name": "door_posts_right",
+      "frames": 445,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.01846934716630566
+    },
+    {
+      "name": "door_right_angled_original",
+      "frames": 167,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.016822545230027068
+    },
+    {
+      "name": "door_right_original",
+      "frames": 163,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.019393972087511615
+    },
+    {
+      "name": "door_upper_center",
+      "frames": 626,
+      "locks": [
+        11
+      ],
+      "max_position_m": 0.06469929540639453
+    },
+    {
+      "name": "door_upper_left",
+      "frames": 168,
+      "locks": [
+        4
+      ],
+      "max_position_m": 0.06994460485838717
+    },
+    {
+      "name": "door_upper_right",
+      "frames": 626,
+      "locks": [
+        198
+      ],
+      "max_position_m": 0.06383194908965874
+    }
+  ],
+  "fixed14": {
+    "mean_cores": 0.37628236361204287,
+    "first_lock_mean_cpu_s": 4.937657523928571,
+    "peak_rss_mib": 1252.953125
+  },
+  "trajectory_comparison": [
+    {
+      "name": "fixed14/05_southwest_office_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 4.440892098500626e-16,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/10_northwest_meeting_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 4.440892098500626e-16,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/08_west_shelves_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 4.440892098500626e-16,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/12_north_office_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 4.163336342344337e-17,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/03_south_corridor_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 2.0816681711721685e-17,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/13_south_door_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 5.551115123125783e-17,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/06_south_meeting_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 7.105427357601002e-15,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/01_west_corridor_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 1.8041124150158794e-16,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/02_east_corridor_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 6.661338147750939e-16,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/14_north_door_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 1.3877787807814457e-17,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/11_northeast_pillars_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 5.551115123125783e-17,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/07_south_pillars_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 7.105427357601002e-15,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/04_north_corridor_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 4.163336342344337e-17,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "fixed14/09_east_shelves_candidate.csv",
+      "frames": 296,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 6.661338147750939e-16,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "routes/reentry_candidate",
+      "frames": 2236,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 1.4210854715202004e-14,
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ]
+    },
+    {
+      "name": "routes/independent_candidate",
+      "frames": 3666,
+      "changed_behavior_frames": 0,
+      "max_live_pose_matrix_delta": 5.684341886080802e-14,
+      "before_locks": [
+        4,
+        1938
+      ],
+      "after_locks": [
+        4,
+        1938
+      ]
+    }
+  ],
+  "real_windows": [
+    {
+      "key": [
+        "TudoRun01",
+        0
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.2836953722228372e-16,
+      "before_cpu_s": 1.2547558730000001,
+      "after_cpu_s": 1.249779386
+    },
+    {
+      "key": [
+        "TudoRun01",
+        1
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.6653345369377348e-15,
+      "before_cpu_s": 0.972464693,
+      "after_cpu_s": 0.9679060479999999
+    },
+    {
+      "key": [
+        "TudoRun01",
+        2
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.1102230246251565e-16,
+      "before_cpu_s": 1.278922973,
+      "after_cpu_s": 1.274335093
+    },
+    {
+      "key": [
+        "TudoRun01",
+        3
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 2.220446049250313e-15,
+      "before_cpu_s": 0.7814957579999999,
+      "after_cpu_s": 0.7778906369999999
+    },
+    {
+      "key": [
+        "TudoRun01",
+        4
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.3322676295501878e-15,
+      "before_cpu_s": 1.3155963689999999,
+      "after_cpu_s": 1.309201535
+    },
+    {
+      "key": [
+        "TudoRun01",
+        5
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 4.440892098500626e-16,
+      "before_cpu_s": 0.8518012260000001,
+      "after_cpu_s": 0.8479419269999999
+    },
+    {
+      "key": [
+        "TudoRun02",
+        0
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 3.3306690738754696e-16,
+      "before_cpu_s": 0.92297257,
+      "after_cpu_s": 0.914540831
+    },
+    {
+      "key": [
+        "TudoRun02",
+        1
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 8.881784197001252e-16,
+      "before_cpu_s": 1.166027306,
+      "after_cpu_s": 1.1559944019999997
+    },
+    {
+      "key": [
+        "TudoRun02",
+        2
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.3322676295501878e-15,
+      "before_cpu_s": 1.116585328,
+      "after_cpu_s": 1.108549968
+    },
+    {
+      "key": [
+        "TudoRun02",
+        3
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.7763568394002505e-15,
+      "before_cpu_s": 1.430286497,
+      "after_cpu_s": 1.4157728520000001
+    },
+    {
+      "key": [
+        "TudoRun02",
+        4
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 8.881784197001252e-16,
+      "before_cpu_s": 1.102157069,
+      "after_cpu_s": 1.0880464120000002
+    },
+    {
+      "key": [
+        "TudoRun02",
+        5
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 6.661338147750939e-16,
+      "before_cpu_s": 1.9144190130000003,
+      "after_cpu_s": 1.8899206309999999
+    },
+    {
+      "key": [
+        "HelmDyn01",
+        0
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 6.661338147750939e-16,
+      "before_cpu_s": 4.076569163,
+      "after_cpu_s": 4.080236614
+    },
+    {
+      "key": [
+        "HelmDyn01",
+        1
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 3.3306690738754696e-16,
+      "before_cpu_s": 3.9832202479999994,
+      "after_cpu_s": 3.9745113270000005
+    },
+    {
+      "key": [
+        "HelmDyn01",
+        2
+      ],
+      "before_locks": [
+        9
+      ],
+      "after_locks": [
+        9
+      ],
+      "max_live_pose_matrix_delta": 3.552713678800501e-15,
+      "before_cpu_s": 4.1624968010000005,
+      "after_cpu_s": 4.1378069779999995
+    },
+    {
+      "key": [
+        "HelmDyn01",
+        3
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 2.220446049250313e-15,
+      "before_cpu_s": 2.552827644,
+      "after_cpu_s": 2.545834714
+    },
+    {
+      "key": [
+        "HelmDyn01",
+        4
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 4.440892098500626e-15,
+      "before_cpu_s": 2.6471503120000004,
+      "after_cpu_s": 2.6394438350000002
+    },
+    {
+      "key": [
+        "HelmDyn01",
+        5
+      ],
+      "before_locks": [
+        9
+      ],
+      "after_locks": [
+        9
+      ],
+      "max_live_pose_matrix_delta": 2.6645352591003757e-15,
+      "before_cpu_s": 5.630470155,
+      "after_cpu_s": 5.5987409580000005
+    },
+    {
+      "key": [
+        "HelmDyn02",
+        0
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.1171619185290638e-15,
+      "before_cpu_s": 1.5339426369999998,
+      "after_cpu_s": 1.5323878910000002
+    },
+    {
+      "key": [
+        "HelmDyn02",
+        1
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.3322676295501878e-15,
+      "before_cpu_s": 1.5185944639999998,
+      "after_cpu_s": 1.5160286539999999
+    },
+    {
+      "key": [
+        "HelmDyn02",
+        2
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.7763568394002505e-15,
+      "before_cpu_s": 1.316995705,
+      "after_cpu_s": 1.3148076409999998
+    },
+    {
+      "key": [
+        "HelmDyn02",
+        3
+      ],
+      "before_locks": [
+        9
+      ],
+      "after_locks": [
+        9
+      ],
+      "max_live_pose_matrix_delta": 1.3322676295501878e-15,
+      "before_cpu_s": 3.5852199330000003,
+      "after_cpu_s": 3.583021233
+    },
+    {
+      "key": [
+        "HelmDyn02",
+        4
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.3322676295501878e-15,
+      "before_cpu_s": 1.557531842,
+      "after_cpu_s": 1.55570961
+    },
+    {
+      "key": [
+        "HelmDyn02",
+        5
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.124100812432971e-15,
+      "before_cpu_s": 1.320098135,
+      "after_cpu_s": 1.306894357
+    },
+    {
+      "key": [
+        "gate_02",
+        0
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 2.220446049250313e-16,
+      "before_cpu_s": 12.342313394000001,
+      "after_cpu_s": 12.253438144000002
+    },
+    {
+      "key": [
+        "gate_02",
+        1
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 1.6653345369377348e-16,
+      "before_cpu_s": 23.321133629,
+      "after_cpu_s": 24.619168591999998
+    },
+    {
+      "key": [
+        "gate_02",
+        2
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 135.37526806600002,
+      "after_cpu_s": 135.62277226899997
+    },
+    {
+      "key": [
+        "gate_02",
+        3
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 123.452266009,
+      "after_cpu_s": 125.391989465
+    },
+    {
+      "key": [
+        "gate_02",
+        4
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 137.95589160900002,
+      "after_cpu_s": 141.50122946799996
+    },
+    {
+      "key": [
+        "gate_02",
+        5
+      ],
+      "before_locks": [
+        19
+      ],
+      "after_locks": [
+        19
+      ],
+      "max_live_pose_matrix_delta": 1.1102230246251565e-16,
+      "before_cpu_s": 96.789322586,
+      "after_cpu_s": 96.469500508
+    },
+    {
+      "key": [
+        "hall_05",
+        0
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 3.552713678800501e-15,
+      "before_cpu_s": 3.0631086030000003,
+      "after_cpu_s": 3.051137982
+    },
+    {
+      "key": [
+        "hall_05",
+        1
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 6.938893903907228e-17,
+      "before_cpu_s": 3.7367730610000005,
+      "after_cpu_s": 3.8110537159999995
+    },
+    {
+      "key": [
+        "hall_05",
+        2
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 3.552713678800501e-15,
+      "before_cpu_s": 3.615290399,
+      "after_cpu_s": 3.616577374
+    },
+    {
+      "key": [
+        "hall_05",
+        3
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 2.0816681711721685e-17,
+      "before_cpu_s": 3.4874834549999996,
+      "after_cpu_s": 3.4745633550000004
+    },
+    {
+      "key": [
+        "hall_05",
+        4
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 4.440892098500626e-16,
+      "before_cpu_s": 3.8181083,
+      "after_cpu_s": 3.8314613179999997
+    },
+    {
+      "key": [
+        "hall_05",
+        5
+      ],
+      "before_locks": [
+        4
+      ],
+      "after_locks": [
+        4
+      ],
+      "max_live_pose_matrix_delta": 2.0816681711721685e-17,
+      "before_cpu_s": 4.239678768,
+      "after_cpu_s": 4.231225525999999
+    }
+  ],
+  "negative_windows": [
+    {
+      "key": [
+        "TudoRun01",
+        0
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 17.218600855000002,
+      "after_cpu_s": 17.15770836
+    },
+    {
+      "key": [
+        "TudoRun01",
+        3
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 18.151132849,
+      "after_cpu_s": 20.853108633
+    },
+    {
+      "key": [
+        "TudoRun02",
+        0
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 13.800150297,
+      "after_cpu_s": 17.861011157
+    },
+    {
+      "key": [
+        "TudoRun02",
+        3
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 32.184419268999996,
+      "after_cpu_s": 31.908439758
+    },
+    {
+      "key": [
+        "HelmDyn01",
+        0
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 39.349578050999995,
+      "after_cpu_s": 57.081428054999996
+    },
+    {
+      "key": [
+        "HelmDyn01",
+        3
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 13.926466376,
+      "after_cpu_s": 13.731691113999998
+    },
+    {
+      "key": [
+        "HelmDyn02",
+        0
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 38.363958871,
+      "after_cpu_s": 47.547153705
+    },
+    {
+      "key": [
+        "HelmDyn02",
+        3
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 24.949574283999997,
+      "after_cpu_s": 24.607629409999998
+    },
+    {
+      "key": [
+        "gate_02",
+        0
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 15.378687465999999,
+      "after_cpu_s": 15.325148342
+    },
+    {
+      "key": [
+        "gate_02",
+        3
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 34.282821399,
+      "after_cpu_s": 34.226956504
+    },
+    {
+      "key": [
+        "hall_05",
+        0
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 23.648511431,
+      "after_cpu_s": 17.492077911
+    },
+    {
+      "key": [
+        "hall_05",
+        3
+      ],
+      "before_locks": [],
+      "after_locks": [],
+      "max_live_pose_matrix_delta": 0,
+      "before_cpu_s": 15.301945556,
+      "after_cpu_s": 15.10482464
+    }
+  ],
+  "tests": {
+    "humble": 69,
+    "noetic": 67
+  },
+  "limitations": [
+    "upper_right search remains expensive; half-core hard-search target unmet",
+    "gate_02 windows 2/3/4 retain motion visibility rejection; no universal cross-scene threshold calibration",
+    "Six real sequences sampled into 36 windows, not six complete raw-sensor replays",
+    "No original Go2W small-room or navigation integration acceptance"
+  ],
+  "evidence_root": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/retrieval_20261111/verified",
+  "noetic_core_sha256": "c64a00a66b14afc6f3ce5090b77127675922f370cda50f6d5c4b8c22c51e9d52",
+  "right_search_cost": {
+    "search_frames": 199,
+    "search_process_cpu_s": 82.294629941,
+    "descriptor_thread_cpu_s": 7.973075458000034,
+    "descriptor_heading_comparisons": 330343,
+    "alignments": 1948,
+    "align_call_wall_sum_s": 39.706431495999986,
+    "diagnostics_wall_s": 7.968964961000004,
+    "scope": "Diagnostics enabled; align call wall times can overlap and are not additive CPU fractions; descriptor excludes duplicate diagnostic searches."
+  },
+  "changed_window_truth": {
+    "alignment": "/home/user/ros_ws/to_migrate_ws/build/n3mapping/loop_retention_20261022/HelmDyn01/full_ros_worker/n3m_poses_alignment.json",
+    "method": "Same pre-existing prefix alignment and IMU-to-GT lever arm for both candidates; no fitting to query; truth interpolation gap <=0.15s",
+    "variants": {
+      "before": {
+        "output_frames": 15,
+        "gt_matched": 15,
+        "rmse_m": 0.056621638045985544,
+        "max_m": 0.07114053540319419,
+        "median_m": 0.05414956276002736,
+        "holdout": true
+      },
+      "after": {
+        "output_frames": 15,
+        "gt_matched": 15,
+        "rmse_m": 0.05662163804598504,
+        "max_m": 0.07114053540319389,
+        "median_m": 0.05414956276002715,
+        "holdout": true
+      }
+    }
+  }
+}

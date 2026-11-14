@@ -47,7 +47,13 @@ TEST(ProductConfigHumbleTest, RosParameterFileMatchesGateFactory) {
         std::make_shared<rclcpp::Node>("n3mapping_node", mapping_options);
     Config mapping_config;
     loadConfigFromHumble(mapping_node.get(), &mapping_config);
-    EXPECT_FALSE(mapping_config.floor_attitude_enable);
+    auto expected_development = makeProductLocalizationConfig("", "");
+    expected_development.mode = "mapping";
+    expected_development.loop_use_icp_information = true;
+    expected_development.save_global_map_on_shutdown = true;
+    expected_development.reloc_lock_min_margin = 0.25;
+    EXPECT_EQ(runtimeConfigCanonical(mapping_config),
+              runtimeConfigCanonical(expected_development));
     mapping_node.reset();
 
     const std::string experimental_config_path =

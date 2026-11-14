@@ -1,0 +1,332 @@
+{
+  "stage": "2026-11-10 directional coverage calibration",
+  "status": "Final candidate verified on Humble, Noetic and recorded regressions. Cross-scene acceptance remains incomplete.",
+  "change": "Preserve cached seeds when any checked directional observation lacks coverage without proving contradiction. Invalidate only when all checked observations prove that unknown geometry cannot supply enough support. All lock thresholds are retained.",
+  "baseline_core_sha256": "f3149b52d7ad229e35259e7eee7ccafde6c97e21c10550b5f207da7b64d1ecbb",
+  "candidate_core_sha256": "ebd8844495c32c1c7b9cbdd734ad75382dd00bfa8c07a5939433e03bbe75da32",
+  "controlled_directional_audit": {
+    "cases": 1296,
+    "positive_reference_cases": 108,
+    "offset_cases": 1188,
+    "groups": [
+      {
+        "held_out": "TUDO",
+        "zero_training_offset_accept_threshold": 0.7533491381815164,
+        "held_out_reference_accept": 0,
+        "held_out_offset_accept": 0
+      },
+      {
+        "held_out": "Helm",
+        "zero_training_offset_accept_threshold": 0.36182453709886164,
+        "held_out_reference_accept": 36,
+        "held_out_offset_accept": 19
+      },
+      {
+        "held_out": "M2DGR",
+        "zero_training_offset_accept_threshold": 0.7533491381815164,
+        "held_out_reference_accept": 0,
+        "held_out_offset_accept": 0
+      }
+    ],
+    "original": {
+      "reference_accept": 31,
+      "offset_accept": 0
+    },
+    "known_only": {
+      "reference_accept": 85,
+      "offset_accept": 9
+    },
+    "core_sha256": "0bc976c98d6ecf4663c9f65585ae8aeadd277ea9096b64d983f961f3d8655679",
+    "runtime_change_note": "The final revision changes witness/candidate handling only; the audited visibility math source is identical to the audited intermediate binary."
+  },
+  "real_startup_e2e": {
+    "sequences": 6,
+    "windows_per_sequence": 6,
+    "frames_per_window": 24,
+    "locked_windows_each_variant": 33,
+    "total_windows_each_variant": 36,
+    "decision_changes": 0,
+    "max_matrix_difference": 7.105427357601002e-15,
+    "unchanged_unlocked": [
+      {
+        "sequence": "gate_02",
+        "episodes": [
+          2,
+          3,
+          4
+        ],
+        "reason": "moving_visibility_disagreement"
+      }
+    ]
+  },
+  "cross_dataset_negative_e2e": {
+    "cases_per_variant": 12,
+    "frames_per_case": 24,
+    "false_locks_each_variant": 0
+  },
+  "existing_full_route_regressions": {
+    "baseline": {
+      "mean_cores": 0.3902754707078863,
+      "first_lock_cpu_s": 5.126504652,
+      "first_lock_wall_s": 2.368318641857143,
+      "peak_rss_mib": 1252.63671875,
+      "alignments": 517
+    },
+    "candidate": {
+      "mean_cores": 0.3788028911787589,
+      "first_lock_cpu_s": 4.929213788214286,
+      "first_lock_wall_s": 2.275877188357143,
+      "peak_rss_mib": 1253.6953125,
+      "alignments": 517
+    },
+    "metric_scope": "The aggregate resource fields describe the 14 fixed positions; route metrics and comparison counts are separate.",
+    "comparisons": [
+      {
+        "id": "01_west_corridor",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 3.5561831257524545e-16,
+        "baseline_alignments": 33,
+        "candidate_alignments": 33
+      },
+      {
+        "id": "02_east_corridor",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 6.661338147750939e-16,
+        "baseline_alignments": 28,
+        "candidate_alignments": 28
+      },
+      {
+        "id": "03_south_corridor",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 2.0816681711721685e-17,
+        "baseline_alignments": 41,
+        "candidate_alignments": 41
+      },
+      {
+        "id": "04_north_corridor",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 2.0816681711721685e-17,
+        "baseline_alignments": 39,
+        "candidate_alignments": 39
+      },
+      {
+        "id": "05_southwest_office",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 4.163336342344337e-17,
+        "baseline_alignments": 37,
+        "candidate_alignments": 37
+      },
+      {
+        "id": "06_south_meeting",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 1.7763568394002505e-15,
+        "baseline_alignments": 37,
+        "candidate_alignments": 37
+      },
+      {
+        "id": "07_south_pillars",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 7.105427357601002e-15,
+        "baseline_alignments": 37,
+        "candidate_alignments": 37
+      },
+      {
+        "id": "08_west_shelves",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 4.440892098500626e-16,
+        "baseline_alignments": 41,
+        "candidate_alignments": 41
+      },
+      {
+        "id": "09_east_shelves",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 4.440892098500626e-16,
+        "baseline_alignments": 29,
+        "candidate_alignments": 29
+      },
+      {
+        "id": "10_northwest_meeting",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 4.440892098500626e-16,
+        "baseline_alignments": 33,
+        "candidate_alignments": 33
+      },
+      {
+        "id": "11_northeast_pillars",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 5.551115123125783e-16,
+        "baseline_alignments": 38,
+        "candidate_alignments": 38
+      },
+      {
+        "id": "12_north_office",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 2.0816681711721685e-17,
+        "baseline_alignments": 44,
+        "candidate_alignments": 44
+      },
+      {
+        "id": "13_south_door",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 5.551115123125783e-17,
+        "baseline_alignments": 42,
+        "candidate_alignments": 42
+      },
+      {
+        "id": "14_north_door",
+        "frames": 296,
+        "state_changes": 0,
+        "max_matrix_diff": 2.7755575615628914e-17,
+        "baseline_alignments": 38,
+        "candidate_alignments": 38
+      },
+      {
+        "id": "reentry",
+        "frames": 2236,
+        "state_changes": 0,
+        "max_matrix_diff": 1.4210854715202004e-14,
+        "baseline_alignments": 33,
+        "candidate_alignments": 33
+      },
+      {
+        "id": "independent",
+        "frames": 3666,
+        "state_changes": 0,
+        "max_matrix_diff": 4.263256414560601e-14,
+        "baseline_alignments": 419,
+        "candidate_alignments": 419
+      }
+    ],
+    "route_resource_runs": [
+      {
+        "route": "reentry",
+        "variant": "candidate",
+        "frames": 2236,
+        "outputs": 2232,
+        "locks": [
+          4
+        ],
+        "cpu_s": 54.36864336800001,
+        "input_s": 223.5,
+        "equivalent_cores": 0.2432601492975392,
+        "peak_rss_mib": 1253.6953125
+      },
+      {
+        "route": "independent",
+        "variant": "candidate",
+        "frames": 3666,
+        "outputs": 3662,
+        "locks": [
+          4,
+          1938
+        ],
+        "cpu_s": 129.27690979300002,
+        "input_s": 366.5,
+        "equivalent_cores": 0.35273372385538887,
+        "peak_rss_mib": 1253.6953125
+      }
+    ],
+    "adjacent_independent_route_recheck": [
+      {
+        "variant": "baseline",
+        "cpu_s": 114.298512851,
+        "wall_s": 41.517858258,
+        "alignments": 419,
+        "frames": 3666,
+        "locks": [
+          4,
+          1938
+        ],
+        "peak_rss_mib": 1253.5390625
+      },
+      {
+        "variant": "candidate",
+        "cpu_s": 115.81396845300002,
+        "wall_s": 42.255236485000005,
+        "alignments": 419,
+        "frames": 3666,
+        "locks": [
+          4,
+          1938
+        ],
+        "peak_rss_mib": 1253.84765625
+      }
+    ]
+  },
+  "limits": [
+    "Real-data startup queries and maps share the recorded traversal; physical accuracy is not independently certified.",
+    "Directional sweeps exclude query-window keyframes within +/-2 seconds, but reference poses come from the saved trajectory.",
+    "Wrong-offset witness scores are not full-pipeline false-lock rates.",
+    "Known-only normalization remains diagnostic; no universal 0.5 calibration is claimed.",
+    "No runtime, installation, main branch or navigation frozen library was replaced."
+  ],
+  "mature_implementation_review": {
+    "url": "https://github.com/ros-navigation/navigation2/blob/main/nav2_amcl/src/sensors/laser/likelihood_field_model_prob.cpp",
+    "file_blob_sha": "d40a80f8988a3a9e947e030d0d13938512bdaf3b",
+    "conclusion": "AMCL enables beam skipping only after convergence. Omitting disagreement during uninitialized global search is not a drop-in reliable policy."
+  },
+  "reproduction_directory": "build/upstream_review_20261109/n3m_cross_scene/final",
+  "missing_coverage_ablation": {
+    "baseline": {
+      "returncode": 1,
+      "tests": {
+        "MissingCoveragePreservesSeedsWithoutAllowingLock": {
+          "invalidated_seed_poses": "16",
+          "alignments": "28"
+        },
+        "StoredObservationMustIndependentlySupportTheCandidate": {
+          "partial_reference_invalidated_seeds": "4"
+        }
+      }
+    },
+    "coverage_v1": {
+      "returncode": 1,
+      "tests": {
+        "MissingCoveragePreservesSeedsWithoutAllowingLock": {
+          "invalidated_seed_poses": "0",
+          "alignments": "21"
+        },
+        "StoredObservationMustIndependentlySupportTheCandidate": {
+          "partial_reference_invalidated_seeds": "4"
+        }
+      }
+    },
+    "candidate": {
+      "returncode": 0,
+      "tests": {
+        "MissingCoveragePreservesSeedsWithoutAllowingLock": {
+          "invalidated_seed_poses": "0",
+          "alignments": "21"
+        },
+        "StoredObservationMustIndependentlySupportTheCandidate": {
+          "partial_reference_invalidated_seeds": "0"
+        }
+      }
+    }
+  },
+  "ros_qualification": {
+    "humble": {
+      "passed": 69,
+      "total": 69
+    },
+    "noetic": {
+      "passed": 67,
+      "total": 67,
+      "core_sha256": "3e7b18f7c21899cf736af3d8a6bddaa4cc732064e6bf1a2ba8d5cdb65a935f0e"
+    }
+  },
+  "missing_coverage_ablation_config": "Both variants use the existing synthetic fixture configuration, temporal window 3 and free-space disabled to isolate the directional gate. Recorded-data E2E uses unchanged product defaults."
+}

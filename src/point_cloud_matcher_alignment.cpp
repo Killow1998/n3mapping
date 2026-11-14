@@ -102,11 +102,15 @@ void evaluateFixedPoseFactors(
     std::vector<Factor> factors(source.size());
     registration_detail::RegistrationReduction reduction;
     reduction.num_threads = num_threads;
-    const registration_detail::CorrespondenceSearch search(*target.kdtree, rejector.max_dist_sq,
-                                                          target.search_bounds.get());
-    const auto [H, b, error] = reduction.linearize(
-        registration_detail::TargetView{*target.cloud, target.lazy_normals.get()},
-        source, search, rejector, pose, factors);
+    const auto [H, b, error] = target.mapped
+        ? reduction.linearize(registration_detail::MappedTargetView{*target.mapped}, source,
+            registration_detail::MappedCorrespondenceSearch{*target.mapped, rejector.max_dist_sq,
+                                                             target.use_occupied_bounds},
+            rejector, pose, factors)
+        : reduction.linearize(registration_detail::TargetView{*target.cloud, target.lazy_normals.get()}, source,
+            registration_detail::CorrespondenceSearch{*target.kdtree, rejector.max_dist_sq,
+                                                       target.search_bounds.get()},
+            rejector, pose, factors);
     (void)b;
     result->num_inliers = std::count_if(factors.begin(), factors.end(),
         [](const Factor& factor) { return factor.inlier(); });
@@ -184,8 +188,8 @@ MatchResult PointCloudMatcher::evaluatePreparedPose(
         for (const auto& level : source.plane_levels)
             if (std::abs(level.resolution - resolution) <= 1e-9) source_cloud = level.cloud.get();
     }
-    if (!target_level || !target_level->cloud || !target_level->kdtree ||
-        !source_cloud || target_level->cloud->size() < 10 || source_cloud->size() < 10)
+    if (!target_level || !target_level->ready() ||
+        !source_cloud || target_level->size() < 10 || source_cloud->size() < 10)
         return result;
 
     if (metric.type == small_gicp::RegistrationSetting::PLANE_ICP) {
@@ -221,15 +225,14 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
     if (setting.type == small_gicp::RegistrationSetting::GICP) {
         const auto& level = target.refine_level;
         if (!isFiniteRigidPose(init_guess) || !target.has_refine_level ||
-            !source.has_refine_cloud || !level.cloud || !level.kdtree ||
-            !source.refine_cloud || level.cloud->size() < 10 ||
+            !source.has_refine_cloud || !level.ready() ||
+            !source.refine_cloud || level.size() < 10 ||
             source.refine_cloud->size() < 10 ||
             std::abs(level.resolution - setting.downsampling_resolution) > 1e-9)
             return result;
         try {
             const auto rr = registration_detail::align(
-                *level.cloud, *source.refine_cloud, *level.kdtree, init_guess, setting,
-                level.search_bounds.get(), level.lazy_normals.get(), reciprocal);
+                level, *source.refine_cloud, init_guess, setting, reciprocal);
             const auto stage = makeStageResult(reciprocal ? "reciprocal_gicp" : "local_gicp", level.resolution, rr,
                 source.refine_cloud->size(), setting.max_iterations);
             result.stages.push_back(stage);
@@ -272,9 +275,9 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
             if (res > start_resolution + 1e-9) continue;
             const auto* target_level = find_target(res);
             const auto* source_level = find_source(res);
-            if (!target_level || !target_level->kdtree || !target_level->cloud ||
+            if (!target_level || !target_level->ready() ||
                 !source_level || !source_level->cloud ||
-                target_level->cloud->size() < 10 || source_level->cloud->size() < 10) {
+                target_level->size() < 10 || source_level->cloud->size() < 10) {
                 return result;
             }
             auto ls = setting;
@@ -284,9 +287,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
             if (res > base_res * 1.01 &&
                 setting.max_correspondence_distance >= setting_.max_correspondence_distance)
                 ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
-            auto rr = registration_detail::align(*target_level->cloud, *source_level->cloud,
-                                        *target_level->kdtree, T, ls, target_level->search_bounds.get(),
-                                        target_level->lazy_normals.get());
+            auto rr = registration_detail::align(*target_level, *source_level->cloud, T, ls);
             T = rr.T_target_source;
             const auto stage = makeStageResult(
                 res > base_res * 1.01 ? "coarse_plane_icp" : "fine_plane_icp",
@@ -311,15 +312,14 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
                 const auto& tr = target.refine_level;
                 const auto& sr = source.refine_cloud;
                 if (target.has_refine_level && source.has_refine_cloud &&
-                    tr.kdtree && tr.cloud && sr &&
-                    tr.cloud->size() >= 10 && sr->size() >= 10) {
+                    tr.ready() && sr &&
+                    tr.size() >= 10 && sr->size() >= 10) {
                     auto rs = setting;
                     rs.type = small_gicp::RegistrationSetting::GICP;
                     rs.max_iterations = config_.icp_refine_max_iterations;
                     rs.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
                     rs.downsampling_resolution = config_.icp_refine_downsampling_resolution;
-                    auto rr = registration_detail::align(*tr.cloud, *sr, *tr.kdtree, T, rs,
-                                                         tr.search_bounds.get(), tr.lazy_normals.get());
+                    auto rr = registration_detail::align(tr, *sr, T, rs);
                     const auto stage = makeStageResult("refine_gicp", config_.icp_refine_downsampling_resolution,
                                                        rr, sr->size(), rs.max_iterations);
                     result.stages.push_back(stage);

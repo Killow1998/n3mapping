@@ -52,6 +52,44 @@ validates clouds before encoding; its private encoder trusts those validated
 points. Atlas identity/cache orchestration belongs to `localization_atlas.cpp`,
 and prepared-level wire conversion to `localization_atlas_codec.cpp`.
 
+Atlas v4 persists the serial search topology and canonical double-precision point
+and normal vectors. `mapped_atlas.cpp` validates persisted geometry once and
+restores its index without rebuilding or sorting it. Coarse geometry remains in
+native storage for global retrieval; fine geometry uses a read-only mapping.
+`mapped_target.cpp` warms fine geometry for three-dimensional observation bounds
+on the shared background-worker implementation. Unselected regions remain
+available to exact global search. Page advice controls residency, not candidate
+acceptance or a strict process-memory limit. A missed prefetch can still cause a
+page fault on a registration thread.
+
+`SpatialPointBlocks` rejects raw visibility blocks while preserving the existing
+point order and spherical crop. Native and mapped targets share the registration
+algorithm through private storage adapters. The mapping owns its background
+worker and joins it before releasing the file; prepared targets retain that owner
+across Atlas replacement. Boost mapping headers stay private. Noetic and Humble
+use the same implementation. Compile C++ consumers with matching headers and
+library: the prepared-target layout has changed; ROS interfaces are unchanged.
+
+`registration_search.cpp` owns the native and mapped nearest-search and traversal
+instantiations. The search selects occupied-bound checking once at entry; its
+traversal, rejection distance and tie order stay shared. Native registration and
+mapped registration compile separately around `registration_solver.h`, which
+owns their common factor/rejector implementation. This keeps the hot traversal
+and factor code from competing within one large template compilation unit.
+Changing storage adapters must be checked against generated hot code and CPU;
+unchanged geometry and call counts alone do not establish unchanged compute.
+The [online CPU audit](evidence/online_cpu_20261114.json) records the controlled
+ablations and complete four-core replay. Atlas v4 artifacts are unchanged by
+this follow-up; no new tuning parameter or runtime state is required.
+
+The default cache path rebuilds v2/v3 artifacts once into v4. Explicit historical
+caches remain readable for comparison. Compilation immediately installs the
+mapped representation, so first use and reload have the same storage behavior.
+The [active-map audit](evidence/active_map_20261114.json) records the loading and
+RAM gains, larger cache files, one-time compilation cost and initial online
+CPU regression. Raw map/descriptor metadata and global indices remain resident;
+this is not a bound on total RAM or a reduction of geometric solver iterations.
+
 `RelocalizationDebugEmitter` owns sequencing, hypothesis snapshots and persistence.
 Its header forward-declares event payloads. Localization implementations include
 the payload schema where they populate events; schema details do not flow through
@@ -86,6 +124,24 @@ with trilinear sampling, without an optimizer dependency.
 
 ### Directional support before locking
 
+Before the directional witness, the selected current registration must constrain
+horizontal translation and yaw in the matched map. Its information matrix is
+projected onto those three source-frame directions and checked for numerical rank.
+This is a necessary observability check, not a confidence calibration. Candidate
+generation and reuse may retain partial constraints; only publishing a lock
+requires all three planar directions. A bare floor cannot establish a place even
+when the query contains nonplanar structure and the residual gates pass.
+
+Plane ICP reuses the selected registration matrix. GICP regularizes covariance
+along surfaces, so its matrix cannot establish this geometric rank. For a selected
+GICP result, the lock gate evaluates the already prepared plane geometry once at
+that pose, without another optimizer. This evaluation is counted in
+`fixed_pose_ms` and included in `directional_check_ms`; those counters overlap.
+The initialization, confirmation and tracking-recovery paths retain the matrix
+that belongs to the selected pose. An unobservable match reports
+`matched_planar_geometry_unobservable` and follows the existing rejected-place
+seed invalidation policy.
+
 The final witness uses point-to-plane Jacobians for yaw and horizontal translation.
 `planar_min_support = min_v (vᵀ H_explained v) / (vᵀ H_all v)` measures the
 least explained planar direction. Whitening makes `H_all` the identity. The fixed
@@ -99,9 +155,14 @@ The witness first checks the fused map. Fusion combines different visits, so an
 old foreground can hide a return supported by another complete observation. If
 the fused map has finite but insufficient support, the final gate independently
 checks the candidate's seed and support keyframe clouds in their optimized
-reference frames. Duplicate references are checked once. One complete observation
-must exceed 0.5 in every planar direction; directional evidence from different
-observations is never pooled. Unobservable query geometry still fails.
+reference frames. Duplicate references are checked once. An observation passes directly when support exceeds 0.5 in every planar direction.
+For partial coverage, the same historical observation must instead pass both
+coverage-conditioned forward support and unconditional reverse support, each
+above 0.5 in every planar direction. The reverse check prepares normals in the
+historical sensor frame and projects the current query into that frame. It uses
+the existing nearest-return model and performs no additional registration.
+Directional evidence from different observations is never pooled. Unobservable
+query or matched-map geometry still fails.
 
 Within each tested point cloud, a bearing supports its query surface when its
 nearest return agrees in range or point-to-plane distance, using the existing
@@ -113,12 +174,82 @@ Candidate ranking, temporal confirmation, ambiguity checks and free-space vetoes
 retain their existing definitions; floor matches cannot compensate for unsupported
 walls.
 
-A finite failed witness reports `directional_visibility_insufficient_support`.
-Low support alone does not prove geometric contradiction: missing map coverage,
-occlusion and angular discretization can also reduce it. Known/unknown bearing
-counts and nearer-map-return diagnostics remain separate. No universal cross-scene
-calibration of 0.5 is claimed. See the [grazing-plane evidence](evidence/directional_visibility_20261103.json)
-and [historical-observation evidence](evidence/directional_reference_20261104.json).
+Low support alone does not prove geometric contradiction. In the whitened query
+basis, `H_support + H_conflict + H_unknown = I`. Known map bearings contribute to
+`H_known`; a bearing contributes to `H_conflict = H_known - H_support` only when
+neither range nor the observed surface agrees. These are geometric information
+fractions, not independent measurement counts or calibrated probabilities.
+
+Failed witnesses invalidate cached seeds only when
+`lambda_max(H_conflict) >= 0.5` in every checked observation: even perfect
+agreement in all unknown bearings could not pass any existing support gate.
+A conflicting fused map cannot invalidate a seed when a stored observation
+only lacks coverage. This reports `directional_visibility_disagreement`. Otherwise it
+reports `directional_visibility_insufficient_coverage`, withholds localization,
+and preserves existing seeds for the next observation. Query or matched-map
+degeneracy still follows its separate rejection path. Repeating a stationary
+observation does not convert missing coverage into evidence.
+
+`planar_min_known` measures the least-covered direction;
+`planar_min_support_given_known` measures agreement conditional on coverage;
+`planar_max_conflict` measures the strongest contradiction. The coverage and
+reference debug events expose all three. Conditional agreement alone cannot accept a pose: discarding unknown bearings
+can make a small, ambiguous overlap look good. The reciprocal alternative also
+requires the historical observation to be supported by the query in all planar
+directions. `directional_min_support` retains its raw forward definition and may
+therefore be below 0.5 on an accepted reciprocal witness.
+`Reloc/DirectionalReciprocal` records the reference, conditional forward score
+and unconditional reverse score; both checks are timed in `directional_check_ms`.
+Known/unknown radial counts and nearer-map-return diagnostics remain separate.
+
+The [reciprocal witness audit](evidence/directional_reciprocal_20261111.json)
+records the preceding directional-gate qualification. Initial retrieval now accepts
+an explicit rank offset without owning search state. When no valid initial geometry
+is found, or stationary initial geometry fails likelihood or contradicts the map, localization requests
+the next bounded batch of places.
+A margin/ambiguity failure alone does not advance past a viable place. Existing
+seed caches and acceptance thresholds remain unchanged. An exhausted batch,
+a viewpoint change beyond the existing stationary aggregation limits, a successful
+lock, reset or map replacement returns retrieval to the first batch. Recovery after
+an established map pose and motion-gated confirmation failures retain their original
+retrieval policy. `Reloc/Retrieval` reports the offset through the bounded logger.
+
+Relocalization groups and reuses candidates by three-dimensional map distance.
+The same spatial radius applies when checking descriptor support and invalidating
+failed seed poses. XY proximity alone must not merge vertically separated regions.
+This is a spatial grouping rule, not a semantic floor classifier. The
+[spatial-basin audit](evidence/spatial_basins_20261111.json) records the repeated-floor
+E2E and the four-core cost comparison; the difficult-search half-core target remains
+unmet.
+
+A descriptor proposes an overlapping observation whose reference position can
+differ from the registered sensor position. Admission and confirmation therefore
+recognize descriptor support around either the original seed reference or the
+nearest reference at the solved pose, using the same three-dimensional radius.
+Confirmation still evaluates each new observation and retains the full final
+registration and existing ambiguity, visibility and observability gates. The
+[confirmation-support audit](evidence/confirmation_support_20261114.json) records
+the four-core regression and the distinction between search CPU and whole-clip CPU.
+
+Established tracking without a recent rejection first checks fresh plane coverage
+at the odometry prediction, then tries the existing fine GICP directly. A proposal
+that fails geometric quality or exceeds the existing capture limits uses the
+original coarse-to-fine solver. Existing tracking failures use that solver from
+the start. Selected-pose geometry, motion, visibility, free-space and observability
+gates remain downstream. The [tracking-geometry audit](evidence/tracking_geometry_20261114.json)
+records the shared Humble/Noetic implementation and four-core regression.
+
+The [retrieval audit](evidence/retrieval_20261111.json) separates descriptor recall,
+rank paging and motion/recovery regressions. Paging does not make descriptor scores
+probabilities, guarantee exhaustive coverage under changing ranks, or solve the
+remaining motion-visibility calibration.
+
+The [cross-scene audit](evidence/directional_cross_scene_20261110.json) records
+sequence-held-out analysis, controlled coverage ablations and end-to-end checks.
+No universal cross-scene calibration of 0.5 is claimed. Earlier evidence covers
+[grazing planes](evidence/directional_visibility_20261103.json),
+[historical observations](evidence/directional_reference_20261104.json) and
+[matched-map rank](evidence/n3m_issues_20261109.json).
 
 The [Atlas cache audit](evidence/atlas_cache_20261029.json) distinguishes that
 frozen regression fixture from normal deployment. Its explicit legacy Atlas

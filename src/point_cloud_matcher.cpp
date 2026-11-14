@@ -1,6 +1,7 @@
 // Point-cloud preparation, bounded storage estimates and matcher orchestration.
 #include "n3mapping/point_cloud_matcher.h"
 #include "compact_kdtree_builder.h"
+#include "mapped_target.h"
 #include "registration_bounds.h"
 #include "point_cloud_sampling.h"
 #include "point_cloud_features.h"
@@ -23,6 +24,8 @@ namespace {
 
 std::size_t preparedLevelMemoryBytes(
     const PointCloudMatcher::PreparedTargetLevel& level) {
+    if (level.mapped) return sizeof(level) + sizeof(*level.mapped) +
+        level.mapped->search_index->memoryBytes();
     if (!level.cloud) return 0;
     constexpr std::size_t kTreeBytesPerPoint = sizeof(std::size_t) * 8;
     std::size_t bytes = sizeof(level) + sizeof(*level.cloud) +

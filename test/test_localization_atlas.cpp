@@ -16,10 +16,26 @@
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/keyframe_manager.h"
 #include "localization_atlas.pb.h"
+#include "../src/point_cloud_target_view.h"
 
 namespace n3mapping {
 namespace test {
 namespace {
+
+struct AtlasLevelFeatures {
+  const PointCloudMatcher::PreparedTargetLevel& level;
+  explicit AtlasLevelFeatures(const PointCloudMatcher::PreparedTargetLevel& source) : level(source) {}
+  std::size_t size() const { return level.size(); }
+  bool hasExplicitCovariance() const {
+    return level.mapped ? !level.mapped->covariance_from_normal : !level.cloud->covs.empty();
+  }
+  Eigen::Vector4d point(std::size_t i) const { return level.mapped ? level.mapped->point(i) : level.cloud->point(i); }
+  Eigen::Vector4d normal(std::size_t i) const { return level.mapped ? level.mapped->normal(i) : level.cloud->normal(i); }
+  Eigen::Matrix4d covariance(std::size_t i) const {
+    return level.mapped ? level.mapped->covariance(i) :
+        registration_detail::TargetView{*level.cloud, level.lazy_normals.get()}.covariance(i);
+  }
+};
 
 class TemporaryAtlasFiles {
 public:
@@ -100,44 +116,40 @@ void expectPreparedLevelExact(
     const PointCloudMatcher::PreparedTargetLevel &expected,
     const PointCloudMatcher::PreparedTargetLevel &actual) {
   ASSERT_DOUBLE_EQ(expected.resolution, actual.resolution);
-  ASSERT_NE(expected.cloud, nullptr);
-  ASSERT_NE(actual.cloud, nullptr);
-  ASSERT_NE(actual.kdtree, nullptr);
-  ASSERT_EQ(expected.cloud->size(), actual.cloud->size());
-  ASSERT_EQ(expected.cloud->covs.empty(), actual.cloud->covs.empty());
-  // Prepared storage may be packed for tree locality on load. Compare the
-  // complete records in canonical order, including duplicate coordinates and
-  // their associated features; retain the bit-for-bit checks below.
-  const auto ordered = [](const auto& cloud) {
-    std::vector<std::size_t> indices(cloud.size());
+  ASSERT_TRUE(expected.ready());
+  ASSERT_TRUE(actual.ready());
+  const AtlasLevelFeatures e(expected), a(actual);
+  ASSERT_EQ(e.size(), a.size());
+  ASSERT_EQ(e.hasExplicitCovariance(), a.hasExplicitCovariance());
+  const auto ordered = [](const auto& view) {
+    std::vector<std::size_t> indices(view.size());
     for (std::size_t i = 0; i < indices.size(); ++i) indices[i] = i;
-    std::sort(indices.begin(), indices.end(), [&](auto a, auto b) {
-      int order = std::memcmp(cloud.point(a).data(), cloud.point(b).data(), 4 * sizeof(double));
-      if (order == 0)
-        order = std::memcmp(cloud.normal(a).data(), cloud.normal(b).data(), 4 * sizeof(double));
-      if (order == 0 && !cloud.covs.empty())
-        order = std::memcmp(cloud.cov(a).data(), cloud.cov(b).data(), 16 * sizeof(double));
+    std::sort(indices.begin(), indices.end(), [&](auto i, auto j) {
+      const auto pi = view.point(i), pj = view.point(j);
+      const auto ni = view.normal(i), nj = view.normal(j);
+      int order = std::memcmp(pi.data(), pj.data(), 4 * sizeof(double));
+      if (order == 0) order = std::memcmp(ni.data(), nj.data(), 3 * sizeof(double));
+      if (order == 0 && view.hasExplicitCovariance()) {
+        const auto ci = view.covariance(i), cj = view.covariance(j);
+        order = std::memcmp(ci.data(), cj.data(), 16 * sizeof(double));
+      }
       return order < 0;
     });
     return indices;
   };
-  const auto expected_indices = ordered(*expected.cloud);
-  const auto actual_indices = ordered(*actual.cloud);
-  for (std::size_t i = 0; i < expected.cloud->size(); ++i) {
-    const auto e = expected_indices[i], a = actual_indices[i];
-    EXPECT_EQ(expected.cloud->point(e), actual.cloud->point(a));
-    EXPECT_EQ(expected.cloud->normal(e), actual.cloud->normal(a));
-    if (!expected.cloud->covs.empty())
-      EXPECT_EQ(expected.cloud->cov(e), actual.cloud->cov(a));
-    // Effective components must survive bit-for-bit, including signed zero.
-    EXPECT_EQ(std::memcmp(expected.cloud->point(e).data(),
-                          actual.cloud->point(a).data(), 3 * sizeof(double)), 0);
-    EXPECT_EQ(std::memcmp(expected.cloud->normal(e).data(),
-                          actual.cloud->normal(a).data(), 3 * sizeof(double)), 0);
-    for (int column = 0; !expected.cloud->covs.empty() && column < 3; ++column) {
-      EXPECT_EQ(std::memcmp(expected.cloud->cov(e).col(column).data(),
-                            actual.cloud->cov(a).col(column).data(),
-                            3 * sizeof(double)), 0);
+  const auto ei = ordered(e), ai = ordered(a);
+  for (std::size_t i = 0; i < e.size(); ++i) {
+    const auto ep = e.point(ei[i]), ap = a.point(ai[i]);
+    const auto en = e.normal(ei[i]), an = a.normal(ai[i]);
+    EXPECT_EQ(ep, ap);
+    EXPECT_EQ(en, an);
+    EXPECT_EQ(std::memcmp(ep.data(), ap.data(), 3 * sizeof(double)), 0);
+    EXPECT_EQ(std::memcmp(en.data(), an.data(), 3 * sizeof(double)), 0);
+    if (e.hasExplicitCovariance()) {
+      const auto ec = e.covariance(ei[i]), ac = a.covariance(ai[i]);
+      EXPECT_EQ(ec, ac);
+      for (int column = 0; column < 3; ++column)
+        EXPECT_EQ(std::memcmp(ec.col(column).data(), ac.col(column).data(), 3 * sizeof(double)), 0);
     }
   }
 }
@@ -326,6 +338,59 @@ TEST(LocalizationAtlasTest, RoundTripsPreparedTargetExactly) {
   EXPECT_FALSE(loaded.takeFreeSpaceGrid().valid());
 }
 
+
+TEST(LocalizationAtlasTest, MappedGeometryKeepsOtherFloorsAndSurvivesReferenceReplacement) {
+  TemporaryAtlasFiles files;
+  auto config = makeConfig();
+  config.rhpd_max_range = 4;
+  config.gicp_max_correspondence_distance = .25;
+  config.reloc_track_retry_corr_scale = 1;
+  auto frames = makeKeyframes();
+  for (const auto& translation : {Eigen::Vector3d(0, 0, 6), Eigen::Vector3d(75, -25, 6)}) {
+    auto pose = Eigen::Isometry3d::Identity();
+    pose.translation() = translation;
+    frames.push_back(Keyframe::create(frames.size(), frames.size(), pose, makeStructuredCloud()));
+  }
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  LocalizationAtlasStats stats;
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), frames, files.atlas().string(),
+                                  false, &stats, &error)) << error;
+  ASSERT_TRUE(stats.paged_geometry);
+  const auto native = matcher.prepareTargetCloud(atlas.globalMap());
+  const auto retained = atlas.preparedTarget();
+  for (std::size_t i = 0; i < native.plane_levels.size(); ++i)
+    expectPreparedLevelExact(native.plane_levels[i], retained.plane_levels[i]);
+  expectPreparedLevelExact(native.refine_level, retained.refine_level);
+  const auto query = matcher.prepareSourceCloud(makeStructuredCloud());
+  atlas.prefetchTarget(query, {Eigen::Isometry3d::Identity()});
+  for (const auto& frame : frames) {
+    const auto indexed = atlas.cropVisibilityTarget(frame->pose_optimized.translation());
+    const auto original = LocalizationAtlas::cropGlobalMap(config, atlas.globalMap(),
+                                                           frame->pose_optimized.translation());
+    ASSERT_EQ(indexed->size(), original->size());
+    for (std::size_t i = 0; i < original->size(); ++i)
+      EXPECT_EQ(indexed->points[i].getVector4fMap(), original->points[i].getVector4fMap());
+    auto initial = frame->pose_optimized;
+    initial.translation() += Eigen::Vector3d(.02, -.01, .006);
+    const auto expected = matcher.alignPrepared(native, query, initial);
+    const auto actual = matcher.alignPrepared(retained, query, initial);
+    ASSERT_TRUE(expected.success);
+    ASSERT_TRUE(actual.success);
+    EXPECT_EQ(expected.num_inliers, actual.num_inliers);
+    EXPECT_TRUE(expected.T_target_source.matrix().isApprox(actual.T_target_source.matrix(), 1e-10));
+    EXPECT_NEAR(expected.fitness_score, actual.fitness_score, 1e-12);
+  }
+  atlas.clear();
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), frames, files.atlas().string(),
+                                  true, nullptr, &error)) << error;
+  const auto expected = matcher.alignPrepared(native, query, frames.back()->pose_optimized);
+  const auto actual = matcher.alignPrepared(retained, query, frames.back()->pose_optimized);
+  ASSERT_TRUE(actual.success);
+  EXPECT_TRUE(expected.T_target_source.matrix().isApprox(actual.T_target_source.matrix(), 1e-10));
+}
+
 TEST(LocalizationAtlasTest, FreeSpaceCacheMissFallsBackAndMalformedMatchingCacheIsRejected) {
   TemporaryAtlasFiles files;
   const auto config = makeConfig();
@@ -476,7 +541,7 @@ TEST(LocalizationAtlasTest, KeepsExplicitCovarianceWhenItIsNotTheFixedNormalMode
   std::string error;
   ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(),
                                   files.atlas().string(), false, nullptr, &error));
-  ASSERT_TRUE(atlas.preparedTarget().refine_level.cloud->covs.empty());
+  ASSERT_FALSE(AtlasLevelFeatures(atlas.preparedTarget().refine_level).hasExplicitCovariance());
   LocalizationAtlasData data;
   {
     std::ifstream stream(files.atlas(), std::ios::binary);
@@ -486,8 +551,10 @@ TEST(LocalizationAtlasTest, KeepsExplicitCovarianceWhenItIsNotTheFixedNormalMode
   ASSERT_TRUE(level->covariance_from_normal());
   level->set_covariance_from_normal(false);
   for (uint64_t i = 0; i < level->num_points(); ++i) {
-    Eigen::Vector3d normal;
-    for (int axis = 0; axis < 3; ++axis) normal[axis] = level->normals(3 * i + axis);
+    Eigen::Vector4d stored_normal;
+    std::memcpy(stored_normal.data(), level->features().data() +
+                (level->num_points() + i) * 32, 32);
+    const Eigen::Vector3d normal = stored_normal.head<3>();
     const Eigen::Matrix3d covariance = Eigen::Matrix3d::Identity() - .999 * normal * normal.transpose();
     for (int row = 0; row < 3; ++row)
       for (int col = 0; col < 3; ++col) level->add_covariances(covariance(row, col));
@@ -499,13 +566,13 @@ TEST(LocalizationAtlasTest, KeepsExplicitCovarianceWhenItIsNotTheFixedNormalMode
     ASSERT_TRUE(data.SerializeToOstream(&stream));
   }
   ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
-  const auto& loaded = *atlas.preparedTarget().refine_level.cloud;
-  ASSERT_EQ(loaded.covs.size(), loaded.size());
+  const AtlasLevelFeatures loaded(atlas.preparedTarget().refine_level);
+  ASSERT_TRUE(loaded.hasExplicitCovariance());
   // A change in storage order cannot hide a modified covariance model.
   size_t changed = 0;
   for (size_t i = 0; i < loaded.size(); ++i) {
-    if (std::abs(loaded.cov(i).trace() - 4.002) < 1e-12) ++changed;
-    else EXPECT_NEAR(loaded.cov(i).trace(), 2.001, 1e-12);
+    if (std::abs(loaded.covariance(i).trace() - 4.002) < 1e-12) ++changed;
+    else EXPECT_NEAR(loaded.covariance(i).trace(), 2.001, 1e-12);
   }
   EXPECT_EQ(changed, 1u);
 }
@@ -535,7 +602,8 @@ TEST(LocalizationAtlasTest, RejectsOldFormatAndTruncatedPreparedArrays) {
   EXPECT_NE(error.find("rebuild from the source map"), std::string::npos);
 
   data.set_format_version(current_version);
-  data.mutable_plane_levels(0)->mutable_points()->RemoveLast();
+  const auto last_feature = data.plane_levels(0).features().back();
+  data.mutable_plane_levels(0)->mutable_features()->pop_back();
   {
     std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
     ASSERT_TRUE(data.SerializeToOstream(&stream));
@@ -543,6 +611,22 @@ TEST(LocalizationAtlasTest, RejectsOldFormatAndTruncatedPreparedArrays) {
   EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
   EXPECT_FALSE(atlas.loaded());
   EXPECT_NE(error.find("array size mismatch"), std::string::npos);
+  data.mutable_plane_levels(0)->mutable_features()->push_back(last_feature);
+  data.mutable_plane_levels(0)->mutable_search_index()->pop_back();
+  {
+    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
+    ASSERT_TRUE(data.SerializeToOstream(&stream));
+  }
+  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_FALSE(atlas.loaded());
+  EXPECT_NE(error.find("invalid search index"), std::string::npos);
+  {
+    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
+    const unsigned char invalid_length[] = {10, 255, 255, 255, 255, 15};
+    stream.write(reinterpret_cast<const char*>(invalid_length), sizeof(invalid_length));
+  }
+  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_FALSE(atlas.loaded());
 }
 
 } // namespace test

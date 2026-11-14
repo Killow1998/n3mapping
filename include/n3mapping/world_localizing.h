@@ -184,6 +184,8 @@ private:
   LocalMapSelector local_map_selector_;
   RelocalizationQueryBuilder query_builder_;
   RelocalizationPlaceIndex place_index_;
+  std::size_t search_offset_ = 0;
+  Eigen::Isometry3d search_anchor_ = Eigen::Isometry3d::Identity();
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
   KeyframeMapRevision loaded_atlas_revision_;
   std::unique_ptr<RelocTargetProvider> target_provider_;

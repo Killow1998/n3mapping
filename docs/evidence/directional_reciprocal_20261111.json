@@ -1,0 +1,592 @@
+{
+  "date": "2026-11-11",
+  "status": "qualified isolated candidate; not deployed, merged or pushed",
+  "source_head": "f0bb07977cec0098440d805ea2683d604cf85206",
+  "mechanism": "Keep direct directional support; for each independent historical observation allow coverage-conditioned forward support >0.5 only together with unconditional reverse planar support >0.5. No pooling, new registration, parameter tuning or ground-truth input.",
+  "acceptance_change": "Partial-map positive fixtures may now lock; raw directional_min_support remains forward-only and can be below 0.5 on a reciprocal acceptance. Two test expectations updated; temporal, contradictory-map and pose checks retained.",
+  "door_center": {
+    "previous": {
+      "frames": 626,
+      "locks": [],
+      "live": 0,
+      "alignments": 698,
+      "cpu_s": 117.761773438
+    },
+    "candidate": {
+      "frames": 626,
+      "locks": [
+        4
+      ],
+      "live": 622,
+      "alignments": 15,
+      "cpu_s": 15.516735404999999
+    },
+    "truth": {
+      "rmse": 0.009079760541366862,
+      "median": 0.0090186396416152,
+      "p95": 0.010219715239364274,
+      "maximum": 0.012485359187300786
+    },
+    "truth_scope": "single mapping-run anchor; query never aligned to truth; core replay of recorded frontend input, not full navigation ROS integration"
+  },
+  "map03": {
+    "total": 13,
+    "locked": 11,
+    "results": [
+      {
+        "name": "door_control",
+        "frames": 160,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.02736808622012414,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 155
+        }
+      },
+      {
+        "name": "door_center",
+        "frames": 626,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.012485359187300786,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 621
+        }
+      },
+      {
+        "name": "door_center_far",
+        "frames": 626,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.007920574742566055,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 621
+        }
+      },
+      {
+        "name": "door_left_angled_original",
+        "frames": 162,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.02518333309239338,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 157
+        }
+      },
+      {
+        "name": "door_left_original",
+        "frames": 160,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.019791506650602676,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 155
+        }
+      },
+      {
+        "name": "door_posts_center",
+        "frames": 198,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.01383420342475838,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 193
+        }
+      },
+      {
+        "name": "door_posts_left",
+        "frames": 626,
+        "locks": [
+          7
+        ],
+        "position_max_m": 0.011650783653184324,
+        "decisions": {
+          "temporal_window_pending": 7,
+          "accepted": 1,
+          "tracking_geometric": 618
+        }
+      },
+      {
+        "name": "door_posts_right",
+        "frames": 445,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.01846934716630566,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 440
+        }
+      },
+      {
+        "name": "door_right_angled_original",
+        "frames": 167,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.016822545230027065,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 162
+        }
+      },
+      {
+        "name": "door_right_original",
+        "frames": 163,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.019393972087511615,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 158
+        }
+      },
+      {
+        "name": "door_upper_center",
+        "frames": 626,
+        "locks": [],
+        "position_max_m": null,
+        "decisions": {
+          "temporal_window_pending": 513,
+          "log_likelihood": 23,
+          "margin": 77,
+          "ambiguous": 11,
+          "directional_visibility_insufficient_coverage": 2
+        }
+      },
+      {
+        "name": "door_upper_left",
+        "frames": 168,
+        "locks": [
+          4
+        ],
+        "position_max_m": 0.06994460485838717,
+        "decisions": {
+          "temporal_window_pending": 4,
+          "accepted": 1,
+          "tracking_geometric": 163
+        }
+      },
+      {
+        "name": "door_upper_right",
+        "frames": 626,
+        "locks": [],
+        "position_max_m": null,
+        "decisions": {
+          "temporal_window_pending": 501,
+          "log_likelihood": 125
+        }
+      }
+    ]
+  },
+  "tests": {
+    "humble_ctest": "69/69",
+    "noetic_ctest": "67/67",
+    "fixed14_and_routes": [
+      {
+        "name": "01_west_corridor",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 2.0816681711721685e-16,
+        "old_alignments": 33,
+        "new_alignments": 33
+      },
+      {
+        "name": "02_east_corridor",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 6.661338147750939e-16,
+        "old_alignments": 28,
+        "new_alignments": 28
+      },
+      {
+        "name": "03_south_corridor",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 1.3877787807814457e-17,
+        "old_alignments": 41,
+        "new_alignments": 41
+      },
+      {
+        "name": "04_north_corridor",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 4.163336342344337e-17,
+        "old_alignments": 39,
+        "new_alignments": 39
+      },
+      {
+        "name": "05_southwest_office",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 4.440892098500626e-16,
+        "old_alignments": 37,
+        "new_alignments": 37
+      },
+      {
+        "name": "06_south_meeting",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 1.7763568394002505e-15,
+        "old_alignments": 37,
+        "new_alignments": 37
+      },
+      {
+        "name": "07_south_pillars",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 7.105427357601002e-15,
+        "old_alignments": 37,
+        "new_alignments": 37
+      },
+      {
+        "name": "08_west_shelves",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 1.7763568394002505e-15,
+        "old_alignments": 41,
+        "new_alignments": 41
+      },
+      {
+        "name": "09_east_shelves",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 6.661338147750939e-16,
+        "old_alignments": 29,
+        "new_alignments": 29
+      },
+      {
+        "name": "10_northwest_meeting",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 4.440892098500626e-16,
+        "old_alignments": 33,
+        "new_alignments": 33
+      },
+      {
+        "name": "11_northeast_pillars",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 1.6653345369377348e-16,
+        "old_alignments": 38,
+        "new_alignments": 38
+      },
+      {
+        "name": "12_north_office",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 2.7755575615628914e-17,
+        "old_alignments": 44,
+        "new_alignments": 44
+      },
+      {
+        "name": "13_south_door",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 5.551115123125783e-17,
+        "old_alignments": 42,
+        "new_alignments": 42
+      },
+      {
+        "name": "14_north_door",
+        "frames": 296,
+        "state_changes": 0,
+        "max_pose_delta": 2.7755575615628914e-17,
+        "old_alignments": 38,
+        "new_alignments": 38
+      },
+      {
+        "name": "reentry",
+        "frames": 2236,
+        "state_changes": 0,
+        "max_pose_delta": 1.5987211554602254e-14,
+        "old_alignments": 33,
+        "new_alignments": 33
+      },
+      {
+        "name": "independent",
+        "frames": 3666,
+        "state_changes": 0,
+        "max_pose_delta": 4.263256414560601e-14,
+        "old_alignments": 419,
+        "new_alignments": 419
+      }
+    ],
+    "real_windows": {
+      "sequences": 6,
+      "windows": 36,
+      "frames_each": 24,
+      "locks": 33,
+      "state_changes": 0,
+      "limitation": "36 sampled windows, not six full sequences; same-run maps are not independent physical truth"
+    },
+    "wrong_map": {
+      "windows": 12,
+      "locks": 0
+    }
+  },
+  "geometry_ablation": {
+    "scope": "1296 geometry-only cases, full-map reciprocal proxy; product fallback uses independent historical observations. Not a pipeline false-lock estimate.",
+    "cases": 1296,
+    "nominal": 108,
+    "offsets": 1188,
+    "original_nominal_pass": 31,
+    "reciprocal_nominal_pass": 34,
+    "reciprocal_offset_pass": 0
+  },
+  "fixed14_cost": {
+    "previous": {
+      "mean_cores": 0.3788028911787589,
+      "first_lock_cpu_s": 4.929213788214286,
+      "first_lock_wall_s": 2.275877188357143,
+      "peak_rss_mib": 1253.6953125,
+      "alignments": 517
+    },
+    "candidate": {
+      "mean_cores": 0.37634665578694204,
+      "first_lock_cpu_s": 4.966411866214286,
+      "first_lock_wall_s": 2.2906287284999998,
+      "peak_rss_mib": 1222.234375,
+      "alignments": 517
+    }
+  },
+  "remaining": [
+    "door_upper_center: wrong candidates retained; no lock under margin/ambiguity gates",
+    "door_upper_right: log_likelihood rejects; no lock",
+    "gate_02 sampled windows 2/3/4: earlier moving_visibility_disagreement unchanged",
+    "Go2W original small-room input and full navigation integration not qualified; threshold not a universal calibrated probability"
+  ],
+  "artifacts": {
+    "root": "build/upstream_review_20261109/n3m_cross_scene/doorway_20261111",
+    "core_sha256": "8d917a8678f112322cbea213442c0b9d17b487dc0670641744ad4c4f802ce12b",
+    "noetic_core_sha256": "9cd7dd7ccaae7f28454f7ed09ea98431c77614f2893e813e81850003866c0497"
+  },
+  "upper_occlusion_oracle": [
+    {
+      "name": "door_upper_center",
+      "scope": "Oracle only, not passed to localization. Query first five frames; local target cropped at truth; initial poses: truth, +0.3m map X, -0.3m map Y, +/-10deg map yaw. Independent fixed mapping anchor, no query trajectory fit.",
+      "fits": [
+        {
+          "trial": 0,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0654186,
+          "rotation_error_deg": 0.0766102,
+          "inlier": 0.971486,
+          "fitness": 0.00599635
+        },
+        {
+          "trial": 1,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0654186,
+          "rotation_error_deg": 0.0766102,
+          "inlier": 0.971486,
+          "fitness": 0.00599635
+        },
+        {
+          "trial": 2,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0654186,
+          "rotation_error_deg": 0.0766102,
+          "inlier": 0.971486,
+          "fitness": 0.00599635
+        },
+        {
+          "trial": 3,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0654186,
+          "rotation_error_deg": 0.0766102,
+          "inlier": 0.971486,
+          "fitness": 0.00599635
+        },
+        {
+          "trial": 4,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0654186,
+          "rotation_error_deg": 0.0766102,
+          "inlier": 0.971486,
+          "fitness": 0.00599635
+        }
+      ],
+      "nearest_keyframes": [
+        [
+          1171,
+          0.41434
+        ],
+        [
+          1170,
+          0.42929
+        ],
+        [
+          1172,
+          0.50505
+        ],
+        [
+          1169,
+          0.547152
+        ],
+        [
+          1173,
+          0.665364
+        ],
+        [
+          1168,
+          0.717676
+        ],
+        [
+          1174,
+          0.853079
+        ],
+        [
+          1167,
+          0.911097
+        ],
+        [
+          1175,
+          1.05644
+        ],
+        [
+          1166,
+          1.11665
+        ],
+        [
+          1176,
+          1.26414
+        ],
+        [
+          1165,
+          1.32914
+        ]
+      ],
+      "global_directional_support": 0.578658
+    },
+    {
+      "name": "door_upper_right",
+      "scope": "Oracle only, not passed to localization. Query first five frames; local target cropped at truth; initial poses: truth, +0.3m map X, -0.3m map Y, +/-10deg map yaw. Independent fixed mapping anchor, no query trajectory fit.",
+      "fits": [
+        {
+          "trial": 0,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0508776,
+          "rotation_error_deg": 0.150513,
+          "inlier": 0.989433,
+          "fitness": 0.00609075
+        },
+        {
+          "trial": 1,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0508776,
+          "rotation_error_deg": 0.150513,
+          "inlier": 0.989433,
+          "fitness": 0.00609075
+        },
+        {
+          "trial": 2,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0508776,
+          "rotation_error_deg": 0.150513,
+          "inlier": 0.989433,
+          "fitness": 0.00609075
+        },
+        {
+          "trial": 3,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0508776,
+          "rotation_error_deg": 0.150513,
+          "inlier": 0.989433,
+          "fitness": 0.00609075
+        },
+        {
+          "trial": 4,
+          "success": 1.0,
+          "converged": 1.0,
+          "position_error_m": 0.0508776,
+          "rotation_error_deg": 0.150513,
+          "inlier": 0.989433,
+          "fitness": 0.00609075
+        }
+      ],
+      "nearest_keyframes": [
+        [
+          1170,
+          1.02063
+        ],
+        [
+          1171,
+          1.02416
+        ],
+        [
+          1169,
+          1.06745
+        ],
+        [
+          1172,
+          1.07088
+        ],
+        [
+          1168,
+          1.1565
+        ],
+        [
+          1173,
+          1.16287
+        ],
+        [
+          1167,
+          1.27856
+        ],
+        [
+          1174,
+          1.28658
+        ],
+        [
+          1166,
+          1.42632
+        ],
+        [
+          1175,
+          1.43537
+        ],
+        [
+          1165,
+          1.59309
+        ],
+        [
+          1176,
+          1.60042
+        ]
+      ],
+      "global_directional_support": 0.606539
+    }
+  ]
+}

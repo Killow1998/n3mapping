@@ -250,6 +250,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   const auto source_prepare_started = timing_started();
   const auto prepared_source = matcher_.prepareSourceCloud(cloud);
   debug_event.source_prepare_ms = elapsed_ms(source_prepare_started);
+  localization_atlas_->prefetchTarget(prepared_source, {predicted_pose});
   auto match_result = registerTracking(prepared_target, prepared_source, *cloud,
                                        predicted_pose, odom_pose, strict_loaded_map, debug_event);
   const bool retry_used = debug_event.retry_used;

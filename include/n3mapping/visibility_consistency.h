@@ -54,6 +54,12 @@ struct VisibilityConsistencyResult {
   // Fraction of query geometry explained in the least supported planar motion
   // direction. NaN means unavailable, including a rank-deficient observation.
   double planar_min_support = std::numeric_limits<double>::quiet_NaN();
+  // Directional map coverage, independently of agreement. Conditional support
+  // alone is insufficient; partial coverage requires an independent reverse witness.
+  double planar_min_known = std::numeric_limits<double>::quiet_NaN();
+  double planar_min_support_given_known =
+      std::numeric_limits<double>::quiet_NaN();
+  double planar_max_conflict = std::numeric_limits<double>::quiet_NaN();
 };
 
 // The options as configuration sets them. A function rather than a block inside

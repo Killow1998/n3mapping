@@ -39,6 +39,8 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/point_cloud_matcher.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_matcher_alignment.cpp
   ${N3MAPPING_ROOT}/src/point_cloud_registration.cpp
+  ${N3MAPPING_ROOT}/src/mapped_registration.cpp
+  ${N3MAPPING_ROOT}/src/registration_search.cpp
   ${N3MAPPING_ROOT}/src/loop_detector.cpp
   ${N3MAPPING_ROOT}/src/loop_detector_spatial.cpp
   ${N3MAPPING_ROOT}/src/loop_verifier.cpp
@@ -72,6 +74,9 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/map_serializer_load.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas_codec.cpp
+  ${N3MAPPING_ROOT}/src/atlas_search_index.cpp
+  ${N3MAPPING_ROOT}/src/mapped_atlas.cpp
+  ${N3MAPPING_ROOT}/src/mapped_target.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas_descriptors.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas_map.cpp
   ${N3MAPPING_ROOT}/src/localization_crop.cpp

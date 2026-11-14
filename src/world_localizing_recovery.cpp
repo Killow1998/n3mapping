@@ -54,6 +54,7 @@ void WorldLocalizing::appendTrackingRecovery(
   hyp.seed_match_id = hyp.last_match_id = anchor;
   hyp.T_map_odom = match.T_target_source * odom_pose.inverse();
   hyp.metric = match.metric;
+  hyp.last_registration_information = match.information;
   hyp.cumulative_log_likelihood = computeTrackLogLikelihood(match, predicted);
   hyp.num_updates = hyp.converged_updates = hyp.visibility_updates = 1;
   hyp.visibility_consistency_sum = after.consistency_ratio;

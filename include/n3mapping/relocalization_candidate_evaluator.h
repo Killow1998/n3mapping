@@ -45,7 +45,7 @@ public:
   void beginSeedPlan(const std::vector<std::pair<int64_t, double>>& seeds,
                      const KeyframeMapRevision& revision);
   void clear();
-  std::size_t discardSeedsNear(const Eigen::Vector3d& center, double radius_xy);
+  std::size_t discardSeedsNear(const Eigen::Vector3d& center, double radius);
 
   std::vector<RelocalizationCandidateEvaluation>
   evaluate(const PointCloudMatcher::PreparedSource &prepared_query,

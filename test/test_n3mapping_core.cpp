@@ -955,84 +955,88 @@ TEST(N3MappingCoreTest, ReplayedAcquisitionKeepsTrackingAndDenseOutputWithoutNew
 
 TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseRequiresLockBeforeMixingSources)
 {
-    Config config = makeCoreTestConfig();
-    config.reloc_atlas_enable = false;  // Old-format fixture has no Atlas.
-    config.reloc_temporal_window_size = 1;
-    config.reloc_lock_min_winner_streak = 1;
-    config.reloc_lock_min_converged_updates = 1;
-    config.reloc_lock_log_likelihood_threshold = -1000.0;
-    config.reloc_min_confidence = 0.0;
-    config.reloc_min_inlier_ratio = 0.0;
-    config.reloc_static_agg_enable = false;
+    for (bool refine : {false, true}) {
+        SCOPED_TRACE(refine);
+        Config config = makeCoreTestConfig();
+        config.icp_refine_use_gicp = refine;
+        config.reloc_atlas_enable = false;  // Old-format fixture has no Atlas.
+        config.reloc_temporal_window_size = 1;
+        config.reloc_lock_min_winner_streak = 1;
+        config.reloc_lock_min_converged_updates = 1;
+        config.reloc_lock_log_likelihood_threshold = -1000.0;
+        config.reloc_min_confidence = 0.0;
+        config.reloc_min_inlier_ratio = 0.0;
+        config.reloc_static_agg_enable = false;
 
-    const std::filesystem::path dir =
-        std::filesystem::temp_directory_path() / "n3mapping_core_extension_dense_mixed_source";
-    std::filesystem::remove_all(dir);
-    std::filesystem::create_directories(dir);
-    const std::filesystem::path old_map_path = dir / "old_no_dense.pbstream";
-    const std::filesystem::path extended_map_path = dir / "extended.pbstream";
+        const std::filesystem::path dir =
+            std::filesystem::temp_directory_path() / "n3mapping_core_extension_dense_mixed_source";
+        std::filesystem::remove_all(dir);
+        std::filesystem::create_directories(dir);
+        const std::filesystem::path old_map_path = dir / "old_no_dense.pbstream";
+        const std::filesystem::path extended_map_path = dir / "extended.pbstream";
 
-    n3mapping::N3Map old_map;
-    old_map.mutable_metadata()->set_version("2.2.0");
-    auto* kf = old_map.add_keyframes();
-    kf->set_id(0);
-    kf->set_timestamp(1.0);
-    kf->mutable_pose_odom()->set_qw(1.0);
-    kf->mutable_pose_optimized()->set_qw(1.0);
-    auto* cloud = kf->mutable_cloud();
-    cloud->set_num_points(120);
-    for (int i = 0; i < 120; ++i) {
-        cloud->add_points(static_cast<float>(i % 12) * 0.1f);
-        cloud->add_points(static_cast<float>(i / 12) * 0.1f);
-        cloud->add_points(0.0f);
-        cloud->add_points(1.0f);
+        n3mapping::N3Map old_map;
+        old_map.mutable_metadata()->set_version("2.2.0");
+        auto* kf = old_map.add_keyframes();
+        kf->set_id(0);
+        kf->set_timestamp(1.0);
+        kf->mutable_pose_odom()->set_qw(1.0);
+        kf->mutable_pose_optimized()->set_qw(1.0);
+        auto* cloud = kf->mutable_cloud();
+        cloud->set_num_points(120);
+        for (int i = 0; i < 120; ++i) {
+            cloud->add_points(static_cast<float>(i % 12) * 0.1f);
+            cloud->add_points(static_cast<float>(i / 12) * 0.1f);
+            cloud->add_points(0.0f);
+            cloud->add_points(1.0f);
+        }
+        {
+            std::ofstream ofs(old_map_path, std::ios::binary);
+            ASSERT_TRUE(old_map.SerializeToOstream(&ofs));
+        }
+
+        N3MappingCore extension_core(config);
+        ASSERT_TRUE(extension_core.loadMap(old_map_path.string()));
+        const auto query = makeFrame(2000000000, Eigen::Isometry3d::Identity());
+        // The old fixture paired a flat map with a different, non-planar query.
+        // Even permissive likelihood settings must not manufacture an XY lock or
+        // append an extension trajectory from geometry that does not support it.
+        const auto rejected = extension_core.processMapExtensionFrame(query);
+        EXPECT_FALSE(rejected.success);
+        EXPECT_FALSE(rejected.relocalization_locked);
+        EXPECT_EQ(rejected.relocalization_decision, "initial_relocalization_rejected");
+        EXPECT_EQ(extension_core.getAllKeyframes().size(), 1U);
+        EXPECT_EQ(extension_core.getDenseOptimizedTrajectory().size(), 1U);
+
+        // Exercise the original provenance contract with matching geometry while
+        // retaining the old-format map without a dense trajectory.
+        cloud->clear_points();
+        for (const auto &point : *query.undistorted_cloud) {
+            cloud->add_points(point.x);
+            cloud->add_points(point.y);
+            cloud->add_points(point.z);
+            cloud->add_points(point.intensity);
+        }
+        {
+            std::ofstream ofs(old_map_path, std::ios::binary);
+            ASSERT_TRUE(old_map.SerializeToOstream(&ofs));
+        }
+        ASSERT_TRUE(extension_core.loadMap(old_map_path.string()));
+        const auto output = extension_core.processMapExtensionFrame(
+            query);
+        ASSERT_TRUE(output.success);
+        ASSERT_TRUE(extension_core.saveMap(extended_map_path.string()));
+
+        n3mapping::N3Map extended_map;
+        {
+            std::ifstream ifs(extended_map_path, std::ios::binary);
+            ASSERT_TRUE(extended_map.ParseFromIstream(&ifs));
+        }
+        EXPECT_EQ(extended_map.metadata().dense_trajectory_source(), "mixed_keyframe_fallback_and_high_rate");
+        EXPECT_TRUE(extended_map.metadata().dense_trajectory_degraded());
+
+        std::filesystem::remove_all(dir);
     }
-    {
-        std::ofstream ofs(old_map_path, std::ios::binary);
-        ASSERT_TRUE(old_map.SerializeToOstream(&ofs));
-    }
-
-    N3MappingCore extension_core(config);
-    ASSERT_TRUE(extension_core.loadMap(old_map_path.string()));
-    const auto query = makeFrame(2000000000, Eigen::Isometry3d::Identity());
-    // The old fixture paired a flat map with a different, non-planar query.
-    // Even permissive likelihood settings must not manufacture an XY lock or
-    // append an extension trajectory from geometry that does not support it.
-    const auto rejected = extension_core.processMapExtensionFrame(query);
-    EXPECT_FALSE(rejected.success);
-    EXPECT_FALSE(rejected.relocalization_locked);
-    EXPECT_EQ(rejected.relocalization_decision, "initial_relocalization_rejected");
-    EXPECT_EQ(extension_core.getAllKeyframes().size(), 1U);
-    EXPECT_EQ(extension_core.getDenseOptimizedTrajectory().size(), 1U);
-
-    // Exercise the original provenance contract with matching geometry while
-    // retaining the old-format map without a dense trajectory.
-    cloud->clear_points();
-    for (const auto &point : *query.undistorted_cloud) {
-        cloud->add_points(point.x);
-        cloud->add_points(point.y);
-        cloud->add_points(point.z);
-        cloud->add_points(point.intensity);
-    }
-    {
-        std::ofstream ofs(old_map_path, std::ios::binary);
-        ASSERT_TRUE(old_map.SerializeToOstream(&ofs));
-    }
-    ASSERT_TRUE(extension_core.loadMap(old_map_path.string()));
-    const auto output = extension_core.processMapExtensionFrame(
-        query);
-    ASSERT_TRUE(output.success);
-    ASSERT_TRUE(extension_core.saveMap(extended_map_path.string()));
-
-    n3mapping::N3Map extended_map;
-    {
-        std::ifstream ifs(extended_map_path, std::ios::binary);
-        ASSERT_TRUE(extended_map.ParseFromIstream(&ifs));
-    }
-    EXPECT_EQ(extended_map.metadata().dense_trajectory_source(), "mixed_keyframe_fallback_and_high_rate");
-    EXPECT_TRUE(extended_map.metadata().dense_trajectory_degraded());
-
-    std::filesystem::remove_all(dir);
 }
 
 TEST(N3MappingCoreTest, SameCountMapReplacementCommitsMapAndDenseTogether)

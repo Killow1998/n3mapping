@@ -28,8 +28,30 @@ MatchResult WorldLocalizing::registerTracking(
   const auto registration_started = timing_started();
   MatchResult match_result;
   if (prepared_target) {
-    match_result =
-        matcher_.alignPrepared(*prepared_target, prepared_source, predicted_pose);
+    if (config_.icp_refine_use_gicp && consecutive_track_failures_ == 0) {
+      const auto coverage = matcher_.evaluatePreparedPose(
+          *prepared_target, prepared_source, predicted_pose,
+          {small_gicp::RegistrationSetting::PLANE_ICP,
+           config_.gicp_downsampling_resolution,
+           config_.gicp_max_correspondence_distance});
+      if (evaluateRelocMatchQuality(coverage, config_).accepted) {
+        auto local = matcher_.getSettings();
+        local.type = small_gicp::RegistrationSetting::GICP;
+        local.downsampling_resolution = config_.icp_refine_downsampling_resolution;
+        local.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
+        local.max_iterations = config_.icp_refine_max_iterations;
+        auto proposal = matcher_.alignPrepared(
+            *prepared_target, prepared_source, predicted_pose, local);
+        const auto delta = predicted_pose.inverse() * proposal.T_target_source;
+        if (evaluateRelocMatchQuality(proposal, config_).accepted &&
+            delta.translation().norm() <= config_.icp_refine_max_correspondence_distance &&
+            Eigen::AngleAxisd(delta.rotation()).angle() <= config_.reloc_track_max_rotation)
+          match_result = std::move(proposal);
+      }
+    }
+    if (!hasValidRegistrationResult(match_result))
+      match_result = matcher_.alignPrepared(
+          *prepared_target, prepared_source, predicted_pose);
   }
   debug_event.registration_ms = elapsed_ms(registration_started);
   bool retry_used = false;

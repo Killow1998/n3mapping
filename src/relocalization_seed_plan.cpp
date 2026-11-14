@@ -13,7 +13,7 @@ makeRelocalizationSeedPlan(const std::vector<LoopCandidate> &candidates,
   basins.reserve(kRelocMaxBasinCount);
 
   // Candidates are already sorted by coarse descriptor distance.
-  // Build up to top-K basins in XY, then verify per-basin with local-submap
+  // Build up to top-K spatial basins, then verify per-basin with local-submap
   // ICP.
   for (const auto &candidate : candidates) {
     auto kf = keyframes.getKeyframe(candidate.match_id);
@@ -24,14 +24,14 @@ makeRelocalizationSeedPlan(const std::vector<LoopCandidate> &candidates,
     int best_basin = -1;
     double best_dist = std::numeric_limits<double>::max();
     for (size_t i = 0; i < basins.size(); ++i) {
-      const double d = (basins[i].center_pos.head<2>() - pos.head<2>()).norm();
+      const double d = (basins[i].center_pos - pos).norm();
       if (d < best_dist) {
         best_dist = d;
         best_basin = static_cast<int>(i);
       }
     }
 
-    if (best_basin >= 0 && best_dist <= kRelocBasinAssignRadiusXY) {
+    if (best_basin >= 0 && best_dist <= kRelocBasinAssignRadius) {
       basins[best_basin].members.push_back(candidate);
     } else if (static_cast<int>(basins.size()) < kRelocMaxBasinCount) {
       RelocalizationSeedPlan::Basin bg;

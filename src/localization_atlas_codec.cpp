@@ -3,6 +3,7 @@
 #include "compact_kdtree_builder.h"
 #include "registration_bounds.h"
 #include "point_cloud_target_view.h"
+#include "mapped_target.h"
 #include <cmath>
 #include <limits>
 
@@ -27,13 +28,16 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
     }
     output.set_resolution(input.resolution);
     output.set_num_points(input.cloud->size());
-    output.mutable_points()->Reserve(static_cast<int>(input.cloud->size() * 3));
-    output.mutable_normals()->Reserve(static_cast<int>(input.cloud->size() * 3));
+    auto* features = output.mutable_features();
+    features->resize(input.cloud->size() * 64);
     const bool derived_covariance = input.cloud->covs.empty();
     output.set_covariance_from_normal(derived_covariance);
     if (!derived_covariance)
         output.mutable_covariances()->Reserve(static_cast<int>(input.cloud->size() * 9));
-    for (std::size_t i = 0; i < input.cloud->size(); ++i) {
+    const PointCloudMatcher::SmallGicpKdTree tree(
+        input.cloud, small_gicp::KdTreeBuilder{});
+    std::size_t packed = 0;
+    for (const auto i : tree.kdtree.indices) {
         const auto& point = input.cloud->point(i);
         const auto& normal = input.cloud->normal(i);
         const Eigen::Matrix4d covariance = derived_covariance
@@ -49,16 +53,19 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
             setError(error, "prepared target has non-canonical homogeneous padding");
             return false;
         }
-        for (int axis = 0; axis < 3; ++axis) {
-            output.add_points(point[axis]);
-            output.add_normals(normal[axis]);
-        }
+        std::memcpy(features->data() + packed * 32, point.data(), 32);
+        auto canonical_normal = normal;
+        canonical_normal[3] = 0;
+        std::memcpy(features->data() + (input.cloud->size() + packed) * 32,
+                    canonical_normal.data(), 32);
+        ++packed;
         for (int row = 0; !derived_covariance && row < 3; ++row) {
             for (int column = 0; column < 3; ++column) {
                 output.add_covariances(covariance(row, column));
             }
         }
     }
+    output.set_search_index(registration_detail::encodeAtlasSearchIndex(tree));
     return true;
 }
 

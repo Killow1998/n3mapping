@@ -10,7 +10,7 @@
 namespace n3mapping {
 inline constexpr int kRelocMaxBasinCount = 3;
 inline constexpr int kRelocPerBasinVerifyCount = 3;
-inline constexpr double kRelocBasinAssignRadiusXY = 4.0;
+inline constexpr double kRelocBasinAssignRadius = 4.0;
 
 inline std::vector<double> buildRelocalizationYawHypotheses(
     const LoopCandidate& candidate, const Config& config) {

@@ -178,6 +178,32 @@ TEST(VisibilityConsistencyTest, OtherDirectionsCannotHideUnsupportedTranslation)
   EXPECT_LT(result.planar_min_support, 0.5);
 }
 
+TEST(VisibilityConsistencyTest, MissingMapCoverageIsNotGeometricConflict) {
+  const auto query = planarWitnessRoom();
+  auto observation = prepareVisibilityObservation(*query, {}, 0.1);
+  prepareVisibilityPlanarSupport(query, Eigen::Vector3d::UnitZ(), &observation);
+  pcl::PointCloud<pcl::PointXYZI> partial;
+  for (const auto& point : *query)
+    if (point.x > 0 && point.y > 0) partial.push_back(point);
+  const auto uncovered = evaluatePreparedVisibilityConsistency(
+      partial, observation, Eigen::Isometry3d::Identity());
+  EXPECT_LT(uncovered.planar_min_known, 0.5);
+  EXPECT_LT(uncovered.planar_min_support, 0.5);
+  EXPECT_GT(uncovered.planar_min_support_given_known, 0.99);
+  EXPECT_LT(uncovered.planar_max_conflict, 1e-9);
+
+  for (auto& point : partial) {
+    point.x *= 0.5;
+    point.y *= 0.5;
+    point.z *= 0.5;
+  }
+  const auto contradicted = evaluatePreparedVisibilityConsistency(
+      partial, observation, Eigen::Isometry3d::Identity());
+  EXPECT_NEAR(contradicted.planar_min_known, uncovered.planar_min_known, 1e-9);
+  EXPECT_LT(contradicted.planar_min_support_given_known, 0.5);
+  EXPECT_GT(contradicted.planar_max_conflict, 0.05);
+}
+
 TEST(VisibilityConsistencyTest, FloorAloneDoesNotEstablishHorizontalLocation) {
   const auto floor = planarWitnessRoom(false);
   for (double tilt : {0.0, 0.35, 0.8}) {

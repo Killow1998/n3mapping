@@ -21,9 +21,9 @@ void WorldLocalizing::updateRelocalizationCandidates(
       if (!hyp.alive || hyp.tracking_proposal) continue;
       const Eigen::Vector3d position = (hyp.T_map_odom * odom_pose).translation();
       const auto anchor = keyframe_manager_.getKeyframe(hyp.seed_match_id);
-      if ((basin.center_pos - position).head<2>().norm() <= kRelocBasinAssignRadiusXY ||
+      if ((basin.center_pos - position).norm() <= kRelocBasinAssignRadius ||
           (anchor && (basin.center_pos - anchor->pose_optimized.translation())
-                         .head<2>().norm() <= kRelocBasinAssignRadiusXY)) {
+                         .norm() <= kRelocBasinAssignRadius)) {
         ++cost.preserved_basins;
         return true;
       }
@@ -62,6 +62,13 @@ std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalizatio
     RelocalizationDebugEvent *event) {
   auto &basins = plan.basins;
   candidate_evaluator_.beginSeedPlan(plan.seeds, keyframe_manager_.revision());
+  std::vector<Eigen::Isometry3d> target_poses;
+  for (const auto& [id, yaw] : plan.seeds) {
+    auto pose = keyframe_manager_.getKeyframe(id)->pose_optimized;
+    pose.linear() *= Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    target_poses.push_back(pose);
+  }
+  localization_atlas_->prefetchTarget(prepared_query, target_poses);
   using BasinGroup = RelocalizationSeedPlan::Basin;
   std::mutex performance_mutex;
   RelocalizationDebugEvent unused_event;
@@ -263,6 +270,7 @@ std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalizatio
     hyp.last_match_id = bb.matched_kf_id;
     hyp.T_map_odom = bb.match.T_target_source * odom_pose.inverse();
     hyp.metric = bb.match.metric;
+    hyp.last_registration_information = bb.match.information;
     hyp.cumulative_log_likelihood =
         computeRelocLogLikelihood(bb.candidate, bb.match);
     hyp.num_updates = 1;

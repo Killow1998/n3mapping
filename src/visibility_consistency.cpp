@@ -249,6 +249,7 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
   }
   std::vector<double> residuals;
   Eigen::Matrix3d planar_support = Eigen::Matrix3d::Zero();
+  Eigen::Matrix3d planar_known = Eigen::Matrix3d::Zero();
   residuals.reserve(observed.ranges.size());
   for (std::size_t i = 0; i < observed.ranges.size(); ++i) {
     const bool has_observation = std::isfinite(observed.ranges[i]);
@@ -278,9 +279,11 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const bool surface_consistent = has_surfaces &&
         std::abs(observed.planar_surfaces[i].head<3>().dot(predicted.nearest_points[i]) +
                  observed.planar_surfaces[i][3]) <= options.range_tolerance_m;
-    if (has_planar && (range_consistent || surface_consistent)) {
+    if (has_planar) {
       const auto &j = observed.planar_jacobians[i];
-      planar_support.noalias() += j * j.transpose();
+      planar_known.noalias() += j * j.transpose();
+      if (range_consistent || surface_consistent)
+        planar_support.noalias() += j * j.transpose();
     }
     if (signed_error < -options.range_tolerance_m)
       ++result.foreground_conflict_bins;
@@ -316,6 +319,23 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(planar_support);
     if (solver.info() == Eigen::Success)
       result.planar_min_support = std::clamp(solver.eigenvalues()[0], 0.0, 1.0);
+    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> known(planar_known);
+    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> conflict(
+        planar_known - planar_support);
+    if (conflict.info() == Eigen::Success)
+      result.planar_max_conflict =
+          std::clamp(conflict.eigenvalues()[2], 0.0, 1.0);
+    if (known.info() == Eigen::Success) {
+      result.planar_min_known = std::clamp(known.eigenvalues()[0], 0.0, 1.0);
+      if (known.eigenvalues()[0] >
+          3.0 * std::numeric_limits<double>::epsilon() * known.eigenvalues()[2]) {
+        const Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::Matrix3d> conditional(
+            planar_support, planar_known, Eigen::EigenvaluesOnly);
+        if (conditional.info() == Eigen::Success)
+          result.planar_min_support_given_known =
+              std::clamp(conditional.eigenvalues()[0], 0.0, 1.0);
+      }
+    }
   }
   result.angular_resolution_deg = resolution_deg;
   result.observed_coverage =

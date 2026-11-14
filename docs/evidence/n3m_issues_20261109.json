@@ -1,0 +1,699 @@
+{
+  "date": "2026-11-09 America/Los_Angeles",
+  "scope": "N3M issues #5, #7, #10, #12; local qualification only",
+  "main_commit": "b676945235e612260772c2fbbda3657c805a2e99",
+  "candidate_base": "f0bb07977cec0098440d805ea2683d604cf85206",
+  "candidate_identity": "PR11 plus working-tree patch; not a verified release",
+  "cpus": "0,2,4,6",
+  "threads": 4,
+  "replay_rate": 0,
+  "fixed14": {
+    "main": {
+      "positions": 14,
+      "input_frames": 4144,
+      "output_frames": 4088,
+      "lock_frames": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "max_error_m": 0.024809060892936476,
+      "mean_cpu_per_input_second": 0.37552192323195976,
+      "first_lock_cpu_s_mean": 4.897965311857143,
+      "first_lock_wall_s_mean": 2.2370905742142857,
+      "map_ready_wall_s_mean": 4.989388571428572,
+      "peak_rss_mib": 1230.01953125,
+      "full_registrations": 517
+    },
+    "candidate": {
+      "positions": 14,
+      "input_frames": 4144,
+      "output_frames": 4088,
+      "lock_frames": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "max_error_m": 0.024809060892936476,
+      "mean_cpu_per_input_second": 0.37649696815645045,
+      "first_lock_cpu_s_mean": 4.9640620415,
+      "first_lock_wall_s_mean": 2.2896043237857144,
+      "map_ready_wall_s_mean": 4.951642142857143,
+      "peak_rss_mib": 1221.69921875,
+      "full_registrations": 517
+    }
+  },
+  "routes": [
+    {
+      "route": "reentry",
+      "variant": "candidate",
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "cpu_s": 53.779069113000006,
+      "input_s": 223.5,
+      "equivalent_cores": 0.24062223316778525,
+      "peak_rss_mib": 1253.64453125,
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/routes/reentry_candidate/frames.csv",
+        "probe_status": {
+          "input_frames": 2236,
+          "successful_frames": 2232,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 2232,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.003890094929335393,
+        "first_output_rotation_error_deg": 0.013850834494898396,
+        "position_error_m": {
+          "rmse": 0.009709132793355748,
+          "median": 0.006979514603630641,
+          "p95": 0.015455702583471564,
+          "maximum": 0.07936771243843452
+        },
+        "rotation_error_deg": {
+          "rmse": 0.02375546417040341,
+          "median": 0.015028926866236468,
+          "p95": 0.04578882735947136,
+          "maximum": 0.14198324735238624
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "command": [
+        "taskset",
+        "-c",
+        "0,2,4,6",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/candidate/replay_probe",
+        "/home/user/ros_ws/to_migrate_ws/build/n3mapping/directional_visibility_20261103/maps/routes/n3map.pbstream",
+        "/home/user/ros_ws/to_migrate_ws/build/n3mapping/directional_visibility_20261103/maps/routes/n3map.pbstream.localization_atlas.pb",
+        "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query/manifest/frames.csv",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/routes/reentry_candidate/frames.csv",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "route": "reentry",
+      "variant": "main",
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "cpu_s": 54.593918594,
+      "input_s": 223.5,
+      "equivalent_cores": 0.24426809214317674,
+      "peak_rss_mib": 1229.640625,
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/routes/reentry_main/frames.csv",
+        "probe_status": {
+          "input_frames": 2236,
+          "successful_frames": 2232,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 2232,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.00389009492933539,
+        "first_output_rotation_error_deg": 0.013850834494898398,
+        "position_error_m": {
+          "rmse": 0.009709132793355772,
+          "median": 0.006979514603630671,
+          "p95": 0.015455702583471944,
+          "maximum": 0.07936771243843713
+        },
+        "rotation_error_deg": {
+          "rmse": 0.023755464170401704,
+          "median": 0.015028926866236478,
+          "p95": 0.04578882735947144,
+          "maximum": 0.14198324735233528
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "command": [
+        "taskset",
+        "-c",
+        "0,2,4,6",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/main/replay_probe",
+        "/home/user/ros_ws/to_migrate_ws/build/n3mapping/directional_visibility_20261103/maps/routes/n3map.pbstream",
+        "/home/user/ros_ws/to_migrate_ws/build/n3mapping/directional_visibility_20261103/maps/routes/n3map.pbstream.localization_atlas.pb",
+        "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query/manifest/frames.csv",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/routes/reentry_main/frames.csv",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "route": "independent",
+      "variant": "candidate",
+      "frames": 3666,
+      "outputs": 3662,
+      "locks": [
+        4,
+        1938
+      ],
+      "cpu_s": 115.45432942000001,
+      "input_s": 366.5,
+      "equivalent_cores": 0.3150186341609823,
+      "peak_rss_mib": 1253.69140625,
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/routes/independent_candidate/frames.csv",
+        "probe_status": {
+          "input_frames": 3666,
+          "successful_frames": 3603,
+          "published_without_backend_success": 59
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 3662,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.0017836637670882146,
+        "first_output_rotation_error_deg": 0.012414035550643722,
+        "position_error_m": {
+          "rmse": 0.008524168842732648,
+          "median": 0.006629034525469892,
+          "p95": 0.015433337229173076,
+          "maximum": 0.032468516336980495
+        },
+        "rotation_error_deg": {
+          "rmse": 0.035139060585930956,
+          "median": 0.016250484742904473,
+          "p95": 0.05739092931586709,
+          "maximum": 0.2641706757290987
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "command": [
+        "taskset",
+        "-c",
+        "0,2,4,6",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/candidate/replay_probe",
+        "/home/user/ros_ws/to_migrate_ws/build/n3mapping/directional_visibility_20261103/maps/routes/n3map.pbstream",
+        "/home/user/ros_ws/to_migrate_ws/build/n3mapping/directional_visibility_20261103/maps/routes/n3map.pbstream.localization_atlas.pb",
+        "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2/manifest/frames.csv",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/routes/independent_candidate/frames.csv",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "route": "independent",
+      "variant": "main",
+      "frames": 3666,
+      "outputs": 3662,
+      "locks": [
+        4,
+        1938
+      ],
+      "cpu_s": 114.692987488,
+      "input_s": 366.5,
+      "equivalent_cores": 0.31294130283219646,
+      "peak_rss_mib": 1229.640625,
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/routes/independent_main/frames.csv",
+        "probe_status": {
+          "input_frames": 3666,
+          "successful_frames": 3603,
+          "published_without_backend_success": 59
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 3662,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.0017836637670882198,
+        "first_output_rotation_error_deg": 0.012414035550643738,
+        "position_error_m": {
+          "rmse": 0.00852416884273157,
+          "median": 0.00662903452546987,
+          "p95": 0.015433337229173076,
+          "maximum": 0.03246851633696918
+        },
+        "rotation_error_deg": {
+          "rmse": 0.035139060585933114,
+          "median": 0.016250484742904484,
+          "p95": 0.05739092931586709,
+          "maximum": 0.26417067572926395
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      },
+      "command": [
+        "taskset",
+        "-c",
+        "0,2,4,6",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/main/replay_probe",
+        "/home/user/ros_ws/to_migrate_ws/build/n3mapping/directional_visibility_20261103/maps/routes/n3map.pbstream",
+        "/home/user/ros_ws/to_migrate_ws/build/n3mapping/directional_visibility_20261103/maps/routes/n3map.pbstream.localization_atlas.pb",
+        "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2/manifest/frames.csv",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_qualification/routes/independent_main/frames.csv",
+        "0",
+        "0"
+      ]
+    }
+  ],
+  "behavior_comparison": {
+    "01_west_corridor": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 2.940356291780688e-16
+    },
+    "02_east_corridor": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 4.440892098500626e-16
+    },
+    "03_south_corridor": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 2.0816681711721685e-17
+    },
+    "04_north_corridor": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 4.163336342344337e-17
+    },
+    "05_southwest_office": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 4.440892098500626e-16
+    },
+    "06_south_meeting": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 7.105427357601002e-15
+    },
+    "07_south_pillars": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 4.440892098500626e-16
+    },
+    "08_west_shelves": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 1.7763568394002505e-15
+    },
+    "09_east_shelves": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 4.440892098500626e-16
+    },
+    "10_northwest_meeting": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 4.440892098500626e-16
+    },
+    "11_northeast_pillars": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 2.220446049250313e-16
+    },
+    "12_north_office": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 3.469446951953614e-17
+    },
+    "13_south_door": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 2.220446049250313e-16
+    },
+    "14_north_door": {
+      "frames": 296,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 2.7755575615628914e-17
+    },
+    "reentry": {
+      "frames": 2236,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 1.4210854715202004e-14
+    },
+    "independent": {
+      "frames": 3666,
+      "mismatches": {
+        "frame": 0,
+        "stamp_ns": 0,
+        "success": 0,
+        "lock": 0,
+        "state": 0,
+        "pose_source": 0,
+        "decision": 0,
+        "live": 0,
+        "seed": 0,
+        "support": 0,
+        "matched": 0
+      },
+      "max_output_pose_matrix_difference": 8.526512829121202e-14
+    }
+  },
+  "search03": {
+    "main": {
+      "process_cpu_ms": 7433.021787999997,
+      "total_ms": 2998.497053,
+      "align_ms": 2868.809616,
+      "fixed_pose_ms": 88.56611799999999,
+      "visibility_ms": 957.655619,
+      "directional_check_ms": 21.655584,
+      "source_prepare_ms": 48.562939,
+      "target_build_ms": 93.608283,
+      "target_prepare_ms": 0.0,
+      "alignments": 41,
+      "fixed_pose_evaluations": 40,
+      "visibility_evaluations": 109,
+      "confirmation_evaluations": 36,
+      "confirmation_registrations": 9,
+      "cache_hits": 28,
+      "cache_misses": 16,
+      "seed_initializations": 32,
+      "seed_resumptions": 0,
+      "descriptor_thread_cpu_ms": 94.34552799999983,
+      "descriptor_fraction_of_process_cpu": 0.012692755475614633,
+      "search_average_cores": 2.4789158223661585,
+      "scope": "stage wall sums can overlap across workers; fixed_pose_ms also includes the final GICP plane witness inside directional_check_ms"
+    },
+    "candidate": {
+      "process_cpu_ms": 7559.706627,
+      "total_ms": 3093.173992,
+      "align_ms": 2927.7655409999998,
+      "fixed_pose_ms": 93.00990000000002,
+      "visibility_ms": 985.985601,
+      "directional_check_ms": 61.565545,
+      "source_prepare_ms": 47.009634000000005,
+      "target_build_ms": 95.820405,
+      "target_prepare_ms": 0.0,
+      "alignments": 41,
+      "fixed_pose_evaluations": 41,
+      "visibility_evaluations": 109,
+      "confirmation_evaluations": 36,
+      "confirmation_registrations": 9,
+      "cache_hits": 28,
+      "cache_misses": 16,
+      "seed_initializations": 32,
+      "seed_resumptions": 0,
+      "descriptor_thread_cpu_ms": 92.68234500000108,
+      "descriptor_fraction_of_process_cpu": 0.012260045207175085,
+      "search_average_cores": 2.4439965700448703,
+      "scope": "stage wall sums can overlap across workers; fixed_pose_ms also includes the final GICP plane witness inside directional_check_ms"
+    }
+  },
+  "binaries": {
+    "main/libn3mapping_core.so": "fc56d7822c580eb580c2eb25b8c3f701797207f5ca24ed1a9b79296cd39ea567",
+    "main/replay_probe": "fa794aa13c7c68fe4c9c6104cd4565040c31e65acfa4b4af50c6cd2d6e3a34bf",
+    "candidate/libn3mapping_core.so": "f3149b52d7ad229e35259e7eee7ccafde6c97e21c10550b5f207da7b64d1ecbb",
+    "candidate/replay_probe": "fa794aa13c7c68fe4c9c6104cd4565040c31e65acfa4b4af50c6cd2d6e3a34bf",
+    "noetic/libn3mapping_core.so": "08bc034131f13b95996c2fdde1ad0042b25c6c75eaba6000936fd3f1a5a5000f",
+    "noetic/libn3mapping_noetic_wrapper.so": "2206ed95280cf14a14da6956ce0cd827d33ccd96bf07494f494b6ad006943809",
+    "noetic/n3mapping_node": "e8c262d818ef536f2c65582575bb6d2ee49c048791947abb7b5cc944689e5e43",
+    "humble/n3mapping_node": "64c4b9c8cf8ae2328c8664c58a2aaac7cad3ecdec9d3e3bf132708b3351d03b7"
+  },
+  "tests": {
+    "humble": "69 distinct CTest targets passed: 65 in sandbox, product config on host, then 3 ROS E2E with the isolated build overlay; missing paths/domain/permissions corrected in harness",
+    "focused": "5/5; unchanged fallback-map positive/negative assertions cover refine false and true",
+    "noetic": "67/67 CTest targets passed in network-disabled n3mapping-noetic-rc4:20261027, CPU 0,2,4,6; isolated source snapshot and build"
+  },
+  "limits": [
+    "Explicit historical Atlas is used for frozen replay equivalence. Its approximately five-second map-ready cost and peak RSS do not represent a freshly compiled default Atlas.",
+    "CPU seconds per input second includes search and tracking at nominal 10 Hz. It is not active-search CPU usage; active search remains above half a core.",
+    "This repair is a numerical planar-observability gate, not a calibrated uncertainty bound or global uniqueness proof. The existing 0.5 directional threshold remains an engineering policy.",
+    "Original Go2W small-room/doorway raw bag has not been located. Existing synthetic and prerecorded simulation regressions do not replace that field acceptance.",
+    "No GitHub push, merge or issue closure; no navigation-frozen or installed library replaced.",
+    "Initialization diagnostic summary fields in Reloc/LockPose and Reloc/LockTerm may remain default until confirmation; the regression diagnosis uses the actual basin registration matrix, not those defaults."
+  ],
+  "evidence": {
+    "fixed14": "build/upstream_review_20261109/n3m_qualification/fixed14/results.json",
+    "routes": "build/upstream_review_20261109/n3m_qualification/routes/results.json",
+    "humble_core_log": "docs/validation/upstream_review_2026-11-09/repairs/n3m_humble_full_ctest.log",
+    "humble_config_log": "docs/validation/upstream_review_2026-11-09/repairs/n3m_humble_ros_host_ctest.log",
+    "humble_ros_log": "docs/validation/upstream_review_2026-11-09/repairs/n3m_humble_ros_overlay_ctest.log",
+    "noetic_log": "docs/validation/upstream_review_2026-11-09/repairs/n3m_noetic_ctest.log"
+  }
+}

@@ -61,13 +61,13 @@ void RelocalizationCandidateEvaluator::beginSeedPlan(
 }
 
 std::size_t RelocalizationCandidateEvaluator::discardSeedsNear(
-    const Eigen::Vector3d& center, double radius_xy) {
+    const Eigen::Vector3d& center, double radius) {
   std::lock_guard<std::mutex> lock(seed_mutex_);
   const auto before = seed_poses_.size();
   for (auto it = seed_poses_.begin(); it != seed_poses_.end();) {
     const auto anchor = keyframe_manager_.getKeyframe(it->first.first);
-    if (!anchor || (anchor->pose_optimized.translation().head<2>() -
-                    center.head<2>()).norm() <= radius_xy)
+    if (!anchor || (anchor->pose_optimized.translation() -
+                    center).norm() <= radius)
       it = seed_poses_.erase(it);
     else
       ++it;
