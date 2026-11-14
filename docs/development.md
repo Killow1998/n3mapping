@@ -16,85 +16,131 @@ tools/               Map utilities and offline evaluation
 
 ## Architecture and ownership
 
-- Keep backend mapping, loop closure, relocalization, graph optimization, and map serialization logic in the ROS-free core.
-- Keep ROS wrappers as thin adapters for parameters, messages, topics, services, TF, and launch defaults.
-- Keep Humble and Noetic runtime behavior consistent.
-- Do not commit local wrapper-selection marker files.
-- Do not commit generated maps, logs, build artifacts, or local test configs.
+`N3MappingCore` accepts frontend `LioFrame` values and returns `BackendOutput`.
+Mapping, localization, loop closure, graph optimization and serialization stay in
+the ROS-free core. Noetic and Humble adapt parameters, transport, messages, TF
+and services. Do not commit wrapper-selection markers, generated maps, local
+runtime settings or build products.
 
-`Config` declares parameter types in `config.h`; its out-of-line constructor in
-`src/config_defaults.cpp` owns the defaults. Changing a default recompiles one
-implementation file; changing a field or its type still changes the shared
-contract. `forEachConfigField` in `config_fields.h` owns the external names and
-canonical ordering used by both
-ROS adapters and runtime provenance. Add a field there once; transport-specific
-parameter conversion stays in the adapter. Noetic retains its three supported
-namespace forms and their existing precedence.
+The private `src/core/n3mapping_session.h` owns backend components as one lifetime
+unit. It wires borrowed references once and is replaced transactionally when a
+map loads. Components are direct members; the session has no duplicate `Config`
+and no forwarding accessors. Graph constraints and optimized-pose projection live
+in `n3mapping_constraints.cpp`; dense trajectory recording and correction live in
+`n3mapping_trajectory.cpp`.
 
-`graph_types.h` carries graph-edge data and the loop-optimizer interface without
-GTSAM headers. `GraphOptimizer` owns its solver objects through the private
-`src/graph_optimizer_state.h`; only its seven implementation files include
-`ISAM2.h`. Consumers include the full optimizer declaration only where they call
-its methods. A solver implementation edit does not require recompiling its
-unrelated consumers. Rebuild C++ consumers when adopting this object-layout and
-`Config` constructor change; ROS interfaces and parameter values are unchanged.
+`core/loop_closure_result.h` is the result contract shared by the facade and loop
+processing. Loop processing does not include the facade. `loop_types.h` carries
+verification data; only detector callers include `loop_detector.h`.
+`mapping_resuming.h` forward-declares borrowed services. Implementations include
+the owners they actually call, including the asynchronous loop implementation.
 
-The [compile-dependency comparison](evidence/compile_dependencies_20261029.json)
-uses Release flags, disabled ccache and four-core affinity on Jammy and RK3588.
-Three representative consumers reduce compile CPU time by approximately 54–63%
-on both machines; the solver file itself shows no consistent improvement.
-A default-only edit rebuilt one file and completed in 7.44 s on Jammy, including
-linking. These are translation-unit and incremental-build measurements, not
-full clean-build or SLAM runtime speedups. The qualified GTSAM dependency remains
-unchanged. The final Humble/Noetic suites passed 69/69 and 67/67; the same reload
-relock test also failed intermittently on both the candidate and unmodified
-baseline. The subsequent [reload/relock repair](evidence/reload_relock_20261029.json)
-addresses that failure; the original failed runs remain in the evidence record.
+`Config` declares types in `config.h`; `src/config_defaults.cpp` owns defaults.
+`config_fields.h` owns external names and canonical ordering for both adapters
+and provenance. A default-only change rebuilds its implementation; a field/type
+change changes the shared contract. Noetic retains its three parameter namespace
+forms and their existing precedence.
 
-Registration entry points validate external clouds. Private preprocessing and
-result-copy helpers accept references; they do not repeat nullable-pointer
-checks. Multi-scale registration keeps its stage result as the source of truth
-for convergence and quality statistics.
+`graph_types.h` exposes graph-edge data and the optimizer interface without GTSAM
+headers. `GraphOptimizer` keeps solver objects in private `graph_optimizer_state.h`.
+Its implementation files own GTSAM dependencies; unrelated consumers do not.
 
-Loop verification and diagnostics consume `loop_types.h`; only detector callers
-include `loop_detector.h`. `mapping_resuming.h` forward-declares the services it
-borrows, and implementations include the services they call. In the complete
-Humble build, this reduces detector-header consumers from 65 to 45 and RHPD-header
-consumers from 71 to 51. Public headers are also compiled individually to check
-that they declare their own dependencies.
+External cloud, configuration and persisted-map inputs are validated at their
+entry points. Internal preprocessing and diagnostic output parameters use
+references when every caller supplies an object. `MapSerializer::saveMap`
+validates clouds before encoding; its private encoder trusts those validated
+points. Atlas identity/cache orchestration belongs to `localization_atlas.cpp`,
+and prepared-level wire conversion to `localization_atlas_codec.cpp`.
 
-`MapSerializer::saveMap` validates keyframe clouds once before encoding. The
-private encoder copies those validated points without counting and filtering
-them again. Atlas file identity and cache orchestration remain in
-`localization_atlas.cpp`; prepared-level wire conversion belongs to the private
-`localization_atlas_codec.cpp`. Its persisted-input validation and wire format
-are unchanged. The [cleanup evidence](evidence/cleanup_20261029.json) records the
-boundary-check ablation and native ROS replays. Its reload/relock limitation was
-subsequently repaired as described below.
+Atlas v4 persists the serial search topology and canonical double-precision point
+and normal vectors. `mapped_atlas.cpp` validates persisted geometry once and
+restores its index without rebuilding or sorting it. Coarse geometry remains in
+native storage for global retrieval; fine geometry uses a read-only mapping.
+`mapped_target.cpp` warms fine geometry for three-dimensional observation bounds
+on the shared background-worker implementation. Unselected regions remain
+available to exact global search. Page advice controls residency, not candidate
+acceptance or a strict process-memory limit. A missed prefetch can still cause a
+page fault on a registration thread.
 
-Free-space scoring interpolates the occupied/free layers at voxel centers.
-Hard lookup could change a planar scan's score from 0.979 to 0.710 under a
-0.1 mm pose shift in a 0.20 m grid, incorrectly vetoing a verified pose after
-reload. The score now changes continuously. Support counts in
-`FreeSpaceGrid::Score` are fractional; rebuild C++ consumers of that type.
-Atlas storage, ROS interfaces and numeric configuration defaults are unchanged.
+`SpatialPointBlocks` rejects raw visibility blocks while preserving the existing
+point order and spherical crop. Native and mapped targets share the registration
+algorithm through private storage adapters. The mapping owns its background
+worker and joins it before releasing the file; prepared targets retain that owner
+across Atlas replacement. Boost mapping headers stay private. Noetic and Humble
+use the same implementation. Compile C++ consumers with matching headers and
+library: the prepared-target layout has changed; ROS interfaces are unchanged.
 
-Both veto and elimination use the existing `reloc_free_space_kill_sigmas`
-separation rule. The legacy parameter name is retained. An insignificant score
-difference cannot overturn the geometric winner; a significantly better distinct
-candidate still vetoes it. This remains a sampling-variance approximation, not a
-claim of calibrated cross-scene probability. Registration, confirmation,
-visibility and ambiguity gates are unchanged.
+`registration_search.cpp` owns the native and mapped nearest-search and traversal
+instantiations. The search selects occupied-bound checking once at entry; its
+traversal, rejection distance and tie order stay shared. Native registration and
+mapped registration compile separately around `registration_solver.h`, which
+owns their common factor/rejector implementation. This keeps the hot traversal
+and factor code from competing within one large template compilation unit.
+Changing storage adapters must be checked against generated hot code and CPU;
+unchanged geometry and call counts alone do not establish unchanged compute.
+The [online CPU audit](evidence/online_cpu_20261114.json) records the controlled
+ablations and complete four-core replay. Atlas v4 artifacts are unchanged by
+this follow-up; no new tuning parameter or runtime state is required.
 
-The [repair evidence](evidence/reload_relock_20261029.json) includes the frozen
-failure, separate ablations, 50 repeated continuation/save/reload E2E runs,
-Humble/Noetic regression and complete four-core comparisons of the original
-14 positions and both localization routes. The reference implementation review
-used [Cartographer's interpolated 3D grid](https://github.com/cartographer-project/cartographer/blob/master/cartographer/mapping/internal/3d/scan_matching/interpolated_grid.h).
-N3M uses simpler trilinear interpolation because this gate only compares scores;
-it does not need optimizer derivatives or an additional dependency.
+The default cache path rebuilds v2/v3 artifacts once into v4. Explicit historical
+caches remain readable for comparison. Compilation immediately installs the
+mapped representation, so first use and reload have the same storage behavior.
+The [active-map audit](evidence/active_map_20261114.json) records the loading and
+RAM gains, larger cache files, one-time compilation cost and initial online
+CPU regression. Raw map/descriptor metadata and global indices remain resident;
+this is not a bound on total RAM or a reduction of geometric solver iterations.
+
+`RelocalizationDebugEmitter` owns sequencing, hypothesis snapshots and persistence.
+Its header forward-declares event payloads. Localization implementations include
+the payload schema where they populate events; schema details do not flow through
+the public localizer header. Diagnostic code does not decide whether to lock.
+
+Offline evaluation separates three responsibilities:
+
+- `synthetic_relocalization_query.h`: scan synthesis, visibility and pose jitter.
+- `query_pose_manifest.h`: external CSV validation and typed pose entries.
+- `synthetic_episode_state.h`: evaluation-only episode transitions and labels.
+
+CSV numeric conversion uses the standard C conversion functions underlying
+`std::stoll`/`std::stod`, preserving full-token, range and finite-value checks
+without exception control flow. Runtime localization remains the authority for
+lock and tracking results.
+
+Free-space scoring interpolates occupied/free layers at voxel centers. Both veto
+and elimination use the existing `reloc_free_space_kill_sigmas` separation rule.
+An insignificant score difference cannot overturn the geometric winner; a
+significantly better distinct candidate still vetoes it. This is a sampling
+variance approximation, not calibrated cross-scene probability. Registration,
+confirmation, visibility and ambiguity gates remain separate decisions.
+
+Validation records: [compile dependencies](evidence/compile_dependencies_20261029.json),
+[serialization cleanup](evidence/cleanup_20261029.json),
+[reload/relock repair](evidence/reload_relock_20261029.json), and
+[ownership and diagnostic cleanup](evidence/cleanup_20261107.json).
+Earlier compile-time measurements apply to their recorded build configurations,
+not SLAM runtime speed. Free-space interpolation follows the approach in
+[Cartographer's interpolated grid](https://github.com/cartographer-project/cartographer/blob/master/cartographer/mapping/internal/3d/scan_matching/interpolated_grid.h)
+with trilinear sampling, without an optimizer dependency.
 
 ### Directional support before locking
+
+Before the directional witness, the selected current registration must constrain
+horizontal translation and yaw in the matched map. Its information matrix is
+projected onto those three source-frame directions and checked for numerical rank.
+This is a necessary observability check, not a confidence calibration. Candidate
+generation and reuse may retain partial constraints; only publishing a lock
+requires all three planar directions. A bare floor cannot establish a place even
+when the query contains nonplanar structure and the residual gates pass.
+
+Plane ICP reuses the selected registration matrix. GICP regularizes covariance
+along surfaces, so its matrix cannot establish this geometric rank. For a selected
+GICP result, the lock gate evaluates the already prepared plane geometry once at
+that pose, without another optimizer. This evaluation is counted in
+`fixed_pose_ms` and included in `directional_check_ms`; those counters overlap.
+The initialization, confirmation and tracking-recovery paths retain the matrix
+that belongs to the selected pose. An unobservable match reports
+`matched_planar_geometry_unobservable` and follows the existing rejected-place
+seed invalidation policy.
 
 The final witness uses point-to-plane Jacobians for yaw and horizontal translation.
 `planar_min_support = min_v (vᵀ H_explained v) / (vᵀ H_all v)` measures the
@@ -109,9 +155,14 @@ The witness first checks the fused map. Fusion combines different visits, so an
 old foreground can hide a return supported by another complete observation. If
 the fused map has finite but insufficient support, the final gate independently
 checks the candidate's seed and support keyframe clouds in their optimized
-reference frames. Duplicate references are checked once. One complete observation
-must exceed 0.5 in every planar direction; directional evidence from different
-observations is never pooled. Unobservable query geometry still fails.
+reference frames. Duplicate references are checked once. An observation passes directly when support exceeds 0.5 in every planar direction.
+For partial coverage, the same historical observation must instead pass both
+coverage-conditioned forward support and unconditional reverse support, each
+above 0.5 in every planar direction. The reverse check prepares normals in the
+historical sensor frame and projects the current query into that frame. It uses
+the existing nearest-return model and performs no additional registration.
+Directional evidence from different observations is never pooled. Unobservable
+query or matched-map geometry still fails.
 
 Within each tested point cloud, a bearing supports its query surface when its
 nearest return agrees in range or point-to-plane distance, using the existing
@@ -123,12 +174,82 @@ Candidate ranking, temporal confirmation, ambiguity checks and free-space vetoes
 retain their existing definitions; floor matches cannot compensate for unsupported
 walls.
 
-A finite failed witness reports `directional_visibility_insufficient_support`.
-Low support alone does not prove geometric contradiction: missing map coverage,
-occlusion and angular discretization can also reduce it. Known/unknown bearing
-counts and nearer-map-return diagnostics remain separate. No universal cross-scene
-calibration of 0.5 is claimed. See the [grazing-plane evidence](evidence/directional_visibility_20261103.json)
-and [historical-observation evidence](evidence/directional_reference_20261104.json).
+Low support alone does not prove geometric contradiction. In the whitened query
+basis, `H_support + H_conflict + H_unknown = I`. Known map bearings contribute to
+`H_known`; a bearing contributes to `H_conflict = H_known - H_support` only when
+neither range nor the observed surface agrees. These are geometric information
+fractions, not independent measurement counts or calibrated probabilities.
+
+Failed witnesses invalidate cached seeds only when
+`lambda_max(H_conflict) >= 0.5` in every checked observation: even perfect
+agreement in all unknown bearings could not pass any existing support gate.
+A conflicting fused map cannot invalidate a seed when a stored observation
+only lacks coverage. This reports `directional_visibility_disagreement`. Otherwise it
+reports `directional_visibility_insufficient_coverage`, withholds localization,
+and preserves existing seeds for the next observation. Query or matched-map
+degeneracy still follows its separate rejection path. Repeating a stationary
+observation does not convert missing coverage into evidence.
+
+`planar_min_known` measures the least-covered direction;
+`planar_min_support_given_known` measures agreement conditional on coverage;
+`planar_max_conflict` measures the strongest contradiction. The coverage and
+reference debug events expose all three. Conditional agreement alone cannot accept a pose: discarding unknown bearings
+can make a small, ambiguous overlap look good. The reciprocal alternative also
+requires the historical observation to be supported by the query in all planar
+directions. `directional_min_support` retains its raw forward definition and may
+therefore be below 0.5 on an accepted reciprocal witness.
+`Reloc/DirectionalReciprocal` records the reference, conditional forward score
+and unconditional reverse score; both checks are timed in `directional_check_ms`.
+Known/unknown radial counts and nearer-map-return diagnostics remain separate.
+
+The [reciprocal witness audit](evidence/directional_reciprocal_20261111.json)
+records the preceding directional-gate qualification. Initial retrieval now accepts
+an explicit rank offset without owning search state. When no valid initial geometry
+is found, or stationary initial geometry fails likelihood or contradicts the map, localization requests
+the next bounded batch of places.
+A margin/ambiguity failure alone does not advance past a viable place. Existing
+seed caches and acceptance thresholds remain unchanged. An exhausted batch,
+a viewpoint change beyond the existing stationary aggregation limits, a successful
+lock, reset or map replacement returns retrieval to the first batch. Recovery after
+an established map pose and motion-gated confirmation failures retain their original
+retrieval policy. `Reloc/Retrieval` reports the offset through the bounded logger.
+
+Relocalization groups and reuses candidates by three-dimensional map distance.
+The same spatial radius applies when checking descriptor support and invalidating
+failed seed poses. XY proximity alone must not merge vertically separated regions.
+This is a spatial grouping rule, not a semantic floor classifier. The
+[spatial-basin audit](evidence/spatial_basins_20261111.json) records the repeated-floor
+E2E and the four-core cost comparison; the difficult-search half-core target remains
+unmet.
+
+A descriptor proposes an overlapping observation whose reference position can
+differ from the registered sensor position. Admission and confirmation therefore
+recognize descriptor support around either the original seed reference or the
+nearest reference at the solved pose, using the same three-dimensional radius.
+Confirmation still evaluates each new observation and retains the full final
+registration and existing ambiguity, visibility and observability gates. The
+[confirmation-support audit](evidence/confirmation_support_20261114.json) records
+the four-core regression and the distinction between search CPU and whole-clip CPU.
+
+Established tracking without a recent rejection first checks fresh plane coverage
+at the odometry prediction, then tries the existing fine GICP directly. A proposal
+that fails geometric quality or exceeds the existing capture limits uses the
+original coarse-to-fine solver. Existing tracking failures use that solver from
+the start. Selected-pose geometry, motion, visibility, free-space and observability
+gates remain downstream. The [tracking-geometry audit](evidence/tracking_geometry_20261114.json)
+records the shared Humble/Noetic implementation and four-core regression.
+
+The [retrieval audit](evidence/retrieval_20261111.json) separates descriptor recall,
+rank paging and motion/recovery regressions. Paging does not make descriptor scores
+probabilities, guarantee exhaustive coverage under changing ranks, or solve the
+remaining motion-visibility calibration.
+
+The [cross-scene audit](evidence/directional_cross_scene_20261110.json) records
+sequence-held-out analysis, controlled coverage ablations and end-to-end checks.
+No universal cross-scene calibration of 0.5 is claimed. Earlier evidence covers
+[grazing planes](evidence/directional_visibility_20261103.json),
+[historical observations](evidence/directional_reference_20261104.json) and
+[matched-map rank](evidence/n3m_issues_20261109.json).
 
 The [Atlas cache audit](evidence/atlas_cache_20261029.json) distinguishes that
 frozen regression fixture from normal deployment. Its explicit legacy Atlas
@@ -316,6 +437,16 @@ source "devel/$N3M_PROFILE/setup.bash"
 
 ## Offline evaluation
 
+Recorded cloud/odometry manifests use the explicit target
+`n3mapping_relocalization_manifest_eval`; it can be built without enabling all
+research targets. Supply `--map`, `--atlas`, `--manifest` and `--output`.
+For a deployment-parameter comparison, `--lock-min-margin VALUE` overrides only
+the lock margin. The report identifies the override in `config_source` and
+records the actual value in `relocalization_contract.lock_min_margin`. Such a run
+is not evidence for the unchanged product defaults. `frame_status.csv` includes
+`directional_checked`, `directional_min_support` and `directional_check_ms`;
+an unchecked witness is not a zero-support observation.
+
 Enable `N3MAPPING_BUILD_RESEARCH_TOOLS=ON` in a separate development build to use
 the research tools below. These commands use Humble; under Noetic use `rosrun`
 in place of `ros2 run`, and `.launch` in place of `.launch.py` for `roslaunch`.
@@ -323,8 +454,9 @@ in place of `ros2 run`, and `.launch` in place of `.launch.py` for `roslaunch`.
 RViz visualization:
 
 ```bash
-ros2 launch n3mapping synthetic_relocalization_visualization.launch.py \
-  map:=/path/to/n3map.pbstream
+# First set the map and tool options in config/launch_humble.yaml.
+# Noetic uses config/launch_noetic.yaml; neither launch accepts arguments.
+ros2 launch n3mapping synthetic_relocalization_visualization.launch.py
 ```
 
 Headless batch evaluation:

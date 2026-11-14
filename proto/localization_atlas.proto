@@ -6,11 +6,16 @@ message LocalizationAtlasPreparedLevel {
     uint64 num_points = 2;
     // Format v2: xyz / normal xyz / row-major 3x3 covariance, all doubles.
     // Homogeneous point w=1, normal w=0 and covariance padding=0 are implicit.
-    repeated double points = 3 [packed = true];
+    // v2/v3 spatial arrays. v4 uses the canonical feature block below.
+  repeated double points = 3 [packed = true];
     repeated double normals = 4 [packed = true];
     repeated double covariances = 5 [packed = true];
     // v3: omit matrices only for the fixed normal-derived covariance model.
     bool covariance_from_normal = 6;
+    // v4: canonical KD nodes and occupied bounds; geometry stays in the arrays above.
+    bytes search_index = 7;
+  // Canonical XYZ1 points followed by XYZ0 normals, 32 bytes per vector.
+  bytes features = 8;
 }
 
 message LocalizationAtlasData {

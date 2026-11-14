@@ -31,8 +31,6 @@ class GraphOptimizer : public LoopOptimizerInterface
 
     ~GraphOptimizer();
 
-    // ==================== 添加因子 ====================
-
     void addPriorFactor(int64_t id, const Eigen::Isometry3d& pose);
 
     // Absolute roll/pitch for one node, from the floor normal measured in that
@@ -68,13 +66,9 @@ class GraphOptimizer : public LoopOptimizerInterface
     static bool isRobustGlobalEdge(EdgeType type);
     bool hasGlobalConstraint() const;
 
-    // ==================== 优化 ====================
-
     void optimize();
 
     bool incrementalOptimize();
-
-    // ==================== 获取结果 ====================
 
     std::map<int64_t, Eigen::Isometry3d> getOptimizedPoses() const;
 
@@ -87,8 +81,6 @@ class GraphOptimizer : public LoopOptimizerInterface
     size_t getNumEdges() const;
 
     bool hasLoopClosure() const;
-
-    // ==================== 序列化支持 ====================
 
     bool loadGraph(const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes, const std::vector<EdgeInfo>& edges);
     // Loads nodes, edges and floor attitude constraints together. The old
@@ -123,8 +115,6 @@ class GraphOptimizer : public LoopOptimizerInterface
 
     void clear();
 
-    // ==================== 错误处理 ====================
-
     void rollbackToLastState();
 
     bool isOptimizationHealthy() const;
@@ -133,21 +123,21 @@ class GraphOptimizer : public LoopOptimizerInterface
     bool optimizeGeometryUpdate();
     struct GtsamState;
     std::unique_ptr<GtsamState> gtsam_;
-    Config config_;                           ///< 配置参数
-    std::vector<EdgeInfo> edges_;             ///< 所有边
+    Config config_;
+    std::vector<EdgeInfo> edges_;
     std::vector<SharedPlane> shared_planes_;
     std::vector<std::pair<size_t, PlaneObservation>> pending_plane_observations_;
-    std::vector<EdgeInfo> pending_edges_;     ///< 待提交边
-    std::set<int64_t> node_ids_;              ///< 已添加的节点 ID
-    std::set<int64_t> pending_node_ids_;      ///< 待提交节点 ID
-    bool has_loop_closure_;                   ///< 是否有回环约束
-    bool pending_has_loop_closure_;           ///< 待提交更新是否含回环约束
+    std::vector<EdgeInfo> pending_edges_;
+    std::set<int64_t> node_ids_;
+    std::set<int64_t> pending_node_ids_;
+    bool has_loop_closure_;
+    bool pending_has_loop_closure_;
     bool has_session_anchor_ = false;
     bool pending_has_session_anchor_ = false;
     int floor_attitude_factor_count_ = 0;
     std::vector<FloorAttitudeConstraint> committed_floor_attitude_constraints_;
     std::vector<FloorAttitudeConstraint> pending_floor_attitude_constraints_;
-    bool needs_optimization_;                 ///< 是否需要优化
+    bool needs_optimization_;
 
     static gtsam::Pose3 eigenToGtsam(const Eigen::Isometry3d& pose);
 

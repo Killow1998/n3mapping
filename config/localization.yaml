@@ -1,0 +1,4 @@
+n3mapping_node:
+  ros__parameters:
+    mode: localization
+    map_path: ""

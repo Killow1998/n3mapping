@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -43,6 +44,7 @@ struct Options {
   fs::path manifest_path;
   fs::path output_dir;
   bool reloc_debug = false;
+  std::optional<double> lock_min_margin;
   double input_voxel_size_m = 0.0;
   int64_t raw_first_stamp_ns = 0;
   double reference_map_x_m = std::numeric_limits<double>::quiet_NaN();
@@ -79,6 +81,9 @@ struct FrameResult {
   double backend_ms = 0.0;
   double strict_ms = 0.0;
   Eigen::Isometry3d T_map_body = Eigen::Isometry3d::Identity();
+  bool directional_checked = false;
+  double directional_min_support = std::numeric_limits<double>::quiet_NaN();
+  double directional_check_ms = 0.0;
 };
 
 void printUsage(const char *argv0) {
@@ -96,7 +101,9 @@ void printUsage(const char *argv0) {
       << "                    Add a blue oracle reference layer for eval "
          "review only.\n"
       << "  --reloc-debug    Write relocalization_debug.jsonl in the output "
-         "directory.\n";
+         "directory.\n"
+      << "  --lock-min-margin VALUE  Explicit offline lock-margin override; "
+         "recorded in result.json.\n";
 }
 
 double parseFiniteDouble(const std::string &text, const char *field_name);
@@ -134,6 +141,13 @@ bool parseArgs(int argc, char **argv, Options *options) {
       options->output_dir = value;
     } else if (arg == "--reloc-debug") {
       options->reloc_debug = true;
+    } else if (arg == "--lock-min-margin") {
+      const char *value = needValue();
+      if (!value)
+        return false;
+      options->lock_min_margin = parseFiniteDouble(value, "lock-min-margin");
+      if (*options->lock_min_margin < 0.0)
+        return false;
     } else if (arg == "--input-voxel-size") {
       const char *value = needValue();
       if (!value)
@@ -536,7 +550,8 @@ void writeFrameResults(const fs::path &path,
             "keyframe_id,support_keyframe_id,matched_keyframe_id,"
             "relocalization_state,pose_source,decision,"
             "preprocessing_ms,backend_ms,strict_ms,"
-            "map_tx,map_ty,map_tz,map_qx,map_qy,map_qz,map_qw\n";
+            "map_tx,map_ty,map_tz,map_qx,map_qy,map_qz,map_qw,"
+            "directional_checked,directional_min_support,directional_check_ms\n";
   stream << std::setprecision(17);
   for (const auto &result : results) {
     const Eigen::Quaterniond q(result.T_map_body.rotation());
@@ -552,7 +567,9 @@ void writeFrameResults(const fs::path &path,
            << result.T_map_body.translation().x() << ','
            << result.T_map_body.translation().y() << ','
            << result.T_map_body.translation().z() << ',' << q.x() << ','
-           << q.y() << ',' << q.z() << ',' << q.w() << '\n';
+           << q.y() << ',' << q.z() << ',' << q.w() << ','
+           << result.directional_checked << ',' << result.directional_min_support
+           << ',' << result.directional_check_ms << '\n';
   }
 }
 
@@ -630,6 +647,8 @@ int run(const Options &options) {
   }
   Config config = makeProductLocalizationConfig(
       options.map_path.string(), options.atlas_path.string());
+  if (options.lock_min_margin)
+    config.reloc_lock_min_margin = *options.lock_min_margin;
   if (options.reloc_debug) {
     config.reloc_debug_enable = true;
     config.reloc_debug_path =
@@ -698,7 +717,10 @@ int run(const Options &options) {
          last_output.relocalization_support_keyframe_id,
          last_output.matched_keyframe_id,
          last_output.relocalization_decision, preprocessing_ms, backend_ms,
-         strict_ms, last_output.T_world_lidar});
+         strict_ms, last_output.T_world_lidar,
+         last_output.relocalization_performance.directional_checked,
+         last_output.relocalization_performance.directional_min_support,
+         last_output.relocalization_performance.directional_check_ms});
     if (authoritative_full && !locked) {
       locked = true;
       first_lock_output = last_output;
@@ -844,8 +866,11 @@ int run(const Options &options) {
       << ",\"estimated_query\":" << comparison_counts.query_points
       << ",\"reference_query\":" << comparison_counts.reference_query_points
       << "},\n"
-      << "  \"config_source\": "
-         "\"product_localization_factory_compiled_defaults\",\n"
+      << "  \"config_source\": \""
+      << (options.lock_min_margin
+              ? "product_localization_factory_with_lock_margin_override"
+              : "product_localization_factory_compiled_defaults")
+      << "\",\n"
       << "  \"input_voxel_size_m\": " << options.input_voxel_size_m << ",\n"
       << "  \"performance\": {\"map_load_ms\":" << map_load_ms
       << ",\"strict_p95_ms\":" << strict_p95_ms
@@ -855,6 +880,7 @@ int run(const Options &options) {
       << ",\"runtime_peak_rss_kib\":" << runtime_peak_rss_kib
       << ",\"runtime_swap_operations\":" << runtime_swap_operations << "},\n"
       << "  \"relocalization_contract\": {"
+      << "\"lock_min_margin\":" << config.reloc_lock_min_margin << ','
       << "\"temporal_window_size\":" << config.reloc_temporal_window_size << ','
       << "\"static_agg_max_frames\":" << config.reloc_static_agg_max_frames
       << ','
@@ -886,12 +912,12 @@ int main(int argc, char **argv) {
     return 0;
   }
   google::InitGoogleLogging(argv[0]);
-  n3mapping::Options options;
-  if (!n3mapping::parseArgs(argc, argv, &options)) {
-    n3mapping::printUsage(argv[0]);
-    return 1;
-  }
   try {
+    n3mapping::Options options;
+    if (!n3mapping::parseArgs(argc, argv, &options)) {
+      n3mapping::printUsage(argv[0]);
+      return 1;
+    }
     return n3mapping::run(options);
   } catch (const std::exception &error) {
     std::cerr << "error: " << error.what() << '\n';

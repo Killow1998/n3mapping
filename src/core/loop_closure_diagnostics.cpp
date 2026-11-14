@@ -8,14 +8,6 @@ double rotationAngle(const Eigen::Isometry3d &transform) {
   return std::abs(Eigen::AngleAxisd(transform.rotation()).angle());
 }
 
-Eigen::Vector3d rollPitchYaw(const Eigen::Isometry3d &transform) {
-  return canonicalRollPitchYaw(transform);
-}
-
-
-
-
-
 std::pair<double, double>
 meanLoopResidual(const std::vector<EdgeInfo> &edges,
                  const std::map<int64_t, Eigen::Isometry3d> &poses) {
@@ -62,7 +54,7 @@ meanLoopResidualAxes(const std::vector<EdgeInfo> &edges,
         from_it->second.inverse() * to_it->second;
     const Eigen::Isometry3d residual = edge.measurement.inverse() * predicted;
     stats.translation += residual.translation().cwiseAbs();
-    stats.rpy += rollPitchYaw(residual).cwiseAbs();
+    stats.rpy += canonicalRollPitchYaw(residual).cwiseAbs();
     ++count;
   }
   if (count == 0) {
@@ -77,7 +69,7 @@ meanLoopResidualAxes(const std::vector<EdgeInfo> &edges,
 void accumulatePoseUpdateStats(
     const std::map<int64_t, Eigen::Isometry3d> &before,
     const std::map<int64_t, Eigen::Isometry3d> &after,
-    CoreLoopClosureResult *result) {
+    CoreLoopClosureResult& result) {
   double translation_sum = 0.0;
   double rotation_sum = 0.0;
   std::size_t count = 0;
@@ -92,180 +84,165 @@ void accumulatePoseUpdateStats(
     const double rotation = rotationAngle(delta);
     translation_sum += translation;
     rotation_sum += rotation;
-    result->max_pose_update_translation =
-        std::max(result->max_pose_update_translation, translation);
-    result->max_pose_update_rotation =
-        std::max(result->max_pose_update_rotation, rotation);
+    result.max_pose_update_translation =
+        std::max(result.max_pose_update_translation, translation);
+    result.max_pose_update_rotation =
+        std::max(result.max_pose_update_rotation, rotation);
     ++count;
   }
 
   if (count == 0) {
     return;
   }
-  const std::size_t previous_count = result->pose_update_count;
+  const std::size_t previous_count = result.pose_update_count;
   const std::size_t total_count = previous_count + count;
-  result->mean_pose_update_translation =
-      (result->mean_pose_update_translation *
+  result.mean_pose_update_translation =
+      (result.mean_pose_update_translation *
            static_cast<double>(previous_count) +
        translation_sum) /
       static_cast<double>(total_count);
-  result->mean_pose_update_rotation =
-      (result->mean_pose_update_rotation * static_cast<double>(previous_count) +
+  result.mean_pose_update_rotation =
+      (result.mean_pose_update_rotation * static_cast<double>(previous_count) +
        rotation_sum) /
       static_cast<double>(total_count);
-  result->pose_update_count = total_count;
+  result.pose_update_count = total_count;
 }
 
-void assignGraphTrialDiagnostics(LoopDebugCandidateEvent *event,
+void assignGraphTrialDiagnostics(LoopDebugCandidateEvent& event,
                                  const LoopGraphTrialDiagnostics &diagnostics) {
-  if (!event) {
-    return;
-  }
-  event->graph_trial_success = diagnostics.success;
-  event->graph_trial_residual_x_after = diagnostics.residual_x_after;
-  event->graph_trial_residual_y_after = diagnostics.residual_y_after;
-  event->graph_trial_residual_z_after = diagnostics.residual_z_after;
-  event->graph_trial_residual_roll_after = diagnostics.residual_roll_after;
-  event->graph_trial_residual_pitch_after = diagnostics.residual_pitch_after;
-  event->graph_trial_residual_yaw_after = diagnostics.residual_yaw_after;
-  event->graph_trial_residual_translation_norm_after =
+  event.graph_trial_success = diagnostics.success;
+  event.graph_trial_residual_x_after = diagnostics.residual_x_after;
+  event.graph_trial_residual_y_after = diagnostics.residual_y_after;
+  event.graph_trial_residual_z_after = diagnostics.residual_z_after;
+  event.graph_trial_residual_roll_after = diagnostics.residual_roll_after;
+  event.graph_trial_residual_pitch_after = diagnostics.residual_pitch_after;
+  event.graph_trial_residual_yaw_after = diagnostics.residual_yaw_after;
+  event.graph_trial_residual_translation_norm_after =
       diagnostics.residual_translation_norm_after;
-  event->graph_trial_residual_rotation_norm_after =
+  event.graph_trial_residual_rotation_norm_after =
       diagnostics.residual_rotation_norm_after;
-  event->graph_trial_mean_pose_update_translation =
+  event.graph_trial_mean_pose_update_translation =
       diagnostics.mean_pose_update_translation;
-  event->graph_trial_max_pose_update_translation =
+  event.graph_trial_max_pose_update_translation =
       diagnostics.max_pose_update_translation;
-  event->graph_trial_mean_pose_update_rotation =
+  event.graph_trial_mean_pose_update_rotation =
       diagnostics.mean_pose_update_rotation;
-  event->graph_trial_max_pose_update_rotation =
+  event.graph_trial_max_pose_update_rotation =
       diagnostics.max_pose_update_rotation;
-  event->graph_trial_existing_loop_residual_delta =
+  event.graph_trial_existing_loop_residual_delta =
       diagnostics.existing_loop_residual_delta;
-  event->graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
-  event->graph_trial_consistency_score = diagnostics.consistency_score;
-  event->graph_trial_recommendation = diagnostics.recommendation;
+  event.graph_trial_odom_residual_delta = diagnostics.odom_residual_delta;
+  event.graph_trial_consistency_score = diagnostics.consistency_score;
+  event.graph_trial_recommendation = diagnostics.recommendation;
 }
 
 void assignConsensusEstimatorTrialDiagnostics(
-    LoopDebugCandidateEvent *event,
+    LoopDebugCandidateEvent& event,
     const LoopGraphTrialDiagnostics &diagnostics) {
-  if (!event) {
-    return;
-  }
-  event->consensus_estimator_trial_success = diagnostics.success;
-  event->consensus_estimator_trial_residual_x_after =
+  event.consensus_estimator_trial_success = diagnostics.success;
+  event.consensus_estimator_trial_residual_x_after =
       diagnostics.residual_x_after;
-  event->consensus_estimator_trial_residual_y_after =
+  event.consensus_estimator_trial_residual_y_after =
       diagnostics.residual_y_after;
-  event->consensus_estimator_trial_residual_z_after =
+  event.consensus_estimator_trial_residual_z_after =
       diagnostics.residual_z_after;
-  event->consensus_estimator_trial_residual_roll_after =
+  event.consensus_estimator_trial_residual_roll_after =
       diagnostics.residual_roll_after;
-  event->consensus_estimator_trial_residual_pitch_after =
+  event.consensus_estimator_trial_residual_pitch_after =
       diagnostics.residual_pitch_after;
-  event->consensus_estimator_trial_residual_yaw_after =
+  event.consensus_estimator_trial_residual_yaw_after =
       diagnostics.residual_yaw_after;
-  event->consensus_estimator_trial_residual_translation_norm_after =
+  event.consensus_estimator_trial_residual_translation_norm_after =
       diagnostics.residual_translation_norm_after;
-  event->consensus_estimator_trial_residual_rotation_norm_after =
+  event.consensus_estimator_trial_residual_rotation_norm_after =
       diagnostics.residual_rotation_norm_after;
-  event->consensus_estimator_trial_consistency_score =
+  event.consensus_estimator_trial_consistency_score =
       diagnostics.consistency_score;
-  event->consensus_estimator_trial_recommendation = diagnostics.recommendation;
+  event.consensus_estimator_trial_recommendation = diagnostics.recommendation;
 }
 
-void assignSegmentDiagnostics(LoopDebugCandidateEvent *event,
+void assignSegmentDiagnostics(LoopDebugCandidateEvent& event,
                               const VerifiedLoop &loop) {
-  if (!event) {
-    return;
-  }
-  event->segment_pair_count = loop.segment_pair_count;
-  event->segment_valid_pair_count = loop.segment_valid_pair_count;
-  event->segment_consensus_inlier_count = loop.segment_consensus_inlier_count;
-  event->segment_consensus_ratio = loop.segment_consensus_ratio;
-  event->segment_translation_median = loop.segment_translation_median;
-  event->segment_translation_std = loop.segment_translation_std;
-  event->segment_yaw_median = loop.segment_yaw_median;
-  event->segment_yaw_std = loop.segment_yaw_std;
-  event->segment_z_std = loop.segment_z_std;
-  event->segment_roll_pitch_std = loop.segment_roll_pitch_std;
-  event->segment_direction = loop.segment_direction;
-  event->segment_recommendation = loop.segment_recommendation;
+  event.segment_pair_count = loop.segment_pair_count;
+  event.segment_valid_pair_count = loop.segment_valid_pair_count;
+  event.segment_consensus_inlier_count = loop.segment_consensus_inlier_count;
+  event.segment_consensus_ratio = loop.segment_consensus_ratio;
+  event.segment_translation_median = loop.segment_translation_median;
+  event.segment_translation_std = loop.segment_translation_std;
+  event.segment_yaw_median = loop.segment_yaw_median;
+  event.segment_yaw_std = loop.segment_yaw_std;
+  event.segment_z_std = loop.segment_z_std;
+  event.segment_roll_pitch_std = loop.segment_roll_pitch_std;
+  event.segment_direction = loop.segment_direction;
+  event.segment_recommendation = loop.segment_recommendation;
 }
 
-void assignConsensusDiagnostics(LoopDebugCandidateEvent *event,
+void assignConsensusDiagnostics(LoopDebugCandidateEvent& event,
                                 const VerifiedLoop &loop) {
-  if (!event) {
-    return;
-  }
-  event->consensus_shadow_decision = loop.consensus_shadow_decision;
-  event->consensus_shadow_reason = loop.consensus_shadow_reason;
-  event->consensus_valid_pair_count = loop.consensus_valid_pair_count;
-  event->consensus_left_support_count = loop.consensus_left_support_count;
-  event->consensus_right_support_count = loop.consensus_right_support_count;
-  event->consensus_contradiction_count = loop.consensus_contradiction_count;
-  event->consensus_median_translation_delta =
+  event.consensus_shadow_decision = loop.consensus_shadow_decision;
+  event.consensus_shadow_reason = loop.consensus_shadow_reason;
+  event.consensus_valid_pair_count = loop.consensus_valid_pair_count;
+  event.consensus_left_support_count = loop.consensus_left_support_count;
+  event.consensus_right_support_count = loop.consensus_right_support_count;
+  event.consensus_contradiction_count = loop.consensus_contradiction_count;
+  event.consensus_median_translation_delta =
       loop.consensus_median_translation_delta;
-  event->consensus_mad_translation_delta = loop.consensus_mad_translation_delta;
-  event->consensus_median_rotation_delta = loop.consensus_median_rotation_delta;
-  event->consensus_mad_rotation_delta = loop.consensus_mad_rotation_delta;
-  event->consensus_estimator_valid = loop.consensus_estimator_valid;
-  event->consensus_estimator_pair_count = loop.consensus_estimator_pair_count;
-  event->consensus_estimator_inlier_count =
+  event.consensus_mad_translation_delta = loop.consensus_mad_translation_delta;
+  event.consensus_median_rotation_delta = loop.consensus_median_rotation_delta;
+  event.consensus_mad_rotation_delta = loop.consensus_mad_rotation_delta;
+  event.consensus_estimator_valid = loop.consensus_estimator_valid;
+  event.consensus_estimator_pair_count = loop.consensus_estimator_pair_count;
+  event.consensus_estimator_inlier_count =
       loop.consensus_estimator_inlier_count;
-  event->consensus_estimator_inlier_ratio =
+  event.consensus_estimator_inlier_ratio =
       loop.consensus_estimator_inlier_ratio;
-  event->consensus_estimator_translation_median =
+  event.consensus_estimator_translation_median =
       loop.consensus_estimator_translation_median;
-  event->consensus_estimator_z_median = loop.consensus_estimator_z_median;
-  event->consensus_estimator_yaw_median = loop.consensus_estimator_yaw_median;
-  event->consensus_estimator_translation_mad =
+  event.consensus_estimator_z_median = loop.consensus_estimator_z_median;
+  event.consensus_estimator_yaw_median = loop.consensus_estimator_yaw_median;
+  event.consensus_estimator_translation_mad =
       loop.consensus_estimator_translation_mad;
-  event->consensus_estimator_z_mad = loop.consensus_estimator_z_mad;
-  event->consensus_estimator_yaw_mad = loop.consensus_estimator_yaw_mad;
-  event->consensus_estimator_measurement_delta_translation =
+  event.consensus_estimator_z_mad = loop.consensus_estimator_z_mad;
+  event.consensus_estimator_yaw_mad = loop.consensus_estimator_yaw_mad;
+  event.consensus_estimator_measurement_delta_translation =
       loop.consensus_estimator_measurement_delta_translation;
-  event->consensus_estimator_measurement_delta_rotation =
+  event.consensus_estimator_measurement_delta_rotation =
       loop.consensus_estimator_measurement_delta_rotation;
-  event->consensus_estimator_recommendation =
+  event.consensus_estimator_recommendation =
       loop.consensus_estimator_recommendation;
 }
 
-void assignConsensusDiagnostics(LoopDebugCandidateEvent *event,
+void assignConsensusDiagnostics(LoopDebugCandidateEvent& event,
                                 const LoopConsensusResult &consensus) {
-  if (!event) {
-    return;
-  }
-  event->consensus_shadow_decision =
+  event.consensus_shadow_decision =
       loopConsensusDecisionName(consensus.decision);
-  event->consensus_shadow_reason = consensus.reason;
-  event->consensus_valid_pair_count = consensus.valid_pair_count;
-  event->consensus_left_support_count = consensus.left_support_count;
-  event->consensus_right_support_count = consensus.right_support_count;
-  event->consensus_contradiction_count = consensus.contradiction_count;
-  event->consensus_median_translation_delta =
+  event.consensus_shadow_reason = consensus.reason;
+  event.consensus_valid_pair_count = consensus.valid_pair_count;
+  event.consensus_left_support_count = consensus.left_support_count;
+  event.consensus_right_support_count = consensus.right_support_count;
+  event.consensus_contradiction_count = consensus.contradiction_count;
+  event.consensus_median_translation_delta =
       consensus.median_translation_delta;
-  event->consensus_mad_translation_delta = consensus.mad_translation_delta;
-  event->consensus_median_rotation_delta = consensus.median_rotation_delta;
-  event->consensus_mad_rotation_delta = consensus.mad_rotation_delta;
-  event->consensus_estimator_valid = consensus.estimator_valid;
-  event->consensus_estimator_pair_count = consensus.estimator_pair_count;
-  event->consensus_estimator_inlier_count = consensus.estimator_inlier_count;
-  event->consensus_estimator_inlier_ratio = consensus.estimator_inlier_ratio;
-  event->consensus_estimator_translation_median =
+  event.consensus_mad_translation_delta = consensus.mad_translation_delta;
+  event.consensus_median_rotation_delta = consensus.median_rotation_delta;
+  event.consensus_mad_rotation_delta = consensus.mad_rotation_delta;
+  event.consensus_estimator_valid = consensus.estimator_valid;
+  event.consensus_estimator_pair_count = consensus.estimator_pair_count;
+  event.consensus_estimator_inlier_count = consensus.estimator_inlier_count;
+  event.consensus_estimator_inlier_ratio = consensus.estimator_inlier_ratio;
+  event.consensus_estimator_translation_median =
       consensus.estimator_translation_median;
-  event->consensus_estimator_z_median = consensus.estimator_z_median;
-  event->consensus_estimator_yaw_median = consensus.estimator_yaw_median;
-  event->consensus_estimator_translation_mad =
+  event.consensus_estimator_z_median = consensus.estimator_z_median;
+  event.consensus_estimator_yaw_median = consensus.estimator_yaw_median;
+  event.consensus_estimator_translation_mad =
       consensus.estimator_translation_mad;
-  event->consensus_estimator_z_mad = consensus.estimator_z_mad;
-  event->consensus_estimator_yaw_mad = consensus.estimator_yaw_mad;
-  event->consensus_estimator_measurement_delta_translation =
+  event.consensus_estimator_z_mad = consensus.estimator_z_mad;
+  event.consensus_estimator_yaw_mad = consensus.estimator_yaw_mad;
+  event.consensus_estimator_measurement_delta_translation =
       consensus.estimator_measurement_delta_translation;
-  event->consensus_estimator_measurement_delta_rotation =
+  event.consensus_estimator_measurement_delta_rotation =
       consensus.estimator_measurement_delta_rotation;
-  event->consensus_estimator_recommendation =
+  event.consensus_estimator_recommendation =
       consensus.estimator_recommendation;
 }
 
@@ -273,8 +250,6 @@ double processingTimeSeconds() {
   using Clock = std::chrono::system_clock;
   return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
 }
-
-
 
 ZDistributionStats computeZStats(const core::LioFrame::PointCloud::Ptr &cloud) {
   ZDistributionStats stats;
@@ -363,8 +338,6 @@ double zCentroidDelta(const ZDistributionStats &source,
   }
   return source_mean - target_mean;
 }
-
-
 
 bool hasUsableHypothesisFitness(const MatchResult &result) {
   return result.converged && std::isfinite(result.fitness_score);

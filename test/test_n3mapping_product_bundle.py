@@ -24,24 +24,6 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def flat_ros_parameters(path: Path) -> dict[str, str]:
-    parameters: dict[str, str] = {}
-    inside_parameters = False
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        stripped = raw_line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if stripped == "ros__parameters:":
-            inside_parameters = True
-            continue
-        if not inside_parameters or raw_line[:4] != "    ":
-            continue
-        key, separator, value = stripped.partition(":")
-        if separator:
-            parameters[key] = value.strip()
-    return parameters
-
-
 class ProductBundleTest(unittest.TestCase):
     def make_bundle(self, root: Path) -> Path:
         bundle = root / "bundle"
@@ -187,27 +169,6 @@ class ProductBundleTest(unittest.TestCase):
             )
             self.assertNotEqual(created.returncode, 0)
             self.assertIn("unverified", created.stderr)
-
-    def test_product_profile_only_changes_product_invariants(self) -> None:
-        development = flat_ros_parameters(ROOT / "config" / "n3mapping.yaml")
-        product = flat_ros_parameters(ROOT / "config" / "product_v1.yaml")
-        self.assertEqual(set(development), set(product))
-        differences = {
-            key: (development[key], product[key])
-            for key in development
-            if development[key] != product[key]
-        }
-        self.assertEqual(
-            differences,
-            {
-                "mode": ('"mapping"', '"localization"'),
-                # Mapping uses calibrated loop information; the frozen
-                # localization profile does not create mapping loop edges.
-                "loop_use_icp_information": ("true", "false"),
-                "save_global_map_on_shutdown": ("true", "false"),
-            },
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -13,6 +13,7 @@
 #include "n3mapping/point_cloud_matcher.h"
 
 namespace n3mapping {
+class SpatialPointBlocks;
 
 class TrackingTargetCache {
 public:
@@ -55,7 +56,8 @@ public:
   // leaves these map-derived targets available for reuse.
   void clearMap();
   void installLoadedReference(const PointCloudT::Ptr& cloud,
-                             const PointCloudMatcher::PreparedTarget& target);
+                             const PointCloudMatcher::PreparedTarget& target,
+                             std::shared_ptr<const SpatialPointBlocks> blocks = {});
   Diagnostics diagnostics() const;
 
 private:
@@ -89,6 +91,7 @@ private:
   std::size_t local_misses_ = 0;
 
   PointCloudT::Ptr loaded_map_;
+  std::shared_ptr<const SpatialPointBlocks> blocks_;
   std::shared_ptr<const PointCloudMatcher::PreparedTarget> loaded_prepared_;
   // Crop identity belongs to the frozen loaded geometry, not live graph poses.
   std::map<int64_t, Eigen::Vector3d> loaded_anchor_positions_;

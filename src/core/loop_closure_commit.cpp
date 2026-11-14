@@ -27,7 +27,7 @@ void recordLoopOptimization(const Config& config, const std::vector<EdgeInfo>& e
   result.loop_residual_rotation_before = residual_before.second;
   result.loop_residual_translation_after = residual_after.first;
   result.loop_residual_rotation_after = residual_after.second;
-  accumulatePoseUpdateStats(poses_before, poses_after, &result);
+  accumulatePoseUpdateStats(poses_before, poses_after, result);
   result.accepted_loops.insert(result.accepted_loops.end(),
                                best_loops.begin(), best_loops.end());
 
@@ -79,7 +79,7 @@ void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
           assignLoopGraphTrialDiagnostics(&loop, trial);
       for (auto& event : outcome.candidates)
         if (event.candidate.match_id == edge.from_id && event.candidate.query_id == edge.to_id)
-          assignGraphTrialDiagnostics(&event, trial);
+          assignGraphTrialDiagnostics(event, trial);
       const auto reason = loopGraphTrialRejectReason(trial);
       if (!reason.empty()) rejection = reason;
     }

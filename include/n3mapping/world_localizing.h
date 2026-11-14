@@ -81,12 +81,7 @@ public:
   bool isRelocalized() const;
   Eigen::Isometry3d getMapToOdomTransform() const;
   void reset();
-  // WP-02: 地图替换时旧地图派生的缓存不得泄漏到新地图。
-  // resetLocalizationState() 只清运行状态（假设、锁定、窗口、buffer、
-  // streak/persistence），保留地图派生缓存 —— 单地图内重置后可复用缓存。
-  // notifyMapReplaced() = resetLocalizationState() + 清全部地图派生缓存
-  // （frame RHPD 索引、reloc map cache、free-space grid 及失败锁存、atlas），
-  // 用于"加载成功一张新地图"之后。reset() 保持为兼容入口（= state reset）。
+  // State reset retains map caches; map replacement discards them.
   void resetLocalizationState();
   void notifyMapReplaced();
   // 只读诊断：外部测试可观察缓存状态，但不允许修改内部状态。
@@ -189,6 +184,8 @@ private:
   LocalMapSelector local_map_selector_;
   RelocalizationQueryBuilder query_builder_;
   RelocalizationPlaceIndex place_index_;
+  std::size_t search_offset_ = 0;
+  Eigen::Isometry3d search_anchor_ = Eigen::Isometry3d::Identity();
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
   KeyframeMapRevision loaded_atlas_revision_;
   std::unique_ptr<RelocTargetProvider> target_provider_;

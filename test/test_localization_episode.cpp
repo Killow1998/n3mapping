@@ -197,6 +197,30 @@ TEST_F(LocalizationEpisode, RepeatedPlacesStayUnpublishedAndFreshGeometryCanLock
   EXPECT_LT((identified.live.pose->pose.translation() - Eigen::Vector3d(40, 0, 0)).norm(), 0.5);
 }
 
+TEST_F(LocalizationEpisode, RepeatedFloorsRemainIndependentDuringInitialSearch) {
+  const auto cloud = synthesizeBodyCloud(scene_, makePose(6, 0, 0), 12, 0, 0, 1442);
+  const auto path = directory_ / "repeated_floors.pbstream";
+  {
+    N3MappingCore mapper(config_, N3MappingCore::WorldCloudOutput::Disabled);
+    for (int i = 0; i < 4; ++i) {
+      auto pose = makePose(i < 3 ? i : 0, 0, 0);
+      if (i == 3) pose.translation().z() = 8.0;
+      ASSERT_TRUE(mapper.processMappingFrame(
+          makeFrame((i + 1) * 30000000000LL, pose, cloud)).accepted_keyframe);
+    }
+    ASSERT_TRUE(mapper.saveMap(path.string()));
+    compileAtlas(mapper, path);
+  }
+  ASSERT_TRUE(localizer_->loadMap(path.string()));
+  startOutput();
+  for (int i = 0; i < 3 * config_.reloc_temporal_window_size; ++i) {
+    const auto step = run("repeated_floors", makePose(0, 0, 0), cloud);
+    if (i == 0) EXPECT_EQ(step.backend.relocalization_performance.admitted_basins, 2u);
+    EXPECT_FALSE(step.backend.relocalization_locked);
+    EXPECT_FALSE(step.live.pose);
+  }
+}
+
 TEST_F(LocalizationEpisode, NewlyVisibleRegionGetsItsOwnConfirmationWithoutRestartingOthers) {
   // The sensor stays in one room. Initially missing returns hide its extra
   // walls, so two repeated rooms occupy the shortlist; later returns reveal it.

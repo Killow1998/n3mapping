@@ -8,6 +8,7 @@
 
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/pcl_compat.h"
+#include "spatial_point_blocks.h"
 
 namespace n3mapping {
 namespace {
@@ -27,7 +28,7 @@ bool TrackingTargetCache::usable(const PointCloudMatcher::PreparedTarget &target
   return target.plane_levels.size() >= 2 &&
          std::all_of(target.plane_levels.begin(), target.plane_levels.end(),
                      [](const PointCloudMatcher::PreparedTargetLevel &level) {
-                       return level.cloud && level.kdtree && level.cloud->size() >= 10;
+                       return level.ready() && level.size() >= 10;
                      });
 }
 
@@ -126,6 +127,7 @@ void TrackingTargetCache::rebuildLoadedMapIfNeeded() {
   loaded_entries_.clear();
   loaded_prepared_.reset();
   loaded_map_ = LocalizationAtlas::buildGlobalMap(config_, loaded_keyframes);
+  blocks_ = std::make_shared<SpatialPointBlocks>(*loaded_map_);
   loaded_anchor_positions_.clear();
   for (const auto &keyframe : loaded_keyframes)
     loaded_anchor_positions_.emplace(keyframe->id,
@@ -172,7 +174,7 @@ TrackingTargetCache::acquireLoadedFromSnapshot(int64_t anchor_id) {
   const auto build_started = Clock::now();
   if (anchor != loaded_anchor_positions_.end()) {
     result.visibility_cloud = LocalizationAtlas::cropGlobalMap(
-        config_, loaded_map_, anchor->second);
+        config_, loaded_map_, anchor->second, blocks_.get());
   }
   result.submap_build_ms = elapsedMs(build_started);
   result.submap_points = result.visibility_cloud ? result.visibility_cloud->size() : 0;
@@ -207,13 +209,14 @@ TrackingTargetCache::acquireLoadedFromSnapshot(int64_t anchor_id) {
 TrackingTargetCache::PointCloudT::Ptr
 TrackingTargetCache::loadedVisibilityTarget(const Eigen::Vector3d &center) {
   rebuildLoadedMapIfNeeded();
-  return LocalizationAtlas::cropGlobalMap(config_, loaded_map_, center);
+  return LocalizationAtlas::cropGlobalMap(config_, loaded_map_, center, blocks_.get());
 }
 
 void TrackingTargetCache::clearMap() {
   clearLocal(true);
   loaded_map_ = pcl::make_shared<PointCloudT>();
   loaded_prepared_.reset();
+  blocks_.reset();
   loaded_anchor_positions_.clear();
   loaded_keyframe_count_ = 0;
   loaded_revision_ = {};
@@ -224,15 +227,21 @@ void TrackingTargetCache::clearMap() {
 
 void TrackingTargetCache::installLoadedReference(
     const PointCloudT::Ptr& cloud,
-    const PointCloudMatcher::PreparedTarget& target) {
+    const PointCloudMatcher::PreparedTarget& target,
+    std::shared_ptr<const SpatialPointBlocks> blocks) {
   clearMap();
   loaded_map_ = cloud;
+  blocks_ = std::move(blocks);
   // Occupied bounds pay off for distant search seeds. Tracking starts inside
   // an established correspondence basin, where another box test costs more
   // than the split-cell/hint search. Share exactly the same geometry and trees.
   auto tracking_target = target;
-  for (auto& level : tracking_target.plane_levels) level.search_bounds.reset();
+  for (auto& level : tracking_target.plane_levels) {
+    level.search_bounds.reset();
+    level.use_occupied_bounds = false;
+  }
   tracking_target.refine_level.search_bounds.reset();
+  tracking_target.refine_level.use_occupied_bounds = false;
   loaded_prepared_ = std::make_shared<const PointCloudMatcher::PreparedTarget>(
       std::move(tracking_target));
   for (const auto& frame : keyframe_manager_.getAllKeyframes())

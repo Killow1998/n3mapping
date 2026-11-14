@@ -1,5 +1,7 @@
 #include "localization_atlas_descriptors.h"
 #include "localization_atlas_codec.h"
+#include "mapped_target.h"
+#include "spatial_point_blocks.h"
 // LocalizationAtlas: compile/load a map-bound global prepared target sidecar.
 #include "n3mapping/localization_atlas.h"
 
@@ -26,7 +28,7 @@
 namespace n3mapping {
 namespace {
 
-constexpr const char* kAtlasFormatVersion = "n3mapping_localization_atlas_v3";
+constexpr const char* kAtlasFormatVersion = registration_detail::kMappedAtlasFormat;
 // Geometry/config binding is unchanged by the compact storage encoding.
 constexpr const char* kAtlasGeometryVersion = "n3mapping_localization_atlas_v2";
 constexpr std::uintmax_t kMaxAtlasBytes = std::uintmax_t{1} << 30;
@@ -153,6 +155,7 @@ bool LocalizationAtlas::prepare(const std::vector<Keyframe::Ptr>& keyframes,
         return false;
     }
     local_stats.global_point_count = global_map_->size();
+    blocks_ = std::make_shared<SpatialPointBlocks>(*global_map_);
     if (global_map_->size() >
         static_cast<std::size_t>(std::numeric_limits<int>::max() / 4)) {
 
@@ -187,6 +190,8 @@ void LocalizationAtlas::swapData(LocalizationAtlas& other) {
     swap(place_catalog_, other.place_catalog_);
     swap(place_catalog_ready_, other.place_catalog_ready_);
     swap(free_space_grid_, other.free_space_grid_);
+    swap(mapping_, other.mapping_);
+    swap(blocks_, other.blocks_);
 }
 
 FreeSpaceGrid LocalizationAtlas::takeFreeSpaceGrid() {
@@ -263,8 +268,6 @@ bool LocalizationAtlas::compileAndSave(
 
     const auto descriptor_start = Clock::now();
     encodeAtlasDescriptors(config_, keyframes, data);
-    // Keep the newly built cache usable immediately, without a second file
-    // read, target preparation or KD-tree construction after first-load upgrade.
     if (!decodeAtlasDescriptors(config_, data, frame_descriptors_, submap_descriptors_,
                                heading_descriptors_, place_catalog_, place_catalog_ready_, error))
         return false;
@@ -323,6 +326,15 @@ bool LocalizationAtlas::compileAndSave(
     }
     local_stats.serialize_ms = elapsedMs(start);
     local_stats.sidecar_bytes = std::filesystem::file_size(output, ec);
+    { LocalizationAtlasData released; data.Swap(&released); }
+    const auto mapped_started = Clock::now();
+    PointCloudMatcher::PreparedTarget persisted;
+    if (!registration_detail::loadMappedAtlas(atlas_path, data, persisted, mapping_, error))
+        return false;
+    prepared_target_ = std::move(persisted);
+    mapping_->releasePages();
+    local_stats.paged_geometry = bool(prepared_target_.refine_level.mapped);
+    local_stats.mapped_load_ms = elapsedMs(mapped_started);
     loaded_ = true;
     if (stats) *stats = local_stats;
     return true;
@@ -343,6 +355,12 @@ bool LocalizationAtlas::load(const std::string& map_path,
         setError(error, "atlas sidecar size is invalid or exceeds 1 GiB");
         return false;
     }
+    const bool mapped = registration_detail::loadMappedAtlas(
+        atlas_path, data, prepared_target_, mapping_, error);
+    if (!mapped && mapping_) return false;
+    local_stats.paged_geometry = bool(prepared_target_.refine_level.mapped);
+    local_stats.mapped_load_ms = mapped ? elapsedMs(start) : 0.0;
+    if (!mapped) {
     std::ifstream stream(atlas_path, std::ios::binary);
     if (!stream.is_open()) {
         setError(error, "failed to open atlas sidecar");
@@ -356,7 +374,9 @@ bool LocalizationAtlas::load(const std::string& map_path,
         setError(error, "failed to parse atlas sidecar");
         return false;
     }
+    }
     if (data.format_version() != kAtlasFormatVersion &&
+        data.format_version() != "n3mapping_localization_atlas_v3" &&
         data.format_version() != kAtlasGeometryVersion) {
         setError(error, "atlas format version mismatch; rebuild from the source map "
                         "with n3mapping_localization_atlas_compile");
@@ -406,10 +426,12 @@ bool LocalizationAtlas::load(const std::string& map_path,
     global_map_->width = static_cast<std::uint32_t>(global_map_->size());
     global_map_->height = 1;
     global_map_->is_dense = true;
+    blocks_ = std::make_shared<SpatialPointBlocks>(*global_map_);
 
     // All global points have been validated and copied to their final cloud.
     google::protobuf::RepeatedField<float>{}.Swap(data.mutable_global_points());
 
+    if (!mapped) {
     const auto kdtree_start = Clock::now();
     prepared_target_.plane_levels.resize(2);
     for (int i = 0; i < data.plane_levels_size(); ++i) {
@@ -432,6 +454,16 @@ bool LocalizationAtlas::load(const std::string& map_path,
         return false;
     }
     local_stats.kdtree_ms = elapsedMs(kdtree_start);
+    } else {
+      for (const auto& level : prepared_target_.plane_levels)
+        local_stats.prepared_point_count += level.size();
+      if (prepared_target_.has_refine_level)
+        local_stats.prepared_point_count += prepared_target_.refine_level.size();
+      if (config_.icp_refine_use_gicp && !prepared_target_.has_refine_level) {
+        setError(error, "atlas is missing required refine level");
+        return false;
+      }
+    }
     const auto descriptor_start = Clock::now();
     if (!decodeAtlasDescriptors(config_, data, frame_descriptors_, submap_descriptors_, heading_descriptors_, place_catalog_, place_catalog_ready_, error)) return false;
     local_stats.descriptor_load_ms = elapsedMs(descriptor_start);
@@ -451,12 +483,15 @@ bool LocalizationAtlas::load(const std::string& map_path,
     std::error_code ec;
     local_stats.sidecar_bytes = std::filesystem::file_size(atlas_path, ec);
     loaded_ = true;
+    if (mapping_) mapping_->releasePages();
     if (stats) *stats = local_stats;
     return true;
 }
 
 void LocalizationAtlas::clear() {
     loaded_ = false;
+    mapping_.reset();
+    blocks_.reset();
     global_map_ = pcl::make_shared<PointCloudT>();
     prepared_target_ = {};
     frame_descriptors_.clear();

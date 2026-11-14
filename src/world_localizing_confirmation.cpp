@@ -35,17 +35,17 @@ WorldLocalizing::confirmRelocalization(
         if (!target) {
           return false;
         }
-        const Eigen::Vector2d target_xy =
-            target->pose_optimized.translation().head<2>();
+        const Eigen::Vector3d target_position =
+            target->pose_optimized.translation();
         for (const auto &candidate : candidates) {
           auto candidate_kf = keyframe_manager_.getKeyframe(candidate.match_id);
           if (!candidate_kf) {
             continue;
           }
-          const double d_xy =
-              (candidate_kf->pose_optimized.translation().head<2>() - target_xy)
+          const double distance =
+              (candidate_kf->pose_optimized.translation() - target_position)
                   .norm();
-          if (d_xy <= kRelocBasinAssignRadiusXY) {
+          if (distance <= kRelocBasinAssignRadius) {
             return true;
           }
         }
@@ -77,8 +77,11 @@ WorldLocalizing::confirmRelocalization(
       continue;
     }
 
+    // Retrieval names the seed's place; registration may converge beyond
+    // that place's radius. Keep the same two support regions as admission.
     if (!hyp.tracking_proposal &&
-        !descriptor_supports_keyframe(current_candidates, nearest_kf_id)) {
+        !descriptor_supports_keyframe(current_candidates, nearest_kf_id) &&
+        !descriptor_supports_keyframe(current_candidates, hyp.seed_match_id)) {
       hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
       continue;
     }
@@ -228,6 +231,7 @@ WorldLocalizing::confirmRelocalization(
           currently_registered.push_back(&hyp);
         hyp.T_map_odom = selected_pose * odom_pose.inverse();
         hyp.metric = mr.metric;
+        hyp.last_registration_information = mr.information;
         hyp.last_match_id = nearest_kf_id;
         hyp.converged_updates += 1;
 

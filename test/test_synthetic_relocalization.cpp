@@ -1,3 +1,5 @@
+#include "n3mapping/query_pose_manifest.h"
+#include "n3mapping/synthetic_episode_state.h"
 #include <cmath>
 #include <cstdint>
 #include <filesystem>

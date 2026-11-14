@@ -25,7 +25,7 @@ public:
                            LoopDetector &loop_detector);
 
   std::vector<LoopCandidate> search(const PointCloudT::Ptr &cloud,
-      DescriptorSearchPerformance *performance = nullptr);
+      DescriptorSearchPerformance *performance = nullptr, std::size_t offset = 0);
   void prepare(const RHPDPlaceCache &cached_frames = {},
                DescriptorSearchPerformance *performance = nullptr,
                const RelocalizationPlaceCatalog *cached_catalog = nullptr);
@@ -42,7 +42,7 @@ private:
   struct Place { std::vector<View> views; };
   std::vector<LoopCandidate> searchRHPDCandidates(
       const RHPDPlace &query, const RHPDHeadingPtr &heading,
-      DescriptorSearchPerformance *performance);
+      DescriptorSearchPerformance *performance, std::size_t offset);
 
   Config config_;
   KeyframeManager &keyframe_manager_;

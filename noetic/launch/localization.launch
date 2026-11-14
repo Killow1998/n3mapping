@@ -1,12 +1,8 @@
 <launch>
-  <arg name="bundle" />
-  <arg name="rviz" default="false" />
-
-  <node pkg="n3mapping" type="n3mapping_product_runtime.py"
-        name="n3mapping_node" output="screen"
-        args="--bundle $(arg bundle)">
+  <node pkg="n3mapping" type="yaml_arguments.py" name="n3mapping_node" output="screen"
+        args="&quot;$(find n3mapping)/config/launch_noetic.yaml&quot; product">
     <env name="OMP_WAIT_POLICY" value="$(optenv OMP_WAIT_POLICY PASSIVE)" />
   </node>
-
-  <node pkg="rviz" type="rviz" name="n3_rviz" output="screen" if="$(arg rviz)" args="-d $(find n3mapping)/launch/n3_noetic.rviz" />
+  <node pkg="n3mapping" type="yaml_arguments.py" name="n3_rviz" output="screen"
+        args="&quot;$(find n3mapping)/config/launch_noetic.yaml&quot; product_visualization" />
 </launch>

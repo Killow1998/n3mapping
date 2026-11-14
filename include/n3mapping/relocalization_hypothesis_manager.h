@@ -24,6 +24,8 @@ struct RelocalizationHypothesis {
   int64_t last_match_id = -1;
   Eigen::Isometry3d T_map_odom = Eigen::Isometry3d::Identity();
   MatchMetric metric;
+  Eigen::Matrix<double, 6, 6> last_registration_information =
+      Eigen::Matrix<double, 6, 6>::Zero();
   double cumulative_log_likelihood = 0.0;
   int num_updates = 0;
   int converged_updates = 0;

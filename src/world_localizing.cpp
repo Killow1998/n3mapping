@@ -61,6 +61,7 @@ void WorldLocalizing::resetLocalizationState() {
 }
 
 void WorldLocalizing::releaseSearchPreparation() {
+  search_offset_ = 0;
   candidate_evaluator_.clear();
   target_provider_->clear();
   reloc_map_cache_ = pcl::make_shared<PointCloudT>();
@@ -146,7 +147,8 @@ void WorldLocalizing::installOptimizedReference(
   std::lock_guard<std::mutex> lock(mutex_);
   localization_atlas_->swapData(atlas);
   tracking_targets_->installLoadedReference(
-      localization_atlas_->globalMap(), localization_atlas_->preparedTarget());
+      localization_atlas_->globalMap(), localization_atlas_->preparedTarget(),
+      localization_atlas_->visibilityBlocks());
   T_map_odom_ = correction * T_map_odom_;
   query_builder_.reset();
   hypothesis_manager_.reset();
@@ -219,12 +221,15 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
             << " cache_decode_ms=" << stats.descriptor_load_ms
             << " prepare_ms=" << index_cost.index_rebuild.wall_ms;
   tracking_targets_->installLoadedReference(
-      localization_atlas_->globalMap(), localization_atlas_->preparedTarget());
+      localization_atlas_->globalMap(), localization_atlas_->preparedTarget(),
+      localization_atlas_->visibilityBlocks());
   LOG(INFO) << "[LocalizationAtlas] Loaded " << atlas_path
             << " global_points=" << stats.global_point_count
             << " prepared_points=" << stats.prepared_point_count
             << " bytes=" << stats.sidecar_bytes << " load_ms=" << stats.load_ms
             << " kdtree_ms=" << stats.kdtree_ms
+            << " paged_geometry=" << stats.paged_geometry
+            << " mapped_load_ms=" << stats.mapped_load_ms
             << " free_space_load_ms=" << stats.free_space_load_ms;
   loaded_atlas_revision_ = keyframe_manager_.revision();
   free_space_grid_ = FreeSpaceGrid{};

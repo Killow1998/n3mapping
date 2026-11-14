@@ -16,7 +16,7 @@ RelocalizationPlaceIndex::RelocalizationPlaceIndex(
 
 std::vector<LoopCandidate>
 RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
-                                 DescriptorSearchPerformance *performance) {
+                                 DescriptorSearchPerformance *performance, std::size_t offset) {
   DescriptorPhaseTimer search_timer(performance ? &performance->total
                                                 : nullptr);
   std::vector<LoopCandidate> candidates;
@@ -52,7 +52,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
     if (query_rhpd.isZero()) {
       LOG(WARNING) << "[Reloc/RHPD] query descriptor is zero.";
     } else {
-      candidates = searchRHPDCandidates(query_rhpd, query_sc, performance);
+      candidates = searchRHPDCandidates(query_rhpd, query_sc, performance, offset);
     }
 
     VLOG(1) << "[Reloc/RHPDPrimary] kept=" << candidates.size()
@@ -66,7 +66,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
               << " yaw=" << candidate.yaw_diff_rad
               << " score=" << candidate.fused_score;
     }
-    if (!candidates.empty()) {
+    if (!candidates.empty() || offset > 0) {
       if (performance)
         performance->returned_candidates += candidates.size();
       return candidates;
@@ -113,9 +113,8 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
             [](const LoopCandidate &lhs, const LoopCandidate &rhs) {
               return lhs.sc_distance < rhs.sc_distance;
             });
-  const int keep = std::min(config_.reloc_num_candidates,
-                            static_cast<int>(sc_ranked.size()));
-  for (int i = 0; i < keep; ++i) {
+  const auto end = std::min(offset + config_.reloc_num_candidates, sc_ranked.size());
+  for (std::size_t i = offset; i < end; ++i) {
     sc_ranked[i].fused_rank = i;
     candidates.push_back(sc_ranked[i]);
   }
@@ -129,7 +128,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
 
 std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
     const RHPDPlace &query, const RHPDHeadingPtr &heading,
-    DescriptorSearchPerformance *performance) {
+    DescriptorSearchPerformance *performance, std::size_t offset) {
   prepare({}, performance);
   if (performance) {
     performance->retrieval_views += retrieval_view_count_;
@@ -196,7 +195,7 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
     return a.match_id < b.match_id;
   };
   const auto limit =
-      static_cast<size_t>(std::max(1, config_.reloc_num_candidates));
+      offset + static_cast<size_t>(std::max(1, config_.reloc_num_candidates));
   const double weight =
       config_.rhpd_primary_weight / std::max(1e-6, config_.rhpd_dist_threshold);
   const double slack =
@@ -255,6 +254,7 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
   }
   for (size_t rank = 0; rank < selected.size(); ++rank)
     selected[rank].fused_rank = rank;
+  selected.erase(selected.begin(), selected.begin() + std::min(offset, selected.size()));
   return selected;
 }
 

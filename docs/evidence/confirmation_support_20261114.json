@@ -1,0 +1,231 @@
+{
+  "date": "2026-11-14",
+  "status": "independent_candidate_qualified_for_recorded_replays; not deployed",
+  "scope": "Shared confirmation support rule only; no new parameters, dependencies, interfaces or acceptance thresholds",
+  "root_cause": "Admission preserved a solved hypothesis using its seed place, while confirmation penalized it when only the solved-pose reference was absent from retrieval.",
+  "changed_product_files": [
+    "src/world_localizing_confirmation.cpp"
+  ],
+  "identity": {
+    "libn3mapping_core.so": "d7affa6658b7ac7bceced4dd9cbe414dafd8d06a94bc9e993125c84bf0d82153",
+    "replay_probe": "8d50b3b6899a5be587e541df9b71d284c0f1509ac7f55b6285eaa8c4e1dfb3c6",
+    "replay_probe.cpp": "73cebf902cc10974cb1fd8937fc1d07aebae31c98eafff8044479bce7333b787",
+    "world_localizing_confirmation.cpp": "7ed1108c56d2b615adf2f0a0f7f37cb86a09cb5539facba0ac93bd2434745756",
+    "base_core_sha256": "9ad448f906782f05af1d43953d3431f799defe1d488eaf155229cc0c2ac98b48",
+    "cpus": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "threads": 4,
+    "build_type": "Release",
+    "compiler_launcher": "ccache",
+    "stale_experiment_symbols": []
+  },
+  "noetic": {
+    "core_sha256": "4713549641067074ebc664f2c1c14ff8be5587f0fd187bb49de8d62527a66a43",
+    "ctest_targets_passed": 67,
+    "cpus": [
+      0,
+      2,
+      4,
+      6
+    ]
+  },
+  "tests": {
+    "humble_passed": 69,
+    "noetic_passed": 67
+  },
+  "four_core_replay": {
+    "cpus": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "omp_threads": 4,
+    "omp_wait_policy": "PASSIVE",
+    "openblas_threads": 1,
+    "right_rate1": {
+      "baseline": {
+        "locks": [
+          86
+        ],
+        "frames": 255,
+        "outputs": 169,
+        "first_wall_s": 13.386607069,
+        "first_cpu_s": 29.636660992,
+        "cpu_s": 31.190396182,
+        "wall_s": 25.403213575000002,
+        "input_s": 25.399994995,
+        "processing_average_cores": 1.2278130123149191,
+        "sampled_peak_cores_100ms": 3.8915711605498653,
+        "alignments": 788,
+        "peak_rss_mib": 687.80859375
+      },
+      "candidate": {
+        "locks": [
+          4
+        ],
+        "frames": 255,
+        "outputs": 251,
+        "first_wall_s": 0.6656097519999999,
+        "first_cpu_s": 1.470200455,
+        "cpu_s": 3.7420300120000003,
+        "wall_s": 25.403668492,
+        "input_s": 25.399994995,
+        "processing_average_cores": 0.14730274145950306,
+        "sampled_peak_cores_100ms": 3.193154579810789,
+        "alignments": 48,
+        "peak_rss_mib": 604.52734375
+      }
+    },
+    "fixed14": {
+      "baseline": {
+        "cases": 14,
+        "frames": 4144,
+        "cpu_s": 157.91697977500002,
+        "alignments": 517,
+        "input_s": 413.000005005,
+        "maximum_position_error_m": 0.024809060892936476,
+        "maximum_rotation_error_deg": 0.08384096407414639,
+        "lock_frames": {
+          "01_west_corridor": [
+            4
+          ],
+          "02_east_corridor": [
+            4
+          ],
+          "03_south_corridor": [
+            4
+          ],
+          "04_north_corridor": [
+            4
+          ],
+          "05_southwest_office": [
+            4
+          ],
+          "06_south_meeting": [
+            4
+          ],
+          "07_south_pillars": [
+            4
+          ],
+          "08_west_shelves": [
+            4
+          ],
+          "09_east_shelves": [
+            4
+          ],
+          "10_northwest_meeting": [
+            4
+          ],
+          "11_northeast_pillars": [
+            4
+          ],
+          "12_north_office": [
+            4
+          ],
+          "13_south_door": [
+            4
+          ],
+          "14_north_door": [
+            4
+          ]
+        }
+      },
+      "candidate": {
+        "cases": 14,
+        "frames": 4144,
+        "cpu_s": 160.357455808,
+        "alignments": 520,
+        "input_s": 413.000005005,
+        "maximum_position_error_m": 0.024809060892936476,
+        "maximum_rotation_error_deg": 0.08384096407414639,
+        "lock_frames": {
+          "01_west_corridor": [
+            4
+          ],
+          "02_east_corridor": [
+            4
+          ],
+          "03_south_corridor": [
+            4
+          ],
+          "04_north_corridor": [
+            4
+          ],
+          "05_southwest_office": [
+            4
+          ],
+          "06_south_meeting": [
+            4
+          ],
+          "07_south_pillars": [
+            4
+          ],
+          "08_west_shelves": [
+            4
+          ],
+          "09_east_shelves": [
+            4
+          ],
+          "10_northwest_meeting": [
+            4
+          ],
+          "11_northeast_pillars": [
+            4
+          ],
+          "12_north_office": [
+            4
+          ],
+          "13_south_door": [
+            4
+          ],
+          "14_north_door": [
+            4
+          ]
+        }
+      }
+    },
+    "route_locks": {
+      "reentry": [
+        4
+      ],
+      "independent": [
+        4,
+        1938
+      ]
+    },
+    "fixed14_and_routes_frames_per_variant": 10046,
+    "fixed14_and_routes_behavior_changed_frames": 0,
+    "fixed14_and_routes_common_output_max_position_delta_m": 5.695444116327053e-14,
+    "doorway_views": 11,
+    "real_windows": 36,
+    "real_windows_locked": 33,
+    "real_behavior_changed_frames": 0,
+    "wrong_map_cases": 12,
+    "wrong_map_outputs": 0
+  },
+  "remaining": [
+    "Search-busy CPU remains about 2.21 cores; whole-clip 0.147 cores includes tracking and waiting.",
+    "Fixed14 CPU rose about 1.5%; additional supported hypotheses receive geometric confirmation.",
+    "gate_02 windows 2,3,4 remain unlocked; six-scene 10 cm accuracy is not qualified.",
+    "Production ROS/DDS online integration and RK3588/Jetson/Go2W qualification remain pending."
+  ],
+  "research": [
+    {
+      "project": "Faster-LIO",
+      "url": "https://github.com/gaoxiang12/faster-lio/blob/main/src/laser_mapping.cc#L599",
+      "lesson": "Conditional reuse of nearest neighbors and fitted planes; local iVox requires search-coverage validation for cold start."
+    },
+    {
+      "project": "Lightning-LM",
+      "url": "https://github.com/gaoxiang12/lightning-lm/blob/master/src/core/maps/tiled_map.cc#L276",
+      "lesson": "Active chunks and background preparation; XY chunks need multi-floor adaptation; static Unload call is commented out."
+    }
+  ],
+  "artifacts": "build/upstream_review_20261109/n3m_cross_scene/search_geometry_20261113/clean",
+  "build_identity_correction": "Retired fb0815d3 contained a reverted prototype because preserved source mtimes suppressed rebuild. All qualified results were rerun on d7affa66 after targeted rebuild and symbol inspection."
+}

@@ -824,7 +824,9 @@ TEST_F(WorldLocalizingTest, LoadedMapTrackingRecoversOnlyWithFreshGeometry) {
     const auto rejected = reloc.trackLoadedMap(unrelated, pose);
     EXPECT_FALSE(rejected.success);
     EXPECT_TRUE(reloc.getMapToOdomTransform().isApprox(trusted));
-    if (i > 0) EXPECT_EQ(rejected.state, RelocalizationState::LOST);
+    if (i > 0) {
+      EXPECT_EQ(rejected.state, RelocalizationState::LOST);
+    }
   }
   ASSERT_FALSE(reloc.isRelocalized());
   const auto recovered = reloc.trackLoadedMap(cloud, pose);

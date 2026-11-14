@@ -1,10 +1,27 @@
 // Dense trajectory correction and checkpoint provenance.
 #include "n3mapping/core/n3mapping_core.h"
-#include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping_session.h"
 #include <algorithm>
 #include <cmath>
 
 namespace n3mapping {
+void N3MappingCore::setExternalDenseTrajectoryRecordingEnabled(bool enabled) {
+  external_dense_trajectory_recording_enabled_ = enabled;
+}
+
+void N3MappingCore::recordDenseTrajectoryPose(
+    CoreRunMode mode, double timestamp,
+    const Eigen::Isometry3d &pose_world_lidar) {
+  if (!external_dense_trajectory_recording_enabled_ ||
+      mode != CoreRunMode::MAPPING || !std::isfinite(timestamp) ||
+      !pose_world_lidar.matrix().array().isFinite().all()) {
+    return;
+  }
+
+  appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_world_lidar);
+}
+
+
 void N3MappingCore::appendDenseTrajectorySample(
     double timestamp, const Eigen::Isometry3d &raw_pose,
     int64_t anchor_keyframe_id, const Eigen::Isometry3d &anchor_raw_pose,
@@ -31,7 +48,7 @@ void N3MappingCore::appendDenseTrajectorySample(
 void N3MappingCore::appendDenseTrajectorySampleWithLatestAnchor(
     double timestamp, const Eigen::Isometry3d &raw_pose,
     bool use_bracketing_correction) {
-  auto latest = session_->keyframeManager().getLatestKeyframe();
+  auto latest = session_->keyframes.getLatestKeyframe();
   if (!latest) {
     appendDenseTrajectorySample(timestamp, raw_pose, -1,
                                 Eigen::Isometry3d::Identity(),
@@ -46,13 +63,13 @@ void N3MappingCore::appendDenseTrajectorySampleWithLatestAnchor(
 }
 
 std::vector<core::DenseTrajectoryPose>
-N3MappingCore::buildDenseOptimizedTrajectory() const {
+N3MappingCore::getDenseOptimizedTrajectory() const {
   std::vector<core::DenseTrajectoryPose> dense_optimized;
   dense_optimized.reserve(dense_trajectory_samples_.size());
   std::map<MapSessionId, std::vector<Keyframe::Ptr>> time_indices;
   if (std::any_of(dense_trajectory_samples_.begin(), dense_trajectory_samples_.end(),
                   [](const auto& sample) { return sample.use_bracketing_correction; })) {
-    for (const auto& kf : session_->keyframeManager().getAllKeyframes())
+    for (const auto& kf : session_->keyframes.getAllKeyframes())
       if (kf && std::isfinite(kf->timestamp)) time_indices[kf->session_id].push_back(kf);
     for (auto& [session, index] : time_indices) {
       std::stable_sort(index.begin(), index.end(),
@@ -68,14 +85,14 @@ N3MappingCore::buildDenseOptimizedTrajectory() const {
     pose.pose_world_lidar = sample.pose_world_lidar_raw;
     pose.correction_source = sample;
     if (sample.use_bracketing_correction) {
-      const auto anchor = session_->keyframeManager().getKeyframe(sample.anchor_keyframe_id);
+      const auto anchor = session_->keyframes.getKeyframe(sample.anchor_keyframe_id);
       const auto index = anchor ? time_indices.find(anchor->session_id) : time_indices.begin();
       if (index != time_indices.end())
         pose.pose_world_lidar = interpolateDenseCorrection(sample.timestamp, index->second) *
                                 sample.pose_world_lidar_raw;
     } else if (sample.has_anchor) {
       auto anchor =
-          session_->keyframeManager().getKeyframe(sample.anchor_keyframe_id);
+          session_->keyframes.getKeyframe(sample.anchor_keyframe_id);
       if (anchor) {
         pose.pose_world_lidar = anchor->pose_optimized *
                                 sample.anchor_pose_world_lidar_raw.inverse() *

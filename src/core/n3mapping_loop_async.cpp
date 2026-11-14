@@ -1,4 +1,5 @@
-#include "n3mapping/core/n3mapping_session.h"
+#include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping_session.h"
 #include "loop_closure_async.h"
 #include "loop_closure_diagnostics.h"
 #include <glog/logging.h>
@@ -95,7 +96,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
   if (!async_loops_) async_loops_ = std::make_unique<AsyncLoopState>();
   auto& state = *async_loops_;
   CoreLoopClosureResult result;
-  const auto revision = session_->keyframeManager().revision();
+  const auto revision = session_->keyframes.revision();
   if (state.generation != revision.generation) {
     state.pending.clear();
     state.next_geometry_start = {};
@@ -130,11 +131,11 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       const auto catchup_start = LoopClock::now();
       std::map<int64_t, std::vector<PlaneMoment>> body_moments;
       if (config_.loop_geometry_enable)
-        for (const auto& frame : session_->keyframeManager().getAllKeyframes())
+        for (const auto& frame : session_->keyframes.getAllKeyframes())
           if (frame && frame->cloud && !state.job->base_graph->hasNode(frame->id))
             body_moments.emplace(frame->id, extractPlaneMoments(*frame->cloud));
       if (state.job->graph->appendCommittedTail(
-              session_->graphOptimizer(), *state.job->base_graph, body_moments))
+              session_->optimizer, *state.job->base_graph, body_moments))
         state.job->revision = revision;
       catchup_ms = elapsedMs(catchup_start);
     }
@@ -150,8 +151,8 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       // admission/solving repeats; expensive registration evidence is retained.
       const auto start = LoopClock::now();
       auto previous = std::move(state.job);
-      state.job = std::make_unique<AsyncLoopJob>(config_, session_->keyframeManager(),
-          session_->graphOptimizer().cloneCommitted(), previous->queries);
+      state.job = std::make_unique<AsyncLoopJob>(config_, session_->keyframes,
+          session_->optimizer.cloneCommitted(), previous->queries);
       state.job->outcome = std::move(previous->outcome);
       state.job->worker_wall_ms = previous->worker_wall_ms;
       state.job->cpu_upper_ms = previous->cpu_upper_ms;
@@ -167,21 +168,21 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       auto& job = *state.job;
       Eigen::Isometry3d correction = Eigen::Isometry3d::Identity();
       if (job.outcome.summary.optimized) {
-        const auto before = session_->graphOptimizer().getOptimizedPoses();
+        const auto before = session_->optimizer.getOptimizedPoses();
         const auto after = job.graph->getOptimizedPoses();
-        const int64_t anchor = session_->worldLocalizing().getLastMatchedKeyframeId();
+        const int64_t anchor = session_->localizer.getLastMatchedKeyframeId();
         if (before.count(anchor) && after.count(anchor))
           correction = after.at(anchor) * before.at(anchor).inverse();
         auto& summary = job.outcome.summary;
         summary.pose_update_count = 0;
         summary.mean_pose_update_translation = summary.mean_pose_update_rotation = 0;
         summary.max_pose_update_translation = summary.max_pose_update_rotation = 0;
-        loop_diagnostics::accumulatePoseUpdateStats(before, after, &summary);
-        session_->graphOptimizer().swapWith(*job.graph);
+        loop_diagnostics::accumulatePoseUpdateStats(before, after, summary);
+        session_->optimizer.swapWith(*job.graph);
       }
       publishLoopOutcome(job.outcome);
       if (job.atlas)
-        session_->worldLocalizing().installOptimizedReference(*job.atlas, correction);
+        session_->localizer.installOptimizedReference(*job.atlas, correction);
       result = std::move(job.outcome.summary);
       result.detected_candidate_count = detected;
       result.queued_keyframe_count = queued;
@@ -203,7 +204,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
                   << " worker_ms=" << result.worker_wall_ms
                   << " cpu_upper_ms=" << job.cpu_upper_ms
                   << " snapshot_nodes=" << job.base_graph->getNumNodes()
-                  << " committed_nodes=" << session_->graphOptimizer().getNumNodes()
+                  << " committed_nodes=" << session_->optimizer.getNumNodes()
                   << " catchup_ms=" << catchup_ms
                   << " commit_ms=" << result.commit_ms
                   << " rebases=" << result.graph_rebase_count;
@@ -246,10 +247,10 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       // candidates once, at dispatch; none of these registrations has run yet.
       // Rebase keeps measurements and never enters this retrieval path again.
       std::map<int64_t, Keyframe::Ptr> current_frames;
-      for (const auto& frame : session_->keyframeManager().getAllKeyframes())
+      for (const auto& frame : session_->keyframes.getAllKeyframes())
         if (frame) current_frames.emplace(frame->id, frame);
       for (auto& query : queries) {
-        const auto current = session_->loopDetector().detectSpatialCandidates(
+        const auto current = session_->detector.detectSpatialCandidates(
             query.id, current_frames);
         for (const auto& candidate : current) {
           const auto found = std::find_if(query.candidates.begin(), query.candidates.end(),
@@ -265,8 +266,8 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       }
     }
     state.job = std::make_unique<AsyncLoopJob>(
-        config_, session_->keyframeManager(),
-        session_->graphOptimizer().cloneCommitted(), std::move(queries));
+        config_, session_->keyframes,
+        session_->optimizer.cloneCommitted(), std::move(queries));
     result.snapshot_ms += elapsedMs(start);
     auto* job = state.job.get();
     state.future = state.worker.submit([job] { job->run(); });

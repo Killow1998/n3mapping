@@ -15,6 +15,7 @@ struct SearchBounds {
   struct Box { std::array<float, 3> lower, upper; };
   std::vector<Box> nodes;
 
+  SearchBounds() = default;
   explicit SearchBounds(const small_gicp::KdTree<small_gicp::PointCloud>& tree)
       : nodes(tree.kdtree.nodes.size()) {
     if (!tree.points->empty()) build(tree, tree.kdtree.root);

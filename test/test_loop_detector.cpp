@@ -463,11 +463,13 @@ TEST_F(LoopDetectorTest, PlaceSearchMatchesExhaustiveFusedRanking) {
             expected.emplace_back(score, distance, id);
         }
         std::sort(expected.begin(), expected.end());
-        const auto actual = index.search(clouds[query_id]);
-        ASSERT_EQ(actual.size(), 5u);
-        for (size_t i = 0; i < actual.size(); ++i) {
-            EXPECT_EQ(actual[i].match_id, std::get<2>(expected[i]));
-            EXPECT_NEAR(actual[i].fused_score, std::get<0>(expected[i]), 1e-12);
+        for (size_t offset = 0; offset <= expected.size(); offset += 5) {
+            const auto actual = index.search(clouds[query_id], nullptr, offset);
+            ASSERT_EQ(actual.size(), std::min(size_t{5}, expected.size() - offset));
+            for (size_t i = 0; i < actual.size(); ++i) {
+                EXPECT_EQ(actual[i].match_id, std::get<2>(expected[offset + i]));
+                EXPECT_NEAR(actual[i].fused_score, std::get<0>(expected[offset + i]), 1e-12);
+            }
         }
     }
 }

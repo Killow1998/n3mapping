@@ -20,7 +20,7 @@
 #include "n3mapping/keyframe.h"
 
 namespace n3mapping {
-namespace registration_detail { struct SearchBounds; class LazyTargetNormals; }
+namespace registration_detail { struct SearchBounds; class LazyTargetNormals; struct MappedTargetLevel; }
 
 enum class MatchTermination {
     Invalid,
@@ -85,6 +85,10 @@ public:
         std::shared_ptr<SmallGicpKdTree> kdtree;
         std::shared_ptr<const registration_detail::SearchBounds> search_bounds = nullptr;
         std::shared_ptr<registration_detail::LazyTargetNormals> lazy_normals = nullptr;
+        std::shared_ptr<const registration_detail::MappedTargetLevel> mapped = nullptr;
+        bool use_occupied_bounds = true;
+        std::size_t size() const;
+        bool ready() const;
     };
 
     struct PreparedSourceLevel {
@@ -189,6 +193,7 @@ private:
 // point/normal/covariance payload plus a per-point tree/index allowance. The
 // arithmetic saturates instead of wrapping, preserving byte-budget safety for
 // unexpectedly large targets.
+// Heap estimate; file-backed Atlas pages are accounted for by process RSS.
 std::size_t estimatePreparedTargetMemoryBytes(
     const PointCloudMatcher::PreparedTarget& target);
 

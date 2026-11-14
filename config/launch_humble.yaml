@@ -1,0 +1,8 @@
+dds_profile: fastdds.xml
+visualization:
+  enabled: true
+  configuration: n3.rviz
+synthetic_visualization:
+  enabled: true
+  configuration: synthetic_relocalization_visualization.rviz
+synthetic_arguments: [--map, ""]

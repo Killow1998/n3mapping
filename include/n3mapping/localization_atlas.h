@@ -17,6 +17,8 @@
 #include "n3mapping/relocalization_place_catalog.h"
 
 namespace n3mapping {
+class SpatialPointBlocks;
+namespace registration_detail { class AtlasMapping; }
 
 struct LocalizationAtlasStats {
     std::size_t keyframe_count = 0;
@@ -28,6 +30,8 @@ struct LocalizationAtlasStats {
     double serialize_ms = 0.0;
     double load_ms = 0.0;
     double kdtree_ms = 0.0;
+    bool paged_geometry = false;
+    double mapped_load_ms = 0.0;
     double descriptor_prepare_ms = 0.0;
     double descriptor_load_ms = 0.0;
     double free_space_prepare_ms = 0.0;
@@ -59,9 +63,12 @@ public:
               bool require_current_cache = false);
     void clear();
     FreeSpaceGrid takeFreeSpaceGrid();
+    void prefetchTarget(const PointCloudMatcher::PreparedSource& source,
+                        const std::vector<Eigen::Isometry3d>& poses);
 
     bool loaded() const { return loaded_; }
     const PointCloudT::Ptr& globalMap() const { return global_map_; }
+    const std::shared_ptr<const SpatialPointBlocks>& visibilityBlocks() const { return blocks_; }
     const PointCloudMatcher::PreparedTarget& preparedTarget() const {
         return prepared_target_;
     }
@@ -83,7 +90,8 @@ public:
                                            const std::vector<Keyframe::Ptr>& keyframes);
     static PointCloudT::Ptr cropGlobalMap(const Config& config,
                                           const PointCloudT::Ptr& global_map,
-                                          const Eigen::Vector3d& center);
+                                          const Eigen::Vector3d& center,
+                                          const SpatialPointBlocks* blocks = nullptr);
     static std::string defaultAtlasPath(const std::string& map_path);
     static std::string fileSha256(const std::string& path, std::string* error = nullptr);
     static std::string configSha256(const Config& config);
@@ -101,6 +109,8 @@ private:
     RelocalizationPlaceCatalog place_catalog_;
     bool place_catalog_ready_ = false;
     FreeSpaceGrid free_space_grid_;
+    std::shared_ptr<registration_detail::AtlasMapping> mapping_;
+    std::shared_ptr<const SpatialPointBlocks> blocks_;
 };
 
 }  // namespace n3mapping

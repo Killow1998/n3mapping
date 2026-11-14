@@ -53,4 +53,8 @@
   </export>
 
   <member_of_group>rosidl_interface_packages</member_of_group>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
 </package>

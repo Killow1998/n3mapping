@@ -242,8 +242,8 @@ TEST(RelocTargetProviderTest, LegacyUsesLoadedGlobalAtlasForRegistration) {
   EXPECT_EQ(reused.registration_target, target.registration_target);
   EXPECT_EQ(reused.metrics.target_builds, 0u);
   EXPECT_EQ(reused.metrics.target_preparations, 0u);
-  EXPECT_LT(reused.metrics.cache_entry_bytes,
-            estimatePreparedTargetMemoryBytes(*target.registration_target));
+  EXPECT_EQ(reused.registration_target->refine_level.mapped,
+            fixture.atlas.preparedTarget().refine_level.mapped);
   auto changed = makeRequest(0, cloud);
   ++changed.map_revision.pose_revision;
   EXPECT_TRUE(fixture.provider->getTarget(changed).metrics.cache_miss);

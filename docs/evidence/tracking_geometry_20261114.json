@@ -1,0 +1,718 @@
+{
+  "date": "2026-11-14",
+  "status": "independent_candidate_qualified_for_recorded_replays; not deployed",
+  "scope": "Healthy established tracking tries the existing fine GICP after fresh plane coverage; failed local proposal uses original coarse-to-fine solver. Cold search and acceptance gates unchanged.",
+  "changed_product_files": [
+    "src/world_localizing_tracking_registration.cpp"
+  ],
+  "baseline_core_sha256": "d7affa6658b7ac7bceced4dd9cbe414dafd8d06a94bc9e993125c84bf0d82153",
+  "identity": {
+    "world_localizing_confirmation.cpp": "7ed1108c56d2b615adf2f0a0f7f37cb86a09cb5539facba0ac93bd2434745756",
+    "replay_probe": "8d50b3b6899a5be587e541df9b71d284c0f1509ac7f55b6285eaa8c4e1dfb3c6",
+    "world_localizing_tracking_registration.cpp": "84c24fc2e4511aa6940474fa8c86b9eb0bebff9e3acbfd2ae0106ee130579c11",
+    "libn3mapping_core.so": "73e840d77fe896db9bf0263d379f45da8ce13519647f34c0e6f00aac908c9e88",
+    "replay_probe.cpp": "73cebf902cc10974cb1fd8937fc1d07aebae31c98eafff8044479bce7333b787",
+    "cpus": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "threads": 4,
+    "build_type": "Release",
+    "compiler_launcher": "ccache",
+    "role": "candidate"
+  },
+  "noetic": {
+    "libn3mapping_core.so": "81e6a01630b9b41f6ecd007a04c00242f6e4ddccf85ee2972ec1bead13d1f5ed",
+    "cpus": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "threads": 4,
+    "image": "n3mapping-noetic-rc4:20261027",
+    "network": "none"
+  },
+  "tests": {
+    "humble_passed": 69,
+    "noetic_passed": 67
+  },
+  "four_core_environment": {
+    "cpus": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "omp_threads": 4,
+    "omp_wait_policy": "PASSIVE",
+    "openblas_threads": 1
+  },
+  "comparisons": {
+    "fixed14": {
+      "cases": 14,
+      "frames": 4144,
+      "changed_behavior_frames": 0,
+      "additional_outputs": 0,
+      "missing_outputs": 0,
+      "maximum_translation_delta_m": 0.00018425906184805151
+    },
+    "routes": {
+      "cases": 2,
+      "frames": 5902,
+      "changed_behavior_frames": 0,
+      "additional_outputs": 0,
+      "missing_outputs": 0,
+      "maximum_translation_delta_m": 0.0019520454513381868
+    },
+    "right_rate1": {
+      "cases": 1,
+      "frames": 255,
+      "changed_behavior_frames": 0,
+      "additional_outputs": 0,
+      "missing_outputs": 0,
+      "maximum_translation_delta_m": 0.0001950572913094183
+    },
+    "right": {
+      "cases": 2,
+      "frames": 881,
+      "changed_behavior_frames": 0,
+      "additional_outputs": 0,
+      "missing_outputs": 0,
+      "maximum_translation_delta_m": 0.0001956321322156498
+    },
+    "doorway": {
+      "cases": 11,
+      "frames": 3967,
+      "changed_behavior_frames": 0,
+      "additional_outputs": 0,
+      "missing_outputs": 0,
+      "maximum_translation_delta_m": 0.0006363910801244181
+    },
+    "real": {
+      "cases": 36,
+      "frames": 864,
+      "changed_behavior_frames": 1,
+      "additional_outputs": 0,
+      "missing_outputs": 0,
+      "maximum_translation_delta_m": 0.0021788216692718715
+    }
+  },
+  "performance": [
+    {
+      "case": "fixed14",
+      "baseline_cpu_s": 158.03647039999998,
+      "candidate_cpu_s": 149.91213202400002,
+      "reduction_percent": 5.140799687209396
+    },
+    {
+      "case": "routes/reentry",
+      "baseline_cpu_s": 54.959254071000004,
+      "candidate_cpu_s": 51.904475439,
+      "reduction_percent": 5.558260721758767
+    },
+    {
+      "case": "routes/independent",
+      "baseline_cpu_s": 118.579933492,
+      "candidate_cpu_s": 112.639921268,
+      "reduction_percent": 5.0092895560619795
+    },
+    {
+      "case": "right/right_original",
+      "baseline_cpu_s": 6.178220687,
+      "candidate_cpu_s": 5.308962233,
+      "reduction_percent": 14.069721656739508
+    },
+    {
+      "case": "right/right_20261113",
+      "baseline_cpu_s": 3.585642811,
+      "candidate_cpu_s": 3.2672730490000004,
+      "reduction_percent": 8.87901497113176
+    },
+    {
+      "case": "right_rate1/right_20261113",
+      "baseline_cpu_s": 3.709118174,
+      "candidate_cpu_s": 3.3954594040000003,
+      "reduction_percent": 8.456424284312913
+    }
+  ],
+  "fixed14": {
+    "baseline": {
+      "cases": 14,
+      "frames": 4144,
+      "cpu_s": 158.03647039999998,
+      "alignments": 520,
+      "input_s": 413.000005005,
+      "maximum_position_error_m": 0.024809060892936476,
+      "maximum_rotation_error_deg": 0.08384096407414639,
+      "lock_frames": {
+        "01_west_corridor": [
+          4
+        ],
+        "02_east_corridor": [
+          4
+        ],
+        "03_south_corridor": [
+          4
+        ],
+        "04_north_corridor": [
+          4
+        ],
+        "05_southwest_office": [
+          4
+        ],
+        "06_south_meeting": [
+          4
+        ],
+        "07_south_pillars": [
+          4
+        ],
+        "08_west_shelves": [
+          4
+        ],
+        "09_east_shelves": [
+          4
+        ],
+        "10_northwest_meeting": [
+          4
+        ],
+        "11_northeast_pillars": [
+          4
+        ],
+        "12_north_office": [
+          4
+        ],
+        "13_south_door": [
+          4
+        ],
+        "14_north_door": [
+          4
+        ]
+      }
+    },
+    "candidate": {
+      "cases": 14,
+      "frames": 4144,
+      "cpu_s": 149.91213202400002,
+      "alignments": 520,
+      "input_s": 413.000005005,
+      "maximum_position_error_m": 0.024808461521165392,
+      "maximum_rotation_error_deg": 0.08384446581915594,
+      "lock_frames": {
+        "01_west_corridor": [
+          4
+        ],
+        "02_east_corridor": [
+          4
+        ],
+        "03_south_corridor": [
+          4
+        ],
+        "04_north_corridor": [
+          4
+        ],
+        "05_southwest_office": [
+          4
+        ],
+        "06_south_meeting": [
+          4
+        ],
+        "07_south_pillars": [
+          4
+        ],
+        "08_west_shelves": [
+          4
+        ],
+        "09_east_shelves": [
+          4
+        ],
+        "10_northwest_meeting": [
+          4
+        ],
+        "11_northeast_pillars": [
+          4
+        ],
+        "12_north_office": [
+          4
+        ],
+        "13_south_door": [
+          4
+        ],
+        "14_north_door": [
+          4
+        ]
+      }
+    }
+  },
+  "routes": [
+    {
+      "name": "reentry",
+      "variant": "baseline",
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "cpu_s": 54.959254071000004,
+      "peak_rss_mib": 1199.72265625,
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/regression/routes/reentry/baseline/frames.csv",
+        "probe_status": {
+          "input_frames": 2236,
+          "successful_frames": 2232,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 2232,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.003890094929335396,
+        "first_output_rotation_error_deg": 0.013850834494898398,
+        "position_error_m": {
+          "rmse": 0.009709132793355776,
+          "median": 0.006979514603630671,
+          "p95": 0.015455702583472323,
+          "maximum": 0.07936771243843452
+        },
+        "rotation_error_deg": {
+          "rmse": 0.02375546417040149,
+          "median": 0.01502892686623648,
+          "p95": 0.045788827359471394,
+          "maximum": 0.14198324735233558
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    {
+      "name": "reentry",
+      "variant": "candidate",
+      "frames": 2236,
+      "outputs": 2232,
+      "locks": [
+        4
+      ],
+      "cpu_s": 51.904475439,
+      "peak_rss_mib": 1193.04296875,
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/reentry_20261019/query",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/regression/routes/reentry/candidate/frames.csv",
+        "probe_status": {
+          "input_frames": 2236,
+          "successful_frames": 2232,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 2232,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.003890094929335393,
+        "first_output_rotation_error_deg": 0.013850834494898396,
+        "position_error_m": {
+          "rmse": 0.009715046968543755,
+          "median": 0.006988176246772668,
+          "p95": 0.015368001088842231,
+          "maximum": 0.07944252610037059
+        },
+        "rotation_error_deg": {
+          "rmse": 0.023799439201557637,
+          "median": 0.014993710419775427,
+          "p95": 0.04579098365022364,
+          "maximum": 0.14197002718284368
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    {
+      "name": "independent",
+      "variant": "baseline",
+      "frames": 3666,
+      "outputs": 3662,
+      "locks": [
+        4,
+        1938
+      ],
+      "cpu_s": 118.579933492,
+      "peak_rss_mib": 1225.859375,
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/regression/routes/independent/baseline/frames.csv",
+        "probe_status": {
+          "input_frames": 3666,
+          "successful_frames": 3603,
+          "published_without_backend_success": 59
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 3662,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.0017836637670882146,
+        "first_output_rotation_error_deg": 0.012414035550643727,
+        "position_error_m": {
+          "rmse": 0.00852416884273183,
+          "median": 0.00662903452546987,
+          "p95": 0.015433337229173076,
+          "maximum": 0.03246851633697082
+        },
+        "rotation_error_deg": {
+          "rmse": 0.0351390605859334,
+          "median": 0.01625048474290458,
+          "p95": 0.057390929315867076,
+          "maximum": 0.2641706757292131
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    {
+      "name": "independent",
+      "variant": "candidate",
+      "frames": 3666,
+      "outputs": 3662,
+      "locks": [
+        4,
+        1938
+      ],
+      "cpu_s": 112.639921268,
+      "peak_rss_mib": 1224.359375,
+      "truth": {
+        "mapping": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261018/coverage_v2",
+        "query": "/home/user/ros_ws/to_migrate_ws/src/n3mapping/map/sprobo_20261021/independent_v2",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/regression/routes/independent/candidate/frames.csv",
+        "probe_status": {
+          "input_frames": 3666,
+          "successful_frames": 3603,
+          "published_without_backend_success": 59
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 7299995002,
+          "translation": [
+            -43.981804569062675,
+            0.013493989897703453,
+            0.6566722602620779
+          ],
+          "quaternion_xyzw": [
+            1.2163132549912854e-05,
+            -0.00045452323389096505,
+            0.00015331460290557127,
+            -0.9999998848776538
+          ]
+        },
+        "evaluated_poses": 3662,
+        "first_output_sim_s": 0.799989997,
+        "first_output_position_error_m": 0.0017836637670882198,
+        "first_output_rotation_error_deg": 0.012414035550643738,
+        "position_error_m": {
+          "rmse": 0.008528370809612182,
+          "median": 0.006626465770645563,
+          "p95": 0.015443350660223282,
+          "maximum": 0.03246676415405576
+        },
+        "rotation_error_deg": {
+          "rmse": 0.03516015667963941,
+          "median": 0.016245949369711635,
+          "p95": 0.05729468879383213,
+          "maximum": 0.2641253057713811
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    }
+  ],
+  "right_rate1": [
+    {
+      "name": "right_20261113",
+      "variant": "baseline",
+      "core_sha256": "d7affa6658b7ac7bceced4dd9cbe414dafd8d06a94bc9e993125c84bf0d82153",
+      "probe_sha256": "8d50b3b6899a5be587e541df9b71d284c0f1509ac7f55b6285eaa8c4e1dfb3c6",
+      "command": [
+        "taskset",
+        "-c",
+        "0,2,4,6",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/baseline/replay_probe",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/doorway/map/n3map.pbstream",
+        "",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/search_geometry_20261113/right_20261113/inputs/door_upper_right_verified_query/frames.csv",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/regression/right_rate1/right_20261113/baseline/frames.csv",
+        "1.0",
+        "0"
+      ],
+      "manifest_sha256": "98ef686c280384d6c78eb5ef300aaf70fe36f7cfe9821eaf3f678b11169101c7",
+      "frames": 255,
+      "outputs": 251,
+      "locks": [
+        4
+      ],
+      "cpu_s": 3.709118174,
+      "wall_s": 25.403374769,
+      "input_s": 25.399994995,
+      "equivalent_cores": 0.14602830334140385,
+      "alignments": 48,
+      "peak_rss_mib": 605.91015625,
+      "first_wall_s": 0.685891957,
+      "first_cpu_s": 1.4709312639999998,
+      "rate": 1.0,
+      "processing_average_cores": 0.14600887510923452,
+      "sampled_peak_cores_100ms": 3.492124517083066,
+      "sampled_cores_note": "100 ms sampled average, not an instantaneous peak; includes map loading",
+      "truth": {
+        "mapping": "/home/user/ros_ws/etc_host_20261024/runs/humble_large_mapping_20261025_03",
+        "query": "/home/user/ros_ws/to_migrate_ws/runs/upstream_20261113_door_upper_right_verified_query",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/regression/right_rate1/right_20261113/baseline/frames.csv",
+        "probe_status": {
+          "input_frames": 255,
+          "successful_frames": 251,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 1799989997,
+          "translation": [
+            8.982194940809483,
+            -34.384343674377554,
+            0.2189742736522992
+          ],
+          "quaternion_xyzw": [
+            -0.0006234217060588876,
+            0.004297519491542627,
+            -0.038574791540030705,
+            -0.999246280017714
+          ]
+        },
+        "evaluated_poses": 251,
+        "first_output_sim_s": 2.799995002,
+        "first_output_position_error_m": 0.051193945254092085,
+        "first_output_rotation_error_deg": 0.147106059027563,
+        "position_error_m": {
+          "rmse": 0.06258803264967926,
+          "median": 0.06205781234705933,
+          "p95": 0.06848637330361004,
+          "maximum": 0.06987985298370325
+        },
+        "rotation_error_deg": {
+          "rmse": 0.09458190934403933,
+          "median": 0.08571658707453463,
+          "p95": 0.13266682635478835,
+          "maximum": 0.1720790076509218
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    },
+    {
+      "name": "right_20261113",
+      "variant": "candidate",
+      "core_sha256": "73e840d77fe896db9bf0263d379f45da8ce13519647f34c0e6f00aac908c9e88",
+      "probe_sha256": "8d50b3b6899a5be587e541df9b71d284c0f1509ac7f55b6285eaa8c4e1dfb3c6",
+      "command": [
+        "taskset",
+        "-c",
+        "0,2,4,6",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/candidate/replay_probe",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/doorway/map/n3map.pbstream",
+        "",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/search_geometry_20261113/right_20261113/inputs/door_upper_right_verified_query/frames.csv",
+        "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/regression/right_rate1/right_20261113/candidate/frames.csv",
+        "1.0",
+        "0"
+      ],
+      "manifest_sha256": "98ef686c280384d6c78eb5ef300aaf70fe36f7cfe9821eaf3f678b11169101c7",
+      "frames": 255,
+      "outputs": 251,
+      "locks": [
+        4
+      ],
+      "cpu_s": 3.3954594040000003,
+      "wall_s": 25.402720333,
+      "input_s": 25.399994995,
+      "equivalent_cores": 0.13367953043567127,
+      "alignments": 48,
+      "peak_rss_mib": 605.61328125,
+      "first_wall_s": 0.65823808,
+      "first_cpu_s": 1.4863732579999998,
+      "rate": 1.0,
+      "processing_average_cores": 0.13366518858962712,
+      "sampled_peak_cores_100ms": 3.5919397228989984,
+      "sampled_cores_note": "100 ms sampled average, not an instantaneous peak; includes map loading",
+      "truth": {
+        "mapping": "/home/user/ros_ws/etc_host_20261024/runs/humble_large_mapping_20261025_03",
+        "query": "/home/user/ros_ws/to_migrate_ws/runs/upstream_20261113_door_upper_right_verified_query",
+        "topic": "/n3mapping/odometry",
+        "probe_csv": "/home/user/ros_ws/to_migrate_ws/build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified/regression/right_rate1/right_20261113/candidate/frames.csv",
+        "probe_status": {
+          "input_frames": 255,
+          "successful_frames": 251,
+          "published_without_backend_success": 0
+        },
+        "alignment": {
+          "source": "first mapping pose on /n3mapping/odometry only; no query fitting",
+          "stamp_ns": 1799989997,
+          "translation": [
+            8.982194940809483,
+            -34.384343674377554,
+            0.2189742736522992
+          ],
+          "quaternion_xyzw": [
+            -0.0006234217060588876,
+            0.004297519491542627,
+            -0.038574791540030705,
+            -0.999246280017714
+          ]
+        },
+        "evaluated_poses": 251,
+        "first_output_sim_s": 2.799995002,
+        "first_output_position_error_m": 0.051193945254092085,
+        "first_output_rotation_error_deg": 0.147106059027563,
+        "position_error_m": {
+          "rmse": 0.06258811730182362,
+          "median": 0.062082832122267825,
+          "p95": 0.06853525318943733,
+          "maximum": 0.06994400685763559
+        },
+        "rotation_error_deg": {
+          "rmse": 0.09469023706792248,
+          "median": 0.08518240678121028,
+          "p95": 0.13413127869808733,
+          "maximum": 0.17211146285857137
+        },
+        "limitation": "Simulation truth and ideal sensors; includes mapping/frontend errors; no hardware or CPU qualification"
+      }
+    }
+  ],
+  "real": {
+    "baseline": {
+      "windows": 36,
+      "frames": 864,
+      "locked_windows": 33,
+      "cpu_s": 594.787102872,
+      "peak_rss_mib": 1567.1171875
+    },
+    "candidate": {
+      "windows": 36,
+      "frames": 864,
+      "locked_windows": 33,
+      "cpu_s": 592.6640292419999,
+      "peak_rss_mib": 1567.078125
+    }
+  },
+  "real_metadata_change": {
+    "changed_frame": 6,
+    "metadata_only": [
+      "support",
+      "matched"
+    ],
+    "variants": {
+      "baseline": {
+        "predicted_translation": [
+          48.36162971065849,
+          4.4271323148364905,
+          0.39050908184423566
+        ],
+        "nearest_anchors": [
+          {
+            "id": 58,
+            "distance_m": 0.5007315752488217
+          },
+          {
+            "id": 57,
+            "distance_m": 0.5008491371657658
+          },
+          {
+            "id": 59,
+            "distance_m": 1.5027139181012579
+          }
+        ],
+        "reported_matched": 58
+      },
+      "candidate": {
+        "predicted_translation": [
+          48.36156440714644,
+          4.427308998118921,
+          0.39050830087634975
+        ],
+        "nearest_anchors": [
+          {
+            "id": 57,
+            "distance_m": 0.5006705769831281
+          },
+          {
+            "id": 58,
+            "distance_m": 0.5009120060756046
+          },
+          {
+            "id": 59,
+            "distance_m": 1.5028951560276615
+          }
+        ],
+        "reported_matched": 57
+      }
+    },
+    "prediction_shift_m": 0.00018836703768852932
+  },
+  "wrong_map": {
+    "cases_per_variant": 12,
+    "frames_per_variant": 288,
+    "outputs": 0
+  },
+  "rejected_prototypes": 8,
+  "primary_sources": [
+    "https://github.com/gaoxiang12/faster-lio/blob/main/src/laser_mapping.cc#L599",
+    "https://github.com/gaoxiang12/faster-lio/blob/main/include/ivox3d/ivox3d.h",
+    "https://github.com/gaoxiang12/lightning-lm/blob/master/src/core/localization/lidar_loc/lidar_loc.cc",
+    "https://github.com/gaoxiang12/lightning-lm/blob/master/src/core/maps/tiled_map.cc#L276"
+  ],
+  "raw_evidence": "build/upstream_review_20261109/n3m_cross_scene/faster_lightning_20261114/verified",
+  "remaining": [
+    "Difficult-search half-core target",
+    "Lower short-window CPU peaks",
+    "Production ROS/DDS and embedded-hardware qualification",
+    "M2DGR absolute time/reference calibration"
+  ]
+}

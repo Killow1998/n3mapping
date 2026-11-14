@@ -22,26 +22,6 @@ struct TimeStamp {
   int64_t nsec = 0;
 };
 
-struct ImuSample {
-  TimeStamp stamp;
-  Eigen::Vector3d linear_accel = Eigen::Vector3d::Zero();
-  Eigen::Vector3d angular_velocity = Eigen::Vector3d::Zero();
-  Eigen::Quaterniond orientation = Eigen::Quaterniond::Identity();
-  bool has_orientation = false;
-};
-
-struct RawLidarFrame {
-  using PointCloud = pcl::PointCloud<pcl::PointXYZI>;
-
-  TimeStamp stamp_begin;
-  TimeStamp stamp_end;
-  std::string frame_id;
-  std::string source_format = "pointcloud2";
-  std::vector<uint32_t> point_time_offsets_ns;
-  std::vector<uint8_t> point_lines;
-  PointCloud::Ptr points;
-};
-
 struct LioFrame {
   using PointCloud = pcl::PointCloud<pcl::PointXYZI>;
 

@@ -135,18 +135,21 @@ Pass your configuration to the selected launch file:
 
 ```bash
 # Humble
-ros2 launch n3mapping mapping.launch.py config_file:=/path/to/n3mapping.yaml
+ros2 launch n3mapping mapping.launch.py
 
 # Noetic
-roslaunch n3mapping mapping.launch config_file:=/path/to/n3mapping.yaml
+roslaunch n3mapping mapping.launch
 ```
 
 Replace `mapping` with `localization` or `map_extension` to change the startup
-mode. Add `rviz:=false` for headless operation. The launch files default to
+mode. Edit `config/<mode>.yaml` for mode-specific paths; shared tuning remains
+in `config/n3mapping.yaml`. Noetic product localization selects its verified bundle
+in `config/launch_noetic.yaml`. Visualization is configured in
+`config/launch_noetic.yaml` or `config/launch_humble.yaml`; launch accepts no arguments.
+The launch files default to
 `OMP_WAIT_POLICY=PASSIVE` unless it is already set in the environment.
 
-Empty map paths fall back to the source-tree `map/` directory. Set explicit
-paths for installed deployments. See the [field guide](field_testing_zh.md)
+Set explicit map or product-bundle paths for installed deployments. See the [field guide](field_testing_zh.md)
 for versioned release installation and test capture.
 
 ## Prepare an Atlas for localization
@@ -194,7 +197,7 @@ versions or use explicit Atlas paths to retain frozen artifacts.
 
 Humble launch files use a 64 MiB Fast DDS SHM profile with normal UDP interfaces
 when `FASTRTPS_DEFAULT_PROFILES_FILE` is unset. Existing profiles are preserved;
-`dds_profile:=/path/to/profile.xml` overrides the path. See [DDS and container setup](logging.md#humble-and-fast-dds-shared-memory)
+`dds_profile` in `config/launch_humble.yaml` selects the default profile. See [DDS and container setup](logging.md#humble-and-fast-dds-shared-memory)
 for the supplied single-host profile and container capacity.
 
 See [development and tests](development.md) for build profiles, E2E checks and

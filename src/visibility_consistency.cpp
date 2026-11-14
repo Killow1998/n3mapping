@@ -100,11 +100,21 @@ void insertPoint(const Eigen::Vector3d &point,
 PreparedVisibilityObservation prepareVisibilityObservation(
     const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
     const VisibilityConsistencyOptions &options) {
+  return prepareVisibilityObservation(query_cloud, options,
+                                      options.range_tolerance_m);
+}
+
+PreparedVisibilityObservation prepareVisibilityObservation(
+    const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
+    const VisibilityConsistencyOptions &options,
+    double angular_sampling_spacing_m) {
   PreparedVisibilityObservation result;
   result.options = options;
   if (query_cloud.empty() ||
       options.range_max_m <= options.range_min_m ||
-      options.range_tolerance_m <= 0.0) {
+      options.range_tolerance_m <= 0.0 ||
+      !std::isfinite(angular_sampling_spacing_m) ||
+      angular_sampling_spacing_m <= 0.0) {
     return result;
   }
 
@@ -125,7 +135,7 @@ PreparedVisibilityObservation prepareVisibilityObservation(
   std::sort(query_ranges.begin(), query_ranges.end());
   const double median_query_range = sortedPercentile(query_ranges, 0.5);
   const double inferred_resolution_deg =
-      std::atan2(options.range_tolerance_m,
+      std::atan2(angular_sampling_spacing_m,
                  std::max(options.range_min_m, median_query_range)) *
       180.0 / M_PI;
   const double resolution_deg =
@@ -169,6 +179,9 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
   auto predicted = makeDepthImage(resolution_deg);
   const bool has_planar = !observed.planar_jacobians.empty();
   const bool has_surfaces = has_planar && !options.occlusion_aware;
+  if ((has_planar && observed.planar_jacobians.size() != observed.ranges.size()) ||
+      (has_surfaces && observed.planar_surfaces.size() != observed.ranges.size()))
+    return result;
   if (has_surfaces) predicted.nearest_points.resize(predicted.ranges.size());
   if (options.occlusion_aware) {
     predicted.match_ranges.assign(predicted.ranges.size(),
@@ -179,10 +192,39 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
       180.0, resolution_deg, predicted.azimuth_bins, true);
   const visibility_detail::AngularBinLookup elevation(
       90.0, resolution_deg, predicted.elevation_bins, false);
+  std::vector<double> interpolated(has_planar ? observed.ranges.size() : 0,
+                                  std::numeric_limits<double>::infinity());
+  std::vector<Eigen::Vector3d> interpolated_points(
+      has_surfaces ? observed.ranges.size() : 0);
   const auto project = [&](const pcl::PointXYZI &point) {
     if (!pcl::isFinite(point)) return;
-    insertPoint(T_lidar_map * Eigen::Vector3d(point.x, point.y, point.z),
-                options, &predicted,
+    const Eigen::Vector3d p =
+        T_lidar_map * Eigen::Vector3d(point.x, point.y, point.z);
+    if (has_planar) {
+      const double range = p.norm();
+      if (std::isfinite(range) && range >= options.range_min_m &&
+          range <= options.range_max_m) {
+        const double u = (std::atan2(p.y(), p.x()) * 180.0 / M_PI + 180.0) /
+                             resolution_deg - 0.5;
+        const double v =
+            (std::atan2(p.z(), std::hypot(p.x(), p.y())) * 180.0 / M_PI + 90.0) /
+                resolution_deg - 0.5;
+        for (int da : {0, 1}) {
+          for (int de : {0, 1}) {
+            const int a = (static_cast<int>(std::floor(u)) + da +
+                           predicted.azimuth_bins) % predicted.azimuth_bins;
+            const int e = static_cast<int>(std::floor(v)) + de;
+            if (e < 0 || e >= predicted.elevation_bins) continue;
+            const std::size_t index = e * predicted.azimuth_bins + a;
+            if (range < interpolated[index]) {
+              interpolated[index] = range;
+              if (has_surfaces) interpolated_points[index] = p;
+            }
+          }
+        }
+      }
+    }
+    insertPoint(p, options, &predicted,
                 options.occlusion_aware ? &observed.ranges : nullptr,
                 &azimuth, &elevation);
   };
@@ -195,8 +237,19 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     for (const auto &point : map_cloud) project(point);
   }
 
+  // As in PCL RangeImage z-buffer interpolation: direct samples take
+  // precedence, and empty neighboring pixels keep only the nearest proposal.
+  if (has_planar) {
+    for (std::size_t i = 0; i < predicted.ranges.size(); ++i) {
+      if (!std::isfinite(predicted.ranges[i]) && std::isfinite(interpolated[i])) {
+        predicted.ranges[i] = interpolated[i];
+        if (has_surfaces) predicted.nearest_points[i] = interpolated_points[i];
+      }
+    }
+  }
   std::vector<double> residuals;
   Eigen::Matrix3d planar_support = Eigen::Matrix3d::Zero();
+  Eigen::Matrix3d planar_known = Eigen::Matrix3d::Zero();
   residuals.reserve(observed.ranges.size());
   for (std::size_t i = 0; i < observed.ranges.size(); ++i) {
     const bool has_observation = std::isfinite(observed.ranges[i]);
@@ -226,9 +279,11 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const bool surface_consistent = has_surfaces &&
         std::abs(observed.planar_surfaces[i].head<3>().dot(predicted.nearest_points[i]) +
                  observed.planar_surfaces[i][3]) <= options.range_tolerance_m;
-    if (has_planar && (range_consistent || surface_consistent)) {
+    if (has_planar) {
       const auto &j = observed.planar_jacobians[i];
-      planar_support.noalias() += j * j.transpose();
+      planar_known.noalias() += j * j.transpose();
+      if (range_consistent || surface_consistent)
+        planar_support.noalias() += j * j.transpose();
     }
     if (signed_error < -options.range_tolerance_m)
       ++result.foreground_conflict_bins;
@@ -264,6 +319,23 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(planar_support);
     if (solver.info() == Eigen::Success)
       result.planar_min_support = std::clamp(solver.eigenvalues()[0], 0.0, 1.0);
+    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> known(planar_known);
+    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> conflict(
+        planar_known - planar_support);
+    if (conflict.info() == Eigen::Success)
+      result.planar_max_conflict =
+          std::clamp(conflict.eigenvalues()[2], 0.0, 1.0);
+    if (known.info() == Eigen::Success) {
+      result.planar_min_known = std::clamp(known.eigenvalues()[0], 0.0, 1.0);
+      if (known.eigenvalues()[0] >
+          3.0 * std::numeric_limits<double>::epsilon() * known.eigenvalues()[2]) {
+        const Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::Matrix3d> conditional(
+            planar_support, planar_known, Eigen::EigenvaluesOnly);
+        if (conditional.info() == Eigen::Success)
+          result.planar_min_support_given_known =
+              std::clamp(conditional.eigenvalues()[0], 0.0, 1.0);
+      }
+    }
   }
   result.angular_resolution_deg = resolution_deg;
   result.observed_coverage =

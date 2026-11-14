@@ -356,7 +356,11 @@ install(DIRECTORY include/
 install(DIRECTORY ${N3MAPPING_ROOT}/config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+install(PROGRAMS scripts/yaml_arguments.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 install(FILES
+  launch/development_runtime.launch
   launch/localization.launch
   launch/map_extension.launch
   launch/mapping.launch
