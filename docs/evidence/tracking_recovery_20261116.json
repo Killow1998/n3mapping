@@ -1,0 +1,204 @@
+{
+  "date": "2026-11-16",
+  "issue": "https://github.com/Killow1998/n3mapping/issues/13",
+  "base_commit": "b7b19e48a255ee845787c633b4314f6dbfeb1d83",
+  "candidate": "validated source repair; isolated pre-commit builds, not deployed",
+  "source_digest_sha256": "c9c29cd9d43da7de83178d5beab4ddd6dd47386768e20eb7dddbf2e5745519ff",
+  "humble_core_sha256": "31717c374e5dc24b101291c686d45005fb03b34c746fa36d0be52907af8e7c70",
+  "noetic_core_sha256": "7a4b514cd24feeb55ef7abe4f444970657f83180e983c2770021397e9eb95295",
+  "policy": {
+    "unchanged_gicp_fitness_threshold": 0.3,
+    "unchanged_field_coverage_gate": 0.7,
+    "positive_visibility_requires_tight_scalar_plane_support": true,
+    "plane_support_uses_existing_gicp_num_neighbors": true,
+    "solver_residuals_unchanged": true,
+    "new_runtime_parameters": 0
+  },
+  "field_replay": {
+    "frames": 278,
+    "runs_per_variant": 3,
+    "baseline_decisions": {
+      "temporal_window_pending": 68,
+      "accepted": 17,
+      "tracking_geometric": 38,
+      "icp_gate_failed": 155
+    },
+    "candidate_decisions": {
+      "temporal_window_pending": 4,
+      "accepted": 1,
+      "tracking_geometric": 273
+    },
+    "baseline_locks": 17,
+    "candidate_locks": 1,
+    "baseline_outputs": 274,
+    "candidate_outputs": 274,
+    "performance_medians": {
+      "baseline": {
+        "process_cpu_s_after_loading": 41.606397625999996,
+        "equivalent_cores_after_loading": 1.5020555054439706,
+        "processing_wall_s": 13.468040872,
+        "first_lock_wall_s": 0.628083334,
+        "peak_rss_mib": 139.31640625,
+        "load_wall_s": 0.0639929,
+        "load_cpu_s": 0.0643785
+      },
+      "candidate": {
+        "process_cpu_s_after_loading": 10.951344567999998,
+        "equivalent_cores_after_loading": 0.3953605296051621,
+        "processing_wall_s": 3.511784783,
+        "first_lock_wall_s": 0.623205992,
+        "peak_rss_mib": 128.53515625,
+        "load_wall_s": 0.0643822,
+        "load_cpu_s": 0.0647472
+      }
+    },
+    "cpu_reduction_fraction": 0.7367870040938977,
+    "performance_scope": "Four x86_64 cores, three alternating A/B runs; process CPU after loading includes probe I/O, excludes ROS transport. This is not an embedded-board or difficult-search CPU qualification."
+  },
+  "native_noetic": {
+    "topic_counts": {
+      "/localization/status": 567,
+      "/n3mapping/relocalization_status": 272,
+      "/n3mapping/relocalization_lock": 1,
+      "/n3mapping/odometry": 266
+    },
+    "geometric_decisions": {
+      "temporal_window_pending": 4,
+      "accepted": 1,
+      "tracking_geometric": 267
+    },
+    "lock_epochs": [
+      1
+    ],
+    "states": {
+      "error": 35,
+      "tracking": 532
+    },
+    "post_lock_states": {
+      "tracking": 532,
+      "error": 1
+    },
+    "post_lock_error_cause": "one input_cloud_timeout after replay finished; no geometric rejection while input continued"
+  },
+  "regression": {
+    "humble_ctest": [
+      69,
+      69
+    ],
+    "noetic_ctest": [
+      67,
+      67
+    ],
+    "fixed14": {
+      "positions": 14,
+      "frames": 4144,
+      "maximum_position_error_m": 0.024808461521165392,
+      "changed_behavior_frames": 0,
+      "maximum_output_translation_delta_m": 3.552713678800501e-15
+    },
+    "routes": [
+      {
+        "name": "reentry",
+        "frames": 2236,
+        "baseline_outputs": 2232,
+        "candidate_outputs": 2232,
+        "baseline_lock_frames": [
+          4
+        ],
+        "candidate_lock_frames": [
+          4
+        ],
+        "baseline_position_error_m": {
+          "rmse": 0.009715046968543833,
+          "median": 0.006988176246772872,
+          "p95": 0.015368001088840318,
+          "maximum": 0.07944252610037059
+        },
+        "candidate_position_error_m": {
+          "rmse": 0.009715046968543868,
+          "median": 0.006988176246772636,
+          "p95": 0.015368001088843508,
+          "maximum": 0.07944252610037059
+        },
+        "baseline_rotation_error_deg": {
+          "rmse": 0.023799439201556836,
+          "median": 0.014993710419775402,
+          "p95": 0.04579098365022372,
+          "maximum": 0.14197002718284407
+        },
+        "candidate_rotation_error_deg": {
+          "rmse": 0.02379943920155757,
+          "median": 0.014993710419775399,
+          "p95": 0.04579098365022358,
+          "maximum": 0.1419700271828244
+        },
+        "changed_behavior_frames": 0,
+        "maximum_output_translation_delta_m": 7.110421606038186e-14
+      },
+      {
+        "name": "independent",
+        "frames": 3666,
+        "baseline_outputs": 3662,
+        "candidate_outputs": 3662,
+        "baseline_lock_frames": [
+          4,
+          1938
+        ],
+        "candidate_lock_frames": [
+          4,
+          1938
+        ],
+        "baseline_position_error_m": {
+          "rmse": 0.008528370809611678,
+          "median": 0.006626465770645563,
+          "p95": 0.015443350660223282,
+          "maximum": 0.032466764154047215
+        },
+        "candidate_position_error_m": {
+          "rmse": 0.008255301664985566,
+          "median": 0.006602350551592093,
+          "p95": 0.01439389559681703,
+          "maximum": 0.03135878475387064
+        },
+        "baseline_rotation_error_deg": {
+          "rmse": 0.03516015667964092,
+          "median": 0.016245949369711556,
+          "p95": 0.057294688793832094,
+          "maximum": 0.26412530577140014
+        },
+        "candidate_rotation_error_deg": {
+          "rmse": 0.034989812546016436,
+          "median": 0.016199600954179695,
+          "p95": 0.05631887476019805,
+          "maximum": 0.2641253057713938
+        },
+        "changed_behavior_frames": 40,
+        "maximum_output_translation_delta_m": 0.015107331367647038
+      }
+    ],
+    "cross_scene": {
+      "cases": 61,
+      "frames": 6000,
+      "categories": {
+        "negative": 12,
+        "doorway": 11,
+        "right": 2,
+        "real": 36
+      },
+      "changed_behavior_frames": 0,
+      "negative_locks": 0,
+      "maximum_translation_delta_m": 7.160726708066325e-15
+    },
+    "portable_regressions": [
+      "ChangedFurnitureKeepsTheEstablishedMapLock",
+      "PlanarTrackingSupportRequiresWallsAsWellAsFloor"
+    ],
+    "clang_tidy": "five changed translation units passed; lock implementation rechecked after unifying scalar evaluation"
+  },
+  "limitations": [
+    "Field replay has no independent ground truth; no field 10 cm claim",
+    "CPU is four-core x86_64 isolated core/probe; excludes loading and ROS transport, includes probe I/O, not Jetson/RK3588 qualification",
+    "Six real datasets represented by 36 frozen windows, not six complete route replays",
+    "Original 110 second / 8 minute cold-start observation is not reproduced by the already running frontend excerpt"
+  ]
+}

@@ -132,10 +132,12 @@ generation and reuse may retain partial constraints; only publishing a lock
 requires all three planar directions. A bare floor cannot establish a place even
 when the query contains nonplanar structure and the residual gates pass.
 
-Plane ICP reuses the selected registration matrix. GICP regularizes covariance
-along surfaces, so its matrix cannot establish this geometric rank. For a selected
-GICP result, the lock gate evaluates the already prepared plane geometry once at
-that pose, without another optimizer. This evaluation is counted in
+The lock gate evaluates the already prepared plane geometry once at the selected
+pose, without another optimizer. It uses the scalar normal projection and its
+Jacobian outer product. Neither GICP's regularized covariance nor componentwise
+normal weighting establishes this geometric rank: both can add tangential
+information to a tilted plane. Solver residuals and their quality thresholds
+remain unchanged. This evaluation is counted in
 `fixed_pose_ms` and included in `directional_check_ms`; those counters overlap.
 The initialization, confirmation and tracking-recovery paths retain the matrix
 that belongs to the selected pose. An unobservable match reports
@@ -406,6 +408,19 @@ evaluated using the selected registration target and metric before the existing
 quality and motion gates. Recovery keeps that target alive through evaluation.
 Initial global relocalization does not use this projection. Already deformed
 map artifacts require reconstruction from their source recordings.
+
+Tracking recovery separates correspondence coverage from first-return agreement.
+The existing narrow GICP coverage and pose-change bounds still apply. When a
+changed foreground leaves first-return agreement below the correspondence gate,
+positive visibility evidence additionally requires stable horizontal and yaw
+support from tight point-to-plane correspondences. Each planar direction needs
+at least `gicp_num_neighbors` effective observations; a floor alone cannot pass.
+If narrow optimization fails, the predicted pose may instead undergo the same
+fresh geometric verification with the original GICP metric. This does not carry
+an old successful status through missing or contradictory scans. Ordinary
+tracking and strict map-extension gates retain their existing behavior.
+The [changed-map tracking audit](evidence/tracking_recovery_20261116.json) records
+the field replay, portable geometry checks and four-core qualification.
 
 Mapping-loop retrieval stays with the serialized owner. Geometry verification
 and graph solving use an isolated snapshot; the owner commits only a matching

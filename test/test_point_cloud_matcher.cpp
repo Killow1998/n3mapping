@@ -6,12 +6,43 @@
 #include "n3mapping/point_cloud_matcher.h"
 #include "../src/point_cloud_target_view.h"
 #include "../src/point_cloud_sampling.h"
+#include "../src/registration_planar_geometry.h"
 #include "support/registration_fixture.h"
 
 namespace n3mapping {
 namespace test {
 
 using PointCloudMatcherTest = RegistrationFixture;
+
+TEST_F(PointCloudMatcherTest, PlanarTrackingSupportRequiresWallsAsWellAsFloor) {
+  config_.gicp_downsampling_resolution = 0.1;
+  PointCloudMatcher matcher(config_);
+  const auto floor = createPlaneCloud(3000, 8.0, 0.0);
+  for (double tilt : {0.0, 0.3, 0.7}) {
+    const auto rotation = createPose(0, 0, 0, tilt, -0.2 * tilt);
+    const auto cloud = transformCloud(floor, rotation);
+    const auto target = matcher.prepareTargetCloud(cloud);
+    const auto source = matcher.prepareSourceCloud(cloud);
+    const auto match = matcher.evaluatePreparedPlaneGeometry(
+        target, source, Eigen::Isometry3d::Identity(),
+        {small_gicp::RegistrationSetting::PLANE_ICP, 0.1, 0.1});
+    EXPECT_LT(
+        minimumPlanarRegistrationInformation(
+            match.information, rotation.rotation() * Eigen::Vector3d::UnitZ()),
+        config_.gicp_num_neighbors);
+  }
+  auto room = pcl::make_shared<Keyframe::PointCloudT>(*floor);
+  *room += *transformCloud(floor, createPose(0, 3, 0, M_PI_2));
+  *room += *transformCloud(floor, createPose(3, 0, 0, 0, M_PI_2));
+  const auto target = matcher.prepareTargetCloud(room);
+  const auto source = matcher.prepareSourceCloud(room);
+  const auto match = matcher.evaluatePreparedPlaneGeometry(
+      target, source, Eigen::Isometry3d::Identity(),
+      {small_gicp::RegistrationSetting::PLANE_ICP, 0.1, 0.1});
+  EXPECT_GE(minimumPlanarRegistrationInformation(match.information,
+                                                 Eigen::Vector3d::UnitZ()),
+            config_.gicp_num_neighbors);
+}
 
 TEST_F(PointCloudMatcherTest, ProposalSamplingKeepsObservedSurfacesAndIgnoresInputOrder) {
     small_gicp::PointCloud input;

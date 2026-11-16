@@ -1,5 +1,6 @@
 #include "n3mapping/relocalization_debug_logger.h"
 #include "n3mapping/world_localizing.h"
+#include "registration_planar_geometry.h"
 
 #include <algorithm>
 #include <chrono>
@@ -255,32 +256,31 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (!decision.temporal_window_pending && decision.accepted) {
     const auto started = std::chrono::steady_clock::now();
     prepare_query();
-    const auto target = target_provider_->getTarget(makeRelocTargetRequest(top1->last_match_id));
-    auto information = top1->last_registration_information;
-    if (top1->metric.type == small_gicp::RegistrationSetting::GICP) {
+    const auto target = target_provider_->getTarget(
+        makeRelocTargetRequest(top1->last_match_id));
+    const auto fixed_started = std::chrono::steady_clock::now();
+    const MatchMetric metric{small_gicp::RegistrationSetting::PLANE_ICP,
+                             config_.gicp_downsampling_resolution,
+                             top1->metric.max_correspondence_distance};
+    const auto information =
+        matcher_
+            .evaluatePreparedPlaneGeometry(*target.registration_target,
+                                           prepared_observation.registration,
+                                           top1->T_map_odom * odom_pose, metric)
+            .information;
+    cost.fixed_pose_ms += std::chrono::duration<double, std::milli>(
+                              std::chrono::steady_clock::now() - fixed_started)
+                              .count();
+    ++cost.fixed_pose_evaluations;
 
-      const auto fixed_started = std::chrono::steady_clock::now();
-      const MatchMetric metric{small_gicp::RegistrationSetting::PLANE_ICP,
-          config_.gicp_downsampling_resolution, top1->metric.max_correspondence_distance};
-      information = matcher_.evaluatePreparedPose(*target.registration_target,
-          prepared_observation.registration, top1->T_map_odom * odom_pose, metric).information;
-      cost.fixed_pose_ms += std::chrono::duration<double, std::milli>(
-          std::chrono::steady_clock::now() - fixed_started).count();
-      ++cost.fixed_pose_evaluations;
-    }
-
-    const Eigen::Vector3d up = (top1->T_map_odom * odom_pose).linear().transpose() *
-                              Eigen::Vector3d::UnitZ();
-    const Eigen::Vector3d horizontal = up.unitOrthogonal();
-    Eigen::Matrix<double, 6, 3> basis = Eigen::Matrix<double, 6, 3>::Zero();
-    basis.block<3, 1>(0, 0) = horizontal;
-    basis.block<3, 1>(0, 1) = up.cross(horizontal);
-    basis.block<3, 1>(3, 2) = up;
-    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> spectrum(
-        basis.transpose() * information * basis);
+    const Eigen::Vector3d up =
+        (top1->T_map_odom * odom_pose).linear().transpose() *
+        Eigen::Vector3d::UnitZ();
+    const double planar_information =
+        minimumPlanarRegistrationInformation(information, up);
     const double numerical_zero = 6.0 * std::numeric_limits<double>::epsilon() *
                                   information.cwiseAbs().maxCoeff();
-    if (spectrum.info() != Eigen::Success || spectrum.eigenvalues()[0] <= numerical_zero) {
+    if (!(planar_information > numerical_zero)) {
       decision.accepted = false;
       decision.reject_reason = "matched_planar_geometry_unobservable";
       rejected_current_geometry = true;

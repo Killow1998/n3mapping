@@ -15,8 +15,6 @@
 #include <json/json.h>
 
 #include "n3mapping/core/realtime_output.h"
-#include "n3mapping/localization_atlas.h"
-#include "n3mapping/point_cloud_matcher.h"
 #include "localization_scene.h"
 
 namespace n3mapping::test {
@@ -169,17 +167,6 @@ class LocalizationEpisode : public ::testing::Test {
       ASSERT_TRUE(output.accepted_keyframe);
     }
     ASSERT_TRUE(mapper.saveMap(path.string()));
-    compileAtlas(mapper, path);
-  }
-
-  void compileAtlas(N3MappingCore& mapper, const std::filesystem::path& path) {
-    if (!config_.reloc_atlas_enable) return;
-    PointCloudMatcher matcher(config_);
-    LocalizationAtlas atlas(config_, matcher);
-    LocalizationAtlasStats stats;
-    std::string error;
-    ASSERT_TRUE(atlas.compileAndSave(path.string(), mapper.getAllKeyframes(),
-        LocalizationAtlas::defaultAtlasPath(path.string()), false, &stats, &error)) << error;
   }
 
   void startOutput() {

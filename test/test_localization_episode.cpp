@@ -172,7 +172,6 @@ TEST_F(LocalizationEpisode, RepeatedPlacesStayUnpublishedAndFreshGeometryCanLock
     ASSERT_TRUE(mapper.processMappingFrame(makeFrame(
         90000000000LL, makePose(40.0, 0.0, 0.0), unique_cloud)).accepted_keyframe);
     ASSERT_TRUE(mapper.saveMap(repeated_path.string()));
-    compileAtlas(mapper, repeated_path);
   }
   ASSERT_TRUE(localizer_->loadMap(repeated_path.string()));
   startOutput();
@@ -206,7 +205,6 @@ TEST_F(LocalizationEpisode, RepeatedFloorsRemainIndependentDuringInitialSearch) 
           makeFrame((i + 1) * 30000000000LL, pose, cloud)).accepted_keyframe);
     }
     ASSERT_TRUE(mapper.saveMap(path.string()));
-    compileAtlas(mapper, path);
   }
   ASSERT_TRUE(localizer_->loadMap(path.string()));
   startOutput();
@@ -254,7 +252,6 @@ TEST_F(LocalizationEpisode, NewlyVisibleRegionGetsItsOwnConfirmationWithoutResta
           i == 2 ? complete : common)).accepted_keyframe);
     }
     ASSERT_TRUE(mapper.saveMap(path.string()));
-    compileAtlas(mapper, path);
   }
   localizer_ = std::make_unique<N3MappingCore>(
       config_, N3MappingCore::WorldCloudOutput::Disabled);
@@ -309,7 +306,6 @@ TEST_F(LocalizationEpisode, OppositeHeadingsInSymmetricGeometryRemainAmbiguous) 
     ASSERT_TRUE(mapper.processMappingFrame(makeFrame(
         1000000000LL, makePose(0.0, 0.0, 0.0), symmetric)).accepted_keyframe);
     ASSERT_TRUE(mapper.saveMap(path.string()));
-    compileAtlas(mapper, path);
   }
   ASSERT_TRUE(localizer_->loadMap(path.string()));
   startOutput();
@@ -336,7 +332,6 @@ TEST_F(LocalizationEpisode, UnchangedSeedsCannotStrandSearchInOldPoseModes) {
     ASSERT_TRUE(mapper.processMappingFrame(makeFrame(60000000000LL, makePose(20, 0, 0), repeated)).accepted_keyframe);
     ASSERT_TRUE(mapper.processMappingFrame(makeFrame(90000000000LL, makePose(140, 0, 0), distinct)).accepted_keyframe);
     ASSERT_TRUE(mapper.saveMap(path.string()));
-    compileAtlas(mapper, path);
   }
   localizer_ = std::make_unique<N3MappingCore>(config_, N3MappingCore::WorldCloudOutput::Disabled);
   ASSERT_TRUE(localizer_->loadMap(path.string()));

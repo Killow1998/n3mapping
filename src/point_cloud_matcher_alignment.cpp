@@ -51,6 +51,37 @@ MatchTermination classifyMatchTermination(bool converged,
 
 namespace {
 
+struct PlaneGeometryFactor : small_gicp::PointToPlaneICPFactor {
+  using small_gicp::PointToPlaneICPFactor::PointToPlaneICPFactor;
+
+  template <typename Target, typename Source, typename Search,
+            typename Rejector>
+  bool linearize(const Target &target, const Source &source,
+                 const Search &search, const Eigen::Isometry3d &pose,
+                 std::size_t index, const Rejector &rejector,
+                 Eigen::Matrix<double, 6, 6> *H, Eigen::Matrix<double, 6, 1> *b,
+                 double *error) {
+    if (!small_gicp::PointToPlaneICPFactor::linearize(
+            target, source, search, pose, index, rejector, H, b, error))
+      return false;
+    const Eigen::Vector3d point =
+        small_gicp::traits::point(source, index).template head<3>();
+    const Eigen::Vector3d normal =
+        small_gicp::traits::normal(target, target_index).template head<3>();
+    const double residual = normal.dot(
+        small_gicp::traits::point(target, target_index).template head<3>() -
+        pose * point);
+    Eigen::Matrix<double, 1, 6> jacobian;
+    jacobian.head<3>() =
+        normal.transpose() * pose.linear() * small_gicp::skew(point);
+    jacobian.tail<3>() = -normal.transpose() * pose.linear();
+    *H = jacobian.transpose() * jacobian;
+    *b = jacobian.transpose() * residual;
+    *error = 0.5 * residual * residual;
+    return true;
+  }
+};
+
 void copyInformation(const Eigen::Matrix<double, 6, 6>& H, Eigen::Matrix<double, 6, 6>& information)
 {
     information.block<3,3>(0,0)=H.block<3,3>(3,3); information.block<3,3>(0,3)=H.block<3,3>(3,0);
@@ -160,44 +191,67 @@ MatchResult PointCloudMatcher::evaluatePreparedPose(
     const PreparedTarget& target, const PreparedSource& source,
     const Eigen::Isometry3d& pose,
     const MatchMetric& metric) const {
-    MatchResult result;
-    result.T_target_source = pose;
-    result.metric = metric;
-    result.information.setZero();
-    if (!isFiniteRigidPose(pose) ||
-        !std::isfinite(metric.max_correspondence_distance) ||
-        metric.max_correspondence_distance <= 0.0)
-        return result;
+  return evaluatePreparedPoseImpl(target, source, pose, metric, false);
+}
 
-    const PreparedTargetLevel* target_level = nullptr;
-    const SmallGicpCloud* source_cloud = nullptr;
-    const double resolution = metric.resolution;
-    if (metric.type == small_gicp::RegistrationSetting::GICP &&
-        target.has_refine_level && source.has_refine_cloud &&
-        std::abs(target.refine_level.resolution - resolution) <= 1e-9) {
-        target_level = &target.refine_level;
-        source_cloud = source.refine_cloud.get();
-    } else if (metric.type == small_gicp::RegistrationSetting::PLANE_ICP) {
-        for (const auto& level : target.plane_levels)
-            if (std::abs(level.resolution - resolution) <= 1e-9) target_level = &level;
-        for (const auto& level : source.plane_levels)
-            if (std::abs(level.resolution - resolution) <= 1e-9) source_cloud = level.cloud.get();
-    }
-    if (!target_level || !target_level->ready() ||
-        !source_cloud || target_level->size() < 10 || source_cloud->size() < 10)
-        return result;
+MatchResult PointCloudMatcher::evaluatePreparedPlaneGeometry(
+    const PreparedTarget &target, const PreparedSource &source,
+    const Eigen::Isometry3d &pose, const MatchMetric &metric) const {
+  return evaluatePreparedPoseImpl(target, source, pose, metric, true);
+}
 
-    if (metric.type == small_gicp::RegistrationSetting::PLANE_ICP) {
-        evaluateFixedPoseFactors<small_gicp::PointToPlaneICPFactor>(
-            *target_level, *source_cloud, pose, metric, config_.num_threads, &result);
-    } else if (metric.type == small_gicp::RegistrationSetting::GICP) {
-        evaluateFixedPoseFactors<small_gicp::GICPFactor>(
-            *target_level, *source_cloud, pose, metric, config_.num_threads, &result);
-    }
-    result.success = result.termination == MatchTermination::FixedPoseEvaluation &&
-                     result.fitness_score < config_.gicp_fitness_threshold &&
-                     result.inlier_ratio >= config_.reloc_min_inlier_ratio;
+MatchResult PointCloudMatcher::evaluatePreparedPoseImpl(
+    const PreparedTarget &target, const PreparedSource &source,
+    const Eigen::Isometry3d &pose, const MatchMetric &metric,
+    bool plane_geometry) const {
+  MatchResult result;
+  result.T_target_source = pose;
+  result.metric = metric;
+  result.information.setZero();
+  if (!isFiniteRigidPose(pose) ||
+      !std::isfinite(metric.max_correspondence_distance) ||
+      metric.max_correspondence_distance <= 0.0)
     return result;
+
+  const PreparedTargetLevel *target_level = nullptr;
+  const SmallGicpCloud *source_cloud = nullptr;
+  const double resolution = metric.resolution;
+  if (metric.type == small_gicp::RegistrationSetting::GICP &&
+      target.has_refine_level && source.has_refine_cloud &&
+      std::abs(target.refine_level.resolution - resolution) <= 1e-9) {
+    target_level = &target.refine_level;
+    source_cloud = source.refine_cloud.get();
+  } else if (metric.type == small_gicp::RegistrationSetting::PLANE_ICP) {
+    for (const auto &level : target.plane_levels)
+      if (std::abs(level.resolution - resolution) <= 1e-9)
+        target_level = &level;
+    for (const auto &level : source.plane_levels)
+      if (std::abs(level.resolution - resolution) <= 1e-9)
+        source_cloud = level.cloud.get();
+  }
+  if (!target_level || !target_level->ready() || !source_cloud ||
+      target_level->size() < 10 || source_cloud->size() < 10)
+    return result;
+
+  if (metric.type == small_gicp::RegistrationSetting::PLANE_ICP) {
+    if (plane_geometry)
+      evaluateFixedPoseFactors<PlaneGeometryFactor>(
+          *target_level, *source_cloud, pose, metric, config_.num_threads,
+          &result);
+    else
+      evaluateFixedPoseFactors<small_gicp::PointToPlaneICPFactor>(
+          *target_level, *source_cloud, pose, metric, config_.num_threads,
+          &result);
+  } else if (metric.type == small_gicp::RegistrationSetting::GICP) {
+    evaluateFixedPoseFactors<small_gicp::GICPFactor>(
+        *target_level, *source_cloud, pose, metric, config_.num_threads,
+        &result);
+  }
+  result.success =
+      result.termination == MatchTermination::FixedPoseEvaluation &&
+      result.fitness_score < config_.gicp_fitness_threshold &&
+      result.inlier_ratio >= config_.reloc_min_inlier_ratio;
+  return result;
 }
 
 MatchResult PointCloudMatcher::alignPreparedReciprocal(

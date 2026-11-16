@@ -3,6 +3,7 @@
 #include "n3mapping/world_localizing.h"
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/visibility_consistency.h"
+#include "registration_planar_geometry.h"
 #include "tracking_pose_correction.h"
 #include "tracking_geometry.h"
 
@@ -102,10 +103,34 @@ MatchResult WorldLocalizing::registerTracking(
     debug_event.visibility_ms =
         (std::isfinite(debug_event.visibility_ms) ? debug_event.visibility_ms : 0.0) +
         elapsed_ms(visibility_started);
-    const bool visible = visibility.valid &&
-        visibility.consistency_ratio >= config_.loop_min_inlier_ratio;
+    bool visible = visibility.valid && visibility.consistency_ratio >=
+                                           config_.loop_min_inlier_ratio;
+    if (!visible && visibility.valid && visibility.evidence_log_odds > 0.0) {
+      const auto geometry_started = timing_started();
+      const auto geometry = matcher_.evaluatePreparedPlaneGeometry(
+          localization_atlas_->preparedTarget(), prepared_source,
+          candidate.T_target_source,
+          {small_gicp::RegistrationSetting::PLANE_ICP,
+           config_.gicp_downsampling_resolution,
+           std::min(config_.gicp_downsampling_resolution,
+                    candidate.metric.max_correspondence_distance)});
+      const double planar_information = minimumPlanarRegistrationInformation(
+          geometry.information,
+          candidate.T_target_source.rotation().transpose() *
+              Eigen::Vector3d::UnitZ());
+      visible = hasValidRegistrationResult(geometry) &&
+                planar_information >= config_.gicp_num_neighbors;
+      debug_event.retry_registration_ms += elapsed_ms(geometry_started);
+      VLOG(1) << "Tracking recovery stable-geometry information="
+              << planar_information << " accepted=" << visible;
+    }
     VLOG(1) << "Tracking recovery first-return consistency="
-            << visibility.consistency_ratio << " accepted=" << visible;
+            << visibility.consistency_ratio
+            << " known_fraction=" << visibility.known_fraction
+            << " consistent_given_known=" << visibility.consistent_given_known
+            << " conflict_given_known="
+            << visibility.foreground_conflict_given_known
+            << " accepted=" << visible;
     return visible;
   };
 
@@ -209,6 +234,17 @@ MatchResult WorldLocalizing::registerTracking(
         auto checked = matcher_.alignPrepared(recovery_target, prepared_source,
                                                predicted_pose, narrow);
         debug_event.retry_registration_ms += elapsed_ms(started);
+        if (!hasValidRegistrationResult(checked) ||
+            checked.fitness_score >= config_.gicp_fitness_threshold ||
+            checked.inlier_ratio < config_.loop_min_inlier_ratio) {
+          const auto verification_started = timing_started();
+          checked = matcher_.evaluatePreparedPose(
+              recovery_target, prepared_source, predicted_pose,
+              {small_gicp::RegistrationSetting::GICP,
+               config_.icp_refine_downsampling_resolution,
+               narrow.max_correspondence_distance});
+          debug_event.retry_registration_ms += elapsed_ms(verification_started);
+        }
         const auto change = predicted_pose.inverse() * checked.T_target_source;
         if (change.translation().norm() <= narrow.max_correspondence_distance &&
             admit_recovery(checked)) recovery = std::move(checked);
